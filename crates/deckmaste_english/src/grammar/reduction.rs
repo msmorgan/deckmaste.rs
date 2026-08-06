@@ -34,17 +34,7 @@ pub(super) fn reduce(
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> Option<Reduction<Features>> {
     let features = match tag {
-        RuleTag::QuantityExact
-        | RuleTag::QuantityAtLeast
-        | RuleTag::QuantityOr
-        | RuleTag::QuantityX
-        | RuleTag::QuantityBoth
-        | RuleTag::QuantityUpTo
-        | RuleTag::QuantityThatMany
-        | RuleTag::QuantityThatMuch
-        | RuleTag::QuantityMoreThan
-        | RuleTag::QuantityFewerThan
-        | RuleTag::DeterminerClosed
+        RuleTag::DeterminerClosed
         | RuleTag::DeterminerTarget
         | RuleTag::DeterminerQuantifiedTarget
         | RuleTag::DeterminerQuantity
@@ -336,31 +326,6 @@ pub(super) fn reduce_quantity_or_determiner(
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> Option<Reduced> {
     match tag {
-        RuleTag::QuantityExact => {
-            let Features::Number { is_one } = children.first()?.features else {
-                return None;
-            };
-            Some(Features::Quantity(number_quantity_features(*is_one)))
-        }
-        RuleTag::QuantityAtLeast
-        | RuleTag::QuantityOr
-        | RuleTag::QuantityX
-        | RuleTag::QuantityBoth
-        | RuleTag::QuantityMoreThan
-        | RuleTag::QuantityFewerThan
-        | RuleTag::QuantityThatMany
-        | RuleTag::QuantityThatMuch => {
-            let Features::Quantity(features) = children.first()?.features else {
-                return None;
-            };
-            Some(Features::Quantity(*features))
-        }
-        RuleTag::QuantityUpTo => {
-            let Features::Number { is_one } = children.get(2)?.features else {
-                return None;
-            };
-            Some(Features::Quantity(number_quantity_features(*is_one)))
-        }
         RuleTag::DeterminerClosed => {
             let Features::Determiner {
                 cardinality,
@@ -440,22 +405,6 @@ pub(super) const fn arithmetic_value_features() -> Features {
         coordination: NounPhraseCoordinationState::None,
         recipient_passive_theme: false,
         rules_object_followup: false,
-    }
-}
-
-pub(super) const fn number_cardinality(is_one: bool) -> NounCardinality {
-    if is_one {
-        NounCardinality::SingularOrMass
-    } else {
-        NounCardinality::PluralOrMass
-    }
-}
-
-pub(super) const fn number_quantity_features(is_one: bool) -> QuantityFeatures {
-    QuantityFeatures {
-        cardinality: number_cardinality(is_one),
-        standalone_number: if is_one { Number::Singular } else { Number::Plural },
-        is_one,
     }
 }
 
@@ -2456,6 +2405,9 @@ fn generated_construction_features(
     construction: &deckmaste_construction_compiler::runtime::ConstructionData,
     fields: &[Option<&Features>],
 ) -> Option<Features> {
+    if construction.category == "Quantity" {
+        return generated_quantity_features(construction, fields);
+    }
     let feature = match construction.feature_combinators {
         [] => {
             let mut identities =
@@ -2534,6 +2486,71 @@ fn generated_construction_features(
         ),
         _ => None,
     }
+}
+
+fn generated_quantity_features(
+    construction: &deckmaste_construction_compiler::runtime::ConstructionData,
+    fields: &[Option<&Features>],
+) -> Option<Features> {
+    let number_is_one = |index: usize| {
+        matches!(
+            fields.get(index).copied().flatten(),
+            Some(Features::Number { is_one: true })
+        )
+    };
+    let (cardinality, standalone_number, is_one) = match construction.id {
+        "quantity_exact" => {
+            let one = number_is_one(0);
+            (
+                if one {
+                    NounCardinality::SingularOrMass
+                } else {
+                    NounCardinality::PluralOrMass
+                },
+                if one { Number::Singular } else { Number::Plural },
+                one,
+            )
+        }
+        "quantity_at_least" if fields.get(1).copied().flatten().is_some() => {
+            (NounCardinality::PluralOrMass, Number::Plural, false)
+        }
+        "quantity_at_least" | "quantity_that_many" => {
+            (NounCardinality::PluralCount, Number::Plural, false)
+        }
+        "quantity_or" => {
+            let singular = number_is_one(0) && number_is_one(1);
+            (
+                if singular {
+                    NounCardinality::SingularOrMass
+                } else {
+                    NounCardinality::PluralOrMass
+                },
+                if singular { Number::Singular } else { Number::Plural },
+                false,
+            )
+        }
+        "quantity_up_to" | "quantity_more_than" | "quantity_fewer_than" => {
+            let singular = number_is_one(0);
+            (
+                if singular {
+                    NounCardinality::SingularOrMass
+                } else {
+                    NounCardinality::PluralOrMass
+                },
+                if singular { Number::Singular } else { Number::Plural },
+                false,
+            )
+        }
+        "quantity_x" => (NounCardinality::PluralOrMass, Number::Singular, false),
+        "quantity_both" => (NounCardinality::PluralOrMass, Number::Plural, false),
+        "quantity_that_much" => (NounCardinality::Mass, Number::Singular, false),
+        _ => return None,
+    };
+    Some(Features::Quantity(QuantityFeatures {
+        cardinality,
+        standalone_number,
+        is_one,
+    }))
 }
 
 fn complete_noun_phrase_coordination_features(

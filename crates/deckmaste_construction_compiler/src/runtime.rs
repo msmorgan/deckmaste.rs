@@ -368,6 +368,10 @@ pub enum FieldKindData {
     Scalar {
         codec: &'static str,
     },
+    TypedScalar {
+        value_type: &'static str,
+        codec: &'static str,
+    },
     /// Surface-only scalar omitted from a bound semantic element and derived
     /// from sequence position during linearization.
     SurfaceScalar {

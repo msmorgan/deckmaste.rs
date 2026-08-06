@@ -36,10 +36,20 @@ fn every_reserved_literal_surface_is_a_known_word() {
 }
 
 #[test]
+fn generated_uppercase_glyph_literals_remain_known_words() {
+    let catalogs = fixture_catalogs();
+    let surface = crate::surface::lex("X");
+    let grammar = EnglishGrammar::new("X", &catalogs, Nonterminal::NounPhrase);
+    assert!(
+        grammar.has_known_word(&surface.tokens, 0),
+        "the generated variable glyph must retain QuantityX's opacity reservation"
+    );
+}
+
+#[test]
 fn measured_literal_opacity_opt_outs_are_explicit() {
     let opted_out = [
         (EnglishLexicalSlot::VerbParticle(VerbParticle::Out), "out"),
-        (EnglishLexicalSlot::QuantityBoth, "both"),
         (EnglishLexicalSlot::Half, "half"),
         (EnglishLexicalSlot::Rounded, "rounded"),
         (EnglishLexicalSlot::RatherThan, "rather"),

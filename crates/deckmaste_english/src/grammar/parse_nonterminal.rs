@@ -871,8 +871,13 @@ fn constituent_spans_cross(left: Span, right: Span) -> bool {
 #[cfg(test)]
 mod root_lowering_tests {
     use super::*;
+    use crate::Numeral;
     use crate::construction::ConstructionOwner;
+    use crate::features::NounCardinality;
+    use crate::features::Number;
+    use crate::syntax::ComparativeWord;
     use crate::syntax::IndependentClause;
+    use crate::syntax::QuantityValue;
 
     /// The pre-ticket algorithm: choose exactly one root by cost and stable
     /// node order, then let a lowering decline fail the whole parse.
@@ -937,6 +942,269 @@ mod root_lowering_tests {
                 decision.selected_production_ordinal(),
                 expected_ordinal,
                 "{source:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn quantity_root_reports_the_generated_scalar_construction() {
+        let parsed = parse_nonterminal("three", &fixture_catalogs(), Nonterminal::Quantity)
+            .expect("the generated scalar quantity parses");
+        assert!(matches!(
+            parsed.quantity(),
+            Some(Quantity::Exact(super::super::NumberLiteral {
+                value: 3,
+                ..
+            }))
+        ));
+        let decision = parsed
+            .construction_decisions()
+            .iter()
+            .find(|decision| decision.selected().as_str() == "quantity_exact")
+            .unwrap_or_else(|| panic!("no generated quantity decision: {parsed:#?}"));
+        assert_eq!(decision.owner(), ConstructionOwner::Generated);
+        assert_eq!(decision.selected_production_ordinal(), 0);
+    }
+
+    #[test]
+    fn generated_quantity_family_parses_every_shape_notation_and_comparative() {
+        let number = |value, numeral| super::super::NumberLiteral { value, numeral };
+        let literal = |number| QuantityValue::Literal(number);
+        let fixtures = [
+            (
+                "three",
+                Quantity::Exact(number(3, Numeral::Cardinal)),
+                "quantity_exact",
+                0,
+            ),
+            (
+                "third",
+                Quantity::Exact(number(3, Numeral::Ordinal)),
+                "quantity_exact",
+                0,
+            ),
+            (
+                "3",
+                Quantity::Exact(number(3, Numeral::Arabic(false))),
+                "quantity_exact",
+                0,
+            ),
+            (
+                "1,000",
+                Quantity::Exact(number(1_000, Numeral::Arabic(true))),
+                "quantity_exact",
+                0,
+            ),
+            (
+                "III",
+                Quantity::Exact(number(3, Numeral::Roman)),
+                "quantity_exact",
+                0,
+            ),
+            (
+                "at least two",
+                Quantity::AtLeast(literal(number(2, Numeral::Cardinal))),
+                "quantity_at_least",
+                0,
+            ),
+            (
+                "two or fewer",
+                Quantity::OrComparison(
+                    literal(number(2, Numeral::Cardinal)),
+                    ComparativeWord::Fewer,
+                ),
+                "quantity_at_least",
+                1,
+            ),
+            (
+                "2 or greater",
+                Quantity::OrComparison(
+                    literal(number(2, Numeral::Arabic(false))),
+                    ComparativeWord::Greater,
+                ),
+                "quantity_at_least",
+                1,
+            ),
+            (
+                "two or less",
+                Quantity::OrComparison(
+                    literal(number(2, Numeral::Cardinal)),
+                    ComparativeWord::Less,
+                ),
+                "quantity_at_least",
+                1,
+            ),
+            (
+                "2 or more",
+                Quantity::OrComparison(
+                    literal(number(2, Numeral::Arabic(false))),
+                    ComparativeWord::More,
+                ),
+                "quantity_at_least",
+                1,
+            ),
+            (
+                "one or 2",
+                Quantity::Or(
+                    number(1, Numeral::Cardinal),
+                    number(2, Numeral::Arabic(false)),
+                ),
+                "quantity_or",
+                0,
+            ),
+            ("X", Quantity::X, "quantity_x", 0),
+            ("both", Quantity::Both, "quantity_both", 0),
+            (
+                "up to X",
+                Quantity::UpTo(QuantityValue::Variable),
+                "quantity_up_to",
+                0,
+            ),
+            ("that many", Quantity::ThatMany, "quantity_that_many", 0),
+            ("that much", Quantity::ThatMuch, "quantity_that_much", 0),
+            (
+                "more than X",
+                Quantity::MoreThan(QuantityValue::Variable),
+                "quantity_more_than",
+                0,
+            ),
+            (
+                "fewer than two",
+                Quantity::FewerThan(literal(number(2, Numeral::Cardinal))),
+                "quantity_fewer_than",
+                0,
+            ),
+        ];
+        for (source, expected, id, ordinal) in fixtures {
+            let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Quantity)
+                .unwrap_or_else(|error| panic!("failed generated quantity {source:?}: {error:?}"));
+            assert_eq!(parsed.quantity(), Some(&expected), "{source:?}");
+            let decision = parsed
+                .construction_decisions()
+                .iter()
+                .find(|decision| decision.selected().as_str() == id)
+                .unwrap_or_else(|| panic!("missing {id} decision for {source:?}: {parsed:#?}"));
+            assert_eq!(decision.owner(), ConstructionOwner::Generated, "{source:?}");
+            assert_eq!(
+                decision.selected_production_ordinal(),
+                ordinal,
+                "{source:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn generated_quantity_features_preserve_cardinality_and_agreement() {
+        let fixtures = [
+            (
+                "one",
+                NounCardinality::SingularOrMass,
+                Number::Singular,
+                true,
+            ),
+            (
+                "up to one",
+                NounCardinality::SingularOrMass,
+                Number::Singular,
+                false,
+            ),
+            (
+                "more than one",
+                NounCardinality::SingularOrMass,
+                Number::Singular,
+                false,
+            ),
+            (
+                "fewer than one",
+                NounCardinality::SingularOrMass,
+                Number::Singular,
+                false,
+            ),
+            (
+                "one or one",
+                NounCardinality::SingularOrMass,
+                Number::Singular,
+                false,
+            ),
+            ("X", NounCardinality::PluralOrMass, Number::Singular, false),
+            (
+                "at least one",
+                NounCardinality::PluralCount,
+                Number::Plural,
+                false,
+            ),
+            (
+                "one or more",
+                NounCardinality::PluralOrMass,
+                Number::Plural,
+                false,
+            ),
+            ("both", NounCardinality::PluralOrMass, Number::Plural, false),
+            (
+                "that many",
+                NounCardinality::PluralCount,
+                Number::Plural,
+                false,
+            ),
+            ("that much", NounCardinality::Mass, Number::Singular, false),
+        ];
+        for (source, cardinality, standalone_number, is_one) in fixtures {
+            let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Quantity)
+                .unwrap_or_else(|error| {
+                    panic!("failed quantity feature fixture {source:?}: {error:?}")
+                });
+            assert_eq!(
+                parsed.quantity().map(|value| value.noun_cardinality()),
+                Some(cardinality)
+            );
+            assert!(
+                matches!(
+                    parsed.chart.forest.node(parsed.root).key.constituent_features(),
+                    Some(Features::Quantity(super::super::QuantityFeatures {
+                        cardinality: actual_cardinality,
+                        standalone_number: actual_number,
+                        is_one: actual_one,
+                    })) if *actual_cardinality == cardinality
+                        && *actual_number == standalone_number
+                        && *actual_one == is_one
+                ),
+                "wrong generated features for {source:?}: {parsed:#?}"
+            );
+        }
+
+        // Whole-NP parsing is not a sound negative oracle here: the still-
+        // handwritten nominal family can admit an independent attachment for
+        // strings such as `two creature`. Q01 owns the quantity feature
+        // boundary, so prove that the generated family itself never supplies
+        // the singular cardinality that would license those combinations.
+        for source in ["two", "at least one", "one or more", "both", "that many"] {
+            let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Quantity)
+                .unwrap_or_else(|error| {
+                    panic!("failed negative feature fixture {source:?}: {error:?}")
+                });
+            assert_ne!(
+                parsed.quantity().map(|value| value.noun_cardinality()),
+                Some(NounCardinality::SingularOrMass),
+                "generated quantity exposed singular agreement for {source:?}"
+            );
+        }
+        let mass = parse_nonterminal("that much", &fixture_catalogs(), Nonterminal::Quantity)
+            .expect("the generated mass quantity parses");
+        assert_ne!(
+            mass.quantity().map(|value| value.noun_cardinality()),
+            Some(NounCardinality::PluralCount),
+            "the generated mass quantity exposed plural-count agreement"
+        );
+    }
+
+    #[test]
+    fn generated_quantity_rejects_incomplete_and_literal_x_combinations() {
+        for source in [
+            "at least", "one or", "X or two", "up to", "1,00", "1, 000", "1,,000",
+        ] {
+            assert!(
+                parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Quantity).is_err(),
+                "invalid quantity parsed: {source:?}"
             );
         }
     }

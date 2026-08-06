@@ -104,6 +104,12 @@ pub enum FieldKind {
     Scalar {
         codec: Spanned<String>,
     },
+    /// A typed scalar whose stored Rust value differs from the language-local
+    /// surface codec that scans and linearizes it.
+    TypedScalar {
+        value_type: Spanned<String>,
+        codec: Spanned<String>,
+    },
     /// A scalar observed on the surface but omitted from the bound semantic
     /// element. Sequence linearization asks the visitor to derive it from the
     /// member index and sequence length.

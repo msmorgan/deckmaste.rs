@@ -49,6 +49,19 @@ pub struct AdaptedLexeme {
     identity: FixtureLexeme,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FixtureScalar(pub i32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FixtureNotation {
+    Decimal,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct AdaptedScalar {
+    scalar: FixtureScalar,
+}
+
 #[allow(
     clippy::unnecessary_wraps,
     reason = "adapted bind constructors use the compiler's checked Result interface"
@@ -82,6 +95,20 @@ fn make_adapted_lexeme(
 
 fn split_adapted_lexeme(value: &AdaptedLexeme) -> FixtureLexeme {
     value.identity.clone()
+}
+
+#[allow(
+    clippy::unnecessary_wraps,
+    reason = "adapted bind constructors use the compiler's checked Result interface"
+)]
+fn make_adapted_scalar(
+    scalar: FixtureScalar,
+) -> Result<AdaptedScalar, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+    Ok(AdaptedScalar { scalar })
+}
+
+fn split_adapted_scalar(value: &AdaptedScalar) -> FixtureScalar {
+    value.scalar
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -637,6 +664,13 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor for Recordin
                 self.events.push(format!("conjunction:{conjunction:?}"));
                 self.tokens.push(conjunction.spelling());
             }
+            "FixtureNotation" => {
+                let scalar = value
+                    .downcast_ref::<FixtureScalar>()
+                    .expect("typed scalar value survives its distinct codec");
+                self.events.push(format!("scalar:{}", scalar.0));
+                self.tokens.push("seven");
+            }
             other => panic!("unexpected codec {other}"),
         }
         Ok(())
@@ -677,10 +711,16 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor for Recordin
         path: &'static str,
         value: &T,
     ) -> Result<(), Self::Error> {
-        let comma = (value as &dyn std::any::Any)
-            .downcast_ref::<Option<Comma>>()
-            .expect("the stored witness keeps its optional Comma type");
-        self.events.push(format!("witness:{name}:{path}:{comma:?}"));
+        let value = value as &dyn std::any::Any;
+        if let Some(comma) = value.downcast_ref::<Option<Comma>>() {
+            self.events.push(format!("witness:{name}:{path}:{comma:?}"));
+        } else {
+            let scalar = value
+                .downcast_ref::<FixtureScalar>()
+                .expect("the stored witness keeps its typed scalar value");
+            self.events
+                .push(format!("witness:{name}:{path}:{}", scalar.0));
+        }
         Ok(())
     }
 }
@@ -784,6 +824,14 @@ deckmaste_constructions_macro::constructions! {
         }
         form only @ 0 = identity(identity);
     }
+
+    construction adapted_scalar: FixturePhrase {
+        bind AdaptedScalar via make_adapted_scalar, split_adapted_scalar {
+            scalar: lex FixtureScalar via FixtureNotation,
+        }
+        witness notation = stored scalar;
+        form only @ 0 = lex(scalar);
+    }
 }
 
 #[test]
@@ -854,6 +902,41 @@ fn identity_hole_retains_typed_value_through_metadata_build_parts_and_linearizat
     linearize_adapted_lexeme_with(&erased, &mut visitor).expect("identity linearizes");
     assert_eq!(visitor.rendered(), "omega");
     assert_eq!(visitor.events[1], "identity:Omega");
+}
+
+#[test]
+fn scalar_hole_retains_value_type_distinct_from_its_codec() {
+    use deckmaste_construction_compiler::runtime::AtomData;
+    use deckmaste_construction_compiler::runtime::FieldKindData;
+
+    let declaration = BIND_PROBE_DECLARATION
+        .constructions
+        .iter()
+        .find(|construction| construction.id == "adapted_scalar")
+        .expect("scalar construction is declared");
+    assert_eq!(
+        declaration.fields[0].kind,
+        FieldKindData::TypedScalar {
+            value_type: "FixtureScalar",
+            codec: "FixtureNotation",
+        }
+    );
+    assert_eq!(declaration.forms[0].atoms, &[AtomData::Lexeme("scalar")]);
+
+    let erased = declaration
+        .erased_builder
+        .expect("scalar construction exposes its generated builder")(vec![
+        Box::new(FixtureScalar(7)),
+    ])
+    .expect("typed scalar builds")
+    .downcast::<AdaptedScalar>()
+    .expect("build projection retains the bound type");
+    assert_eq!(parts_adapted_scalar(&erased), FixtureScalar(7));
+
+    let mut visitor = RecordingLinearizer::default();
+    linearize_adapted_scalar_with(&erased, &mut visitor).expect("scalar linearizes");
+    assert_eq!(visitor.rendered(), "seven");
+    assert_eq!(visitor.events[1], "scalar:7");
 }
 
 #[test]

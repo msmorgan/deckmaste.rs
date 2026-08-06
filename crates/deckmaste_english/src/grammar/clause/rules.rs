@@ -379,7 +379,7 @@ pub(in crate::grammar) fn add_rules(builder: &mut RuleBuilder) {
         [l(L::SubjectAuxiliary), n(N::CopularRemainder)],
     );
     // A variable's value constraint under a modal (`X can't be 0`): four
-    // literal-token slots (no `Noun`, `Verb`, `Adjective`, or `NounPhrase`
+    // scalar slots (no `Noun`, `Verb`, `Adjective`, or `NounPhrase`
     // nonterminal anywhere in the production), one per numeral notation so
     // `X can't be 5`, `X can't be fifth`, `X can't be V`, etc. all reach the
     // same shape.
@@ -394,7 +394,7 @@ pub(in crate::grammar) fn add_rules(builder: &mut RuleBuilder) {
             RuleTag::ClauseVariableValueConstraint,
             N::Clause,
             [
-                l(L::QuantityX),
+                n(N::Quantity),
                 l(L::Auxiliary),
                 l(L::Auxiliary),
                 l(L::Number(notation)),

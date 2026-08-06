@@ -64,8 +64,8 @@ use super::ability;
 use super::adjective_comparison_state;
 use super::clause;
 use super::parse_support::EnglishForest;
-use super::quantity_value;
 use crate::forest::AlternativeSelection;
+use crate::syntax::ComparativeWord;
 use crate::word::Tense;
 
 pub(super) enum GeneratedValue {
@@ -106,6 +106,7 @@ impl GeneratedValue {
 #[derive(Debug)]
 pub(super) enum Lowered {
     Number(NumberLiteral),
+    ComparativeWord(ComparativeWord),
     Quantity(Quantity),
     Determiner(Determiner),
     Adjective(Adjective),
@@ -331,6 +332,11 @@ fn lower_generated_construction(
     if children.next().is_some() {
         return None;
     }
+    for (field, value) in construction.fields.iter().zip(&mut fields) {
+        if value.is_none() && matches!(field.kind, FieldKindData::Optional { .. }) {
+            *value = erased_absent(field.kind);
+        }
+    }
     let fields = fields.into_iter().collect::<Option<Vec<_>>>()?;
     let value = construction.erased_builder?(fields).ok()?;
     let value = match construction.erased_projector {
@@ -369,6 +375,10 @@ fn project_generated_category(
     if construction.category == "Noun" {
         let value = value.downcast::<NounInstance>().ok()?;
         return Some(Lowered::Noun(*value));
+    }
+    if construction.category == "Quantity" {
+        let value = value.downcast::<Quantity>().ok()?;
+        return Some(Lowered::Quantity(*value));
     }
     if construction.category == "Sentence" {
         let value = value.downcast::<Sentence>().ok()?;
@@ -440,10 +450,38 @@ fn erased_field(
         K::Scalar { codec: "Comma" } | K::SurfaceScalar { codec: "Comma" } => {
             Some(Box::new(crate::features::Comma::Present))
         }
-        K::Optional { inner } => erased_optional(*inner, &value),
-        K::Identity { .. } | K::Scalar { .. } | K::SurfaceScalar { .. } | K::Sequence { .. } => {
-            None
+        K::TypedScalar {
+            value_type: "NumberLiteral",
+            codec: "Numeral",
+        } => {
+            let Lowered::Number(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
         }
+        K::TypedScalar {
+            value_type: "QuantityValue",
+            codec: "Numeral",
+        } => {
+            let Lowered::Number(value) = value else {
+                return None;
+            };
+            Some(Box::new(super::quantity_value(value)))
+        }
+        K::Scalar {
+            codec: "ComparativeWord",
+        } => {
+            let Lowered::ComparativeWord(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Optional { inner } => erased_optional(*inner, &value),
+        K::Identity { .. }
+        | K::Scalar { .. }
+        | K::TypedScalar { .. }
+        | K::SurfaceScalar { .. }
+        | K::Sequence { .. } => None,
     }
 }
 
@@ -459,6 +497,7 @@ fn erased_absent(
         K::Identity { .. }
         | K::Subtree { .. }
         | K::Scalar { .. }
+        | K::TypedScalar { .. }
         | K::SurfaceScalar { .. }
         | K::Sequence { .. } => None,
     }
@@ -545,6 +584,14 @@ fn erased_optional(
             Some(Box::new(Some(*value)))
         }
         K::Scalar { codec: "Comma" } => Some(Box::new(Some(crate::features::Comma::Present))),
+        K::Scalar {
+            codec: "ComparativeWord",
+        } => {
+            let Lowered::ComparativeWord(value) = value else {
+                return None;
+            };
+            Some(Box::new(Some(*value)))
+        }
         _ => None,
     }
 }
@@ -558,6 +605,9 @@ fn erased_optional_absent(
             codec: "Conjunction" | "NounPhraseConjunction",
         } => Some(Box::new(None::<crate::features::Conjunction>)),
         K::Scalar { codec: "Comma" } => Some(Box::new(None::<crate::features::Comma>)),
+        K::Scalar {
+            codec: "ComparativeWord",
+        } => Some(Box::new(None::<crate::syntax::ComparativeWord>)),
         _ => None,
     }
 }
@@ -592,9 +642,11 @@ pub(super) fn lower_lexical(
     surface: EnglishSurfaceWitness,
 ) -> Option<Lowered> {
     Some(match meaning {
-        MeaningKey::Literal(_) | MeaningKey::Punctuation(_) => Lowered::Ignored,
+        MeaningKey::Literal(_) | MeaningKey::GeneratedLiteral(_) | MeaningKey::Punctuation(_) => {
+            Lowered::Ignored
+        }
         MeaningKey::Number(number) => Lowered::Number(*number),
-        MeaningKey::Quantity(quantity) => Lowered::Quantity(*quantity),
+        MeaningKey::ComparativeWord(word) => Lowered::ComparativeWord(*word),
         MeaningKey::Determiner(determiner) => Lowered::Determiner(determiner.clone()),
         MeaningKey::Noun(noun) => Lowered::Noun(noun.clone()),
         MeaningKey::Adjective(adjective) => Lowered::Adjective(adjective.clone()),
@@ -672,17 +724,7 @@ pub(super) fn lower_lexical(
 )]
 pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
-        RuleTag::QuantityExact
-        | RuleTag::QuantityAtLeast
-        | RuleTag::QuantityOr
-        | RuleTag::QuantityX
-        | RuleTag::QuantityBoth
-        | RuleTag::QuantityUpTo
-        | RuleTag::QuantityThatMany
-        | RuleTag::QuantityThatMuch
-        | RuleTag::QuantityMoreThan
-        | RuleTag::QuantityFewerThan
-        | RuleTag::DeterminerClosed
+        RuleTag::DeterminerClosed
         | RuleTag::DeterminerTarget
         | RuleTag::DeterminerQuantifiedTarget
         | RuleTag::DeterminerQuantity
@@ -940,31 +982,6 @@ pub(super) fn lower_quantity_or_determiner(
     children: &mut [Lowered],
 ) -> Option<Lowered> {
     match tag {
-        RuleTag::QuantityExact => {
-            let Lowered::Number(number) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::Quantity(Quantity::Exact(number)))
-        }
-        RuleTag::QuantityAtLeast
-        | RuleTag::QuantityOr
-        | RuleTag::QuantityX
-        | RuleTag::QuantityBoth
-        | RuleTag::QuantityMoreThan
-        | RuleTag::QuantityFewerThan => {
-            let Lowered::Quantity(quantity) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::Quantity(quantity))
-        }
-        RuleTag::QuantityUpTo => {
-            let Lowered::Number(number) = take(children, 2)? else {
-                return None;
-            };
-            Some(Lowered::Quantity(Quantity::UpTo(quantity_value(number))))
-        }
-        RuleTag::QuantityThatMany => Some(Lowered::Quantity(Quantity::ThatMany)),
-        RuleTag::QuantityThatMuch => Some(Lowered::Quantity(Quantity::ThatMuch)),
         RuleTag::DeterminerClosed => take(children, 0),
         RuleTag::DeterminerTarget => Some(Lowered::Determiner(Determiner::Target(None))),
         RuleTag::DeterminerQuantifiedTarget => {

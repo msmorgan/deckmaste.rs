@@ -5,7 +5,6 @@ use super::Auxiliary;
 use super::AuxiliaryInflection;
 use super::AuxiliaryInstance;
 use super::BareNominalAdjunct;
-use super::BoundedQuantityKind;
 use super::CatalogSlot;
 use super::CatalogValue;
 use super::CoordinationDomain;
@@ -42,7 +41,6 @@ use super::Pronoun;
 use super::PronounCase;
 use super::PronounInstance;
 use super::Punctuation;
-use super::Quantity;
 use super::RuleTag;
 use super::SUBJECT_AUXILIARY_FORMS;
 use super::SUBJECT_AUXILIARY_SURFACES;
@@ -59,9 +57,7 @@ use super::VerbSlot;
 use super::Vocab;
 use super::Vocabulary;
 use super::WordMatch;
-use super::comparative_word;
 use super::parse_notation;
-use super::quantity_value;
 use super::surface_initial_sound;
 
 impl EnglishGrammar<'_, '_> {
@@ -246,6 +242,20 @@ impl EnglishGrammar<'_, '_> {
                             slot.reserves_literal_for_opacity(index)
                                 && self.one_token_match(tokens, start, literal).is_some()
                         })
+                })
+            || crate::constructions::GROUPS
+                .iter()
+                .flat_map(|group| group.constructions)
+                .flat_map(|construction| construction.forms)
+                .flat_map(|form| form.atoms)
+                .any(|atom| {
+                    let deckmaste_construction_compiler::runtime::AtomData::Literal(literal) = atom
+                    else {
+                        return false;
+                    };
+                    literal.len() == 1
+                        && literal.as_bytes()[0].is_ascii_uppercase()
+                        && self.one_token_match(tokens, start, literal).is_some()
                 })
             || !self
                 .catalog_matches(tokens, start, CatalogSlot::Noun(NounUsage::Either))
@@ -564,102 +574,6 @@ impl EnglishGrammar<'_, '_> {
         }]
     }
 
-    pub(super) fn scan_at_least_quantity(
-        &self,
-        tokens: &[Token],
-        start: usize,
-    ) -> Vec<LexicalMatch<Features, MeaningKey>> {
-        // `at least N` floors the count; `N or <word>` bounds it with a
-        // comparative word (`more`/`greater` above, `fewer`/`less` at or
-        // below). The word is resolved from vocabulary comparison metadata —
-        // no comparative spelling is matched here.
-        let (surface, number_position, end, comparative) =
-            if let Some(number_start) = self.words_match(tokens, start, &["at", "least"]) {
-                let Some(surface) = self.token_text(tokens, number_start) else {
-                    return Vec::new();
-                };
-                (surface, number_start, number_start + 1, None)
-            } else {
-                let Some(surface) = self.token_text(tokens, start) else {
-                    return Vec::new();
-                };
-                let Some(after_or) = self.one_token_match(tokens, start + 1, "or") else {
-                    return Vec::new();
-                };
-                let Some(word_surface) = self.token_text(tokens, after_or) else {
-                    return Vec::new();
-                };
-                let Some(word) = comparative_word(word_surface) else {
-                    return Vec::new();
-                };
-                (surface, start, after_or + 1, Some(word))
-            };
-        let sentence_initial = Self::is_sentence_initial(tokens, number_position);
-        [
-            Numeral::Cardinal,
-            Numeral::Ordinal,
-            Numeral::Arabic(false),
-            Numeral::Arabic(true),
-            Numeral::Roman,
-        ]
-        .into_iter()
-        .filter_map(|notation| {
-            parse_notation(notation, surface, sentence_initial).map(|value| {
-                let number = NumberLiteral {
-                    value,
-                    numeral: notation,
-                };
-                quantity_match(
-                    end,
-                    match comparative {
-                        Some(word) => Quantity::OrComparison(quantity_value(number), word),
-                        None => Quantity::AtLeast(quantity_value(number)),
-                    },
-                )
-            })
-        })
-        .collect()
-    }
-
-    pub(super) fn scan_bounded_quantity(
-        &self,
-        tokens: &[Token],
-        start: usize,
-        kind: BoundedQuantityKind,
-    ) -> Vec<LexicalMatch<Features, MeaningKey>> {
-        let slot = EnglishLexicalSlot::QuantityBound(kind);
-        let Some(number_start) = self.literal_words_match(tokens, start, slot) else {
-            return Vec::new();
-        };
-        let Some(surface) = self.token_text(tokens, number_start) else {
-            return Vec::new();
-        };
-        let end = number_start + 1;
-        let sentence_initial = Self::is_sentence_initial(tokens, number_start);
-        [
-            Numeral::Cardinal,
-            Numeral::Ordinal,
-            Numeral::Arabic(false),
-            Numeral::Arabic(true),
-            Numeral::Roman,
-        ]
-        .into_iter()
-        .filter_map(|notation| {
-            parse_notation(notation, surface, sentence_initial).map(|value| {
-                let number = NumberLiteral {
-                    value,
-                    numeral: notation,
-                };
-                let quantity = match kind {
-                    BoundedQuantityKind::MoreThan => Quantity::MoreThan(quantity_value(number)),
-                    BoundedQuantityKind::FewerThan => Quantity::FewerThan(quantity_value(number)),
-                };
-                quantity_match(end, quantity)
-            })
-        })
-        .collect()
-    }
-
     /// Scans a quoted ability (`"…"`) as one lexical unit. Matches only when a
     /// double quote opens at `start` and a later double quote closes it with a
     /// non-empty interior; the match spans both delimiters and carries the
@@ -760,65 +674,6 @@ impl EnglishGrammar<'_, '_> {
             })
         })
         .collect()
-    }
-
-    pub(super) fn scan_or_quantity(
-        &self,
-        tokens: &[Token],
-        start: usize,
-    ) -> Vec<LexicalMatch<Features, MeaningKey>> {
-        let Some(first_surface) = self.token_text(tokens, start) else {
-            return Vec::new();
-        };
-        let Some(second_start) = self.one_token_match(tokens, start + 1, "or") else {
-            return Vec::new();
-        };
-        let Some(second_surface) = self.token_text(tokens, second_start) else {
-            return Vec::new();
-        };
-        let end = second_start + 1;
-        let notations = [
-            Numeral::Cardinal,
-            Numeral::Ordinal,
-            Numeral::Arabic(false),
-            Numeral::Arabic(true),
-            Numeral::Roman,
-        ];
-        let first_sentence_initial = Self::is_sentence_initial(tokens, start);
-        let second_sentence_initial = Self::is_sentence_initial(tokens, second_start);
-        let mut matches = Vec::new();
-        for first_notation in notations {
-            let Some(first_value) =
-                parse_notation(first_notation, first_surface, first_sentence_initial)
-            else {
-                continue;
-            };
-            for second_notation in notations {
-                let Some(second_value) =
-                    parse_notation(second_notation, second_surface, second_sentence_initial)
-                else {
-                    continue;
-                };
-                let mut candidate = quantity_match(
-                    end,
-                    Quantity::Or(
-                        NumberLiteral {
-                            value: first_value,
-                            numeral: first_notation,
-                        },
-                        NumberLiteral {
-                            value: second_value,
-                            numeral: second_notation,
-                        },
-                    ),
-                );
-                if first_notation == Numeral::Ordinal || second_notation == Numeral::Ordinal {
-                    candidate.local_cost.reading_dispreference += 1;
-                }
-                matches.push(candidate);
-            }
-        }
-        matches
     }
 
     pub(super) fn scan_preposition(
@@ -1047,15 +902,6 @@ fn noun_coordination_domain(noun: &NounInstance) -> Option<CoordinationDomain> {
         Noun::Word(_) | Noun::Agentive(_) | Noun::Gerund(_) | Noun::Die(_) | Noun::Opaque(_) => {
             None
         }
-    }
-}
-
-pub(super) fn quantity_match(end: usize, quantity: Quantity) -> LexicalMatch<Features, MeaningKey> {
-    LexicalMatch {
-        end,
-        features: Features::Quantity(quantity.features()),
-        meaning: MeaningKey::Quantity(quantity),
-        local_cost: ParseCost::default(),
     }
 }
 

@@ -578,6 +578,7 @@ fn collect_sequence_references<'a>(
         FieldKind::Identity { .. }
         | FieldKind::Subtree { .. }
         | FieldKind::Scalar { .. }
+        | FieldKind::TypedScalar { .. }
         | FieldKind::SurfaceScalar { .. } => {}
     }
 }
@@ -1203,9 +1204,13 @@ fn check_surface_kinds(
 /// `in_predicate_kind_problem`, EC015's own predicate, below.
 fn resolved_is_scalar(resolved: &Resolved<'_>) -> bool {
     match resolved {
-        Resolved::Kind(FieldKind::Scalar { .. }) | Resolved::Variant => true,
+        Resolved::Kind(FieldKind::Scalar { .. } | FieldKind::TypedScalar { .. })
+        | Resolved::Variant => true,
         Resolved::Kind(FieldKind::Optional { inner }) => {
-            matches!(**inner, FieldKind::Scalar { .. })
+            matches!(
+                **inner,
+                FieldKind::Scalar { .. } | FieldKind::TypedScalar { .. }
+            )
         }
         Resolved::Kind(
             FieldKind::Identity { .. }
@@ -1237,10 +1242,14 @@ fn resolved_is_scalar(resolved: &Resolved<'_>) -> bool {
 /// Returns the diagnostic text to render after the backtick-quoted path
 /// (`None` means "no problem").
 fn in_predicate_kind_problem(resolved: &Resolved<'_>) -> Option<&'static str> {
-    let codec = match resolved {
-        Resolved::Kind(FieldKind::Scalar { codec }) => codec,
+    let value_type = match resolved {
+        Resolved::Kind(
+            FieldKind::Scalar { codec: value_type } | FieldKind::TypedScalar { value_type, .. },
+        ) => value_type,
         Resolved::Kind(FieldKind::Optional { inner }) => match &**inner {
-            FieldKind::Scalar { codec } => codec,
+            FieldKind::Scalar { codec: value_type } | FieldKind::TypedScalar { value_type, .. } => {
+                value_type
+            }
             FieldKind::Optional { .. }
             | FieldKind::Identity { .. }
             | FieldKind::Subtree { .. }
@@ -1264,7 +1273,7 @@ fn in_predicate_kind_problem(resolved: &Resolved<'_>) -> Option<&'static str> {
         }
         Resolved::Variant => return None,
     };
-    if codec.value.contains('<') {
+    if value_type.value.contains('<') {
         Some("has a generic codec; generic codecs are not supported in `in [...]` predicates")
     } else {
         None
@@ -1473,7 +1482,8 @@ fn path_is_optional_scalar(
 ) -> bool {
     matches!(
         resolve_path(group, construction, path),
-        Ok(Resolved::Kind(FieldKind::Optional { inner })) if matches!(**inner, FieldKind::Scalar { .. })
+        Ok(Resolved::Kind(FieldKind::Optional { inner }))
+            if matches!(**inner, FieldKind::Scalar { .. } | FieldKind::TypedScalar { .. })
     )
 }
 
@@ -1861,7 +1871,10 @@ fn check_strata(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
 
 fn codec_site(id: &str, kind: &FieldKind, diags: &mut Vec<Diagnostic>) {
     let codec = match kind {
-        FieldKind::Scalar { codec } | FieldKind::SurfaceScalar { codec } => codec,
+        FieldKind::Scalar { codec: value_type } | FieldKind::TypedScalar { value_type, .. } => {
+            value_type
+        }
+        FieldKind::SurfaceScalar { codec } => codec,
         FieldKind::Optional { inner } => return codec_site(id, inner, diags),
         FieldKind::Identity { .. } | FieldKind::Subtree { .. } | FieldKind::Sequence { .. } => {
             return;
@@ -1884,7 +1897,10 @@ fn codec_site(id: &str, kind: &FieldKind, diags: &mut Vec<Diagnostic>) {
 
 fn element_codec_site(kind: &FieldKind, diags: &mut Vec<Diagnostic>) {
     let codec = match kind {
-        FieldKind::Scalar { codec } | FieldKind::SurfaceScalar { codec } => codec,
+        FieldKind::Scalar { codec: value_type } | FieldKind::TypedScalar { value_type, .. } => {
+            value_type
+        }
+        FieldKind::SurfaceScalar { codec } => codec,
         FieldKind::Optional { inner } => return element_codec_site(inner, diags),
         FieldKind::Identity { .. } | FieldKind::Subtree { .. } | FieldKind::Sequence { .. } => {
             return;

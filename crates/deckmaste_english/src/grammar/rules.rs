@@ -1,4 +1,3 @@
-use super::BoundedQuantityKind;
 use super::EnglishLexicalSlot;
 use super::Expected;
 use super::HashMap;
@@ -190,53 +189,6 @@ impl RuleBuilder {
         use Expected::Lexical as l;
         use Expected::Nonterminal as n;
         use Nonterminal as N;
-
-        for notation in [
-            Numeral::Cardinal,
-            Numeral::Ordinal,
-            Numeral::Arabic(false),
-            Numeral::Arabic(true),
-            Numeral::Roman,
-        ] {
-            self.add(
-                RuleTag::QuantityExact,
-                N::Quantity,
-                [l(L::Number(notation))],
-            );
-            self.add(
-                RuleTag::QuantityUpTo,
-                N::Quantity,
-                [l(L::Up), l(L::To), l(L::Number(notation))],
-            );
-        }
-        self.add(
-            RuleTag::QuantityAtLeast,
-            N::Quantity,
-            [l(L::QuantityAtLeast)],
-        );
-        self.add(RuleTag::QuantityOr, N::Quantity, [l(L::QuantityOr)]);
-        self.add(RuleTag::QuantityX, N::Quantity, [l(L::QuantityX)]);
-        self.add(RuleTag::QuantityBoth, N::Quantity, [l(L::QuantityBoth)]);
-        self.add(
-            RuleTag::QuantityThatMany,
-            N::Quantity,
-            [l(L::QuantityThatMany)],
-        );
-        self.add(
-            RuleTag::QuantityThatMuch,
-            N::Quantity,
-            [l(L::QuantityThatMuch)],
-        );
-        self.add(
-            RuleTag::QuantityMoreThan,
-            N::Quantity,
-            [l(L::QuantityBound(BoundedQuantityKind::MoreThan))],
-        );
-        self.add(
-            RuleTag::QuantityFewerThan,
-            N::Quantity,
-            [l(L::QuantityBound(BoundedQuantityKind::FewerThan))],
-        );
 
         self.add(RuleTag::DeterminerClosed, N::Determiner, [l(L::Determiner)]);
         self.add(

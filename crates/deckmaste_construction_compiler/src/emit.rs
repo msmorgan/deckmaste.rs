@@ -199,6 +199,7 @@ fn enqueue_sequences<'g>(kind: &'g FieldKind, queue: &mut Vec<&'g str>) {
         FieldKind::Identity { .. }
         | FieldKind::Subtree { .. }
         | FieldKind::Scalar { .. }
+        | FieldKind::TypedScalar { .. }
         | FieldKind::SurfaceScalar { .. } => {}
     }
 }
@@ -1005,7 +1006,7 @@ fn visit_kind(
                     .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
             }
         }
-        FieldKind::Scalar { codec } => {
+        FieldKind::Scalar { codec } | FieldKind::TypedScalar { codec, .. } => {
             let codec = codec.value.as_str();
             quote! {
                 visitor
@@ -1228,7 +1229,11 @@ fn field_type(group: &GroupDeclaration, kind: &FieldKind) -> TokenStream {
                 quote! { #ty }
             }
         }
-        FieldKind::Scalar { codec } | FieldKind::SurfaceScalar { codec } => {
+        FieldKind::Scalar { codec: value_type } | FieldKind::TypedScalar { value_type, .. } => {
+            let ty = parse_type(&value_type.value);
+            quote! { #ty }
+        }
+        FieldKind::SurfaceScalar { codec } => {
             let ty = parse_type(&codec.value);
             quote! { #ty }
         }
@@ -1478,9 +1483,13 @@ fn codec_of(fields: &[FieldBinding], field_name: &str) -> TokenStream {
         .find(|b| b.field.value == field_name)
         .expect("validated: EC010 rejects a require path naming a nonexistent field");
     let codec = match &binding.kind {
-        FieldKind::Scalar { codec } => codec,
+        FieldKind::Scalar { codec: value_type } | FieldKind::TypedScalar { value_type, .. } => {
+            value_type
+        }
         FieldKind::Optional { inner } => match &**inner {
-            FieldKind::Scalar { codec } => codec,
+            FieldKind::Scalar { codec: value_type } | FieldKind::TypedScalar { value_type, .. } => {
+                value_type
+            }
             _ => unreachable!(
                 "validated: EC015 guarantees an In-predicate path resolves to a scalar kind"
             ),
@@ -1498,13 +1507,18 @@ fn codec_of(fields: &[FieldBinding], field_name: &str) -> TokenStream {
 }
 
 /// Whether an `In` predicate's target field (as `codec_of` locates it) is
-/// `Optional { Scalar }` — the case whose `matches!` gains a `None |` arm.
+/// `Optional { Scalar | TypedScalar }` — the case whose `matches!` gains a
+/// `None |` arm.
 fn is_optional_scalar(fields: &[FieldBinding], field_name: &str) -> bool {
     let binding = fields
         .iter()
         .find(|b| b.field.value == field_name)
         .expect("validated: EC010 rejects a require path naming a nonexistent field");
-    matches!(&binding.kind, FieldKind::Optional { inner } if matches!(**inner, FieldKind::Scalar { .. }))
+    matches!(
+        &binding.kind,
+        FieldKind::Optional { inner }
+            if matches!(**inner, FieldKind::Scalar { .. } | FieldKind::TypedScalar { .. })
+    )
 }
 
 fn parse_type(name: &str) -> TokenStream {
@@ -1878,6 +1892,11 @@ fn field_kind_row(kind: &FieldKind) -> TokenStream {
             let codec = codec.value.as_str();
             quote! { ::deckmaste_construction_compiler::runtime::FieldKindData::Scalar { codec: #codec } }
         }
+        FieldKind::TypedScalar { value_type, codec } => {
+            let value_type = value_type.value.as_str();
+            let codec = codec.value.as_str();
+            quote! { ::deckmaste_construction_compiler::runtime::FieldKindData::TypedScalar { value_type: #value_type, codec: #codec } }
+        }
         FieldKind::SurfaceScalar { codec } => {
             let codec = codec.value.as_str();
             quote! { ::deckmaste_construction_compiler::runtime::FieldKindData::SurfaceScalar { codec: #codec } }
@@ -1987,6 +2006,27 @@ mod tests {
         assert!(
             rendered.contains("conjunction in [And, Or]"),
             "human-readable requirement string"
+        );
+    }
+
+    #[test]
+    fn optional_typed_scalar_in_emits_an_optional_value_pattern() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group typed_optional;
+            construction typed: Phrase {
+                own Typed {
+                    value: opt lex SemanticValue via SurfaceCodec,
+                }
+                require value in [Variable];
+                form only @ 0 = lex(value);
+            }
+        })
+        .expect("typed optional scalar fixture parses");
+        let validated = validate(&group).expect("typed optional scalar fixture validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            rendered.contains("matches!(value, None | Some(SemanticValue::Variable))"),
+            "optional typed scalar uses its semantic value type inside Some: {rendered}"
         );
     }
 

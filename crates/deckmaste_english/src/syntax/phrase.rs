@@ -283,7 +283,7 @@ impl QuantityValue {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Quantity {
     Exact(NumberLiteral),
     AtLeast(QuantityValue),
@@ -298,6 +298,48 @@ pub enum Quantity {
     Both,
     ThatMany,
     ThatMuch,
+}
+
+impl serde::Serialize for Quantity {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStructVariant;
+
+        match self {
+            Self::Exact(number) => {
+                serializer.serialize_newtype_variant("Quantity", 0, "Exact", number)
+            }
+            Self::AtLeast(value) => {
+                serializer.serialize_newtype_variant("Quantity", 1, "AtLeast", value)
+            }
+            Self::OrComparison(value, comparative) => {
+                let mut variant =
+                    serializer.serialize_struct_variant("Quantity", 2, "OrComparison", 2)?;
+                variant.serialize_field("value", value)?;
+                variant.serialize_field("comparative", comparative)?;
+                variant.end()
+            }
+            Self::Or(first, second) => {
+                let mut variant = serializer.serialize_struct_variant("Quantity", 3, "Or", 2)?;
+                variant.serialize_field("first", first)?;
+                variant.serialize_field("second", second)?;
+                variant.end()
+            }
+            Self::UpTo(value) => serializer.serialize_newtype_variant("Quantity", 4, "UpTo", value),
+            Self::MoreThan(value) => {
+                serializer.serialize_newtype_variant("Quantity", 5, "MoreThan", value)
+            }
+            Self::FewerThan(value) => {
+                serializer.serialize_newtype_variant("Quantity", 6, "FewerThan", value)
+            }
+            Self::X => serializer.serialize_unit_variant("Quantity", 7, "X"),
+            Self::Both => serializer.serialize_unit_variant("Quantity", 8, "Both"),
+            Self::ThatMany => serializer.serialize_unit_variant("Quantity", 9, "ThatMany"),
+            Self::ThatMuch => serializer.serialize_unit_variant("Quantity", 10, "ThatMuch"),
+        }
+    }
 }
 
 impl Quantity {

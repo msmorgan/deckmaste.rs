@@ -51,7 +51,6 @@ use scan::parse_power_toughness;
 use scan::parse_symbol_sequence;
 use scan::possessive_this_card_match;
 use scan::pronoun_match;
-use scan::quantity_match;
 use scan::this_card_matches;
 
 use crate::Numeral;
@@ -162,7 +161,6 @@ use crate::word::VerbInstance;
 use crate::word::Vocab;
 use crate::word::Vocabulary;
 use crate::word::WordMatch;
-use crate::word::comparative_word;
 use crate::word::surface_initial_sound;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -562,6 +560,12 @@ pub(crate) enum Nonterminal {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum EnglishLexicalSlot {
     Number(Numeral),
+    /// All supported numeral notations behind one generated scalar codec.
+    QuantityNumber,
+    /// The closed four-word comparative vocabulary used by quantity bounds.
+    ComparativeWord,
+    /// A declaration-owned fixed word or word sequence.
+    GeneratedLiteral(&'static str),
     Noun(NounUsage),
     PossessiveNoun,
     Verb(VerbSlot),
@@ -649,13 +653,6 @@ pub(crate) enum EnglishLexicalSlot {
     Determiner,
     Demonstrative,
     DeterminerTarget,
-    QuantityAtLeast,
-    QuantityOr,
-    QuantityX,
-    QuantityBoth,
-    QuantityThatMany,
-    QuantityThatMuch,
-    QuantityBound(BoundedQuantityKind),
     Than,
     OrEqualTo,
     RelativeMarker,
@@ -731,12 +728,6 @@ impl EnglishLexicalSlot {
             Self::CoinResult(crate::syntax::CoinSide::Tails) => &["up", "tails"],
             Self::FromWord => &["from"],
             Self::DeterminerTarget => &["target"],
-            Self::QuantityX => &["X"],
-            Self::QuantityBoth => &["both"],
-            Self::QuantityThatMany => &["that", "many"],
-            Self::QuantityThatMuch => &["that", "much"],
-            Self::QuantityBound(BoundedQuantityKind::MoreThan) => &["more", "than"],
-            Self::QuantityBound(BoundedQuantityKind::FewerThan) => &["fewer", "than"],
             Self::Than => &["than"],
             Self::OrEqualTo => &["or", "equal", "to"],
             Self::RelativeMarker => &["who", "that"],
@@ -760,6 +751,9 @@ impl EnglishLexicalSlot {
             Self::Except => &["except"],
 
             Self::Number(_)
+            | Self::QuantityNumber
+            | Self::ComparativeWord
+            | Self::GeneratedLiteral(_)
             | Self::Noun(_)
             | Self::PossessiveNoun
             | Self::Verb(_)
@@ -780,8 +774,6 @@ impl EnglishLexicalSlot {
             | Self::AtomCarriedPredicatedKeywordNoun
             | Self::Determiner
             | Self::Demonstrative
-            | Self::QuantityAtLeast
-            | Self::QuantityOr
             | Self::ThisCard
             | Self::FullThisCard
             | Self::PossessiveThisCard
@@ -814,12 +806,6 @@ impl EnglishLexicalSlot {
         Self::CoinResult(crate::syntax::CoinSide::Tails),
         Self::FromWord,
         Self::DeterminerTarget,
-        Self::QuantityX,
-        Self::QuantityBoth,
-        Self::QuantityThatMany,
-        Self::QuantityThatMuch,
-        Self::QuantityBound(BoundedQuantityKind::MoreThan),
-        Self::QuantityBound(BoundedQuantityKind::FewerThan),
         Self::Than,
         Self::OrEqualTo,
         Self::RelativeMarker,
@@ -853,8 +839,7 @@ impl EnglishLexicalSlot {
             | Self::Up
             | Self::Than
             | Self::Down
-            | Self::Minus
-            | Self::QuantityX => true,
+            | Self::Minus => true,
             // Reserve `who` but not determiner-known `that`, and measured
             // `there` but not the still-unaudited contraction `there's`.
             Self::RelativeMarker | Self::Existential => surface_index == 0,
@@ -866,6 +851,9 @@ impl EnglishLexicalSlot {
             // remaining contracted forms are likewise explicit measured-work
             // opt-outs, not accidental omissions.
             Self::Number(_)
+            | Self::QuantityNumber
+            | Self::ComparativeWord
+            | Self::GeneratedLiteral(_)
             | Self::Noun(_)
             | Self::PossessiveNoun
             | Self::Verb(_)
@@ -896,12 +884,6 @@ impl EnglishLexicalSlot {
             | Self::Determiner
             | Self::Demonstrative
             | Self::DeterminerTarget
-            | Self::QuantityAtLeast
-            | Self::QuantityOr
-            | Self::QuantityBoth
-            | Self::QuantityThatMany
-            | Self::QuantityThatMuch
-            | Self::QuantityBound(_)
             | Self::OrEqualTo
             | Self::Face
             | Self::To
@@ -935,12 +917,6 @@ impl EnglishLexicalSlot {
 pub(crate) enum OpacityMode {
     Exact,
     OpaqueNouns,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum BoundedQuantityKind {
-    MoreThan,
-    FewerThan,
 }
 
 const OPACITY_STATE_LIMIT: usize = 50_000;
@@ -1529,28 +1505,6 @@ mod quantity_value_tests {
     }
 }
 
-impl Quantity {
-    const fn features(self) -> QuantityFeatures {
-        QuantityFeatures {
-            cardinality: self.noun_cardinality(),
-            is_one: matches!(self, Self::Exact(number) if number.value == 1),
-            standalone_number: match self {
-                Self::Exact(number) if number.value == 1 => Number::Singular,
-                Self::UpTo(value) | Self::MoreThan(value) | Self::FewerThan(value)
-                    if value.is_one() =>
-                {
-                    Number::Singular
-                }
-                Self::Or(first, second) if first.value == 1 && second.value == 1 => {
-                    Number::Singular
-                }
-                Self::X | Self::ThatMuch => Number::Singular,
-                _ => Number::Plural,
-            },
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum LiteralKey {
     Face,
@@ -1572,8 +1526,9 @@ pub(crate) enum LiteralKey {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum MeaningKey {
     Literal(LiteralKey),
+    GeneratedLiteral(&'static str),
     Number(NumberLiteral),
-    Quantity(Quantity),
+    ComparativeWord(crate::syntax::ComparativeWord),
     Determiner(Determiner),
     Noun(NounInstance),
     Adjective(Adjective),
@@ -1656,16 +1611,6 @@ pub(crate) struct SubjectAuxiliaryKey {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, strum::EnumIter, strum::IntoStaticStr)]
 #[strum(serialize_all = "snake_case")]
 enum RuleTag {
-    QuantityExact,
-    QuantityAtLeast,
-    QuantityOr,
-    QuantityX,
-    QuantityBoth,
-    QuantityUpTo,
-    QuantityThatMany,
-    QuantityThatMuch,
-    QuantityMoreThan,
-    QuantityFewerThan,
     DeterminerClosed,
     DeterminerTarget,
     DeterminerQuantifiedTarget,
@@ -2553,6 +2498,80 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     .into_iter()
                     .collect()
             }
+            EnglishLexicalSlot::QuantityNumber => {
+                let Some(surface) = self.token_text(tokens, start) else {
+                    return Vec::new();
+                };
+                let mut surfaces = vec![(start + 1, surface)];
+                let mut end = start + 1;
+                while matches!(
+                    tokens.get(end).map(|token| token.kind),
+                    Some(TokenKind::Punctuation(Punctuation::Comma))
+                ) && matches!(
+                    tokens.get(end + 1).map(|token| token.kind),
+                    Some(TokenKind::Integer)
+                ) {
+                    end += 2;
+                    let span = Span::new(tokens[start].span.start, tokens[end - 1].span.end);
+                    let Some(grouped) = span.text(self.source) else {
+                        break;
+                    };
+                    surfaces.push((end, grouped));
+                }
+                let mut matches = Vec::new();
+                for (end, surface) in surfaces {
+                    for notation in [
+                        Numeral::Cardinal,
+                        Numeral::Ordinal,
+                        Numeral::Arabic(false),
+                        Numeral::Arabic(true),
+                        Numeral::Roman,
+                    ] {
+                        let Some(value) = parse_notation(
+                            notation,
+                            surface,
+                            Self::is_sentence_initial(tokens, start),
+                        ) else {
+                            continue;
+                        };
+                        matches.push(LexicalMatch {
+                            end,
+                            features: Features::Number { is_one: value == 1 },
+                            meaning: MeaningKey::Number(NumberLiteral {
+                                value,
+                                numeral: notation,
+                            }),
+                            local_cost: ParseCost {
+                                reading_dispreference: u32::from(notation == Numeral::Ordinal),
+                                precedence: u32::from(notation == Numeral::Roman && surface == "X"),
+                                ..ParseCost::default()
+                            },
+                        });
+                    }
+                }
+                matches
+            }
+            EnglishLexicalSlot::ComparativeWord => self
+                .token_text(tokens, start)
+                .and_then(crate::word::comparative_word)
+                .map(|word| LexicalMatch {
+                    end: start + 1,
+                    features: Features::None,
+                    meaning: MeaningKey::ComparativeWord(word),
+                    local_cost: ParseCost::default(),
+                })
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::GeneratedLiteral(literal) => self
+                .spelling_match(tokens, start, literal)
+                .map(|end| LexicalMatch {
+                    end,
+                    features: Features::None,
+                    meaning: MeaningKey::GeneratedLiteral(literal),
+                    local_cost: ParseCost::default(),
+                })
+                .into_iter()
+                .collect(),
             EnglishLexicalSlot::Noun(usage) => {
                 let mut matches = self.word_matches(tokens, start, LexicalSlot::Noun(usage));
                 matches.extend(self.catalog_matches(tokens, start, CatalogSlot::Noun(usage)));
@@ -2847,31 +2866,6 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 })
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::QuantityAtLeast => self.scan_at_least_quantity(tokens, start),
-            EnglishLexicalSlot::QuantityOr => self.scan_or_quantity(tokens, start),
-            slot @ EnglishLexicalSlot::QuantityX => self
-                .literal_token_match(tokens, start, slot)
-                .map(|end| quantity_match(end, Quantity::X))
-                .into_iter()
-                .collect(),
-            slot @ EnglishLexicalSlot::QuantityBoth => self
-                .literal_token_match(tokens, start, slot)
-                .map(|end| quantity_match(end, Quantity::Both))
-                .into_iter()
-                .collect(),
-            slot @ EnglishLexicalSlot::QuantityThatMany => self
-                .literal_words_match(tokens, start, slot)
-                .map(|end| quantity_match(end, Quantity::ThatMany))
-                .into_iter()
-                .collect(),
-            slot @ EnglishLexicalSlot::QuantityThatMuch => self
-                .literal_words_match(tokens, start, slot)
-                .map(|end| quantity_match(end, Quantity::ThatMuch))
-                .into_iter()
-                .collect(),
-            EnglishLexicalSlot::QuantityBound(kind) => {
-                self.scan_bounded_quantity(tokens, start, kind)
-            }
             slot @ EnglishLexicalSlot::Than => self
                 .literal_token_match(tokens, start, slot)
                 .map(|end| literal_match(end, LiteralKey::Than))

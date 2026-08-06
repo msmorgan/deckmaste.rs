@@ -236,11 +236,6 @@ pub(super) enum GeneratedAssemblyError {
         construction: &'static str,
         category: &'static str,
     },
-    /// The generated literal table admits only its closed punctuation set.
-    UnsupportedLiteral {
-        construction: &'static str,
-        literal: &'static str,
-    },
     /// A lexeme codec without a closed engine slot.
     UnknownLexemeCodec {
         construction: &'static str,
@@ -392,6 +387,8 @@ fn lhs_category_nonterminal(
 
 fn codec_slot(codec: &'static str) -> Option<EnglishLexicalSlot> {
     match codec {
+        "Numeral" => Some(EnglishLexicalSlot::QuantityNumber),
+        "ComparativeWord" => Some(EnglishLexicalSlot::ComparativeWord),
         "Conjunction" => Some(EnglishLexicalSlot::Conjunction),
         "NounPhraseConjunction" => Some(EnglishLexicalSlot::NounPhraseConjunction),
         "Comma" => Some(EnglishLexicalSlot::Punctuation(Punctuation::Comma)),
@@ -421,10 +418,9 @@ fn atom_expected(
         AtomData::Literal(".") => Ok(Expected::Lexical(EnglishLexicalSlot::Punctuation(
             Punctuation::Period,
         ))),
-        AtomData::Literal(literal) => Err(GeneratedAssemblyError::UnsupportedLiteral {
-            construction: construction.id,
+        AtomData::Literal(literal) => Ok(Expected::Lexical(EnglishLexicalSlot::GeneratedLiteral(
             literal,
-        }),
+        ))),
         AtomData::Hole(path) | AtomData::Lexeme(path) | AtomData::Identity(path) => {
             if path.contains('.') {
                 return Err(GeneratedAssemblyError::UnsupportedAtomPath {
@@ -453,12 +449,20 @@ fn atom_expected(
                         construction: construction.id,
                         element,
                     }),
-                (AtomData::Lexeme(_), FieldKindData::Scalar { codec }) => codec_slot(codec)
-                    .map(Expected::Lexical)
-                    .ok_or(GeneratedAssemblyError::UnknownLexemeCodec {
+                (
+                    AtomData::Lexeme(_),
+                    FieldKindData::Scalar { codec }
+                    | FieldKindData::TypedScalar { codec, .. }
+                    | FieldKindData::Optional {
+                        inner:
+                            &FieldKindData::Scalar { codec } | &FieldKindData::TypedScalar { codec, .. },
+                    },
+                ) => codec_slot(codec).map(Expected::Lexical).ok_or(
+                    GeneratedAssemblyError::UnknownLexemeCodec {
                         construction: construction.id,
                         codec,
-                    }),
+                    },
+                ),
                 (AtomData::Identity(_), FieldKindData::Identity { provider, .. }) => {
                     identity_slot(provider).map(Expected::Lexical).ok_or(
                         GeneratedAssemblyError::UnknownLexemeCodec {
@@ -487,14 +491,14 @@ fn field_expected(
             construction,
             category,
         )?)),
-        FieldKindData::Scalar { codec } | FieldKindData::SurfaceScalar { codec } => {
-            codec_slot(codec).map(Expected::Lexical).ok_or(
-                GeneratedAssemblyError::UnknownLexemeCodec {
-                    construction: construction.id,
-                    codec,
-                },
-            )
-        }
+        FieldKindData::Scalar { codec }
+        | FieldKindData::TypedScalar { codec, .. }
+        | FieldKindData::SurfaceScalar { codec } => codec_slot(codec).map(Expected::Lexical).ok_or(
+            GeneratedAssemblyError::UnknownLexemeCodec {
+                construction: construction.id,
+                codec,
+            },
+        ),
         FieldKindData::Identity { provider, .. } => identity_slot(provider)
             .map(Expected::Lexical)
             .ok_or(GeneratedAssemblyError::UnknownLexemeCodec {
@@ -1081,7 +1085,7 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_literal_is_refused() {
+    fn generated_word_literal_is_admitted() {
         const FORM: &[FormData] = &[FormData {
             name: "only",
             ordinal: 0,
@@ -1099,13 +1103,14 @@ mod tests {
         };
         let cats = internal_categories(&[&GROUP]);
         let mut builder = RuleBuilder::default();
-        let error = register_generated(&mut builder, &[&GROUP], &cats).unwrap_err();
+        register_generated(&mut builder, &[&GROUP], &cats)
+            .expect("declaration-owned word literal assembles");
+        let rule_book = builder.finish(RegistrationOrder::Normal);
         assert_eq!(
-            error,
-            GeneratedAssemblyError::UnsupportedLiteral {
-                construction: "lit_and",
-                literal: "and"
-            }
+            rule_book.rules[0].rhs,
+            vec![Expected::Lexical(EnglishLexicalSlot::GeneratedLiteral(
+                "and"
+            ))]
         );
     }
 

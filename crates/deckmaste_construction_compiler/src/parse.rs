@@ -208,8 +208,13 @@ fn parse_kind(input: ParseStream<'_>) -> syn::Result<FieldKind> {
     }
     if input.peek(kw::lex) {
         input.parse::<kw::lex>()?;
-        let codec = spanned_type_path(input)?;
-        return Ok(FieldKind::Scalar { codec });
+        let value_type = spanned_type_path(input)?;
+        if input.peek(kw::via) {
+            input.parse::<kw::via>()?;
+            let codec = spanned_type_path(input)?;
+            return Ok(FieldKind::TypedScalar { value_type, codec });
+        }
+        return Ok(FieldKind::Scalar { codec: value_type });
     }
     if input.peek(kw::seq) {
         input.parse::<kw::seq>()?;
@@ -830,7 +835,7 @@ mod tests {
         })
         .expect("generic TYPEPATH parses");
         let codec = match &g.constructions[0].ast.fields()[0].kind {
-            FieldKind::Scalar { codec } => codec,
+            FieldKind::Scalar { codec } | FieldKind::TypedScalar { codec, .. } => codec,
             other => panic!("expected Scalar, got {other:?}"),
         };
         assert_eq!(codec.value, "Wrapper<Inner>");
@@ -856,7 +861,7 @@ mod tests {
         })
         .expect("leading-colon TYPEPATH parses");
         let codec = match &g.constructions[0].ast.fields()[0].kind {
-            FieldKind::Scalar { codec } => codec,
+            FieldKind::Scalar { codec } | FieldKind::TypedScalar { codec, .. } => codec,
             other => panic!("expected Scalar, got {other:?}"),
         };
         assert_eq!(codec.value, "::std::num::NonZeroU32");

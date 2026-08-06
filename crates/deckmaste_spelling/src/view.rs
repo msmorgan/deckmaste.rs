@@ -713,17 +713,22 @@ impl ser::SerializeStructVariant for NodeBuilder {
 
 #[cfg(test)]
 mod tests {
+    use deckmaste_english::Numeral;
     use deckmaste_english::features::Comma;
     use deckmaste_english::features::Conjunction;
     use deckmaste_english::features::GapState;
     use deckmaste_english::features::Onset;
     use deckmaste_english::features::PronounCase;
     use deckmaste_english::features::PronounClass;
+    use deckmaste_english::syntax::ComparativeWord;
     use deckmaste_english::syntax::CoordinationJunction;
     use deckmaste_english::syntax::Demonstrative;
     use deckmaste_english::syntax::NounPhrase;
     use deckmaste_english::syntax::NounPhraseCoordination;
+    use deckmaste_english::syntax::NumberLiteral;
     use deckmaste_english::syntax::OpaqueLexeme;
+    use deckmaste_english::syntax::Quantity;
+    use deckmaste_english::syntax::QuantityValue;
     use deckmaste_english::word::Noun;
     use deckmaste_english::word::NounInstance;
     use deckmaste_english::word::PronounInstance;
@@ -824,6 +829,63 @@ mod tests {
                 kind: "str",
                 repr: "BlOrPlE".to_owned(),
             }
+        );
+    }
+
+    #[test]
+    fn quantity_view_keeps_tuple_variant_notation_and_comparative_identity() {
+        let number = NumberLiteral {
+            value: 3,
+            numeral: Numeral::Roman,
+        };
+        let comparison = of(&Quantity::OrComparison(
+            QuantityValue::Literal(number),
+            ComparativeWord::Greater,
+        ));
+        let View::Node {
+            name: "Quantity",
+            variant: Some("OrComparison"),
+            fields,
+        } = comparison
+        else {
+            panic!("quantity comparison variant identity was erased")
+        };
+        assert_eq!(fields[0].0, "value");
+        assert!(matches!(
+            fields[0].1,
+            View::Newtype {
+                name: "QuantityValue",
+                variant: Some("Literal"),
+                ..
+            }
+        ));
+        assert_eq!(
+            fields[1],
+            (
+                "comparative",
+                View::Unit {
+                    name: "ComparativeWord",
+                    variant: Some("Greater"),
+                },
+            )
+        );
+
+        let disjunction = of(&Quantity::Or(number, number));
+        assert!(matches!(
+            disjunction,
+            View::Node {
+                name: "Quantity",
+                variant: Some("Or"),
+                ..
+            }
+        ));
+        assert_ne!(
+            of(&Quantity::OrComparison(
+                QuantityValue::Literal(number),
+                ComparativeWord::More,
+            )),
+            disjunction,
+            "the two binary quantity families must remain frame-distinguishable"
         );
     }
 

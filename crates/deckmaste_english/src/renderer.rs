@@ -2977,41 +2977,64 @@ fn indefinite_article_for(sound: InitialSound) -> &'static str {
     }
 }
 
-/// Inverse of the parse-side `quantity_value`: `Variable` is spelled `X`.
-/// (Per the design contract *Productions ship their inverse*,
-/// docs/decisions/english-productions-ship-their-inverse.md.)
-fn render_quantity_value(value: crate::syntax::QuantityValue) -> String {
-    match value {
-        crate::syntax::QuantityValue::Literal(number) => number.numeral.format(number.value),
-        crate::syntax::QuantityValue::Variable => "X".to_owned(),
-    }
+fn render_quantity(quantity: Quantity) -> String {
+    let mut renderer = GeneratedQuantityRenderer::default();
+    crate::constructions::quantity::linearize_with(&quantity, &mut renderer)
+        .expect("every Quantity variant dispatches to one declared form");
+    renderer.parts.join(" ")
 }
 
-fn render_quantity(quantity: Quantity) -> String {
-    match quantity {
-        Quantity::Exact(number) => number.numeral.format(number.value),
-        Quantity::AtLeast(value) => {
-            format!("at least {}", render_quantity_value(value))
-        }
-        Quantity::OrComparison(value, word) => {
-            format!("{} or {}", render_quantity_value(value), word.spelling())
-        }
-        Quantity::Or(first, second) => format!(
-            "{} or {}",
-            first.numeral.format(first.value),
-            second.numeral.format(second.value)
-        ),
-        Quantity::UpTo(value) => format!("up to {}", render_quantity_value(value)),
-        Quantity::MoreThan(value) => {
-            format!("more than {}", render_quantity_value(value))
-        }
-        Quantity::FewerThan(value) => {
-            format!("fewer than {}", render_quantity_value(value))
-        }
-        Quantity::X => "X".to_owned(),
-        Quantity::Both => "both".to_owned(),
-        Quantity::ThatMany => "that many".to_owned(),
-        Quantity::ThatMuch => "that much".to_owned(),
+#[derive(Default)]
+struct GeneratedQuantityRenderer {
+    parts: Vec<String>,
+}
+
+impl deckmaste_construction_compiler::runtime::LinearizationVisitor for GeneratedQuantityRenderer {
+    type Error = std::convert::Infallible;
+
+    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
+        self.parts.push(literal.to_owned());
+        Ok(())
+    }
+
+    fn subtree<T: std::any::Any>(
+        &mut self,
+        category: &'static str,
+        _value: &T,
+    ) -> Result<(), Self::Error> {
+        unreachable!("quantity declarations contain no {category} subtree")
+    }
+
+    fn scalar<T: std::any::Any>(
+        &mut self,
+        codec: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        let spelling = match codec {
+            "Numeral" => value
+                .downcast_ref::<crate::syntax::NumberLiteral>()
+                .map(|number| number.numeral.format(number.value))
+                .or_else(|| {
+                    value
+                        .downcast_ref::<crate::syntax::QuantityValue>()
+                        .map(|value| match value {
+                            crate::syntax::QuantityValue::Literal(number) => {
+                                number.numeral.format(number.value)
+                            }
+                            crate::syntax::QuantityValue::Variable => "X".to_owned(),
+                        })
+                })
+                .expect("Numeral scalar preserves NumberLiteral or QuantityValue"),
+            "ComparativeWord" => value
+                .downcast_ref::<crate::syntax::ComparativeWord>()
+                .expect("ComparativeWord scalar preserves its finite enum")
+                .spelling()
+                .to_owned(),
+            other => unreachable!("quantity declaration used unknown scalar codec {other}"),
+        };
+        self.parts.push(spelling);
+        Ok(())
     }
 }
 
@@ -3197,7 +3220,9 @@ fn adjective_degree(degree: Option<&NumberLiteral>) -> Option<String> {
 #[cfg(test)]
 mod render_quantity_value_tests {
     use super::render_quantity;
+    use crate::Numeral;
     use crate::syntax::ComparativeWord;
+    use crate::syntax::NumberLiteral;
     use crate::syntax::Quantity;
     use crate::syntax::QuantityValue;
 
@@ -3236,6 +3261,47 @@ mod render_quantity_value_tests {
             )),
             "X or greater"
         );
+    }
+
+    #[test]
+    fn generated_quantity_inverse_covers_every_variant_and_notation() {
+        let number = |value, numeral| NumberLiteral { value, numeral };
+        for (numeral, expected) in [
+            (Numeral::Cardinal, "three"),
+            (Numeral::Ordinal, "third"),
+            (Numeral::Arabic(false), "3"),
+            (Numeral::Arabic(true), "3"),
+            (Numeral::Roman, "III"),
+        ] {
+            assert_eq!(
+                render_quantity(Quantity::Exact(number(3, numeral))),
+                expected
+            );
+        }
+        let two = QuantityValue::Literal(number(2, Numeral::Cardinal));
+        for (quantity, expected) in [
+            (Quantity::AtLeast(two), "at least two"),
+            (
+                Quantity::OrComparison(two, ComparativeWord::Fewer),
+                "two or fewer",
+            ),
+            (
+                Quantity::Or(
+                    number(1, Numeral::Cardinal),
+                    number(2, Numeral::Arabic(false)),
+                ),
+                "one or 2",
+            ),
+            (Quantity::X, "X"),
+            (Quantity::Both, "both"),
+            (Quantity::UpTo(two), "up to two"),
+            (Quantity::ThatMany, "that many"),
+            (Quantity::ThatMuch, "that much"),
+            (Quantity::MoreThan(two), "more than two"),
+            (Quantity::FewerThan(two), "fewer than two"),
+        ] {
+            assert_eq!(render_quantity(quantity), expected);
+        }
     }
 }
 

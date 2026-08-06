@@ -80,6 +80,8 @@ pub(crate) enum GeneratedPart {
 pub(crate) enum GeneratedScalar {
     Conjunction(crate::features::Conjunction),
     Comma(crate::features::Comma),
+    Number(crate::syntax::NumberLiteral),
+    ComparativeWord(crate::syntax::ComparativeWord),
 }
 
 fn generated_parse<S: AlternativeSelection>(
@@ -94,6 +96,10 @@ fn generated_parse<S: AlternativeSelection>(
     let RuleImpl::Generated(generated) = grammar.impls.get(rule.index()).copied()? else {
         return None;
     };
+    // Exact derivations must pass the same generated builder/lowering door as
+    // ordinary parses; surface shape alone cannot admit an invalid semantic
+    // scalar (notably Roman `X` as an exact literal number).
+    lower(grammar, forest, node, selection)?;
     let construction = generated.group.constructions.get(generated.construction)?;
     let form = construction.forms.get(generated.form)?;
     let [intermediate] = alternative.children.as_slice() else {
@@ -142,6 +148,8 @@ fn scalar_value(forest: &EnglishForest, node: NodeId) -> Option<GeneratedScalar>
         MeaningKey::Punctuation(crate::surface::Punctuation::Comma) => {
             Some(GeneratedScalar::Comma(crate::features::Comma::Present))
         }
+        MeaningKey::Number(number) => Some(GeneratedScalar::Number(*number)),
+        MeaningKey::ComparativeWord(word) => Some(GeneratedScalar::ComparativeWord(*word)),
         _ => None,
     }
 }
@@ -179,6 +187,14 @@ fn collect_tokens(parse: &GeneratedParse, tokens: &mut Vec<String>) {
                     tokens.push(",".to_owned());
                 }
             }
+            GeneratedPart::Scalar {
+                value: GeneratedScalar::Number(number),
+                ..
+            } => tokens.push(number.numeral.format(number.value)),
+            GeneratedPart::Scalar {
+                value: GeneratedScalar::ComparativeWord(word),
+                ..
+            } => tokens.push(word.spelling().to_owned()),
             GeneratedPart::Identity { spelling, .. } => tokens.push(spelling.clone()),
             GeneratedPart::Subtree { parse, .. } => collect_tokens(parse, tokens),
         }
@@ -595,6 +611,48 @@ mod tests {
                 .collect::<Vec<_>>(),
             [("period", 0), ("terminal", 1)],
         );
+    }
+
+    #[test]
+    fn generated_quantities_preserve_exact_forms_and_linearize_to_source() {
+        for (source, construction, ordinal) in [
+            ("three", "quantity_exact", 0),
+            ("third", "quantity_exact", 0),
+            ("3", "quantity_exact", 0),
+            ("1,000", "quantity_exact", 0),
+            ("III", "quantity_exact", 0),
+            ("at least two", "quantity_at_least", 0),
+            ("two or more", "quantity_at_least", 1),
+            ("one or 2", "quantity_or", 0),
+            ("X", "quantity_x", 0),
+            ("both", "quantity_both", 0),
+            ("up to X", "quantity_up_to", 0),
+            ("that many", "quantity_that_many", 0),
+            ("that much", "quantity_that_much", 0),
+            ("more than X", "quantity_more_than", 0),
+            ("fewer than two", "quantity_fewer_than", 0),
+        ] {
+            let exact = parse_as(
+                source,
+                &Catalogs::default(),
+                Nonterminal::Quantity,
+                GeneratedActivation::Production,
+                100,
+            )
+            .unwrap_or_else(|error| panic!("exact quantity {source:?} failed: {error:?}"));
+            assert!(
+                exact.iter().any(|parse| {
+                    parse.ast().construction == construction
+                        && parse.ast().ordinal == ordinal
+                        && linearize(parse.ast()) == source
+                }),
+                "missing exact {construction}@{ordinal} for {source:?}: {exact:#?}"
+            );
+            assert!(
+                exact.iter().all(|parse| linearize(parse.ast()) == source),
+                "an exact quantity failed its byte law for {source:?}: {exact:#?}"
+            );
+        }
     }
 
     #[test]

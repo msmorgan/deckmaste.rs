@@ -12,8 +12,8 @@ The chart census comes from `RuleTag` in
 `crates/deckmaste_english/src/grammar/mod.rs`. `RuleTag` derives `EnumIter` and
 `IntoStaticStr` with `snake_case`, and
 `grammar/construction.rs::handwritten_registry` maps every iterated tag to one
-handwritten, fan-out-one chart row. The merged production registry adds five
-generated rows: `sentence`, `noun`, `noun_opaque`,
+handwritten, fan-out-one chart row. The merged production registry adds fifteen
+generated rows: the ten Q01 quantity rows, `sentence`, `noun`, `noun_opaque`,
 `noun_phrase_coordination`, and `shared_determiner_nominal`; they are not
 remaining work. The ability census
 comes from the three non-chart entry points documented and dispatched by
@@ -21,13 +21,13 @@ comes from the three non-chart entry points documented and dispatched by
 
 | source | handwritten / ungenerated | already generated | accounted total |
 |---|---:|---:|---:|
-| chart construction registry | 187 | 5 | 192 |
+| chart construction registry | 177 | 15 | 192 |
 | handwritten ability layer | 3 | 0 | 3 |
-| migration inventory | 190 | 5 | 195 |
+| migration inventory | 180 | 15 | 195 |
 
-Every one of the 192 chart IDs occurs once in the ledger below: 187 remain
-handwritten, while S01, N01, and the two coordination rows are generated. The
-three ability IDs occur once in A01. Thus the remaining work is 190 families, with
+Every one of the 192 chart IDs occurs once in the ledger below: 177 remain
+handwritten, while Q01, S01, N01, and the two coordination rows are generated.
+The three ability IDs occur once in A01. Thus the remaining work is 180 rows, with
 no `later` row. No raw corpus query was needed for this accounting; the census
 is grounded in the registry and the current `FragmentKind` dispatch. Future
 corpus evidence must use supported faces, and normalized-template questions
@@ -91,7 +91,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 
 | unit | rows | class | migration ticket | actual capability needs |
 |---|---:|---|---|---|
-| Q01 quantity | 10 | C2 scalar | `english-derived-quantity-family` | inventory |
+| Q01 quantity | 10 | C2 scalar | `english-derived-quantity-family` | generated |
 | D01 determiner and possession | 9 | C3 | `english-derived-determiner-possession-family` | scalar, identity, lens |
 | J01 adjective and comparison | 9 | C3 | `english-derived-adjective-comparison-family` | scalar, identity, lens |
 | N01 noun identity and opacity | 2 | C2 identity | `english-derived-noun-lexeme-family` | generated |
@@ -114,9 +114,10 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 `quantity_x`, `quantity_both`, `quantity_up_to`, `quantity_that_many`,
 `quantity_that_much`, `quantity_more_than`, `quantity_fewer_than`.
 
-- **Owners and AST:** NR → `Quantity`, `QuantityValue`, `NumberLiteral`, and
-  `ComparativeWord`; REN renders the quantity inside determiners, modifiers,
-  complements, and arithmetic values; SYN-P exposes the constructors.
+- **Owners and AST:** generated declarations → `Quantity`, `QuantityValue`,
+  `NumberLiteral`, and `ComparativeWord`; the generated inverse renders the
+  quantity inside determiners, modifiers, complements, and arithmetic values;
+  SYN-P exposes the public AST ingress.
 - **Holes and constraints:** scalar holes for values and numeral notation,
   and no discontinuity. `ComparativeWord` is a closed four-variant enum handled
   by Q01's finite bound-value mapping and existing typed lexeme spelling form,
