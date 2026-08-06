@@ -1079,7 +1079,7 @@ fn check_kinds(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
 /// `in_predicate_kind_problem`, EC015's own predicate, below.
 fn resolved_is_scalar(resolved: &Resolved<'_>) -> bool {
     match resolved {
-        Resolved::Kind(FieldKind::Scalar { .. }) => true,
+        Resolved::Kind(FieldKind::Scalar { .. }) | Resolved::Variant => true,
         Resolved::Kind(FieldKind::Optional { inner }) => {
             matches!(**inner, FieldKind::Scalar { .. })
         }
@@ -1089,7 +1089,6 @@ fn resolved_is_scalar(resolved: &Resolved<'_>) -> bool {
             | FieldKind::SurfaceScalar { .. },
         )
         | Resolved::Element(_) => false,
-        Resolved::Variant => true,
     }
 }
 

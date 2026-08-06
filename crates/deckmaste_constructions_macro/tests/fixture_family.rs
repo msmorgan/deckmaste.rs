@@ -216,13 +216,9 @@ fn deserialize_routes_through_the_validator() {
     );
 }
 
-#[test]
-fn declaration_data_traces_to_the_one_declaration() {
-    use deckmaste_construction_compiler::runtime::AtomData;
+fn assert_element_declaration_data(data: &deckmaste_construction_compiler::runtime::GroupData) {
     use deckmaste_construction_compiler::runtime::FieldKindData;
-    use deckmaste_construction_compiler::runtime::PredicateData;
-    use deckmaste_construction_compiler::runtime::WitnessClassData;
-    let data = &FIXTURE_COORDINATION_DECLARATION;
+
     assert_eq!(data.name, "fixture_coordination");
     assert_eq!(
         data.elements,
@@ -310,6 +306,16 @@ fn declaration_data_traces_to_the_one_declaration() {
     assert_eq!(data.element_data[3].bind_path, Some("BoundPayload"));
     assert!(data.element_data[3].fields.is_empty());
     assert!(data.element_data[3].variants.is_empty());
+}
+
+fn assert_construction_declaration_data(
+    data: &deckmaste_construction_compiler::runtime::GroupData,
+) {
+    use deckmaste_construction_compiler::runtime::AtomData;
+    use deckmaste_construction_compiler::runtime::FieldKindData;
+    use deckmaste_construction_compiler::runtime::PredicateData;
+    use deckmaste_construction_compiler::runtime::WitnessClassData;
+
     let ids: Vec<&str> = data.constructions.iter().map(|c| c.id).collect();
     assert_eq!(
         ids,
@@ -390,6 +396,13 @@ fn declaration_data_traces_to_the_one_declaration() {
             },
         }
     );
+}
+
+#[test]
+fn declaration_data_traces_to_the_one_declaration() {
+    let data = &FIXTURE_COORDINATION_DECLARATION;
+    assert_element_declaration_data(data);
+    assert_construction_declaration_data(data);
 }
 
 #[test]

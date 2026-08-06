@@ -1401,6 +1401,71 @@ fn element_row(element: &ElementDeclaration) -> TokenStream {
     }
 }
 
+fn construction_witness_rows(construction: &ConstructionDeclaration) -> Vec<TokenStream> {
+    construction
+        .witnesses
+        .iter()
+        .map(|witness| {
+            let name = witness.name.value.as_str();
+            let class = match &witness.class {
+                crate::model::WitnessClass::Stored { path } => {
+                    let dotted = path.dotted();
+                    quote! { ::deckmaste_construction_compiler::runtime::WitnessClassData::Stored { path: #dotted } }
+                }
+                crate::model::WitnessClass::Derived { combinator, .. } => {
+                    let combinator = combinator.value.as_str();
+                    quote! { ::deckmaste_construction_compiler::runtime::WitnessClassData::Derived { combinator: #combinator } }
+                }
+                crate::model::WitnessClass::Free { ty } => {
+                    let ty = ty.value.as_str();
+                    quote! { ::deckmaste_construction_compiler::runtime::WitnessClassData::Free { ty: #ty } }
+                }
+            };
+            quote! {
+                ::deckmaste_construction_compiler::runtime::WitnessData { name: #name, class: #class }
+            }
+        })
+        .collect()
+}
+
+fn construction_form_rows(construction: &ConstructionDeclaration) -> Vec<TokenStream> {
+    construction
+        .forms
+        .iter()
+        .map(|form| {
+            let name = form.name.value.as_str();
+            let ordinal = form.ordinal.value;
+            let guarded = form.guard.is_some();
+            let atoms: Vec<TokenStream> = form
+                .surface
+                .iter()
+                .map(|atom| match atom {
+                    crate::model::SurfaceAtom::Literal(s) => {
+                        let s = s.value.as_str();
+                        quote! { ::deckmaste_construction_compiler::runtime::AtomData::Literal(#s) }
+                    }
+                    crate::model::SurfaceAtom::Hole(path) => {
+                        let dotted = path.dotted();
+                        quote! { ::deckmaste_construction_compiler::runtime::AtomData::Hole(#dotted) }
+                    }
+                    crate::model::SurfaceAtom::Lexeme(path) => {
+                        let dotted = path.dotted();
+                        quote! { ::deckmaste_construction_compiler::runtime::AtomData::Lexeme(#dotted) }
+                    }
+                })
+                .collect();
+            quote! {
+                ::deckmaste_construction_compiler::runtime::FormData {
+                    name: #name,
+                    ordinal: #ordinal,
+                    guarded: #guarded,
+                    atoms: &[#(#atoms),*],
+                }
+            }
+        })
+        .collect()
+}
+
 fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
     let id = construction.id.value.as_str();
     let category = construction.category.value.as_str();
@@ -1451,65 +1516,8 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
         })
         .collect();
     let fields: Vec<TokenStream> = construction.ast.fields().iter().map(field_row).collect();
-    let witnesses: Vec<TokenStream> = construction
-        .witnesses
-        .iter()
-        .map(|witness| {
-            let name = witness.name.value.as_str();
-            let class = match &witness.class {
-                crate::model::WitnessClass::Stored { path } => {
-                    let dotted = path.dotted();
-                    quote! { ::deckmaste_construction_compiler::runtime::WitnessClassData::Stored { path: #dotted } }
-                }
-                crate::model::WitnessClass::Derived { combinator, .. } => {
-                    let combinator = combinator.value.as_str();
-                    quote! { ::deckmaste_construction_compiler::runtime::WitnessClassData::Derived { combinator: #combinator } }
-                }
-                crate::model::WitnessClass::Free { ty } => {
-                    let ty = ty.value.as_str();
-                    quote! { ::deckmaste_construction_compiler::runtime::WitnessClassData::Free { ty: #ty } }
-                }
-            };
-            quote! {
-                ::deckmaste_construction_compiler::runtime::WitnessData { name: #name, class: #class }
-            }
-        })
-        .collect();
-    let forms: Vec<TokenStream> = construction
-        .forms
-        .iter()
-        .map(|form| {
-            let name = form.name.value.as_str();
-            let ordinal = form.ordinal.value;
-            let guarded = form.guard.is_some();
-            let atoms: Vec<TokenStream> = form
-                .surface
-                .iter()
-                .map(|atom| match atom {
-                    crate::model::SurfaceAtom::Literal(s) => {
-                        let s = s.value.as_str();
-                        quote! { ::deckmaste_construction_compiler::runtime::AtomData::Literal(#s) }
-                    }
-                    crate::model::SurfaceAtom::Hole(path) => {
-                        let dotted = path.dotted();
-                        quote! { ::deckmaste_construction_compiler::runtime::AtomData::Hole(#dotted) }
-                    }
-                    crate::model::SurfaceAtom::Lexeme(path) => {
-                        let dotted = path.dotted();
-                        quote! { ::deckmaste_construction_compiler::runtime::AtomData::Lexeme(#dotted) }
-                    }
-                })
-                .collect();
-            quote! {
-                ::deckmaste_construction_compiler::runtime::FormData {
-                    name: #name,
-                    ordinal: #ordinal,
-                    guarded: #guarded,
-                    atoms: &[#(#atoms),*],
-                }
-            }
-        })
-        .collect();
+    let witnesses = construction_witness_rows(construction);
+    let forms = construction_form_rows(construction);
     let feature_combinators: Vec<TokenStream> = construction
         .constraints
         .iter()

@@ -85,7 +85,6 @@ impl GeneratedFeatureCombinator {
     }
 
     pub(super) fn argument_field_index(
-        self,
         construction: &ConstructionData,
         argument: usize,
     ) -> Option<usize> {
@@ -100,25 +99,24 @@ impl GeneratedFeatureCombinator {
     }
 
     pub(super) fn first_member_field_index(self, construction: &ConstructionData) -> Option<usize> {
-        self.argument_field_index(construction, self.first_member_argument())
+        Self::argument_field_index(construction, self.first_member_argument())
     }
 
     pub(super) fn rest_field_index(self, construction: &ConstructionData) -> Option<usize> {
-        self.argument_field_index(construction, self.rest_argument())
+        Self::argument_field_index(construction, self.rest_argument())
     }
 
     pub(super) fn complements_field_index(self, construction: &ConstructionData) -> Option<usize> {
-        self.argument_field_index(construction, self.complements_argument()?)
+        Self::argument_field_index(construction, self.complements_argument()?)
     }
 
     pub(super) fn sequence_argument_element(
-        self,
         construction: &ConstructionData,
         argument: usize,
     ) -> Option<&'static str> {
         let field = construction
             .fields
-            .get(self.argument_field_index(construction, argument)?)?;
+            .get(Self::argument_field_index(construction, argument)?)?;
         let FieldKindData::Sequence { element } = field.kind else {
             return None;
         };
@@ -126,7 +124,7 @@ impl GeneratedFeatureCombinator {
     }
 
     pub(super) fn member_element(self, construction: &ConstructionData) -> Option<&'static str> {
-        self.sequence_argument_element(construction, self.rest_argument())
+        Self::sequence_argument_element(construction, self.rest_argument())
     }
 
     pub(super) fn member_value_field_index(
@@ -174,11 +172,11 @@ pub(super) fn coordination_delimiter_fields(
 ) -> Option<(usize, usize)> {
     coordination_member_role(group, element.name)?;
     let codec = |kind| match kind {
-        FieldKindData::Scalar { codec } | FieldKindData::SurfaceScalar { codec } => Some(codec),
-        FieldKindData::Optional { inner } => match *inner {
-            FieldKindData::Scalar { codec } | FieldKindData::SurfaceScalar { codec } => Some(codec),
-            _ => None,
-        },
+        FieldKindData::Scalar { codec }
+        | FieldKindData::SurfaceScalar { codec }
+        | FieldKindData::Optional {
+            inner: &FieldKindData::Scalar { codec } | &FieldKindData::SurfaceScalar { codec },
+        } => Some(codec),
         _ => None,
     };
     let comma = element

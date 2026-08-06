@@ -1859,29 +1859,40 @@ pub(super) fn reduce_phrase(
     }
 }
 
+enum CoordinationDomainCombination {
+    Compatible(Option<CoordinationDomain>),
+    Incompatible,
+}
+
 fn combine_coordination_domains(
     first: Option<CoordinationDomain>,
     next: Option<CoordinationDomain>,
-) -> Option<Option<CoordinationDomain>> {
+) -> CoordinationDomainCombination {
     match (first, next) {
         (Some(CoordinationDomain::Power), Some(CoordinationDomain::Toughness)) => {
-            Some(Some(CoordinationDomain::PowerToughness))
+            CoordinationDomainCombination::Compatible(Some(CoordinationDomain::PowerToughness))
         }
         (
             Some(CoordinationDomain::SelectionHost),
             Some(CoordinationDomain::SelectionContinuation),
-        ) => Some(Some(CoordinationDomain::SelectionHost)),
+        ) => CoordinationDomainCombination::Compatible(Some(CoordinationDomain::SelectionHost)),
         (Some(CoordinationDomain::Entity), Some(CoordinationDomain::Entity)) => {
-            Some(Some(CoordinationDomain::Entity))
+            CoordinationDomainCombination::Compatible(Some(CoordinationDomain::Entity))
         }
         (Some(CoordinationDomain::Damage), Some(CoordinationDomain::Damage)) => {
-            Some(Some(CoordinationDomain::Damage))
+            CoordinationDomainCombination::Compatible(Some(CoordinationDomain::Damage))
         }
         (Some(CoordinationDomain::Entity), Some(CoordinationDomain::Damage))
-        | (Some(CoordinationDomain::Damage), Some(CoordinationDomain::Entity)) => None,
-        (Some(_), Some(_)) => Some(Some(CoordinationDomain::NonEntity)),
-        (Some(domain), None) | (None, Some(domain)) => Some(Some(domain)),
-        (None, None) => Some(None),
+        | (Some(CoordinationDomain::Damage), Some(CoordinationDomain::Entity)) => {
+            CoordinationDomainCombination::Incompatible
+        }
+        (Some(_), Some(_)) => {
+            CoordinationDomainCombination::Compatible(Some(CoordinationDomain::NonEntity))
+        }
+        (Some(domain), None) | (None, Some(domain)) => {
+            CoordinationDomainCombination::Compatible(Some(domain))
+        }
+        (None, None) => CoordinationDomainCombination::Compatible(None),
     }
 }
 
@@ -2547,7 +2558,11 @@ fn complete_noun_phrase_coordination_features(
         if common_adjunct != *adjunct {
             common_adjunct = None;
         }
-        coordination_domain = combine_coordination_domains(coordination_domain, *member_domain)?;
+        coordination_domain =
+            match combine_coordination_domains(coordination_domain, *member_domain) {
+                CoordinationDomainCombination::Compatible(domain) => domain,
+                CoordinationDomainCombination::Incompatible => return None,
+            };
         last_agreement = *agreement;
         last_coordination = *member_coordination;
         all_themes &= *recipient_passive_theme;
@@ -2567,7 +2582,7 @@ fn complete_noun_phrase_coordination_features(
             (true, false) if *first_domain != Some(CoordinationDomain::PowerToughness) => {
                 return None;
             }
-            (false, false) | (true, true) | (true, false) => {}
+            _ => {}
         }
     }
     Some(Features::NounPhrase {
@@ -2632,7 +2647,10 @@ fn shared_determiner_coordination_features(
             common_adjunct = None;
         }
         coordination_domain =
-            combine_coordination_domains(coordination_domain, member.coordination_domain)?;
+            match combine_coordination_domains(coordination_domain, member.coordination_domain) {
+                CoordinationDomainCombination::Compatible(domain) => domain,
+                CoordinationDomainCombination::Incompatible => return None,
+            };
         last_form = member.form;
         members.push(member);
     }

@@ -357,12 +357,9 @@ fn project_generated_category(
     construction: &deckmaste_construction_compiler::runtime::ConstructionData,
     value: deckmaste_construction_compiler::runtime::ErasedValue,
 ) -> Option<Lowered> {
-    match construction.category {
-        "NounPhrase" => {
-            let value = value.downcast::<NounPhrase>().ok()?;
-            return Some(Lowered::NounPhrase(*value));
-        }
-        _ => {}
+    if construction.category == "NounPhrase" {
+        let value = value.downcast::<NounPhrase>().ok()?;
+        return Some(Lowered::NounPhrase(*value));
     }
     #[cfg(test)]
     match construction.id {
