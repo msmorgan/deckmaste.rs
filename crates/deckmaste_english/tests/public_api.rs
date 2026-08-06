@@ -201,6 +201,62 @@ fn whole_card_quote_terminal_sentence_rejects_a_doubled_outer_period() {
 }
 
 #[test]
+fn whole_card_dash_appositive_rejects_a_renderer_inconsistent_outer_period() {
+    // Mutation caught: return the composed dash-appositive Sentence before the
+    // one final contextual admission boundary in `parse_sentence`.
+    let source = "That player faces a villainous choice — They draw a card, or they exile Blood for the Blood God!.";
+    let report = parse_with_identity(
+        source,
+        &Catalogs::default(),
+        "Blood for the Blood God!",
+        false,
+    );
+
+    assert!(
+        report
+            .diagnostics()
+            .iter()
+            .any(|diagnostic| diagnostic.kind() == DiagnosticKind::NoCompleteParse)
+    );
+    assert_eq!(
+        report
+            .ast()
+            .render("Blood for the Blood God!", false)
+            .unwrap(),
+        source,
+        "recovery preserves the outer period rejected after composition"
+    );
+}
+
+#[test]
+fn whole_card_triggered_fallback_rejects_a_renderer_inconsistent_outer_period() {
+    // Mutation caught: return the staged TriggeredSentence body before the one
+    // final contextual admission boundary in `parse_sentence`.
+    let source = "Draw a card. When you do, exile Blood for the Blood God!.";
+    let report = parse_with_identity(
+        source,
+        &Catalogs::default(),
+        "Blood for the Blood God!",
+        false,
+    );
+
+    assert!(
+        report
+            .diagnostics()
+            .iter()
+            .any(|diagnostic| diagnostic.kind() == DiagnosticKind::NoCompleteParse)
+    );
+    assert_eq!(
+        report
+            .ast()
+            .render("Blood for the Blood God!", false)
+            .unwrap(),
+        source,
+        "recovery preserves the outer period rejected after trigger composition"
+    );
+}
+
+#[test]
 fn feature_vocabulary() {
     let person: deckmaste_english::word::Person = deckmaste_english::features::Person::Second;
     let _: deckmaste_english::features::Person = person;

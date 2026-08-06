@@ -2614,14 +2614,39 @@ fn subject_is_enchant_keyword(subject: &Subject) -> bool {
 /// constituent is a self-reference, else `None`. Used to suppress the derived
 /// period when the card's name already ends in terminal punctuation.
 fn independent_clause_final_self_reference(clause: &IndependentClause) -> Option<ThisCardForm> {
-    let (IndependentClause::Transitive(_, predicate)
-    | IndependentClause::Imperative(Predicate::Transitive(predicate))
-    | IndependentClause::Predicated(
-        _,
-        PredicateExpression::Simple(Predicate::Transitive(predicate)),
-    )) = clause
-    else {
-        return None;
+    let predicate = match clause {
+        IndependentClause::Transitive(_, predicate)
+        | IndependentClause::Imperative(Predicate::Transitive(predicate))
+        | IndependentClause::Predicated(
+            _,
+            PredicateExpression::Simple(Predicate::Transitive(predicate)),
+        ) => predicate,
+        IndependentClause::Coordinated(coordination) => {
+            return match coordination.rest.last() {
+                Some(member) => match &member.member {
+                    CoordinatedClauseMember::Independent(clause) => {
+                        independent_clause_final_self_reference(clause)
+                    }
+                },
+                None => independent_clause_final_self_reference(&coordination.first),
+            };
+        }
+        IndependentClause::Complex(complex) => {
+            return match complex
+                .attachments
+                .iter()
+                .rev()
+                .find(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
+            {
+                Some(ClauseAttachment {
+                    payload: ClauseAttachmentKind::Appositive(clause),
+                    ..
+                }) => independent_clause_final_self_reference(clause),
+                Some(_) => None,
+                None => independent_clause_final_self_reference(&complex.matrix),
+            };
+        }
+        _ => return None,
     };
     if !predicate.elements.is_empty() {
         return None;

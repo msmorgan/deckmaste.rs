@@ -1322,31 +1322,12 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
 
     fn parse_sentence(&mut self, tokens: &[Token]) -> Sentence {
         if let Some(sentence) = self.attempt(|parser| {
-            let sentence = parser.parse_quoted_sentence(tokens)?;
+            let sentence = parser.parse_sentence_candidate(tokens)?;
             parser
                 .sentence_form_is_admitted(tokens, &sentence)
                 .then_some(sentence)
         }) {
             return sentence;
-        }
-        if let Some(sentence) = self.attempt(|parser| {
-            let sentence = parser.accept_exact(tokens, Nonterminal::Sentence, |parsed| {
-                parsed.sentence().cloned()
-            })?;
-            parser
-                .sentence_form_is_admitted(tokens, &sentence)
-                .then_some(sentence)
-        }) {
-            return sentence;
-        }
-        if let Some(sentence) = self.attempt(|parser| parser.parse_dash_appositive(tokens)) {
-            return sentence;
-        }
-        if let Some(body) = self.parse_power_toughness_body(tokens) {
-            return Sentence::from_body(body);
-        }
-        if let Some(body) = self.attempt(|parser| parser.parse_triggered_sentence(tokens)) {
-            return Sentence::from_body(body);
         }
 
         self.diagnostics.push(AbilityDiagnostic {
@@ -1362,6 +1343,33 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             self.tokens_text(tokens),
             tokens.len(),
         )))
+    }
+
+    /// Selects one exact semantic Sentence candidate. The caller owns the one
+    /// contextual form-admission boundary, so every present and future branch
+    /// reaches it before returning and the outer [`Self::attempt`] can roll
+    /// back all candidate provenance when admission declines.
+    fn parse_sentence_candidate(&mut self, tokens: &[Token]) -> Option<Sentence> {
+        if let Some(sentence) = self.attempt(|parser| parser.parse_quoted_sentence(tokens)) {
+            return Some(sentence);
+        }
+        if let Some(sentence) = self.attempt(|parser| {
+            parser.accept_exact(tokens, Nonterminal::Sentence, |parsed| {
+                parsed.sentence().cloned()
+            })
+        }) {
+            return Some(sentence);
+        }
+        if let Some(sentence) = self.attempt(|parser| parser.parse_dash_appositive(tokens)) {
+            return Some(sentence);
+        }
+        if let Some(body) = self.parse_power_toughness_body(tokens) {
+            return Some(Sentence::from_body(body));
+        }
+        if let Some(body) = self.attempt(|parser| parser.parse_triggered_sentence(tokens)) {
+            return Some(Sentence::from_body(body));
+        }
+        None
     }
 
     fn sentence_form_is_admitted(&self, tokens: &[Token], sentence: &Sentence) -> bool {
