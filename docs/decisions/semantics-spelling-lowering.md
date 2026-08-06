@@ -10,6 +10,10 @@ Renamed 2026-08-05 from “authoring” to “semantics”: most terms are recov
 from Oracle rather than written by hand, while all terms share their role as
 the canonical meaning representation. This is a vocabulary and crate rename;
 the architecture and type boundary are unchanged.
+Amended 2026-08-06: §17 records the divergence trajectory — semantics
+drifts toward English constructions, core toward explicit slot reference
+(`core-reference-slots`) — and the certifier/resolver role split; no type
+boundary changes today.
 
 ## 1. Summary
 
@@ -731,7 +735,7 @@ tracked tree); the deltas restated here are self-contained.
   `idris-distinct-position-proof`, `spelling-engine-requirements`,
   `post-reshape-comment-rot`, `ci-idris-gate` (the idris-check baseline),
   the re-aimed `core-remove-default-args`, and the design-gated
-  `characteristics-atoms-crate`.
+  `characteristics-atoms-crate` and `core-reference-slots` (§17).
 
 ## 16. Verification obligations
 
@@ -760,3 +764,47 @@ tracked tree); the deltas restated here are self-contained.
    `lower(sugar_form) == lower(explicit_form)` byte-for-byte on core.
 7. The per-container restriction table (§4) gets an explicit fixture per
    row, including a nested-definition inheritance case.
+
+## 17. Addendum (2026-08-06): the divergence trajectory
+
+Recorded so later design rounds inherit the direction instead of
+re-deriving it. §1's fork is the initial condition, not the end state: the
+two grammars drift in named directions, and each form spends its
+explicitness budget on exactly what its consumer needs.
+
+- **Semantics drifts toward English constructions.** The authored form
+  becomes English with explicit grouping — English vocabulary and
+  constructions, with only what English leaves implicit (bracketing,
+  attachment, ordering) made explicit. The drift lands in the DATA layer,
+  not the enums: English-shaped surface accumulates as macro defs and
+  frames (`AnyTarget` — a kind-punned Predicate/TargetSpec pair plus its
+  lexicon frame — and `Amass` are the existence proofs), while the
+  taxonomy enums drift toward generic scaffold (binders, sequencing, the
+  primitive verbs). Reference stays anaphoric here (`It`/`That(Sort)`):
+  English is anaphoric, and the spelling relation needs the anaphors.
+  Grouping is what turns explicit.
+- **Core drifts toward evaluation shape; its anaphoric channel is
+  direction-settled for removal** (`core-reference-slots`, design-gated).
+  The discourse reads mirrored at the fork (`It`/`That(Sort)` outside
+  binders, R1/R2-resolved dynamically at engine eval time) are replaced by
+  an explicit per-scope slot environment — absolute indices, telescope
+  ordering (strictly-earlier references only), per-slot provenance —
+  extending §7's indexed announce channel to every statement-level
+  binding. Reference is what turns explicit; grouping stays only as
+  structural as evaluation needs. Resolution happens ONCE, in lowering:
+  the antecedent walk stops being engine machinery and becomes a
+  compilation pass with per-card diagnostics. For §9's ledger this is a
+  pre-registered earned divergence, the second after §7's derived
+  `TargetSpec::Distinct`.
+- **The certifier/resolver split** (sharpens §10; assumes
+  `idris-mirror-semantics`' reattachment). The Idris mirror keeps the
+  whole certification job on semantic input — it proves a card's anaphora
+  resolve uniquely (R1/R2), reads sit in range, distinctness is
+  well-placed — and lowering is the executable counterpart that computes
+  the certified resolution. Two independent derivations of one rule,
+  gate-compared: the soundness-gate pattern working as designed, not
+  duplication drift. Coverage inverts in lowering's favor — the resolver
+  runs on every card at lower time (wizards included) while the gate
+  remains the canon-slice certifier. Core stays proof-free (§10), now
+  well-scoped by construction; the thin-mirror escape hatch stays
+  theoretical.
