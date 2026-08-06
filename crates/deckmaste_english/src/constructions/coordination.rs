@@ -1,5 +1,4 @@
-//! The real noun/nominal coordination declarations in bind mode: inactive
-//! compiler scaffolding related by tests to the handwritten grammar.
+//! Generated noun-phrase and shared-determiner nominal coordination.
 
 use deckmaste_construction_compiler::runtime::GroupData;
 
@@ -7,7 +6,9 @@ use crate::features::Comma;
 use crate::features::Conjunction;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::CoordinatedAdjectivePhrase;
+#[cfg(test)]
 use crate::syntax::CoordinatedNominalPhrase;
+#[cfg(test)]
 use crate::syntax::CoordinatedNounPhrase;
 use crate::syntax::Determiner;
 use crate::syntax::DevotionColors;
@@ -81,20 +82,15 @@ deckmaste_constructions_macro::constructions! {
         require rest.nonfinal.conjunction.is_none();
         require any(rest.len() >= 2, rest.last.comma in [Absent]);
         require rest.last.conjunction.is_some();
-        // The typed mapping is live, but generated chart sequence production
-        // lands with the lowering backend. Keep the inactive family honest
-        // about its present chart capability until that slice removes this.
-        require complements.len() == 0;
         derive first = noun_phrase_coordination(determiner, first, rest);
         witness oxford = stored rest.last.comma;
-        // The final atom is always empty but is required for EC021 and makes
-        // the whole target shape explicit.
         form shared @ 0 = determiner first rest complements;
     }
 }
 
 pub(crate) static GROUPS: &[&GroupData] = &[&NOUN_COORDINATION_DECLARATION];
 
+#[cfg(test)]
 pub(crate) fn build_noun_phrase_coordination(
     first: Box<NounPhrase>,
     rest: Vec<NounPhraseCoordination>,
@@ -103,12 +99,14 @@ pub(crate) fn build_noun_phrase_coordination(
     Ok(CoordinatedNounPhrase { first, rest })
 }
 
+#[cfg(test)]
 pub(crate) fn parts_noun_phrase_coordination(
     value: &CoordinatedNounPhrase,
 ) -> (&Box<NounPhrase>, &Vec<NounPhraseCoordination>) {
     (&value.first, &value.rest)
 }
 
+#[cfg(test)]
 pub(crate) fn build_shared_determiner_nominal(
     determiner: Determiner,
     first: Box<NominalPhrase>,
@@ -130,6 +128,7 @@ pub(crate) fn build_shared_determiner_nominal(
     })
 }
 
+#[cfg(test)]
 pub(crate) fn parts_shared_determiner_nominal(
     value: &CoordinatedNominalPhrase,
 ) -> (

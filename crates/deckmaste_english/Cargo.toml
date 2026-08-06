@@ -11,6 +11,7 @@ workspace = true
 # RuleImpl's generated arm carries &'static runtime::GroupData — the
 # declaration-as-data face the constructions! macro emits.
 deckmaste_construction_compiler = { version = "0.1.0", path = "../deckmaste_construction_compiler" }
+deckmaste_constructions_macro = { version = "0.1.0", path = "../deckmaste_constructions_macro" }
 deckmaste_features = { version = "0.1.0", path = "../deckmaste_features" }
 hashbrown = "0.15.5"
 # `Serialize` on the syntax tree is a generic traversal protocol, not a
@@ -22,7 +23,4 @@ serde = { version = "1.0.228", features = ["derive", "rc"] }
 strum = { version = "0.26.3", features = ["derive"] }
 
 [dev-dependencies]
-# The generated-adapter probe group is #[cfg(test)]; production assemblies
-# never invoke the macro.
-deckmaste_constructions_macro = { version = "0.1.0", path = "../deckmaste_constructions_macro" }
 proptest = "1.11.0"

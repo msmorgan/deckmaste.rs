@@ -1441,7 +1441,7 @@ mod tests {
     }
 
     #[test]
-    fn shared_determiner_builder_enforces_oxford_and_empty_complements() {
+    fn shared_determiner_builder_enforces_oxford_and_supports_typed_complements() {
         let built = coordination::build_shared_determiner_nominal(
             Determiner::Any,
             Box::new(nominal(Vocab::Card)),
@@ -1480,7 +1480,7 @@ mod tests {
             "any(rest.len() >= 2, rest.last.comma in [Absent])",
         );
 
-        let complement = coordination::build_shared_determiner_nominal(
+        let complemented = coordination::build_shared_determiner_nominal(
             Determiner::Any,
             Box::new(nominal(Vocab::Card)),
             vec![NominalPhraseCoordination {
@@ -1490,9 +1490,13 @@ mod tests {
             }],
             vec![NominalComplement::Quantity(Quantity::Both)],
         )
-        .expect_err("the opaque nominal-complement sequence is currently proved empty");
-        assert_eq!(complement.construction, "shared_determiner_nominal");
-        assert_eq!(complement.requirement, "complements.len() == 0");
+        .expect("typed nominal complements are declared construction fields");
+        let (_, _, _, complements) = coordination::parts_shared_determiner_nominal(&complemented);
+        assert_eq!(complements, &[NominalComplement::Quantity(Quantity::Both)]);
+        assert_eq!(
+            nominal_coordination_verdict(&complemented),
+            CoordinationVerdict::Admitted
+        );
     }
 
     #[test]
@@ -1614,9 +1618,7 @@ mod tests {
         };
         assert_eq!(
             nominal_coordination_verdict(&nominal),
-            CoordinationVerdict::Refused {
-                requirement: "complements.len() == 0",
-            },
+            CoordinationVerdict::Admitted,
         );
     }
 
@@ -1709,65 +1711,20 @@ mod tests {
     }
 
     #[test]
-    fn handwritten_binary_oxford_surfaces_are_refused_by_the_declaration() {
-        const REQUIREMENT: &str = "any(rest.len() >= 2, rest.last.comma in [Absent])";
-
-        let noun_source = "target creature, and target land";
-        let noun_readings = noun_phrase_readings(noun_source);
-        let noun_coordinations = noun_readings
-            .iter()
-            .filter_map(|reading| match reading {
-                NounPhrase::Coordinated(coordination) => Some(coordination),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-        assert!(
-            !noun_coordinations.is_empty(),
-            "the handwritten grammar produced no complete coordinated reading",
-        );
-        for coordination in noun_coordinations {
-            assert_eq!(
-                coordination_verdict(coordination),
-                CoordinationVerdict::Refused {
-                    requirement: REQUIREMENT,
-                },
-                "binary Oxford noun reading was not refused: {coordination:#?}",
+    fn generated_coordination_rejects_binary_oxford_surfaces_before_lowering() {
+        for source in [
+            "target creature, and target land",
+            "target artifact, or creature",
+        ] {
+            let readings = noun_phrase_readings(source);
+            assert!(
+                readings.iter().all(|reading| !matches!(
+                    reading,
+                    NounPhrase::Coordinated(_) | NounPhrase::CoordinatedNominal(_)
+                )),
+                "illegal binary Oxford surface acquired a coordinated reading: {readings:#?}",
             );
         }
-
-        let nominal_source = "target artifact, or creature";
-        let nominal_readings = noun_phrase_readings(nominal_source);
-        let nominal_coordinations = nominal_readings
-            .iter()
-            .filter_map(|reading| match reading {
-                NounPhrase::CoordinatedNominal(coordination) => Some(coordination),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-        assert!(
-            !nominal_coordinations.is_empty(),
-            "the handwritten grammar produced no shared-determiner coordinated reading",
-        );
-        for coordination in nominal_coordinations {
-            assert_eq!(
-                nominal_coordination_verdict(coordination),
-                CoordinationVerdict::Refused {
-                    requirement: REQUIREMENT,
-                },
-                "binary Oxford nominal reading was not refused: {coordination:#?}",
-            );
-        }
-        eprintln!(
-            "illegal binary Oxford surfaces: noun coordinated readings={}, nominal coordinated readings={}",
-            noun_readings
-                .iter()
-                .filter(|reading| matches!(reading, NounPhrase::Coordinated(_)))
-                .count(),
-            nominal_readings
-                .iter()
-                .filter(|reading| matches!(reading, NounPhrase::CoordinatedNominal(_)))
-                .count(),
-        );
     }
 
     fn noun_coordination_depth(noun_phrase: &NounPhrase) -> usize {

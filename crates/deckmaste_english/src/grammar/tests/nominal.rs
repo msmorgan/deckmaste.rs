@@ -525,7 +525,14 @@ mod tests {
             parsed
                 .constituent_spans()
                 .iter()
-                .any(|span| span.text(source) == Some("target creature or artifact"))
+                .any(|span| span.text(source) == Some("target creature or artifact")),
+            "constituents: {:#?}\nconstructions: {:#?}",
+            parsed
+                .constituent_spans()
+                .iter()
+                .filter_map(|span| span.text(source))
+                .collect::<Vec<_>>(),
+            parsed.construction_decisions()
         );
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }

@@ -11,6 +11,7 @@ use super::InitialSound;
 use super::NominalAttachmentPhase;
 use super::NounCardinality;
 use super::NounForm;
+use super::NounPhraseCoordinationState;
 use super::Number;
 use super::Person;
 use super::PredicateForm;
@@ -436,6 +437,7 @@ pub(super) const fn arithmetic_value_features() -> Features {
         pronoun_case: None,
         adjunct: None,
         set_exception: SetExceptionState::Ineligible,
+        coordination: NounPhraseCoordinationState::None,
     }
 }
 
@@ -531,6 +533,7 @@ pub(super) fn reduce_nominal(
         RuleTag::NominalNoun => {
             let child = children.first()?;
             let Features::Noun {
+                identity,
                 form,
                 initial_sound,
                 adjunct,
@@ -541,6 +544,7 @@ pub(super) fn reduce_nominal(
                 return None;
             };
             Some(Features::Nominal {
+                head: identity.clone(),
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: false,
@@ -571,10 +575,17 @@ pub(super) fn reduce_nominal(
             // which prepends onto an existing one). `initial_sound` is
             // overridden to `Consonant`: the phrase's true leftmost token is
             // `declare`, not the vowel-initial `attackers`.
-            let Features::Noun { form, adjunct, .. } = children.get(2)?.features else {
+            let Features::Noun {
+                identity,
+                form,
+                adjunct,
+                ..
+            } = children.get(2)?.features
+            else {
                 return None;
             };
             Some(Features::Nominal {
+                head: identity.clone(),
                 form: *form,
                 initial_sound: InitialSound::Consonant,
                 determined: false,
@@ -659,6 +670,7 @@ pub(super) fn reduce_nominal(
                 return None;
             };
             let Features::Nominal {
+                head,
                 form,
                 initial_sound,
                 determined,
@@ -680,6 +692,7 @@ pub(super) fn reduce_nominal(
                 return None;
             }
             Some(Features::Nominal {
+                head: head.clone(),
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: true,
@@ -695,6 +708,7 @@ pub(super) fn reduce_nominal(
         }
         RuleTag::NominalPrepositional | RuleTag::RulesObjectFollowupNominalPrepositional => {
             let Features::Nominal {
+                head,
                 form,
                 initial_sound,
                 determined,
@@ -727,6 +741,7 @@ pub(super) fn reduce_nominal(
                 return None;
             }
             Some(Features::Nominal {
+                head: head.clone(),
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: *determined,
@@ -744,6 +759,7 @@ pub(super) fn reduce_nominal(
         }
         RuleTag::NominalInfinitive => {
             let Features::Nominal {
+                head,
                 form,
                 initial_sound,
                 determined,
@@ -771,6 +787,7 @@ pub(super) fn reduce_nominal(
                 return None;
             }
             Some(Features::Nominal {
+                head: head.clone(),
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: *determined,
@@ -788,6 +805,7 @@ pub(super) fn reduce_nominal(
         }
         RuleTag::NominalKeywordSymbolArgument => {
             let Features::Noun {
+                identity,
                 form: NounForm::Mass,
                 initial_sound,
                 adjunct,
@@ -803,6 +821,7 @@ pub(super) fn reduce_nominal(
                 return None;
             }
             Some(Features::Nominal {
+                head: identity.clone(),
                 form: NounForm::Mass,
                 initial_sound: *initial_sound,
                 determined: false,
@@ -846,6 +865,7 @@ pub(super) fn reduce_nominal(
         RuleTag::NominalKeywordPredicatedArgument
         | RuleTag::NominalKeywordAtomCarriedPredicatedArgument => {
             let Features::Noun {
+                identity,
                 form: NounForm::Mass,
                 initial_sound,
                 adjunct,
@@ -858,6 +878,7 @@ pub(super) fn reduce_nominal(
                 return None;
             }
             Some(Features::Nominal {
+                head: identity.clone(),
                 form: NounForm::Mass,
                 initial_sound: *initial_sound,
                 determined: false,
@@ -887,6 +908,7 @@ pub(super) fn reduce_nominal(
         | RuleTag::RulesObjectFollowupNominalRelative
         | RuleTag::NominalReducedRecipientPassive => {
             let Features::Nominal {
+                head,
                 form,
                 initial_sound,
                 determined,
@@ -959,6 +981,7 @@ pub(super) fn reduce_nominal(
                 }
             }
             Some(Features::Nominal {
+                head: head.clone(),
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: *determined,
@@ -994,6 +1017,7 @@ pub(super) fn reduce_nominal(
         }
         RuleTag::NominalPowerToughnessComplement => {
             let Features::Nominal {
+                head,
                 form,
                 initial_sound,
                 determined,
@@ -1018,6 +1042,7 @@ pub(super) fn reduce_nominal(
                 return None;
             }
             Some(Features::Nominal {
+                head: head.clone(),
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: *determined,
@@ -1046,6 +1071,7 @@ pub(super) fn reduce_nominal(
                 return None;
             };
             let Features::Nominal {
+                head,
                 form,
                 initial_sound,
                 determined,
@@ -1062,6 +1088,7 @@ pub(super) fn reduce_nominal(
                 return None;
             };
             Some(Features::Nominal {
+                head: head.clone(),
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: *determined,
@@ -1106,6 +1133,7 @@ pub(super) fn reduce_nominal(
                 return None;
             };
             let Features::Nominal {
+                head,
                 form,
                 initial_sound,
                 determined,
@@ -1122,6 +1150,7 @@ pub(super) fn reduce_nominal(
                 return None;
             };
             Some(Features::Nominal {
+                head: head.clone(),
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: *determined,
@@ -1137,6 +1166,7 @@ pub(super) fn reduce_nominal(
         }
         RuleTag::NominalComparison => {
             let Features::Nominal {
+                head,
                 form,
                 initial_sound,
                 determined,
@@ -1154,6 +1184,7 @@ pub(super) fn reduce_nominal(
                 return None;
             };
             Some(Features::Nominal {
+                head: head.clone(),
                 form: *form,
                 initial_sound: *initial_sound,
                 determined: *determined,
@@ -1182,10 +1213,11 @@ pub(super) fn reduce_nominal(
         RuleTag::NominalDevotion => {
             // `devotion to <color>` is a singular measured value that a
             // possessive determiner (`your`) then wraps.
-            let Features::Noun { .. } = children.first()?.features else {
+            let Features::Noun { identity, .. } = children.first()?.features else {
                 return None;
             };
             Some(Features::Nominal {
+                head: identity.clone(),
                 form: NounForm::Singular,
                 initial_sound: InitialSound::Consonant,
                 determined: false,
@@ -1204,13 +1236,14 @@ pub(super) fn reduce_nominal(
         RuleTag::NominalTimesClause => {
             // `times <clause>`: a plural `times` head with a finite clause as a
             // reduced adjunct-relative complement.
-            let Features::Noun { .. } = children.first()?.features else {
+            let Features::Noun { identity, .. } = children.first()?.features else {
                 return None;
             };
             let Features::Clause { finite: true, .. } = children.get(1)?.features else {
                 return None;
             };
             Some(Features::Nominal {
+                head: identity.clone(),
                 form: NounForm::Plural,
                 initial_sound: InitialSound::Consonant,
                 determined: false,
@@ -1239,15 +1272,22 @@ pub(super) fn reduce_nominal(
             Some(Features::CoordinatedModifier {
                 initial_sound: *initial_sound,
                 all_adjectives: true,
+                noun_heads: Vec::new(),
             })
         }
         RuleTag::ModifierConjunctNoun => {
-            let Features::Noun { initial_sound, .. } = children.first()?.features else {
+            let Features::Noun {
+                identity,
+                initial_sound,
+                ..
+            } = children.first()?.features
+            else {
                 return None;
             };
             Some(Features::CoordinatedModifier {
                 initial_sound: *initial_sound,
                 all_adjectives: false,
+                noun_heads: identity.iter().cloned().collect(),
             })
         }
         RuleTag::ModifierConjunctNegated => {
@@ -1255,6 +1295,7 @@ pub(super) fn reduce_nominal(
             Some(Features::CoordinatedModifier {
                 initial_sound: InitialSound::Consonant,
                 all_adjectives: false,
+                noun_heads: Vec::new(),
             })
         }
         RuleTag::ModifierListSingle => {
@@ -1270,12 +1311,14 @@ pub(super) fn reduce_nominal(
             let Features::CoordinatedModifier {
                 initial_sound,
                 all_adjectives,
+                noun_heads,
             } = children.first()?.features
             else {
                 return None;
             };
             let Features::CoordinatedModifier {
                 all_adjectives: appended_adjectives,
+                noun_heads: appended_noun_heads,
                 ..
             } = children.get(2)?.features
             else {
@@ -1284,12 +1327,18 @@ pub(super) fn reduce_nominal(
             Some(Features::CoordinatedModifier {
                 initial_sound: *initial_sound,
                 all_adjectives: *all_adjectives && *appended_adjectives,
+                noun_heads: noun_heads
+                    .iter()
+                    .chain(appended_noun_heads)
+                    .cloned()
+                    .collect(),
             })
         }
         RuleTag::CoordinatedModifierConjoined | RuleTag::CoordinatedModifierOxford => {
             let Features::CoordinatedModifier {
                 initial_sound,
                 all_adjectives,
+                noun_heads,
             } = children.first()?.features
             else {
                 return None;
@@ -1308,6 +1357,7 @@ pub(super) fn reduce_nominal(
             }
             let Features::CoordinatedModifier {
                 all_adjectives: closing_adjectives,
+                noun_heads: closing_noun_heads,
                 ..
             } = children.last()?.features
             else {
@@ -1316,13 +1366,28 @@ pub(super) fn reduce_nominal(
             Some(Features::CoordinatedModifier {
                 initial_sound: *initial_sound,
                 all_adjectives: *all_adjectives && *closing_adjectives,
+                noun_heads: noun_heads
+                    .iter()
+                    .chain(closing_noun_heads)
+                    .cloned()
+                    .collect(),
             })
         }
         RuleTag::NominalCoordinatedModifier => {
-            let Features::CoordinatedModifier { initial_sound, .. } = children.first()?.features
+            let Features::CoordinatedModifier {
+                initial_sound,
+                noun_heads,
+                ..
+            } = children.first()?.features
             else {
                 return None;
             };
+            let Features::Nominal { head, .. } = children.get(1)?.features else {
+                return None;
+            };
+            if head.as_ref().is_some_and(|head| noun_heads.contains(head)) {
+                return None;
+            }
             nominal_with_prefix(
                 children.get(1)?,
                 *initial_sound,
@@ -1385,6 +1450,7 @@ pub(super) fn reduce_phrase(
                     .then_some(*first_adjunct)
                     .flatten(),
                 set_exception: SetExceptionState::Ineligible,
+                coordination: NounPhraseCoordinationState::Binary(*conjunction),
             })
         }
         RuleTag::SharedDeterminerNominal => {
@@ -1470,6 +1536,7 @@ pub(super) fn reduce_phrase(
                 } else {
                     SetExceptionState::Ineligible
                 },
+                coordination: NounPhraseCoordinationState::Shared,
             })
         }
         RuleTag::NounPhraseSharedDeterminer => {
@@ -1499,6 +1566,7 @@ pub(super) fn reduce_phrase(
                 pronoun_case: *pronoun_case,
                 adjunct: *adjunct,
                 set_exception: SetExceptionState::Closed,
+                coordination: NounPhraseCoordinationState::None,
             })
         }
         RuleTag::NounPhraseNominal
@@ -1544,6 +1612,7 @@ pub(super) fn reduce_phrase(
                 } else {
                     SetExceptionState::Ineligible
                 },
+                coordination: NounPhraseCoordinationState::None,
             })
         }
         RuleTag::NounPhraseSubjectPronoun | RuleTag::NounPhraseObjectPronoun => {
@@ -1565,6 +1634,7 @@ pub(super) fn reduce_phrase(
                 pronoun_case: None,
                 adjunct: None,
                 set_exception: SetExceptionState::Ineligible,
+                coordination: NounPhraseCoordinationState::None,
             })
         }
         RuleTag::NounPhraseThisCard | RuleTag::NounPhraseFullThisCard => {
@@ -1573,6 +1643,7 @@ pub(super) fn reduce_phrase(
                 pronoun_case,
                 adjunct,
                 set_exception,
+                coordination,
             } = children.first()?.features
             else {
                 return None;
@@ -1582,6 +1653,7 @@ pub(super) fn reduce_phrase(
                 pronoun_case: *pronoun_case,
                 adjunct: *adjunct,
                 set_exception: *set_exception,
+                coordination: *coordination,
             })
         }
         RuleTag::NounPhrasePossessiveThisCard => {
@@ -1593,6 +1665,7 @@ pub(super) fn reduce_phrase(
                 pronoun_case: None,
                 adjunct: None,
                 set_exception: SetExceptionState::Ineligible,
+                coordination: NounPhraseCoordinationState::None,
             })
         }
         RuleTag::NounPhraseDemonstrative => {
@@ -1616,6 +1689,7 @@ pub(super) fn reduce_phrase(
                 pronoun_case: None,
                 adjunct: None,
                 set_exception: SetExceptionState::Ineligible,
+                coordination: NounPhraseCoordinationState::None,
             })
         }
         RuleTag::NounPhraseEachPartitive => {
@@ -1632,6 +1706,7 @@ pub(super) fn reduce_phrase(
                 pronoun_case: None,
                 adjunct: None,
                 set_exception: SetExceptionState::Ineligible,
+                coordination: NounPhraseCoordinationState::None,
             })
         }
         RuleTag::NounPhraseAnyNumberOf => {
@@ -1673,6 +1748,7 @@ pub(super) fn reduce_phrase(
                 pronoun_case: None,
                 adjunct: None,
                 set_exception: SetExceptionState::Ineligible,
+                coordination: NounPhraseCoordinationState::None,
             })
         }
         RuleTag::NounPhraseCoordination
@@ -1780,18 +1856,29 @@ pub(super) fn reduce_phrase(
             let Features::Preposition(preposition) = children.first()?.features else {
                 return None;
             };
-            let Features::PrepositionalObject { gerund } = children.get(1)?.features else {
+            let Features::PrepositionalObject {
+                gerund,
+                shared_determiner,
+            } = children.get(1)?.features
+            else {
                 return None;
             };
             Some(Features::PrepositionalPhrase {
                 preposition: *preposition,
                 nominal_attachment: !(*preposition == Preposition::By && *gerund),
-                shared_determiner_object: false,
+                shared_determiner_object: *shared_determiner,
                 nearer_relative_host: false,
             })
         }
         RuleTag::PrepositionalObject => Some(Features::PrepositionalObject {
             gerund: matches!(children.first()?.features, Features::GerundClause),
+            shared_determiner: matches!(
+                children.first()?.features,
+                Features::NounPhrase {
+                    coordination: NounPhraseCoordinationState::Shared,
+                    ..
+                }
+            ),
         }),
         _ => None,
     }
@@ -1887,6 +1974,11 @@ pub(super) fn reduce_noun_phrase_coordination(
             .then_some(*first_adjunct)
             .flatten(),
         set_exception: *set_exception,
+        coordination: if tag == RuleTag::NounPhraseCoordinationOxford {
+            NounPhraseCoordinationState::Oxford(conjunction)
+        } else {
+            NounPhraseCoordinationState::Binary(conjunction)
+        },
     })
 }
 
@@ -1903,6 +1995,16 @@ pub(super) fn reduce_generated_aux(
             present_fields,
         } => {
             let element = group.element_data.get(element)?;
+            if matches!(element.name, "noun_phrase_member" | "nominal_phrase_member")
+                && present_fields & 0b11 == 0
+            {
+                // Every admitted coordination member contributes either its
+                // comma or its conjunction. Reject the delimiter-free shape
+                // before it can seed an arbitrarily ambiguous NP sequence in
+                // opacity mode; the construction-level quantified checks
+                // still decide which delimited shape is final/nonfinal.
+                return None;
+            }
             let mut children = children.iter();
             let mut fields = Vec::with_capacity(element.fields.len());
             for index in 0..element.fields.len() {
@@ -1915,28 +2017,57 @@ pub(super) fn reduce_generated_aux(
             if children.next().is_some() {
                 return None;
             }
-            Features::GeneratedElement { fields }
+            Features::GeneratedElement {
+                fields,
+                present_fields,
+                variant: None,
+            }
         }
-        R::ElementVariant { .. } => Features::GeneratedElement {
+        R::ElementVariant { variant, .. } => Features::GeneratedElement {
             fields: vec![children.first()?.features.clone()],
+            present_fields: 1,
+            variant: Some(variant),
         },
         R::SequenceSeed { .. } => {
-            let Features::GeneratedElement { fields } = children.first()?.features else {
+            let Features::GeneratedElement {
+                fields,
+                present_fields,
+                variant,
+            } = children.first()?.features
+            else {
                 return None;
             };
             Features::GeneratedSequence {
-                elements: vec![fields.clone()],
+                elements: vec![(fields.clone(), *present_fields, *variant)],
             }
         }
-        R::SequenceExtend { .. } => {
+        R::SequenceExtend { group, element } => {
             let Features::GeneratedSequence { elements } = children.first()?.features else {
                 return None;
             };
-            let Features::GeneratedElement { fields } = children.get(1)?.features else {
+            let element = group.element_data.get(element)?;
+            if matches!(element.name, "noun_phrase_member" | "nominal_phrase_member")
+                && !elements
+                    .last()
+                    .is_some_and(|(_, present, _)| present & 0b01 != 0 && present & 0b10 == 0)
+            {
+                // Once another member follows, the previous one is known to
+                // be nonfinal: it must carry a comma and must not already
+                // carry the closing conjunction. Pruning at the extension
+                // boundary prevents invalid list permutations from reaching
+                // every surrounding NounPhrase prediction.
+                return None;
+            }
+            let Features::GeneratedElement {
+                fields,
+                present_fields,
+                variant,
+            } = children.get(1)?.features
+            else {
                 return None;
             };
             let mut elements = elements.clone();
-            elements.push(fields.clone());
+            elements.push((fields.clone(), *present_fields, *variant));
             Features::GeneratedSequence { elements }
         }
     };
@@ -1989,9 +2120,41 @@ pub(super) fn reduce_generated(
         }
         _ => return None,
     };
+    let local_cost = if construction.id == "shared_determiner_nominal"
+        && generated_complements_include_keyword_argument(rule, &fields)
+    {
+        super::ParseCost {
+            precedence: 1,
+            ..super::ParseCost::default()
+        }
+    } else {
+        super::ParseCost::default()
+    };
     Some(Reduction {
         features,
-        local_cost: super::ParseCost::default(),
+        local_cost,
+    })
+}
+
+fn generated_complements_include_keyword_argument(
+    rule: super::rules::GeneratedRuleRef,
+    fields: &[Option<&Features>],
+) -> bool {
+    let Some(Features::GeneratedSequence { elements }) = fields.get(3).copied().flatten() else {
+        return false;
+    };
+    let Some(element) = rule
+        .group
+        .element_data
+        .iter()
+        .find(|element| element.name == "nominal_complement")
+    else {
+        return false;
+    };
+    elements.iter().any(|(_, _, variant)| {
+        variant
+            .and_then(|variant| element.variants.get(variant))
+            .is_some_and(|variant| variant.name == "KeywordArgument")
     })
 }
 
@@ -2005,6 +2168,7 @@ fn noun_phrase_coordination_features(
                 agreement: first_agreement,
                 adjunct: first_adjunct,
                 set_exception,
+                coordination: first_coordination,
                 ..
             } = fields.first()?.as_ref()?
             else {
@@ -2013,9 +2177,15 @@ fn noun_phrase_coordination_features(
             let Features::GeneratedSequence { elements } = fields.get(1)?.as_ref()? else {
                 return None;
             };
+            generated_coordination_sequence_is_valid(elements)?;
+            if *set_exception == SetExceptionState::Closed
+                || elements.len() >= 2 && *first_coordination != NounPhraseCoordinationState::None
+            {
+                return None;
+            }
             let mut common_adjunct = *first_adjunct;
             let mut last_agreement = *first_agreement;
-            for element in elements {
+            for (element, _, _) in elements {
                 let Features::NounPhrase {
                     agreement, adjunct, ..
                 } = element.get(2)?
@@ -2033,6 +2203,11 @@ fn noun_phrase_coordination_features(
                 pronoun_case: None,
                 adjunct: common_adjunct,
                 set_exception: *set_exception,
+                coordination: if elements.len() >= 2 {
+                    NounPhraseCoordinationState::Oxford(conjunction)
+                } else {
+                    NounPhraseCoordinationState::Binary(conjunction)
+                },
             })
         }
         "shared_determiner_nominal" => {
@@ -2048,14 +2223,12 @@ fn noun_phrase_coordination_features(
             let Features::GeneratedSequence { elements } = fields.get(2)?.as_ref()? else {
                 return None;
             };
+            generated_coordination_sequence_is_valid(elements)?;
             let mut common_adjunct = first.2;
             let mut last_form = first.0;
-            for element in elements {
+            for (element, _, _) in elements {
                 let member = nominal_coordination_member(element.get(2)?)?;
-                if member.3 != first.3
-                    || !cardinality_accepts(*cardinality, member.0)
-                    || !article_accepts(*article, member.1)
-                {
+                if !generated_determiner_accepts(*cardinality, *article, member.0, member.1) {
                     return None;
                 }
                 if common_adjunct != member.2 {
@@ -2063,7 +2236,7 @@ fn noun_phrase_coordination_features(
                 }
                 last_form = member.0;
             }
-            if !cardinality_accepts(*cardinality, first.0) || !article_accepts(*article, first.1) {
+            if !generated_determiner_accepts(*cardinality, *article, first.0, first.1) {
                 return None;
             }
             let conjunction = final_generated_conjunction(elements)?;
@@ -2092,14 +2265,39 @@ fn noun_phrase_coordination_features(
                 } else {
                     SetExceptionState::Ineligible
                 },
+                coordination: NounPhraseCoordinationState::Shared,
             })
         }
         _ => None,
     }
 }
 
-fn final_generated_conjunction(elements: &[Vec<Features>]) -> Option<Conjunction> {
-    let Features::Conjunction(conjunction) = elements.last()?.get(1)? else {
+fn generated_coordination_sequence_is_valid(
+    elements: &[(Vec<Features>, u64, Option<usize>)],
+) -> Option<()> {
+    let (last, nonfinal) = elements.split_last()?;
+    for (_, present, _) in nonfinal {
+        if present & 1 == 0 || present & (1 << 1) != 0 {
+            return None;
+        }
+    }
+    if last.1 & (1 << 1) == 0 {
+        return None;
+    }
+    if elements.len() == 1 && last.1 & 1 != 0 {
+        return None;
+    }
+    Some(())
+}
+
+fn final_generated_conjunction(
+    elements: &[(Vec<Features>, u64, Option<usize>)],
+) -> Option<Conjunction> {
+    let (fields, present, _) = elements.last()?;
+    if present & (1 << 1) == 0 {
+        return None;
+    }
+    let Features::Conjunction(conjunction) = fields.get(1)? else {
         return None;
     };
     matches!(
@@ -2127,29 +2325,35 @@ fn coordination_agreement(
 
 fn nominal_coordination_member(
     features: &Features,
-) -> Option<(
-    NounForm,
-    InitialSound,
-    Option<super::BareNominalAdjunct>,
-    bool,
-)> {
+) -> Option<(NounForm, InitialSound, Option<super::BareNominalAdjunct>)> {
     match features {
         Features::Noun {
             form,
             initial_sound,
             adjunct,
             ..
-        } => Some((*form, *initial_sound, *adjunct, false)),
+        } => Some((*form, *initial_sound, *adjunct)),
         Features::Nominal {
             form,
             initial_sound,
             determined: false,
-            modified,
             adjunct,
             ..
-        } => Some((*form, *initial_sound, *adjunct, *modified)),
+        } => Some((*form, *initial_sound, *adjunct)),
         _ => None,
     }
+}
+
+fn generated_determiner_accepts(
+    cardinality: NounCardinality,
+    article: Option<IndefiniteArticle>,
+    form: NounForm,
+    initial_sound: InitialSound,
+) -> bool {
+    if cardinality == NounCardinality::Unconstrained && form != NounForm::Singular {
+        return false;
+    }
+    cardinality_accepts(cardinality, form) && article_accepts(article, initial_sound)
 }
 
 pub(super) fn propagate(child: &Child<'_, EnglishGrammar<'_, '_>>) -> Reduced {
@@ -2163,6 +2367,7 @@ pub(super) fn nominal_with_prefix(
     prefix_comparison: AdjectiveComparisonState,
 ) -> Option<Reduced> {
     let Features::Nominal {
+        head,
         form,
         determined,
         attachment,
@@ -2194,6 +2399,7 @@ pub(super) fn nominal_with_prefix(
         }
     };
     Some(Features::Nominal {
+        head: head.clone(),
         form: *form,
         initial_sound,
         determined: *determined,
@@ -2219,6 +2425,7 @@ pub(super) fn noun_phrase_from_pronoun(
         pronoun_case,
         adjunct,
         set_exception,
+        coordination,
     } = child.features
     else {
         return None;
@@ -2228,6 +2435,7 @@ pub(super) fn noun_phrase_from_pronoun(
         pronoun_case: *pronoun_case,
         adjunct: *adjunct,
         set_exception: *set_exception,
+        coordination: *coordination,
     })
 }
 
@@ -2275,16 +2483,21 @@ mod generated_tests {
             pronoun_case: None,
             adjunct: None,
             set_exception: SetExceptionState::Ineligible,
+            coordination: NounPhraseCoordinationState::None,
         }
     }
 
     fn sequence(conjunction: Conjunction, number: Number) -> Features {
         Features::GeneratedSequence {
-            elements: vec![vec![
-                Features::None,
-                Features::Conjunction(conjunction),
-                noun_phrase(number),
-            ]],
+            elements: vec![(
+                vec![
+                    Features::None,
+                    Features::Conjunction(conjunction),
+                    noun_phrase(number),
+                ],
+                1 << 1 | 1 << 2,
+                None,
+            )],
         }
     }
 

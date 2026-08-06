@@ -38,6 +38,7 @@ pub(super) fn scan_opaque(
     vec![LexicalMatch {
         end: start + 1,
         features: Features::Noun {
+            identity: None,
             form,
             initial_sound,
             adjunct: None,

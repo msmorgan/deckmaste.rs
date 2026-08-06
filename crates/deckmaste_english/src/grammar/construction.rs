@@ -91,6 +91,14 @@ fn dominance_edges() -> [DominanceEdge; 19] {
 pub(super) fn registry() -> &'static ConstructionRegistry {
     static REGISTRY: OnceLock<ConstructionRegistry> = OnceLock::new();
     REGISTRY.get_or_init(|| {
+        merged_registry(crate::constructions::coordination::GROUPS)
+            .expect("production construction registry must be valid")
+    })
+}
+
+pub(super) fn handwritten_registry() -> &'static ConstructionRegistry {
+    static REGISTRY: OnceLock<ConstructionRegistry> = OnceLock::new();
+    REGISTRY.get_or_init(|| {
         ConstructionRegistry::new(RuleTag::iter().map(family), dominance_edges())
             .expect("static construction registry must be valid")
     })
@@ -168,6 +176,7 @@ mod tests {
 
     use super::super::RuleTag;
     use super::construction_id;
+    use super::handwritten_registry;
     use super::registry;
     use crate::construction::ConstructionBackend;
     use crate::construction::ConstructionEvidence;
@@ -188,15 +197,32 @@ mod tests {
     }
 
     #[test]
-    fn every_handwritten_tag_has_exactly_one_registry_row() {
+    fn production_registry_has_one_owner_per_active_family() {
         let registry = registry();
-        let tags = RuleTag::iter().collect::<Vec<_>>();
-        assert_eq!(registry.families().len(), tags.len());
-        for tag in tags {
+        let groups = crate::constructions::coordination::GROUPS;
+        for tag in RuleTag::iter() {
             let id = construction_id(tag);
-            let family = registry.family(id).expect("tag missing from registry");
-            assert_eq!(family.owner(), ConstructionOwner::Handwritten);
-            assert_eq!(family.backend(), ConstructionBackend::Chart);
+            if super::handwritten_replaced_by(groups, tag) {
+                if matches!(
+                    tag,
+                    RuleTag::NounPhraseCoordination | RuleTag::SharedDeterminerNominal
+                ) {
+                    let family = registry
+                        .family(id)
+                        .expect("the generated owner replaces the matching row");
+                    assert_eq!(family.owner(), ConstructionOwner::Generated);
+                    assert_eq!(family.backend(), ConstructionBackend::Chart);
+                } else {
+                    assert!(
+                        registry.family(id).is_none(),
+                        "retired helper family {tag:?} remains registered",
+                    );
+                }
+            } else {
+                let family = registry.family(id).expect("tag missing from registry");
+                assert_eq!(family.owner(), ConstructionOwner::Handwritten);
+                assert_eq!(family.backend(), ConstructionBackend::Chart);
+            }
         }
     }
 
@@ -429,17 +455,22 @@ mod tests {
     }
 
     #[test]
-    fn production_registry_is_untouched() {
+    fn inactive_registry_is_the_handwritten_control() {
         // `merged_registry(&[])` (no active generated groups) must carry
         // exactly the same rows as the real `registry()` static — the
         // guarantee that activation changes nothing for production parses.
         let merged = super::merged_registry(&[]).expect("no groups must merge cleanly");
         let tags = RuleTag::iter().collect::<Vec<_>>();
         assert_eq!(merged.families().len(), tags.len());
-        assert_eq!(merged.families().len(), registry().families().len());
+        assert_eq!(
+            merged.families().len(),
+            handwritten_registry().families().len()
+        );
         for tag in tags {
             let id = construction_id(tag);
-            let production_family = registry().family(id).expect("tag missing from registry()");
+            let production_family = handwritten_registry()
+                .family(id)
+                .expect("tag missing from handwritten_registry()");
             let merged_family = merged
                 .family(id)
                 .expect("tag missing from merged_registry(&[])");
@@ -454,7 +485,7 @@ mod tests {
             super::super::generated::GeneratedActivation::Inactive,
         ) {
             super::super::parse_support::SelectedRegistry::Static(selected) => {
-                assert!(std::ptr::eq(selected, registry()));
+                assert!(std::ptr::eq(selected, handwritten_registry()));
             }
             super::super::parse_support::SelectedRegistry::Owned(_) => {
                 panic!("Inactive must select the registry() static, not a reconstruction");

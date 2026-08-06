@@ -1080,6 +1080,14 @@ pub(crate) enum SetExceptionState {
     Closed,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum NounPhraseCoordinationState {
+    None,
+    Binary(Conjunction),
+    Oxford(Conjunction),
+    Shared,
+}
+
 /// Chart identity facts restricted to inherent realization and grammatical
 /// selection; exact surface witnesses live outside this bundle.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -1107,6 +1115,10 @@ pub(crate) enum Features {
         card_orientation: bool,
     },
     Noun {
+        /// Catalog identity used only to reject a coordinated type modifier
+        /// that repeats its following semantic head. Ordinary lexical nouns
+        /// stay packed by grammatical features.
+        identity: Option<CatalogAtom>,
         form: NounForm,
         initial_sound: InitialSound,
         adjunct: Option<BareNominalAdjunct>,
@@ -1118,6 +1130,7 @@ pub(crate) enum Features {
         recipient_passive_theme: bool,
     },
     Nominal {
+        head: Option<CatalogAtom>,
         form: NounForm,
         initial_sound: InitialSound,
         determined: bool,
@@ -1150,6 +1163,7 @@ pub(crate) enum Features {
         pronoun_case: Option<PronounCase>,
         adjunct: Option<BareNominalAdjunct>,
         set_exception: SetExceptionState,
+        coordination: NounPhraseCoordinationState,
     },
     PossessiveThisCard {
         agreement: Agreement,
@@ -1217,6 +1231,8 @@ pub(crate) enum Features {
     Subordinator(crate::syntax::Subordinator),
     PrepositionalObject {
         gerund: bool,
+        /// The noun-phrase object is coordinated under one shared determiner.
+        shared_determiner: bool,
     },
     PrepositionalPhrase {
         preposition: Preposition,
@@ -1284,12 +1300,15 @@ pub(crate) enum Features {
     CoordinatedModifier {
         initial_sound: InitialSound,
         all_adjectives: bool,
+        noun_heads: Vec<CatalogAtom>,
     },
     GeneratedElement {
         fields: Vec<Features>,
+        present_fields: u64,
+        variant: Option<usize>,
     },
     GeneratedSequence {
-        elements: Vec<Vec<Features>>,
+        elements: Vec<(Vec<Features>, u64, Option<usize>)>,
     },
 }
 
@@ -1925,7 +1944,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
             opacity_mode,
             self_reference,
             RegistrationOrder::Normal,
-            generated::GeneratedActivation::Inactive,
+            generated::GeneratedActivation::Production,
         )
     }
 
@@ -2601,6 +2620,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .map(|atom| LexicalMatch {
                     end: start + 1,
                     features: Features::Noun {
+                        identity: Some(atom.clone()),
                         form: NounForm::Singular,
                         initial_sound: InitialSound::Consonant,
                         adjunct: None,
@@ -2617,6 +2637,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .map(|end| LexicalMatch {
                     end,
                     features: Features::Noun {
+                        identity: None,
                         form: NounForm::Plural,
                         initial_sound: InitialSound::Consonant,
                         adjunct: None,
@@ -2633,6 +2654,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .map(|end| LexicalMatch {
                     end,
                     features: Features::Noun {
+                        identity: None,
                         form: NounForm::Singular,
                         initial_sound: InitialSound::Consonant,
                         adjunct: None,

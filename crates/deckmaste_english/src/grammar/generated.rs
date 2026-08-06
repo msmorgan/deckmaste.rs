@@ -1,7 +1,7 @@
 //! Chart assembly for generated construction groups: category allocation,
 //! atom-to-production mapping, and rule registration. Production assemblies
-//! activate nothing here; test assemblies opt in through
-//! [`GeneratedActivation::Groups`].
+//! activate production coordination by default; test assemblies can still
+//! select isolated groups through [`GeneratedActivation::Groups`].
 
 use std::collections::BTreeMap;
 
@@ -24,7 +24,10 @@ use crate::surface::Punctuation;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) enum GeneratedActivation {
-    /// Every production assembly. No generated group exists in the grammar.
+    /// The production constructicon.
+    Production,
+    /// Test-only handwritten control with no generated group active.
+    #[cfg(test)]
     Inactive,
     /// Test assemblies only: register exactly these groups, in slice order.
     #[cfg(test)]
@@ -34,10 +37,16 @@ pub(super) enum GeneratedActivation {
 impl GeneratedActivation {
     pub(super) fn groups(self) -> Option<&'static [&'static GroupData]> {
         match self {
+            Self::Production => Some(crate::constructions::coordination::GROUPS),
+            #[cfg(test)]
             Self::Inactive => None,
             #[cfg(test)]
             Self::Groups(groups) => Some(groups),
         }
+    }
+
+    pub(super) const fn is_production(self) -> bool {
+        matches!(self, Self::Production)
     }
 }
 
@@ -370,6 +379,24 @@ pub(super) fn register_generated(
                     });
                 }
                 for subset in 0..(1_u64 << sequence_atoms.len()) {
+                    if construction
+                        .feature_combinators
+                        .iter()
+                        .any(|feature| feature.combinator == "noun_phrase_coordination")
+                        && sequence_atoms
+                            .iter()
+                            .enumerate()
+                            .any(|(position, &atom_index)| {
+                                matches!(form.atoms.get(atom_index), Some(AtomData::Hole("rest")))
+                                    && subset & (1_u64 << position) == 0
+                            })
+                    {
+                        // The named English combinator requires a nonempty
+                        // coordination tail. Do not register an impossible
+                        // broad NounPhrase production and wait until reduction
+                        // to discover that `rest.len() >= 1` failed.
+                        continue;
+                    }
                     let mut rhs = Vec::with_capacity(form.atoms.len());
                     let mut present = 0_u64;
                     for (atom_index, atom) in form.atoms.iter().enumerate() {
@@ -481,6 +508,14 @@ fn register_element(
                 }
                 present_fields |= 1_u64 << field_index;
                 rhs.push(field_expected(cats, representative, field.kind)?);
+            }
+            if matches!(element.name, "noun_phrase_member" | "nominal_phrase_member")
+                && present_fields & 0b11 == 0
+            {
+                // Neither delimiter can participate in an admitted member;
+                // omitting this rule avoids a delimiter-free recursive NP
+                // sequence in the chart.
+                continue;
             }
             builder.add_generated(
                 RuleImpl::GeneratedAux(GeneratedAuxRuleRef::ElementStruct {

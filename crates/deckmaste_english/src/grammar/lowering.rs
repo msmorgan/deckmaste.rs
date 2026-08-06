@@ -334,29 +334,41 @@ fn project_generated_category(
     _construction: &deckmaste_construction_compiler::runtime::ConstructionData,
     value: deckmaste_construction_compiler::runtime::ErasedValue,
 ) -> Option<Lowered> {
-    #[cfg(test)]
     match _construction.id {
         "noun_phrase_coordination" => {
             let value = value
                 .downcast::<crate::constructions::coordination::DerivedCoordinatedNounPhrase>()
                 .ok()?;
-            return Some(Lowered::NounPhrase(NounPhrase::Coordinated(
-                crate::syntax::CoordinatedNounPhrase {
-                    first: value.first().clone(),
-                    rest: value.rest().clone(),
-                },
-            )));
+            let mut noun_phrase = value.first().as_ref().clone();
+            for member in value.rest() {
+                noun_phrase = push_noun_phrase_coordination(noun_phrase, member.clone());
+            }
+            return Some(Lowered::NounPhrase(noun_phrase));
         }
         "shared_determiner_nominal" => {
             let value = value
                 .downcast::<crate::constructions::coordination::DerivedCoordinatedNominalPhrase>()
                 .ok()?;
+            let first = value.first().clone();
+            let mut rest = value.rest().clone();
+            let mut complements = value.complements().clone();
+            if complements.is_empty() {
+                let earlier_has_relative = nominal_has_relative(&first)
+                    || rest
+                        .iter()
+                        .take(rest.len().saturating_sub(1))
+                        .any(|member| nominal_has_relative(&member.phrase));
+                if let Some(last) = rest.last_mut() {
+                    complements =
+                        take_trailing_group_complements(earlier_has_relative, &mut last.phrase);
+                }
+            }
             return Some(Lowered::NounPhrase(NounPhrase::CoordinatedNominal(
                 crate::syntax::CoordinatedNominalPhrase {
                     determiner: value.determiner().clone(),
-                    first: value.first().clone(),
-                    rest: value.rest().clone(),
-                    complements: value.complements().clone(),
+                    first,
+                    rest,
+                    complements,
                 },
             )));
         }

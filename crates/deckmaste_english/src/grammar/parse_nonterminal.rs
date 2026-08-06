@@ -226,7 +226,7 @@ pub(super) fn parse_nonterminal_with_mode(
         opacity_mode,
         self_reference,
         RegistrationOrder::Normal,
-        super::generated::GeneratedActivation::Inactive,
+        super::generated::GeneratedActivation::Production,
     )
 }
 
@@ -347,8 +347,11 @@ impl SelectedRegistry {
 pub(super) fn select_registry(
     activation: super::generated::GeneratedActivation,
 ) -> SelectedRegistry {
+    if activation.is_production() {
+        return SelectedRegistry::Static(super::construction::registry());
+    }
     match activation.groups() {
-        None => SelectedRegistry::Static(super::construction::registry()),
+        None => SelectedRegistry::Static(super::construction::handwritten_registry()),
         Some(groups) => SelectedRegistry::Owned(
             super::construction::merged_registry(groups)
                 .expect("active generated groups must merge"),
@@ -525,7 +528,8 @@ fn collect_lowered_coordination_spans(
     spans: &mut Vec<Span>,
     determiner_spans: &mut Vec<Span>,
 ) {
-    let Some((tag, children)) = selected_tag_and_children(grammar, forest, node, best) else {
+    let Some((rule_impl, children)) = selected_impl_and_children(grammar, forest, node, best)
+    else {
         return;
     };
     for child in &children {
@@ -539,6 +543,51 @@ fn collect_lowered_coordination_spans(
             determiner_spans,
         );
     }
+
+    if let super::rules::RuleImpl::Generated(rule) = rule_impl {
+        let Some(construction) = rule.group.constructions.get(rule.construction) else {
+            return;
+        };
+        if construction.id == "shared_determiner_nominal"
+            && let (Some(first), Some(rest)) = (children.get(1), children.get(2))
+            && let Some(Lowered::NounPhrase(NounPhrase::CoordinatedNominal(group))) =
+                lower(grammar, forest, node, best)
+        {
+            let core_end = first_group_relative(&group.complements)
+                .as_ref()
+                .and_then(|relative| {
+                    find_selected_relative(grammar, forest, *rest, best, relative)
+                        .map(|relative_node| forest.node(relative_node).key.start)
+                })
+                .unwrap_or(forest.node(*rest).key.end);
+            if let Some(span) = token_range_span(tokens, forest.node(*first).key.start, core_end) {
+                spans.push(span);
+            }
+        }
+        if construction.id == "noun_phrase_coordination"
+            && let (Some(first_node), Some(next_node)) = (children.first(), children.get(1))
+            && let Some(Lowered::NounPhrase(before)) = lower(grammar, forest, *first_node, best)
+            && let Some(Lowered::NounPhrase(after)) = lower(grammar, forest, node, best)
+        {
+            collect_shared_determiner_edit_spans(
+                grammar,
+                forest,
+                node,
+                *first_node,
+                *next_node,
+                &before,
+                &after,
+                best,
+                tokens,
+                spans,
+                determiner_spans,
+            );
+        }
+        return;
+    }
+    let super::rules::RuleImpl::Handwritten(tag) = rule_impl else {
+        return;
+    };
 
     if tag == super::RuleTag::SharedDeterminerNominal {
         let (Some(first), Some(last)) = (children.get(1), children.get(3)) else {
@@ -595,7 +644,39 @@ fn collect_lowered_coordination_spans(
         }
         _ => return,
     };
-    let Some(edit) = find_shared_determiner_edit(&before, &after) else {
+    collect_shared_determiner_edit_spans(
+        grammar,
+        forest,
+        node,
+        first_node,
+        next_node,
+        &before,
+        &after,
+        best,
+        tokens,
+        spans,
+        determiner_spans,
+    );
+}
+
+#[allow(
+    clippy::too_many_arguments,
+    reason = "coordination provenance threads one selected structural edit through forest lookup"
+)]
+fn collect_shared_determiner_edit_spans(
+    grammar: &EnglishGrammar<'_, '_>,
+    forest: &EnglishForest,
+    node: NodeId,
+    first_node: NodeId,
+    next_node: NodeId,
+    before: &NounPhrase,
+    after: &NounPhrase,
+    best: &BestParse,
+    tokens: &[Token],
+    spans: &mut Vec<Span>,
+    determiner_spans: &mut Vec<Span>,
+) {
+    let Some(edit) = find_shared_determiner_edit(before, after) else {
         return;
     };
     let Some(origin_node) =
@@ -636,29 +717,22 @@ fn collect_lowered_coordination_spans(
     }
 }
 
-fn selected_tag_and_children(
+fn selected_impl_and_children(
     grammar: &EnglishGrammar<'_, '_>,
     forest: &EnglishForest,
     node: NodeId,
     best: &BestParse,
-) -> Option<(super::RuleTag, Vec<NodeId>)> {
+) -> Option<(super::rules::RuleImpl, Vec<NodeId>)> {
     let forest_node = forest.node(node);
     let alternative = forest_node.alternatives.get(best.alternative(node)?)?;
     let rule = alternative.rule?;
-    let tag = match grammar.impls.get(rule.index())? {
-        super::rules::RuleImpl::Handwritten(tag) => *tag,
-        // Handwritten-only consumers (coordination-span collection); a
-        // generated node simply isn't one of theirs.
-        super::rules::RuleImpl::Generated(_) | super::rules::RuleImpl::GeneratedAux(_) => {
-            return None;
-        }
-    };
+    let rule_impl = *grammar.impls.get(rule.index())?;
     let [intermediate] = alternative.children.as_slice() else {
         return None;
     };
     let mut children = Vec::new();
     selected_rule_children(forest, *intermediate, best, &mut children)?;
-    Some((tag, children))
+    Some((rule_impl, children))
 }
 
 #[derive(Debug)]
@@ -765,7 +839,7 @@ fn find_selected_noun_phrase(
     ) {
         return Some(node);
     }
-    let (_, children) = selected_tag_and_children(grammar, forest, node, best)?;
+    let (_, children) = selected_impl_and_children(grammar, forest, node, best)?;
     children
         .into_iter()
         .find_map(|child| find_selected_noun_phrase(grammar, forest, child, best, target))
@@ -786,7 +860,7 @@ fn find_selected_determiner_end(
             Some(Lowered::Determiner(ref candidate)) if candidate == target
         ))
     .then_some(forest_node.key.end);
-    if let Some((_, children)) = selected_tag_and_children(grammar, forest, node, best) {
+    if let Some((_, children)) = selected_impl_and_children(grammar, forest, node, best) {
         for child in children {
             if let Some(candidate) =
                 find_selected_determiner_end(grammar, forest, child, best, origin_start, target)
@@ -811,7 +885,7 @@ fn find_selected_relative(
     ) {
         return Some(node);
     }
-    let (_, children) = selected_tag_and_children(grammar, forest, node, best)?;
+    let (_, children) = selected_impl_and_children(grammar, forest, node, best)?;
     children
         .into_iter()
         .find_map(|child| find_selected_relative(grammar, forest, child, best, target))
@@ -1089,14 +1163,14 @@ mod registration_order_tests {
                 source,
                 nonterminal,
                 RegistrationOrder::Normal,
-                GeneratedActivation::Inactive,
+                GeneratedActivation::Production,
             );
             assert_eq!(
                 normalized_parse(
                     source,
                     nonterminal,
                     RegistrationOrder::Reversed,
-                    GeneratedActivation::Inactive,
+                    GeneratedActivation::Production,
                 ),
                 normal,
                 "reversed registration changed {source:?}",
@@ -1106,7 +1180,7 @@ mod registration_order_tests {
                     source,
                     nonterminal,
                     RegistrationOrder::FixedShuffle,
-                    GeneratedActivation::Inactive,
+                    GeneratedActivation::Production,
                 ),
                 normal,
                 "shuffled registration changed {source:?}",

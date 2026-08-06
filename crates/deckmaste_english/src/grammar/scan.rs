@@ -549,6 +549,7 @@ impl EnglishGrammar<'_, '_> {
                 pronoun_case: None,
                 adjunct: None,
                 set_exception: SetExceptionState::Ineligible,
+                coordination: super::NounPhraseCoordinationState::None,
             },
             meaning: MeaningKey::Determiner(Determiner::Demonstrative(demonstrative)),
             local_cost: ParseCost::default(),
@@ -854,6 +855,7 @@ pub(super) fn lexical_word_matches(
             vec![LexicalMatch {
                 end,
                 features: Features::Noun {
+                    identity: noun_coordination_head(&noun),
                     form,
                     initial_sound,
                     adjunct,
@@ -982,6 +984,15 @@ pub(super) fn lexical_word_matches(
     }
 }
 
+fn noun_coordination_head(noun: &NounInstance) -> Option<crate::catalog::CatalogAtom> {
+    match noun {
+        NounInstance::Singular(Noun::Catalog(atom))
+        | NounInstance::Plural(Noun::Catalog(atom))
+        | NounInstance::Mass(Noun::Catalog(atom)) => Some(atom.clone()),
+        _ => None,
+    }
+}
+
 pub(super) fn quantity_match(end: usize, quantity: Quantity) -> LexicalMatch<Features, MeaningKey> {
     LexicalMatch {
         end,
@@ -1049,6 +1060,7 @@ pub(super) fn this_card_matches(
                 pronoun_case: None,
                 adjunct: None,
                 set_exception: SetExceptionState::Ineligible,
+                coordination: super::NounPhraseCoordinationState::None,
             },
             meaning: MeaningKey::ThisCard(form),
             local_cost: this_card_cost(form),
@@ -1108,6 +1120,7 @@ pub(super) fn noun_phrase_features(pronoun: Pronoun, case: Option<PronounCase>) 
         pronoun_case: case,
         adjunct: None,
         set_exception: SetExceptionState::Ineligible,
+        coordination: super::NounPhraseCoordinationState::None,
     }
 }
 
