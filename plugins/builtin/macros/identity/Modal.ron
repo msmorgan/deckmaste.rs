@@ -1,6 +1,6 @@
 (
     name: "Modal",
     kinds: [OneShotEffect],
-    params: [Any],
-    body: Modal(Param(0)),
+    params: { "choose": Any, "modes": Any },
+    body: Modal(choose: Param(choose), modes: Param(modes)),
 )

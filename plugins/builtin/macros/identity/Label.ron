@@ -1,6 +1,6 @@
 (
     name: "Label",
     kinds: [OneShotEffect],
-    params: [Any],
-    body: Label(Param(0)),
+    params: { "as": Any, "effect": Any },
+    body: Label(as: Param(as), effect: Param(effect)),
 )

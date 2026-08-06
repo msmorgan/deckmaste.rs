@@ -1,6 +1,6 @@
 (
     name: "If",
     kinds: [OneShotEffect],
-    params: [Any],
-    body: If(Param(0)),
+    params: { "condition": Any, "then": Any, "otherwise": Elidable(Any) },
+    body: If(condition: Param(condition), then: Param(then), otherwise: Param(otherwise)),
 )

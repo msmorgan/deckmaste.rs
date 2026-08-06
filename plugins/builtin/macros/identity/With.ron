@@ -1,6 +1,6 @@
 (
     name: "With",
-    kinds: [CostComponent],
+    kinds: [CostComponent, OneShotEffect],
     params: { "binder": Any, "body": Any },
     body: With(binder: Param(binder), body: Param(body)),
 )

@@ -1,6 +1,6 @@
 (
     name: "Continuously",
     kinds: [OneShotEffect],
-    params: [Any],
-    body: Continuously(Param(0)),
+    params: { "effect": Any, "duration": Any },
+    body: Continuously(effect: Param(effect), duration: Param(duration)),
 )

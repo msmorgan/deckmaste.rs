@@ -1,6 +1,6 @@
 (
     name: "RevealUntil",
     kinds: [OneShotEffect],
-    params: [Any],
-    body: RevealUntil(Param(0)),
+    params: { "whose": Any, "matches": Any, "body": Any },
+    body: RevealUntil(whose: Param(whose), matches: Param(matches), body: Param(body)),
 )

@@ -1,0 +1,6 @@
+(
+    name: "May",
+    kinds: [StaticEffect],
+    params: [Any],
+    body: May(Param(0)),
+)

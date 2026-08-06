@@ -1,6 +1,6 @@
 (
     name: "Each",
     kinds: [OneShotEffect],
-    params: [Any],
-    body: Each(Param(0)),
+    params: { "binder": Any, "effect": Any },
+    body: Each(binder: Param(binder), effect: Param(effect)),
 )

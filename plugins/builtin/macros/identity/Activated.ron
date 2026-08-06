@@ -1,6 +1,6 @@
 (
     name: "Activated",
     kinds: [Ability],
-    params: [Any],
-    body: Activated(Param(0)),
+    params: { "ability_word": Elidable(Any), "cost": Any, "from": Elidable(Any), "window": Elidable(Any), "condition": Elidable(Any), "limits": Elidable(Any), "effect": Any },
+    body: Activated(ability_word: Param(ability_word), cost: Param(cost), from: Param(from), window: Param(window), condition: Param(condition), limits: Param(limits), effect: Param(effect)),
 )

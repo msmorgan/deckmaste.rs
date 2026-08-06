@@ -1,6 +1,6 @@
 (
     name: "May",
-    kinds: [OneShotEffect, StaticEffect],
-    params: [Any],
-    body: May(Param(0)),
+    kinds: [OneShotEffect],
+    params: { "who": Any, "effect": Any, "if_did": Elidable(Any), "if_not": Elidable(Any) },
+    body: May(who: Param(who), effect: Param(effect), if_did: Param(if_did), if_not: Param(if_not)),
 )

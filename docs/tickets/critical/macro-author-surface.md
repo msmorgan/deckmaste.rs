@@ -1,5 +1,5 @@
 ---
-needs: [plugin-repoint, identity-scaffolds-field-splice]
+needs: [plugin-repoint]
 ---
 **Make the macro layer the only author-facing vocabulary in card/token
 containers: the parse-position ban, identity macros, and straggler
@@ -98,17 +98,6 @@ generator and the compiled registry, so it lands before either.
   Leaving `variants.contains` unsuppressed would instead keep it at the host,
   where the "not author vocabulary" error is produced. Unobservable until the
   entry flips; no fixture pins it yet, deliberately.
-- **16 identity scaffolds can't read their own canon spelling** —
-  [[identity-scaffolds-field-splice]]. A newtype-tuple variant whose one
-  field is itself a named struct (`Ability::Activated`/`Triggered`/`Spell`,
-  13 `OneShotEffect` variants) is spelled field-spliced by canon, but the
-  generic scaffold shape reads a single positional slot as one raw value,
-  not a field map — confirmed broken under restriction, with real corpus
-  exposure (`OneShotEffect::May` alone: 273 spellings). The coverage gate
-  (Task 6) tracks these explicitly (`FIELD_SPLICE_HAZARD`, a temporary
-  `except` clause on `every_reachable_row_is_covered`) rather than
-  certifying them; this ticket is what removes the exception. Blocking: the
-  flip is not safe for these rows until it lands.
 
 ## Gates
 

@@ -1,6 +1,6 @@
 (
     name: "Distribute",
     kinds: [OneShotEffect],
-    params: [Any],
-    body: Distribute(Param(0)),
+    params: { "amount": Any, "binder": Any, "body": Any },
+    body: Distribute(amount: Param(amount), binder: Param(binder), body: Param(body)),
 )

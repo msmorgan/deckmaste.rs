@@ -1,6 +1,6 @@
 (
     name: "ChoosePile",
     kinds: [OneShotEffect],
-    params: [Any],
-    body: ChoosePile(Param(0)),
+    params: { "from": Any, "by": Elidable(Any), "random": Elidable(Any), "then": Any },
+    body: ChoosePile(from: Param(from), by: Param(by), random: Param(random), then: Param(then)),
 )

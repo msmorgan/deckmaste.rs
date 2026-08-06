@@ -1,6 +1,6 @@
 (
     name: "Delayed",
     kinds: [OneShotEffect],
-    params: [Any],
-    body: Delayed(Param(0)),
+    params: { "ability_word": Elidable(Any), "event": Any, "from": Elidable(Any), "condition": Elidable(Any), "limits": Elidable(Any), "where_x": Elidable(Any), "effect": Any },
+    body: Delayed(ability_word: Param(ability_word), event: Param(event), from: Param(from), condition: Param(condition), limits: Param(limits), where_x: Param(where_x), effect: Param(effect)),
 )

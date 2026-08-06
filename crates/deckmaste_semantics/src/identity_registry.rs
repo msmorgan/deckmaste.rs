@@ -28,7 +28,7 @@ pub const IDENTITY_ROWS: &[IdentityRow] = &[
     IdentityRow {
         kind: "Ability",
         variant: "Activated",
-        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+        signature: "Named([(\"ability_word\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"condition\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"cost\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"effect\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"from\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"limits\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"window\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] })])",
     },
     IdentityRow {
         kind: "Ability",
@@ -43,7 +43,7 @@ pub const IDENTITY_ROWS: &[IdentityRow] = &[
     IdentityRow {
         kind: "Ability",
         variant: "Spell",
-        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+        signature: "Named([(\"ability_word\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"effect\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] })])",
     },
     IdentityRow {
         kind: "Ability",
@@ -53,7 +53,7 @@ pub const IDENTITY_ROWS: &[IdentityRow] = &[
     IdentityRow {
         kind: "Ability",
         variant: "Triggered",
-        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+        signature: "Named([(\"ability_word\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"condition\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"effect\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"event\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"from\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"limits\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"where_x\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] })])",
     },
     IdentityRow {
         kind: "Action",
@@ -933,7 +933,7 @@ pub const IDENTITY_ROWS: &[IdentityRow] = &[
     IdentityRow {
         kind: "OneShotEffect",
         variant: "AdditionalCost",
-        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+        signature: "Named([(\"body\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"pay\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] })])",
     },
     IdentityRow {
         kind: "OneShotEffect",
@@ -968,7 +968,7 @@ pub const IDENTITY_ROWS: &[IdentityRow] = &[
     IdentityRow {
         kind: "OneShotEffect",
         variant: "ChoosePile",
-        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+        signature: "Named([(\"by\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"from\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"random\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"then\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] })])",
     },
     IdentityRow {
         kind: "OneShotEffect",
@@ -983,7 +983,7 @@ pub const IDENTITY_ROWS: &[IdentityRow] = &[
     IdentityRow {
         kind: "OneShotEffect",
         variant: "Continuously",
-        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+        signature: "Named([(\"duration\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"effect\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] })])",
     },
     IdentityRow {
         kind: "OneShotEffect",
@@ -1013,12 +1013,12 @@ pub const IDENTITY_ROWS: &[IdentityRow] = &[
     IdentityRow {
         kind: "OneShotEffect",
         variant: "Delayed",
-        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+        signature: "Named([(\"ability_word\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"condition\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"effect\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"event\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"from\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"limits\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"where_x\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] })])",
     },
     IdentityRow {
         kind: "OneShotEffect",
         variant: "Distribute",
-        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+        signature: "Named([(\"amount\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"binder\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"body\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] })])",
     },
     IdentityRow {
         kind: "OneShotEffect",
@@ -1028,7 +1028,7 @@ pub const IDENTITY_ROWS: &[IdentityRow] = &[
     IdentityRow {
         kind: "OneShotEffect",
         variant: "Each",
-        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+        signature: "Named([(\"binder\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"effect\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] })])",
     },
     IdentityRow {
         kind: "OneShotEffect",
@@ -1058,12 +1058,12 @@ pub const IDENTITY_ROWS: &[IdentityRow] = &[
     IdentityRow {
         kind: "OneShotEffect",
         variant: "If",
-        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+        signature: "Named([(\"condition\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"otherwise\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"then\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] })])",
     },
     IdentityRow {
         kind: "OneShotEffect",
         variant: "Label",
-        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+        signature: "Named([(\"as\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"effect\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] })])",
     },
     IdentityRow {
         kind: "OneShotEffect",
@@ -1073,12 +1073,12 @@ pub const IDENTITY_ROWS: &[IdentityRow] = &[
     IdentityRow {
         kind: "OneShotEffect",
         variant: "May",
-        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+        signature: "Named([(\"effect\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"if_did\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"if_not\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"who\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] })])",
     },
     IdentityRow {
         kind: "OneShotEffect",
         variant: "Modal",
-        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+        signature: "Named([(\"choose\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"modes\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] })])",
     },
     IdentityRow {
         kind: "OneShotEffect",
@@ -1098,7 +1098,7 @@ pub const IDENTITY_ROWS: &[IdentityRow] = &[
     IdentityRow {
         kind: "OneShotEffect",
         variant: "Noting",
-        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+        signature: "Named([(\"effect\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"key\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] })])",
     },
     IdentityRow {
         kind: "OneShotEffect",
@@ -1113,7 +1113,7 @@ pub const IDENTITY_ROWS: &[IdentityRow] = &[
     IdentityRow {
         kind: "OneShotEffect",
         variant: "Reflexive",
-        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+        signature: "Named([(\"ability_word\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"condition\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"effect\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"event\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"from\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"limits\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"where_x\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] })])",
     },
     IdentityRow {
         kind: "OneShotEffect",
@@ -1148,7 +1148,7 @@ pub const IDENTITY_ROWS: &[IdentityRow] = &[
     IdentityRow {
         kind: "OneShotEffect",
         variant: "RevealUntil",
-        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+        signature: "Named([(\"body\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"matches\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"whose\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] })])",
     },
     IdentityRow {
         kind: "OneShotEffect",
@@ -1168,7 +1168,7 @@ pub const IDENTITY_ROWS: &[IdentityRow] = &[
     IdentityRow {
         kind: "OneShotEffect",
         variant: "SeparatePiles",
-        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+        signature: "Named([(\"by\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"group\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"into\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"note\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"then\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] })])",
     },
     IdentityRow {
         kind: "OneShotEffect",
@@ -1223,7 +1223,7 @@ pub const IDENTITY_ROWS: &[IdentityRow] = &[
     IdentityRow {
         kind: "OneShotEffect",
         variant: "With",
-        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+        signature: "Named([(\"binder\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"body\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] })])",
     },
     IdentityRow {
         kind: "Predicate",

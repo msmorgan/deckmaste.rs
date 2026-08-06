@@ -27,6 +27,18 @@
 //! `macro_ron` drops the body entry holding its hole before the body is
 //! read, so the destination applies exactly the default it applies for a
 //! natively-read short spelling.
+//!
+//! ## Field splicing
+//!
+//! A newtype variant whose one field is itself a named struct
+//! (`Ability::Activated(Arc<ActivatedAbility>)`, `OneShotEffect::May(May)`,
+//! `Card::Normal(CardFace)`) is spelled FLAT by canon —
+//! `Activated(cost: …, effect: …)`, never `Activated((cost: …))`. Its
+//! signature is therefore `Named` over the payload struct's own fields (the
+//! `#[macro_ron(spliced)]` marker plus `macro_ron::MacroFields`), and it
+//! scaffolds like any other named signature. Before that, such a row
+//! scaffolded as one opaque positional slot, which a macro call reads as
+//! exactly one raw value — so it could not read canon's spelling at all.
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -946,9 +958,10 @@ mod field_splice {
 /// through [`macro_ron::MacroSet::read_str_restricted`], covering: a unit
 /// variant, a positional variant with every param required, a named/struct
 /// variant with every param required, embed fallthrough down to a defining
-/// kind, and both spellings of an `Elidable(Any)` param — the short one that
+/// kind, both spellings of an `Elidable(Any)` param — the short one that
 /// omits it and the long one that supplies the value its field default would
-/// otherwise fill.
+/// otherwise fill — and every field-spliced newtype-over-named-struct row,
+/// one by one.
 #[cfg(test)]
 mod restricted_read {
     use deckmaste_semantics::Action;
@@ -1063,6 +1076,56 @@ mod restricted_read {
         let macros = real_scaffolds();
         for source in ["Cast(You, That(Card))", "Cast(You, That(Card), [Tap])"] {
             assert_restricted_matches_native::<Action>(&macros, source);
+        }
+    }
+
+    /// The field-splice gate, per row: EVERY newtype-over-named-struct
+    /// variant, read at the spelling canon uses for it. This is the shape
+    /// that used to fail outright — a single positional slot reads exactly
+    /// one raw value, and `key: value` pairs are not one — so a scaffold
+    /// only counts as fixed when its variant's own field-spliced spelling
+    /// reads restricted and equals the native read.
+    ///
+    /// Sources are lifted verbatim from the committed corpus where the row
+    /// occurs there (`Activated`/`Triggered`/`Spell`/`Continuously`/`May`/
+    /// `If`/`Each`/`With`/`Modal`/`Delayed`), and are minimal hand-built
+    /// values of the same shape for the rows canon does not yet spell.
+    #[test]
+    fn every_field_spliced_row_round_trips_under_restriction() {
+        let macros = real_scaffolds();
+        for source in [
+            "Activated(cost: [Mana([Generic(1)]), Tap], effect: RestartGame)",
+            "Triggered(event: StepBegins(at: Beginning(Upkeep), whose: Your), \
+             effect: RestartGame)",
+            "Spell(effect: RestartGame)",
+        ] {
+            assert_restricted_matches_native::<deckmaste_semantics::Ability>(&macros, source);
+        }
+        for source in [
+            "Continuously(effect: Modify(It, SwitchPowerToughness), \
+             duration: FixedUntil(EndOfTurn))",
+            "Label(as: \"pile\", effect: RestartGame)",
+            "SeparatePiles(group: SelectAll(Attacking), into: [\"left\", \"right\"])",
+            "ChoosePile(from: Labels([\"left\", \"right\"]), then: RestartGame)",
+            // Both spellings of the elidable half: canon's short one, and the
+            // long one that supplies what the field default would have filled.
+            "May(who: You, effect: RestartGame)",
+            "May(who: You, effect: RestartGame, if_did: RestartGame, if_not: RestartGame)",
+            "If(condition: Not(Exists(Attacking)), then: Tap(This))",
+            "AdditionalCost(pay: [Do(Sacrifice(You, This))], body: RestartGame)",
+            "Each(binder: Existing(SelectAll(Attacking)), effect: RestartGame)",
+            "With(binder: TheRef(This), body: RestartGame)",
+            "Distribute(amount: 1, binder: Existing(SelectAll(Attacking)), body: RestartGame)",
+            "Noting(key: \"milled\", effect: RestartGame)",
+            "Modal(choose: ChooseSpec(chooser: You, count: Range(1, 1)), \
+             modes: [Mode(effect: RestartGame)])",
+            "RevealUntil(whose: You, matches: Attacking, body: RestartGame)",
+            "Delayed(event: StepBegins(at: Ending(End), whose: EachPlayers), \
+             effect: RestartGame)",
+            "Reflexive(event: StepBegins(at: Ending(End), whose: EachPlayers), \
+             effect: RestartGame)",
+        ] {
+            assert_restricted_matches_native::<deckmaste_semantics::OneShotEffect>(&macros, source);
         }
     }
 

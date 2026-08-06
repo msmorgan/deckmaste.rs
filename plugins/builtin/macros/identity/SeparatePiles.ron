@@ -1,6 +1,6 @@
 (
     name: "SeparatePiles",
     kinds: [OneShotEffect],
-    params: [Any],
-    body: SeparatePiles(Param(0)),
+    params: { "group": Any, "into": Any, "by": Elidable(Any), "note": Elidable(Any), "then": Elidable(Any) },
+    body: SeparatePiles(group: Param(group), into: Param(into), by: Param(by), note: Param(note), then: Param(then)),
 )

@@ -1,6 +1,6 @@
 (
     name: "Spell",
     kinds: [Ability],
-    params: [Any],
-    body: Spell(Param(0)),
+    params: { "ability_word": Elidable(Any), "effect": Any },
+    body: Spell(ability_word: Param(ability_word), effect: Param(effect)),
 )
