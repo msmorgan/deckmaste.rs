@@ -1472,7 +1472,7 @@ pub(crate) enum MeaningKey {
     /// [`parse_quoted_ability_fragment`](ability::parse_quoted_ability_fragment).
     QuotedAbility(Span),
     PowerToughness(PowerToughness),
-    Punctuation,
+    Punctuation(Punctuation),
     Conjunction(Conjunction),
     Subordinator(crate::syntax::Subordinator),
     RelativeMarker(RelativeMarker),

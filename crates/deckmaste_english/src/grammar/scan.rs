@@ -171,7 +171,7 @@ impl EnglishGrammar<'_, '_> {
                 .map(|_| LexicalMatch {
                     end: start + 1,
                     features: Features::None,
-                    meaning: MeaningKey::Punctuation,
+                    meaning: MeaningKey::Punctuation(expected),
                     local_cost: ParseCost::default(),
                 })
                 .into_iter()

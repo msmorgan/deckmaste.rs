@@ -39,6 +39,11 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
         .iter()
         .filter_map(|c| bind_construction(group, c))
         .collect();
+    let linearizers: Vec<TokenStream> = group
+        .constructions
+        .iter()
+        .map(|construction| linearizer(group, construction))
+        .collect();
     let deserialize_impls: Vec<TokenStream> = group
         .constructions
         .iter()
@@ -88,6 +93,7 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
             #(#elements)*
             #(#constructions)*
             #(#bind_constructions)*
+            #(#linearizers)*
             #witness_assertions
             #(#deserialize_impls)*
             #declaration
@@ -382,6 +388,325 @@ fn bind_construction(
             (#(#field_names),*)
         }
     })
+}
+
+fn linearizer(group: &GroupDeclaration, construction: &ConstructionDeclaration) -> TokenStream {
+    let id = construction.id.value.as_str();
+    let function = quote::format_ident!("linearize_{}_with", construction.id.value);
+    let (target, fields) = match &construction.ast {
+        AstShape::Own { name, fields } => {
+            let target = quote::format_ident!("{}", name.value);
+            (quote! { #target }, fields.as_slice())
+        }
+        AstShape::Bind { path, fields } => (parse_type(&path.value), fields.as_slice()),
+    };
+    let field_names: Vec<proc_macro2::Ident> = fields
+        .iter()
+        .map(|binding| quote::format_ident!("{}", binding.field.value))
+        .collect();
+    let selections: Vec<TokenStream> = construction
+        .forms
+        .iter()
+        .map(|form| {
+            let condition = form.guard.as_ref().map_or_else(
+                || quote! { true },
+                |guard| predicate_tokens(group, fields, &guard.value),
+            );
+            let ordinal = proc_macro2::Literal::u16_unsuffixed(form.ordinal.value);
+            quote! {
+                if #condition {
+                    if let Some(first) = selected_form {
+                        return Err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::MultipleMatchingForms {
+                                construction: #id,
+                                first,
+                                second: #ordinal,
+                            },
+                        );
+                    }
+                    selected_form = Some(#ordinal);
+                }
+            }
+        })
+        .collect();
+    let stored_witnesses: Vec<TokenStream> = construction
+        .witnesses
+        .iter()
+        .filter_map(|witness| {
+            let crate::model::WitnessClass::Stored { path } = &witness.class else {
+                return None;
+            };
+            Some(linearize_stored_witness(
+                group,
+                fields,
+                witness.name.value.as_str(),
+                path,
+            ))
+        })
+        .collect();
+    let form_arms: Vec<TokenStream> = construction
+        .forms
+        .iter()
+        .map(|form| {
+            let name = form.name.value.as_str();
+            let ordinal = proc_macro2::Literal::u16_unsuffixed(form.ordinal.value);
+            let atoms: Vec<TokenStream> = form
+                .surface
+                .iter()
+                .map(|atom| linearize_atom(group, fields, atom))
+                .collect();
+            quote! {
+                #ordinal => {
+                    visitor
+                        .begin_form(#id, #name, #ordinal)
+                        .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+                    #(#atoms)*
+                    #(#stored_witnesses)*
+                    visitor
+                        .end_form(#id)
+                        .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+                    Ok(())
+                }
+            }
+        })
+        .collect();
+    quote! {
+        pub fn #function<V>(
+            value: &#target,
+            visitor: &mut V,
+        ) -> Result<(), ::deckmaste_construction_compiler::runtime::LinearizationError<V::Error>>
+        where
+            V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor,
+        {
+            let #target { #(#field_names),* } = value;
+            let mut selected_form: Option<u16> = None;
+            #(#selections)*
+            let Some(selected_form) = selected_form else {
+                return Err(
+                    ::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
+                        construction: #id,
+                    },
+                );
+            };
+            match selected_form {
+                #(#form_arms)*
+                _ => unreachable!("selected form ordinal came from this declaration"),
+            }
+        }
+    }
+}
+
+fn linearize_atom(
+    group: &GroupDeclaration,
+    fields: &[FieldBinding],
+    atom: &crate::model::SurfaceAtom,
+) -> TokenStream {
+    match atom {
+        crate::model::SurfaceAtom::Literal(literal) => {
+            let literal = literal.value.as_str();
+            quote! {
+                visitor
+                    .literal(#literal)
+                    .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+            }
+        }
+        crate::model::SurfaceAtom::Hole(path) | crate::model::SurfaceAtom::Lexeme(path) => {
+            linearize_path_value(group, fields, path)
+        }
+    }
+}
+
+fn linearize_path_value(
+    group: &GroupDeclaration,
+    fields: &[FieldBinding],
+    path: &crate::model::FieldPath,
+) -> TokenStream {
+    match path.segments.as_slice() {
+        [field] => {
+            let binding = fields
+                .iter()
+                .find(|binding| binding.field.value == field.value)
+                .expect("validated: EC010 rejects a form path naming a nonexistent field");
+            let accessor = quote::format_ident!("{}", field.value);
+            visit_kind(group, &quote! { #accessor }, &field.value, &binding.kind)
+        }
+        [sequence, selector, element_field] => {
+            debug_assert_eq!(selector.value, "last");
+            let sequence_ident = quote::format_ident!("{}", sequence.value);
+            let element = element_of_sequence_field(group, fields, &sequence.value);
+            let binding = element
+                .fields
+                .iter()
+                .find(|binding| binding.field.value == element_field.value)
+                .expect("validated: EC010 rejects a form path naming a nonexistent element field");
+            let field_ident = quote::format_ident!("{}", element_field.value);
+            let label = path.dotted();
+            let visit = visit_kind(
+                group,
+                &quote! { &member.#field_ident },
+                &label,
+                &binding.kind,
+            );
+            quote! {
+                if let Some(member) = #sequence_ident.last() {
+                    #visit
+                }
+            }
+        }
+        _ => unreachable!("validated surface paths are direct fields or sequence.last fields"),
+    }
+}
+
+fn visit_kind(
+    group: &GroupDeclaration,
+    accessor: &TokenStream,
+    label: &str,
+    kind: &FieldKind,
+) -> TokenStream {
+    match kind {
+        FieldKind::Subtree { category, boxed } => {
+            let category = category.value.as_str();
+            let value = if *boxed {
+                quote! { (#accessor).as_ref() }
+            } else {
+                quote! { #accessor }
+            };
+            quote! {
+                visitor
+                    .subtree(#category, #value)
+                    .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+            }
+        }
+        FieldKind::Scalar { codec } => {
+            let codec = codec.value.as_str();
+            quote! {
+                visitor
+                    .scalar(#codec, #accessor)
+                    .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+            }
+        }
+        FieldKind::Sequence { element } => {
+            let element_declaration = group
+                .elements
+                .iter()
+                .find(|candidate| candidate.name.value == element.value)
+                .expect("validated: EC003 rejects a sequence naming an undeclared element");
+            let member = visit_element(group, element_declaration, &quote! { member });
+            quote! {
+                visitor
+                    .begin_sequence(#label, (#accessor).len())
+                    .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+                for (index, member) in (#accessor).iter().enumerate() {
+                    visitor
+                        .sequence_member(#label, index)
+                        .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+                    #member
+                }
+                visitor
+                    .end_sequence(#label)
+                    .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+            }
+        }
+        FieldKind::Optional { inner } => {
+            let inner = visit_kind(group, &quote! { present }, label, inner);
+            quote! {
+                visitor
+                    .optional(#label, (#accessor).is_some())
+                    .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+                if let Some(present) = (#accessor).as_ref() {
+                    #inner
+                }
+            }
+        }
+    }
+}
+
+fn visit_element(
+    group: &GroupDeclaration,
+    element: &ElementDeclaration,
+    accessor: &TokenStream,
+) -> TokenStream {
+    let element_name = element.name.value.as_str();
+    let structural_visit = if element.variants.is_empty() {
+        let fields: Vec<TokenStream> = element
+            .fields
+            .iter()
+            .map(|binding| {
+                let field = quote::format_ident!("{}", binding.field.value);
+                let label = format!("{}.{}", element.name.value, binding.field.value);
+                visit_kind(group, &quote! { &#accessor.#field }, &label, &binding.kind)
+            })
+            .collect();
+        quote! { #(#fields)* }
+    } else {
+        let target = parse_type(
+            &element
+                .bind_path
+                .as_ref()
+                .expect("validated: enum variants require a bind target")
+                .value,
+        );
+        let arms: Vec<TokenStream> = element
+            .variants
+            .iter()
+            .map(|variant| {
+                let name = quote::format_ident!("{}", variant.name.value);
+                let label = format!("{}::{}", element.name.value, variant.name.value);
+                let payload = visit_kind(group, &quote! { payload }, &label, &variant.payload);
+                quote! { #target::#name(payload) => { #payload } }
+            })
+            .collect();
+        quote! {
+            match #accessor {
+                #(#arms),*
+            }
+        }
+    };
+    quote! {
+        visitor
+            .bound_value(#element_name, #accessor)
+            .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+        #structural_visit
+    }
+}
+
+fn linearize_stored_witness(
+    group: &GroupDeclaration,
+    fields: &[FieldBinding],
+    name: &str,
+    path: &crate::model::FieldPath,
+) -> TokenStream {
+    let dotted = path.dotted();
+    match path.segments.as_slice() {
+        [field] => {
+            let field = quote::format_ident!("{}", field.value);
+            quote! {
+                visitor
+                    .stored_witness(#name, #dotted, #field)
+                    .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+            }
+        }
+        [sequence, selector, element_field] => {
+            debug_assert_eq!(selector.value, "last");
+            let sequence = quote::format_ident!("{}", sequence.value);
+            let element = element_of_sequence_field(group, fields, &path.segments[0].value);
+            debug_assert!(
+                element
+                    .fields
+                    .iter()
+                    .any(|binding| binding.field.value == element_field.value)
+            );
+            let element_field = quote::format_ident!("{}", element_field.value);
+            quote! {
+                if let Some(member) = #sequence.last() {
+                    visitor
+                        .stored_witness(#name, #dotted, &member.#element_field)
+                        .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+                }
+            }
+        }
+        _ => unreachable!("validated stored paths are direct fields or sequence.last fields"),
+    }
 }
 
 /// Serde-opt-in own constructions only; `None` for opt-out. The `AstShape::Own`
@@ -945,6 +1270,10 @@ fn reexports(group: &GroupDeclaration) -> Vec<TokenStream> {
                 items.push(quote::format_ident!("parts_{}", construction.id.value));
             }
         }
+        items.push(quote::format_ident!(
+            "linearize_{}_with",
+            construction.id.value
+        ));
     }
     items.push(declaration_ident(group));
     items
@@ -1187,6 +1516,60 @@ mod tests {
                 && rendered.contains("ElementVariantData")
                 && rendered.contains("name: \"EventClause\""),
             "runtime declaration metadata carries ordered variant rows: {rendered}",
+        );
+    }
+
+    #[test]
+    fn own_mode_emits_total_structural_linearizer() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group linearization;
+            element member bind Member {
+                comma: lex Comma,
+                conjunction: opt lex Conjunction,
+                phrase: hole Phrase,
+            }
+            construction list: Phrase {
+                own List {
+                    first: hole box Phrase,
+                    rest: seq member,
+                }
+                require rest.len() >= 1;
+                witness oxford = stored rest.last.comma;
+                form plain @ 0 when rest.last.comma in [Absent] = first rest;
+                form oxford @ 1 when rest.last.comma in [Present] = first "," rest;
+            }
+        })
+        .expect("linearization fixture parses");
+        let validated = validate(&group).expect("linearization fixture validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            rendered.contains("pub fn linearize_list_with<V>(")
+                && rendered.contains(
+                    "V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor"
+                ),
+            "own mode exposes the generated visitor entry: {rendered}",
+        );
+        assert!(
+            rendered.contains("MultipleMatchingForms")
+                && rendered.contains("NoMatchingForm")
+                && rendered.contains("begin_form(\"list\", \"plain\", 0)"),
+            "form choice is explicit and total: {rendered}",
+        );
+        assert!(
+            rendered.contains("begin_sequence(\"rest\", (rest).len())")
+                && rendered.contains("sequence_member(\"rest\", index)")
+                && rendered.contains("end_sequence(\"rest\")"),
+            "sequence structure reaches the visitor: {rendered}",
+        );
+        assert!(
+            rendered.contains("optional(\"member.conjunction\", (&member.conjunction).is_some())")
+                && rendered.contains("scalar(\"Comma\"")
+                && rendered.contains("subtree(\"Phrase\""),
+            "element optionals, scalar values, and typed holes are traversed: {rendered}",
+        );
+        assert!(
+            rendered.contains("stored_witness(\"oxford\", \"rest.last.comma\""),
+            "the stored form witness is replayed from its typed value: {rendered}",
         );
     }
 

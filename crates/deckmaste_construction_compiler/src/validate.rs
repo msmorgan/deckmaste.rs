@@ -359,6 +359,15 @@ fn check_generated_names(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) 
         }
     }
     for construction in &group.constructions {
+        let linearizer = format!("linearize_{}_with", construction.id.value);
+        record_generated_name(
+            &mut seen_values,
+            diags,
+            &linearizer,
+            construction.id.span,
+            "construction linearizer",
+            construction.id.value.clone(),
+        );
         if let crate::model::AstShape::Bind { .. } = &construction.ast {
             for prefix in ["build", "parts"] {
                 let generated = format!("{prefix}_{}", construction.id.value);

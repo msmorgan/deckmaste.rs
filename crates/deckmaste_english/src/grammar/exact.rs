@@ -60,7 +60,7 @@ pub(crate) enum GeneratedPart {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum GeneratedScalar {
     Conjunction(crate::features::Conjunction),
-    Comma,
+    Comma(crate::features::Comma),
 }
 
 fn generated_parse<S: AlternativeSelection>(
@@ -109,12 +109,10 @@ fn generated_parse<S: AlternativeSelection>(
 fn scalar_value(forest: &EnglishForest, node: NodeId) -> Option<GeneratedScalar> {
     match forest.node(node).key.lexical_value()? {
         MeaningKey::Conjunction(conjunction) => Some(GeneratedScalar::Conjunction(*conjunction)),
-        // `MeaningKey::Punctuation` is a unit variant — it lost which glyph
-        // matched. Reading it as a comma relies on `generated.rs`'s closed
-        // tables (`codec_slot`'s codec map, `atom_expected`'s
-        // `UnsupportedLiteral` rejection of every literal but `","`) to keep
-        // any other punctuation out of a generated atom position.
-        MeaningKey::Punctuation => Some(GeneratedScalar::Comma),
+        MeaningKey::Punctuation(crate::surface::Punctuation::Comma) => {
+            Some(GeneratedScalar::Comma(crate::features::Comma::Present))
+        }
+        MeaningKey::Punctuation(_) => None,
         _ => None,
     }
 }
@@ -145,9 +143,13 @@ fn collect_tokens(parse: &GeneratedParse, tokens: &mut Vec<&'static str>) {
                 ..
             } => tokens.push(conjunction.spelling()),
             GeneratedPart::Scalar {
-                value: GeneratedScalar::Comma,
+                value: GeneratedScalar::Comma(comma),
                 ..
-            } => tokens.push(","),
+            } => {
+                if comma.is_present() {
+                    tokens.push(",");
+                }
+            }
             GeneratedPart::Subtree { parse, .. } => collect_tokens(parse, tokens),
         }
     }
@@ -159,6 +161,153 @@ pub(crate) enum CoordinationVerdict {
     Refused { requirement: &'static str },
 }
 
+#[derive(Default)]
+struct CoordinationLinearizer {
+    rendered: String,
+    pending_determiner: Option<crate::syntax::Determiner>,
+    skip_payload_subtrees: usize,
+}
+
+impl CoordinationLinearizer {
+    fn push(&mut self, part: &str) {
+        if part.is_empty() {
+            return;
+        }
+        if part == "," {
+            self.rendered.push(',');
+        } else {
+            if !self.rendered.is_empty() {
+                self.rendered.push(' ');
+            }
+            self.rendered.push_str(part);
+        }
+    }
+
+    fn finish(self) -> String {
+        debug_assert!(self.pending_determiner.is_none());
+        debug_assert_eq!(self.skip_payload_subtrees, 0);
+        self.rendered
+    }
+}
+
+impl deckmaste_construction_compiler::runtime::LinearizationVisitor for CoordinationLinearizer {
+    type Error = crate::renderer::RenderError;
+
+    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
+        self.push(literal);
+        Ok(())
+    }
+
+    fn subtree<T: std::any::Any>(
+        &mut self,
+        category: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        if self.skip_payload_subtrees > 0 {
+            self.skip_payload_subtrees -= 1;
+            return Ok(());
+        }
+        let value = value as &dyn std::any::Any;
+        match category {
+            "Determiner" => {
+                let determiner = value
+                    .downcast_ref::<crate::syntax::Determiner>()
+                    .expect("the declaration's Determiner hole preserves its Rust type");
+                self.pending_determiner = Some(determiner.clone());
+            }
+            "NounPhrase" => {
+                let noun = value
+                    .downcast_ref::<crate::syntax::NounPhrase>()
+                    .expect("the declaration's NounPhrase hole preserves its Rust type");
+                let rendered = crate::render_fragment(
+                    &crate::fragment::Fragment::Nominal(noun.clone()),
+                    "",
+                    false,
+                )?;
+                self.push(&rendered);
+            }
+            "NominalPhrase" => {
+                let nominal = value
+                    .downcast_ref::<crate::syntax::NominalPhrase>()
+                    .expect("the declaration's NominalPhrase hole preserves its Rust type");
+                let mut nominal = nominal.clone();
+                if let Some(determiner) = self.pending_determiner.take() {
+                    nominal.determiner = Some(determiner);
+                }
+                let rendered = crate::render_fragment(
+                    &crate::fragment::Fragment::Nominal(crate::syntax::NounPhrase::Nominal(
+                        nominal,
+                    )),
+                    "",
+                    false,
+                )?;
+                self.push(&rendered);
+            }
+            other => panic!("unexpected coordination subtree category `{other}`"),
+        }
+        Ok(())
+    }
+
+    fn scalar<T: std::any::Any>(
+        &mut self,
+        codec: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        match codec {
+            "Comma" => {
+                let comma = value
+                    .downcast_ref::<crate::features::Comma>()
+                    .expect("the declaration's Comma scalar preserves its Rust type");
+                if comma.is_present() {
+                    self.push(",");
+                }
+            }
+            "Conjunction" => {
+                let conjunction = value
+                    .downcast_ref::<crate::features::Conjunction>()
+                    .expect("the declaration's Conjunction scalar preserves its Rust type");
+                self.push(conjunction.spelling());
+            }
+            other => panic!("unexpected coordination scalar codec `{other}`"),
+        }
+        Ok(())
+    }
+
+    fn bound_value<T: std::any::Any>(
+        &mut self,
+        element: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        if element == "nominal_complement" {
+            let complement = (value as &dyn std::any::Any)
+                .downcast_ref::<crate::syntax::NominalComplement>()
+                .expect("the bound NominalComplement keeps its Rust enum type");
+            self.push(&crate::renderer::render_nominal_complement(complement)?);
+            self.skip_payload_subtrees += 1;
+        }
+        Ok(())
+    }
+}
+
+fn finish_coordination_linearization(
+    result: Result<
+        (),
+        deckmaste_construction_compiler::runtime::LinearizationError<crate::renderer::RenderError>,
+    >,
+    visitor: CoordinationLinearizer,
+) -> Result<String, crate::renderer::RenderError> {
+    match result {
+        Ok(()) => Ok(visitor.finish()),
+        Err(deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error)) => {
+            Err(error)
+        }
+        Err(error) => {
+            panic!("validated coordination must select exactly one declared form: {error:?}")
+        }
+    }
+}
+
 pub(crate) fn linearize_coordinated_noun_phrase(
     value: &crate::syntax::CoordinatedNounPhrase,
 ) -> Result<String, crate::renderer::RenderError> {
@@ -168,28 +317,12 @@ pub(crate) fn linearize_coordinated_noun_phrase(
         "only declaration-admitted noun-phrase coordinations can be linearized",
     );
 
-    let (first, rest) = crate::constructions::coordination::parts_noun_phrase_coordination(value);
-    let mut rendered = crate::render_fragment(
-        &crate::fragment::Fragment::Nominal(first.as_ref().clone()),
-        "",
-        false,
-    )?;
-    for member in rest {
-        if member.comma.is_present() {
-            rendered.push(',');
-        }
-        if let Some(conjunction) = member.conjunction {
-            rendered.push(' ');
-            rendered.push_str(conjunction.spelling());
-        }
-        rendered.push(' ');
-        rendered.push_str(&crate::render_fragment(
-            &crate::fragment::Fragment::Nominal(member.phrase.clone()),
-            "",
-            false,
-        )?);
-    }
-    Ok(rendered)
+    let mut visitor = CoordinationLinearizer::default();
+    let result = crate::constructions::coordination::linearize_noun_phrase_coordination_with(
+        value,
+        &mut visitor,
+    );
+    finish_coordination_linearization(result, visitor)
 }
 
 pub(crate) fn linearize_coordinated_nominal_phrase(
@@ -201,33 +334,12 @@ pub(crate) fn linearize_coordinated_nominal_phrase(
         "only declaration-admitted shared-determiner coordinations can be linearized",
     );
 
-    let (determiner, first, rest, _complements) =
-        crate::constructions::coordination::parts_shared_determiner_nominal(value);
-    let mut first = first.as_ref().clone();
-    first.determiner = Some(determiner.clone());
-    let mut rendered = crate::render_fragment(
-        &crate::fragment::Fragment::Nominal(crate::syntax::NounPhrase::Nominal(first)),
-        "",
-        false,
-    )?;
-    for member in rest {
-        if member.comma.is_present() {
-            rendered.push(',');
-        }
-        if let Some(conjunction) = member.conjunction {
-            rendered.push(' ');
-            rendered.push_str(conjunction.spelling());
-        }
-        rendered.push(' ');
-        rendered.push_str(&crate::render_fragment(
-            &crate::fragment::Fragment::Nominal(crate::syntax::NounPhrase::Nominal(
-                member.phrase.clone(),
-            )),
-            "",
-            false,
-        )?);
-    }
-    Ok(rendered)
+    let mut visitor = CoordinationLinearizer::default();
+    let result = crate::constructions::coordination::linearize_shared_determiner_nominal_with(
+        value,
+        &mut visitor,
+    );
+    finish_coordination_linearization(result, visitor)
 }
 
 pub(crate) fn coordination_verdict(
@@ -1176,8 +1288,8 @@ mod tests {
     }
 
     #[test]
-    fn generated_builder_admits_a_chart_unshaped_interior_member() {
-        let built = coordination::build_noun_phrase_coordination(
+    fn generated_builder_rejects_a_chart_unshaped_interior_member() {
+        let violation = coordination::build_noun_phrase_coordination(
             Box::new(noun_phrase(Vocab::Card)),
             vec![
                 NounPhraseCoordination {
@@ -1197,12 +1309,8 @@ mod tests {
                 },
             ],
         )
-        .expect("the generated builder currently admits an interior conjunction with a comma");
-
-        let (_, rest) = coordination::parts_noun_phrase_coordination(&built);
-        assert_eq!(rest.len(), 3, "the documented member must remain interior");
-        assert_eq!(rest[1].comma, Comma::Present);
-        assert_eq!(rest[1].conjunction, Some(Conjunction::And));
+        .expect_err("only the final sequence member may carry a conjunction");
+        assert_eq!(violation.requirement, "rest.nonfinal.conjunction.is_none()",);
     }
 
     #[test]
@@ -1831,7 +1939,7 @@ mod tests {
                 },
                 GeneratedPart::Scalar {
                     field: "tail",
-                    value: GeneratedScalar::Comma,
+                    value: GeneratedScalar::Comma(Comma::Present),
                 },
                 GeneratedPart::Subtree {
                     field: "second",
@@ -1847,6 +1955,26 @@ mod tests {
             ],
         };
         assert_eq!(linearize(&pair), "and, or");
+
+        let absent = GeneratedParse {
+            construction: "probe_pair",
+            ordinal: 0,
+            parts: vec![
+                GeneratedPart::Scalar {
+                    field: "first",
+                    value: GeneratedScalar::Conjunction(Conjunction::And),
+                },
+                GeneratedPart::Scalar {
+                    field: "comma",
+                    value: GeneratedScalar::Comma(Comma::Absent),
+                },
+                GeneratedPart::Scalar {
+                    field: "second",
+                    value: GeneratedScalar::Conjunction(Conjunction::Or),
+                },
+            ],
+        };
+        assert_eq!(linearize(&absent), "and or");
     }
 
     #[test]
@@ -1896,6 +2024,17 @@ mod tests {
         )
         .expect("the comma-bearing pair parses");
         assert!(!admitted.is_empty());
+        assert!(admitted.iter().all(|exact| {
+            exact.ast().parts.iter().any(|part| {
+                matches!(
+                    part,
+                    GeneratedPart::Scalar {
+                        field: "tail",
+                        value: GeneratedScalar::Comma(Comma::Present),
+                    }
+                )
+            })
+        }));
         let refused = parse_as(
             "and or",
             &Catalogs::default(),

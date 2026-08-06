@@ -19,6 +19,86 @@ pub struct DeclarationViolation {
     pub requirement: &'static str,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum LinearizationError<E> {
+    NoMatchingForm {
+        construction: &'static str,
+    },
+    MultipleMatchingForms {
+        construction: &'static str,
+        first: u16,
+        second: u16,
+    },
+    Visitor(E),
+}
+
+/// Structural event sink used by declaration-emitted value linearizers.
+/// Generic value callbacks preserve the concrete Rust type until the
+/// consumer chooses whether to downcast or handle it generically.
+pub trait LinearizationVisitor {
+    type Error;
+
+    fn begin_form(
+        &mut self,
+        _construction: &'static str,
+        _form: &'static str,
+        _ordinal: u16,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn end_form(&mut self, _construction: &'static str) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error>;
+
+    fn subtree<T: std::any::Any>(
+        &mut self,
+        category: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error>;
+
+    fn scalar<T: std::any::Any>(
+        &mut self,
+        codec: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error>;
+
+    fn begin_sequence(&mut self, _field: &'static str, _len: usize) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn sequence_member(&mut self, _field: &'static str, _index: usize) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn end_sequence(&mut self, _field: &'static str) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn optional(&mut self, _field: &'static str, _present: bool) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn bound_value<T: std::any::Any>(
+        &mut self,
+        _element: &'static str,
+        _value: &T,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn stored_witness<T: std::any::Any>(
+        &mut self,
+        _name: &'static str,
+        _path: &'static str,
+        _value: &T,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GroupData {
     pub name: &'static str,

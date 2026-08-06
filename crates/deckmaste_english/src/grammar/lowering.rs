@@ -202,7 +202,7 @@ pub(super) fn lower_lexical(
     surface: EnglishSurfaceWitness,
 ) -> Option<Lowered> {
     Some(match meaning {
-        MeaningKey::Literal(_) | MeaningKey::Punctuation => Lowered::Ignored,
+        MeaningKey::Literal(_) | MeaningKey::Punctuation(_) => Lowered::Ignored,
         MeaningKey::Number(number) => Lowered::Number(*number),
         MeaningKey::Quantity(quantity) => Lowered::Quantity(*quantity),
         MeaningKey::Determiner(determiner) => Lowered::Determiner(determiner.clone()),

@@ -355,6 +355,145 @@ fn bound_enum_mapping_builds_and_destructures_every_declared_variant() {
     ));
 }
 
+#[derive(Default)]
+struct RecordingLinearizer {
+    events: Vec<String>,
+    tokens: Vec<&'static str>,
+}
+
+impl RecordingLinearizer {
+    fn rendered(&self) -> String {
+        let mut rendered = String::new();
+        for token in &self.tokens {
+            if !(rendered.is_empty() || *token == ",") {
+                rendered.push(' ');
+            }
+            rendered.push_str(token);
+        }
+        rendered
+    }
+}
+
+impl deckmaste_construction_compiler::runtime::LinearizationVisitor for RecordingLinearizer {
+    type Error = std::convert::Infallible;
+
+    fn begin_form(
+        &mut self,
+        construction: &'static str,
+        form: &'static str,
+        ordinal: u16,
+    ) -> Result<(), Self::Error> {
+        self.events
+            .push(format!("form:{construction}:{form}:{ordinal}"));
+        Ok(())
+    }
+
+    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
+        self.events.push(format!("literal:{literal}"));
+        self.tokens.push(literal);
+        Ok(())
+    }
+
+    fn subtree<T: std::any::Any>(
+        &mut self,
+        category: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        assert_eq!(category, "FixturePhrase");
+        assert!(
+            (value as &dyn std::any::Any)
+                .downcast_ref::<FixturePhrase>()
+                .is_some()
+        );
+        self.events.push(format!("subtree:{category}"));
+        self.tokens.push("phrase");
+        Ok(())
+    }
+
+    fn scalar<T: std::any::Any>(
+        &mut self,
+        codec: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        match codec {
+            "Comma" => {
+                let comma = value.downcast_ref::<Comma>().expect("typed Comma callback");
+                self.events.push(format!("comma:{comma:?}"));
+                if comma.is_present() {
+                    self.tokens.push(",");
+                }
+            }
+            "Conjunction" => {
+                let conjunction = value
+                    .downcast_ref::<Conjunction>()
+                    .expect("typed Conjunction callback");
+                self.events.push(format!("conjunction:{conjunction:?}"));
+                self.tokens.push(conjunction.spelling());
+            }
+            other => panic!("unexpected codec {other}"),
+        }
+        Ok(())
+    }
+
+    fn begin_sequence(&mut self, field: &'static str, len: usize) -> Result<(), Self::Error> {
+        self.events.push(format!("sequence:{field}:{len}"));
+        Ok(())
+    }
+
+    fn optional(&mut self, field: &'static str, present: bool) -> Result<(), Self::Error> {
+        self.events.push(format!("optional:{field}:{present}"));
+        Ok(())
+    }
+
+    fn stored_witness<T: std::any::Any>(
+        &mut self,
+        name: &'static str,
+        path: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let comma = (value as &dyn std::any::Any)
+            .downcast_ref::<Option<Comma>>()
+            .expect("the stored witness keeps its optional Comma type");
+        self.events.push(format!("witness:{name}:{path}:{comma:?}"));
+        Ok(())
+    }
+}
+
+#[test]
+fn emitted_linearizer_replays_form_structure_and_presence_values() {
+    let pair = FixturePairNode::try_new(
+        vec![
+            FixtureMember {
+                comma: Some(Comma::Absent),
+                phrase: FixturePhrase,
+            },
+            FixtureMember {
+                comma: Some(Comma::Present),
+                phrase: FixturePhrase,
+            },
+        ],
+        Conjunction::And,
+    )
+    .expect("the declaration admits the typed fixture");
+    let mut visitor = RecordingLinearizer::default();
+    linearize_fixture_pair_with(&pair, &mut visitor).expect("one guarded form matches");
+
+    assert_eq!(visitor.rendered(), "phrase, phrase and");
+    assert!(visitor.events.contains(&"comma:Absent".to_owned()));
+    assert!(visitor.events.contains(&"comma:Present".to_owned()));
+    assert!(
+        visitor
+            .events
+            .contains(&"form:fixture_pair:plain:0".to_owned())
+    );
+    assert!(
+        visitor
+            .events
+            .contains(&"witness:oxford:members.last.comma:Some(Present)".to_owned())
+    );
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct BoundPair {
     pub left: FixturePhrase,
@@ -387,7 +526,7 @@ deckmaste_constructions_macro::constructions! {
             right: opt hole FixturePhrase,
         }
         require right.is_some();
-        form both @ 0 = left right;
+        form both @ 0 when right.is_some() = left right;
     }
 
     construction bind_members: FixturePair {
@@ -418,6 +557,19 @@ fn bind_builder_enforces_requires_and_destructures() {
         build_bind_pair(FixturePhrase, None).expect_err("absent right side violates the require");
     assert_eq!(violation.construction, "bind_pair");
     assert_eq!(violation.requirement, "right.is_some()");
+
+    let invalid = BoundPair {
+        left: FixturePhrase,
+        right: None,
+    };
+    let error = linearize_bind_pair_with(&invalid, &mut RecordingLinearizer::default())
+        .expect_err("a handwritten bind value outside every form is explicit");
+    assert_eq!(
+        error,
+        deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
+            construction: "bind_pair",
+        },
+    );
 }
 
 #[test]

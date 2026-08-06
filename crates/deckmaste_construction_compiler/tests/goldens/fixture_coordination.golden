@@ -116,6 +116,241 @@ mod __constructions_fixture_coordination {
             &self.alt
         }
     }
+    pub fn linearize_fixture_pair_with<V>(
+        value: &FixturePairNode,
+        visitor: &mut V,
+    ) -> Result<
+        (),
+        ::deckmaste_construction_compiler::runtime::LinearizationError<V::Error>,
+    >
+    where
+        V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor,
+    {
+        let FixturePairNode { members, conjunction } = value;
+        let mut selected_form: Option<u16> = None;
+        if matches!(conjunction, Conjunction::And) {
+            if let Some(first) = selected_form {
+                return Err(::deckmaste_construction_compiler::runtime::LinearizationError::MultipleMatchingForms {
+                    construction: "fixture_pair",
+                    first,
+                    second: 0,
+                });
+            }
+            selected_form = Some(0);
+        }
+        if matches!(conjunction, Conjunction::Or) {
+            if let Some(first) = selected_form {
+                return Err(::deckmaste_construction_compiler::runtime::LinearizationError::MultipleMatchingForms {
+                    construction: "fixture_pair",
+                    first,
+                    second: 1,
+                });
+            }
+            selected_form = Some(1);
+        }
+        let Some(selected_form) = selected_form else {
+            return Err(::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
+                construction: "fixture_pair",
+            });
+        };
+        match selected_form {
+            0 => {
+                visitor
+                    .begin_form("fixture_pair", "plain", 0)
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .begin_sequence("members", (members).len())
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                for (index, member) in (members).iter().enumerate() {
+                    visitor
+                        .sequence_member("members", index)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .bound_value("fixture_member", member)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .optional("fixture_member.comma", (&member.comma).is_some())
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    if let Some(present) = (&member.comma).as_ref() {
+                        visitor
+                            .scalar("Comma", present)
+                            .map_err(
+                                ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                            )?;
+                    }
+                    visitor
+                        .subtree("FixturePhrase", &member.phrase)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                }
+                visitor
+                    .end_sequence("members")
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .scalar("Conjunction", conjunction)
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                if let Some(member) = members.last() {
+                    visitor
+                        .stored_witness("oxford", "members.last.comma", &member.comma)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                }
+                visitor
+                    .end_form("fixture_pair")
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                Ok(())
+            }
+            1 => {
+                visitor
+                    .begin_form("fixture_pair", "fancy", 1)
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .begin_sequence("members", (members).len())
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                for (index, member) in (members).iter().enumerate() {
+                    visitor
+                        .sequence_member("members", index)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .bound_value("fixture_member", member)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .optional("fixture_member.comma", (&member.comma).is_some())
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    if let Some(present) = (&member.comma).as_ref() {
+                        visitor
+                            .scalar("Comma", present)
+                            .map_err(
+                                ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                            )?;
+                    }
+                    visitor
+                        .subtree("FixturePhrase", &member.phrase)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                }
+                visitor
+                    .end_sequence("members")
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .literal(",")
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .scalar("Conjunction", conjunction)
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                if let Some(member) = members.last() {
+                    visitor
+                        .stored_witness("oxford", "members.last.comma", &member.comma)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                }
+                visitor
+                    .end_form("fixture_pair")
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                Ok(())
+            }
+            _ => unreachable!("selected form ordinal came from this declaration"),
+        }
+    }
+    pub fn linearize_fixture_solo_with<V>(
+        value: &FixtureSoloNode,
+        visitor: &mut V,
+    ) -> Result<
+        (),
+        ::deckmaste_construction_compiler::runtime::LinearizationError<V::Error>,
+    >
+    where
+        V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor,
+    {
+        let FixtureSoloNode { phrase, alt } = value;
+        let mut selected_form: Option<u16> = None;
+        if true {
+            if let Some(first) = selected_form {
+                return Err(::deckmaste_construction_compiler::runtime::LinearizationError::MultipleMatchingForms {
+                    construction: "fixture_solo",
+                    first,
+                    second: 0,
+                });
+            }
+            selected_form = Some(0);
+        }
+        let Some(selected_form) = selected_form else {
+            return Err(::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
+                construction: "fixture_solo",
+            });
+        };
+        match selected_form {
+            0 => {
+                visitor
+                    .begin_form("fixture_solo", "only", 0)
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .subtree("FixturePhrase", phrase)
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .optional("alt", (alt).is_some())
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                if let Some(present) = (alt).as_ref() {
+                    visitor
+                        .subtree("FixturePhrase", present)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                }
+                visitor
+                    .end_form("fixture_solo")
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                Ok(())
+            }
+            _ => unreachable!("selected form ordinal came from this declaration"),
+        }
+    }
     #[allow(
         dead_code,
         reason = "the trait bound on assert_payload is the check; nothing calls this"
@@ -346,5 +581,7 @@ pub use __constructions_fixture_coordination::parts_bound_variant;
 pub use __constructions_fixture_coordination::build_bound_variant_phrase;
 pub use __constructions_fixture_coordination::build_bound_variant_boxed;
 pub use __constructions_fixture_coordination::FixturePairNode;
+pub use __constructions_fixture_coordination::linearize_fixture_pair_with;
 pub use __constructions_fixture_coordination::FixtureSoloNode;
+pub use __constructions_fixture_coordination::linearize_fixture_solo_with;
 pub use __constructions_fixture_coordination::FIXTURE_COORDINATION_DECLARATION;

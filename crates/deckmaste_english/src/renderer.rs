@@ -245,6 +245,17 @@ pub(crate) fn render_fragment(
     }
 }
 
+/// Renders one nominal-complement value through the production renderer.
+/// Generated construction linearizers use this boundary while the payload
+/// remains a bound enum: the compiler owns traversal and the renderer owns
+/// each payload category's established English spelling.
+#[cfg(test)]
+pub(crate) fn render_nominal_complement(
+    complement: &NominalComplement,
+) -> Result<String, RenderError> {
+    Renderer::new("", false).nominal_complement(complement)
+}
+
 impl Determiner {
     /// Renders a determiner that does not require card-name context.
     ///
