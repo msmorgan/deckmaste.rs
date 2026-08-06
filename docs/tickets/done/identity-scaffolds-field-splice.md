@@ -23,18 +23,34 @@ read it, and the coverage gate asserts unconditional coverage again.
    SHAPE the signature reports, which is what the scaffold generator
    mirrors, so no separate `Kind` channel was needed.
 3. **The grammar** (`deckmaste_semantics`): every newtype-over-named-struct
-   variant is marked — the 16 hazard rows plus `OneShotEffect::Delayed`,
-   `Reflexive` and `Targeted`, which the hand-listed hazard table had
-   MISSED (`Delayed(event: …)` is spelled 3 times in the committed corpus
-   and was broken identically), and `Card::Normal`.
-4. **Scaffolds regenerated** (`plugins/builtin/macros/identity/`): 20 files.
+   variant is marked — the 16 hazard rows, `Card::Normal`, and five the
+   hand-listed hazard table had MISSED: `OneShotEffect::Delayed`,
+   `Reflexive`, `Targeted`, `StaticEffect::CostOption` and
+   `EnterRider::AsCopy`. Two of those were broken with real corpus exposure
+   (`Delayed(event: …)` 3 spellings, `CostOption(components: …)` 4); the
+   other three are dispatch-free or native-calculus rows whose signature is
+   now simply honest.
+4. **The marker set is mechanically enforced**, not remembered
+   (`xtask::authoring::field_splice::every_newtype_over_a_crate_struct_is_marked_spliced`):
+   it parses the semantics sources the way `cargo xtask map enums` does and
+   asserts that every newtype variant of a `SupportsMacros` enum whose
+   payload — peeled of `Arc`/`Box`/`Rc` — names a named struct declared in
+   the crate carries the marker. The derive cannot answer this (a proc macro
+   sees only its own item's tokens), and a hand-maintained marker set would
+   re-create the very failure that produced this ticket: the guard found
+   `CostOption` and `AsCopy`, which two independent hand surveys had missed.
+   `#[derive(MacroFields)]` additionally hard-errors on the serde settings a
+   derived field list cannot model (`rename_all`, container `default`,
+   `skip`, `flatten`, per-direction `rename(...)`), so a future silent
+   mismatch is a compile error instead.
+5. **Scaffolds regenerated** (`plugins/builtin/macros/identity/`): 21 files.
    `May` split into `May.ron` (`OneShotEffect`, now named) and
    `May~StaticEffect.ron` (`Deontic::May`, still positional); `With`'s two
    clusters MERGED, since `CostComponent::With` and the spliced
    `OneShotEffect::With` now agree. `Normal.ron` is generated output rather
    than hand-authored — its field list comes from `CardFace` itself, and
    the generator reproduced the hand-written one exactly.
-5. **The exception is gone**: `FIELD_SPLICE_HAZARD`, its rot guard,
+6. **The exception is gone**: `FIELD_SPLICE_HAZARD`, its rot guard,
    `is_single_positional`, and the `except` clause on
    `every_reachable_row_is_covered` are deleted, not emptied.
    `xtask::authoring`'s `unscaffoldable_kinds` went with them — its only

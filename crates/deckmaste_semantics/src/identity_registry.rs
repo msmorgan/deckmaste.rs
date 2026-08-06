@@ -1658,7 +1658,7 @@ pub const IDENTITY_ROWS: &[IdentityRow] = &[
     IdentityRow {
         kind: "StaticEffect",
         variant: "CostOption",
-        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+        signature: "Named([(\"components\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }), (\"repeatable\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"tag\", ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] })])",
     },
     IdentityRow {
         kind: "StaticEffect",

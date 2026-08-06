@@ -223,7 +223,7 @@ fn gen_support(input: &Input) -> Result<TokenStream> {
         .iter()
         .filter(|v| is_named(v))
         .map(own_signature_entry)
-        .collect();
+        .collect::<Result<Vec<_>>>()?;
 
     // The dispatch tails: one per `flatten` payload (declaration order),
     // then the embed payload last. The concrete type — not `Self` — names
@@ -335,10 +335,10 @@ fn concat_lists(ty: &Ident, tails: &[&Type], excludes: &[String]) -> TokenStream
 
 /// One `(name, signature)` entry of `OWN_SIGNATURES`, for a variant kept in
 /// `OWN_VARIANTS` (see [`is_named`]).
-fn own_signature_entry(v: &Variant) -> TokenStream {
+fn own_signature_entry(v: &Variant) -> Result<TokenStream> {
     let name = v.ident.to_string();
-    let sig = variant_signature(v);
-    quote!((#name, #sig))
+    let sig = variant_signature(v)?;
+    Ok(quote!((#name, #sig)))
 }
 
 /// The `ParamDefault` a positional field maps to: `Expr(text)` when
@@ -361,12 +361,7 @@ fn positional_default(f: &Field) -> TokenStream {
 /// instead).
 fn has_serde_default(attrs: &[Attribute]) -> bool {
     attrs.iter().any(|attr| {
-        let Ok(metas) = attr.parse_args_with(
-            syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
-        ) else {
-            return false;
-        };
-        metas.iter().any(|m| m.path().is_ident("default"))
+        serde_metas(attr).is_some_and(|metas| metas.iter().any(|m| m.path().is_ident("default")))
     })
 }
 
@@ -385,9 +380,7 @@ fn is_option(ty: &Type) -> bool {
 /// reads and writes as `as`, matching serde).
 fn ron_field_name(ident: &Ident, serde_attrs: &[Attribute]) -> String {
     for attr in serde_attrs {
-        let Ok(metas) = attr.parse_args_with(
-            syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
-        ) else {
+        let Some(metas) = serde_metas(attr) else {
             continue;
         };
         for meta in &metas {
@@ -403,6 +396,64 @@ fn ron_field_name(ident: &Ident, serde_attrs: &[Attribute]) -> String {
         }
     }
     ident.to_string().trim_start_matches("r#").to_string()
+}
+
+/// Parses one `#[serde(...)]` attribute's comma-separated metas, or `None`
+/// when it isn't a list form this code can read.
+fn serde_metas(attr: &Attribute) -> Option<Vec<syn::Meta>> {
+    attr.parse_args_with(syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated)
+        .ok()
+        .map(|metas| metas.into_iter().collect())
+}
+
+/// The `#[serde(...)]` settings a derived field list cannot model, rejected
+/// rather than silently mis-reported.
+///
+/// A field list is only useful if it says what serde actually reads. These
+/// settings each change that in a way [`ron_field_name`]/[`named_default`]
+/// do not see — a renaming convention, a per-direction rename, a field serde
+/// skips entirely, a flattened field contributing its OWN payload's keys.
+/// A scaffold built from a field list that disagrees with serde is wrong in
+/// exactly the invisible way this whole capability exists to eliminate, so
+/// an unmodellable setting is a compile error at the derive rather than a
+/// def that fails on a real card. None occur in the grammar today.
+fn reject_unmodellable_serde(container: &[Attribute], fields: &[&[Attribute]]) -> Result<()> {
+    const CONTAINER_BANS: &[&str] = &["rename_all", "rename_all_fields", "default"];
+    const FIELD_BANS: &[&str] = &["skip", "skip_deserializing", "flatten"];
+    let unmodellable = |attr: &Attribute, bans: &[&str]| -> Option<Error> {
+        let metas = serde_metas(attr)?;
+        for meta in &metas {
+            let banned = bans.iter().find(|name| meta.path().is_ident(name));
+            if let Some(name) = banned {
+                return Some(Error::new_spanned(
+                    attr,
+                    format!("#[serde({name})] is not modelled by a derived field list"),
+                ));
+            }
+            // `rename(serialize = …, deserialize = …)` names two different
+            // spellings; only the plain `rename = "…"` form has one answer.
+            if meta.path().is_ident("rename") && !matches!(meta, syn::Meta::NameValue(_)) {
+                return Some(Error::new_spanned(
+                    attr,
+                    "per-direction #[serde(rename(...))] is not modelled by a derived field list",
+                ));
+            }
+        }
+        None
+    };
+    for attr in container.iter().filter(|a| a.path().is_ident("serde")) {
+        if let Some(e) = unmodellable(attr, CONTAINER_BANS) {
+            return Err(e);
+        }
+    }
+    for attrs in fields {
+        for attr in attrs.iter().filter(|a| a.path().is_ident("serde")) {
+            if let Some(e) = unmodellable(attr, FIELD_BANS) {
+                return Err(e);
+            }
+        }
+    }
+    Ok(())
 }
 
 /// The `ParamDefault` a named (struct or spliced-payload) field maps to.
@@ -423,17 +474,17 @@ fn named_default(ty: &Type, serde_attrs: &[Attribute]) -> TokenStream {
 /// A `#[macro_ron(spliced)]` newtype variant reports the payload struct's own
 /// `Named` field list instead, read through
 /// [`MacroFields`](macro_ron::MacroFields) — see [`Marker::Spliced`].
-fn variant_signature(v: &Variant) -> TokenStream {
+fn variant_signature(v: &Variant) -> Result<TokenStream> {
     if v.marker == Some(Marker::Spliced) {
         let Shape::Newtype(f) = &v.shape else {
             unreachable!("spliced is a newtype (validated in parse())");
         };
         let payload = unwrapped(&f.ty);
-        return quote!(::macro_ron::VariantSignature::Named(
+        return Ok(quote!(::macro_ron::VariantSignature::Named(
             <#payload as ::macro_ron::MacroFields>::FIELDS
-        ));
+        )));
     }
-    match &v.shape {
+    Ok(match &v.shape {
         Shape::Unit => quote!(::macro_ron::VariantSignature::Unit),
         Shape::Newtype(_) => {
             quote!(::macro_ron::VariantSignature::Positional(&[
@@ -445,6 +496,9 @@ fn variant_signature(v: &Variant) -> TokenStream {
             quote!(::macro_ron::VariantSignature::Positional(&[#(#entries),*]))
         }
         Shape::Struct(fields) => {
+            let field_attrs: Vec<&[Attribute]> =
+                fields.iter().map(|f| f.serde_attrs.as_slice()).collect();
+            reject_unmodellable_serde(&[], &field_attrs)?;
             let params = fields.iter().map(|f| {
                 let ident = f.ident.as_ref().expect("struct fields are named");
                 let name = ron_field_name(ident, &f.serde_attrs);
@@ -453,7 +507,7 @@ fn variant_signature(v: &Variant) -> TokenStream {
             });
             quote!(::macro_ron::VariantSignature::Named(&[#(#params),*]))
         }
-    }
+    })
 }
 
 /// `<T>::OWN_SIGNATURES` alone, or a `concat_signatures` of it with each tail
@@ -1003,16 +1057,23 @@ pub fn macro_fields(derive: &DeriveInput) -> Result<TokenStream> {
             "MacroFields applies to structs with named fields",
         ));
     };
-    let entries = fields.named.iter().map(|f| {
-        let serde_attrs: Vec<Attribute> = f
-            .attrs
-            .iter()
-            .filter(|a| a.path().is_ident("serde"))
-            .cloned()
-            .collect();
+    let per_field: Vec<Vec<Attribute>> = fields
+        .named
+        .iter()
+        .map(|f| {
+            f.attrs
+                .iter()
+                .filter(|a| a.path().is_ident("serde"))
+                .cloned()
+                .collect()
+        })
+        .collect();
+    let field_attrs: Vec<&[Attribute]> = per_field.iter().map(Vec::as_slice).collect();
+    reject_unmodellable_serde(&derive.attrs, &field_attrs)?;
+    let entries = fields.named.iter().zip(&per_field).map(|(f, serde_attrs)| {
         let ident = f.ident.as_ref().expect("named fields have idents");
-        let name = ron_field_name(ident, &serde_attrs);
-        let default = named_default(&f.ty, &serde_attrs);
+        let name = ron_field_name(ident, serde_attrs);
+        let default = named_default(&f.ty, serde_attrs);
         quote!(::macro_ron::NamedParam { name: #name, default: #default })
     });
     Ok(quote! {
@@ -1048,5 +1109,64 @@ fn reject_markers(derive: &DeriveInput) -> Result<()> {
              #[derive(Expand)] only recurses",
         )),
         None => Ok(()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use syn::DeriveInput;
+    use syn::parse_quote;
+
+    /// A field list only helps if it says what serde reads, so the settings
+    /// [`super::reject_unmodellable_serde`] can't model are a compile error at
+    /// the derive rather than a scaffold that fails on a real card.
+    #[test]
+    fn macro_fields_rejects_serde_settings_it_cannot_model() {
+        let cases: Vec<DeriveInput> = vec![
+            parse_quote! {
+                #[serde(rename_all = "camelCase")]
+                struct A { one_two: u32 }
+            },
+            parse_quote! {
+                #[serde(default)]
+                struct B { a: u32 }
+            },
+            parse_quote! {
+                struct C { #[serde(skip)] a: u32 }
+            },
+            parse_quote! {
+                struct D { #[serde(flatten)] a: u32 }
+            },
+            parse_quote! {
+                struct E { #[serde(rename(deserialize = "b"))] a: u32 }
+            },
+        ];
+        for input in &cases {
+            assert!(
+                super::macro_fields(input).is_err(),
+                "`{}` should not derive a field list",
+                input.ident
+            );
+        }
+    }
+
+    /// The settings it DOES model still go through: a plain rename, a
+    /// default, a raw identifier, and a bare `Option`.
+    #[test]
+    fn macro_fields_accepts_the_settings_it_models() {
+        let input: DeriveInput = parse_quote! {
+            struct Ok {
+                #[serde(rename = "as")]
+                r#as: u32,
+                #[serde(default, skip_serializing_if = "Option::is_none")]
+                b: Option<u32>,
+                c: Option<u32>,
+                d: u32,
+            }
+        };
+        let rendered = super::macro_fields(&input).unwrap().to_string();
+        assert!(rendered.contains(r#""as""#), "{rendered}");
+        assert_eq!(rendered.matches("Implicit").count(), 2, "{rendered}");
+        assert_eq!(rendered.matches("Required").count(), 2, "{rendered}");
     }
 }

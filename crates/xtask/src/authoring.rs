@@ -940,6 +940,154 @@ mod field_splice {
             .expect("CardFace has a `power` field");
         assert_eq!(power.default, ParamDefault::Implicit);
     }
+
+    /// The marker is opt-in, so the SET of marked variants is a
+    /// hand-maintained artifact — the exact shape of thing that shipped this
+    /// bug in the first place (the retired hand-listed hazard table named 16
+    /// of the 19 real rows; `OneShotEffect::Delayed` is spelled in canon and
+    /// still hid for the table's whole life, because nothing exercised it).
+    /// So the invariant is asserted mechanically instead of remembered:
+    /// **every newtype variant of a `SupportsMacros` enum whose payload —
+    /// peeled of `Arc`/`Box`/`Rc` — names a named struct declared in the
+    /// crate must carry `#[macro_ron(spliced)]`.** Anything else scaffolds as
+    /// one opaque positional slot and cannot read canon's field-spliced
+    /// spelling of itself.
+    ///
+    /// The `SupportsMacros` qualifier is load-bearing, not incidental: a
+    /// newtype-over-named-struct variant in an enum with no macro dispatch
+    /// (`Cause::Cause`, `FaceDownSpec::Listed`, `TokenSpec::Token`) is
+    /// correctly unmarked — it never reaches the macro layer, so it has no
+    /// signature anyone scaffolds from.
+    ///
+    /// Reads the sources the kind registry is built from, the way
+    /// `cargo xtask map enums` does — the derive itself cannot answer this
+    /// (a proc macro sees only its own item's tokens, and can never tell
+    /// whether another type is a struct or an enum).
+    #[test]
+    fn every_newtype_over_a_crate_struct_is_marked_spliced() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../crates/deckmaste_semantics/src");
+        let mut sources = Vec::new();
+        crate::map::collect_rs_files(&dir, &mut sources).expect("semantics sources are readable");
+        sources.sort();
+        let parsed: Vec<syn::File> = sources
+            .iter()
+            .map(|path| {
+                let text = std::fs::read_to_string(path).expect("source is readable");
+                syn::parse_file(&text).unwrap_or_else(|e| panic!("parsing {}: {e}", path.display()))
+            })
+            .collect();
+
+        let mut structs: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+        for file in &parsed {
+            collect_named_structs(&file.items, &mut structs);
+        }
+        assert!(
+            structs.contains("CardFace") && structs.contains("May"),
+            "the struct inventory did not come out — {} names found",
+            structs.len()
+        );
+
+        let mut unmarked = Vec::new();
+        let mut marked = 0usize;
+        for file in &parsed {
+            let mut enums = Vec::new();
+            crate::map::collect_pub_enums(&file.items, &mut enums);
+            for item in enums.iter().filter(|e| derives_supports_macros(&e.attrs)) {
+                for variant in &item.variants {
+                    let syn::Fields::Unnamed(fields) = &variant.fields else {
+                        continue;
+                    };
+                    let [field] = &fields.unnamed.iter().collect::<Vec<_>>()[..] else {
+                        continue;
+                    };
+                    if !payload_name(&field.ty).is_some_and(|name| structs.contains(&name)) {
+                        continue;
+                    }
+                    if is_spliced(&variant.attrs) {
+                        marked += 1;
+                    } else {
+                        unmarked.push(format!("{}::{}", item.ident, variant.ident));
+                    }
+                }
+            }
+        }
+        assert!(marked > 0, "the walk found no spliced variants at all");
+        assert!(
+            unmarked.is_empty(),
+            "these newtype-over-named-struct variants are missing \
+             `#[macro_ron(spliced)]`, so they scaffold as one opaque positional \
+             slot and cannot read their own field-spliced spelling: {unmarked:?}"
+        );
+    }
+
+    /// Every named struct declared under the walked sources, by ident,
+    /// descending into inline `mod { … }` blocks. Visibility is deliberately
+    /// NOT filtered: a payload named by a public variant is reachable
+    /// whatever its own `pub` spelling says.
+    fn collect_named_structs(items: &[syn::Item], out: &mut std::collections::BTreeSet<String>) {
+        for item in items {
+            match item {
+                syn::Item::Struct(s) if matches!(s.fields, syn::Fields::Named(_)) => {
+                    out.insert(s.ident.to_string());
+                }
+                syn::Item::Mod(m) => {
+                    if let Some((_, inner)) = &m.content {
+                        collect_named_structs(inner, out);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// Whether the item's `#[derive(...)]` lists `SupportsMacros`.
+    fn derives_supports_macros(attrs: &[syn::Attribute]) -> bool {
+        attrs
+            .iter()
+            .filter(|a| a.path().is_ident("derive"))
+            .any(|a| {
+                let mut found = false;
+                let _ = a.parse_nested_meta(|meta| {
+                    found |= meta.path.is_ident("SupportsMacros");
+                    Ok(())
+                });
+                found
+            })
+    }
+
+    /// Whether the variant carries `#[macro_ron(spliced)]`.
+    fn is_spliced(attrs: &[syn::Attribute]) -> bool {
+        attrs
+            .iter()
+            .filter(|a| a.path().is_ident("macro_ron"))
+            .any(|a| {
+                let mut found = false;
+                let _ = a.parse_nested_meta(|meta| {
+                    found |= meta.path.is_ident("spliced");
+                    Ok(())
+                });
+                found
+            })
+    }
+
+    /// A newtype payload's own type name, peeled of `Arc`/`Box`/`Rc` —
+    /// mirroring `macro_ron_derive::generate::unwrapped`, which is what the
+    /// derive resolves `MacroFields` through. `None` for anything that isn't
+    /// a plain path (slices, tuples, references).
+    fn payload_name(ty: &syn::Type) -> Option<String> {
+        let syn::Type::Path(path) = ty else {
+            return None;
+        };
+        let segment = path.path.segments.last()?;
+        if matches!(segment.ident.to_string().as_str(), "Arc" | "Box" | "Rc")
+            && let syn::PathArguments::AngleBracketed(args) = &segment.arguments
+            && let Some(syn::GenericArgument::Type(inner)) = args.args.first()
+        {
+            return payload_name(inner);
+        }
+        Some(segment.ident.to_string())
+    }
 }
 
 /// Reads real, generated scaffolds through an ACTUAL restricted read —
@@ -1086,10 +1234,12 @@ mod restricted_read {
     /// only counts as fixed when its variant's own field-spliced spelling
     /// reads restricted and equals the native read.
     ///
-    /// Sources are lifted verbatim from the committed corpus where the row
-    /// occurs there (`Activated`/`Triggered`/`Spell`/`Continuously`/`May`/
-    /// `If`/`Each`/`With`/`Modal`/`Delayed`), and are minimal hand-built
-    /// values of the same shape for the rows canon does not yet spell.
+    /// Sources take their SHAPE from the committed corpus where the row occurs
+    /// there (`Activated`/`Triggered`/`Continuously`/`May`/`If`/`Each`/`With`/
+    /// `Modal`/`Delayed`); several are trimmed or recombined so every nested
+    /// name is one this set actually loads (a builtin macro living outside
+    /// `identity/` is not), and the rows canon does not yet spell get a
+    /// minimal hand-built value of the same shape.
     #[test]
     fn every_field_spliced_row_round_trips_under_restriction() {
         let macros = real_scaffolds();
@@ -1126,6 +1276,14 @@ mod restricted_read {
              effect: RestartGame)",
         ] {
             assert_restricted_matches_native::<deckmaste_semantics::OneShotEffect>(&macros, source);
+        }
+        // `StaticEffect::CostOption` — the row the MECHANICAL survey caught
+        // that two hand surveys missed, and spelled 4 times in canon.
+        for source in [
+            "CostOption(components: [Tap], tag: Kicker)",
+            "CostOption(components: [Tap], tag: Kicker, repeatable: true)",
+        ] {
+            assert_restricted_matches_native::<deckmaste_semantics::StaticEffect>(&macros, source);
         }
     }
 

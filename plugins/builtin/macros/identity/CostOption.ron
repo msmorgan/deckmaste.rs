@@ -1,6 +1,6 @@
 (
     name: "CostOption",
     kinds: [StaticEffect],
-    params: [Any],
-    body: CostOption(Param(0)),
+    params: { "components": Any, "tag": Any, "repeatable": Elidable(Any) },
+    body: CostOption(components: Param(components), tag: Param(tag), repeatable: Param(repeatable)),
 )

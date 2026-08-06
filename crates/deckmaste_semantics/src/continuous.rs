@@ -344,6 +344,7 @@ pub enum StaticEffect {
     /// [cost] as you cast this spell", read back through the tag by
     /// `Condition::PaidCost` / `Count::TimesPaid` / `Predicate::WasPaidWith`
     /// ([CR#702.33d..702.33e,607.2]).
+    #[macro_ron(spliced)]
     CostOption(crate::OptionalCost),
     /// A trigger multiplier ([CR#603.2d] — "triggers additional times"):
     /// Panharmonicon, Yarok, and the trigger half of Doubling Season. A

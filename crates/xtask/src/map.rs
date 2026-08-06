@@ -87,7 +87,7 @@ fn run_enums(args: &EnumsArgs) -> anyhow::Result<()> {
 }
 
 /// Recursively walk `dir` collecting `.rs` file paths.
-fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) -> anyhow::Result<()> {
+pub(crate) fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) -> anyhow::Result<()> {
     for entry in fs::read_dir(dir).with_context(|| format!("reading dir {}", dir.display()))? {
         let entry = entry.with_context(|| format!("reading an entry of {}", dir.display()))?;
         let path = entry.path();
@@ -102,7 +102,7 @@ fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) -> anyhow::Result<()> {
 
 /// Recursively walk a file's items (descending into inline `mod { .. }`
 /// blocks) collecting `pub enum` items, in source order.
-fn collect_pub_enums<'a>(items: &'a [syn::Item], out: &mut Vec<&'a syn::ItemEnum>) {
+pub(crate) fn collect_pub_enums<'a>(items: &'a [syn::Item], out: &mut Vec<&'a syn::ItemEnum>) {
     for item in items {
         match item {
             syn::Item::Enum(item_enum) if matches!(item_enum.vis, syn::Visibility::Public(_)) => {

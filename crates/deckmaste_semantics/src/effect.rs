@@ -153,11 +153,11 @@ pub enum OneShotEffect {
     /// -> Bindable b Many k -> …`, the general divide-or-distribute primitive.
     #[macro_ron(spliced)]
     Distribute(Distribute),
-    /// A delayed triggered ability created on resolution ([CR#603.7]).
     /// Note the object set the inner effect moves/touches under `key`
     /// ([CR#607.2a] exiled-with linkage).
     #[macro_ron(spliced)]
     Noting(Noting),
+    /// A delayed triggered ability created on resolution ([CR#603.7]).
     #[macro_ron(spliced)]
     Delayed(Arc<TriggeredAbility>),
     /// A reflexive triggered ability created on resolution ([CR#603.12]).

@@ -8,6 +8,7 @@ use crate::Cmp;
 use crate::Count;
 use crate::Expand;
 use crate::Expansion;
+use crate::MacroFields;
 use crate::Normalize;
 use crate::Predicate;
 use crate::Stat;
@@ -248,7 +249,7 @@ impl<'de> Deserialize<'de> for CostTag {
 /// [CR#702.33e,607.2]). `repeatable: true` is multikicker's "any number of
 /// times" ([CR#702.33c]); buyback is one more tag ([CR#702.27a]). Intentions
 /// are announced at [CR#601.2b]; the total locks at [CR#601.2f].
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, MacroFields, Serialize)]
 pub struct OptionalCost {
     pub components: Arc<[CostComponent]>,
     pub tag: CostTag,

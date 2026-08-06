@@ -96,6 +96,7 @@ pub enum EnterRider {
     /// `deckmaste_engine::layer::base_values`; consuming it here (the
     /// rider-application step on `Move`/`Create`) is a documented fizzle,
     /// never a panic.
+    #[macro_ron(spliced)]
     AsCopy(crate::CopySpec),
 }
 

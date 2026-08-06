@@ -9,6 +9,7 @@ use serde::Serialize;
 use crate::Ability;
 use crate::Color;
 use crate::Expand;
+use crate::MacroFields;
 use crate::ManaCost;
 use crate::StatValue;
 use crate::Subtype;
@@ -29,7 +30,7 @@ use crate::reference::Reference;
 /// `#[derive(SupportsMacros)]` applies to enums only (a struct target is a
 /// compile error directing to `#[derive(Expand)]`), so this struct derives
 /// `Expand` + serde like those embedded types, not `SupportsMacros` itself.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, MacroFields, Serialize)]
 pub struct CopySpec {
     pub source: CopySource,
     #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
