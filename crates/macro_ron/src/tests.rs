@@ -44,7 +44,7 @@ fn kinds() -> KindSet {
     kinds.add(
         Kind::new("Filter")
             .remembers_expansion()
-            .variants(FILTER_VARIANTS),
+            .with_variants(FILTER_VARIANTS),
     );
     kinds.add(
         Kind::new("Quantity")
@@ -57,7 +57,7 @@ fn kinds() -> KindSet {
         Kind::new("EmbedHost")
             .remembers_expansion()
             .embeds_untagged()
-            .variants(EMBED_HOST_VARIANTS),
+            .with_variants(EMBED_HOST_VARIANTS),
     );
     kinds.add(Kind::new("EmbedRef").remembers_expansion());
     // A non-remembering position kind (no `Expanded` variant), like

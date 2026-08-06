@@ -34,12 +34,26 @@ impl Kind {
         }
     }
 
+    /// This kind's position name (the type's serde name).
+    #[must_use]
+    pub fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    /// This kind's dispatch set — every identifier that reads natively here.
+    /// Empty for a hand-built `Kind` and for struct kinds, which have no
+    /// variant dispatch.
+    #[must_use]
+    pub fn variants(&self) -> &'static [&'static str] {
+        self.variants
+    }
+
     /// The kind's dispatch set. The derive passes
     /// [`SupportsMacros::ALL_VARIANTS`](crate::SupportsMacros::ALL_VARIANTS);
     /// checks that must distinguish a native variant from a macro name — the
     /// cycle check, and the restricted-read ban — consult it.
     #[must_use]
-    pub fn variants(mut self, variants: &'static [&'static str]) -> Self {
+    pub fn with_variants(mut self, variants: &'static [&'static str]) -> Self {
         self.variants = variants;
         self
     }
@@ -112,7 +126,15 @@ impl KindSet {
         self.kinds.is_empty()
     }
 
-    pub(crate) fn get(&self, name: &str) -> Option<&Kind> {
+    /// The registered kind of this name, if any.
+    #[must_use]
+    pub fn get(&self, name: &str) -> Option<&Kind> {
         self.kinds.get(name)
+    }
+
+    /// Every registered kind, in unspecified order. The author-surface
+    /// reachability inventory walks this.
+    pub fn iter(&self) -> impl Iterator<Item = &Kind> {
+        self.kinds.values()
     }
 }

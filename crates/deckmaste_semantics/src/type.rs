@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use macro_ron::Ident;
+use macro_ron::SupportsMacros;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -28,7 +29,7 @@ pub enum Type {
 }
 
 // [CR#205.4a]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Supertype {
     Basic,
     Legendary,

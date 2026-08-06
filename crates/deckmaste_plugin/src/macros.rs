@@ -105,6 +105,7 @@ mod tests {
             // stay flat and macro-aware.
             name_of::<ManaProduction>(),
             name_of::<ManaSpec>(),
+            name_of::<deckmaste_semantics::Color>(),
             name_of::<ColorOrColorless>(),
             name_of::<SimpleManaSymbol>(),
             name_of::<ManaSymbol>(),
@@ -115,6 +116,10 @@ mod tests {
             name_of::<Replacement>(),
             name_of::<Selection>(),
             name_of::<StaticEffect>(),
+            // The spec §4 stragglers: the restricted root and the supertype
+            // vocabulary, registered so the author-surface ban is uniform.
+            name_of::<deckmaste_semantics::Card>(),
+            name_of::<deckmaste_semantics::Supertype>(),
             name_of::<Subtype>(),
             name_of::<deckmaste_core::TypeDef>(),
             name_of::<TargetSpec>(),

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use macro_ron::Expand;
+use macro_ron::SupportsMacros;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -68,7 +69,7 @@ pub enum FaceLayout {
     Flip,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, SupportsMacros)]
 // `TwoFaced` (two full `CardFace`s) is inherently larger than `Normal` (one).
 // Boxing a face would push `Box::new` into every construction/read site and
 // complicate the RON derive for no runtime gain — a `Card` is a rarely-copied

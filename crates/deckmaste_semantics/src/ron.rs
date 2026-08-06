@@ -47,8 +47,10 @@ pub fn kinds() -> KindSet {
     // The mana-symbol leaves embed their inner value untagged too, so a bare
     // `White`/`Generic(2)` reads at a symbol slot: `ColorOrColorless` embeds
     // `Color`, `SimpleManaSymbol` embeds `ColorOrColorless`, `ManaSymbol` embeds
-    // `SimpleManaSymbol`. `Color` itself is the terminal payload (no embed), so
-    // it needs no registration.
+    // `SimpleManaSymbol`. `Color` is the terminal payload (no embed), and is
+    // registered as a spec §4 straggler so the ban reaches it: a macro of kind
+    // `Color` was undefinable while it was unregistered.
+    kinds.add(crate::Color::kind());
     kinds.add(crate::ColorOrColorless::kind());
     kinds.add(crate::SimpleManaSymbol::kind());
     kinds.add(crate::ManaSymbol::kind());
@@ -67,6 +69,10 @@ pub fn kinds() -> KindSet {
     kinds.add(crate::TargetSpec::kind());
     // No `strategy::Preference` kind: strategy RON is outside the authoring
     // program (§3 and the §4 container table).
+    // The remaining spec §4 stragglers: the restricted root itself, and the
+    // supertype vocabulary cards spell directly.
+    kinds.add(crate::Card::kind());
+    kinds.add(crate::Supertype::kind());
     kinds.add(Kind::new("CardFace"));
     kinds.add(Kind::new("Subtype"));
     // Type-kind macros (the ten builtin `Artifact`..`Sorcery` defs) expand to
@@ -149,5 +155,37 @@ impl RonOptions {
     /// Propagates the underlying `ron::Error`.
     pub fn to_string<T: Serialize>(&self, value: &T) -> Result<String, ron::Error> {
         raw_options().to_string(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::kinds;
+
+    /// Spec §4's stragglers: without these the ban is non-uniform — a macro of
+    /// kind `Color` is undefinable, and the restricted root has no kind at all.
+    #[test]
+    fn stragglers_are_registered_so_the_ban_is_uniform() {
+        let kinds = kinds();
+        for name in ["Color", "Supertype", "Card"] {
+            assert!(
+                kinds.contains(name),
+                "`{name}` must be a registered kind (spec §4)"
+            );
+        }
+    }
+
+    /// A registered enum kind must carry its dispatch set, or the checks that
+    /// consult it (the cycle check, the restricted-read ban) silently weaken.
+    #[test]
+    fn registered_enum_kinds_carry_their_dispatch_set() {
+        let kinds = kinds();
+        for name in ["Color", "Supertype", "Card"] {
+            let kind = kinds.get(name).expect("registered above");
+            assert!(
+                !kind.variants().is_empty(),
+                "`{name}` registered without its dispatch set"
+            );
+        }
     }
 }
