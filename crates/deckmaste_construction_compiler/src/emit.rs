@@ -306,9 +306,6 @@ fn erased_field_reads(
 }
 
 fn erased_element_builders(group: &GroupDeclaration, element: &ElementDeclaration) -> TokenStream {
-    if element.bind_path.is_some() && element.fields.is_empty() && element.variants.is_empty() {
-        return quote! {};
-    }
     let owner = element.name.value.as_str();
     let target = element.bind_path.as_ref().map_or_else(
         || {
@@ -317,6 +314,30 @@ fn erased_element_builders(group: &GroupDeclaration, element: &ElementDeclaratio
         },
         |path| parse_type(&path.value),
     );
+    let sequence_function = quote::format_ident!("__erased_sequence_{}", owner);
+    let sequence_builder = quote! {
+        fn #sequence_function(
+            values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+        ) -> Result<
+            ::deckmaste_construction_compiler::runtime::ErasedValue,
+            ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+        > {
+            let mut result = Vec::<#target>::with_capacity(values.len());
+            for value in values {
+                result.push(*value.downcast::<#target>().map_err(|_| {
+                    ::deckmaste_construction_compiler::runtime::ErasedBuildError::WrongFieldType {
+                        owner: #owner,
+                        field: "sequence member",
+                        expected: stringify!(#target),
+                    }
+                })?);
+            }
+            Ok(Box::new(result))
+        }
+    };
+    if element.bind_path.is_some() && element.fields.is_empty() && element.variants.is_empty() {
+        return sequence_builder;
+    }
     if !element.variants.is_empty() {
         let builders = element.variants.iter().map(|variant| {
             let suffix = crate::model::snake_case(&variant.name.value);
@@ -347,7 +368,7 @@ fn erased_element_builders(group: &GroupDeclaration, element: &ElementDeclaratio
                 }
             }
         });
-        return quote! { #(#builders)* };
+        return quote! { #(#builders)* #sequence_builder };
     }
 
     let function = quote::format_ident!("__erased_build_{}", owner);
@@ -373,6 +394,7 @@ fn erased_element_builders(group: &GroupDeclaration, element: &ElementDeclaratio
             }
             Ok(Box::new(#target { #(#fields),* }))
         }
+        #sequence_builder
     }
 }
 
@@ -1260,6 +1282,7 @@ fn element_row(element: &ElementDeclaration) -> TokenStream {
             })
             .collect()
     };
+    let sequence_builder = quote::format_ident!("__erased_sequence_{}", element.name.value);
     quote! {
         ::deckmaste_construction_compiler::runtime::ElementData {
             name: #name,
@@ -1267,6 +1290,7 @@ fn element_row(element: &ElementDeclaration) -> TokenStream {
             fields: &[#(#fields),*],
             variants: &[#(#variants),*],
             erased_builders: &[#(#erased_builders),*],
+            erased_sequence_builder: Some(#sequence_builder),
         }
     }
 }

@@ -17,30 +17,16 @@ use super::construction::construction_id;
 use crate::construction::ConstructionId;
 use crate::construction::ProductionId;
 
-#[allow(
-    dead_code,
-    reason = "generated auxiliary payloads are consumed by the staged lowering slice"
-)]
 #[derive(Debug, Clone, Copy)]
 pub(super) enum RuleImpl {
     Handwritten(RuleTag),
-    Generated(
-        #[allow(
-            dead_code,
-            reason = "the payload feeds the M4/M5 hook implementations; Milestone-3 dispatch sites route on the Generated variant alone"
-        )]
-        GeneratedRuleRef,
-    ),
+    Generated(GeneratedRuleRef),
     GeneratedAux(GeneratedAuxRuleRef),
 }
 
 /// One generated production's home: the group's declaration data plus the
 /// construction/form indices inside it. Indices, not references, so the type
 /// stays `Copy` without self-referential borrows.
-#[allow(
-    dead_code,
-    reason = "the fields feed the M4/M5 hook implementations; Milestone-3 stubs route on the Generated variant alone"
-)]
 #[derive(Debug, Clone, Copy)]
 pub(super) struct GeneratedRuleRef {
     pub(super) group: &'static deckmaste_construction_compiler::runtime::GroupData,
@@ -51,12 +37,9 @@ pub(super) struct GeneratedRuleRef {
     pub(super) sequence_atoms: u64,
 }
 
-#[allow(
-    dead_code,
-    reason = "the assembly slice records every lowering input before lowering consumes it"
-)]
 #[derive(Debug, Clone, Copy)]
 pub(super) enum GeneratedAuxRuleRef {
+    Transparent,
     ElementStruct {
         group: &'static deckmaste_construction_compiler::runtime::GroupData,
         element: usize,

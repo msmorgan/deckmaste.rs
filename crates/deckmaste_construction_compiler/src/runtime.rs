@@ -105,6 +105,7 @@ pub trait LinearizationVisitor {
 pub type ErasedValue = Box<dyn std::any::Any>;
 
 pub type ErasedBuilder = fn(Vec<ErasedValue>) -> Result<ErasedValue, ErasedBuildError>;
+pub type ErasedSequenceBuilder = fn(Vec<ErasedValue>) -> Result<ErasedValue, ErasedBuildError>;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ErasedBuildError {
@@ -166,6 +167,7 @@ pub struct ElementData {
     /// One entry for a struct-shaped element, or one per enum variant in
     /// declaration order.
     pub erased_builders: &'static [ErasedBuilder],
+    pub erased_sequence_builder: Option<ErasedSequenceBuilder>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

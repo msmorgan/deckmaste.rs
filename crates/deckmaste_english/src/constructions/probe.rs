@@ -1,7 +1,7 @@
 //! The adapter probe: a minimal generated group proving the chart routes
 //! `RuleImpl::Generated` end to end — assembly, scanning, packing, dominance
-//! selection, decisions, and `Ignored` lowering. Semantics are Milestone-3
-//! stubs by design; nothing here models English.
+//! selection, decisions, and declaration-emitted typed lowering. The marker
+//! semantics are deliberately synthetic; nothing here models English.
 
 use deckmaste_construction_compiler::runtime::GroupData;
 
@@ -24,7 +24,7 @@ deckmaste_constructions_macro::constructions! {
             word: lex Conjunction,
         }
         // The `when` guards exist only to keep EC024 (ambiguous
-        // linearization) satisfied — the M3 chart adapter does not consult
+        // linearization) satisfied — the chart adapter does not consult
         // guards at all (see `generated.rs`'s `register_generated`), so
         // which value each guard names has no bearing on chart matching.
         form only @ 0 when word in [Or] = lex(word);
@@ -67,9 +67,16 @@ deckmaste_constructions_macro::constructions! {
 // construction holes them, so the emitter never renders them as field types —
 // those names exist only as internal chart categories.
 
-pub(crate) static GROUPS: &[&GroupData] = &[&ADAPTER_PROBE_DECLARATION, &PROBE_EXTRA_DECLARATION];
-pub(crate) static GROUPS_REVERSED: &[&GroupData] =
-    &[&PROBE_EXTRA_DECLARATION, &ADAPTER_PROBE_DECLARATION];
+pub(crate) static GROUPS: &[&GroupData] = &[
+    &ADAPTER_PROBE_DECLARATION,
+    &PROBE_EXTRA_DECLARATION,
+    &SEQUENCE_PROBE_DECLARATION,
+];
+pub(crate) static GROUPS_REVERSED: &[&GroupData] = &[
+    &SEQUENCE_PROBE_DECLARATION,
+    &PROBE_EXTRA_DECLARATION,
+    &ADAPTER_PROBE_DECLARATION,
+];
 
 deckmaste_constructions_macro::constructions! {
     group probe_extra;
@@ -79,5 +86,24 @@ deckmaste_constructions_macro::constructions! {
             word: lex Conjunction,
         }
         form only @ 0 = lex(word);
+    }
+}
+
+deckmaste_constructions_macro::constructions! {
+    group sequence_probe;
+
+    element probe_sequence_member {
+        comma: lex Comma,
+        conjunction: opt lex Conjunction,
+        phrase: hole ProbeItem,
+    }
+
+    internal construction probe_sequence: ProbeSequenceRoot {
+        own ProbeSequenceNode {
+            first: hole ProbeItem,
+            rest: seq probe_sequence_member,
+        }
+        require rest.len() >= 1;
+        form only @ 0 = first rest;
     }
 }

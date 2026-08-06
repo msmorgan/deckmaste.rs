@@ -71,6 +71,37 @@ use crate::forest::AlternativeSelection;
 use crate::word::NounDeclension;
 use crate::word::Tense;
 
+pub(super) enum GeneratedValue {
+    Typed(deckmaste_construction_compiler::runtime::ErasedValue),
+    Sequence(Vec<deckmaste_construction_compiler::runtime::ErasedValue>),
+}
+
+impl std::fmt::Debug for GeneratedValue {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Typed(_) => formatter.write_str("Typed(<generated>)"),
+            Self::Sequence(values) => formatter
+                .debug_tuple("Sequence")
+                .field(&values.len())
+                .finish(),
+        }
+    }
+}
+
+#[cfg(test)]
+impl GeneratedValue {
+    pub(super) fn is<T: std::any::Any>(&self) -> bool {
+        matches!(self, Self::Typed(value) if value.is::<T>())
+    }
+
+    pub(super) fn downcast_ref<T: std::any::Any>(&self) -> Option<&T> {
+        let Self::Typed(value) = self else {
+            return None;
+        };
+        value.downcast_ref()
+    }
+}
+
 #[allow(
     dead_code,
     reason = "elliptical-clause lowering is staged for later grammar milestones"
@@ -131,6 +162,7 @@ pub(super) enum Lowered {
     /// members, two for the flat `once each turn` adverb+temporal pair).
     RestrictionMember(Vec<crate::syntax::PredicateAdjunct>),
     RestrictionRun(crate::syntax::RestrictionRun),
+    Generated(GeneratedValue),
     Ignored,
 }
 
@@ -154,22 +186,309 @@ pub(super) fn lower<S: AlternativeSelection>(
         ForestSymbol::Nonterminal(_) => {}
     }
     let rule = alternative.rule?;
-    let tag = match grammar.impls.get(rule.index())? {
-        RuleImpl::Handwritten(tag) => *tag,
-        // Milestone-3 stub: generated subtrees lower to Ignored; real AST
-        // building lands with the pilot declarations.
-        RuleImpl::Generated(_) | RuleImpl::GeneratedAux(_) => return Some(Lowered::Ignored),
-    };
     let [intermediate] = alternative.children.as_slice() else {
         return None;
     };
     let mut child_nodes = Vec::new();
     selected_rule_children(forest, *intermediate, selection, &mut child_nodes)?;
-    let mut children = child_nodes
+    let children = child_nodes
         .iter()
         .map(|&child| lower(grammar, forest, child, selection))
         .collect::<Option<Vec<_>>>()?;
-    lower_rule(tag, &mut children)
+    match grammar.impls.get(rule.index())? {
+        RuleImpl::Handwritten(tag) => {
+            let mut children = children;
+            lower_rule(*tag, &mut children)
+        }
+        RuleImpl::Generated(generated) => lower_generated_construction(*generated, children),
+        RuleImpl::GeneratedAux(generated) => lower_generated_aux(*generated, children),
+    }
+}
+
+fn lower_generated_aux(
+    rule: super::rules::GeneratedAuxRuleRef,
+    mut children: Vec<Lowered>,
+) -> Option<Lowered> {
+    use super::rules::GeneratedAuxRuleRef as R;
+    match rule {
+        R::Transparent => {
+            let [value]: [Lowered; 1] = children.try_into().ok()?;
+            Some(value)
+        }
+        R::ElementStruct {
+            group,
+            element,
+            present_fields,
+        } => {
+            let element = group.element_data.get(element)?;
+            let mut children = children.drain(..);
+            let mut fields = Vec::with_capacity(element.fields.len());
+            for (index, field) in element.fields.iter().enumerate() {
+                fields.push(if present_fields & (1_u64 << index) == 0 {
+                    erased_absent(field.kind)?
+                } else {
+                    erased_field(field.kind, children.next()?)?
+                });
+            }
+            if children.next().is_some() {
+                return None;
+            }
+            let builder = *element.erased_builders.first()?;
+            Some(Lowered::Generated(GeneratedValue::Typed(
+                builder(fields).ok()?,
+            )))
+        }
+        R::ElementVariant {
+            group,
+            element,
+            variant,
+        } => {
+            let element = group.element_data.get(element)?;
+            let declaration = element.variants.get(variant)?;
+            let [child]: [Lowered; 1] = children.try_into().ok()?;
+            let payload = erased_field(declaration.payload, child)?;
+            Some(Lowered::Generated(GeneratedValue::Typed(
+                element.erased_builders.get(variant)?(vec![payload]).ok()?,
+            )))
+        }
+        R::SequenceSeed { group, element } => {
+            group.element_data.get(element)?;
+            let [Lowered::Generated(GeneratedValue::Typed(value))]: [Lowered; 1] =
+                children.try_into().ok()?
+            else {
+                return None;
+            };
+            Some(Lowered::Generated(GeneratedValue::Sequence(vec![value])))
+        }
+        R::SequenceExtend { group, element } => {
+            group.element_data.get(element)?;
+            let [
+                Lowered::Generated(GeneratedValue::Sequence(mut values)),
+                Lowered::Generated(GeneratedValue::Typed(value)),
+            ]: [Lowered; 2] = children.try_into().ok()?
+            else {
+                return None;
+            };
+            values.push(value);
+            Some(Lowered::Generated(GeneratedValue::Sequence(values)))
+        }
+    }
+}
+
+fn lower_generated_construction(
+    rule: super::rules::GeneratedRuleRef,
+    children: Vec<Lowered>,
+) -> Option<Lowered> {
+    use deckmaste_construction_compiler::runtime::AtomData;
+    use deckmaste_construction_compiler::runtime::FieldKindData;
+
+    let construction = rule.group.constructions.get(rule.construction)?;
+    let form = construction.forms.get(rule.form)?;
+    let mut children = children.into_iter();
+    let mut fields = std::iter::repeat_with(|| None)
+        .take(construction.fields.len())
+        .collect::<Vec<_>>();
+    for (atom_index, atom) in form.atoms.iter().enumerate() {
+        if matches!(atom, AtomData::Literal(_)) {
+            children.next()?;
+            continue;
+        }
+        let path = match atom {
+            AtomData::Hole(path) | AtomData::Lexeme(path) => *path,
+            AtomData::Literal(_) => unreachable!(),
+        };
+        let field_index = construction
+            .fields
+            .iter()
+            .position(|field| field.name == path)?;
+        let field = construction.fields[field_index];
+        let value = if let FieldKindData::Sequence { element } = field.kind {
+            let element = rule
+                .group
+                .element_data
+                .iter()
+                .find(|candidate| candidate.name == element)?;
+            let values = if rule.sequence_atoms & (1_u64 << atom_index) == 0 {
+                Vec::new()
+            } else {
+                let Lowered::Generated(GeneratedValue::Sequence(values)) = children.next()? else {
+                    return None;
+                };
+                values
+            };
+            element.erased_sequence_builder?(values).ok()?
+        } else {
+            erased_field(field.kind, children.next()?)?
+        };
+        fields[field_index] = Some(value);
+    }
+    if children.next().is_some() {
+        return None;
+    }
+    let fields = fields.into_iter().collect::<Option<Vec<_>>>()?;
+    let value = construction.erased_builder?(fields).ok()?;
+    Some(Lowered::Generated(GeneratedValue::Typed(
+        project_generated_category(construction, value)?,
+    )))
+}
+
+fn project_generated_category(
+    _construction: &deckmaste_construction_compiler::runtime::ConstructionData,
+    value: deckmaste_construction_compiler::runtime::ErasedValue,
+) -> Option<deckmaste_construction_compiler::runtime::ErasedValue> {
+    #[cfg(test)]
+    match _construction.id {
+        "probe_word" => {
+            value
+                .downcast::<crate::constructions::probe::ProbeWordNode>()
+                .ok()?;
+            return Some(Box::new(crate::constructions::probe::ProbeItem));
+        }
+        "probe_pick" => {
+            value
+                .downcast::<crate::constructions::probe::ProbePickNode>()
+                .ok()?;
+            return Some(Box::new(crate::constructions::probe::ProbeRoot));
+        }
+        "probe_pick_shadow" => {
+            value
+                .downcast::<crate::constructions::probe::ProbeShadowNode>()
+                .ok()?;
+            return Some(Box::new(crate::constructions::probe::ProbeRoot));
+        }
+        "law_letter" => {
+            value
+                .downcast::<crate::constructions::law::LawLetterNode>()
+                .ok()?;
+            return Some(Box::new(crate::constructions::law::LawItem));
+        }
+        _ => {}
+    }
+    Some(value)
+}
+
+fn erased_field(
+    kind: deckmaste_construction_compiler::runtime::FieldKindData,
+    value: Lowered,
+) -> Option<deckmaste_construction_compiler::runtime::ErasedValue> {
+    use deckmaste_construction_compiler::runtime::FieldKindData as K;
+    match kind {
+        K::Subtree { category, boxed } => erased_subtree(category, boxed, value),
+        K::Scalar {
+            codec: "Conjunction",
+        } => {
+            let Lowered::Conjunction(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Scalar { codec: "Comma" } => Some(Box::new(crate::features::Comma::Present)),
+        K::Optional { inner } => erased_optional(*inner, value),
+        K::Scalar { .. } | K::Sequence { .. } => None,
+    }
+}
+
+fn erased_absent(
+    kind: deckmaste_construction_compiler::runtime::FieldKindData,
+) -> Option<deckmaste_construction_compiler::runtime::ErasedValue> {
+    use deckmaste_construction_compiler::runtime::FieldKindData as K;
+    match kind {
+        K::Scalar { codec: "Comma" } => Some(Box::new(crate::features::Comma::Absent)),
+        K::Optional { inner } => erased_optional_absent(*inner),
+        K::Subtree { .. } | K::Scalar { .. } | K::Sequence { .. } => None,
+    }
+}
+
+fn erased_subtree(
+    category: &'static str,
+    boxed: bool,
+    value: Lowered,
+) -> Option<deckmaste_construction_compiler::runtime::ErasedValue> {
+    macro_rules! typed {
+        ($variant:ident, $value:expr) => {{
+            let Lowered::$variant(value) = $value else {
+                return None;
+            };
+            if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
+        }};
+    }
+    match category {
+        "NounPhrase" => typed!(NounPhrase, value),
+        "NominalPhrase" => typed!(Nominal, value),
+        "Determiner" => typed!(Determiner, value),
+        "AdjectivePhrase" => typed!(AdjectivePhrase, value),
+        "CoordinatedAdjectivePhrase" => {
+            let Lowered::CoordinatedModifier(value) = value else {
+                return None;
+            };
+            let value = clause::coordinated_modifier_as_adjectives(value)?;
+            if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
+        }
+        "PrepositionalPhrase" => typed!(PrepositionalPhrase, value),
+        "InfinitiveClause" => typed!(InfinitiveClause, value),
+        "RelativeClause" => typed!(RelativeClause, value),
+        "Quantity" => typed!(Quantity, value),
+        "DevotionColors" => typed!(DevotionColors, value),
+        "PowerToughness" => typed!(PowerToughness, value),
+        "TransitivePredicate" => {
+            let Lowered::VerbPhrase(value) = value else {
+                return None;
+            };
+            let value = clause::finish_reduced_recipient_passive(value)?;
+            if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
+        }
+        "IndependentClause" => {
+            let Lowered::Clause(Clause::Independent(value)) = value else {
+                return None;
+            };
+            if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
+        }
+        "KeywordArgument" => {
+            let Lowered::PredicatedArgument(value) = value else {
+                return None;
+            };
+            let value = KeywordArgument::Predicated(value);
+            if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
+        }
+        _ => {
+            let Lowered::Generated(GeneratedValue::Typed(value)) = value else {
+                return None;
+            };
+            Some(value)
+        }
+    }
+}
+
+fn erased_optional(
+    inner: deckmaste_construction_compiler::runtime::FieldKindData,
+    value: Lowered,
+) -> Option<deckmaste_construction_compiler::runtime::ErasedValue> {
+    use deckmaste_construction_compiler::runtime::FieldKindData as K;
+    match inner {
+        K::Scalar {
+            codec: "Conjunction",
+        } => {
+            let Lowered::Conjunction(value) = value else {
+                return None;
+            };
+            Some(Box::new(Some(value)))
+        }
+        K::Scalar { codec: "Comma" } => Some(Box::new(Some(crate::features::Comma::Present))),
+        _ => None,
+    }
+}
+
+fn erased_optional_absent(
+    inner: deckmaste_construction_compiler::runtime::FieldKindData,
+) -> Option<deckmaste_construction_compiler::runtime::ErasedValue> {
+    use deckmaste_construction_compiler::runtime::FieldKindData as K;
+    match inner {
+        K::Scalar {
+            codec: "Conjunction",
+        } => Some(Box::new(None::<crate::features::Conjunction>)),
+        K::Scalar { codec: "Comma" } => Some(Box::new(None::<crate::features::Comma>)),
+        _ => None,
+    }
 }
 
 pub(super) fn selected_rule_children<S: AlternativeSelection>(

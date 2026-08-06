@@ -314,6 +314,29 @@ pub(super) fn register_generated(
         });
     }
     let aux = auxiliary_categories(groups, cats.len());
+    if groups.iter().any(|group| {
+        group.element_data.iter().any(|element| {
+            element.variants.iter().any(|variant| {
+                matches!(
+                    variant.payload,
+                    FieldKindData::Subtree {
+                        category: "PowerToughness",
+                        ..
+                    }
+                )
+            })
+        })
+    }) {
+        builder.add_generated(
+            RuleImpl::GeneratedAux(GeneratedAuxRuleRef::Transparent),
+            ProductionId {
+                construction: ConstructionId::new("__generated_power_toughness"),
+                ordinal: 0,
+            },
+            Nonterminal::PowerToughness,
+            [Expected::Lexical(EnglishLexicalSlot::PowerToughness)],
+        );
+    }
     for group in groups {
         for (element_index, element) in group.element_data.iter().enumerate() {
             register_element(builder, group, element_index, element, cats, &aux)?;
@@ -403,6 +426,11 @@ fn register_element(
     let mut ordinal = 0_u16;
 
     if element.variants.is_empty() && !element.fields.is_empty() {
+        if element.fields.len() > u64::BITS as usize {
+            return Err(GeneratedAssemblyError::TooManyOptionalAtoms {
+                owner: element.name,
+            });
+        }
         let optional = element
             .fields
             .iter()
@@ -429,8 +457,8 @@ fn register_element(
                     if subset & (1_u64 << position) == 0 {
                         continue;
                     }
-                    present_fields |= 1_u64 << field_index;
                 }
+                present_fields |= 1_u64 << field_index;
                 rhs.push(field_expected(cats, representative, field.kind)?);
             }
             builder.add_generated(
@@ -740,6 +768,7 @@ mod tests {
             }],
             variants: &[],
             erased_builders: &[],
+            erased_sequence_builder: None,
         }];
         const GROUP: GroupData = GroupData {
             name: "g",

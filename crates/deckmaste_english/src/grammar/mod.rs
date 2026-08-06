@@ -2965,9 +2965,8 @@ impl Grammar for EnglishGrammar<'_, '_> {
     ) -> Option<Reduction<Self::Features>> {
         match self.impls.get(rule.index()).copied()? {
             RuleImpl::Handwritten(tag) => reduce(tag, children),
-            // Milestone-3 stub: generated reductions carry no features yet.
-            // The chart packs generated alternatives on Features::None;
-            // real feature combinators land with the pilot declarations.
+            // Generated rules use neutral features until a declaration names
+            // an English feature combinator.
             RuleImpl::Generated(_) | RuleImpl::GeneratedAux(_) => Some(Reduction {
                 features: Features::None,
                 local_cost: ParseCost::default(),

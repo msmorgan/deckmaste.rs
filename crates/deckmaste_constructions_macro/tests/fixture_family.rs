@@ -366,6 +366,14 @@ fn declaration_metadata_builders_restore_typed_elements_and_constructions() {
         .downcast::<FixtureMember>()
         .expect("the erased element has its generated concrete type");
     assert_eq!(member.comma, None);
+    let sequence_builder = data.element_data[0]
+        .erased_sequence_builder
+        .expect("every constructible element exposes a typed sequence collector");
+    let members = sequence_builder(vec![member as Box<dyn std::any::Any>])
+        .expect("the collector restores Vec<Element>")
+        .downcast::<Vec<FixtureMember>>()
+        .expect("the erased sequence has its declared concrete element type");
+    assert_eq!(members.len(), 1);
 
     let variant_builder = data.element_data[2].erased_builders[1];
     let variant = variant_builder(vec![Box::new(Box::new(FixturePhrase))])

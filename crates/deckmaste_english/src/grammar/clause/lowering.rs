@@ -2221,7 +2221,7 @@ pub(super) fn independent_with_subject(
 /// power/toughness — none of those predicate coordinately in a copular
 /// position, so rejecting them keeps the attributive-only shapes out of the
 /// predicative slot.
-pub(super) fn coordinated_modifier_as_adjectives(
+pub(in crate::grammar) fn coordinated_modifier_as_adjectives(
     modifier: crate::syntax::CoordinatedModifier,
 ) -> Option<crate::syntax::CoordinatedAdjectivePhrase> {
     let first = modifier_as_predicative_adjective(*modifier.first)?;

@@ -377,6 +377,29 @@ mod __constructions_fixture_coordination {
         }
         Ok(Box::new(FixtureMember { comma, phrase }))
     }
+    fn __erased_sequence_fixture_member(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut result = Vec::<FixtureMember>::with_capacity(values.len());
+        for value in values {
+            result
+                .push(
+                    *value
+                        .downcast::<FixtureMember>()
+                        .map_err(|_| {
+                            ::deckmaste_construction_compiler::runtime::ErasedBuildError::WrongFieldType {
+                                owner: "fixture_member",
+                                field: "sequence member",
+                                expected: stringify!(FixtureMember),
+                            }
+                        })?,
+                );
+        }
+        Ok(Box::new(result))
+    }
     fn __erased_build_bound_fixture_member(
         values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
     ) -> Result<
@@ -402,6 +425,29 @@ mod __constructions_fixture_coordination {
             });
         }
         Ok(Box::new(BoundMember { comma, phrase }))
+    }
+    fn __erased_sequence_bound_fixture_member(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut result = Vec::<BoundMember>::with_capacity(values.len());
+        for value in values {
+            result
+                .push(
+                    *value
+                        .downcast::<BoundMember>()
+                        .map_err(|_| {
+                            ::deckmaste_construction_compiler::runtime::ErasedBuildError::WrongFieldType {
+                                owner: "bound_fixture_member",
+                                field: "sequence member",
+                                expected: stringify!(BoundMember),
+                            }
+                        })?,
+                );
+        }
+        Ok(Box::new(result))
     }
     fn __erased_build_bound_variant_phrase(
         values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
@@ -442,6 +488,52 @@ mod __constructions_fixture_coordination {
             });
         }
         Ok(Box::new(BoundVariant::Boxed(payload)))
+    }
+    fn __erased_sequence_bound_variant(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut result = Vec::<BoundVariant>::with_capacity(values.len());
+        for value in values {
+            result
+                .push(
+                    *value
+                        .downcast::<BoundVariant>()
+                        .map_err(|_| {
+                            ::deckmaste_construction_compiler::runtime::ErasedBuildError::WrongFieldType {
+                                owner: "bound_variant",
+                                field: "sequence member",
+                                expected: stringify!(BoundVariant),
+                            }
+                        })?,
+                );
+        }
+        Ok(Box::new(result))
+    }
+    fn __erased_sequence_empty_payload(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut result = Vec::<BoundPayload>::with_capacity(values.len());
+        for value in values {
+            result
+                .push(
+                    *value
+                        .downcast::<BoundPayload>()
+                        .map_err(|_| {
+                            ::deckmaste_construction_compiler::runtime::ErasedBuildError::WrongFieldType {
+                                owner: "empty_payload",
+                                field: "sequence member",
+                                expected: stringify!(BoundPayload),
+                            }
+                        })?,
+                );
+        }
+        Ok(Box::new(result))
     }
     fn __erased_build_fixture_pair(
         values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
@@ -567,6 +659,7 @@ mod __constructions_fixture_coordination {
                 ],
                 variants: &[],
                 erased_builders: &[__erased_build_fixture_member],
+                erased_sequence_builder: Some(__erased_sequence_fixture_member),
             },
             ::deckmaste_construction_compiler::runtime::ElementData {
                 name: "bound_fixture_member",
@@ -588,6 +681,7 @@ mod __constructions_fixture_coordination {
                 ],
                 variants: &[],
                 erased_builders: &[__erased_build_bound_fixture_member],
+                erased_sequence_builder: Some(__erased_sequence_bound_fixture_member),
             },
             ::deckmaste_construction_compiler::runtime::ElementData {
                 name: "bound_variant",
@@ -613,6 +707,7 @@ mod __constructions_fixture_coordination {
                     __erased_build_bound_variant_phrase,
                     __erased_build_bound_variant_boxed,
                 ],
+                erased_sequence_builder: Some(__erased_sequence_bound_variant),
             },
             ::deckmaste_construction_compiler::runtime::ElementData {
                 name: "empty_payload",
@@ -620,6 +715,7 @@ mod __constructions_fixture_coordination {
                 fields: &[],
                 variants: &[],
                 erased_builders: &[],
+                erased_sequence_builder: Some(__erased_sequence_empty_payload),
             },
         ],
         constructions: &[

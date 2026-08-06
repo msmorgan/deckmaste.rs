@@ -49,6 +49,7 @@ mod rules;
 #[cfg(test)]
 mod tests;
 
+pub(super) use lowering::coordinated_modifier_as_adjectives;
 pub(super) use lowering::finish_infinitive;
 pub(super) use lowering::finish_reduced_recipient_passive;
 pub(super) use lowering::finish_simple_clause;

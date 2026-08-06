@@ -1203,10 +1203,17 @@ mod generated_adapter_tests {
             Some(0)
         );
         assert!(
-            matches!(parsed.syntax, Lowered::Ignored),
-            "probe lowering is Ignored: {:?}",
+            matches!(
+                parsed.syntax,
+                Lowered::Generated(super::super::lowering::GeneratedValue::Typed(_))
+            ),
+            "probe lowering reaches the emitted typed builder: {:?}",
             parsed.syntax
         );
+        let Lowered::Generated(value) = &parsed.syntax else {
+            unreachable!();
+        };
+        assert!(value.is::<crate::constructions::probe::ProbePairNode>());
     }
 
     #[test]
@@ -1240,6 +1247,36 @@ mod generated_adapter_tests {
             ordinal, 7,
             "the padded form's declared ordinal must reach the decision"
         );
+    }
+
+    #[test]
+    fn generated_sequence_lowers_through_element_and_sequence_builders() {
+        for (source, comma) in [
+            ("or and or", crate::features::Comma::Absent),
+            ("or, and or", crate::features::Comma::Present),
+        ] {
+            let parsed = parse_nonterminal_with_activation(
+                source,
+                &Catalogs::default(),
+                probe_category("ProbeSequenceRoot"),
+                GeneratedActivation::Groups(probe::GROUPS),
+            )
+            .expect("the generated sequence probe parses and lowers");
+            let Lowered::Generated(value) = &parsed.syntax else {
+                panic!(
+                    "sequence probe did not use generated lowering: {:?}",
+                    parsed.syntax
+                );
+            };
+            let value = value
+                .downcast_ref::<crate::constructions::probe::ProbeSequenceNode>()
+                .expect("the root builder returns its declared own-mode type");
+            assert_eq!(value.rest()[0].comma, comma);
+            assert_eq!(
+                value.rest()[0].conjunction,
+                Some(crate::features::Conjunction::And)
+            );
+        }
     }
 
     #[test]
