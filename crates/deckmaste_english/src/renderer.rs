@@ -441,13 +441,11 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
 
     fn bound_value<T: std::any::Any>(
         &mut self,
-        element: &'static str,
+        _element: &'static str,
         value: &T,
     ) -> Result<(), Self::Error> {
-        if element == "nominal_complement" {
-            let complement = (value as &dyn std::any::Any)
-                .downcast_ref::<NominalComplement>()
-                .expect("the bound NominalComplement keeps its Rust enum type");
+        if let Some(complement) = (value as &dyn std::any::Any).downcast_ref::<NominalComplement>()
+        {
             self.push(&self.renderer.nominal_complement(complement)?);
             self.skip_payload_subtrees += 1;
         }
