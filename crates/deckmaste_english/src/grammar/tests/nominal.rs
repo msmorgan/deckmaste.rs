@@ -2355,6 +2355,73 @@ mod tests {
     }
 
     #[test]
+    fn noun_identity_keeps_every_inherent_feature_needed_by_higher_phrases() {
+        use crate::grammar::CoordinationDomain;
+        use crate::grammar::InitialSound;
+        use crate::word::BareNominalAdjunct;
+
+        let cases = [
+            (
+                "Elf",
+                NounForm::Singular,
+                InitialSound::Vowel,
+                Some(CoordinationDomain::Entity),
+                None,
+                false,
+                true,
+            ),
+            (
+                "turn",
+                NounForm::Singular,
+                InitialSound::Consonant,
+                None,
+                Some(BareNominalAdjunct::Temporal),
+                false,
+                false,
+            ),
+            (
+                "damage",
+                NounForm::Mass,
+                InitialSound::Consonant,
+                Some(CoordinationDomain::Damage),
+                None,
+                true,
+                false,
+            ),
+        ];
+        let catalogs = fixture_catalogs();
+        for (source, form, sound, domain, adjunct, recipient, catalog_identity) in cases {
+            let surface = crate::surface::lex(source);
+            let grammar = EnglishGrammar::new(source, &catalogs, Nonterminal::Noun);
+            let matches = grammar.scan(
+                EnglishLexicalSlot::Noun(NounUsage::Either),
+                &surface.tokens,
+                0,
+            );
+            assert!(
+                matches.iter().any(|lexical| matches!(
+                    &lexical.features,
+                    Features::Noun {
+                        identity,
+                        coordination_domain,
+                        form: seen_form,
+                        initial_sound,
+                        adjunct: seen_adjunct,
+                        opaque: false,
+                        recipient_passive_theme,
+                    } if *seen_form == form
+                        && *initial_sound == sound
+                        && *coordination_domain == domain
+                        && *seen_adjunct == adjunct
+                        && *recipient_passive_theme == recipient
+                        && identity.is_some() == catalog_identity
+                )),
+                "{source}: {matches:#?}"
+            );
+        }
+    }
+
+    #[test]
     fn characteristic_postmodifier_bounds_parse_as_structural_quantities() {
         use crate::syntax::ComparativeWord;
         use crate::syntax::Quantity;

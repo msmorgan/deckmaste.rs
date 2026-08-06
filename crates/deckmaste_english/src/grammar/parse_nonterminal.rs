@@ -1193,7 +1193,11 @@ mod generated_adapter_tests {
     use crate::catalog::Catalogs;
     use crate::construction::ConstructionOwner;
     use crate::constructions::coordination;
+    use crate::constructions::noun;
     use crate::constructions::probe;
+
+    static COORDINATION_GROUPS: &[&deckmaste_construction_compiler::runtime::GroupData] =
+        &[noun::GROUPS[0], coordination::GROUPS[0]];
 
     fn probe_category(name: &str) -> Nonterminal {
         let cats = super::super::generated::internal_categories(probe::GROUPS);
@@ -1209,7 +1213,7 @@ mod generated_adapter_tests {
             source,
             &coordination_catalogs(),
             Nonterminal::NounPhrase,
-            GeneratedActivation::Groups(coordination::GROUPS),
+            GeneratedActivation::Groups(COORDINATION_GROUPS),
         )
         .unwrap_or_else(|error| {
             panic!("generated coordination did not parse {source:?}: {error:?}")

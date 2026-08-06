@@ -3,7 +3,6 @@ use super::EnglishLexicalSlot;
 use super::Expected;
 use super::HashMap;
 use super::Nonterminal;
-use super::NounUsage;
 use super::Numeral;
 use super::ParseCost;
 use super::PronounCase;
@@ -318,7 +317,6 @@ impl RuleBuilder {
                 [l(L::Number(notation)), n(N::Adjective)],
             );
         }
-        self.add(RuleTag::Noun, N::Noun, [l(L::Noun(NounUsage::Either))]);
         self.add(
             RuleTag::PossessiveNounBase,
             N::PossessiveNounPhrase,
@@ -1280,11 +1278,9 @@ mod tests {
     fn interleaved_builder() -> RuleBuilder {
         let mut builder = RuleBuilder::default();
         builder.add(
-            RuleTag::Noun,
-            Nonterminal::Noun,
-            [Expected::Lexical(EnglishLexicalSlot::Noun(
-                crate::word::NounUsage::Either,
-            ))],
+            RuleTag::Adjective,
+            Nonterminal::Adjective,
+            [Expected::Lexical(EnglishLexicalSlot::Adjective)],
         );
         builder.add(
             RuleTag::Adjective,
@@ -1292,10 +1288,10 @@ mod tests {
             [Expected::Lexical(EnglishLexicalSlot::Adjective)],
         );
         builder.add(
-            RuleTag::Noun,
-            Nonterminal::Noun,
-            [Expected::Lexical(EnglishLexicalSlot::Noun(
-                crate::word::NounUsage::Count,
+            RuleTag::Verb,
+            Nonterminal::Verb,
+            [Expected::Lexical(EnglishLexicalSlot::Verb(
+                crate::word::VerbSlot::Infinitive,
             ))],
         );
         builder

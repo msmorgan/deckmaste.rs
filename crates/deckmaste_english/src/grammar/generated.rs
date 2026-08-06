@@ -307,6 +307,7 @@ pub(super) fn internal_categories(groups: &[&'static GroupData]) -> BTreeMap<&'s
 /// categories. Payload-specific conversion remains a lowering concern.
 fn engine_category(name: &str) -> Option<Nonterminal> {
     Some(match name {
+        "Noun" => Nonterminal::Noun,
         "NounPhrase" => Nonterminal::NounPhrase,
         "NominalPhrase" => Nonterminal::Nominal,
         "Determiner" => Nonterminal::Determiner,
@@ -398,6 +399,14 @@ fn codec_slot(codec: &'static str) -> Option<EnglishLexicalSlot> {
     }
 }
 
+fn identity_slot(provider: &'static str) -> Option<EnglishLexicalSlot> {
+    match provider {
+        "KnownNoun" => Some(EnglishLexicalSlot::Noun(crate::word::NounUsage::Either)),
+        "OpaqueNoun" => Some(EnglishLexicalSlot::OpaqueNoun),
+        _ => None,
+    }
+}
+
 fn atom_expected(
     cats: &BTreeMap<&'static str, u16>,
     aux: &AuxCategories,
@@ -416,7 +425,7 @@ fn atom_expected(
             construction: construction.id,
             literal,
         }),
-        AtomData::Hole(path) | AtomData::Lexeme(path) => {
+        AtomData::Hole(path) | AtomData::Lexeme(path) | AtomData::Identity(path) => {
             if path.contains('.') {
                 return Err(GeneratedAssemblyError::UnsupportedAtomPath {
                     construction: construction.id,
@@ -450,6 +459,14 @@ fn atom_expected(
                         construction: construction.id,
                         codec,
                     }),
+                (AtomData::Identity(_), FieldKindData::Identity { provider, .. }) => {
+                    identity_slot(provider).map(Expected::Lexical).ok_or(
+                        GeneratedAssemblyError::UnknownLexemeCodec {
+                            construction: construction.id,
+                            codec: provider,
+                        },
+                    )
+                }
                 _ => Err(GeneratedAssemblyError::UnsupportedAtomKind {
                     construction: construction.id,
                     field: path,
@@ -478,6 +495,12 @@ fn field_expected(
                 },
             )
         }
+        FieldKindData::Identity { provider, .. } => identity_slot(provider)
+            .map(Expected::Lexical)
+            .ok_or(GeneratedAssemblyError::UnknownLexemeCodec {
+                construction: construction.id,
+                codec: provider,
+            }),
         FieldKindData::Optional { inner } => field_expected(cats, construction, *inner),
         FieldKindData::Sequence { .. } => Err(GeneratedAssemblyError::UnsupportedAtomKind {
             construction: construction.id,
@@ -560,7 +583,7 @@ pub(super) fn register_generated(
                                 matches!(field.kind, FieldKindData::Sequence { .. })
                                     .then_some(index)
                             }),
-                        AtomData::Literal(_) | AtomData::Lexeme(_) => None,
+                        AtomData::Literal(_) | AtomData::Lexeme(_) | AtomData::Identity(_) => None,
                     })
                     .collect::<Vec<_>>();
                 if sequence_atoms.len() > 15

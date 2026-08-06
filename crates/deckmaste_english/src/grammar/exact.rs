@@ -64,6 +64,10 @@ pub(crate) enum GeneratedPart {
         field: &'static str,
         value: GeneratedScalar,
     },
+    Identity {
+        field: &'static str,
+        spelling: String,
+    },
     Subtree {
         field: &'static str,
         parse: GeneratedParse,
@@ -112,6 +116,10 @@ fn generated_parse<S: AlternativeSelection>(
                 field,
                 parse: generated_parse(grammar, forest, child, selection)?,
             },
+            AtomData::Identity(field) => GeneratedPart::Identity {
+                field,
+                spelling: identity_spelling(forest, child)?,
+            },
         });
     }
     Some(GeneratedParse {
@@ -119,6 +127,13 @@ fn generated_parse<S: AlternativeSelection>(
         ordinal: form.ordinal,
         parts,
     })
+}
+
+fn identity_spelling(forest: &EnglishForest, node: NodeId) -> Option<String> {
+    let MeaningKey::Noun(noun) = forest.node(node).key.lexical_value()? else {
+        return None;
+    };
+    crate::word::Vocabulary::new().render_noun(noun)
 }
 
 fn scalar_value(forest: &EnglishForest, node: NodeId) -> Option<GeneratedScalar> {
@@ -143,27 +158,28 @@ pub(crate) fn linearize(parse: &GeneratedParse) -> String {
         if !(rendered.is_empty() || token == ",") {
             rendered.push(' ');
         }
-        rendered.push_str(token);
+        rendered.push_str(&token);
     }
     rendered
 }
 
-fn collect_tokens(parse: &GeneratedParse, tokens: &mut Vec<&'static str>) {
+fn collect_tokens(parse: &GeneratedParse, tokens: &mut Vec<String>) {
     for part in &parse.parts {
         match part {
-            GeneratedPart::Literal(literal) => tokens.push(literal),
+            GeneratedPart::Literal(literal) => tokens.push((*literal).to_owned()),
             GeneratedPart::Scalar {
                 value: GeneratedScalar::Conjunction(conjunction),
                 ..
-            } => tokens.push(conjunction.spelling()),
+            } => tokens.push(conjunction.spelling().to_owned()),
             GeneratedPart::Scalar {
                 value: GeneratedScalar::Comma(comma),
                 ..
             } => {
                 if comma.is_present() {
-                    tokens.push(",");
+                    tokens.push(",".to_owned());
                 }
             }
+            GeneratedPart::Identity { spelling, .. } => tokens.push(spelling.clone()),
             GeneratedPart::Subtree { parse, .. } => collect_tokens(parse, tokens),
         }
     }
@@ -471,6 +487,7 @@ mod tests {
     use crate::catalog::CatalogKind;
     use crate::constructions::coordination;
     use crate::constructions::law;
+    use crate::constructions::noun;
     use crate::constructions::probe;
     use crate::constructions::sentence;
     use crate::features::Comma;
@@ -2577,7 +2594,9 @@ mod tests {
 
     #[test]
     fn real_generated_exact_parses_carry_built_ast_and_form_witness() {
-        let activation = GeneratedActivation::Groups(coordination::GROUPS);
+        static GROUPS: &[&deckmaste_construction_compiler::runtime::GroupData] =
+            &[noun::GROUPS[0], coordination::GROUPS[0]];
+        let activation = GeneratedActivation::Groups(GROUPS);
         for (source, construction) in [
             ("an artifact or a creature", "noun_phrase_coordination"),
             ("target artifact or creature", "shared_determiner_nominal"),

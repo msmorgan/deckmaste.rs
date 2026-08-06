@@ -372,6 +372,57 @@ struct GeneratedSentenceRenderer<'renderer, 'identity> {
     rendered: Option<(String, bool)>,
 }
 
+struct GeneratedNounRenderer<'renderer, 'identity> {
+    renderer: &'renderer Renderer<'identity>,
+    rendered: Option<String>,
+}
+
+impl deckmaste_construction_compiler::runtime::LinearizationVisitor
+    for GeneratedNounRenderer<'_, '_>
+{
+    type Error = RenderError;
+
+    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
+        panic!("noun identity declarations have no literal `{literal}`")
+    }
+
+    fn subtree<T: std::any::Any>(
+        &mut self,
+        category: &'static str,
+        _value: &T,
+    ) -> Result<(), Self::Error> {
+        panic!("noun identity declarations have no `{category}` subtree")
+    }
+
+    fn scalar<T: std::any::Any>(
+        &mut self,
+        codec: &'static str,
+        _value: &T,
+    ) -> Result<(), Self::Error> {
+        panic!("noun identity declarations have no `{codec}` scalar")
+    }
+
+    fn identity<T: std::any::Any>(
+        &mut self,
+        provider: &'static str,
+        value_type: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        assert!(matches!(provider, "KnownNoun" | "OpaqueNoun"));
+        assert_eq!(value_type, "NounInstance");
+        let noun = (value as &dyn std::any::Any)
+            .downcast_ref::<NounInstance>()
+            .expect("noun identity retains its declared Rust type");
+        self.rendered = Some(
+            self.renderer
+                .vocabulary
+                .render_noun(noun)
+                .ok_or(RenderError::MissingLexicalForm("noun"))?,
+        );
+        Ok(())
+    }
+}
+
 impl<'renderer, 'identity> GeneratedSentenceRenderer<'renderer, 'identity> {
     fn new(renderer: &'renderer Renderer<'identity>, capitalize: bool) -> Self {
         Self {
@@ -2467,9 +2518,21 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn render_noun(&self, noun: &NounInstance) -> Result<String, RenderError> {
-        self.vocabulary
-            .render_noun(noun)
-            .ok_or(RenderError::MissingLexicalForm("noun"))
+        let mut visitor = GeneratedNounRenderer {
+            renderer: self,
+            rendered: None,
+        };
+        match crate::constructions::noun::linearize_with(noun, &mut visitor) {
+            Ok(()) => Ok(visitor
+                .rendered
+                .expect("noun declaration always visits its identity field")),
+            Err(deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error)) => {
+                Err(error)
+            }
+            Err(error) => {
+                unreachable!("noun belongs to one declared identity domain: {error:?}")
+            }
+        }
     }
 
     fn this_card(&self, form: ThisCardForm) -> Result<String, RenderError> {

@@ -575,7 +575,10 @@ fn collect_sequence_references<'a>(
     match kind {
         FieldKind::Sequence { element } => into.push((element, is_direct)),
         FieldKind::Optional { inner } => collect_sequence_references(inner, false, into),
-        FieldKind::Subtree { .. } | FieldKind::Scalar { .. } | FieldKind::SurfaceScalar { .. } => {}
+        FieldKind::Identity { .. }
+        | FieldKind::Subtree { .. }
+        | FieldKind::Scalar { .. }
+        | FieldKind::SurfaceScalar { .. } => {}
     }
 }
 
@@ -929,7 +932,9 @@ fn check_form_paths(
     for form in &construction.forms {
         for atom in &form.surface {
             let path = match atom {
-                SurfaceAtom::Hole(path) | SurfaceAtom::Lexeme(path) => path,
+                SurfaceAtom::Hole(path)
+                | SurfaceAtom::Lexeme(path)
+                | SurfaceAtom::Identity(path) => path,
                 SurfaceAtom::Literal(_) => continue,
             };
             if let Some(segment) = path
@@ -977,16 +982,32 @@ fn check_kinds(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
         // EC014 — surface atoms must agree with the kind they resolve to.
         for form in &construction.forms {
             for atom in &form.surface {
-                let (path, is_lexeme) = match atom {
-                    SurfaceAtom::Hole(path) => (path, false),
-                    SurfaceAtom::Lexeme(path) => (path, true),
+                let (path, atom_kind) = match atom {
+                    SurfaceAtom::Hole(path) => (path, "hole"),
+                    SurfaceAtom::Lexeme(path) => (path, "lexeme"),
+                    SurfaceAtom::Identity(path) => (path, "identity"),
                     SurfaceAtom::Literal(_) => continue,
                 };
                 let Ok(resolved) = resolve_path(group, construction, path) else {
                     continue; // EC010 already reported it
                 };
                 let is_scalar = resolved_is_scalar(&resolved);
-                if is_lexeme && !is_scalar {
+                let is_identity = matches!(resolved, Resolved::Kind(FieldKind::Identity { .. }));
+                if atom_kind == "identity" && !is_identity {
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::SurfaceKindMismatch,
+                            id,
+                            format!(
+                                "form `{}`: `{}` is not an identity; only identity fields render with identity(…)",
+                                form.name.value,
+                                path.dotted()
+                            ),
+                        )
+                        .with_span(path.span),
+                    );
+                }
+                if atom_kind == "lexeme" && !is_scalar {
                     diags.push(
                         Diagnostic::new(
                             DiagCode::SurfaceKindMismatch,
@@ -1000,13 +1021,28 @@ fn check_kinds(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                         .with_span(path.span),
                     );
                 }
-                if !is_lexeme && is_scalar {
+                if atom_kind == "hole" && is_scalar {
                     diags.push(
                         Diagnostic::new(
                             DiagCode::SurfaceKindMismatch,
                             id,
                             format!(
                                 "form `{}`: `{}` is a scalar; write lex({}) to render it",
+                                form.name.value,
+                                path.dotted(),
+                                path.dotted()
+                            ),
+                        )
+                        .with_span(path.span),
+                    );
+                }
+                if atom_kind == "hole" && is_identity {
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::SurfaceKindMismatch,
+                            id,
+                            format!(
+                                "form `{}`: `{}` is an identity; write identity({}) to render it",
                                 form.name.value,
                                 path.dotted(),
                                 path.dotted()
@@ -1163,7 +1199,8 @@ fn resolved_is_scalar(resolved: &Resolved<'_>) -> bool {
             matches!(**inner, FieldKind::Scalar { .. })
         }
         Resolved::Kind(
-            FieldKind::Subtree { .. }
+            FieldKind::Identity { .. }
+            | FieldKind::Subtree { .. }
             | FieldKind::Sequence { .. }
             | FieldKind::SurfaceScalar { .. },
         )
@@ -1196,6 +1233,7 @@ fn in_predicate_kind_problem(resolved: &Resolved<'_>) -> Option<&'static str> {
         Resolved::Kind(FieldKind::Optional { inner }) => match &**inner {
             FieldKind::Scalar { codec } => codec,
             FieldKind::Optional { .. }
+            | FieldKind::Identity { .. }
             | FieldKind::Subtree { .. }
             | FieldKind::Sequence { .. }
             | FieldKind::SurfaceScalar { .. } => {
@@ -1205,7 +1243,8 @@ fn in_predicate_kind_problem(resolved: &Resolved<'_>) -> Option<&'static str> {
             }
         },
         Resolved::Kind(
-            FieldKind::Subtree { .. }
+            FieldKind::Identity { .. }
+            | FieldKind::Subtree { .. }
             | FieldKind::Sequence { .. }
             | FieldKind::SurfaceScalar { .. },
         )
@@ -1298,7 +1337,9 @@ fn check_forms(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
             let mut consumed: std::collections::HashSet<String> = std::collections::HashSet::new();
             for atom in &form.surface {
                 let path = match atom {
-                    SurfaceAtom::Hole(path) | SurfaceAtom::Lexeme(path) => path,
+                    SurfaceAtom::Hole(path)
+                    | SurfaceAtom::Lexeme(path)
+                    | SurfaceAtom::Identity(path) => path,
                     SurfaceAtom::Literal(_) => continue,
                 };
                 let dotted = path.dotted();
@@ -1813,7 +1854,9 @@ fn codec_site(id: &str, kind: &FieldKind, diags: &mut Vec<Diagnostic>) {
     let codec = match kind {
         FieldKind::Scalar { codec } | FieldKind::SurfaceScalar { codec } => codec,
         FieldKind::Optional { inner } => return codec_site(id, inner, diags),
-        FieldKind::Subtree { .. } | FieldKind::Sequence { .. } => return,
+        FieldKind::Identity { .. } | FieldKind::Subtree { .. } | FieldKind::Sequence { .. } => {
+            return;
+        }
     };
     if stratum_of(&codec.value) == Some(deckmaste_features::FeatureStratum::DiscourseOccurrence) {
         diags.push(
@@ -1834,7 +1877,9 @@ fn element_codec_site(kind: &FieldKind, diags: &mut Vec<Diagnostic>) {
     let codec = match kind {
         FieldKind::Scalar { codec } | FieldKind::SurfaceScalar { codec } => codec,
         FieldKind::Optional { inner } => return element_codec_site(inner, diags),
-        FieldKind::Subtree { .. } | FieldKind::Sequence { .. } => return,
+        FieldKind::Identity { .. } | FieldKind::Subtree { .. } | FieldKind::Sequence { .. } => {
+            return;
+        }
     };
     if stratum_of(&codec.value) == Some(deckmaste_features::FeatureStratum::DiscourseOccurrence) {
         diags.push(
@@ -2965,6 +3010,30 @@ mod tests {
         let err = validate(&group).expect_err("scalar hole must be rejected");
         let codes: Vec<&str> = err.iter().map(|d| d.code.as_str()).collect();
         assert_eq!(codes, vec!["EC014"]);
+    }
+
+    #[test]
+    fn identity_field_requires_an_identity_surface_atom() {
+        let mut group = minimal_group();
+        let fields = group.constructions[0].ast.fields();
+        let field = fields[0].field.clone();
+        let crate::model::AstShape::Bind { fields, .. } = &mut group.constructions[0].ast else {
+            unreachable!()
+        };
+        fields[0].kind = crate::model::FieldKind::Identity {
+            value_type: crate::model::Spanned::call_site("FixtureLexeme".to_owned()),
+            provider: crate::model::Spanned::call_site("FixtureLexicon".to_owned()),
+        };
+        let err = validate(&group).expect_err("lex(…) must not erase a typed identity");
+        assert_eq!(codes(&err), vec!["EC014"]);
+
+        group.constructions[0].forms[0].surface = vec![crate::model::SurfaceAtom::Identity(
+            crate::model::FieldPath {
+                segments: vec![field],
+                span: proc_macro2::Span::call_site(),
+            },
+        )];
+        validate(&group).expect("identity(…) matches the declared identity kind");
     }
 
     #[test]

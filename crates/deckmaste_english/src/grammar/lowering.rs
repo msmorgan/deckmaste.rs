@@ -63,7 +63,6 @@ use super::Vocab;
 use super::ability;
 use super::adjective_comparison_state;
 use super::clause;
-use super::opacity;
 use super::parse_support::EnglishForest;
 use super::quantity_value;
 use crate::forest::AlternativeSelection;
@@ -301,7 +300,7 @@ fn lower_generated_construction(
             continue;
         }
         let path = match atom {
-            AtomData::Hole(path) | AtomData::Lexeme(path) => *path,
+            AtomData::Hole(path) | AtomData::Lexeme(path) | AtomData::Identity(path) => *path,
             AtomData::Literal(_) => unreachable!(),
         };
         let field_index = construction
@@ -367,6 +366,10 @@ fn project_generated_category(
         let value = value.downcast::<NounPhrase>().ok()?;
         return Some(Lowered::NounPhrase(*value));
     }
+    if construction.category == "Noun" {
+        let value = value.downcast::<NounInstance>().ok()?;
+        return Some(Lowered::Noun(*value));
+    }
     if construction.category == "Sentence" {
         let value = value.downcast::<Sentence>().ok()?;
         return Some(Lowered::Sentence(*value));
@@ -416,6 +419,15 @@ fn erased_field(
 ) -> Option<deckmaste_construction_compiler::runtime::ErasedValue> {
     use deckmaste_construction_compiler::runtime::FieldKindData as K;
     match kind {
+        K::Identity {
+            value_type: "NounInstance",
+            ..
+        } => {
+            let Lowered::Noun(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
         K::Subtree { category, boxed } => erased_subtree(category, boxed, value),
         K::Scalar {
             codec: "Conjunction" | "NounPhraseConjunction",
@@ -429,7 +441,9 @@ fn erased_field(
             Some(Box::new(crate::features::Comma::Present))
         }
         K::Optional { inner } => erased_optional(*inner, &value),
-        K::Scalar { .. } | K::SurfaceScalar { .. } | K::Sequence { .. } => None,
+        K::Identity { .. } | K::Scalar { .. } | K::SurfaceScalar { .. } | K::Sequence { .. } => {
+            None
+        }
     }
 }
 
@@ -442,7 +456,11 @@ fn erased_absent(
             Some(Box::new(crate::features::Comma::Absent))
         }
         K::Optional { inner } => erased_optional_absent(*inner),
-        K::Subtree { .. } | K::Scalar { .. } | K::SurfaceScalar { .. } | K::Sequence { .. } => None,
+        K::Identity { .. }
+        | K::Subtree { .. }
+        | K::Scalar { .. }
+        | K::SurfaceScalar { .. }
+        | K::Sequence { .. } => None,
     }
 }
 
@@ -698,7 +716,6 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::ComparisonStandard
         | RuleTag::ComparisonThan
         | RuleTag::ComparisonThanOrEqualTo
-        | RuleTag::Noun
         | RuleTag::NominalNoun
         | RuleTag::NominalAdjective
         | RuleTag::NominalNounModifier
@@ -858,7 +875,6 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
             clause::lower_clause(tag, children)
         }
-        RuleTag::NounOpaque => opacity::lower_opacity(tag, children),
     }
 }
 
@@ -1026,7 +1042,7 @@ pub(super) fn detach_keyword_noun(noun: &mut NounInstance) {
 )]
 pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
-        RuleTag::Adjective | RuleTag::Noun | RuleTag::RulesObjectNominalBase => take(children, 0),
+        RuleTag::Adjective | RuleTag::RulesObjectNominalBase => take(children, 0),
         RuleTag::AdjectivePhraseFaceUp | RuleTag::AdjectivePhraseFaceDown => {
             let orientation = match tag {
                 RuleTag::AdjectivePhraseFaceUp => CardOrientation::FaceUp,

@@ -723,7 +723,11 @@ mod tests {
     use deckmaste_english::syntax::Demonstrative;
     use deckmaste_english::syntax::NounPhrase;
     use deckmaste_english::syntax::NounPhraseCoordination;
+    use deckmaste_english::syntax::OpaqueLexeme;
+    use deckmaste_english::word::Noun;
+    use deckmaste_english::word::NounInstance;
     use deckmaste_english::word::PronounInstance;
+    use deckmaste_english::word::Vocab;
 
     use super::*;
 
@@ -770,6 +774,57 @@ mod tests {
         assert_eq!(fields[0].0, "x");
         assert_eq!(fields[1].1, View::Absent);
         assert_ne!(of(&E::A), of(&E::B(0)));
+    }
+
+    #[test]
+    fn generated_noun_projection_keeps_typed_identity_and_opaque_bytes() {
+        // The parser's generated noun builders still project the public
+        // NounInstance value, so the generic spelling view must retain both
+        // its identity variant and an opaque lexeme's exact source spelling.
+        let known = of(&NounInstance::Singular(Noun::Word(Vocab::Card)));
+        let opaque = of(&NounInstance::Mass(Noun::Opaque(OpaqueLexeme::new(
+            "BlOrPlE",
+        ))));
+
+        assert!(matches!(
+            known,
+            View::Newtype {
+                name: "NounInstance",
+                variant: Some("Singular"),
+                ..
+            }
+        ));
+        let View::Newtype {
+            name: "NounInstance",
+            variant: Some("Mass"),
+            inner,
+        } = opaque
+        else {
+            panic!("opaque noun form was erased")
+        };
+        let View::Newtype {
+            name: "Noun",
+            variant: Some("Opaque"),
+            inner,
+        } = *inner
+        else {
+            panic!("opaque identity was erased")
+        };
+        let View::Newtype {
+            name: "OpaqueLexeme",
+            variant: None,
+            inner,
+        } = *inner
+        else {
+            panic!("opaque spelling wrapper was erased")
+        };
+        assert_eq!(
+            *inner,
+            View::Scalar {
+                kind: "str",
+                repr: "BlOrPlE".to_owned(),
+            }
+        );
     }
 
     #[test]

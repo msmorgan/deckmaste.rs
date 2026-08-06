@@ -90,6 +90,13 @@ pub struct FieldBinding {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FieldKind {
+    /// A typed lexical identity supplied by a language-local provider. The
+    /// compiler preserves both names as metadata and keeps the concrete Rust
+    /// value intact through builders and linearization.
+    Identity {
+        value_type: Spanned<String>,
+        provider: Spanned<String>,
+    },
     Subtree {
         category: Spanned<String>,
         boxed: bool,
@@ -240,6 +247,7 @@ pub enum SurfaceAtom {
     Literal(Spanned<String>),
     Hole(FieldPath),
     Lexeme(FieldPath),
+    Identity(FieldPath),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

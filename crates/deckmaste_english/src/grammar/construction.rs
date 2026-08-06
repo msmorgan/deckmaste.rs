@@ -329,6 +329,22 @@ mod tests {
     }
 
     #[test]
+    fn production_nouns_have_only_generated_owners() {
+        for name in ["noun", "noun_opaque"] {
+            let id = ConstructionId::new(name);
+            assert!(
+                handwritten_registry().family(id).is_none(),
+                "{name} still has a handwritten owner"
+            );
+            let family = registry()
+                .family(id)
+                .unwrap_or_else(|| panic!("{name} generated declaration is registered"));
+            assert_eq!(family.owner(), ConstructionOwner::Generated, "{name}");
+            assert_eq!(family.backend(), ConstructionBackend::Chart, "{name}");
+        }
+    }
+
+    #[test]
     fn cross_group_dominance_target_must_exist() {
         const CONSTRUCTIONS: &[deckmaste_construction_compiler::runtime::ConstructionData] =
             &[deckmaste_construction_compiler::runtime::ConstructionData {

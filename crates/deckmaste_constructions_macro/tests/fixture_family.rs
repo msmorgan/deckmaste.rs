@@ -38,6 +38,17 @@ pub struct AdaptedPhrase {
     takes_suffix: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FixtureLexeme {
+    Alpha,
+    Omega,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct AdaptedLexeme {
+    identity: FixtureLexeme,
+}
+
 #[allow(
     clippy::unnecessary_wraps,
     reason = "adapted bind constructors use the compiler's checked Result interface"
@@ -57,6 +68,20 @@ fn split_adapted_phrase(value: &AdaptedPhrase) -> FixturePhrase {
 
 fn adapted_phrase_takes_suffix(value: &AdaptedPhrase) -> bool {
     value.takes_suffix
+}
+
+#[allow(
+    clippy::unnecessary_wraps,
+    reason = "adapted bind constructors use the compiler's checked Result interface"
+)]
+fn make_adapted_lexeme(
+    identity: FixtureLexeme,
+) -> Result<AdaptedLexeme, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+    Ok(AdaptedLexeme { identity })
+}
+
+fn split_adapted_lexeme(value: &AdaptedLexeme) -> FixtureLexeme {
+    value.identity.clone()
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -617,6 +642,25 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor for Recordin
         Ok(())
     }
 
+    fn identity<T: std::any::Any>(
+        &mut self,
+        provider: &'static str,
+        value_type: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        assert_eq!(provider, "FixtureLexicon");
+        assert_eq!(value_type, "FixtureLexeme");
+        let identity = (value as &dyn std::any::Any)
+            .downcast_ref::<FixtureLexeme>()
+            .expect("identity callback retains the declared concrete type");
+        self.events.push(format!("identity:{identity:?}"));
+        self.tokens.push(match identity {
+            FixtureLexeme::Alpha => "alpha",
+            FixtureLexeme::Omega => "omega",
+        });
+        Ok(())
+    }
+
     fn begin_sequence(&mut self, field: &'static str, len: usize) -> Result<(), Self::Error> {
         self.events.push(format!("sequence:{field}:{len}"));
         Ok(())
@@ -732,6 +776,14 @@ deckmaste_constructions_macro::constructions! {
         form bare @ 1 otherwise = phrase;
         form suffixed @ 0 when check(adapted_phrase_takes_suffix) = phrase ".";
     }
+
+
+    construction adapted_lexeme: FixturePhrase {
+        bind AdaptedLexeme via make_adapted_lexeme, split_adapted_lexeme {
+            identity: identity FixtureLexeme via FixtureLexicon,
+        }
+        form only @ 0 = identity(identity);
+    }
 }
 
 #[test]
@@ -761,6 +813,47 @@ fn adapted_bind_selection_ignores_fallback_declaration_order_and_replays_exact_f
     linearize_adapted_phrase_form_with(&value, 1, &mut exact)
         .expect("fallback remains explicitly replayable");
     assert_eq!(exact.events[0], "form:adapted_phrase:bare:1");
+}
+
+#[test]
+fn identity_hole_retains_typed_value_through_metadata_build_parts_and_linearization() {
+    use deckmaste_construction_compiler::runtime::AtomData;
+    use deckmaste_construction_compiler::runtime::FieldKindData;
+
+    // Mutation guarded: erase typed lexical identity into bytes. Every
+    // observable below depends on the concrete enum surviving; no string
+    // witness is fed to the generated builder or visitor.
+    let declaration = BIND_PROBE_DECLARATION
+        .constructions
+        .iter()
+        .find(|construction| construction.id == "adapted_lexeme")
+        .expect("identity construction is declared");
+    assert_eq!(
+        declaration.fields[0].kind,
+        FieldKindData::Identity {
+            value_type: "FixtureLexeme",
+            provider: "FixtureLexicon",
+        }
+    );
+    assert_eq!(
+        declaration.forms[0].atoms,
+        &[AtomData::Identity("identity")]
+    );
+
+    let erased = declaration
+        .erased_builder
+        .expect("identity construction exposes its generated builder")(vec![
+        Box::new(FixtureLexeme::Omega),
+    ])
+    .expect("typed identity builds")
+    .downcast::<AdaptedLexeme>()
+    .expect("build projection retains the bound type");
+    assert_eq!(parts_adapted_lexeme(&erased), FixtureLexeme::Omega);
+
+    let mut visitor = RecordingLinearizer::default();
+    linearize_adapted_lexeme_with(&erased, &mut visitor).expect("identity linearizes");
+    assert_eq!(visitor.rendered(), "omega");
+    assert_eq!(visitor.events[1], "identity:Omega");
 }
 
 #[test]

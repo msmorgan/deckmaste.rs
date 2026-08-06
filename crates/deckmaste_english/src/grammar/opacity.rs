@@ -4,25 +4,10 @@
 )]
 use super::*;
 
-pub(super) fn add_rules(builder: &mut RuleBuilder) {
-    use EnglishLexicalSlot as L;
-    use Expected::Lexical as l;
-    use Nonterminal as N;
-
-    for form in [NounForm::Singular, NounForm::Plural, NounForm::Mass] {
-        builder.add(
-            RuleTag::NounOpaque,
-            N::Noun,
-            [l(L::Opaque(OpacitySlot::Noun(form)))],
-        );
-    }
-}
-
 pub(super) fn scan_opaque(
     source: &str,
     tokens: &[Token],
     start: usize,
-    slot: OpacitySlot,
 ) -> Vec<LexicalMatch<Features, MeaningKey>> {
     let Some(first) = tokens.get(start) else {
         return Vec::new();
@@ -30,46 +15,34 @@ pub(super) fn scan_opaque(
     if first.kind != TokenKind::Word {
         return Vec::new();
     }
-    let OpacitySlot::Noun(form) = slot;
     let span = first.span;
     let initial_sound = span
         .text(source)
         .map_or(InitialSound::Consonant, surface_initial_sound);
-    vec![LexicalMatch {
-        end: start + 1,
-        features: Features::Noun {
-            identity: None,
-            coordination_domain: None,
-            form,
-            initial_sound,
-            adjunct: None,
-            opaque: true,
-            recipient_passive_theme: false,
-        },
-        meaning: MeaningKey::Opaque(OpaqueKey { slot, span }),
-        local_cost: ParseCost {
-            opaque_words: 1,
-            opaque_lexemes: 1,
-            ..ParseCost::default()
-        },
-    }]
-}
-
-pub(super) fn reduce_opacity(
-    tag: RuleTag,
-    children: &[Child<'_, EnglishGrammar<'_, '_>>],
-) -> Option<Reduced> {
-    match tag {
-        RuleTag::NounOpaque => Some(propagate(children.first()?)),
-        _ => None,
-    }
-}
-
-pub(super) fn lower_opacity(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
-    match tag {
-        RuleTag::NounOpaque => take(children, 0),
-        _ => None,
-    }
+    [NounForm::Singular, NounForm::Plural, NounForm::Mass]
+        .into_iter()
+        .map(|form| {
+            let slot = OpacitySlot::Noun(form);
+            LexicalMatch {
+                end: start + 1,
+                features: Features::Noun {
+                    identity: None,
+                    coordination_domain: None,
+                    form,
+                    initial_sound,
+                    adjunct: None,
+                    opaque: true,
+                    recipient_passive_theme: false,
+                },
+                meaning: MeaningKey::Opaque(OpaqueKey { slot, span }),
+                local_cost: ParseCost {
+                    opaque_words: 1,
+                    opaque_lexemes: 1,
+                    ..ParseCost::default()
+                },
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -124,6 +97,16 @@ mod tests {
             &object.head,
             NounInstance::Singular(Noun::Opaque(opaque)) if opaque.spelling() == "blorple"
         ));
+        assert!(parsed.construction_decisions().iter().any(|decision| {
+            decision.selected().as_str() == "noun_opaque"
+                && decision.owner() == crate::construction::ConstructionOwner::Generated
+                && decision.cost()
+                    == ParseCost {
+                        opaque_words: 1,
+                        opaque_lexemes: 1,
+                        ..ParseCost::default()
+                    }
+        }));
     }
 
     #[test]

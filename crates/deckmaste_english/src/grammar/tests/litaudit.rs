@@ -129,7 +129,7 @@ fn reserved_literals_are_never_opaque_nouns() {
 fn the_opacity_gate_is_the_predicates_only_caller() {
     // Pins litaudit-plan.md §4 structurally: has_known_word gates
     // opacification only, at its two call sites in `scan`'s
-    // `EnglishLexicalSlot::Opaque` arm. This is the executable half; the
+    // `EnglishLexicalSlot::OpaqueNoun` arm. This is the executable half; the
     // source-grep gate (`rg -n 'has_known_word'`) is run by the mechanic
     // per round and is not itself a test.
     let catalogs = fixture_catalogs();
@@ -145,11 +145,7 @@ fn the_opacity_gate_is_the_predicates_only_caller() {
         OpacityMode::OpaqueNouns,
         SelfReference::default(),
     );
-    let matches = grammar.scan(
-        EnglishLexicalSlot::Opaque(OpacitySlot::Noun(NounForm::Singular)),
-        &surface.tokens,
-        0,
-    );
+    let matches = grammar.scan(EnglishLexicalSlot::OpaqueNoun, &surface.tokens, 0);
     assert!(
         matches.is_empty(),
         "a known-word start must never yield an opaque candidate: {matches:?}"
@@ -167,11 +163,7 @@ fn the_opacity_gate_is_the_predicates_only_caller() {
         OpacityMode::OpaqueNouns,
         SelfReference::default(),
     );
-    let matches = grammar.scan(
-        EnglishLexicalSlot::Opaque(OpacitySlot::Noun(NounForm::Singular)),
-        &surface.tokens,
-        0,
-    );
+    let matches = grammar.scan(EnglishLexicalSlot::OpaqueNoun, &surface.tokens, 0);
     assert!(
         matches.iter().all(|candidate| !(1..candidate.end)
             .any(|index| grammar.has_known_word(&surface.tokens, index))),

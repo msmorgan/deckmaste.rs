@@ -414,6 +414,7 @@ mod tests {
         // root to the generated family, independently of inner handwritten
         // clause constructions.
         assert!(verbose.contains("sentence owner=generated backend=chart"));
+        assert!(verbose.contains("noun owner=generated backend=chart"));
         assert!(verbose.contains("owner=handwritten"));
         assert!(verbose.contains("cost={opaque_words:"));
         assert!(!verbose.contains("Span {"));

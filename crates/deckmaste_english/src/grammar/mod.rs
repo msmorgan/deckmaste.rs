@@ -706,7 +706,10 @@ pub(crate) enum EnglishLexicalSlot {
     /// generic subordinator) so the rider's finite-clause coordination is
     /// reached only through the exception productions.
     Except,
-    Opaque(OpacitySlot),
+    /// The generated opaque-noun identity provider. One prediction yields
+    /// singular, plural, and mass candidates with their form retained in the
+    /// lexical feature/meaning pair.
+    OpaqueNoun,
 }
 
 impl EnglishLexicalSlot {
@@ -792,7 +795,7 @@ impl EnglishLexicalSlot {
             | Self::Conjunction
             | Self::NounPhraseConjunction
             | Self::Copula
-            | Self::Opaque(_) => &[],
+            | Self::OpaqueNoun => &[],
         }
     }
 
@@ -923,7 +926,7 @@ impl EnglishLexicalSlot {
             | Self::Half
             | Self::Rounded
             | Self::Copula
-            | Self::Opaque(_) => false,
+            | Self::OpaqueNoun => false,
         }
     }
 }
@@ -1681,7 +1684,6 @@ enum RuleTag {
     ComparisonStandard,
     ComparisonThan,
     ComparisonThanOrEqualTo,
-    Noun,
     NominalNoun,
     NominalAdjective,
     NominalNounModifier,
@@ -1908,7 +1910,6 @@ enum RuleTag {
     /// The `["only", <adjunct-or-if-clause>]` production building one
     /// restriction-run member.
     ClauseRestrictionMember,
-    NounOpaque,
     FrequencyPhrase,
     /// A coordinable modifier atom built from an adjective phrase.
     ModifierConjunctAdjective,
@@ -2025,9 +2026,6 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         let mut builder = RuleBuilder::default();
         builder.add_nominal_rules();
         builder.add_clause_rules();
-        if opacity_mode != OpacityMode::Exact {
-            opacity::add_rules(&mut builder);
-        }
         // The calls below retain their feature-round grouping for authoring
         // locality. `finish` may reorder whole construction families; stable
         // production identity and declared dominance own selection semantics.
@@ -3041,12 +3039,12 @@ impl Grammar for EnglishGrammar<'_, '_> {
             | EnglishLexicalSlot::NounPhraseConjunction
             | EnglishLexicalSlot::Plus
             | EnglishLexicalSlot::Except) => self.scan_clause_lexical(slot, tokens, start),
-            EnglishLexicalSlot::Opaque(slot) if self.opacity_mode != OpacityMode::Exact => {
+            EnglishLexicalSlot::OpaqueNoun if self.opacity_mode != OpacityMode::Exact => {
                 let already_known = self.has_known_word(tokens, start);
                 if already_known {
                     Vec::new()
                 } else {
-                    let mut matches = opacity::scan_opaque(self.source, tokens, start, slot);
+                    let mut matches = opacity::scan_opaque(self.source, tokens, start);
                     matches.retain(|candidate| {
                         !((start + 1)..candidate.end)
                             .any(|index| self.has_known_word(tokens, index))
@@ -3054,7 +3052,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     matches
                 }
             }
-            EnglishLexicalSlot::Opaque(_) => Vec::new(),
+            EnglishLexicalSlot::OpaqueNoun => Vec::new(),
         }
     }
 

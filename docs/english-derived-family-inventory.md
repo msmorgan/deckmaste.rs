@@ -12,21 +12,22 @@ The chart census comes from `RuleTag` in
 `crates/deckmaste_english/src/grammar/mod.rs`. `RuleTag` derives `EnumIter` and
 `IntoStaticStr` with `snake_case`, and
 `grammar/construction.rs::handwritten_registry` maps every iterated tag to one
-handwritten, fan-out-one chart row. The merged production registry adds three
-generated rows: `sentence`, `noun_phrase_coordination`, and
-`shared_determiner_nominal`; they are not remaining work. The ability census
+handwritten, fan-out-one chart row. The merged production registry adds five
+generated rows: `sentence`, `noun`, `noun_opaque`,
+`noun_phrase_coordination`, and `shared_determiner_nominal`; they are not
+remaining work. The ability census
 comes from the three non-chart entry points documented and dispatched by
 `FragmentKind`: `Cost`, `KeywordLine`, and `Ability`.
 
 | source | handwritten / ungenerated | already generated | accounted total |
 |---|---:|---:|---:|
-| chart construction registry | 189 | 3 | 192 |
+| chart construction registry | 187 | 5 | 192 |
 | handwritten ability layer | 3 | 0 | 3 |
-| migration inventory | 192 | 3 | 195 |
+| migration inventory | 190 | 5 | 195 |
 
-Every one of the 192 chart IDs occurs once in the ledger below: 189 remain
-handwritten, while S01 and the two coordination rows are generated. The three
-ability IDs occur once in A01. Thus the remaining work is 192 families, with
+Every one of the 192 chart IDs occurs once in the ledger below: 187 remain
+handwritten, while S01, N01, and the two coordination rows are generated. The
+three ability IDs occur once in A01. Thus the remaining work is 190 families, with
 no `later` row. No raw corpus query was needed for this accounting; the census
 is grounded in the registry and the current `FragmentKind` dispatch. Future
 corpus evidence must use supported faces, and normalized-template questions
@@ -93,7 +94,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 | Q01 quantity | 10 | C2 scalar | `english-derived-quantity-family` | inventory |
 | D01 determiner and possession | 9 | C3 | `english-derived-determiner-possession-family` | scalar, identity, lens |
 | J01 adjective and comparison | 9 | C3 | `english-derived-adjective-comparison-family` | scalar, identity, lens |
-| N01 noun identity and opacity | 2 | C2 identity | `english-derived-noun-lexeme-family` | inventory |
+| N01 noun identity and opacity | 2 | C2 identity | `english-derived-noun-lexeme-family` | generated |
 | M01 nominal spine | 37 | C2 lens | `english-derived-nominal-family` | scalar, identity |
 | P01 noun phrase | 19 | C3 | `english-derived-noun-phrase-family` | scalar and identity |
 | P02 prepositional phrase | 2 | C3 | `english-derived-prepositional-family` | identity |
@@ -191,9 +192,12 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 
 **Stable IDs (2):** `noun`, `noun_opaque`.
 
-- **Owners and AST:** `noun` uses NR; `noun_opaque` uses OR. Both produce
-  `NounInstance`/`Noun` (including `OpaqueLexeme`); REN owns noun spelling and
-  SYN-P owns construction.
+**Status:** generated.
+
+- **Owners and AST:** the `noun` and `noun_opaque` declarations plus the
+  generated chart adapter produce `NounInstance`/`Noun` (including
+  `OpaqueLexeme`). REN consumes their total identity linearizers; SYN-P
+  retains the public value types.
 - **Holes and constraints:** identity holes for vocabulary/catalog nouns and
   exact opaque spelling. Noun form, onset, coordination domain, adjunct class,
   and recipient-passive eligibility flow as inherent features.
@@ -647,7 +651,7 @@ one change. It must also run the build-excluding parent/current
 so a family migration cannot hide work growth in failed or abandoned paths.
 It may not defer any of those to completion.
 
-The completion node depends on the remaining fourteen chart tickets and the
-existing ability-backend ticket. Its final audit therefore has 192 newly
-migrated plus three already-generated families—195 generated families in
+The completion node depends on the remaining thirteen chart tickets and the
+existing ability-backend ticket. Its final audit therefore has 190 newly
+migrated plus five already-generated families—195 generated families in
 all—to prove, with no handwritten or unregistered family left to discover.

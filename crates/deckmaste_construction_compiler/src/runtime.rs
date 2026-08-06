@@ -95,6 +95,23 @@ pub trait LinearizationVisitor {
         value: &T,
     ) -> Result<(), Self::Error>;
 
+    /// Visits a typed lexical identity. `provider` is an opaque language-local
+    /// adapter name; `value_type` documents the concrete Rust type retained in
+    /// `value`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the identity
+    /// cannot be accepted.
+    fn identity<T: std::any::Any>(
+        &mut self,
+        _provider: &'static str,
+        _value_type: &'static str,
+        _value: &T,
+    ) -> Result<(), Self::Error> {
+        panic!("linearization visitor does not support identity fields")
+    }
+
     /// Visits a sequence scalar derived from member position and count.
     ///
     /// # Errors
@@ -340,6 +357,10 @@ pub struct FieldData {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FieldKindData {
+    Identity {
+        value_type: &'static str,
+        provider: &'static str,
+    },
     Subtree {
         category: &'static str,
         boxed: bool,
@@ -403,4 +424,5 @@ pub enum AtomData {
     /// Dotted path, exactly as the author wrote it.
     Hole(&'static str),
     Lexeme(&'static str),
+    Identity(&'static str),
 }

@@ -6,8 +6,10 @@ use deckmaste_english::Catalogs;
 use deckmaste_english::ConstructionBackend;
 use deckmaste_english::ConstructionOwner;
 use deckmaste_english::DiagnosticKind;
+use deckmaste_english::Fragment;
 use deckmaste_english::FragmentKind;
 use deckmaste_english::Numeral;
+use deckmaste_english::ParseCost;
 use deckmaste_english::ParseSelection;
 use deckmaste_english::SelectionReason;
 use deckmaste_english::parse_fragment;
@@ -117,6 +119,64 @@ fn public_sentence_family_is_generated_and_derives_quote_punctuation() {
         render_fragment(&quoted_fragment, "Test Card", false).expect("fragment renders"),
         quoted,
     );
+}
+
+#[test]
+fn public_known_and_opaque_nouns_use_generated_identity_families() {
+    let known_source = "Draw an Elf.";
+    let known_catalogs = Catalogs::default().with_catalog(CatalogKind::CreatureType, ["Elf"]);
+    let known = parse_with_catalogs(known_source, &known_catalogs);
+    let known_decision = known
+        .provenance()
+        .selections()
+        .iter()
+        .flat_map(ParseSelection::constructions)
+        .find(|decision| decision.selected().as_str() == "noun")
+        .expect("known noun provenance");
+    assert_eq!(known_decision.owner(), ConstructionOwner::Generated);
+    assert_eq!(known_decision.cost(), ParseCost::default());
+    assert_eq!(
+        known.ast().render("Test Card", false).unwrap(),
+        known_source
+    );
+
+    let opaque_source = "Draw a blorple.";
+    let opaque = parse_with_catalogs(opaque_source, &Catalogs::default());
+    let opaque_decision = opaque
+        .provenance()
+        .selections()
+        .iter()
+        .flat_map(ParseSelection::constructions)
+        .find(|decision| decision.selected().as_str() == "noun_opaque")
+        .expect("opaque noun provenance");
+    assert_eq!(opaque_decision.owner(), ConstructionOwner::Generated);
+    assert_eq!(opaque_decision.cost().opaque_words(), 1);
+    assert_eq!(opaque_decision.cost().opaque_lexemes(), 1);
+    assert_eq!(
+        opaque.ast().render("Test Card", false).unwrap(),
+        opaque_source
+    );
+
+    // Direct-AST rendering crosses the same generated identity linearizer;
+    // opaque spelling is never reconstructed from a byte witness or form.
+    for (noun, expected) in [
+        (NounInstance::Singular(Noun::Word(Vocab::Card)), "card"),
+        (
+            NounInstance::Mass(Noun::Opaque(OpaqueLexeme::new("blorple"))),
+            "blorple",
+        ),
+    ] {
+        let fragment = Fragment::Nominal(NounPhrase::Nominal(NominalPhrase {
+            determiner: None,
+            modifiers: Vec::new(),
+            head: noun,
+            complements: Vec::new(),
+        }));
+        assert_eq!(
+            render_fragment(&fragment, "Test Card", false).unwrap(),
+            expected
+        );
+    }
 }
 
 #[test]

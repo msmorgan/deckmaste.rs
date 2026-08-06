@@ -27,7 +27,6 @@ use super::VerbSlot;
 use super::clause;
 use super::generated::GeneratedFeatureCombinator;
 use super::noun_phrase_accepts_set_exception;
-use super::opacity;
 
 #[allow(clippy::too_many_lines, reason = "reduce matches on all rule tags")]
 pub(super) fn reduce(
@@ -64,7 +63,6 @@ pub(super) fn reduce(
         | RuleTag::ComparisonStandard
         | RuleTag::ComparisonThan
         | RuleTag::ComparisonThanOrEqualTo
-        | RuleTag::Noun
         | RuleTag::NominalNoun
         | RuleTag::NominalAdjective
         | RuleTag::NominalNounModifier
@@ -224,7 +222,6 @@ pub(super) fn reduce(
         | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
             clause::reduce_clause(tag, children)?
         }
-        RuleTag::NounOpaque => opacity::reduce_opacity(tag, children)?,
     };
     let mut local_cost = clause::reduction_cost(tag, children);
     if tag == RuleTag::NominalRelative
@@ -479,7 +476,7 @@ pub(super) fn reduce_nominal(
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> Option<Reduced> {
     match tag {
-        RuleTag::Adjective | RuleTag::Noun => Some(propagate(children.first()?)),
+        RuleTag::Adjective => Some(propagate(children.first()?)),
         RuleTag::AdjectivePhraseFaceUp | RuleTag::AdjectivePhraseFaceDown => {
             Some(Features::Adjective {
                 initial_sound: InitialSound::Consonant,
@@ -2087,7 +2084,7 @@ pub(super) fn reduce_generated(
             continue;
         }
         let path = match atom {
-            AtomData::Hole(path) | AtomData::Lexeme(path) => *path,
+            AtomData::Hole(path) | AtomData::Lexeme(path) | AtomData::Identity(path) => *path,
             AtomData::Literal(_) => unreachable!(),
         };
         let field_index = construction
@@ -2460,7 +2457,27 @@ fn generated_construction_features(
     fields: &[Option<&Features>],
 ) -> Option<Features> {
     let feature = match construction.feature_combinators {
-        [] => return Some(Features::None),
+        [] => {
+            let mut identities =
+                construction
+                    .fields
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, field)| {
+                        matches!(
+                            field.kind,
+                            deckmaste_construction_compiler::runtime::FieldKindData::Identity { .. }
+                        )
+                        .then_some(index)
+                    });
+            let identity = identities.next();
+            if identities.next().is_some() {
+                return None;
+            }
+            return identity.map_or(Some(Features::None), |index| {
+                fields.get(index).copied().flatten().cloned()
+            });
+        }
         [feature] => feature,
         _ => return None,
     };

@@ -196,7 +196,10 @@ fn enqueue_sequences<'g>(kind: &'g FieldKind, queue: &mut Vec<&'g str>) {
     match kind {
         FieldKind::Sequence { element } => queue.push(element.value.as_str()),
         FieldKind::Optional { inner } => enqueue_sequences(inner, queue),
-        FieldKind::Subtree { .. } | FieldKind::Scalar { .. } | FieldKind::SurfaceScalar { .. } => {}
+        FieldKind::Identity { .. }
+        | FieldKind::Subtree { .. }
+        | FieldKind::Scalar { .. }
+        | FieldKind::SurfaceScalar { .. } => {}
     }
 }
 
@@ -923,9 +926,9 @@ fn linearize_atom(
                     .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
             }
         }
-        crate::model::SurfaceAtom::Hole(path) | crate::model::SurfaceAtom::Lexeme(path) => {
-            linearize_path_value(group, fields, path)
-        }
+        crate::model::SurfaceAtom::Hole(path)
+        | crate::model::SurfaceAtom::Lexeme(path)
+        | crate::model::SurfaceAtom::Identity(path) => linearize_path_value(group, fields, path),
     }
 }
 
@@ -977,6 +980,18 @@ fn visit_kind(
     kind: &FieldKind,
 ) -> TokenStream {
     match kind {
+        FieldKind::Identity {
+            value_type,
+            provider,
+        } => {
+            let value_type = value_type.value.as_str();
+            let provider = provider.value.as_str();
+            quote! {
+                visitor
+                    .identity(#provider, #value_type, #accessor)
+                    .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+            }
+        }
         FieldKind::Subtree { category, boxed } => {
             let category = category.value.as_str();
             let value = if *boxed {
@@ -1204,6 +1219,7 @@ fn deserialize_impl(
 
 fn field_type(group: &GroupDeclaration, kind: &FieldKind) -> TokenStream {
     match kind {
+        FieldKind::Identity { value_type, .. } => parse_type(&value_type.value),
         FieldKind::Subtree { category, boxed } => {
             let ty = parse_type(&category.value);
             if *boxed {
@@ -1470,6 +1486,7 @@ fn codec_of(fields: &[FieldBinding], field_name: &str) -> TokenStream {
             ),
         },
         FieldKind::Subtree { .. }
+        | FieldKind::Identity { .. }
         | FieldKind::Sequence { .. }
         | FieldKind::SurfaceScalar { .. } => {
             unreachable!(
@@ -1647,6 +1664,10 @@ fn construction_form_rows(construction: &ConstructionDeclaration) -> Vec<TokenSt
                     crate::model::SurfaceAtom::Lexeme(path) => {
                         let dotted = path.dotted();
                         quote! { ::deckmaste_construction_compiler::runtime::AtomData::Lexeme(#dotted) }
+                    }
+                    crate::model::SurfaceAtom::Identity(path) => {
+                        let dotted = path.dotted();
+                        quote! { ::deckmaste_construction_compiler::runtime::AtomData::Identity(#dotted) }
                     }
                 })
                 .collect();
@@ -1841,6 +1862,14 @@ fn field_row(binding: &FieldBinding) -> TokenStream {
 
 fn field_kind_row(kind: &FieldKind) -> TokenStream {
     match kind {
+        FieldKind::Identity {
+            value_type,
+            provider,
+        } => {
+            let value_type = value_type.value.as_str();
+            let provider = provider.value.as_str();
+            quote! { ::deckmaste_construction_compiler::runtime::FieldKindData::Identity { value_type: #value_type, provider: #provider } }
+        }
         FieldKind::Subtree { category, boxed } => {
             let category = category.value.as_str();
             quote! { ::deckmaste_construction_compiler::runtime::FieldKindData::Subtree { category: #category, boxed: #boxed } }

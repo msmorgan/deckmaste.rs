@@ -56,6 +56,7 @@ mod kw {
     syn::custom_keyword!(opt);
     syn::custom_keyword!(hole);
     syn::custom_keyword!(lex);
+    syn::custom_keyword!(identity);
     syn::custom_keyword!(surface);
     syn::custom_keyword!(seq);
     syn::custom_keyword!(all);
@@ -167,6 +168,16 @@ fn parse_fields(input: ParseStream<'_>) -> syn::Result<Vec<FieldBinding>> {
 }
 
 fn parse_kind(input: ParseStream<'_>) -> syn::Result<FieldKind> {
+    if input.peek(kw::identity) {
+        input.parse::<kw::identity>()?;
+        let value_type = spanned_type_path(input)?;
+        input.parse::<kw::via>()?;
+        let provider = spanned_type_path(input)?;
+        return Ok(FieldKind::Identity {
+            value_type,
+            provider,
+        });
+    }
     if input.peek(kw::surface) {
         input.parse::<kw::surface>()?;
         input.parse::<kw::lex>()?;
@@ -205,7 +216,7 @@ fn parse_kind(input: ParseStream<'_>) -> syn::Result<FieldKind> {
         let element = spanned_ident(input)?;
         return Ok(FieldKind::Sequence { element });
     }
-    Err(input.error("expected a field kind: opt / hole / lex / surface lex / seq"))
+    Err(input.error("expected a field kind: identity / opt / hole / lex / surface lex / seq"))
 }
 
 fn spanned_type_path(input: ParseStream<'_>) -> syn::Result<Spanned<String>> {
@@ -517,6 +528,12 @@ fn parse_form(input: ParseStream<'_>) -> syn::Result<FormDeclaration> {
 }
 
 fn parse_atom(input: ParseStream<'_>) -> syn::Result<SurfaceAtom> {
+    if input.peek(kw::identity) && input.peek2(syn::token::Paren) {
+        input.parse::<kw::identity>()?;
+        let content;
+        syn::parenthesized!(content in input);
+        return Ok(SurfaceAtom::Identity(parse_path(&content)?));
+    }
     if input.peek(syn::LitStr) {
         let lit: syn::LitStr = input.parse()?;
         return Ok(SurfaceAtom::Literal(Spanned {
