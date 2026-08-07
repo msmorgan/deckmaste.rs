@@ -50,7 +50,7 @@ arcTrail = AndThen (DealDamage This (Lit 2) (Target AnyTarget))
 -- ([CR#110.1]), and the return trip is just another Move.
 cloudshift : Effect []
 cloudshift = AndThen (exile (Target creatureYouControl))
-                     (Move (That CardC) BattlefieldZ)
+                     (Move (That CardW) BattlefieldZ)
 
 -- "You may put a creature card from your hand onto the battlefield. That
 -- creature gains haste. Sacrifice that creature at the beginning of the
@@ -62,8 +62,8 @@ cloudshift = AndThen (exile (Target creatureYouControl))
 -- is the `Delayed` mark on its clause.
 throughTheBreach : Effect []
 throughTheBreach = AndThen (May You (Move (A (And [creature, InZone (HandOf You)])) BattlefieldZ))
-                           (AndThen (gainsHaste (That (Perm Creature)) Nothing)
-                                    (Delayed NextEndStep (sacrifice You (That (Perm Creature)))))
+                           (AndThen (gainsHaste (That (TypeW Creature)) Nothing)
+                                    (Delayed NextEndStep (sacrifice You (That (TypeW Creature)))))
 
 -- "Destroy target creature. Its controller loses 2 life." (Bitter
 -- Downfall; its cost-reduction line elided) — the relational noun:
@@ -91,7 +91,7 @@ deadshot = AndThen (Tap (Target creature))
 immersturmSkullcairn : Activated []
 immersturmSkullcairn = MkActivated (sacrifice You (ThisOf Land))
                                    (AndThen (DealDamage It (Lit 3) (Target AnyPlayer))
-                                            (discardsACard (That PlayerC)))
+                                            (discardsACard (That PlayerW)))
 
 -- "{R}, Sacrifice this artifact: It deals 2 damage to any target."
 -- (Pyrite Spellbomb, first ability; {R} and the card's second ability
@@ -127,7 +127,7 @@ cryOfContrition = discardsACard (Target AnyPlayer)
 -- and the sorted demonstrative reads it.
 suspendedSentence : Effect []
 suspendedSentence = AndThen (destroy (Target (And [creature, ControlledBy anOpponent])))
-                            (losesLife (That PlayerC) (Lit 3))
+                            (losesLife (That PlayerW) (Lit 3))
 
 -- "Exile this creature, then return it to the battlefield under its
 -- owner's control." (Flickering Spirit's activated ability; its
@@ -146,7 +146,7 @@ flickeringSpirit = AndThen (exile (ThisOf Creature)) (Move It BattlefieldZ)
 -- illegality).
 turnToMist : Effect []
 turnToMist = AndThen (exile (Target creature))
-                     (Delayed NextEndStep (Move (That CardC) BattlefieldZ))
+                     (Delayed NextEndStep (Move (That CardW) BattlefieldZ))
 
 -- "Target creature gains flying until end of turn." (Jump) — the
 -- duration as trailing-adverbial data ([CR#611.2a]).
@@ -173,7 +173,7 @@ bondOfRevival = AndThen (Move (Target (And [creature, InZone (GraveyardOf You)])
 -- the carrier that resolves.
 gracefulReprieve : Effect []
 gracefulReprieve = Delayed (DiesThisTurn (Target creature))
-                           (Move (That CardC) BattlefieldZ)
+                           (Move (That CardW) BattlefieldZ)
 
 -- "Destroy target creature. You gain life equal to its toughness."
 -- (Vraska's Stoneglare; its tutor clause elided) — a last-known read:
@@ -202,7 +202,7 @@ phthisis = AndThen (destroy (Target creature))
 -- why `Fights` stays primitive.
 karplusanYeti : Effect []
 karplusanYeti = AndThen (DealDamage (ThisOf Creature) (PowerOf (ThisOf Creature)) (Target creature))
-                        (DealDamage (That (Perm Creature)) (PowerOf It) (ThisOf Creature))
+                        (DealDamage (That (TypeW Creature)) (PowerOf It) (ThisOf Creature))
 
 -- "Choose two target creatures. Tap those creatures, then unattach
 -- all Equipment from them." (Fulgent Distraction; the unattach clause
@@ -210,7 +210,7 @@ karplusanYeti = AndThen (DealDamage (ThisOf Creature) (PowerOf (ThisOf Creature)
 -- demonstrative.
 fulgentDistraction : Effect []
 fulgentDistraction = AndThen (Choose (TargetGroup 2 creature))
-                             (Tap (Those (Perm Creature)))
+                             (Tap (Those (TypeW Creature)))
 
 -- "Choose up to four target creature cards in your graveyard that
 -- were put there from the battlefield this turn. Return them to the
@@ -325,10 +325,10 @@ failing "anyTargeted"
 -- carrier is derived from the RETAGGED zone ([CR#110.1]), so the typed
 -- demonstrative has no antecedent — the carrier-word rule as a type
 -- error ("that card" is the spelling that resolves; see `cloudshift`).
-failing "countCarrier"
+failing "countWord"
   badStaleCarrier : Effect []
   badStaleCarrier = AndThen (exile (Target creatureYouControl))
-                            (Move (That (Perm Creature)) BattlefieldZ)
+                            (Move (That (TypeW Creature)) BattlefieldZ)
 
 -- A hidden-zone cost mention is unreadable past the colon: the card
 -- bounced to hand is not among the public survivors ([CR#400.2] —
@@ -358,10 +358,10 @@ failing "OnBattlefield"
 -- After the watched target dies, it no longer answers to "creature":
 -- the event retag flips the carrier ([CR#700.4,110.1]) — "that card"
 -- is the spelling that resolves (see `gracefulReprieve`).
-failing "countCarrier"
+failing "countWord"
   badDeadCreatureRead : Effect []
   badDeadCreatureRead = Delayed (DiesThisTurn (Target creature))
-                                (Move (That (Perm Creature)) BattlefieldZ)
+                                (Move (That (TypeW Creature)) BattlefieldZ)
 
 -- "The chosen type" with only a color chosen: the quality read is
 -- sort-filtered — no witness.
@@ -381,11 +381,11 @@ failing "countManys"
 -- Two predicate-inner opponents leave "that player" ambiguous — the
 -- uniqueness gate reaches inside relative clauses too. (Not
 -- oracle-legal text; the guide would repeat the noun.)
-failing "countCarrier"
+failing "countWord"
   badInnerAmbig : Effect []
   badInnerAmbig = AndThen (Fights (Target (And [creature, ControlledBy anOpponent]))
                                   (Target (And [creature, ControlledBy anOpponent])))
-                          (losesLife (That PlayerC) (Lit 1))
+                          (losesLife (That PlayerW) (Lit 1))
 
 -- The representation-level witness of the §3 kind-indexing rule: a
 -- binding cannot record data its kind cannot have — "a player in your
@@ -421,8 +421,8 @@ failing "countVerbed"
 -- Voyager Staff's shape with the bare demonstrative: two card
 -- mentions (the sacrificed self, the exiled target) make "that card"
 -- ambiguous — the participle is what real text switches to here.
-failing "countCarrier"
+failing "countWord"
   badBareCardRead : Activated []
   badBareCardRead = MkActivated (sacrifice You (ThisOf Artifact))
                                 (AndThen (exile (Target creature))
-                                         (Delayed NextEndStep (Move (That CardC) BattlefieldZ)))
+                                         (Delayed NextEndStep (Move (That CardW) BattlefieldZ)))

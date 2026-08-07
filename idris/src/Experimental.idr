@@ -196,7 +196,9 @@
 |||    no carrier word — `carrier` returns `Maybe`, junk-free — and
 |||    kind matching routes through `sameKind`, whose deliberate lack
 |||    of a catch-all makes the NEXT kind a totality error instead of a
-|||    silent zero. "All" is a surface determiner distinct from
+|||    silent zero (the old fused-carrier derivation this finding named
+|||    is decomposed in finding 28 — quality mentions now simply fail
+|||    every noun word). "All" is a surface determiner distinct from
 |||    distributive "each" (the guide separates them; the CR does not),
 |||    stored as `AllD`.
 ||| 24. **"That much" / "that many" read event results, not amounts.**
@@ -250,9 +252,15 @@
 |||    artifact" — Bosh: a graveyard card NOW, an artifact under the
 |||    verb), the intrinsic CARD word checks current zone fold-state
 |||    ("the exiled card" — Voyager Staff); both attested, uniqueness
-|||    supplied by the verb filter. The demonstrative family's fused
-|||    `Perm CardType` carrier is thereby a recorded smell — its
-|||    decomposition onto these axes is the next pass.
+|||    supplied by the verb filter.
+||| 28. **The demonstrative shares the split word vocabulary.**
+|||    `That`/`Those` take the same `NounWord`, anchored to the
+|||    CURRENT state where the participle anchors to the verb event
+|||    (`wordNow` vs `wordOk`), and the fused `Carrier` type dissolves
+|||    — a type word checks projected type + battlefield, the
+|||    intrinsic CARD and PLAYER words check zone and kind. Same
+|||    refusals as before (the carrier negatives re-pin on
+|||    `countWord`); no fused type-carrier value remains in the model.
 |||
 ||| Not settled yet: the kind union ("any target" spans objects and
 ||| players [CR#115.4,115.1] — elided to `Object`);
@@ -264,9 +272,10 @@
 ||| definites ("the chosen creatures" — V.A.T.S./Victimize wait on
 ||| "any number of" groups and if-you-do); plural participle reads
 ||| ("the exiled cards", Hide on the Ceiling — group twins of
-||| `TheVerbed`); the participle PERMANENT word ("the sacrificed
-||| permanent", Broadside Bombardiers — the intrinsic word under the
-||| verb's before-state, plus its "or" disjunction); the
+||| `TheVerbed`); the PERMANENT word (demonstrative "that permanent"
+||| and participle "the sacrificed permanent", Broadside Bombardiers —
+||| the before-state question and its "or" disjunction; no bench card
+||| spells either, so `NounWord` waits to grow it); the
 ||| additional-cast-cost juncture (Fling — "the sacrificed creature"
 ||| across a casting cost, the same public-survivors discipline as
 ||| the colon, constructor unminted); more event queries (upkeep / end-of-combat /
@@ -386,13 +395,6 @@ sameVerb Exile _ = False
 sameVerb Discard Discard = True
 sameVerb Discard _ = False
 
-||| The carrier word — the noun a referent currently answers to
-||| ([CR#109.2,110.1]): a typed or untyped battlefield permanent, a card
-||| in a non-battlefield zone, or a player. Token, spell, and stack-object
-||| carriers are later chapters.
-public export
-data Carrier = PlayerC | Perm CardType | AnyPerm | CardC
-
 ||| Per-kind mention data, kind-indexed so a binding can only record
 ||| what its kind can have: an object carries the projected head type
 ||| and its current zone (the ONE piece of fold-state — `Move` updates
@@ -422,20 +424,6 @@ public export
 Bindings : Type
 Bindings = List Binding
 
-||| The carrier is DERIVED: kind and projected type plus current zone
-||| ([CR#110.1] — a permanent is a card or token on the battlefield, and
-||| stops being one when it leaves). A quality mention has no carrier
-||| word — `Nothing`, never a junk value.
-public export
-carrier : Binding -> Maybe Carrier
-carrier (MkBinding _ Player _ PlayerP) = Just PlayerC
-carrier (MkBinding _ Object _ (ObjectP ty (Just Battlefield) _)) = Just (maybe AnyPerm Perm ty)
-carrier (MkBinding _ Object _ (ObjectP ty (Just Graveyard) _)) = Just CardC
-carrier (MkBinding _ Object _ (ObjectP ty (Just Exile) _)) = Just CardC
-carrier (MkBinding _ Object _ (ObjectP ty (Just Hand) _)) = Just CardC
-carrier (MkBinding _ Object _ (ObjectP ty Nothing _)) = Just AnyPerm
-carrier (MkBinding _ (Quality _) _ QualityP) = Nothing
-
 ||| The zone a binding tracks — object fold-state; players and
 ||| qualities have none, structurally.
 public export
@@ -444,7 +432,7 @@ bindingZone (MkBinding _ _ _ (ObjectP _ zn _)) = zn
 bindingZone (MkBinding _ _ _ PlayerP) = Nothing
 bindingZone (MkBinding _ _ _ QualityP) = Nothing
 
-||| Per-row catch-alls (here and in `sameQ`/`compatC`): a new
+||| Per-row catch-alls (here and in `sameQ`/`sameVerb`): a new
 ||| constructor is a totality error on its missing row, never a
 ||| silently-False diagonal.
 public export
@@ -455,36 +443,6 @@ sameCT Artifact Artifact = True
 sameCT Artifact _ = False
 sameCT Land Land = True
 sameCT Land _ = False
-
-||| Which carrier nouns a wanted carrier reaches: exact for typed nouns
-||| ([CR#205.2a]), "permanent" reaches any battlefield noun
-||| ([CR#110.1]), "card" only a non-battlefield object ([CR#108.2]).
-public export
-compatC : (want : Carrier) -> (have : Carrier) -> Bool
-compatC PlayerC PlayerC = True
-compatC PlayerC _ = False
-compatC (Perm a) (Perm b) = sameCT a b
-compatC (Perm a) _ = False
-compatC AnyPerm (Perm _) = True
-compatC AnyPerm AnyPerm = True
-compatC AnyPerm _ = False
-compatC CardC CardC = True
-compatC CardC _ = False
-
-public export
-compatMaybe : Carrier -> Maybe Carrier -> Bool
-compatMaybe c Nothing = False
-compatMaybe c (Just c') = compatC c c'
-
-||| Does the wanted carrier reach this binding's carrier (if any)?
-public export
-carrierIs : Carrier -> Binding -> Bool
-carrierIs c b = compatMaybe c (carrier b)
-
-public export
-kindOfC : Carrier -> Kind
-kindOfC PlayerC = Player
-kindOfC _ = Object
 
 ||| Singular mentions of a kind, counted — the wildcard pronoun's
 ||| obligation is `= 1`: zero is an unbound anaphor, two an ambiguous one
@@ -497,17 +455,6 @@ countOnes k [] = Z
 countOnes k (MkBinding _ k' OneOf _ :: bs) =
   if sameKind k k' then S (countOnes k bs) else countOnes k bs
 countOnes k (_ :: bs) = countOnes k bs
-
-||| Singular mentions whose CURRENT carrier the wanted carrier reaches —
-||| the sorted demonstrative's obligation is `= 1` (strict uniqueness
-||| after the filter; there is no nearest-wins).
-public export
-countCarrier : Carrier -> Bindings -> Nat
-countCarrier c [] = Z
-countCarrier c (b :: bs) =
-  case (b.plur, carrierIs c b) of
-    (OneOf, True) => S (countCarrier c bs)
-    _ => countCarrier c bs
 
 ||| Chosen-quality mentions of a sort, counted — "the chosen color"
 ||| demands exactly one.
@@ -526,16 +473,6 @@ countManys k [] = Z
 countManys k (MkBinding _ k' ManyOf _ :: bs) =
   if sameKind k k' then S (countManys k bs) else countManys k bs
 countManys k (_ :: bs) = countManys k bs
-
-||| Group mentions whose CURRENT carrier the wanted carrier reaches —
-||| the sorted plural demonstrative's gate.
-public export
-countManyCarrier : Carrier -> Bindings -> Nat
-countManyCarrier c [] = Z
-countManyCarrier c (b :: bs) =
-  case (b.plur, carrierIs c b) of
-    (ManyOf, True) => S (countManyCarrier c bs)
-    _ => countManyCarrier c bs
 
 ||| Is any target-determined mention of this kind in scope? — the
 ||| presupposition of the modifier "other" ([CR#115.4]), stated entirely
@@ -597,15 +534,6 @@ zoneOfIt [] = Nothing
 zoneOfIt (MkBinding det Object OneOf (ObjectP ty zn _) :: bs) = zn
 zoneOfIt (b :: bs) = zoneOfIt bs
 
-||| The current zone of a sorted demonstrative's referent.
-public export
-zoneOfThat : Carrier -> Bindings -> Maybe Zone
-zoneOfThat c [] = Nothing
-zoneOfThat c (b :: bs) =
-  case (b.plur, carrierIs c b) of
-    (OneOf, True) => bindingZone b
-    _ => zoneOfThat c bs
-
 ||| The current zone of the plural wildcard's group referent.
 public export
 zoneOfThem : Bindings -> Maybe Zone
@@ -613,23 +541,15 @@ zoneOfThem [] = Nothing
 zoneOfThem (MkBinding det Object ManyOf (ObjectP ty zn _) :: bs) = zn
 zoneOfThem (b :: bs) = zoneOfThem bs
 
-||| The current zone of a sorted plural demonstrative's group referent.
+||| The noun-word vocabulary — ONE set of words for the sorted reads,
+||| its axes kept apart (finding 27 — type words are declared catalog
+||| atoms, never intrinsic sorts; the intrinsic words are the engine's
+||| own). What differs per read is the ANCHORING: the demonstrative
+||| checks its word against the referent's current state (`wordNow`),
+||| the participle against the verb event's frame (`wordOk`). Token,
+||| spell, and stack-object words are later chapters.
 public export
-zoneOfThose : Carrier -> Bindings -> Maybe Zone
-zoneOfThose c [] = Nothing
-zoneOfThose c (b :: bs) =
-  case (b.plur, carrierIs c b) of
-    (ManyOf, True) => bindingZone b
-    _ => zoneOfThose c bs
-
-||| The participle phrase's own noun, its axes kept apart (finding 27
-||| — type words are declared catalog atoms, never intrinsic sorts): a
-||| TYPE word is checked on the projected head type — time-stable, the
-||| description under the verb ("the sacrificed artifact" is a
-||| graveyard card NOW); the intrinsic CARD word is checked on the
-||| current zone ([CR#108.2]). No fused type-carrier forms.
-public export
-data NounWord = TypeW CardType | CardW
+data NounWord = TypeW CardType | CardW | PlayerW
 
 public export
 tyIs : CardType -> Maybe CardType -> Bool
@@ -646,10 +566,45 @@ isCardZone (Just Graveyard) = True
 isCardZone (Just Exile) = True
 isCardZone (Just Hand) = True
 
+||| Currently on the battlefield, strictly — the typed noun's
+||| demonstrative demand ([CR#110.1]); untracked does not qualify.
+public export
+onFieldZone : Maybe Zone -> Bool
+onFieldZone Nothing = False
+onFieldZone (Just Battlefield) = True
+onFieldZone (Just Graveyard) = False
+onFieldZone (Just Exile) = False
+onFieldZone (Just Hand) = False
+
 public export
 wordOk : NounWord -> Maybe CardType -> Maybe Zone -> Bool
 wordOk (TypeW t) ty zn = tyIs t ty
 wordOk CardW ty zn = isCardZone zn
+wordOk PlayerW ty zn = False  -- no participle reads a player ("the sacrificed player" is unwritten)
+
+||| The demonstrative's noun check — CURRENT-state anchoring, the
+||| carrier discipline ([CR#109.2,110.1]): a type word demands the
+||| referent currently answer to it (on the battlefield, projected
+||| type matching), the CARD word a tracked non-battlefield object
+||| ([CR#108.2]), the PLAYER word a player. Quality mentions answer
+||| to no noun word.
+public export
+wordNow : NounWord -> Binding -> Bool
+wordNow (TypeW t) (MkBinding _ _ _ (ObjectP ty zn _)) = onFieldZone zn && tyIs t ty
+wordNow (TypeW t) (MkBinding _ _ _ PlayerP) = False
+wordNow (TypeW t) (MkBinding _ _ _ QualityP) = False
+wordNow CardW (MkBinding _ _ _ (ObjectP _ zn _)) = isCardZone zn
+wordNow CardW (MkBinding _ _ _ PlayerP) = False
+wordNow CardW (MkBinding _ _ _ QualityP) = False
+wordNow PlayerW (MkBinding _ _ _ (ObjectP _ _ _)) = False
+wordNow PlayerW (MkBinding _ _ _ PlayerP) = True
+wordNow PlayerW (MkBinding _ _ _ QualityP) = False
+
+public export
+kindOfW : NounWord -> Kind
+kindOfW (TypeW _) = Object
+kindOfW CardW = Object
+kindOfW PlayerW = Player
 
 ||| Does "the [verbed] [noun]" reach this binding? Singular, stamped
 ||| with that verb tag, noun word compatible.
@@ -676,6 +631,44 @@ zoneOfVerbed : VerbName -> NounWord -> Bindings -> Maybe Zone
 zoneOfVerbed v w [] = Nothing
 zoneOfVerbed v w (b :: bs) =
   if verbedMatch v w b then bindingZone b else zoneOfVerbed v w bs
+
+||| Singular mentions the demonstrative's word currently reaches —
+||| `That`'s obligation is `= 1` (strict uniqueness after the filter;
+||| there is no nearest-wins).
+public export
+countWord : NounWord -> Bindings -> Nat
+countWord w [] = Z
+countWord w (b :: bs) =
+  case (b.plur, wordNow w b) of
+    (OneOf, True) => S (countWord w bs)
+    _ => countWord w bs
+
+||| Group mentions the word currently reaches — the plural twin.
+public export
+countManyWord : NounWord -> Bindings -> Nat
+countManyWord w [] = Z
+countManyWord w (b :: bs) =
+  case (b.plur, wordNow w b) of
+    (ManyOf, True) => S (countManyWord w bs)
+    _ => countManyWord w bs
+
+||| The current zone of a sorted demonstrative's referent.
+public export
+zoneOfThat : NounWord -> Bindings -> Maybe Zone
+zoneOfThat w [] = Nothing
+zoneOfThat w (b :: bs) =
+  case (b.plur, wordNow w b) of
+    (OneOf, True) => bindingZone b
+    _ => zoneOfThat w bs
+
+||| The current zone of a sorted plural demonstrative's group referent.
+public export
+zoneOfThose : NounWord -> Bindings -> Maybe Zone
+zoneOfThose w [] = Nothing
+zoneOfThose w (b :: bs) =
+  case (b.plur, wordNow w b) of
+    (ManyOf, True) => bindingZone b
+    _ => zoneOfThose w bs
 
 ||| The zone half of sacrifice's implicit restriction ([CR#701.21a] —
 ||| only a permanent can be sacrificed): the referent's tracked zone
@@ -851,12 +844,14 @@ mutual
     -- "them": the plural wildcard — exactly one group mention of the
     -- kind may precede (the ManyOf twin of `It`).
     Them : {auto 0 ok : countManys Object bs = 1} -> Noun bs Object
-    -- "those [carrier]s": the sorted plural demonstrative — exactly
-    -- one group mention whose CURRENT carrier answers to the noun.
-    Those : (c : Carrier) -> {auto 0 ok : countManyCarrier c bs = 1} -> Noun bs (kindOfC c)
-    -- "that [carrier]": the sorted demonstrative — exactly one mention
-    -- whose CURRENT carrier answers to the noun may precede.
-    That : (c : Carrier) -> {auto 0 ok : countCarrier c bs = 1} -> Noun bs (kindOfC c)
+    -- "those [noun word]s": the sorted plural demonstrative — exactly
+    -- one group mention its word currently reaches.
+    Those : (w : NounWord) -> {auto 0 ok : countManyWord w bs = 1} -> Noun bs (kindOfW w)
+    -- "that [noun word]": the sorted demonstrative — exactly one
+    -- mention its word currently reaches may precede (`wordNow` — the
+    -- current-state anchoring; the participle read anchors the same
+    -- words to the verb event instead).
+    That : (w : NounWord) -> {auto 0 ok : countWord w bs = 1} -> Noun bs (kindOfW w)
     -- "the [verbed] [noun]" ("the exiled card", "the sacrificed
     -- artifact"): the definite participle read — exactly one mention
     -- stamped by that verb tag and reached by the noun word may
@@ -890,8 +885,8 @@ mutual
   nounDelta It = []
   nounDelta They = []
   nounDelta Them = []
-  nounDelta (That c) = []
-  nounDelta (Those c) = []
+  nounDelta (That w) = []
+  nounDelta (Those w) = []
   nounDelta (TheVerbed v w) = []
   nounDelta (ControllerOf n) = MkBinding TheD Player OneOf PlayerP :: nounDelta n
   nounDelta (OwnerOf n) = MkBinding TheD Player OneOf PlayerP :: nounDelta n
@@ -1079,20 +1074,20 @@ mutual
   setZoneThem p z (b :: bs) = b :: setZoneThem p z bs
 
   public export
-  setZoneThose : Maybe VerbName -> Carrier -> Zone -> Bindings -> Bindings
-  setZoneThose p c z [] = []
-  setZoneThose p c z (b :: bs) =
-    case (b.plur, carrierIs c b) of
+  setZoneThose : Maybe VerbName -> NounWord -> Zone -> Bindings -> Bindings
+  setZoneThose p w z [] = []
+  setZoneThose p w z (b :: bs) =
+    case (b.plur, wordNow w b) of
       (ManyOf, True) => setZone p z b :: bs
-      _ => b :: setZoneThose p c z bs
+      _ => b :: setZoneThose p w z bs
 
   public export
-  setZoneThat : Maybe VerbName -> Carrier -> Zone -> Bindings -> Bindings
-  setZoneThat p c z [] = []
-  setZoneThat p c z (b :: bs) =
-    case (b.plur, carrierIs c b) of
+  setZoneThat : Maybe VerbName -> NounWord -> Zone -> Bindings -> Bindings
+  setZoneThat p w z [] = []
+  setZoneThat p w z (b :: bs) =
+    case (b.plur, wordNow w b) of
       (OneOf, True) => setZone p z b :: bs
-      _ => b :: setZoneThat p c z bs
+      _ => b :: setZoneThat p w z bs
 
   public export
   setZoneVerbed : Maybe VerbName -> VerbName -> NounWord -> Zone -> Bindings -> Bindings
@@ -1112,8 +1107,8 @@ mutual
   moveIntro p (AllOf pr) z = setZoneHead p z (nomIntro (AllOf pr))
   moveIntro p It z = setZoneIt p z bs
   moveIntro p Them z = setZoneThem p z bs
-  moveIntro p (That c) z = setZoneThat p c z bs
-  moveIntro p (Those c) z = setZoneThose p c z bs
+  moveIntro p (That w) z = setZoneThat p w z bs
+  moveIntro p (Those w) z = setZoneThose p w z bs
   moveIntro p (TheVerbed v w) z = setZoneVerbed p v w z bs
   moveIntro p This z = bs
   -- a moved sorted self-reference mints the new object's binding
@@ -1144,8 +1139,8 @@ mutual
   nounZone It = zoneOfIt bs
   nounZone They = Nothing
   nounZone Them = zoneOfThem bs
-  nounZone (That c) = zoneOfThat c bs
-  nounZone (Those c) = zoneOfThose c bs
+  nounZone (That w) = zoneOfThat w bs
+  nounZone (Those w) = zoneOfThose w bs
   nounZone (TheVerbed v w) = zoneOfVerbed v w bs
   nounZone (ControllerOf n) = Nothing
   nounZone (OwnerOf n) = Nothing

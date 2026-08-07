@@ -59,7 +59,8 @@ announce channel disappears. Proven consequences:
 A binding may record two kinds of data: projections of the mention phrase
 (determiner, kind, plurality — everything recoverable from the text) and
 fold-state accumulated by threading the effects (the referent's current
-zone/carrier). A third class is decided but not yet built: event-outcome
+zone/carrier, and the keyword-action tag it last moved under — the
+provenance a definite participle read filters by). A third class is decided but not yet built: event-outcome
 referents — an event-producing clause introduces a referent for what it
 did, whose sort projects from the clause's surface while its value stays
 runtime; "that much" / "that many" read its quantity and "this way" reads
@@ -83,8 +84,8 @@ and targets" (heading-anchored evidence of surface convention). Settled
 spellings:
 
 - Wildcard pronouns (`It`; player `They`) demand a unique compatible
-  antecedent. The sorted demonstrative (`That <carrier>`) demands uniqueness
-  after its carrier filter. There is no nearest-wins tiebreak at the
+  antecedent. The sorted demonstrative (`That <noun word>`) demands
+  uniqueness after its word filter. There is no nearest-wins tiebreak at the
   semantics layer; the guide's own editorial rule — repeat a noun rather than
   stack ambiguous pronouns — is the type discipline.
 - "its controller" is `ControllerOf It`: relational nouns compose over any
@@ -94,6 +95,13 @@ spellings:
   ("exile target creature … return that card": after the exile, a card read
   resolves and a creature read must not); and verb slots demand
   the carriers Magic assigns them (destroy takes a battlefield noun).
+- The noun-word vocabulary is decomposed, never fused: type words are
+  macro-declared catalog atoms (a `TypeDef` confers a type's rules grants,
+  even permanence), while the card and player words are the engine's own.
+  One vocabulary serves the demonstrative (checked against the referent's
+  current state) and the definite participle read ("the exiled card",
+  "the sacrificed artifact" — checked against the verb event, filtered by
+  provenance fold-state).
 
 ## 5. Vocabulary
 
