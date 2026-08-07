@@ -18,17 +18,8 @@ pub(super) fn construction_id(tag: RuleTag) -> ConstructionId {
 }
 
 fn evidence(tag: RuleTag) -> ConstructionEvidence {
-    match tag {
-        RuleTag::PredicatedArgumentFromExtend | RuleTag::PredicatedArgumentBareExtend => {
-            ConstructionEvidence::guard("keyword-grant conjunction gate")
-        }
-        RuleTag::RulesObjectFollowupNominalRelative
-        | RuleTag::RulesObjectFollowupNominalPrepositional => {
-            ConstructionEvidence::role("rules-object attachment role")
-        }
-        RuleTag::NominalPrepositional => ConstructionEvidence::feature("nominal attachment phase"),
-        _ => ConstructionEvidence::structural("production shape"),
-    }
+    let _ = tag;
+    ConstructionEvidence::structural("production shape")
 }
 
 fn family(tag: RuleTag) -> ConstructionFamily {
@@ -40,7 +31,7 @@ fn family(tag: RuleTag) -> ConstructionFamily {
     )
 }
 
-fn dominance_edges() -> [DominanceEdge; 18] {
+fn dominance_edges() -> [DominanceEdge; 8] {
     let edge = |dominant, subordinate| {
         DominanceEdge::new(construction_id(dominant), construction_id(subordinate))
     };
@@ -48,31 +39,6 @@ fn dominance_edges() -> [DominanceEdge; 18] {
         // These relationships make the grammar's former insertion-order
         // preferences explicit. They were censused against the full English
         // suite when construction identity replaced numeric rule order.
-        edge(
-            RuleTag::NominalQuantityModifier,
-            RuleTag::NominalPrepositional,
-        ),
-        edge(
-            RuleTag::NominalQuantityModifier,
-            RuleTag::NominalPostpositiveAdjective,
-        ),
-        edge(RuleTag::NominalQuantityModifier, RuleTag::NominalComparison),
-        edge(RuleTag::NominalDeterminer, RuleTag::NominalComparison),
-        edge(RuleTag::NominalPrepositional, RuleTag::NominalInfinitive),
-        edge(
-            RuleTag::NominalPrepositional,
-            RuleTag::NominalCoordinatedModifier,
-        ),
-        edge(
-            RuleTag::NominalPrepositional,
-            RuleTag::NominalKeywordPredicatedArgument,
-        ),
-        edge(RuleTag::NominalPrepositional, RuleTag::NominalNoun),
-        edge(
-            RuleTag::NominalReducedRecipientPassive,
-            RuleTag::NominalNoun,
-        ),
-        edge(RuleTag::NominalRelative, RuleTag::NominalPrepositional),
         edge(RuleTag::NounPhraseNominal, RuleTag::NounPhraseMinus),
         edge(
             RuleTag::NounPhraseSubjectPronoun,
@@ -149,8 +115,22 @@ fn generated_family(
         ConstructionId::new(construction.id),
         ConstructionOwner::Generated,
         ConstructionBackend::Chart,
-        ConstructionEvidence::structural("generated production"),
+        generated_evidence(construction.id),
     )
+}
+
+fn generated_evidence(id: &str) -> ConstructionEvidence {
+    match id {
+        "predicated_argument_from_extend" | "predicated_argument_bare_extend" => {
+            ConstructionEvidence::guard("keyword-grant conjunction gate")
+        }
+        "rules_object_followup_nominal_relative"
+        | "rules_object_followup_nominal_prepositional" => {
+            ConstructionEvidence::role("rules-object attachment role")
+        }
+        "nominal_prepositional" => ConstructionEvidence::feature("nominal attachment phase"),
+        _ => ConstructionEvidence::structural("generated production"),
+    }
 }
 
 #[cfg(test)]
@@ -200,47 +180,38 @@ mod tests {
     #[test]
     fn historic_registration_preferences_are_declared_as_dominance() {
         let preferences = [
+            ("nominal_quantity_modifier", "nominal_prepositional"),
             (
-                RuleTag::NominalQuantityModifier,
-                RuleTag::NominalPrepositional,
+                "nominal_quantity_modifier",
+                "nominal_postpositive_adjective",
             ),
+            ("nominal_quantity_modifier", "nominal_comparison"),
+            ("nominal_determiner", "nominal_comparison"),
+            ("nominal_prepositional", "nominal_infinitive"),
+            ("nominal_prepositional", "nominal_coordinated_modifier"),
             (
-                RuleTag::NominalQuantityModifier,
-                RuleTag::NominalPostpositiveAdjective,
+                "nominal_prepositional",
+                "nominal_keyword_predicated_argument",
             ),
-            (RuleTag::NominalQuantityModifier, RuleTag::NominalComparison),
-            (RuleTag::NominalDeterminer, RuleTag::NominalComparison),
-            (RuleTag::NominalPrepositional, RuleTag::NominalInfinitive),
-            (
-                RuleTag::NominalPrepositional,
-                RuleTag::NominalCoordinatedModifier,
-            ),
-            (
-                RuleTag::NominalPrepositional,
-                RuleTag::NominalKeywordPredicatedArgument,
-            ),
-            (RuleTag::NominalPrepositional, RuleTag::NominalNoun),
-            (
-                RuleTag::NominalReducedRecipientPassive,
-                RuleTag::NominalNoun,
-            ),
-            (RuleTag::NominalRelative, RuleTag::NominalPrepositional),
-            (RuleTag::NounPhraseNominal, RuleTag::NounPhraseMinus),
-            (
-                RuleTag::NounPhraseSubjectPronoun,
-                RuleTag::NounPhraseObjectPronoun,
-            ),
-            (RuleTag::VerbPhraseAuxiliary, RuleTag::VerbPhraseAdjective),
-            (RuleTag::VerbPhraseAuxiliary, RuleTag::VerbPhraseAdverb),
-            (RuleTag::VerbPhraseAuxiliary, RuleTag::VerbPhraseAbility),
-            (RuleTag::VerbPhraseBase, RuleTag::VerbPhraseAuxiliaryProform),
-            (RuleTag::ClauseSimple, RuleTag::ClauseCopular),
-            (RuleTag::RelativeSubject, RuleTag::RelativeObject),
+            ("nominal_prepositional", "nominal_noun"),
+            ("nominal_reduced_recipient_passive", "nominal_noun"),
+            ("nominal_relative", "nominal_prepositional"),
+            ("noun_phrase_nominal", "noun_phrase_minus"),
+            ("noun_phrase_subject_pronoun", "noun_phrase_object_pronoun"),
+            ("verb_phrase_auxiliary", "verb_phrase_adjective"),
+            ("verb_phrase_auxiliary", "verb_phrase_adverb"),
+            ("verb_phrase_auxiliary", "verb_phrase_ability"),
+            ("verb_phrase_base", "verb_phrase_auxiliary_proform"),
+            ("clause_simple", "clause_copular"),
+            ("relative_subject", "relative_object"),
         ];
         for (dominant, subordinate) in preferences {
             assert!(
-                registry().dominates(construction_id(dominant), construction_id(subordinate)),
-                "{dominant:?} must dominate {subordinate:?}",
+                registry().dominates(
+                    ConstructionId::new(dominant),
+                    ConstructionId::new(subordinate)
+                ),
+                "{dominant} must dominate {subordinate}",
             );
         }
         assert!(registry().dominates(
@@ -370,6 +341,106 @@ mod tests {
                 .unwrap_or_else(|| panic!("{name} generated declaration is registered"));
             assert_eq!(family.owner(), ConstructionOwner::Generated, "{name}");
             assert_eq!(family.backend(), ConstructionBackend::Chart, "{name}");
+        }
+    }
+
+    #[test]
+    fn production_m01_nominals_have_exactly_the_generated_owners_and_dominance() {
+        // Mutations caught: leave any M01 family registered through RuleTag,
+        // omit one declaration from the atomic activation, or drop/add an
+        // edge from the tracked M01 dominance graph.
+        let ids = [
+            "nominal_noun",
+            "nominal_adjective",
+            "nominal_noun_modifier",
+            "nominal_combat_step_name",
+            "nominal_negated_modifier",
+            "nominal_quantity_modifier",
+            "nominal_power_toughness_modifier",
+            "nominal_determiner",
+            "nominal_prepositional",
+            "nominal_infinitive",
+            "nominal_quantity_complement",
+            "nominal_keyword_symbol_argument",
+            "predicated_quality_from",
+            "predicated_argument_from_single",
+            "predicated_argument_from_extend",
+            "nominal_keyword_predicated_argument",
+            "predicated_quality_bare",
+            "predicated_argument_bare_single",
+            "predicated_argument_bare_extend",
+            "nominal_keyword_atom_carried_predicated_argument",
+            "nominal_relative",
+            "rules_object_nominal_base",
+            "rules_object_followup_nominal_relative",
+            "rules_object_followup_nominal_prepositional",
+            "nominal_reduced_recipient_passive",
+            "reduced_recipient_passive_theme",
+            "reduced_recipient_passive_nominal_adjunct",
+            "nominal_postpositive_adjective",
+            "nominal_postpositive_adjective_conjoined_prepositional",
+            "nominal_postpositive_adjective_conjoined",
+            "nominal_postpositive_adjective_asyndetic",
+            "nominal_postpositive_adjective_oxford",
+            "nominal_comparison",
+            "nominal_devotion",
+            "devotion_color_single",
+            "devotion_color_pair",
+            "nominal_times_clause",
+        ];
+        assert_eq!(ids.len(), 37);
+        for name in ids {
+            let id = ConstructionId::new(name);
+            assert!(
+                handwritten_registry().family(id).is_none(),
+                "{name} still has a handwritten owner"
+            );
+            let family = registry()
+                .family(id)
+                .unwrap_or_else(|| panic!("{name} generated declaration is registered"));
+            assert_eq!(family.owner(), ConstructionOwner::Generated, "{name}");
+            assert_eq!(family.backend(), ConstructionBackend::Chart, "{name}");
+        }
+
+        let expected = [
+            ("nominal_quantity_modifier", "nominal_prepositional"),
+            (
+                "nominal_quantity_modifier",
+                "nominal_postpositive_adjective",
+            ),
+            ("nominal_quantity_modifier", "nominal_comparison"),
+            ("nominal_determiner", "nominal_comparison"),
+            ("nominal_prepositional", "nominal_infinitive"),
+            ("nominal_prepositional", "nominal_coordinated_modifier"),
+            (
+                "nominal_prepositional",
+                "nominal_keyword_predicated_argument",
+            ),
+            ("nominal_prepositional", "nominal_noun"),
+            ("nominal_reduced_recipient_passive", "nominal_noun"),
+            ("nominal_relative", "nominal_prepositional"),
+        ];
+        assert_eq!(expected.len(), 10);
+        let actual = crate::constructions::nominal::NOMINAL_DECLARATION
+            .constructions
+            .iter()
+            .flat_map(|construction| {
+                construction
+                    .dominates
+                    .iter()
+                    .map(move |subordinate| (construction.id, *subordinate))
+            })
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(
+            actual,
+            expected.iter().copied().collect(),
+            "the M01 declaration must own exactly the tracked ten edges"
+        );
+        for &(winner, loser) in &expected {
+            assert!(
+                registry().dominates(ConstructionId::new(winner), ConstructionId::new(loser)),
+                "missing M01 edge {winner} > {loser}"
+            );
         }
     }
 

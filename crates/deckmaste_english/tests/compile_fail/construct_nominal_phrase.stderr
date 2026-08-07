@@ -1,0 +1,13 @@
+error[E0451]: fields `determiner`, `modifiers`, `head` and `complements` of struct `NominalPhrase` are private
+  --> tests/compile_fail/construct_nominal_phrase.rs:14:9
+   |
+13 |     NominalPhrase {
+   |     ------------- in this type
+14 |         determiner,
+   |         ^^^^^^^^^^ private field
+15 |         modifiers,
+   |         ^^^^^^^^^ private field
+16 |         head,
+   |         ^^^^ private field
+17 |         complements,
+   |         ^^^^^^^^^^^ private field

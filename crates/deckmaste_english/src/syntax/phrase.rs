@@ -881,10 +881,48 @@ pub use crate::features::Conjunction as NounPhraseConjunction;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct NominalPhrase {
-    pub determiner: Option<Determiner>,
-    pub modifiers: Vec<NominalModifier>,
-    pub head: NounInstance,
-    pub complements: Vec<NominalComplement>,
+    pub(crate) determiner: Option<Determiner>,
+    pub(crate) modifiers: Vec<NominalModifier>,
+    pub(crate) head: NounInstance,
+    pub(crate) complements: Vec<NominalComplement>,
+}
+
+impl NominalPhrase {
+    /// Builds a bare nominal through the generated noun-head declaration.
+    ///
+    /// # Errors
+    ///
+    /// Returns a declaration violation when the generated nominal base
+    /// rejects `head`.
+    pub fn try_from_noun(
+        head: NounInstance,
+    ) -> Result<Self, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+        crate::constructions::nominal::build_nominal_noun(head)
+    }
+
+    /// The determiner selected for this nominal, if any.
+    #[must_use]
+    pub const fn determiner(&self) -> Option<&Determiner> {
+        self.determiner.as_ref()
+    }
+
+    /// The ordered attributive modifiers preceding the nominal head.
+    #[must_use]
+    pub fn modifiers(&self) -> &[NominalModifier] {
+        &self.modifiers
+    }
+
+    /// The noun that heads this nominal.
+    #[must_use]
+    pub const fn head(&self) -> &NounInstance {
+        &self.head
+    }
+
+    /// The ordered complements following the nominal head.
+    #[must_use]
+    pub fn complements(&self) -> &[NominalComplement] {
+        &self.complements
+    }
 }
 
 /// The productive `non-` polarity of a nominal modifier. `land card` and

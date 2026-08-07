@@ -180,7 +180,62 @@ fn inverse_group_linearizer(group: &GroupDeclaration) -> TokenStream {
                 }
                 InverseDispatchKind::LensParts => {
                     let parts = quote::format_ident!("parts_{}", construction.id.value);
-                    quote! { #parts(value).is_some() }
+                    let value_guards = construction.forms.iter().map(|form| {
+                        form.inverse_guard.as_ref().or(form.value_guard.as_ref()).map(|guard| {
+                            let predicate = parse_type(&guard.value);
+                            quote! { #predicate(value) }
+                        })
+                    });
+                    let guarded_domain = value_guards
+                        .clone()
+                        .collect::<Option<Vec<_>>>()
+                        .filter(|_| construction.forms.iter().all(|form| !form.fallback))
+                        .map_or_else(|| quote! { true }, |conditions| {
+                            conditions
+                                .into_iter()
+                                .fold(quote! { false }, |condition, next| {
+                                    quote! { #condition || #next }
+                                })
+                        });
+                    quote! { #parts(value).is_some() && (#guarded_domain) }
+                }
+                InverseDispatchKind::Mixed => {
+                    if construction.lens.is_some() {
+                        let parts = quote::format_ident!("parts_{}", construction.id.value);
+                        let guarded_domain = construction
+                            .forms
+                            .iter()
+                            .map(|form| {
+                                form.inverse_guard.as_ref().or(form.value_guard.as_ref()).map(|guard| {
+                                    let predicate = parse_type(&guard.value);
+                                    quote! { #predicate(value) }
+                                })
+                            })
+                            .collect::<Option<Vec<_>>>()
+                            .filter(|_| construction.forms.iter().all(|form| !form.fallback))
+                            .map_or_else(|| quote! { true }, |conditions| {
+                                conditions.into_iter().fold(
+                                    quote! { false },
+                                    |condition, next| quote! { #condition || #next },
+                                )
+                            });
+                        quote! { #parts(value).is_some() && (#guarded_domain) }
+                    } else {
+                        let conditions = construction.forms.iter().map(|form| {
+                            let predicate = parse_type(
+                                &form
+                                    .inverse_guard
+                                    .as_ref()
+                                    .or(form.value_guard.as_ref())
+                                    .expect("mixed inverse-dispatch adapters carry recognizers")
+                                    .value,
+                            );
+                            quote! { #predicate(value) }
+                        });
+                        conditions.fold(quote! { false }, |condition, next| {
+                            quote! { #condition || #next }
+                        })
+                    }
                 }
             };
             quote! {
@@ -1037,18 +1092,21 @@ fn linearizer(group: &GroupDeclaration, construction: &ConstructionDeclaration) 
         .iter()
         .filter(|form| !form.fallback)
         .map(|form| {
-            let condition = form.value_guard.as_ref().map_or_else(
-                || {
-                    form.guard.as_ref().map_or_else(
-                        || quote! { true },
-                        |guard| predicate_tokens(group, fields, &guard.value),
-                    )
-                },
-                |guard| {
-                    let predicate = parse_type(&guard.value);
-                    quote! { #predicate(value) }
-                },
-            );
+            let field_guard = form
+                .guard
+                .as_ref()
+                .map(|guard| predicate_tokens(group, fields, &guard.value));
+            let value_guard = form.value_guard.as_ref().map(|guard| {
+                let predicate = parse_type(&guard.value);
+                quote! { #predicate(value) }
+            });
+            let condition = match (field_guard, value_guard) {
+                (Some(field_guard), Some(value_guard)) => {
+                    quote! { (#field_guard) && (#value_guard) }
+                }
+                (Some(condition), None) | (None, Some(condition)) => condition,
+                (None, None) => quote! { true },
+            };
             let ordinal = proc_macro2::Literal::u16_unsuffixed(form.ordinal.value);
             quote! {
                 if #condition {
@@ -1124,10 +1182,21 @@ fn linearizer(group: &GroupDeclaration, construction: &ConstructionDeclaration) 
         .iter()
         .filter_map(|form| {
             let ordinal = proc_macro2::Literal::u16_unsuffixed(form.ordinal.value);
-            let condition = form.value_guard.as_ref().map(|guard| {
+            let field_guard = form
+                .guard
+                .as_ref()
+                .map(|guard| predicate_tokens(group, fields, &guard.value));
+            let value_guard = form.value_guard.as_ref().map(|guard| {
                 let predicate = parse_type(&guard.value);
                 quote! { #predicate(value) }
-            }).or_else(|| form.guard.as_ref().map(|guard| predicate_tokens(group, fields, &guard.value)))?;
+            });
+            let condition = match (field_guard, value_guard) {
+                (Some(field_guard), Some(value_guard)) => {
+                    quote! { (#field_guard) && (#value_guard) }
+                }
+                (Some(condition), None) | (None, Some(condition)) => condition,
+                (None, None) => return None,
+            };
             Some(quote! {
                 #ordinal if !(#condition) => {
                     Err(::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {

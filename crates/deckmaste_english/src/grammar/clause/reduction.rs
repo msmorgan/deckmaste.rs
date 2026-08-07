@@ -58,7 +58,6 @@ pub(in crate::grammar) fn reduce_clause(
         | RuleTag::VerbPhraseManaAmountCoordination
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
-        | RuleTag::ReducedRecipientPassiveNominalAdjunct
         | RuleTag::VerbPhraseCausative
         | RuleTag::VerbPhraseCoordinatedAdjective
         | RuleTag::InfinitiveTo
@@ -199,16 +198,6 @@ pub(in crate::grammar) fn accepts_predicate_prefix(
                 && (a.number == Number::Plural || a.person == Person::Second)
         );
     }
-    if tag == RuleTag::ReducedRecipientPassiveNominalAdjunct {
-        return matches!(
-            features,
-            Features::VerbPhrase {
-                object,
-                frame,
-                ..
-            } if frame.is_recipient_passive() && object.has_direct_object()
-        );
-    }
     if tag == RuleTag::VerbPhrasePassiveSharedDeterminerPrepositional {
         return matches!(features, Features::VerbPhrase { passive: true, .. });
     }
@@ -336,6 +325,25 @@ pub(in crate::grammar) fn accepts_predicate_prefix(
     }
 }
 
+/// Feature projection for the declaration-owned recipient-passive nominal
+/// adjunct extension. The generated construction selects this adapter; no
+/// handwritten [`RuleTag`] owns or registers the shape.
+pub(in crate::grammar) fn reduce_generated_recipient_passive_nominal_adjunct(
+    children: &[Child<'_, EnglishGrammar<'_, '_>>],
+) -> Option<Features> {
+    let Features::NounPhrase {
+        adjunct: Some(adjunct),
+        ..
+    } = children.get(1)?.features
+    else {
+        return None;
+    };
+    extend_predicate(
+        children.first()?,
+        PredicateAttachment::NominalAdjunct(*adjunct),
+    )
+}
+
 fn accepts_shared_copular_coordination_prefix(tag: RuleTag, features: &Features) -> Option<bool> {
     matches!(
         tag,
@@ -373,17 +381,8 @@ pub(in crate::grammar) fn reduction_cost(
                 ..
             })
         );
-    let damage_nominal_infinitive = tag == RuleTag::NominalInfinitive
-        && matches!(
-            children.first().map(|child| child.features),
-            Some(Features::Nominal {
-                recipient_passive_theme: true,
-                ..
-            })
-        );
-    let precedence = u32::from(active_temporal_attachment)
-        + u32::from(tag == RuleTag::ClauseSubordinateAfter)
-        + u32::from(damage_nominal_infinitive);
+    let precedence =
+        u32::from(active_temporal_attachment) + u32::from(tag == RuleTag::ClauseSubordinateAfter);
     // The finite-first shared-predicate reading (a modal/finite clause hosting
     // a subjectless standalone-imperative continuation, asyndetic or
     // `then`/`and`-joined) is a narrow additive allowance layered on top of the
@@ -558,19 +557,6 @@ pub(super) fn reduce_predicate(
                 }
             };
             extend_predicate(children.first()?, attachment)
-        }
-        RuleTag::ReducedRecipientPassiveNominalAdjunct => {
-            let Features::NounPhrase {
-                adjunct: Some(adjunct),
-                ..
-            } = children.get(1)?.features
-            else {
-                return None;
-            };
-            extend_predicate(
-                children.first()?,
-                PredicateAttachment::NominalAdjunct(*adjunct),
-            )
         }
         RuleTag::VerbPhraseManaAmountCoordination => {
             extend_predicate(children.first()?, PredicateAttachment::ScalarComplement)

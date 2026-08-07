@@ -356,10 +356,10 @@ mod tests {
             let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &predicate.object else {
                 panic!("expected a nominal object: {:#?}", predicate.object);
             };
-            let [NominalModifier::Noun { noun, .. }] = object.modifiers.as_slice() else {
+            let [NominalModifier::Noun { noun, .. }] = object.modifiers() else {
                 panic!(
                     "expected one catalog noun modifier: {:#?}",
-                    object.modifiers
+                    object.modifiers()
                 );
             };
             let NounInstanceKind::Singular(Noun::Catalog(atom)) = noun.kind() else {

@@ -29,6 +29,7 @@ pub(super) enum GeneratedFeatureCombinator {
     CompleteSentence,
     CompleteNounPhraseCoordination,
     SharedDeterminerCoordination,
+    Nominal,
 }
 
 impl GeneratedFeatureCombinator {
@@ -37,6 +38,7 @@ impl GeneratedFeatureCombinator {
             "complete_sentence" => Some(Self::CompleteSentence),
             "complete_noun_phrase_coordination" => Some(Self::CompleteNounPhraseCoordination),
             "shared_determiner_coordination" => Some(Self::SharedDeterminerCoordination),
+            "nominal" => Some(Self::Nominal),
             _ => None,
         }
     }
@@ -61,7 +63,7 @@ impl GeneratedFeatureCombinator {
                 precedence: 1,
                 ..super::ParseCost::default()
             },
-            Self::CompleteSentence | Self::SharedDeterminerCoordination => {
+            Self::CompleteSentence | Self::SharedDeterminerCoordination | Self::Nominal => {
                 super::ParseCost::default()
             }
         }
@@ -71,6 +73,7 @@ impl GeneratedFeatureCombinator {
         match self {
             Self::CompleteSentence | Self::CompleteNounPhraseCoordination => 0,
             Self::SharedDeterminerCoordination => 1,
+            Self::Nominal => usize::MAX,
         }
     }
 
@@ -79,12 +82,13 @@ impl GeneratedFeatureCombinator {
             Self::CompleteSentence => 0,
             Self::CompleteNounPhraseCoordination => 1,
             Self::SharedDeterminerCoordination => 2,
+            Self::Nominal => usize::MAX,
         }
     }
 
     const fn complements_argument(self) -> Option<usize> {
         match self {
-            Self::CompleteSentence | Self::CompleteNounPhraseCoordination => None,
+            Self::CompleteSentence | Self::CompleteNounPhraseCoordination | Self::Nominal => None,
             Self::SharedDeterminerCoordination => Some(3),
         }
     }
@@ -157,6 +161,108 @@ impl GeneratedFeatureCombinator {
                 field.kind,
                 FieldKindData::Subtree { category, .. } if category == member_category
             )
+        })
+    }
+}
+
+/// The closed semantic selector for the declaration-driven M01 feature
+/// combinator. Unlike [`super::RuleTag`], these identities never register a
+/// handwritten chart production; they are resolved only from generated
+/// declaration metadata.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum NominalConstruction {
+    NominalNoun,
+    NominalAdjective,
+    NominalNounModifier,
+    NominalCombatStepName,
+    NominalNegatedModifier,
+    NominalQuantityModifier,
+    NominalPowerToughnessModifier,
+    NominalDeterminer,
+    NominalPrepositional,
+    NominalInfinitive,
+    NominalQuantityComplement,
+    NominalKeywordSymbolArgument,
+    PredicatedQualityFrom,
+    PredicatedArgumentFromSingle,
+    PredicatedArgumentFromExtend,
+    NominalKeywordPredicatedArgument,
+    PredicatedQualityBare,
+    PredicatedArgumentBareSingle,
+    PredicatedArgumentBareExtend,
+    NominalKeywordAtomCarriedPredicatedArgument,
+    NominalRelative,
+    RulesObjectNominalBase,
+    RulesObjectFollowupNominalRelative,
+    RulesObjectFollowupNominalPrepositional,
+    NominalReducedRecipientPassive,
+    ReducedRecipientPassiveTheme,
+    ReducedRecipientPassiveNominalAdjunct,
+    NominalPostpositiveAdjective,
+    NominalPostpositiveAdjectiveConjoinedPrepositional,
+    NominalPostpositiveAdjectiveConjoined,
+    NominalPostpositiveAdjectiveAsyndetic,
+    NominalPostpositiveAdjectiveOxford,
+    NominalComparison,
+    NominalDevotion,
+    DevotionColorSingle,
+    DevotionColorPair,
+    NominalTimesClause,
+}
+
+impl NominalConstruction {
+    pub(super) fn from_id(id: &str) -> Option<Self> {
+        Some(match id {
+            "nominal_noun" => Self::NominalNoun,
+            "nominal_adjective" => Self::NominalAdjective,
+            "nominal_noun_modifier" => Self::NominalNounModifier,
+            "nominal_combat_step_name" => Self::NominalCombatStepName,
+            "nominal_negated_modifier" => Self::NominalNegatedModifier,
+            "nominal_quantity_modifier" => Self::NominalQuantityModifier,
+            "nominal_power_toughness_modifier" => Self::NominalPowerToughnessModifier,
+            "nominal_determiner" => Self::NominalDeterminer,
+            "nominal_prepositional" => Self::NominalPrepositional,
+            "nominal_infinitive" => Self::NominalInfinitive,
+            "nominal_quantity_complement" => Self::NominalQuantityComplement,
+            "nominal_keyword_symbol_argument" => Self::NominalKeywordSymbolArgument,
+            "predicated_quality_from" => Self::PredicatedQualityFrom,
+            "predicated_argument_from_single" => Self::PredicatedArgumentFromSingle,
+            "predicated_argument_from_extend" => Self::PredicatedArgumentFromExtend,
+            "nominal_keyword_predicated_argument" => Self::NominalKeywordPredicatedArgument,
+            "predicated_quality_bare" => Self::PredicatedQualityBare,
+            "predicated_argument_bare_single" => Self::PredicatedArgumentBareSingle,
+            "predicated_argument_bare_extend" => Self::PredicatedArgumentBareExtend,
+            "nominal_keyword_atom_carried_predicated_argument" => {
+                Self::NominalKeywordAtomCarriedPredicatedArgument
+            }
+            "nominal_relative" => Self::NominalRelative,
+            "rules_object_nominal_base" => Self::RulesObjectNominalBase,
+            "rules_object_followup_nominal_relative" => Self::RulesObjectFollowupNominalRelative,
+            "rules_object_followup_nominal_prepositional" => {
+                Self::RulesObjectFollowupNominalPrepositional
+            }
+            "nominal_reduced_recipient_passive" => Self::NominalReducedRecipientPassive,
+            "reduced_recipient_passive_theme" => Self::ReducedRecipientPassiveTheme,
+            "reduced_recipient_passive_nominal_adjunct" => {
+                Self::ReducedRecipientPassiveNominalAdjunct
+            }
+            "nominal_postpositive_adjective" => Self::NominalPostpositiveAdjective,
+            "nominal_postpositive_adjective_conjoined_prepositional" => {
+                Self::NominalPostpositiveAdjectiveConjoinedPrepositional
+            }
+            "nominal_postpositive_adjective_conjoined" => {
+                Self::NominalPostpositiveAdjectiveConjoined
+            }
+            "nominal_postpositive_adjective_asyndetic" => {
+                Self::NominalPostpositiveAdjectiveAsyndetic
+            }
+            "nominal_postpositive_adjective_oxford" => Self::NominalPostpositiveAdjectiveOxford,
+            "nominal_comparison" => Self::NominalComparison,
+            "nominal_devotion" => Self::NominalDevotion,
+            "devotion_color_single" => Self::DevotionColorSingle,
+            "devotion_color_pair" => Self::DevotionColorPair,
+            "nominal_times_clause" => Self::NominalTimesClause,
+            _ => return None,
         })
     }
 }
@@ -332,7 +438,7 @@ pub(super) fn internal_categories(groups: &[&'static GroupData]) -> BTreeMap<&'s
 /// categories. Payload-specific conversion remains a lowering concern.
 fn engine_category(name: &str) -> Option<Nonterminal> {
     Some(match name {
-        "Noun" => Nonterminal::Noun,
+        "Noun" | "NounInstance" => Nonterminal::Noun,
         "NounPhrase" => Nonterminal::NounPhrase,
         "NominalPhrase" => Nonterminal::Nominal,
         "Determiner" => Nonterminal::Determiner,
@@ -342,12 +448,19 @@ fn engine_category(name: &str) -> Option<Nonterminal> {
         "InfinitiveClause" => Nonterminal::InfinitiveClause,
         "RelativeClause" => Nonterminal::RelativeClause,
         "TransitivePredicate" => Nonterminal::ReducedRecipientPassive,
+        "ReducedRecipientPassiveTheme" => Nonterminal::ReducedRecipientPassiveTheme,
         "Quantity" => Nonterminal::Quantity,
         "DevotionColors" => Nonterminal::DevotionColors,
         "PowerToughness" => Nonterminal::PowerToughness,
         "IndependentClause" | "Clause" => Nonterminal::Clause,
+        "ComparisonComplement" => Nonterminal::ComparisonComplement,
+        "RulesObjectNominal" => Nonterminal::RulesObjectNominal,
+        "RulesObjectFollowupNominal" => Nonterminal::RulesObjectFollowupNominal,
+        "PredicatedQualityFrom" => Nonterminal::PredicatedQualityFrom,
+        "PredicatedArgumentFrom" => Nonterminal::PredicatedArgumentFrom,
+        "PredicatedQualityBare" => Nonterminal::PredicatedQualityBare,
+        "PredicatedArgumentBare" | "KeywordArgument" => Nonterminal::PredicatedArgumentBare,
         "Sentence" => Nonterminal::Sentence,
-        "KeywordArgument" => Nonterminal::PredicatedArgumentBare,
         _ => return None,
     })
 }
@@ -422,6 +535,9 @@ fn codec_slot(codec: &'static str) -> Option<EnglishLexicalSlot> {
         "Conjunction" => Some(EnglishLexicalSlot::Conjunction),
         "NounPhraseConjunction" => Some(EnglishLexicalSlot::NounPhraseConjunction),
         "Comma" => Some(EnglishLexicalSlot::Punctuation(Punctuation::Comma)),
+        "ColorWord" => Some(EnglishLexicalSlot::ColorWord),
+        "OracleSymbol" => Some(EnglishLexicalSlot::OracleSymbol),
+        "SymbolSequence" => Some(EnglishLexicalSlot::SymbolSequence),
         _ => None,
     }
 }
@@ -472,6 +588,22 @@ fn identity_slot(
             Ok(EnglishLexicalSlot::Noun(crate::word::NounUsage::Either))
         }
         ("NounInstance", "OpaqueNoun") => Ok(EnglishLexicalSlot::OpaqueNoun),
+        ("NounInstance", "CombatStepParticipants") => {
+            Ok(EnglishLexicalSlot::CombatStepParticipants)
+        }
+        ("NounInstance", "CombatStepHead") => Ok(EnglishLexicalSlot::CombatStepHead),
+        ("NominalModifier", "NegatedModifier") => Ok(EnglishLexicalSlot::NegatedModifier),
+        ("NounInstance", "SymbolArgumentKeywordNoun") => {
+            Ok(EnglishLexicalSlot::SymbolArgumentKeywordNoun)
+        }
+        ("NounInstance", "ExplicitPredicatedKeywordNoun") => {
+            Ok(EnglishLexicalSlot::ExplicitPredicatedKeywordNoun)
+        }
+        ("NounInstance", "AtomCarriedPredicatedKeywordNoun") => {
+            Ok(EnglishLexicalSlot::AtomCarriedPredicatedKeywordNoun)
+        }
+        ("CatalogAtom", "DevotionValue") => Ok(EnglishLexicalSlot::DevotionValue),
+        ("NounInstance", "TimesNoun") => Ok(EnglishLexicalSlot::TimesNoun),
         _ => Err(GeneratedAssemblyError::UnsupportedIdentityAdapter {
             owner,
             field,
@@ -564,9 +696,17 @@ fn atom_expected(
                     field: path,
                 })?;
             match (atom, field.kind) {
-                (AtomData::Hole(_), FieldKindData::Subtree { category, .. }) => Ok(
-                    Expected::Nonterminal(category_nonterminal(cats, construction, category)?),
-                ),
+                (
+                    AtomData::Hole(_),
+                    FieldKindData::Subtree { category, .. }
+                    | FieldKindData::Optional {
+                        inner: &FieldKindData::Subtree { category, .. },
+                    },
+                ) => Ok(Expected::Nonterminal(category_nonterminal(
+                    cats,
+                    construction,
+                    category,
+                )?)),
                 (AtomData::Hole(_), FieldKindData::Sequence { element }) => aux
                     .get(&(group.name, element, AuxCategoryKind::Sequence))
                     .copied()
@@ -886,10 +1026,25 @@ fn predicate_requires_nonempty(predicate: PredicateData, path: &str) -> bool {
 }
 
 fn generated_cost(construction: &ConstructionData) -> super::ParseCost {
-    GeneratedFeatureCombinator::from_construction(construction).map_or_else(
+    let mut cost = GeneratedFeatureCombinator::from_construction(construction).map_or_else(
         super::ParseCost::default,
         GeneratedFeatureCombinator::base_cost,
-    )
+    );
+    if matches!(
+        construction.id,
+        "nominal_adjective"
+            | "nominal_noun_modifier"
+            | "nominal_negated_modifier"
+            | "nominal_quantity_modifier"
+            | "nominal_power_toughness_modifier"
+            | "nominal_quantity_complement"
+    ) {
+        cost.precedence = 1;
+    }
+    if construction.id == "nominal_postpositive_adjective_conjoined_prepositional" {
+        cost.attachment_count = 1;
+    }
+    cost
 }
 
 fn rules_object_member_rhs(

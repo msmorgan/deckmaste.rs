@@ -26,6 +26,7 @@ use super::SetExceptionState;
 use super::VerbSlot;
 use super::clause;
 use super::generated::GeneratedFeatureCombinator;
+use super::generated::NominalConstruction;
 use super::noun_phrase_accepts_set_exception;
 
 #[allow(clippy::too_many_lines, reason = "reduce matches on all rule tags")]
@@ -53,42 +54,7 @@ pub(super) fn reduce(
         | RuleTag::ComparisonStandard
         | RuleTag::ComparisonThan
         | RuleTag::ComparisonThanOrEqualTo
-        | RuleTag::NominalNoun
-        | RuleTag::NominalAdjective
-        | RuleTag::NominalNounModifier
-        | RuleTag::NominalCombatStepName
-        | RuleTag::NominalNegatedModifier
-        | RuleTag::NominalQuantityModifier
-        | RuleTag::NominalPowerToughnessModifier
-        | RuleTag::NominalDeterminer
-        | RuleTag::NominalPrepositional
-        | RuleTag::NominalInfinitive
-        | RuleTag::NominalQuantityComplement
-        | RuleTag::NominalKeywordSymbolArgument
-        | RuleTag::PredicatedQualityFrom
-        | RuleTag::PredicatedArgumentFromSingle
-        | RuleTag::PredicatedArgumentFromExtend
-        | RuleTag::NominalKeywordPredicatedArgument
-        | RuleTag::PredicatedQualityBare
-        | RuleTag::PredicatedArgumentBareSingle
-        | RuleTag::PredicatedArgumentBareExtend
-        | RuleTag::NominalKeywordAtomCarriedPredicatedArgument
         | RuleTag::NominalPowerToughnessComplement
-        | RuleTag::NominalRelative
-        | RuleTag::RulesObjectNominalBase
-        | RuleTag::RulesObjectFollowupNominalRelative
-        | RuleTag::RulesObjectFollowupNominalPrepositional
-        | RuleTag::NominalReducedRecipientPassive
-        | RuleTag::NominalPostpositiveAdjective
-        | RuleTag::NominalPostpositiveAdjectiveConjoinedPrepositional
-        | RuleTag::NominalPostpositiveAdjectiveConjoined
-        | RuleTag::NominalPostpositiveAdjectiveAsyndetic
-        | RuleTag::NominalPostpositiveAdjectiveOxford
-        | RuleTag::NominalComparison
-        | RuleTag::NominalDevotion
-        | RuleTag::DevotionColorSingle
-        | RuleTag::DevotionColorPair
-        | RuleTag::NominalTimesClause
         | RuleTag::ModifierConjunctAdjective
         | RuleTag::ModifierConjunctNoun
         | RuleTag::ModifierConjunctNegated
@@ -96,12 +62,13 @@ pub(super) fn reduce(
         | RuleTag::ModifierListComma
         | RuleTag::CoordinatedModifierConjoined
         | RuleTag::CoordinatedModifierOxford
-        | RuleTag::NominalCoordinatedModifier => reduce_nominal(tag, children)?,
+        | RuleTag::NominalCoordinatedModifier => {
+            reduce_nominal(NominalReduction::from_rule_tag(tag)?, children)?
+        }
         RuleTag::NounPhraseNominal
         | RuleTag::RulesObjectNounPhrase
         | RuleTag::NounPhraseSetExceptionBare
         | RuleTag::NounPhraseSetExceptionFor
-        | RuleTag::ReducedRecipientPassiveTheme
         | RuleTag::NounPhraseSubjectPronoun
         | RuleTag::NounPhraseObjectPronoun
         | RuleTag::NounPhraseReciprocal
@@ -153,7 +120,6 @@ pub(super) fn reduce(
         | RuleTag::ManaAmountCoordinationOxford
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
-        | RuleTag::ReducedRecipientPassiveNominalAdjunct
         | RuleTag::InfinitiveTo
         | RuleTag::InfinitiveNotTo
         | RuleTag::GerundClauseBase
@@ -213,20 +179,7 @@ pub(super) fn reduce(
             clause::reduce_clause(tag, children)?
         }
     };
-    let mut local_cost = clause::reduction_cost(tag, children);
-    if tag == RuleTag::NominalRelative
-        && matches!(
-            children.first().map(|child| child.features),
-            Some(Features::Nominal {
-                attachment: NominalAttachmentPhase::Prepositional {
-                    nearer_relative_host: true,
-                },
-                ..
-            })
-        )
-    {
-        local_cost.precedence = local_cost.precedence.saturating_add(1);
-    }
+    let local_cost = clause::reduction_cost(tag, children);
     Some(Reduction {
         features,
         local_cost,
@@ -416,14 +369,166 @@ pub(super) const fn target_cardinality(cardinality: NounCardinality) -> NounCard
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NominalReduction {
+    Adjective,
+    AdjectivePhrase,
+    AdjectivePhraseFaceUp,
+    AdjectivePhraseFaceDown,
+    AdjectivePhraseComparison,
+    AdjectivePhraseDegreeMeasure,
+    ComparisonStandard,
+    ComparisonThan,
+    ComparisonThanOrEqualTo,
+    NominalNoun,
+    NominalAdjective,
+    NominalNounModifier,
+    NominalCombatStepName,
+    NominalNegatedModifier,
+    NominalQuantityModifier,
+    NominalPowerToughnessModifier,
+    NominalDeterminer,
+    NominalPrepositional,
+    NominalInfinitive,
+    NominalQuantityComplement,
+    NominalKeywordSymbolArgument,
+    PredicatedQualityFrom,
+    PredicatedArgumentFromSingle,
+    PredicatedArgumentFromExtend,
+    NominalKeywordPredicatedArgument,
+    PredicatedQualityBare,
+    PredicatedArgumentBareSingle,
+    PredicatedArgumentBareExtend,
+    NominalKeywordAtomCarriedPredicatedArgument,
+    NominalPowerToughnessComplement,
+    NominalRelative,
+    RulesObjectNominalBase,
+    RulesObjectFollowupNominalRelative,
+    RulesObjectFollowupNominalPrepositional,
+    NominalReducedRecipientPassive,
+    ReducedRecipientPassiveTheme,
+    ReducedRecipientPassiveNominalAdjunct,
+    NominalPostpositiveAdjective,
+    NominalPostpositiveAdjectiveConjoinedPrepositional,
+    NominalPostpositiveAdjectiveConjoined,
+    NominalPostpositiveAdjectiveAsyndetic,
+    NominalPostpositiveAdjectiveOxford,
+    NominalComparison,
+    NominalDevotion,
+    DevotionColorSingle,
+    DevotionColorPair,
+    NominalTimesClause,
+    ModifierConjunctAdjective,
+    ModifierConjunctNoun,
+    ModifierConjunctNegated,
+    ModifierListSingle,
+    ModifierListComma,
+    CoordinatedModifierConjoined,
+    CoordinatedModifierOxford,
+    NominalCoordinatedModifier,
+}
+
+impl NominalReduction {
+    fn from_rule_tag(tag: RuleTag) -> Option<Self> {
+        Some(match tag {
+            RuleTag::Adjective => Self::Adjective,
+            RuleTag::AdjectivePhrase => Self::AdjectivePhrase,
+            RuleTag::AdjectivePhraseFaceUp => Self::AdjectivePhraseFaceUp,
+            RuleTag::AdjectivePhraseFaceDown => Self::AdjectivePhraseFaceDown,
+            RuleTag::AdjectivePhraseComparison => Self::AdjectivePhraseComparison,
+            RuleTag::AdjectivePhraseDegreeMeasure => Self::AdjectivePhraseDegreeMeasure,
+            RuleTag::ComparisonStandard => Self::ComparisonStandard,
+            RuleTag::ComparisonThan => Self::ComparisonThan,
+            RuleTag::ComparisonThanOrEqualTo => Self::ComparisonThanOrEqualTo,
+            RuleTag::NominalPowerToughnessComplement => Self::NominalPowerToughnessComplement,
+            RuleTag::ModifierConjunctAdjective => Self::ModifierConjunctAdjective,
+            RuleTag::ModifierConjunctNoun => Self::ModifierConjunctNoun,
+            RuleTag::ModifierConjunctNegated => Self::ModifierConjunctNegated,
+            RuleTag::ModifierListSingle => Self::ModifierListSingle,
+            RuleTag::ModifierListComma => Self::ModifierListComma,
+            RuleTag::CoordinatedModifierConjoined => Self::CoordinatedModifierConjoined,
+            RuleTag::CoordinatedModifierOxford => Self::CoordinatedModifierOxford,
+            RuleTag::NominalCoordinatedModifier => Self::NominalCoordinatedModifier,
+            _ => return None,
+        })
+    }
+}
+
+impl From<NominalConstruction> for NominalReduction {
+    fn from(construction: NominalConstruction) -> Self {
+        match construction {
+            NominalConstruction::NominalNoun => Self::NominalNoun,
+            NominalConstruction::NominalAdjective => Self::NominalAdjective,
+            NominalConstruction::NominalNounModifier => Self::NominalNounModifier,
+            NominalConstruction::NominalCombatStepName => Self::NominalCombatStepName,
+            NominalConstruction::NominalNegatedModifier => Self::NominalNegatedModifier,
+            NominalConstruction::NominalQuantityModifier => Self::NominalQuantityModifier,
+            NominalConstruction::NominalPowerToughnessModifier => {
+                Self::NominalPowerToughnessModifier
+            }
+            NominalConstruction::NominalDeterminer => Self::NominalDeterminer,
+            NominalConstruction::NominalPrepositional => Self::NominalPrepositional,
+            NominalConstruction::NominalInfinitive => Self::NominalInfinitive,
+            NominalConstruction::NominalQuantityComplement => Self::NominalQuantityComplement,
+            NominalConstruction::NominalKeywordSymbolArgument => Self::NominalKeywordSymbolArgument,
+            NominalConstruction::PredicatedQualityFrom => Self::PredicatedQualityFrom,
+            NominalConstruction::PredicatedArgumentFromSingle => Self::PredicatedArgumentFromSingle,
+            NominalConstruction::PredicatedArgumentFromExtend => Self::PredicatedArgumentFromExtend,
+            NominalConstruction::NominalKeywordPredicatedArgument => {
+                Self::NominalKeywordPredicatedArgument
+            }
+            NominalConstruction::PredicatedQualityBare => Self::PredicatedQualityBare,
+            NominalConstruction::PredicatedArgumentBareSingle => Self::PredicatedArgumentBareSingle,
+            NominalConstruction::PredicatedArgumentBareExtend => Self::PredicatedArgumentBareExtend,
+            NominalConstruction::NominalKeywordAtomCarriedPredicatedArgument => {
+                Self::NominalKeywordAtomCarriedPredicatedArgument
+            }
+            NominalConstruction::NominalRelative => Self::NominalRelative,
+            NominalConstruction::RulesObjectNominalBase => Self::RulesObjectNominalBase,
+            NominalConstruction::RulesObjectFollowupNominalRelative => {
+                Self::RulesObjectFollowupNominalRelative
+            }
+            NominalConstruction::RulesObjectFollowupNominalPrepositional => {
+                Self::RulesObjectFollowupNominalPrepositional
+            }
+            NominalConstruction::NominalReducedRecipientPassive => {
+                Self::NominalReducedRecipientPassive
+            }
+            NominalConstruction::ReducedRecipientPassiveTheme => Self::ReducedRecipientPassiveTheme,
+            NominalConstruction::ReducedRecipientPassiveNominalAdjunct => {
+                Self::ReducedRecipientPassiveNominalAdjunct
+            }
+            NominalConstruction::NominalPostpositiveAdjective => Self::NominalPostpositiveAdjective,
+            NominalConstruction::NominalPostpositiveAdjectiveConjoinedPrepositional => {
+                Self::NominalPostpositiveAdjectiveConjoinedPrepositional
+            }
+            NominalConstruction::NominalPostpositiveAdjectiveConjoined => {
+                Self::NominalPostpositiveAdjectiveConjoined
+            }
+            NominalConstruction::NominalPostpositiveAdjectiveAsyndetic => {
+                Self::NominalPostpositiveAdjectiveAsyndetic
+            }
+            NominalConstruction::NominalPostpositiveAdjectiveOxford => {
+                Self::NominalPostpositiveAdjectiveOxford
+            }
+            NominalConstruction::NominalComparison => Self::NominalComparison,
+            NominalConstruction::NominalDevotion => Self::NominalDevotion,
+            NominalConstruction::DevotionColorSingle => Self::DevotionColorSingle,
+            NominalConstruction::DevotionColorPair => Self::DevotionColorPair,
+            NominalConstruction::NominalTimesClause => Self::NominalTimesClause,
+        }
+    }
+}
+
 #[allow(
     clippy::too_many_lines,
     reason = "quantity/reduction mapping is intentionally long"
 )]
-pub(super) fn reduce_nominal(
-    tag: RuleTag,
+fn reduce_nominal(
+    tag: NominalReduction,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> Option<Reduced> {
+    use NominalReduction as RuleTag;
     match tag {
         RuleTag::Adjective => Some(propagate(children.first()?)),
         RuleTag::AdjectivePhraseFaceUp | RuleTag::AdjectivePhraseFaceDown => {
@@ -1327,6 +1432,42 @@ pub(super) fn reduce_nominal(
                 recipient_passive_theme: false,
             })
         }
+        RuleTag::ReducedRecipientPassiveTheme => {
+            let Features::Nominal {
+                coordination_domain,
+                form,
+                determined,
+                modified,
+                attachment: NominalAttachmentPhase::Open,
+                adjunct,
+                recipient_passive_theme: true,
+                ..
+            } = children.first()?.features
+            else {
+                return None;
+            };
+            let agreement = Some(Agreement {
+                person: Person::Third,
+                number: match form {
+                    NounForm::Plural => Number::Plural,
+                    NounForm::Singular | NounForm::Mass => Number::Singular,
+                },
+            });
+            let adjunct = if *determined || *modified { *adjunct } else { None };
+            Some(Features::NounPhrase {
+                agreement,
+                coordination_domain: *coordination_domain,
+                pronoun_case: None,
+                adjunct,
+                set_exception: SetExceptionState::Ineligible,
+                coordination: NounPhraseCoordinationState::None,
+                recipient_passive_theme: true,
+                rules_object_followup: false,
+            })
+        }
+        RuleTag::ReducedRecipientPassiveNominalAdjunct => {
+            clause::reduce_generated_recipient_passive_nominal_adjunct(children)
+        }
         RuleTag::ModifierConjunctAdjective => {
             // Only plain attributive adjectives coordinate as modifiers: a
             // comparative or a card-orientation adjective is not an atom of a
@@ -1467,7 +1608,6 @@ pub(super) fn reduce_nominal(
                 true,
             )
         }
-        _ => None,
     }
 }
 
@@ -1508,15 +1648,12 @@ pub(super) fn reduce_phrase(
                 rules_object_followup: false,
             })
         }
-        RuleTag::NounPhraseNominal
-        | RuleTag::RulesObjectNounPhrase
-        | RuleTag::ReducedRecipientPassiveTheme => {
+        RuleTag::NounPhraseNominal | RuleTag::RulesObjectNounPhrase => {
             let Features::Nominal {
                 coordination_domain,
                 form,
                 determined,
                 modified,
-                attachment,
                 adjunct,
                 set_exception_host,
                 recipient_passive_theme,
@@ -1525,11 +1662,6 @@ pub(super) fn reduce_phrase(
             else {
                 return None;
             };
-            if tag == RuleTag::ReducedRecipientPassiveTheme
-                && (*attachment != NominalAttachmentPhase::Open || !*recipient_passive_theme)
-            {
-                return None;
-            }
             let agreement = Some(Agreement {
                 person: Person::Third,
                 number: match form {
@@ -2028,6 +2160,41 @@ pub(super) fn reduce_generated(
 
     let construction = rule.group.constructions.get(rule.construction)?;
     let form = construction.forms.get(rule.form)?;
+    if GeneratedFeatureCombinator::from_construction(construction)
+        == Some(GeneratedFeatureCombinator::Nominal)
+    {
+        let construction = NominalConstruction::from_id(construction.id)?;
+        let features = reduce_nominal(construction.into(), children)?;
+        let mut local_cost = super::ParseCost::default();
+        if construction == NominalConstruction::NominalInfinitive
+            && matches!(
+                children.first().map(|child| child.features),
+                Some(Features::Nominal {
+                    recipient_passive_theme: true,
+                    ..
+                })
+            )
+        {
+            local_cost.precedence = local_cost.precedence.saturating_add(1);
+        }
+        if construction == NominalConstruction::NominalRelative
+            && matches!(
+                children.first().map(|child| child.features),
+                Some(Features::Nominal {
+                    attachment: NominalAttachmentPhase::Prepositional {
+                        nearer_relative_host: true,
+                    },
+                    ..
+                })
+            )
+        {
+            local_cost.precedence = local_cost.precedence.saturating_add(1);
+        }
+        return Some(Reduction {
+            features,
+            local_cost,
+        });
+    }
     let (preposition, mut child_index) = match rule.context {
         super::rules::GeneratedRuleContext::Value => (None, 0_usize),
         super::rules::GeneratedRuleContext::SharedPreposition => {
@@ -2326,7 +2493,7 @@ fn generated_prepositional_coordination_features(
     fields: &[Option<&Features>],
 ) -> Option<Features> {
     match combinator {
-        GeneratedFeatureCombinator::CompleteSentence => None,
+        GeneratedFeatureCombinator::CompleteSentence | GeneratedFeatureCombinator::Nominal => None,
         GeneratedFeatureCombinator::CompleteNounPhraseCoordination => {
             let rest_field = combinator.rest_field_index(construction)?;
             let Features::GeneratedSequence { tail } = fields.get(rest_field)?.as_ref()? else {

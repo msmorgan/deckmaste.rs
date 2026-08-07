@@ -39,10 +39,8 @@ use reduction::reduce;
 use rules::RegistrationOrder;
 use rules::RuleBuilder;
 use rules::RuleImpl;
-use scan::accepts_keyword_grant_prefix;
 use scan::accepts_possessive_modifier_prefix;
 use scan::accepts_set_exception_prefix;
-use scan::adjective_comparison_state;
 use scan::copula_agreement;
 use scan::lexical_word_matches;
 use scan::literal_match;
@@ -115,7 +113,6 @@ use crate::syntax::GerundClause;
 use crate::syntax::IndefiniteArticle;
 use crate::syntax::InfinitiveMarker;
 use crate::syntax::KeywordArgument;
-use crate::syntax::KeywordCost;
 use crate::syntax::NominalComplement;
 use crate::syntax::NominalModifier;
 use crate::syntax::NominalPhrase;
@@ -127,8 +124,6 @@ use crate::syntax::Phrase;
 use crate::syntax::Polarity;
 use crate::syntax::Possessor;
 use crate::syntax::PowerToughness;
-use crate::syntax::PredicatedArgument;
-use crate::syntax::PredicatedQuality;
 use crate::syntax::Preposition;
 use crate::syntax::PrepositionalPhrase;
 use crate::syntax::PreverbModifier;
@@ -1629,70 +1624,8 @@ enum RuleTag {
     ComparisonStandard,
     ComparisonThan,
     ComparisonThanOrEqualTo,
-    NominalNoun,
-    NominalAdjective,
-    NominalNounModifier,
-    /// The fixed `declare attackers`/`declare blockers` combat-step name
-    /// [CR#508.1,509.1], built from three literal-token slots so the
-    /// production is structurally incapable of matching any other span.
-    NominalCombatStepName,
-    NominalNegatedModifier,
-    NominalQuantityModifier,
-    NominalPowerToughnessModifier,
-    NominalDeterminer,
-    NominalPrepositional,
-    NominalInfinitive,
-    NominalQuantityComplement,
-    /// A parameterized keyword ability's symbol-cost argument attached to
-    /// its keyword-noun head in grant position (`ward {2}`) — Stage A of
-    /// the `kwgrant` round.
-    NominalKeywordSymbolArgument,
-    /// `PredicatedQualityFrom -> From ColorWord` / `From NounPhrase` — Stage B.
-    PredicatedQualityFrom,
-    /// `PredicatedArgumentFrom -> PredicatedQualityFrom` — Stage B list base.
-    PredicatedArgumentFromSingle,
-    /// `PredicatedArgumentFrom -> PredicatedArgumentFrom Conjunction
-    /// PredicatedQualityFrom` — Stage B list extension (`and` only, gated by
-    /// `accepts_keyword_grant_prefix`).
-    PredicatedArgumentFromExtend,
-    /// `Nominal -> ExplicitPredicatedKeywordNoun PredicatedArgumentFrom` —
-    /// Stage B grant nominal.
-    NominalKeywordPredicatedArgument,
-    /// `PredicatedQualityBare -> ColorWord | AdjectivePhrase | NounPhrase` —
-    /// Stage C.
-    PredicatedQualityBare,
-    /// `PredicatedArgumentBare -> PredicatedQualityBare` — Stage C list base.
-    PredicatedArgumentBareSingle,
-    /// `PredicatedArgumentBare -> PredicatedArgumentBare Conjunction
-    /// PredicatedQualityFrom` — Stage C list extension (repeated qualities
-    /// keep an explicit `from`; only the first quality is bare).
-    PredicatedArgumentBareExtend,
-    /// `Nominal -> AtomCarriedPredicatedKeywordNoun PredicatedArgumentBare` —
-    /// Stage C grant nominal.
-    NominalKeywordAtomCarriedPredicatedArgument,
-    NominalRelative,
-    /// `RulesObjectNominal -> Nominal`, gated to the nominal's current
-    /// constrained-relative attachment phase at reduction time.
-    RulesObjectNominalBase,
-    /// Extends a rules-object nominal with a later ordinary relative.
-    RulesObjectFollowupNominalRelative,
-    /// Keeps a PP following that later relative inside the same nominal.
-    RulesObjectFollowupNominalPrepositional,
-    NominalReducedRecipientPassive,
     NounPhraseSetExceptionBare,
     NounPhraseSetExceptionFor,
-    ReducedRecipientPassiveTheme,
-    ReducedRecipientPassiveNominalAdjunct,
-    NominalPostpositiveAdjective,
-    NominalPostpositiveAdjectiveConjoinedPrepositional,
-    NominalPostpositiveAdjectiveConjoined,
-    NominalPostpositiveAdjectiveAsyndetic,
-    NominalPostpositiveAdjectiveOxford,
-    NominalComparison,
-    NominalDevotion,
-    DevotionColorSingle,
-    DevotionColorPair,
-    NominalTimesClause,
     NounPhraseNominal,
     RulesObjectNounPhrase,
     NounPhraseSubjectPronoun,
@@ -1907,7 +1840,7 @@ enum RuleTag {
     /// power and toughness *X/X*`). The `N/N` token sets the base
     /// characteristic; it rides the final coordinated characteristic of a
     /// `power and toughness` pair. Mirrors
-    /// [`Self::NominalQuantityComplement`] for the P/T token.
+    /// `nominal_quantity_complement` for the P/T token.
     NominalPowerToughnessComplement,
 }
 
@@ -1985,7 +1918,6 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         // This rule's dot-1 gate (`Features::Subordinator(While)`) is likewise
         // categorical.
         builder.add_while_gerund_rules();
-        builder.add_keyword_grant_rules();
         builder.add_reduced_recipient_passive_rules();
         // This widens `NounPhrase`, but its dot-1 host gate is categorical.
         builder.add_set_exception_rules();
@@ -3055,48 +2987,58 @@ impl Grammar for EnglishGrammar<'_, '_> {
         latest_child_start: usize,
         end: usize,
     ) -> ParseCost {
-        let Some(RuleImpl::Handwritten(tag)) = self.impls.get(rule.index()).copied() else {
-            return ParseCost::default();
-        };
-        let attachment_distance = u32::try_from(latest_child_start.saturating_sub(rule_start))
-            .unwrap_or(u32::MAX)
-            .max(1);
-        let attachment_extent = u32::try_from(end.saturating_sub(rule_start))
-            .unwrap_or(u32::MAX)
-            .max(1);
-        match tag {
-            RuleTag::NominalRelative
-                if completed_children.len() == 2
-                    && matches!(
-                        completed_children.get(1),
-                        Some(Features::RelativeClause {
-                            gap: GapState::Object,
-                            object_gap_requires_rules_object: true,
-                            ..
-                        })
-                    ) =>
-            {
-                // Keep the preference on this concrete packed split:
-                // reduction features deliberately merge competing attachment
-                // boundaries.
-                ParseCost {
-                    attachment_count: 1,
-                    attachment_distance,
-                    ..ParseCost::default()
+        match self.impls.get(rule.index()).copied() {
+            Some(RuleImpl::Generated(generated)) => {
+                let Some(construction) = generated.group.constructions.get(generated.construction)
+                else {
+                    return ParseCost::default();
+                };
+                let Some(construction) = generated::NominalConstruction::from_id(construction.id)
+                else {
+                    return ParseCost::default();
+                };
+                let attachment_distance =
+                    u32::try_from(latest_child_start.saturating_sub(rule_start))
+                        .unwrap_or(u32::MAX)
+                        .max(1);
+                let attachment_extent = u32::try_from(end.saturating_sub(rule_start))
+                    .unwrap_or(u32::MAX)
+                    .max(1);
+                match construction {
+                    generated::NominalConstruction::NominalRelative
+                        if completed_children.len() == 2
+                            && matches!(
+                                completed_children.get(1),
+                                Some(Features::RelativeClause {
+                                    gap: GapState::Object,
+                                    object_gap_requires_rules_object: true,
+                                    ..
+                                })
+                            ) =>
+                    {
+                        ParseCost {
+                            attachment_count: 1,
+                            attachment_distance,
+                            ..ParseCost::default()
+                        }
+                    }
+                    generated::NominalConstruction::RulesObjectFollowupNominalRelative
+                    | generated::NominalConstruction::RulesObjectFollowupNominalPrepositional
+                        if completed_children.len() == 2 =>
+                    {
+                        ParseCost {
+                            attachment_count: 1,
+                            attachment_distance,
+                            attachment_extent,
+                            ..ParseCost::default()
+                        }
+                    }
+                    _ => ParseCost::default(),
                 }
             }
-            RuleTag::RulesObjectFollowupNominalRelative
-            | RuleTag::RulesObjectFollowupNominalPrepositional
-                if completed_children.len() == 2 =>
-            {
-                ParseCost {
-                    attachment_count: 1,
-                    attachment_distance,
-                    attachment_extent,
-                    ..ParseCost::default()
-                }
+            Some(RuleImpl::Handwritten(_) | RuleImpl::GeneratedAux(_)) | None => {
+                ParseCost::default()
             }
-            _ => ParseCost::default(),
         }
     }
 
@@ -3109,11 +3051,39 @@ impl Grammar for EnglishGrammar<'_, '_> {
         match self.impls.get(rule.index()).copied() {
             Some(RuleImpl::Handwritten(tag)) => {
                 accepts_possessive_modifier_prefix(tag, completed_children, latest_child)
-                    && accepts_keyword_grant_prefix(tag, completed_children, latest_child)
                     && accepts_set_exception_prefix(tag, completed_children, latest_child)
                     && clause::accepts_predicate_prefix(tag, completed_children, latest_child)
             }
-            Some(RuleImpl::Generated(_) | RuleImpl::GeneratedAux(_)) => true,
+            Some(RuleImpl::Generated(generated)) => {
+                let Some(construction) = generated.group.constructions.get(generated.construction)
+                else {
+                    return false;
+                };
+                generated::NominalConstruction::from_id(construction.id).is_none_or(
+                    |construction| match construction {
+                        generated::NominalConstruction::PredicatedArgumentFromExtend
+                        | generated::NominalConstruction::PredicatedArgumentBareExtend
+                            if completed_children == 2 =>
+                        {
+                            matches!(latest_child, Features::Conjunction(Conjunction::And))
+                        }
+                        generated::NominalConstruction::ReducedRecipientPassiveNominalAdjunct
+                            if completed_children == 1 =>
+                        {
+                            matches!(
+                                latest_child,
+                                Features::VerbPhrase {
+                                    object,
+                                    frame,
+                                    ..
+                                } if frame.is_recipient_passive() && object.has_direct_object()
+                            )
+                        }
+                        _ => true,
+                    },
+                )
+            }
+            Some(RuleImpl::GeneratedAux(_)) => true,
             None => false,
         }
     }

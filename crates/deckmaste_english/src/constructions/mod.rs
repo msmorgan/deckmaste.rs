@@ -3,6 +3,7 @@
 pub(crate) mod coordination;
 #[cfg(test)]
 pub(crate) mod law;
+pub(crate) mod nominal;
 pub(crate) mod noun;
 #[cfg(test)]
 pub(crate) mod probe;
@@ -14,6 +15,7 @@ use deckmaste_construction_compiler::runtime::GroupData;
 pub(crate) static GROUPS: &[&GroupData] = &[
     coordination::GROUPS[0],
     noun::GROUPS[0],
+    nominal::GROUPS[0],
     quantity::GROUPS[0],
     sentence::GROUPS[0],
 ];

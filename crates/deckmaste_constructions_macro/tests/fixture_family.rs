@@ -388,6 +388,77 @@ deckmaste_constructions_macro::constructions! {
     }
 }
 
+#[allow(
+    clippy::unnecessary_wraps,
+    reason = "the fixture adapter must implement the same Result-returning contract as generated bind adapters"
+)]
+fn build_mixed_suffix(
+    head: LensToken,
+    suffix: LensToken,
+) -> Result<FlattenedLensRecord, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+    Ok(FlattenedLensRecord {
+        determiner: None,
+        prefix: Vec::new(),
+        head,
+        suffix: vec![suffix],
+    })
+}
+
+fn parts_mixed_suffix(value: &FlattenedLensRecord) -> (LensToken, LensToken) {
+    (value.head, value.suffix[0])
+}
+
+fn is_mixed_suffix(value: &FlattenedLensRecord) -> bool {
+    value.determiner.is_none() && value.prefix.is_empty() && value.suffix.len() == 1
+}
+
+fn is_mixed_prepend(value: &FlattenedLensRecord) -> bool {
+    value.prefix.first() == Some(&LensToken::Inserted) && value.suffix.is_empty()
+}
+
+deckmaste_constructions_macro::constructions! {
+    group mixed_lens_dispatch;
+
+    lens mixed_record bind FlattenedLensRecord {
+        determiner: opt LensToken,
+        prefix: vec LensToken,
+        head: value LensToken,
+        suffix: vec LensToken,
+    }
+
+    construction mixed_lens_head: FlattenedLensRecord {
+        bind FlattenedLensRecord {
+            head: hole LensToken,
+        }
+        lens mixed_record {
+            focus head with head;
+        }
+        form only @ 0 = head;
+        selection unique;
+    }
+
+    construction mixed_lens_prepend: FlattenedLensRecord {
+        bind FlattenedLensRecord {
+            owner: hole FlattenedLensRecord,
+            member: hole LensToken,
+        }
+        lens mixed_record from owner {
+            prepend prefix with member;
+        }
+        form only @ 0 inverse check(is_mixed_prepend) = member owner;
+        selection unique;
+    }
+
+    construction mixed_adapted_suffix: FlattenedLensRecord {
+        bind FlattenedLensRecord via build_mixed_suffix, parts_mixed_suffix {
+            head: hole LensToken,
+            suffix: hole LensToken,
+        }
+        form only @ 0 when check(is_mixed_suffix) = head suffix;
+        selection unique;
+    }
+}
+
 #[derive(Default)]
 struct LensLinearizer {
     tokens: Vec<LensToken>,
@@ -662,6 +733,39 @@ fn lens_family_dispatch_rejects_zero_or_multiple_exact_parts_matches_before_visi
     assert!(
         visitor.tokens.is_empty(),
         "multiple matches are rejected before visitor effects"
+    );
+}
+
+#[test]
+fn mixed_lens_family_dispatch_includes_guarded_adapters_for_the_same_owner() {
+    // Mutation guarded: classify only the lensed subset of a declaration
+    // group and silently omit a guarded adapted construction that rebuilds
+    // the same semantic owner. M01 needs both ordinary field lenses and
+    // validated whole-owner transformations in one total nominal family.
+    let value = build_mixed_suffix(LensToken::Head, LensToken::Suffix).unwrap();
+    let mut visitor = LensLinearizer::default();
+    linearize_mixed_lens_dispatch_group_with(&value, &mut visitor)
+        .expect("the guarded adapted member participates in family preflight");
+    assert_eq!(visitor.tokens, [LensToken::Head, LensToken::Suffix]);
+
+    let rejected_lens_parts = FlattenedLensRecord {
+        determiner: None,
+        prefix: vec![LensToken::Prefix],
+        head: LensToken::Head,
+        suffix: Vec::new(),
+    };
+    let mut visitor = LensLinearizer::default();
+    assert!(matches!(
+        linearize_mixed_lens_dispatch_group_with(&rejected_lens_parts, &mut visitor),
+        Err(
+            deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
+                group: "mixed_lens_dispatch"
+            }
+        )
+    ));
+    assert!(
+        visitor.tokens.is_empty(),
+        "a lensed parts match whose value guard declines must not visit"
     );
 }
 

@@ -2648,8 +2648,11 @@ mod tests {
 
     #[test]
     fn real_generated_exact_parses_carry_built_ast_and_form_witness() {
-        static GROUPS: &[&deckmaste_construction_compiler::runtime::GroupData] =
-            &[noun::GROUPS[0], coordination::GROUPS[0]];
+        static GROUPS: &[&deckmaste_construction_compiler::runtime::GroupData] = &[
+            noun::GROUPS[0],
+            crate::constructions::nominal::GROUPS[0],
+            coordination::GROUPS[0],
+        ];
         let activation = GeneratedActivation::Groups(GROUPS);
         for (source, construction) in [
             ("an artifact or a creature", "noun_phrase_coordination"),

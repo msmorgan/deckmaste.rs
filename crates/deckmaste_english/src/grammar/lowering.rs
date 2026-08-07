@@ -1,5 +1,4 @@
 use super::Adjective;
-use super::AdjectiveComparisonState;
 use super::AdjectivePhrase;
 use super::AuxiliaryInstance;
 use super::CardOrientation;
@@ -20,7 +19,6 @@ use super::FrequencyPhrase;
 use super::GerundClause;
 use super::InfinitiveClause;
 use super::KeywordArgument;
-use super::KeywordCost;
 use super::MeaningKey;
 use super::NodeId;
 use super::NominalComplement;
@@ -38,8 +36,6 @@ use super::Phrase;
 use super::Polarity;
 use super::Possessor;
 use super::PowerToughness;
-use super::PredicatedArgument;
-use super::PredicatedQuality;
 use super::Preposition;
 use super::PrepositionalPhrase;
 use super::PronounCase;
@@ -61,12 +57,10 @@ use super::VerbParticle;
 use super::VerbPhrase;
 use super::Vocab;
 use super::ability;
-use super::adjective_comparison_state;
 use super::clause;
 use super::parse_support::EnglishForest;
 use crate::forest::AlternativeSelection;
 use crate::syntax::ComparativeWord;
-use crate::word::Tense;
 
 pub(super) enum GeneratedValue {
     Typed(deckmaste_construction_compiler::runtime::ErasedValue),
@@ -368,9 +362,37 @@ fn project_generated_category(
     construction: &deckmaste_construction_compiler::runtime::ConstructionData,
     value: deckmaste_construction_compiler::runtime::ErasedValue,
 ) -> Option<Lowered> {
-    if construction.category == "NounPhrase" {
+    if matches!(
+        construction.category,
+        "NounPhrase" | "ReducedRecipientPassiveTheme"
+    ) {
         let value = value.downcast::<NounPhrase>().ok()?;
         return Some(Lowered::NounPhrase(*value));
+    }
+    if matches!(
+        construction.category,
+        "NominalPhrase" | "RulesObjectNominal" | "RulesObjectFollowupNominal"
+    ) {
+        let value = value.downcast::<NominalPhrase>().ok()?;
+        return Some(Lowered::Nominal(*value));
+    }
+    if matches!(
+        construction.category,
+        "PredicatedQualityFrom" | "PredicatedQualityBare"
+    ) {
+        let value = value.downcast::<crate::syntax::PredicatedQuality>().ok()?;
+        return Some(Lowered::PredicatedQuality(*value));
+    }
+    if matches!(
+        construction.category,
+        "PredicatedArgumentFrom" | "PredicatedArgumentBare"
+    ) {
+        let value = value.downcast::<crate::syntax::PredicatedArgument>().ok()?;
+        return Some(Lowered::PredicatedArgument(*value));
+    }
+    if construction.category == "DevotionColors" {
+        let value = value.downcast::<crate::syntax::DevotionColors>().ok()?;
+        return Some(Lowered::DevotionColors(*value));
     }
     if construction.category == "Noun" {
         let value = value.downcast::<NounInstance>().ok()?;
@@ -438,6 +460,24 @@ fn erased_field(
             };
             Some(Box::new(value))
         }
+        K::Identity {
+            value_type: "NominalModifier",
+            ..
+        } => {
+            let Lowered::NominalModifier(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Identity {
+            value_type: "CatalogAtom",
+            ..
+        } => {
+            let Lowered::Catalog(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
         K::Subtree { category, boxed } => erased_subtree(category, boxed, value),
         K::Scalar {
             codec: "Conjunction" | "NounPhraseConjunction",
@@ -472,6 +512,28 @@ fn erased_field(
             codec: "ComparativeWord",
         } => {
             let Lowered::ComparativeWord(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Scalar { codec: "ColorWord" } => {
+            let Lowered::Adjective(Adjective::Color(value)) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Scalar {
+            codec: "OracleSymbol",
+        } => {
+            let Lowered::OracleSymbol(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Scalar {
+            codec: "SymbolSequence",
+        } => {
+            let Lowered::SymbolSequence(value) = value else {
                 return None;
             };
             Some(Box::new(value))
@@ -517,8 +579,11 @@ fn erased_subtree(
         }};
     }
     match category {
-        "NounPhrase" => typed!(NounPhrase, value),
-        "NominalPhrase" => typed!(Nominal, value),
+        "NounInstance" => typed!(Noun, value),
+        "NounPhrase" | "ReducedRecipientPassiveTheme" => typed!(NounPhrase, value),
+        "NominalPhrase" | "RulesObjectNominal" | "RulesObjectFollowupNominal" => {
+            typed!(Nominal, value)
+        }
         "Determiner" => typed!(Determiner, value),
         "AdjectivePhrase" => typed!(AdjectivePhrase, value),
         "CoordinatedAdjectivePhrase" => {
@@ -529,17 +594,39 @@ fn erased_subtree(
             if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
         }
         "PrepositionalPhrase" => typed!(PrepositionalPhrase, value),
-        "InfinitiveClause" => typed!(InfinitiveClause, value),
+        "ComparisonComplement" => typed!(ComparisonComplement, value),
+        "InfinitiveClause" => {
+            let Lowered::InfinitiveClause(value) = value else {
+                return None;
+            };
+            let value = clause::finish_infinitive(value)?;
+            if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
+        }
         "RelativeClause" => typed!(RelativeClause, value),
         "Quantity" => typed!(Quantity, value),
         "DevotionColors" => typed!(DevotionColors, value),
         "PowerToughness" => typed!(PowerToughness, value),
         "TransitivePredicate" => {
-            let Lowered::VerbPhrase(value) = value else {
-                return None;
+            let value = match value {
+                Lowered::VerbPhrase(value) => {
+                    Box::new(clause::finish_reduced_recipient_passive(value)?)
+                        as deckmaste_construction_compiler::runtime::ErasedValue
+                }
+                Lowered::Generated(GeneratedValue::Typed(value))
+                    if value.is::<crate::syntax::TransitivePredicate>() =>
+                {
+                    value
+                }
+                _ => return None,
             };
-            let value = clause::finish_reduced_recipient_passive(value)?;
-            if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
+            if boxed {
+                let value = value
+                    .downcast::<crate::syntax::TransitivePredicate>()
+                    .ok()?;
+                Some(Box::new(value))
+            } else {
+                Some(value)
+            }
         }
         "IndependentClause" => {
             let Lowered::Clause(Clause::Independent(value)) = value else {
@@ -559,6 +646,12 @@ fn erased_subtree(
             };
             let value = KeywordArgument::Predicated(value);
             if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
+        }
+        "PredicatedQualityFrom" | "PredicatedQualityBare" => {
+            typed!(PredicatedQuality, value)
+        }
+        "PredicatedArgumentFrom" | "PredicatedArgumentBare" => {
+            typed!(PredicatedArgument, value)
         }
         _ => {
             let Lowered::Generated(GeneratedValue::Typed(value)) = value else {
@@ -592,6 +685,52 @@ fn erased_optional(
             };
             Some(Box::new(Some(*value)))
         }
+        K::Scalar { codec: "ColorWord" } => {
+            let Lowered::Adjective(Adjective::Color(value)) = value else {
+                return None;
+            };
+            Some(Box::new(Some(*value)))
+        }
+        K::Scalar {
+            codec: "OracleSymbol",
+        } => {
+            let Lowered::OracleSymbol(value) = value else {
+                return None;
+            };
+            Some(Box::new(Some(value.clone())))
+        }
+        K::Scalar {
+            codec: "SymbolSequence",
+        } => {
+            let Lowered::SymbolSequence(value) = value else {
+                return None;
+            };
+            Some(Box::new(Some(value.clone())))
+        }
+        K::Subtree {
+            category,
+            boxed: false,
+        } => match category {
+            "NounPhrase" => {
+                let Lowered::NounPhrase(value) = value else {
+                    return None;
+                };
+                Some(Box::new(Some(value.clone())))
+            }
+            "AdjectivePhrase" => {
+                let Lowered::AdjectivePhrase(value) = value else {
+                    return None;
+                };
+                Some(Box::new(Some(value.clone())))
+            }
+            "RulesObjectNominal" | "RulesObjectFollowupNominal" => {
+                let Lowered::Nominal(value) = value else {
+                    return None;
+                };
+                Some(Box::new(Some(value.clone())))
+            }
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -608,6 +747,25 @@ fn erased_optional_absent(
         K::Scalar {
             codec: "ComparativeWord",
         } => Some(Box::new(None::<crate::syntax::ComparativeWord>)),
+        K::Scalar { codec: "ColorWord" } => Some(Box::new(None::<crate::word::ColorWord>)),
+        K::Scalar {
+            codec: "OracleSymbol",
+        } => Some(Box::new(None::<crate::syntax::OracleSymbol>)),
+        K::Scalar {
+            codec: "SymbolSequence",
+        } => Some(Box::new(None::<Vec<crate::syntax::OracleSymbol>>)),
+        K::Subtree {
+            category: "NounPhrase",
+            boxed: false,
+        } => Some(Box::new(None::<crate::syntax::NounPhrase>)),
+        K::Subtree {
+            category: "AdjectivePhrase",
+            boxed: false,
+        } => Some(Box::new(None::<crate::syntax::AdjectivePhrase>)),
+        K::Subtree {
+            category: "RulesObjectNominal" | "RulesObjectFollowupNominal",
+            boxed: false,
+        } => Some(Box::new(None::<crate::syntax::NominalPhrase>)),
         _ => None,
     }
 }
@@ -758,42 +916,7 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::ComparisonStandard
         | RuleTag::ComparisonThan
         | RuleTag::ComparisonThanOrEqualTo
-        | RuleTag::NominalNoun
-        | RuleTag::NominalAdjective
-        | RuleTag::NominalNounModifier
-        | RuleTag::NominalCombatStepName
-        | RuleTag::NominalNegatedModifier
-        | RuleTag::NominalQuantityModifier
-        | RuleTag::NominalPowerToughnessModifier
-        | RuleTag::NominalDeterminer
-        | RuleTag::NominalPrepositional
-        | RuleTag::NominalInfinitive
-        | RuleTag::NominalQuantityComplement
-        | RuleTag::NominalKeywordSymbolArgument
-        | RuleTag::PredicatedQualityFrom
-        | RuleTag::PredicatedArgumentFromSingle
-        | RuleTag::PredicatedArgumentFromExtend
-        | RuleTag::NominalKeywordPredicatedArgument
-        | RuleTag::PredicatedQualityBare
-        | RuleTag::PredicatedArgumentBareSingle
-        | RuleTag::PredicatedArgumentBareExtend
-        | RuleTag::NominalKeywordAtomCarriedPredicatedArgument
         | RuleTag::NominalPowerToughnessComplement
-        | RuleTag::NominalRelative
-        | RuleTag::RulesObjectNominalBase
-        | RuleTag::RulesObjectFollowupNominalRelative
-        | RuleTag::RulesObjectFollowupNominalPrepositional
-        | RuleTag::NominalReducedRecipientPassive
-        | RuleTag::NominalPostpositiveAdjective
-        | RuleTag::NominalPostpositiveAdjectiveConjoinedPrepositional
-        | RuleTag::NominalPostpositiveAdjectiveConjoined
-        | RuleTag::NominalPostpositiveAdjectiveAsyndetic
-        | RuleTag::NominalPostpositiveAdjectiveOxford
-        | RuleTag::NominalComparison
-        | RuleTag::NominalDevotion
-        | RuleTag::DevotionColorSingle
-        | RuleTag::DevotionColorPair
-        | RuleTag::NominalTimesClause
         | RuleTag::ModifierConjunctAdjective
         | RuleTag::ModifierConjunctNoun
         | RuleTag::ModifierConjunctNegated
@@ -806,7 +929,6 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::RulesObjectNounPhrase
         | RuleTag::NounPhraseSetExceptionBare
         | RuleTag::NounPhraseSetExceptionFor
-        | RuleTag::ReducedRecipientPassiveTheme
         | RuleTag::NounPhraseSubjectPronoun
         | RuleTag::NounPhraseObjectPronoun
         | RuleTag::NounPhraseReciprocal
@@ -858,7 +980,6 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::ManaAmountCoordinationOxford
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
-        | RuleTag::ReducedRecipientPassiveNominalAdjunct
         | RuleTag::InfinitiveTo
         | RuleTag::InfinitiveNotTo
         | RuleTag::GerundClauseBase
@@ -1055,7 +1176,7 @@ pub(super) fn detach_keyword_noun(noun: &mut NounInstance) {
 )]
 pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
-        RuleTag::Adjective | RuleTag::RulesObjectNominalBase => take(children, 0),
+        RuleTag::Adjective => take(children, 0),
         RuleTag::AdjectivePhraseFaceUp | RuleTag::AdjectivePhraseFaceDown => {
             let orientation = match tag {
                 RuleTag::AdjectivePhraseFaceUp => CardOrientation::FaceUp,
@@ -1128,241 +1249,6 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
                 standard: Box::new(standard),
             }))
         }
-        RuleTag::NominalNoun => {
-            let Lowered::Noun(head) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::Nominal(NominalPhrase {
-                determiner: None,
-                modifiers: Vec::new(),
-                head,
-                complements: Vec::new(),
-            }))
-        }
-        RuleTag::NominalCombatStepName => {
-            let Lowered::Noun(participants) = take(children, 1)? else {
-                return None;
-            };
-            let Lowered::Noun(head) = take(children, 2)? else {
-                return None;
-            };
-            // Redundant by design (§2.4): the literal-token slots are the
-            // defense. If this guard ever fires, the slots have a bug — it
-            // is not the safety mechanism.
-            if !matches!(
-                participants.kind(),
-                crate::word::NounInstanceKind::Plural(
-                    Noun::Word(_) | Noun::Agentive(Verb::Word(Vocab::Attack | Vocab::Block))
-                )
-            ) {
-                return None;
-            }
-            if !matches!(
-                head.kind(),
-                crate::word::NounInstanceKind::Singular(Noun::Word(_))
-            ) {
-                return None;
-            }
-            Some(Lowered::Nominal(NominalPhrase {
-                determiner: None,
-                modifiers: vec![NominalModifier::CombatStepName { participants }],
-                head,
-                complements: Vec::new(),
-            }))
-        }
-        RuleTag::NominalAdjective => {
-            let Lowered::AdjectivePhrase(adjective) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Nominal(mut nominal) = take(children, 1)? else {
-                return None;
-            };
-            if introduces_proper_name(&adjective) {
-                open_name_interior(&mut nominal);
-            }
-            nominal.modifiers.insert(
-                0,
-                NominalModifier::Adjective {
-                    polarity: Polarity::Positive,
-                    phrase: adjective,
-                },
-            );
-            Some(Lowered::Nominal(nominal))
-        }
-        RuleTag::NominalNounModifier => {
-            let Lowered::Noun(noun) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Nominal(mut nominal) = take(children, 1)? else {
-                return None;
-            };
-            nominal.modifiers.insert(
-                0,
-                NominalModifier::Noun {
-                    polarity: Polarity::Positive,
-                    noun,
-                },
-            );
-            Some(Lowered::Nominal(nominal))
-        }
-        RuleTag::NominalNegatedModifier => {
-            let Lowered::NominalModifier(modifier) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Nominal(mut nominal) = take(children, 1)? else {
-                return None;
-            };
-            nominal.modifiers.insert(0, modifier);
-            Some(Lowered::Nominal(nominal))
-        }
-        RuleTag::NominalQuantityModifier => {
-            let Lowered::Quantity(quantity) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Nominal(mut nominal) = take(children, 1)? else {
-                return None;
-            };
-            nominal
-                .modifiers
-                .insert(0, NominalModifier::Quantity(quantity));
-            Some(Lowered::Nominal(nominal))
-        }
-        RuleTag::NominalPowerToughnessModifier => {
-            let Lowered::PowerToughness(modifier) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Nominal(mut nominal) = take(children, 1)? else {
-                return None;
-            };
-            nominal
-                .modifiers
-                .insert(0, NominalModifier::PowerToughness(modifier));
-            Some(Lowered::Nominal(nominal))
-        }
-        RuleTag::NominalDeterminer => {
-            let Lowered::Determiner(determiner) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Nominal(mut nominal) = take(children, 1)? else {
-                return None;
-            };
-            nominal.determiner = Some(determiner);
-            Some(Lowered::Nominal(nominal))
-        }
-        RuleTag::NominalPrepositional | RuleTag::RulesObjectFollowupNominalPrepositional => {
-            let Lowered::Nominal(mut nominal) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::PrepositionalPhrase(preposition) = take(children, 1)? else {
-                return None;
-            };
-            nominal
-                .complements
-                .push(NominalComplement::Prepositional(preposition));
-            Some(Lowered::Nominal(nominal))
-        }
-        RuleTag::NominalInfinitive => {
-            let Lowered::Nominal(mut nominal) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::InfinitiveClause(infinitive) = take(children, 1)? else {
-                return None;
-            };
-            nominal
-                .complements
-                .push(NominalComplement::Infinitive(clause::finish_infinitive(
-                    infinitive,
-                )?));
-            Some(Lowered::Nominal(nominal))
-        }
-        RuleTag::NominalQuantityComplement => {
-            let Lowered::Nominal(mut nominal) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Quantity(quantity) = take(children, 1)? else {
-                return None;
-            };
-            nominal
-                .complements
-                .push(NominalComplement::Quantity(quantity));
-            Some(Lowered::Nominal(nominal))
-        }
-        RuleTag::PredicatedQualityFrom => {
-            let quality = match take(children, 1)? {
-                Lowered::Adjective(Adjective::Color(color)) => Phrase::ColorWord(color),
-                Lowered::NounPhrase(noun_phrase) => Phrase::NounPhrase(Box::new(noun_phrase)),
-                _ => return None,
-            };
-            Some(Lowered::PredicatedQuality(PredicatedQuality {
-                preposition: Some(Preposition::From),
-                quality,
-            }))
-        }
-        RuleTag::PredicatedQualityBare => {
-            let quality = match take(children, 0)? {
-                Lowered::Adjective(Adjective::Color(color)) => Phrase::ColorWord(color),
-                Lowered::AdjectivePhrase(adjective) => Phrase::AdjectivePhrase(Box::new(adjective)),
-                Lowered::NounPhrase(noun_phrase) => Phrase::NounPhrase(Box::new(noun_phrase)),
-                _ => return None,
-            };
-            Some(Lowered::PredicatedQuality(PredicatedQuality {
-                preposition: None,
-                quality,
-            }))
-        }
-        RuleTag::PredicatedArgumentFromSingle | RuleTag::PredicatedArgumentBareSingle => {
-            let Lowered::PredicatedQuality(quality) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::PredicatedArgument(PredicatedArgument {
-                qualities: vec![quality],
-            }))
-        }
-        RuleTag::PredicatedArgumentFromExtend | RuleTag::PredicatedArgumentBareExtend => {
-            let Lowered::PredicatedArgument(mut argument) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::PredicatedQuality(quality) = take(children, 2)? else {
-                return None;
-            };
-            argument.qualities.push(quality);
-            Some(Lowered::PredicatedArgument(argument))
-        }
-        RuleTag::NominalKeywordPredicatedArgument
-        | RuleTag::NominalKeywordAtomCarriedPredicatedArgument => {
-            let Lowered::Noun(head) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::PredicatedArgument(argument) = take(children, 1)? else {
-                return None;
-            };
-            Some(Lowered::Nominal(NominalPhrase {
-                determiner: None,
-                modifiers: Vec::new(),
-                head,
-                complements: vec![NominalComplement::KeywordArgument(
-                    KeywordArgument::Predicated(argument),
-                )],
-            }))
-        }
-        RuleTag::NominalKeywordSymbolArgument => {
-            let Lowered::Noun(head) = take(children, 0)? else {
-                return None;
-            };
-            let symbols = match take(children, 1)? {
-                Lowered::OracleSymbol(symbol) => vec![symbol],
-                Lowered::SymbolSequence(symbols) => symbols,
-                _ => return None,
-            };
-            Some(Lowered::Nominal(NominalPhrase {
-                determiner: None,
-                modifiers: Vec::new(),
-                head,
-                complements: vec![NominalComplement::KeywordArgument(KeywordArgument::Costed(
-                    KeywordCost::Symbols(symbols),
-                ))],
-            }))
-        }
         RuleTag::NominalPowerToughnessComplement => {
             let Lowered::Nominal(mut nominal) = take(children, 0)? else {
                 return None;
@@ -1374,241 +1260,6 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
                 .complements
                 .push(NominalComplement::PowerToughness(power_toughness));
             Some(Lowered::Nominal(nominal))
-        }
-        RuleTag::NominalRelative | RuleTag::RulesObjectFollowupNominalRelative => {
-            let Lowered::Nominal(mut nominal) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::RelativeClause(relative) = take(children, 1)? else {
-                return None;
-            };
-            nominal
-                .complements
-                .push(NominalComplement::Relative(relative));
-            Some(Lowered::Nominal(nominal))
-        }
-        RuleTag::NominalReducedRecipientPassive => {
-            let Lowered::Nominal(mut nominal) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::VerbPhrase(predicate) = take(children, 1)? else {
-                return None;
-            };
-            nominal
-                .complements
-                .push(NominalComplement::ReducedRecipientPassive(
-                    clause::finish_reduced_recipient_passive(predicate)?,
-                ));
-            Some(Lowered::Nominal(nominal))
-        }
-        RuleTag::NominalPostpositiveAdjective => {
-            let Lowered::Nominal(mut nominal) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::AdjectivePhrase(adjective) = take(children, 1)? else {
-                return None;
-            };
-            nominal
-                .complements
-                .push(NominalComplement::Adjective(adjective));
-            Some(Lowered::Nominal(nominal))
-        }
-        RuleTag::NominalPostpositiveAdjectiveConjoinedPrepositional => {
-            let Lowered::Nominal(mut nominal) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Conjunction(conjunction) = take(children, 1)? else {
-                return None;
-            };
-            let conjunction = noun_phrase_conjunction(conjunction)?;
-            let Lowered::AdjectivePhrase(mut adjective) = take(children, 2)? else {
-                return None;
-            };
-            let Lowered::PrepositionalPhrase(preposition) = take(children, 3)? else {
-                return None;
-            };
-            if !matches!(adjective.head, Adjective::Participle(Tense::Past, _))
-                || preposition.head().preposition != Preposition::By
-            {
-                return None;
-            }
-            adjective
-                .complements
-                .push(crate::syntax::AdjectiveComplement::Prepositional(
-                    preposition,
-                ));
-            let previous = nominal.complements.pop()?;
-            let coordinated = match previous {
-                NominalComplement::Adjective(first) => crate::syntax::CoordinatedAdjectivePhrase {
-                    first: Box::new(first),
-                    rest: vec![crate::syntax::AdjectivePhraseCoordination {
-                        conjunction: Some(conjunction),
-                        phrase: adjective,
-                    }],
-                },
-                NominalComplement::CoordinatedAdjective(mut coordinated) => {
-                    let previous_conjunction = coordinated
-                        .rest
-                        .iter()
-                        .rev()
-                        .find_map(|member| member.conjunction);
-                    if previous_conjunction.is_some_and(|previous| previous != conjunction) {
-                        return None;
-                    }
-                    coordinated
-                        .rest
-                        .push(crate::syntax::AdjectivePhraseCoordination {
-                            conjunction: Some(conjunction),
-                            phrase: adjective,
-                        });
-                    coordinated
-                }
-                _ => return None,
-            };
-            nominal
-                .complements
-                .push(NominalComplement::CoordinatedAdjective(coordinated));
-            Some(Lowered::Nominal(nominal))
-        }
-        RuleTag::NominalPostpositiveAdjectiveConjoined
-        | RuleTag::NominalPostpositiveAdjectiveAsyndetic
-        | RuleTag::NominalPostpositiveAdjectiveOxford => {
-            let (conjunction_index, adjective_index) = match tag {
-                RuleTag::NominalPostpositiveAdjectiveConjoined => (Some(1), 2),
-                RuleTag::NominalPostpositiveAdjectiveAsyndetic => (None, 2),
-                RuleTag::NominalPostpositiveAdjectiveOxford => (Some(2), 3),
-                _ => unreachable!("matched postpositive coordination tag"),
-            };
-            let conjunction = match conjunction_index {
-                Some(index) => {
-                    let Lowered::Conjunction(conjunction) = take(children, index)? else {
-                        return None;
-                    };
-                    Some(noun_phrase_conjunction(conjunction)?)
-                }
-                None => None,
-            };
-            let Lowered::Nominal(mut nominal) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::AdjectivePhrase(adjective) = take(children, adjective_index)? else {
-                return None;
-            };
-            let previous = nominal.complements.pop()?;
-            let coordinated = match previous {
-                NominalComplement::Adjective(first) => crate::syntax::CoordinatedAdjectivePhrase {
-                    first: Box::new(first),
-                    rest: vec![crate::syntax::AdjectivePhraseCoordination {
-                        conjunction,
-                        phrase: adjective,
-                    }],
-                },
-                NominalComplement::CoordinatedAdjective(mut coordinated) => {
-                    let previous_conjunction = coordinated
-                        .rest
-                        .iter()
-                        .rev()
-                        .find_map(|member| member.conjunction);
-                    if matches!(
-                        (previous_conjunction, conjunction),
-                        (Some(previous), Some(next)) if previous != next
-                    ) {
-                        return None;
-                    }
-                    coordinated
-                        .rest
-                        .push(crate::syntax::AdjectivePhraseCoordination {
-                            conjunction,
-                            phrase: adjective,
-                        });
-                    coordinated
-                }
-                _ => return None,
-            };
-            nominal
-                .complements
-                .push(NominalComplement::CoordinatedAdjective(coordinated));
-            Some(Lowered::Nominal(nominal))
-        }
-        RuleTag::NominalComparison => {
-            let Lowered::Nominal(mut nominal) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::ComparisonComplement(comparison) = take(children, 1)? else {
-                return None;
-            };
-            let adjective = nominal.modifiers.iter_mut().rev().find_map(|modifier| {
-                let NominalModifier::Adjective {
-                    phrase: adjective, ..
-                } = modifier
-                else {
-                    return None;
-                };
-                (matches!(
-                    adjective_comparison_state(&adjective.head),
-                    AdjectiveComparisonState::Pending(_)
-                ) && !adjective.complements.iter().any(|complement| {
-                    matches!(
-                        complement,
-                        crate::syntax::AdjectiveComplement::Comparison(_)
-                            | crate::syntax::AdjectiveComplement::PostnominalComparison(_)
-                    )
-                }))
-                .then_some(adjective)
-            })?;
-            adjective
-                .complements
-                .push(crate::syntax::AdjectiveComplement::PostnominalComparison(
-                    comparison,
-                ));
-            Some(Lowered::Nominal(nominal))
-        }
-        RuleTag::DevotionColorSingle => {
-            let Lowered::Adjective(Adjective::Color(color)) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::DevotionColors(
-                crate::syntax::DevotionColors::Color(color),
-            ))
-        }
-        RuleTag::DevotionColorPair => {
-            let Lowered::Adjective(Adjective::Color(first)) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Adjective(Adjective::Color(second)) = take(children, 2)? else {
-                return None;
-            };
-            Some(Lowered::DevotionColors(
-                crate::syntax::DevotionColors::Pair(first, second),
-            ))
-        }
-        RuleTag::NominalDevotion => {
-            let Lowered::Catalog(atom) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::DevotionColors(colors) = take(children, 2)? else {
-                return None;
-            };
-            Some(Lowered::Nominal(NominalPhrase {
-                determiner: None,
-                modifiers: Vec::new(),
-                head: NounInstance::Singular(Noun::Catalog(atom)),
-                complements: vec![NominalComplement::Devotion(colors)],
-            }))
-        }
-        RuleTag::NominalTimesClause => {
-            let Lowered::Noun(head) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Clause(Clause::Independent(clause)) = take(children, 1)? else {
-                return None;
-            };
-            Some(Lowered::Nominal(NominalPhrase {
-                determiner: None,
-                modifiers: Vec::new(),
-                head,
-                complements: vec![NominalComplement::EventClause(Box::new(clause))],
-            }))
         }
         RuleTag::ModifierConjunctAdjective => {
             let Lowered::AdjectivePhrase(phrase) = take(children, 0)? else {
@@ -1721,9 +1372,7 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
                 },
             )))
         }
-        RuleTag::NounPhraseNominal
-        | RuleTag::RulesObjectNounPhrase
-        | RuleTag::ReducedRecipientPassiveTheme => {
+        RuleTag::NounPhraseNominal | RuleTag::RulesObjectNounPhrase => {
             let Lowered::Nominal(nominal) = take(children, 0)? else {
                 return None;
             };

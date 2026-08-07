@@ -12,26 +12,26 @@ The chart census comes from `RuleTag` in
 `crates/deckmaste_english/src/grammar/mod.rs`. `RuleTag` derives `EnumIter` and
 `IntoStaticStr` with `snake_case`, and
 `grammar/construction.rs::handwritten_registry` maps every iterated tag to one
-handwritten, fan-out-one chart row. The merged production registry adds fifteen
-generated rows: the ten Q01 quantity rows, `sentence`, `noun`, `noun_opaque`,
-`noun_phrase_coordination`, and `shared_determiner_nominal`; they are not
-remaining work. The ability census
+handwritten, fan-out-one chart row. The merged production registry adds 52
+generated rows: the ten Q01 quantity rows, the 37 M01 nominal rows, `sentence`,
+`noun`, `noun_opaque`, `noun_phrase_coordination`, and
+`shared_determiner_nominal`; they are not remaining work. The ability census
 comes from the three non-chart entry points documented and dispatched by
 `FragmentKind`: `Cost`, `KeywordLine`, and `Ability`.
 
 | source | handwritten / ungenerated | already generated | accounted total |
 |---|---:|---:|---:|
-| chart construction registry | 177 | 15 | 192 |
+| chart construction registry | 140 | 52 | 192 |
 | handwritten ability layer | 3 | 0 | 3 |
-| migration inventory | 180 | 15 | 195 |
+| migration inventory | 143 | 52 | 195 |
 
-Every one of the 192 chart IDs occurs once in the ledger below: 177 remain
-handwritten, while Q01, S01, N01, and the two coordination rows are generated.
-The three ability IDs occur once in A01. Thus the remaining work is 180 rows, with
-no `later` row. No raw corpus query was needed for this accounting; the census
-is grounded in the registry and the current `FragmentKind` dispatch. Future
-corpus evidence must use supported faces, and normalized-template questions
-must use the existing English instruments.
+Every one of the 192 chart IDs occurs once in the ledger below: 140 remain
+handwritten, while Q01, M01, S01, N01, and the two coordination rows are
+generated. The three ability IDs occur once in A01. Thus the remaining work is
+143 rows, with no `later` row. No raw corpus query was needed for this
+accounting; the census is grounded in the registry and the current
+`FragmentKind` dispatch. Future corpus evidence must use supported faces, and
+normalized-template questions must use the existing English instruments.
 
 ## How to read the unit records
 
@@ -95,7 +95,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 | D01 determiner and possession | 9 | C3 | `english-derived-determiner-possession-family` | scalar, identity, lens |
 | J01 adjective and comparison | 9 | C3 | `english-derived-adjective-comparison-family` | scalar, identity, lens |
 | N01 noun identity and opacity | 2 | C2 identity | `english-derived-noun-lexeme-family` | generated |
-| M01 nominal spine | 37 | C2 lens | `english-derived-nominal-family` | scalar, identity |
+| M01 nominal spine | 37 | C2 lens | `english-derived-nominal-family` | generated |
 | P01 noun phrase | 19 | C3 | `english-derived-noun-phrase-family` | scalar and identity |
 | P02 prepositional phrase | 2 | C3 | `english-derived-prepositional-family` | identity |
 | V01 predicate spine | 34 | C3 | `english-derived-predicate-family` | scalar, identity, lens |
@@ -215,6 +215,8 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 
 ## M01 — nominal spine
 
+**Status:** generated.
+
 **Stable IDs (37):** `nominal_noun`, `nominal_adjective`,
 `nominal_noun_modifier`, `nominal_combat_step_name`,
 `nominal_negated_modifier`, `nominal_quantity_modifier`,
@@ -238,10 +240,12 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 `nominal_devotion`, `devotion_color_single`, `devotion_color_pair`,
 `nominal_times_clause`.
 
-- **Owners and AST:** NR, including the late specialized rule builders, →
+- **Owners and AST:** generated declarations and their typed adapters →
   `NominalPhrase`, `NominalModifier`, `NominalComplement`,
-  `PredicatedArgument`, and the rules-object/reduced-passive helpers; REN owns
-  nominal/modifier/complement output; SYN-P owns raw ingress.
+  `PredicatedArgument`, and the rules-object/reduced-passive helpers; the
+  generated nominal inverse owns M01 output. `NominalPhrase` exposes read-only
+  accessors and a checked bare-noun constructor rather than public writable
+  fields, while its serialized view remains output-only.
 - **Holes and constraints:** subtree holes for noun, adjective, determiner,
   quantity, PP, relative, infinitive, and clause; scalar/identity holes for
   power/toughness, symbols, keyword atoms, colors, and conjunction; field

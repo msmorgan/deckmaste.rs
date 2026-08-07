@@ -38,7 +38,9 @@ fn predicated_keyword_single_pp_keeps_generic_ast_with_declared_dominance() {
                 })
         })
         .expect("generic nominal attachment decision");
-    assert_eq!(decision.owner(), ConstructionOwner::Handwritten);
+    // Mutation caught: restore the handwritten M01 registration after the
+    // declaration-driven family has become the sole authority.
+    assert_eq!(decision.owner(), ConstructionOwner::Generated);
     assert_eq!(decision.backend(), ConstructionBackend::Chart);
     assert_eq!(decision.reason(), SelectionReason::Dominance);
     assert!(decision.alternatives().iter().any(|candidate| {
@@ -169,12 +171,9 @@ fn public_known_and_opaque_nouns_use_generated_identity_families() {
             "blorple",
         ),
     ] {
-        let fragment = Fragment::Nominal(NounPhrase::Nominal(NominalPhrase {
-            determiner: None,
-            modifiers: Vec::new(),
-            head: noun,
-            complements: Vec::new(),
-        }));
+        let nominal = NominalPhrase::try_from_noun(noun)
+            .expect("the generated nominal base admits this noun identity");
+        let fragment = Fragment::Nominal(NounPhrase::Nominal(nominal));
         assert_eq!(
             render_fragment(&fragment, "Test Card", false).unwrap(),
             expected
@@ -1306,14 +1305,14 @@ impl<'syntax> SyntaxInventory<'syntax> {
 
     fn nominal_phrase(&mut self, nominal: &'syntax NominalPhrase) {
         self.nominals.push(nominal);
-        if let Some(determiner) = &nominal.determiner {
+        if let Some(determiner) = nominal.determiner() {
             self.determiner(determiner);
         }
-        self.nouns.push(&nominal.head);
-        for modifier in &nominal.modifiers {
+        self.nouns.push(nominal.head());
+        for modifier in nominal.modifiers() {
             self.nominal_modifier(modifier);
         }
-        for complement in &nominal.complements {
+        for complement in nominal.complements() {
             self.nominal_complement(complement);
         }
     }
@@ -1686,22 +1685,18 @@ fn last_effect_clause(ast: &OracleText) -> &IndependentClause {
 }
 
 fn is_any_number_of(phrase: &NounPhrase) -> bool {
-    let NounPhrase::Nominal(NominalPhrase {
-        determiner: Some(Determiner::Any),
-        modifiers,
-        head,
-        complements,
-        ..
-    }) = phrase
-    else {
+    let NounPhrase::Nominal(nominal) = phrase else {
         return false;
     };
+    if !matches!(nominal.determiner(), Some(Determiner::Any)) {
+        return false;
+    }
     matches!(
-        head.kind(),
+        nominal.head().kind(),
         NounInstanceKind::Singular(Noun::Word(Vocab::Number))
-    ) && modifiers.is_empty()
+    ) && nominal.modifiers().is_empty()
         && matches!(
-            complements.first(),
+            nominal.complements().first(),
             Some(NominalComplement::Prepositional(
                 PrepositionalPhrase::Simple(deckmaste_english::syntax::SimplePrepositionalPhrase {
                     preposition: Preposition::Of,
@@ -1914,7 +1909,7 @@ fn sliver_stays_a_creature_type_not_a_self_reference() {
         panic!("expected a nominal token object: {ast:#?}");
     };
     assert!(
-        token.modifiers.iter().any(|modifier| matches!(
+        token.modifiers().iter().any(|modifier| matches!(
             modifier,
             NominalModifier::Noun {
                 noun,
@@ -2308,12 +2303,12 @@ fn base_power_and_toughness_stat_sets_a_characteristic_pair() {
         panic!("expected nominal first characteristic: {ast}")
     };
     assert!(matches!(
-        first.head.kind(),
+        first.head().kind(),
         NounInstanceKind::Singular(Noun::Word(Vocab::Power))
     ));
-    assert!(first.complements.is_empty());
+    assert!(first.complements().is_empty());
     assert!(matches!(
-        first.modifiers.as_slice(),
+        first.modifiers(),
         [NominalModifier::Noun {
             polarity: Polarity::Positive,
             noun,
@@ -2332,11 +2327,11 @@ fn base_power_and_toughness_stat_sets_a_characteristic_pair() {
         panic!("expected the coordinated toughness characteristic: {ast}")
     };
     assert!(matches!(
-        second.head.kind(),
+        second.head().kind(),
         NounInstanceKind::Mass(Noun::Word(Vocab::Toughness))
     ));
     assert!(matches!(
-        second.complements.as_slice(),
+        second.complements(),
         [NominalComplement::PowerToughness(PowerToughness {
             power: SignedScalar {
                 sign: ScalarSign::None,
@@ -2373,11 +2368,11 @@ fn base_power_or_toughness_quantity_bound_rides_the_existing_quantity_complement
         panic!("expected the coordinated toughness characteristic: {ast}")
     };
     assert!(matches!(
-        toughness.head.kind(),
+        toughness.head().kind(),
         NounInstanceKind::Mass(Noun::Word(Vocab::Toughness))
     ));
     assert!(matches!(
-        toughness.complements.as_slice(),
+        toughness.complements(),
         [NominalComplement::Quantity(quantity)] if matches!(
             quantity.kind(),
             QuantityKind::OrComparison(
@@ -3061,7 +3056,7 @@ fn number_literal_one_still_wins_over_the_noun_reading() {
     let inventory = SyntaxInventory::from_ast(&ast);
     assert!(
         inventory.nominals.iter().any(|nominal| matches!(
-            nominal.determiner.as_ref(),
+            nominal.determiner(),
             Some(Determiner::Target(Some(quantity)))
                 if matches!(
                     quantity.kind(),
@@ -3762,7 +3757,7 @@ fn qfloat_core_one_or_two_each_gets_lowers_as_coordinated_np() {
                     coordinated.first().as_ref(),
                     NounPhrase::Nominal(nominal)
                         if matches!(
-                            nominal.head.kind(),
+                            nominal.head().kind(),
                             NounInstanceKind::Singular(Noun::Word(Vocab::One))
                         )
                 )
@@ -3774,7 +3769,7 @@ fn qfloat_core_one_or_two_each_gets_lowers_as_coordinated_np() {
             clause_subject(only_independent_clause(&ast)),
             Some(NounPhrase::Nominal(nominal))
                 if matches!(
-                    nominal.determiner.as_ref(),
+                    nominal.determiner(),
                     Some(Determiner::Target(Some(quantity)))
                         if matches!(quantity.kind(), QuantityKind::Or(_, _))
                 )
@@ -4139,7 +4134,7 @@ fn anof_cardinal_two_target_players_exchange_life_totals() {
             .iter()
             .any(|nominal| {
                 matches!(
-                    nominal.determiner.as_ref(),
+                    nominal.determiner(),
                     Some(Determiner::Target(Some(quantity)))
                         if matches!(
                             quantity.kind(),
@@ -4149,7 +4144,7 @@ fn anof_cardinal_two_target_players_exchange_life_totals() {
                             })
                         )
                 ) && matches!(
-                    nominal.head.kind(),
+                    nominal.head().kind(),
                     NounInstanceKind::Plural(Noun::Word(Vocab::Player))
                 )
             }),
@@ -4183,7 +4178,7 @@ fn multiword_cardinal_plural_lowers_as_one_quantity() {
     };
     assert!(
         matches!(
-            nominal.determiner.as_ref(),
+            nominal.determiner(),
             Some(Determiner::Quantity(quantity))
                 if matches!(
                     quantity.kind(),
@@ -4195,7 +4190,7 @@ fn multiword_cardinal_plural_lowers_as_one_quantity() {
         ),
         "the complete numeral span must lower as 100: {plural:#?}"
     );
-    assert!(matches!(nominal.head.kind(), NounInstanceKind::Plural(_)));
+    assert!(matches!(nominal.head().kind(), NounInstanceKind::Plural(_)));
 }
 
 #[test]
@@ -4341,7 +4336,7 @@ fn anof_cardinal_number_literal_one_still_wins_gate_stays_green() {
     let inventory = SyntaxInventory::from_ast(&ast);
     assert!(
         inventory.nominals.iter().any(|nominal| matches!(
-            nominal.determiner.as_ref(),
+            nominal.determiner(),
             Some(Determiner::Target(Some(quantity)))
                 if matches!(
                     quantity.kind(),

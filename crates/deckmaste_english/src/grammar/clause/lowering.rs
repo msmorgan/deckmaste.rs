@@ -94,7 +94,6 @@ pub(in crate::grammar) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -
         | RuleTag::VerbPhraseManaAmountCoordination
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
-        | RuleTag::ReducedRecipientPassiveNominalAdjunct
         | RuleTag::VerbPhraseCausative
         | RuleTag::VerbPhraseCoordinatedAdjective
         | RuleTag::InfinitiveTo
@@ -307,7 +306,6 @@ pub(super) fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<
         | RuleTag::VerbPhraseManaAmountCoordination
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity
-        | RuleTag::ReducedRecipientPassiveNominalAdjunct
         | RuleTag::VerbPhraseCoordinatedAdjective => lower_predicate_dependent(tag, children),
         RuleTag::InfinitiveTo | RuleTag::InfinitiveNotTo => {
             let negated = tag == RuleTag::InfinitiveNotTo;
@@ -342,15 +340,6 @@ pub(super) fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) 
                 Some(BareNominalAdjunct::Temporal) => VerbDependent::Temporal(noun_phrase),
                 Some(BareNominalAdjunct::Manner) => VerbDependent::Manner(noun_phrase),
                 None => VerbDependent::DirectObject(noun_phrase),
-            }
-        }
-        RuleTag::ReducedRecipientPassiveNominalAdjunct => {
-            let Lowered::NounPhrase(noun_phrase) = take(children, 1)? else {
-                return None;
-            };
-            match nominal_adjunct_kind(&noun_phrase)? {
-                BareNominalAdjunct::Temporal => VerbDependent::Temporal(noun_phrase),
-                BareNominalAdjunct::Manner => VerbDependent::Manner(noun_phrase),
             }
         }
         RuleTag::VerbPhraseIndirectObject => {

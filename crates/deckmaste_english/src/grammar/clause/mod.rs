@@ -55,5 +55,6 @@ pub(super) use lowering::finish_simple_clause;
 pub(super) use lowering::lower_clause;
 pub(super) use reduction::accepts_predicate_prefix;
 pub(super) use reduction::reduce_clause;
+pub(super) use reduction::reduce_generated_recipient_passive_nominal_adjunct;
 pub(super) use reduction::reduction_cost;
 pub(super) use rules::add_rules;

@@ -140,6 +140,8 @@ pub enum RenderError {
     /// grammar.
     #[error("{0:?} is not licensed as a nominal conjunction")]
     InvalidNominalConjunction(Conjunction),
+    #[error("nominal AST does not match exactly one generated construction")]
+    InvalidNominalConstruction,
 }
 
 impl OracleText {
@@ -345,6 +347,12 @@ struct GeneratedCoordinationRenderer<'renderer, 'identity> {
     skip_payload_subtrees: usize,
 }
 
+struct GeneratedNominalRenderer<'renderer, 'identity> {
+    renderer: &'renderer Renderer<'identity>,
+    rendered: String,
+    pending_determiner: Option<Determiner>,
+}
+
 struct GeneratedSentenceRenderer<'renderer, 'identity> {
     renderer: &'renderer Renderer<'identity>,
     capitalize: bool,
@@ -495,6 +503,221 @@ impl<'renderer, 'identity> GeneratedCoordinationRenderer<'renderer, 'identity> {
         debug_assert!(self.pending_determiner.is_none());
         debug_assert_eq!(self.skip_payload_subtrees, 0);
         self.rendered
+    }
+}
+
+impl<'renderer, 'identity> GeneratedNominalRenderer<'renderer, 'identity> {
+    fn new(renderer: &'renderer Renderer<'identity>) -> Self {
+        Self {
+            renderer,
+            rendered: String::new(),
+            pending_determiner: None,
+        }
+    }
+
+    fn push(&mut self, part: &str) {
+        if part.is_empty() {
+            return;
+        }
+        if part == "," {
+            self.rendered.push(',');
+        } else {
+            if !self.rendered.is_empty() {
+                self.rendered.push(' ');
+            }
+            self.rendered.push_str(part);
+        }
+    }
+
+    fn finish(self) -> String {
+        debug_assert!(self.pending_determiner.is_none());
+        self.rendered
+    }
+}
+
+impl deckmaste_construction_compiler::runtime::LinearizationVisitor
+    for GeneratedNominalRenderer<'_, '_>
+{
+    type Error = RenderError;
+
+    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
+        self.push(literal);
+        Ok(())
+    }
+
+    fn subtree<T: std::any::Any>(
+        &mut self,
+        category: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        let rendered = match category {
+            "NounInstance" => self.renderer.render_noun(
+                value
+                    .downcast_ref::<NounInstance>()
+                    .expect("the nominal noun hole preserves NounInstance"),
+            )?,
+            "AdjectivePhrase" => self.renderer.adjective_phrase(
+                value
+                    .downcast_ref::<AdjectivePhrase>()
+                    .expect("the nominal adjective hole preserves AdjectivePhrase"),
+            )?,
+            "NominalPhrase" => {
+                let nominal = value
+                    .downcast_ref::<NominalPhrase>()
+                    .expect("the recursive nominal hole preserves NominalPhrase");
+                if let Some(determiner) = self.pending_determiner.take() {
+                    let determiner = if determiner == Determiner::Indefinite {
+                        indefinite_article_for(self.renderer.nominal_initial_sound(nominal)?)
+                            .to_owned()
+                    } else {
+                        self.renderer.determiner(&determiner)?
+                    };
+                    self.push(&determiner);
+                }
+                self.renderer.nominal_phrase(nominal)?
+            }
+            "Determiner" => {
+                self.pending_determiner = Some(
+                    value
+                        .downcast_ref::<Determiner>()
+                        .expect("the nominal determiner hole preserves Determiner")
+                        .clone(),
+                );
+                return Ok(());
+            }
+            "Quantity" => render_quantity(
+                *value
+                    .downcast_ref::<Quantity>()
+                    .expect("the nominal quantity hole preserves Quantity"),
+            ),
+            "PowerToughness" => {
+                let value = value
+                    .downcast_ref::<crate::syntax::PowerToughness>()
+                    .expect("the nominal stats hole preserves PowerToughness");
+                format!(
+                    "{}/{}",
+                    render_signed_scalar(value.power),
+                    render_signed_scalar(value.toughness)
+                )
+            }
+            "PrepositionalPhrase" => self.renderer.prepositional_phrase(
+                value
+                    .downcast_ref::<PrepositionalPhrase>()
+                    .expect("the nominal PP hole preserves PrepositionalPhrase"),
+            )?,
+            "InfinitiveClause" => self.renderer.infinitive_clause(
+                value
+                    .downcast_ref::<InfinitiveClause>()
+                    .expect("the nominal infinitive hole preserves InfinitiveClause"),
+            )?,
+            "RelativeClause" => self.renderer.relative_clause(
+                value
+                    .downcast_ref::<RelativeClause>()
+                    .expect("the nominal relative hole preserves RelativeClause"),
+            )?,
+            "TransitivePredicate" => self.renderer.transitive_predicate(
+                value
+                    .downcast_ref::<TransitivePredicate>()
+                    .expect("the reduced-passive hole preserves TransitivePredicate"),
+            )?,
+            "ComparisonComplement" => {
+                self.renderer
+                    .adjective_complement(&AdjectiveComplement::PostnominalComparison(
+                        value
+                            .downcast_ref::<crate::syntax::ComparisonComplement>()
+                            .expect("the nominal comparison hole preserves ComparisonComplement")
+                            .clone(),
+                    ))?
+            }
+            "PredicatedArgumentFrom" | "PredicatedArgumentBare" => {
+                self.renderer.predicated_argument(
+                    value
+                        .downcast_ref::<PredicatedArgument>()
+                        .expect("the keyword argument hole preserves PredicatedArgument"),
+                )?
+            }
+            "DevotionColors" => render_devotion_colors(
+                *value
+                    .downcast_ref::<crate::syntax::DevotionColors>()
+                    .expect("the devotion hole preserves DevotionColors"),
+            ),
+            "IndependentClause" => self.renderer.independent_clause(
+                value
+                    .downcast_ref::<IndependentClause>()
+                    .expect("the times-clause hole preserves IndependentClause"),
+            )?,
+            other => panic!("unexpected nominal subtree category `{other}`"),
+        };
+        self.push(&rendered);
+        Ok(())
+    }
+
+    fn scalar<T: std::any::Any>(
+        &mut self,
+        codec: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        let rendered = match codec {
+            "OracleSymbol" => value
+                .downcast_ref::<OracleSymbol>()
+                .expect("the symbol scalar preserves OracleSymbol")
+                .as_str()
+                .to_owned(),
+            "SymbolSequence" => render_symbol_sequence(
+                value
+                    .downcast_ref::<Vec<OracleSymbol>>()
+                    .expect("the symbol sequence scalar preserves Vec<OracleSymbol>"),
+            ),
+            "Conjunction" => render_nominal_conjunction(
+                *value
+                    .downcast_ref::<Conjunction>()
+                    .expect("the nominal conjunction scalar preserves Conjunction"),
+            )?
+            .to_owned(),
+            "ColorWord" => value
+                .downcast_ref::<crate::word::ColorWord>()
+                .expect("the color scalar preserves ColorWord")
+                .spelling()
+                .to_owned(),
+            other => panic!("unexpected nominal scalar codec `{other}`"),
+        };
+        self.push(&rendered);
+        Ok(())
+    }
+
+    fn identity<T: std::any::Any>(
+        &mut self,
+        provider: &'static str,
+        value_type: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        let rendered = match value_type {
+            "NounInstance" => self.renderer.render_noun(
+                value
+                    .downcast_ref::<NounInstance>()
+                    .expect("the nominal identity preserves NounInstance"),
+            )?,
+            "NominalModifier" => {
+                assert_eq!(provider, "NegatedModifier");
+                let (rendered, trailing) = self.renderer.render_nominal_modifier(
+                    value
+                        .downcast_ref::<NominalModifier>()
+                        .expect("the negated identity preserves NominalModifier"),
+                )?;
+                debug_assert!(trailing.is_empty());
+                rendered
+            }
+            "CatalogAtom" => value
+                .downcast_ref::<crate::catalog::CatalogAtom>()
+                .expect("the devotion identity preserves CatalogAtom")
+                .render_noun(false),
+            other => panic!("unexpected nominal identity type `{other}` from `{provider}`"),
+        };
+        self.push(&rendered);
+        Ok(())
     }
 }
 
@@ -2090,30 +2313,57 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn nominal_phrase(&self, phrase: &NominalPhrase) -> Result<String, RenderError> {
-        let mut parts = Vec::with_capacity(phrase.modifiers.len() + phrase.complements.len() + 2);
-        let mut trailing_modifier_complements = Vec::new();
-        if let Some(determiner) = &phrase.determiner {
-            // The indefinite article's word is not stored: it is the initial
-            // sound of the material that follows it (`a card`, `an Elf`).
-            // See `Determiner::Indefinite`.
-            if *determiner == Determiner::Indefinite {
-                let sound = self.nominal_initial_sound(phrase)?;
-                parts.push(indefinite_article_for(sound).to_owned());
-            } else {
-                parts.push(self.determiner(determiner)?);
+        let mut visitor = GeneratedNominalRenderer::new(self);
+        match crate::constructions::nominal::linearize_nominal_group_with(phrase, &mut visitor) {
+            Ok(()) => Ok(visitor.finish()),
+            Err(deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error)) => {
+                Err(error)
             }
+            Err(
+                deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
+                    ..
+                },
+            ) => self.non_m01_nominal_remainder(phrase),
+            Err(_) => Err(RenderError::InvalidNominalConstruction),
         }
-        for modifier in &phrase.modifiers {
-            let (rendered, trailing) = self.render_nominal_modifier(modifier)?;
-            trailing_modifier_complements.extend(trailing);
-            parts.push(rendered);
+    }
+
+    /// Linearizes the two still-handwritten nominal transforms that are
+    /// explicitly outside M01, then recurses immediately back through the
+    /// generated nominal family for the residual owner.
+    fn non_m01_nominal_remainder(&self, phrase: &NominalPhrase) -> Result<String, RenderError> {
+        if matches!(
+            phrase.complements.last(),
+            Some(NominalComplement::PowerToughness(_))
+        ) {
+            let mut nominal = phrase.clone();
+            let Some(NominalComplement::PowerToughness(value)) = nominal.complements.pop() else {
+                unreachable!("the checked final complement is power/toughness")
+            };
+            return Ok(format!(
+                "{} {}/{}",
+                self.nominal_phrase(&nominal)?,
+                render_signed_scalar(value.power),
+                render_signed_scalar(value.toughness),
+            ));
         }
-        parts.push(self.render_noun(&phrase.head)?);
-        for complement in &phrase.complements {
-            parts.push(self.nominal_complement(complement)?);
+
+        if phrase.determiner.is_none()
+            && phrase.complements.is_empty()
+            && matches!(
+                phrase.modifiers.first(),
+                Some(NominalModifier::Coordinated(_))
+            )
+        {
+            let mut nominal = phrase.clone();
+            let modifier = nominal.modifiers.remove(0);
+            let (prefix, trailing) = self.render_nominal_modifier(&modifier)?;
+            let mut parts = vec![prefix, self.nominal_phrase(&nominal)?];
+            parts.extend(trailing);
+            return Ok(join_words(parts));
         }
-        parts.extend(trailing_modifier_complements);
-        Ok(join_words(parts))
+
+        Err(RenderError::InvalidNominalConstruction)
     }
 
     fn nominal_complement(&self, complement: &NominalComplement) -> Result<String, RenderError> {
@@ -2136,7 +2386,9 @@ impl<'identity> Renderer<'identity> {
                 render_signed_scalar(value.power),
                 render_signed_scalar(value.toughness),
             ),
-            NominalComplement::Devotion(colors) => render_devotion_colors(*colors),
+            NominalComplement::Devotion(colors) => {
+                format!("to {}", render_devotion_colors(*colors))
+            }
             NominalComplement::EventClause(clause) => self.independent_clause(clause)?,
             NominalComplement::KeywordArgument(argument) => match argument {
                 KeywordArgument::Costed(KeywordCost::Symbols(symbols)) => {
@@ -2928,13 +3180,14 @@ fn phrase_terminal_quote(phrase: &Phrase) -> Option<&QuotedAbility> {
     }
 }
 
-/// Renders the `to <color>` argument of a `devotion` value nominal [CR#700.5]
-/// from the carried color identities — a single color or an `and`-joined pair.
+/// Renders the color payload of a `devotion` value nominal [CR#700.5] from
+/// the carried identities — a single color or an `and`-joined pair. The M01
+/// declaration owns the preceding literal `to`.
 fn render_devotion_colors(colors: crate::syntax::DevotionColors) -> String {
     match colors {
-        crate::syntax::DevotionColors::Color(color) => format!("to {}", color.spelling()),
+        crate::syntax::DevotionColors::Color(color) => color.spelling().to_owned(),
         crate::syntax::DevotionColors::Pair(first, second) => {
-            format!("to {} and {}", first.spelling(), second.spelling())
+            format!("{} and {}", first.spelling(), second.spelling())
         }
     }
 }

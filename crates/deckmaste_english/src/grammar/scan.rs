@@ -1217,35 +1217,6 @@ pub(super) fn parse_signed_scalar(surface: &str) -> Option<crate::syntax::Signed
 /// prefix. The `determined` gate needs child 1 and stays in `reduce`. Every
 /// other tag/dot is unconstrained here and remains governed by
 /// `clause::accepts_predicate_prefix`.
-/// Dot-2 gate for the Stage B/C predicated-argument list extensions
-/// (`PredicatedArgumentFromExtend`/`PredicatedArgumentBareExtend`): after the
-/// list and the conjunction complete, only `and` may extend the list before
-/// the next quality is predicted. `or` is the confirmed deferral (five Stage
-/// B rows; `renderer.rs`'s `KeywordArgument::Predicated` hardcodes `" and "`
-/// between qualities, so an `or` cannot round-trip and must never be
-/// normalized to `and`). A categorical fact available from the just-completed
-/// conjunction child, so it is checked here (before the next quality's
-/// prediction) rather than only in `reduce` — the reduce arm duplicates this
-/// as a defensive invariant, per the plan's prefix-gate discipline
-/// [`kwgrant` round].
-pub(super) fn accepts_keyword_grant_prefix(
-    tag: RuleTag,
-    completed_children: usize,
-    latest_child: &Features,
-) -> bool {
-    if !matches!(
-        tag,
-        RuleTag::PredicatedArgumentFromExtend | RuleTag::PredicatedArgumentBareExtend
-    ) || completed_children != 2
-    {
-        return true;
-    }
-    matches!(
-        latest_child,
-        Features::Conjunction(crate::features::Conjunction::And)
-    )
-}
-
 pub(super) fn accepts_possessive_modifier_prefix(
     tag: RuleTag,
     completed_children: usize,

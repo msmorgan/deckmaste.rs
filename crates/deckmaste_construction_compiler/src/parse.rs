@@ -52,6 +52,7 @@ mod kw {
     syn::custom_keyword!(form);
     syn::custom_keyword!(when);
     syn::custom_keyword!(check);
+    syn::custom_keyword!(inverse);
     syn::custom_keyword!(otherwise);
     syn::custom_keyword!(dominates);
     syn::custom_keyword!(dominated);
@@ -615,16 +616,31 @@ fn parse_form(input: ParseStream<'_>) -> syn::Result<FormDeclaration> {
             syn::parenthesized!(content in input);
             (None, Some(spanned_type_path(&content)?))
         } else {
-            (
-                Some(Spanned {
-                    value: parse_pred(input)?,
-                    span: keyword.span,
-                }),
-                None,
-            )
+            let guard = Some(Spanned {
+                value: parse_pred(input)?,
+                span: keyword.span,
+            });
+            let value_guard = if input.peek(kw::check) {
+                input.parse::<kw::check>()?;
+                let content;
+                syn::parenthesized!(content in input);
+                Some(spanned_type_path(&content)?)
+            } else {
+                None
+            };
+            (guard, value_guard)
         }
     } else {
         (None, None)
+    };
+    let inverse_guard = if input.peek(kw::inverse) {
+        input.parse::<kw::inverse>()?;
+        input.parse::<kw::check>()?;
+        let content;
+        syn::parenthesized!(content in input);
+        Some(spanned_type_path(&content)?)
+    } else {
+        None
     };
     let fallback = if input.peek(kw::otherwise) {
         input.parse::<kw::otherwise>()?;
@@ -644,6 +660,7 @@ fn parse_form(input: ParseStream<'_>) -> syn::Result<FormDeclaration> {
         surface,
         guard,
         value_guard,
+        inverse_guard,
         fallback,
     })
 }

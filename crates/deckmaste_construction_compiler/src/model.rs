@@ -96,7 +96,15 @@ impl GroupDeclaration {
             })
             .then_some(InverseDispatchFamily {
                 target: first_path,
-                kind: InverseDispatchKind::LensParts,
+                kind: if self
+                    .constructions
+                    .iter()
+                    .any(|construction| guarded_adapter_for_target(construction, &first_path.value))
+                {
+                    InverseDispatchKind::Mixed
+                } else {
+                    InverseDispatchKind::LensParts
+                },
             })
     }
 }
@@ -105,6 +113,7 @@ impl GroupDeclaration {
 pub(crate) enum InverseDispatchKind {
     ValueGuard,
     LensParts,
+    Mixed,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -125,8 +134,21 @@ impl InverseDispatchFamily<'_> {
         match self.kind {
             InverseDispatchKind::ValueGuard => construction.bind_adapter.is_some(),
             InverseDispatchKind::LensParts => construction.lens.is_some(),
+            InverseDispatchKind::Mixed => {
+                construction.lens.is_some()
+                    || guarded_adapter_for_target(construction, &self.target.value)
+            }
         }
     }
+}
+
+fn guarded_adapter_for_target(construction: &ConstructionDeclaration, target: &str) -> bool {
+    matches!(&construction.ast, AstShape::Bind { path, .. } if path.value == target)
+        && construction.bind_adapter.is_some()
+        && !construction.forms.is_empty()
+        && construction.forms.iter().all(|form| {
+            form.inverse_guard.is_some() || (form.value_guard.is_some() && !form.fallback)
+        })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -397,6 +419,11 @@ pub struct FormDeclaration {
     pub guard: Option<Spanned<Predicate>>,
     /// A named predicate over the complete bound/owned semantic value.
     pub value_guard: Option<Spanned<String>>,
+    /// A whole-value predicate used only when selecting a construction from
+    /// a mixed inverse family. Forward parse lowering deliberately ignores
+    /// it, so a flattened recursive owner can identify its outermost edit
+    /// without narrowing the admitted child owner.
+    pub inverse_guard: Option<Spanned<String>>,
     /// An unguarded canonical fallback. It remains selectable by explicit
     /// ordinal even when a guarded form is canonical for the same value.
     pub fallback: bool,
@@ -436,6 +463,7 @@ pub const KNOWN_COMBINATORS: &[&str] = &[
     "quantity_plural",
     "quantity_plural_count",
     "quantity_mass",
+    "nominal",
 ];
 
 /// `snake_case` to `PascalCase`. Shared between `validate.rs`'s EC006

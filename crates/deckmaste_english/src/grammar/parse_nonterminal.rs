@@ -1610,8 +1610,11 @@ mod generated_adapter_tests {
     use crate::word::Noun;
     use crate::word::Vocab;
 
-    static COORDINATION_GROUPS: &[&deckmaste_construction_compiler::runtime::GroupData] =
-        &[noun::GROUPS[0], coordination::GROUPS[0]];
+    static COORDINATION_GROUPS: &[&deckmaste_construction_compiler::runtime::GroupData] = &[
+        noun::GROUPS[0],
+        crate::constructions::nominal::GROUPS[0],
+        coordination::GROUPS[0],
+    ];
 
     fn probe_category(name: &str) -> Nonterminal {
         let cats = super::super::generated::internal_categories(probe::GROUPS);

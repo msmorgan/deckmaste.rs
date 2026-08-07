@@ -2475,6 +2475,7 @@ pub(crate) mod fixtures {
                     surface: vec![SurfaceAtom::Lexeme(FieldPath::call_site("conjunction"))],
                     guard: None,
                     value_guard: None,
+                    inverse_guard: None,
                     fallback: false,
                 }],
                 dominance: vec![],

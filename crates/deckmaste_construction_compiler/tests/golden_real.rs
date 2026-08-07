@@ -162,6 +162,7 @@ pub fn fixture_coordination_group() -> GroupDeclaration {
                             allowed: vec!["And".to_owned()],
                         })),
                         value_guard: None,
+                        inverse_guard: None,
                         fallback: false,
                     },
                     FormDeclaration {
@@ -177,6 +178,7 @@ pub fn fixture_coordination_group() -> GroupDeclaration {
                             allowed: vec!["Or".to_owned()],
                         })),
                         value_guard: None,
+                        inverse_guard: None,
                         fallback: false,
                     },
                 ],
@@ -239,6 +241,7 @@ pub fn fixture_coordination_group() -> GroupDeclaration {
                     ],
                     guard: None,
                     value_guard: None,
+                    inverse_guard: None,
                     fallback: false,
                 }],
                 dominance: vec![],

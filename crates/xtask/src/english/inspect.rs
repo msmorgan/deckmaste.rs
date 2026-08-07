@@ -532,7 +532,10 @@ mod tests {
         .unwrap();
 
         let rendered = String::from_utf8(rendered).unwrap();
-        assert!(rendered.contains("nominal_prepositional owner=handwritten backend=chart"));
+        // Mutation caught: leave verbose inspect pointed at the retired
+        // handwritten M01 owner instead of registry-selected declaration
+        // metadata.
+        assert!(rendered.contains("nominal_prepositional owner=generated backend=chart"));
         assert!(rendered.contains("evidence=feature:nominal attachment phase"));
         assert!(rendered.contains("reason=dominance"));
         assert!(rendered.contains("cost={opaque_words:0,opaque_lexemes:0,generic_rules:0"));
@@ -651,6 +654,48 @@ mod tests {
                 .collect::<Vec<_>>()
                 .join("\n")
         );
+    }
+
+    #[test]
+    #[cfg_attr(
+        not(all(derived_cards, gen_catalogs)),
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+    )]
+    fn quantified_times_clauses_keep_the_determiner_outside_the_special_base() {
+        // Mutation caught: make the generated nominal-determiner inverse admit
+        // only complement-free and devotion values. `three/five/as many times
+        // <clause>` is represented by a determiner structurally outside the
+        // specialized `times <clause>` base and must linearize in that order.
+        let data = OracleDataArgs::default()
+            .load()
+            .expect("release corpus data must be available for the times-clause gate");
+
+        for name in [
+            "Burn at the Stake",
+            "Crackle with Power",
+            "Lim-Dûl's Vault",
+            "Ojer Taq, Deepest Foundation",
+        ] {
+            let card = data
+                .faces
+                .iter()
+                .find(|card| card.printed_name() == name)
+                .unwrap_or_else(|| panic!("missing times-clause fixture {name:?}"));
+            let rebuilt = parse_with_identity(
+                &card.oracle_text,
+                &data.catalogs,
+                card.printed_name(),
+                card.is_legendary,
+            )
+            .into_ast()
+            .render(card.printed_name(), card.is_legendary)
+            .unwrap_or_else(|error| panic!("{name}: {error}"));
+            assert_eq!(
+                normalized_rules_text(&rebuilt),
+                normalized_rules_text(&card.source_text),
+                "{name}"
+            );
+        }
     }
 
     fn normalized_rules_text(text: &str) -> String {

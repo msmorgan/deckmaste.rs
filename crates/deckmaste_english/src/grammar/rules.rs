@@ -280,137 +280,6 @@ impl RuleBuilder {
             [n(N::Determiner), n(N::PossessiveNounPhrase)],
         );
 
-        self.add(RuleTag::NominalNoun, N::Nominal, [n(N::Noun)]);
-        self.add_with_cost(
-            RuleTag::NominalAdjective,
-            N::Nominal,
-            [n(N::AdjectivePhrase), n(N::Nominal)],
-            ParseCost {
-                precedence: 1,
-                ..ParseCost::default()
-            },
-        );
-        self.add_with_cost(
-            RuleTag::NominalNounModifier,
-            N::Nominal,
-            [n(N::Noun), n(N::Nominal)],
-            ParseCost {
-                precedence: 1,
-                ..ParseCost::default()
-            },
-        );
-        // `declare attackers`/`declare blockers` — every child is a
-        // literal-token slot, so this production can only ever match those
-        // two exact three-word sequences. Plain `add`, no cost: cost cannot
-        // fix a recognition-breadth problem (the `restrict`-round
-        // regression), so none is used here on purpose.
-        self.add(
-            RuleTag::NominalCombatStepName,
-            N::Nominal,
-            [
-                l(L::CombatStepDeclare),
-                l(L::CombatStepParticipants),
-                l(L::CombatStepHead),
-            ],
-        );
-        self.add_with_cost(
-            RuleTag::NominalNegatedModifier,
-            N::Nominal,
-            [l(L::NegatedModifier), n(N::Nominal)],
-            ParseCost {
-                precedence: 1,
-                ..ParseCost::default()
-            },
-        );
-        self.add_with_cost(
-            RuleTag::NominalQuantityModifier,
-            N::Nominal,
-            [n(N::Quantity), n(N::Nominal)],
-            ParseCost {
-                precedence: 1,
-                ..ParseCost::default()
-            },
-        );
-        self.add_with_cost(
-            RuleTag::NominalPowerToughnessModifier,
-            N::Nominal,
-            [l(L::PowerToughness), n(N::Nominal)],
-            ParseCost {
-                precedence: 1,
-                ..ParseCost::default()
-            },
-        );
-        self.add(
-            RuleTag::NominalDeterminer,
-            N::Nominal,
-            [n(N::Determiner), n(N::Nominal)],
-        );
-        self.add(
-            RuleTag::NominalPrepositional,
-            N::Nominal,
-            [n(N::Nominal), n(N::PrepositionalPhrase)],
-        );
-        self.add(
-            RuleTag::NominalInfinitive,
-            N::Nominal,
-            [n(N::Nominal), n(N::InfinitiveClause)],
-        );
-        self.add_with_cost(
-            RuleTag::NominalQuantityComplement,
-            N::Nominal,
-            [n(N::Nominal), n(N::Quantity)],
-            ParseCost {
-                precedence: 1,
-                ..ParseCost::default()
-            },
-        );
-        self.add(
-            RuleTag::NominalRelative,
-            N::Nominal,
-            [n(N::Nominal), n(N::RelativeClause)],
-        );
-        self.add(
-            RuleTag::NominalPostpositiveAdjective,
-            N::Nominal,
-            [n(N::Nominal), n(N::AdjectivePhrase)],
-        );
-        self.add(
-            RuleTag::NominalComparison,
-            N::Nominal,
-            [n(N::Nominal), n(N::ComparisonComplement)],
-        );
-
-        // The `devotion` value nominal with its mandatory concrete-color
-        // argument: `devotion to <color>` or `devotion to <color> and <color>`.
-        // Gated by the dedicated `DevotionValue` head so the bare-color
-        // `DevotionColors` rules stay out of ordinary phrases; the generic
-        // `devotion to a/each/that color` shapes take the count-noun +
-        // prepositional path instead.
-        self.add(
-            RuleTag::NominalDevotion,
-            N::Nominal,
-            [l(L::DevotionValue), l(L::To), n(N::DevotionColors)],
-        );
-        self.add(
-            RuleTag::DevotionColorSingle,
-            N::DevotionColors,
-            [l(L::ColorWord)],
-        );
-        self.add(
-            RuleTag::DevotionColorPair,
-            N::DevotionColors,
-            [l(L::ColorWord), l(L::Conjunction), l(L::ColorWord)],
-        );
-
-        // `the number of times <clause>`: the plural `times` head takes a bare
-        // finite clause as a reduced adjunct-relative complement. Gated by the
-        // dedicated `TimesNoun` head so no other noun admits a bare clause.
-        self.add(
-            RuleTag::NominalTimesClause,
-            N::Nominal,
-            [l(L::TimesNoun), n(N::Clause)],
-        );
-
         self.add(RuleTag::NounPhraseNominal, N::NounPhrase, [n(N::Nominal)]);
         self.add(
             RuleTag::NounPhraseSubjectPronoun,
@@ -572,22 +441,12 @@ impl RuleBuilder {
             [l(L::ReducedRecipientPassiveParticiple)],
         );
         self.add(
-            RuleTag::ReducedRecipientPassiveTheme,
-            N::ReducedRecipientPassiveTheme,
-            [n(N::Nominal)],
-        );
-        self.add(
             RuleTag::VerbPhraseDirectObject,
             N::ReducedRecipientPassive,
             [
                 n(N::ReducedRecipientPassive),
                 n(N::ReducedRecipientPassiveTheme),
             ],
-        );
-        self.add(
-            RuleTag::ReducedRecipientPassiveNominalAdjunct,
-            N::ReducedRecipientPassive,
-            [n(N::ReducedRecipientPassive), n(N::NounPhrase)],
         );
         self.add(
             RuleTag::VerbPhrasePrepositional,
@@ -603,11 +462,6 @@ impl RuleBuilder {
             RuleTag::VerbPhraseFrequency,
             N::ReducedRecipientPassive,
             [n(N::ReducedRecipientPassive), n(N::FrequencyPhrase)],
-        );
-        self.add(
-            RuleTag::NominalReducedRecipientPassive,
-            N::Nominal,
-            [n(N::Nominal), n(N::ReducedRecipientPassive)],
         );
     }
 
@@ -893,50 +747,6 @@ impl RuleBuilder {
             [l(L::SubjectAuxiliary), n(N::CoordinatedModifier)],
         );
 
-        // A postnominal adjective/reduced-participle run stays inside the
-        // nominal it modifies (`creature blocking or blocked by this
-        // creature`). The first adjective has already put the nominal in its
-        // postpositive attachment phase, which is the reduction-time gate for
-        // every continuation below.
-        self.add_with_cost(
-            RuleTag::NominalPostpositiveAdjectiveConjoinedPrepositional,
-            N::Nominal,
-            [
-                n(N::Nominal),
-                l(L::Conjunction),
-                n(N::AdjectivePhrase),
-                n(N::PrepositionalPhrase),
-            ],
-            ParseCost {
-                attachment_count: 1,
-                ..ParseCost::default()
-            },
-        );
-        self.add(
-            RuleTag::NominalPostpositiveAdjectiveConjoined,
-            N::Nominal,
-            [n(N::Nominal), l(L::Conjunction), n(N::AdjectivePhrase)],
-        );
-        self.add(
-            RuleTag::NominalPostpositiveAdjectiveAsyndetic,
-            N::Nominal,
-            [
-                n(N::Nominal),
-                l(L::Punctuation(Punctuation::Comma)),
-                n(N::AdjectivePhrase),
-            ],
-        );
-        self.add(
-            RuleTag::NominalPostpositiveAdjectiveOxford,
-            N::Nominal,
-            [
-                n(N::Nominal),
-                l(L::Punctuation(Punctuation::Comma)),
-                l(L::Conjunction),
-                n(N::AdjectivePhrase),
-            ],
-        );
-
         // Family A: a power/toughness value complement on a characteristic
         // nominal (`base power and toughness X/X`). Mirrors the quantity
         // complement (`base power 2`) for the `N/N` token; the shared `base`
@@ -1026,26 +836,6 @@ impl RuleBuilder {
         use Nonterminal as N;
 
         self.add(
-            RuleTag::RulesObjectNominalBase,
-            N::RulesObjectNominal,
-            [n(N::Nominal)],
-        );
-        self.add(
-            RuleTag::RulesObjectFollowupNominalRelative,
-            N::RulesObjectFollowupNominal,
-            [n(N::RulesObjectNominal), n(N::RelativeClause)],
-        );
-        self.add(
-            RuleTag::RulesObjectFollowupNominalRelative,
-            N::RulesObjectFollowupNominal,
-            [n(N::RulesObjectFollowupNominal), n(N::RelativeClause)],
-        );
-        self.add(
-            RuleTag::RulesObjectFollowupNominalPrepositional,
-            N::RulesObjectFollowupNominal,
-            [n(N::RulesObjectFollowupNominal), n(N::PrepositionalPhrase)],
-        );
-        self.add(
             RuleTag::RulesObjectNounPhrase,
             N::RulesObjectNounPhrase,
             [n(N::RulesObjectNominal)],
@@ -1054,111 +844,6 @@ impl RuleBuilder {
             RuleTag::RulesObjectNounPhrase,
             N::RulesObjectNounPhrase,
             [n(N::RulesObjectFollowupNominal)],
-        );
-    }
-
-    /// `kwgrant` round, Stage A: a parameterized keyword ability's symbol-cost
-    /// argument fused onto its keyword-noun head in one production —
-    /// `ward {2}`, `equip {1}`. The lexical head is one of the dedicated
-    /// keyword-noun slots (never the ordinary noun slot), so an ordinary noun
-    /// can never enter this rule; only a catalog-surface property (keyword
-    /// atom membership) gates it.
-    pub(super) fn add_keyword_grant_rules(&mut self) {
-        use Expected::Lexical as l;
-        use Expected::Nonterminal as n;
-        use Nonterminal as N;
-
-        self.add(
-            RuleTag::NominalKeywordSymbolArgument,
-            N::Nominal,
-            [
-                l(EnglishLexicalSlot::SymbolArgumentKeywordNoun),
-                l(EnglishLexicalSlot::OracleSymbol),
-            ],
-        );
-        self.add(
-            RuleTag::NominalKeywordSymbolArgument,
-            N::Nominal,
-            [
-                l(EnglishLexicalSlot::SymbolArgumentKeywordNoun),
-                l(EnglishLexicalSlot::SymbolSequence),
-            ],
-        );
-
-        // Stage B: explicit `from` qualities (`protection from black`).
-        self.add(
-            RuleTag::PredicatedQualityFrom,
-            N::PredicatedQualityFrom,
-            [
-                l(EnglishLexicalSlot::FromWord),
-                l(EnglishLexicalSlot::ColorWord),
-            ],
-        );
-        self.add(
-            RuleTag::PredicatedQualityFrom,
-            N::PredicatedQualityFrom,
-            [l(EnglishLexicalSlot::FromWord), n(N::NounPhrase)],
-        );
-        self.add(
-            RuleTag::PredicatedArgumentFromSingle,
-            N::PredicatedArgumentFrom,
-            [n(N::PredicatedQualityFrom)],
-        );
-        self.add(
-            RuleTag::PredicatedArgumentFromExtend,
-            N::PredicatedArgumentFrom,
-            [
-                n(N::PredicatedArgumentFrom),
-                l(EnglishLexicalSlot::Conjunction),
-                n(N::PredicatedQualityFrom),
-            ],
-        );
-        self.add(
-            RuleTag::NominalKeywordPredicatedArgument,
-            N::Nominal,
-            [
-                l(EnglishLexicalSlot::ExplicitPredicatedKeywordNoun),
-                n(N::PredicatedArgumentFrom),
-            ],
-        );
-
-        // Stage C: the atom itself carries `from` (`Hexproof from black`).
-        self.add(
-            RuleTag::PredicatedQualityBare,
-            N::PredicatedQualityBare,
-            [l(EnglishLexicalSlot::ColorWord)],
-        );
-        self.add(
-            RuleTag::PredicatedQualityBare,
-            N::PredicatedQualityBare,
-            [n(N::AdjectivePhrase)],
-        );
-        self.add(
-            RuleTag::PredicatedQualityBare,
-            N::PredicatedQualityBare,
-            [n(N::NounPhrase)],
-        );
-        self.add(
-            RuleTag::PredicatedArgumentBareSingle,
-            N::PredicatedArgumentBare,
-            [n(N::PredicatedQualityBare)],
-        );
-        self.add(
-            RuleTag::PredicatedArgumentBareExtend,
-            N::PredicatedArgumentBare,
-            [
-                n(N::PredicatedArgumentBare),
-                l(EnglishLexicalSlot::Conjunction),
-                n(N::PredicatedQualityFrom),
-            ],
-        );
-        self.add(
-            RuleTag::NominalKeywordAtomCarriedPredicatedArgument,
-            N::Nominal,
-            [
-                l(EnglishLexicalSlot::AtomCarriedPredicatedKeywordNoun),
-                n(N::PredicatedArgumentBare),
-            ],
         );
     }
 }
