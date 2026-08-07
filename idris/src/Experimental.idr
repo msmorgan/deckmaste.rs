@@ -385,6 +385,33 @@
 |||    — distinct from May(Attack)/May(Block), fight keying on type
 |||    membership and dealing non-combat damage [CR#701.14d] — so a
 |||    future type joins by declaration, not by gate rewrites.
+||| 37. **Obligations live on relations, not phrases.** The tag-body
+|||    witness carries each verb's SOURCE-zone demand ([CR#701.8a]
+|||    destruction moves a battlefield permanent, [CR#701.9a]
+|||    discarding a hand card; exile zone-blind), so raw
+|||    `Composite`/`Does` spellings prove exactly what the macros
+|||    prove (`badCompositeDestroyGraveyard`,
+|||    `badDoesDiscardBattlefield`) and a forged provenance stamp is
+|||    unwritable — only a legal tagged move writes one. The damage
+|||    recipient likewise gained its head-type demand ([CR#120.1a];
+|||    `badDamageArtifact`).
+||| 38. **Agentivity is two tables, both per-row.** `Does` carries
+|||    the verb tag itself and demands an agentive verb
+|||    (`AgentiveV`); `Composite` demands the opposite
+|||    (`NonAgentive`) — an agentive tag cannot shed its actor
+|||    (`badAgentlessSacrifice`), an effect-verb cannot take one
+|||    (`badSubjectedDestroy`), and the old conservative
+|||    `clauseVerb` catch-all dissolves with nothing left to leak.
+||| 39. **Phrases are well-formed or unwritable.** Determiner
+|||    phrases demand a positive HEAD (`Headed` — "choose a
+|||    noncolor" and "target non-player" head nothing,
+|||    [CR#105.1,608.2d]); a conjunction's explicit zones must agree
+|||    (`ZoneCoherent` — an object is in one zone, and the gate no
+|||    longer depends on conjunct order); and negation is a binding
+|||    HOLE (`Not`'s inner mentions do not fold: "a creature an
+|||    opponent doesn't control" names no opponent — a positive
+|||    relation names the one controller [CR#109.4], a negated one
+|||    selects nobody; `badNegatedAntecedent`).
 |||
 ||| Engine-boundary deferrals (deliberate, and to stay so): the
 ||| workbench spells the ENGLISH; committed event structure is
@@ -629,6 +656,19 @@ data Determiner = TargetD | TargetUpToD | AD | EachD | AllD | TheD
 ||| surface `ZoneExpr` where English writes it.
 public export
 data Zone = Battlefield | Graveyard | Exile | Hand
+
+||| Zone equality, per-row: a new zone is a totality error on its
+||| missing row, never a silent False.
+public export
+sameZone : Zone -> Zone -> Bool
+sameZone Battlefield Battlefield = True
+sameZone Battlefield _ = False
+sameZone Graveyard Graveyard = True
+sameZone Graveyard _ = False
+sameZone Exile Exile = True
+sameZone Exile _ = False
+sameZone Hand Hand = True
+sameZone Hand _ = False
 
 ||| Keyword-action tags ([CR#701]) — core's `Composite` verb names.
 ||| `Destroy` and `Discard` mirror `plugins/builtin/macros/action/`;
@@ -1041,14 +1081,25 @@ data Targetable : Kind -> Type where
   ObjectTgt : Targetable Object
   PlayerTgt : Targetable Player
 
-||| Who can take damage ([CR#120.1] — battles, creatures,
-||| planeswalkers, players; never a quality, never an off-battlefield
-||| card): a player, or an object on the battlefield (untracked, like
-||| the source's own mention, passes).
+||| Damageable head types ([CR#120.1a] — damage can't be dealt to an
+||| object that's not a battle, a creature, or a planeswalker): the
+||| creature row, plus the untyped head (wildcards, "any target").
+||| New rows arrive with their types' declarations.
 public export
-data DamageRecipient : Kind -> Maybe Zone -> Type where
-  PlayerTakes : DamageRecipient Player z
-  ObjectTakes : {auto 0 field : OnBattlefield z} -> DamageRecipient Object z
+data DamageableTy : Maybe CardType -> Type where
+  DamCreature : DamageableTy (Just Creature)
+  DamUntyped : DamageableTy Nothing
+
+||| Who can take damage ([CR#120.1,120.1a] — battles, creatures,
+||| planeswalkers, players; never a quality, never an off-battlefield
+||| card, never a noncreature artifact or land): a player, or a
+||| damageable-headed object on the battlefield (untracked, like the
+||| source's own mention, passes).
+public export
+data DamageRecipient : Kind -> Maybe Zone -> Maybe CardType -> Type where
+  PlayerTakes : DamageRecipient Player z t
+  ObjectTakes : {auto 0 field : OnBattlefield z} ->
+                {auto 0 dm : DamageableTy t} -> DamageRecipient Object z t
 
 ||| The kinds a noun PHRASE can describe — objects, players, chosen
 ||| qualities. Outcomes are clause-introduced only: no determiner
@@ -1142,7 +1193,9 @@ mutual
     -- battlefield state word, not a type.
     Attacking : Predicate bs Object
     InZone : ZoneExpr bs -> Predicate bs Object          -- zone clause "in/from [zone]" ([CR#109.2a])
-    And : List (Predicate bs k) -> Predicate bs k        -- sibling modifiers, one referent
+    -- sibling modifiers, one referent; explicit zones must agree
+    -- (`ZoneCoherent` — an object is in one zone).
+    And : (ps : List (Predicate bs k)) -> {auto 0 zc : ZoneCoherent ps} -> Predicate bs k
     Not : Predicate bs k -> Predicate bs k               -- "don't"/"non-" on a modifier
     -- the modifier "other"/"another" ([CR#115.4]): distinct from every
     -- earlier target of this kind; presupposes one exists.
@@ -1182,6 +1235,53 @@ mutual
     Just z => Just z
     Nothing => seedZoneAll ps
 
+  ||| A phrase names a positive HEAD: a type word, a player word, a
+  ||| quality word, "any target", or a zone clause (whose implicit
+  ||| head is the zone's carrier — "a card in your hand"). Modifiers
+  ||| alone (`Not`, `Other`, state words, relative clauses) head
+  ||| nothing: "choose a noncolor" is unwritable ([CR#105.1,608.2d]).
+  ||| Full rows: a new predicate form must declare its headedness.
+  public export
+  hasHead : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+  hasHead (HasType _) = True
+  hasHead AnyPlayer = True
+  hasHead Opponent = True
+  hasHead (QualityNoun _) = True
+  hasHead (OfChosen _) = False
+  hasHead (ControlledBy _) = False
+  hasHead Attacking = False
+  hasHead (InZone _) = True
+  hasHead (And ps) = hasHeadAny ps
+  hasHead (Not _) = False
+  hasHead Other = False
+  hasHead AnyTarget = True
+
+  public export
+  hasHeadAny : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
+  hasHeadAny [] = False
+  hasHeadAny (p :: ps) = hasHead p || hasHeadAny ps
+
+  ||| The determiner gate's witness form (a distinctive search name).
+  public export
+  data Headed : Predicate bs k -> Type where
+    MkHeaded : {auto 0 ok : hasHead p = True} -> Headed p
+
+  ||| A conjunction's explicit zones agree: an object is in ONE zone,
+  ||| and the seed projections take the first zone written, so a
+  ||| contradicting later conjunct must be refused, not ignored.
+  public export
+  zonesAgree : {0 bs : Bindings} -> {0 k : Kind} -> Maybe Zone -> List (Predicate bs k) -> Bool
+  zonesAgree acc [] = True
+  zonesAgree acc (p :: ps) = case seedZone p of
+    Nothing => zonesAgree acc ps
+    Just z => case acc of
+      Nothing => zonesAgree (Just z) ps
+      Just w => sameZone w z && zonesAgree (Just w) ps
+
+  public export
+  data ZoneCoherent : List (Predicate bs k) -> Type where
+    MkZoneCoherent : {auto 0 ok : zonesAgree Nothing ps = True} -> ZoneCoherent ps
+
   public export
   zoneOr : Zone -> Maybe Zone -> Zone
   zoneOr z Nothing = z
@@ -1213,9 +1313,12 @@ mutual
     You : Noun bs Player        -- "you" [CR#109.5]
     -- "target …" / "any target": announced [CR#601.2c]; only objects
     -- and players are targetable ([CR#115.1] — `badTargetColor`).
-    Target : Predicate bs k -> {auto tk : Targetable k} -> Noun bs k
-    Each : Predicate bs k -> {auto ph : Phrasal k} -> Noun bs k    -- "each …": a group, resolution-time [CR#608.2]
-    A : Predicate bs k -> {auto ph : Phrasal k} -> Noun bs k       -- "a …": indefinite choice/product [CR#608.2d,400.7]
+    Target : (p : Predicate bs k) -> {auto tk : Targetable k} ->
+             {auto 0 hd : Headed p} -> Noun bs k
+    Each : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
+           {auto 0 hd : Headed p} -> Noun bs k    -- "each …": a group, resolution-time [CR#608.2]
+    A : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
+        {auto 0 hd : Headed p} -> Noun bs k       -- "a …": indefinite choice/product [CR#608.2d,400.7]
     -- "a … of their choice" / "a … at random": the indefinite with its
     -- choice method marked in the text — chooser and method are surface
     -- facts (the guide's chooser marking; a random discard has no
@@ -1223,22 +1326,27 @@ mutual
     -- slot and its absence in the at-random variant. "Their" is a
     -- possessive pronoun: it demands exactly one player antecedent —
     -- a subject or one distributive group (`badUnboundTheirChoice`).
-    ATheirChoice : Predicate bs k -> {auto ph : Phrasal k} ->
-                   {auto 0 ch : countChoosers bs = 1} -> Noun bs k
-    AAtRandom : Predicate bs k -> {auto ph : Phrasal k} -> Noun bs k
+    ATheirChoice : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
+                   {auto 0 ch : countChoosers bs = 1} ->
+                   {auto 0 hd : Headed p} -> Noun bs k
+    AAtRandom : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
+                {auto 0 hd : Headed p} -> Noun bs k
     -- "[n] target [pred]s" / "up to [n] target [pred]s": counted group
     -- mentions — one binding; the numeral is surface data no read
     -- consults ([CR#601.2c] distinctness is announce business), except
     -- that "up to one" binds singular (`upToPlur` — its remention is
     -- "it") and a written numeral is at least one (`badZeroGroup`).
-    TargetGroup : (n : Nat) -> Predicate bs k ->
-                  {auto tk : Targetable k} -> {auto 0 nz : AtLeastTwo n} -> Noun bs k
-    TargetUpTo : (n : Nat) -> Predicate bs k ->
-                 {auto tk : Targetable k} -> {auto 0 nz : AtLeastOne n} -> Noun bs k
+    TargetGroup : (n : Nat) -> (p : Predicate bs k) ->
+                  {auto tk : Targetable k} -> {auto 0 nz : AtLeastTwo n} ->
+                  {auto 0 hd : Headed p} -> Noun bs k
+    TargetUpTo : (n : Nat) -> (p : Predicate bs k) ->
+                 {auto tk : Targetable k} -> {auto 0 nz : AtLeastOne n} ->
+                 {auto 0 hd : Headed p} -> Noun bs k
     -- "all [pred]s": the set-level group — a surface determiner the
     -- guide keeps distinct from distributive "each" (the CR fixes both
     -- sets at resolution and separates them no further).
-    AllOf : Predicate bs k -> {auto ph : Phrasal k} -> Noun bs k
+    AllOf : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
+            {auto 0 hd : Headed p} -> Noun bs k
     -- "it" / "its": the wildcard pronoun — exactly one singular Object
     -- mention may precede. Zero = unbound, two = ambiguous; both
     -- unspellable.
@@ -1315,7 +1423,10 @@ mutual
   predDelta (ControlledBy n) = nounDelta n
   predDelta (InZone z) = zoneDelta z
   predDelta (And ps) = predDeltaAll ps
-  predDelta (Not p) = predDelta p
+  -- negation is a binding HOLE: a positive controller relation names
+  -- the one controller ([CR#109.4]); its negation selects nobody, so
+  -- nothing inside `Not` folds out (`badNegatedAntecedent`).
+  predDelta (Not p) = []
   predDelta _ = []
 
   public export
@@ -1414,11 +1525,12 @@ mutual
   public export
   data Effect : Bindings -> Type where
     -- "[src] deals [amt] damage to [to]" — the recipient is a player
-    -- or a battlefield object ([CR#120.1]; `badDamageGraveyardCard`,
-    -- `badDamageToColor`).
+    -- or a damageable battlefield object ([CR#120.1,120.1a];
+    -- `badDamageGraveyardCard`, `badDamageToColor`,
+    -- `badDamageArtifact`).
     DealDamage : {k : Kind} -> (src : Noun bs Object) -> (amt : Amount (nomIntro src)) ->
                  (to : Noun (amtIntro amt) k) ->
-                 {auto 0 rk : DamageRecipient k (nounZone to)} -> Effect bs
+                 {auto 0 rk : DamageRecipient k (nounZone to) (nounTy to)} -> Effect bs
     -- "[a] fights [b]" ([CR#701.14a] — only battlefield creatures
     -- fight [CR#701.14b]; `badFightGraveyard`, `badFightLand`).
     -- Primitive, confirmed: one simultaneous damage event, which no
@@ -1479,7 +1591,7 @@ mutual
     -- move also stamps its referent's provenance — the participle
     -- read's filter (finding 26).
     Composite : (v : VerbName) -> (e : Effect bs) ->
-                {auto 0 ok : TagBody v e} -> Effect bs
+                {auto 0 ok : TagBody v e} -> {auto 0 na : NonAgentive v} -> Effect bs
     -- "[subject] [verb phrase]" — the declarative clause: an agentive
     -- verb's performer in subject position, its phrase typed after it.
     -- Only verbs the CR gives a player actor take a subject
@@ -1491,10 +1603,13 @@ mutual
     -- slot the way the real macros ride their agent param — and
     -- lowering redistributes it; `ChangeLife` carries its `who` the
     -- same way. Object sources (DealDamage's src) are the verb's own
-    -- argument, not a subject — and only agentive clauses take one
-    -- (`Agentive`; `badSubjectedDestroy`).
-    Does : (subj : Noun bs Player) -> (e : Effect (nomIntro subj)) ->
-           {auto 0 ok : AgentiveClause (clauseVerb e)} -> Effect bs
+    -- argument, not a subject. The clause carries its verb TAG
+    -- directly: only agentive verbs take a subject (`AgentiveV`;
+    -- `badSubjectedDestroy`), and the tag's body obligations ride
+    -- `TagBody` here exactly as under `Composite`.
+    Does : (subj : Noun bs Player) -> (v : VerbName) ->
+           (e : Effect (nomIntro subj)) ->
+           {auto 0 ag : AgentiveV v} -> {auto 0 tb : TagBody v e} -> Effect bs
     -- "[decider] may [effect]" — the decider slot ([CR#608.2d]; the
     -- resolving default is the controller [CR#608.2c]). Decider and
     -- performer can differ ("[player] may have [source] deal … to
@@ -1511,30 +1626,39 @@ mutual
 
   ||| A keyword tag's legal expansion body ([CR#701.8a] family): the
   ||| tag and its move agree, so no term can pair a verb's deontic
-  ||| identity with another verb's motion.
+  ||| identity with another verb's motion — and each tag demands its
+  ||| verb's SOURCE zone of the moved noun ([CR#701.8a] destruction
+  ||| moves a battlefield permanent, [CR#701.9a] discarding a hand
+  ||| card; exile is zone-blind). The demand lives on the RELATION,
+  ||| so raw spellings prove exactly what the macros prove — and a
+  ||| forged provenance stamp is unwritable, only a legal tagged move
+  ||| writing one (`badCompositeDestroyGraveyard`,
+  ||| `badDoesDiscardBattlefield`).
   public export
   data TagBody : VerbName -> Effect bs -> Type where
-    DestroyB : TagBody Destroy (Move n GraveyardZ)
-    SacrificeB : TagBody Sacrifice (Move n GraveyardZ)
+    DestroyB : {auto 0 z : OnBattlefield (nounZone n)} ->
+               TagBody Destroy (Move n GraveyardZ)
+    SacrificeB : {auto 0 z : OnBattlefield (nounZone n)} ->
+                 TagBody Sacrifice (Move n GraveyardZ)
     ExileB : TagBody Exile (Move n ExileZ)
-    DiscardB : TagBody Discard (Move n GraveyardZ)
+    DiscardB : {auto 0 z : InHandZone (nounZone n)} ->
+               TagBody Discard (Move n GraveyardZ)
 
-  ||| The keyword tag heading a clause, if any — what the subject gate
-  ||| consults. (The catch-all is deliberate and CONSERVATIVE: a new
-  ||| clause form is subjectless until listed here.)
+  ||| Verb agentivity, BOTH directions per-row: the CR gives sacrifice
+  ||| and discard a player actor ([CR#701.21a,701.9a]) — their tags
+  ||| spell only under `Does` (`badAgentlessSacrifice`) — while
+  ||| destroy and exile are subjectless effect-verbs whose tags spell
+  ||| only as `Composite` (`badSubjectedDestroy`). A new verb must
+  ||| declare on exactly one table; no catch-all leaks.
   public export
-  clauseVerb : Effect bs -> Maybe VerbName
-  clauseVerb (Composite v e) = Just v
-  clauseVerb _ = Nothing
+  data AgentiveV : VerbName -> Type where
+    SacrificeAg : AgentiveV Sacrifice
+    DiscardAg : AgentiveV Discard
 
-  ||| Only agentive verbs take a subject (finding 9): the clause under
-  ||| `Does` is one the CR gives a player actor — the sacrifice and
-  ||| discard families [CR#701.21a,701.9a]. Effect-verbs (destroy,
-  ||| damage) stay subjectless imperatives.
   public export
-  data AgentiveClause : Maybe VerbName -> Type where
-    SacrificeAg : AgentiveClause (Just Sacrifice)
-    DiscardAg : AgentiveClause (Just Discard)
+  data NonAgentive : VerbName -> Type where
+    DestroyNA : NonAgentive Destroy
+    ExileNA : NonAgentive Exile
 
   ||| Retag the binding a moved noun denotes: an introducing noun's own
   ||| fresh binding, or the unique binding a read resolved to (strict
@@ -1711,7 +1835,8 @@ mutual
   effIntro (Gets n _ _ _) = nomIntro n
   effIntro (Composite v (Move what to)) = moveIntro (Just v) what (zoneSort to)
   effIntro (Composite _ e) = effIntro e
-  effIntro (Does s e) = effIntro e
+  effIntro (Does s v (Move what to)) = moveIntro (Just v) what (zoneSort to)
+  effIntro (Does s v e) = effIntro e
   effIntro (May d e) = effIntro e            -- a declined May skips at runtime, not in scope
   effIntro (AndThen e1 e2) = effIntro e2
   effIntro (Delayed ev e) = bs               -- a future clause mentions nothing NOW
@@ -1760,7 +1885,7 @@ anyOtherTarget = And [AnyTarget, Other]
 -- only a battlefield permanent is destroyable (`badDestroyGraveyard`).
 public export
 destroy : (n : Noun bs Object) -> {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
-destroy n = Composite Destroy (Move n GraveyardZ) {ok = DestroyB}
+destroy n = Composite Destroy (Move n GraveyardZ) {ok = DestroyB {z = ok}}
 
 -- "exile [n]" ([CR#701.13a]) — speculative pending its real macro.
 public export
@@ -1778,7 +1903,7 @@ exile n = Composite Exile (Move n ExileZ) {ok = ExileB}
 public export
 sacrifice : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
             {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
-sacrifice agent n = Does agent (Composite Sacrifice (Move n GraveyardZ) {ok = SacrificeB})
+sacrifice agent n = Does agent Sacrifice (Move n GraveyardZ) {tb = SacrificeB {z = ok}}
 
 -- "[agent] discard(s) [n]" — the hand→graveyard move [CR#701.9a] with
 -- the subject in clause position. The CR routes by the card's OWNER;
@@ -1790,7 +1915,7 @@ sacrifice agent n = Does agent (Composite Sacrifice (Move n GraveyardZ) {ok = Sa
 public export
 discards : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
            {auto 0 hz : InHandZone (nounZone n)} -> Effect bs
-discards agent n = Does agent (Composite Discard (Move n GraveyardZ) {ok = DiscardB})
+discards agent n = Does agent Discard (Move n GraveyardZ) {tb = DiscardB {z = hz}}
 
 -- "[agent] discard(s) a card" — the common phrase, spelled sort-only
 -- (an owned-hand expansion needs a subject-read noun the vocabulary

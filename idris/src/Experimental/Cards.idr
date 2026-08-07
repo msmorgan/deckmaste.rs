@@ -394,9 +394,8 @@ failing "countWord"
 -- "The chosen type" with only a color chosen: the quality read is
 -- sort-filtered — no witness.
 failing "countQuality"
-  badChosenWrongSort : Effect []
-  badChosenWrongSort = AndThen (Choose (A (QualityNoun Color)))
-                               (destroy (AllOf (And [creature, Not (OfChosen CreatureType)])))
+  badChosenWrongSort : Predicate [MkBinding AD (Quality Color) OneOf QualityP] Object
+  badChosenWrongSort = OfChosen CreatureType
 
 -- Two group mentions leave "them" ambiguous — the plural wildcard has
 -- the same strict-uniqueness gate as the singular.
@@ -495,6 +494,36 @@ failing "DamageRecipient"
   badDamageToColor : Effect []
   badDamageToColor = DealDamage This (Lit 1) (A (QualityNoun Color))
 
+-- Damage goes to battles, creatures, planeswalkers, or players
+-- [CR#120.1a]: a noncreature artifact takes none.
+failing "DamageRecipient"
+  badDamageArtifact : Effect []
+  badDamageArtifact = DealDamage This (Lit 1) (Target (HasType Artifact))
+
+-- A phrase needs a positive head ([CR#105.1,608.2d]): "choose a
+-- noncolor" and "target non-player" head nothing — Not is a
+-- modifier, never a head.
+failing "Headed"
+  badNegatedQualityHead : Effect []
+  badNegatedQualityHead = Choose (A (Not (QualityNoun Color)))
+
+failing "Headed"
+  badNegatedPlayerHead : Effect []
+  badNegatedPlayerHead = Choose (Target (Not AnyPlayer))
+
+-- Negation binds nothing: "a creature an opponent DOESN'T control"
+-- names no opponent for "that player" to read.
+failing "countWord"
+  badNegatedAntecedent : Effect []
+  badNegatedAntecedent = AndThen (Tap (Target (And [creature, Not (ControlledBy anOpponent)])))
+                                 (losesLife (That PlayerW) (Lit 1))
+
+-- An object is in ONE zone: contradicted zone conjuncts refuse in
+-- either order.
+failing "ZoneCoherent"
+  badConflictingZones : Effect []
+  badConflictingZones = destroy (Target (And [creature, InZone BattlefieldZ, InZone GraveyardZ]))
+
 -- Targets are objects and players [CR#115.1]: "target color" is
 -- unwritten — qualities are chosen, never targeted.
 failing "Targetable"
@@ -530,6 +559,26 @@ failing "InHandZone"
 failing "TagBody"
   badDestroyTaggedExile : Effect []
   badDestroyTaggedExile = Composite Destroy (Move (Target creature) ExileZ)
+
+-- The zone demand lives on the tag-body relation: the raw Composite
+-- spelling proves what the macro proves [CR#701.8a].
+failing "OnBattlefield"
+  badCompositeDestroyGraveyard : Effect []
+  badCompositeDestroyGraveyard =
+    Composite Destroy (Move (Target (And [creature, InZone GraveyardZ])) GraveyardZ) {ok = DestroyB}
+
+-- An agentive tag cannot shed its actor [CR#701.21a]: the raw
+-- Composite spelling of sacrifice is refused outright.
+failing "NonAgentive"
+  badAgentlessSacrifice : Effect []
+  badAgentlessSacrifice = Composite Sacrifice (Move (A creature) GraveyardZ) {ok = SacrificeB}
+
+-- Discarding moves a hand card [CR#701.9a]: the demand rides the tag
+-- relation, so a battlefield "discard" is unspellable under Does too
+-- — and with it the forged stamp `TheVerbed Discard` would read.
+failing "InHandZone"
+  badDoesDiscardBattlefield : Effect []
+  badDoesDiscardBattlefield = Does You Discard (Move (A creature) GraveyardZ) {tb = DiscardB}
 
 -- Two creatures have no single power [CR#208.1] — the aggregate is
 -- written explicitly ("the total power of the sacrificed creatures",
@@ -568,15 +617,17 @@ failing "OneOf"
 -- "a creature two target opponents control": an object has one
 -- controller [CR#109.4]; the union possessor ("creatures your
 -- opponents control") is the player-groups vocabulary (ledger).
+-- (Probed at the predicate itself: inside a larger phrase the stuck
+-- slot stalls the outer coherence search instead.)
 failing "OneOf"
-  badControlledByGroup : Effect []
-  badControlledByGroup = Tap (Target (And [creature, ControlledBy (TargetGroup 2 Opponent)]))
+  badControlledByGroup : Predicate [] Object
+  badControlledByGroup = ControlledBy (TargetGroup 2 Opponent)
 
 -- Hands and graveyards are per-player zones [CR#400.1]: one zone
 -- owned by two players at once is unwritable.
 failing "OneOf"
-  badGraveyardOfGroup : Effect []
-  badGraveyardOfGroup = Choose (Target (And [creature, InZone (GraveyardOf (TargetGroup 2 Opponent))]))
+  badGraveyardOfGroup : ZoneExpr []
+  badGraveyardOfGroup = GraveyardOf (TargetGroup 2 Opponent)
 
 -- The minted dies-watcher is singular (Graceful Reprieve's shape);
 -- plural watches wait for corpus evidence.
@@ -605,9 +656,9 @@ failing "countOnes Player"
 
 -- Subjects ride agentive verbs only (finding 9): "You destroy target
 -- creature" is unwritten — destroy is a subjectless effect-verb.
-failing "Agentive"
+failing "AgentiveV"
   badSubjectedDestroy : Effect []
-  badSubjectedDestroy = Does You (destroy (Target creature))
+  badSubjectedDestroy = Does You Destroy (Move (Target creature) GraveyardZ)
 
 -- "That much" with nothing done yet: no outcome to read.
 failing "countOnes Outcome"
