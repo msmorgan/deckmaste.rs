@@ -271,8 +271,13 @@ fn inverse_target_linearizers(group: &GroupDeclaration) -> Vec<TokenStream> {
         .inverse_target_dispatch_families()
         .into_iter()
         .map(|family| {
-            let target = crate::model::snake_case(&family.target.value);
-            let function = quote::format_ident!("linearize_{}_{}_with", group.name.value, target);
+            let function = quote::format_ident!(
+                "{}",
+                crate::model::inverse_target_dispatcher_name(
+                    &group.name.value,
+                    &family.target.value,
+                )
+            );
             inverse_family_linearizer(group, family, &function)
         })
         .collect()
@@ -2924,9 +2929,8 @@ fn reexports(group: &GroupDeclaration) -> Vec<TokenStream> {
     }
     for family in group.inverse_target_dispatch_families() {
         items.push(quote::format_ident!(
-            "linearize_{}_{}_with",
-            group.name.value,
-            crate::model::snake_case(&family.target.value)
+            "{}",
+            crate::model::inverse_target_dispatcher_name(&group.name.value, &family.target.value,)
         ));
     }
     let mut typed_targets = Vec::new();
@@ -3356,6 +3360,96 @@ mod tests {
         assert!(
             rendered.contains("pub fn linearize_singleton_category_only_with<V>("),
             "a one-construction category still owns an emitted inverse family: {rendered}",
+        );
+    }
+
+    #[test]
+    fn qualified_singleton_bind_target_emits_its_category_dispatcher() {
+        // Mutation caught: derive every inverse dispatcher suffix from the
+        // bound Rust type instead of using the declared category identity.
+        let group = crate::parse::parse_group(quote::quote! {
+            group qualified_singleton;
+            construction only: Only {
+                bind covered::path::Target via make_only, split_only { token: lex Token }
+                form only @ 0 when check(is_only) = lex(token);
+                selection unique;
+            }
+        })
+        .expect("qualified singleton target parses");
+        let validated = validate(&group).expect("qualified singleton target validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            rendered.contains("pub fn linearize_qualified_singleton_only_with<V>(")
+                && rendered.contains("value: &covered::path::Target"),
+            "a qualified singleton target emits through its category identity: {rendered}",
+        );
+    }
+
+    #[test]
+    fn qualified_multi_category_bind_target_uses_a_path_safe_dispatcher_name() {
+        // Mutation caught: feed the full `covered::path::Target` spelling to
+        // `snake_case` and `format_ident!`, which panics on the retained `::`.
+        let group = crate::parse::parse_group(quote::quote! {
+            group qualified_targets;
+            construction left: Left {
+                bind covered::path::Target via make_left, split_left { token: lex Token }
+                form only @ 0 when check(is_left) = lex(token);
+                selection unique;
+            }
+            construction right: Right {
+                bind covered::path::Target via make_right, split_right { token: lex Token }
+                form only @ 0 when check(is_right) = lex(token);
+                selection unique;
+            }
+        })
+        .expect("qualified multi-category target parses");
+        let validated = validate(&group).expect("qualified multi-category target validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            rendered.contains(
+                "pub fn linearize_qualified_targets_path_636f76657265643a3a706174683a3a546172676574_with",
+            ),
+            "the full qualified target owns one deterministic Rust identifier: {rendered}",
+        );
+    }
+
+    #[test]
+    fn distinct_qualified_bind_targets_get_distinct_dispatcher_names() {
+        // Mutation caught: retain only the terminal type segment when making
+        // target dispatcher names, collapsing two `...::Target` families.
+        let group = crate::parse::parse_group(quote::quote! {
+            group distinct_qualified_targets;
+            construction covered_left: CoveredLeft {
+                bind covered::path::Target via make_covered_left, split_covered_left { token: lex Token }
+                form only @ 0 when check(is_covered_left) = lex(token);
+                selection unique;
+            }
+            construction covered_right: CoveredRight {
+                bind covered::path::Target via make_covered_right, split_covered_right { token: lex Token }
+                form only @ 0 when check(is_covered_right) = lex(token);
+                selection unique;
+            }
+            construction other_left: OtherLeft {
+                bind other::path::Target via make_other_left, split_other_left { token: lex Token }
+                form only @ 0 when check(is_other_left) = lex(token);
+                selection unique;
+            }
+            construction other_right: OtherRight {
+                bind other::path::Target via make_other_right, split_other_right { token: lex Token }
+                form only @ 0 when check(is_other_right) = lex(token);
+                selection unique;
+            }
+        })
+        .expect("distinct qualified target families parse");
+        let validated = validate(&group).expect("distinct qualified target families validate");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            rendered.contains(
+                "linearize_distinct_qualified_targets_path_636f76657265643a3a706174683a3a546172676574_with",
+            ) && rendered.contains(
+                "linearize_distinct_qualified_targets_path_6f746865723a3a706174683a3a546172676574_with",
+            ),
+            "distinct full Rust paths must not collapse to one target dispatcher: {rendered}",
         );
     }
 

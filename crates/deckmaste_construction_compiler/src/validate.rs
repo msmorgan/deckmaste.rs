@@ -717,11 +717,8 @@ fn check_generated_dispatch_names(
         );
     }
     for family in group.inverse_target_dispatch_families() {
-        let dispatcher = format!(
-            "linearize_{}_{}_with",
-            group.name.value,
-            crate::model::snake_case(&family.target.value),
-        );
+        let dispatcher =
+            crate::model::inverse_target_dispatcher_name(&group.name.value, &family.target.value);
         record_generated_name(
             seen_values,
             diags,

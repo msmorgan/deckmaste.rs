@@ -614,6 +614,33 @@ pub fn snake_case(pascal: &str) -> String {
     out
 }
 
+/// Returns the generated inverse dispatcher name for a bound Rust target.
+///
+/// Bare identifiers retain their established readable suffix. Qualified or
+/// generic paths are encoded byte-for-byte so every accepted `syn::Path`
+/// spelling becomes a valid identifier without collapsing distinct module
+/// paths onto the same terminal type name. Validation and emission must call
+/// this one function so collision checks cover the exact emitted name.
+#[must_use]
+pub(crate) fn inverse_target_dispatcher_name(group: &str, target: &str) -> String {
+    let bare_identifier = target.bytes().enumerate().all(|(index, byte)| {
+        byte == b'_' || byte.is_ascii_alphabetic() || (index > 0 && byte.is_ascii_digit())
+    });
+    let target = if bare_identifier {
+        snake_case(target)
+    } else {
+        use std::fmt::Write as _;
+
+        let mut encoded = String::with_capacity("path_".len() + target.len() * 2);
+        encoded.push_str("path_");
+        for byte in target.bytes() {
+            write!(encoded, "{byte:02x}").expect("writing to a String cannot fail");
+        }
+        encoded
+    };
+    format!("linearize_{group}_{target}_with")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
