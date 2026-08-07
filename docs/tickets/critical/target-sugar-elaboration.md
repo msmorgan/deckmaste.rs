@@ -83,6 +83,63 @@ the ONLY scope introducer; idiom bodies stay scope-free.
 - Delete the `TargetedDealDamage` differential-baseline fixture (parked by
   `frames-catalog-merge`) once the compositional path covers its cases.
 
+## Mechanism (surveyed 2026-08-07, not yet implemented)
+
+The scope note's "pre-expansion elaboration layer OR origin-tagged sugar
+nodes" is a false pair — neither alone works, because the two constraints
+pull opposite ways. Dedup wants PRE-expansion (`Fight`'s body spells
+`Param(0)` four times and each hole re-reads the same raw argument text,
+so a sugar VALUE node mints four slots for one caller site). Scoping wants
+POST-expansion (`Modal` is not natively spellable — canon reaches it
+through the `Modal` identity macro — so a textual pass cannot see mode
+boundaries at all, and would wrongly hoist a mode's inline site to the
+ability root).
+
+Resolution — a **sentinel pre-pass**, splitting the two:
+
+1. **Text rewrite before the read.** Walk the card source at value
+   positions (`macro_ron`'s `decompose`, generalized to surface the head
+   ident as `leading_invoked_name` already does — the walk itself is the
+   one `collect_holes` uses). Replace `Announce(X)` with `Target(S_k)`
+   and `Announces(X)` with `Targets(S_k)` for a reserved sentinel index
+   `S_k`, stashing `X`'s source text under `k`.
+2. **The ordinary restricted read, unchanged.** A sentinel is just a
+   `usize` on variants that already exist, so it rides expansion with NO
+   new machinery: every `Param` re-read reproduces the same sentinel, and
+   the `Fight` multiplication dissolves. No placeholder variant for the
+   Idris mirror or the lowering ledger to carry.
+3. **`normalize(Card)` on the typed AST**, where every scope boundary is
+   visible. Per announcement-scope root, collect distinct sentinels
+   reachable without crossing a nested root, in schema order; assign
+   `E + position`; append the specs; rewrite sentinels to real indices —
+   INCLUDING inside remembered `Expansion::args` text, which is what makes
+   the `lower(sugar) == lower(explicit)` byte-for-byte gate hold.
+
+Priced deltas: byte offsets shift under the rewrite, so pass-2 diagnostics
+need an offset map back to the author's text; pass 1 is type-free, so only
+`Announce` WITH an argument may be rewritten — `LockPoint::Announce` is an
+existing bare unit variant (`temporal.rs`), and a test must pin that.
+
+Recommended splits (both left open):
+
+- The ULTIMATE predicate-embedded-slot-reference encoding (deleting
+  `TargetSpec::Distinct` from core, the generalized deep-scan proof in
+  Rust and Idris, plural group-membership) is its own ticket. The
+  "other"-form lands here regardless: it lowers to today's
+  `Distinct([every earlier index], spec)`, computable once numbering is
+  known.
+- Merging SIBLING `Targeted`s in one scope (renumbering two explicit
+  lists) has no fixture demanding it; reject that shape with a clear
+  error rather than build an unexercised renumberer.
+
+Two open owner calls: whether the `Announced(n)` READ companion is
+rejected (survey leans yes — keep `Target(n)`, since `TargetSpec` /
+`Targeted` / `targets:` are target-flavored throughout and renaming only
+the read is the incoherent middle); and whether `normalize` is invoked at
+the loader (recommended, so no sentinel escapes `Plugin::card_from_str`)
+with lowering merely ASSERTING the normal form, rather than re-traversing
+every card as spec §9 reads literally.
+
 ## Gates
 
 Standard constraints apply. For every sugared fixture,
