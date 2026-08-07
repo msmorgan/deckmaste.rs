@@ -576,7 +576,7 @@ module Experimental
 ||| this enum is the workbench's stand-in for reading those
 ||| declarations, like the keyword and verb macro names.
 public export
-data CardType = Creature | Artifact | Land
+data CardType = Creature | Artifact | Land | Enchantment
 
 ||| Fight participation, per type — the stand-in for reading a
 ||| combat-participant grant from the TypeDef declaration, distinct
@@ -588,6 +588,7 @@ combatant : CardType -> Bool
 combatant Creature = True
 combatant Artifact = False
 combatant Land = False
+combatant Enchantment = False
 
 ||| The projected-head gate the fight slots consume — an untyped head
 ||| cannot prove participation, and the witness carries the grant
@@ -649,6 +650,13 @@ data OutcomeSort = DamageDealt | LifeGained | LifeLost
 ||| resolving to a plural antecedent.
 public export
 data Plurality = OneOf | ManyOf
+
+||| Grammatical number as a Bool, for the gates that only ask
+||| "singular?" — per-row, so a new number is a totality error.
+public export
+isOne : Plurality -> Bool
+isOne OneOf = True
+isOne ManyOf = False
 
 ||| "Up to one target …" is grammatically SINGULAR — its remention is
 ||| "it" (Ty Lee, Chi Blocker); larger bounds are groups. Choosing
@@ -795,6 +803,8 @@ sameCT Artifact Artifact = True
 sameCT Artifact _ = False
 sameCT Land Land = True
 sameCT Land _ = False
+sameCT Enchantment Enchantment = True
+sameCT Enchantment _ = False
 
 ||| Singular mentions of a kind, counted — the wildcard pronoun's
 ||| obligation is `= 1`: zero is an unbound anaphor, two an ambiguous one
@@ -837,6 +847,37 @@ anyTargeted k (MkBinding TargetD k' _ _ :: bs) =
 anyTargeted k (MkBinding TargetUpToD k' _ _ :: bs) =
   if sameKind k k' then True else anyTargeted k bs
 anyTargeted k (_ :: bs) = anyTargeted k bs
+
+||| Head-type compatibility between an "other" phrase and a candidate
+||| anchor mention: an anchor that projects no head type is compatible
+||| with any head (wildcards, "any target").
+public export
+anchorTyOk : CardType -> Maybe CardType -> Bool
+anchorTyOk t Nothing = True
+anchorTyOk t (Just t') = sameCT t t'
+
+||| The typed twin of `anyTargeted`: is a target mention of this kind
+||| AND a compatible head type in scope? The style guide writes two
+||| separately described roles WITHOUT "other" ("target creature and
+||| target planeswalker"), and the corpus pairs "other" only with
+||| overlapping heads, so a cross-head anchor is no witness.
+public export
+anyTargetedTy : Kind -> CardType -> Bindings -> Bool
+anyTargetedTy k t [] = False
+anyTargetedTy k t (b@(MkBinding TargetD k' _ _) :: bs) =
+  if sameKind k k' && anchorTyOk t (bindingTy b) then True else anyTargetedTy k t bs
+anyTargetedTy k t (b@(MkBinding TargetUpToD k' _ _) :: bs) =
+  if sameKind k k' && anchorTyOk t (bindingTy b) then True else anyTargetedTy k t bs
+anyTargetedTy k t (_ :: bs) = anyTargetedTy k t bs
+
+||| The "other" presupposition's witness search, by the phrase's own
+||| projected head: an UNTYPED head (Arc Trail's "any other target",
+||| a player-kind "other") accepts any same-kind anchor, which is
+||| exactly `anyTargeted`; a typed head demands a type-compatible one.
+public export
+anchorFound : Kind -> Maybe CardType -> Bindings -> Bool
+anchorFound k Nothing ctx = anyTargeted k ctx
+anchorFound k (Just t) ctx = anyTargetedTy k t ctx
 
 ||| A future clause's context: the outer clause's announced targets
 ||| cross the boundary as SETTLED PARTICULARS — readable like any
@@ -1095,12 +1136,16 @@ data InHandZone : Maybe Zone -> Type where
   FromHand : InHandZone (Just Hand)
 
 ||| The zone half of sacrifice's implicit restriction ([CR#701.21a] —
-||| only a permanent can be sacrificed): the referent's tracked zone
-||| must be the battlefield, or untracked. The controller half needs
-||| fold-state the context does not carry (not-settled).
+||| only a permanent can be sacrificed), and of every other
+||| battlefield-demanding slot: the referent's zone must BE the
+||| battlefield. The permissive untracked row is gone — it existed for
+||| the sorted self-reference, which now projects its own zone
+||| ([CR#109.2], `nounZone (ThisOf …)`); bare `This` is the source as an
+||| object and never denotes a permanent, so nothing legal needs it.
+||| The controller half needs fold-state the context does not carry
+||| (not-settled).
 public export
 data OnBattlefield : Maybe Zone -> Type where
-  Untracked : OnBattlefield Nothing
   OnField : OnBattlefield (Just Battlefield)
 
 ||| What "target" can take ([CR#115.1] — objects and players; a
@@ -1222,10 +1267,18 @@ mutual
     -- battlefield state word, not a type.
     Attacking : Predicate bs Object
     InZone : ZoneExpr bs -> Predicate bs Object          -- zone clause "in/from [zone]" ([CR#109.2a])
-    -- sibling modifiers, one referent; explicit zones must agree
-    -- (`ZoneCoherent` — an object is in one zone).
-    And : (ps : List (Predicate bs k)) -> {auto 0 zc : ZoneCoherent ps} -> Predicate bs k
-    Not : Predicate bs k -> Predicate bs k               -- "don't"/"non-" on a modifier
+    -- sibling modifiers, one referent. The conjunction is where the
+    -- phrase-level obligations live: explicit zones must agree and may
+    -- not contradict the phrase's own default (`ZoneCoherent`), no
+    -- member may negate a sibling (`ContradictionFree`), an "other"
+    -- needs a head-compatible anchor (`OtherAnchored`), and the class
+    -- word "any target" takes no modifiers but "other" (`AnyTargetLone`).
+    And : (ps : List (Predicate bs k)) -> {auto 0 zc : ZoneCoherent ps} ->
+          {auto 0 cf : ContradictionFree ps} -> {auto 0 oa : OtherAnchored ps} ->
+          {auto 0 at : AnyTargetLone ps} -> Predicate bs k
+    -- "don't"/"non-" on a modifier — over a negatable one only
+    -- (`Negatable`: not the class word, not "other", not a negation).
+    Not : (p : Predicate bs k) -> {auto 0 ng : Negatable p} -> Predicate bs k
     -- the modifier "other"/"another" ([CR#115.4]): distinct from every
     -- earlier target of this kind; presupposes one exists.
     Other : {auto 0 ok : anyTargeted k bs = True} -> Predicate bs k
@@ -1250,10 +1303,15 @@ mutual
     Nothing => seedTyAll ps
 
   ||| The zone a predicate places its referent in — a bare description
-  ||| means the battlefield ([CR#109.2]); a zone clause says otherwise.
+  ||| means the battlefield ([CR#109.2]); a zone clause says otherwise,
+  ||| and a battlefield STATE word says the same thing the zone clause
+  ||| would: only an attacking creature on the battlefield is
+  ||| designated an attacker ([CR#508.1a]), so the status predicate
+  ||| seeds its own zone rather than leaving the phrase silent.
   public export
   seedZone : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Maybe Zone
   seedZone (InZone z) = Just (zoneSort z)
+  seedZone Attacking = Just Battlefield
   seedZone (And ps) = seedZoneAll ps
   seedZone _ = Nothing
 
@@ -1295,6 +1353,16 @@ mutual
   data Headed : Predicate bs k -> Type where
     MkHeaded : {auto 0 ok : hasHead p = True} -> Headed p
 
+  ||| Every member of a conjunction, nested conjunctions flattened —
+  ||| the member scan the coherence gates share, so a clash one level
+  ||| down is refused exactly as a sibling clash is.
+  public export
+  flattenPs : {0 bs : Bindings} -> {0 k : Kind} ->
+              List (Predicate bs k) -> List (Predicate bs k)
+  flattenPs [] = []
+  flattenPs (And qs :: ps) = flattenPs qs ++ flattenPs ps
+  flattenPs (p :: ps) = p :: flattenPs ps
+
   ||| A conjunction's explicit zones agree: an object is in ONE zone,
   ||| and the seed projections take the first zone written, so a
   ||| contradicting later conjunct must be refused, not ignored.
@@ -1307,9 +1375,221 @@ mutual
       Nothing => zonesAgree (Just z) ps
       Just w => sameZone w z && zonesAgree (Just w) ps
 
+  ||| The zones a member rules OUT. Zone negation is real oracle —
+  ||| "Each Vampire creature card you own that isn't on the
+  ||| battlefield has madness." (Falkenrath Gorger) — so `Not (InZone
+  ||| …)` stays writable; what it cannot do is contradict the zone the
+  ||| phrase actually places its referent in.
+  public export
+  negZonesOf : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> List Zone
+  negZonesOf (Not p) = case seedZone p of
+    Just z => [z]
+    Nothing => []
+  negZonesOf _ = []
+
+  public export
+  negZones : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> List Zone
+  negZones [] = []
+  negZones (p :: ps) = negZonesOf p ++ negZones ps
+
+  public export
+  zoneMember : Zone -> List Zone -> Bool
+  zoneMember z [] = False
+  zoneMember z (w :: ws) = sameZone z w || zoneMember z ws
+
+  ||| The conjunction's whole zone story: the explicit zones agree with
+  ||| each other, AND the phrase's EFFECTIVE zone — a bare description
+  ||| means the battlefield ([CR#109.2]) — is not one the phrase rules
+  ||| out. "creature that isn't on the battlefield" contradicts its own
+  ||| default; "creature card in your graveyard that isn't on the
+  ||| battlefield" does not.
+  public export
+  zonesOk : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
+  zonesOk ps = zonesAgree Nothing (flattenPs ps) &&
+               not (zoneMember (zoneOr Battlefield (seedZoneAll (flattenPs ps)))
+                               (negZones (flattenPs ps)))
+
   public export
   data ZoneCoherent : List (Predicate bs k) -> Type where
-    MkZoneCoherent : {auto 0 ok : zonesAgree Nothing ps = True} -> ZoneCoherent ps
+    MkZoneCoherent : {auto 0 ok : zonesOk ps = True} -> ZoneCoherent ps
+
+  ||| Syntactic predicate equality — enough to spot a member that
+  ||| contradicts a sibling. Deliberately CONSERVATIVE on the rows
+  ||| carrying a noun (their equality wants noun equality, which the
+  ||| grammar does not decide): `False` reads "not provably the same",
+  ||| so the gate under-refuses rather than over-refuses. Per-row
+  ||| catch-alls, so a new predicate form is a totality error.
+  public export
+  predEq : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Predicate bs k -> Bool
+  predEq (HasType a) (HasType b) = sameCT a b
+  predEq (HasType _) _ = False
+  predEq AnyPlayer AnyPlayer = True
+  predEq AnyPlayer _ = False
+  predEq Opponent Opponent = True
+  predEq Opponent _ = False
+  -- the kind index already forces the two sorts equal here
+  predEq (QualityNoun a) (QualityNoun a) = True
+  predEq (QualityNoun _) _ = False
+  predEq (OfChosen a) (OfChosen b) = sameQ a b
+  predEq (OfChosen _) _ = False
+  predEq (ControlledBy _) _ = False
+  predEq Attacking Attacking = True
+  predEq Attacking _ = False
+  predEq (InZone z) (InZone w) = sameZone (zoneSort z) (zoneSort w)
+  predEq (InZone _) _ = False
+  predEq (And _) _ = False
+  predEq (Not a) (Not b) = predEq a b
+  predEq (Not _) _ = False
+  predEq Other Other = True
+  predEq Other _ = False
+  predEq AnyTarget AnyTarget = True
+  predEq AnyTarget _ = False
+
+  ||| Are these two members each other's negation?
+  public export
+  negates : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Predicate bs k -> Bool
+  negates (Not a) b = predEq a b
+  negates a (Not b) = predEq a b
+  negates _ _ = False
+
+  public export
+  anyNegates : {0 bs : Bindings} -> {0 k : Kind} ->
+               Predicate bs k -> List (Predicate bs k) -> Bool
+  anyNegates p [] = False
+  anyNegates p (q :: qs) = negates p q || anyNegates p qs
+
+  public export
+  noNegatedPair : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
+  noNegatedPair [] = True
+  noNegatedPair (p :: ps) = not (anyNegates p ps) && noNegatedPair ps
+
+  ||| No member is the syntactic negation of a sibling: "of the chosen
+  ||| color and not of the chosen color" describes nothing, and the
+  ||| flattened scan catches the nested spelling too.
+  public export
+  contradictionFree : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
+  contradictionFree ps = noNegatedPair (flattenPs ps)
+
+  public export
+  data ContradictionFree : List (Predicate bs k) -> Type where
+    MkContradictionFree : {auto 0 ok : contradictionFree ps = True} ->
+                          ContradictionFree ps
+
+  ||| Does this member carry the "other" modifier?
+  public export
+  hasOther : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+  hasOther Other = True
+  hasOther (And ps) = hasOtherAny ps
+  hasOther _ = False
+
+  public export
+  hasOtherAny : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
+  hasOtherAny [] = False
+  hasOtherAny (p :: ps) = hasOther p || hasOtherAny ps
+
+  ||| The anchor obligation at the phrase level: `Other`'s own gate
+  ||| demands a same-KIND target mention, and the conjunction it sits
+  ||| in supplies the head type that mention must be compatible with.
+  public export
+  otherAnchorOk : {bs : Bindings} -> (k : Kind) -> Maybe CardType ->
+                  List (Predicate bs k) -> Bool
+  otherAnchorOk k t ps = if hasOtherAny ps then anchorFound k t bs else True
+
+  ||| The head-typed "other" presupposition as a witness ([CR#115.4];
+  ||| the guide reserves "another" for excluding the source or first
+  ||| referent, and writes two separately described roles without it).
+  ||| Player-kind "other" needs no head type — kind agreement is the
+  ||| whole obligation.
+  public export
+  data OtherAnchored : List (Predicate bs k) -> Type where
+    MkOtherAnchored : {auto 0 ok : otherAnchorOk k (seedTyAll ps) ps = True} ->
+                      OtherAnchored ps
+
+  public export
+  isAnyTarget : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+  isAnyTarget AnyTarget = True
+  isAnyTarget _ = False
+
+  public export
+  isOther : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+  isOther Other = True
+  isOther _ = False
+
+  public export
+  anyIsAnyTarget : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
+  anyIsAnyTarget [] = False
+  anyIsAnyTarget (p :: ps) = isAnyTarget p || anyIsAnyTarget ps
+
+  public export
+  allLoneOk : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
+  allLoneOk [] = True
+  allLoneOk (p :: ps) = (isAnyTarget p || isOther p) && allLoneOk ps
+
+  ||| "Any target" is a lone CLASS word: the guide reserves it for the
+  ||| rules-defined damage target class ([CR#115.4]) and forbids it as
+  ||| a synonym for "any object", so it takes no modifiers — the sole
+  ||| corpus companion is "other" (Arc Trail's "any other target").
+  public export
+  anyTargetLone : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
+  anyTargetLone ps = if anyIsAnyTarget (flattenPs ps)
+                       then allLoneOk (flattenPs ps)
+                       else True
+
+  public export
+  data AnyTargetLone : List (Predicate bs k) -> Type where
+    MkAnyTargetLone : {auto 0 ok : anyTargetLone ps = True} -> AnyTargetLone ps
+
+  ||| Which modifiers a phrase can negate. "Any target" and "other"
+  ||| are not among them — the class word is never negated ([CR#115.4]
+  ||| defines it positively) and "non-other" is unwritten — and
+  ||| neither is a negation itself: oracle spells no double negative.
+  ||| Full rows: a new predicate form declares its answer.
+  public export
+  negatable : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+  negatable (HasType _) = True
+  negatable AnyPlayer = True
+  negatable Opponent = True
+  negatable (QualityNoun _) = True
+  negatable (OfChosen _) = True
+  negatable (ControlledBy _) = True
+  negatable Attacking = True
+  negatable (InZone _) = True
+  negatable (And _) = True
+  negatable (Not _) = False
+  negatable Other = False
+  negatable AnyTarget = False
+
+  public export
+  data Negatable : Predicate bs k -> Type where
+    MkNegatable : {auto 0 ok : negatable p = True} -> Negatable p
+
+  ||| Does no part of this phrase spell "any target"? The class word is
+  ||| ITSELF the targeting form — "a any target" and "each any target"
+  ||| are unwritable — so only the targeting determiners admit it.
+  ||| Full rows, like every other predicate scan.
+  public export
+  anyTargetFree : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+  anyTargetFree (HasType _) = True
+  anyTargetFree AnyPlayer = True
+  anyTargetFree Opponent = True
+  anyTargetFree (QualityNoun _) = True
+  anyTargetFree (OfChosen _) = True
+  anyTargetFree (ControlledBy _) = True
+  anyTargetFree Attacking = True
+  anyTargetFree (InZone _) = True
+  anyTargetFree (And ps) = anyTargetFreeAll ps
+  anyTargetFree (Not p) = anyTargetFree p
+  anyTargetFree Other = True
+  anyTargetFree AnyTarget = False
+
+  public export
+  anyTargetFreeAll : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
+  anyTargetFreeAll [] = True
+  anyTargetFreeAll (p :: ps) = anyTargetFree p && anyTargetFreeAll ps
+
+  public export
+  data AnyTargetFree : Predicate bs k -> Type where
+    MkAnyTargetFree : {auto 0 ok : anyTargetFree p = True} -> AnyTargetFree p
 
   public export
   zoneOr : Zone -> Maybe Zone -> Zone
@@ -1344,10 +1624,15 @@ mutual
     -- and players are targetable ([CR#115.1] — `badTargetColor`).
     Target : (p : Predicate bs k) -> {auto tk : Targetable k} ->
              {auto 0 hd : Headed p} -> Noun bs k
+    -- the NON-targeting determiners each demand an `AnyTargetFree`
+    -- phrase: "any target" is itself the targeting form, so "a any
+    -- target" / "each any target" are unwritable ([CR#115.4]).
     Each : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-           {auto 0 hd : Headed p} -> Noun bs k    -- "each …": a group, resolution-time [CR#608.2]
+           {auto 0 hd : Headed p} ->
+           {auto 0 af : AnyTargetFree p} -> Noun bs k    -- "each …": a group, resolution-time [CR#608.2]
     A : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-        {auto 0 hd : Headed p} -> Noun bs k       -- "a …": indefinite choice/product [CR#608.2d,400.7]
+        {auto 0 hd : Headed p} ->
+        {auto 0 af : AnyTargetFree p} -> Noun bs k       -- "a …": indefinite choice/product [CR#608.2d,400.7]
     -- "a … of their choice" / "a … at random": the indefinite with its
     -- choice method marked in the text — chooser and method are surface
     -- facts (the guide's chooser marking; a random discard has no
@@ -1357,9 +1642,11 @@ mutual
     -- a subject or one distributive group (`badUnboundTheirChoice`).
     ATheirChoice : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
                    {auto 0 ch : countChoosers bs = 1} ->
-                   {auto 0 hd : Headed p} -> Noun bs k
+                   {auto 0 hd : Headed p} ->
+                   {auto 0 af : AnyTargetFree p} -> Noun bs k
     AAtRandom : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-                {auto 0 hd : Headed p} -> Noun bs k
+                {auto 0 hd : Headed p} ->
+                {auto 0 af : AnyTargetFree p} -> Noun bs k
     -- "[n] target [pred]s" / "up to [n] target [pred]s": counted group
     -- mentions — one binding; the numeral is surface data no read
     -- consults ([CR#601.2c] distinctness is announce business), except
@@ -1367,7 +1654,8 @@ mutual
     -- "it") and a written numeral is at least one (`badZeroGroup`).
     TargetGroup : (n : Nat) -> (p : Predicate bs k) ->
                   {auto tk : Targetable k} -> {auto 0 nz : AtLeastTwo n} ->
-                  {auto 0 hd : Headed p} -> Noun bs k
+                  {auto 0 hd : Headed p} ->
+                  {auto 0 af : AnyTargetFree p} -> Noun bs k
     TargetUpTo : (n : Nat) -> (p : Predicate bs k) ->
                  {auto tk : Targetable k} -> {auto 0 nz : AtLeastOne n} ->
                  {auto 0 hd : Headed p} -> Noun bs k
@@ -1375,7 +1663,8 @@ mutual
     -- guide keeps distinct from distributive "each" (the CR fixes both
     -- sets at resolution and separates them no further).
     AllOf : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-            {auto 0 hd : Headed p} -> Noun bs k
+            {auto 0 hd : Headed p} ->
+            {auto 0 af : AnyTargetFree p} -> Noun bs k
     -- "it" / "its": the wildcard pronoun — exactly one singular Object
     -- mention may precede. Zero = unbound, two = ambiguous; both
     -- unspellable.
@@ -1489,8 +1778,15 @@ mutual
     ManaValueOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Amount bs
     -- "[per] [unit] for each [pred]" — the counted-set amount
     -- ("loses 1 life for each attacking creature you control");
-    -- mentions inside the predicate fold as everywhere.
-    ForEach : {k : Kind} -> (per : Nat) -> Predicate bs k -> Amount bs
+    -- mentions inside the predicate fold as everywhere. The domain is
+    -- a real noun phrase: every corpus for-each domain is noun-HEADED
+    -- (`Headed` — "for each you control" heads nothing), and the
+    -- per-unit is a written numeral, so it is at least one
+    -- (`AtLeastOne`; the comparisons that legitimately carry zero read
+    -- a count rather than write one, and `Lit` stays ungated).
+    ForEach : {k : Kind} -> (per : Nat) -> (p : Predicate bs k) ->
+              {auto 0 hd : Headed p} -> {auto 0 nz : AtLeastOne per} ->
+              {auto 0 af : AnyTargetFree p} -> Amount bs
     -- "that much": reads the unique event outcome in scope — the
     -- magnitude of what an earlier clause DID. Sort-blind (the
     -- corpus reads cross damage→life, count→life, damage→mana);
@@ -1556,9 +1852,11 @@ mutual
     -- "[src] deals [amt] damage to [to]" — the recipient is a player
     -- or a damageable battlefield object ([CR#120.1,120.1a];
     -- `badDamageGraveyardCard`, `badDamageToColor`,
-    -- `badDamageArtifact`).
+    -- `badDamageArtifact`), and the SOURCE is singular or
+    -- distributive (`DamageSource`; `badGroupDamageSource`).
     DealDamage : {k : Kind} -> (src : Noun bs Object) -> (amt : Amount (nomIntro src)) ->
                  (to : Noun (amtIntro amt) k) ->
+                 {auto 0 ds : DamageSource src} ->
                  {auto 0 rk : DamageRecipient k (nounZone to) (nounTy to)} -> Effect bs
     -- "[a] fights [b]" ([CR#701.14a] — only battlefield creatures
     -- fight [CR#701.14b]; `badFightGraveyard`, `badFightLand`).
@@ -1696,6 +1994,24 @@ mutual
     DestroyNA : NonAgentive Destroy
     ExileNA : NonAgentive Exile
 
+  ||| A damage subject is grammatically singular, or the DISTRIBUTIVE
+  ||| "each" group, which spreads the singular frame over its members
+  ||| ("Each creature you control deals 1 damage to that creature." —
+  ||| Case of the Gateway Express; "Each creature deals 1 damage to
+  ||| its controller."). A COLLECTIVE group subject ("two target
+  ||| creatures deal …") is unattested: the corpus writes the shared
+  ||| verb distributively or names one source.
+  public export
+  damageSrcOk : {bs : Bindings} -> Noun bs Object -> Bool
+  damageSrcOk (Each p) = True
+  damageSrcOk n = isOne (nounPlur n)
+
+  ||| The damage subject gate's witness form (a distinctive search
+  ||| name, like `Headed` and `FightParticipant`).
+  public export
+  data DamageSource : Noun bs Object -> Type where
+    MkDamageSource : {auto 0 ok : damageSrcOk n = True} -> DamageSource n
+
   ||| Retag the binding a moved noun denotes: an introducing noun's own
   ||| fresh binding, or the unique binding a read resolved to (strict
   ||| uniqueness is what makes this well-defined). The retag writes the
@@ -1771,9 +2087,10 @@ mutual
   moveIntro p (TheVerbed v w) z = setZoneVerbed p v w z bs
   moveIntro p This z = bs
   -- a moved sorted self-reference mints the new object's binding
-  -- ([CR#400.7]; see the constructor comment). Its pre-move zone is
-  -- untracked, so the stamp's at-verb frame is conservatively False —
-  -- a ThisOf-cost participle type word waits on a corpus witness.
+  -- ([CR#400.7]; see the constructor comment). The stamp's at-verb
+  -- frame stays conservatively False — a ThisOf-cost participle TYPE
+  -- word waits on a corpus witness, so the pre-move zone is passed as
+  -- untracked here rather than read off `nounZone`.
   moveIntro p (ThisOf t) z = MkBinding TheD Object OneOf (ObjectP (Just t) (Just z) (mkStamp p Nothing)) :: bs
   moveIntro p You z = bs
   moveIntro p They z = bs
@@ -1783,11 +2100,15 @@ mutual
   ||| The zone a noun's referent currently occupies, if tracked: reads
   ||| consult their unique binding, introducers their seed zone
   ||| ([CR#109.2] — a bare description means the battlefield), the
-  ||| source and player nouns are untracked.
+  ||| player nouns are untracked. The SORTED self-reference is a
+  ||| description that includes a card type, so [CR#109.2] places it on
+  ||| the battlefield exactly as it places "target creature" there;
+  ||| bare `This` is the source as an object ("this spell", cycling's
+  ||| "Discard this card") and stays untracked.
   public export
   nounZone : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe Zone
   nounZone This = Nothing
-  nounZone (ThisOf t) = Nothing
+  nounZone (ThisOf t) = Just Battlefield
   nounZone You = Nothing
   nounZone (Target p) = Just (zoneOr Battlefield (seedZone p))
   nounZone (Each p) = Just (zoneOr Battlefield (seedZone p))
