@@ -62,6 +62,15 @@ pub struct AdaptedScalar {
     scalar: FixtureScalar,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DispatchedValue {
+    Scalar(FixtureScalar),
+    Alpha,
+    Omega,
+    Unmatched,
+    Ambiguous,
+}
+
 #[allow(
     clippy::unnecessary_wraps,
     reason = "adapted bind constructors use the compiler's checked Result interface"
@@ -109,6 +118,59 @@ fn make_adapted_scalar(
 
 fn split_adapted_scalar(value: &AdaptedScalar) -> FixtureScalar {
     value.scalar
+}
+
+#[allow(
+    clippy::unnecessary_wraps,
+    reason = "adapted bind constructors use the compiler's checked Result interface"
+)]
+fn make_dispatched_scalar(
+    scalar: FixtureScalar,
+) -> Result<DispatchedValue, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+    Ok(DispatchedValue::Scalar(scalar))
+}
+
+fn split_dispatched_scalar(value: &DispatchedValue) -> FixtureScalar {
+    let DispatchedValue::Scalar(scalar) = value else {
+        unreachable!("the declaration recognizer selects only Scalar")
+    };
+    *scalar
+}
+
+fn is_dispatched_scalar(value: &DispatchedValue) -> bool {
+    matches!(value, DispatchedValue::Scalar(_))
+}
+
+macro_rules! dispatched_unit_adapter {
+    ($make:ident, $split:ident, $recognizer:ident, $variant:ident) => {
+        #[allow(
+            clippy::unnecessary_wraps,
+            reason = "adapted bind constructors use the compiler's checked Result interface"
+        )]
+        fn $make()
+        -> Result<DispatchedValue, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+            Ok(DispatchedValue::$variant)
+        }
+
+        fn $split(value: &DispatchedValue) {
+            assert!(matches!(value, DispatchedValue::$variant));
+        }
+
+        fn $recognizer(value: &DispatchedValue) -> bool {
+            matches!(value, DispatchedValue::$variant)
+        }
+    };
+}
+
+dispatched_unit_adapter!(make_alpha, split_alpha, is_alpha, Alpha);
+dispatched_unit_adapter!(make_omega, split_omega, is_omega, Omega);
+
+fn is_alpha_domain(value: &DispatchedValue) -> bool {
+    is_alpha(value) || matches!(value, DispatchedValue::Ambiguous)
+}
+
+fn is_omega_domain(value: &DispatchedValue) -> bool {
+    is_omega(value) || matches!(value, DispatchedValue::Ambiguous)
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -190,6 +252,75 @@ deckmaste_constructions_macro::constructions! {
         recognize require members.first.variant in [Phrase];
         form only @ 0 = members;
     }
+}
+
+deckmaste_constructions_macro::constructions! {
+    group generated_dispatch;
+
+    construction dispatched_scalar: FixturePhrase {
+        bind DispatchedValue via make_dispatched_scalar, split_dispatched_scalar {
+            scalar: lex FixtureScalar via FixtureNotation,
+        }
+        form only @ 0 when check(is_dispatched_scalar) = lex(scalar);
+        selection unique;
+    }
+
+    construction dispatched_alpha: FixturePhrase {
+        bind DispatchedValue via make_alpha, split_alpha {}
+        form only @ 0 when check(is_alpha_domain) = "alpha";
+        selection unique;
+    }
+
+    construction dispatched_omega: FixturePhrase {
+        bind DispatchedValue via make_omega, split_omega {}
+        form only @ 0 when check(is_omega_domain) = "omega";
+        selection unique;
+    }
+}
+
+#[test]
+fn group_inverse_dispatch_is_generated_from_every_declared_adapter() {
+    // Mutation guarded: register a new construction but omit it from a
+    // handwritten reverse dispatcher. The dispatcher named here is emitted
+    // from the complete group, so every newly declared guarded adapter becomes
+    // an exhaustive arm without a second list to update.
+    for (value, expected) in [
+        (DispatchedValue::Scalar(FixtureScalar(7)), "seven"),
+        (DispatchedValue::Alpha, "alpha"),
+        (DispatchedValue::Omega, "omega"),
+    ] {
+        let mut visitor = RecordingLinearizer::default();
+        linearize_generated_dispatch_group_with(&value, &mut visitor)
+            .expect("one declared construction recognizes every admitted value");
+        assert_eq!(visitor.rendered(), expected);
+    }
+
+    let mut visitor = RecordingLinearizer::default();
+    assert!(matches!(
+        linearize_generated_dispatch_group_with(&DispatchedValue::Unmatched, &mut visitor),
+        Err(
+            deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
+                group: "generated_dispatch"
+            }
+        )
+    ));
+    assert_eq!(visitor.rendered(), "", "no match has no visitor effects");
+
+    assert!(matches!(
+        linearize_generated_dispatch_group_with(&DispatchedValue::Ambiguous, &mut visitor),
+        Err(
+            deckmaste_construction_compiler::runtime::LinearizationError::MultipleMatchingConstructions {
+                group: "generated_dispatch",
+                first: "dispatched_alpha",
+                second: "dispatched_omega",
+            }
+        )
+    ));
+    assert_eq!(
+        visitor.rendered(),
+        "",
+        "multiple matches are rejected before visitor effects"
+    );
 }
 
 #[test]

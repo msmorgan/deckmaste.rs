@@ -474,6 +474,9 @@ fn parse_witness_class(input: ParseStream<'_>) -> syn::Result<WitnessClass> {
 }
 
 fn parse_path_list(input: ParseStream<'_>) -> syn::Result<Vec<FieldPath>> {
+    if input.is_empty() {
+        return Ok(Vec::new());
+    }
     let mut paths = vec![parse_path(input)?];
     while input.peek(syn::Token![,]) {
         input.parse::<syn::Token![,]>()?;

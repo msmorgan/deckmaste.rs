@@ -344,41 +344,8 @@ impl serde::Serialize for Quantity {
 
 impl Quantity {
     #[must_use]
-    pub const fn noun_cardinality(self) -> NounCardinality {
-        match self {
-            Self::Exact(number) if number.value == 1 => NounCardinality::SingularOrMass,
-            // `up to one creature`, `more than one creature`, `fewer than one
-            // creature` — same licence, now guarded through the value sum.
-            // `Variable` can never satisfy it: `X` may resolve to 0 or to any
-            // number > 1, so an `X`-bounded head is never a bare singular.
-            Self::UpTo(value) | Self::MoreThan(value) | Self::FewerThan(value)
-                if value.is_one() =>
-            {
-                NounCardinality::SingularOrMass
-            }
-            Self::Or(first, second) if first.value == 1 && second.value == 1 => {
-                NounCardinality::SingularOrMass
-            }
-            // The lower bound does not make a measured mass countable, and
-            // the printed numeral still selects the noun's surface form:
-            // `at least one creature`, `at least two creatures`, and
-            // `at least two damage`.
-            Self::AtLeast(value) if value.is_one() => NounCardinality::SingularOrMass,
-            // Every `N or <word>` bound heads a plural count (`two or more
-            // creatures`) or a mass characteristic (`30 or more life`), never a
-            // bare singular.
-            Self::OrComparison(_, _)
-            | Self::Exact(_)
-            | Self::Or(_, _)
-            | Self::UpTo(_)
-            | Self::MoreThan(_)
-            | Self::FewerThan(_)
-            | Self::AtLeast(_)
-            | Self::X
-            | Self::Both => NounCardinality::PluralOrMass,
-            Self::ThatMany => NounCardinality::PluralCount,
-            Self::ThatMuch => NounCardinality::Mass,
-        }
+    pub fn noun_cardinality(self) -> NounCardinality {
+        crate::constructions::quantity::noun_cardinality(self)
     }
 }
 
@@ -484,7 +451,7 @@ impl Determiner {
     }
 
     #[must_use]
-    pub const fn noun_cardinality(&self) -> NounCardinality {
+    pub fn noun_cardinality(&self) -> NounCardinality {
         match self {
             Self::Each | Self::Another | Self::Indefinite | Self::Target(None) => {
                 NounCardinality::SingularCount

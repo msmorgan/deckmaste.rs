@@ -37,6 +37,45 @@ pub struct GroupDeclaration {
     pub elements: Vec<ElementDeclaration>,
 }
 
+impl GroupDeclaration {
+    /// Returns the common semantic target when this group declares a complete
+    /// inverse-dispatch family. Every member must be an adapted bind to that
+    /// target, and every surface form must carry a whole-value recognizer.
+    /// The emitted dispatcher checks those opaque recognizers for exactly one
+    /// match at runtime.
+    #[must_use]
+    pub(crate) fn inverse_dispatch_target(&self) -> Option<&Spanned<String>> {
+        let first = self.constructions.first()?;
+        if self.constructions.len() < 2 {
+            return None;
+        }
+        let AstShape::Bind {
+            path: first_path, ..
+        } = &first.ast
+        else {
+            return None;
+        };
+        if first.bind_adapter.is_none() {
+            return None;
+        }
+
+        self.constructions
+            .iter()
+            .all(|construction| {
+                matches!(
+                    &construction.ast,
+                    AstShape::Bind { path, .. } if path.value == first_path.value
+                ) && construction.bind_adapter.is_some()
+                    && !construction.forms.is_empty()
+                    && construction
+                        .forms
+                        .iter()
+                        .all(|form| form.value_guard.is_some() && !form.fallback)
+            })
+            .then_some(first_path)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConstructionDeclaration {
     pub id: Spanned<String>,
@@ -274,6 +313,14 @@ pub const KNOWN_COMBINATORS: &[&str] = &[
     "complete_sentence",
     "complete_noun_phrase_coordination",
     "shared_determiner_coordination",
+    "quantity_exact",
+    "quantity_at_least",
+    "quantity_or",
+    "quantity_bound",
+    "quantity_x",
+    "quantity_plural",
+    "quantity_plural_count",
+    "quantity_mass",
 ];
 
 /// `snake_case` to `PascalCase`. Shared between `validate.rs`'s EC006

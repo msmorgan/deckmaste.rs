@@ -2416,9 +2416,6 @@ fn generated_construction_features(
     construction: &deckmaste_construction_compiler::runtime::ConstructionData,
     fields: &[Option<&Features>],
 ) -> Option<Features> {
-    if construction.category == "Quantity" {
-        return generated_quantity_features(construction, fields);
-    }
     let feature = match construction.feature_combinators {
         [] => {
             let mut identities =
@@ -2444,6 +2441,47 @@ fn generated_construction_features(
         [feature] => feature,
         _ => return None,
     };
+    let quantity_args = feature
+        .args
+        .iter()
+        .map(|arg| {
+            use deckmaste_construction_compiler::runtime::FieldKindData;
+
+            let index = construction
+                .fields
+                .iter()
+                .position(|field| field.name == *arg)?;
+            match construction.fields.get(index)?.kind {
+                FieldKindData::Scalar { codec: "Numeral" }
+                | FieldKindData::TypedScalar {
+                    codec: "Numeral", ..
+                } => match fields.get(index).copied().flatten()? {
+                    Features::Number { is_one } => Some(
+                        crate::constructions::quantity::QuantityFeatureArgument::NumberIsOne(
+                            *is_one,
+                        ),
+                    ),
+                    _ => None,
+                },
+                FieldKindData::Optional { .. } => Some(
+                    crate::constructions::quantity::QuantityFeatureArgument::Present(
+                        fields.get(index).copied().flatten().is_some(),
+                    ),
+                ),
+                _ => None,
+            }
+        })
+        .collect::<Option<Vec<_>>>();
+    if let Some(projection) = quantity_args
+        .as_deref()
+        .and_then(|args| crate::constructions::quantity::project_features(feature.combinator, args))
+    {
+        return Some(Features::Quantity(QuantityFeatures {
+            cardinality: projection.cardinality,
+            standalone_number: projection.standalone_number,
+            is_one: projection.is_one,
+        }));
+    }
     let combinator = GeneratedFeatureCombinator::from_name(feature.combinator)?;
     let args = feature
         .args
@@ -2497,81 +2535,6 @@ fn generated_construction_features(
         ),
         _ => None,
     }
-}
-
-fn generated_quantity_features(
-    construction: &deckmaste_construction_compiler::runtime::ConstructionData,
-    fields: &[Option<&Features>],
-) -> Option<Features> {
-    let number_is_one = |index: usize| {
-        matches!(
-            fields.get(index).copied().flatten(),
-            Some(Features::Number { is_one: true })
-        )
-    };
-    let (cardinality, standalone_number, is_one) = match construction.id {
-        "quantity_exact" => {
-            let one = number_is_one(0);
-            (
-                if one {
-                    NounCardinality::SingularOrMass
-                } else {
-                    NounCardinality::PluralOrMass
-                },
-                if one { Number::Singular } else { Number::Plural },
-                one,
-            )
-        }
-        "quantity_at_least" if fields.get(1).copied().flatten().is_some() => {
-            (NounCardinality::PluralOrMass, Number::Plural, false)
-        }
-        "quantity_at_least" => {
-            let one = number_is_one(0);
-            (
-                if one {
-                    NounCardinality::SingularOrMass
-                } else {
-                    NounCardinality::PluralOrMass
-                },
-                Number::Plural,
-                false,
-            )
-        }
-        "quantity_that_many" => (NounCardinality::PluralCount, Number::Plural, false),
-        "quantity_or" => {
-            let singular = number_is_one(0) && number_is_one(1);
-            (
-                if singular {
-                    NounCardinality::SingularOrMass
-                } else {
-                    NounCardinality::PluralOrMass
-                },
-                if singular { Number::Singular } else { Number::Plural },
-                false,
-            )
-        }
-        "quantity_up_to" | "quantity_more_than" | "quantity_fewer_than" => {
-            let singular = number_is_one(0);
-            (
-                if singular {
-                    NounCardinality::SingularOrMass
-                } else {
-                    NounCardinality::PluralOrMass
-                },
-                if singular { Number::Singular } else { Number::Plural },
-                false,
-            )
-        }
-        "quantity_x" => (NounCardinality::PluralOrMass, Number::Singular, false),
-        "quantity_both" => (NounCardinality::PluralOrMass, Number::Plural, false),
-        "quantity_that_much" => (NounCardinality::Mass, Number::Singular, false),
-        _ => return None,
-    };
-    Some(Features::Quantity(QuantityFeatures {
-        cardinality,
-        standalone_number,
-        is_one,
-    }))
 }
 
 fn complete_noun_phrase_coordination_features(
@@ -3298,5 +3261,64 @@ mod generated_tests {
                 ..
             })
         ));
+    }
+
+    #[test]
+    fn quantity_features_follow_declared_combinator_not_construction_id() {
+        use deckmaste_construction_compiler::runtime::ConstructionData;
+        use deckmaste_construction_compiler::runtime::FeatureCombinatorData;
+        use deckmaste_construction_compiler::runtime::FieldData;
+        use deckmaste_construction_compiler::runtime::FieldKindData;
+        use deckmaste_construction_compiler::runtime::GroupData;
+
+        const FIELDS: &[FieldData] = &[FieldData {
+            name: "number",
+            kind: FieldKindData::TypedScalar {
+                value_type: "NumberLiteral",
+                codec: "Numeral",
+            },
+        }];
+        const COMBINATORS: &[FeatureCombinatorData] = &[FeatureCombinatorData {
+            target: "features",
+            combinator: "quantity_exact",
+            args: &["number"],
+        }];
+        const CONSTRUCTIONS: &[ConstructionData] = &[ConstructionData {
+            id: "registered_after_the_old_quantity_table",
+            category: "Quantity",
+            internal: false,
+            own_type: None,
+            bind_path: Some("Quantity"),
+            projection_variant: None,
+            fields: FIELDS,
+            witnesses: &[],
+            deserialize: false,
+            selection_unique: true,
+            dominates: &[],
+            dominated_by: &[],
+            forms: &[],
+            requirements: &[],
+            recognition_requirements: &[],
+            feature_combinators: COMBINATORS,
+            erased_builder: None,
+            erased_projector: None,
+        }];
+        const GROUP: GroupData = GroupData {
+            name: "quantity_probe",
+            elements: &[],
+            element_data: &[],
+            constructions: CONSTRUCTIONS,
+        };
+        let one = Features::Number { is_one: true };
+
+        assert_eq!(
+            generated_construction_features(&GROUP, &CONSTRUCTIONS[0], &[Some(&one)]),
+            Some(Features::Quantity(QuantityFeatures {
+                cardinality: NounCardinality::SingularOrMass,
+                standalone_number: Number::Singular,
+                is_one: true,
+            })),
+            "a registered declaration must not need a second construction-ID feature table",
+        );
     }
 }

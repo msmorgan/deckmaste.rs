@@ -21,6 +21,14 @@ pub struct DeclarationViolation {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum LinearizationError<E> {
+    NoMatchingConstruction {
+        group: &'static str,
+    },
+    MultipleMatchingConstructions {
+        group: &'static str,
+        first: &'static str,
+        second: &'static str,
+    },
     NoMatchingForm {
         construction: &'static str,
     },

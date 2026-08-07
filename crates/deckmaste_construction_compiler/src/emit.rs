@@ -44,6 +44,7 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
         .iter()
         .map(|construction| linearizer(group, construction))
         .collect();
+    let group_linearizer = inverse_group_linearizer(group);
     let erased_element_builders: Vec<TokenStream> = group
         .elements
         .iter()
@@ -126,6 +127,7 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
             #(#constructions)*
             #(#bind_constructions)*
             #(#linearizers)*
+            #group_linearizer
             #(#erased_element_builders)*
             #(#erased_construction_builders)*
             #(#erased_construction_projectors)*
@@ -135,6 +137,85 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
             #declaration
         }
         #(#reexports)*
+    }
+}
+
+fn inverse_group_linearizer(group: &GroupDeclaration) -> TokenStream {
+    let Some(target) = group.inverse_dispatch_target() else {
+        return quote! {};
+    };
+    let target = parse_type(&target.value);
+    let group_name = group.name.value.as_str();
+    let function = quote::format_ident!("linearize_{}_group_with", group.name.value);
+    let selections: Vec<TokenStream> = group
+        .constructions
+        .iter()
+        .enumerate()
+        .map(|(index, construction)| {
+            let id = construction.id.value.as_str();
+            let index = proc_macro2::Literal::usize_unsuffixed(index);
+            let conditions = construction.forms.iter().map(|form| {
+                let predicate = parse_type(
+                    &form
+                        .value_guard
+                        .as_ref()
+                        .expect("inverse-dispatch forms carry recognizers")
+                        .value,
+                );
+                quote! { #predicate(value) }
+            });
+            let condition = conditions.fold(quote! { false }, |condition, next| {
+                quote! { #condition || #next }
+            });
+            quote! {
+                if #condition {
+                    if let Some((_, first)) = selected_construction {
+                        return Err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::MultipleMatchingConstructions {
+                                group: #group_name,
+                                first,
+                                second: #id,
+                            },
+                        );
+                    }
+                    selected_construction = Some((#index, #id));
+                }
+            }
+        })
+        .collect();
+    let arms: Vec<TokenStream> = group
+        .constructions
+        .iter()
+        .enumerate()
+        .map(|(index, construction)| {
+            let index = proc_macro2::Literal::usize_unsuffixed(index);
+            let linearizer = quote::format_ident!("linearize_{}_with", construction.id.value);
+            quote! { #index => #linearizer(value, visitor), }
+        })
+        .collect();
+
+    quote! {
+        pub fn #function<V>(
+            value: &#target,
+            visitor: &mut V,
+        ) -> Result<(), ::deckmaste_construction_compiler::runtime::LinearizationError<V::Error>>
+        where
+            V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor,
+        {
+            let mut selected_construction: Option<(usize, &'static str)> = None;
+            #(#selections)*
+            let Some((selected_construction, _)) = selected_construction else {
+                return Err(
+                    ::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
+                        group: #group_name,
+                    },
+                );
+            };
+            match selected_construction {
+                #(#arms)*
+                _ => unreachable!("generated construction index belongs to the declaration"),
+            }
+        }
     }
 }
 
@@ -1951,6 +2032,12 @@ fn reexports(group: &GroupDeclaration) -> Vec<TokenStream> {
         items.push(quote::format_ident!(
             "linearize_{}_form_with",
             construction.id.value
+        ));
+    }
+    if group.inverse_dispatch_target().is_some() {
+        items.push(quote::format_ident!(
+            "linearize_{}_group_with",
+            group.name.value
         ));
     }
     items.push(declaration_ident(group));

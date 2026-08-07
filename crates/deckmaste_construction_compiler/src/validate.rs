@@ -69,6 +69,7 @@ fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
 /// fallback, and source order is non-semantic only when that fallback is
 /// unique. Explicit ordinal replay remains available for every form.
 fn check_fallback_contract(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
+    let inverse_dispatch_family = group.inverse_dispatch_target().is_some();
     for construction in &group.constructions {
         let id = construction.id.value.as_str();
         let mut fallbacks = construction
@@ -82,6 +83,7 @@ fn check_fallback_contract(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>
             .iter()
             .any(|form| form.value_guard.is_some())
             && fallbacks.is_empty()
+            && !inverse_dispatch_family
         {
             let span = construction
                 .forms
@@ -500,6 +502,17 @@ fn check_generated_names(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) 
                 );
             }
         }
+    }
+    if group.inverse_dispatch_target().is_some() {
+        let dispatcher = format!("linearize_{}_group_with", group.name.value);
+        record_generated_name(
+            &mut seen_values,
+            diags,
+            &dispatcher,
+            group.name.span,
+            "group inverse dispatcher",
+            group.name.value.clone(),
+        );
     }
 }
 
@@ -1664,6 +1677,7 @@ fn required_facts(
 }
 
 fn check_surface_domain(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
+    let inverse_dispatch_family = group.inverse_dispatch_target().is_some();
     for construction in &group.constructions {
         let id = construction.id.value.as_str();
         let has_free_witness = construction
@@ -1683,6 +1697,16 @@ fn check_surface_domain(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
             for left in 0..guards.len() {
                 for right in (left + 1)..guards.len() {
                     if construction.forms[left].fallback || construction.forms[right].fallback {
+                        continue;
+                    }
+                    if inverse_dispatch_family
+                        && construction.forms[left].value_guard.is_some()
+                        && construction.forms[right].value_guard.is_some()
+                    {
+                        // Whole-value recognizers are intentionally opaque to
+                        // the finite field abstraction. The generated
+                        // construction and group selectors reject zero or
+                        // multiple matches before any visitor effect.
                         continue;
                     }
                     if abstractions_overlap(&guards[left], &guards[right]) {

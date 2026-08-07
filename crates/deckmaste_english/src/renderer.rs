@@ -2979,7 +2979,7 @@ fn indefinite_article_for(sound: InitialSound) -> &'static str {
 
 fn render_quantity(quantity: Quantity) -> String {
     let mut renderer = GeneratedQuantityRenderer::default();
-    crate::constructions::quantity::linearize_with(&quantity, &mut renderer)
+    crate::constructions::quantity::linearize_quantity_group_with(&quantity, &mut renderer)
         .expect("every Quantity variant dispatches to one declared form");
     renderer.parts.join(" ")
 }
