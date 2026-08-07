@@ -40,6 +40,17 @@ critical/planned/maybe  →  wip  →  done
 integrate <slug>` folds the finished work into the default line and moves the
 ticket to `done/`.
 
+## Writing a ticket
+
+The frontmatter (`needs: [...]`) is the only prescribed part. Everything after
+it is up to the ticket writer, subject to exactly two requirements: the body
+describes an **actionable change**, and it **records the design decisions
+already made** that bear on it. Length, headings, and structure are free —
+do not survey sibling tickets to mimic their shape; heavier tickets are not
+the house style, they're accumulated drift. (Meta-tickets/"epics" that
+coordinate other tickets are the exception and may carry more structure —
+no formal mechanism for them yet.)
+
 ## The dependency graph (`scripts/todo`)
 
 Each ticket's frontmatter carries a `needs: [...]` list — the other tickets (by
