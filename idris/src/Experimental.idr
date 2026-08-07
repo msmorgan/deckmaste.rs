@@ -224,17 +224,52 @@
 |||    totality error in `carrier`/`bindingZone`/`pubB`/`setZone`, not
 |||    a silent pass-through.
 |||
+||| Chapter eight, definite reads (evidence: Voyager Staff, Bosh, Iron
+||| Golem, Pyromancy; corpus: participles of tagged verbs are frequent
+||| — sacrificed/exiled/discarded — while untagged verbs' are near
+||| absent: returned/destroyed/tapped):
+|||
+||| 26. **The participle is a provenance filter.** A tagged move
+|||    stamps its verb on the binding it retags (`ObjectP`'s third
+|||    component — object-only, which the payload split makes free); a
+|||    bare move clears it, so the participle names the LAST verb
+|||    event. "The [verbed] [noun]" (`TheVerbed`) reads the unique
+|||    stamped mention: where the bare demonstrative is ambiguous —
+|||    Voyager Staff's effect holds two card mentions, the sacrificed
+|||    self and the exiled target — oracle switches to the participle,
+|||    exactly as finding 12 predicted (`badBareCardRead`). Provenance
+|||    follows the TAG channel: the dying retag stamps nothing
+|||    ([CR#700.4] is an event, not a keyword action), matching the
+|||    corpus absence of "the destroyed …" reads.
+||| 27. **The participle noun keeps the word axes apart.** Ruling:
+|||    card types/subtypes/supertypes are intrinsic to NEITHER core
+|||    nor semantics — each is a macro-DECLARED catalog word carrying
+|||    its rules grants (`cardtype/Creature.ron`, down to
+|||    `permanent: true`). So `NounWord` splits the axes: a TYPE word
+|||    checks the time-stable projected head type ("the sacrificed
+|||    artifact" — Bosh: a graveyard card NOW, an artifact under the
+|||    verb), the intrinsic CARD word checks current zone fold-state
+|||    ("the exiled card" — Voyager Staff); both attested, uniqueness
+|||    supplied by the verb filter. The demonstrative family's fused
+|||    `Perm CardType` carrier is thereby a recorded smell — its
+|||    decomposition onto these axes is the next pass.
+|||
 ||| Not settled yet: the kind union ("any target" spans objects and
 ||| players [CR#115.4,115.1] — elided to `Object`);
 ||| owned-zone mentions beyond `You` ("its owner's hand" — destination
 ||| and predicate-inner mentions do not fold yet); controller
 ||| fold-state (the controller half of verb restrictions, entangled
 ||| with [CR#109.4]); `May`'s if-you-do / if-not branches (the Risk
-||| Factor / Rakdos, Patron of Chaos else-clauses); definite
-||| descriptive reads ("the sacrificed creature", "the exiled card" —
-||| also what `AAtRandom`'s positive waits on: Pyromancy reads "the
-||| discarded card") and the chosen-OBJECT forms ("the chosen
-||| creatures"); more event queries (upkeep / end-of-combat /
+||| Factor / Rakdos, Patron of Chaos else-clauses); the chosen-OBJECT
+||| definites ("the chosen creatures" — V.A.T.S./Victimize wait on
+||| "any number of" groups and if-you-do); plural participle reads
+||| ("the exiled cards", Hide on the Ceiling — group twins of
+||| `TheVerbed`); the participle PERMANENT word ("the sacrificed
+||| permanent", Broadside Bombardiers — the intrinsic word under the
+||| verb's before-state, plus its "or" disjunction); the
+||| additional-cast-cost juncture (Fling — "the sacrificed creature"
+||| across a casting cost, the same public-survivors discipline as
+||| the colon, constructor unminted); more event queries (upkeep / end-of-combat /
 ||| leaves-the-battlefield — Slaughter Pact, Mirror Match, and
 ||| Kjeldoran Elite Guard wait on pay, tokens, and an unknown-zone
 ||| retag); the player pronoun "they"
@@ -268,7 +303,12 @@ module Experimental
 -- ===== Vocabulary =====
 
 ||| Card types, as catalog atoms ([CR#205.2a]; only what the chapters
-||| need — the real set is an open catalog, not an engine enum).
+||| need). Ruling: types are intrinsic to NEITHER core nor semantics —
+||| each is DECLARED by a `TypeDef` macro carrying its rules grants
+||| (`plugins/builtin/macros/cardtype/Creature.ron` confers the combat
+||| grants, and even permanence is its `permanent: true` field), so
+||| this enum is the workbench's stand-in for reading those
+||| declarations, like the keyword and verb macro names.
 public export
 data CardType = Creature | Artifact | Land
 
@@ -280,8 +320,9 @@ data QualitySort = Color | CreatureType
 public export
 sameQ : QualitySort -> QualitySort -> Bool
 sameQ Color Color = True
+sameQ Color _ = False
 sameQ CreatureType CreatureType = True
-sameQ _ _ = False
+sameQ CreatureType _ = False
 
 ||| What a binding can bind ([CR#115.1] — targets are objects and/or
 ||| players; the union kind is deferred with the carrier lattice) —
@@ -322,6 +363,29 @@ data Determiner = TargetD | AD | EachD | AllD | TheD
 public export
 data Zone = Battlefield | Graveyard | Exile | Hand
 
+||| Keyword-action tags ([CR#701]) — core's `Composite` verb names.
+||| `Destroy` and `Discard` mirror `plugins/builtin/macros/action/`;
+||| `Sacrifice` is a core whittling candidate (see the decision record);
+||| `Exile` is speculative pending its real macro definition. (Its own
+||| namespace: the tag `Exile` and the zone `Exile` are distinct words.)
+namespace Verb
+  public export
+  data VerbName = Destroy | Sacrifice | Exile | Discard
+
+||| Verb-tag equality, per-row: each row ends in its own catch-all, so
+||| a NEW verb is a totality error on the missing row (its diagonal
+||| cannot silently go False) without the full quadratic.
+public export
+sameVerb : VerbName -> VerbName -> Bool
+sameVerb Destroy Destroy = True
+sameVerb Destroy _ = False
+sameVerb Sacrifice Sacrifice = True
+sameVerb Sacrifice _ = False
+sameVerb Exile Exile = True
+sameVerb Exile _ = False
+sameVerb Discard Discard = True
+sameVerb Discard _ = False
+
 ||| The carrier word — the noun a referent currently answers to
 ||| ([CR#109.2,110.1]): a typed or untyped battlefield permanent, a card
 ||| in a non-battlefield zone, or a player. Token, spell, and stack-object
@@ -338,7 +402,8 @@ data Carrier = PlayerC | Perm CardType | AnyPerm | CardC
 ||| makes (`InZone` is Object-kinded), extended to the representation.
 public export
 data Payload : Kind -> Type where
-  ObjectP : (ty : Maybe CardType) -> (zone : Maybe Zone) -> Payload Object
+  ObjectP : (ty : Maybe CardType) -> (zone : Maybe Zone) ->
+            (prov : Maybe VerbName) -> Payload Object
   PlayerP : Payload Player
   QualityP : Payload (Quality q)
 
@@ -364,25 +429,32 @@ Bindings = List Binding
 public export
 carrier : Binding -> Maybe Carrier
 carrier (MkBinding _ Player _ PlayerP) = Just PlayerC
-carrier (MkBinding _ Object _ (ObjectP ty (Just Battlefield))) = Just (maybe AnyPerm Perm ty)
-carrier (MkBinding _ Object _ (ObjectP ty (Just _))) = Just CardC
-carrier (MkBinding _ Object _ (ObjectP ty Nothing)) = Just AnyPerm
+carrier (MkBinding _ Object _ (ObjectP ty (Just Battlefield) _)) = Just (maybe AnyPerm Perm ty)
+carrier (MkBinding _ Object _ (ObjectP ty (Just Graveyard) _)) = Just CardC
+carrier (MkBinding _ Object _ (ObjectP ty (Just Exile) _)) = Just CardC
+carrier (MkBinding _ Object _ (ObjectP ty (Just Hand) _)) = Just CardC
+carrier (MkBinding _ Object _ (ObjectP ty Nothing _)) = Just AnyPerm
 carrier (MkBinding _ (Quality _) _ QualityP) = Nothing
 
 ||| The zone a binding tracks — object fold-state; players and
 ||| qualities have none, structurally.
 public export
 bindingZone : Binding -> Maybe Zone
-bindingZone (MkBinding _ _ _ (ObjectP _ zn)) = zn
+bindingZone (MkBinding _ _ _ (ObjectP _ zn _)) = zn
 bindingZone (MkBinding _ _ _ PlayerP) = Nothing
 bindingZone (MkBinding _ _ _ QualityP) = Nothing
 
+||| Per-row catch-alls (here and in `sameQ`/`compatC`): a new
+||| constructor is a totality error on its missing row, never a
+||| silently-False diagonal.
 public export
 sameCT : CardType -> CardType -> Bool
 sameCT Creature Creature = True
+sameCT Creature _ = False
 sameCT Artifact Artifact = True
+sameCT Artifact _ = False
 sameCT Land Land = True
-sameCT _ _ = False
+sameCT Land _ = False
 
 ||| Which carrier nouns a wanted carrier reaches: exact for typed nouns
 ||| ([CR#205.2a]), "permanent" reaches any battlefield noun
@@ -390,11 +462,14 @@ sameCT _ _ = False
 public export
 compatC : (want : Carrier) -> (have : Carrier) -> Bool
 compatC PlayerC PlayerC = True
+compatC PlayerC _ = False
 compatC (Perm a) (Perm b) = sameCT a b
+compatC (Perm a) _ = False
 compatC AnyPerm (Perm _) = True
 compatC AnyPerm AnyPerm = True
+compatC AnyPerm _ = False
 compatC CardC CardC = True
-compatC _ _ = False
+compatC CardC _ = False
 
 public export
 compatMaybe : Carrier -> Maybe Carrier -> Bool
@@ -499,8 +574,8 @@ publicZone Hand = False
 ||| structurally, since only `ObjectP` has a zone at all.
 public export
 pubB : Binding -> Bool
-pubB (MkBinding _ _ _ (ObjectP _ (Just z))) = publicZone z
-pubB (MkBinding _ _ _ (ObjectP _ Nothing)) = True
+pubB (MkBinding _ _ _ (ObjectP _ (Just z) _)) = publicZone z
+pubB (MkBinding _ _ _ (ObjectP _ Nothing _)) = True
 pubB (MkBinding _ _ _ PlayerP) = True
 pubB (MkBinding _ _ _ QualityP) = True
 
@@ -519,7 +594,7 @@ publicOnly (b :: bs) = if pubB b then b :: publicOnly bs else publicOnly bs
 public export
 zoneOfIt : Bindings -> Maybe Zone
 zoneOfIt [] = Nothing
-zoneOfIt (MkBinding det Object OneOf (ObjectP ty zn) :: bs) = zn
+zoneOfIt (MkBinding det Object OneOf (ObjectP ty zn _) :: bs) = zn
 zoneOfIt (b :: bs) = zoneOfIt bs
 
 ||| The current zone of a sorted demonstrative's referent.
@@ -535,7 +610,7 @@ zoneOfThat c (b :: bs) =
 public export
 zoneOfThem : Bindings -> Maybe Zone
 zoneOfThem [] = Nothing
-zoneOfThem (MkBinding det Object ManyOf (ObjectP ty zn) :: bs) = zn
+zoneOfThem (MkBinding det Object ManyOf (ObjectP ty zn _) :: bs) = zn
 zoneOfThem (b :: bs) = zoneOfThem bs
 
 ||| The current zone of a sorted plural demonstrative's group referent.
@@ -546,6 +621,61 @@ zoneOfThose c (b :: bs) =
   case (b.plur, carrierIs c b) of
     (ManyOf, True) => bindingZone b
     _ => zoneOfThose c bs
+
+||| The participle phrase's own noun, its axes kept apart (finding 27
+||| — type words are declared catalog atoms, never intrinsic sorts): a
+||| TYPE word is checked on the projected head type — time-stable, the
+||| description under the verb ("the sacrificed artifact" is a
+||| graveyard card NOW); the intrinsic CARD word is checked on the
+||| current zone ([CR#108.2]). No fused type-carrier forms.
+public export
+data NounWord = TypeW CardType | CardW
+
+public export
+tyIs : CardType -> Maybe CardType -> Bool
+tyIs t Nothing = False
+tyIs t (Just t') = sameCT t t'
+
+||| A tracked non-battlefield zone — where an object answers to "card"
+||| ([CR#108.2]); a new Zone must take a side here.
+public export
+isCardZone : Maybe Zone -> Bool
+isCardZone Nothing = False
+isCardZone (Just Battlefield) = False
+isCardZone (Just Graveyard) = True
+isCardZone (Just Exile) = True
+isCardZone (Just Hand) = True
+
+public export
+wordOk : NounWord -> Maybe CardType -> Maybe Zone -> Bool
+wordOk (TypeW t) ty zn = tyIs t ty
+wordOk CardW ty zn = isCardZone zn
+
+||| Does "the [verbed] [noun]" reach this binding? Singular, stamped
+||| with that verb tag, noun word compatible.
+public export
+verbedMatch : VerbName -> NounWord -> Binding -> Bool
+verbedMatch v w (MkBinding _ _ OneOf (ObjectP ty zn (Just v'))) =
+  sameVerb v v' && wordOk w ty zn
+verbedMatch v w (MkBinding _ _ OneOf (ObjectP _ _ Nothing)) = False
+verbedMatch v w (MkBinding _ _ ManyOf (ObjectP _ _ _)) = False
+verbedMatch v w (MkBinding _ _ _ PlayerP) = False
+verbedMatch v w (MkBinding _ _ _ QualityP) = False
+
+||| Mentions the definite participle read reaches — its obligation is
+||| `= 1`, the same strict uniqueness as every other read.
+public export
+countVerbed : VerbName -> NounWord -> Bindings -> Nat
+countVerbed v w [] = Z
+countVerbed v w (b :: bs) =
+  if verbedMatch v w b then S (countVerbed v w bs) else countVerbed v w bs
+
+||| The current zone of the participle read's referent.
+public export
+zoneOfVerbed : VerbName -> NounWord -> Bindings -> Maybe Zone
+zoneOfVerbed v w [] = Nothing
+zoneOfVerbed v w (b :: bs) =
+  if verbedMatch v w b then bindingZone b else zoneOfVerbed v w bs
 
 ||| The zone half of sacrifice's implicit restriction ([CR#701.21a] —
 ||| only a permanent can be sacrificed): the referent's tracked zone
@@ -575,15 +705,6 @@ data Ability = KeywordAbility Keyword
 ||| "for as long as" durations ([CR#611.2b]) are a later chapter.
 public export
 data Duration = UntilEndOfTurn | UntilYourNextTurn
-
-||| Keyword-action tags ([CR#701]) — core's `Composite` verb names.
-||| `Destroy` and `Discard` mirror `plugins/builtin/macros/action/`;
-||| `Sacrifice` is a core whittling candidate (see the decision record);
-||| `Exile` is speculative pending its real macro definition. (Its own
-||| namespace: the tag `Exile` and the zone `Exile` are distinct words.)
-namespace Verb
-  public export
-  data VerbName = Destroy | Sacrifice | Exile | Discard
 
 -- ===== The grammar (mutual: types thread contexts through VALUES) =====
 
@@ -684,7 +805,7 @@ mutual
   public export
   bindFor : Determiner -> Plurality -> {k : Kind} -> Predicate bs k -> Binding
   bindFor det plur {k = Object} p =
-    MkBinding det Object plur (ObjectP (seedTy p) (Just (zoneOr Battlefield (seedZone p))))
+    MkBinding det Object plur (ObjectP (seedTy p) (Just (zoneOr Battlefield (seedZone p))) Nothing)
   bindFor det plur {k = Player} p = MkBinding det Player plur PlayerP
   bindFor det plur {k = Quality q} p = MkBinding det (Quality q) plur QualityP
 
@@ -736,6 +857,13 @@ mutual
     -- "that [carrier]": the sorted demonstrative — exactly one mention
     -- whose CURRENT carrier answers to the noun may precede.
     That : (c : Carrier) -> {auto 0 ok : countCarrier c bs = 1} -> Noun bs (kindOfC c)
+    -- "the [verbed] [noun]" ("the exiled card", "the sacrificed
+    -- artifact"): the definite participle read — exactly one mention
+    -- stamped by that verb tag and reached by the noun word may
+    -- precede. The disambiguator real text switches to where a bare
+    -- demonstrative would be ambiguous (finding 26).
+    TheVerbed : (v : VerbName) -> (w : NounWord) ->
+                {auto 0 ok : countVerbed v w bs = 1} -> Noun bs Object
     -- "[object]'s controller" / "its owner": relational nouns — a NEW
     -- player referent derived from an object mention ([CR#108.3,109.4]).
     ControllerOf : Noun bs Object -> Noun bs Player
@@ -764,6 +892,7 @@ mutual
   nounDelta Them = []
   nounDelta (That c) = []
   nounDelta (Those c) = []
+  nounDelta (TheVerbed v w) = []
   nounDelta (ControllerOf n) = MkBinding TheD Player OneOf PlayerP :: nounDelta n
   nounDelta (OwnerOf n) = MkBinding TheD Player OneOf PlayerP :: nounDelta n
 
@@ -799,6 +928,8 @@ mutual
     Lit : Nat -> Amount bs
     PowerOf : Noun bs Object -> Amount bs      -- "[its/…] power"
     ToughnessOf : Noun bs Object -> Amount bs  -- "[its/…] toughness"
+    -- "[n]'s mana value" / "the mana value of [n]" ([CR#202.3]).
+    ManaValueOf : Noun bs Object -> Amount bs
     -- "X" — announced with the cost ([CR#107.3a,107.3i]): a fixed
     -- value by resolution, not a discourse referent.
     XVal : Amount bs
@@ -810,6 +941,7 @@ mutual
   amtIntro (Lit n) = bs
   amtIntro (PowerOf nom) = nomIntro nom
   amtIntro (ToughnessOf nom) = nomIntro nom
+  amtIntro (ManaValueOf nom) = nomIntro nom
   amtIntro XVal = bs
   amtIntro (Plus a b) = amtIntro b
 
@@ -839,7 +971,7 @@ mutual
   public export
   delayedCtx : {bs : Bindings} -> EventQuery bs -> Bindings
   delayedCtx NextEndStep = settleTargets bs
-  delayedCtx (DiesThisTurn n) = settleTargets (moveIntro n Graveyard)
+  delayedCtx (DiesThisTurn n) = settleTargets (moveIntro Nothing n Graveyard)
 
   ||| Clauses. Constructor argument order IS textual order, and each
   ||| argument is typed in the context its predecessors built — the
@@ -881,7 +1013,9 @@ mutual
            Maybe Duration -> Effect bs
     -- the keyword-action tag ([CR#701]): the named verb deontics and
     -- replacements key on, wrapping its expansion body ([CR#701.8b] —
-    -- only a Destroy-tagged move IS a destruction).
+    -- only a Destroy-tagged move IS a destruction). A tagged move also
+    -- stamps its referent's provenance — the participle read's filter
+    -- (finding 26).
     Composite : VerbName -> Effect bs -> Effect bs
     -- "[subject] [verb phrase]" — the declarative clause: an agentive
     -- verb's performer in subject position, its phrase typed after it.
@@ -912,73 +1046,83 @@ mutual
 
   ||| Retag the binding a moved noun denotes: an introducing noun's own
   ||| fresh binding, or the unique binding a read resolved to (strict
-  ||| uniqueness is what makes this well-defined). Player nouns and the
-  ||| untracked source pass through.
+  ||| uniqueness is what makes this well-defined). The retag writes the
+  ||| new zone AND the moving verb's tag (provenance — `Nothing` for an
+  ||| untagged move: the participle names the LAST verb event). Player
+  ||| and quality clauses are identity — unreachable from card terms
+  ||| (`Move` is Object-kinded), kept explicit for totality.
   public export
-  setZone : Zone -> Binding -> Binding
-  setZone z (MkBinding det Object plur (ObjectP ty _)) =
-    MkBinding det Object plur (ObjectP ty (Just z))
-  setZone z (MkBinding det Player plur PlayerP) = MkBinding det Player plur PlayerP
-  setZone z (MkBinding det (Quality q) plur QualityP) =
+  setZone : Maybe VerbName -> Zone -> Binding -> Binding
+  setZone p z (MkBinding det Object plur (ObjectP ty _ _)) =
+    MkBinding det Object plur (ObjectP ty (Just z) p)
+  setZone p z (MkBinding det Player plur PlayerP) = MkBinding det Player plur PlayerP
+  setZone p z (MkBinding det (Quality q) plur QualityP) =
     MkBinding det (Quality q) plur QualityP
 
   public export
-  setZoneHead : Zone -> Bindings -> Bindings
-  setZoneHead z [] = []
-  setZoneHead z (b :: bs) = setZone z b :: bs
+  setZoneHead : Maybe VerbName -> Zone -> Bindings -> Bindings
+  setZoneHead p z [] = []
+  setZoneHead p z (b :: bs) = setZone p z b :: bs
 
   public export
-  setZoneIt : Zone -> Bindings -> Bindings
-  setZoneIt z [] = []
-  setZoneIt z (MkBinding det Object OneOf (ObjectP ty zn) :: bs) =
-    MkBinding det Object OneOf (ObjectP ty (Just z)) :: bs
-  setZoneIt z (b :: bs) = b :: setZoneIt z bs
+  setZoneIt : Maybe VerbName -> Zone -> Bindings -> Bindings
+  setZoneIt p z [] = []
+  setZoneIt p z (MkBinding det Object OneOf (ObjectP ty zn _) :: bs) =
+    MkBinding det Object OneOf (ObjectP ty (Just z) p) :: bs
+  setZoneIt p z (b :: bs) = b :: setZoneIt p z bs
 
   public export
-  setZoneThem : Zone -> Bindings -> Bindings
-  setZoneThem z [] = []
-  setZoneThem z (MkBinding det Object ManyOf (ObjectP ty zn) :: bs) =
-    MkBinding det Object ManyOf (ObjectP ty (Just z)) :: bs
-  setZoneThem z (b :: bs) = b :: setZoneThem z bs
+  setZoneThem : Maybe VerbName -> Zone -> Bindings -> Bindings
+  setZoneThem p z [] = []
+  setZoneThem p z (MkBinding det Object ManyOf (ObjectP ty zn _) :: bs) =
+    MkBinding det Object ManyOf (ObjectP ty (Just z) p) :: bs
+  setZoneThem p z (b :: bs) = b :: setZoneThem p z bs
 
   public export
-  setZoneThose : Carrier -> Zone -> Bindings -> Bindings
-  setZoneThose c z [] = []
-  setZoneThose c z (b :: bs) =
+  setZoneThose : Maybe VerbName -> Carrier -> Zone -> Bindings -> Bindings
+  setZoneThose p c z [] = []
+  setZoneThose p c z (b :: bs) =
     case (b.plur, carrierIs c b) of
-      (ManyOf, True) => setZone z b :: bs
-      _ => b :: setZoneThose c z bs
+      (ManyOf, True) => setZone p z b :: bs
+      _ => b :: setZoneThose p c z bs
 
   public export
-  setZoneThat : Carrier -> Zone -> Bindings -> Bindings
-  setZoneThat c z [] = []
-  setZoneThat c z (b :: bs) =
+  setZoneThat : Maybe VerbName -> Carrier -> Zone -> Bindings -> Bindings
+  setZoneThat p c z [] = []
+  setZoneThat p c z (b :: bs) =
     case (b.plur, carrierIs c b) of
-      (OneOf, True) => setZone z b :: bs
-      _ => b :: setZoneThat c z bs
+      (OneOf, True) => setZone p z b :: bs
+      _ => b :: setZoneThat p c z bs
 
   public export
-  moveIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Zone -> Bindings
-  moveIntro (Target p) z = setZoneHead z (nomIntro (Target p))
-  moveIntro (Each p) z = setZoneHead z (nomIntro (Each p))
-  moveIntro (A p) z = setZoneHead z (nomIntro (A p))
-  moveIntro (ATheirChoice p) z = setZoneHead z (nomIntro (ATheirChoice p))
-  moveIntro (AAtRandom p) z = setZoneHead z (nomIntro (AAtRandom p))
-  moveIntro (TargetGroup n p) z = setZoneHead z (nomIntro (TargetGroup n p))
-  moveIntro (TargetUpTo n p) z = setZoneHead z (nomIntro (TargetUpTo n p))
-  moveIntro (AllOf p) z = setZoneHead z (nomIntro (AllOf p))
-  moveIntro It z = setZoneIt z bs
-  moveIntro Them z = setZoneThem z bs
-  moveIntro (That c) z = setZoneThat c z bs
-  moveIntro (Those c) z = setZoneThose c z bs
-  moveIntro This z = bs
+  setZoneVerbed : Maybe VerbName -> VerbName -> NounWord -> Zone -> Bindings -> Bindings
+  setZoneVerbed p v w z [] = []
+  setZoneVerbed p v w z (b :: bs) =
+    if verbedMatch v w b then setZone p z b :: bs else b :: setZoneVerbed p v w z bs
+
+  public export
+  moveIntro : {bs : Bindings} -> {k : Kind} -> Maybe VerbName -> Noun bs k -> Zone -> Bindings
+  moveIntro p (Target pr) z = setZoneHead p z (nomIntro (Target pr))
+  moveIntro p (Each pr) z = setZoneHead p z (nomIntro (Each pr))
+  moveIntro p (A pr) z = setZoneHead p z (nomIntro (A pr))
+  moveIntro p (ATheirChoice pr) z = setZoneHead p z (nomIntro (ATheirChoice pr))
+  moveIntro p (AAtRandom pr) z = setZoneHead p z (nomIntro (AAtRandom pr))
+  moveIntro p (TargetGroup n pr) z = setZoneHead p z (nomIntro (TargetGroup n pr))
+  moveIntro p (TargetUpTo n pr) z = setZoneHead p z (nomIntro (TargetUpTo n pr))
+  moveIntro p (AllOf pr) z = setZoneHead p z (nomIntro (AllOf pr))
+  moveIntro p It z = setZoneIt p z bs
+  moveIntro p Them z = setZoneThem p z bs
+  moveIntro p (That c) z = setZoneThat p c z bs
+  moveIntro p (Those c) z = setZoneThose p c z bs
+  moveIntro p (TheVerbed v w) z = setZoneVerbed p v w z bs
+  moveIntro p This z = bs
   -- a moved sorted self-reference mints the new object's binding
   -- ([CR#400.7]; see the constructor comment).
-  moveIntro (ThisOf t) z = MkBinding TheD Object OneOf (ObjectP (Just t) (Just z)) :: bs
-  moveIntro You z = bs
-  moveIntro They z = bs
-  moveIntro (ControllerOf n) z = nomIntro (ControllerOf n)
-  moveIntro (OwnerOf n) z = nomIntro (OwnerOf n)
+  moveIntro p (ThisOf t) z = MkBinding TheD Object OneOf (ObjectP (Just t) (Just z) p) :: bs
+  moveIntro p You z = bs
+  moveIntro p They z = bs
+  moveIntro p (ControllerOf n) z = nomIntro (ControllerOf n)
+  moveIntro p (OwnerOf n) z = nomIntro (OwnerOf n)
 
   ||| The zone a noun's referent currently occupies, if tracked: reads
   ||| consult their unique binding, introducers their seed zone
@@ -1002,6 +1146,7 @@ mutual
   nounZone Them = zoneOfThem bs
   nounZone (That c) = zoneOfThat c bs
   nounZone (Those c) = zoneOfThose c bs
+  nounZone (TheVerbed v w) = zoneOfVerbed v w bs
   nounZone (ControllerOf n) = Nothing
   nounZone (OwnerOf n) = Nothing
 
@@ -1012,10 +1157,11 @@ mutual
   effIntro (Fights a b) = nomIntro b
   effIntro (Tap n) = nomIntro n
   effIntro (Choose n) = nomIntro n
-  effIntro (Move what to) = moveIntro what (zoneSort to)
+  effIntro (Move what to) = moveIntro Nothing what (zoneSort to)
   effIntro (ChangeLife who op) = lifeIntro op
   effIntro (Gain n _ _) = nomIntro n
   effIntro (Gets n _ _ _) = nomIntro n
+  effIntro (Composite v (Move what to)) = moveIntro (Just v) what (zoneSort to)
   effIntro (Composite _ e) = effIntro e
   effIntro (Does s e) = effIntro e
   effIntro (May d e) = effIntro e            -- a declined May skips at runtime, not in scope
@@ -1085,16 +1231,23 @@ sacrifice : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
             {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
 sacrifice agent n = Does agent (Composite Sacrifice (Move n GraveyardZ))
 
--- "[agent] discard(s) a card" — the hand→graveyard move [CR#701.9a]
--- with the subject in clause position. The CR routes by the card's
--- OWNER; owner≡agent is this macro's elision, the same one the real
--- macro makes with its agent-param hand filter. The discarded card is
--- the affected player's choice by default [CR#701.9b], spelled
--- sort-only here (an owned-hand expansion needs a subject-read noun
--- the vocabulary lacks — not-settled).
+-- "[agent] discard(s) [n]" — the hand→graveyard move [CR#701.9a] with
+-- the subject in clause position. The CR routes by the card's OWNER;
+-- owner≡agent is this macro's elision, the same one the real macro
+-- makes with its agent-param hand filter. The noun carries its own
+-- choice marking: the plain indefinite is the affected player's
+-- choice by default [CR#701.9b], "at random" the markedly chooserless
+-- variant (`AAtRandom` — Pyromancy).
+public export
+discards : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) -> Effect bs
+discards agent n = Does agent (Composite Discard (Move n GraveyardZ))
+
+-- "[agent] discard(s) a card" — the common phrase, spelled sort-only
+-- (an owned-hand expansion needs a subject-read noun the vocabulary
+-- lacks — not-settled).
 public export
 discardsACard : (agent : Noun bs Player) -> Effect bs
-discardsACard agent = Does agent (Composite Discard (Move (A (InZone HandZ)) GraveyardZ))
+discardsACard agent = discards agent (A (InZone HandZ))
 
 -- "[n] gains haste [duration]"
 public export

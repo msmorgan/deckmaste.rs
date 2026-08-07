@@ -238,6 +238,46 @@ kindredDominance : Effect []
 kindredDominance = AndThen (Choose (A (QualityNoun CreatureType)))
                            (destroy (AllOf (And [creature, Not (OfChosen CreatureType)])))
 
+-- "{2}, Sacrifice this artifact: Exile target creature. Return the
+-- exiled card to the battlefield under its owner's control at the
+-- beginning of the next end step." (Voyager Staff; {2} and "under its
+-- owner's control" elided) — THE finding-12 partner: past the colon
+-- the discourse holds TWO card mentions (the sacrificed self, the
+-- exiled target), so a bare demonstrative is ambiguous
+-- (badBareCardRead) and the text switches to the participle, whose
+-- verb filter picks the exile; the delay carries it as usual
+-- ([CR#603.7c]).
+voyagerStaff : Activated []
+voyagerStaff = MkActivated (sacrifice You (ThisOf Artifact))
+                           (AndThen (exile (Target creature))
+                                    (Delayed NextEndStep (Move (TheVerbed Exile CardW) BattlefieldZ)))
+
+-- "{3}{R}, Sacrifice an artifact: Bosh deals damage equal to the
+-- sacrificed artifact's mana value to any target." (Bosh, Iron Golem;
+-- {3}{R} and its Trample line elided; the self-name is `This`) — the
+-- TYPE-word participle noun: the referent is a graveyard card NOW,
+-- but "artifact" describes it under the verb — checked on the
+-- time-stable projected head type, the axis a declared type word
+-- lives on (finding 27).
+boshIronGolem : Activated []
+boshIronGolem = MkActivated (sacrifice You (A (HasType Artifact)))
+                            (DealDamage This
+                                        (ManaValueOf (TheVerbed Sacrifice (TypeW Artifact)))
+                                        (Target AnyTarget))
+
+-- "{3}, Discard a card at random: This enchantment deals damage to
+-- any target equal to the mana value of the discarded card."
+-- (Pyromancy; {3} elided; the trailing "equal to …" is extraposition
+-- — spelling's linearization of the same deal(src, amt, to) frame) —
+-- the at-random marked indefinite finally has its positive
+-- ([CR#701.9b] — no chooser), and the colon read is the participle at
+-- the intrinsic CARD word, checked on current zone fold-state.
+pyromancy : Activated []
+pyromancy = MkActivated (discards You (AAtRandom (InZone HandZ)))
+                        (DealDamage This
+                                    (ManaValueOf (TheVerbed Discard CardW))
+                                    (Target AnyTarget))
+
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
 -- "other" with no target before it: the presupposition has no witness.
@@ -353,4 +393,36 @@ failing "countCarrier"
 -- same refusal the surface grammar makes at `InZone`'s kind.
 failing "Payload Player"
   badPlayerInHand : Binding
-  badPlayerInHand = MkBinding AD Player OneOf (ObjectP Nothing (Just Hand))
+  badPlayerInHand = MkBinding AD Player OneOf (ObjectP Nothing (Just Hand) Nothing)
+
+-- The participle's verb filter has no witness: the cost discarded,
+-- nothing was sacrificed.
+failing "countVerbed"
+  badVerbedWrongVerb : Activated []
+  badVerbedWrongVerb = MkActivated (discardsACard You)
+                                   (Move (TheVerbed Sacrifice CardW) BattlefieldZ)
+
+-- The noun word misses on the type axis: an artifact was sacrificed,
+-- so "the sacrificed creature" has no referent.
+failing "countVerbed"
+  badVerbedWrongNoun : Activated []
+  badVerbedWrongNoun = MkActivated (sacrifice You (A (HasType Artifact)))
+                                   (Move (TheVerbed Sacrifice (TypeW Creature)) BattlefieldZ)
+
+-- Two same-verb stamps leave the participle ambiguous — the same
+-- strict uniqueness as every read (real costs of this shape name
+-- distinct verbs, which is what the filter buys).
+failing "countVerbed"
+  badVerbedAmbig : Activated []
+  badVerbedAmbig = MkActivated (AndThen (sacrifice You (A creature))
+                                        (sacrifice You (A creature)))
+                               (Move (TheVerbed Sacrifice CardW) BattlefieldZ)
+
+-- Voyager Staff's shape with the bare demonstrative: two card
+-- mentions (the sacrificed self, the exiled target) make "that card"
+-- ambiguous — the participle is what real text switches to here.
+failing "countCarrier"
+  badBareCardRead : Activated []
+  badBareCardRead = MkActivated (sacrifice You (ThisOf Artifact))
+                                (AndThen (exile (Target creature))
+                                         (Delayed NextEndStep (Move (That CardC) BattlefieldZ)))
