@@ -172,6 +172,43 @@
 |||    clauses admit state-based actions between them, where
 |||    [CR#701.14a] deals one simultaneous event.
 |||
+||| Chapter six, group reference and qualities (evidence: Fulgent
+||| Distraction, Continue?, Sudden Demise, Kindred Dominance; the
+||| amounts axis stayed evidence-only — see the not-settled list):
+|||
+||| 21. **Groups are bindings like any other.** A counted target
+|||    mention ("two target creatures", "up to four …") binds once,
+|||    ManyOf, its numeral term-level surface data no context consumer
+|||    reads ([CR#601.2c] fixes the count at announce, and the one read
+|||    that wants a number wants the ACTUAL count, not the bound).
+|||    `Them`/`Those c` are the strict-unique plural twins of the
+|||    singular reads (`badThemAmbig`), riding the same carrier and
+|||    retag machinery.
+||| 22. **The fronted choose-sentence is a scope divergence.** "Choose
+|||    two target creatures." announces in its own clause and scopes
+|||    everything after; core's choose binders are resolution-time and
+|||    nontarget ([CR#115.1]), so the divergence is recorded on the
+|||    constructor, not mirrored away.
+||| 23. **Qualities are a kind, not a carrier.** `Kind` grows one
+|||    parameterized constructor (`Quality`); a chosen color/type
+|||    enters the discourse like any mention and `OfChosen` demands it
+|||    uniquely per sort (`badChosenWrongSort`). A quality mention has
+|||    no carrier word — `carrier` returns `Maybe`, junk-free — and
+|||    kind matching routes through `sameKind`, whose deliberate lack
+|||    of a catch-all makes the NEXT kind a totality error instead of a
+|||    silent zero. "All" is a surface determiner distinct from
+|||    distributive "each" (the guide separates them; the CR does not),
+|||    stored as `AllD`.
+||| 24. **"That much" / "that many" read event results, not amounts.**
+|||    The corpus antecedents are quantities of what HAPPENED — cards
+|||    moved (Asmodeus the Archfiend), aggregate life lost (the Extort
+|||    reminder), an intervening-if's count (Feast of the Victorious
+|||    Dead), payment and cost quantities (Harnessed Lightning, Arcee)
+|||    — runtime facts, not surface projections of any clause's amount
+|||    term, so the read is NOT typed this chapter; the sole
+|||    written-amount coincidence (Foul-Tongue Shriek) would prove the
+|||    wrong rule.
+|||
 ||| Not settled yet: the kind union ("any target" spans objects and
 ||| players [CR#115.4,115.1] — elided to `Object`);
 ||| owned-zone mentions beyond `You` ("its owner's hand" — destination
@@ -181,13 +218,20 @@
 ||| Factor / Rakdos, Patron of Chaos else-clauses); definite
 ||| descriptive reads ("the sacrificed creature", "the exiled card" —
 ||| also what `AAtRandom`'s positive waits on: Pyromancy reads "the
-||| discarded card"); more event queries (upkeep / end-of-combat /
+||| discarded card") and the chosen-OBJECT forms ("the chosen
+||| creatures"); more event queries (upkeep / end-of-combat /
 ||| leaves-the-battlefield — Slaughter Pact, Mirror Match, and
 ||| Kjeldoran Elite Guard wait on pay, tokens, and an unknown-zone
 ||| retag); the player pronoun "they"
 ||| (corpus-attested only inside trigger and unless clauses — Havoc,
-||| Tergrid's Lantern — so `They`'s positive waits on those constructions)
-||| and plural reads ("those creatures", "them", "the rest");
+||| Tergrid's Lantern — so `They`'s positive waits on those
+||| constructions), player groups ("each opponent … they"
+||| distributives), and "the rest"; event-result quantities ("that
+||| much" / "that many" — finding 24's antecedent classes await
+||| event-layer referents); "any number of" / "X" target groups
+||| (corpus-frequent; constructors wait on verified whole cards); an
+||| up-to-N group as an "other" witness ([CR#115.6] — it may denote
+||| zero; no corpus line pairs them yet);
 ||| static abilities and "for as long as" durations ([CR#611.2b],
 ||| Kitesail Corsair); last-known VALUES (reads ignore zone — finding
 ||| 19 — but [CR#109.4] gives off-battlefield objects no controller,
@@ -198,7 +242,8 @@
 ||| Trail's shared verb is spelling's business — here it is a clause
 ||| sequence). The context-as-phrase-telescope collapse (bindings storing
 ||| the mention terms themselves, every projection computed) stays open as
-||| a possible later simplification.
+||| a possible later simplification — pressure that grows as kinds
+||| multiply (quality bindings carry dead ty/zone fields).
 module Experimental
 
 %default total
@@ -210,10 +255,37 @@ module Experimental
 public export
 data CardType = Creature | Artifact | Land
 
-||| What a binding can bind ([CR#115.1] — targets are objects and/or
-||| players; the union kind is deferred with the carrier lattice).
+||| Quality sorts — the choosable characteristics ([CR#105.1,302.3];
+||| only what the chapters need).
 public export
-data Kind = Object | Player
+data QualitySort = Color | CreatureType
+
+public export
+sameQ : QualitySort -> QualitySort -> Bool
+sameQ Color Color = True
+sameQ CreatureType CreatureType = True
+sameQ _ _ = False
+
+||| What a binding can bind ([CR#115.1] — targets are objects and/or
+||| players; the union kind is deferred with the carrier lattice) —
+||| plus chosen qualities ("Choose a color"), which enter the same
+||| discourse.
+public export
+data Kind = Object | Player | Quality QualitySort
+
+||| Kind equality — deliberately WITHOUT a catch-all: adding a Kind
+||| makes this a totality error, not a silent zero in the counters.
+public export
+sameKind : Kind -> Kind -> Bool
+sameKind Object Object = True
+sameKind Object Player = False
+sameKind Object (Quality _) = False
+sameKind Player Object = False
+sameKind Player Player = True
+sameKind Player (Quality _) = False
+sameKind (Quality _) Object = False
+sameKind (Quality _) Player = False
+sameKind (Quality a) (Quality b) = sameQ a b
 
 ||| Singular mention or group mention — the guard that keeps "it" from
 ||| resolving to a plural antecedent.
@@ -221,11 +293,11 @@ public export
 data Plurality = OneOf | ManyOf
 
 ||| The introducing word of a mention — a SURFACE projection ("target",
-||| "a", "each", or a definite/derived mention). Rules facts (delayed
-||| staleness, the "other" presupposition) are functions of it, never
-||| stored alongside it.
+||| "a", "each", "all", or a definite/derived mention). Rules facts
+||| (the settled-target boundary, the "other" presupposition) are
+||| functions of it, never stored alongside it.
 public export
-data Determiner = TargetD | AD | EachD | TheD
+data Determiner = TargetD | AD | EachD | AllD | TheD
 
 ||| Zone sorts, minimally ([CR#400.1] family) — the fold-state tag a
 ||| binding carries. Ownership is not stored here; it lives in the
@@ -259,13 +331,15 @@ Bindings = List Binding
 
 ||| The carrier is DERIVED: kind and projected type plus current zone
 ||| ([CR#110.1] — a permanent is a card or token on the battlefield, and
-||| stops being one when it leaves).
+||| stops being one when it leaves). A quality mention has no carrier
+||| word — `Nothing`, never a junk value.
 public export
-carrier : Binding -> Carrier
-carrier (MkBinding _ Player _ _ _) = PlayerC
-carrier (MkBinding _ Object _ ty (Just Battlefield)) = maybe AnyPerm Perm ty
-carrier (MkBinding _ Object _ ty (Just _)) = CardC
-carrier (MkBinding _ Object _ ty Nothing) = AnyPerm
+carrier : Binding -> Maybe Carrier
+carrier (MkBinding _ Player _ _ _) = Just PlayerC
+carrier (MkBinding _ Object _ ty (Just Battlefield)) = Just (maybe AnyPerm Perm ty)
+carrier (MkBinding _ Object _ ty (Just _)) = Just CardC
+carrier (MkBinding _ Object _ ty Nothing) = Just AnyPerm
+carrier (MkBinding _ (Quality _) _ _ _) = Nothing
 
 public export
 sameCT : CardType -> CardType -> Bool
@@ -287,18 +361,30 @@ compatC CardC CardC = True
 compatC _ _ = False
 
 public export
+compatMaybe : Carrier -> Maybe Carrier -> Bool
+compatMaybe c Nothing = False
+compatMaybe c (Just c') = compatC c c'
+
+||| Does the wanted carrier reach this binding's carrier (if any)?
+public export
+carrierIs : Carrier -> Binding -> Bool
+carrierIs c b = compatMaybe c (carrier b)
+
+public export
 kindOfC : Carrier -> Kind
 kindOfC PlayerC = Player
 kindOfC _ = Object
 
 ||| Singular mentions of a kind, counted — the wildcard pronoun's
 ||| obligation is `= 1`: zero is an unbound anaphor, two an ambiguous one
-||| (the uniqueness gate the controlled language relies on).
+||| (the uniqueness gate the controlled language relies on). Kind
+||| matching routes through `sameKind` so a new Kind cannot silently
+||| count as zero.
 public export
 countOnes : Kind -> Bindings -> Nat
 countOnes k [] = Z
-countOnes Object (MkBinding _ Object OneOf _ _ :: bs) = S (countOnes Object bs)
-countOnes Player (MkBinding _ Player OneOf _ _ :: bs) = S (countOnes Player bs)
+countOnes k (MkBinding _ k' OneOf _ _ :: bs) =
+  if sameKind k k' then S (countOnes k bs) else countOnes k bs
 countOnes k (_ :: bs) = countOnes k bs
 
 ||| Singular mentions whose CURRENT carrier the wanted carrier reaches —
@@ -308,9 +394,37 @@ public export
 countCarrier : Carrier -> Bindings -> Nat
 countCarrier c [] = Z
 countCarrier c (b :: bs) =
-  case (b.plur, compatC c (carrier b)) of
+  case (b.plur, carrierIs c b) of
     (OneOf, True) => S (countCarrier c bs)
     _ => countCarrier c bs
+
+||| Chosen-quality mentions of a sort, counted — "the chosen color"
+||| demands exactly one.
+public export
+countQuality : QualitySort -> Bindings -> Nat
+countQuality q [] = Z
+countQuality q (MkBinding _ k OneOf _ _ :: bs) =
+  if sameKind (Quality q) k then S (countQuality q bs) else countQuality q bs
+countQuality q (_ :: bs) = countQuality q bs
+
+||| Group mentions of a kind, counted — the plural wildcard's
+||| obligation is `= 1`, the ManyOf twin of `countOnes`.
+public export
+countManys : Kind -> Bindings -> Nat
+countManys k [] = Z
+countManys k (MkBinding _ k' ManyOf _ _ :: bs) =
+  if sameKind k k' then S (countManys k bs) else countManys k bs
+countManys k (_ :: bs) = countManys k bs
+
+||| Group mentions whose CURRENT carrier the wanted carrier reaches —
+||| the sorted plural demonstrative's gate.
+public export
+countManyCarrier : Carrier -> Bindings -> Nat
+countManyCarrier c [] = Z
+countManyCarrier c (b :: bs) =
+  case (b.plur, carrierIs c b) of
+    (ManyOf, True) => S (countManyCarrier c bs)
+    _ => countManyCarrier c bs
 
 ||| Is any target-determined mention of this kind in scope? — the
 ||| presupposition of the modifier "other" ([CR#115.4]), stated entirely
@@ -318,8 +432,8 @@ countCarrier c (b :: bs) =
 public export
 anyTargeted : Kind -> Bindings -> Bool
 anyTargeted k [] = False
-anyTargeted Object (MkBinding TargetD Object _ _ _ :: bs) = True
-anyTargeted Player (MkBinding TargetD Player _ _ _ :: bs) = True
+anyTargeted k (MkBinding TargetD k' _ _ _ :: bs) =
+  if sameKind k k' then True else anyTargeted k bs
 anyTargeted k (_ :: bs) = anyTargeted k bs
 
 ||| A future clause's context: the outer clause's announced targets
@@ -371,9 +485,25 @@ public export
 zoneOfThat : Carrier -> Bindings -> Maybe Zone
 zoneOfThat c [] = Nothing
 zoneOfThat c (b :: bs) =
-  case (b.plur, compatC c (carrier b)) of
+  case (b.plur, carrierIs c b) of
     (OneOf, True) => b.zone
     _ => zoneOfThat c bs
+
+||| The current zone of the plural wildcard's group referent.
+public export
+zoneOfThem : Bindings -> Maybe Zone
+zoneOfThem [] = Nothing
+zoneOfThem (MkBinding det Object ManyOf ty zn :: bs) = zn
+zoneOfThem (b :: bs) = zoneOfThem bs
+
+||| The current zone of a sorted plural demonstrative's group referent.
+public export
+zoneOfThose : Carrier -> Bindings -> Maybe Zone
+zoneOfThose c [] = Nothing
+zoneOfThose c (b :: bs) =
+  case (b.plur, carrierIs c b) of
+    (ManyOf, True) => b.zone
+    _ => zoneOfThose c bs
 
 ||| The zone half of sacrifice's implicit restriction ([CR#701.21a] —
 ||| only a permanent can be sacrificed): the referent's tracked zone
@@ -452,6 +582,14 @@ mutual
     HasType : CardType -> Predicate bs Object            -- head noun "creature"/…
     AnyPlayer : Predicate bs Player                      -- head noun "player" (any player, [CR#102.1])
     Opponent : Predicate bs Player                       -- head noun "opponent" (of You — team form [CR#102.3] deferred)
+    -- head noun "color" / "creature type" — the choosable quality
+    -- ([CR#105.1,302.3]).
+    QualityNoun : (q : QualitySort) -> Predicate bs (Quality q)
+    -- "of the chosen [quality]": reads the unique chosen quality (the
+    -- guide's stored-quality naming; choice made at resolution
+    -- [CR#608.2d]). The chosen-OBJECT twin ("the chosen creatures")
+    -- waits with the definite reads.
+    OfChosen : (q : QualitySort) -> {auto 0 ok : countQuality q bs = 1} -> Predicate bs Object
     ControlledBy : Noun bs Player -> Predicate bs Object -- zero relative "[player] controls"
     InZone : ZoneExpr bs -> Predicate bs Object          -- zone clause "in/from [zone]" ([CR#109.2a])
     And : List (Predicate bs k) -> Predicate bs k        -- sibling modifiers, one referent
@@ -506,6 +644,7 @@ mutual
   bindFor det plur {k = Object} p =
     MkBinding det Object plur (seedTy p) (Just (zoneOr Battlefield (seedZone p)))
   bindFor det plur {k = Player} p = MkBinding det Player plur Nothing Nothing
+  bindFor det plur {k = Quality q} p = MkBinding det (Quality q) plur Nothing Nothing
 
   ||| A noun in its argument position — the determiner layer of the
   ||| phrase, deciding how (and whether) the referent enters the
@@ -531,12 +670,27 @@ mutual
     -- slot and its absence in the at-random variant.
     ATheirChoice : Predicate bs k -> Noun bs k
     AAtRandom : Predicate bs k -> Noun bs k
+    -- "[n] target [pred]s" / "up to [n] target [pred]s": counted group
+    -- mentions — one ManyOf binding; the numeral is surface data no
+    -- read consults ([CR#601.2c] distinctness is announce business).
+    TargetGroup : (n : Nat) -> Predicate bs k -> Noun bs k
+    TargetUpTo : (n : Nat) -> Predicate bs k -> Noun bs k
+    -- "all [pred]s": the set-level group — a surface determiner the
+    -- guide keeps distinct from distributive "each" (the CR fixes both
+    -- sets at resolution and separates them no further).
+    AllOf : Predicate bs k -> Noun bs k
     -- "it" / "its": the wildcard pronoun — exactly one singular Object
     -- mention may precede. Zero = unbound, two = ambiguous; both
     -- unspellable.
     It : {auto 0 ok : countOnes Object bs = 1} -> Noun bs Object
-    -- "they" for a player (singular; plural groups are a later chapter).
+    -- "they" for a player (singular; player groups are a later chapter).
     They : {auto 0 ok : countOnes Player bs = 1} -> Noun bs Player
+    -- "them": the plural wildcard — exactly one group mention of the
+    -- kind may precede (the ManyOf twin of `It`).
+    Them : {auto 0 ok : countManys Object bs = 1} -> Noun bs Object
+    -- "those [carrier]s": the sorted plural demonstrative — exactly
+    -- one group mention whose CURRENT carrier answers to the noun.
+    Those : (c : Carrier) -> {auto 0 ok : countManyCarrier c bs = 1} -> Noun bs (kindOfC c)
     -- "that [carrier]": the sorted demonstrative — exactly one mention
     -- whose CURRENT carrier answers to the noun may precede.
     That : (c : Carrier) -> {auto 0 ok : countCarrier c bs = 1} -> Noun bs (kindOfC c)
@@ -560,9 +714,14 @@ mutual
   nounDelta (A p) = bindFor AD OneOf p :: predDelta p
   nounDelta (ATheirChoice p) = bindFor AD OneOf p :: predDelta p
   nounDelta (AAtRandom p) = bindFor AD OneOf p :: predDelta p
+  nounDelta (TargetGroup n p) = bindFor TargetD ManyOf p :: predDelta p
+  nounDelta (TargetUpTo n p) = bindFor TargetD ManyOf p :: predDelta p
+  nounDelta (AllOf p) = bindFor AllD ManyOf p :: predDelta p
   nounDelta It = []
   nounDelta They = []
+  nounDelta Them = []
   nounDelta (That c) = []
+  nounDelta (Those c) = []
   nounDelta (ControllerOf n) = MkBinding TheD Player OneOf Nothing Nothing :: nounDelta n
   nounDelta (OwnerOf n) = MkBinding TheD Player OneOf Nothing Nothing :: nounDelta n
 
@@ -598,6 +757,9 @@ mutual
     Lit : Nat -> Amount bs
     PowerOf : Noun bs Object -> Amount bs      -- "[its/…] power"
     ToughnessOf : Noun bs Object -> Amount bs  -- "[its/…] toughness"
+    -- "X" — announced with the cost ([CR#107.3a,107.3i]): a fixed
+    -- value by resolution, not a discourse referent.
+    XVal : Amount bs
     -- "[a] plus [b]" — the second operand reads after the first.
     Plus : (a : Amount bs) -> Amount (amtIntro a) -> Amount bs
 
@@ -606,6 +768,7 @@ mutual
   amtIntro (Lit n) = bs
   amtIntro (PowerOf nom) = nomIntro nom
   amtIntro (ToughnessOf nom) = nomIntro nom
+  amtIntro XVal = bs
   amtIntro (Plus a b) = amtIntro b
 
   ||| Life-total change operands ([CR#119.3]; `Set` is a later chapter).
@@ -654,6 +817,12 @@ mutual
     Fights : (a : Noun bs Object) -> (b : Noun (nomIntro a) Object) -> Effect bs
     -- "tap [n]" ([CR#701.26a]) — core basis.
     Tap : Noun bs Object -> Effect bs
+    -- "Choose [n]." — the choice clause as surface for the mention it
+    -- announces ([CR#601.2c] for targets; [CR#608.2d] otherwise). A
+    -- recorded DIVERGENCE from core, whose choose binders are
+    -- resolution-time and nontarget ([CR#115.1] keeps the words
+    -- apart): here the fronted sentence scopes everything after it.
+    Choose : {k : Kind} -> Noun bs k -> Effect bs
     -- "[move] [n] [to zone]" — the zone-change primitive every keyword
     -- action's body bottoms out in ([CR#701.8a] shape). Destination
     -- only: the from-zone is the referent's fold-state, which this
@@ -720,10 +889,25 @@ mutual
   setZoneIt z (b :: bs) = b :: setZoneIt z bs
 
   public export
+  setZoneThem : Zone -> Bindings -> Bindings
+  setZoneThem z [] = []
+  setZoneThem z (MkBinding det Object ManyOf ty zn :: bs) =
+    MkBinding det Object ManyOf ty (Just z) :: bs
+  setZoneThem z (b :: bs) = b :: setZoneThem z bs
+
+  public export
+  setZoneThose : Carrier -> Zone -> Bindings -> Bindings
+  setZoneThose c z [] = []
+  setZoneThose c z (b :: bs) =
+    case (b.plur, carrierIs c b) of
+      (ManyOf, True) => setZone z b :: bs
+      _ => b :: setZoneThose c z bs
+
+  public export
   setZoneThat : Carrier -> Zone -> Bindings -> Bindings
   setZoneThat c z [] = []
   setZoneThat c z (b :: bs) =
-    case (b.plur, compatC c (carrier b)) of
+    case (b.plur, carrierIs c b) of
       (OneOf, True) => setZone z b :: bs
       _ => b :: setZoneThat c z bs
 
@@ -734,8 +918,13 @@ mutual
   moveIntro (A p) z = setZoneHead z (nomIntro (A p))
   moveIntro (ATheirChoice p) z = setZoneHead z (nomIntro (ATheirChoice p))
   moveIntro (AAtRandom p) z = setZoneHead z (nomIntro (AAtRandom p))
+  moveIntro (TargetGroup n p) z = setZoneHead z (nomIntro (TargetGroup n p))
+  moveIntro (TargetUpTo n p) z = setZoneHead z (nomIntro (TargetUpTo n p))
+  moveIntro (AllOf p) z = setZoneHead z (nomIntro (AllOf p))
   moveIntro It z = setZoneIt z bs
+  moveIntro Them z = setZoneThem z bs
   moveIntro (That c) z = setZoneThat c z bs
+  moveIntro (Those c) z = setZoneThose c z bs
   moveIntro This z = bs
   -- a moved sorted self-reference mints the new object's binding
   -- ([CR#400.7]; see the constructor comment).
@@ -759,9 +948,14 @@ mutual
   nounZone (A p) = Just (zoneOr Battlefield (seedZone p))
   nounZone (ATheirChoice p) = Just (zoneOr Battlefield (seedZone p))
   nounZone (AAtRandom p) = Just (zoneOr Battlefield (seedZone p))
+  nounZone (TargetGroup n p) = Just (zoneOr Battlefield (seedZone p))
+  nounZone (TargetUpTo n p) = Just (zoneOr Battlefield (seedZone p))
+  nounZone (AllOf p) = Just (zoneOr Battlefield (seedZone p))
   nounZone It = zoneOfIt bs
   nounZone They = Nothing
+  nounZone Them = zoneOfThem bs
   nounZone (That c) = zoneOfThat c bs
+  nounZone (Those c) = zoneOfThose c bs
   nounZone (ControllerOf n) = Nothing
   nounZone (OwnerOf n) = Nothing
 
@@ -771,6 +965,7 @@ mutual
   effIntro (DealDamage src amt to) = nomIntro to
   effIntro (Fights a b) = nomIntro b
   effIntro (Tap n) = nomIntro n
+  effIntro (Choose n) = nomIntro n
   effIntro (Move what to) = moveIntro what (zoneSort to)
   effIntro (ChangeLife who op) = lifeIntro op
   effIntro (Gain n _ _) = nomIntro n
@@ -1065,6 +1260,40 @@ karplusanYeti : Effect []
 karplusanYeti = AndThen (DealDamage (ThisOf Creature) (PowerOf (ThisOf Creature)) (Target creature))
                         (DealDamage (That (Perm Creature)) (PowerOf It) (ThisOf Creature))
 
+-- "Choose two target creatures. Tap those creatures, then unattach
+-- all Equipment from them." (Fulgent Distraction; the unattach clause
+-- elided) — a counted group mention, read back by the sorted plural
+-- demonstrative.
+fulgentDistraction : Effect []
+fulgentDistraction = AndThen (Choose (TargetGroup 2 creature))
+                             (Tap (Those (Perm Creature)))
+
+-- "Choose up to four target creature cards in your graveyard that
+-- were put there from the battlefield this turn. Return them to the
+-- battlefield." (Continue?; its look-back restrictive clause elided —
+-- event-history predicates are unminted) — the bounded group, an
+-- owned-zone predicate, and the plural wildcard riding the return's
+-- retag.
+continueSpell : Effect []
+continueSpell = AndThen (Choose (TargetUpTo 4 (And [creature, InZone (GraveyardOf You)])))
+                        (Move Them BattlefieldZ)
+
+-- "Choose a color. Sudden Demise deals X damage to each creature of
+-- the chosen color." (Sudden Demise) — a quality mention: the chosen
+-- color enters the discourse like any mention ([CR#105.1]) and the
+-- predicate-internal read demands it uniquely; X is the announced
+-- cost variable ([CR#107.3a]).
+suddenDemise : Effect []
+suddenDemise = AndThen (Choose (A (QualityNoun Color)))
+                       (DealDamage This XVal (Each (And [creature, OfChosen Color])))
+
+-- "Choose a creature type. Destroy all creatures that aren't of the
+-- chosen type." (Kindred Dominance) — the set-level "all" determiner
+-- over a negated quality read.
+kindredDominance : Effect []
+kindredDominance = AndThen (Choose (A (QualityNoun CreatureType)))
+                           (destroy (AllOf (And [creature, Not (OfChosen CreatureType)])))
+
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
 -- "other" with no target before it: the presupposition has no witness.
@@ -1149,6 +1378,21 @@ failing "countCarrier"
   badDeadCreatureRead : Effect []
   badDeadCreatureRead = Delayed (DiesThisTurn (Target creature))
                                 (Move (That (Perm Creature)) BattlefieldZ)
+
+-- "The chosen type" with only a color chosen: the quality read is
+-- sort-filtered — no witness.
+failing "countQuality"
+  badChosenWrongSort : Effect []
+  badChosenWrongSort = AndThen (Choose (A (QualityNoun Color)))
+                               (destroy (AllOf (And [creature, Not (OfChosen CreatureType)])))
+
+-- Two group mentions leave "them" ambiguous — the plural wildcard has
+-- the same strict-uniqueness gate as the singular.
+failing "countManys"
+  badThemAmbig : Effect []
+  badThemAmbig = AndThen (Choose (TargetGroup 2 creature))
+                         (AndThen (Choose (TargetGroup 2 creature))
+                                  (Tap Them))
 
 -- Two predicate-inner opponents leave "that player" ambiguous — the
 -- uniqueness gate reaches inside relative clauses too. (Not
