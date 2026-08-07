@@ -341,13 +341,14 @@ failing "publicOnly"
 -- Two cost moves leave two candidate antecedents ("Discard a card,
 -- Sacrifice a creature: …" — Falkenrath Pit Fighter-family): a bare
 -- "It" past the colon is ambiguous. Real costs of this shape read
--- back with definite descriptions ("the sacrificed creature" — a
--- later chapter's noun), never a bare pronoun.
+-- back with definite descriptions (the participle reads of chapter
+-- eight), never a bare pronoun. (The verb is exile — zone-blind —
+-- so the pin isolates the ambiguity, not a zone gate.)
 failing "countOnes"
   badTwoCostMentions : Activated []
   badTwoCostMentions = MkActivated (AndThen (discardsACard You)
                                             (sacrifice You (A creature)))
-                                   (Tap It)
+                                   (exile It)
 
 -- The zone half of sacrifice's implicit restriction as a type error:
 -- an exiled referent is not sacrificeable [CR#701.21a].
@@ -426,3 +427,132 @@ failing "countWord"
   badBareCardRead = MkActivated (sacrifice You (ThisOf Artifact))
                                 (AndThen (exile (Target creature))
                                          (Delayed NextEndStep (Move (That CardW) BattlefieldZ)))
+
+-- ===== Chapter nine negatives: the audit round =====
+
+-- Tapping takes a battlefield object [CR#701.26a]: a graveyard card
+-- cannot be tapped.
+failing "OnBattlefield"
+  badTapGraveyard : Effect []
+  badTapGraveyard = Tap (Target (And [creature, InZone (GraveyardOf You)]))
+
+-- Only battlefield creatures fight [CR#701.14b]: a graveyard card
+-- cannot.
+failing "OnBattlefield"
+  badFightGraveyard : Effect []
+  badFightGraveyard = Fights (Target (And [creature, InZone (GraveyardOf You)]))
+                             (Target creature)
+
+-- Only creatures fight [CR#701.14a]: a land has the wrong head type.
+failing "Just Creature"
+  badFightLand : Effect []
+  badFightLand = Fights (Target (HasType Land)) (Target creatureYouDontControl)
+
+-- Dying is the battlefield-to-graveyard transition [CR#700.4]: an
+-- already-graveyard card cannot die this turn.
+failing "OnBattlefield"
+  badDiesInGraveyard : Effect []
+  badDiesInGraveyard = Delayed (DiesThisTurn (Target (And [creature, InZone (GraveyardOf You)])))
+                               (Move (That CardW) BattlefieldZ)
+
+-- Damage reaches players and battlefield objects only [CR#120.1]:
+-- the destroyed referent sits in the graveyard.
+failing "DamageRecipient"
+  badDamageGraveyardCard : Effect []
+  badDamageGraveyardCard = AndThen (destroy (Target creature))
+                                   (DealDamage This (Lit 3) It)
+
+-- A quality cannot take damage [CR#120.1].
+failing "DamageRecipient"
+  badDamageToColor : Effect []
+  badDamageToColor = DealDamage This (Lit 1) (A (QualityNoun Color))
+
+-- Targets are objects and players [CR#115.1]: "target color" is
+-- unwritten — qualities are chosen, never targeted.
+failing "Targetable"
+  badTargetColor : Effect []
+  badTargetColor = Choose (Target (QualityNoun Color))
+
+-- The one-shot stat modification takes a battlefield object: a dead
+-- referent doesn't get +3/+3.
+failing "OnBattlefield"
+  badGetsGraveyard : Effect []
+  badGetsGraveyard = AndThen (destroy (Target creature))
+                             (Gets It 3 3 (Just UntilEndOfTurn))
+
+-- A card never enters another player's hand [CR#400.3]: owned
+-- destinations are owner-routed, so this is unwritable.
+failing "DestOk"
+  badMoveToTargetsHand : Effect []
+  badMoveToTargetsHand = Move (Target creature) (HandOf (Target AnyPlayer))
+
+-- Only a battlefield permanent is destroyable [CR#701.8a].
+failing "OnBattlefield"
+  badDestroyGraveyard : Effect []
+  badDestroyGraveyard = destroy (Target (And [creature, InZone (GraveyardOf You)]))
+
+-- Discarding moves a card from a HAND [CR#701.9a]: a battlefield
+-- creature is not discardable.
+failing "InHandZone"
+  badDiscardBattlefield : Effect []
+  badDiscardBattlefield = discards You (A creature)
+
+-- The tag and its body agree: a Destroy-tagged exile would let
+-- indestructible cant an exile [CR#701.8b,702.12b].
+failing "TagBody"
+  badDestroyTaggedExile : Effect []
+  badDestroyTaggedExile = Composite Destroy (Move (Target creature) ExileZ)
+
+-- Two creatures have no single power [CR#208.1] — the aggregate is
+-- written explicitly ("the total power of the sacrificed creatures",
+-- Soulblast), and is future vocabulary.
+failing "OneOf"
+  badGroupPower : Effect []
+  badGroupPower = AndThen (Choose (TargetGroup 2 creature))
+                          (gainsLife You (PowerOf Them))
+
+-- Two cards need not share an owner [CR#108.3] — oracle writes the
+-- plural relational ("their owners' hands", Aether Burst), future
+-- vocabulary.
+failing "OneOf"
+  badGroupOwner : Effect []
+  badGroupOwner = AndThen (Choose (TargetGroup 2 creature))
+                          (losesLife (OwnerOf Them) (Lit 1))
+
+-- "Zero target creatures" is unwritten — a counted numeral is at
+-- least one.
+failing "AtLeastOne"
+  badZeroGroup : Effect []
+  badZeroGroup = Choose (TargetGroup 0 creature)
+
+-- An up-to group may choose nothing [CR#115.6], so it cannot witness
+-- "other"'s an-earlier-target-exists presupposition.
+failing "anyTargeted"
+  badUpToOther : Effect []
+  badUpToOther = AndThen (Choose (TargetUpTo 4 creature))
+                         (DealDamage This (Lit 1) (Target anyOtherTarget))
+
+-- A bare type word denotes a permanent [CR#109.2], and what was
+-- discarded left a HAND: "the discarded creature" is unwritten (the
+-- corpus discard family reads "the discarded card" only) — the
+-- stamp's at-verb frame refuses the type word.
+failing "countVerbed"
+  badDiscardedCreatureWord : Activated []
+  badDiscardedCreatureWord =
+    MkActivated (discards You (AAtRandom (And [creature, InZone HandZ])))
+                (DealDamage This
+                            (ManaValueOf (TheVerbed Discard (TypeW Creature)))
+                            (Target AnyTarget))
+
+-- "Of their choice" is a possessive pronoun: it demands a player
+-- antecedent (a subject or one distributive group [CR#608.2d]) —
+-- bare "Destroy a creature of their choice" is unwritten.
+failing "countOnes Player"
+  badUnboundTheirChoice : Effect []
+  badUnboundTheirChoice = destroy (ATheirChoice creature)
+
+-- Subjects ride agentive verbs only (finding 9): "You destroy target
+-- creature" is unwritten — destroy is a subjectless effect-verb.
+failing "Agentive"
+  badSubjectedDestroy : Effect []
+  badSubjectedDestroy = Does You (destroy (Target creature))

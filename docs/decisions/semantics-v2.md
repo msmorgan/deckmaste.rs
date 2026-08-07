@@ -59,8 +59,9 @@ announce channel disappears. Proven consequences:
 A binding may record two kinds of data: projections of the mention phrase
 (determiner, kind, plurality — everything recoverable from the text) and
 fold-state accumulated by threading the effects (the referent's current
-zone/carrier, and the keyword-action tag it last moved under — the
-provenance a definite participle read filters by). A third class is decided but not yet built: event-outcome
+zone/carrier, and the keyword-action tag it last moved under plus
+whether it stood on the battlefield at that move — the provenance a
+definite participle read filters by). A third class is decided but not yet built: event-outcome
 referents — an event-producing clause introduces a referent for what it
 did, whose sort projects from the clause's surface while its value stays
 runtime; "that much" / "that many" read its quantity and "this way" reads
