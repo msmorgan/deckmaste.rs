@@ -330,19 +330,54 @@
 |||    business, like extraposition; and Fights/Move events stay
 |||    outcome-silent until a read wants them.
 |||
+||| Chapter eleven, owner-rooted zones (evidence: Unsummon; the
+||| morning rulings):
+|||
+||| 34. **The destination possessive is derived, not stored.** A card
+|||    reaches only its owner's hand/library/graveyard — [CR#400.3]
+|||    redirects any other — so "to its owner's hand" adds nothing to
+|||    the zone sort: the bare zone IS the owner-rooted destination,
+|||    `DestOk`'s bare-zone gate is the complete destination grammar
+|||    for those zones (an owned destination naming ANY chooser stays
+|||    unwritable — `badMoveToTargetsHand`), and rendering re-adds the
+|||    possessive ("your hand" only where the owner is contextually
+|||    You, as in search effects). PREDICATE possessives contrast: "a
+|||    card in an opponent's graveyard" FILTERS by owner — the same
+|||    rule fuses zone and ownership into one fact — so
+|||    `HandOf`/`GraveyardOf` stay real inside predicates. And the
+|||    other parked gate closes the opposite way: a self-fight is
+|||    DEFINED — [CR#701.14c] has it deal twice its power to itself —
+|||    so distinctness is per-card templating ("another", the `Other`
+|||    modifier) and `Fights` takes no distinctness gate, ever.
+|||
+||| Engine-boundary deferrals (deliberate, and to stay so): the
+||| workbench spells the ENGLISH; committed event structure is
+||| core's. The per-combatant fight fact is the type case — core
+||| commits `Fight` once per subject, a self-fight being ONE subject
+||| ([CR#701.14a,701.14c]; `deckmaste_core/src/event.rs`,
+||| `plugins/builtin/macros/filter/Fight.ron`) — and the clause here
+||| stays event-silent until triggers and the "this way" reads
+||| consume it. The same boundary holds the damage pipeline
+||| (prevention and replacement), trigger firing and state-based
+||| actions, and every runtime magnitude (§3: sorts stored, values
+||| never).
+|||
 ||| Not settled yet: the kind union ("any target" spans objects and
 ||| players [CR#115.4,115.1] — elided to `Object`);
-||| owned-zone mentions beyond `You` ("its owner's hand" — destination
-||| and predicate-inner mentions do not fold yet); controller
+||| owned-zone PREDICATE mentions beyond `You` ("a card in an
+||| opponent's graveyard" — [CR#400.3] makes the possessive an owner
+||| FILTER, finding 34; the inner noun does not fold yet); controller
 ||| fold-state (the controller half of verb restrictions, entangled
 ||| with [CR#109.4]; sharpened by audit — `ControllerOf` accepts a
 ||| graveyard-introduced object, where no last-known controller
 ||| exists, [CR#608.2h] fixing LKI only for what left the
-||| battlefield, so the read wants zone/provenance evidence); fight
-||| distinctness (a reflexive fight is unwritten — oracle says
-||| "another" or uses disjoint filters; no structural gate yet);
-||| owner-rooted move destinations ("its owner's hand", Unsummon —
-||| `DestOk` grows them with their positive); the up-to-one singular
+||| battlefield, so the read wants zone/provenance evidence); the
+||| library zone and its ORDERED positions ("into its owner's library
+||| second from the top", "on the bottom of its owner's library" — a
+||| sequence structure no current zone carries, arriving with the
+||| draw cluster); miracle's reveal condition ("the first card you've
+||| drawn this turn" [CR#702.94a] — a turn-scoped draw-ordinal
+||| memory, same cluster); the up-to-one singular
 ||| remention positive (Ty Lee, Chi Blocker — waits on can't/untap
 ||| vocabulary); `May`'s if-you-do / if-not branches (the Risk
 ||| Factor / Rakdos, Patron of Chaos else-clauses); the chosen-OBJECT
@@ -1118,8 +1153,9 @@ mutual
 
   ||| Destination legality for the move primitive ([CR#400.3] — cards
   ||| enter only their owner's hand/library/graveyard, so an owned
-  ||| destination naming an arbitrary player is unwritable; the
-  ||| owner-rooted forms return with their positive).
+  ||| destination naming an arbitrary player is unwritable, and the
+  ||| bare zone IS the owner-rooted destination; the possessive is
+  ||| rendering's business, finding 34).
   public export
   data DestOk : ZoneExpr bs -> Type where
     BattlefieldOk : DestOk BattlefieldZ
@@ -1268,7 +1304,10 @@ mutual
     -- Primitive, confirmed: the expansion is a single simultaneous
     -- event, which no clause sequence reproduces (state-based actions
     -- can intervene between sentences — see `karplusanYeti`), and no
-    -- operative oracle text spells it out (reminder text only).
+    -- operative oracle text spells it out (reminder text only). No
+    -- distinctness gate: a self-fight is defined ([CR#701.14c] —
+    -- twice its power to itself); "another" is per-card templating
+    -- (the `Other` modifier).
     Fights : (a : Noun bs Object) ->
              {auto 0 za : OnBattlefield (nounZone a)} ->
              {auto 0 ta : nounTy a = Just Creature} ->

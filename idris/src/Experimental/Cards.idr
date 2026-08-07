@@ -289,6 +289,12 @@ foulTongueShriek = AndThen (losesLife (Target Opponent)
                                       (ForEach 1 (And [Attacking, creature, ControlledBy You])))
                            (gainsLife You ThatMuch)
 
+-- "Return target creature to its owner's hand." (Unsummon) — the
+-- destination is bare `HandZ`: [CR#400.3] admits no other hand, so
+-- the possessive is derived surface, never stored (finding 34).
+unsummon : Effect []
+unsummon = Move (Target creature) HandZ
+
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
 -- "other" with no target before it: the presupposition has no witness.
