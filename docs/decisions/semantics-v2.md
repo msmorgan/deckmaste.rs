@@ -78,7 +78,9 @@ The same derive-don't-store rule applies across layers — inflection derives
 from the subject, a move's from-zone derives from the referent's fold-state,
 delayed-clause staleness derives from the determiner the author wrote, and a
 hand/library/graveyard destination's owner derives from the moved card itself
-([CR#400.3] — the written "its owner's" is reminder surface).
+([CR#400.3] — the possessive is mandatory surface with fully derivable
+content: the style guide's return templating always writes it, and rendering
+re-adds it).
 
 ## 4. Anaphora and carriers
 

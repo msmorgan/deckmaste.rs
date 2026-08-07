@@ -168,9 +168,12 @@
 |||    the ability layer's story.
 ||| 20. **`Fights` is confirmed primitive.** No operative oracle text
 |||    spells the mutual-damage expansion (reminder text only), and the
-|||    sequential family (`karplusanYeti`) is not equivalent — its two
-|||    clauses admit state-based actions between them, where
-|||    [CR#701.14a] deals one simultaneous event.
+|||    sequential family (`karplusanYeti`) is not equivalent — it deals
+|||    two ORDERED damage events where [CR#701.14a] deals one
+|||    simultaneous one; the order is observable to triggers and
+|||    replacements, while state-based actions see neither
+|||    mid-resolution ([CR#704.3,704.4] — the audit's correction of
+|||    this finding's original rationale).
 |||
 ||| Chapter six, group reference and qualities (evidence: Fulgent
 ||| Distraction, Continue?, Sudden Demise, Kindred Dominance; the
@@ -369,9 +372,11 @@
 ||| FILTER, finding 34; the inner noun does not fold yet); controller
 ||| fold-state (the controller half of verb restrictions, entangled
 ||| with [CR#109.4]; sharpened by audit — `ControllerOf` accepts a
-||| graveyard-introduced object, where no last-known controller
-||| exists, [CR#608.2h] fixing LKI only for what left the
-||| battlefield, so the read wants zone/provenance evidence); the
+||| graveyard-introduced object, but [CR#109.4] gives off-battlefield
+||| objects no controller, and last-known information preserves only
+||| what existed ([CR#608.2h] is zone-general, not battlefield-only —
+||| the audit's correction), so the read wants zone/provenance
+||| evidence); the
 ||| library zone and its ORDERED positions ("into its owner's library
 ||| second from the top", "on the bottom of its owner's library" — a
 ||| sequence structure no current zone carries, arriving with the
@@ -390,7 +395,17 @@
 ||| spells either, so `NounWord` waits to grow it); the
 ||| additional-cast-cost juncture (Fling — "the sacrificed creature"
 ||| across a casting cost, the same public-survivors discipline as
-||| the colon, constructor unminted); more event queries (upkeep / end-of-combat /
+||| the colon, constructor unminted); the cost GRAMMAR (the colon
+||| accepts ANY clause as a cost, but [CR#602.1a] makes a cost what
+||| the activator pays — delayed clauses and "you lose N life" are
+||| not payments [CR#118.1,119.4], and a cost's OUTCOME mention leaks
+||| through `publicOnly` to the effect; restrict the pre-colon sort
+||| with the cost-participle work); hidden-zone identity (a move into
+||| hand keeps its binding readable, but [CR#400.7] mints a new
+||| object and [CR#400.7j] lets the effect re-find it only in a
+||| PUBLIC zone — introduction-in-hand via predicate stays legal,
+||| retention across a hidden-bound move must not; wants a
+||| trackedness distinction the payload does not yet carry); more event queries (upkeep / end-of-combat /
 ||| leaves-the-battlefield — Slaughter Pact, Mirror Match, and
 ||| Kjeldoran Elite Guard wait on pay, tokens, and an unknown-zone
 ||| retag); the player pronoun "they"
@@ -420,6 +435,40 @@
 ||| the mention terms themselves, every projection computed) stays open as
 ||| a possible later simplification — less pressing since the payload
 ||| split gave each kind exactly its own data.
+|||
+||| The representability frontier (the second-wave audit's merged map;
+||| every gap evidenced by real oracle text plus the core taxonomy,
+||| none spellable today). New structural axes: attachment — ONE
+||| relation ([CR#701.3a]; core's `AttachedTo`), with
+||| "enchanted"/"equipped" as derived reads of an Aura/Equipment edge
+||| ([CR#303.4b,702.5a]; Enchant/Equip are macros over the attach
+||| basis, and host legality is a deontic grant, not edge structure);
+||| object status — tapped/flipped/face-down/phased as a per-object
+||| state dimension ([CR#110.5]; no Untap verb, no Tapped predicate:
+||| "destroy target tapped creature" is unspellable); pile partitions
+||| ([CR#700.3c]; Death or Glory partitions the GRAVEYARD, so this is
+||| not the library gap — exhaustive disjoint subgroups with labels,
+||| choice, and complement); modal clauses ("Choose one —",
+||| [CR#700.2,115.8] — effect-row alternatives with branch-local
+||| targets); truth-valued conditions and branching (Galvanic Blast's
+||| "instead if"; [CR#603.4] separates intervening-if from English
+||| "if"); linked-ability memory (Cold Storage, [CR#607.2a] —
+||| source-keyed exile notes across abilities, beyond any one
+||| discourse); divided amounts (Chandra's Pyrohelix,
+||| [CR#601.2d,115.7f] — an allocation announced and locked);
+||| dependent iteration (Killing Wave's "for each creature, its
+||| controller…" — a per-member singular frame no plural noun
+||| provides); aggregation and extremal selection (Crackling Doom's
+||| "greatest power among"); data-dependent repetition (Torment of
+||| Hailfire's "repeat this process X times"); turn-schedule
+||| insertion (Relentless Assault, [CR#500.8]); standing triggered
+||| abilities ([CR#603.1] — the ability SHAPE beyond delayed
+||| queries); counters as per-object state (put/remove verbs and
+||| count reads, [CR#122.1]); and mana production and payment
+||| ([CR#106.4]). Leaf vocabulary: Transform ([CR#701.27a]);
+||| life-total Set ([CR#119.5]); the non-additive continuous family
+||| (gain control, "becomes", lose abilities, set base P/T — the
+||| layer words).
 module Experimental
 
 %default total

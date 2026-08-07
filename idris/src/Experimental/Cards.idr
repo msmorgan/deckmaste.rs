@@ -196,10 +196,10 @@ phthisis = AndThen (destroy (Target creature))
 -- That creature deals damage equal to its power to this creature."
 -- (Karplusan Yeti's activated ability; its {T} cost elided, and the
 -- source-referring "its" is spelled as the self-reference — source
--- mentions don't bind) — the SEQUENTIAL cousin of fight: two one-shot
--- damage clauses, not [CR#701.14a]'s single simultaneous event
--- (state-based actions can intervene between the sentences), which is
--- why `Fights` stays primitive.
+-- mentions don't bind) — the SEQUENTIAL cousin of fight: two ORDERED
+-- one-shot damage events, not [CR#701.14a]'s single simultaneous one
+-- (state-based actions see neither mid-resolution, [CR#704.4]), which
+-- is why `Fights` stays primitive.
 karplusanYeti : Effect []
 karplusanYeti = AndThen (DealDamage (ThisOf Creature) (PowerOf (ThisOf Creature)) (Target creature))
                         (DealDamage (That (TypeW Creature)) (PowerOf It) (ThisOf Creature))
