@@ -101,8 +101,10 @@
 |||
 ||| 9. **Subjects are the factored who-slot.** Verbs the CR gives a
 |||    player actor ([CR#701.21a,701.9a]) put their performer in clause
-|||    position (`Does`), typed before their phrase; the imperative
-|||    supplies an explicit `You`; effect-verbs stay subjectless, and an
+|||    position (`Does`), typed before their phrase, and REQUIRE it;
+|||    the imperative supplies an explicit `You`; effect-verbs take a
+|||    subject OPTIONALLY (finding 38's correction — destroy and exile
+|||    spell both ways), and an
 |||    object source (DealDamage's src) is the verb's own argument. A
 |||    dependent context cannot re-use the subject term at each inner
 |||    slot the way the real macros ride their agent param, so the slot
@@ -176,8 +178,9 @@
 ||| 20. **`Fights` is confirmed primitive.** No operative oracle text
 |||    spells the mutual-damage expansion (reminder text only), and the
 |||    sequential family (`karplusanYeti`) is not equivalent — it deals
-|||    two ORDERED damage events where [CR#701.14a] deals one
-|||    simultaneous one; the order is observable to triggers and
+|||    two ORDERED damage events where [CR#701.14a] deals both
+|||    SIMULTANEOUSLY (event granularity is observer-dependent,
+|||    [CR#700.1]); the order is observable to triggers and
 |||    replacements, while state-based actions see neither
 |||    mid-resolution ([CR#704.3,704.4] — the audit's correction of
 |||    this finding's original rationale).
@@ -308,14 +311,19 @@
 ||| 31. **Marked clauses carry their obligations.** "Of their choice"
 |||    demands exactly one player antecedent — a subject or one
 |||    distributive group ([CR#608.2c..608.2d];
-|||    `badUnboundTheirChoice`) — and `Does` admits only agentive
-|||    clauses ([CR#701.21a,701.9a]), keeping effect-verbs
-|||    subjectless as finding 9 ruled (`badSubjectedDestroy`).
+|||    `badUnboundTheirChoice`). This finding's companion claim — that
+|||    `Does` admits only agentive clauses — is corrected by finding
+|||    38: the actor is REQUIRED for sacrifice and discard
+|||    ([CR#701.21a,701.9a]) and OPTIONAL for destroy and exile.
 |||
 ||| Chapter ten, event outcomes (evidence: Foul-Tongue Shriek; the
 ||| recon corpus — "that much" antecedents are damage, life, and mana
-||| PRODUCED, never mana spent; "that many" consumers are counters,
-||| draws, and tokens; "this way" is the largest family of all):
+||| both produced AND spent (Tellah, Great Sage: "If eight or more
+||| mana was spent to cast that spell, sacrifice Tellah and it deals
+||| that much damage to each opponent." — the if-condition supplies
+||| the scalar, the third-wave audit's correction of this header);
+||| "that many" consumers are counters, draws, and tokens; "this way"
+||| is the largest family of all):
 |||
 ||| 32. **Event outcomes are the third binding class, realized.** An
 |||    event clause prepends an outcome mention — kind `Outcome`,
@@ -395,13 +403,22 @@
 |||    unwritable — only a legal tagged move writes one. The damage
 |||    recipient likewise gained its head-type demand ([CR#120.1a];
 |||    `badDamageArtifact`).
-||| 38. **Agentivity is two tables, both per-row.** `Does` carries
-|||    the verb tag itself and demands an agentive verb
-|||    (`AgentiveV`); `Composite` demands the opposite
-|||    (`NonAgentive`) — an agentive tag cannot shed its actor
-|||    (`badAgentlessSacrifice`), an effect-verb cannot take one
-|||    (`badSubjectedDestroy`), and the old conservative
-|||    `clauseVerb` catch-all dissolves with nothing left to leak.
+||| 38. **Agentivity is one table, read by its MISSING rows** (the
+|||    third-wave audit's correction: the original claimed two tables
+|||    and refused a subject on destroy — an actor is required
+|||    exactly where `NonAgentive` has no row). `Does` carries the
+|||    verb tag itself and demands nothing of the verb; `Composite`
+|||    demands `NonAgentive`, so sacrifice and discard cannot shed
+|||    their actor ([CR#701.21a,701.9a]; `badAgentlessSacrifice`)
+|||    while destroy and exile take one OPTIONALLY — real oracle text
+|||    writes both, "You destroy four lands you control, then target
+|||    opponent destroys four lands they control." (Burning of Xinye)
+|||    and "Each player exiles two cards from their hand." (The
+|||    refused negative went with it; the Burning of Xinye positive
+|||    waits on counted untargeted groups.) Overgeneration accepted:
+|||    a choice-free subject form ("You destroy target creature") is
+|||    spellable. The old conservative `clauseVerb` catch-all
+|||    dissolves with nothing left to leak.
 ||| 39. **Phrases are well-formed or unwritable.** Determiner
 |||    phrases demand a positive HEAD (`Headed` — "choose a
 |||    noncolor" and "target non-player" head nothing,
@@ -478,8 +495,12 @@
 ||| corpus's big three — "this way" participant-subset participles
 ||| are the `TheVerbed` cousin and the largest family, and more
 ||| sorts wait with them: mana produced, Sakiko; card counts,
-||| Asmodeus); "any number of" / "X" target groups
-||| (corpus-frequent; constructors wait on verified whole cards); the
+||| Asmodeus; and condition-supplied scalars — Tellah, Great Sage's
+||| mana SPENT is not a clause outcome at all, so it arrives with the
+||| conditions axis); "any number of" / "X" target groups
+||| (corpus-frequent; constructors wait on verified whole cards);
+||| counted UNTARGETED groups ("four lands you control" — Burning of
+||| Xinye's subject-destroy positive waits on them); the
 ||| reciprocal fight frame ("those creatures fight each other" — one
 ||| exactly-two-membered plural subject, corpus-attested, a distinct
 ||| construction from binary `Fights`); union-read plural possessors
@@ -487,8 +508,9 @@
 ||| the player groups); the self-exclusion "other" anchor (Olivia
 ||| Voldaren, Red Hulk — "another"/"any other" excluding the SOURCE,
 ||| waits on a typed `This`);
-||| static abilities and "for as long as" durations ([CR#611.2b],
-||| Kitesail Corsair); last-known VALUES (reads ignore zone — finding
+||| static "as long as" conditions ([CR#611.3], Kitesail Corsair —
+||| the card has no "for") and effect-created "for as long as"
+||| durations ([CR#611.2b]); last-known VALUES (reads ignore zone — finding
 ||| 19 — but [CR#109.4] gives off-battlefield objects no controller,
 ||| so the value story belongs to the ability layer); Token / Spell
 ||| / stack-object / Amount carriers ("that much"; bare `This` stays
@@ -505,14 +527,20 @@
 ||| none spellable today). New structural axes: attachment — ONE
 ||| relation ([CR#701.3a]; core's `AttachedTo`), with
 ||| "enchanted"/"equipped" as derived reads of an Aura/Equipment edge
-||| ([CR#303.4b,702.5a]; Enchant/Equip are macros over the attach
-||| basis, and host legality is a deontic grant, not edge structure);
+||| ([CR#303.4b,301.5a]); the two keywords are NOT parallel — Enchant
+||| statically restricts an Aura's legal target and host ([CR#702.5a]
+||| — a deontic grant over the attach basis, not edge structure),
+||| while Equip is the activated ability that does the attaching
+||| ([CR#702.6a]);
 ||| object status — tapped/flipped/face-down/phased as a per-object
 ||| state dimension ([CR#110.5]; no Untap verb, no Tapped predicate:
 ||| "destroy target tapped creature" is unspellable); pile partitions
-||| ([CR#700.3c]; Death or Glory partitions the GRAVEYARD, so this is
-||| not the library gap — exhaustive disjoint subgroups with labels,
-||| choice, and complement); modal clauses ("Choose one —",
+||| (Death or Glory partitions the GRAVEYARD, so this is not the
+||| library gap — [CR#700.3a] puts each object in exactly one pile
+||| "unless the effect specifies otherwise" and [CR#700.3d] lets a
+||| pile be empty, while [CR#700.3c] only keeps the piles in the zone
+||| they came from; labels, choice, and complement are the card's own
+||| instructions); modal clauses ("Choose one —",
 ||| [CR#700.2,115.8] — effect-row alternatives with branch-local
 ||| targets); truth-valued conditions and branching (Galvanic Blast's
 ||| "instead if"; [CR#603.4] separates intervening-if from English
@@ -527,8 +555,9 @@
 ||| Hailfire's "repeat this process X times"); turn-schedule
 ||| insertion (Relentless Assault, [CR#500.8]); standing triggered
 ||| abilities ([CR#603.1] — the ability SHAPE beyond delayed
-||| queries); counters as per-object state (put/remove verbs and
-||| count reads, [CR#122.1]); and mana production and payment
+||| queries); counters as per-HOLDER state — objects AND players
+||| ([CR#122.1]; poison and rad ride the player), with put/remove
+||| verbs and count reads; and mana production and payment
 ||| ([CR#106.4]). Leaf vocabulary: Transform ([CR#701.27a]);
 ||| life-total Set ([CR#119.5]); the non-additive continuous family
 ||| (gain control, "becomes", lose abilities, set base P/T — the
@@ -647,7 +676,7 @@ data AtLeastTwo : Nat -> Type where
 ||| mention). Rules facts (the settled-target boundary, the "other"
 ||| presupposition) are functions of it, never stored alongside it —
 ||| and "up to" is its own word because its group may be empty
-||| [CR#115.6], so it never witnesses "other".
+||| [CR#115.6]; its MENTION still witnesses "other" (finding 35).
 public export
 data Determiner = TargetD | TargetUpToD | AD | EachD | AllD | TheD
 
@@ -1533,8 +1562,8 @@ mutual
                  {auto 0 rk : DamageRecipient k (nounZone to) (nounTy to)} -> Effect bs
     -- "[a] fights [b]" ([CR#701.14a] — only battlefield creatures
     -- fight [CR#701.14b]; `badFightGraveyard`, `badFightLand`).
-    -- Primitive, confirmed: one simultaneous damage event, which no
-    -- clause sequence reproduces (a sequence deals two ORDERED
+    -- Primitive, confirmed: both damages dealt simultaneously, which
+    -- no clause sequence reproduces (a sequence deals two ORDERED
     -- events — see `karplusanYeti`), and no operative oracle text
     -- spells it out (reminder text only). No distinctness gate: a
     -- self-fight is defined ([CR#701.14c] — twice its power to
@@ -1592,24 +1621,30 @@ mutual
     -- read's filter (finding 26).
     Composite : (v : VerbName) -> (e : Effect bs) ->
                 {auto 0 ok : TagBody v e} -> {auto 0 na : NonAgentive v} -> Effect bs
-    -- "[subject] [verb phrase]" — the declarative clause: an agentive
-    -- verb's performer in subject position, its phrase typed after it.
-    -- Only verbs the CR gives a player actor take a subject
-    -- ([CR#701.21a,701.9a]-family); effect-verbs (destroy, damage) stay
-    -- subjectless imperatives, and the imperative of an agentive verb
-    -- supplies its unpronounced subject as an explicit `You`. This is
-    -- core's per-verb `who` slot factored to clause position — a
-    -- dependent context can't re-use the subject term at each inner
-    -- slot the way the real macros ride their agent param — and
-    -- lowering redistributes it; `ChangeLife` carries its `who` the
-    -- same way. Object sources (DealDamage's src) are the verb's own
-    -- argument, not a subject. The clause carries its verb TAG
-    -- directly: only agentive verbs take a subject (`AgentiveV`;
-    -- `badSubjectedDestroy`), and the tag's body obligations ride
-    -- `TagBody` here exactly as under `Composite`.
+    -- "[subject] [verb phrase]" — the declarative clause: the verb's
+    -- performer in subject position, its phrase typed after it.
+    -- Verbs the CR gives a player actor ([CR#701.21a,701.9a]-family)
+    -- REQUIRE one — they have no `NonAgentive` row, so `Composite`
+    -- refuses them (`badAgentlessSacrifice`) — and their imperative
+    -- supplies the unpronounced subject as an explicit `You`.
+    -- Effect-verbs take a subject OPTIONALLY: oracle text writes
+    -- destroy and exile both ways ("You destroy four lands you
+    -- control, then target opponent destroys four lands they
+    -- control." — Burning of Xinye; "Each player exiles two cards
+    -- from their hand."). This is core's per-verb `who` slot factored
+    -- to clause position — a dependent context can't re-use the
+    -- subject term at each inner slot the way the real macros ride
+    -- their agent param — and lowering redistributes it; `ChangeLife`
+    -- carries its `who` the same way. Object sources (DealDamage's
+    -- src) are the verb's own argument, not a subject. The clause
+    -- carries its verb TAG directly, and the tag's body obligations
+    -- ride `TagBody` here exactly as under `Composite`.
+    -- Overgeneration accepted: a subject with no choice of its own
+    -- ("You destroy target creature") is spellable, though oracle
+    -- style writes the bare imperative there.
     Does : (subj : Noun bs Player) -> (v : VerbName) ->
            (e : Effect (nomIntro subj)) ->
-           {auto 0 ag : AgentiveV v} -> {auto 0 tb : TagBody v e} -> Effect bs
+           {auto 0 tb : TagBody v e} -> Effect bs
     -- "[decider] may [effect]" — the decider slot ([CR#608.2d]; the
     -- resolving default is the controller [CR#608.2c]). Decider and
     -- performer can differ ("[player] may have [source] deal … to
@@ -1644,17 +1679,18 @@ mutual
     DiscardB : {auto 0 z : InHandZone (nounZone n)} ->
                TagBody Discard (Move n GraveyardZ)
 
-  ||| Verb agentivity, BOTH directions per-row: the CR gives sacrifice
-  ||| and discard a player actor ([CR#701.21a,701.9a]) — their tags
-  ||| spell only under `Does` (`badAgentlessSacrifice`) — while
-  ||| destroy and exile are subjectless effect-verbs whose tags spell
-  ||| only as `Composite` (`badSubjectedDestroy`). A new verb must
-  ||| declare on exactly one table; no catch-all leaks.
-  public export
-  data AgentiveV : VerbName -> Type where
-    SacrificeAg : AgentiveV Sacrifice
-    DiscardAg : AgentiveV Discard
-
+  ||| Verb agentivity, one table read by the rows it LACKS: an actor
+  ||| is required exactly where there is no row here. The CR gives
+  ||| sacrifice and discard a player actor ([CR#701.21a,701.9a]), so
+  ||| their tags are absent and spell only under `Does`
+  ||| (`badAgentlessSacrifice`). Destroy and exile have rows because
+  ||| they are actor-OPTIONAL — the bare imperative and the subjected
+  ||| form are both real oracle text ("You destroy four lands you
+  ||| control, then target opponent destroys four lands they
+  ||| control." — Burning of Xinye; "Each player exiles two cards from
+  ||| their hand."), so `Does` demands nothing of the verb and only
+  ||| `Composite` reads this table. A new verb declares its row or its
+  ||| absence, and that choice IS the answer.
   public export
   data NonAgentive : VerbName -> Type where
     DestroyNA : NonAgentive Destroy

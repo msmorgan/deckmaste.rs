@@ -76,7 +76,9 @@ rules classifications: timing
 of the stored surface facts.
 The same derive-don't-store rule applies across layers — inflection derives
 from the subject, a move's from-zone derives from the referent's fold-state,
-delayed-clause staleness derives from the determiner the author wrote, and a
+a delayed clause's settled-particular reading derives from the determiner the
+author wrote (staleness itself is object identity plus the fire-time zone
+expectation [CR#603.7c], as §2 states), and a
 hand/library/graveyard destination's owner derives from the moved card itself
 ([CR#400.3] — the possessive is mandatory surface with fully derivable
 content: the style guide's return templating always writes it, and rendering
@@ -145,11 +147,12 @@ mimicked.
   imperative's unpronounced subject is supplied by the frame as an explicit
   `You` in the term.
 - Agentive verbs — those the CR gives a player actor — put that performer
-  in clause position, the factored form of the real macros' agent
-  parameter: a dependent context cannot re-use the subject term at each
-  inner slot, so the slot rides the clause and lowering redistributes it.
-  Effect-verbs stay subjectless; object sources are the verb's own
-  argument.
+  in clause position and require it, the factored form of the real macros'
+  agent parameter: a dependent context cannot re-use the subject term at
+  each inner slot, so the slot rides the clause and lowering redistributes
+  it. Effect-verbs take that performer OPTIONALLY, since oracle text writes
+  destroy and exile both with a subject and as bare imperatives; object
+  sources are the verb's own argument.
 - Choice method is surface data: "of their choice" and "at random" are
   marked indefinites mirroring the real macros' explicit chooser slot and
   its absence in the random variant; no CR rule derives a chooser.

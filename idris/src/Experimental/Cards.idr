@@ -197,9 +197,9 @@ phthisis = AndThen (destroy (Target creature))
 -- (Karplusan Yeti's activated ability; its {T} cost elided, and the
 -- source-referring "its" is spelled as the self-reference — source
 -- mentions don't bind) — the SEQUENTIAL cousin of fight: two ORDERED
--- one-shot damage events, not [CR#701.14a]'s single simultaneous one
--- (state-based actions see neither mid-resolution, [CR#704.4]), which
--- is why `Fights` stays primitive.
+-- one-shot damage events, where [CR#701.14a] deals both
+-- simultaneously (state-based actions see neither mid-resolution,
+-- [CR#704.4]), which is why `Fights` stays primitive.
 karplusanYeti : Effect []
 karplusanYeti = AndThen (DealDamage (ThisOf Creature) (PowerOf (ThisOf Creature)) (Target creature))
                         (DealDamage (That (TypeW Creature)) (PowerOf It) (ThisOf Creature))
@@ -653,12 +653,6 @@ failing "countVerbed"
 failing "countOnes Player"
   badUnboundTheirChoice : Effect []
   badUnboundTheirChoice = destroy (ATheirChoice creature)
-
--- Subjects ride agentive verbs only (finding 9): "You destroy target
--- creature" is unwritten — destroy is a subjectless effect-verb.
-failing "AgentiveV"
-  badSubjectedDestroy : Effect []
-  badSubjectedDestroy = Does You Destroy (Move (Target creature) GraveyardZ)
 
 -- "That much" with nothing done yet: no outcome to read.
 failing "countOnes Outcome"
