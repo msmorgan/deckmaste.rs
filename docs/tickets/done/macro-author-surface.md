@@ -187,6 +187,27 @@ Three defects that only the first restricted read of the corpus could show.
   keeps the enforcement hole above closed — a nested-invocation identity body
   would reopen it.
 
+## Latent, left open deliberately
+
+One site still drops an argument's restriction:
+`deserialize_newtype_struct`'s `RAW_VALUE_TOKEN` capture in
+`crates/macro_ron/src/expand.rs` discards the bit `substitute_into` computes,
+and its comment's rationale — that the body is read as author vocabulary or not
+when it is used — does not hold for a produced definition's body, which is read
+free. Unreachable today: no type in the `Card`/`Token`/`Predicate` graph that
+`read_str_restricted` reads carries a `RawValue`; the only `RawValue`-bearing
+types are `MacroDef`, frames, params, `deckmaste_spelling::lexicon` and
+`deckmaste_migrations::todo_card`. It becomes live if a definition-producing
+macro ever becomes invocable from card text — mint a ticket then, and fix the
+comment before anyone trusts it.
+
+Two further accepted limits, both documented at their sites: restriction cannot
+apply inside untagged content (`deserialize_any` hands the fragment to ron
+natively; not reachable from the semantics graph, which uses
+`#[macro_ron(embed)]` rather than `#[serde(untagged)]`), and provenance is
+tracked per argument rather than per byte (conservative — the substitution ORs
+restriction, never ANDs it).
+
 ## Gates
 
 Standard constraints apply. Canon + workspace suites green; idris-check no
