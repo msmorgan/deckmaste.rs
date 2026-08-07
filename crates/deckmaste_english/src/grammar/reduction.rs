@@ -609,6 +609,17 @@ pub(super) fn reduce_nominal(
             )
         }
         RuleTag::NominalQuantityModifier => {
+            let Features::Quantity(QuantityFeatures { cardinality, .. }) =
+                children.first()?.features
+            else {
+                return None;
+            };
+            let Features::Nominal { form, .. } = children.get(1)?.features else {
+                return None;
+            };
+            if !cardinality_accepts(*cardinality, *form) {
+                return None;
+            }
             // The quantity class keeps a fixed consonant onset. The corpus prints no
             // vowel-onset quantity modifier under an indefinite article in either
             // direction (`an eight …`, `a eight …`, `a one …`, `an one …`: zero
@@ -2514,9 +2525,19 @@ fn generated_quantity_features(
         "quantity_at_least" if fields.get(1).copied().flatten().is_some() => {
             (NounCardinality::PluralOrMass, Number::Plural, false)
         }
-        "quantity_at_least" | "quantity_that_many" => {
-            (NounCardinality::PluralCount, Number::Plural, false)
+        "quantity_at_least" => {
+            let one = number_is_one(0);
+            (
+                if one {
+                    NounCardinality::SingularOrMass
+                } else {
+                    NounCardinality::PluralOrMass
+                },
+                Number::Plural,
+                false,
+            )
         }
+        "quantity_that_many" => (NounCardinality::PluralCount, Number::Plural, false),
         "quantity_or" => {
             let singular = number_is_one(0) && number_is_one(1);
             (

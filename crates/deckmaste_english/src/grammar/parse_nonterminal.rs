@@ -1129,7 +1129,19 @@ mod root_lowering_tests {
             ("X", NounCardinality::PluralOrMass, Number::Singular, false),
             (
                 "at least one",
-                NounCardinality::PluralCount,
+                NounCardinality::SingularOrMass,
+                Number::Plural,
+                false,
+            ),
+            (
+                "at least two",
+                NounCardinality::PluralOrMass,
+                Number::Plural,
+                false,
+            ),
+            (
+                "at least X",
+                NounCardinality::PluralOrMass,
                 Number::Plural,
                 false,
             ),
@@ -1172,12 +1184,10 @@ mod root_lowering_tests {
             );
         }
 
-        // Whole-NP parsing is not a sound negative oracle here: the still-
-        // handwritten nominal family can admit an independent attachment for
-        // strings such as `two creature`. Q01 owns the quantity feature
-        // boundary, so prove that the generated family itself never supplies
-        // the singular cardinality that would license those combinations.
-        for source in ["two", "at least one", "one or more", "both", "that many"] {
+        // Keep direct producer assertions alongside the whole-NP consumer
+        // coverage below so a failure identifies which side of the Q01
+        // cardinality contract regressed.
+        for source in ["two", "at least two", "one or more", "both", "that many"] {
             let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Quantity)
                 .unwrap_or_else(|error| {
                     panic!("failed negative feature fixture {source:?}: {error:?}")
@@ -1195,6 +1205,43 @@ mod root_lowering_tests {
             Some(NounCardinality::PluralCount),
             "the generated mass quantity exposed plural-count agreement"
         );
+    }
+
+    #[test]
+    fn generated_quantity_cardinality_gates_nominal_consumers() {
+        let catalogs = fixture_catalogs();
+        let rejected_supported = [
+            "one creature",
+            "two creatures",
+            "at least one creature",
+            "at least two creatures",
+            "at least two damage",
+            "that many creatures",
+            "that much damage",
+        ]
+        .into_iter()
+        .filter(|source| parse_nonterminal(source, &catalogs, Nonterminal::NounPhrase).is_err())
+        .collect::<Vec<_>>();
+        assert!(
+            rejected_supported.is_empty(),
+            "supported quantity/noun agreement failed: {rejected_supported:?}"
+        );
+        let admitted_mismatches = ["two creature", "that much creatures"]
+            .into_iter()
+            .filter(|source| parse_nonterminal(source, &catalogs, Nonterminal::NounPhrase).is_ok())
+            .collect::<Vec<_>>();
+        assert!(
+            admitted_mismatches.is_empty(),
+            "quantity/noun cardinality mismatches parsed: {admitted_mismatches:?}"
+        );
+
+        // `that many damage` is not a Q01 negative oracle: after rejecting
+        // the quantity reading, it still has the independent ordinary-noun
+        // reading `that [many] damage`. Unknown-word opacity must likewise
+        // remain available while a recognized numeral is kept structural.
+        let opaque = parse_nonterminal("blorple creature", &catalogs, Nonterminal::NounPhrase)
+            .expect("a genuinely unknown noun modifier remains opaque");
+        assert_eq!(opaque.opacity_mode(), OpacityMode::OpaqueNouns);
     }
 
     #[test]

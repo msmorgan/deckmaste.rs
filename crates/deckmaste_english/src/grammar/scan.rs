@@ -231,6 +231,24 @@ impl EnglishGrammar<'_, '_> {
             || !self.scan_preposition(tokens, start).is_empty()
             || !self.scan_conjunction(tokens, start, false).is_empty()
             || self.subordinator_at(tokens, start).is_some()
+            || self.token_text(tokens, start).is_some_and(|surface| {
+                [
+                    Numeral::Cardinal,
+                    Numeral::Ordinal,
+                    Numeral::Arabic(false),
+                    Numeral::Arabic(true),
+                    Numeral::Roman,
+                ]
+                .into_iter()
+                .any(|notation| {
+                    super::parse_notation(
+                        notation,
+                        surface,
+                        Self::is_sentence_initial(tokens, start),
+                    )
+                    .is_some()
+                })
+            })
             || EnglishLexicalSlot::LITERAL_SLOTS
                 .iter()
                 .copied()

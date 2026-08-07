@@ -359,6 +359,11 @@ impl Quantity {
             Self::Or(first, second) if first.value == 1 && second.value == 1 => {
                 NounCardinality::SingularOrMass
             }
+            // The lower bound does not make a measured mass countable, and
+            // the printed numeral still selects the noun's surface form:
+            // `at least one creature`, `at least two creatures`, and
+            // `at least two damage`.
+            Self::AtLeast(value) if value.is_one() => NounCardinality::SingularOrMass,
             // Every `N or <word>` bound heads a plural count (`two or more
             // creatures`) or a mass characteristic (`30 or more life`), never a
             // bare singular.
@@ -368,9 +373,10 @@ impl Quantity {
             | Self::UpTo(_)
             | Self::MoreThan(_)
             | Self::FewerThan(_)
+            | Self::AtLeast(_)
             | Self::X
             | Self::Both => NounCardinality::PluralOrMass,
-            Self::AtLeast(_) | Self::ThatMany => NounCardinality::PluralCount,
+            Self::ThatMany => NounCardinality::PluralCount,
             Self::ThatMuch => NounCardinality::Mass,
         }
     }

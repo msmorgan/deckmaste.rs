@@ -10,8 +10,11 @@
 //!
 //! 1. **Witness.** Every sigil is replaced by a reserved token that parses at
 //!    the position the hole occupies (`crate::witness`): an opaque noun
-//!    `zzhole0` for a phrasal hole, a reserved numeral `41` for a count hole,
-//!    the face name `Zzframeself` for `~`. The result is ordinary English.
+//!    `zzhole0` for a phrasal hole, normally a reserved numeral `41` for a
+//!    count hole, and the face name `Zzframeself` for `~`. If strict noun
+//!    agreement rejects a singular count frame, the compiler retries one
+//!    numeric hole at a time with the singular-safe witness `1`. The result is
+//!    ordinary English.
 //! 2. **Parse.** [`parse_fragment`] at the frame's category. The parse must be
 //!    [`clean`](deckmaste_english::FragmentReport::clean) — a frame that only
 //!    half-parses is a build error naming the frame, never a silently degraded
@@ -307,8 +310,26 @@ pub fn compile(
 ) -> anyhow::Result<CompiledFrame> {
     let context = |error: anyhow::Error| error.context(format!("in frame {:?}", spec.text));
 
-    let plan = plan_holes(spec, params).map_err(context)?;
-    let mut tree = parse_witnessed(&plan.text, kind, catalogs).map_err(context)?;
+    let mut plan = plan_holes(spec, params).map_err(context)?;
+    let mut tree = match parse_witnessed(&plan.text, kind, catalogs) {
+        Ok(tree) => tree,
+        Err(primary_error) => {
+            let mut singular_parse = None;
+            for numeric_slot in 0..plan.numeric_holes {
+                let candidate =
+                    plan_holes_with_singular(spec, params, Some(numeric_slot)).map_err(context)?;
+                if let Ok(tree) = parse_witnessed(&candidate.text, kind, catalogs) {
+                    singular_parse = Some((candidate, tree));
+                    break;
+                }
+            }
+            let Some((candidate, tree)) = singular_parse else {
+                return Err(context(primary_error));
+            };
+            plan = candidate;
+            tree
+        }
+    };
 
     let mut placed = Vec::new();
     for planned in plan.holes {
@@ -370,9 +391,18 @@ struct PlannedHole {
 struct Plan {
     text: String,
     holes: Vec<PlannedHole>,
+    numeric_holes: usize,
 }
 
 fn plan_holes(spec: &FrameSpec, params: &[String]) -> anyhow::Result<Plan> {
+    plan_holes_with_singular(spec, params, None)
+}
+
+fn plan_holes_with_singular(
+    spec: &FrameSpec,
+    params: &[String],
+    singular_numeric_slot: Option<usize>,
+) -> anyhow::Result<Plan> {
     let reserved = witness::reserved_tokens(&spec.text);
     anyhow::ensure!(
         reserved.is_empty(),
@@ -415,7 +445,11 @@ fn plan_holes(spec: &FrameSpec, params: &[String]) -> anyhow::Result<Plan> {
                  (each param on exactly one constituent)"
             );
             let witness = if witness::is_numeric_param(param_type) {
-                let witness = witness::numeral(numeric_slot)?;
+                let witness = if singular_numeric_slot == Some(numeric_slot) {
+                    witness::singular_numeral()
+                } else {
+                    witness::numeral(numeric_slot)?
+                };
                 numeric_slot += 1;
                 witness
             } else {
@@ -490,7 +524,11 @@ fn plan_holes(spec: &FrameSpec, params: &[String]) -> anyhow::Result<Plan> {
     for (index, hole) in holes.iter_mut().enumerate() {
         hole.index = index;
     }
-    Ok(Plan { text, holes })
+    Ok(Plan {
+        text,
+        holes,
+        numeric_holes: numeric_slot,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -1224,21 +1262,17 @@ mod tests {
         assert_sites_resolve(&a);
         assert_sites_resolve(&b);
 
-        // And the difference is recorded rather than silently discarded: the
-        // singular authoring needed both rewrites, the plural one only the
-        // head's number.
+        // And the difference is recorded rather than silently discarded. The
+        // singular-safe witness already parses the count in citation-form
+        // determiner position; the plural authoring still records the head's
+        // number rewrite.
         let kinds: Vec<AgreeKind> = a.agreement.iter().map(|dep| dep.kind).collect();
         assert!(kinds.contains(&AgreeKind::VerbWithHole(0)), "{kinds:?}");
         assert!(
             kinds.contains(&AgreeKind::NounNumberFromHole(1)),
             "{kinds:?}"
         );
-        let normalizations: Vec<&Normalization> =
-            a.agreement.iter().flat_map(|dep| &dep.normalized).collect();
-        assert!(
-            normalizations.contains(&&Normalization::QuantityToDeterminer),
-            "{normalizations:?}"
-        );
+        assert_eq!(a.holes[1].witness.text, "1");
         assert!(
             b.agreement
                 .iter()
@@ -1722,12 +1756,10 @@ mod tests {
         );
     }
 
-    /// The authorable half of the same hazard: a second modifier really does
-    /// sit after the count in `41 <Param> card`, so the removal really does
-    /// renumber a live sibling — and the hole that moved must still be found
-    /// at its recorded path.
+    /// A second modifier after a singular count survives the singular-witness
+    /// retry, and every relocated path remains valid in the normalized tree.
     #[test]
-    fn a_second_modifier_survives_the_count_being_lifted() {
+    fn a_second_modifier_survives_the_singular_count_witness_retry() {
         let params = ["Reference", "Count", "Predicate"]
             .map(String::from)
             .to_vec();
@@ -1758,12 +1790,12 @@ mod tests {
                 );
             }
         }
+        assert_eq!(singular.holes[1].witness.text, "1");
         assert!(
-            singular.agreement.iter().any(|dep| dep
-                .normalized
-                .contains(&Normalization::QuantityToDeterminer)),
-            "the singular authoring should have lifted its count: {:?}",
-            singular.agreement
+            singular
+                .agreement
+                .iter()
+                .any(|dep| dep.kind == AgreeKind::NounNumberFromHole(1))
         );
     }
 

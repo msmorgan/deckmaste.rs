@@ -241,6 +241,21 @@ pub(super) enum GeneratedAssemblyError {
         construction: &'static str,
         codec: &'static str,
     },
+    /// A typed scalar whose Rust value type and surface codec have no exact
+    /// English lowering adapter.
+    UnsupportedTypedScalar {
+        owner: &'static str,
+        field: &'static str,
+        value_type: &'static str,
+        codec: &'static str,
+    },
+    /// Optional typed scalars have no present/absent lowering adapter yet.
+    UnsupportedOptionalTypedScalar {
+        owner: &'static str,
+        field: &'static str,
+        value_type: &'static str,
+        codec: &'static str,
+    },
     /// Multi-segment atom paths have no chart meaning yet.
     UnsupportedAtomPath {
         construction: &'static str,
@@ -396,6 +411,74 @@ fn codec_slot(codec: &'static str) -> Option<EnglishLexicalSlot> {
     }
 }
 
+fn typed_scalar_slot(
+    owner: &'static str,
+    field: &'static str,
+    value_type: &'static str,
+    codec: &'static str,
+    optional: bool,
+) -> Result<EnglishLexicalSlot, GeneratedAssemblyError> {
+    if optional {
+        return Err(GeneratedAssemblyError::UnsupportedOptionalTypedScalar {
+            owner,
+            field,
+            value_type,
+            codec,
+        });
+    }
+    match (value_type, codec) {
+        ("NumberLiteral" | "QuantityValue", "Numeral") => Ok(EnglishLexicalSlot::QuantityNumber),
+        _ => Err(GeneratedAssemblyError::UnsupportedTypedScalar {
+            owner,
+            field,
+            value_type,
+            codec,
+        }),
+    }
+}
+
+fn validate_field_kind(
+    owner: &'static str,
+    field: &'static str,
+    kind: FieldKindData,
+) -> Result<(), GeneratedAssemblyError> {
+    match kind {
+        FieldKindData::TypedScalar { value_type, codec } => {
+            typed_scalar_slot(owner, field, value_type, codec, false).map(drop)
+        }
+        FieldKindData::Optional {
+            inner: &FieldKindData::TypedScalar { value_type, codec },
+        } => typed_scalar_slot(owner, field, value_type, codec, true).map(drop),
+        FieldKindData::Identity { .. }
+        | FieldKindData::Subtree { .. }
+        | FieldKindData::Scalar { .. }
+        | FieldKindData::SurfaceScalar { .. }
+        | FieldKindData::Sequence { .. }
+        | FieldKindData::Optional { .. } => Ok(()),
+    }
+}
+
+fn validate_typed_scalar_adapters(
+    groups: &[&'static GroupData],
+) -> Result<(), GeneratedAssemblyError> {
+    for group in groups {
+        for construction in group.constructions {
+            for field in construction.fields {
+                validate_field_kind(construction.id, field.name, field.kind)?;
+            }
+        }
+        for element in group.element_data {
+            for field in element.fields {
+                validate_field_kind(element.name, field.name, field.kind)?;
+            }
+            for variant in element.variants {
+                validate_field_kind(element.name, variant.name, variant.payload)?;
+            }
+        }
+    }
+    Ok(())
+}
+
 fn identity_slot(provider: &'static str) -> Option<EnglishLexicalSlot> {
     match provider {
         "KnownNoun" => Some(EnglishLexicalSlot::Noun(crate::word::NounUsage::Either)),
@@ -452,10 +535,8 @@ fn atom_expected(
                 (
                     AtomData::Lexeme(_),
                     FieldKindData::Scalar { codec }
-                    | FieldKindData::TypedScalar { codec, .. }
                     | FieldKindData::Optional {
-                        inner:
-                            &FieldKindData::Scalar { codec } | &FieldKindData::TypedScalar { codec, .. },
+                        inner: &FieldKindData::Scalar { codec },
                     },
                 ) => codec_slot(codec).map(Expected::Lexical).ok_or(
                     GeneratedAssemblyError::UnknownLexemeCodec {
@@ -463,6 +544,17 @@ fn atom_expected(
                         codec,
                     },
                 ),
+                (AtomData::Lexeme(_), FieldKindData::TypedScalar { value_type, codec }) => {
+                    typed_scalar_slot(construction.id, path, value_type, codec, false)
+                        .map(Expected::Lexical)
+                }
+                (
+                    AtomData::Lexeme(_),
+                    FieldKindData::Optional {
+                        inner: &FieldKindData::TypedScalar { value_type, codec },
+                    },
+                ) => typed_scalar_slot(construction.id, path, value_type, codec, true)
+                    .map(Expected::Lexical),
                 (AtomData::Identity(_), FieldKindData::Identity { provider, .. }) => {
                     identity_slot(provider).map(Expected::Lexical).ok_or(
                         GeneratedAssemblyError::UnknownLexemeCodec {
@@ -483,6 +575,8 @@ fn atom_expected(
 fn field_expected(
     cats: &BTreeMap<&'static str, u16>,
     construction: &'static ConstructionData,
+    owner: &'static str,
+    field: &'static str,
     kind: FieldKindData,
 ) -> Result<Expected<Nonterminal, EnglishLexicalSlot>, GeneratedAssemblyError> {
     match kind {
@@ -491,21 +585,29 @@ fn field_expected(
             construction,
             category,
         )?)),
-        FieldKindData::Scalar { codec }
-        | FieldKindData::TypedScalar { codec, .. }
-        | FieldKindData::SurfaceScalar { codec } => codec_slot(codec).map(Expected::Lexical).ok_or(
-            GeneratedAssemblyError::UnknownLexemeCodec {
-                construction: construction.id,
-                codec,
-            },
-        ),
+        FieldKindData::Scalar { codec } | FieldKindData::SurfaceScalar { codec } => {
+            codec_slot(codec).map(Expected::Lexical).ok_or(
+                GeneratedAssemblyError::UnknownLexemeCodec {
+                    construction: construction.id,
+                    codec,
+                },
+            )
+        }
+        FieldKindData::TypedScalar { value_type, codec } => {
+            typed_scalar_slot(owner, field, value_type, codec, false).map(Expected::Lexical)
+        }
         FieldKindData::Identity { provider, .. } => identity_slot(provider)
             .map(Expected::Lexical)
             .ok_or(GeneratedAssemblyError::UnknownLexemeCodec {
                 construction: construction.id,
                 codec: provider,
             }),
-        FieldKindData::Optional { inner } => field_expected(cats, construction, *inner),
+        FieldKindData::Optional {
+            inner: &FieldKindData::TypedScalar { value_type, codec },
+        } => typed_scalar_slot(owner, field, value_type, codec, true).map(Expected::Lexical),
+        FieldKindData::Optional { inner } => {
+            field_expected(cats, construction, owner, field, *inner)
+        }
         FieldKindData::Sequence { .. } => Err(GeneratedAssemblyError::UnsupportedAtomKind {
             construction: construction.id,
             field: "nested sequence element",
@@ -543,6 +645,7 @@ pub(super) fn register_generated(
             });
         }
     }
+    validate_typed_scalar_adapters(groups)?;
     let aux = auxiliary_categories(groups, cats.len());
     if groups.iter().any(|group| {
         group.element_data.iter().any(|element| {
@@ -752,6 +855,53 @@ fn rules_object_member_rhs(
     Some(alternate)
 }
 
+fn element_field_expected(
+    cats: &BTreeMap<&'static str, u16>,
+    construction: &'static ConstructionData,
+    element: &'static ElementData,
+    field: &'static str,
+    kind: FieldKindData,
+) -> Result<Expected<Nonterminal, EnglishLexicalSlot>, GeneratedAssemblyError> {
+    field_expected(cats, construction, element.name, field, kind)
+}
+
+fn register_element_variants(
+    builder: &mut RuleBuilder,
+    group: &'static GroupData,
+    element_index: usize,
+    element: &'static ElementData,
+    cats: &BTreeMap<&'static str, u16>,
+    representative: &'static ConstructionData,
+    element_nt: Nonterminal,
+) -> Result<u16, GeneratedAssemblyError> {
+    let mut ordinal = 0_u16;
+    for (variant_index, variant) in element.variants.iter().enumerate() {
+        builder.add_generated(
+            RuleImpl::GeneratedAux(GeneratedAuxRuleRef::ElementVariant {
+                group,
+                element: element_index,
+                variant: variant_index,
+            }),
+            ProductionId {
+                construction: ConstructionId::new(element.name),
+                ordinal,
+            },
+            element_nt,
+            [element_field_expected(
+                cats,
+                representative,
+                element,
+                variant.name,
+                variant.payload,
+            )?],
+        );
+        ordinal = ordinal
+            .checked_add(1)
+            .expect("element rule ordinal overflow");
+    }
+    Ok(ordinal)
+}
+
 fn register_element(
     builder: &mut RuleBuilder,
     group: &'static GroupData,
@@ -808,7 +958,13 @@ fn register_element(
                     continue;
                 }
                 present_fields |= 1_u64 << field_index;
-                rhs.push(field_expected(cats, representative, field.kind)?);
+                rhs.push(element_field_expected(
+                    cats,
+                    representative,
+                    element,
+                    field.name,
+                    field.kind,
+                )?);
             }
             if let Some((comma, conjunction)) = coordination_delimiter_fields(group, element)
                 && present_fields & (1_u64 << comma | 1_u64 << conjunction) == 0
@@ -855,24 +1011,15 @@ fn register_element(
             }
         }
     } else {
-        for (variant_index, variant) in element.variants.iter().enumerate() {
-            builder.add_generated(
-                RuleImpl::GeneratedAux(GeneratedAuxRuleRef::ElementVariant {
-                    group,
-                    element: element_index,
-                    variant: variant_index,
-                }),
-                ProductionId {
-                    construction: ConstructionId::new(element.name),
-                    ordinal,
-                },
-                element_nt,
-                [field_expected(cats, representative, variant.payload)?],
-            );
-            ordinal = ordinal
-                .checked_add(1)
-                .expect("element rule ordinal overflow");
-        }
+        ordinal = register_element_variants(
+            builder,
+            group,
+            element_index,
+            element,
+            cats,
+            representative,
+            element_nt,
+        )?;
     }
 
     if ordinal == 0 {
@@ -1173,6 +1320,96 @@ mod tests {
                 construction: "codec_test",
                 codec: "Person",
             }
+        );
+    }
+
+    #[test]
+    fn mistyped_typed_scalar_pair_is_refused() {
+        const FIELDS: &[FieldData] = &[FieldData {
+            name: "number",
+            kind: FieldKindData::TypedScalar {
+                value_type: "DefinitelyNotANumber",
+                codec: "Numeral",
+            },
+        }];
+        const FORM: &[FormData] = &[FormData {
+            name: "only",
+            ordinal: 0,
+            guarded: false,
+            erased_recognizer: None,
+            atoms: &[AtomData::Lexeme("number")],
+        }];
+        const CONSTRUCTIONS: &[ConstructionData] = &[construction(
+            "mistyped_scalar",
+            "Internal",
+            true,
+            FIELDS,
+            FORM,
+        )];
+        const GROUP: GroupData = GroupData {
+            name: "g",
+            elements: &[],
+            element_data: &[],
+            constructions: CONSTRUCTIONS,
+        };
+        let cats = internal_categories(&[&GROUP]);
+        let mut builder = RuleBuilder::default();
+        let error = register_generated(&mut builder, &[&GROUP], &cats).unwrap_err();
+        assert_eq!(
+            error,
+            GeneratedAssemblyError::UnsupportedTypedScalar {
+                owner: "mistyped_scalar",
+                field: "number",
+                value_type: "DefinitelyNotANumber",
+                codec: "Numeral",
+            },
+            "a codec alone must not admit a typed scalar that lowering cannot represent",
+        );
+    }
+
+    #[test]
+    fn optional_typed_scalar_is_refused() {
+        const FIELDS: &[FieldData] = &[FieldData {
+            name: "number",
+            kind: FieldKindData::Optional {
+                inner: &FieldKindData::TypedScalar {
+                    value_type: "QuantityValue",
+                    codec: "Numeral",
+                },
+            },
+        }];
+        const FORM: &[FormData] = &[FormData {
+            name: "only",
+            ordinal: 0,
+            guarded: false,
+            erased_recognizer: None,
+            atoms: &[AtomData::Lexeme("number")],
+        }];
+        const CONSTRUCTIONS: &[ConstructionData] = &[construction(
+            "optional_typed_scalar",
+            "Internal",
+            true,
+            FIELDS,
+            FORM,
+        )];
+        const GROUP: GroupData = GroupData {
+            name: "g",
+            elements: &[],
+            element_data: &[],
+            constructions: CONSTRUCTIONS,
+        };
+        let cats = internal_categories(&[&GROUP]);
+        let mut builder = RuleBuilder::default();
+        let error = register_generated(&mut builder, &[&GROUP], &cats).unwrap_err();
+        assert_eq!(
+            error,
+            GeneratedAssemblyError::UnsupportedOptionalTypedScalar {
+                owner: "optional_typed_scalar",
+                field: "number",
+                value_type: "QuantityValue",
+                codec: "Numeral",
+            },
+            "optional typed scalars must be rejected until lowering has an adapter",
         );
     }
 

@@ -41,10 +41,14 @@
 //!
 //! # Reserved, and enforced
 //!
-//! Both carriers are reserved round-wide: an authored frame containing `zz`
-//! in any case, or any of [`RESERVED_NUMERALS`], is a build error
+//! The ordinary carriers are reserved round-wide: an authored frame containing
+//! `zz` in any case, or any of [`RESERVED_NUMERALS`], is a build error
 //! ([`reserved_tokens`]). Without that check a frame could smuggle in text
 //! that relocation would mistake for a hole.
+//!
+//! The singular retry uses `1`, which cannot be globally reserved because
+//! literal `+1/+1` material is valid in frames. Its safety check is instead
+//! structural: relocation still requires the witness to occur exactly once.
 
 use std::fmt;
 
@@ -60,10 +64,16 @@ pub const WITNESS_PREFIX: &str = "zz";
 /// [`NounPhrase::ThisCard`](deckmaste_english::syntax::NounPhrase) there.
 pub const SELF_WITNESS: &str = "Zzframeself";
 
-/// The count-hole witnesses, one per numeric slot in a frame. Two-digit
-/// primes: distinctive enough that a `41` in a parsed tree is a witness and
-/// never a frame literal, given [`reserved_tokens`] rejects an authored `41`.
+/// The ordinary count-hole witnesses, one per numeric slot in a frame.
+/// Two-digit primes: distinctive enough that a `41` in a parsed tree is a
+/// witness and never a frame literal, given [`reserved_tokens`] rejects an
+/// authored `41`.
 pub const RESERVED_NUMERALS: [u32; 6] = [41, 43, 47, 53, 59, 61];
+
+/// The singular-safe retry witness. The frame compiler uses it only when an
+/// ordinary plural witness cannot parse a singular citation authoring such as
+/// `<Count> card` under strict quantity/noun agreement.
+pub const SINGULAR_NUMERAL: u32 = 1;
 
 /// Which carrier a witness uses — the thing relocation looks for in the
 /// parsed tree.
@@ -134,6 +144,15 @@ pub fn numeral(slot: usize) -> anyhow::Result<Witness> {
         text: value.to_string(),
         kind: WitnessKind::Numeral,
     })
+}
+
+/// A numeric witness whose value licenses a singular count-noun surface.
+#[must_use]
+pub fn singular_numeral() -> Witness {
+    Witness {
+        text: SINGULAR_NUMERAL.to_string(),
+        kind: WitnessKind::Numeral,
+    }
 }
 
 /// The witness for a phrasal hole at param index `param`, whose declared type
@@ -212,6 +231,11 @@ mod tests {
             Vec::<String>::new()
         );
         assert_eq!(reserved_tokens("deals 41 damage"), vec!["41".to_string()]);
+        assert_eq!(reserved_tokens("draw 1 card"), Vec::<String>::new());
+        assert_eq!(
+            reserved_tokens("draw <Param(1)> card"),
+            Vec::<String>::new()
+        );
         assert_eq!(
             reserved_tokens("Zzframeself gets +1/+1"),
             vec!["Zzframeself".to_string()]
@@ -240,9 +264,10 @@ mod tests {
 
     #[test]
     fn numeral_witnesses_are_unique_per_slot_and_run_out_loudly() {
-        let all: Vec<String> = (0..RESERVED_NUMERALS.len())
+        let mut all: Vec<String> = (0..RESERVED_NUMERALS.len())
             .map(|slot| numeral(slot).unwrap().text)
             .collect();
+        all.push(singular_numeral().text);
         let mut sorted = all.clone();
         sorted.sort();
         sorted.dedup();
