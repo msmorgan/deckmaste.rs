@@ -1540,8 +1540,13 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
                 });
             }
             // The capture is a produced definition's body, read back as raw
-            // text (`Skip`), so no restriction decision is taken here — the
-            // body is read as author vocabulary or not when it is USED.
+            // text (`Skip`). The substitution's restriction is DROPPED here,
+            // and that is a known gap, not a decision deferred to the use
+            // site: a definition body is read free when used, so a
+            // card-written argument spliced into one launders its
+            // restriction. Unreachable today — no type the restricted entry
+            // reads carries a `RawValue`. See
+            // docs/tickets/planned/macro-ron-raw-value-restriction-drop.md.
             let (resolved, _) = substitute_into(source, &self.ctx, HoleMode::PassThrough)
                 .map_err(Self::Error::custom)?;
             return reread(resolved, self.ctx, Intercept::Skip, |de| {

@@ -187,26 +187,20 @@ Three defects that only the first restricted read of the corpus could show.
   keeps the enforcement hole above closed — a nested-invocation identity body
   would reopen it.
 
-## Latent, left open deliberately
+## Accepted limits of the ban
 
-One site still drops an argument's restriction:
-`deserialize_newtype_struct`'s `RAW_VALUE_TOKEN` capture in
-`crates/macro_ron/src/expand.rs` discards the bit `substitute_into` computes,
-and its comment's rationale — that the body is read as author vocabulary or not
-when it is used — does not hold for a produced definition's body, which is read
-free. Unreachable today: no type in the `Card`/`Token`/`Predicate` graph that
-`read_str_restricted` reads carries a `RawValue`; the only `RawValue`-bearing
-types are `MacroDef`, frames, params, `deckmaste_spelling::lexicon` and
-`deckmaste_migrations::todo_card`. It becomes live if a definition-producing
-macro ever becomes invocable from card text — mint a ticket then, and fix the
-comment before anyone trusts it.
+Two, both documented at their sites and neither open work. Restriction cannot
+apply inside untagged content: `deserialize_any` hands the fragment to ron
+natively, so nothing intercepts identifiers there. Not reachable from the
+semantics graph, which uses `#[macro_ron(embed)]` rather than
+`#[serde(untagged)]` precisely so those positions stay on the macro-aware path.
+And provenance is tracked per argument rather than per byte — conservative in
+the safe direction, since a substitution ORs restriction and never ANDs it.
 
-Two further accepted limits, both documented at their sites: restriction cannot
-apply inside untagged content (`deserialize_any` hands the fragment to ron
-natively; not reachable from the semantics graph, which uses
-`#[macro_ron(embed)]` rather than `#[serde(untagged)]`), and provenance is
-tracked per argument rather than per byte (conservative — the substitution ORs
-restriction, never ANDs it).
+One gap is NOT accepted and is tracked separately:
+[[macro-ron-raw-value-restriction-drop]] — `deserialize_newtype_struct`'s
+raw-value capture drops the bit `substitute_into` computes. Unreachable today,
+real when a definition-producing macro becomes invocable from card text.
 
 ## Gates
 
