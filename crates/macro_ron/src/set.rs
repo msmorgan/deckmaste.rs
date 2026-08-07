@@ -283,35 +283,58 @@ impl MacroDef {
 }
 
 /// Why a macro couldn't be registered.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum InsertError {
     /// Two macros (or declarations) of one kind tried to use the same name.
+    #[error("a {kind} macro named `{name}` is already defined")]
     Duplicate { kind: Ident, name: Ident },
     /// A definition named a kind no [`Kind`](crate::Kind) was registered for.
+    #[error("macro `{name}` declares unregistered kind `{kind}`")]
     UnknownKind { kind: Ident, name: Ident },
     /// A definition named a param type no validator was registered for.
+    #[error("macro `{name}` declares unregistered param type `{type_name}`")]
     UnknownParamType { type_name: Ident, name: Ident },
     /// A definition's name can't be invoked: macros are invoked as bare
     /// identifiers, so the name must be one.
+    #[error("macro name `{name}` is not a bare identifier; macros are invoked bare")]
     InvalidName { name: Ident },
     /// A meta-macro (kind `Macro`) declared positional params: hole
     /// indices would be ambiguous between the meta's frame and the
     /// produced definition's own params.
+    #[error(
+        "meta-macro `{name}` must use named params (indices are \
+         ambiguous between the meta and its produced definition)"
+    )]
     MetaParamsPositional { name: Ident },
     /// A positional signature declared a `Default(...)` param; defaults are
     /// named-only (trailing-default arity is out of scope).
+    #[error(
+        "macro `{name}` declares a positional param with a default; \
+         defaults are named-only"
+    )]
     PositionalDefault { name: Ident },
     /// A positional signature's `Elidable(...)` params don't form a trailing
     /// run: a call supplies a prefix of the list, so an elidable param before
     /// a required one could never actually be omitted.
+    #[error(
+        "macro `{name}` declares an `Elidable(...)` positional param \
+         before a required one; elidable positional params must be \
+         the trailing ones"
+    )]
     ElidableNotTrailing { name: Ident },
     /// A positional signature's ONE param is `Elidable(...)`. A one-param
     /// call reads through the newtype channel, which has no zero-argument
     /// spelling, so the short form the marker promises could never be
     /// invoked — the declaration would silently mean nothing.
+    #[error(
+        "macro `{name}`'s only positional param is `Elidable(...)`, \
+         but a one-param call has no zero-argument spelling; make it \
+         required, or give the signature a required param first"
+    )]
     LoneElidablePositional { name: Ident },
     /// A named param's default expression is unusable: unparseable, or it
     /// references a param that is missing, defaulted, or index-addressed.
+    #[error("macro `{name}` param `{param}` default: {reason}")]
     BadDefault {
         name: Ident,
         param: Ident,
@@ -320,88 +343,18 @@ pub enum InsertError {
     /// A definition's body can't be elided the way its `Elidable(...)` params
     /// promise — a comment between its entries, chiefly. Caught here so it
     /// fails at load, not the first time a card writes the short form.
+    #[error("macro `{name}`: {reason}")]
     UnelidableBody { name: Ident, reason: String },
     /// A definition's body invokes a macro whose expansion eventually
     /// invokes it again — directly (a self-reference) or through a chain of
     /// other macros. Caught here so it fails at load, not only at runtime
     /// once the `MAX_DEPTH` expansion cap trips.
+    #[error(
+        "macro `{name}` forms an expansion cycle: {}",
+        path.iter().map(Ident::as_str).collect::<Vec<_>>().join(" -> ")
+    )]
     Cycle { name: Ident, path: Vec<Ident> },
 }
-
-impl fmt::Display for InsertError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            InsertError::Duplicate { kind, name } => {
-                write!(f, "a {kind} macro named `{name}` is already defined")
-            }
-            InsertError::UnknownKind { kind, name } => {
-                write!(f, "macro `{name}` declares unregistered kind `{kind}`")
-            }
-            InsertError::UnknownParamType { type_name, name } => {
-                write!(
-                    f,
-                    "macro `{name}` declares unregistered param type `{type_name}`"
-                )
-            }
-            InsertError::InvalidName { name } => {
-                write!(
-                    f,
-                    "macro name `{name}` is not a bare identifier; macros are invoked bare"
-                )
-            }
-            InsertError::MetaParamsPositional { name } => {
-                write!(
-                    f,
-                    "meta-macro `{name}` must use named params (indices are \
-                     ambiguous between the meta and its produced definition)"
-                )
-            }
-            InsertError::PositionalDefault { name } => {
-                write!(
-                    f,
-                    "macro `{name}` declares a positional param with a default; \
-                     defaults are named-only"
-                )
-            }
-            InsertError::ElidableNotTrailing { name } => {
-                write!(
-                    f,
-                    "macro `{name}` declares an `Elidable(...)` positional param \
-                     before a required one; elidable positional params must be \
-                     the trailing ones"
-                )
-            }
-            InsertError::LoneElidablePositional { name } => {
-                write!(
-                    f,
-                    "macro `{name}`'s only positional param is `Elidable(...)`, \
-                     but a one-param call has no zero-argument spelling; make it \
-                     required, or give the signature a required param first"
-                )
-            }
-            InsertError::BadDefault {
-                name,
-                param,
-                reason,
-            } => {
-                write!(f, "macro `{name}` param `{param}` default: {reason}")
-            }
-            InsertError::UnelidableBody { name, reason } => {
-                write!(f, "macro `{name}`: {reason}")
-            }
-            InsertError::Cycle { name, path } => write!(
-                f,
-                "macro `{name}` forms an expansion cycle: {}",
-                path.iter()
-                    .map(Ident::as_str)
-                    .collect::<Vec<_>>()
-                    .join(" -> ")
-            ),
-        }
-    }
-}
-
-impl std::error::Error for InsertError {}
 
 fn is_bare_ident(name: &str) -> bool {
     let mut chars = name.chars();

@@ -181,16 +181,9 @@ pub(super) fn of<T: Serialize + ?Sized>(value: &T) -> Shape {
 }
 
 /// The walk cannot fail; `serde` still requires an error type.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("shape construction cannot fail")]
 pub(super) struct Unreachable;
-
-impl fmt::Display for Unreachable {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("shape construction cannot fail")
-    }
-}
-
-impl std::error::Error for Unreachable {}
 
 impl ser::Error for Unreachable {
     fn custom<T: fmt::Display>(_message: T) -> Self {

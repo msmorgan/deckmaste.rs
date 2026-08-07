@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::fmt;
 use std::sync::Arc;
 
 use deckmaste_core::DeciderSpec;
@@ -329,27 +328,16 @@ pub enum Action {
 }
 
 /// Why a submission was rejected.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum DecisionError {
+    #[error("no decision is pending")]
     NothingPending,
     /// The decision kind doesn't answer the pending decision.
+    #[error("decision doesn't answer what's pending")]
     WrongKind,
-    Illegal {
-        reason: String,
-    },
+    #[error("illegal: {reason}")]
+    Illegal { reason: String },
 }
-
-impl fmt::Display for DecisionError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            DecisionError::NothingPending => f.write_str("no decision is pending"),
-            DecisionError::WrongKind => f.write_str("decision doesn't answer what's pending"),
-            DecisionError::Illegal { reason } => write!(f, "illegal: {reason}"),
-        }
-    }
-}
-
-impl std::error::Error for DecisionError {}
 
 /// The action one `unless` cost component performs, paid by `who`
 /// ([CR#118.12a]). v1 covers verb costs (`Do`) and {T}/{Q}; a mid-resolution

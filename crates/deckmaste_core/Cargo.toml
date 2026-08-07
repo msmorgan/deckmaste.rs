@@ -11,3 +11,5 @@ workspace = true
 macro_ron = { version = "0.1.0", path = "../macro_ron", features = ["derive"] }
 ron = "0.12.1"
 serde = { version = "1.0.228", features = ["derive", "rc"] }
+thiserror = { workspace = true }
+

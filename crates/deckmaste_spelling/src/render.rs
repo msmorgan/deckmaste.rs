@@ -104,7 +104,12 @@ use crate::unify::Recovered;
 /// for the same reason (a lexicon is data, and bad data must be reported to
 /// whoever loaded it, not abort the process), and a `debug_assert!` would
 /// vanish from exactly the release-mode gate runs that sweep the corpus.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error(
+    "rendering `{entry}`: the substituted text {text:?} parses at {kind:?} into a different tree \
+     than frame [{frame_index}] with its holes filled, so the text reads as some other \
+     constituency than the frame it was rendered from"
+)]
 pub struct ReassembledDifferently {
     /// The head symbol that was rendered.
     pub entry: String,
@@ -115,20 +120,6 @@ pub struct ReassembledDifferently {
     /// The fully substituted text, exactly as parsed back.
     pub text: String,
 }
-
-impl std::fmt::Display for ReassembledDifferently {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            formatter,
-            "rendering `{}`: the substituted text {:?} parses at {:?} into a different tree than \
-             frame [{}] with its holes filled, so the text reads as some other constituency than \
-             the frame it was rendered from",
-            self.entry, self.text, self.kind, self.frame_index,
-        )
-    }
-}
-
-impl std::error::Error for ReassembledDifferently {}
 
 /// Renders the invocation a successful [`crate::unify::unify`] recovered,
 /// back to English, as a whole [`FragmentKind::Sentence`].

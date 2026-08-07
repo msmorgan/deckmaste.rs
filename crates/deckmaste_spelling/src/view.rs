@@ -288,16 +288,9 @@ impl View {
 }
 
 /// The walk cannot fail; `serde` still requires an error type.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("view construction cannot fail")]
 struct Unreachable;
-
-impl fmt::Display for Unreachable {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("view construction cannot fail")
-    }
-}
-
-impl std::error::Error for Unreachable {}
 
 impl ser::Error for Unreachable {
     fn custom<T: fmt::Display>(_message: T) -> Self {

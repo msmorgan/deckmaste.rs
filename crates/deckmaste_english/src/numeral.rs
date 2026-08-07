@@ -107,16 +107,9 @@ pub enum Numeral {
 }
 
 /// An error returned when numeral text is invalid or noncanonical.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error, serde::Serialize)]
+#[error("invalid or noncanonical numeral")]
 pub struct ParseNumeralError;
-
-impl std::fmt::Display for ParseNumeralError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("invalid or noncanonical numeral")
-    }
-}
-
-impl std::error::Error for ParseNumeralError {}
 
 impl Numeral {
     /// Formats `value` using this notation.

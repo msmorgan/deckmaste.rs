@@ -46,7 +46,6 @@
 //! opposite skews for verbs that look symmetric on paper (see
 //! `docs/superpowers/research/2026-07-30-macro-frames/corpus-alternation.md`).
 
-use std::fmt;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
@@ -438,45 +437,25 @@ pub fn body_param_indices(body: &str, macros: &MacroSet) -> Result<Vec<usize>, S
 /// `macro_ron`-native (no `anyhow` dependency here) — implements
 /// [`std::error::Error`] so `anyhow`-using callers (every current caller)
 /// still get `?`-conversion for free via `anyhow`'s blanket `From<E: Error>`.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum LoadError {
+    // `PathBuf` isn't `Display`, so the path goes through a trailing
+    // `path.display()` argument rather than a `{path}` hole.
+    #[error(r#"reading "{}": {source}"#, path.display())]
     Io {
         path: PathBuf,
+        #[source]
         source: io::Error,
     },
+    #[error(r#"parsing "{}" as constructor frames: {source}"#, path.display())]
     Parse {
         path: PathBuf,
         // Boxed: `ron::error::SpannedError` is ~128 bytes, which would make
         // `Result<_, LoadError>` itself large enough to trip
         // `clippy::result_large_err` at every call site.
+        #[source]
         source: Box<ron::error::SpannedError>,
     },
-}
-
-impl fmt::Display for LoadError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            LoadError::Io { path, source } => {
-                write!(f, r#"reading "{}": {source}"#, path.display())
-            }
-            LoadError::Parse { path, source } => {
-                write!(
-                    f,
-                    r#"parsing "{}" as constructor frames: {source}"#,
-                    path.display()
-                )
-            }
-        }
-    }
-}
-
-impl std::error::Error for LoadError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(match self {
-            LoadError::Io { source, .. } => source,
-            LoadError::Parse { source, .. } => source.as_ref(),
-        })
-    }
 }
 
 /// Reads every `constructors.ron`-shaped catalog file under `dir` (each file
@@ -848,5 +827,20 @@ mod tests {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
         let err = load_constructor_frames(&dir).unwrap_err();
         assert!(std::error::Error::source(&err).is_some());
+    }
+
+    #[test]
+    fn parse_load_error_chains_the_spanned_error() {
+        let spanned = ron::from_str::<u8>("nope").unwrap_err();
+        let err = LoadError::Parse {
+            path: PathBuf::from("frames.ron"),
+            source: Box::new(spanned.clone()),
+        };
+        assert_eq!(
+            err.to_string(),
+            format!(r#"parsing "frames.ron" as constructor frames: {spanned}"#)
+        );
+        let chained = std::error::Error::source(&err).expect("Parse carries a source");
+        assert_eq!(chained.to_string(), spanned.to_string());
     }
 }

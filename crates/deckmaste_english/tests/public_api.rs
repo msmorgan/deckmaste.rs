@@ -504,16 +504,9 @@ fn serialize_unit_variant(value: impl Serialize) -> &'static str {
         .expect("the value must serialize as a unit variant")
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("expected a unit-variant serialization")]
 struct UnitVariantSerializationError;
-
-impl fmt::Display for UnitVariantSerializationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("expected a unit-variant serialization")
-    }
-}
-
-impl std::error::Error for UnitVariantSerializationError {}
 
 impl ser::Error for UnitVariantSerializationError {
     fn custom<T: fmt::Display>(_message: T) -> Self {

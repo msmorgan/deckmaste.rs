@@ -119,16 +119,9 @@ use crate::plugin::Plugin;
 /// either a genuine expressiveness gap between the two grammars (report
 /// honestly), or simply not implemented yet. Carries a short description of
 /// what was hit and why.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, thiserror::Error)]
+#[error("{0}")]
 pub struct Gap(pub String);
-
-impl std::fmt::Display for Gap {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl std::error::Error for Gap {}
 
 type R = Result<String, Gap>;
 

@@ -1,4 +1,3 @@
-use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -383,7 +382,8 @@ impl std::ops::Deref for ManaCost {
 }
 
 /// The error type for [`ManaSymbol`] and [`ManaCost`]'s [`FromStr`] impls.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("unrecognized mana symbol: {symbol:?}")]
 pub struct ParseManaError {
     symbol: String,
 }
@@ -395,14 +395,6 @@ impl ParseManaError {
         }
     }
 }
-
-impl fmt::Display for ParseManaError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "unrecognized mana symbol: {:?}", self.symbol)
-    }
-}
-
-impl std::error::Error for ParseManaError {}
 
 /// Parses a generic amount, insisting on the canonical form: digits only with
 /// no leading zeros (unlike `Uint::from_str`, which also accepts "+1").

@@ -33,6 +33,8 @@ deckmaste_english = { version = "0.1.0", path = "../deckmaste_english" }
 # every macroable semantics type by name.
 deckmaste_semantics = { version = "0.1.0", path = "../deckmaste_semantics" }
 anyhow = "1.0.102"
+thiserror = { workspace = true }
+
 
 [dev-dependencies]
 # The pilot integration test (`tests/pilot.rs`) compiles every frame the

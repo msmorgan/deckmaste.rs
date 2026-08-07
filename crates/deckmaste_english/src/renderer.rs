@@ -1,5 +1,4 @@
 use std::cell::Cell;
-use std::fmt;
 
 use crate::catalog::CatalogKind;
 use crate::features::Conjunction;
@@ -112,56 +111,36 @@ use crate::word::Vocab;
 use crate::word::Vocabulary;
 use crate::word::surface_initial_sound;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum RenderError {
+    #[error("missing {0} form")]
     MissingLexicalForm(&'static str),
+    #[error("card identity is required to render this determiner")]
     CardIdentityRequired,
     /// A [`NominalComplement::KeywordArgument`] carrying a `KeywordArgument`
     /// shape the syntax never licenses in nominal-complement position (only
     /// `Costed(Symbols)` and `Predicated` are licensed there) — `kwgrant`
     /// round.
+    #[error("keyword argument shape is not licensed in nominal-complement position")]
     InvalidKeywordArgumentNominal,
     /// A hand-built `PredicateHead` claims both `distributive_each` and
     /// `first_auxiliary_contracted_with_subject`: the floating-`each`
     /// grammar can never construct that surface, since `each` intervenes
     /// between the subject and the first auxiliary — `qfloat` round.
+    #[error("a distributive-each predicate head cannot also contract its first auxiliary")]
     InvalidDistributiveEachContraction,
     /// A predicate, modifier, or clause carrier contains the nominal-only
     /// `plus` conjunction. This can be constructed only through the widened
     /// canonical compatibility alias, never by the grammar.
+    #[error("{0:?} is not licensed as a predicate conjunction")]
     InvalidPredicateConjunction(Conjunction),
     /// A nominal, noun-phrase, or prepositional carrier contains the
     /// predicate-only `then` conjunction. This can be constructed only
     /// through the widened canonical compatibility alias, never by the
     /// grammar.
+    #[error("{0:?} is not licensed as a nominal conjunction")]
     InvalidNominalConjunction(Conjunction),
 }
-
-impl fmt::Display for RenderError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::MissingLexicalForm(kind) => write!(formatter, "missing {kind} form"),
-            Self::CardIdentityRequired => {
-                formatter.write_str("card identity is required to render this determiner")
-            }
-            Self::InvalidKeywordArgumentNominal => formatter
-                .write_str("keyword argument shape is not licensed in nominal-complement position"),
-            Self::InvalidDistributiveEachContraction => formatter.write_str(
-                "a distributive-each predicate head cannot also contract its first auxiliary",
-            ),
-            Self::InvalidPredicateConjunction(conjunction) => write!(
-                formatter,
-                "{conjunction:?} is not licensed as a predicate conjunction"
-            ),
-            Self::InvalidNominalConjunction(conjunction) => write!(
-                formatter,
-                "{conjunction:?} is not licensed as a nominal conjunction"
-            ),
-        }
-    }
-}
-
-impl std::error::Error for RenderError {}
 
 impl OracleText {
     /// Renders this semantic tree without consulting its original source text.
