@@ -32,16 +32,18 @@
 |||    same-sort second slot is just another position (`preyUpon`,
 |||    [CR#701.14a]).
 ||| 3. **"Other" is a modifier with a presupposition** (its anchor set
-|||    completed by the second-wave audit). Oracle's "any other
+|||    completed by the second-wave audit, head-TYPED by the third —
+|||    finding 44). Oracle's "any other
 |||    target" ([CR#115.4]) is the modifier `Other` inside one noun's
 |||    flat modifier set — distinct from its ANCHOR, with the
 |||    obligation that an anchor exist. The anaphoric anchor is any
 |||    earlier same-kind target mention (`anyTargeted`; up-to
-|||    mentions count, finding 35); the second mode anchors on the
+|||    mentions count, finding 35) of a compatible head type
+|||    (`OtherAnchored`); the second mode anchors on the
 |||    SOURCE ("Olivia Voldaren deals 1 damage to another target
 |||    creature", Red Hulk's "…to any other target" — no earlier
-|||    target exists, "other" excludes the source), which waits on a
-|||    typed `This` (ledger). Anchorless "other" stays UNSPELLABLE
+|||    target exists, "other" excludes the source), which waits on the
+|||    source entering the discourse (ledger). Anchorless "other" stays UNSPELLABLE
 |||    (`badOther`): textual precedence replaces the old
 |||    sibling-index `Distinct` constructor and its range gate.
 |||    Unconstrained slots still legally share an object
@@ -430,6 +432,98 @@
 |||    relation names the one controller [CR#109.4], a negated one
 |||    selects nobody; `badNegatedAntecedent`).
 |||
+||| Chapter thirteen, the third wave (both ducks probing for terms
+||| that typecheck but should not; every accepted finding is a gate
+||| plus a pinned negative, and each negative is probed at the
+||| SMALLEST construct carrying its gate — an auto-search failure
+||| nested inside another auto stalls the outer search and misreports,
+||| so the bench writes bare `Predicate`/`Amount`/`Noun` probes
+||| wherever one exists):
+|||
+||| 40. **"Any target" is a lone class word.** The guide reserves it
+|||    for the rules-defined damage target class ([CR#115.4]) and
+|||    forbids it as a synonym for "any object". Three refusals
+|||    follow: it takes no modifier but "other" (Arc Trail's "any
+|||    other target" is the sole corpus companion — `AnyTargetLone`,
+|||    `badAnyTargetInGraveyard`); it is never negated, there being no
+|||    complement class to name (`Negatable`, which also refuses
+|||    double negation — `badNegatedAnyTarget`); and it is ITSELF the
+|||    targeting form, so the non-targeting determiners and the
+|||    for-each domain demand an any-target-free phrase — "a any
+|||    target" and "each any target" are unwritable (`AnyTargetFree`,
+|||    `badAnyTargetUnderA`).
+||| 41. **The sorted self-reference stands on the battlefield.** "This
+|||    creature" / "this enchantment" is a description including a
+|||    card type, so [CR#109.2] denotes the PERMANENT: `ThisOf`
+|||    projects the battlefield where bare `This` — the source as an
+|||    object ("this spell", cycling's "Discard this card") — projects
+|||    nothing. Discarding the sorted form is thereby unwritable
+|||    ([CR#701.9a] moves a HAND card; `badDiscardThisCreature`), and
+|||    the cost that justifies the untracked hand row is cycling's own
+|||    ([CR#702.29a]; `cyclingCost`). The audit then closed the
+|||    opposite permissive row for good: `OnBattlefield`'s untracked
+|||    constructor existed ONLY for the sorted self-reference, so
+|||    deleting it left the whole bench standing — every
+|||    battlefield-demanding slot now demands the battlefield, full
+|||    stop. (`Enchantment` joined the type catalog in the same pass:
+|||    Pyromancy's "This enchantment deals …" had been spelled with
+|||    bare `This` as a workaround for the missing row.)
+||| 42. **A phrase may not contradict itself.** Zone negation is real
+|||    oracle — "Each Vampire creature card you own that isn't on the
+|||    battlefield has madness." (Falkenrath Gorger) — so `Not (InZone
+|||    …)` stays writable; what a conjunction cannot do is rule OUT
+|||    the zone it places its referent in, [CR#109.2]'s battlefield
+|||    default included (`ZoneCoherent`, `badNotOnBattlefield`), nor
+|||    hold a member that syntactically negates a sibling
+|||    (`ContradictionFree`, `badQualityContradiction`). Both scans
+|||    FLATTEN nested conjunctions, so a clash one level down is no
+|||    laundering (`badNestedContradiction`). The member equality they
+|||    share is deliberately conservative on the rows carrying a noun:
+|||    "not provably the same" under-refuses rather than over-refuses.
+||| 43. **Status words seed the zone they presuppose.** Attackers are
+|||    declared from creatures their controller controls
+|||    ([CR#508.1a]), and leaving the battlefield removes a permanent
+|||    from combat — it "stops being an attacking … creature"
+|||    ([CR#506.4]) — so `Attacking` projects the battlefield exactly
+|||    as a zone clause does. The nonsense that follows ("an
+|||    attacking creature in your hand") is then refused by the
+|||    EXISTING coherence gate rather than a new one
+|||    (`badAttackingInHand`) — the cheapest shape a finding can take:
+|||    a projection made honest, and the refusal falls out.
+||| 44. **"Other" is typed by its own head.** The anchor obligation
+|||    splits in two: `Other`'s own gate demands a same-KIND target
+|||    mention, and the conjunction it sits in supplies the head TYPE
+|||    that mention must be compatible with (`OtherAnchored`; an
+|||    untyped head — Arc Trail's "any other target", a player-kind
+|||    "other" — accepts any same-kind anchor, which is exactly
+|||    finding 3's gate). The guide reserves "another" for excluding
+|||    the source or first referent and writes two separately
+|||    described roles WITHOUT it ("target creature and target
+|||    planeswalker"); the corpus pairs "other" only with overlapping
+|||    heads. Sharing one object across disjoint-headed slots stays
+|||    rules-LEGAL ([CR#601.2c]'s artifact-land example), which is
+|||    precisely why this is templating enforced where the head type
+|||    is known (`badOtherCrossHead`).
+||| 45. **The counted-set amount is a noun phrase.** Every corpus
+|||    for-each domain is noun-HEADED — "for each you control" names
+|||    no set to count (`Headed`, `badForEachHeadless`) — and its
+|||    per-unit is a written numeral, hence at least one
+|||    (`AtLeastOne`, `badForEachZero`): the same surface-numeral
+|||    discipline finding 36 gives counted groups. The comparisons
+|||    that legitimately carry zero READ a count rather than write
+|||    one, so `Lit` stays ungated.
+||| 46. **Damage subjects distribute; they do not collect.** A group
+|||    source is legal exactly when the group is distributive: "Each
+|||    creature you control deals 1 damage to that creature." (Case of
+|||    the Gateway Express) spreads the singular deal frame over its
+|||    members, while a COLLECTIVE plural subject ("two target
+|||    creatures deal …") is unattested — oracle either distributes or
+|||    names one source (`DamageSource`, `badGroupDamageSource`). The
+|||    distributive lines carrying a per-member "its" ("Each creature
+|||    deals 1 damage to its controller.") wait on dependent iteration,
+|||    which is why the bench positive reads its recipient back as a
+|||    demonstrative instead.
+|||
 ||| Engine-boundary deferrals (deliberate, and to stay so): the
 ||| workbench spells the ENGLISH; committed event structure is
 ||| core's. The per-combatant fight fact is the type case — core
@@ -506,8 +600,11 @@
 ||| construction from binary `Fights`); union-read plural possessors
 ||| ("creatures your opponents control", corpus-attested — waits with
 ||| the player groups); the self-exclusion "other" anchor (Olivia
-||| Voldaren, Red Hulk — "another"/"any other" excluding the SOURCE,
-||| waits on a typed `This`);
+||| Voldaren, Red Hulk — "another"/"any other" excluding the SOURCE;
+||| the sorted self-reference is typed and battlefield-projected
+||| already (finding 41), so what this waits on is the source ENTERING
+||| the discourse: `This`/`ThisOf` introduce no binding, and the anchor
+||| search reads bindings);
 ||| static "as long as" conditions ([CR#611.3], Kitesail Corsair —
 ||| the card has no "for") and effect-created "for as long as"
 ||| durations ([CR#611.2b]); last-known VALUES (reads ignore zone — finding
@@ -515,9 +612,29 @@
 ||| so the value story belongs to the ability layer); Token / Spell
 ||| / stack-object / Amount carriers ("that much"; bare `This` stays
 ||| untracked, and "this spell" / "this card" carriers with it); "the
-||| chosen [quality]" (quality-kind bindings); and coordination ellipsis (Arc
-||| Trail's shared verb is spelling's business — here it is a clause
-||| sequence). The context-as-phrase-telescope collapse (bindings storing
+||| chosen [quality]" (quality-kind bindings); coordinated verb
+||| COMPLEMENTS ("deals 2 damage to any target and 1 damage to any
+||| other target", Arc Trail — one verb distributing over paired
+||| amount+recipient complements; the bench transcribes them
+||| sequentially under `AndThen` as a named stand-in, which mis-orders
+||| nothing binding-wise but serializes what the card states as one
+||| instruction); amount EXTRAPOSITION (`DealDamage` fixes
+||| amount-before-recipient order while oracle writes both — "deals
+||| damage equal to its power to target creature" against "deals damage
+||| to any target equal to the mana value of the discarded card",
+||| Pyromancy; amounts introduce no bindings, so the fixed order is
+||| binding-neutral and the divergence is linearization's, like the
+||| coordination above); event-history restrictive clauses ("that were
+||| put there from the battlefield this turn", Continue? — no
+||| vocabulary, so `continueSpell` elides the clause, which widens the
+||| domain it expresses until the axis arrives); and CONTROL assignment
+||| on battlefield moves ([CR#110.2a] defaults an instructed put to the
+||| instructed player, so Cloudshift's "under your control" is the
+||| derivable default, while "under its owner's control" is an OVERRIDE
+||| the vocabulary cannot spell — four positives elide it, each named
+||| meaning-carrying in its comment: Turn to Mist, Flickering Spirit,
+||| Graceful Reprieve, Voyager Staff).
+||| The context-as-phrase-telescope collapse (bindings storing
 ||| the mention terms themselves, every projection computed) stays open as
 ||| a possible later simplification — less pressing since the payload
 ||| split gave each kind exactly its own data.
@@ -557,8 +674,12 @@
 ||| abilities ([CR#603.1] — the ability SHAPE beyond delayed
 ||| queries); counters as per-HOLDER state — objects AND players
 ||| ([CR#122.1]; poison and rad ride the player), with put/remove
-||| verbs and count reads; and mana production and payment
-||| ([CR#106.4]). Leaf vocabulary: Transform ([CR#701.27a]);
+||| verbs and count reads; mana production and payment
+||| ([CR#106.4]); and control ASSIGNMENT on a battlefield move — a
+||| controller argument the move primitive does not carry, since
+||| [CR#110.2a] gives the instructed player by default and only an
+||| explicit "under [player]'s control" overrides it. Leaf
+||| vocabulary: Transform ([CR#701.27a]);
 ||| life-total Set ([CR#119.5]); the non-additive continuous family
 ||| (gain control, "becomes", lose abilities, set base P/T — the
 ||| layer words).
@@ -1305,9 +1426,10 @@ mutual
   ||| The zone a predicate places its referent in — a bare description
   ||| means the battlefield ([CR#109.2]); a zone clause says otherwise,
   ||| and a battlefield STATE word says the same thing the zone clause
-  ||| would: only an attacking creature on the battlefield is
-  ||| designated an attacker ([CR#508.1a]), so the status predicate
-  ||| seeds its own zone rather than leaving the phrase silent.
+  ||| would: attackers are declared from creatures their controller
+  ||| controls ([CR#508.1a]) and leaving the battlefield removes a
+  ||| permanent from combat ([CR#506.4]), so the status predicate seeds
+  ||| its own zone rather than leaving the phrase silent.
   public export
   seedZone : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Maybe Zone
   seedZone (InZone z) = Just (zoneSort z)
