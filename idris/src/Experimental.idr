@@ -209,6 +209,21 @@
 |||    written-amount coincidence (Foul-Tongue Shriek) would prove the
 |||    wrong rule.
 |||
+||| Chapter seven, the payload split (the ruling is recorded in the
+||| decision record §3):
+|||
+||| 25. **Context data is kind-indexed.** `Payload k` gives each kind
+|||    exactly its own data — objects a head type and zone fold-state,
+|||    players and qualities nothing — so a binding cannot record what
+|||    its kind cannot have: "a player in your hand" is unrepresentable
+|||    in the CONTEXT (`badPlayerInHand`) exactly as it is in the
+|||    surface grammar (`InZone` is Object-kinded), and a junk write (a
+|||    zone retag on a player) is refused by construction instead of
+|||    absorbed by a dead field. The per-kind matches keep the
+|||    no-catch-all discipline: a new `Payload` constructor is a
+|||    totality error in `carrier`/`bindingZone`/`pubB`/`setZone`, not
+|||    a silent pass-through.
+|||
 ||| Not settled yet: the kind union ("any target" spans objects and
 ||| players [CR#115.4,115.1] — elided to `Object`);
 ||| owned-zone mentions beyond `You` ("its owner's hand" — destination
@@ -244,8 +259,8 @@
 ||| Trail's shared verb is spelling's business — here it is a clause
 ||| sequence). The context-as-phrase-telescope collapse (bindings storing
 ||| the mention terms themselves, every projection computed) stays open as
-||| a possible later simplification — pressure that grows as kinds
-||| multiply (quality bindings carry dead ty/zone fields).
+||| a possible later simplification — less pressing since the payload
+||| split gave each kind exactly its own data.
 module Experimental
 
 %default total
@@ -314,17 +329,28 @@ data Zone = Battlefield | Graveyard | Exile | Hand
 public export
 data Carrier = PlayerC | Perm CardType | AnyPerm | CardC
 
-||| One discourse mention: its determiner, kind, plurality, projected
-||| head type, and current zone (the ONE piece of fold-state — `Move`
-||| updates it; everything else is a projection of the phrase).
+||| Per-kind mention data, kind-indexed so a binding can only record
+||| what its kind can have: an object carries the projected head type
+||| and its current zone (the ONE piece of fold-state — `Move` updates
+||| it; everything else is a projection of the phrase); players and
+||| qualities carry nothing. An ill-sorted binding ("a player in your
+||| hand") is thereby unrepresentable — the refusal the surface grammar
+||| makes (`InZone` is Object-kinded), extended to the representation.
+public export
+data Payload : Kind -> Type where
+  ObjectP : (ty : Maybe CardType) -> (zone : Maybe Zone) -> Payload Object
+  PlayerP : Payload Player
+  QualityP : Payload (Quality q)
+
+||| One discourse mention: its determiner, kind, plurality, and its
+||| kind's own data.
 public export
 record Binding where
   constructor MkBinding
   det : Determiner
   kind : Kind
   plur : Plurality
-  ty : Maybe CardType
-  zone : Maybe Zone
+  payload : Payload kind
 
 ||| The one context: a nearest-first list of mentions.
 public export
@@ -337,11 +363,19 @@ Bindings = List Binding
 ||| word — `Nothing`, never a junk value.
 public export
 carrier : Binding -> Maybe Carrier
-carrier (MkBinding _ Player _ _ _) = Just PlayerC
-carrier (MkBinding _ Object _ ty (Just Battlefield)) = Just (maybe AnyPerm Perm ty)
-carrier (MkBinding _ Object _ ty (Just _)) = Just CardC
-carrier (MkBinding _ Object _ ty Nothing) = Just AnyPerm
-carrier (MkBinding _ (Quality _) _ _ _) = Nothing
+carrier (MkBinding _ Player _ PlayerP) = Just PlayerC
+carrier (MkBinding _ Object _ (ObjectP ty (Just Battlefield))) = Just (maybe AnyPerm Perm ty)
+carrier (MkBinding _ Object _ (ObjectP ty (Just _))) = Just CardC
+carrier (MkBinding _ Object _ (ObjectP ty Nothing)) = Just AnyPerm
+carrier (MkBinding _ (Quality _) _ QualityP) = Nothing
+
+||| The zone a binding tracks — object fold-state; players and
+||| qualities have none, structurally.
+public export
+bindingZone : Binding -> Maybe Zone
+bindingZone (MkBinding _ _ _ (ObjectP _ zn)) = zn
+bindingZone (MkBinding _ _ _ PlayerP) = Nothing
+bindingZone (MkBinding _ _ _ QualityP) = Nothing
 
 public export
 sameCT : CardType -> CardType -> Bool
@@ -385,7 +419,7 @@ kindOfC _ = Object
 public export
 countOnes : Kind -> Bindings -> Nat
 countOnes k [] = Z
-countOnes k (MkBinding _ k' OneOf _ _ :: bs) =
+countOnes k (MkBinding _ k' OneOf _ :: bs) =
   if sameKind k k' then S (countOnes k bs) else countOnes k bs
 countOnes k (_ :: bs) = countOnes k bs
 
@@ -405,7 +439,7 @@ countCarrier c (b :: bs) =
 public export
 countQuality : QualitySort -> Bindings -> Nat
 countQuality q [] = Z
-countQuality q (MkBinding _ k OneOf _ _ :: bs) =
+countQuality q (MkBinding _ k OneOf _ :: bs) =
   if sameKind (Quality q) k then S (countQuality q bs) else countQuality q bs
 countQuality q (_ :: bs) = countQuality q bs
 
@@ -414,7 +448,7 @@ countQuality q (_ :: bs) = countQuality q bs
 public export
 countManys : Kind -> Bindings -> Nat
 countManys k [] = Z
-countManys k (MkBinding _ k' ManyOf _ _ :: bs) =
+countManys k (MkBinding _ k' ManyOf _ :: bs) =
   if sameKind k k' then S (countManys k bs) else countManys k bs
 countManys k (_ :: bs) = countManys k bs
 
@@ -434,7 +468,7 @@ countManyCarrier c (b :: bs) =
 public export
 anyTargeted : Kind -> Bindings -> Bool
 anyTargeted k [] = False
-anyTargeted k (MkBinding TargetD k' _ _ _ :: bs) =
+anyTargeted k (MkBinding TargetD k' _ _ :: bs) =
   if sameKind k k' then True else anyTargeted k bs
 anyTargeted k (_ :: bs) = anyTargeted k bs
 
@@ -448,8 +482,8 @@ anyTargeted k (_ :: bs) = anyTargeted k bs
 public export
 settleTargets : Bindings -> Bindings
 settleTargets [] = []
-settleTargets (MkBinding TargetD k plur ty zn :: bs) =
-  MkBinding TheD k plur ty zn :: settleTargets bs
+settleTargets (MkBinding TargetD k plur payload :: bs) =
+  MkBinding TheD k plur payload :: settleTargets bs
 settleTargets (b :: bs) = b :: settleTargets bs
 
 ||| Zone visibility ([CR#400.2] — library and hand are hidden zones).
@@ -460,26 +494,32 @@ publicZone Graveyard = True
 publicZone Exile = True
 publicZone Hand = False
 
+||| Colon-readability of one mention: tracked objects by zone
+||| visibility; players, qualities, and untracked objects pass —
+||| structurally, since only `ObjectP` has a zone at all.
+public export
+pubB : Binding -> Bool
+pubB (MkBinding _ _ _ (ObjectP _ (Just z))) = publicZone z
+pubB (MkBinding _ _ _ (ObjectP _ Nothing)) = True
+pubB (MkBinding _ _ _ PlayerP) = True
+pubB (MkBinding _ _ _ QualityP) = True
+
 ||| The cost boundary's filter: a mention a cost leaves in a hidden
 ||| zone is unreadable past the colon; unmoved mentions (a tapped cost
 ||| creature) and publicly-moved ones survive. [CR#400.7] fires only on
 ||| a zone change and [CR#400.7j] is its public-zone exception, so the
-||| filter keys on the CURRENT zone, not on having moved. Players and
-||| untracked mentions pass.
+||| filter keys on the CURRENT zone, not on having moved.
 public export
 publicOnly : Bindings -> Bindings
 publicOnly [] = []
-publicOnly (b :: bs) =
-  case b.zone of
-    Just z => if publicZone z then b :: publicOnly bs else publicOnly bs
-    Nothing => b :: publicOnly bs
+publicOnly (b :: bs) = if pubB b then b :: publicOnly bs else publicOnly bs
 
 ||| The current zone of the wildcard pronoun's referent — the unique
 ||| singular object mention (uniqueness is `It`'s own gate).
 public export
 zoneOfIt : Bindings -> Maybe Zone
 zoneOfIt [] = Nothing
-zoneOfIt (MkBinding det Object OneOf ty zn :: bs) = zn
+zoneOfIt (MkBinding det Object OneOf (ObjectP ty zn) :: bs) = zn
 zoneOfIt (b :: bs) = zoneOfIt bs
 
 ||| The current zone of a sorted demonstrative's referent.
@@ -488,14 +528,14 @@ zoneOfThat : Carrier -> Bindings -> Maybe Zone
 zoneOfThat c [] = Nothing
 zoneOfThat c (b :: bs) =
   case (b.plur, carrierIs c b) of
-    (OneOf, True) => b.zone
+    (OneOf, True) => bindingZone b
     _ => zoneOfThat c bs
 
 ||| The current zone of the plural wildcard's group referent.
 public export
 zoneOfThem : Bindings -> Maybe Zone
 zoneOfThem [] = Nothing
-zoneOfThem (MkBinding det Object ManyOf ty zn :: bs) = zn
+zoneOfThem (MkBinding det Object ManyOf (ObjectP ty zn) :: bs) = zn
 zoneOfThem (b :: bs) = zoneOfThem bs
 
 ||| The current zone of a sorted plural demonstrative's group referent.
@@ -504,7 +544,7 @@ zoneOfThose : Carrier -> Bindings -> Maybe Zone
 zoneOfThose c [] = Nothing
 zoneOfThose c (b :: bs) =
   case (b.plur, carrierIs c b) of
-    (ManyOf, True) => b.zone
+    (ManyOf, True) => bindingZone b
     _ => zoneOfThose c bs
 
 ||| The zone half of sacrifice's implicit restriction ([CR#701.21a] —
@@ -644,9 +684,9 @@ mutual
   public export
   bindFor : Determiner -> Plurality -> {k : Kind} -> Predicate bs k -> Binding
   bindFor det plur {k = Object} p =
-    MkBinding det Object plur (seedTy p) (Just (zoneOr Battlefield (seedZone p)))
-  bindFor det plur {k = Player} p = MkBinding det Player plur Nothing Nothing
-  bindFor det plur {k = Quality q} p = MkBinding det (Quality q) plur Nothing Nothing
+    MkBinding det Object plur (ObjectP (seedTy p) (Just (zoneOr Battlefield (seedZone p))))
+  bindFor det plur {k = Player} p = MkBinding det Player plur PlayerP
+  bindFor det plur {k = Quality q} p = MkBinding det (Quality q) plur QualityP
 
   ||| A noun in its argument position — the determiner layer of the
   ||| phrase, deciding how (and whether) the referent enters the
@@ -724,8 +764,8 @@ mutual
   nounDelta Them = []
   nounDelta (That c) = []
   nounDelta (Those c) = []
-  nounDelta (ControllerOf n) = MkBinding TheD Player OneOf Nothing Nothing :: nounDelta n
-  nounDelta (OwnerOf n) = MkBinding TheD Player OneOf Nothing Nothing :: nounDelta n
+  nounDelta (ControllerOf n) = MkBinding TheD Player OneOf PlayerP :: nounDelta n
+  nounDelta (OwnerOf n) = MkBinding TheD Player OneOf PlayerP :: nounDelta n
 
   ||| The mentions a predicate's clauses introduce, textual order.
   public export
@@ -876,7 +916,11 @@ mutual
   ||| untracked source pass through.
   public export
   setZone : Zone -> Binding -> Binding
-  setZone z b = { zone := Just z } b
+  setZone z (MkBinding det Object plur (ObjectP ty _)) =
+    MkBinding det Object plur (ObjectP ty (Just z))
+  setZone z (MkBinding det Player plur PlayerP) = MkBinding det Player plur PlayerP
+  setZone z (MkBinding det (Quality q) plur QualityP) =
+    MkBinding det (Quality q) plur QualityP
 
   public export
   setZoneHead : Zone -> Bindings -> Bindings
@@ -886,15 +930,15 @@ mutual
   public export
   setZoneIt : Zone -> Bindings -> Bindings
   setZoneIt z [] = []
-  setZoneIt z (MkBinding det Object OneOf ty zn :: bs) =
-    MkBinding det Object OneOf ty (Just z) :: bs
+  setZoneIt z (MkBinding det Object OneOf (ObjectP ty zn) :: bs) =
+    MkBinding det Object OneOf (ObjectP ty (Just z)) :: bs
   setZoneIt z (b :: bs) = b :: setZoneIt z bs
 
   public export
   setZoneThem : Zone -> Bindings -> Bindings
   setZoneThem z [] = []
-  setZoneThem z (MkBinding det Object ManyOf ty zn :: bs) =
-    MkBinding det Object ManyOf ty (Just z) :: bs
+  setZoneThem z (MkBinding det Object ManyOf (ObjectP ty zn) :: bs) =
+    MkBinding det Object ManyOf (ObjectP ty (Just z)) :: bs
   setZoneThem z (b :: bs) = b :: setZoneThem z bs
 
   public export
@@ -930,7 +974,7 @@ mutual
   moveIntro This z = bs
   -- a moved sorted self-reference mints the new object's binding
   -- ([CR#400.7]; see the constructor comment).
-  moveIntro (ThisOf t) z = MkBinding TheD Object OneOf (Just t) (Just z) :: bs
+  moveIntro (ThisOf t) z = MkBinding TheD Object OneOf (ObjectP (Just t) (Just z)) :: bs
   moveIntro You z = bs
   moveIntro They z = bs
   moveIntro (ControllerOf n) z = nomIntro (ControllerOf n)

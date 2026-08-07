@@ -64,7 +64,11 @@ referents — an event-producing clause introduces a referent for what it
 did, whose sort projects from the clause's surface while its value stays
 runtime; "that much" / "that many" read its quantity and "this way" reads
 its participant set (the workbench's finding 24 holds the evidence). The
-value itself is never stored. Never rules classifications: timing
+value itself is never stored. The record is kind-indexed: a binding can
+record only the data its kind can have (an object's head type and zone;
+a player or quality has neither), so an ill-sorted binding — "a player
+in your hand" — is unrepresentable rather than merely unused. Never
+rules classifications: timing
 (announce vs. resolution), staleness, and agreement are always functions
 of the stored surface facts.
 The same derive-don't-store rule applies across layers — inflection derives

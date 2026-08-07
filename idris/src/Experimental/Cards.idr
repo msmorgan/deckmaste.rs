@@ -346,3 +346,11 @@ failing "countCarrier"
   badInnerAmbig = AndThen (Fights (Target (And [creature, ControlledBy anOpponent]))
                                   (Target (And [creature, ControlledBy anOpponent])))
                           (losesLife (That PlayerC) (Lit 1))
+
+-- The representation-level witness of the §3 kind-indexing rule: a
+-- binding cannot record data its kind cannot have — "a player in your
+-- hand" fails to CONSTRUCT (`Payload Player` has no zone slot), the
+-- same refusal the surface grammar makes at `InZone`'s kind.
+failing "Payload Player"
+  badPlayerInHand : Binding
+  badPlayerInHand = MkBinding AD Player OneOf (ObjectP Nothing (Just Hand))
