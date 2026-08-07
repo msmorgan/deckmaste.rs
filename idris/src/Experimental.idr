@@ -303,6 +303,33 @@
 |||    clauses ([CR#701.21a,701.9a]), keeping effect-verbs
 |||    subjectless as finding 9 ruled (`badSubjectedDestroy`).
 |||
+||| Chapter ten, event outcomes (evidence: Foul-Tongue Shriek; the
+||| recon corpus — "that much" antecedents are damage, life, and mana
+||| PRODUCED, never mana spent; "that many" consumers are counters,
+||| draws, and tokens; "this way" is the largest family of all):
+|||
+||| 32. **Event outcomes are the third binding class, realized.** An
+|||    event clause prepends an outcome mention — kind `Outcome`,
+|||    payload its surface-projected SORT alone (damage dealt, life
+|||    gained/lost); the magnitude stays runtime (§3's ruling).
+|||    `ThatMuch` reads the unique outcome in scope as an amount,
+|||    SORT-BLIND — the corpus crosses damage→life, count→life,
+|||    damage→mana — under the same strict uniqueness as every read
+|||    (`badThatMuchUnbound`, `badThatMuchAmbig`). Only clauses
+|||    introduce outcomes: no determiner phrase binds one (`Phrasal`
+|||    keeps `bindFor` total), and every existing read's kind filter
+|||    excludes them for free — the payload architecture absorbing a
+|||    fourth kind without touching object data.
+||| 33. **Countability belongs to the read site.** "That much" vs
+|||    "that many" is the reading phrase's choice, not stored data —
+|||    both consume the same event class; the count reads and the
+|||    "this way" participant subsets wait on their consumer
+|||    vocabulary. Overgeneration accepted: an outcome follows a
+|||    literal-amount event too, though oracle style repeats the
+|||    literal instead of writing "that much" — linearization's
+|||    business, like extraposition; and Fights/Move events stay
+|||    outcome-silent until a read wants them.
+|||
 ||| Not settled yet: the kind union ("any target" spans objects and
 ||| players [CR#115.4,115.1] — elided to `Object`);
 ||| owned-zone mentions beyond `You` ("its owner's hand" — destination
@@ -335,11 +362,13 @@
 ||| (corpus-attested only inside trigger and unless clauses — Havoc,
 ||| Tergrid's Lantern — so `They`'s positive waits on those
 ||| constructions), player groups ("each opponent … they"
-||| distributives), and "the rest"; event-outcome referents ("that
-||| much" / "that many" / "this way" — RULED a third context data
-||| class, sort-projected with runtime values, per the decision
-||| record §3; finding 24 holds the evidence, machinery is a coming
-||| chapter); "any number of" / "X" target groups
+||| distributives), and "the rest"; event-outcome residues (chapter
+||| ten built the scalar "that much" read; "that many" count reads
+||| wait on their consumers — draw, tokens, counters are the
+||| corpus's big three — "this way" participant-subset participles
+||| are the `TheVerbed` cousin and the largest family, and more
+||| sorts wait with them: mana produced, Sakiko; card counts,
+||| Asmodeus); "any number of" / "X" target groups
 ||| (corpus-frequent; constructors wait on verified whole cards); an
 ||| up-to-N group as an "other" witness ([CR#115.6] — it may denote
 ||| zero; no corpus line pairs them yet);
@@ -387,9 +416,11 @@ sameQ CreatureType _ = False
 ||| What a binding can bind ([CR#115.1] — targets are objects and/or
 ||| players; the union kind is deferred with the carrier lattice) —
 ||| plus chosen qualities ("Choose a color"), which enter the same
-||| discourse.
+||| discourse, and event OUTCOMES (§3's third data class: what a
+||| clause DID, readable as "that much"), which only clauses
+||| introduce.
 public export
-data Kind = Object | Player | Quality QualitySort
+data Kind = Object | Player | Quality QualitySort | Outcome
 
 ||| Kind equality — deliberately WITHOUT a catch-all: adding a Kind
 ||| makes this a totality error, not a silent zero in the counters.
@@ -398,12 +429,26 @@ sameKind : Kind -> Kind -> Bool
 sameKind Object Object = True
 sameKind Object Player = False
 sameKind Object (Quality _) = False
+sameKind Object Outcome = False
 sameKind Player Object = False
 sameKind Player Player = True
 sameKind Player (Quality _) = False
+sameKind Player Outcome = False
 sameKind (Quality _) Object = False
 sameKind (Quality _) Player = False
 sameKind (Quality a) (Quality b) = sameQ a b
+sameKind (Quality _) Outcome = False
+sameKind Outcome Object = False
+sameKind Outcome Player = False
+sameKind Outcome (Quality _) = False
+sameKind Outcome Outcome = True
+
+||| The surface-projected SORT of an event outcome — what kind of
+||| thing the clause did; its magnitude stays runtime, never stored
+||| (the §3 ruling). Only what this chapter's reads need; mana
+||| produced, counters, and card counts are later sorts.
+public export
+data OutcomeSort = DamageDealt | LifeGained | LifeLost
 
 ||| Singular mention or group mention — the guard that keeps "it" from
 ||| resolving to a plural antecedent.
@@ -484,6 +529,7 @@ data Payload : Kind -> Type where
             (prov : Maybe Stamp) -> Payload Object
   PlayerP : Payload Player
   QualityP : Payload (Quality q)
+  OutcomeP : (sort : OutcomeSort) -> Payload Outcome
 
 ||| One discourse mention: its determiner, kind, plurality, and its
 ||| kind's own data.
@@ -507,6 +553,7 @@ bindingZone : Binding -> Maybe Zone
 bindingZone (MkBinding _ _ _ (ObjectP _ zn _)) = zn
 bindingZone (MkBinding _ _ _ PlayerP) = Nothing
 bindingZone (MkBinding _ _ _ QualityP) = Nothing
+bindingZone (MkBinding _ _ _ (OutcomeP _)) = Nothing
 
 ||| The projected head type a binding carries, if its kind can.
 public export
@@ -514,6 +561,13 @@ bindingTy : Binding -> Maybe CardType
 bindingTy (MkBinding _ _ _ (ObjectP ty _ _)) = ty
 bindingTy (MkBinding _ _ _ PlayerP) = Nothing
 bindingTy (MkBinding _ _ _ QualityP) = Nothing
+bindingTy (MkBinding _ _ _ (OutcomeP _)) = Nothing
+
+||| The mention an event clause prepends for what it did — sort from
+||| the clause's surface, value runtime.
+public export
+outcomeB : OutcomeSort -> Binding
+outcomeB s = MkBinding TheD Outcome OneOf (OutcomeP s)
 
 ||| Per-row catch-alls (here and in `sameQ`/`sameVerb`): a new
 ||| constructor is a totality error on its missing row, never a
@@ -600,6 +654,7 @@ pubB (MkBinding _ _ _ (ObjectP _ (Just z) _)) = publicZone z
 pubB (MkBinding _ _ _ (ObjectP _ Nothing _)) = True
 pubB (MkBinding _ _ _ PlayerP) = True
 pubB (MkBinding _ _ _ QualityP) = True
+pubB (MkBinding _ _ _ (OutcomeP _)) = True  -- what happened is a public fact
 
 ||| The cost boundary's filter: a mention a cost leaves in a hidden
 ||| zone is unreadable past the colon; unmoved mentions (a tapped cost
@@ -680,12 +735,15 @@ wordNow : NounWord -> Binding -> Bool
 wordNow (TypeW t) (MkBinding _ _ _ (ObjectP ty zn _)) = onFieldZone zn && tyIs t ty
 wordNow (TypeW t) (MkBinding _ _ _ PlayerP) = False
 wordNow (TypeW t) (MkBinding _ _ _ QualityP) = False
+wordNow (TypeW t) (MkBinding _ _ _ (OutcomeP _)) = False
 wordNow CardW (MkBinding _ _ _ (ObjectP _ zn _)) = isCardZone zn
 wordNow CardW (MkBinding _ _ _ PlayerP) = False
 wordNow CardW (MkBinding _ _ _ QualityP) = False
+wordNow CardW (MkBinding _ _ _ (OutcomeP _)) = False
 wordNow PlayerW (MkBinding _ _ _ (ObjectP _ _ _)) = False
 wordNow PlayerW (MkBinding _ _ _ PlayerP) = True
 wordNow PlayerW (MkBinding _ _ _ QualityP) = False
+wordNow PlayerW (MkBinding _ _ _ (OutcomeP _)) = False
 
 public export
 kindOfW : NounWord -> Kind
@@ -714,6 +772,7 @@ verbedMatch v w (MkBinding _ _ OneOf (ObjectP _ _ Nothing)) = False
 verbedMatch v w (MkBinding _ _ ManyOf (ObjectP _ _ _)) = False
 verbedMatch v w (MkBinding _ _ _ PlayerP) = False
 verbedMatch v w (MkBinding _ _ _ QualityP) = False
+verbedMatch v w (MkBinding _ _ _ (OutcomeP _)) = False
 
 ||| Mentions the definite participle read reaches — its obligation is
 ||| `= 1`, the same strict uniqueness as every other read.
@@ -843,6 +902,20 @@ data DamageRecipient : Kind -> Maybe Zone -> Type where
   PlayerTakes : DamageRecipient Player z
   ObjectTakes : {auto 0 field : OnBattlefield z} -> DamageRecipient Object z
 
+||| The kinds a noun PHRASE can describe — objects, players, chosen
+||| qualities. Outcomes are clause-introduced only: no determiner
+||| phrase binds one, which is what keeps `bindFor` total.
+public export
+data Phrasal : Kind -> Type where
+  PhObject : Phrasal Object
+  PhPlayer : Phrasal Player
+  PhQuality : Phrasal (Quality q)
+
+public export
+targetablePhrasal : Targetable k -> Phrasal k
+targetablePhrasal ObjectTgt = PhObject
+targetablePhrasal PlayerTgt = PhPlayer
+
 -- ===== Abilities (the granted-ability vocabulary, minimally) =====
 
 ||| Keyword abilities, as macro NAMES mirroring
@@ -911,6 +984,9 @@ mutual
     -- waits with the definite reads.
     OfChosen : (q : QualitySort) -> {auto 0 ok : countQuality q bs = 1} -> Predicate bs Object
     ControlledBy : Noun bs Player -> Predicate bs Object -- zero relative "[player] controls"
+    -- the attacking-designation modifier ([CR#508.1a]) — a
+    -- battlefield state word, not a type.
+    Attacking : Predicate bs Object
     InZone : ZoneExpr bs -> Predicate bs Object          -- zone clause "in/from [zone]" ([CR#109.2a])
     And : List (Predicate bs k) -> Predicate bs k        -- sibling modifiers, one referent
     Not : Predicate bs k -> Predicate bs k               -- "don't"/"non-" on a modifier
@@ -958,13 +1034,14 @@ mutual
   zoneOr z (Just w) = w
 
   ||| Build the binding a determined mention introduces: projections of
-  ||| the phrase only.
+  ||| the phrase only. Total over the PHRASAL kinds — outcomes have no
+  ||| determiner phrase, which the `Phrasal` witness enforces.
   public export
-  bindFor : Determiner -> Plurality -> {k : Kind} -> Predicate bs k -> Binding
-  bindFor det plur {k = Object} p =
+  bindFor : Determiner -> Plurality -> {k : Kind} -> Phrasal k -> Predicate bs k -> Binding
+  bindFor det plur PhObject p =
     MkBinding det Object plur (ObjectP (seedTy p) (Just (zoneOr Battlefield (seedZone p))) Nothing)
-  bindFor det plur {k = Player} p = MkBinding det Player plur PlayerP
-  bindFor det plur {k = Quality q} p = MkBinding det (Quality q) plur QualityP
+  bindFor det plur PhPlayer p = MkBinding det Player plur PlayerP
+  bindFor det plur {k = Quality q} PhQuality p = MkBinding det (Quality q) plur QualityP
 
   ||| A noun in its argument position — the determiner layer of the
   ||| phrase, deciding how (and whether) the referent enters the
@@ -982,9 +1059,9 @@ mutual
     You : Noun bs Player        -- "you" [CR#109.5]
     -- "target …" / "any target": announced [CR#601.2c]; only objects
     -- and players are targetable ([CR#115.1] — `badTargetColor`).
-    Target : Predicate bs k -> {auto 0 tk : Targetable k} -> Noun bs k
-    Each : Predicate bs k -> Noun bs k    -- "each …": a group, resolution-time [CR#608.2]
-    A : Predicate bs k -> Noun bs k       -- "a …": indefinite choice/product [CR#608.2d,400.7]
+    Target : Predicate bs k -> {auto tk : Targetable k} -> Noun bs k
+    Each : Predicate bs k -> {auto ph : Phrasal k} -> Noun bs k    -- "each …": a group, resolution-time [CR#608.2]
+    A : Predicate bs k -> {auto ph : Phrasal k} -> Noun bs k       -- "a …": indefinite choice/product [CR#608.2d,400.7]
     -- "a … of their choice" / "a … at random": the indefinite with its
     -- choice method marked in the text — chooser and method are surface
     -- facts (the guide's chooser marking; a random discard has no
@@ -992,21 +1069,22 @@ mutual
     -- slot and its absence in the at-random variant. "Their" is a
     -- possessive pronoun: it demands exactly one player antecedent —
     -- a subject or one distributive group (`badUnboundTheirChoice`).
-    ATheirChoice : Predicate bs k -> {auto 0 ch : countChoosers bs = 1} -> Noun bs k
-    AAtRandom : Predicate bs k -> Noun bs k
+    ATheirChoice : Predicate bs k -> {auto ph : Phrasal k} ->
+                   {auto 0 ch : countChoosers bs = 1} -> Noun bs k
+    AAtRandom : Predicate bs k -> {auto ph : Phrasal k} -> Noun bs k
     -- "[n] target [pred]s" / "up to [n] target [pred]s": counted group
     -- mentions — one binding; the numeral is surface data no read
     -- consults ([CR#601.2c] distinctness is announce business), except
     -- that "up to one" binds singular (`upToPlur` — its remention is
     -- "it") and a written numeral is at least one (`badZeroGroup`).
     TargetGroup : (n : Nat) -> Predicate bs k ->
-                  {auto 0 tk : Targetable k} -> {auto 0 nz : AtLeastOne n} -> Noun bs k
+                  {auto tk : Targetable k} -> {auto 0 nz : AtLeastOne n} -> Noun bs k
     TargetUpTo : (n : Nat) -> Predicate bs k ->
-                 {auto 0 tk : Targetable k} -> {auto 0 nz : AtLeastOne n} -> Noun bs k
+                 {auto tk : Targetable k} -> {auto 0 nz : AtLeastOne n} -> Noun bs k
     -- "all [pred]s": the set-level group — a surface determiner the
     -- guide keeps distinct from distributive "each" (the CR fixes both
     -- sets at resolution and separates them no further).
-    AllOf : Predicate bs k -> Noun bs k
+    AllOf : Predicate bs k -> {auto ph : Phrasal k} -> Noun bs k
     -- "it" / "its": the wildcard pronoun — exactly one singular Object
     -- mention may precede. Zero = unbound, two = ambiguous; both
     -- unspellable.
@@ -1059,14 +1137,14 @@ mutual
   nounDelta This = []
   nounDelta (ThisOf t) = []
   nounDelta You = []
-  nounDelta (Target p) = bindFor TargetD OneOf p :: predDelta p
-  nounDelta (Each p) = bindFor EachD ManyOf p :: predDelta p
-  nounDelta (A p) = bindFor AD OneOf p :: predDelta p
-  nounDelta (ATheirChoice p) = bindFor AD OneOf p :: predDelta p
-  nounDelta (AAtRandom p) = bindFor AD OneOf p :: predDelta p
-  nounDelta (TargetGroup n p) = bindFor TargetD ManyOf p :: predDelta p
-  nounDelta (TargetUpTo n p) = bindFor TargetUpToD (upToPlur n) p :: predDelta p
-  nounDelta (AllOf p) = bindFor AllD ManyOf p :: predDelta p
+  nounDelta (Target p {tk}) = bindFor TargetD OneOf (targetablePhrasal tk) p :: predDelta p
+  nounDelta (Each p {ph}) = bindFor EachD ManyOf ph p :: predDelta p
+  nounDelta (A p {ph}) = bindFor AD OneOf ph p :: predDelta p
+  nounDelta (ATheirChoice p {ph}) = bindFor AD OneOf ph p :: predDelta p
+  nounDelta (AAtRandom p {ph}) = bindFor AD OneOf ph p :: predDelta p
+  nounDelta (TargetGroup n p {tk}) = bindFor TargetD ManyOf (targetablePhrasal tk) p :: predDelta p
+  nounDelta (TargetUpTo n p {tk}) = bindFor TargetUpToD (upToPlur n) (targetablePhrasal tk) p :: predDelta p
+  nounDelta (AllOf p {ph}) = bindFor AllD ManyOf ph p :: predDelta p
   nounDelta It = []
   nounDelta They = []
   nounDelta Them = []
@@ -1114,6 +1192,15 @@ mutual
     PowerOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Amount bs
     ToughnessOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Amount bs
     ManaValueOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Amount bs
+    -- "[per] [unit] for each [pred]" — the counted-set amount
+    -- ("loses 1 life for each attacking creature you control");
+    -- mentions inside the predicate fold as everywhere.
+    ForEach : {k : Kind} -> (per : Nat) -> Predicate bs k -> Amount bs
+    -- "that much": reads the unique event outcome in scope — the
+    -- magnitude of what an earlier clause DID. Sort-blind (the
+    -- corpus reads cross damage→life, count→life, damage→mana);
+    -- the value is runtime, never stored (the §3 ruling).
+    ThatMuch : {auto 0 ok : countOnes Outcome bs = 1} -> Amount bs
     -- "X" — announced with the cost ([CR#107.3a,107.3i]): a fixed
     -- value by resolution, not a discourse referent.
     XVal : Amount bs
@@ -1126,6 +1213,8 @@ mutual
   amtIntro (PowerOf nom) = nomIntro nom
   amtIntro (ToughnessOf nom) = nomIntro nom
   amtIntro (ManaValueOf nom) = nomIntro nom
+  amtIntro (ForEach per p) = predDelta p ++ bs
+  amtIntro ThatMuch = bs
   amtIntro XVal = bs
   amtIntro (Plus a b) = amtIntro b
 
@@ -1297,6 +1386,8 @@ mutual
   setZone p z (MkBinding det Player plur PlayerP) = MkBinding det Player plur PlayerP
   setZone p z (MkBinding det (Quality q) plur QualityP) =
     MkBinding det (Quality q) plur QualityP
+  setZone p z (MkBinding det Outcome plur (OutcomeP s)) =
+    MkBinding det Outcome plur (OutcomeP s)
 
   public export
   setZoneHead : Maybe VerbName -> Zone -> Bindings -> Bindings
@@ -1341,14 +1432,14 @@ mutual
 
   public export
   moveIntro : {bs : Bindings} -> {k : Kind} -> Maybe VerbName -> Noun bs k -> Zone -> Bindings
-  moveIntro p (Target pr) z = setZoneHead p z (nomIntro (Target pr))
-  moveIntro p (Each pr) z = setZoneHead p z (nomIntro (Each pr))
-  moveIntro p (A pr) z = setZoneHead p z (nomIntro (A pr))
-  moveIntro p (ATheirChoice pr) z = setZoneHead p z (nomIntro (ATheirChoice pr))
-  moveIntro p (AAtRandom pr) z = setZoneHead p z (nomIntro (AAtRandom pr))
-  moveIntro p (TargetGroup n pr) z = setZoneHead p z (nomIntro (TargetGroup n pr))
-  moveIntro p (TargetUpTo n pr) z = setZoneHead p z (nomIntro (TargetUpTo n pr))
-  moveIntro p (AllOf pr) z = setZoneHead p z (nomIntro (AllOf pr))
+  moveIntro p nn@(Target pr) z = setZoneHead p z (nomIntro nn)
+  moveIntro p nn@(Each pr) z = setZoneHead p z (nomIntro nn)
+  moveIntro p nn@(A pr) z = setZoneHead p z (nomIntro nn)
+  moveIntro p nn@(ATheirChoice pr) z = setZoneHead p z (nomIntro nn)
+  moveIntro p nn@(AAtRandom pr) z = setZoneHead p z (nomIntro nn)
+  moveIntro p nn@(TargetGroup n pr) z = setZoneHead p z (nomIntro nn)
+  moveIntro p nn@(TargetUpTo n pr) z = setZoneHead p z (nomIntro nn)
+  moveIntro p nn@(AllOf pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p It z = setZoneIt p z bs
   moveIntro p Them z = setZoneThem p z bs
   moveIntro p (That w) z = setZoneThat p w z bs
@@ -1445,12 +1536,13 @@ mutual
   ||| What a clause contributes to the discourse that follows it.
   public export
   effIntro : {bs : Bindings} -> Effect bs -> Bindings
-  effIntro (DealDamage src amt to) = nomIntro to
+  effIntro (DealDamage src amt to) = outcomeB DamageDealt :: nomIntro to
   effIntro (Fights a b) = nomIntro b
   effIntro (Tap n) = nomIntro n
   effIntro (Choose n) = nomIntro n
   effIntro (Move what to) = moveIntro Nothing what (zoneSort to)
-  effIntro (ChangeLife who op) = lifeIntro op
+  effIntro (ChangeLife who (Up a)) = outcomeB LifeGained :: lifeIntro (Up a)
+  effIntro (ChangeLife who (Down a)) = outcomeB LifeLost :: lifeIntro (Down a)
   effIntro (Gain n _ _) = nomIntro n
   effIntro (Gets n _ _ _) = nomIntro n
   effIntro (Composite v (Move what to)) = moveIntro (Just v) what (zoneSort to)

@@ -278,6 +278,17 @@ pyromancy = MkActivated (discards You (AAtRandom (InZone HandZ)))
                                     (ManaValueOf (TheVerbed Discard CardW))
                                     (Target AnyTarget))
 
+-- "Target opponent loses 1 life for each attacking creature you
+-- control. You gain that much life." (Foul-Tongue Shriek) — the
+-- event-outcome read: the loss clause introduces its outcome (sort
+-- LifeLost, projected from the surface; magnitude runtime), and
+-- "that much" reads the unique outcome in scope, sort-blind. The
+-- attacking modifier is a battlefield state word ([CR#508.1a]).
+foulTongueShriek : Effect []
+foulTongueShriek = AndThen (losesLife (Target Opponent)
+                                      (ForEach 1 (And [Attacking, creature, ControlledBy You])))
+                           (gainsLife You ThatMuch)
+
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
 -- "other" with no target before it: the presupposition has no witness.
@@ -556,3 +567,16 @@ failing "countOnes Player"
 failing "Agentive"
   badSubjectedDestroy : Effect []
   badSubjectedDestroy = Does You (destroy (Target creature))
+
+-- "That much" with nothing done yet: no outcome to read.
+failing "countOnes Outcome"
+  badThatMuchUnbound : Effect []
+  badThatMuchUnbound = DealDamage This ThatMuch (Target AnyTarget)
+
+-- Two event clauses leave "that much" ambiguous — outcomes obey the
+-- same strict uniqueness as every read.
+failing "countOnes Outcome"
+  badThatMuchAmbig : Effect []
+  badThatMuchAmbig = AndThen (DealDamage This (Lit 3) (Target AnyTarget))
+                             (AndThen (losesLife You (Lit 2))
+                                      (gainsLife You ThatMuch))

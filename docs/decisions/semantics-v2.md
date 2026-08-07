@@ -61,12 +61,13 @@ A binding may record two kinds of data: projections of the mention phrase
 fold-state accumulated by threading the effects (the referent's current
 zone/carrier, and the keyword-action tag it last moved under plus
 whether it stood on the battlefield at that move — the provenance a
-definite participle read filters by). A third class is decided but not yet built: event-outcome
+definite participle read filters by). A third class is built: event-outcome
 referents — an event-producing clause introduces a referent for what it
 did, whose sort projects from the clause's surface while its value stays
-runtime; "that much" / "that many" read its quantity and "this way" reads
-its participant set (the workbench's finding 24 holds the evidence). The
-value itself is never stored. The record is kind-indexed: a binding can
+runtime; "that much" reads its quantity sort-blind (the workbench's
+findings 32–33), and the "that many" / "this way" reads follow with
+their consumer vocabulary. The value itself is never stored, and
+countability is the read site's, not the record's. The record is kind-indexed: a binding can
 record only the data its kind can have (an object's head type and zone;
 a player or quality has neither), so an ill-sorted binding — "a player
 in your hand" — is unrepresentable rather than merely unused. Never
