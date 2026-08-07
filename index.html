@@ -3,224 +3,383 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>deckmaste.rs</title>
-<meta name="description" content="deckmaste.rs generates playable Magic cards directly from Oracle text: parsing compiles rules text into a typed intermediate form that one shared Rust engine executes.">
+<title>deckmaste.rs — Executable MTG Rules Engine in Rust</title>
+<meta name="description" content="deckmaste.rs parses Magic: The Gathering Oracle text into a canonical typed intermediate form executed by a shared Rust rules engine.">
+
+<!-- Open Graph -->
+<meta property="og:title" content="deckmaste.rs — Executable MTG Rules Engine in Rust">
+<meta property="og:description" content="Parses MTG Oracle text into a canonical typed intermediate form executed by one shared Rust engine.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://deckmaste.rs">
+<meta property="og:image" content="assets/tui-demo.webp">
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
 <style>
   :root {
-    --bg: #101014;
-    --fg: #c9c7c1;
-    --bright: #eceae4;
-    --dim: #75736c;
-    --border: #34343c;
-    --green: #8ec07c;
-    --w: #d5cba4; --u: #6d9dc5; --b: #8b7f9e; --r: #c96a5a; --g: #74a06a;
+    --bg: #0c0d10;
+    --panel-bg: #14151a;
+    --border: #242630;
+    --border-hover: #3a3d4d;
+
+    --fg: #e2e4e9;
+    --fg-muted: #9499a8;
+    --fg-dim: #626775;
+    
+    --accent: #f97316;
+    --link: #60a5fa;
+
+    /* Mana Colors */
+    --w-mana: #fef08a;
+    --u-mana: #38bdf8;
+    --b-mana: #c084fc;
+    --r-mana: #f87171;
+    --g-mana: #34d399;
+
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
   }
+
   * { box-sizing: border-box; }
-  html { background: var(--bg); }
-  body {
-    margin: 0 auto;
-    max-width: 82ch;
-    padding: 2.5rem 2ch 4rem;
+
+  html {
+    background-color: var(--bg);
     color: var(--fg);
-    font: 15px/1.6 ui-monospace, "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
   }
-  ::selection { background: var(--green); color: var(--bg); }
-  a { color: var(--green); }
-  a:hover { background: var(--green); color: var(--bg); text-decoration: none; }
+
+  body {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 5rem;
+  }
+
+  ::selection {
+    background: rgba(249, 115, 22, 0.3);
+    color: #ffffff;
+  }
+
+  a {
+    color: var(--link);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  a:hover {
+    color: #93c5fd;
+    text-decoration: underline;
+  }
+
+  /* Header */
+  header {
+    margin-bottom: 2.5rem;
+  }
+
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+  }
+
   h1 {
+    font-family: var(--font-mono);
     font-size: 1.6rem;
     font-weight: 700;
-    color: var(--bright);
+    color: #ffffff;
     margin: 0;
-    letter-spacing: 0.02em;
+    letter-spacing: -0.02em;
   }
-  .mana { letter-spacing: -0.05em; user-select: none; }
-  .mana .w { color: var(--w); } .mana .u { color: var(--u); }
-  .mana .b { color: var(--b); } .mana .r { color: var(--r); }
-  .mana .g { color: var(--g); }
-  .maxim { color: var(--dim); margin: 0.25rem 0 1.5rem; }
-  .nav { margin: 1.5rem 0 2rem; }
-  .nav a { text-decoration: none; margin-right: 2ch; }
-  .nav a::before { content: "["; color: var(--dim); }
-  .nav a::after  { content: "]"; color: var(--dim); }
-  .nav a:hover::before, .nav a:hover::after { color: var(--bg); }
+
+  h1 .accent-dot {
+    color: var(--accent);
+  }
+
+  /* Mana Circles */
+  .mana-pills {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .mana-pip {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: inline-block;
+    opacity: 0.9;
+  }
+
+  .mana-pip.w { background-color: var(--w-mana); }
+  .mana-pip.u { background-color: var(--u-mana); }
+  .mana-pip.b { background-color: var(--b-mana); }
+  .mana-pip.r { background-color: var(--r-mana); }
+  .mana-pip.g { background-color: var(--g-mana); }
+
+  .nav {
+    display: flex;
+    gap: 1.25rem;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+  }
+
+  .nav a {
+    color: var(--fg-muted);
+  }
+
+  .nav a:hover {
+    color: #ffffff;
+    text-decoration: none;
+  }
+
+  .maxim {
+    font-family: var(--font-mono);
+    color: var(--fg-muted);
+    font-size: 0.95rem;
+    margin: 0.5rem 0 1.5rem;
+  }
+
+  .intro-text {
+    font-size: 1.05rem;
+    color: var(--fg);
+    margin: 1rem 0;
+  }
+
+  .intro-subtext {
+    color: var(--fg-muted);
+    font-size: 0.975rem;
+    margin: 1rem 0 2rem;
+  }
+
+  /* Panels */
   .panel {
+    background: var(--panel-bg);
     border: 1px solid var(--border);
-    padding: 1.1rem 2ch 0.9rem;
-    margin: 1.9rem 0;
-    position: relative;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1.75rem 0;
+    transition: border-color 0.15s ease;
   }
-  .panel > h2 {
-    position: absolute;
-    top: -0.72em;
-    left: 2ch;
+
+  .panel:hover {
+    border-color: var(--border-hover);
+  }
+
+  .panel h2 {
+    font-family: var(--font-mono);
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin: 0 0 1rem;
+    letter-spacing: -0.01em;
+  }
+
+  p {
+    margin: 0.85rem 0;
+  }
+
+  /* Media / Figure */
+  figure {
     margin: 0;
-    padding: 0 1ch;
-    background: var(--bg);
-    color: var(--bright);
-    font-size: 1em;
-    font-weight: 700;
   }
-  .panel > :nth-child(2) { margin-top: 0; }
-  .panel > :last-child { margin-bottom: 0.25rem; }
-  p { margin: 0.9rem 0; }
+
   img {
     max-width: 100%;
+    height: auto;
     display: block;
+    border-radius: 6px;
+    border: 1px solid var(--border);
   }
-  figure { margin: 0; }
-  figcaption { color: var(--dim); margin-top: 0.5rem; }
+
+  figcaption {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--fg-muted);
+    margin-top: 0.75rem;
+  }
+
+  figcaption code {
+    color: var(--accent);
+    font-family: var(--font-mono);
+  }
+
+  /* Diagrams & Pre blocks */
   pre {
+    background: #08080a;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--fg);
     overflow-x: auto;
     margin: 1rem 0;
-    line-height: 1.45;
   }
-  .prompt { color: var(--dim); user-select: none; }
-  .center pre { text-align: center; }
-  ul { list-style: none; margin: 0.9rem 0; padding: 0; }
-  li { padding-left: 2ch; text-indent: -2ch; margin: 0.35rem 0; }
-  li::before { content: "- "; color: var(--dim); }
-  li b { color: var(--bright); font-weight: 700; }
-  .dim { color: var(--dim); }
+
+  .diagram-wrapper pre {
+    text-align: center;
+  }
+
+  .prompt {
+    color: var(--fg-dim);
+    user-select: none;
+  }
+
+  /* Lists */
+  ul {
+    margin: 0.85rem 0;
+    padding-left: 1.25rem;
+    color: var(--fg-muted);
+  }
+
+  li {
+    margin: 0.4rem 0;
+  }
+
+  li b {
+    color: var(--fg);
+  }
+
+  /* Footer */
   footer {
-    margin-top: 2.5rem;
-    color: var(--dim);
-    font-size: 0.9em;
+    margin-top: 3.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--fg-dim);
+    font-size: 0.85rem;
+    line-height: 1.6;
   }
-  footer::before {
-    content: "────────────────────────────────────────";
-    display: block;
-    color: var(--border);
-    overflow: hidden;
-    white-space: nowrap;
-    margin-bottom: 0.75rem;
+
+  footer a {
+    color: var(--fg-muted);
   }
 </style>
 </head>
 <body>
+
   <header>
-    <h1>deckmaste.rs <span class="mana"><span class="w">██</span><span class="u">██</span><span class="b">██</span><span class="r">██</span><span class="g">██</span></span></h1>
-    <p class="maxim"># Reading the card explains the card.</p>
-    <p>
-      deckmaste.rs tests the long-standing intuition that Oracle text can
-      serve as an executable source language for Magic: it builds the whole
-      path — parser, typed intermediate form, rules engine — and measures,
-      card by card, where recovery holds and where it fails.
+    <div class="header-top">
+      <div class="brand">
+        <h1>deckmaste<span class="accent-dot">.rs</span></h1>
+        <div class="mana-pills" title="Magic: The Gathering WUBRG Colors">
+          <span class="mana-pip w"></span>
+          <span class="mana-pip u"></span>
+          <span class="mana-pip b"></span>
+          <span class="mana-pip r"></span>
+          <span class="mana-pip g"></span>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="https://github.com/msmorgan/deckmaste.rs" target="_blank" rel="noopener">github</a>
+        <a href="https://github.com/msmorgan/deckmaste.rs/blob/main/docs/guided_tour.md" target="_blank" rel="noopener">guided tour</a>
+        <a href="https://github.com/msmorgan/deckmaste.rs#readme" target="_blank" rel="noopener">readme</a>
+      </nav>
+    </div>
+
+    <div class="maxim"># Reading the card explains the card.</div>
+
+    <p class="intro-text">
+      <strong>deckmaste.rs</strong> tests the long-standing intuition that Oracle text can serve as an executable source language for Magic: it builds the whole path — parser, typed intermediate form, rules engine — and measures, card by card, where recovery holds and where it fails.
     </p>
-    <p>
-      A rules engine should scale with the number of distinct semantic
-      constructions in Magic, not the number of cards. Every construction is
-      implemented once, as shared rules machinery; a card is a composition of
-      constructions, never its own code. Oracle templating enforces that
-      economy in the text; the engine mirrors it in code.
+    <p class="intro-subtext">
+      A rules engine should scale with the number of distinct semantic constructions in Magic, not the number of cards. Every construction is implemented once, as shared rules machinery; a card is a composition of constructions, never its own code. Oracle templating enforces that economy in the text; the engine mirrors it in code.
     </p>
-    <nav class="nav">
-      <a href="https://github.com/msmorgan/deckmaste.rs">github</a>
-      <a href="https://github.com/msmorgan/deckmaste.rs/blob/main/docs/guided_tour.md">guided tour</a>
-      <a href="https://github.com/msmorgan/deckmaste.rs#readme">readme</a>
-    </nav>
   </header>
 
-  <section class="panel">
-    <h2>demo</h2>
-    <figure>
-      <img src="assets/tui-demo.webp"
-           alt="The interactive terminal client mid-game: the hotseat demo's board across every zone, priority and blocker prompts, and card detail text rendered from the cards' definitions.">
-      <figcaption>cargo run — the interactive client playing the hotseat
-      demo, Goblins vs. Elves.</figcaption>
-    </figure>
-  </section>
+  <main>
+    <section class="panel">
+      <h2>demo</h2>
+      <figure>
+        <img src="assets/tui-demo.webp"
+             alt="The interactive terminal client mid-game: the hotseat demo's board across every zone, priority and blocker prompts, and card detail text rendered from the cards' definitions.">
+        <figcaption><code>cargo run</code> — the interactive client playing the hotseat demo, Goblins vs. Elves.</figcaption>
+      </figure>
+    </section>
 
-  <section class="panel">
-    <h2>one grammar, two projections</h2>
-    <p>
-      Oracle text is the authoritative source input. Parsing produces an
-      English syntax tree; recovery compiles it into a canonical typed
-      intermediate form — the single information-complete representation from
-      which spelling renders English back and lowering compiles the AST the
-      engine executes.
-    </p>
-    <div class="center"><pre>Oracle text
+    <section class="panel">
+      <h2>one grammar, two projections</h2>
+      <p style="color: var(--fg-muted);">
+        Oracle text is the authoritative source input. Parsing produces an English syntax tree; recovery compiles it into a canonical typed intermediate form — the single information-complete representation from which spelling renders English back and lowering compiles the AST the engine executes.
+      </p>
+
+      <div class="diagram-wrapper">
+        <pre>Oracle text
     ⇅ parse / render
 deckmaste_english
     ⇅ recover / spell
 deckmaste_semantics ── lower ──► deckmaste_core
-  canonical typed IR              engine AST</pre></div>
-    <p>
-      Recovered card descriptions are statically typed: unsupported text
-      remains an explicit coverage gap, legitimate ambiguity remains a visible
-      set of candidates, and ill-formed structure cannot reach runtime
-      behavior. Rules-bearing code cites the Comprehensive Rules by number,
-      and repository tooling validates every citation against the rules text.
-    </p>
-  </section>
+  canonical typed IR              engine AST</pre>
+      </div>
 
-  <section class="panel">
-    <h2>mechanics reduce to shared machinery</h2>
-    <p>
-      Concretely, the recurring reductions:
-    </p>
-    <ul>
-      <li><b>zone changes</b> — drawing, discarding, destruction, sacrifice,
-        and exile are one event pipeline that records the cause of each
-        move.</li>
-      <li><b>permissions &amp; restrictions</b> — may, must, and can't are a
-        single deontic construct over a typed action.</li>
-      <li><b>event interception</b> — replacement and prevention effects
-        rewrite events that would occur; prohibitions stop them at the same
-        boundary.</li>
-      <li><b>abilities</b> — triggered, activated, and static abilities share
-        one structure and one route to the stack or the continuous
-        layers.</li>
-      <li><b>counting</b> — "the number of X," wherever it appears, resolves
-        through one evaluation path.</li>
-      <li><b>last-known information</b> — departed objects are read from a
-        snapshot carried by the event, never from stale references.</li>
-    </ul>
-  </section>
+      <p style="color: var(--fg-muted);">
+        Recovered card descriptions are statically typed: unsupported text remains an explicit coverage gap, legitimate ambiguity remains a visible set of candidates, and ill-formed structure cannot reach runtime behavior. Rules-bearing code cites the Comprehensive Rules by number, and repository tooling validates every citation against the rules text.
+      </p>
+    </section>
 
-  <section class="panel">
-    <h2>what's implemented</h2>
-    <ul>
-      <li>the continuous-effects (layer) system, with timestamp and dependency ordering</li>
-      <li>replacement effects and last-known information</li>
-      <li>state-based actions</li>
-      <li>the stack, with casting, targeting, and resolution</li>
-      <li>triggered, activated, and static abilities</li>
-      <li>a mana system — typed pools, color choices, persistent mana</li>
-      <li>combat, including the keyword abilities that affect it</li>
-      <li>turn structure, priority, tokens, emblems, and counters</li>
-      <li>designations and history-window conditions ("died this turn", storm count)</li>
-      <li>player choices surfaced as explicit decision points</li>
-    </ul>
-  </section>
+    <section class="panel">
+      <h2>mechanics reduce to shared machinery</h2>
+      <p style="color: var(--fg-muted);">Concretely, the recurring reductions:</p>
+      <ul>
+        <li><b>zone changes</b> — drawing, discarding, destruction, sacrifice, and exile are one event pipeline that records the cause of each move.</li>
+        <li><b>permissions &amp; restrictions</b> — may, must, and can't are a single deontic construct over a typed action.</li>
+        <li><b>event interception</b> — replacement and prevention effects rewrite events that would occur; prohibitions stop them at the same boundary.</li>
+        <li><b>abilities</b> — triggered, activated, and static abilities share one structure and one route to the stack or the continuous layers.</li>
+        <li><b>counting</b> — "the number of X," wherever it appears, resolves through one evaluation path.</li>
+        <li><b>last-known information</b> — departed objects are read from a snapshot carried by the event, never from stale references.</li>
+      </ul>
+    </section>
 
-  <section class="panel">
-    <h2>try it</h2>
-    <pre><span class="prompt">$ </span>git clone https://github.com/msmorgan/deckmaste.rs
+    <section class="panel">
+      <h2>what's implemented</h2>
+      <ul>
+        <li>the continuous-effects (layer) system, with timestamp and dependency ordering</li>
+        <li>replacement effects and last-known information</li>
+        <li>state-based actions</li>
+        <li>the stack, with casting, targeting, and resolution</li>
+        <li>triggered, activated, and static abilities</li>
+        <li>a mana system — typed pools, color choices, persistent mana</li>
+        <li>combat, including the keyword abilities that affect it</li>
+        <li>turn structure, priority, tokens, emblems, and counters</li>
+        <li>designations and history-window conditions ("died this turn", storm count)</li>
+        <li>player choices surfaced as explicit decision points</li>
+      </ul>
+    </section>
+
+    <section class="panel">
+      <h2>try it</h2>
+      <pre><span class="prompt">$ </span>git clone https://github.com/msmorgan/deckmaste.rs
 <span class="prompt">$ </span>cd deckmaste.rs
 <span class="prompt">$ </span>cargo run</pre>
-    <p>
-      cargo run launches the interactive terminal client: a hotseat game with
-      a live board across every zone, where you drive priority, targeting,
-      attackers and blockers, ability activations, and mana payment from the
-      keyboard. On first run it downloads the source snapshot and generates
-      the demo corpus; subsequent runs reuse those local files.
-    </p>
-    <p>
-      How much of the card pool can complete both paths — parse → render and
-      parse → play — is the open, card-by-card question the project exists to
-      measure.
-    </p>
-  </section>
+      <p style="color: var(--fg-muted);">
+        <code>cargo run</code> launches the interactive terminal client: a hotseat game with a live board across every zone, where you drive priority, targeting, attackers and blockers, ability activations, and mana payment from the keyboard. On first run it downloads the source snapshot and generates the demo corpus; subsequent runs reuse those local files.
+      </p>
+      <p style="color: var(--fg-muted);">
+        How much of the card pool can complete both paths — <em>parse → render</em> and <em>parse → play</em> — is the open, card-by-card question the project exists to measure.
+      </p>
+    </section>
+  </main>
 
   <footer>
-    <p>deckmaste.rs is licensed under
-      <a href="https://polyformproject.org/licenses/noncommercial/1.0.0/">PolyForm Noncommercial 1.0.0</a>.
-      Unofficial Fan Content permitted under the
-      <a href="https://company.wizards.com/en/legal/fancontentpolicy">Wizards of the Coast Fan Content Policy</a>;
-      not approved or endorsed by Wizards. Magic: The Gathering is a trademark
-      of Wizards of the Coast LLC.</p>
+    <p>
+      deckmaste.rs is licensed under <a href="https://polyformproject.org/licenses/noncommercial/1.0.0/" target="_blank" rel="noopener">PolyForm Noncommercial 1.0.0</a>.<br>
+      Unofficial Fan Content permitted under the <a href="https://company.wizards.com/en/legal/fancontentpolicy" target="_blank" rel="noopener">Wizards of the Coast Fan Content Policy</a>; not approved or endorsed by Wizards. Magic: The Gathering is a trademark of Wizards of the Coast LLC.
+    </p>
   </footer>
+
 </body>
 </html>
