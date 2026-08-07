@@ -413,6 +413,26 @@ struct Plan {
     numeric_holes: usize,
 }
 
+fn is_within_grouped_arabic_numeral(text: &str, offset: usize, len: usize) -> bool {
+    let bytes = text.as_bytes();
+    let mut start = offset;
+    while start > 0 && matches!(bytes[start - 1], b'0'..=b'9' | b',') {
+        start -= 1;
+    }
+    let mut end = offset + len;
+    while end < bytes.len() && matches!(bytes[end], b'0'..=b'9' | b',') {
+        end += 1;
+    }
+
+    let candidate = &text[start..end];
+    let before = text[..start].chars().next_back();
+    let after = text[end..].chars().next();
+    candidate.contains(',')
+        && !before.is_some_and(char::is_alphanumeric)
+        && !after.is_some_and(char::is_alphanumeric)
+        && Numeral::Arabic(true).parse(candidate).is_ok()
+}
+
 fn bounded_surface_offsets(text: &str, surface: &str) -> Vec<usize> {
     let is_digit_surface = surface.chars().all(|character| character.is_ascii_digit());
     let continues = |character: char| {
@@ -426,7 +446,11 @@ fn bounded_surface_offsets(text: &str, surface: &str) -> Vec<usize> {
         .filter_map(|(offset, _)| {
             let before = text[..offset].chars().next_back();
             let after = text[offset + surface.len()..].chars().next();
-            (!before.is_some_and(&continues) && !after.is_some_and(&continues)).then_some(offset)
+            (!(before.is_some_and(&continues)
+                || after.is_some_and(&continues)
+                || is_digit_surface
+                    && is_within_grouped_arabic_numeral(text, offset, surface.len())))
+            .then_some(offset)
         })
         .collect()
 }
@@ -2178,6 +2202,46 @@ mod tests {
                 .count(),
             1,
             "the authored `1 card` must remain in the normalized tree"
+        );
+    }
+
+    #[test]
+    fn singular_witness_does_not_count_a_grouped_arabic_prefix_as_an_occurrence() {
+        use deckmaste_english::syntax::NumberLiteral;
+
+        let params = ["Count".to_string()];
+        let compile_one = |text: &str| {
+            compile(
+                &bare(text),
+                FragmentKind::Nominal,
+                &params,
+                &Catalogs::default(),
+                guard::core_reader(),
+            )
+            .unwrap_or_else(|error| panic!("{text}: {error:#}"))
+        };
+        let plural = compile_one("<Param(0)> cards and 1,000 cards");
+        let singular = compile_one("<Param(0)> card and 1,000 cards");
+
+        assert_eq!(singular.tree, plural.tree);
+        assert_sites_resolve(&singular);
+        assert_sites_resolve(&plural);
+        assert_eq!(singular.holes[0].witness.text, "1");
+        assert_eq!(holes_in(&singular.tree), [0]);
+
+        let authored = view::of(&NumberLiteral {
+            value: 1_000,
+            numeral: Numeral::Arabic(true),
+        });
+        assert_eq!(
+            singular
+                .tree
+                .walk()
+                .iter()
+                .filter(|(_, node)| *node == &authored)
+                .count(),
+            1,
+            "the authored grouped-Arabic numeral must remain untouched"
         );
     }
 
