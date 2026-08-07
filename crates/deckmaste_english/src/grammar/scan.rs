@@ -869,6 +869,10 @@ pub(super) fn lexical_word_matches(
                     initial_sound,
                     comparison: adjective_comparison_state(&adjective),
                     card_orientation: false,
+                    past_participle: matches!(
+                        &adjective,
+                        Adjective::Participle(crate::word::Tense::Past, _)
+                    ),
                     demonstrative_shared_determiner: !matches!(
                         adjective,
                         Adjective::Participle(_, Verb::Word(Vocab::Equip | Vocab::Enchant),)
@@ -1165,7 +1169,7 @@ pub(super) fn adjective_initial_sound(adjective: &Adjective) -> Option<InitialSo
     }
 }
 
-pub(super) fn adjective_comparison_state(adjective: &Adjective) -> AdjectiveComparisonState {
+pub(crate) fn adjective_comparison_state(adjective: &Adjective) -> AdjectiveComparisonState {
     match adjective {
         // Comparison capability is vocabulary metadata (`Vocab::comparison`),
         // not a spelling match; the class it carries decides which completions

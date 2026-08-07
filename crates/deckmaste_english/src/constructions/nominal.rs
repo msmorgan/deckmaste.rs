@@ -18,6 +18,7 @@ use crate::catalog::CatalogAtom;
 use crate::catalog::CatalogKind;
 use crate::features::Conjunction;
 use crate::features::NounCardinality;
+use crate::grammar::AdjectiveComparisonState;
 use crate::syntax::AdjectiveComplement;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::AdjectivePhraseCoordination;
@@ -47,21 +48,60 @@ use crate::syntax::PrepositionalPhrase;
 use crate::syntax::Quantity;
 use crate::syntax::RelativeClause;
 use crate::syntax::TransitivePredicate;
+use crate::word::Adjective;
 use crate::word::BareNominalAdjunct;
 use crate::word::ColorWord;
 use crate::word::Noun;
 use crate::word::NounInstance;
 use crate::word::NounInstanceKind;
+use crate::word::Tense;
 use crate::word::VerbSlot;
 use crate::word::Vocab;
 
-type RulesObjectNominal = NominalPhrase;
-type RulesObjectFollowupNominal = NominalPhrase;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RulesObjectNominal(NominalPhrase);
+
+impl RulesObjectNominal {
+    pub(crate) fn from_nominal(nominal: NominalPhrase) -> Self {
+        Self(nominal)
+    }
+
+    pub(crate) fn into_nominal(self) -> NominalPhrase {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RulesObjectFollowupNominal(NominalPhrase);
+
+impl RulesObjectFollowupNominal {
+    pub(crate) fn from_nominal(nominal: NominalPhrase) -> Self {
+        Self(nominal)
+    }
+
+    pub(crate) fn into_nominal(self) -> NominalPhrase {
+        self.0
+    }
+}
+
 type PredicatedQualityFrom = PredicatedQuality;
 type PredicatedQualityBare = PredicatedQuality;
 type PredicatedArgumentFrom = PredicatedArgument;
 type PredicatedArgumentBare = PredicatedArgument;
-type ReducedRecipientPassiveTheme = NounPhrase;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ReducedRecipientPassiveTheme(NounPhrase);
+
+impl ReducedRecipientPassiveTheme {
+    pub(crate) fn from_noun_phrase(noun_phrase: NounPhrase) -> Self {
+        Self(noun_phrase)
+    }
+
+    pub(crate) fn into_noun_phrase(self) -> NounPhrase {
+        self.0
+    }
+}
+
 type SymbolSequence = Vec<OracleSymbol>;
 
 fn violation(construction: &'static str, requirement: &'static str) -> DeclarationViolation {
@@ -294,6 +334,24 @@ nominal_complement_adapter!(
     Relative,
     "nominal_relative"
 );
+fn reduced_recipient_passive_theme_nominal_is_admitted(nominal: &NominalPhrase) -> bool {
+    nominal.determiner.is_none()
+        && nominal.modifiers.is_empty()
+        && nominal.complements.is_empty()
+        && matches!(
+            nominal.head.kind(),
+            NounInstanceKind::Mass(Noun::Word(Vocab::Damage))
+        )
+}
+
+fn reduced_recipient_passive_theme_is_admitted(theme: &crate::syntax::PredicateObject) -> bool {
+    matches!(
+        theme,
+        crate::syntax::PredicateObject::NounPhrase(NounPhrase::Nominal(nominal))
+            if reduced_recipient_passive_theme_nominal_is_admitted(nominal)
+    )
+}
+
 fn reduced_recipient_passive_predicate_is_admitted(predicate: &TransitivePredicate) -> bool {
     predicate.head.auxiliaries.is_empty()
         && predicate.head.preverb_modifiers.is_empty()
@@ -305,6 +363,7 @@ fn reduced_recipient_passive_predicate_is_admitted(predicate: &TransitivePredica
             .predicate_frames()
             .iter()
             .any(|frame| frame.is_recipient_passive())
+        && reduced_recipient_passive_theme_is_admitted(&predicate.kind.object)
         && predicate
             .kind
             .pre_object_elements
@@ -438,9 +497,16 @@ fn keyword_atom_from_head(head: &NounInstance) -> Option<&CatalogAtom> {
 }
 
 fn make_predicated_quality_from(
+    preposition: Preposition,
     color: Option<ColorWord>,
     noun_phrase: Option<NounPhrase>,
 ) -> Result<PredicatedQuality, DeclarationViolation> {
+    if !matches!(preposition, Preposition::From | Preposition::For) {
+        return Err(violation(
+            "predicated_quality_from",
+            "introduced quality preposition is from or for",
+        ));
+    }
     let quality = match (color, noun_phrase) {
         (Some(color), None) => Phrase::ColorWord(color),
         (None, Some(noun_phrase)) => Phrase::NounPhrase(Box::new(noun_phrase)),
@@ -452,19 +518,39 @@ fn make_predicated_quality_from(
         }
     };
     Ok(PredicatedQuality {
-        preposition: Some(Preposition::From),
+        preposition: Some(preposition),
         quality,
     })
 }
 
 fn split_predicated_quality_from(
     value: &PredicatedQuality,
-) -> (Option<ColorWord>, Option<NounPhrase>) {
+) -> (Preposition, Option<ColorWord>, Option<NounPhrase>) {
+    let preposition = value
+        .preposition
+        .expect("introduced predicated quality carries its preposition");
     match &value.quality {
-        Phrase::ColorWord(color) => (Some(*color), None),
-        Phrase::NounPhrase(noun_phrase) => (None, Some((**noun_phrase).clone())),
+        Phrase::ColorWord(color) => (preposition, Some(*color), None),
+        Phrase::NounPhrase(noun_phrase) => (preposition, None, Some((**noun_phrase).clone())),
         _ => unreachable!("explicit-from quality is a color or noun phrase"),
     }
+}
+
+fn is_declared_predicated_preposition(preposition: Option<Preposition>) -> bool {
+    matches!(preposition, Some(Preposition::From | Preposition::For))
+}
+
+/// The ability-line parser can preserve `of` in a comma-split proper-name
+/// fragment such as `Trynn, Champion of Freedom`.  That is not an M01 chart
+/// production, but it is an existing source-free AST that the generated
+/// predicated-quality inverse must remain total over.  Keep the chart/build
+/// door closed to the declared `from`/`for` grammar while admitting this one
+/// measured inverse-only spelling.
+fn is_linearizable_predicated_preposition(preposition: Option<Preposition>) -> bool {
+    matches!(
+        preposition,
+        Some(Preposition::From | Preposition::For | Preposition::Of)
+    )
 }
 
 fn make_predicated_quality_bare(
@@ -507,10 +593,10 @@ fn split_predicated_quality_bare(
 fn make_predicated_argument_from_single(
     quality: PredicatedQuality,
 ) -> Result<PredicatedArgument, DeclarationViolation> {
-    if quality.preposition != Some(Preposition::From) {
+    if !is_declared_predicated_preposition(quality.preposition) {
         return Err(violation(
             "predicated_argument_from_single",
-            "quality carries the explicit from preposition",
+            "quality carries an explicit from or for preposition",
         ));
     }
     Ok(PredicatedArgument {
@@ -552,11 +638,11 @@ fn make_predicated_argument_from_extend(
             .qualities
             .iter()
             .chain(std::iter::once(&quality))
-            .all(|quality| quality.preposition == Some(Preposition::From))
+            .all(|quality| is_declared_predicated_preposition(quality.preposition))
     {
         return Err(violation(
             "predicated_argument_from_extend",
-            "every quality carries the explicit from preposition",
+            "every quality carries an explicit from or for preposition",
         ));
     }
     argument.qualities.push(quality);
@@ -672,67 +758,93 @@ fn split_nominal_keyword_predicated_argument(
 
 fn make_rules_object_nominal_base(
     nominal: NominalPhrase,
-) -> Result<NominalPhrase, DeclarationViolation> {
-    Ok(nominal)
+) -> Result<RulesObjectNominal, DeclarationViolation> {
+    Ok(RulesObjectNominal::from_nominal(nominal))
 }
 
-fn split_rules_object_nominal_base(value: &NominalPhrase) -> NominalPhrase {
-    value.clone()
+fn split_rules_object_nominal_base(value: &RulesObjectNominal) -> NominalPhrase {
+    value.0.clone()
 }
 
 fn make_rules_object_followup_nominal_relative(
     base: Option<RulesObjectNominal>,
     followup: Option<RulesObjectFollowupNominal>,
     relative: RelativeClause,
-) -> Result<NominalPhrase, DeclarationViolation> {
-    let ((Some(mut nominal), None) | (None, Some(mut nominal))) = (base, followup) else {
-        return Err(violation(
-            "rules_object_followup_nominal_relative",
-            "exactly one rules-object source is present",
-        ));
+) -> Result<RulesObjectFollowupNominal, DeclarationViolation> {
+    let mut nominal = match (base, followup) {
+        (Some(base), None) => base.into_nominal(),
+        (None, Some(followup)) => followup.into_nominal(),
+        _ => {
+            return Err(violation(
+                "rules_object_followup_nominal_relative",
+                "exactly one rules-object source is present",
+            ));
+        }
     };
     nominal
         .complements
         .push(NominalComplement::Relative(relative));
-    Ok(nominal)
+    Ok(RulesObjectFollowupNominal::from_nominal(nominal))
 }
 
 fn split_rules_object_followup_nominal_relative(
-    value: &NominalPhrase,
+    value: &RulesObjectFollowupNominal,
 ) -> (
     Option<RulesObjectNominal>,
     Option<RulesObjectFollowupNominal>,
     RelativeClause,
 ) {
-    let mut nominal = value.clone();
+    let mut nominal = value.0.clone();
     let Some(NominalComplement::Relative(relative)) = nominal.complements.pop() else {
         unreachable!("rules-object followup ends in a relative")
     };
-    (None, Some(nominal), relative)
+    (
+        None,
+        Some(RulesObjectFollowupNominal::from_nominal(nominal)),
+        relative,
+    )
 }
 
-nominal_complement_adapter!(
-    make_rules_object_followup_nominal_prepositional,
-    split_rules_object_followup_nominal_prepositional,
-    PrepositionalPhrase,
-    Prepositional,
-    "rules_object_followup_nominal_prepositional"
-);
+fn make_rules_object_followup_nominal_prepositional(
+    nominal: RulesObjectFollowupNominal,
+    preposition: PrepositionalPhrase,
+) -> Result<RulesObjectFollowupNominal, DeclarationViolation> {
+    let mut nominal = nominal.into_nominal();
+    nominal
+        .complements
+        .push(NominalComplement::Prepositional(preposition));
+    Ok(RulesObjectFollowupNominal::from_nominal(nominal))
+}
+
+fn split_rules_object_followup_nominal_prepositional(
+    value: &RulesObjectFollowupNominal,
+) -> (RulesObjectFollowupNominal, PrepositionalPhrase) {
+    let mut nominal = value.0.clone();
+    let Some(NominalComplement::Prepositional(preposition)) = nominal.complements.pop() else {
+        unreachable!("rules-object followup ends in a prepositional phrase")
+    };
+    (
+        RulesObjectFollowupNominal::from_nominal(nominal),
+        preposition,
+    )
+}
 
 fn make_reduced_recipient_passive_theme(
     nominal: NominalPhrase,
-) -> Result<NounPhrase, DeclarationViolation> {
-    if !matches!(nominal.head.noun(), Noun::Word(Vocab::Damage)) {
+) -> Result<ReducedRecipientPassiveTheme, DeclarationViolation> {
+    if !reduced_recipient_passive_theme_nominal_is_admitted(&nominal) {
         return Err(violation(
             "reduced_recipient_passive_theme",
             "theme nominal is headed by damage",
         ));
     }
-    Ok(NounPhrase::Nominal(nominal))
+    Ok(ReducedRecipientPassiveTheme::from_noun_phrase(
+        NounPhrase::Nominal(nominal),
+    ))
 }
 
-fn split_reduced_recipient_passive_theme(value: &NounPhrase) -> NominalPhrase {
-    let NounPhrase::Nominal(nominal) = value else {
+fn split_reduced_recipient_passive_theme(value: &ReducedRecipientPassiveTheme) -> NominalPhrase {
+    let NounPhrase::Nominal(nominal) = &value.0 else {
         unreachable!("recipient-passive theme is nominal")
     };
     nominal.clone()
@@ -742,6 +854,12 @@ fn make_reduced_recipient_passive_nominal_adjunct(
     mut predicate: TransitivePredicate,
     noun_phrase: NounPhrase,
 ) -> Result<TransitivePredicate, DeclarationViolation> {
+    if !reduced_recipient_passive_predicate_is_admitted(&predicate) {
+        return Err(violation(
+            "reduced_recipient_passive_nominal_adjunct",
+            "predicate is a reduced recipient-passive participle with a retained theme",
+        ));
+    }
     let NounPhrase::Nominal(nominal) = &noun_phrase else {
         return Err(violation(
             "reduced_recipient_passive_nominal_adjunct",
@@ -841,6 +959,15 @@ fn make_nominal_postpositive_adjective_conjoined_prepositional(
         return Err(violation(
             "nominal_postpositive_adjective_conjoined_prepositional",
             "a binary continuation follows exactly one postpositive adjective",
+        ));
+    }
+    if !adjective.complements.is_empty()
+        || !matches!(adjective.head, Adjective::Participle(Tense::Past, _))
+        || preposition.head().preposition != Preposition::By
+    {
+        return Err(violation(
+            "nominal_postpositive_adjective_conjoined_prepositional",
+            "the continuation is a bare past participle followed by a by phrase",
         ));
     }
     let conjunction = noun_phrase_conjunction(conjunction)?;
@@ -996,13 +1123,7 @@ fn make_nominal_comparison(
         let NominalModifier::Adjective { phrase, .. } = modifier else {
             return None;
         };
-        (!phrase.complements.iter().any(|complement| {
-            matches!(
-                complement,
-                AdjectiveComplement::Comparison(_) | AdjectiveComplement::PostnominalComparison(_)
-            )
-        }))
-        .then_some(phrase)
+        adjective_is_pending_comparative(phrase).then_some(phrase)
     });
     let Some(adjective) = adjective else {
         return Err(violation(
@@ -1023,7 +1144,11 @@ fn split_nominal_comparison(value: &NominalPhrase) -> (NominalPhrase, Comparison
         .iter_mut()
         .rev()
         .find_map(|modifier| match modifier {
-            NominalModifier::Adjective { phrase, .. } => Some(phrase),
+            NominalModifier::Adjective { phrase, .. }
+                if adjective_has_declared_postnominal_comparison(phrase) =>
+            {
+                Some(phrase)
+            }
             _ => None,
         })
         .expect("comparison nominal has an adjective modifier");
@@ -1032,6 +1157,28 @@ fn split_nominal_comparison(value: &NominalPhrase) -> (NominalPhrase, Comparison
         unreachable!("comparison nominal stores its postnominal comparison")
     };
     (nominal, comparison)
+}
+
+fn adjective_is_pending_comparative(phrase: &AdjectivePhrase) -> bool {
+    matches!(
+        crate::grammar::adjective_comparison_state(&phrase.head),
+        AdjectiveComparisonState::Pending(_)
+    ) && !phrase.complements.iter().any(|complement| {
+        matches!(
+            complement,
+            AdjectiveComplement::Comparison(_) | AdjectiveComplement::PostnominalComparison(_)
+        )
+    })
+}
+
+fn adjective_has_declared_postnominal_comparison(phrase: &AdjectivePhrase) -> bool {
+    matches!(
+        crate::grammar::adjective_comparison_state(&phrase.head),
+        AdjectiveComparisonState::Pending(_)
+    ) && matches!(
+        phrase.complements.as_slice(),
+        [AdjectiveComplement::PostnominalComparison(_)]
+    )
 }
 
 fn make_devotion_color_single(color: ColorWord) -> Result<DevotionColors, DeclarationViolation> {
@@ -1395,8 +1542,11 @@ fn is_nominal_postpositive_adjective_conjoined_prepositional(value: &NominalPhra
                 && coordinated.rest.last().is_some_and(|last| {
                     last.conjunction.is_some()
                         && matches!(
-                            last.phrase.complements.last(),
-                            Some(AdjectiveComplement::Prepositional(_))
+                            (&last.phrase.head, last.phrase.complements.as_slice()),
+                            (
+                                Adjective::Participle(Tense::Past, _),
+                                [AdjectiveComplement::Prepositional(preposition)]
+                            ) if preposition.head().preposition == Preposition::By
                         )
                 })
         })
@@ -1433,7 +1583,20 @@ fn is_nominal_postpositive_adjective_oxford(value: &NominalPhrase) -> bool {
 }
 
 fn is_nominal_comparison(value: &NominalPhrase) -> bool {
-    has_postnominal_comparison(value) && has_only_prepositional_complements(value)
+    has_only_prepositional_complements(value)
+        && value
+            .modifiers
+            .iter()
+            .filter_map(|modifier| match modifier {
+                NominalModifier::Adjective { phrase, .. }
+                    if adjective_has_declared_postnominal_comparison(phrase) =>
+                {
+                    Some(())
+                }
+                _ => None,
+            })
+            .count()
+            == 1
 }
 
 fn is_nominal_devotion(value: &NominalPhrase) -> bool {
@@ -1594,12 +1757,14 @@ deckmaste_constructions_macro::constructions! {
 
     construction predicated_quality_from: PredicatedQualityFrom {
         bind PredicatedQuality via make_predicated_quality_from, split_predicated_quality_from {
+            preposition: lex Preposition,
             color: opt lex ColorWord,
             noun_phrase: opt hole NounPhrase,
         }
+        require preposition in [From, For];
         derive features = nominal();
-        form color @ 0 when color.is_some() = "from" lex(color);
-        form noun_phrase @ 1 otherwise = "from" noun_phrase;
+        form color @ 0 when color.is_some() = lex(preposition) lex(color);
+        form noun_phrase @ 1 otherwise = lex(preposition) noun_phrase;
         selection unique;
     }
 
@@ -1690,7 +1855,7 @@ deckmaste_constructions_macro::constructions! {
     }
 
     construction rules_object_nominal_base: RulesObjectNominal {
-        bind NominalPhrase via make_rules_object_nominal_base, split_rules_object_nominal_base {
+        bind RulesObjectNominal via make_rules_object_nominal_base, split_rules_object_nominal_base {
             nominal: hole NominalPhrase,
         }
         derive features = nominal();
@@ -1699,7 +1864,7 @@ deckmaste_constructions_macro::constructions! {
     }
 
     construction rules_object_followup_nominal_relative: RulesObjectFollowupNominal {
-        bind NominalPhrase via make_rules_object_followup_nominal_relative, split_rules_object_followup_nominal_relative {
+        bind RulesObjectFollowupNominal via make_rules_object_followup_nominal_relative, split_rules_object_followup_nominal_relative {
             base: opt hole RulesObjectNominal,
             followup: opt hole RulesObjectFollowupNominal,
             relative: hole RelativeClause,
@@ -1711,7 +1876,7 @@ deckmaste_constructions_macro::constructions! {
     }
 
     construction rules_object_followup_nominal_prepositional: RulesObjectFollowupNominal {
-        bind NominalPhrase via make_rules_object_followup_nominal_prepositional, split_rules_object_followup_nominal_prepositional {
+        bind RulesObjectFollowupNominal via make_rules_object_followup_nominal_prepositional, split_rules_object_followup_nominal_prepositional {
             nominal: hole RulesObjectFollowupNominal,
             preposition: hole PrepositionalPhrase,
         }
@@ -1732,7 +1897,7 @@ deckmaste_constructions_macro::constructions! {
     }
 
     construction reduced_recipient_passive_theme: ReducedRecipientPassiveTheme {
-        bind NounPhrase via make_reduced_recipient_passive_theme, split_reduced_recipient_passive_theme {
+        bind ReducedRecipientPassiveTheme via make_reduced_recipient_passive_theme, split_reduced_recipient_passive_theme {
             nominal: hole NominalPhrase,
         }
         derive features = nominal();
@@ -1857,6 +2022,128 @@ deckmaste_constructions_macro::constructions! {
 }
 
 pub(crate) static GROUPS: &[&GroupData] = &[&NOMINAL_DECLARATION];
+
+fn no_nominal_family_match<E>() -> deckmaste_construction_compiler::runtime::LinearizationError<E> {
+    deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
+        group: "nominal",
+    }
+}
+
+fn is_linearizable_predicated_quality_introduced(value: &PredicatedQuality) -> bool {
+    is_linearizable_predicated_preposition(value.preposition)
+        && matches!(value.quality, Phrase::ColorWord(_) | Phrase::NounPhrase(_))
+}
+
+fn is_declared_predicated_quality_bare(value: &PredicatedQuality) -> bool {
+    value.preposition.is_none()
+        && matches!(
+            value.quality,
+            Phrase::ColorWord(_) | Phrase::AdjectivePhrase(_) | Phrase::NounPhrase(_)
+        )
+}
+
+pub(crate) fn linearize_predicated_quality_from_family_with<V>(
+    value: &PredicatedQuality,
+    visitor: &mut V,
+) -> Result<(), deckmaste_construction_compiler::runtime::LinearizationError<V::Error>>
+where
+    V: deckmaste_construction_compiler::runtime::LinearizationVisitor,
+{
+    if !is_linearizable_predicated_quality_introduced(value) {
+        return Err(no_nominal_family_match());
+    }
+    linearize_predicated_quality_from_with(value, visitor)
+}
+
+pub(crate) fn linearize_predicated_quality_bare_family_with<V>(
+    value: &PredicatedQuality,
+    visitor: &mut V,
+) -> Result<(), deckmaste_construction_compiler::runtime::LinearizationError<V::Error>>
+where
+    V: deckmaste_construction_compiler::runtime::LinearizationVisitor,
+{
+    if !is_declared_predicated_quality_bare(value) {
+        return Err(no_nominal_family_match());
+    }
+    linearize_predicated_quality_bare_with(value, visitor)
+}
+
+pub(crate) fn linearize_predicated_argument_from_family_with<V>(
+    value: &PredicatedArgument,
+    visitor: &mut V,
+) -> Result<(), deckmaste_construction_compiler::runtime::LinearizationError<V::Error>>
+where
+    V: deckmaste_construction_compiler::runtime::LinearizationVisitor,
+{
+    if value.qualities.is_empty()
+        || !value
+            .qualities
+            .iter()
+            .all(is_linearizable_predicated_quality_introduced)
+    {
+        return Err(no_nominal_family_match());
+    }
+    if value.qualities.len() == 1 {
+        linearize_predicated_argument_from_single_with(value, visitor)
+    } else {
+        linearize_predicated_argument_from_extend_with(value, visitor)
+    }
+}
+
+pub(crate) fn linearize_predicated_argument_bare_family_with<V>(
+    value: &PredicatedArgument,
+    visitor: &mut V,
+) -> Result<(), deckmaste_construction_compiler::runtime::LinearizationError<V::Error>>
+where
+    V: deckmaste_construction_compiler::runtime::LinearizationVisitor,
+{
+    let Some((first, rest)) = value.qualities.split_first() else {
+        return Err(no_nominal_family_match());
+    };
+    if !is_declared_predicated_quality_bare(first)
+        || !rest
+            .iter()
+            .all(is_linearizable_predicated_quality_introduced)
+    {
+        return Err(no_nominal_family_match());
+    }
+    if rest.is_empty() {
+        linearize_predicated_argument_bare_single_with(value, visitor)
+    } else {
+        linearize_predicated_argument_bare_extend_with(value, visitor)
+    }
+}
+
+pub(crate) fn linearize_predicated_argument_family_with<V>(
+    value: &PredicatedArgument,
+    visitor: &mut V,
+) -> Result<(), deckmaste_construction_compiler::runtime::LinearizationError<V::Error>>
+where
+    V: deckmaste_construction_compiler::runtime::LinearizationVisitor,
+{
+    if value
+        .qualities
+        .first()
+        .is_some_and(is_linearizable_predicated_quality_introduced)
+    {
+        linearize_predicated_argument_from_family_with(value, visitor)
+    } else {
+        linearize_predicated_argument_bare_family_with(value, visitor)
+    }
+}
+
+pub(crate) fn linearize_devotion_colors_family_with<V>(
+    value: DevotionColors,
+    visitor: &mut V,
+) -> Result<(), deckmaste_construction_compiler::runtime::LinearizationError<V::Error>>
+where
+    V: deckmaste_construction_compiler::runtime::LinearizationVisitor,
+{
+    match value {
+        DevotionColors::Color(_) => linearize_devotion_color_single_with(&value, visitor),
+        DevotionColors::Pair(..) => linearize_devotion_color_pair_with(&value, visitor),
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -2244,12 +2531,13 @@ mod tests {
         );
 
         let predicated_quality_from =
-            build_predicated_quality_from(Some(ColorWord::Red), None).unwrap();
-        let (color, noun_phrase) = parts_predicated_quality_from(&predicated_quality_from);
+            build_predicated_quality_from(Preposition::From, Some(ColorWord::Red), None).unwrap();
+        let (predicated_preposition, color, noun_phrase) =
+            parts_predicated_quality_from(&predicated_quality_from);
         let predicated_quality_from = records!(
             "predicated_quality_from",
             predicated_quality_from,
-            build_predicated_quality_from(color, noun_phrase).unwrap()
+            build_predicated_quality_from(predicated_preposition, color, noun_phrase).unwrap()
         );
 
         let predicated_argument_from_single =
@@ -2261,7 +2549,8 @@ mod tests {
             build_predicated_argument_from_single(quality).unwrap()
         );
 
-        let second_from = build_predicated_quality_from(Some(ColorWord::Black), None).unwrap();
+        let second_from =
+            build_predicated_quality_from(Preposition::From, Some(ColorWord::Black), None).unwrap();
         let predicated_argument_from_extend = build_predicated_argument_from_extend(
             predicated_argument_from_single,
             Conjunction::And,
@@ -2310,7 +2599,8 @@ mod tests {
             build_predicated_argument_bare_single(quality).unwrap()
         );
 
-        let final_from = build_predicated_quality_from(Some(ColorWord::Black), None).unwrap();
+        let final_from =
+            build_predicated_quality_from(Preposition::From, Some(ColorWord::Black), None).unwrap();
         let predicated_argument_bare_extend = build_predicated_argument_bare_extend(
             predicated_argument_bare_single,
             Conjunction::And,
@@ -2360,9 +2650,12 @@ mod tests {
             build_rules_object_nominal_base(nominal).unwrap()
         );
 
-        let rules_object_followup_nominal_relative =
-            build_rules_object_followup_nominal_relative(Some(relative_base), None, relative)
-                .unwrap();
+        let rules_object_followup_nominal_relative = build_rules_object_followup_nominal_relative(
+            Some(build_rules_object_nominal_base(relative_base).unwrap()),
+            None,
+            relative,
+        )
+        .unwrap();
         let (base, followup, relative) =
             parts_rules_object_followup_nominal_relative(&rules_object_followup_nominal_relative);
         let rules_object_followup_nominal_relative = records!(
@@ -2447,7 +2740,7 @@ mod tests {
             build_nominal_postpositive_adjective_conjoined_prepositional(
                 prepositional_base,
                 Conjunction::Or,
-                blue_adjective(),
+                participle(crate::word::Tense::Past, Vocab::Block),
                 PrepositionalPhrase::simple(
                     Preposition::By,
                     Phrase::NounPhrase(Box::new(NounPhrase::Nominal(card_nominal()))),
@@ -2524,7 +2817,15 @@ mod tests {
             )))),
         };
         let nominal_comparison = build_nominal_comparison(
-            build_nominal_adjective(red_adjective(), card_nominal()).unwrap(),
+            build_nominal_adjective(
+                AdjectivePhrase {
+                    degree: None,
+                    head: Adjective::Word(Vocab::Greater),
+                    complements: Vec::new(),
+                },
+                card_nominal(),
+            )
+            .unwrap(),
             comparison,
         )
         .unwrap();
@@ -2647,6 +2948,457 @@ mod tests {
     }
 
     #[test]
+    fn checked_prefix_builders_reject_a_determined_residual() {
+        // Mutations caught: let either an adapted or lensed prefix builder
+        // manufacture a value whose outermost declared inverse is the
+        // determiner rather than that prefix construction.
+        let determined = || {
+            build_nominal_determiner(Determiner::Indefinite, card_nominal())
+                .expect("control: a bare singular card admits an indefinite determiner")
+        };
+        let negative = || NominalModifier::Noun {
+            polarity: Polarity::Negative,
+            noun: NounInstance::Singular(Noun::Word(Vocab::Ability)),
+        };
+        let one = || {
+            Quantity::try_exact(crate::syntax::NumberLiteral {
+                value: 1,
+                numeral: crate::Numeral::Cardinal,
+            })
+            .unwrap()
+        };
+        let stats = || PowerToughness {
+            power: crate::syntax::SignedScalar {
+                sign: crate::syntax::ScalarSign::None,
+                value: crate::syntax::ScalarValue::Integer(1),
+            },
+            toughness: crate::syntax::SignedScalar {
+                sign: crate::syntax::ScalarSign::None,
+                value: crate::syntax::ScalarValue::Integer(1),
+            },
+        };
+
+        assert!(build_nominal_adjective(red_adjective(), determined()).is_err());
+        assert!(
+            build_nominal_noun_modifier(
+                NounInstance::Singular(Noun::Word(Vocab::Ability)),
+                determined(),
+            )
+            .is_err()
+        );
+        assert!(build_nominal_negated_modifier(negative(), determined()).is_err());
+        assert!(build_nominal_quantity_modifier(one(), determined()).is_err());
+        assert!(build_nominal_power_toughness_modifier(stats(), determined()).is_err());
+    }
+
+    #[test]
+    fn checked_prefix_builder_rejects_late_attachment_but_legal_order_rebuilds() {
+        // Mutations caught: allow a prefix edit after a complement has already
+        // become the outer construction, or make the legal prefix-then-PP
+        // projection reverse that declared construction order.
+        let preposition = || {
+            PrepositionalPhrase::simple(
+                Preposition::In,
+                Phrase::NounPhrase(Box::new(NounPhrase::Nominal(card_nominal()))),
+            )
+        };
+        let attached = build_nominal_prepositional(card_nominal(), preposition()).unwrap();
+        assert!(
+            build_nominal_noun_modifier(
+                NounInstance::Singular(Noun::Word(Vocab::Ability)),
+                attached,
+            )
+            .is_err()
+        );
+
+        let prefixed = build_nominal_noun_modifier(
+            NounInstance::Singular(Noun::Word(Vocab::Ability)),
+            card_nominal(),
+        )
+        .unwrap();
+        let value = build_nominal_prepositional(prefixed, preposition()).unwrap();
+        assert_eq!(
+            selected_nominal_construction(&value),
+            "nominal_prepositional"
+        );
+        let (prefix, preposition) = parts_nominal_prepositional(&value);
+        assert_eq!(
+            selected_nominal_construction(&prefix),
+            "nominal_noun_modifier"
+        );
+        assert_eq!(
+            build_nominal_prepositional(prefix, preposition).unwrap(),
+            value
+        );
+    }
+
+    fn than_a_card() -> ComparisonComplement {
+        ComparisonComplement {
+            marker: crate::syntax::ComparisonMarker::Than,
+            standard: Box::new(Phrase::NounPhrase(Box::new(NounPhrase::Nominal(
+                build_nominal_determiner(Determiner::Indefinite, card_nominal()).unwrap(),
+            )))),
+        }
+    }
+
+    #[test]
+    fn comparison_builder_rejects_a_noncomparative_adjective() {
+        // Mutation caught: identify comparison availability only by the
+        // absence of an existing complement, allowing an ordinary adjective
+        // such as `red` to take a postnominal `than` standard.
+        let nominal = build_nominal_adjective(red_adjective(), card_nominal()).unwrap();
+        assert!(build_nominal_comparison(nominal, than_a_card()).is_err());
+    }
+
+    #[test]
+    fn comparison_builder_rejects_an_already_completed_adjective() {
+        // Mutation caught: append a second completion after a comparative
+        // adjective already carries its ordinary comparison complement.
+        let completed = AdjectivePhrase {
+            degree: None,
+            head: Adjective::Word(Vocab::Greater),
+            complements: vec![AdjectiveComplement::Comparison(than_a_card())],
+        };
+        let nominal = build_nominal_adjective(completed, card_nominal()).unwrap();
+        assert!(build_nominal_comparison(nominal, than_a_card()).is_err());
+    }
+
+    #[test]
+    fn pending_comparative_builder_rebuilds_and_renders_its_postnominal_standard() {
+        // Mutation caught: reject the actual comparison-pending vocabulary
+        // class, lose the comparison during parts projection, or render the
+        // stored postnominal completion in prefix position.
+        let pending = AdjectivePhrase {
+            degree: None,
+            head: Adjective::Word(Vocab::Greater),
+            complements: Vec::new(),
+        };
+        let value = build_nominal_comparison(
+            build_nominal_adjective(pending, card_nominal()).unwrap(),
+            than_a_card(),
+        )
+        .unwrap();
+        assert_eq!(selected_nominal_construction(&value), "nominal_comparison");
+        let (nominal, comparison) = parts_nominal_comparison(&value);
+        assert_eq!(
+            build_nominal_comparison(nominal, comparison).unwrap(),
+            value
+        );
+        assert_eq!(
+            crate::render_fragment(
+                &crate::Fragment::Nominal(NounPhrase::Nominal(value)),
+                "Test Card",
+                false,
+            )
+            .unwrap(),
+            "greater card than a card"
+        );
+    }
+
+    fn participle(tense: crate::word::Tense, verb: Vocab) -> AdjectivePhrase {
+        AdjectivePhrase {
+            degree: None,
+            head: Adjective::Participle(tense, crate::word::Verb::Word(verb)),
+            complements: Vec::new(),
+        }
+    }
+
+    fn preposition_with_card(preposition: Preposition) -> PrepositionalPhrase {
+        PrepositionalPhrase::simple(
+            preposition,
+            Phrase::NounPhrase(Box::new(NounPhrase::Nominal(card_nominal()))),
+        )
+    }
+
+    fn reduced_predicate_and_adjunct() -> (TransitivePredicate, NounPhrase) {
+        let IndependentClause::Deontic(crate::syntax::Subject(NounPhrase::Nominal(subject)), _, _) =
+            parsed_independent("A creature dealt damage this way can't block this turn.")
+        else {
+            panic!("reduced-passive fixture has a deontic nominal subject")
+        };
+        let (_, predicate) = parts_nominal_reduced_recipient_passive(&subject);
+        parts_reduced_recipient_passive_nominal_adjunct(&predicate)
+    }
+
+    #[test]
+    fn rules_object_followup_builder_rejects_a_base_role() {
+        // Mutation caught: collapse the base and followup rules-object roles
+        // to aliases of NominalPhrase. The typed generated function prevents
+        // this call statically; the erased chart door must reject it too.
+        let construction = NOMINAL_DECLARATION
+            .constructions
+            .iter()
+            .find(|construction| construction.id == "rules_object_followup_nominal_prepositional")
+            .expect("the rules-object followup construction is declared");
+        let base = build_rules_object_nominal_base(card_nominal()).unwrap();
+        assert!(
+            construction.erased_builder.expect("checked builder exists")(vec![
+                Box::new(base),
+                Box::new(preposition_with_card(Preposition::Of)),
+            ])
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn reduced_passive_theme_has_a_distinct_typed_role() {
+        // Mutation caught: erase the semantic theme category back to a type
+        // alias, allowing an ordinary noun phrase through the typed boundary.
+        assert_ne!(
+            std::any::TypeId::of::<ReducedRecipientPassiveTheme>(),
+            std::any::TypeId::of::<NounPhrase>(),
+        );
+    }
+
+    #[test]
+    fn reduced_passive_adjunct_builder_rejects_a_non_recipient_frame() {
+        // Mutation caught: validate only the trailing bare adjunct and allow
+        // this specialized extension to manufacture a reduced-passive value
+        // from an ordinary transitive frame.
+        let (mut predicate, adjunct) = reduced_predicate_and_adjunct();
+        predicate.head.verb.verb = crate::word::Verb::Word(Vocab::Draw);
+        assert!(build_reduced_recipient_passive_nominal_adjunct(predicate, adjunct).is_err());
+    }
+
+    #[test]
+    fn reduced_passive_nominal_builder_rejects_a_non_theme_object() {
+        // Mutation caught: check only that the verb owns some recipient-
+        // passive frame while accepting an arbitrary direct object in the
+        // retained-theme slot.
+        let (mut predicate, _) = reduced_predicate_and_adjunct();
+        predicate.kind.object =
+            crate::syntax::PredicateObject::NounPhrase(NounPhrase::Nominal(card_nominal()));
+        assert!(build_nominal_reduced_recipient_passive(card_nominal(), predicate).is_err());
+    }
+
+    #[test]
+    fn reduced_passive_direct_ast_builds_with_frame_theme_and_adjunct_intact() {
+        // Mutation caught: over-tighten either role gate, drop the retained
+        // damage theme or trailing adjunct during a split/rebuild, or make the
+        // valid direct AST unrenderable through the generated nominal family.
+        let (predicate, adjunct) = reduced_predicate_and_adjunct();
+        let predicate =
+            build_reduced_recipient_passive_nominal_adjunct(predicate, adjunct).unwrap();
+        let base = build_nominal_determiner(Determiner::Indefinite, card_nominal()).unwrap();
+        let value = build_nominal_reduced_recipient_passive(base, predicate).unwrap();
+        assert_eq!(
+            selected_nominal_construction(&value),
+            "nominal_reduced_recipient_passive"
+        );
+        let (base, predicate) = parts_nominal_reduced_recipient_passive(&value);
+        assert_eq!(
+            build_nominal_reduced_recipient_passive(base, predicate).unwrap(),
+            value
+        );
+        assert_eq!(
+            crate::render_fragment(
+                &crate::Fragment::Nominal(NounPhrase::Nominal(value)),
+                "Test Card",
+                false,
+            )
+            .unwrap(),
+            "a card dealt damage this way"
+        );
+    }
+
+    #[test]
+    fn conjoined_postpositive_pp_builder_requires_a_past_participle_and_by() {
+        // Mutations caught: omit either half of the retired handwritten gate,
+        // admitting an ordinary adjective before `by` or a past participle
+        // followed by an unrelated preposition.
+        let base = || {
+            build_nominal_postpositive_adjective(
+                card_nominal(),
+                participle(crate::word::Tense::Present, Vocab::Block),
+            )
+            .unwrap()
+        };
+        assert!(
+            build_nominal_postpositive_adjective_conjoined_prepositional(
+                base(),
+                Conjunction::Or,
+                red_adjective(),
+                preposition_with_card(Preposition::By),
+            )
+            .is_err()
+        );
+        assert!(
+            build_nominal_postpositive_adjective_conjoined_prepositional(
+                base(),
+                Conjunction::Or,
+                participle(crate::word::Tense::Past, Vocab::Block),
+                preposition_with_card(Preposition::In),
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn conjoined_postpositive_pp_inverse_rejects_an_unlicensed_direct_ast_before_visiting() {
+        // Mutation caught: enforce the participle/`by` contract only at the
+        // checked builder while the generated inverse still accepts a raw
+        // invariant-breaking value.
+        let invalid = NominalPhrase {
+            determiner: None,
+            modifiers: Vec::new(),
+            head: NounInstance::Singular(Noun::Word(Vocab::Card)),
+            complements: vec![NominalComplement::CoordinatedAdjective(
+                CoordinatedAdjectivePhrase {
+                    first: Box::new(participle(crate::word::Tense::Present, Vocab::Block)),
+                    rest: vec![AdjectivePhraseCoordination {
+                        conjunction: Some(Conjunction::Or),
+                        phrase: AdjectivePhrase {
+                            complements: vec![AdjectiveComplement::Prepositional(
+                                preposition_with_card(Preposition::By),
+                            )],
+                            ..red_adjective()
+                        },
+                    }],
+                },
+            )],
+        };
+        assert_nominal_inverse_rejects(&invalid);
+    }
+
+    #[test]
+    fn licensed_conjoined_past_participle_by_phrase_is_exact_and_rebuildable() {
+        // Mutation caught: make the restored gate too broad or too narrow,
+        // lose the PP during destructuring, or route the valid stored shape
+        // through a different nominal inverse.
+        let source = "creature blocking or blocked by this creature";
+        let value = parsed_nominal(source);
+        assert_eq!(
+            selected_nominal_construction(&value),
+            "nominal_postpositive_adjective_conjoined_prepositional"
+        );
+        let (nominal, conjunction, adjective, preposition) =
+            parts_nominal_postpositive_adjective_conjoined_prepositional(&value);
+        assert_eq!(
+            build_nominal_postpositive_adjective_conjoined_prepositional(
+                nominal,
+                conjunction,
+                adjective,
+                preposition,
+            )
+            .unwrap(),
+            value
+        );
+        assert_eq!(
+            crate::render_fragment(
+                &crate::Fragment::Nominal(NounPhrase::Nominal(value)),
+                "Test Card",
+                false,
+            )
+            .unwrap(),
+            source
+        );
+    }
+
+    #[test]
+    fn determiner_builder_rejects_duplicate_late_and_cardinality_mutations() {
+        // Mutations caught: overwrite an existing determiner, attach a
+        // determiner after the PP phase, or ignore determiner/head
+        // cardinality. The control performs the same two legal operations in
+        // their declared order.
+        let determined = build_nominal_determiner(Determiner::Indefinite, card_nominal()).unwrap();
+        assert!(build_nominal_determiner(Determiner::The, determined).is_err());
+
+        let attached =
+            build_nominal_prepositional(card_nominal(), preposition_with_card(Preposition::In))
+                .unwrap();
+        assert!(build_nominal_determiner(Determiner::The, attached).is_err());
+
+        let plural = build_nominal_noun(NounInstance::Plural(Noun::Word(Vocab::Card))).unwrap();
+        assert!(build_nominal_determiner(Determiner::Each, plural).is_err());
+
+        let legal = build_nominal_prepositional(
+            build_nominal_determiner(Determiner::The, card_nominal()).unwrap(),
+            preposition_with_card(Preposition::In),
+        );
+        assert!(legal.is_ok());
+    }
+
+    #[test]
+    fn article_onset_mutation_is_rejected_before_nominal_lowering() {
+        // Mutation caught: stop threading the leading modifier/head sound to
+        // the indefinite determiner gate, making `a` and `an`
+        // interchangeable. Both valid controls use the same lexical heads.
+        for source in ["an ability", "a card"] {
+            assert!(
+                crate::parse_fragment(
+                    source,
+                    &crate::Catalogs::default(),
+                    crate::FragmentKind::Nominal,
+                    "Test Card",
+                    false,
+                )
+                .fragment()
+                .is_some(),
+                "valid article fixture {source:?}",
+            );
+        }
+        for source in ["a ability", "an card"] {
+            assert!(
+                crate::parse_fragment(
+                    source,
+                    &crate::Catalogs::default(),
+                    crate::FragmentKind::Nominal,
+                    "Test Card",
+                    false,
+                )
+                .fragment()
+                .is_none(),
+                "article-onset mutation {source:?} must be rejected",
+            );
+        }
+    }
+
+    #[test]
+    fn keyword_extension_rejects_conjunction_identity_mutation() {
+        // Mutation caught: admit `or` where the keyword-grant rule requires
+        // independent qualities joined only by `and`, for either explicit-
+        // from or atom-carried-first argument families.
+        let first_from =
+            build_predicated_quality_from(Preposition::From, Some(ColorWord::Red), None).unwrap();
+        let second_from =
+            build_predicated_quality_from(Preposition::From, Some(ColorWord::Blue), None).unwrap();
+        let explicit = build_predicated_argument_from_single(first_from).unwrap();
+        assert!(
+            build_predicated_argument_from_extend(explicit, Conjunction::Or, second_from.clone())
+                .is_err()
+        );
+
+        let first_bare = build_predicated_quality_bare(Some(ColorWord::Red), None, None).unwrap();
+        let atom_carried = build_predicated_argument_bare_single(first_bare).unwrap();
+        assert!(
+            build_predicated_argument_bare_extend(atom_carried, Conjunction::Or, second_from,)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn devotion_pair_rejects_connective_and_field_arity_mutations() {
+        // Mutations caught: widen the devotion pair connective beyond `and`,
+        // or let erased chart construction call a three-field declaration
+        // with a missing color field.
+        assert!(
+            build_devotion_color_pair(ColorWord::White, Conjunction::Or, ColorWord::Blue).is_err()
+        );
+        let declaration = NOMINAL_DECLARATION
+            .constructions
+            .iter()
+            .find(|construction| construction.id == "devotion_color_pair")
+            .expect("the devotion pair construction is declared");
+        assert!(
+            declaration.erased_builder.expect("checked builder exists")(vec![
+                Box::new(ColorWord::White),
+                Box::new(Conjunction::And),
+            ])
+            .is_err()
+        );
+    }
+
+    #[test]
     fn generated_inverse_rejects_invalid_direct_nominal_invariants() {
         // Mutations caught: treat an inverse shape predicate as render-only
         // decoration, or let writable AST fields bypass cardinality, identity,
@@ -2748,7 +3500,8 @@ mod tests {
 
         let bare = build_predicated_quality_bare(Some(ColorWord::Red), None, None).unwrap();
         assert!(build_predicated_argument_from_single(bare).is_err());
-        let explicit = build_predicated_quality_from(Some(ColorWord::Red), None).unwrap();
+        let explicit =
+            build_predicated_quality_from(Preposition::From, Some(ColorWord::Red), None).unwrap();
         assert!(build_predicated_argument_bare_single(explicit).is_err());
 
         let postpositive_base =

@@ -41,6 +41,7 @@ use rules::RuleBuilder;
 use rules::RuleImpl;
 use scan::accepts_possessive_modifier_prefix;
 use scan::accepts_set_exception_prefix;
+pub(crate) use scan::adjective_comparison_state;
 use scan::copula_agreement;
 use scan::lexical_word_matches;
 use scan::literal_match;
@@ -1150,6 +1151,10 @@ pub(crate) enum Features {
         initial_sound: InitialSound,
         comparison: AdjectiveComparisonState,
         card_orientation: bool,
+        /// True only for a lexically scanned past participle. The generated
+        /// postpositive adjective-plus-PP construction uses this semantic bit
+        /// to admit only the `blocked by ...` family.
+        past_participle: bool,
         /// Whether this modifier can remain inside a nominal coordinated under
         /// the demonstrative determiner `this`.
         demonstrative_shared_determiner: bool,

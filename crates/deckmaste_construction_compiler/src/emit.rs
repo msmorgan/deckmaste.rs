@@ -628,9 +628,40 @@ fn erased_construction_builder(
             let target = quote::format_ident!("{}", name.value);
             quote! { #target::try_new(#(#field_names),*) }
         }
-        AstShape::Bind { .. } => {
-            let builder = quote::format_ident!("build_{}", construction.id.value);
-            quote! { #builder(#(#field_names),*) }
+        AstShape::Bind { path, .. } => {
+            let target = parse_type(&path.value);
+            let checks: Vec<TokenStream> = construction
+                .constraints
+                .iter()
+                .filter_map(|constraint| match constraint {
+                    Constraint::Require(predicate) => {
+                        Some(require_check(owner, group, fields, &predicate.value))
+                    }
+                    Constraint::Recognize(_) | Constraint::DeriveFeature { .. } => None,
+                })
+                .collect();
+            let construct = if let Some(application) = &construction.lens {
+                let lens = group
+                    .lenses
+                    .iter()
+                    .find(|lens| lens.name.value == application.owner.value)
+                    .expect("validated: EC016 rejects an undeclared lens owner");
+                lens_construct(lens, application, &target, owner)
+            } else if let Some(adapter) = &construction.bind_adapter {
+                let constructor = parse_type(&adapter.constructor.value);
+                quote! { #constructor(#(#field_names),*) }
+            } else {
+                quote! { Ok(#target { #(#field_names),* }) }
+            };
+            quote! {
+                (|| -> Result<
+                    #target,
+                    ::deckmaste_construction_compiler::runtime::DeclarationViolation,
+                > {
+                    #(#checks)*
+                    #construct
+                })()
+            }
         }
     };
     quote! {
@@ -958,7 +989,11 @@ fn lens_bind_construction(
         .zip(&owner_types)
         .map(|(field, ty)| quote! { let _: &#ty = #field; });
 
-    let construct = lens_construct(lens, application, &target, id);
+    let construct = checked_inverse_construct(
+        construction,
+        &target,
+        lens_construct(lens, application, &target, id),
+    );
     let destructure = lens_destructure(lens, application, &field_names);
     let parts_return = quote! { Option<(#(#field_types),*)> };
 
@@ -1035,6 +1070,7 @@ fn bind_construction(
             quote! { #constructor(#(#field_names),*) }
         },
     );
+    let construct = checked_inverse_construct(construction, &target, construct);
     let destructure = construction.bind_adapter.as_ref().map_or_else(
         || {
             quote! {
@@ -1065,6 +1101,46 @@ fn bind_construction(
             #destructure
         }
     })
+}
+
+/// A whole-value inverse recognizer is part of a checked construction's
+/// ingress contract, not merely a renderer-side dispatch hint. When every
+/// canonical form names one, reject a built value outside their union before
+/// it can escape through the generated door.
+fn checked_inverse_construct(
+    construction: &ConstructionDeclaration,
+    target: &TokenStream,
+    construct: TokenStream,
+) -> TokenStream {
+    let guards = construction
+        .forms
+        .iter()
+        .map(|form| {
+            (!form.fallback)
+                .then_some(form.inverse_guard.as_ref().or(form.value_guard.as_ref()))
+                .flatten()
+        })
+        .collect::<Option<Vec<_>>>();
+    let Some(guards) = guards.filter(|guards| !guards.is_empty()) else {
+        return construct;
+    };
+    let condition = guards
+        .into_iter()
+        .fold(quote! { false }, |condition, guard| {
+            let predicate = parse_type(&guard.value);
+            quote! { #condition || #predicate(&value) }
+        });
+    let id = construction.id.value.as_str();
+    quote! {
+        let value: #target = { #construct }?;
+        if !(#condition) {
+            return Err(::deckmaste_construction_compiler::runtime::DeclarationViolation {
+                construction: #id,
+                requirement: "constructed value matches a declared inverse form",
+            });
+        }
+        Ok(value)
+    }
 }
 
 #[allow(

@@ -71,6 +71,7 @@ use crate::syntax::PredicateExpression;
 use crate::syntax::PredicateHead;
 use crate::syntax::PredicateObject;
 use crate::syntax::PredicatedArgument;
+use crate::syntax::PredicatedQuality;
 use crate::syntax::Preposition;
 use crate::syntax::PrepositionalPhrase;
 use crate::syntax::PreverbModifier;
@@ -533,6 +534,18 @@ impl<'renderer, 'identity> GeneratedNominalRenderer<'renderer, 'identity> {
         debug_assert!(self.pending_determiner.is_none());
         self.rendered
     }
+
+    fn accept_generated(
+        result: Result<
+            (),
+            deckmaste_construction_compiler::runtime::LinearizationError<RenderError>,
+        >,
+    ) -> Result<(), RenderError> {
+        result.map_err(|error| match error {
+            deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error) => error,
+            _ => RenderError::InvalidNominalConstruction,
+        })
+    }
 }
 
 impl deckmaste_construction_compiler::runtime::LinearizationVisitor
@@ -577,6 +590,11 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                 }
                 self.renderer.nominal_phrase(nominal)?
             }
+            "NounPhrase" => self.renderer.noun_phrase(
+                value
+                    .downcast_ref::<NounPhrase>()
+                    .expect("the predicated-quality hole preserves NounPhrase"),
+            )?,
             "Determiner" => {
                 self.pending_determiner = Some(
                     value
@@ -630,18 +648,61 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                             .clone(),
                     ))?
             }
-            "PredicatedArgumentFrom" | "PredicatedArgumentBare" => {
-                self.renderer.predicated_argument(
-                    value
-                        .downcast_ref::<PredicatedArgument>()
-                        .expect("the keyword argument hole preserves PredicatedArgument"),
-                )?
+            "PredicatedQualityFrom" => {
+                let value = value
+                    .downcast_ref::<PredicatedQuality>()
+                    .expect("the keyword-quality hole preserves PredicatedQuality");
+                Self::accept_generated(
+                    crate::constructions::nominal::linearize_predicated_quality_from_family_with(
+                        value, self,
+                    ),
+                )?;
+                return Ok(());
             }
-            "DevotionColors" => render_devotion_colors(
-                *value
+            "PredicatedQualityBare" => {
+                let value = value
+                    .downcast_ref::<PredicatedQuality>()
+                    .expect("the keyword-quality hole preserves PredicatedQuality");
+                Self::accept_generated(
+                    crate::constructions::nominal::linearize_predicated_quality_bare_family_with(
+                        value, self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "PredicatedArgumentFrom" => {
+                let value = value
+                    .downcast_ref::<PredicatedArgument>()
+                    .expect("the keyword argument hole preserves PredicatedArgument");
+                Self::accept_generated(
+                    crate::constructions::nominal::linearize_predicated_argument_from_family_with(
+                        value, self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "PredicatedArgumentBare" => {
+                let value = value
+                    .downcast_ref::<PredicatedArgument>()
+                    .expect("the keyword argument hole preserves PredicatedArgument");
+                Self::accept_generated(
+                    crate::constructions::nominal::linearize_predicated_argument_bare_family_with(
+                        value, self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "DevotionColors" => {
+                let value = value
                     .downcast_ref::<crate::syntax::DevotionColors>()
-                    .expect("the devotion hole preserves DevotionColors"),
-            ),
+                    .expect("the devotion hole preserves DevotionColors");
+                Self::accept_generated(
+                    crate::constructions::nominal::linearize_devotion_colors_family_with(
+                        *value, self,
+                    ),
+                )?;
+                return Ok(());
+            }
             "IndependentClause" => self.renderer.independent_clause(
                 value
                     .downcast_ref::<IndependentClause>()
@@ -681,6 +742,12 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                 .expect("the color scalar preserves ColorWord")
                 .spelling()
                 .to_owned(),
+            "Preposition" => render_preposition(
+                *value
+                    .downcast_ref::<Preposition>()
+                    .expect("the predicated preposition scalar preserves Preposition"),
+            )
+            .to_owned(),
             other => panic!("unexpected nominal scalar codec `{other}`"),
         };
         self.push(&rendered);
@@ -1208,24 +1275,30 @@ impl<'identity> Renderer<'identity> {
         })
     }
 
-    /// The body of a [`KeywordArgument::Predicated`] argument, with no
-    /// leading separator — shared by [`Self::keyword_argument`] (which
-    /// prepends one space) and the nominal keyword-argument complement
-    /// (`kwgrant` round), whose caller already supplies exactly one space via
-    /// `join_words`.
-    fn predicated_argument(&self, argument: &PredicatedArgument) -> Result<String, RenderError> {
-        let mut rendered = String::new();
-        for (index, quality) in argument.qualities.iter().enumerate() {
-            if index > 0 {
-                rendered.push_str(" and ");
-            }
-            if let Some(preposition) = quality.preposition {
-                rendered.push_str(render_preposition(preposition));
-                rendered.push(' ');
-            }
-            rendered.push_str(&self.phrase(&quality.quality)?);
-        }
-        Ok(rendered)
+    fn generated_predicated_argument(
+        &self,
+        argument: &PredicatedArgument,
+    ) -> Result<String, RenderError> {
+        let mut visitor = GeneratedNominalRenderer::new(self);
+        let result = crate::constructions::nominal::linearize_predicated_argument_family_with(
+            argument,
+            &mut visitor,
+        );
+        GeneratedNominalRenderer::accept_generated(result)?;
+        Ok(visitor.finish())
+    }
+
+    fn generated_devotion_colors(
+        &self,
+        colors: crate::syntax::DevotionColors,
+    ) -> Result<String, RenderError> {
+        let mut visitor = GeneratedNominalRenderer::new(self);
+        let result = crate::constructions::nominal::linearize_devotion_colors_family_with(
+            colors,
+            &mut visitor,
+        );
+        GeneratedNominalRenderer::accept_generated(result)?;
+        Ok(visitor.finish())
     }
 
     fn keyword_argument(&self, argument: &KeywordArgument) -> Result<String, RenderError> {
@@ -1256,7 +1329,7 @@ impl<'identity> Renderer<'identity> {
                 )
             }
             KeywordArgument::Predicated(predicated) => {
-                format!(" {}", self.predicated_argument(predicated)?)
+                format!(" {}", self.generated_predicated_argument(predicated)?)
             }
             KeywordArgument::Statted { symbols, stats } => format!(
                 " {} — {}/{}",
@@ -2387,14 +2460,16 @@ impl<'identity> Renderer<'identity> {
                 render_signed_scalar(value.toughness),
             ),
             NominalComplement::Devotion(colors) => {
-                format!("to {}", render_devotion_colors(*colors))
+                format!("to {}", self.generated_devotion_colors(*colors)?)
             }
             NominalComplement::EventClause(clause) => self.independent_clause(clause)?,
             NominalComplement::KeywordArgument(argument) => match argument {
                 KeywordArgument::Costed(KeywordCost::Symbols(symbols)) => {
                     render_symbol_sequence(symbols)
                 }
-                KeywordArgument::Predicated(predicated) => self.predicated_argument(predicated)?,
+                KeywordArgument::Predicated(predicated) => {
+                    self.generated_predicated_argument(predicated)?
+                }
                 _ => return Err(RenderError::InvalidKeywordArgumentNominal),
             },
         })
@@ -3177,18 +3252,6 @@ fn phrase_terminal_quote(phrase: &Phrase) -> Option<&QuotedAbility> {
     match phrase {
         Phrase::QuotedAbility(quoted) => Some(quoted),
         _ => None,
-    }
-}
-
-/// Renders the color payload of a `devotion` value nominal [CR#700.5] from
-/// the carried identities — a single color or an `and`-joined pair. The M01
-/// declaration owns the preceding literal `to`.
-fn render_devotion_colors(colors: crate::syntax::DevotionColors) -> String {
-    match colors {
-        crate::syntax::DevotionColors::Color(color) => color.spelling().to_owned(),
-        crate::syntax::DevotionColors::Pair(first, second) => {
-            format!("{} and {}", first.spelling(), second.spelling())
-        }
     }
 }
 
@@ -4678,6 +4741,24 @@ mod tests {
         assert_eq!(
             render_nominal_conjunction(Conjunction::Then),
             Err(RenderError::InvalidNominalConjunction(Conjunction::Then))
+        );
+    }
+
+    #[test]
+    fn predicated_keyword_rendering_rejects_shapes_outside_the_generated_m01_family() {
+        // Mutation caught: route `PredicatedArgument` through the handwritten
+        // renderer, which accepts arbitrary prepositions instead of requiring
+        // one of the two declared M01 argument families.
+        let argument = KeywordArgument::Predicated(PredicatedArgument {
+            qualities: vec![PredicatedQuality {
+                preposition: Some(Preposition::To),
+                quality: Phrase::ColorWord(crate::word::ColorWord::Red),
+            }],
+        });
+
+        assert_eq!(
+            Renderer::new("Test Card", false).keyword_argument(&argument),
+            Err(RenderError::InvalidNominalConstruction)
         );
     }
 

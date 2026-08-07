@@ -770,6 +770,48 @@ fn mixed_lens_family_dispatch_includes_guarded_adapters_for_the_same_owner() {
 }
 
 #[test]
+fn typed_builder_checks_inverse_ownership_while_erased_builder_assembles_chart_intermediates() {
+    // Mutations guarded: let the public checked door manufacture a value
+    // whose outer inverse belongs elsewhere, or apply that whole-value check
+    // to chart assembly and thereby reject a valid noncanonical intermediate
+    // before a later production can complete it.
+    let violation = build_mixed_lens_prepend(flattened_owner(), LensToken::Inserted)
+        .expect_err("the final value does not belong to mixed_lens_prepend");
+    assert_eq!(violation.construction, "mixed_lens_prepend");
+    assert_eq!(
+        violation.requirement,
+        "constructed value matches a declared inverse form"
+    );
+
+    let declaration = MIXED_LENS_DISPATCH_DECLARATION
+        .constructions
+        .iter()
+        .find(|construction| construction.id == "mixed_lens_prepend")
+        .expect("the checked lens construction is declared");
+    let intermediate = declaration
+        .erased_builder
+        .expect("chart lowering has an erased assembly door")(vec![
+        Box::new(flattened_owner()),
+        Box::new(LensToken::Inserted),
+    ])
+    .expect("chart assembly retains a noncanonical intermediate")
+    .downcast::<FlattenedLensRecord>()
+    .expect("the erased door returns the declared owner");
+    assert_eq!(intermediate.prefix[0], LensToken::Inserted);
+    assert_eq!(intermediate.suffix, [LensToken::Suffix]);
+
+    let mut visitor = LensLinearizer::default();
+    assert!(matches!(
+        linearize_mixed_lens_dispatch_group_with(&intermediate, &mut visitor),
+        Err(
+            deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
+                group: "mixed_lens_dispatch"
+            }
+        )
+    ));
+}
+
+#[test]
 fn group_inverse_dispatch_is_generated_from_every_declared_adapter() {
     // Mutation guarded: register a new construction but omit it from a
     // handwritten reverse dispatcher. The dispatcher named here is emitted

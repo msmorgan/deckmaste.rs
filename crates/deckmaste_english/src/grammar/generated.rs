@@ -536,6 +536,7 @@ fn codec_slot(codec: &'static str) -> Option<EnglishLexicalSlot> {
         "NounPhraseConjunction" => Some(EnglishLexicalSlot::NounPhraseConjunction),
         "Comma" => Some(EnglishLexicalSlot::Punctuation(Punctuation::Comma)),
         "ColorWord" => Some(EnglishLexicalSlot::ColorWord),
+        "Preposition" => Some(EnglishLexicalSlot::Preposition),
         "OracleSymbol" => Some(EnglishLexicalSlot::OracleSymbol),
         "SymbolSequence" => Some(EnglishLexicalSlot::SymbolSequence),
         _ => None,

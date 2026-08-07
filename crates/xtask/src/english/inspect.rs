@@ -504,22 +504,26 @@ mod tests {
         assert!(verbose.contains("alternative sentence#1"));
     }
 
-    #[test]
-    fn verbose_output_explains_declared_construction_dominance() {
+    fn verbose_m01(source: &str) -> String {
         let cards = [CardFace {
             card_name: "Test Card".to_owned(),
             face_name: None,
             is_legendary: false,
             supported: false,
-            source_text: "This creature has protection from artifacts.".to_owned(),
-            oracle_text: "This creature has protection from artifacts.".to_owned(),
+            source_text: source.to_owned(),
+            oracle_text: source.to_owned(),
         }];
+        let catalogs = Catalogs::default()
+            .with_catalog(
+                deckmaste_english::CatalogKind::KeywordAbility,
+                ["Protection"],
+            )
+            .with_catalog(deckmaste_english::CatalogKind::CreatureType, ["Ally"])
+            .with_catalog(
+                deckmaste_english::CatalogKind::CardType,
+                ["Artifact", "Creature", "Instant", "Land", "Sorcery"],
+            );
         let mut rendered = Vec::new();
-        let catalogs = Catalogs::default().with_catalog(
-            deckmaste_english::CatalogKind::KeywordAbility,
-            ["Protection"],
-        );
-
         write_cards(
             &mut rendered,
             &cards,
@@ -530,17 +534,125 @@ mod tests {
             },
         )
         .unwrap();
+        String::from_utf8(rendered).unwrap()
+    }
 
-        let rendered = String::from_utf8(rendered).unwrap();
-        // Mutation caught: leave verbose inspect pointed at the retired
-        // handwritten M01 owner instead of registry-selected declaration
-        // metadata.
-        assert!(rendered.contains("nominal_prepositional owner=generated backend=chart"));
-        assert!(rendered.contains("evidence=feature:nominal attachment phase"));
-        assert!(rendered.contains("reason=dominance"));
-        assert!(rendered.contains("cost={opaque_words:0,opaque_lexemes:0,generic_rules:0"));
+    fn assert_verbose_dominance(source: &str, winner: &str, loser: &str) {
+        let rendered = verbose_m01(source);
+        let lines = rendered.lines().collect::<Vec<_>>();
+        let selected = lines
+            .iter()
+            .position(|line| {
+                line.contains(&format!(" {winner} owner=generated backend=chart "))
+                    && line.contains(" reason=dominance ")
+            })
+            .unwrap_or_else(|| {
+                panic!("{source:?} did not report generated dominance winner {winner}:\n{rendered}")
+            });
         assert!(
-            rendered.contains("alternative nominal_keyword_predicated_argument#0 dominated=true")
+            lines[selected + 1..]
+                .iter()
+                .take_while(|line| line.starts_with("  alternative "))
+                .any(|line| line.contains(&format!("alternative {loser}#0 dominated=true"))),
+            "{source:?} did not report {loser} as the dominated alternative to {winner}:\n{rendered}",
+        );
+    }
+
+    #[test]
+    fn verbose_output_explains_every_m01_dominance_edge() {
+        // Each fixture names the competing construction pair. Removing an
+        // edge, restoring a handwritten owner, or omitting the defeated
+        // alternative makes the corresponding row fail causally.
+        for (source, winner, loser) in [
+            (
+                "Look at the top two cards of your library.",
+                "nominal_quantity_modifier",
+                "nominal_prepositional",
+            ),
+            (
+                "The top two creatures attacking get +1/+1.",
+                "nominal_quantity_modifier",
+                "nominal_postpositive_adjective",
+            ),
+            (
+                "The top two greater creatures than a card get +1/+1.",
+                "nominal_quantity_modifier",
+                "nominal_comparison",
+            ),
+            (
+                "If an opponent controls at least four more creatures than you, this spell costs {6} less to cast.",
+                "nominal_determiner",
+                "nominal_comparison",
+            ),
+            (
+                "You may spend colorless mana as though it were mana of any color to cast that spell.",
+                "nominal_prepositional",
+                "nominal_infinitive",
+            ),
+            (
+                "Choose target artifact or land card in your graveyard.",
+                "nominal_prepositional",
+                "nominal_coordinated_modifier",
+            ),
+            (
+                "You have protection from each of your opponents.",
+                "nominal_prepositional",
+                "nominal_keyword_predicated_argument",
+            ),
+            (
+                "Return this card from your graveyard to your hand.",
+                "nominal_prepositional",
+                "nominal_noun",
+            ),
+            (
+                "If a creature dealt damage this way would die this turn, exile it instead.",
+                "nominal_reduced_recipient_passive",
+                "nominal_noun",
+            ),
+            (
+                "Create a 1/1 white Ally creature token for each experience counter you have.",
+                "nominal_relative",
+                "nominal_prepositional",
+            ),
+        ] {
+            assert_verbose_dominance(source, winner, loser);
+        }
+    }
+
+    #[test]
+    fn verbose_output_pins_m01_semantic_gates_and_roles() {
+        let keyword = verbose_m01("This creature has protection from red and from blue.");
+        assert!(
+            keyword.contains(
+                "predicated_argument_from_extend owner=generated backend=chart form=0 evidence=guard:keyword-grant conjunction gate"
+            ),
+            "{keyword}",
+        );
+
+        let rules_object = verbose_m01("This card deals damage to you and creatures you control.");
+        assert!(
+            rules_object.contains(
+                "rules_object_nominal_base owner=generated backend=chart form=0 evidence=role:rules-object attachment role"
+            ),
+            "{rules_object}",
+        );
+
+        let reduced = verbose_m01(
+            "If a creature dealt damage this way would die this turn, exile it instead.",
+        );
+        assert!(
+            reduced.contains(
+                "nominal_reduced_recipient_passive owner=generated backend=chart form=0 evidence=guard:reduced-recipient-passive frame"
+            ),
+            "{reduced}",
+        );
+
+        let phase = verbose_m01("This creature has protection from artifacts.");
+        assert!(
+            phase.contains(
+                "nominal_prepositional owner=generated backend=chart form=0 evidence=feature:nominal attachment phase"
+            ),
+            "{phase}",
         );
     }
 

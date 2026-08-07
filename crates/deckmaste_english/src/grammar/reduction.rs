@@ -536,6 +536,7 @@ fn reduce_nominal(
                 initial_sound: InitialSound::Consonant,
                 comparison: AdjectiveComparisonState::NotComparative,
                 card_orientation: true,
+                past_participle: false,
                 demonstrative_shared_determiner: true,
             })
         }
@@ -550,6 +551,7 @@ fn reduce_nominal(
                 initial_sound,
                 comparison: AdjectiveComparisonState::Pending(_),
                 card_orientation,
+                past_participle,
                 demonstrative_shared_determiner,
             } = children.first()?.features
             else {
@@ -559,6 +561,7 @@ fn reduce_nominal(
                 initial_sound: *initial_sound,
                 comparison: AdjectiveComparisonState::Complete,
                 card_orientation: *card_orientation,
+                past_participle: *past_participle,
                 demonstrative_shared_determiner: *demonstrative_shared_determiner,
             })
         }
@@ -574,6 +577,7 @@ fn reduce_nominal(
                 comparison:
                     AdjectiveComparisonState::Pending(AdjectiveComparisonClass::OrComparative),
                 card_orientation: false,
+                past_participle,
                 demonstrative_shared_determiner,
             } = children.get(1)?.features
             else {
@@ -586,6 +590,7 @@ fn reduce_nominal(
                 initial_sound: *initial_sound,
                 comparison: AdjectiveComparisonState::Measured,
                 card_orientation: false,
+                past_participle: *past_participle,
                 demonstrative_shared_determiner: *demonstrative_shared_determiner,
             })
         }
@@ -630,6 +635,7 @@ fn reduce_nominal(
                 comparison,
                 card_orientation: false,
                 demonstrative_shared_determiner,
+                ..
             } = children.first()?.features
             else {
                 return None;
@@ -1275,6 +1281,23 @@ fn reduce_nominal(
                     children.get(index)?.features,
                     Features::Conjunction(Conjunction::And | Conjunction::Or | Conjunction::AndOr)
                 )
+            {
+                return None;
+            }
+            if tag == RuleTag::NominalPostpositiveAdjectiveConjoinedPrepositional
+                && (!matches!(
+                    children.get(adjective_index)?.features,
+                    Features::Adjective {
+                        past_participle: true,
+                        ..
+                    }
+                ) || !matches!(
+                    children.get(3)?.features,
+                    Features::PrepositionalPhrase {
+                        preposition: Preposition::By,
+                        ..
+                    }
+                ))
             {
                 return None;
             }
@@ -3118,6 +3141,7 @@ pub(super) fn slot_agrees(slot: VerbSlot, agreement: Agreement) -> bool {
 mod generated_tests {
     use super::*;
     use crate::constructions::coordination;
+    use crate::constructions::nominal;
 
     fn noun_phrase(number: Number) -> Features {
         Features::NounPhrase {
@@ -3157,6 +3181,76 @@ mod generated_tests {
             .iter()
             .find(|construction| construction.id == id)
             .expect("the coordination construction is declared")
+    }
+
+    fn nominal_rule(id: &str) -> super::super::rules::GeneratedRuleRef {
+        let construction = nominal::GROUPS[0]
+            .constructions
+            .iter()
+            .position(|construction| construction.id == id)
+            .expect("the nominal construction is declared");
+        super::super::rules::GeneratedRuleRef {
+            group: nominal::GROUPS[0],
+            construction,
+            form: 0,
+            sequence_atoms: 0,
+            context: super::super::rules::GeneratedRuleContext::Value,
+        }
+    }
+
+    fn open_nominal() -> Features {
+        Features::Nominal {
+            head: None,
+            coordination_domain: Some(CoordinationDomain::Entity),
+            form: NounForm::Singular,
+            initial_sound: InitialSound::Consonant,
+            determined: false,
+            modified: false,
+            leading_opacity: false,
+            attachment: NominalAttachmentPhase::PostpositiveAdjective,
+            comparison: AdjectiveComparisonState::NotComparative,
+            adjunct: None,
+            opaque_head: false,
+            set_exception_host: false,
+            shared_determiner_open: true,
+            demonstrative_shared_determiner: true,
+            recipient_passive_theme: false,
+        }
+    }
+
+    #[test]
+    fn conjoined_postpositive_pp_reduction_rejects_a_non_by_preposition() {
+        // Mutation caught: remove the construction-specific semantic gate
+        // from generated nominal feature reduction while leaving builder and
+        // inverse validation intact.
+        let features = [
+            open_nominal(),
+            Features::Conjunction(Conjunction::Or),
+            Features::Adjective {
+                initial_sound: InitialSound::Consonant,
+                comparison: AdjectiveComparisonState::NotComparative,
+                card_orientation: false,
+                past_participle: true,
+                demonstrative_shared_determiner: true,
+            },
+            Features::PrepositionalPhrase {
+                preposition: Preposition::In,
+                nominal_attachment: true,
+                shared_determiner_object: false,
+                nearer_relative_host: false,
+            },
+        ];
+        let children = features
+            .iter()
+            .map(|features| Child { features })
+            .collect::<Vec<_>>();
+        assert!(
+            reduce_generated(
+                nominal_rule("nominal_postpositive_adjective_conjoined_prepositional"),
+                &children,
+            )
+            .is_none()
+        );
     }
 
     #[test]

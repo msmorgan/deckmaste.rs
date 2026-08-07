@@ -59,6 +59,9 @@ use super::Vocab;
 use super::ability;
 use super::clause;
 use super::parse_support::EnglishForest;
+use crate::constructions::nominal::ReducedRecipientPassiveTheme;
+use crate::constructions::nominal::RulesObjectFollowupNominal;
+use crate::constructions::nominal::RulesObjectNominal;
 use crate::forest::AlternativeSelection;
 use crate::syntax::ComparativeWord;
 
@@ -362,19 +365,25 @@ fn project_generated_category(
     construction: &deckmaste_construction_compiler::runtime::ConstructionData,
     value: deckmaste_construction_compiler::runtime::ErasedValue,
 ) -> Option<Lowered> {
-    if matches!(
-        construction.category,
-        "NounPhrase" | "ReducedRecipientPassiveTheme"
-    ) {
+    if construction.category == "NounPhrase" {
         let value = value.downcast::<NounPhrase>().ok()?;
         return Some(Lowered::NounPhrase(*value));
     }
-    if matches!(
-        construction.category,
-        "NominalPhrase" | "RulesObjectNominal" | "RulesObjectFollowupNominal"
-    ) {
+    if construction.category == "ReducedRecipientPassiveTheme" {
+        let value = value.downcast::<ReducedRecipientPassiveTheme>().ok()?;
+        return Some(Lowered::NounPhrase(value.into_noun_phrase()));
+    }
+    if construction.category == "NominalPhrase" {
         let value = value.downcast::<NominalPhrase>().ok()?;
         return Some(Lowered::Nominal(*value));
+    }
+    if construction.category == "RulesObjectNominal" {
+        let value = value.downcast::<RulesObjectNominal>().ok()?;
+        return Some(Lowered::Nominal(value.into_nominal()));
+    }
+    if construction.category == "RulesObjectFollowupNominal" {
+        let value = value.downcast::<RulesObjectFollowupNominal>().ok()?;
+        return Some(Lowered::Nominal(value.into_nominal()));
     }
     if matches!(
         construction.category,
@@ -523,6 +532,14 @@ fn erased_field(
             Some(Box::new(value))
         }
         K::Scalar {
+            codec: "Preposition",
+        } => {
+            let Lowered::Preposition(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Scalar {
             codec: "OracleSymbol",
         } => {
             let Lowered::OracleSymbol(value) = value else {
@@ -580,9 +597,28 @@ fn erased_subtree(
     }
     match category {
         "NounInstance" => typed!(Noun, value),
-        "NounPhrase" | "ReducedRecipientPassiveTheme" => typed!(NounPhrase, value),
-        "NominalPhrase" | "RulesObjectNominal" | "RulesObjectFollowupNominal" => {
-            typed!(Nominal, value)
+        "NounPhrase" => typed!(NounPhrase, value),
+        "ReducedRecipientPassiveTheme" => {
+            let Lowered::NounPhrase(value) = value else {
+                return None;
+            };
+            let value = ReducedRecipientPassiveTheme::from_noun_phrase(value);
+            if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
+        }
+        "NominalPhrase" => typed!(Nominal, value),
+        "RulesObjectNominal" => {
+            let Lowered::Nominal(value) = value else {
+                return None;
+            };
+            let value = RulesObjectNominal::from_nominal(value);
+            if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
+        }
+        "RulesObjectFollowupNominal" => {
+            let Lowered::Nominal(value) = value else {
+                return None;
+            };
+            let value = RulesObjectFollowupNominal::from_nominal(value);
+            if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
         }
         "Determiner" => typed!(Determiner, value),
         "AdjectivePhrase" => typed!(AdjectivePhrase, value),
@@ -723,11 +759,21 @@ fn erased_optional(
                 };
                 Some(Box::new(Some(value.clone())))
             }
-            "RulesObjectNominal" | "RulesObjectFollowupNominal" => {
+            "RulesObjectNominal" => {
                 let Lowered::Nominal(value) = value else {
                     return None;
                 };
-                Some(Box::new(Some(value.clone())))
+                Some(Box::new(Some(RulesObjectNominal::from_nominal(
+                    value.clone(),
+                ))))
+            }
+            "RulesObjectFollowupNominal" => {
+                let Lowered::Nominal(value) = value else {
+                    return None;
+                };
+                Some(Box::new(Some(RulesObjectFollowupNominal::from_nominal(
+                    value.clone(),
+                ))))
             }
             _ => None,
         },
@@ -763,9 +809,13 @@ fn erased_optional_absent(
             boxed: false,
         } => Some(Box::new(None::<crate::syntax::AdjectivePhrase>)),
         K::Subtree {
-            category: "RulesObjectNominal" | "RulesObjectFollowupNominal",
+            category: "RulesObjectNominal",
             boxed: false,
-        } => Some(Box::new(None::<crate::syntax::NominalPhrase>)),
+        } => Some(Box::new(None::<RulesObjectNominal>)),
+        K::Subtree {
+            category: "RulesObjectFollowupNominal",
+            boxed: false,
+        } => Some(Box::new(None::<RulesObjectFollowupNominal>)),
         _ => None,
     }
 }

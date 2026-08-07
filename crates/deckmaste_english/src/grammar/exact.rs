@@ -51,6 +51,13 @@ pub(crate) struct GeneratedNounPhraseParse {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct GeneratedNominalParse {
+    pub(crate) value: crate::syntax::NominalPhrase,
+    pub(crate) construction: &'static str,
+    pub(crate) form_ordinal: u16,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct GeneratedSentenceParse {
     pub(crate) value: crate::syntax::Sentence,
     pub(crate) construction: &'static str,
@@ -414,6 +421,78 @@ fn parse_generated_noun_phrase_as(
     Ok(results)
 }
 
+fn parse_generated_nominal_as(
+    source: &str,
+    catalogs: &Catalogs,
+    activation: GeneratedActivation,
+    budget: usize,
+    order: RegistrationOrder,
+) -> Result<Vec<ExactParse<GeneratedNominalParse, EnglishSurfaceWitness>>, ExactParseError> {
+    let self_reference = SelfReference::default();
+    let surface = lex(source);
+    let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
+    let grammar = EnglishGrammar::with_opacity_mode_and_registration_order(
+        source,
+        catalogs,
+        Nonterminal::Nominal,
+        OpacityMode::Exact,
+        self_reference,
+        order,
+        activation,
+    );
+    let chart = parse_chart(&grammar, &tokens).map_err(ExactParseError::Grammar)?;
+    let mut remaining = budget;
+    let mut results = Vec::new();
+    for &root in &chart.roots {
+        let selections = chart
+            .forest
+            .enumerate_selections(root, &mut remaining)
+            .map_err(|error| match error {
+                SelectionEnumerationError::Cycle(_) => ExactParseError::Cycle,
+                SelectionEnumerationError::BudgetExhausted => {
+                    ExactParseError::TooManyAlternatives { budget }
+                }
+            })?;
+        for selection in selections {
+            let forest_node = chart.forest.node(root);
+            let Some(alternative_index) = selection.alternative(root) else {
+                continue;
+            };
+            let Some(alternative) = forest_node.alternatives.get(alternative_index) else {
+                continue;
+            };
+            let Some(rule) = alternative.rule else { continue };
+            let Some(RuleImpl::Generated(generated)) = grammar.impls.get(rule.index()).copied()
+            else {
+                continue;
+            };
+            let Some(construction) = generated.group.constructions.get(generated.construction)
+            else {
+                continue;
+            };
+            let Some(form) = construction.forms.get(generated.form) else {
+                continue;
+            };
+            let Some(Lowered::Nominal(value)) = lower(&grammar, &chart.forest, root, &selection)
+            else {
+                continue;
+            };
+            let ast = GeneratedNominalParse {
+                value,
+                construction: construction.id,
+                form_ordinal: form.ordinal,
+            };
+            let Some(exact) = chart.forest.exact_result(root, alternative_index, ast) else {
+                continue;
+            };
+            if !results.contains(&exact) {
+                results.push(exact);
+            }
+        }
+    }
+    Ok(results)
+}
+
 fn parse_generated_sentence_as(
     source: &str,
     catalogs: &Catalogs,
@@ -541,7 +620,15 @@ mod tests {
         Catalogs::default()
             .with_catalog(
                 CatalogKind::KeywordAbility,
-                ["Flash", "Flying", "Haste", "Lifelink", "Protection"],
+                [
+                    "Flash",
+                    "Flying",
+                    "Haste",
+                    "Hexproof",
+                    "Hexproof from",
+                    "Lifelink",
+                    "Protection",
+                ],
             )
             .with_catalog(
                 CatalogKind::CardType,
@@ -2699,6 +2786,104 @@ mod tests {
                 reversed.contains(expected),
                 "the built AST/form witness must survive registration reversal: {expected:#?}",
             );
+        }
+    }
+
+    fn linearize_nominal_exact_form(parse: &GeneratedNominalParse) -> String {
+        assert_eq!(parse.form_ordinal, 0, "all M01 fixture forms are @ 0");
+        crate::render_fragment(
+            &crate::Fragment::Nominal(NounPhrase::Nominal(parse.value.clone())),
+            "Test Card",
+            false,
+        )
+        .expect("the generated M01 inverse linearizes its admitted value")
+    }
+
+    #[test]
+    fn m01_exact_laws_preserve_identity_order_and_postpositive_punctuation() {
+        // Mutations caught: collapse color/keyword/conjunction identities,
+        // reorder a predicated or devotion pair, normalize a bare connective
+        // to a comma (or vice versa), or lose the exact M01 derivation under
+        // registration reversal.
+        let fixtures = [
+            (
+                "protection from red and from blue",
+                "nominal_keyword_predicated_argument",
+            ),
+            (
+                "protection from blue and from red",
+                "nominal_keyword_predicated_argument",
+            ),
+            (
+                "hexproof from blue and from black",
+                "nominal_keyword_atom_carried_predicated_argument",
+            ),
+            ("devotion to white and blue", "nominal_devotion"),
+            ("devotion to blue and white", "nominal_devotion"),
+            (
+                "card red and blue",
+                "nominal_postpositive_adjective_conjoined",
+            ),
+            (
+                "card red or blue",
+                "nominal_postpositive_adjective_conjoined",
+            ),
+            ("card red, blue", "nominal_postpositive_adjective_asyndetic"),
+            (
+                "card red, blue, and green",
+                "nominal_postpositive_adjective_oxford",
+            ),
+        ];
+        let catalogs = fixture_catalogs();
+        let mut expected_values = Vec::new();
+        for (source, construction) in fixtures {
+            let normal = parse_generated_nominal_as(
+                source,
+                &catalogs,
+                GeneratedActivation::Production,
+                10_000,
+                RegistrationOrder::Normal,
+            )
+            .unwrap_or_else(|error| panic!("exact M01 parse failed for {source:?}: {error:?}"));
+            let expected = normal
+                .iter()
+                .find(|parse| parse.ast().construction == construction)
+                .unwrap_or_else(|| {
+                    panic!("missing exact {construction} reading for {source:?}: {normal:#?}")
+                });
+            assert_eq!(linearize_nominal_exact_form(expected.ast()), source);
+            assert!(
+                normal
+                    .iter()
+                    .all(|parse| linearize_nominal_exact_form(parse.ast()) == source),
+                "an admitted M01 derivation did not replay {source:?}: {normal:#?}",
+            );
+
+            let reversed = parse_generated_nominal_as(
+                source,
+                &catalogs,
+                GeneratedActivation::Production,
+                10_000,
+                RegistrationOrder::Reversed,
+            )
+            .unwrap_or_else(|error| {
+                panic!("reversed exact M01 parse failed for {source:?}: {error:?}")
+            });
+            assert!(
+                reversed.contains(expected),
+                "the M01 AST/form witness changed under registration reversal: {expected:#?}",
+            );
+            expected_values.push(expected.ast().value.clone());
+        }
+
+        for (left, right, mutation) in [
+            (0, 1, "predicated color order"),
+            (3, 4, "devotion color order"),
+            (5, 6, "conjunction identity"),
+            (5, 7, "binary versus asyndetic punctuation"),
+            (7, 8, "asyndetic versus Oxford punctuation"),
+        ] {
+            assert_ne!(expected_values[left], expected_values[right], "{mutation}");
         }
     }
 

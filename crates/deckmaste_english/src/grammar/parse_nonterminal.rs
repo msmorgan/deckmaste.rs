@@ -1354,6 +1354,69 @@ mod registration_order_tests {
         ),
     ];
 
+    const M01_DOMINANCE_FIXTURES: &[(Nonterminal, &str, &str, &str)] = &[
+        (
+            Nonterminal::NounPhrase,
+            "the top two cards of your library",
+            "nominal_quantity_modifier",
+            "nominal_prepositional",
+        ),
+        (
+            Nonterminal::NounPhrase,
+            "the top two creatures attacking",
+            "nominal_quantity_modifier",
+            "nominal_postpositive_adjective",
+        ),
+        (
+            Nonterminal::NounPhrase,
+            "the top two greater creatures than a card",
+            "nominal_quantity_modifier",
+            "nominal_comparison",
+        ),
+        (
+            Nonterminal::NounPhrase,
+            "at least four more creatures than you",
+            "nominal_determiner",
+            "nominal_comparison",
+        ),
+        (
+            Nonterminal::NounPhrase,
+            "mana of any color to cast that spell",
+            "nominal_prepositional",
+            "nominal_infinitive",
+        ),
+        (
+            Nonterminal::NounPhrase,
+            "target artifact or land card in your graveyard",
+            "nominal_prepositional",
+            "nominal_coordinated_modifier",
+        ),
+        (
+            Nonterminal::NounPhrase,
+            "protection from each of your opponents",
+            "nominal_prepositional",
+            "nominal_keyword_predicated_argument",
+        ),
+        (
+            Nonterminal::NounPhrase,
+            "card from your graveyard to your hand",
+            "nominal_prepositional",
+            "nominal_noun",
+        ),
+        (
+            Nonterminal::Sentence,
+            "If a creature dealt damage this way would die this turn, exile it instead.",
+            "nominal_reduced_recipient_passive",
+            "nominal_noun",
+        ),
+        (
+            Nonterminal::NounPhrase,
+            "a 1/1 white Ally creature token for each experience counter you have",
+            "nominal_relative",
+            "nominal_prepositional",
+        ),
+    ];
+
     #[derive(Debug, PartialEq, Eq)]
     struct NormalizedParse {
         syntax: String,
@@ -1379,6 +1442,7 @@ mod registration_order_tests {
     fn fixture_catalogs() -> Catalogs {
         Catalogs::default()
             .with_catalog(CatalogKind::KeywordAbility, ["Protection"])
+            .with_catalog(CatalogKind::CreatureType, ["Ally"])
             .with_catalog(
                 CatalogKind::CardType,
                 [
@@ -1461,6 +1525,36 @@ mod registration_order_tests {
                 normal,
                 "shuffled registration changed {source:?}",
             );
+        }
+    }
+
+    #[test]
+    fn every_m01_dominance_edge_survives_family_registration_permutations() {
+        for &(nonterminal, source, winner, loser) in M01_DOMINANCE_FIXTURES {
+            let normal = normalized_parse(
+                source,
+                nonterminal,
+                RegistrationOrder::Normal,
+                GeneratedActivation::Production,
+            );
+            assert!(
+                normal.decisions.iter().any(|decision| {
+                    decision.selected.as_str() == winner
+                        && decision.reason == SelectionReason::Dominance
+                        && decision
+                            .candidates
+                            .iter()
+                            .any(|(id, _, dominated)| id.as_str() == loser && *dominated)
+                }),
+                "fixture {source:?} did not exercise declared edge {winner}>{loser}: {normal:#?}",
+            );
+            for order in [RegistrationOrder::Reversed, RegistrationOrder::FixedShuffle] {
+                assert_eq!(
+                    normalized_parse(source, nonterminal, order, GeneratedActivation::Production,),
+                    normal,
+                    "{winner}>{loser} changed under {order:?} registration for {source:?}",
+                );
+            }
         }
     }
 

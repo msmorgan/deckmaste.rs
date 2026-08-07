@@ -5784,6 +5784,11 @@ mod tests {
         for source in [
             "Flying, first strike, protection from red",
             "Flying, protection from red and from white",
+            // A comma-split proper-name fragment can look like another
+            // keyword plus a predicated `of` argument.  Silvar, Devourer of
+            // the Free supplies the corpus witness (`Trynn, Champion of
+            // Freedom`), and source-free rendering must preserve that shape.
+            "Flying, Champion of Freedom",
             "Trample; rampage 1",
         ] {
             let report = parse_with_catalogs(source, &shape_catalogs());

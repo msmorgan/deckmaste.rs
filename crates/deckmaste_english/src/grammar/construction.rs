@@ -124,9 +124,15 @@ fn generated_evidence(id: &str) -> ConstructionEvidence {
         "predicated_argument_from_extend" | "predicated_argument_bare_extend" => {
             ConstructionEvidence::guard("keyword-grant conjunction gate")
         }
-        "rules_object_followup_nominal_relative"
+        "rules_object_nominal_base"
+        | "rules_object_followup_nominal_relative"
         | "rules_object_followup_nominal_prepositional" => {
             ConstructionEvidence::role("rules-object attachment role")
+        }
+        "nominal_reduced_recipient_passive"
+        | "reduced_recipient_passive_theme"
+        | "reduced_recipient_passive_nominal_adjunct" => {
+            ConstructionEvidence::guard("reduced-recipient-passive frame")
         }
         "nominal_prepositional" => ConstructionEvidence::feature("nominal attachment phase"),
         _ => ConstructionEvidence::structural("generated production"),
@@ -141,6 +147,7 @@ mod tests {
     use super::construction_id;
     use super::handwritten_registry;
     use super::registry;
+    use crate::FragmentKind;
     use crate::construction::ConstructionBackend;
     use crate::construction::ConstructionEvidence;
     use crate::construction::ConstructionFamily;
@@ -175,6 +182,36 @@ mod tests {
             assert_eq!(family.owner(), ConstructionOwner::Generated);
             assert_eq!(family.backend(), ConstructionBackend::Chart);
         }
+    }
+
+    #[test]
+    fn production_registry_and_ability_entry_census_matches_the_inventory() {
+        // Mutation caught: add/drop a RuleTag or generated declaration without
+        // updating the migration inventory, or accidentally count the two
+        // chart-backed fragment categories as handwritten ability entries.
+        let families = registry().families();
+        let handwritten = families
+            .iter()
+            .filter(|family| family.owner() == ConstructionOwner::Handwritten)
+            .count();
+        let generated = families
+            .iter()
+            .filter(|family| family.owner() == ConstructionOwner::Generated)
+            .count();
+        assert_eq!(handwritten, 140, "handwritten chart families");
+        assert_eq!(generated, 52, "generated chart families");
+        assert_eq!(families.len(), 192, "all chart families");
+
+        let chart_fragment_entries = [FragmentKind::Nominal, FragmentKind::Sentence];
+        let ability_fragment_entries = [
+            FragmentKind::Cost,
+            FragmentKind::KeywordLine,
+            FragmentKind::Ability,
+        ];
+        assert_eq!(chart_fragment_entries.len(), 2);
+        assert_eq!(ability_fragment_entries.len(), 3);
+        assert_eq!(handwritten + ability_fragment_entries.len(), 143);
+        assert_eq!(families.len() + ability_fragment_entries.len(), 195);
     }
 
     #[test]
