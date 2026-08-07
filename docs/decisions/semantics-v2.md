@@ -44,6 +44,10 @@ announce channel disappears. Proven consequences:
 - A delayed clause cannot read target-introduced referents: `Delayed` types
   its body against the context with target-determined bindings filtered out
   [CR#603.7c,603.3d].
+- The activated-ability colon is the same discipline: the effect is typed
+  against the cost's mentions filtered to public current zones
+  [CR#400.2,400.7j] — an unmoved (tapped) cost mention passes, a
+  hidden-zone one does not.
 
 ## 3. Context data: surface projections and fold-state only
 
@@ -111,6 +115,15 @@ mimicked.
 - Agents are explicit and there are no default arguments anywhere. The
   imperative's unpronounced subject is supplied by the frame as an explicit
   `You` in the term.
+- Agentive verbs — those the CR gives a player actor — put that performer
+  in clause position, the factored form of the real macros' agent
+  parameter: a dependent context cannot re-use the subject term at each
+  inner slot, so the slot rides the clause and lowering redistributes it.
+  Effect-verbs stay subjectless; object sources are the verb's own
+  argument.
+- Choice method is surface data: "of their choice" and "at random" are
+  marked indefinites mirroring the real macros' explicit chooser slot and
+  its absence in the random variant; no CR rule derives a chooser.
 - Each macro matches exactly one English phrase shape — the property frames
   compile against.
 - A verb's implicit restrictions must be expressible both ways — as predicate

@@ -82,16 +82,57 @@
 |||    carrier tracking through its body (`bitterDownfall`'s "its
 |||    controller" still resolves after the destroy).
 |||
+||| Chapter three, clause structure (evidence: Diabolic Edict, Innocent
+||| Blood, Cry of Contrition, Pyrite Spellbomb, Immersturm Skullcairn;
+||| Browbeat/Risk Factor for the decider split):
+|||
+||| 9. **Subjects are the factored who-slot.** Verbs the CR gives a
+|||    player actor ([CR#701.21a,701.9a]) put their performer in clause
+|||    position (`Does`), typed before their phrase; the imperative
+|||    supplies an explicit `You`; effect-verbs stay subjectless, and an
+|||    object source (DealDamage's src) is the verb's own argument. A
+|||    dependent context cannot re-use the subject term at each inner
+|||    slot the way the real macros ride their agent param, so the slot
+|||    factors to the clause and lowering redistributes it.
+||| 10. **The may-decider is a slot, not the performer.** `May` names
+|||    its decider ([CR#608.2d]; resolving default the controller
+|||    [CR#608.2c]) over an arbitrary clause — "[player] may have
+|||    [source] deal …" separates decider from performer, killing the
+|||    auxiliary-subject reading (`throughTheBreach`'s "You may put").
+||| 11. **Choice method is surface data.** "of their choice" / "at
+|||    random" are marked indefinites (`ATheirChoice`, `AAtRandom`)
+|||    mirroring the real macros' explicit chooser slot and its absence
+|||    in the random variant ([CR#701.9b]); no CR rule derives a
+|||    chooser, and the corpus has no bare "Target player sacrifices a
+|||    creature" (`diabolicEdict`, `innocentBlood`).
+||| 12. **The colon is a public-zone filter.** An activated effect reads
+|||    its cost's mentions through `publicOnly` ([CR#400.2], current
+|||    zone): a tapped cost-mention survives unmoved, the moved sorted
+|||    self-reference (`ThisOf`) mints the new object's binding
+|||    ([CR#400.7]) that the effect's "It" reads ([CR#400.7j] —
+|||    `pyriteSpellbomb`, `immersturmSkullcairn`), a bounce-to-hand is
+|||    unreadable past the colon (`badHiddenCost`), and two cost moves
+|||    make a bare pronoun ambiguous (`badTwoCostMentions` — real text
+|||    switches to definite descriptions there).
+||| 13. **Owned zones where English owns them.** `ZoneExpr` spells
+|||    "your hand" (`HandOf You`); expansions keep sort-only forms so
+|||    the CR's owner-routing ([CR#701.8a,701.9a]) never injects phantom
+|||    mentions; and sacrifice demands its referent stand on the
+|||    battlefield (`OnBattlefield`, `badSacrificeExiled`) — the zone
+|||    half of the verb's implicit restriction, controller half parked.
+|||
 ||| Not settled yet: the kind union ("any target" spans objects and
 ||| players [CR#115.4,115.1] — elided to `Object`); threading of mentions
 ||| introduced INSIDE predicates ("…an opponent controls. That player…" —
 ||| `ControlledBy (A Opponent)` does not yet fold its inner mention);
-||| subject/agent threading for declarative verbs (the `May` decider,
-||| `sacrifice`'s agent, `discardsACard`'s owner linkage — one clause-
-||| structure question, which also owns cost-introduced mentions:
-||| "{R}, Sacrifice this artifact: It deals 2 damage to any target" (Pyrite
-||| Spellbomb) reads the cost's mention as the pronoun's antecedent); zone ownership ("your hand", "its owner's hand")
-||| and event queries (`Delayed` carries none); the player pronoun "they"
+||| owned-zone mentions beyond `You` ("its owner's hand" — destination
+||| and predicate-inner mentions do not fold yet); controller
+||| fold-state (the controller half of verb restrictions, entangled
+||| with [CR#109.4]); `May`'s if-you-do / if-not branches (the Risk
+||| Factor / Rakdos, Patron of Chaos else-clauses); definite
+||| descriptive reads ("the sacrificed creature", "the exiled card" —
+||| also what `AAtRandom`'s positive waits on: Pyromancy reads "the
+||| discarded card"); event queries (`Delayed` carries none); the player pronoun "they"
 ||| (corpus-attested only inside trigger and unless clauses — Havoc,
 ||| Tergrid's Lantern — so `They`'s positive waits on those constructions)
 ||| and plural reads ("those creatures", "them", "the rest");
@@ -101,9 +142,9 @@
 ||| deliberate, but [CR#109.4] gives off-battlefield objects no
 ||| controller, so the LKI story belongs to the ability layer);
 ||| simultaneity (blocks de-macroing `Fights`); Token / Spell
-||| / stack-object / Amount carriers ("that much"); "the chosen [quality]"
-||| (quality-kind bindings); sorted self-reference ("this creature" — the
-||| carrier of `This` is unverified); and coordination ellipsis (Arc
+||| / stack-object / Amount carriers ("that much"; bare `This` stays
+||| untracked, and "this spell" / "this card" carriers with it); "the
+||| chosen [quality]" (quality-kind bindings); and coordination ellipsis (Arc
 ||| Trail's shared verb is spelling's business — here it is a clause
 ||| sequence). The context-as-phrase-telescope collapse (bindings storing
 ||| the mention terms themselves, every projection computed) stays open as
@@ -117,7 +158,7 @@ module Experimental
 ||| Card types, as catalog atoms ([CR#205.2a]; only what the chapters
 ||| need — the real set is an open catalog, not an engine enum).
 public export
-data CardType = Creature
+data CardType = Creature | Artifact | Land
 
 ||| What a binding can bind ([CR#115.1] — targets are objects and/or
 ||| players; the union kind is deferred with the carrier lattice).
@@ -136,8 +177,9 @@ data Plurality = OneOf | ManyOf
 public export
 data Determiner = TargetD | AD | EachD | TheD
 
-||| Zones, minimally ([CR#400.1] family; only what movement needs so
-||| far — ownership of hands/graveyards is a later chapter).
+||| Zone sorts, minimally ([CR#400.1] family) — the fold-state tag a
+||| binding carries. Ownership is not stored here; it lives in the
+||| surface `ZoneExpr` where English writes it.
 public export
 data Zone = Battlefield | Graveyard | Exile | Hand
 
@@ -178,6 +220,9 @@ carrier (MkBinding _ Object _ ty Nothing) = AnyPerm
 public export
 sameCT : CardType -> CardType -> Bool
 sameCT Creature Creature = True
+sameCT Artifact Artifact = True
+sameCT Land Land = True
+sameCT _ _ = False
 
 ||| Which carrier nouns a wanted carrier reaches: exact for typed nouns
 ||| ([CR#205.2a]), "permanent" reaches any battlefield noun
@@ -237,6 +282,54 @@ survivors [] = []
 survivors (MkBinding TargetD _ _ _ _ :: bs) = survivors bs
 survivors (b :: bs) = b :: survivors bs
 
+||| Zone visibility ([CR#400.2] — library and hand are hidden zones).
+public export
+publicZone : Zone -> Bool
+publicZone Battlefield = True
+publicZone Graveyard = True
+publicZone Exile = True
+publicZone Hand = False
+
+||| The cost boundary's filter: a mention a cost leaves in a hidden
+||| zone is unreadable past the colon; unmoved mentions (a tapped cost
+||| creature) and publicly-moved ones survive. [CR#400.7] fires only on
+||| a zone change and [CR#400.7j] is its public-zone exception, so the
+||| filter keys on the CURRENT zone, not on having moved. Players and
+||| untracked mentions pass.
+public export
+publicOnly : Bindings -> Bindings
+publicOnly [] = []
+publicOnly (b :: bs) =
+  case b.zone of
+    Just z => if publicZone z then b :: publicOnly bs else publicOnly bs
+    Nothing => b :: publicOnly bs
+
+||| The current zone of the wildcard pronoun's referent — the unique
+||| singular object mention (uniqueness is `It`'s own gate).
+public export
+zoneOfIt : Bindings -> Maybe Zone
+zoneOfIt [] = Nothing
+zoneOfIt (MkBinding det Object OneOf ty zn :: bs) = zn
+zoneOfIt (b :: bs) = zoneOfIt bs
+
+||| The current zone of a sorted demonstrative's referent.
+public export
+zoneOfThat : Carrier -> Bindings -> Maybe Zone
+zoneOfThat c [] = Nothing
+zoneOfThat c (b :: bs) =
+  case (b.plur, compatC c (carrier b)) of
+    (OneOf, True) => b.zone
+    _ => zoneOfThat c bs
+
+||| The zone half of sacrifice's implicit restriction ([CR#701.21a] —
+||| only a permanent can be sacrificed): the referent's tracked zone
+||| must be the battlefield, or untracked. The controller half needs
+||| fold-state the context does not carry (not-settled).
+public export
+data OnBattlefield : Maybe Zone -> Type where
+  Untracked : OnBattlefield Nothing
+  OnField : OnBattlefield (Just Battlefield)
+
 -- ===== Abilities (the granted-ability vocabulary, minimally) =====
 
 ||| Keyword abilities, as macro NAMES mirroring
@@ -261,6 +354,34 @@ namespace Verb
 -- ===== The grammar (mutual: types thread contexts through VALUES) =====
 
 mutual
+  ||| A zone as English writes it: the shared zones bare ([CR#400.1] —
+  ||| battlefield and exile are shared), the per-player zones either
+  ||| owned ("your hand", "its owner's hand") or bare sort-only — the
+  ||| bare forms are for macro expansions whose English wrote no owner
+  ||| (the CR routes those per-object, e.g. destroy's "its owner's
+  ||| graveyard" [CR#701.8a], without the card text mentioning the owner
+  ||| — an owned expansion form would inject a phantom mention into the
+  ||| discourse). Mentions inside a destination expression do not yet
+  ||| enter the discourse (no current positive writes one).
+  public export
+  data ZoneExpr : Bindings -> Type where
+    BattlefieldZ : ZoneExpr bs
+    ExileZ : ZoneExpr bs
+    HandZ : ZoneExpr bs
+    GraveyardZ : ZoneExpr bs
+    HandOf : Noun bs Player -> ZoneExpr bs
+    GraveyardOf : Noun bs Player -> ZoneExpr bs
+
+  ||| The sort a zone expression names — what fold-state records.
+  public export
+  zoneSort : ZoneExpr bs -> Zone
+  zoneSort BattlefieldZ = Battlefield
+  zoneSort ExileZ = Exile
+  zoneSort HandZ = Hand
+  zoneSort GraveyardZ = Graveyard
+  zoneSort (HandOf _) = Hand
+  zoneSort (GraveyardOf _) = Graveyard
+
   ||| An object/player criteria set — the noun phrase's modifier list,
   ||| FLAT: head noun and relative clauses are sibling constraints on one
   ||| referent, exactly as parsed (no rearrangement to figure out).
@@ -270,7 +391,7 @@ mutual
     AnyPlayer : Predicate bs Player                      -- head noun "player" (any player, [CR#102.1])
     Opponent : Predicate bs Player                       -- head noun "opponent" (of You — team form [CR#102.3] deferred)
     ControlledBy : Noun bs Player -> Predicate bs Object -- zero relative "[player] controls"
-    InZone : Zone -> Predicate bs Object                 -- zone clause "in/from [zone]" ([CR#109.2a]; ownership deferred)
+    InZone : ZoneExpr bs -> Predicate bs Object          -- zone clause "in/from [zone]" ([CR#109.2a])
     And : List (Predicate bs k) -> Predicate bs k        -- sibling modifiers, one referent
     Not : Predicate bs k -> Predicate bs k               -- "don't"/"non-" on a modifier
     -- the modifier "other"/"another" ([CR#115.4]): distinct from every
@@ -300,7 +421,7 @@ mutual
   ||| means the battlefield ([CR#109.2]); a zone clause says otherwise.
   public export
   seedZone : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Maybe Zone
-  seedZone (InZone z) = Just z
+  seedZone (InZone z) = Just (zoneSort z)
   seedZone (And ps) = seedZoneAll ps
   seedZone _ = Nothing
 
@@ -329,11 +450,25 @@ mutual
   ||| discourse.
   public export
   data Noun : Bindings -> Kind -> Type where
-    This : Noun bs Object       -- the source, by self-name or "this …" [CR#113.7]
+    This : Noun bs Object       -- the source, by self-name or "this spell" [CR#113.7]
+    -- the sorted self-reference "this artifact"/"this land"/"this
+    -- creature": the source under its type noun. Unmoved it introduces
+    -- nothing (like `This`); MOVED it mints a fresh binding — the move
+    -- makes it a new object [CR#400.7], which is why cost-position
+    -- "Sacrifice this artifact" leaves a referent the effect's "It" can
+    -- read ([CR#400.7j] is the exception letting the effect find it).
+    ThisOf : CardType -> Noun bs Object
     You : Noun bs Player        -- "you" [CR#109.5]
     Target : Predicate bs k -> Noun bs k  -- "target …" / "any target": announced [CR#601.2c]
     Each : Predicate bs k -> Noun bs k    -- "each …": a group, resolution-time [CR#608.2]
     A : Predicate bs k -> Noun bs k       -- "a …": indefinite choice/product [CR#608.2d,400.7]
+    -- "a … of their choice" / "a … at random": the indefinite with its
+    -- choice method marked in the text — chooser and method are surface
+    -- facts (the guide's chooser marking; a random discard has no
+    -- chooser [CR#701.9b]), mirroring the real macros' explicit `by`
+    -- slot and its absence in the at-random variant.
+    ATheirChoice : Predicate bs k -> Noun bs k
+    AAtRandom : Predicate bs k -> Noun bs k
     -- "it" / "its": the wildcard pronoun — exactly one singular Object
     -- mention may precede. Zero = unbound, two = ambiguous; both
     -- unspellable.
@@ -355,10 +490,13 @@ mutual
   public export
   nomIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
   nomIntro This = bs
+  nomIntro (ThisOf t) = bs
   nomIntro You = bs
   nomIntro (Target p) = bindFor TargetD OneOf p :: bs
   nomIntro (Each p) = bindFor EachD ManyOf p :: bs
   nomIntro (A p) = bindFor AD OneOf p :: bs
+  nomIntro (ATheirChoice p) = bindFor AD OneOf p :: bs
+  nomIntro (AAtRandom p) = bindFor AD OneOf p :: bs
   nomIntro It = bs
   nomIntro They = bs
   nomIntro (That c) = bs
@@ -408,7 +546,7 @@ mutual
     -- action's body bottoms out in ([CR#701.8a] shape). Destination
     -- only: the from-zone is the referent's fold-state, which this
     -- clause UPDATES (the retag).
-    Move : (what : Noun bs Object) -> (to : Zone) -> Effect bs
+    Move : (what : Noun bs Object) -> (to : ZoneExpr (nomIntro what)) -> Effect bs
     -- "[who] gains/loses [amt] life" ([CR#119.3]) — core basis (merged).
     ChangeLife : (who : Noun bs Player) -> (op : LifeOp (nomIntro who)) -> Effect bs
     -- "[n] gains [ability]" — duration and the continuous-effect grammar
@@ -418,7 +556,25 @@ mutual
     -- replacements key on, wrapping its expansion body ([CR#701.8b] —
     -- only a Destroy-tagged move IS a destruction).
     Composite : VerbName -> Effect bs -> Effect bs
-    May : Effect bs -> Effect bs               -- "you may [e]" (decider deferred)
+    -- "[subject] [verb phrase]" — the declarative clause: an agentive
+    -- verb's performer in subject position, its phrase typed after it.
+    -- Only verbs the CR gives a player actor take a subject
+    -- ([CR#701.21a,701.9a]-family); effect-verbs (destroy, damage) stay
+    -- subjectless imperatives, and the imperative of an agentive verb
+    -- supplies its unpronounced subject as an explicit `You`. This is
+    -- core's per-verb `who` slot factored to clause position — a
+    -- dependent context can't re-use the subject term at each inner
+    -- slot the way the real macros ride their agent param — and
+    -- lowering redistributes it; `ChangeLife` carries its `who` the
+    -- same way. Object sources (DealDamage's src) are the verb's own
+    -- argument, not a subject.
+    Does : (subj : Noun bs Player) -> Effect (nomIntro subj) -> Effect bs
+    -- "[decider] may [effect]" — the decider slot ([CR#608.2d]; the
+    -- resolving default is the controller [CR#608.2c]). Decider and
+    -- performer can differ ("[player] may have [source] deal … to
+    -- them"), so the body is any clause, not the decider's own verb
+    -- phrase; if-you-do/if-not branches are later growth.
+    May : (decider : Noun bs Player) -> Effect (nomIntro decider) -> Effect bs
     -- sentence/clause sequence: the discourse advances left to right.
     AndThen : (e1 : Effect bs) -> (e2 : Effect (effIntro e1)) -> Effect bs
     -- "[e] at the beginning of the next end step" — the temporal
@@ -459,13 +615,38 @@ mutual
   moveIntro (Target p) z = setZoneHead z (nomIntro (Target p))
   moveIntro (Each p) z = setZoneHead z (nomIntro (Each p))
   moveIntro (A p) z = setZoneHead z (nomIntro (A p))
+  moveIntro (ATheirChoice p) z = setZoneHead z (nomIntro (ATheirChoice p))
+  moveIntro (AAtRandom p) z = setZoneHead z (nomIntro (AAtRandom p))
   moveIntro It z = setZoneIt z bs
   moveIntro (That c) z = setZoneThat c z bs
   moveIntro This z = bs
+  -- a moved sorted self-reference mints the new object's binding
+  -- ([CR#400.7]; see the constructor comment).
+  moveIntro (ThisOf t) z = MkBinding TheD Object OneOf (Just t) (Just z) :: bs
   moveIntro You z = bs
   moveIntro They z = bs
   moveIntro (ControllerOf n) z = nomIntro (ControllerOf n)
   moveIntro (OwnerOf n) z = nomIntro (OwnerOf n)
+
+  ||| The zone a noun's referent currently occupies, if tracked: reads
+  ||| consult their unique binding, introducers their seed zone
+  ||| ([CR#109.2] — a bare description means the battlefield), the
+  ||| source and player nouns are untracked.
+  public export
+  nounZone : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe Zone
+  nounZone This = Nothing
+  nounZone (ThisOf t) = Nothing
+  nounZone You = Nothing
+  nounZone (Target p) = Just (zoneOr Battlefield (seedZone p))
+  nounZone (Each p) = Just (zoneOr Battlefield (seedZone p))
+  nounZone (A p) = Just (zoneOr Battlefield (seedZone p))
+  nounZone (ATheirChoice p) = Just (zoneOr Battlefield (seedZone p))
+  nounZone (AAtRandom p) = Just (zoneOr Battlefield (seedZone p))
+  nounZone It = zoneOfIt bs
+  nounZone They = Nothing
+  nounZone (That c) = zoneOfThat c bs
+  nounZone (ControllerOf n) = Nothing
+  nounZone (OwnerOf n) = Nothing
 
   ||| What a clause contributes to the discourse that follows it.
   public export
@@ -473,13 +654,25 @@ mutual
   effIntro (DealDamage src amt to) = nomIntro to
   effIntro (Fights a b) = nomIntro b
   effIntro (Tap n) = nomIntro n
-  effIntro (Move what to) = moveIntro what to
+  effIntro (Move what to) = moveIntro what (zoneSort to)
   effIntro (ChangeLife who op) = lifeIntro op
   effIntro (Gain n _) = nomIntro n
   effIntro (Composite _ e) = effIntro e
-  effIntro (May e) = effIntro e              -- a declined May skips at runtime, not in scope
+  effIntro (Does s e) = effIntro e
+  effIntro (May d e) = effIntro e            -- a declined May skips at runtime, not in scope
   effIntro (AndThen e1 e2) = effIntro e2
   effIntro (Delayed e) = bs                  -- a future clause mentions nothing NOW
+
+-- ===== The activated-ability juncture =====
+
+||| "[cost]: [effect]" ([CR#602.1]) — just the colon: the cost's
+||| object-moving/tapping component as an ordinary clause, the effect
+||| typed in the cost's public-zone survivors (`publicOnly`). Mana,
+||| {T}, and activation instructions are elided the way positives elide
+||| rider lines; the full ability layer stays parked.
+public export
+data Activated : Bindings -> Type where
+  MkActivated : (cost : Effect bs) -> Effect (publicOnly (effIntro cost)) -> Activated bs
 
 -- ===== The macro layer: one definition per English phrase shape =====
 
@@ -513,27 +706,36 @@ anyOtherTarget = And [AnyTarget, Other]
 -- the Destroy tag over the battlefield→graveyard move [CR#701.8a].
 public export
 destroy : Noun bs Object -> Effect bs
-destroy n = Composite Destroy (Move n Graveyard)
+destroy n = Composite Destroy (Move n GraveyardZ)
 
 -- "exile [n]" ([CR#701.13a]) — speculative pending its real macro.
 public export
 exile : Noun bs Object -> Effect bs
-exile n = Composite Exile (Move n Exile)
+exile n = Composite Exile (Move n ExileZ)
 
--- "sacrifice [n]" ([CR#701.21a]) — imperative form; the agent (and the
--- choice-filter conjuncts `InZone Battlefield`/`ControlledBy agent` of
--- the indefinite case) belong to the clause-structure chapter. Core's
--- `Sacrifice` variant is the whittling candidate this expands.
+-- "[agent] sacrifice(s) [n]" ([CR#701.21a]) — one macro per lemma: the
+-- imperative spells `You` explicitly, inflection is the frame's. The
+-- performer is the sacrificed permanent's controller [CR#701.21a]; no
+-- CR rule names a sacrifice chooser, so "of their choice" is surface
+-- marking (`ATheirChoice`), not derivation. The zone half of the
+-- implicit restriction is demanded (`OnBattlefield`); the controller
+-- half needs fold-state the context does not carry (not-settled).
+-- Core's `Sacrifice` variant is the whittling candidate this expands.
 public export
-sacrifice : Noun bs Object -> Effect bs
-sacrifice n = Composite Sacrifice (Move n Graveyard)
+sacrifice : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
+            {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
+sacrifice agent n = Does agent (Composite Sacrifice (Move n GraveyardZ))
 
--- "[agent] discards a card" — the hand-zone choice; whose hand, and the
--- agent-as-chooser linkage, are the clause-structure/ownership chapters
--- (the agent argument is the phrase's subject, held for that work).
+-- "[agent] discard(s) a card" — the hand→graveyard move [CR#701.9a]
+-- with the subject in clause position. The CR routes by the card's
+-- OWNER; owner≡agent is this macro's elision, the same one the real
+-- macro makes with its agent-param hand filter. The discarded card is
+-- the affected player's choice by default [CR#701.9b], spelled
+-- sort-only here (an owned-hand expansion needs a subject-read noun
+-- the vocabulary lacks — not-settled).
 public export
-discardsACard : Noun bs Player -> Effect bs
-discardsACard agent = Composite Discard (Move (A (InZone Hand)) Graveyard)
+discardsACard : (agent : Noun bs Player) -> Effect bs
+discardsACard agent = Does agent (Composite Discard (Move (A (InZone HandZ)) GraveyardZ))
 
 -- "[n] gains haste"
 public export
@@ -586,7 +788,7 @@ arcTrail = AndThen (DealDamage This (Lit 2) (Target AnyTarget))
 -- ([CR#110.1]), and the return trip is just another Move.
 cloudshift : Effect []
 cloudshift = AndThen (exile (Target creatureYouControl))
-                     (Move (That CardC) Battlefield)
+                     (Move (That CardC) BattlefieldZ)
 
 -- "You may put a creature card from your hand onto the battlefield. That
 -- creature gains haste. Sacrifice that creature at the beginning of the
@@ -597,9 +799,9 @@ cloudshift = AndThen (exile (Target creatureYouControl))
 -- referent survives the delay [CR#603.7c] while a target would not, and
 -- the trailing adverbial is the `Delayed` mark on its clause.
 throughTheBreach : Effect []
-throughTheBreach = AndThen (May (Move (A (And [creature, InZone Hand])) Battlefield))
+throughTheBreach = AndThen (May You (Move (A (And [creature, InZone (HandOf You)])) BattlefieldZ))
                            (AndThen (gainsHaste (That (Perm Creature)))
-                                    (Delayed (sacrifice (That (Perm Creature)))))
+                                    (Delayed (sacrifice You (That (Perm Creature)))))
 
 -- "Destroy target creature. Its controller loses 2 life." (Bitter
 -- Downfall; its cost-reduction line elided) — the relational noun:
@@ -617,16 +819,44 @@ deadshot : Effect []
 deadshot = AndThen (Tap (Target creature))
                    (DealDamage It (PowerOf It) (Target (And [creature, Other])))
 
--- "It deals 3 damage to target player. That player discards a card."
--- (Immersturm Skullcairn's activated ability; the land's other lines and
--- the activation cost elided) — the sorted demonstrative at Player kind,
--- and a keyword-action macro (Discard) whose body moves a hand-zone
--- choice. The surface "It" reads the cost's sacrificed source — cost
--- mentions are the clause-structure chapter; spelled `This` (the same
--- object) until then.
-immersturmSkullcairn : Effect []
-immersturmSkullcairn = AndThen (DealDamage This (Lit 3) (Target AnyPlayer))
-                               (discardsACard (That PlayerC))
+-- "Sacrifice this land: It deals 3 damage to target player. That
+-- player discards a card." (Immersturm Skullcairn; its mana and {T}
+-- cost components, the land's other lines, and its timing line elided)
+-- — the cost's sacrificed self is the effect's "It": the cost move
+-- mints the referent ([CR#400.7]) and it survives the colon publicly
+-- ([CR#400.7j]); then the sorted demonstrative at Player kind and a
+-- keyword-action macro (Discard) whose body moves a hand-zone choice.
+immersturmSkullcairn : Activated []
+immersturmSkullcairn = MkActivated (sacrifice You (ThisOf Land))
+                                   (AndThen (DealDamage It (Lit 3) (Target AnyPlayer))
+                                            (discardsACard (That PlayerC)))
+
+-- "{R}, Sacrifice this artifact: It deals 2 damage to any target."
+-- (Pyrite Spellbomb, first ability; {R} and the card's second ability
+-- elided) — the smallest cost-antecedent pair: the sorted
+-- self-reference moved by the cost is the only mention "It" can reach.
+pyriteSpellbomb : Activated []
+pyriteSpellbomb = MkActivated (sacrifice You (ThisOf Artifact))
+                              (DealDamage It (Lit 2) (Target AnyTarget))
+
+-- "Target player sacrifices a creature of their choice." (Diabolic
+-- Edict) — the declarative clause: the target subject introduces, the
+-- verb phrase is typed after it, and "of their choice" is the marked
+-- own-choice method on the indefinite (the corpus has no bare "Target
+-- player sacrifices a creature").
+diabolicEdict : Effect []
+diabolicEdict = sacrifice (Target AnyPlayer) (ATheirChoice creature)
+
+-- "Each player sacrifices a creature of their choice." (Innocent
+-- Blood) — a group subject: the same clause shape over "each player".
+innocentBlood : Effect []
+innocentBlood = sacrifice (Each AnyPlayer) (ATheirChoice creature)
+
+-- "Target player discards a card." (Cry of Contrition, first line; its
+-- Haunt lines elided) — the declarative discard whose imperative twin
+-- is the same macro with `You`.
+cryOfContrition : Effect []
+cryOfContrition = discardsACard (Target AnyPlayer)
 
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
@@ -655,7 +885,7 @@ failing "countOnes"
 -- own targets when it goes on the stack ([CR#603.3d]).
 failing "survivors"
   badStale : Effect []
-  badStale = AndThen (destroy (Target creature)) (Delayed (sacrifice It))
+  badStale = AndThen (destroy (Target creature)) (Delayed (sacrifice You It))
 
 -- After the exile, the referent no longer answers to "creature": its
 -- carrier is derived from the RETAGGED zone ([CR#110.1]), so the typed
@@ -664,4 +894,29 @@ failing "survivors"
 failing "countCarrier"
   badStaleCarrier : Effect []
   badStaleCarrier = AndThen (exile (Target creatureYouControl))
-                            (Move (That (Perm Creature)) Battlefield)
+                            (Move (That (Perm Creature)) BattlefieldZ)
+
+-- A hidden-zone cost mention is unreadable past the colon: the card
+-- bounced to hand is not among the public survivors ([CR#400.2] —
+-- hand is hidden; no [CR#400.7] exception reaches it, and
+-- Soratami Cloudskater-family costs write no such read back).
+failing "publicOnly"
+  badHiddenCost : Activated []
+  badHiddenCost = MkActivated (Move (A creature) HandZ) (Tap It)
+
+-- Two cost moves leave two candidate antecedents ("Discard a card,
+-- Sacrifice a creature: …" — Falkenrath Pit Fighter-family): a bare
+-- "It" past the colon is ambiguous. Real costs of this shape read
+-- back with definite descriptions ("the sacrificed creature" — a
+-- later chapter's noun), never a bare pronoun.
+failing "countOnes"
+  badTwoCostMentions : Activated []
+  badTwoCostMentions = MkActivated (AndThen (discardsACard You)
+                                            (sacrifice You (A creature)))
+                                   (Tap It)
+
+-- The zone half of sacrifice's implicit restriction as a type error:
+-- an exiled referent is not sacrificeable [CR#701.21a].
+failing "OnBattlefield"
+  badSacrificeExiled : Effect []
+  badSacrificeExiled = AndThen (exile (Target creature)) (sacrifice You It)
