@@ -1,6 +1,6 @@
 package mtg
 
-modules = Core
+modules = Semantics
         , Macros
         , Cards
         , Spec

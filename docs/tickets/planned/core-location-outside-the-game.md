@@ -48,9 +48,9 @@ removes.
 ## Scope
 
 **Retire the Sideboard zone (idris side — Rust `core::Zone` already omits it):**
-- `idris/src/Core.idr` — drop the `Sideboard` `Zone` constructor and its
+- `idris/src/Semantics.idr` — drop the `Sideboard` `Zone` constructor and its
   comment (currently the only place asserting sideboard-is-a-zone).
-- `idris/src/Core.idr` `zoneSort` — drop the `Sideboard` arm.
+- `idris/src/Semantics.idr` `zoneSort` — drop the `Sideboard` arm.
 - `idris/src/Spec.idr` `tZoneSorts` — drop `Sideboard` from the zone list.
 - `idris/src/EmitTables.idr` `zoneName` — drop the `Sideboard` arm.
 - Mirror the new `Location` sum in idris (nullary `OutsideTheGame`, transparent

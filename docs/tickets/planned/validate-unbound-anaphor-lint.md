@@ -27,7 +27,7 @@ cost-eligibility and subtype-provenance lints), but the check itself is not
 local: deciding whether an `It` is bound requires the antecedent-scope walk —
 which binders enclose it (`Each`/`Distribute`/`With`/`Where`/`Pick`), which
 producing clauses precede it (`Move`/`Create`/`Search` and their sorts/zones),
-and which event roles the frame carries. That is `Core.idr`'s `intro` /
+and which event roles the frame carries. That is `Semantics.idr`'s `intro` /
 `resolveIt` / `resolveStack` reimplemented in Rust, and a second implementation
 of the resolution rule is a thing to drift, not a thing to have twice.
 

@@ -15,7 +15,7 @@ nontraditional types then fall out as data, no special-case.
 Spun out of the `idris-mirror-enum-gaps` cluster-1 decision (2026-07-19): that
 ticket adds a nullary `Dungeon` to `Type_` as the cheap substrate mirror; THIS
 ticket is the deeper structural unification, deferred to `maybe/` as a design
-item (it's a Core.idr grammar reshape, not a one-constructor add). Weigh against
+item (it's a Semantics.idr grammar reshape, not a one-constructor add). Weigh against
 [Idris is a soundness gate](../../decisions/idris-is-a-soundness-gate.md) — model the conferring shape without
 double-representing state the engine already holds.
 

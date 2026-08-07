@@ -1,7 +1,7 @@
 # Verifying a soundness-suspect card against the Idris oracle
 
 The Idris model in `src/` is dependently typed: a card's effect tree typechecks
-only if every anaphor read resolves against the ANTECEDENT STACK (`Core.idr`,
+only if every anaphor read resolves against the ANTECEDENT STACK (`Semantics.idr`,
 `Ctx = MkCtx stack …`, v2) at the right sort, kind, and cardinality — R1
 nearest-compatible, the R2 uniqueness gate, R3 strictly-leftward (the telescope
 `Sequence`). A type error therefore IS a soundness failure: an unbound anaphor,
@@ -21,7 +21,7 @@ From `idris/`, with `~/.local/bin` on `PATH` for `idris2`:
 
     idris2 --build mtg.ipkg
 
-Builds and typechecks all six modules (Core, Macros, Cards, Spec,
+Builds and typechecks all six modules (Semantics, Macros, Cards, Spec,
 Experimental, EmitTables) under `%default total`. `Spec.idr` is the
 self-checking regression suite — every `failing "<message>"` block must fail
 WITH its pinned message (the same soundness invariants the `cargo xtask
@@ -36,7 +36,7 @@ fixtures, were deleted with it.)
 ## Check the whole corpus (the automated gate)
 
 `cargo xtask idris-check <plugin>` (e.g. `plugins/canon`) re-emits every
-finished card as an equivalent raw `Core.idr` term (via
+finished card as an equivalent raw `Semantics.idr` term (via
 `deckmaste_plugin::idris_emit`) and typechecks the batch with
 `idris2 --find-ipkg --check`. Batch mode reads the checked-in
 `<plugin>/idris-check-baseline.ron` ratchet and exits nonzero when a required
@@ -86,7 +86,7 @@ the committed table fails the job on model/table drift.
 
        cat > src/Scratch.idr <<'EOF'
        module Scratch
-       import Core
+       import Semantics
        import Macros
        suspect : OneShotEffect Base
        suspect = <the transcribed term>

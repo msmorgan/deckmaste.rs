@@ -7,7 +7,8 @@
 //!    `crates/deckmaste_core/src`), with each variant's shape and first doc
 //!    line.
 //!  - `map idris [FILE]` — every `data` declaration in an Idris source file
-//!    (default `idris/src/Core.idr`), ADT or GADT style, with its constructors.
+//!    (default `idris/src/Semantics.idr`), ADT or GADT style, with its
+//!    constructors.
 
 use std::fs;
 use std::path::Path;
@@ -42,7 +43,7 @@ pub struct EnumsArgs {
 
 #[derive(Debug, Args)]
 pub struct IdrisArgs {
-    /// Idris source file to scan. Defaults to `idris/src/Core.idr`.
+    /// Idris source file to scan. Defaults to `idris/src/Semantics.idr`.
     file: Option<PathBuf>,
 }
 
@@ -210,10 +211,9 @@ struct DataDecl {
 /// # Errors
 /// If FILE can't be read.
 fn run_idris(args: &IdrisArgs) -> anyhow::Result<()> {
-    let file = args
-        .file
-        .clone()
-        .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../idris/src/Core.idr"));
+    let file = args.file.clone().unwrap_or_else(|| {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../idris/src/Semantics.idr")
+    });
     let src = fs::read_to_string(&file).with_context(|| format!("reading {}", file.display()))?;
 
     for decl in scan_idris_data(&src) {

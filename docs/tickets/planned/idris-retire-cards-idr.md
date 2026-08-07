@@ -3,7 +3,7 @@ needs: []
 ---
 **Retire `idris/src/Cards.idr` by migrating its coverage into a RON acceptance
 corpus.** Card correctness is now gated by re-emitting each Rust/RON card to
-`Core.idr` and typechecking (`cargo xtask idris-check`); the hand-authored
+`Semantics.idr` and typechecking (`cargo xtask idris-check`); the hand-authored
 Idris card list is a typecheck-only leaf superseded by that path. 2026-07-19
 deep-dive.
 
@@ -13,10 +13,10 @@ deep-dive.
 re-emit gate never pulls it in (`idris_check` probes import `Core` only), and CI
 never compiles Idris. Retiring is mechanically just: delete the file + drop
 `Cards` from the `idris/mtg.ipkg` modules list (+ two stale `--` comments at
-`Spec.idr:684`, `Core.idr:2315`, and `VERIFY.md` prose).
+`Spec.idr:684`, `Semantics.idr:2315`, and `VERIFY.md` prose).
 
 The catch: those 71 hand-authored cards are the **only** thing exercising
-certain `Core.idr` constructor arms — because the arm's real card isn't in
+certain `Semantics.idr` constructor arms — because the arm's real card isn't in
 canon yet. `Cards.idr` reached those arms by writing Idris *directly*, bypassing
 the Rust→Idris bridge. So a straight delete drops model-arm coverage that the
 re-emit path cannot replace until each card is authored on the Rust side. The
@@ -27,7 +27,7 @@ fix is to migrate, not just delete.
 Of the 60 not-yet-canon Idris-modeled cards:
 
 - **38 CANONIZABLE-NOW** — grammar arm exists AND emit is clean. Authoring them
-  Rust-side recovers their Core.idr-arm coverage through the enforced bridge.
+  Rust-side recovers their Semantics.idr-arm coverage through the enforced bridge.
 - **22 BLOCKED** — the Rust side cannot reach the arm today (so their coverage
   is *already* unreachable via re-emit regardless of this ticket):
   - **13 lack a Rust card-grammar arm** — Time Walk (extra-turn verb), Mindslaver

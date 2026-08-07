@@ -1,7 +1,7 @@
 ---
 needs: [macro-author-surface, idris-mirror-semantics]
 ---
-Strip the ~20 existing `default`-valued player/reference arguments from `idris/src/Core.idr`
+Strip the ~20 existing `default`-valued player/reference arguments from `idris/src/Semantics.idr`
 grammar constructors, making every call site pass the reference explicitly.
 
 **Rescope (2026-08-01):** the `{default You …}` player-agent half of this
@@ -46,7 +46,7 @@ explicit positional** for this reason; this ticket brings the pre-existing const
 ## Scope
 
 The `default`-valued sites live on constructors including (verify the current set by grepping
-`idris/src/Core.idr` for `default You`, `default This`, `default [Library]`, and similar):
+`idris/src/Semantics.idr` for `default You`, `default This`, `default [Library]`, and similar):
 `TopOfLibrary`, `Draw`, `Search`, `MayPay`, `Vote`, `DivideAndChoose`, and `Countable.ManaSpent`'s
 `default This`, among others (~20 total).
 

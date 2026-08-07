@@ -47,7 +47,7 @@ The Rust side now carries the signed base value: `StatValue::Number(Int)` and
 But the Idris soundness twin still has `CharValue Power = Count` and Idris
 `Count` is itself **non-negative**, so a printed/base -1 is not representable in
 the twin yet — the model is subtly wrong exactly where Spinal Parasite lives.
-Resolving that (a signed base-value type in `Core.idr`, or modelling printed
+Resolving that (a signed base-value type in `Semantics.idr`, or modelling printed
 negative base P/T distinctly) is part of THIS ticket — it will surface the
 moment the card is emitted through `idris-check`.
 

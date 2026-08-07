@@ -26,7 +26,7 @@ pub enum StatValue {
     // set to a computed count ([CR#208.2a], the CDA "*/*": Tarmogoyf's distinct
     // card types, etc.). Embeds [`Count`](crate::Count) so a bare `CountOf(…)` /
     // `CountDistinct(…)` at a stat position reads straight through. Mirrors the
-    // Idris `CharValue Power = Count` settable-value type (`idris/src/Core.idr`).
+    // Idris `CharValue Power = Count` settable-value type (`idris/src/Semantics.idr`).
     #[macro_ron(embed)]
     Count(crate::Count),
 }

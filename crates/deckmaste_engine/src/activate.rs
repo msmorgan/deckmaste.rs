@@ -48,12 +48,12 @@ pub(crate) fn as_activated(ability: &Ability) -> Option<&ActivatedAbility> {
 /// True iff `cost` pays with a loyalty-counter verb — `Do(PutCounters(This,
 /// LoyaltyCounter, _))` or `Do(RemoveCounters(This, LoyaltyCounter, _))`
 /// ([CR#606.4], no dedicated loyalty-cost kind — loyalty costs are plain
-/// `PutCounters`/`RemoveCounters` on the source, see `idris/src/Core.idr`'s
-/// `Cost` `Do` ruling). This is how [`GameState::can_activate`]'s
-/// `UseLimit::LoyaltyOncePerTurn` arm recognizes a permanent's OTHER loyalty
-/// abilities ([CR#606.3,306.5d]) among its full ability list. Reuses
-/// [`cost_summary`] so this can never diverge from the payment path's own
-/// reading of the cost.
+/// `PutCounters`/`RemoveCounters` on the source, see
+/// `idris/src/Semantics.idr`'s `Cost` `Do` ruling). This is how
+/// [`GameState::can_activate`]'s `UseLimit::LoyaltyOncePerTurn` arm recognizes
+/// a permanent's OTHER loyalty abilities ([CR#606.3,306.5d]) among its full
+/// ability list. Reuses [`cost_summary`] so this can never diverge from the
+/// payment path's own reading of the cost.
 #[must_use]
 pub(crate) fn is_loyalty_ability(cost: &deckmaste_core::Cost) -> bool {
     let Some(summary) = cost_summary(&cost.0) else {

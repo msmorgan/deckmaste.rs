@@ -23,7 +23,7 @@
 |||    nothing; it shares the shape vocabulary but lives in its own family.
 module Experimental
 
-import public Core as C
+import public Semantics as C
 import public Macros
 
 %default total
@@ -116,13 +116,13 @@ namespace KeywordUse
   ||| `KA Deathtouch ()` and `KA Ward (Mana [^2])` typecheck;
   ||| `KA Deathtouch (Mana [^2])` has no type.
   |||
-  ||| Contrast Core's `KeywordSpec`/`KeywordAbility`: there the enum is flat,
+  ||| Contrast Semantics' `KeywordSpec`/`KeywordAbility`: there the enum is flat,
   ||| parameters ride ad-hoc per constructor (`Hexproof (Maybe (Predicate b
   ||| AnObject))`), and costs cannot ride the spec at all ("`KeywordSpec`
   ||| precedes `Cost`" — Morph/Flashback are bare tags whose costs live in
   ||| their desugared abilities). The shape index removes both weaknesses:
   ||| every parameter kind (cost included) rides the spec, and a
-  ||| misparameterized keyword has no term. Adopting this in Core would
+  ||| misparameterized keyword has no term. Adopting this in Semantics would
   ||| replace `KeywordSpec`'s constructors with shape-indexed ones and let
   ||| `Bare`/`Composite` take a `KeywordUse` instead.
   public export

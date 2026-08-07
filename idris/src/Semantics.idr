@@ -1,8 +1,15 @@
-||| Core grammar of the toy MTG card model: characteristics, the antecedent
+||| The SEMANTICS KERNEL mirrored: the post-expansion, post-desugar normal-form
+||| value universe of `deckmaste_semantics` — characteristics, the antecedent
 ||| STACK binding context (`Ctx` — what references are in scope, v2), and the
 ||| filter / reference / selection / action / effect / ability trees. Kept
 ||| deliberately brief.
-module Core
+|||
+||| The mirror attaches HERE, not to the engine grammar, because its
+||| obligations are author-mistake proofs over semantic input
+||| (`docs/decisions/semantics-spelling-lowering.md` §10). `deckmaste_core`
+||| carries no proofs; strategy terms, the macro machinery, and frames data are
+||| outside the kernel and unmirrored.
+module Semantics
 
 import public Data.Vect
 import public Data.Nat
@@ -1875,6 +1882,19 @@ mutual
   DestinationOk (ToZone Stack) = Void
   DestinationOk _ = ()
 
+  -- ENTRY RIDERS ARE BATTLEFIELD-ONLY ([CR#110.5,614.12]): an object arriving
+  -- anywhere but the battlefield has no arrival STATE to arrive in — a card in
+  -- a graveyard is not tapped and not attacking — so a `Move` carrying an
+  -- `enteringAttacking` reference is well-formed only at a battlefield
+  -- destination. Demanded by `Move` beside `DestinationOk`. `Create` needs no
+  -- companion: a token is always created on the battlefield, so its
+  -- `enteringAttacking` has no other destination to be wrong at.
+  public export
+  EnteringOk : Destination b -> Maybe (Reference b APlayer) -> Type
+  EnteringOk _ Nothing = ()
+  EnteringOk (ToZone Battlefield) (Just _) = ()
+  EnteringOk _ (Just _) = Void
+
   -- How a SIMULTANEOUS group of cards is ordered as it lands at a position in an ORDERED zone — the
   -- order is a property of the PLACEMENT, not the loop. `ChosenOrder` = the owner arranges them, the
   -- [CR#401.4] "any order" default; `RandomOrder` = shuffled into place ([MTR 3.10], a randomized pile
@@ -2342,11 +2362,12 @@ mutual
       --  effect: `Distribute (^n) group (Act (DealDamage Allotment It))`, not a bespoke action.)
       -- a plain zone change [CR#400.7]; owner-relative, control implicit. `enteringAttacking` ([CR#508.4],
       -- default `Nothing`): on a battlefield destination, put the object on ATTACKING the named player
-      -- (Ninjutsu's "tapped and attacking", Encore) — senseless (no-op) for any non-battlefield destination.
+      -- (Ninjutsu's "tapped and attacking", Encore). `eOk` makes it UNREPRESENTABLE at any other
+      -- destination ([CR#110.5,614.12] — a card in a graveyard has no attacking state to arrive in).
       -- `from` (default `Nothing`): a FIZZLE-GUARD — commit the move only if the object is CURRENTLY in
       -- that zone, the zone precondition destroy/discard/mill state declaratively; a mismatch is a silent
       -- no-op, never an error [CR#701.8a,701.9a,701.17a].
-      Move : Reference b AnObject -> (d : Destination b) -> {auto 0 dOk : DestinationOk d} -> {default Nothing enteringAttacking : Maybe (Reference b APlayer)} -> {default Nothing from : Maybe Zone} -> Action b
+      Move : Reference b AnObject -> (d : Destination b) -> {auto 0 dOk : DestinationOk d} -> {default Nothing enteringAttacking : Maybe (Reference b APlayer)} -> {auto 0 eOk : EnteringOk d enteringAttacking} -> {default Nothing from : Maybe Zone} -> Action b
       -- (There is no "exile until ~" verb. A duration-bounded zone change is `Relocate` (a
       --  StaticEffect) under a `Continuously`/`While` duration — see `Relocate` and
       --  card_BanishingLight. Permanent exile is just `Move … (ToZone Exile)`.)
@@ -3376,7 +3397,7 @@ chooseBy by q p = Choose {by} q p
 
 public export
 moveAttacking : Reference b AnObject -> (d : Destination b) -> {auto 0 dOk : DestinationOk d}
-             -> Maybe (Reference b APlayer) -> Action b
+             -> (ea : Maybe (Reference b APlayer)) -> {auto 0 eOk : EnteringOk d ea} -> Action b
 moveAttacking r d ea = Move r d {enteringAttacking = ea}
 
 -- `dealDamageFrom`/`drawBy`/`gainLifeBy`/`discardBy`/`loseLifeBy`/`setLifeToBy`/`sacrificeBy`/

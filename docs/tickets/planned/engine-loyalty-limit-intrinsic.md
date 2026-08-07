@@ -16,7 +16,7 @@ exists in `activate.rs`) and applies the shared once-per-turn gate
 intrinsically. Then drop the `UseLimit::LoyaltyOncePerTurn` variant, the
 `limits:` boilerplate from the three loyalty macros, the render suppression
 arm (it already prints nothing), and mirror the removal in idris
-(`UsageLimit` in `Core.idr`).
+(`UsageLimit` in `Semantics.idr`).
 
 Behavior unchanged; this is authoring-surface subtraction. Renderer note:
 the restriction stays unprinted, matching real cards.

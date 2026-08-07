@@ -12,15 +12,15 @@
 ||| `idris/scripts/emit-tables`
 ||| (`idris2 --find-ipkg --exec emitTables src/EmitTables.idr` from `idris/`).
 |||
-||| DRIFT CONTROL: every row VALUE is computed by applying `Core.idr`'s total
+||| DRIFT CONTROL: every row VALUE is computed by applying `Semantics.idr`'s total
 ||| functions (`eventKindCaps`) — never hand-copied. The only hand-written
 ||| parts are the KEY mapping from the Rust grammar's verb spellings to the
-||| Idris kinds and the per-row CR citations. If a Core.idr function changes,
+||| Idris kinds and the per-row CR citations. If a Semantics.idr function changes,
 ||| the emitted rows change, and the Rust side's regenerate-and-diff turns
 ||| red.
 module EmitTables
 
-import Core
+import Semantics
 import System
 import System.File
 

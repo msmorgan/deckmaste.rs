@@ -1,5 +1,5 @@
-||| Card encodings (v2 — the antecedent stack). Each is a `Core.Card` built
-||| with the `^: { … }` builder, using `Core` constructors and `Macros`
+||| Card encodings (v2 — the antecedent stack). Each is a `Semantics.Card`
+||| built with the `^: { … }` builder, using `Semantics` constructors and `Macros`
 ||| templates. Verbs go through `Act` (the verb compartment); bodies read
 ||| announced targets and produced objects back as SORTED ANAPHORS
 ||| (`It`/`That w`/`They`/`The l`) in sentence order — the telescope
@@ -9,7 +9,7 @@
 ||| (`plugins/canon/cards/`) where a card exists there.
 module Cards
 
-import Core
+import Semantics
 import Macros
 
 %default total

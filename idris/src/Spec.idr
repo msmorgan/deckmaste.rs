@@ -8,10 +8,10 @@
 |||
 ||| These Idris negatives are the same soundness invariants the
 ||| `cargo xtask idris-check` re-emit gate enforces on the Rust card corpus:
-||| each card is re-emitted to raw Core.idr and typechecked.
+||| each card is re-emitted to raw Semantics.idr and typechecked.
 module Spec
 
-import Core
+import Semantics
 import Macros
 
 %default total
@@ -72,7 +72,7 @@ tWildNeverAmount : wildReaches Amount = False
 tWildNeverAmount = Refl
 
 -- pin `zoneSort`'s full valuation ([CR#110.1,112.1,108.2]).
-tZoneSorts : map Core.zoneSort [Battlefield, Stack, Graveyard, Hand, Library, Exile, Command, Sideboard]
+tZoneSorts : map Semantics.zoneSort [Battlefield, Stack, Graveyard, Hand, Library, Exile, Command, Sideboard]
            = the (List Sort) [Permanent, Spell, Card, Card, Card, Card, Card, Card]
 tZoneSorts = Refl
 
@@ -419,6 +419,11 @@ tAuraEnters = Also thisEnters (With (ChooseOne creature) (Act (Attach This It)))
 
 tAuraFallsOff : StaticEffect Base
 tAuraFallsOff = Sba (Not (LegallyAttached This)) (Act (Move This (ToZone Graveyard)))
+
+-- an entry rider AT the battlefield is fine ([CR#508.4] — Ninjutsu's "tapped
+-- and attacking"); `tBadRiderOffBattlefield` is the paired negative.
+tRiderOnBattlefield : Action Base
+tRiderOnBattlefield = moveAttacking This (ToZone Battlefield) (Just You)
 
 -- "your unspent mana doesn't empty" (Kruphix/Omnath) — a pool-policy static.
 tManaPersists : StaticEffect Base
@@ -956,6 +961,13 @@ failing "candidates (Just Amount) One ((intro"
 failing "implementation for Void"
   tBadDestinationLibrary : Action Base
   tBadDestinationLibrary = Move This (ToZone Library)
+
+-- an ENTRY RIDER is battlefield-only ([CR#110.5,614.12]) — a card arriving in a
+-- graveyard has no attacking state to arrive in, so `EnteringOk` denies the
+-- `enteringAttacking` reference at any non-battlefield destination.
+failing "implementation for Void"
+  tBadRiderOffBattlefield : Action Base
+  tBadRiderOffBattlefield = moveAttacking This (ToZone Graveyard) (Just You)
 
 -- THE CARRIED-OVER V1 GATES ---------------------------------------------------
 

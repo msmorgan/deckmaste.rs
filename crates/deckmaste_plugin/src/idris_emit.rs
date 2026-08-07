@@ -1,11 +1,16 @@
-//! Re-emit an EXPANDED [`Card`] (i.e. after `Expand::expand_all`) as an
-//! equivalent RAW `idris/src/Core.idr` `Card` expression — sugar-free, using
-//! Core's real constructors (never the `^`/`^:` builder sugar, never
-//! `Macros.idr` templates). Typechecking the emitted expression with
+//! Re-emit an EXPANDED semantic [`Card`] (i.e. after `Expand::expand_all`) as
+//! an equivalent RAW `idris/src/Semantics.idr` `Card` expression — sugar-free,
+//! using the mirror's real constructors (never the `^`/`^:` builder sugar,
+//! never `Macros.idr` templates). Typechecking the emitted expression with
 //! `idris2 --check` is the anaphora-soundness gate: Idris's dependent
 //! `Normal`/`Reference`/`Selection` proofs make an unsound card (a dangling
 //! `It`/`That`, an ambiguous antecedent, …) unrepresentable, so a card that
 //! typechecks is sound by construction.
+//!
+//! The input is the SEMANTIC term, not its engine image
+//! (`docs/decisions/semantics-spelling-lowering.md` §10): the gate certifies
+//! semantic input, so the mirror models the semantics kernel — the
+//! post-expansion, post-desugar normal form — and never depends on lowering.
 //!
 //! This module is a plain recursive `Card -> Result<String, Gap>` string
 //! emitter — no parsing, no macro layer (the input has already gone through
@@ -15,13 +20,13 @@
 //! pieces with a space and wrap once, with no risk of a stray unparenthesized
 //! application.
 //!
-//! `deckmaste_core`'s grammar has drifted from `idris/src/Core.idr` in real
-//! ways since the surface-corrections migration (new `EventFilter` master
-//! forms, a `Deontic` family, a `Selection`/`Binder` split, …) — that drift is
-//! exactly what this gate is meant to surface. Coverage is intentionally
-//! partial: anything not yet mapped returns [`Gap`] rather than guessing, and
-//! callers (the `idris-check` xtask command) report gaps as coverage, not
-//! failures.
+//! `deckmaste_semantics`'s grammar has drifted from `idris/src/Semantics.idr`
+//! in real ways since the surface-corrections migration (new `EventFilter`
+//! master forms, a `Deontic` family, a `Selection`/`Binder` split, …) — that
+//! drift is exactly what this gate is meant to surface. Coverage is
+//! intentionally partial: anything not yet mapped returns [`Gap`] rather than
+//! guessing, and callers (the `idris-check` xtask command) report gaps as
+//! coverage, not failures.
 //!
 //! Pedantic-lint note: this module is ~60 small `&NodeType -> R` string
 //! emitters sharing one calling convention (every AST node arrives by
@@ -47,71 +52,67 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use deckmaste_card::Card;
-use deckmaste_card::CardFace;
-use deckmaste_core::Ability;
-use deckmaste_core::Action;
-use deckmaste_core::Anchor;
-use deckmaste_core::Arrangement;
-use deckmaste_core::CharacteristicPredicate;
-use deckmaste_core::Cmp;
-use deckmaste_core::Color;
-use deckmaste_core::ColorOrColorless;
-use deckmaste_core::Condition;
-use deckmaste_core::CopyException;
-use deckmaste_core::CopyRetarget;
-use deckmaste_core::CopySource;
-use deckmaste_core::CopySpec;
-use deckmaste_core::Cost;
-use deckmaste_core::CostChange;
-use deckmaste_core::CostComponent;
-use deckmaste_core::Count;
-use deckmaste_core::CountBound;
-use deckmaste_core::Countable;
-use deckmaste_core::Counter;
-use deckmaste_core::CounterScope;
-use deckmaste_core::CounterSpec;
-use deckmaste_core::Deontic;
-use deckmaste_core::DeonticAction;
-use deckmaste_core::DesignationDecl;
-use deckmaste_core::DesignationDef;
-use deckmaste_core::DesignationScope;
-use deckmaste_core::Destination;
-use deckmaste_core::EnterRider;
-use deckmaste_core::EventFilter;
-use deckmaste_core::Ident;
-use deckmaste_core::KeywordAbility;
-use deckmaste_core::LifeOp;
-use deckmaste_core::ManaCost;
-use deckmaste_core::ManaProduction;
-use deckmaste_core::ManaSpec;
-use deckmaste_core::ManaSymbol;
-use deckmaste_core::Modification;
-use deckmaste_core::Normalize;
-use deckmaste_core::NumericOp;
-use deckmaste_core::OneShotEffect;
-use deckmaste_core::PhaseStep;
-use deckmaste_core::PlayerAttr;
-use deckmaste_core::PlayerMod;
-use deckmaste_core::Predicate;
-use deckmaste_core::Property;
-use deckmaste_core::Quantity;
-use deckmaste_core::Reference;
-use deckmaste_core::RelationPredicate;
-use deckmaste_core::RetargetMode;
-use deckmaste_core::Selection;
-use deckmaste_core::SimpleManaSymbol;
-use deckmaste_core::Sort;
-use deckmaste_core::StatValue;
-use deckmaste_core::StatePredicate;
-use deckmaste_core::StaticEffect;
-use deckmaste_core::Subtype;
-use deckmaste_core::Supertype;
-use deckmaste_core::SymbolPred;
-use deckmaste_core::TargetSpec;
-use deckmaste_core::Token;
-use deckmaste_core::TokenSpec;
-use deckmaste_core::Type;
+use deckmaste_semantics::Ability;
+use deckmaste_semantics::Action;
+use deckmaste_semantics::Anchor;
+use deckmaste_semantics::Arrangement;
+use deckmaste_semantics::Card;
+use deckmaste_semantics::CardFace;
+use deckmaste_semantics::CharacteristicPredicate;
+use deckmaste_semantics::Cmp;
+use deckmaste_semantics::Color;
+use deckmaste_semantics::ColorOrColorless;
+use deckmaste_semantics::Condition;
+use deckmaste_semantics::CopyException;
+use deckmaste_semantics::CopyRetarget;
+use deckmaste_semantics::CopySource;
+use deckmaste_semantics::CopySpec;
+use deckmaste_semantics::Cost;
+use deckmaste_semantics::CostChange;
+use deckmaste_semantics::CostComponent;
+use deckmaste_semantics::Count;
+use deckmaste_semantics::CountBound;
+use deckmaste_semantics::Countable;
+use deckmaste_semantics::CounterSpec;
+use deckmaste_semantics::Deontic;
+use deckmaste_semantics::DeonticAction;
+use deckmaste_semantics::Destination;
+use deckmaste_semantics::EnterRider;
+use deckmaste_semantics::EventFilter;
+use deckmaste_semantics::Expand;
+use deckmaste_semantics::Ident;
+use deckmaste_semantics::KeywordAbility;
+use deckmaste_semantics::LifeOp;
+use deckmaste_semantics::ManaCost;
+use deckmaste_semantics::ManaProduction;
+use deckmaste_semantics::ManaSpec;
+use deckmaste_semantics::ManaSymbol;
+use deckmaste_semantics::Modification;
+use deckmaste_semantics::Normalize;
+use deckmaste_semantics::NumericOp;
+use deckmaste_semantics::OneShotEffect;
+use deckmaste_semantics::PhaseStep;
+use deckmaste_semantics::PlayerAttr;
+use deckmaste_semantics::PlayerMod;
+use deckmaste_semantics::Predicate;
+use deckmaste_semantics::Property;
+use deckmaste_semantics::Quantity;
+use deckmaste_semantics::Reference;
+use deckmaste_semantics::RelationPredicate;
+use deckmaste_semantics::RetargetMode;
+use deckmaste_semantics::Selection;
+use deckmaste_semantics::SimpleManaSymbol;
+use deckmaste_semantics::Sort;
+use deckmaste_semantics::StatValue;
+use deckmaste_semantics::StatePredicate;
+use deckmaste_semantics::StaticEffect;
+use deckmaste_semantics::Subtype;
+use deckmaste_semantics::Supertype;
+use deckmaste_semantics::SymbolPred;
+use deckmaste_semantics::TargetSpec;
+use deckmaste_semantics::Token;
+use deckmaste_semantics::TokenSpec;
+use deckmaste_semantics::Type;
 
 use crate::plugin::Plugin;
 
@@ -364,15 +365,39 @@ thread_local! {
     static SUBTYPE_CATEGORY: RefCell<HashMap<String, &'static str>> = RefCell::new(HashMap::new());
 }
 
+/// The card type a macro-registry row names, re-read as the semantic one.
+///
+/// The three `load_*` registry projections below are the ONLY place this
+/// emitter touches [`deckmaste_core`]: a [`Plugin`]'s subtype/counter/
+/// designation registries are the macro layer's DECLARATIONS, which the mirror
+/// excludes (spec §10) and which stay engine-typed. [`Type`] is a fieldless
+/// enum with the same variants in both grammars, so the row's card-type list
+/// re-reads exactly for [`category_idris`], which the kernel path shares.
+fn registry_type(t: deckmaste_core::Type) -> Type {
+    match t {
+        deckmaste_core::Type::Artifact => Type::Artifact,
+        deckmaste_core::Type::Battle => Type::Battle,
+        deckmaste_core::Type::Creature => Type::Creature,
+        deckmaste_core::Type::Dungeon => Type::Dungeon,
+        deckmaste_core::Type::Enchantment => Type::Enchantment,
+        deckmaste_core::Type::Instant => Type::Instant,
+        deckmaste_core::Type::Kindred => Type::Kindred,
+        deckmaste_core::Type::Land => Type::Land,
+        deckmaste_core::Type::Planeswalker => Type::Planeswalker,
+        deckmaste_core::Type::Sorcery => Type::Sorcery,
+    }
+}
+
 /// Populate [`SUBTYPE_CATEGORY`] from a plugin's subtype registry. Called once
 /// per card at emit entry; subtypes whose `types` map to no category are simply
 /// absent (a reference to one then gaps, like any other coverage gap).
-fn load_subtype_categories<S>(subtypes: &HashMap<Ident, Subtype, S>) {
+fn load_subtype_categories<S>(subtypes: &HashMap<Ident, deckmaste_core::Subtype, S>) {
     SUBTYPE_CATEGORY.with(|m| {
         let mut m = m.borrow_mut();
         m.clear();
         for (name, sub) in subtypes {
-            if let Some(cat) = category_idris(&sub.types) {
+            let types: Vec<Type> = sub.types.iter().copied().map(registry_type).collect();
+            if let Some(cat) = category_idris(&types) {
                 m.insert(name.as_str().to_string(), cat);
             }
         }
@@ -393,21 +418,21 @@ fn emit_subtype_ref(name: &str) -> R {
 /// The Idris `Scope` token for a counter's carrier scope — `Object`/`Player`,
 /// the two members of the open `CounterKind`/`Designation` value's scope index
 /// (both map into `RefKind` via `scopeRef`).
-fn scope_idris(scope: &CounterScope) -> &'static str {
+fn scope_idris(scope: &deckmaste_core::CounterScope) -> &'static str {
     match scope {
-        CounterScope::Object => "Object",
-        CounterScope::Player => "Player",
+        deckmaste_core::CounterScope::Object => "Object",
+        deckmaste_core::CounterScope::Player => "Player",
     }
 }
 
 /// The Idris `Scope` token for a designation's scope. `DesignationScope::Game`
 /// has no `RefKind`/`Scope` analogue (nothing in Idris is game-scoped, and no
 /// macro registry row uses it), so it gaps (`None`).
-fn designation_scope_idris(scope: &DesignationScope) -> Option<&'static str> {
+fn designation_scope_idris(scope: &deckmaste_core::DesignationScope) -> Option<&'static str> {
     match scope {
-        DesignationScope::Object => Some("Object"),
-        DesignationScope::Player => Some("Player"),
-        DesignationScope::Game => None,
+        deckmaste_core::DesignationScope::Object => Some("Object"),
+        deckmaste_core::DesignationScope::Player => Some("Player"),
+        deckmaste_core::DesignationScope::Game => None,
     }
 }
 
@@ -426,7 +451,7 @@ thread_local! {
 
 /// Populate [`COUNTER_SCOPE`] from a plugin's counter registry. Called once per
 /// card at emit entry.
-fn load_counter_scopes<S>(counters: &HashMap<Ident, Counter, S>) {
+fn load_counter_scopes<S>(counters: &HashMap<Ident, deckmaste_core::Counter, S>) {
     COUNTER_SCOPE.with(|m| {
         let mut m = m.borrow_mut();
         m.clear();
@@ -443,19 +468,20 @@ fn load_counter_scopes<S>(counters: &HashMap<Ident, Counter, S>) {
 /// `Stored` designation carries its scope; `Derived`/`DerivedIf` designations
 /// carry none, so default to object scope. Game-scoped designations have no
 /// Idris `Scope` and are simply absent (a reference then gaps).
-fn load_designation_scopes<S>(designations: &HashMap<Ident, DesignationDecl, S>) {
+fn load_designation_scopes<S>(designations: &HashMap<Ident, deckmaste_core::DesignationDecl, S>) {
     DESIGNATION_SCOPE.with(|m| {
         let mut m = m.borrow_mut();
         m.clear();
         for decl in designations.values() {
             let scope = match &decl.definition {
-                DesignationDef::Stored { scope, .. } => {
+                deckmaste_core::DesignationDef::Stored { scope, .. } => {
                     let Some(scope) = designation_scope_idris(scope) else {
                         continue;
                     };
                     scope
                 }
-                DesignationDef::Derived(_) | DesignationDef::DerivedIf(_) => "Object",
+                deckmaste_core::DesignationDef::Derived(_)
+                | deckmaste_core::DesignationDef::DerivedIf(_) => "Object",
             };
             m.insert(decl.name.as_str().to_string(), scope);
         }
@@ -624,7 +650,7 @@ fn reference_as_predicate(r: &Reference) -> R {
 fn emit_filter(f: &Predicate) -> R {
     Ok(match f {
         Predicate::Kind(k) => {
-            use deckmaste_core::ObjectKind as Ok;
+            use deckmaste_semantics::ObjectKind as Ok;
             match k {
                 Ok::Ability => "(IsKind Ability)".to_string(),
                 Ok::Card => "(IsKind Card)".to_string(),
@@ -717,8 +743,8 @@ fn emit_characteristic_filter(cf: &CharacteristicPredicate) -> R {
 
 /// `Stat` restricted to Idris's `Numeric`-gated axes (Power/Toughness/Defense)
 /// — `StatCmp`/`TapTotal` demand one of these three.
-fn numeric_characteristic(stat: deckmaste_core::Stat) -> R {
-    use deckmaste_core::Stat as S;
+fn numeric_characteristic(stat: deckmaste_semantics::Stat) -> R {
+    use deckmaste_semantics::Stat as S;
     Ok(match stat {
         S::Power => "Power",
         S::Toughness => "Toughness",
@@ -744,7 +770,7 @@ fn emit_state_filter(sf: &StatePredicate) -> R {
     Ok(match sf {
         StatePredicate::InZone(z) => app("InZone", vec![emit_zone(*z)].into()),
         StatePredicate::Status(status) => {
-            use deckmaste_core::Status as S;
+            use deckmaste_semantics::Status as S;
             match status {
                 S::Tapped => "(HasState Tapped)".to_string(),
                 S::Untapped => "(HasState Untapped)".to_string(),
@@ -815,8 +841,8 @@ fn emit_state_filter(sf: &StatePredicate) -> R {
 
 /// `Above`/`Below` — [`Predicate::Adjacent`]'s direction, identity on the
 /// Idris `Adjacency` constructor name.
-fn emit_adjacency(a: deckmaste_core::Adjacency) -> String {
-    use deckmaste_core::Adjacency as A;
+fn emit_adjacency(a: deckmaste_semantics::Adjacency) -> String {
+    use deckmaste_semantics::Adjacency as A;
     match a {
         A::Above => "Above",
         A::Below => "Below",
@@ -869,8 +895,8 @@ fn emit_relation_filter(rf: &RelationPredicate) -> R {
     })
 }
 
-fn emit_zone(z: deckmaste_core::Zone) -> String {
-    use deckmaste_core::Zone as Z;
+fn emit_zone(z: deckmaste_semantics::Zone) -> String {
+    use deckmaste_semantics::Zone as Z;
     match z {
         Z::Battlefield => "Battlefield",
         Z::Command => "Command",
@@ -933,9 +959,9 @@ fn emit_condition(c: &Condition) -> R {
 }
 
 fn emit_phase_step(p: PhaseStep) -> R {
-    use deckmaste_core::BeginningStep as Bs;
-    use deckmaste_core::CombatStep as Cs;
-    use deckmaste_core::EndingStep as Es;
+    use deckmaste_semantics::BeginningStep as Bs;
+    use deckmaste_semantics::CombatStep as Cs;
+    use deckmaste_semantics::EndingStep as Es;
     Ok(match p {
         PhaseStep::Beginning(b) => app(
             "BeginningPhase",
@@ -1012,9 +1038,9 @@ fn emit_countable(c: &Countable) -> R {
 }
 
 /// An [`AggregateOp`] as its Idris twin — identity on the fold operator name,
-/// `AverageOf` carrying its [`RoundMode`](deckmaste_core::RoundMode).
-fn emit_aggregate_op(op: &deckmaste_core::AggregateOp) -> String {
-    use deckmaste_core::AggregateOp;
+/// `AverageOf` carrying its [`RoundMode`](deckmaste_semantics::RoundMode).
+fn emit_aggregate_op(op: &deckmaste_semantics::AggregateOp) -> String {
+    use deckmaste_semantics::AggregateOp;
     match op {
         AggregateOp::SumOf => "SumOf".to_string(),
         AggregateOp::MinOf => "MinOf".to_string(),
@@ -1023,8 +1049,8 @@ fn emit_aggregate_op(op: &deckmaste_core::AggregateOp) -> String {
             "AverageOf",
             vec![
                 match mode {
-                    deckmaste_core::RoundMode::RoundUp => "RoundUp",
-                    deckmaste_core::RoundMode::RoundDown => "RoundDown",
+                    deckmaste_semantics::RoundMode::RoundUp => "RoundUp",
+                    deckmaste_semantics::RoundMode::RoundDown => "RoundDown",
                 }
                 .to_string(),
             ]
@@ -1069,7 +1095,7 @@ fn emit_count(c: &Count) -> R {
             app("Aggregate", vec![emit_aggregate_op(op), projected].into())
         }
         Count::StatOf(r, stat) => {
-            use deckmaste_core::Stat as S;
+            use deckmaste_semantics::Stat as S;
             match stat {
                 S::ManaValue => app("ManaValueOf", vec![emit_reference(r)?].into()),
                 S::Loyalty => app(
@@ -1097,7 +1123,7 @@ fn emit_count(c: &Count) -> R {
         // OpponentOf)`). Idris's `OpponentOf` is relative to `You`, so an
         // opponent count of any other player has no counterpart.
         Count::Opponents(r) => match r {
-            deckmaste_core::Reference::You => "(CountOf (Players OpponentOf))".to_string(),
+            deckmaste_semantics::Reference::You => "(CountOf (Players OpponentOf))".to_string(),
             other => {
                 return Err(gap(format!(
                     "Count::Opponents({other:?}) has no Idris counterpart \
@@ -1114,8 +1140,8 @@ fn emit_count(c: &Count) -> R {
             "Half",
             vec![
                 match mode {
-                    deckmaste_core::RoundMode::RoundUp => "RoundUp",
-                    deckmaste_core::RoundMode::RoundDown => "RoundDown",
+                    deckmaste_semantics::RoundMode::RoundUp => "RoundUp",
+                    deckmaste_semantics::RoundMode::RoundDown => "RoundDown",
                 }
                 .to_string(),
                 emit_count(inner)?,
@@ -1127,8 +1153,8 @@ fn emit_count(c: &Count) -> R {
             "Divide",
             vec![
                 match mode {
-                    deckmaste_core::RoundMode::RoundUp => "RoundUp",
-                    deckmaste_core::RoundMode::RoundDown => "RoundDown",
+                    deckmaste_semantics::RoundMode::RoundUp => "RoundUp",
+                    deckmaste_semantics::RoundMode::RoundDown => "RoundDown",
                 }
                 .to_string(),
                 emit_count(a)?,
@@ -1171,8 +1197,8 @@ fn emit_count(c: &Count) -> R {
     })
 }
 
-fn collection_characteristic(c: deckmaste_core::Characteristic) -> R {
-    use deckmaste_core::Characteristic as C;
+fn collection_characteristic(c: deckmaste_semantics::Characteristic) -> R {
+    use deckmaste_semantics::Characteristic as C;
     Ok(match c {
         C::Colors => "Colors",
         C::Types => "Types",
@@ -1380,11 +1406,11 @@ fn emit_target_spec(t: &TargetSpec) -> R {
     })
 }
 
-/// `deckmaste_core::Binder` -> Idris `Bindable`. Only the shapes actually
+/// `deckmaste_semantics::Binder` -> Idris `Bindable`. Only the shapes actually
 /// wired for resolution are mapped (`binder.rs` notes `Produce`/`Search*`
 /// aren't yet engine-resolved either, so gapping them costs nothing today).
-fn emit_binder(b: &deckmaste_core::Binder) -> R {
-    use deckmaste_core::Binder as B;
+fn emit_binder(b: &deckmaste_semantics::Binder) -> R {
+    use deckmaste_semantics::Binder as B;
     Ok(match b {
         B::TheRef(r) => app("TheRef", vec![emit_reference(r)?].into()),
         B::ChooseOne { filter, by } => app(
@@ -1479,8 +1505,8 @@ fn emit_cost_component(c: &CostComponent) -> R {
     })
 }
 
-fn emit_with_cost_as_predicate_verb(binder: &deckmaste_core::Binder, body: &Cost) -> R {
-    use deckmaste_core::Binder as B;
+fn emit_with_cost_as_predicate_verb(binder: &deckmaste_semantics::Binder, body: &Cost) -> R {
+    use deckmaste_semantics::Binder as B;
     let B::ChooseOne { filter, by } = binder else {
         return Err(gap(
             "CostComponent::With over a non-ChooseOne binder not yet mapped",
@@ -1615,7 +1641,7 @@ fn composite_move_src(body: &OneShotEffect) -> Option<&Reference> {
 fn top_of_library(body: &OneShotEffect) -> Option<(&Reference, &Count)> {
     match peel_os(body) {
         OneShotEffect::Each(each) => match &each.binder {
-            deckmaste_core::Binder::Existing(Selection::TopOfLibrary { count, whose }) => {
+            deckmaste_semantics::Binder::Existing(Selection::TopOfLibrary { count, whose }) => {
                 Some((whose, count))
             }
             _ => None,
@@ -1629,13 +1655,13 @@ fn top_of_library(body: &OneShotEffect) -> Option<(&Reference, &Count)> {
 }
 
 /// The `(whose, count)` of a chosen/random discard body ([CR#701.9b]): its
-/// `With` binder's [`deckmaste_core::discard_body_whose`]/
-/// [`deckmaste_core::discard_body_count`]. `None` for a bound single-move
+/// `With` binder's [`deckmaste_semantics::discard_body_whose`]/
+/// [`deckmaste_semantics::discard_body_count`]. `None` for a bound single-move
 /// discard.
 fn discard_choice(body: &OneShotEffect) -> Option<(&Reference, &Count)> {
     Some((
-        deckmaste_core::discard_body_whose(body)?,
-        deckmaste_core::discard_body_count(body)?,
+        deckmaste_semantics::discard_body_whose(body)?,
+        deckmaste_semantics::discard_body_count(body)?,
     ))
 }
 
@@ -1708,7 +1734,7 @@ fn emit_keyword_spec(name: &str, body: &OneShotEffect) -> R {
             }
         }
         "Fight" => {
-            let (a, b) = deckmaste_core::fight_body_fighters(body)
+            let (a, b) = deckmaste_semantics::fight_body_fighters(body)
                 .ok_or_else(|| gap("Fight composite body has no fighters"))?;
             Ok(app(
                 "Fight",
@@ -1921,7 +1947,7 @@ fn emit_action(a: &Action) -> R {
             "DrawCard",
             vec![
                 emit_reference(who)?,
-                emit_count(&deckmaste_core::Count::Literal(1))?,
+                emit_count(&deckmaste_semantics::Count::Literal(1))?,
             ]
             .into(),
         )),
@@ -1960,7 +1986,7 @@ fn emit_action(a: &Action) -> R {
             ))
         }
         // [CR#608.2g]: casting a referenced card as a resolution effect. The
-        // Idris north-star `Core.idr` has no resolution-time `Cast` effect verb
+        // Idris north-star `Semantics.idr` has no resolution-time `Cast` effect verb
         // (casting there rides the 601 deontic-permission pipeline, `Enact
         // Cast`), so the probe records this as an unmapped gap rather than
         // data-fying an intrinsic it doesn't model.
@@ -2063,14 +2089,14 @@ fn emit_mana_production(p: &ManaProduction) -> Result<(String, Arc<[String]>), G
     let mut out_riders = Vec::new();
     for r in riders {
         match r {
-            deckmaste_core::ManaRider::SpendOnly(f) => {
+            deckmaste_semantics::ManaRider::SpendOnly(f) => {
                 out_riders.push(app("SpendOnly", vec![emit_filter(f)?].into()));
             }
-            deckmaste_core::ManaRider::GrantOnSpend(_)
-            | deckmaste_core::ManaRider::TriggerOnSpend(_)
-            | deckmaste_core::ManaRider::Persistent(_)
-            | deckmaste_core::ManaRider::Snow
-            | deckmaste_core::ManaRider::Expanded(_) => {
+            deckmaste_semantics::ManaRider::GrantOnSpend(_)
+            | deckmaste_semantics::ManaRider::TriggerOnSpend(_)
+            | deckmaste_semantics::ManaRider::Persistent(_)
+            | deckmaste_semantics::ManaRider::Snow
+            | deckmaste_semantics::ManaRider::Expanded(_) => {
                 return Err(gap("ManaRider variant not yet mapped"));
             }
         }
@@ -2176,13 +2202,13 @@ fn emit_numeric_op(op: &NumericOp) -> R {
     })
 }
 
-fn emit_collection_op<T>(op: &deckmaste_core::CollectionOp<T>, elem: impl Fn(&T) -> R) -> R {
+fn emit_collection_op<T>(op: &deckmaste_semantics::CollectionOp<T>, elem: impl Fn(&T) -> R) -> R {
     Ok(match op {
-        deckmaste_core::CollectionOp::Set(items) => {
+        deckmaste_semantics::CollectionOp::Set(items) => {
             app("Set", vec![map_list(items, &elem)?].into())
         }
-        deckmaste_core::CollectionOp::Add(item) => app("Add", vec![elem(item)?].into()),
-        deckmaste_core::CollectionOp::Remove(item) => app("Remove", vec![elem(item)?].into()),
+        deckmaste_semantics::CollectionOp::Add(item) => app("Add", vec![elem(item)?].into()),
+        deckmaste_semantics::CollectionOp::Remove(item) => app("Remove", vec![elem(item)?].into()),
     })
 }
 
@@ -2227,7 +2253,7 @@ fn emit_modification_ops(m: &Modification, out: &mut Vec<String>) -> Result<(), 
             "Alter",
             vec![
                 "Subtypes".to_string(),
-                emit_collection_op(op, |s: &deckmaste_core::SubtypeRef| {
+                emit_collection_op(op, |s: &deckmaste_semantics::SubtypeRef| {
                     emit_subtype_ref(s.as_str())
                 })?,
             ]
@@ -2338,10 +2364,10 @@ fn emit_copy_exception_mods(exceptions: &[CopyException]) -> Result<Arc<[String]
 /// installs ([CR#707.2], layer 1): `BecomeCopyOf <src>` bare, or — with
 /// "except" characteristic changes ([CR#707.9]) — `ApplyAll [BecomeCopyOf
 /// <src>, <exc mods…>]`, each exception a SIBLING higher-layer mod, never
-/// bundled into `BecomeCopyOf` (Core.idr's documented stance). The token-copy
-/// `Copy` Action does NOT go through here — its own modification-list arg
-/// carries the exceptions directly (no `BecomeCopyOf`, since the `Copy` verb
-/// itself is the copy).
+/// bundled into `BecomeCopyOf` (Semantics.idr's documented stance). The
+/// token-copy `Copy` Action does NOT go through here — its own
+/// modification-list arg carries the exceptions directly (no `BecomeCopyOf`,
+/// since the `Copy` verb itself is the copy).
 fn emit_copy_modification(cs: &CopySpec) -> R {
     let become_copy = app("BecomeCopyOf", vec![emit_copy_source(&cs.source)?].into());
     let exc_mods = emit_copy_exception_mods(&cs.exceptions)?;
@@ -2433,8 +2459,8 @@ fn emit_cost_components_as_mana(cs: &[CostComponent]) -> R {
     }
 }
 
-fn emit_replacement(r: &deckmaste_core::Replacement) -> R {
-    use deckmaste_core::Replacement as Repl;
+fn emit_replacement(r: &deckmaste_semantics::Replacement) -> R {
+    use deckmaste_semantics::Replacement as Repl;
     Ok(match r {
         Repl::Instead { would, instead } => {
             let (kinds, facets) = emit_event_filter(would)?;
@@ -2463,8 +2489,8 @@ fn emit_replacement(r: &deckmaste_core::Replacement) -> R {
     })
 }
 
-fn emit_prevention(p: &deckmaste_core::Prevention) -> R {
-    use deckmaste_core::Prevention as P;
+fn emit_prevention(p: &deckmaste_semantics::Prevention) -> R {
+    use deckmaste_semantics::Prevention as P;
     Ok(match p {
         P::PreventAll { from, to, .. } => {
             let q = event_query(
@@ -2581,18 +2607,18 @@ fn emit_static_effect(se: &StaticEffect) -> R {
         // `AsThough (Matches This premise) <then>` — the premise is the
         // counterfactual `Matches This (Not (Has Hexproof))`, wrapping the inner
         // permission `then` as its `Can` clause (Glaring Spotlight).
-        StaticEffect::AsThough(deckmaste_core::AsThough::Counterfactual { premise, then }) => {
+        StaticEffect::AsThough(deckmaste_semantics::AsThough::Counterfactual { premise, then }) => {
             let premise_cond = app(
                 "Matches",
                 vec![
-                    emit_reference(&deckmaste_core::Reference::This)?,
+                    emit_reference(&deckmaste_semantics::Reference::This)?,
                     emit_filter(premise)?,
                 ]
                 .into(),
             );
             app("AsThough", vec![premise_cond, emit_deontic(then)?].into())
         }
-        StaticEffect::AsThough(deckmaste_core::AsThough::Expanded(_)) => {
+        StaticEffect::AsThough(deckmaste_semantics::AsThough::Expanded(_)) => {
             return Err(gap(
                 "StaticEffect::AsThough macro provenance (Expanded) is not re-emitted",
             ));
@@ -2603,8 +2629,8 @@ fn emit_static_effect(se: &StaticEffect) -> R {
         ),
         StaticEffect::OutcomeGate { who, gate } => {
             let g = match gate {
-                deckmaste_core::OutcomeGateKind::CantLose => "CantLose",
-                deckmaste_core::OutcomeGateKind::CantWin => "CantWin",
+                deckmaste_semantics::OutcomeGateKind::CantLose => "CantLose",
+                deckmaste_semantics::OutcomeGateKind::CantWin => "CantWin",
             };
             app("OutcomeGate", vec![g.to_string(), emit_filter(who)?].into())
         }
@@ -2630,18 +2656,18 @@ fn emit_static_effect(se: &StaticEffect) -> R {
         }
         StaticEffect::PayPips(class, act) => {
             let class_s = match class {
-                deckmaste_core::PipClass::Generic => "Generic".to_string(),
+                deckmaste_semantics::PipClass::Generic => "Generic".to_string(),
                 // Idris `PipClass.Colored` is nullary: it marks "a colored pip,
                 // matched via the pay predicate" — the specific color is carried
                 // by the `TapToPay`/`ExileToPay` filter (`HasChar Colors <c>`),
                 // so the Rust-side `Color` payload is intentionally not forwarded.
-                deckmaste_core::PipClass::Colored(_) => "Colored".to_string(),
+                deckmaste_semantics::PipClass::Colored(_) => "Colored".to_string(),
             };
             let act_s = match act {
-                deckmaste_core::PayAct::TapToPay(f) => {
+                deckmaste_semantics::PayAct::TapToPay(f) => {
                     app("TapToPay", vec![emit_filter(f)?].into())
                 }
-                deckmaste_core::PayAct::ExileToPay(f) => {
+                deckmaste_semantics::PayAct::ExileToPay(f) => {
                     app("ExileToPay", vec![emit_filter(f)?].into())
                 }
             };
@@ -2669,10 +2695,10 @@ fn emit_static_effect(se: &StaticEffect) -> R {
 /// `IgnoreLowest`/`IgnoreChosen n` — the latter's `Nat` payload emits as a
 /// bare decimal literal, matching this file's other `Nat`-payload
 /// conventions (e.g. `RollDice`'s `sides.to_string()`).
-fn emit_ignore_rule(ir: &deckmaste_core::IgnoreRule) -> String {
+fn emit_ignore_rule(ir: &deckmaste_semantics::IgnoreRule) -> String {
     match ir {
-        deckmaste_core::IgnoreRule::IgnoreLowest => "IgnoreLowest".to_string(),
-        deckmaste_core::IgnoreRule::IgnoreChosen(n) => {
+        deckmaste_semantics::IgnoreRule::IgnoreLowest => "IgnoreLowest".to_string(),
+        deckmaste_semantics::IgnoreRule::IgnoreChosen(n) => {
             app("IgnoreChosen", vec![n.to_string()].into())
         }
     }
@@ -2732,8 +2758,8 @@ fn emit_can(action: &DeonticAction) -> R {
                 return Err(gap("May(Cast{cost: Some, window: Some}) not yet mapped"));
             }
             let costs = match alt {
-                deckmaste_core::AlternativeCost::Free => "[]".to_string(),
-                deckmaste_core::AlternativeCost::Components(cs) => {
+                deckmaste_semantics::AlternativeCost::Free => "[]".to_string(),
+                deckmaste_semantics::AlternativeCost::Components(cs) => {
                     let mut out = Vec::with_capacity(cs.len());
                     for c in cs.iter() {
                         out.push(emit_cost_component(c)?);
@@ -2778,8 +2804,8 @@ fn emit_can(action: &DeonticAction) -> R {
         let deed = app("Enact", vec!["Cast".to_string(), by_pred, what_pred].into());
         let window_maybe = match window {
             None => "Nothing".to_string(),
-            Some(deckmaste_core::Timing::InstantSpeed) => "(Just AsInstant)".to_string(),
-            Some(deckmaste_core::Timing::SorcerySpeed) => "(Just AsSorcery)".to_string(),
+            Some(deckmaste_semantics::Timing::InstantSpeed) => "(Just AsInstant)".to_string(),
+            Some(deckmaste_semantics::Timing::SorcerySpeed) => "(Just AsSorcery)".to_string(),
             Some(_) => {
                 return Err(gap(
                     "Timing::DuringTurn/DuringStep has no Idris Timing counterpart",
@@ -2796,7 +2822,7 @@ fn emit_can(action: &DeonticAction) -> R {
 /// which reduces to a concrete kind since `r` is always a literal
 /// constructor here) — so a default `Predicate::Any` patient can't elaborate as
 /// the kind-polymorphic-empty `And []` (Idris is left with an unsolved `k`
-/// hole). `Anyone` is Core.idr's own precedent for this
+/// hole). `Anyone` is Semantics.idr's own precedent for this
 /// (`Defender = cant (Enact Attack (SameAs This) Anyone)`): a concretely
 /// `APlayer`-kinded "no restriction" stand-in, since `Enact`'s `k` isn't
 /// actually forced to match `patientScope` at the type level.
@@ -3115,25 +3141,25 @@ fn emit_event_filter(ef: &EventFilter) -> Result<KindsAndFacets, Gap> {
                 ));
             }
             let kind = match becomes {
-                deckmaste_core::StateChange::Tapped => "(Becomes Tapped)".to_string(),
-                deckmaste_core::StateChange::Untapped => "(Becomes Untapped)".to_string(),
-                deckmaste_core::StateChange::Phased(deckmaste_core::Phasing::Out) => {
+                deckmaste_semantics::StateChange::Tapped => "(Becomes Tapped)".to_string(),
+                deckmaste_semantics::StateChange::Untapped => "(Becomes Untapped)".to_string(),
+                deckmaste_semantics::StateChange::Phased(deckmaste_semantics::Phasing::Out) => {
                     "(Becomes PhasedOut)".to_string()
                 }
-                deckmaste_core::StateChange::Phased(deckmaste_core::Phasing::In) => {
+                deckmaste_semantics::StateChange::Phased(deckmaste_semantics::Phasing::In) => {
                     return Err(gap(
                         "StateChange::Phased(In) has no Idris ObjectState transition (only PhasedOut)",
                     ));
                 }
-                deckmaste_core::StateChange::TurnedFace(deckmaste_core::Face::Down) => {
+                deckmaste_semantics::StateChange::TurnedFace(deckmaste_semantics::Face::Down) => {
                     "(Becomes FaceDown)".to_string()
                 }
-                deckmaste_core::StateChange::TurnedFace(deckmaste_core::Face::Up) => {
+                deckmaste_semantics::StateChange::TurnedFace(deckmaste_semantics::Face::Up) => {
                     return Err(gap(
                         "StateChange::TurnedFace(Up) has no Idris ObjectState transition",
                     ));
                 }
-                deckmaste_core::StateChange::Transformed => {
+                deckmaste_semantics::StateChange::Transformed => {
                     return Err(gap(
                         "StateChange::Transformed has no Idris ObjectState transition",
                     ));
@@ -3149,11 +3175,11 @@ fn emit_event_filter(ef: &EventFilter) -> Result<KindsAndFacets, Gap> {
         EventFilter::StepBegins { at, whose } => {
             let kind = format!("(BeginStep {})", emit_phase_step(*at)?);
             let facet = match whose {
-                deckmaste_core::WhoseTurn::EachPlayers => None,
-                deckmaste_core::WhoseTurn::Your => {
+                deckmaste_semantics::WhoseTurn::EachPlayers => None,
+                deckmaste_semantics::WhoseTurn::Your => {
                     Some("(Whenever (TurnOf (SameAs You)))".to_string())
                 }
-                deckmaste_core::WhoseTurn::AnOpponents => {
+                deckmaste_semantics::WhoseTurn::AnOpponents => {
                     Some("(Whenever (TurnOf OpponentOf))".to_string())
                 }
             };
@@ -3267,7 +3293,7 @@ fn reject_amount(amount: &Option<CountBound>) -> Result<(), Gap> {
     }
 }
 
-fn opt_zone(z: Option<deckmaste_core::Zone>) -> String {
+fn opt_zone(z: Option<deckmaste_semantics::Zone>) -> String {
     match z {
         None => "Nothing".to_string(),
         Some(z) => format!("(Just {})", emit_zone(z)),
@@ -3282,15 +3308,15 @@ fn opt_bool(b: Option<bool>) -> String {
     }
 }
 
-fn emit_planar_face(f: deckmaste_core::PlanarFace) -> &'static str {
+fn emit_planar_face(f: deckmaste_semantics::PlanarFace) -> &'static str {
     match f {
-        deckmaste_core::PlanarFace::Blank => "Blank",
-        deckmaste_core::PlanarFace::Chaos => "Chaos",
-        deckmaste_core::PlanarFace::Planeswalker => "Planeswalker",
+        deckmaste_semantics::PlanarFace::Blank => "Blank",
+        deckmaste_semantics::PlanarFace::Chaos => "Chaos",
+        deckmaste_semantics::PlanarFace::Planeswalker => "Planeswalker",
     }
 }
 
-fn opt_planar_face(f: Option<deckmaste_core::PlanarFace>) -> String {
+fn opt_planar_face(f: Option<deckmaste_semantics::PlanarFace>) -> String {
     match f {
         None => "Nothing".to_string(),
         Some(f) => format!("(Just {})", emit_planar_face(f)),
@@ -3323,7 +3349,7 @@ fn actor_agent_facets(who: &Predicate, what: &Predicate) -> Result<Arc<[String]>
 /// `EventFilter::Act` lowering. The verb-named kinds
 /// (`Destroy`/`Discard`/`Draw` and the added
 /// `Mill`/`Scry`/`Surveil`/`Fateseal`/ `Fight`) sit beside one another in
-/// `Core.idr`'s `EventKind`; an unrecognized verb is a gap.
+/// `Semantics.idr`'s `EventKind`; an unrecognized verb is a gap.
 ///
 /// This vocabulary is the set of named action FACTS the engine commits, which
 /// is BROADER than the keyword actions [CR#701] enumerates: `Draw` belongs here
@@ -3587,18 +3613,18 @@ fn opt_effect(e: &Option<Arc<OneShotEffect>>) -> R {
     }
 }
 
-fn emit_duration(d: &deckmaste_core::Duration) -> R {
+fn emit_duration(d: &deckmaste_semantics::Duration) -> R {
     Ok(match d {
-        deckmaste_core::Duration::FixedUntil(marker) => match marker {
-            deckmaste_core::TurnMarker::EndOfTurn => "UntilEndOfTurn".to_string(),
-            deckmaste_core::TurnMarker::EndOfCombat => "UntilEndOfCombat".to_string(),
-            deckmaste_core::TurnMarker::YourNextTurn => "UntilYourNextTurn".to_string(),
+        deckmaste_semantics::Duration::FixedUntil(marker) => match marker {
+            deckmaste_semantics::TurnMarker::EndOfTurn => "UntilEndOfTurn".to_string(),
+            deckmaste_semantics::TurnMarker::EndOfCombat => "UntilEndOfCombat".to_string(),
+            deckmaste_semantics::TurnMarker::YourNextTurn => "UntilYourNextTurn".to_string(),
         },
-        deckmaste_core::Duration::UntilEvent(ef) => {
+        deckmaste_semantics::Duration::UntilEvent(ef) => {
             let (kinds, facets) = emit_event_filter(ef)?;
             app("UntilEvent", vec![event_query(&kinds, &facets)].into())
         }
-        deckmaste_core::Duration::ForAsLongAs(cond) => {
+        deckmaste_semantics::Duration::ForAsLongAs(cond) => {
             app("ForAsLongAs", vec![emit_condition(cond)?].into())
         }
         // `ForThisEvent` is an engine-level instruction-scoped rider
@@ -3606,17 +3632,17 @@ fn emit_duration(d: &deckmaste_core::Duration) -> R {
         // "it can't be regenerated" as a plain `cant (Enact Regenerate …)`,
         // never a durationed continuous effect. Report it as a coverage GAP
         // (not a failure) rather than emit a constructor that does not exist.
-        deckmaste_core::Duration::ForThisEvent => {
+        deckmaste_semantics::Duration::ForThisEvent => {
             return Err(gap(
                 "Duration::ForThisEvent is an engine rider, not an Idris Duration \
                  (Idris models no-regen via cants)",
             ));
         }
-        deckmaste_core::Duration::EndOfGame => "Forever".to_string(),
+        deckmaste_semantics::Duration::EndOfGame => "Forever".to_string(),
     })
 }
 
-fn emit_targeted(t: &deckmaste_core::Targeted) -> R {
+fn emit_targeted(t: &deckmaste_semantics::Targeted) -> R {
     let mut specs = Vec::with_capacity(t.targets.len());
     for ts in t.targets.iter() {
         specs.push(emit_target_spec(ts)?);
@@ -3628,7 +3654,7 @@ fn emit_targeted(t: &deckmaste_core::Targeted) -> R {
     ))
 }
 
-fn emit_modal(m: &deckmaste_core::Modal) -> R {
+fn emit_modal(m: &deckmaste_semantics::Modal) -> R {
     let choose = emit_choose_spec(&m.choose)?;
     let mut modes = Vec::with_capacity(m.modes.len());
     for mode in m.modes.iter() {
@@ -3637,7 +3663,7 @@ fn emit_modal(m: &deckmaste_core::Modal) -> R {
     Ok(format!("(Modal {} {})", choose, ilist(modes.into())))
 }
 
-fn emit_choose_spec(cs: &deckmaste_core::ChooseSpec) -> R {
+fn emit_choose_spec(cs: &deckmaste_semantics::ChooseSpec) -> R {
     let repeats = if cs.repeats { "True" } else { "False" };
     Ok(app(
         "mkChooseSpecRep",
@@ -3645,7 +3671,7 @@ fn emit_choose_spec(cs: &deckmaste_core::ChooseSpec) -> R {
     ))
 }
 
-fn emit_mode(m: &deckmaste_core::Mode) -> R {
+fn emit_mode(m: &deckmaste_semantics::Mode) -> R {
     let cost_maybe = match &m.cost {
         None => "Nothing".to_string(),
         Some(cs) => {
@@ -3662,13 +3688,13 @@ fn emit_mode(m: &deckmaste_core::Mode) -> R {
     ))
 }
 
-fn emit_separate_piles(_sp: &deckmaste_core::SeparatePiles) -> R {
+fn emit_separate_piles(_sp: &deckmaste_semantics::SeparatePiles) -> R {
     Err(gap(
         "OneShotEffect::SeparatePiles not yet mapped (Idris's DivideAndChoose has a different two-pile shape)",
     ))
 }
 
-fn emit_choose_pile(_cp: &deckmaste_core::ChoosePile) -> R {
+fn emit_choose_pile(_cp: &deckmaste_semantics::ChoosePile) -> R {
     Err(gap("OneShotEffect::ChoosePile not yet mapped"))
 }
 
@@ -3684,8 +3710,8 @@ fn emit_ability(a: &Ability) -> R {
         // positionally (all default in the constructor).
         Ability::Activated(aa) => {
             let window = match aa.window {
-                None | Some(deckmaste_core::Timing::InstantSpeed) => "AsInstant",
-                Some(deckmaste_core::Timing::SorcerySpeed) => "AsSorcery",
+                None | Some(deckmaste_semantics::Timing::InstantSpeed) => "AsInstant",
+                Some(deckmaste_semantics::Timing::SorcerySpeed) => "AsSorcery",
                 Some(_) => {
                     return Err(gap(
                         "ActivatedAbility.window not yet mapped (only Instant/SorcerySpeed)",
@@ -3751,11 +3777,11 @@ fn emit_ability(a: &Ability) -> R {
     })
 }
 
-fn emit_use_limit(l: &deckmaste_core::UseLimit) -> String {
+fn emit_use_limit(l: &deckmaste_semantics::UseLimit) -> String {
     match l {
-        deckmaste_core::UseLimit::OncePerTurn => "OncePerTurn",
-        deckmaste_core::UseLimit::OncePerGame => "OncePerGame",
-        deckmaste_core::UseLimit::LoyaltyOncePerTurn => "LoyaltyOncePerTurn",
+        deckmaste_semantics::UseLimit::OncePerTurn => "OncePerTurn",
+        deckmaste_semantics::UseLimit::OncePerGame => "OncePerGame",
+        deckmaste_semantics::UseLimit::LoyaltyOncePerTurn => "LoyaltyOncePerTurn",
     }
     .to_string()
 }
@@ -3859,17 +3885,21 @@ fn emit_characteristics_from_face(face: &CardFace) -> R {
 /// named by REFERENCE (a filter, an `Alter Subtypes` op, a `CountersOn`, …),
 /// which carry a name without the rest of the registry row.
 ///
+/// The input is the SEMANTIC term as loaded; this expands it to the kernel's
+/// post-expansion normal form itself, so no caller can hand the mirror a
+/// remembered macro invocation (spec §10).
+///
 /// # Errors
-/// A [`Gap`] naming the first Rust grammar shape encountered with no (or
+/// A [`Gap`] naming the first semantic grammar shape encountered with no (or
 /// not-yet-implemented) Idris translation.
 pub fn emit_card_expr(card: &Card, plugin: &Plugin) -> R {
     load_subtype_categories(&plugin.subtypes);
     load_counter_scopes(&plugin.counters);
     load_designation_scopes(&plugin.designations);
-    match card {
+    match card.clone().expand_all() {
         Card::Normal(face) => Ok(app(
             "Normal",
-            vec![emit_characteristics_from_face(face)?].into(),
+            vec![emit_characteristics_from_face(&face)?].into(),
         )),
         Card::TwoFaced { .. } => Err(gap("Card::TwoFaced not yet mapped")),
     }
@@ -3899,10 +3929,8 @@ pub fn load_all_cards(
         if is_todo_source(&source) {
             continue;
         }
-        // The pair, not just `.core`: the Idris mirror emits the engine image,
-        // but the expansion that precedes it runs on the semantic half.
-        // Repointing the emitter itself at the semantic term is
-        // `runtime-prose-link`, which lands the provenance index it would need.
+        // The pair: the mirror reads `.semantic` (spec §10), and callers keep
+        // the engine image for whatever else they do with a loaded card.
         let card = plugin
             .card_from_str(&source)
             .with_context(|| format!("parsing {}", path.display()))?;
@@ -3936,8 +3964,8 @@ pub fn sanitize_ident(name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use deckmaste_core::AlternativeCost;
-    use deckmaste_core::CostTag;
+    use deckmaste_semantics::AlternativeCost;
+    use deckmaste_semantics::CostTag;
 
     use super::*;
 
@@ -3950,7 +3978,7 @@ mod tests {
         let action = DeonticAction::Cast {
             what: Predicate::Ref(Reference::This),
             by: Predicate::Any,
-            from: Some(deckmaste_core::Zone::Graveyard),
+            from: Some(deckmaste_semantics::Zone::Graveyard),
             window: None,
             cost: Some(AlternativeCost::Components(vec![CostComponent::Tap].into())),
             tag: Some(CostTag::from("Flashback")),
@@ -4026,11 +4054,11 @@ mod tests {
     /// ([CR#121,701.17a,701.22a]) — the `Each` binder `emit_keyword_spec` reads
     /// its coordinates off. The `effect` is inert (only the binder is read).
     fn top_slice_body(count: Count, whose: Reference) -> OneShotEffect {
-        OneShotEffect::Each(deckmaste_core::Each {
-            binder: deckmaste_core::Binder::Existing(Selection::TopOfLibrary { count, whose }),
+        OneShotEffect::Each(deckmaste_semantics::Each {
+            binder: deckmaste_semantics::Binder::Existing(Selection::TopOfLibrary { count, whose }),
             effect: Arc::new(OneShotEffect::Act(Action::move_to(
                 Reference::It,
-                deckmaste_core::Zone::Graveyard,
+                deckmaste_semantics::Zone::Graveyard,
             ))),
         })
     }
@@ -4079,7 +4107,7 @@ mod tests {
     /// MUCH life") — an enclosing `Batch` would leave the anaphora at 1.
     #[test]
     fn batched_draw_folds_its_count_onto_the_idris_verb() {
-        let out = emit_effect(&deckmaste_core::OneShotEffect::draw(
+        let out = emit_effect(&deckmaste_semantics::OneShotEffect::draw(
             Reference::You,
             Count::Literal(3),
         ))
@@ -4112,7 +4140,7 @@ mod tests {
     #[test]
     fn act_filter_lowers_to_the_verb_event_kind() {
         let (kinds, _facets) = emit_event_filter(&EventFilter::Act {
-            verb: deckmaste_core::VerbName::from("Mill"),
+            verb: deckmaste_semantics::VerbName::from("Mill"),
             who: Predicate::Ref(Reference::You),
             on: Predicate::Any,
             cause: None,
@@ -4138,7 +4166,7 @@ mod tests {
     /// typecheck), now with the `Destroy` tag.
     #[test]
     fn destroy_emits_composite_over_a_graveyard_move() {
-        let out = emit_action(&deckmaste_core::Action::destroy(Reference::This))
+        let out = emit_action(&deckmaste_semantics::Action::destroy(Reference::This))
             .expect("the destroy composite should emit");
         assert!(
             out.contains("Composite"),
@@ -4159,8 +4187,10 @@ mod tests {
     /// the `from` fizzle-guard slot.
     #[test]
     fn move_without_guard_still_uses_moveattacking() {
-        let action =
-            deckmaste_core::Action::move_to(Reference::This, deckmaste_core::Zone::Graveyard);
+        let action = deckmaste_semantics::Action::move_to(
+            Reference::This,
+            deckmaste_semantics::Zone::Graveyard,
+        );
         let out = emit_action(&action).expect("an unguarded Move should emit");
         assert_eq!(out, "(moveAttacking This (ToZone Graveyard) Nothing)");
     }
@@ -4171,10 +4201,10 @@ mod tests {
     /// constructor with BOTH named fields spelled explicitly.
     #[test]
     fn move_from_guard_emits_named_field_on_the_raw_constructor() {
-        let action = deckmaste_core::Action::move_if_in(
+        let action = deckmaste_semantics::Action::move_if_in(
             Reference::This,
-            deckmaste_core::Zone::Hand,
-            deckmaste_core::Zone::Graveyard,
+            deckmaste_semantics::Zone::Hand,
+            deckmaste_semantics::Zone::Graveyard,
         );
         let out = emit_action(&action).expect("a guarded Move should emit");
         assert_eq!(
@@ -4200,13 +4230,13 @@ mod tests {
     /// `idris2 --check`.
     #[test]
     fn as_though_counterfactual_wraps_premise_as_matches_this() {
-        let effect = StaticEffect::AsThough(deckmaste_core::AsThough::Counterfactual {
+        let effect = StaticEffect::AsThough(deckmaste_semantics::AsThough::Counterfactual {
             premise: Predicate::Not(Arc::new(Predicate::Characteristic(
-                CharacteristicPredicate::Has(deckmaste_core::KeywordRef::from("Hexproof")),
+                CharacteristicPredicate::Has(deckmaste_semantics::KeywordRef::from("Hexproof")),
             ))),
             then: Arc::new(Deontic::May(DeonticAction::Target {
-                by: deckmaste_core::DeedAgent::default(),
-                on: Predicate::r#type(deckmaste_core::Type::Creature),
+                by: deckmaste_semantics::DeedAgent::default(),
+                on: Predicate::r#type(deckmaste_semantics::Type::Creature),
             })),
         });
         let out = emit_static_effect(&effect).expect("AsThough Counterfactual should emit");
@@ -4368,7 +4398,7 @@ mod tests {
             copy_spec(
                 CopySource::Object(Reference::Target(0)),
                 vec![CopyException::Retain(
-                    deckmaste_core::Characteristic::Colors,
+                    deckmaste_semantics::Characteristic::Colors,
                 )]
                 .into(),
             ),

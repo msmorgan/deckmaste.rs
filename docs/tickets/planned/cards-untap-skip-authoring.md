@@ -13,11 +13,11 @@ What's missing is the **path from card RON/oracle text to those primitives**.
 1. **Continuous flavor → a static `Cant(Untap(what:…))`.** Cards:
    `Enchanted creature doesn't untap during its controller's untap step.` (~9 auras),
    `~ doesn't untap during your untap step.` The `DeonticAction::Untap` variant exists,
-   but there is **no Core.idr grammar / emitter path** to spell it: `idris_emit.rs`
+   but there is **no Semantics.idr grammar / emitter path** to spell it: `idris_emit.rs`
    `emit_deed` currently *gaps* `DeonticAction::Untap` because an **agentless deed**
    (untap is a turn-based action `[CR#502.3]`, no `Enact Relation agent patient`
    counterpart) has no existing Idris shape. **Design decision required:** how to
-   represent an agent-less deontic deed in Core.idr (a dedicated nullary-agent form vs.
+   represent an agent-less deontic deed in Semantics.idr (a dedicated nullary-agent form vs.
    a `TurnBasedAction` predicate vs. reusing an existing shape). This is the `design:`
    gate.
 
@@ -32,7 +32,7 @@ What's missing is the **path from card RON/oracle text to those primitives**.
    catch-all arm.
 
 ## Scope
-- Core.idr grammar + `idris_emit.rs` for the continuous `Cant(Untap)` deed (design gate above).
+- Semantics.idr grammar + `idris_emit.rs` for the continuous `Cant(Untap)` deed (design gate above).
 - `PlayerAction::SkipNextUntap` (or equivalent) + its `GameEvent`, threaded through every
   event match, setting `skip_next_untap`.
 - Macros (`macros/action/` + any static-ability macro) for both English forms, bidirectional

@@ -1,6 +1,6 @@
 //! `cargo xtask idris-check` — the anaphora-soundness gate that replaces the
-//! deleted Rust elaborator/twin gate: re-emit each EXPANDED card as an
-//! equivalent raw `idris/src/Core.idr` expression (via
+//! deleted Rust elaborator/twin gate: re-emit each EXPANDED SEMANTIC card as
+//! an equivalent raw `idris/src/Semantics.idr` expression (via
 //! `deckmaste_plugin::idris_emit`) and typecheck it with `idris2 --check`.
 //! Idris's dependent `Normal`/`Reference`/`Selection` proofs make an unsound
 //! card (a dangling anaphor, an ambiguous antecedent, …) unrepresentable, so
@@ -25,9 +25,9 @@ use std::process::Command;
 
 use anyhow::Context;
 use clap::Args;
-use deckmaste_card::Card;
 use deckmaste_plugin::idris_emit;
 use deckmaste_plugin::plugin::Plugin;
+use deckmaste_semantics::Card;
 use serde::Deserialize;
 
 const BASELINE_FILE: &str = "idris-check-baseline.ron";
@@ -134,17 +134,18 @@ fn idris_root() -> anyhow::Result<PathBuf> {
 
 /// One-shot pre-flight typecheck of ONLY the shared dependency surface that
 /// every batch imports — `render_module("IdrisCheckDeps", &[])` is exactly
-/// `module IdrisCheckDeps\nimport Core\n\n`, no card defs.
+/// `module IdrisCheckDeps\nimport Semantics\n\n`, no card defs.
 ///
-/// Without this, a `Core.idr` that doesn't compile makes *every* batch fail,
+/// Without this, a `Semantics.idr` that doesn't compile makes *every* batch
 /// and the per-card isolation fallback (meant for one genuinely-unsound card)
 /// re-checks *every* card, each failing identically for the same dependency
 /// error — ~72 × 101 ≈ 7200 `idris2` invocations for the wizards corpus, all
 /// burying the one real cause. A broken dependency is O(1) to detect up front;
 /// left to the failure path it is *rediscovered* N times.
 ///
-/// It also warms `Core.ttc` (built once here) so the real batches — and every
-/// isolation re-check — reuse it instead of rebuilding Core from source.
+/// It also warms `Semantics.ttc` (built once here) so the real batches — and
+/// every isolation re-check — reuse it instead of rebuilding the mirror from
+/// source.
 ///
 /// On failure this bails framed as a dependency/build error, deterministically
 /// (no parsing of idris2 diagnostics): a broken import surface is never any
@@ -155,17 +156,20 @@ fn preflight_deps(idris_dir: &Path) -> anyhow::Result<()> {
         TypecheckOutcome::Pass => Ok(()),
         TypecheckOutcome::Fail(output) => anyhow::bail!(
             "idris-check pre-flight: the shared Idris dependencies do not compile \
-             (Core.idr and whatever the probe module imports). No card is at fault — \
+             (Semantics.idr and whatever the probe module imports). No card is at fault — \
              fix the dependency build first.\n\nidris2 said:\n{output}"
         ),
     }
 }
 
 fn run_single(plugin: &Plugin, card_name: &str, idris_dir: &Path) -> anyhow::Result<()> {
+    // The SEMANTIC term, expanded to the kernel's normal form — the mirror
+    // certifies semantic input, not the engine image
+    // (`docs/decisions/semantics-spelling-lowering.md` §10).
     let card = plugin
         .card(card_name)
         .with_context(|| format!("loading card {card_name:?}"))?
-        .core;
+        .semantic;
     let ident = idris_emit::sanitize_ident(card_name);
     let module_name = format!("IdrisCheckSingle_{ident}");
 
@@ -252,7 +256,7 @@ fn collect_batch_report(
     let named_cards: Vec<(String, String, Card)> = cards
         .iter()
         .map(|card| {
-            let card = card.core.clone();
+            let card = card.semantic.clone();
             let name = idris_emit::card_display_name(&card).to_string();
             let mut ident = idris_emit::sanitize_ident(&name);
             while !used_idents.insert(ident.clone()) {
@@ -592,7 +596,7 @@ fn render_baseline(baseline: &Baseline) -> anyhow::Result<String> {
 fn render_module(module_name: &str, defs: &[(String, String)]) -> String {
     use std::fmt::Write as _;
 
-    let mut out = format!("module {module_name}\nimport Core\n\n");
+    let mut out = format!("module {module_name}\nimport Semantics\n\n");
     for (ident, expr) in defs {
         let _ = write!(out, "card_{ident} : Card\ncard_{ident} = {expr}\n\n");
     }

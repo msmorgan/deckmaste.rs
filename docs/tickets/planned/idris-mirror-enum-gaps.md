@@ -1,7 +1,9 @@
 ---
 needs: []
 ---
-Structural drift between the Idris model (`idris/src/Core.idr`) and Rust core,
+Structural drift between the Idris model (`idris/src/Semantics.idr`) and the Rust
+semantics grammar (`deckmaste_semantics` — the mirror reattached there in
+`idris-mirror-semantics`, which left this inventory untouched by design),
 originally found by the 2026-07-16 drift review. Per-cluster decisions taken
 2026-07-19 (walked one by one); this ticket is now the execution checklist.
 
@@ -48,8 +50,8 @@ executing; this ticket dates and drifts.
   untap" is a can't-happen effect (the untap event never *would* happen,
   [CR#502.3] "keep from untapping"), NOT a replacement ([CR#614.17] "aren't
   replacement effects") and not a player-action restriction. Idris: replace the
-  `Replaces [Becomes Untapped]` note/impl (`Core.idr:274`) with `CantHappen`
-  (already exists, `Core.idr:2877`). Rust: retire `DeonticAction::Untap`, model
+  `Replaces [Becomes Untapped]` note/impl (`Semantics.idr:274`) with `CantHappen`
+  (already exists, `Semantics.idr:2877`). Rust: retire `DeonticAction::Untap`, model
   via `StaticEffect::CantHappen(Becomes Untapped)` (already exists). Winter Orb /
   Static Orb / exert [CR#701.43a] / Frost Titan unify as windowed `CantHappen`.
 
@@ -118,9 +120,9 @@ Delver in one arm — cheapest win), `Action::CreateReplacement` (`:1759`),
 `Count::EventCount` (`:1125`), `EventFilter::Nth` (`:3039`), `Reference::Linked`
 (`:572`, = the mirror above), subtype-confer `Property::TurnBased` (`:335`),
 and `SpendAsThough`. These bridge the emit path so the affected cards exercise
-`Core.idr` arms; schedule alongside the grow-Idris work.
+`Semantics.idr` arms; schedule alongside the grow-Idris work.
 
 Standard constraints apply. Deltas: `idris-check` is a local-only gate (no idris2
-in CI); several items (Untap, EnterRider) touch BOTH Rust core and `Core.idr` —
-regenerate wizards after core enum changes; the `scopeRef` signature change ripples
+in CI); several items (Untap, EnterRider) touch BOTH `deckmaste_semantics` and
+`Semantics.idr` — regenerate wizards after grammar enum changes; the `scopeRef` signature change ripples
 to all callers.

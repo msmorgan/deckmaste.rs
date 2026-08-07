@@ -1315,9 +1315,9 @@ fn activated_ability_pays_life_cost() {
 /// [CR#606.4]: a loyalty `+N` ability's cost is to put that many loyalty
 /// counters on the ability's source. Modeled as a `Do(PutCounters(This,
 /// LoyaltyCounter, N))` cost (no dedicated loyalty-cost verb — see
-/// `idris/src/Core.idr`'s `Cost` `Do` ruling). This exercises `PutCounters`
-/// being cost-eligible: the counters are ADDED to whatever loyalty is already
-/// present during the payment window.
+/// `idris/src/Semantics.idr`'s `Cost` `Do` ruling). This exercises
+/// `PutCounters` being cost-eligible: the counters are ADDED to whatever
+/// loyalty is already present during the payment window.
 #[test]
 fn activated_ability_pays_loyalty_plus_cost() {
     const NAME: &str = "Loyalty-plus-cost test artifact";

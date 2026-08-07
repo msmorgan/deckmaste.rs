@@ -57,7 +57,7 @@ pub enum Duration {
 /// CDA-flagged), `Up`/`Down` are the ±N modifications (layer 7c)
 /// ([CR#613.4a..613.4c]). The op↔axis pairing is the soundness gate: a numeric
 /// axis variant (`Modification::Power`, …) takes a `NumericOp`, recovering
-/// Idris's `Numeric` type-class gate (`idris/src/Core.idr`) structurally.
+/// Idris's `Numeric` type-class gate (`idris/src/Semantics.idr`) structurally.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum NumericOp {
     /// Overwrite the base value — layer 7b, or 7a when CDA-flagged
@@ -77,7 +77,7 @@ pub enum NumericOp {
 /// affect a SINGLE element ([CR#613.1d,613.1e]). The op↔axis pairing is the
 /// soundness gate: a collection axis variant (`Modification::Colors`, …) takes
 /// a `CollectionOp`, which has no `Up`/`Down`, recovering Idris's `Collection`
-/// type-class gate (`idris/src/Core.idr`) structurally.
+/// type-class gate (`idris/src/Semantics.idr`) structurally.
 ///
 /// Generic over the element type, so it can't `#[derive(Expand)]` (that derive
 /// rejects generics); the `Expand` impl is hand-written just below. serde's
@@ -114,10 +114,11 @@ impl<T: Expand + Clone> Expand for CollectionOp<T> {
 /// The per-axis ops are factored into the two shared op enums ([`NumericOp`],
 /// [`CollectionOp`]) but the AXIS stays named at the variant level — a
 /// deliberately-partial unification of Idris's fully-unified `Alter
-/// (Characteristic) (ModificationOp)` (`idris/src/Core.idr`): the variant↔op
-/// pairing recovers the op↔axis soundness gate structurally (a `Colors` takes a
-/// `CollectionOp`, which has no `Up`, so "raise a color" is unrepresentable),
-/// while keeping RON readable (`Power(Up(1))`, `Colors(Add(Blue))`).
+/// (Characteristic) (ModificationOp)` (`idris/src/Semantics.idr`): the
+/// variant↔op pairing recovers the op↔axis soundness gate structurally (a
+/// `Colors` takes a `CollectionOp`, which has no `Up`, so "raise a color" is
+/// unrepresentable), while keeping RON readable (`Power(Up(1))`,
+/// `Colors(Add(Blue))`).
 ///
 /// `SupportsMacros` (not plain `Expand`) so a change-bundling macro can stand
 /// in a `changes: [...]` slot — the keystone being `PowerAndToughnessUp(p, t)`,

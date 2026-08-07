@@ -60,7 +60,9 @@ pub enum Destination {
 /// it is
 /// **battlefield-only** — riders on any non-battlefield destination are
 /// ill-formed (a card in a graveyard has no tapped/attacking state to arrive
-/// in, [CR#110.5,614.12]) and rejected by the Idris re-emit gate.
+/// in, [CR#110.5,614.12]). Core carries no proofs, so nothing is enforced
+/// here; the obligation lives on the semantic mirror
+/// (`deckmaste_semantics::EnterRider`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum EnterRider {
     /// "enters tapped" ([CR#603.6d] wording; applied via [CR#614.12]) — the
@@ -194,7 +196,7 @@ pub enum Action {
     /// arrival state for a BATTLEFIELD destination — "onto the battlefield
     /// tapped / under its owner's control / with a +1/+1 counter
     /// on it" ([CR#614.12]); riders on any other destination are ill-formed
-    /// (rejected by the Idris re-emit gate).
+    /// (see [`EnterRider`]).
     ///
     /// The trailing `from` slot is an optional FIZZLE-GUARD ([CR#701.8a]):
     /// when present, the move commits only if the object is CURRENTLY in
@@ -896,7 +898,7 @@ impl Action {
     /// remove that many loyalty counters). The Idris grammar makes the same
     /// call: loyalty costs reuse `Do (PutCounters/RemoveCounters
     /// loyaltyCounter N This)`, "so there is no duplicate counter-cost
-    /// verb" (`idris/src/Core.idr`, the `Cost` `Do` and
+    /// verb" (`idris/src/Semantics.idr`, the `Cost` `Do` and
     /// `PutCounters`/`RemoveCounters` doc comments).
     #[must_use]
     pub fn is_cost_eligible(&self) -> bool {

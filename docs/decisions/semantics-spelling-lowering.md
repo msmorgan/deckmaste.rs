@@ -14,6 +14,11 @@ Amended 2026-08-06: §17 records the divergence trajectory — semantics
 drifts toward English constructions, core toward explicit slot reference
 (`core-reference-slots`) — and the certifier/resolver role split; no type
 boundary changes today.
+Amended 2026-08-07 as `idris-mirror-semantics` landed: §10 records the
+reattachment as executed — the mirror is `idris/src/Semantics.idr` (renamed
+from `Core.idr` per principle 1), the emitter walks semantic terms, and the
+riders-battlefield obligation is resolved. No design change; the section now
+describes the code.
 
 ## 1. Summary
 
@@ -557,12 +562,18 @@ The mirror's existing obligations are author-mistake proofs — unbound-
 anaphor soundness (the R1/R2 gates), target-read range and cardinality,
 and `Distinct` range checking (position-strengthening is
 `idris-distinct-position-proof`) — so the mirror follows its purpose
-(principle 5). One long-claimed obligation is NOT real: the
-riders-battlefield-only rule exists solely as prose on `EnterRider` in
-`action.rs` ("rejected by the Idris re-emit gate" — it is not), and the
-emitter passes rider shapes through or gaps on them without destination
-checks. Minting that proof — or correcting the prose — rides
-`idris-mirror-semantics`.
+(principle 5). One long-claimed obligation was NOT real: the
+riders-battlefield-only rule existed solely as prose on `EnterRider` in
+`action.rs` ("rejected by the Idris re-emit gate" — it was not), and the
+emitter passed rider shapes through or gapped on them without destination
+checks. **Resolved in `idris-mirror-semantics` (2026-08-07), both ways at
+once**: the mirror gained `EnteringOk`, an auto-implicit on `Move` that
+makes `enteringAttacking` unrepresentable at any non-battlefield
+destination (`Spec.idr` carries the paired positive and negative), and the
+prose was corrected to say what that leaves unenforced — every other
+`EnterRider` variant has no Idris carrier at all, so the emitter gaps on it
+and nothing checks its destination. Mirroring the rest is
+`idris-mirror-enum-gaps`.
 
 - The mirror models the **semantics kernel**: the post-expansion,
   post-desugar normal-form value universe of the families the emitter

@@ -46,5 +46,5 @@ is unreachable from `Ability::Static` (Rust and Idris).
 
 *Exposed by `idris-subtype-open-names` (done): putting conferrals on the subtype value surfaced that
 every subtype confer is the `Property::Ability` flavor, i.e. SBAs were being modeled as abilities.
-Serializes with other `idris-*` grammar tickets (all rewrite `idris/src/Core.idr`). `[design]` — the
+Serializes with other `idris-*` grammar tickets (all rewrite `idris/src/Semantics.idr`). `[design]` — the
 grammar change is the soundness gate; open a design dialogue before implementing.*

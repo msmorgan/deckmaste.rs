@@ -21,7 +21,7 @@ are attacked", "whenever a planeswalker you control is attacked", [CR#508.1]) or
 "deals combat damage to a player" ([CR#510]) because the combat events are
 agent-side only and damage has no event variant (only the stringly verb).
 
-Idris models this as ONE `Relation` enum (`idris/src/Core.idr`) with `agentKind`
+Idris models this as ONE `Relation` enum (`idris/src/Semantics.idr`) with `agentKind`
 fixing each relation's agent kind, projected into three aspects: durative `Holds
 Relation Role`, inchoative `Begins Relation` (one event, role facets pick
 attacker vs defender), deontic `Enact Relation agent patient`. From it "unblocked

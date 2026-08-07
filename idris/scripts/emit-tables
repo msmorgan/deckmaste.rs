@@ -1,7 +1,7 @@
 #!/bin/sh
 # Regenerate crates/deckmaste_plugin/tables/entailments.ron — the one table
 # the Rust engine still loads independently (deckmaste_engine::entail) —
-# from Core.idr's total functions. CI runs this and diffs: a Core.idr change
+# from Semantics.idr's total functions. CI runs this and diffs: a Semantics.idr change
 # that moves a row must land with a regenerated table. See
 # idris/src/EmitTables.idr.
 set -e

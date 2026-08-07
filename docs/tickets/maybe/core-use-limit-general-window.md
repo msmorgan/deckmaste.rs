@@ -20,7 +20,7 @@ The engine's history fact already keys on (object, ability-index) jointly;
 the *grammar* has no way to address a specific ability. Needs an
 ability-addressable reference/filter (a `Used{of, which}` or
 `Reference::ThisAbility`) — that addressing scheme is the design question.
-Also mirror in idris: `UsageLimit` (`Core.idr`) is a flat 3-ctor type; a
+Also mirror in idris: `UsageLimit` (`Semantics.idr`) is a flat 3-ctor type; a
 Rust-only rewrite desyncs the model.
 
 Keep the sugar spellings (`OncePerTurn` etc.) at the macro layer regardless —

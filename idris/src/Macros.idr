@@ -1,10 +1,10 @@
 ||| Reusable named filters — the Idris analogue of the deckmaste plugin macros:
 ||| a `Predicate` given a domain name, so cards read `SelectAll creature`. The
-||| combinators (`And`/`Or`/`Not`) and identity test (`SameAs`) are `Core`
+||| combinators (`And`/`Or`/`Not`) and identity test (`SameAs`) are `Semantics`
 ||| constructors used directly — no redundant `allF`/`notF`/`isRef` aliases.
 module Macros
 
-import public Core
+import public Semantics
 
 %default total
 

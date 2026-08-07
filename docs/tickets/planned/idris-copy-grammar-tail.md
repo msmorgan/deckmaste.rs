@@ -6,7 +6,7 @@ documented Gaps. Task 8 unified copy onto existing constructors — `Action.Copy
 AnObject -> List (Modification b) -> Action b` (bare token copy = `Copy r []`) and
 `BecomeCopyOf : Reference -> Modification`, with copy exceptions modeled as SEPARATE
 higher-layer modifications (`ApplyAll [BecomeCopyOf src, <exception mods>]`), never bundled
-into `BecomeCopyOf`/`Copy` arguments (doctrine at `idris/src/Core.idr:2791-2792`). Two pieces
+into `BecomeCopyOf`/`Copy` arguments (doctrine at `idris/src/Semantics.idr:2791-2792`). Two pieces
 were deferred because no Task 9 macro exercised them:
 
 1. **AsCopy arrival carrier.** `EnterRider::AsCopy` ("enters as a copy of…", Clone-style) maps
