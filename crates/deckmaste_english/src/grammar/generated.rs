@@ -241,6 +241,21 @@ pub(super) enum GeneratedAssemblyError {
         construction: &'static str,
         codec: &'static str,
     },
+    /// A lexical identity whose Rust value type and provider have no exact
+    /// English recognition/lowering adapter.
+    UnsupportedIdentityAdapter {
+        owner: &'static str,
+        field: &'static str,
+        value_type: &'static str,
+        provider: &'static str,
+    },
+    /// Optional identities have no present/absent lowering adapter yet.
+    UnsupportedOptionalIdentityAdapter {
+        owner: &'static str,
+        field: &'static str,
+        value_type: &'static str,
+        provider: &'static str,
+    },
     /// A typed scalar whose Rust value type and surface codec have no exact
     /// English lowering adapter.
     UnsupportedTypedScalar {
@@ -437,6 +452,35 @@ fn typed_scalar_slot(
     }
 }
 
+fn identity_slot(
+    owner: &'static str,
+    field: &'static str,
+    value_type: &'static str,
+    provider: &'static str,
+    optional: bool,
+) -> Result<EnglishLexicalSlot, GeneratedAssemblyError> {
+    if optional {
+        return Err(GeneratedAssemblyError::UnsupportedOptionalIdentityAdapter {
+            owner,
+            field,
+            value_type,
+            provider,
+        });
+    }
+    match (value_type, provider) {
+        ("NounInstance", "KnownNoun") => {
+            Ok(EnglishLexicalSlot::Noun(crate::word::NounUsage::Either))
+        }
+        ("NounInstance", "OpaqueNoun") => Ok(EnglishLexicalSlot::OpaqueNoun),
+        _ => Err(GeneratedAssemblyError::UnsupportedIdentityAdapter {
+            owner,
+            field,
+            value_type,
+            provider,
+        }),
+    }
+}
+
 fn validate_field_kind(
     owner: &'static str,
     field: &'static str,
@@ -449,8 +493,18 @@ fn validate_field_kind(
         FieldKindData::Optional {
             inner: &FieldKindData::TypedScalar { value_type, codec },
         } => typed_scalar_slot(owner, field, value_type, codec, true).map(drop),
-        FieldKindData::Identity { .. }
-        | FieldKindData::Subtree { .. }
+        FieldKindData::Identity {
+            value_type,
+            provider,
+        } => identity_slot(owner, field, value_type, provider, false).map(drop),
+        FieldKindData::Optional {
+            inner:
+                &FieldKindData::Identity {
+                    value_type,
+                    provider,
+                },
+        } => identity_slot(owner, field, value_type, provider, true).map(drop),
+        FieldKindData::Subtree { .. }
         | FieldKindData::Scalar { .. }
         | FieldKindData::SurfaceScalar { .. }
         | FieldKindData::Sequence { .. }
@@ -458,9 +512,7 @@ fn validate_field_kind(
     }
 }
 
-fn validate_typed_scalar_adapters(
-    groups: &[&'static GroupData],
-) -> Result<(), GeneratedAssemblyError> {
+fn validate_field_adapters(groups: &[&'static GroupData]) -> Result<(), GeneratedAssemblyError> {
     for group in groups {
         for construction in group.constructions {
             for field in construction.fields {
@@ -477,14 +529,6 @@ fn validate_typed_scalar_adapters(
         }
     }
     Ok(())
-}
-
-fn identity_slot(provider: &'static str) -> Option<EnglishLexicalSlot> {
-    match provider {
-        "KnownNoun" => Some(EnglishLexicalSlot::Noun(crate::word::NounUsage::Either)),
-        "OpaqueNoun" => Some(EnglishLexicalSlot::OpaqueNoun),
-        _ => None,
-    }
 }
 
 fn atom_expected(
@@ -555,14 +599,25 @@ fn atom_expected(
                     },
                 ) => typed_scalar_slot(construction.id, path, value_type, codec, true)
                     .map(Expected::Lexical),
-                (AtomData::Identity(_), FieldKindData::Identity { provider, .. }) => {
-                    identity_slot(provider).map(Expected::Lexical).ok_or(
-                        GeneratedAssemblyError::UnknownLexemeCodec {
-                            construction: construction.id,
-                            codec: provider,
-                        },
-                    )
-                }
+                (
+                    AtomData::Identity(_),
+                    FieldKindData::Identity {
+                        value_type,
+                        provider,
+                    },
+                ) => identity_slot(construction.id, path, value_type, provider, false)
+                    .map(Expected::Lexical),
+                (
+                    AtomData::Identity(_),
+                    FieldKindData::Optional {
+                        inner:
+                            &FieldKindData::Identity {
+                                value_type,
+                                provider,
+                            },
+                    },
+                ) => identity_slot(construction.id, path, value_type, provider, true)
+                    .map(Expected::Lexical),
                 _ => Err(GeneratedAssemblyError::UnsupportedAtomKind {
                     construction: construction.id,
                     field: path,
@@ -596,12 +651,17 @@ fn field_expected(
         FieldKindData::TypedScalar { value_type, codec } => {
             typed_scalar_slot(owner, field, value_type, codec, false).map(Expected::Lexical)
         }
-        FieldKindData::Identity { provider, .. } => identity_slot(provider)
-            .map(Expected::Lexical)
-            .ok_or(GeneratedAssemblyError::UnknownLexemeCodec {
-                construction: construction.id,
-                codec: provider,
-            }),
+        FieldKindData::Identity {
+            value_type,
+            provider,
+        } => identity_slot(owner, field, value_type, provider, false).map(Expected::Lexical),
+        FieldKindData::Optional {
+            inner:
+                &FieldKindData::Identity {
+                    value_type,
+                    provider,
+                },
+        } => identity_slot(owner, field, value_type, provider, true).map(Expected::Lexical),
         FieldKindData::Optional {
             inner: &FieldKindData::TypedScalar { value_type, codec },
         } => typed_scalar_slot(owner, field, value_type, codec, true).map(Expected::Lexical),
@@ -645,7 +705,7 @@ pub(super) fn register_generated(
             });
         }
     }
-    validate_typed_scalar_adapters(groups)?;
+    validate_field_adapters(groups)?;
     let aux = auxiliary_categories(groups, cats.len());
     if groups.iter().any(|group| {
         group.element_data.iter().any(|element| {
@@ -1410,6 +1470,146 @@ mod tests {
                 codec: "Numeral",
             },
             "optional typed scalars must be rejected until lowering has an adapter",
+        );
+    }
+
+    #[test]
+    fn mistyped_identity_pair_is_refused_before_rules_are_registered() {
+        const GOOD_FORM: &[FormData] = &[FormData {
+            name: "only",
+            ordinal: 0,
+            guarded: false,
+            erased_recognizer: None,
+            atoms: &[AtomData::Literal("good")],
+        }];
+        const BAD_FIELDS: &[FieldData] = &[FieldData {
+            name: "identity",
+            kind: FieldKindData::Identity {
+                value_type: "WrongType",
+                provider: "KnownNoun",
+            },
+        }];
+        const BAD_FORM: &[FormData] = &[FormData {
+            name: "only",
+            ordinal: 0,
+            guarded: false,
+            erased_recognizer: None,
+            atoms: &[AtomData::Identity("identity")],
+        }];
+        const CONSTRUCTIONS: &[ConstructionData] = &[
+            construction("good", "Internal", true, &[], GOOD_FORM),
+            construction("mistyped_identity", "Internal", true, BAD_FIELDS, BAD_FORM),
+        ];
+        const GROUP: GroupData = GroupData {
+            name: "g",
+            elements: &[],
+            element_data: &[],
+            constructions: CONSTRUCTIONS,
+        };
+        let cats = internal_categories(&[&GROUP]);
+        let mut builder = RuleBuilder::default();
+        let error = register_generated(&mut builder, &[&GROUP], &cats).unwrap_err();
+        assert_eq!(
+            error,
+            GeneratedAssemblyError::UnsupportedIdentityAdapter {
+                owner: "mistyped_identity",
+                field: "identity",
+                value_type: "WrongType",
+                provider: "KnownNoun",
+            },
+            "a provider name alone must not admit an identity that lowering cannot represent",
+        );
+        assert!(
+            builder.finish(RegistrationOrder::Normal).rules.is_empty(),
+            "identity rejection must happen before an earlier valid construction mutates the builder",
+        );
+    }
+
+    #[test]
+    fn unknown_identity_provider_has_a_dedicated_pair_diagnostic() {
+        const FIELDS: &[FieldData] = &[FieldData {
+            name: "identity",
+            kind: FieldKindData::Identity {
+                value_type: "NounInstance",
+                provider: "UnknownNounProvider",
+            },
+        }];
+        const FORM: &[FormData] = &[FormData {
+            name: "only",
+            ordinal: 0,
+            guarded: false,
+            erased_recognizer: None,
+            atoms: &[AtomData::Identity("identity")],
+        }];
+        const CONSTRUCTIONS: &[ConstructionData] = &[construction(
+            "unknown_identity_provider",
+            "Internal",
+            true,
+            FIELDS,
+            FORM,
+        )];
+        const GROUP: GroupData = GroupData {
+            name: "g",
+            elements: &[],
+            element_data: &[],
+            constructions: CONSTRUCTIONS,
+        };
+        let cats = internal_categories(&[&GROUP]);
+        let mut builder = RuleBuilder::default();
+        let error = register_generated(&mut builder, &[&GROUP], &cats).unwrap_err();
+        assert_eq!(
+            error,
+            GeneratedAssemblyError::UnsupportedIdentityAdapter {
+                owner: "unknown_identity_provider",
+                field: "identity",
+                value_type: "NounInstance",
+                provider: "UnknownNounProvider",
+            },
+        );
+    }
+
+    #[test]
+    fn optional_identity_is_refused_until_lowering_can_build_both_states() {
+        const FIELDS: &[FieldData] = &[FieldData {
+            name: "identity",
+            kind: FieldKindData::Optional {
+                inner: &FieldKindData::Identity {
+                    value_type: "NounInstance",
+                    provider: "KnownNoun",
+                },
+            },
+        }];
+        const FORM: &[FormData] = &[FormData {
+            name: "only",
+            ordinal: 0,
+            guarded: false,
+            erased_recognizer: None,
+            atoms: &[AtomData::Identity("identity")],
+        }];
+        const CONSTRUCTIONS: &[ConstructionData] = &[construction(
+            "optional_identity",
+            "Internal",
+            true,
+            FIELDS,
+            FORM,
+        )];
+        const GROUP: GroupData = GroupData {
+            name: "g",
+            elements: &[],
+            element_data: &[],
+            constructions: CONSTRUCTIONS,
+        };
+        let cats = internal_categories(&[&GROUP]);
+        let mut builder = RuleBuilder::default();
+        let error = register_generated(&mut builder, &[&GROUP], &cats).unwrap_err();
+        assert_eq!(
+            error,
+            GeneratedAssemblyError::UnsupportedOptionalIdentityAdapter {
+                owner: "optional_identity",
+                field: "identity",
+                value_type: "NounInstance",
+                provider: "KnownNoun",
+            },
         );
     }
 
