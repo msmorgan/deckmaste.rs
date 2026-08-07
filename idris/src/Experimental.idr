@@ -31,13 +31,20 @@
 |||    genuinely ambiguous pronoun is still refused (`badIt`), and a
 |||    same-sort second slot is just another position (`preyUpon`,
 |||    [CR#701.14a]).
-||| 3. **"Other" is a modifier with a presupposition.** Oracle's "any
-|||    other target" ([CR#115.4]) is the modifier `Other` inside one
-|||    noun's flat modifier set — distinct-from-every-earlier-target, with
-|||    an at-least-one-antecedent obligation (`anyTargeted`). Forward and
-|||    self references are UNSPELLABLE (`badOther`): textual precedence
-|||    replaces the old sibling-index `Distinct` constructor and its range
-|||    gate. Unconstrained slots still legally share an object
+||| 3. **"Other" is a modifier with a presupposition** (its anchor set
+|||    completed by the second-wave audit). Oracle's "any other
+|||    target" ([CR#115.4]) is the modifier `Other` inside one noun's
+|||    flat modifier set — distinct from its ANCHOR, with the
+|||    obligation that an anchor exist. The anaphoric anchor is any
+|||    earlier same-kind target mention (`anyTargeted`; up-to
+|||    mentions count, finding 35); the second mode anchors on the
+|||    SOURCE ("Olivia Voldaren deals 1 damage to another target
+|||    creature", Red Hulk's "…to any other target" — no earlier
+|||    target exists, "other" excludes the source), which waits on a
+|||    typed `This` (ledger). Anchorless "other" stays UNSPELLABLE
+|||    (`badOther`): textual precedence replaces the old
+|||    sibling-index `Distinct` constructor and its range gate.
+|||    Unconstrained slots still legally share an object
 |||    ([CR#601.2c,115.3] — one choice per instance), which is why the
 |||    edge is opt-in predicate content, not a default.
 ||| 4. **A boundary is a view derived from the determiner** (revised in
@@ -293,12 +300,11 @@
 |||    card [CR#108.3], "their owners' hands", Aether Burst, being
 |||    the plural relational, future vocabulary): `nounPlur` projects
 |||    grammatical number (`badGroupPower`, `badGroupOwner`). Counted
-|||    groups refine: numerals are written at least one
-|||    (`badZeroGroup`), "up to one" binds singular (Ty Lee, Chi
-|||    Blocker's "It" remention), and an up-to group — which may
-|||    choose nothing [CR#115.6] — carries its own determiner
-|||    (`TargetUpToD`), so it never witnesses "other"
-|||    (`badUpToOther`).
+|||    groups refine: numerals are written two-up (`badZeroGroup`,
+|||    `badOneGroup` — bare "target [noun]" is the one-member form),
+|||    and "up to one" binds singular (Ty Lee, Chi Blocker's "It"
+|||    remention). This finding's original refusal of up-to mentions
+|||    as "other" witnesses is repealed by finding 35.
 ||| 31. **Marked clauses carry their obligations.** "Of their choice"
 |||    demands exactly one player antecedent — a subject or one
 |||    distributive group ([CR#608.2c..608.2d];
@@ -352,6 +358,33 @@
 |||    DEFINED — [CR#701.14c] has it deal twice its power to itself —
 |||    so distinctness is per-card templating ("another", the `Other`
 |||    modifier) and `Fights` takes no distinctness gate, ever.
+|||
+||| Chapter twelve, the second wave (evidence: Phantom Blade; the
+||| audits' verified corrections, corpus- and CR-checked one by one):
+|||
+||| 35. **"Other"'s witness is the mention, not the denotation.**
+|||    Phantom Blade pairs an up-to-one target with "up to one OTHER
+|||    target creature": the anchor SLOT exists even when its
+|||    denotation may be empty ([CR#115.6]), distinctness over an
+|||    empty anchor is vacuous, and distinctness stays predicate
+|||    content ([CR#601.2c]). `anyTargeted` counts `TargetUpToD`
+|||    mentions; finding 30's contrary refusal is repealed.
+||| 36. **Grammatical number gates the argument slots.** The binary
+|||    fight frame takes two singular combatants ([CR#701.14a];
+|||    every corpus "X fights Y" line is singular — the plural form
+|||    is the RECIPROCAL frame "those creatures fight each other",
+|||    its own future construction); possessors are singular (one
+|||    controller [CR#109.4]; per-player zones [CR#400.1] — the
+|||    union read "creatures your opponents control" waits with the
+|||    player groups, "their owners' hands" with the plural
+|||    relationals); the minted dies-watcher is singular; and
+|||    counted groups are written two-up (`AtLeastTwo` — bare
+|||    "target [noun]" already spells the one-member form). Fight
+|||    participation reads a GRANT, not a type name: `combatant` is
+|||    the stand-in for a TypeDef-declared combat-participant grant
+|||    — distinct from May(Attack)/May(Block), fight keying on type
+|||    membership and dealing non-combat damage [CR#701.14d] — so a
+|||    future type joins by declaration, not by gate rewrites.
 |||
 ||| Engine-boundary deferrals (deliberate, and to stay so): the
 ||| workbench spells the ENGLISH; committed event structure is
@@ -419,9 +452,14 @@
 ||| are the `TheVerbed` cousin and the largest family, and more
 ||| sorts wait with them: mana produced, Sakiko; card counts,
 ||| Asmodeus); "any number of" / "X" target groups
-||| (corpus-frequent; constructors wait on verified whole cards); an
-||| up-to-N group as an "other" witness ([CR#115.6] — it may denote
-||| zero; no corpus line pairs them yet);
+||| (corpus-frequent; constructors wait on verified whole cards); the
+||| reciprocal fight frame ("those creatures fight each other" — one
+||| exactly-two-membered plural subject, corpus-attested, a distinct
+||| construction from binary `Fights`); union-read plural possessors
+||| ("creatures your opponents control", corpus-attested — waits with
+||| the player groups); the self-exclusion "other" anchor (Olivia
+||| Voldaren, Red Hulk — "another"/"any other" excluding the SOURCE,
+||| waits on a typed `This`);
 ||| static abilities and "for as long as" durations ([CR#611.2b],
 ||| Kitesail Corsair); last-known VALUES (reads ignore zone — finding
 ||| 19 — but [CR#109.4] gives off-battlefield objects no controller,
@@ -430,8 +468,7 @@
 ||| untracked, and "this spell" / "this card" carriers with it); "the
 ||| chosen [quality]" (quality-kind bindings); and coordination ellipsis (Arc
 ||| Trail's shared verb is spelling's business — here it is a clause
-||| sequence); an up-to-N group as an "other" witness is REFUSED
-||| (finding 30) rather than open. The context-as-phrase-telescope collapse (bindings storing
+||| sequence). The context-as-phrase-telescope collapse (bindings storing
 ||| the mention terms themselves, every projection computed) stays open as
 ||| a possible later simplification — less pressing since the payload
 ||| split gave each kind exactly its own data.
@@ -484,6 +521,24 @@ module Experimental
 ||| declarations, like the keyword and verb macro names.
 public export
 data CardType = Creature | Artifact | Land
+
+||| Fight participation, per type — the stand-in for reading a
+||| combat-participant grant from the TypeDef declaration, distinct
+||| from Creature.ron's May(Attack)/May(Block): fight keys on type
+||| membership [CR#701.14a,701.14b] and deals non-combat damage
+||| [CR#701.14d]. Full rows: a new type must declare its answer.
+public export
+combatant : CardType -> Bool
+combatant Creature = True
+combatant Artifact = False
+combatant Land = False
+
+||| The projected-head gate the fight slots consume — an untyped head
+||| cannot prove participation, and the witness carries the grant
+||| table's verdict.
+public export
+data FightParticipant : Maybe CardType -> Type where
+  Fighter : {auto 0 ok : combatant t = True} -> FightParticipant (Just t)
 
 ||| Quality sorts — the choosable characteristics ([CR#105.1,302.3];
 ||| only what the chapters need).
@@ -552,6 +607,13 @@ upToPlur n = ManyOf
 public export
 data AtLeastOne : Nat -> Type where
   OneUp : AtLeastOne (S n)
+
+||| Counted groups are written two-up ("two target creatures"): the
+||| one-member form is bare "target [noun]", and "up to one" is
+||| `TargetUpTo`'s (audit: no corpus line fronts an exact-one group).
+public export
+data AtLeastTwo : Nat -> Type where
+  TwoUp : AtLeastTwo (S (S n))
 
 ||| The introducing word of a mention — a SURFACE projection ("target",
 ||| "up to [n] target", "a", "each", "all", or a definite/derived
@@ -702,6 +764,8 @@ public export
 anyTargeted : Kind -> Bindings -> Bool
 anyTargeted k [] = False
 anyTargeted k (MkBinding TargetD k' _ _ :: bs) =
+  if sameKind k k' then True else anyTargeted k bs
+anyTargeted k (MkBinding TargetUpToD k' _ _ :: bs) =
   if sameKind k k' then True else anyTargeted k bs
 anyTargeted k (_ :: bs) = anyTargeted k bs
 
@@ -1038,8 +1102,11 @@ mutual
     ExileZ : ZoneExpr bs
     HandZ : ZoneExpr bs
     GraveyardZ : ZoneExpr bs
-    HandOf : Noun bs Player -> ZoneExpr bs
-    GraveyardOf : Noun bs Player -> ZoneExpr bs
+    -- owned zones are per-player ([CR#400.1]): the possessor is
+    -- singular — the plural surface is the plural relational
+    -- ("their owners' hands", ledger).
+    HandOf : (n : Noun bs Player) -> {auto 0 one : nounPlur n = OneOf} -> ZoneExpr bs
+    GraveyardOf : (n : Noun bs Player) -> {auto 0 one : nounPlur n = OneOf} -> ZoneExpr bs
 
   ||| The sort a zone expression names — what fold-state records.
   public export
@@ -1067,7 +1134,10 @@ mutual
     -- [CR#608.2d]). The chosen-OBJECT twin ("the chosen creatures")
     -- waits with the definite reads.
     OfChosen : (q : QualitySort) -> {auto 0 ok : countQuality q bs = 1} -> Predicate bs Object
-    ControlledBy : Noun bs Player -> Predicate bs Object -- zero relative "[player] controls"
+    -- zero relative "[player] controls": the possessor is singular
+    -- ([CR#109.4] — one controller; the union read "creatures your
+    -- opponents control" is the player-groups vocabulary, ledger).
+    ControlledBy : (n : Noun bs Player) -> {auto 0 one : nounPlur n = OneOf} -> Predicate bs Object
     -- the attacking-designation modifier ([CR#508.1a]) — a
     -- battlefield state word, not a type.
     Attacking : Predicate bs Object
@@ -1162,7 +1232,7 @@ mutual
     -- that "up to one" binds singular (`upToPlur` — its remention is
     -- "it") and a written numeral is at least one (`badZeroGroup`).
     TargetGroup : (n : Nat) -> Predicate bs k ->
-                  {auto tk : Targetable k} -> {auto 0 nz : AtLeastOne n} -> Noun bs k
+                  {auto tk : Targetable k} -> {auto 0 nz : AtLeastTwo n} -> Noun bs k
     TargetUpTo : (n : Nat) -> Predicate bs k ->
                  {auto tk : Targetable k} -> {auto 0 nz : AtLeastOne n} -> Noun bs k
     -- "all [pred]s": the set-level group — a surface determiner the
@@ -1325,7 +1395,8 @@ mutual
     -- battlefield-to-graveyard transition, so the watched referent
     -- stands on the battlefield; `badDiesInGraveyard`).
     DiesThisTurn : (n : Noun bs Object) ->
-                   {auto 0 ok : OnBattlefield (nounZone n)} -> EventQuery bs
+                   {auto 0 ok : OnBattlefield (nounZone n)} ->
+                   {auto 0 one : nounPlur n = OneOf} -> EventQuery bs
 
   ||| The context a delayed body reads: settled particulars, with the
   ||| event's own transition applied — dying retags the watched
@@ -1350,19 +1421,24 @@ mutual
                  {auto 0 rk : DamageRecipient k (nounZone to)} -> Effect bs
     -- "[a] fights [b]" ([CR#701.14a] — only battlefield creatures
     -- fight [CR#701.14b]; `badFightGraveyard`, `badFightLand`).
-    -- Primitive, confirmed: the expansion is a single simultaneous
-    -- event, which no clause sequence reproduces (state-based actions
-    -- can intervene between sentences — see `karplusanYeti`), and no
-    -- operative oracle text spells it out (reminder text only). No
-    -- distinctness gate: a self-fight is defined ([CR#701.14c] —
-    -- twice its power to itself); "another" is per-card templating
-    -- (the `Other` modifier).
+    -- Primitive, confirmed: one simultaneous damage event, which no
+    -- clause sequence reproduces (a sequence deals two ORDERED
+    -- events — see `karplusanYeti`), and no operative oracle text
+    -- spells it out (reminder text only). No distinctness gate: a
+    -- self-fight is defined ([CR#701.14c] — twice its power to
+    -- itself); "another" is per-card templating (the `Other`
+    -- modifier). Both slots are SINGULAR — the plural form is the
+    -- reciprocal frame "those creatures fight each other" (ledger)
+    -- — and participation reads the `combatant` grant, not a type
+    -- name.
     Fights : (a : Noun bs Object) ->
              {auto 0 za : OnBattlefield (nounZone a)} ->
-             {auto 0 ta : nounTy a = Just Creature} ->
+             {auto 0 ta : FightParticipant (nounTy a)} ->
+             {auto 0 pa : nounPlur a = OneOf} ->
              (b : Noun (nomIntro a) Object) ->
              {auto 0 zb : OnBattlefield (nounZone b)} ->
-             {auto 0 tb : nounTy b = Just Creature} -> Effect bs
+             {auto 0 tb : FightParticipant (nounTy b)} ->
+             {auto 0 pb : nounPlur b = OneOf} -> Effect bs
     -- "tap [n]" ([CR#701.26a] — tapping takes a battlefield object;
     -- `badTapGraveyard`) — core basis.
     Tap : (n : Noun bs Object) -> {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs

@@ -295,6 +295,16 @@ foulTongueShriek = AndThen (losesLife (Target Opponent)
 unsummon : Effect []
 unsummon = Move (Target creature) HandZ
 
+-- "When this Equipment enters, attach it to up to one target creature
+-- you control. Destroy up to one other target creature." (Phantom
+-- Blade's trigger; the attach verb waits on the attachment axis, so
+-- its TARGETING stands in as the fronted choice clause) — the up-to
+-- mention is a real "other" anchor: the witness is the MENTION, not
+-- a nonempty denotation (finding 35).
+phantomBlade : Effect []
+phantomBlade = AndThen (Choose (TargetUpTo 1 (And [creature, ControlledBy You])))
+                       (destroy (TargetUpTo 1 (And [creature, Other])))
+
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
 -- "other" with no target before it: the presupposition has no witness.
@@ -460,8 +470,9 @@ failing "OnBattlefield"
   badFightGraveyard = Fights (Target (And [creature, InZone (GraveyardOf You)]))
                              (Target creature)
 
--- Only creatures fight [CR#701.14a]: a land has the wrong head type.
-failing "Just Creature"
+-- Only combatant types fight [CR#701.14a]: a land's TypeDef declares
+-- no fight participation.
+failing "FightParticipant"
   badFightLand : Effect []
   badFightLand = Fights (Target (HasType Land)) (Target creatureYouDontControl)
 
@@ -536,18 +547,42 @@ failing "OneOf"
   badGroupOwner = AndThen (Choose (TargetGroup 2 creature))
                           (losesLife (OwnerOf Them) (Lit 1))
 
--- "Zero target creatures" is unwritten — a counted numeral is at
--- least one.
-failing "AtLeastOne"
+-- Counted numerals are written two-up: "zero target creatures" is
+-- unwritten, and the one-member form is bare "target creature", not
+-- a group.
+failing "AtLeastTwo"
   badZeroGroup : Effect []
   badZeroGroup = Choose (TargetGroup 0 creature)
 
--- An up-to group may choose nothing [CR#115.6], so it cannot witness
--- "other"'s an-earlier-target-exists presupposition.
-failing "anyTargeted"
-  badUpToOther : Effect []
-  badUpToOther = AndThen (Choose (TargetUpTo 4 creature))
-                         (DealDamage This (Lit 1) (Target anyOtherTarget))
+failing "AtLeastTwo"
+  badOneGroup : Effect []
+  badOneGroup = Choose (TargetGroup 1 creature)
+
+-- The binary fight frame takes singular combatants — a group versus
+-- one has no defined pairing; the plural form is the reciprocal
+-- "those creatures fight each other" (ledger).
+failing "OneOf"
+  badFightGroup : Effect []
+  badFightGroup = Fights (TargetGroup 2 creature) (Target creature)
+
+-- "a creature two target opponents control": an object has one
+-- controller [CR#109.4]; the union possessor ("creatures your
+-- opponents control") is the player-groups vocabulary (ledger).
+failing "OneOf"
+  badControlledByGroup : Effect []
+  badControlledByGroup = Tap (Target (And [creature, ControlledBy (TargetGroup 2 Opponent)]))
+
+-- Hands and graveyards are per-player zones [CR#400.1]: one zone
+-- owned by two players at once is unwritable.
+failing "OneOf"
+  badGraveyardOfGroup : Effect []
+  badGraveyardOfGroup = Choose (Target (And [creature, InZone (GraveyardOf (TargetGroup 2 Opponent))]))
+
+-- The minted dies-watcher is singular (Graceful Reprieve's shape);
+-- plural watches wait for corpus evidence.
+failing "OneOf"
+  badDiesGroup : Effect []
+  badDiesGroup = Delayed (DiesThisTurn (TargetGroup 2 creature)) (gainsLife You (Lit 1))
 
 -- A bare type word denotes a permanent [CR#109.2], and what was
 -- discarded left a HAND: "the discarded creature" is unwritten (the
