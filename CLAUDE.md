@@ -23,6 +23,15 @@ The lifecycle (`claim`/`start` → work in `.workspaces/NAME` → `integrate`, t
 - After adding or changing citations: `cargo xtask cite check --list-noncompliant` must be empty, and `cargo xtask cite check` must report 0 stale. When you cite a rule not yet in `cr-citations.lock`, run `cargo xtask cite bless` to register it.
 - Rule numbers come from the CR, never from memory. Before committing citation changes, run `jj diff --git | cargo xtask cite audit --diff` and read each rule's text against the claim citing it — the hash checker can NOT catch a right-number-wrong-topic cite. The command reads its diff from STDIN: run bare (no pipe), it silently audits 0 citation sites and still exits 0, so always pipe a diff in. Give `bless`'s newly-registered list the same read.
 
+## Model economy
+
+- **If you are Fable: Fable is expensive.** A sequence of mechanical edits or
+  simple tool calls run inline is uneconomical — every turn re-reads the whole
+  context, so the cache reads dominate the cost of the work itself. Delegate
+  such runs to a Sonnet or Opus subagent as appropriate (Sonnet for mechanical,
+  Opus for anything needing judgment), and spend Fable's turns on triage,
+  briefing, and verification.
+
 ## Bearings (token efficiency)
 
 - Symbol questions (where defined, who calls it, what variants, what signature) →
