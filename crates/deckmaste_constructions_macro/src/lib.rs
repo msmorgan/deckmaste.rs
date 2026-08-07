@@ -15,6 +15,10 @@
 //!   resolves `serde::…` and those bounds at the call site.
 //! - Generated code opens with `use super::*;`: category, codec, and witness
 //!   payload types are resolved in the invoking scope.
+//! - A lens owner is accessed from the generated child module, so every field
+//!   named by its lens schema must be visible there. Inverse projection clones
+//!   a source-relative owner and clones values focused without a source; those
+//!   owner/value types must therefore implement [`Clone`].
 //! - A group declaring any `free` witness requires the call site to depend on
 //!   `deckmaste_features` (as a normal dependency): the generated payload
 //!   assertion resolves `::deckmaste_features::SurfaceWitnessPayload` by

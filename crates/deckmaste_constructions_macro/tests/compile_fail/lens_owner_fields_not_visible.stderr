@@ -1,0 +1,12 @@
+error[E0616]: field `head` of struct `Owner` is private
+  --> tests/compile_fail/lens_owner_fields_not_visible.rs:13:1
+   |
+13 | / deckmaste_constructions_macro::constructions! {
+14 | |     group lens_owner_fields_not_visible;
+15 | |
+16 | |     lens owner bind model::Owner {
+...  |
+30 | | }
+   | |_^ private field
+   |
+   = note: this error originates in the macro `deckmaste_constructions_macro::constructions` (in Nightly builds, run with -Z macro-backtrace for more info)

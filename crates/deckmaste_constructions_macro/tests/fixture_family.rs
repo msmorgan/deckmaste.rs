@@ -353,6 +353,41 @@ deckmaste_constructions_macro::constructions! {
     }
 }
 
+deckmaste_constructions_macro::constructions! {
+    group lens_dispatch_errors;
+
+    lens dispatch_record bind FlattenedLensRecord {
+        determiner: opt LensToken,
+        prefix: vec LensToken,
+        head: value LensToken,
+        suffix: vec LensToken,
+    }
+
+    construction dispatch_prepend: FlattenedLensRecord {
+        bind FlattenedLensRecord {
+            owner: hole FlattenedLensRecord,
+            member: hole LensToken,
+        }
+        lens dispatch_record from owner {
+            prepend prefix with member;
+        }
+        form only @ 0 = member owner;
+        selection unique;
+    }
+
+    construction dispatch_append: FlattenedLensRecord {
+        bind FlattenedLensRecord {
+            owner: hole FlattenedLensRecord,
+            member: hole LensToken,
+        }
+        lens dispatch_record from owner {
+            append suffix with member;
+        }
+        form only @ 0 = owner member;
+        selection unique;
+    }
+}
+
 #[derive(Default)]
 struct LensLinearizer {
     tokens: Vec<LensToken>,
@@ -589,6 +624,44 @@ fn erased_lens_builder_round_trips_the_same_flattened_value() {
         *erased,
         build_lens_prepend(flattened_owner(), LensToken::Inserted)
             .expect("the typed builder accepts the same values")
+    );
+}
+
+#[test]
+fn lens_family_dispatch_rejects_zero_or_multiple_exact_parts_matches_before_visiting() {
+    // Mutations guarded: select the first declaration without checking every
+    // emitted `parts_*` matcher, or begin visiting before exact family
+    // selection has proved that one and only one construction matches.
+    let unmatched = FlattenedLensRecord {
+        determiner: None,
+        prefix: Vec::new(),
+        head: LensToken::Head,
+        suffix: Vec::new(),
+    };
+    let mut visitor = LensLinearizer::default();
+    assert!(matches!(
+        linearize_lens_dispatch_errors_group_with(&unmatched, &mut visitor),
+        Err(
+            deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
+                group: "lens_dispatch_errors"
+            }
+        )
+    ));
+    assert!(visitor.tokens.is_empty(), "no match has no visitor effects");
+
+    assert!(matches!(
+        linearize_lens_dispatch_errors_group_with(&flattened_owner(), &mut visitor),
+        Err(
+            deckmaste_construction_compiler::runtime::LinearizationError::MultipleMatchingConstructions {
+                group: "lens_dispatch_errors",
+                first: "dispatch_prepend",
+                second: "dispatch_append",
+            }
+        )
+    ));
+    assert!(
+        visitor.tokens.is_empty(),
+        "multiple matches are rejected before visitor effects"
     );
 }
 

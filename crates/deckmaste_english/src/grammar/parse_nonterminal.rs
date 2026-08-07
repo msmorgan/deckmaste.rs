@@ -1369,6 +1369,13 @@ mod registration_order_tests {
         candidates: Vec<(ConstructionId, u16, bool)>,
     }
 
+    #[derive(Debug, PartialEq, Eq)]
+    struct NormalizedLensParse {
+        value: probe::ProbeLensRecord,
+        rendered: String,
+        decisions: Vec<NormalizedDecision>,
+    }
+
     fn fixture_catalogs() -> Catalogs {
         Catalogs::default()
             .with_catalog(CatalogKind::KeywordAbility, ["Protection"])
@@ -1470,6 +1477,55 @@ mod registration_order_tests {
         )
     }
 
+    fn normalized_lens_parse(
+        order: RegistrationOrder,
+        groups: &'static [&'static deckmaste_construction_compiler::runtime::GroupData],
+    ) -> NormalizedLensParse {
+        let cats = super::super::generated::internal_categories(groups);
+        let parsed = parse_nonterminal_with_registration_order(
+            "and or then",
+            &Catalogs::default(),
+            Nonterminal::Generated(cats["ProbeLensRecord"]),
+            order,
+            GeneratedActivation::Groups(groups),
+        )
+        .expect("the recursive lens family parses under every registration permutation");
+        let Lowered::Generated(value) = &parsed.syntax else {
+            panic!("recursive lens parsing did not use generated lowering");
+        };
+        let value = value
+            .downcast_ref::<probe::ProbeLensRecord>()
+            .expect("the generated lens builder returns its declared owner")
+            .clone();
+        let rendered = probe::linearize_lens_record(&value)
+            .expect("the generated lens family dispatcher selects an exact inverse");
+        let decisions = parsed
+            .construction_decisions()
+            .iter()
+            .map(|decision| NormalizedDecision {
+                span: decision.span(),
+                selected: decision.selected(),
+                reason: decision.reason(),
+                candidates: decision
+                    .alternatives()
+                    .iter()
+                    .map(|candidate| {
+                        (
+                            candidate.id(),
+                            candidate.production_ordinal(),
+                            candidate.is_dominated(),
+                        )
+                    })
+                    .collect(),
+            })
+            .collect();
+        NormalizedLensParse {
+            value,
+            rendered,
+            decisions,
+        }
+    }
+
     #[test]
     fn generated_selections_survive_family_registration_permutations() {
         let normal = normalized_parse_probe(RegistrationOrder::Normal, probe::GROUPS);
@@ -1489,6 +1545,47 @@ mod registration_order_tests {
             normalized_parse_probe(RegistrationOrder::Normal, probe::GROUPS),
             normalized_parse_probe(RegistrationOrder::Normal, probe::GROUPS_REVERSED),
         );
+    }
+
+    #[test]
+    fn recursive_lens_family_survives_registration_and_group_order_permutations() {
+        // Mutations guarded: retain a registration-local rule index during
+        // lens lowering, or resolve the owner category from group slice
+        // position. Either makes at least one matrix entry differ even though
+        // the declaration and input bytes are unchanged.
+        let normal = normalized_lens_parse(RegistrationOrder::Normal, probe::GROUPS);
+        assert_eq!(
+            normal
+                .value
+                .prefix
+                .iter()
+                .map(|token| token.word)
+                .collect::<Vec<_>>(),
+            [
+                crate::features::Conjunction::And,
+                crate::features::Conjunction::Or,
+            ],
+        );
+        assert_eq!(normal.value.head.word, crate::features::Conjunction::Then);
+        assert!(normal.value.suffix.is_empty());
+        assert_eq!(normal.rendered, "and or then");
+
+        for (group_order, groups) in [
+            ("declared", probe::GROUPS),
+            ("reversed", probe::GROUPS_REVERSED),
+        ] {
+            for registration_order in [
+                RegistrationOrder::Normal,
+                RegistrationOrder::Reversed,
+                RegistrationOrder::FixedShuffle,
+            ] {
+                assert_eq!(
+                    normalized_lens_parse(registration_order, groups),
+                    normal,
+                    "recursive lens family changed under {group_order} groups and {registration_order:?} registration",
+                );
+            }
+        }
     }
 
     #[test]

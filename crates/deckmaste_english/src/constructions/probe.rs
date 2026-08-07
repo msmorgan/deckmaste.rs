@@ -153,12 +153,7 @@ pub(crate) fn linearize_lens_record(value: &ProbeLensRecord) -> Result<String, S
 
     impl Visitor {
         fn record(&mut self, value: &ProbeLensRecord) -> Result<(), String> {
-            let result = if value.prefix.is_empty() {
-                linearize_probe_lens_head_with(value, self)
-            } else {
-                linearize_probe_lens_prepend_with(value, self)
-            };
-            result.map_err(|error| format!("{error:?}"))
+            linearize_lens_probe_group_with(value, self).map_err(|error| format!("{error:?}"))
         }
     }
 

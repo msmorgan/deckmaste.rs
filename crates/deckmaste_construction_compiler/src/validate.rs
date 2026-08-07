@@ -76,8 +76,10 @@ fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
 /// fallback, and source order is non-semantic only when that fallback is
 /// unique. Explicit ordinal replay remains available for every form.
 fn check_fallback_contract(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
-    let inverse_dispatch_family = group.inverse_dispatch_target().is_some();
+    let inverse_dispatch_family = group.inverse_dispatch_family();
     for construction in &group.constructions {
+        let inverse_dispatch_member =
+            inverse_dispatch_family.is_some_and(|family| family.contains(construction));
         let id = construction.id.value.as_str();
         let mut fallbacks = construction
             .forms
@@ -90,7 +92,7 @@ fn check_fallback_contract(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>
             .iter()
             .any(|form| form.value_guard.is_some())
             && fallbacks.is_empty()
-            && !inverse_dispatch_family
+            && !inverse_dispatch_member
         {
             let span = construction
                 .forms
@@ -548,7 +550,7 @@ fn check_generated_names(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) 
             }
         }
     }
-    if group.inverse_dispatch_target().is_some() {
+    if group.inverse_dispatch_family().is_some() {
         let dispatcher = format!("linearize_{}_group_with", group.name.value);
         record_generated_name(
             &mut seen_values,
@@ -2158,8 +2160,10 @@ fn required_facts(
 }
 
 fn check_surface_domain(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
-    let inverse_dispatch_family = group.inverse_dispatch_target().is_some();
+    let inverse_dispatch_family = group.inverse_dispatch_family();
     for construction in &group.constructions {
+        let inverse_dispatch_member =
+            inverse_dispatch_family.is_some_and(|family| family.contains(construction));
         let id = construction.id.value.as_str();
         let has_free_witness = construction
             .witnesses
@@ -2180,7 +2184,7 @@ fn check_surface_domain(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                     if construction.forms[left].fallback || construction.forms[right].fallback {
                         continue;
                     }
-                    if inverse_dispatch_family
+                    if inverse_dispatch_member
                         && construction.forms[left].value_guard.is_some()
                         && construction.forms[right].value_guard.is_some()
                     {

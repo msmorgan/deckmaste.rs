@@ -13,6 +13,7 @@ use crate::model::ElementDeclaration;
 use crate::model::FieldBinding;
 use crate::model::FieldKind;
 use crate::model::GroupDeclaration;
+use crate::model::InverseDispatchKind;
 use crate::model::LensApplication;
 use crate::model::LensEditKind;
 use crate::model::LensFieldKind;
@@ -144,32 +145,44 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
 }
 
 fn inverse_group_linearizer(group: &GroupDeclaration) -> TokenStream {
-    let Some(target) = group.inverse_dispatch_target() else {
+    let Some(family) = group.inverse_dispatch_family() else {
         return quote! {};
     };
-    let target = parse_type(&target.value);
+    let target = parse_type(&family.target.value);
     let group_name = group.name.value.as_str();
     let function = quote::format_ident!("linearize_{}_group_with", group.name.value);
-    let selections: Vec<TokenStream> = group
+    let constructions = group
         .constructions
+        .iter()
+        .filter(|construction| family.contains(construction))
+        .collect::<Vec<_>>();
+    let selections: Vec<TokenStream> = constructions
         .iter()
         .enumerate()
         .map(|(index, construction)| {
             let id = construction.id.value.as_str();
             let index = proc_macro2::Literal::usize_unsuffixed(index);
-            let conditions = construction.forms.iter().map(|form| {
-                let predicate = parse_type(
-                    &form
-                        .value_guard
-                        .as_ref()
-                        .expect("inverse-dispatch forms carry recognizers")
-                        .value,
-                );
-                quote! { #predicate(value) }
-            });
-            let condition = conditions.fold(quote! { false }, |condition, next| {
-                quote! { #condition || #next }
-            });
+            let condition = match family.kind {
+                InverseDispatchKind::ValueGuard => {
+                    let conditions = construction.forms.iter().map(|form| {
+                        let predicate = parse_type(
+                            &form
+                                .value_guard
+                                .as_ref()
+                                .expect("inverse-dispatch forms carry recognizers")
+                                .value,
+                        );
+                        quote! { #predicate(value) }
+                    });
+                    conditions.fold(quote! { false }, |condition, next| {
+                        quote! { #condition || #next }
+                    })
+                }
+                InverseDispatchKind::LensParts => {
+                    let parts = quote::format_ident!("parts_{}", construction.id.value);
+                    quote! { #parts(value).is_some() }
+                }
+            };
             quote! {
                 if #condition {
                     if let Some((_, first)) = selected_construction {
@@ -186,8 +199,7 @@ fn inverse_group_linearizer(group: &GroupDeclaration) -> TokenStream {
             }
         })
         .collect();
-    let arms: Vec<TokenStream> = group
-        .constructions
+    let arms: Vec<TokenStream> = constructions
         .iter()
         .enumerate()
         .map(|(index, construction)| {
@@ -2381,7 +2393,7 @@ fn reexports(group: &GroupDeclaration) -> Vec<TokenStream> {
             construction.id.value
         ));
     }
-    if group.inverse_dispatch_target().is_some() {
+    if group.inverse_dispatch_family().is_some() {
         items.push(quote::format_ident!(
             "linearize_{}_group_with",
             group.name.value

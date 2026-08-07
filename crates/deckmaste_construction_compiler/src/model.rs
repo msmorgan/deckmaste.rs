@@ -41,28 +41,20 @@ pub struct GroupDeclaration {
 }
 
 impl GroupDeclaration {
-    /// Returns the common semantic target when this group declares a complete
-    /// inverse-dispatch family. Every member must be an adapted bind to that
-    /// target, and every surface form must carry a whole-value recognizer.
-    /// The emitted dispatcher checks those opaque recognizers for exactly one
-    /// match at runtime.
+    /// Returns the declaration-driven inverse-dispatch family, if this group
+    /// has one. Adapted families comprise the complete group and dispatch by
+    /// whole-value guards. Lens families may coexist with helper
+    /// constructions and dispatch their common owner through exact generated
+    /// `parts_*` matches.
     #[must_use]
-    pub(crate) fn inverse_dispatch_target(&self) -> Option<&Spanned<String>> {
+    pub(crate) fn inverse_dispatch_family(&self) -> Option<InverseDispatchFamily<'_>> {
         let first = self.constructions.first()?;
-        if self.constructions.len() < 2 {
-            return None;
-        }
-        let AstShape::Bind {
-            path: first_path, ..
-        } = &first.ast
-        else {
-            return None;
-        };
-        first.bind_adapter.as_ref()?;
-
-        self.constructions
-            .iter()
-            .all(|construction| {
+        if self.constructions.len() >= 2
+            && let AstShape::Bind {
+                path: first_path, ..
+            } = &first.ast
+            && first.bind_adapter.is_some()
+            && self.constructions.iter().all(|construction| {
                 matches!(
                     &construction.ast,
                     AstShape::Bind { path, .. } if path.value == first_path.value
@@ -73,7 +65,67 @@ impl GroupDeclaration {
                         .iter()
                         .all(|form| form.value_guard.is_some() && !form.fallback)
             })
-            .then_some(first_path)
+        {
+            return Some(InverseDispatchFamily {
+                target: first_path,
+                kind: InverseDispatchKind::ValueGuard,
+            });
+        }
+
+        let lensed = self
+            .constructions
+            .iter()
+            .filter(|construction| construction.lens.is_some())
+            .collect::<Vec<_>>();
+        let [first, _, ..] = lensed.as_slice() else {
+            return None;
+        };
+        let AstShape::Bind {
+            path: first_path, ..
+        } = &first.ast
+        else {
+            return None;
+        };
+        lensed
+            .iter()
+            .all(|construction| {
+                matches!(
+                    &construction.ast,
+                    AstShape::Bind { path, .. } if path.value == first_path.value
+                )
+            })
+            .then_some(InverseDispatchFamily {
+                target: first_path,
+                kind: InverseDispatchKind::LensParts,
+            })
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum InverseDispatchKind {
+    ValueGuard,
+    LensParts,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct InverseDispatchFamily<'a> {
+    pub target: &'a Spanned<String>,
+    pub kind: InverseDispatchKind,
+}
+
+impl InverseDispatchFamily<'_> {
+    #[must_use]
+    pub(crate) fn contains(self, construction: &ConstructionDeclaration) -> bool {
+        let AstShape::Bind { path, .. } = &construction.ast else {
+            return false;
+        };
+        if path.value != self.target.value {
+            return false;
+        }
+        match self.kind {
+            InverseDispatchKind::ValueGuard => construction.bind_adapter.is_some(),
+            InverseDispatchKind::LensParts => construction.lens.is_some(),
+        }
     }
 }
 
