@@ -2,14 +2,22 @@
 
 > **Reading the card explains the card.**
 
-deckmaste.rs takes that familiar Magic maxim literally: its goal is to generate
-playable cards directly from Oracle text. The bet is that Oracle text is a
-structured data language in disguise: parsing compiles it into a compact typed
-intermediate form that contains the card's complete recovered meaning. That
-canonical semantic form is retained as RON, rendered back to English, or lowered
-into the core primitives one shared Rust engine executes. The stack, continuous
-effects, combat, and the rest are rules systems, not code attached to individual
-cards.
+deckmaste.rs tests the long-standing intuition that Oracle text can serve as an
+executable source language for Magic: it builds the whole path — parser, typed
+intermediate form, rules engine — and measures, card by card, where recovery
+holds and where it fails.
+
+A rules engine should scale with the number of distinct semantic constructions
+in Magic, not the number of cards. Every construction is implemented once, as
+shared rules machinery; a card is a composition of constructions, never its own
+code. Oracle templating enforces that economy in the text; the engine mirrors
+it in code.
+
+Parsing compiles a card's Oracle text into a compact typed intermediate form
+that contains its complete recovered meaning. That canonical semantic form is
+retained as RON, rendered back to English, or lowered into the core primitives
+one shared Rust engine executes. The stack, continuous effects, combat, and the
+rest are rules systems, not code attached to individual cards.
 
 ![The interactive terminal client mid-game: the hotseat demo's board across
 every zone, priority and blocker prompts, and card detail text rendered from
