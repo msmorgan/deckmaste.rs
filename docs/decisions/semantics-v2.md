@@ -41,9 +41,13 @@ announce channel disappears. Proven consequences:
 - "Any other target" is a modifier carrying the presupposition that an
   earlier target exists — distinctness is predicate content, not a slot-list
   side condition [CR#601.2c,115.4].
-- A delayed clause cannot read target-introduced referents: `Delayed` types
-  its body against the context with target-determined bindings filtered out
-  [CR#603.7c,603.3d].
+- A delayed clause reads the discourse as settled particulars:
+  [CR#603.7c] refers to particular objects determiner-blind, so announced
+  targets stay readable past the boundary; what stays local is announcing
+  itself — the delayed ability targets in its own event [CR#603.3d,601.2c],
+  so the "other" presupposition stops at the boundary. Staleness is the
+  carrier/zone question, and the fire-time zone expectation stays runtime
+  (a mismatch is a no-op, not an illegality).
 - The activated-ability colon is the same discipline: the effect is typed
   against the cost's mentions filtered to public current zones
   [CR#400.2,400.7j] — an unmoved (tapped) cost mention passes, a

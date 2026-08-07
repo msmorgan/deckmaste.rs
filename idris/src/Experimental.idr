@@ -40,15 +40,21 @@
 |||    gate. Unconstrained slots still legally share an object
 |||    ([CR#601.2c,115.3] — one choice per instance), which is why the
 |||    edge is opt-in predicate content, not a default.
-||| 4. **A boundary is a filter derived from the determiner.** "…at the
-|||    beginning of the next end step" stays attached to its clause as
-|||    English attaches it; `Delayed` marks the clause future, and its
-|||    body's context keeps precisely the `survivors` — choice-determined
-|||    particular objects persist for the delayed trigger ([CR#603.7c],
-|||    `throughTheBreach`), target-determined ones do not (the trigger
-|||    announces its own targets when it goes on the stack, [CR#603.3d];
-|||    `badStale`). No timing tag is stored: staleness is a function of
-|||    the determiner the author wrote.
+||| 4. **A boundary is a view derived from the determiner** (revised in
+|||    chapter four). "…at the beginning of the next end step" stays
+|||    attached to its clause as English attaches it; `Delayed` marks
+|||    the clause future, and its body reads the full discourse as
+|||    SETTLED PARTICULARS (`settleTargets`): [CR#603.7c] refers to
+|||    particular objects determiner-blind — Turn to Mist returns "that
+|||    card" whose referent was a target, Junkyo Bell delays sacrificing
+|||    a live target — while announcing stays local (the delayed
+|||    ability targets in its own event, [CR#603.3d,601.2c]; Swooping
+|||    Pteranodon does both in one sentence), so the "other"
+|||    presupposition stops at the boundary (`badDelayedOther`).
+|||    Staleness is the carrier/zone question (`badStale` fails the
+|||    sacrifice zone demand, not a read gate; the fire-time zone
+|||    expectation of [CR#603.7c] is runtime — a no-op, not an
+|||    illegality). No timing tag is stored.
 |||
 ||| Chapter two, anaphora and carriers (category inventory:
 ||| oracle-style-guide.md §"Names, self-reference, pronouns, and anaphora"
@@ -121,10 +127,28 @@
 |||    battlefield (`OnBattlefield`, `badSacrificeExiled`) — the zone
 |||    half of the verb's implicit restriction, controller half parked.
 |||
+||| Chapter four, reference machinery (evidence: Suspended Sentence,
+||| Turn to Mist, Flickering Spirit; Junkyo Bell and Swooping
+||| Pteranodon ground the boundary revision):
+|||
+||| 14. **Relative clauses fold their mentions.** `nounDelta`/`predDelta`
+|||    make a phrase's introductions one computation: "target creature
+|||    an opponent controls" leaves the opponent readable ("That
+|||    player…", `suspendedSentence`), and two inner opponents are
+|||    refused as ambiguous (`badInnerAmbig`) — the uniqueness gate
+|||    reaches inside predicates.
+||| 15. **The delayed boundary settles; it does not drop.** Chapter
+|||    one's target filter modeled the wrong axis — see revised finding
+|||    4: reads pass as settled particulars, while the "other"
+|||    presupposition and fresh announcing stay local to the delayed
+|||    ability.
+||| 16. **The self-reference moves like anything else.** An
+|||    effect-position `ThisOf` move mints the new object's binding
+|||    mid-sentence ([CR#400.7]) — Flickering Spirit's "it" reads its
+|||    own exile.
+|||
 ||| Not settled yet: the kind union ("any target" spans objects and
-||| players [CR#115.4,115.1] — elided to `Object`); threading of mentions
-||| introduced INSIDE predicates ("…an opponent controls. That player…" —
-||| `ControlledBy (A Opponent)` does not yet fold its inner mention);
+||| players [CR#115.4,115.1] — elided to `Object`);
 ||| owned-zone mentions beyond `You` ("its owner's hand" — destination
 ||| and predicate-inner mentions do not fold yet); controller
 ||| fold-state (the controller half of verb restrictions, entangled
@@ -272,15 +296,19 @@ anyTargeted Object (MkBinding TargetD Object _ _ _ :: bs) = True
 anyTargeted Player (MkBinding TargetD Player _ _ _ :: bs) = True
 anyTargeted k (_ :: bs) = anyTargeted k bs
 
-||| A future clause's context ([CR#603.7c]): choice-determined bindings
-||| (a chosen or produced particular object) survive; target-determined
-||| ones do not — the delayed trigger announces its own ([CR#603.3d]).
-||| Derived from the determiner; no timing tag exists.
+||| A future clause's context: the outer clause's announced targets
+||| cross the boundary as SETTLED PARTICULARS — readable like any
+||| mention ([CR#603.7c] refers to particular objects determiner-blind)
+||| but no longer "targets", because the delayed ability announces its
+||| own in its own event ([CR#603.3d,601.2c]), which is where the
+||| "other" presupposition stops. A view derived from the determiner;
+||| no timing tag exists.
 public export
-survivors : Bindings -> Bindings
-survivors [] = []
-survivors (MkBinding TargetD _ _ _ _ :: bs) = survivors bs
-survivors (b :: bs) = b :: survivors bs
+settleTargets : Bindings -> Bindings
+settleTargets [] = []
+settleTargets (MkBinding TargetD k plur ty zn :: bs) =
+  MkBinding TheD k plur ty zn :: settleTargets bs
+settleTargets (b :: bs) = b :: settleTargets bs
 
 ||| Zone visibility ([CR#400.2] — library and hand are hidden zones).
 public export
@@ -483,25 +511,51 @@ mutual
     ControllerOf : Noun bs Object -> Noun bs Player
     OwnerOf : Noun bs Object -> Noun bs Player
 
+  ||| The bindings a noun phrase prepends to the discourse — its own
+  ||| head first (determined mentions bind, reads don't), then the
+  ||| mentions its predicate introduces in textual order: relative
+  ||| clauses FOLD, so "target creature an opponent controls" leaves
+  ||| both the creature and the opponent readable.
+  public export
+  nounDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
+  nounDelta This = []
+  nounDelta (ThisOf t) = []
+  nounDelta You = []
+  nounDelta (Target p) = bindFor TargetD OneOf p :: predDelta p
+  nounDelta (Each p) = bindFor EachD ManyOf p :: predDelta p
+  nounDelta (A p) = bindFor AD OneOf p :: predDelta p
+  nounDelta (ATheirChoice p) = bindFor AD OneOf p :: predDelta p
+  nounDelta (AAtRandom p) = bindFor AD OneOf p :: predDelta p
+  nounDelta It = []
+  nounDelta They = []
+  nounDelta (That c) = []
+  nounDelta (ControllerOf n) = MkBinding TheD Player OneOf Nothing Nothing :: nounDelta n
+  nounDelta (OwnerOf n) = MkBinding TheD Player OneOf Nothing Nothing :: nounDelta n
+
+  ||| The mentions a predicate's clauses introduce, textual order.
+  public export
+  predDelta : {bs : Bindings} -> {k : Kind} -> Predicate bs k -> List Binding
+  predDelta (ControlledBy n) = nounDelta n
+  predDelta (InZone z) = zoneDelta z
+  predDelta (And ps) = predDeltaAll ps
+  predDelta (Not p) = predDelta p
+  predDelta _ = []
+
+  public export
+  predDeltaAll : {bs : Bindings} -> {k : Kind} -> List (Predicate bs k) -> List Binding
+  predDeltaAll [] = []
+  predDeltaAll (p :: ps) = predDelta p ++ predDeltaAll ps
+
+  public export
+  zoneDelta : {bs : Bindings} -> ZoneExpr bs -> List Binding
+  zoneDelta (HandOf n) = nounDelta n
+  zoneDelta (GraveyardOf n) = nounDelta n
+  zoneDelta _ = []
+
   ||| What a noun contributes to the discourse that follows it.
-  ||| Determined mentions introduce a binding; pronoun and demonstrative
-  ||| READS introduce nothing (a re-mention is not a new referent);
-  ||| relational nouns introduce their derived referent.
   public export
   nomIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
-  nomIntro This = bs
-  nomIntro (ThisOf t) = bs
-  nomIntro You = bs
-  nomIntro (Target p) = bindFor TargetD OneOf p :: bs
-  nomIntro (Each p) = bindFor EachD ManyOf p :: bs
-  nomIntro (A p) = bindFor AD OneOf p :: bs
-  nomIntro (ATheirChoice p) = bindFor AD OneOf p :: bs
-  nomIntro (AAtRandom p) = bindFor AD OneOf p :: bs
-  nomIntro It = bs
-  nomIntro They = bs
-  nomIntro (That c) = bs
-  nomIntro (ControllerOf n) = MkBinding TheD Player OneOf Nothing Nothing :: nomIntro n
-  nomIntro (OwnerOf n) = MkBinding TheD Player OneOf Nothing Nothing :: nomIntro n
+  nomIntro n = nounDelta n ++ bs
 
   ||| An amount expression — where "equal to its power" lives, so it
   ||| threads like everything else.
@@ -578,9 +632,10 @@ mutual
     -- sentence/clause sequence: the discourse advances left to right.
     AndThen : (e1 : Effect bs) -> (e2 : Effect (effIntro e1)) -> Effect bs
     -- "[e] at the beginning of the next end step" — the temporal
-    -- adverbial stays on its clause; the body sees only `survivors`
-    -- ([CR#603.7c,603.3d]). Event queries are a later chapter.
-    Delayed : Effect (survivors bs) -> Effect bs
+    -- adverbial stays on its clause; the body reads the discourse as
+    -- settled particulars (`settleTargets`, [CR#603.7c,603.3d]).
+    -- Event queries are a later chapter.
+    Delayed : Effect (settleTargets bs) -> Effect bs
 
   ||| Retag the binding a moved noun denotes: an introducing noun's own
   ||| fresh binding, or the unique binding a read resolved to (strict
@@ -691,7 +746,7 @@ public export
 creatureYouDontControl : Predicate bs Object
 creatureYouDontControl = And [creature, Not (ControlledBy You)]
 
--- "an opponent" (held for the predicate-inner-mention chapter)
+-- "an opponent"
 public export
 anOpponent : Noun bs Player
 anOpponent = A Opponent
@@ -796,8 +851,8 @@ cloudshift = AndThen (exile (Target creatureYouControl))
 -- Attack says "the creature", a definite read this chapter doesn't mint)
 -- — the hand-to-battlefield move RESTORES the typed carrier (the head
 -- type was projected at introduction, never lost), the choice-determined
--- referent survives the delay [CR#603.7c] while a target would not, and
--- the trailing adverbial is the `Delayed` mark on its clause.
+-- referent survives the delay [CR#603.7c], and the trailing adverbial
+-- is the `Delayed` mark on its clause.
 throughTheBreach : Effect []
 throughTheBreach = AndThen (May You (Move (A (And [creature, InZone (HandOf You)])) BattlefieldZ))
                            (AndThen (gainsHaste (That (Perm Creature)))
@@ -858,6 +913,34 @@ innocentBlood = sacrifice (Each AnyPlayer) (ATheirChoice creature)
 cryOfContrition : Effect []
 cryOfContrition = discardsACard (Target AnyPlayer)
 
+-- "Destroy target creature an opponent controls. That player loses 3
+-- life." (Suspended Sentence; its self-exile clause and Suspend lines
+-- elided) — the relative clause's inner mention folds: the indefinite
+-- opponent enters the discourse from INSIDE the target's predicate,
+-- and the sorted demonstrative reads it.
+suspendedSentence : Effect []
+suspendedSentence = AndThen (destroy (Target (And [creature, ControlledBy anOpponent])))
+                            (losesLife (That PlayerC) (Lit 3))
+
+-- "Exile this creature, then return it to the battlefield under its
+-- owner's control." (Flickering Spirit's activated ability; its
+-- mana-only cost and "under its owner's control" elided) — the sorted
+-- self-reference moved by the EFFECT: the exile mints the new object's
+-- binding mid-sentence ([CR#400.7]) and "it" reads it.
+flickeringSpirit : Effect []
+flickeringSpirit = AndThen (exile (ThisOf Creature)) (Move It BattlefieldZ)
+
+-- "Exile target creature. Return that card to the battlefield under
+-- its owner's control at the beginning of the next end step." (Turn to
+-- Mist; "under its owner's control" elided) — the delayed clause reads
+-- the TARGET-determined referent as a settled particular under its
+-- retagged carrier ([CR#603.7c] is determiner-blind); the fire-time
+-- zone expectation stays runtime (a mismatch is a no-op, not an
+-- illegality).
+turnToMist : Effect []
+turnToMist = AndThen (exile (Target creature))
+                     (Delayed (Move (That CardC) BattlefieldZ))
+
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
 -- "other" with no target before it: the presupposition has no witness.
@@ -880,12 +963,26 @@ failing "countOnes"
   badTheyIt : Effect []
   badTheyIt = AndThen (DealDamage This (Lit 3) (Each creature)) (Tap It)
 
--- An announced target does not survive into a delayed clause: it is not
--- among the `survivors` ([CR#603.7c]); the delayed trigger announces its
--- own targets when it goes on the stack ([CR#603.3d]).
-failing "survivors"
+-- The delay does not launder a dead referent: sacrifice's zone demand
+-- reads fold-state through the boundary, and the destroyed target sits
+-- in the graveyard ([CR#701.21a]; contrast Junkyo Bell, which legally
+-- delays sacrificing a LIVE target — the distinction is the referent's
+-- zone, never its determiner).
+failing "OnBattlefield"
   badStale : Effect []
   badStale = AndThen (destroy (Target creature)) (Delayed (sacrifice You It))
+
+-- "Another target" inside a delayed clause can only be distinct from
+-- the DELAYED ability's own targets — it announces in its own event
+-- ([CR#603.3d,601.2c]), so the outer clause's settled targets are no
+-- witness for the presupposition. (Soundness-derived: the corpus
+-- writes no such line; Swooping Pteranodon shows the two halves — a
+-- fresh "target land" announced at delay time reading back "that
+-- creature" from the outer clause.)
+failing "anyTargeted"
+  badDelayedOther : Effect []
+  badDelayedOther = AndThen (DealDamage This (Lit 2) (Target AnyTarget))
+                            (Delayed (DealDamage This (Lit 1) (Target anyOtherTarget)))
 
 -- After the exile, the referent no longer answers to "creature": its
 -- carrier is derived from the RETAGGED zone ([CR#110.1]), so the typed
@@ -920,3 +1017,12 @@ failing "countOnes"
 failing "OnBattlefield"
   badSacrificeExiled : Effect []
   badSacrificeExiled = AndThen (exile (Target creature)) (sacrifice You It)
+
+-- Two predicate-inner opponents leave "that player" ambiguous — the
+-- uniqueness gate reaches inside relative clauses too. (Not
+-- oracle-legal text; the guide would repeat the noun.)
+failing "countCarrier"
+  badInnerAmbig : Effect []
+  badInnerAmbig = AndThen (Fights (Target (And [creature, ControlledBy anOpponent]))
+                                  (Target (And [creature, ControlledBy anOpponent])))
+                          (losesLife (That PlayerC) (Lit 1))
