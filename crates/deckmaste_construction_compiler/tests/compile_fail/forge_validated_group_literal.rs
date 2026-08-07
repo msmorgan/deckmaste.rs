@@ -11,6 +11,7 @@ fn main() {
         name: Spanned::call_site(String::new()),
         constructions: vec![],
         elements: vec![],
+        lenses: vec![],
     };
     let _literal = ValidatedGroup { group: &group };
 }

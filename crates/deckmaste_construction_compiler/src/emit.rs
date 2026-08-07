@@ -13,6 +13,9 @@ use crate::model::ElementDeclaration;
 use crate::model::FieldBinding;
 use crate::model::FieldKind;
 use crate::model::GroupDeclaration;
+use crate::model::LensApplication;
+use crate::model::LensEditKind;
+use crate::model::LensFieldKind;
 use crate::model::Predicate;
 use crate::validate::ValidatedGroup;
 
@@ -679,6 +682,237 @@ fn own_construction(
     })
 }
 
+fn lens_field_type(kind: &LensFieldKind) -> TokenStream {
+    match kind {
+        LensFieldKind::Value { value_type } => parse_type(&value_type.value),
+        LensFieldKind::Optional { value_type } => {
+            let value_type = parse_type(&value_type.value);
+            quote! { Option<#value_type> }
+        }
+        LensFieldKind::Vector { element_type } => {
+            let element_type = parse_type(&element_type.value);
+            quote! { Vec<#element_type> }
+        }
+    }
+}
+
+fn lens_construct(
+    lens: &crate::model::LensDeclaration,
+    application: &LensApplication,
+    target: &TokenStream,
+    construction_id: &str,
+) -> TokenStream {
+    if let Some(source) = &application.source {
+        let source = quote::format_ident!("{}", source.value);
+        let edits = application.edits.iter().map(|edit| {
+            let target_field = quote::format_ident!("{}", edit.target.segments[0].value);
+            let value = quote::format_ident!("{}", edit.value.value);
+            match edit.kind {
+                LensEditKind::Focus => {
+                    let requirement = format!("{}.is_none()", edit.target.dotted());
+                    quote! {
+                        if #source.#target_field.is_some() {
+                            return Err(::deckmaste_construction_compiler::runtime::DeclarationViolation {
+                                construction: #construction_id,
+                                requirement: #requirement,
+                            });
+                        }
+                        #source.#target_field = Some(#value);
+                    }
+                }
+                LensEditKind::Prepend => quote! { #source.#target_field.insert(0, #value); },
+                LensEditKind::Append => quote! { #source.#target_field.push(#value); },
+            }
+        });
+        return quote! {
+            let mut #source = #source;
+            #(#edits)*
+            Ok(#source)
+        };
+    }
+
+    let values = lens.fields.iter().map(|field| {
+        let field_name = quote::format_ident!("{}", field.name.value);
+        let edit = application
+            .edits
+            .iter()
+            .find(|edit| edit.target.segments[0].value == field.name.value);
+        let value = match (edit, &field.kind) {
+            (Some(edit), LensFieldKind::Value { .. }) => {
+                let value = quote::format_ident!("{}", edit.value.value);
+                quote! { #value }
+            }
+            (Some(edit), LensFieldKind::Optional { .. }) => {
+                let value = quote::format_ident!("{}", edit.value.value);
+                quote! { Some(#value) }
+            }
+            (None, LensFieldKind::Optional { .. }) => quote! { None },
+            (None, LensFieldKind::Vector { .. }) => quote! { Vec::new() },
+            _ => unreachable!("validated: EC017/EC033 admit only rebuildable focus edits"),
+        };
+        quote! { #field_name: #value }
+    });
+    quote! { Ok(#target { #(#values),* }) }
+}
+
+fn lens_destructure(
+    lens: &crate::model::LensDeclaration,
+    application: &LensApplication,
+    field_names: &[proc_macro2::Ident],
+) -> TokenStream {
+    if let Some(source) = &application.source {
+        let source_ident = quote::format_ident!("{}", source.value);
+        let extracts = application.edits.iter().map(|edit| {
+            let target_field = quote::format_ident!("{}", edit.target.segments[0].value);
+            let value = quote::format_ident!("{}", edit.value.value);
+            match edit.kind {
+                LensEditKind::Focus => quote! { let #value = __owner.#target_field.take()?; },
+                LensEditKind::Prepend => quote! {
+                    if __owner.#target_field.is_empty() {
+                        return None;
+                    }
+                    let #value = __owner.#target_field.remove(0);
+                },
+                LensEditKind::Append => quote! { let #value = __owner.#target_field.pop()?; },
+            }
+        });
+        return quote! {
+            let mut __owner = value.clone();
+            #(#extracts)*
+            let #source_ident = __owner;
+            Some((#(#field_names),*))
+        };
+    }
+
+    let default_checks = lens.fields.iter().filter_map(|field| {
+        let claimed = application
+            .edits
+            .iter()
+            .any(|edit| edit.target.segments[0].value == field.name.value);
+        if claimed {
+            return None;
+        }
+        let field_name = quote::format_ident!("{}", field.name.value);
+        match field.kind {
+            LensFieldKind::Optional { .. } => {
+                Some(quote! { if value.#field_name.is_some() { return None; } })
+            }
+            LensFieldKind::Vector { .. } => {
+                Some(quote! { if !value.#field_name.is_empty() { return None; } })
+            }
+            LensFieldKind::Value { .. } => {
+                unreachable!("validated: EC033 rejects unclaimed required owner fields")
+            }
+        }
+    });
+    let extracts = application.edits.iter().map(|edit| {
+        let target_field = quote::format_ident!("{}", edit.target.segments[0].value);
+        let value = quote::format_ident!("{}", edit.value.value);
+        let owner_field = lens
+            .fields
+            .iter()
+            .find(|field| field.name.value == edit.target.segments[0].value)
+            .expect("validated lens target");
+        match owner_field.kind {
+            LensFieldKind::Value { .. } => {
+                quote! { let #value = value.#target_field.clone(); }
+            }
+            LensFieldKind::Optional { .. } => {
+                quote! { let #value = value.#target_field.clone()?; }
+            }
+            LensFieldKind::Vector { .. } => {
+                unreachable!("validated: no-source vector edits are not focusable")
+            }
+        }
+    });
+    quote! {
+        #(#default_checks)*
+        #(#extracts)*
+        Some((#(#field_names),*))
+    }
+}
+
+fn lens_bind_construction(
+    group: &GroupDeclaration,
+    construction: &ConstructionDeclaration,
+    path: &crate::model::Spanned<String>,
+    fields: &[FieldBinding],
+    application: &LensApplication,
+) -> TokenStream {
+    let lens = group
+        .lenses
+        .iter()
+        .find(|lens| lens.name.value == application.owner.value)
+        .expect("validated: EC016 rejects an undeclared lens owner");
+    let target = parse_type(&path.value);
+    let id = construction.id.value.as_str();
+    let build_fn = quote::format_ident!("build_{}", construction.id.value);
+    let parts_fn = quote::format_ident!("parts_{}", construction.id.value);
+    let assert_fn = quote::format_ident!("__assert_lens_owner_{}", construction.id.value);
+    let params: Vec<TokenStream> = fields
+        .iter()
+        .map(|binding| {
+            let field = quote::format_ident!("{}", binding.field.value);
+            let field_ty = field_type(group, &binding.kind);
+            quote! { #field: #field_ty }
+        })
+        .collect();
+    let field_names: Vec<proc_macro2::Ident> = fields
+        .iter()
+        .map(|binding| quote::format_ident!("{}", binding.field.value))
+        .collect();
+    let field_types: Vec<TokenStream> = fields
+        .iter()
+        .map(|binding| field_type(group, &binding.kind))
+        .collect();
+    let checks: Vec<TokenStream> = construction
+        .constraints
+        .iter()
+        .filter_map(|constraint| match constraint {
+            Constraint::Require(predicate) => {
+                Some(require_check(id, group, fields, &predicate.value))
+            }
+            Constraint::Recognize(_) | Constraint::DeriveFeature { .. } => None,
+        })
+        .collect();
+
+    let owner_fields: Vec<proc_macro2::Ident> = lens
+        .fields
+        .iter()
+        .map(|field| quote::format_ident!("{}", field.name.value))
+        .collect();
+    let owner_types: Vec<TokenStream> = lens
+        .fields
+        .iter()
+        .map(|field| lens_field_type(&field.kind))
+        .collect();
+    let assert_types = owner_fields
+        .iter()
+        .zip(&owner_types)
+        .map(|(field, ty)| quote! { let _: &#ty = #field; });
+
+    let construct = lens_construct(lens, application, &target, id);
+    let destructure = lens_destructure(lens, application, &field_names);
+    let parts_return = quote! { Option<(#(#field_types),*)> };
+
+    quote! {
+        #[allow(dead_code, reason = "the exhaustive record pattern and typed borrows are the lens shape check")]
+        fn #assert_fn(value: &#target) {
+            let #target { #(#owner_fields),* } = value;
+            #(#assert_types)*
+        }
+
+        pub fn #build_fn(#(#params),*) -> Result<#target, ::deckmaste_construction_compiler::runtime::DeclarationViolation> {
+            #(#checks)*
+            #construct
+        }
+
+        pub fn #parts_fn(value: &#target) -> #parts_return {
+            #destructure
+        }
+    }
+}
+
 /// Bind mode's checked door onto an unmigrated target type (CF-7): a
 /// `require`-enforcing builder plus a full-pattern destructurer, both
 /// re-exported. No struct, no `try_new`, no serde — EC005 already bars
@@ -691,6 +925,15 @@ fn bind_construction(
     let AstShape::Bind { path, fields } = &construction.ast else {
         return None; // own mode: handled separately by `own_construction`
     };
+    if let Some(application) = &construction.lens {
+        return Some(lens_bind_construction(
+            group,
+            construction,
+            path,
+            fields,
+            application,
+        ));
+    }
     let target = parse_type(&path.value);
     let id = construction.id.value.as_str();
     let build_fn = quote::format_ident!("build_{}", construction.id.value);
@@ -887,7 +1130,18 @@ fn linearizer(group: &GroupDeclaration, construction: &ConstructionDeclaration) 
             let target = quote::format_ident!("{}", name.value);
             quote! { let #target { #(#field_names),* } = value; }
         }
-        AstShape::Bind { path, .. } if construction.bind_adapter.is_some() => {
+        AstShape::Bind { .. } if construction.lens.is_some() => {
+            let parts = quote::format_ident!("parts_{}", construction.id.value);
+            quote! {
+                let Some((#(#field_names),*)) = #parts(value) else {
+                    return Err(::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
+                        construction: #id,
+                    });
+                };
+                #(let #field_names = &#field_names;)*
+            }
+        }
+        AstShape::Bind { .. } if construction.bind_adapter.is_some() => {
             let parts = quote::format_ident!("parts_{}", construction.id.value);
             quote! {
                 let (#(#field_names),*) = #parts(value);
@@ -918,6 +1172,17 @@ fn linearizer(group: &GroupDeclaration, construction: &ConstructionDeclaration) 
         AstShape::Own { name, .. } => {
             let target = quote::format_ident!("{}", name.value);
             quote! { let #target { #(#selection_bindings),* } = value; }
+        }
+        AstShape::Bind { .. } if construction.lens.is_some() => {
+            let parts = quote::format_ident!("parts_{}", construction.id.value);
+            quote! {
+                let Some((#(#field_names),*)) = #parts(value) else {
+                    return Err(::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
+                        construction: #id,
+                    });
+                };
+                #(let #field_names = &#field_names;)*
+            }
         }
         AstShape::Bind { .. } if construction.bind_adapter.is_some() => {
             let any_field_guard = construction.forms.iter().any(|form| form.guard.is_some());
@@ -1628,6 +1893,7 @@ fn declaration_static(group: &GroupDeclaration) -> TokenStream {
         })
         .collect();
     let element_data: Vec<TokenStream> = group.elements.iter().map(element_row).collect();
+    let lenses: Vec<TokenStream> = group.lenses.iter().map(lens_row).collect();
     let constructions: Vec<TokenStream> =
         group.constructions.iter().map(construction_row).collect();
     quote! {
@@ -1636,8 +1902,44 @@ fn declaration_static(group: &GroupDeclaration) -> TokenStream {
                 name: #name,
                 elements: &[#(#elements),*],
                 element_data: &[#(#element_data),*],
+                lenses: &[#(#lenses),*],
                 constructions: &[#(#constructions),*],
             };
+    }
+}
+
+fn lens_row(lens: &crate::model::LensDeclaration) -> TokenStream {
+    let name = lens.name.value.as_str();
+    let owner_type = lens.owner_type.value.as_str();
+    let fields = lens.fields.iter().map(|field| {
+        let name = field.name.value.as_str();
+        let kind = match &field.kind {
+            LensFieldKind::Value { value_type } => {
+                let value_type = value_type.value.as_str();
+                quote! { ::deckmaste_construction_compiler::runtime::LensFieldKindData::Value { value_type: #value_type } }
+            }
+            LensFieldKind::Optional { value_type } => {
+                let value_type = value_type.value.as_str();
+                quote! { ::deckmaste_construction_compiler::runtime::LensFieldKindData::Optional { value_type: #value_type } }
+            }
+            LensFieldKind::Vector { element_type } => {
+                let element_type = element_type.value.as_str();
+                quote! { ::deckmaste_construction_compiler::runtime::LensFieldKindData::Vector { element_type: #element_type } }
+            }
+        };
+        quote! {
+            ::deckmaste_construction_compiler::runtime::LensFieldData {
+                name: #name,
+                kind: #kind,
+            }
+        }
+    });
+    quote! {
+        ::deckmaste_construction_compiler::runtime::LensData {
+            name: #name,
+            owner_type: #owner_type,
+            fields: &[#(#fields),*],
+        }
     }
 }
 
@@ -1779,6 +2081,46 @@ fn construction_form_rows(construction: &ConstructionDeclaration) -> Vec<TokenSt
         .collect()
 }
 
+fn lens_application_row(application: &LensApplication) -> TokenStream {
+    let owner = application.owner.value.as_str();
+    let source = application.source.as_ref().map_or_else(
+        || quote! { None },
+        |source| {
+            let source = source.value.as_str();
+            quote! { Some(#source) }
+        },
+    );
+    let edits = application.edits.iter().map(|edit| {
+        let target = edit.target.dotted();
+        let value = edit.value.value.as_str();
+        let kind = match edit.kind {
+            LensEditKind::Focus => {
+                quote! { ::deckmaste_construction_compiler::runtime::LensEditKindData::Focus }
+            }
+            LensEditKind::Prepend => {
+                quote! { ::deckmaste_construction_compiler::runtime::LensEditKindData::Prepend }
+            }
+            LensEditKind::Append => {
+                quote! { ::deckmaste_construction_compiler::runtime::LensEditKindData::Append }
+            }
+        };
+        quote! {
+            ::deckmaste_construction_compiler::runtime::LensEditData {
+                target: #target,
+                value: #value,
+                kind: #kind,
+            }
+        }
+    });
+    quote! {
+        Some(::deckmaste_construction_compiler::runtime::LensApplicationData {
+            owner: #owner,
+            source: #source,
+            edits: &[#(#edits),*],
+        })
+    }
+}
+
 fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
     let id = construction.id.value.as_str();
     let category = construction.category.value.as_str();
@@ -1806,6 +2148,10 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
         }
         None => (quote! { None }, quote! { None }),
     };
+    let lens = construction
+        .lens
+        .as_ref()
+        .map_or_else(|| quote! { None }, lens_application_row);
     // `dominance` holds every edge this construction is named in, winner or
     // loser (see `edges_leaving_the_group_are_not_cycle_checked_here` in
     // validate.rs, whose edge lists exactly that shape). `dominates` means
@@ -1897,6 +2243,7 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
             internal: #internal,
             own_type: #own_type,
             bind_path: #bind_path,
+            lens: #lens,
             projection_variant: #projection_variant,
             fields: &[#(#fields),*],
             witnesses: &[#(#witnesses),*],

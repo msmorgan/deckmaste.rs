@@ -1,0 +1,5 @@
+error: EC019: lens `owner` claims non-contiguous owner fields; every edit must form one ordered run (construction `bad`)
+  --> tests/compile_fail/ec_lens_noncontiguous_claim.rs:23:14
+   |
+23 |         lens owner {
+   |              ^^^^^

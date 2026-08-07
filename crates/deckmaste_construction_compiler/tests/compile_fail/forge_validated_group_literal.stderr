@@ -1,5 +1,5 @@
 error[E0451]: field `group` of struct `ValidatedGroup` is private
-  --> tests/compile_fail/forge_validated_group_literal.rs:15:37
+  --> tests/compile_fail/forge_validated_group_literal.rs:16:37
    |
-15 |     let _literal = ValidatedGroup { group: &group };
+16 |     let _literal = ValidatedGroup { group: &group };
    |                                     ^^^^^ private field

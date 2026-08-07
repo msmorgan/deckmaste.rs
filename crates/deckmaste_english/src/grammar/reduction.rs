@@ -3214,6 +3214,7 @@ mod generated_tests {
             internal: false,
             own_type: Some("Reordered"),
             bind_path: None,
+            lens: None,
             projection_variant: None,
             fields: CONSTRUCTION_FIELDS,
             witnesses: &[],
@@ -3232,6 +3233,7 @@ mod generated_tests {
             name: "reordered",
             elements: &["member"],
             element_data: ELEMENTS,
+            lenses: &[],
             constructions: CONSTRUCTIONS,
         };
 
@@ -3289,6 +3291,7 @@ mod generated_tests {
             internal: false,
             own_type: None,
             bind_path: Some("Quantity"),
+            lens: None,
             projection_variant: None,
             fields: FIELDS,
             witnesses: &[],
@@ -3307,6 +3310,7 @@ mod generated_tests {
             name: "quantity_probe",
             elements: &[],
             element_data: &[],
+            lenses: &[],
             constructions: CONSTRUCTIONS,
         };
         let one = Features::Number { is_one: true };

@@ -1149,6 +1149,7 @@ mod tests {
             internal,
             own_type: Some("Synthetic"),
             bind_path: None,
+            lens: None,
             projection_variant: None,
             deserialize: false,
             selection_unique: false,
@@ -1192,6 +1193,7 @@ mod tests {
             name: "g",
             elements: &[],
             element_data: &[],
+            lenses: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
@@ -1235,6 +1237,7 @@ mod tests {
             name: "nullable",
             elements: &["nullable_member"],
             element_data: ELEMENT_DATA,
+            lenses: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
@@ -1273,6 +1276,7 @@ mod tests {
             name: "g",
             elements: &[],
             element_data: &[],
+            lenses: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
@@ -1306,6 +1310,7 @@ mod tests {
             name: "g",
             elements: &[],
             element_data: &[],
+            lenses: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
@@ -1336,6 +1341,7 @@ mod tests {
             name: "g",
             elements: &[],
             element_data: &[],
+            lenses: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
@@ -1369,6 +1375,7 @@ mod tests {
             name: "g",
             elements: &[],
             element_data: &[],
+            lenses: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
@@ -1410,6 +1417,7 @@ mod tests {
             name: "g",
             elements: &[],
             element_data: &[],
+            lenses: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
@@ -1456,6 +1464,7 @@ mod tests {
             name: "g",
             elements: &[],
             element_data: &[],
+            lenses: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
@@ -1504,6 +1513,7 @@ mod tests {
             name: "g",
             elements: &[],
             element_data: &[],
+            lenses: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
@@ -1552,6 +1562,7 @@ mod tests {
             name: "g",
             elements: &[],
             element_data: &[],
+            lenses: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
@@ -1597,6 +1608,7 @@ mod tests {
             name: "g",
             elements: &[],
             element_data: &[],
+            lenses: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
@@ -1646,6 +1658,7 @@ mod tests {
             name: "g",
             elements: &["Foo"],
             element_data: ELEMENTS,
+            lenses: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
@@ -1691,6 +1704,7 @@ mod tests {
             name: "g",
             elements: &[],
             element_data: &[],
+            lenses: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);
@@ -1713,6 +1727,7 @@ mod tests {
             internal: true,
             own_type: None,
             bind_path: Some("x::Y"),
+            lens: None,
             projection_variant: None,
             deserialize: false,
             selection_unique: false,
@@ -1731,6 +1746,7 @@ mod tests {
             name: "g",
             elements: &[],
             element_data: &[],
+            lenses: &[],
             constructions: CONSTRUCTIONS,
         };
         let cats = internal_categories(&[&GROUP]);

@@ -793,6 +793,7 @@ mod __constructions_fixture_coordination {
                 erased_sequence_builder: Some(__erased_sequence_empty_payload),
             },
         ],
+        lenses: &[],
         constructions: &[
             ::deckmaste_construction_compiler::runtime::ConstructionData {
                 id: "fixture_pair",
@@ -800,6 +801,7 @@ mod __constructions_fixture_coordination {
                 internal: false,
                 own_type: Some("FixturePairNode"),
                 bind_path: None,
+                lens: None,
                 projection_variant: Some("Pair"),
                 fields: &[
                     ::deckmaste_construction_compiler::runtime::FieldData {
@@ -894,6 +896,7 @@ mod __constructions_fixture_coordination {
                 internal: false,
                 own_type: Some("FixtureSoloNode"),
                 bind_path: None,
+                lens: None,
                 projection_variant: None,
                 fields: &[
                     ::deckmaste_construction_compiler::runtime::FieldData {

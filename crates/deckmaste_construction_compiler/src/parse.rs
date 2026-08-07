@@ -18,6 +18,12 @@ use crate::model::FieldKind;
 use crate::model::FieldPath;
 use crate::model::FormDeclaration;
 use crate::model::GroupDeclaration;
+use crate::model::LensApplication;
+use crate::model::LensDeclaration;
+use crate::model::LensEdit;
+use crate::model::LensEditKind;
+use crate::model::LensFieldDeclaration;
+use crate::model::LensFieldKind;
 use crate::model::Predicate;
 use crate::model::SelectionPromise;
 use crate::model::Spanned;
@@ -28,6 +34,7 @@ use crate::model::WitnessDeclaration;
 mod kw {
     syn::custom_keyword!(group);
     syn::custom_keyword!(element);
+    syn::custom_keyword!(lens);
     syn::custom_keyword!(variant);
     syn::custom_keyword!(construction);
     syn::custom_keyword!(internal);
@@ -61,6 +68,13 @@ mod kw {
     syn::custom_keyword!(seq);
     syn::custom_keyword!(all);
     syn::custom_keyword!(any);
+    syn::custom_keyword!(value);
+    syn::custom_keyword!(vec);
+    syn::custom_keyword!(from);
+    syn::custom_keyword!(focus);
+    syn::custom_keyword!(with);
+    syn::custom_keyword!(prepend);
+    syn::custom_keyword!(append);
 }
 
 /// # Errors
@@ -82,10 +96,13 @@ impl Parse for GroupSyntax {
         let name = spanned_ident(input)?;
         input.parse::<syn::Token![;]>()?;
         let mut elements = Vec::new();
+        let mut lenses = Vec::new();
         let mut constructions = Vec::new();
         while !input.is_empty() {
             if input.peek(kw::element) {
                 elements.push(parse_element(input)?);
+            } else if input.peek(kw::lens) {
+                lenses.push(parse_lens_declaration(input)?);
             } else {
                 constructions.push(parse_construction(input)?);
             }
@@ -94,8 +111,51 @@ impl Parse for GroupSyntax {
             name,
             constructions,
             elements,
+            lenses,
         }))
     }
+}
+
+fn parse_lens_declaration(input: ParseStream<'_>) -> syn::Result<LensDeclaration> {
+    input.parse::<kw::lens>()?;
+    let name = spanned_ident(input)?;
+    input.parse::<kw::bind>()?;
+    let owner_type = spanned_type_path(input)?;
+    let content;
+    syn::braced!(content in input);
+    let mut fields = Vec::new();
+    while !content.is_empty() {
+        let name = spanned_ident(&content)?;
+        content.parse::<syn::Token![:]>()?;
+        let kind = if content.peek(kw::value) {
+            content.parse::<kw::value>()?;
+            LensFieldKind::Value {
+                value_type: spanned_type_path(&content)?,
+            }
+        } else if content.peek(kw::opt) {
+            content.parse::<kw::opt>()?;
+            LensFieldKind::Optional {
+                value_type: spanned_type_path(&content)?,
+            }
+        } else if content.peek(kw::vec) {
+            content.parse::<kw::vec>()?;
+            LensFieldKind::Vector {
+                element_type: spanned_type_path(&content)?,
+            }
+        } else {
+            return Err(content.error("expected a lens field kind: value / opt / vec"));
+        };
+        fields.push(LensFieldDeclaration { name, kind });
+        if content.is_empty() {
+            break;
+        }
+        content.parse::<syn::Token![,]>()?;
+    }
+    Ok(LensDeclaration {
+        name,
+        owner_type,
+        fields,
+    })
 }
 
 fn spanned_ident(input: ParseStream<'_>) -> syn::Result<Spanned<String>> {
@@ -306,6 +366,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
     syn::braced!(content in input);
     let (ast, bind_adapter) = parse_shape(&content)?;
     let mut projection = None;
+    let mut lens = None;
     let mut constraints = Vec::new();
     let mut witnesses = Vec::new();
     let mut forms = Vec::new();
@@ -324,6 +385,15 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
                 ));
             }
             projection = Some(variant);
+        } else if content.peek(kw::lens) {
+            let application = parse_lens_application(&content)?;
+            if lens.is_some() {
+                return Err(syn::Error::new(
+                    application.owner.span,
+                    "lens may be declared at most once",
+                ));
+            }
+            lens = Some(application);
         } else if content.peek(kw::recognize) {
             content.parse::<kw::recognize>()?;
             let keyword = content.parse::<kw::require>()?;
@@ -403,7 +473,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
             deserialize = true;
         } else {
             return Err(content.error(
-                "expected project / recognize require / require / derive / witness / form / dominates / dominated by / selection / deserialize",
+                "expected project / lens / recognize require / require / derive / witness / form / dominates / dominated by / selection / deserialize",
             ));
         }
     }
@@ -413,6 +483,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
         internal,
         ast,
         bind_adapter,
+        lens,
         projection,
         constraints,
         witnesses,
@@ -420,6 +491,48 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
         dominance,
         selection,
         deserialize,
+    })
+}
+
+fn parse_lens_application(input: ParseStream<'_>) -> syn::Result<LensApplication> {
+    input.parse::<kw::lens>()?;
+    let owner = spanned_ident(input)?;
+    let source = if input.peek(kw::from) {
+        input.parse::<kw::from>()?;
+        Some(spanned_ident(input)?)
+    } else {
+        None
+    };
+    let content;
+    syn::braced!(content in input);
+    let mut edits = Vec::new();
+    while !content.is_empty() {
+        let kind = if content.peek(kw::focus) {
+            content.parse::<kw::focus>()?;
+            LensEditKind::Focus
+        } else if content.peek(kw::prepend) {
+            content.parse::<kw::prepend>()?;
+            LensEditKind::Prepend
+        } else if content.peek(kw::append) {
+            content.parse::<kw::append>()?;
+            LensEditKind::Append
+        } else {
+            return Err(content.error("expected a lens edit: focus / prepend / append"));
+        };
+        let target = parse_path(&content)?;
+        content.parse::<kw::with>()?;
+        let value = spanned_ident(&content)?;
+        content.parse::<syn::Token![;]>()?;
+        edits.push(LensEdit {
+            target,
+            value,
+            kind,
+        });
+    }
+    Ok(LensApplication {
+        owner,
+        source,
+        edits,
     })
 }
 

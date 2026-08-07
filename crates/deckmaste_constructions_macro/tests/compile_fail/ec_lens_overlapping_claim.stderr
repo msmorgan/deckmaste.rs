@@ -1,0 +1,11 @@
+error: EC018: lens owner field `members` is claimed by more than one edit (construction `bad`)
+  --> tests/compile_fail/ec_lens_overlapping_claim.rs:22:20
+   |
+22 |             append members with second;
+   |                    ^^^^^^^
+
+error: note (EC018): first claimed here
+  --> tests/compile_fail/ec_lens_overlapping_claim.rs:21:21
+   |
+21 |             prepend members with first;
+   |                     ^^^^^^^

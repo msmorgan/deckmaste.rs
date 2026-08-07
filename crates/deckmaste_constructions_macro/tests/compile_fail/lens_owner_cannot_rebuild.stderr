@@ -1,0 +1,5 @@
+error: EC033: lens owner field `required_tail` is required but neither focused nor defaultable (construction `bad`)
+  --> tests/compile_fail/lens_owner_cannot_rebuild.rs:15:9
+   |
+15 |         required_tail: value Token,
+   |         ^^^^^^^^^^^^^

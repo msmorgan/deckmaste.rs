@@ -1,0 +1,5 @@
+error: EC017: cannot prepend `member` of type `Comma` through `members` (vector element `Token`) (construction `bad`)
+  --> tests/compile_fail/ec_lens_element_type_mismatch.rs:24:34
+   |
+24 |             prepend members with member;
+   |                                  ^^^^^^

@@ -74,6 +74,10 @@ pub enum DiagCode {
     StoredWitnessPathUnknown,
     SurfaceKindMismatch,
     PredicateKindMismatch,
+    UnknownLens,
+    LensTypeMismatch,
+    LensOwnershipOverlap,
+    NonContiguousLensClaim,
     EmptyProduction,
     FieldNeverProduced,
     HoleConsumedTwice,
@@ -82,6 +86,7 @@ pub enum DiagCode {
     ContradictoryConstraints,
     UnknownCombinator,
     UnsupportedConstraintPath,
+    LensCannotRebuild,
     SelfDominance,
     DominanceCycle,
     FreeWitnessStratum,
@@ -107,6 +112,10 @@ impl DiagCode {
             Self::StoredWitnessPathUnknown => "EC013",
             Self::SurfaceKindMismatch => "EC014",
             Self::PredicateKindMismatch => "EC015",
+            Self::UnknownLens => "EC016",
+            Self::LensTypeMismatch => "EC017",
+            Self::LensOwnershipOverlap => "EC018",
+            Self::NonContiguousLensClaim => "EC019",
             Self::EmptyProduction => "EC020",
             Self::FieldNeverProduced => "EC021",
             Self::HoleConsumedTwice => "EC022",
@@ -115,6 +124,7 @@ impl DiagCode {
             Self::ContradictoryConstraints => "EC030",
             Self::UnknownCombinator => "EC031",
             Self::UnsupportedConstraintPath => "EC032",
+            Self::LensCannotRebuild => "EC033",
             Self::SelfDominance => "EC040",
             Self::DominanceCycle => "EC041",
             Self::FreeWitnessStratum => "EC050",
@@ -166,7 +176,12 @@ mod tests {
         assert_eq!(DiagCode::PresenceOnNonOptional.as_str(), "EC011");
         assert_eq!(DiagCode::SurfaceKindMismatch.as_str(), "EC014");
         assert_eq!(DiagCode::PredicateKindMismatch.as_str(), "EC015");
+        assert_eq!(DiagCode::UnknownLens.as_str(), "EC016");
+        assert_eq!(DiagCode::LensTypeMismatch.as_str(), "EC017");
+        assert_eq!(DiagCode::LensOwnershipOverlap.as_str(), "EC018");
+        assert_eq!(DiagCode::NonContiguousLensClaim.as_str(), "EC019");
         assert_eq!(DiagCode::UnsupportedConstraintPath.as_str(), "EC032");
+        assert_eq!(DiagCode::LensCannotRebuild.as_str(), "EC033");
         assert_eq!(DiagCode::FreeWitnessStratum.as_str(), "EC050");
         assert_eq!(DiagCode::DiscourseFeatureExcluded.as_str(), "EC051");
     }

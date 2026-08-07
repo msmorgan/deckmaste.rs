@@ -178,6 +178,23 @@ pub enum BoundPayload {
     Present,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LensToken {
+    Determiner,
+    Prefix,
+    Inserted,
+    Head,
+    Suffix,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FlattenedLensRecord {
+    pub determiner: Option<LensToken>,
+    pub prefix: Vec<LensToken>,
+    pub head: LensToken,
+    pub suffix: Vec<LensToken>,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum BoundVariant {
     Phrase(FixturePhrase),
@@ -276,6 +293,303 @@ deckmaste_constructions_macro::constructions! {
         form only @ 0 when check(is_omega_domain) = "omega";
         selection unique;
     }
+}
+
+deckmaste_constructions_macro::constructions! {
+    group flattened_lens;
+
+    lens flattened_record bind FlattenedLensRecord {
+        determiner: opt LensToken,
+        prefix: vec LensToken,
+        head: value LensToken,
+        suffix: vec LensToken,
+    }
+
+    construction lens_head: FlattenedLensRecord {
+        bind FlattenedLensRecord {
+            head: hole LensToken,
+        }
+        lens flattened_record {
+            focus head with head;
+        }
+        form only @ 0 = head;
+        selection unique;
+    }
+
+    construction lens_prepend: FlattenedLensRecord {
+        bind FlattenedLensRecord {
+            owner: hole FlattenedLensRecord,
+            member: hole LensToken,
+        }
+        lens flattened_record from owner {
+            prepend prefix with member;
+        }
+        form only @ 0 = member owner;
+        selection unique;
+    }
+
+    construction lens_optional_focus: FlattenedLensRecord {
+        bind FlattenedLensRecord {
+            owner: hole FlattenedLensRecord,
+            determiner: hole LensToken,
+        }
+        lens flattened_record from owner {
+            focus determiner with determiner;
+        }
+        form only @ 0 = determiner owner;
+        selection unique;
+    }
+
+    construction lens_append: FlattenedLensRecord {
+        bind FlattenedLensRecord {
+            owner: hole FlattenedLensRecord,
+            member: hole LensToken,
+        }
+        lens flattened_record from owner {
+            append suffix with member;
+        }
+        form only @ 0 = owner member;
+        selection unique;
+    }
+}
+
+#[derive(Default)]
+struct LensLinearizer {
+    tokens: Vec<LensToken>,
+}
+
+impl deckmaste_construction_compiler::runtime::LinearizationVisitor for LensLinearizer {
+    type Error = std::convert::Infallible;
+
+    fn literal(&mut self, _literal: &'static str) -> Result<(), Self::Error> {
+        unreachable!("the lens fixture has no literal atoms")
+    }
+
+    fn subtree<T: std::any::Any>(
+        &mut self,
+        category: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        match category {
+            "LensToken" => self.tokens.push(
+                *value
+                    .downcast_ref::<LensToken>()
+                    .expect("the focused member keeps its declared Rust type"),
+            ),
+            "FlattenedLensRecord" => {
+                let owner = value
+                    .downcast_ref::<FlattenedLensRecord>()
+                    .expect("the residual owner keeps its declared Rust type");
+                self.tokens.extend(owner.determiner);
+                self.tokens.extend(owner.prefix.iter().copied());
+                self.tokens.push(owner.head);
+                self.tokens.extend(owner.suffix.iter().copied());
+            }
+            other => panic!("unexpected lens category {other}"),
+        }
+        Ok(())
+    }
+
+    fn scalar<T: std::any::Any>(
+        &mut self,
+        _codec: &'static str,
+        _value: &T,
+    ) -> Result<(), Self::Error> {
+        unreachable!("the lens fixture has no scalar atoms")
+    }
+}
+
+fn flattened_owner() -> FlattenedLensRecord {
+    FlattenedLensRecord {
+        determiner: None,
+        prefix: vec![LensToken::Prefix],
+        head: LensToken::Head,
+        suffix: vec![LensToken::Suffix],
+    }
+}
+
+#[test]
+fn lens_focus_rebuilds_the_flattened_owner_and_exposes_distinct_metadata() {
+    use deckmaste_construction_compiler::runtime::LensEditKindData;
+    use deckmaste_construction_compiler::runtime::LensFieldKindData;
+
+    // Mutations guarded: treat the lens as a whole subtree, or default the
+    // focused head instead of rebuilding it from the typed field.
+    let value = build_lens_head(LensToken::Head).expect("a focused head rebuilds its owner");
+    assert_eq!(
+        value,
+        FlattenedLensRecord {
+            determiner: None,
+            prefix: Vec::new(),
+            head: LensToken::Head,
+            suffix: Vec::new(),
+        }
+    );
+    assert_eq!(parts_lens_head(&value), Some(LensToken::Head));
+    assert_eq!(
+        parts_lens_head(&flattened_owner()),
+        None,
+        "the focused base construction must not discard non-default surrounding slices",
+    );
+
+    let lens = &FLATTENED_LENS_DECLARATION.lenses[0];
+    assert_eq!(lens.name, "flattened_record");
+    assert_eq!(lens.owner_type, "FlattenedLensRecord");
+    assert_eq!(
+        lens.fields
+            .iter()
+            .map(|field| (field.name, field.kind))
+            .collect::<Vec<_>>(),
+        vec![
+            (
+                "determiner",
+                LensFieldKindData::Optional {
+                    value_type: "LensToken",
+                },
+            ),
+            (
+                "prefix",
+                LensFieldKindData::Vector {
+                    element_type: "LensToken",
+                },
+            ),
+            (
+                "head",
+                LensFieldKindData::Value {
+                    value_type: "LensToken",
+                },
+            ),
+            (
+                "suffix",
+                LensFieldKindData::Vector {
+                    element_type: "LensToken",
+                },
+            ),
+        ]
+    );
+    let application = FLATTENED_LENS_DECLARATION.constructions[0]
+        .lens
+        .expect("lens metadata stays distinct from semantic fields");
+    assert_eq!(application.owner, "flattened_record");
+    assert_eq!(application.source, None);
+    assert_eq!(application.edits[0].kind, LensEditKindData::Focus);
+    assert_eq!(application.edits[0].target, "head");
+    assert_eq!(application.edits[0].value, "head");
+}
+
+#[test]
+fn lens_prepend_and_append_preserve_residual_slices_and_declared_order() {
+    // Mutations guarded: drop the untouched slice, or reverse prepend/append
+    // order while rebuilding or destructuring the flattened owner.
+    let prepended = build_lens_prepend(flattened_owner(), LensToken::Inserted)
+        .expect("prepend rebuilds the owner");
+    assert_eq!(
+        prepended,
+        FlattenedLensRecord {
+            determiner: None,
+            prefix: vec![LensToken::Inserted, LensToken::Prefix],
+            head: LensToken::Head,
+            suffix: vec![LensToken::Suffix],
+        }
+    );
+    let (residual, member) =
+        parts_lens_prepend(&prepended).expect("a nonempty prepended slice destructures");
+    assert_eq!(residual, flattened_owner());
+    assert_eq!(member, LensToken::Inserted);
+    let mut visitor = LensLinearizer::default();
+    linearize_lens_prepend_with(&prepended, &mut visitor).expect("lens value linearizes");
+    assert_eq!(
+        visitor.tokens,
+        vec![
+            LensToken::Inserted,
+            LensToken::Prefix,
+            LensToken::Head,
+            LensToken::Suffix,
+        ]
+    );
+
+    let appended = build_lens_append(flattened_owner(), LensToken::Inserted)
+        .expect("append rebuilds the owner");
+    assert_eq!(
+        appended,
+        FlattenedLensRecord {
+            determiner: None,
+            prefix: vec![LensToken::Prefix],
+            head: LensToken::Head,
+            suffix: vec![LensToken::Suffix, LensToken::Inserted],
+        }
+    );
+    let (residual, member) =
+        parts_lens_append(&appended).expect("a nonempty appended slice destructures");
+    assert_eq!(residual, flattened_owner());
+    assert_eq!(member, LensToken::Inserted);
+    let mut visitor = LensLinearizer::default();
+    linearize_lens_append_with(&appended, &mut visitor).expect("lens value linearizes");
+    assert_eq!(
+        visitor.tokens,
+        vec![
+            LensToken::Prefix,
+            LensToken::Head,
+            LensToken::Suffix,
+            LensToken::Inserted,
+        ]
+    );
+}
+
+#[test]
+fn lens_optional_focus_preserves_the_residual_owner_and_rejects_replacement() {
+    // Mutations guarded: overwrite an occupied focus, or fail to return the
+    // residual owner with the focused slot empty during inverse projection.
+    let focused = build_lens_optional_focus(flattened_owner(), LensToken::Determiner)
+        .expect("an empty optional owner field can be focused");
+    assert_eq!(focused.determiner, Some(LensToken::Determiner));
+    let (residual, determiner) =
+        parts_lens_optional_focus(&focused).expect("a present optional focus destructures");
+    assert_eq!(residual, flattened_owner());
+    assert_eq!(determiner, LensToken::Determiner);
+
+    let violation = build_lens_optional_focus(focused, LensToken::Inserted)
+        .expect_err("a lens cannot silently replace an occupied optional focus");
+    assert_eq!(violation.construction, "lens_optional_focus");
+    assert_eq!(violation.requirement, "determiner.is_none()");
+
+    let mut visitor = LensLinearizer::default();
+    let value = build_lens_optional_focus(flattened_owner(), LensToken::Determiner)
+        .expect("the focused value still linearizes");
+    linearize_lens_optional_focus_with(&value, &mut visitor)
+        .expect("optional focus linearizes in declared order");
+    assert_eq!(
+        visitor.tokens,
+        [
+            LensToken::Determiner,
+            LensToken::Prefix,
+            LensToken::Head,
+            LensToken::Suffix,
+        ],
+    );
+}
+
+#[test]
+fn erased_lens_builder_round_trips_the_same_flattened_value() {
+    // Mutation guarded: bypass the emitted rebuild adapter on the erased
+    // lowering path. The concrete record and its untouched slices must match
+    // the typed builder at the value level.
+    let declaration = &FLATTENED_LENS_DECLARATION.constructions[1];
+    let erased = declaration
+        .erased_builder
+        .expect("a lens construction exposes its generated erased builder")(vec![
+        Box::new(flattened_owner()) as deckmaste_construction_compiler::runtime::ErasedValue,
+        Box::new(LensToken::Inserted) as deckmaste_construction_compiler::runtime::ErasedValue,
+    ])
+    .expect("the erased builder restores declared field types")
+    .downcast::<FlattenedLensRecord>()
+    .expect("the erased builder returns the lens owner type");
+    assert_eq!(
+        *erased,
+        build_lens_prepend(flattened_owner(), LensToken::Inserted)
+            .expect("the typed builder accepts the same values")
+    );
 }
 
 #[test]

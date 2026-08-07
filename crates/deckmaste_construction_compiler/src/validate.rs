@@ -13,6 +13,12 @@ use crate::model::FieldKind;
 use crate::model::FieldPath;
 use crate::model::GroupDeclaration;
 use crate::model::KNOWN_COMBINATORS;
+use crate::model::LensApplication;
+use crate::model::LensDeclaration;
+use crate::model::LensEdit;
+use crate::model::LensEditKind;
+use crate::model::LensFieldDeclaration;
+use crate::model::LensFieldKind;
 use crate::model::Predicate;
 use crate::model::SurfaceAtom;
 use crate::model::WitnessClass;
@@ -57,6 +63,7 @@ fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     check_dominance_cycles(group, diags);
     check_paths(group, diags);
     check_kinds(group, diags);
+    check_lenses(group, diags);
     check_forms(group, diags);
     check_fallback_contract(group, diags);
     check_surface_domain(group, diags);
@@ -167,6 +174,44 @@ fn check_identity(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
             }
         }
         check_element_identity(element, diags);
+    }
+
+    let mut seen_lenses: std::collections::HashMap<&str, proc_macro2::Span> =
+        std::collections::HashMap::new();
+    for lens in &group.lenses {
+        match seen_lenses.entry(lens.name.value.as_str()) {
+            std::collections::hash_map::Entry::Vacant(slot) => {
+                slot.insert(lens.name.span);
+            }
+            std::collections::hash_map::Entry::Occupied(first) => diags.push(
+                Diagnostic::group(
+                    DiagCode::DuplicateName,
+                    format!("lens `{}` is declared more than once", lens.name.value),
+                )
+                .with_span(lens.name.span)
+                .with_note("first declared here", *first.get()),
+            ),
+        }
+        let mut fields: std::collections::HashMap<&str, proc_macro2::Span> =
+            std::collections::HashMap::new();
+        for field in &lens.fields {
+            match fields.entry(field.name.value.as_str()) {
+                std::collections::hash_map::Entry::Vacant(slot) => {
+                    slot.insert(field.name.span);
+                }
+                std::collections::hash_map::Entry::Occupied(first) => diags.push(
+                    Diagnostic::group(
+                        DiagCode::DuplicateName,
+                        format!(
+                            "lens `{}.{}` declares the same owner field more than once",
+                            lens.name.value, field.name.value
+                        ),
+                    )
+                    .with_span(field.name.span)
+                    .with_note("first declared here", *first.get()),
+                ),
+            }
+        }
     }
 
     let mut seen_ids: std::collections::HashMap<&str, proc_macro2::Span> =
@@ -1119,6 +1164,442 @@ fn check_kinds(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     }
 }
 
+#[derive(Default)]
+struct LensClaims {
+    used_inputs: std::collections::HashMap<String, proc_macro2::Span>,
+    claimed_targets: std::collections::HashMap<String, proc_macro2::Span>,
+    claimed_indices: Vec<usize>,
+    structurally_invalid: bool,
+}
+
+struct LensContext<'a> {
+    group: &'a GroupDeclaration,
+    construction: &'a ConstructionDeclaration,
+    lens: &'a LensDeclaration,
+    application: &'a LensApplication,
+    fields: &'a [FieldBinding],
+}
+
+impl LensContext<'_> {
+    fn id(&self) -> &str {
+        self.construction.id.value.as_str()
+    }
+}
+
+fn check_lenses(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
+    for construction in &group.constructions {
+        if let Some(application) = &construction.lens {
+            check_lens(group, construction, application, diags);
+        }
+    }
+}
+
+fn check_lens(
+    group: &GroupDeclaration,
+    construction: &ConstructionDeclaration,
+    application: &LensApplication,
+    diags: &mut Vec<Diagnostic>,
+) {
+    let id = construction.id.value.as_str();
+    let Some(lens) = group
+        .lenses
+        .iter()
+        .find(|lens| lens.name.value == application.owner.value)
+    else {
+        diags.push(
+            Diagnostic::new(
+                DiagCode::UnknownLens,
+                id,
+                format!(
+                    "lens application names undeclared owner schema `{}`",
+                    application.owner.value
+                ),
+            )
+            .with_span(application.owner.span),
+        );
+        return;
+    };
+    let crate::model::AstShape::Bind { path, fields } = &construction.ast else {
+        diags.push(
+            Diagnostic::new(
+                DiagCode::LensCannotRebuild,
+                id,
+                "a lens rebuilds its bound owner and cannot be combined with `own` mode",
+            )
+            .with_span(application.owner.span),
+        );
+        return;
+    };
+    if path.value != lens.owner_type.value {
+        diags.push(
+            Diagnostic::new(
+                DiagCode::LensTypeMismatch,
+                id,
+                format!(
+                    "lens `{}` rebuilds `{}`, but this construction binds `{}`",
+                    lens.name.value, lens.owner_type.value, path.value
+                ),
+            )
+            .with_span(path.span),
+        );
+    }
+    if construction.bind_adapter.is_some() {
+        diags.push(
+            Diagnostic::new(
+                DiagCode::LensCannotRebuild,
+                id,
+                "a lens is already the bind adapter; `bind ... via ...` would give the owner two rebuild authorities",
+            )
+            .with_span(application.owner.span),
+        );
+    }
+    if application.edits.is_empty() {
+        diags.push(
+            Diagnostic::new(
+                DiagCode::LensCannotRebuild,
+                id,
+                format!(
+                    "lens `{}` declares no focused field or slice",
+                    lens.name.value
+                ),
+            )
+            .with_span(application.owner.span),
+        );
+    }
+
+    let context = LensContext {
+        group,
+        construction,
+        lens,
+        application,
+        fields,
+    };
+    let mut claims = LensClaims::default();
+    if !check_lens_source(&context, &mut claims, diags) {
+        return;
+    }
+    for edit in &application.edits {
+        check_lens_edit(&context, edit, &mut claims, diags);
+    }
+    if !claims.structurally_invalid {
+        finish_lens_claims(&context, &mut claims, diags);
+    }
+}
+
+fn check_lens_source(
+    context: &LensContext<'_>,
+    claims: &mut LensClaims,
+    diags: &mut Vec<Diagnostic>,
+) -> bool {
+    let Some(source) = &context.application.source else {
+        return true;
+    };
+    let Some(binding) = context
+        .fields
+        .iter()
+        .find(|field| field.field.value == source.value)
+    else {
+        diags.push(
+            Diagnostic::new(
+                DiagCode::UnknownFieldPath,
+                context.id(),
+                format!("lens source `{}` is not a semantic field", source.value),
+            )
+            .with_span(source.span),
+        );
+        return false;
+    };
+    claims.used_inputs.insert(source.value.clone(), source.span);
+    let actual = field_rust_type(context.group, &binding.kind);
+    if actual.as_deref() != Some(context.lens.owner_type.value.as_str()) {
+        diags.push(
+            Diagnostic::new(
+                DiagCode::LensTypeMismatch,
+                context.id(),
+                format!(
+                    "lens source `{}` has type `{}`, but owner `{}` requires `{}`",
+                    source.value,
+                    actual.as_deref().unwrap_or("<unknown>"),
+                    context.lens.name.value,
+                    context.lens.owner_type.value
+                ),
+            )
+            .with_span(source.span),
+        );
+    }
+    true
+}
+
+fn check_lens_edit(
+    context: &LensContext<'_>,
+    edit: &LensEdit,
+    claims: &mut LensClaims,
+    diags: &mut Vec<Diagnostic>,
+) {
+    let dotted = edit.target.dotted();
+    let Some(target_name) = edit
+        .target
+        .segments
+        .first()
+        .filter(|_| edit.target.segments.len() == 1)
+    else {
+        diags.push(
+            Diagnostic::new(
+                DiagCode::UnknownLens,
+                context.id(),
+                format!(
+                    "lens `{}` target `{dotted}` is not a direct owner field",
+                    context.lens.name.value
+                ),
+            )
+            .with_span(edit.target.span),
+        );
+        claims.structurally_invalid = true;
+        return;
+    };
+    let Some((target_index, target)) = context
+        .lens
+        .fields
+        .iter()
+        .enumerate()
+        .find(|(_, field)| field.name.value == target_name.value)
+    else {
+        diags.push(
+            Diagnostic::new(
+                DiagCode::UnknownLens,
+                context.id(),
+                format!(
+                    "lens `{}` has no owner field `{}`",
+                    context.lens.name.value, target_name.value
+                ),
+            )
+            .with_span(target_name.span),
+        );
+        claims.structurally_invalid = true;
+        return;
+    };
+    if let Some(first) = claims
+        .claimed_targets
+        .insert(target.name.value.clone(), target_name.span)
+    {
+        diags.push(
+            Diagnostic::new(
+                DiagCode::LensOwnershipOverlap,
+                context.id(),
+                format!(
+                    "lens owner field `{}` is claimed by more than one edit",
+                    target.name.value
+                ),
+            )
+            .with_span(target_name.span)
+            .with_note("first claimed here", first),
+        );
+    } else {
+        claims.claimed_indices.push(target_index);
+    }
+
+    let Some(value) = context
+        .fields
+        .iter()
+        .find(|field| field.field.value == edit.value.value)
+    else {
+        diags.push(
+            Diagnostic::new(
+                DiagCode::UnknownFieldPath,
+                context.id(),
+                format!("lens value `{}` is not a semantic field", edit.value.value),
+            )
+            .with_span(edit.value.span),
+        );
+        claims.structurally_invalid = true;
+        return;
+    };
+    if let Some(first) = claims
+        .used_inputs
+        .insert(edit.value.value.clone(), edit.value.span)
+    {
+        diags.push(
+            Diagnostic::new(
+                DiagCode::LensOwnershipOverlap,
+                context.id(),
+                format!(
+                    "semantic field `{}` is consumed by more than one lens role",
+                    edit.value.value
+                ),
+            )
+            .with_span(edit.value.span)
+            .with_note("first consumed here", first),
+        );
+    }
+    check_lens_edit_contract(context, edit, target, value, diags);
+}
+
+fn check_lens_edit_contract(
+    context: &LensContext<'_>,
+    edit: &LensEdit,
+    target: &LensFieldDeclaration,
+    value: &FieldBinding,
+    diags: &mut Vec<Diagnostic>,
+) {
+    let actual = field_rust_type(context.group, &value.kind);
+    let expected = target.kind.value_type().value.as_str();
+    let valid_shape = matches!(
+        (&edit.kind, &target.kind),
+        (
+            LensEditKind::Focus,
+            LensFieldKind::Value { .. } | LensFieldKind::Optional { .. },
+        ) | (
+            LensEditKind::Prepend | LensEditKind::Append,
+            LensFieldKind::Vector { .. },
+        )
+    );
+    if !valid_shape || actual.as_deref() != Some(expected) {
+        let operation = match edit.kind {
+            LensEditKind::Focus => "focus",
+            LensEditKind::Prepend => "prepend",
+            LensEditKind::Append => "append",
+        };
+        let target_shape = match target.kind {
+            LensFieldKind::Value { .. } => "value field",
+            LensFieldKind::Optional { .. } => "optional field",
+            LensFieldKind::Vector { .. } => "vector element",
+        };
+        diags.push(
+            Diagnostic::new(
+                DiagCode::LensTypeMismatch,
+                context.id(),
+                format!(
+                    "cannot {operation} `{}` of type `{}` through `{}` ({target_shape} `{expected}`)",
+                    edit.value.value,
+                    actual.as_deref().unwrap_or("<unknown>"),
+                    target.name.value,
+                ),
+            )
+            .with_span(edit.value.span),
+        );
+    }
+    if context.application.source.is_none() && edit.kind != LensEditKind::Focus {
+        let operation = match edit.kind {
+            LensEditKind::Prepend => "prepend",
+            LensEditKind::Append => "append",
+            LensEditKind::Focus => unreachable!(),
+        };
+        diags.push(
+            Diagnostic::new(
+                DiagCode::LensCannotRebuild,
+                context.id(),
+                format!(
+                    "{operation} requires a source owner whose residual slice can be preserved"
+                ),
+            )
+            .with_span(edit.target.span),
+        );
+    }
+    if context.application.source.is_some()
+        && edit.kind == LensEditKind::Focus
+        && matches!(target.kind, LensFieldKind::Value { .. })
+    {
+        diags.push(
+            Diagnostic::new(
+                DiagCode::LensCannotRebuild,
+                context.id(),
+                format!(
+                    "focused value field `{}` has no empty residual value for rebuilding the source owner",
+                    target.name.value
+                ),
+            )
+            .with_span(target.name.span),
+        );
+    }
+}
+
+fn finish_lens_claims(
+    context: &LensContext<'_>,
+    claims: &mut LensClaims,
+    diags: &mut Vec<Diagnostic>,
+) {
+    claims.claimed_indices.sort_unstable();
+    if let (Some(first), Some(last)) = (
+        claims.claimed_indices.first(),
+        claims.claimed_indices.last(),
+    ) && last - first + 1 != claims.claimed_indices.len()
+    {
+        diags.push(
+            Diagnostic::new(
+                DiagCode::NonContiguousLensClaim,
+                context.id(),
+                format!(
+                    "lens `{}` claims non-contiguous owner fields; every edit must form one ordered run",
+                    context.lens.name.value
+                ),
+            )
+            .with_span(context.application.owner.span),
+        );
+    }
+    if context.application.source.is_none() {
+        for field in &context.lens.fields {
+            if !field.kind.is_defaultable()
+                && !claims.claimed_targets.contains_key(&field.name.value)
+            {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::LensCannotRebuild,
+                        context.id(),
+                        format!(
+                            "lens owner field `{}` is required but neither focused nor defaultable",
+                            field.name.value
+                        ),
+                    )
+                    .with_span(field.name.span),
+                );
+            }
+        }
+    }
+    for field in context.fields {
+        if !claims.used_inputs.contains_key(&field.field.value) {
+            diags.push(
+                Diagnostic::new(
+                    DiagCode::LensCannotRebuild,
+                    context.id(),
+                    format!(
+                        "semantic field `{}` has no owner or edit role in lens `{}`",
+                        field.field.value, context.lens.name.value
+                    ),
+                )
+                .with_span(field.field.span),
+            );
+        }
+    }
+}
+
+fn field_rust_type(group: &GroupDeclaration, kind: &FieldKind) -> Option<String> {
+    match kind {
+        FieldKind::Identity { value_type, .. } | FieldKind::TypedScalar { value_type, .. } => {
+            Some(value_type.value.clone())
+        }
+        FieldKind::Subtree { category, boxed } => {
+            Some(if *boxed { format!("Box<{}>", category.value) } else { category.value.clone() })
+        }
+        FieldKind::Scalar { codec } | FieldKind::SurfaceScalar { codec } => {
+            Some(codec.value.clone())
+        }
+        FieldKind::Sequence { element } => {
+            let declaration = group
+                .elements
+                .iter()
+                .find(|candidate| candidate.name.value == element.value)?;
+            let element_type = declaration.bind_path.as_ref().map_or_else(
+                || crate::model::pascal_case(&declaration.name.value),
+                |path| path.value.clone(),
+            );
+            Some(format!("Vec<{element_type}>"))
+        }
+        FieldKind::Optional { inner } => {
+            field_rust_type(group, inner).map(|inner| format!("Option<{inner}>"))
+        }
+    }
+}
+
 fn check_surface_kinds(
     group: &GroupDeclaration,
     construction: &ConstructionDeclaration,
@@ -1965,6 +2446,7 @@ pub(crate) mod fixtures {
         GroupDeclaration {
             name: Spanned::call_site("noun_coordination".to_owned()),
             elements: vec![],
+            lenses: vec![],
             constructions: vec![ConstructionDeclaration {
                 id: Spanned::call_site("noun_phrase_coordination".to_owned()),
                 category: Spanned::call_site("NounPhrase".to_owned()),
@@ -1979,6 +2461,7 @@ pub(crate) mod fixtures {
                     }],
                 },
                 bind_adapter: None,
+                lens: None,
                 projection: None,
                 constraints: vec![],
                 witnesses: vec![],

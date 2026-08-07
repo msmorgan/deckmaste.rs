@@ -265,7 +265,51 @@ pub struct GroupData {
     pub name: &'static str,
     pub elements: &'static [&'static str],
     pub element_data: &'static [ElementData],
+    /// Typed record rebuild schemas. Lenses are deliberately separate from
+    /// semantic elements: they do not mint chart categories or surface atoms.
+    pub lenses: &'static [LensData],
     pub constructions: &'static [ConstructionData],
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LensData {
+    pub name: &'static str,
+    pub owner_type: &'static str,
+    pub fields: &'static [LensFieldData],
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LensFieldData {
+    pub name: &'static str,
+    pub kind: LensFieldKindData,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LensFieldKindData {
+    Value { value_type: &'static str },
+    Optional { value_type: &'static str },
+    Vector { element_type: &'static str },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LensApplicationData {
+    pub owner: &'static str,
+    pub source: Option<&'static str>,
+    pub edits: &'static [LensEditData],
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LensEditData {
+    pub target: &'static str,
+    pub value: &'static str,
+    pub kind: LensEditKindData,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LensEditKindData {
+    Focus,
+    Prepend,
+    Append,
 }
 
 #[allow(
@@ -305,6 +349,7 @@ pub struct ConstructionData {
     /// (Milestone 3 Task 2).
     pub own_type: Option<&'static str>,
     pub bind_path: Option<&'static str>,
+    pub lens: Option<LensApplicationData>,
     pub projection_variant: Option<&'static str>,
     pub fields: &'static [FieldData],
     pub witnesses: &'static [WitnessData],

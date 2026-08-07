@@ -103,6 +103,7 @@ pub fn fixture_coordination_group() -> GroupDeclaration {
     GroupDeclaration {
         name: Spanned::call_site("fixture_coordination".to_owned()),
         elements: fixture_elements(),
+        lenses: vec![],
         constructions: vec![
             ConstructionDeclaration {
                 id: Spanned::call_site("fixture_pair".to_owned()),
@@ -126,6 +127,7 @@ pub fn fixture_coordination_group() -> GroupDeclaration {
                     ],
                 },
                 bind_adapter: None,
+                lens: None,
                 projection: Some(Spanned::call_site("Pair".to_owned())),
                 constraints: vec![
                     Constraint::Require(Spanned::call_site(Predicate::LenAtLeast {
@@ -217,6 +219,7 @@ pub fn fixture_coordination_group() -> GroupDeclaration {
                     ],
                 },
                 bind_adapter: None,
+                lens: None,
                 projection: None,
                 constraints: vec![Constraint::Require(Spanned::call_site(Predicate::IsNone {
                     path: FieldPath::call_site("alt"),

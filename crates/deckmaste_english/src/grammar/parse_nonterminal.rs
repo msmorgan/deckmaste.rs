@@ -1801,6 +1801,55 @@ mod generated_adapter_tests {
     }
 
     #[test]
+    fn generated_recursive_lens_round_trips_without_a_handwritten_reducer() {
+        let parse = |source| {
+            parse_nonterminal_with_activation(
+                source,
+                &Catalogs::default(),
+                probe_category("ProbeLensRecord"),
+                GeneratedActivation::Groups(probe::GROUPS),
+            )
+            .expect("the recursive lens probe parses and lowers")
+        };
+
+        let parsed = parse("and or then");
+        let Lowered::Generated(value) = &parsed.syntax else {
+            panic!(
+                "lens probe did not use generated lowering: {:?}",
+                parsed.syntax
+            );
+        };
+        let value = value
+            .downcast_ref::<crate::constructions::probe::ProbeLensRecord>()
+            .expect("the emitted erased builder returns the flattened lens owner");
+        assert_eq!(
+            value
+                .prefix
+                .iter()
+                .map(|token| token.word)
+                .collect::<Vec<_>>(),
+            [
+                crate::features::Conjunction::And,
+                crate::features::Conjunction::Or
+            ],
+        );
+        assert_eq!(value.head.word, crate::features::Conjunction::Then);
+        assert!(value.suffix.is_empty());
+
+        let rendered = crate::constructions::probe::linearize_lens_record(value)
+            .expect("the generated lens linearizer preserves the recursive surface order");
+        assert_eq!(rendered, "and or then");
+        let reparsed = parse(&rendered);
+        let Lowered::Generated(reparsed) = &reparsed.syntax else {
+            panic!("linearized lens surface did not lower through the generated adapter");
+        };
+        assert_eq!(
+            reparsed.downcast_ref::<crate::constructions::probe::ProbeLensRecord>(),
+            Some(value),
+        );
+    }
+
+    #[test]
     fn generated_parse_fails_without_matching_input() {
         // Contrast case: the comma-bearing input parses under these same
         // active groups, so a failure below cannot be attributed to no

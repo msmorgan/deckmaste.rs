@@ -35,6 +35,9 @@ pub struct GroupDeclaration {
     pub name: Spanned<String>,
     pub constructions: Vec<ConstructionDeclaration>,
     pub elements: Vec<ElementDeclaration>,
+    /// Reusable Rust record layouts addressed by construction-level lens
+    /// applications. These are rebuild schemas, not semantic chart elements.
+    pub lenses: Vec<LensDeclaration>,
 }
 
 impl GroupDeclaration {
@@ -83,6 +86,9 @@ pub struct ConstructionDeclaration {
     /// Optional semantic adapter for a bind whose declared construction
     /// fields do not mirror the target's stored Rust fields one-for-one.
     pub bind_adapter: Option<BindAdapter>,
+    /// A reversible projection/rebuild over the bound owner. Kept outside
+    /// `AstShape::fields` because lens ownership is not another semantic hole.
+    pub lens: Option<LensApplication>,
     pub projection: Option<Spanned<String>>,
     pub constraints: Vec<Constraint>,
     pub witnesses: Vec<WitnessDeclaration>,
@@ -90,6 +96,65 @@ pub struct ConstructionDeclaration {
     pub dominance: Vec<DominanceEdge>,
     pub selection: SelectionPromise,
     pub deserialize: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LensDeclaration {
+    pub name: Spanned<String>,
+    pub owner_type: Spanned<String>,
+    pub fields: Vec<LensFieldDeclaration>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LensFieldDeclaration {
+    pub name: Spanned<String>,
+    pub kind: LensFieldKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LensFieldKind {
+    Value { value_type: Spanned<String> },
+    Optional { value_type: Spanned<String> },
+    Vector { element_type: Spanned<String> },
+}
+
+impl LensFieldKind {
+    #[must_use]
+    pub fn value_type(&self) -> &Spanned<String> {
+        match self {
+            Self::Value { value_type } | Self::Optional { value_type } => value_type,
+            Self::Vector { element_type } => element_type,
+        }
+    }
+
+    #[must_use]
+    pub const fn is_defaultable(&self) -> bool {
+        matches!(self, Self::Optional { .. } | Self::Vector { .. })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LensApplication {
+    pub owner: Spanned<String>,
+    /// Semantic field carrying the residual owner for an extension. `None`
+    /// means the construction rebuilds from focused fields plus empty
+    /// optional/vector fields.
+    pub source: Option<Spanned<String>>,
+    pub edits: Vec<LensEdit>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LensEdit {
+    pub target: FieldPath,
+    pub value: Spanned<String>,
+    pub kind: LensEditKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LensEditKind {
+    Focus,
+    Prepend,
+    Append,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

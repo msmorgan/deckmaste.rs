@@ -1,0 +1,5 @@
+error: EC016: lens `owner` has no owner field `missing` (construction `bad`)
+  --> tests/compile_fail/ec_lens_unknown_path.rs:19:19
+   |
+19 |             focus missing with head;
+   |                   ^^^^^^^
