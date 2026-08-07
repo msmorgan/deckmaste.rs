@@ -8,8 +8,9 @@ divergence trajectory of [semantics-spelling-lowering
 constructions, core toward explicit slot reference. While a draft, it moves
 freely with the design discussion.
 The evidence artifacts are the Idris workbench
-(`idris/src/Experimental.idr` — typechecking positives, pinned `failing`
-negatives) and its translation guide (`idris/src/Bridge.idr` — new⇄old pairs
+(`idris/src/Experimental.idr`, machinery, with its evidence bench
+`idris/src/Experimental/Cards.idr` — typechecking positives, pinned
+`failing` negatives) and its translation guide (`idris/src/Bridge.idr` — new⇄old pairs
 and the T-rule inventory; parked out of the build while chapters accumulate,
 resuming with the lowering work); this document is the contract those
 artifacts probe. The workbench is deliberately divorced from the current verifier and
