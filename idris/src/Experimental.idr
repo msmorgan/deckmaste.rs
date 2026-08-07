@@ -226,9 +226,11 @@
 ||| (corpus-attested only inside trigger and unless clauses — Havoc,
 ||| Tergrid's Lantern — so `They`'s positive waits on those
 ||| constructions), player groups ("each opponent … they"
-||| distributives), and "the rest"; event-result quantities ("that
-||| much" / "that many" — finding 24's antecedent classes await
-||| event-layer referents); "any number of" / "X" target groups
+||| distributives), and "the rest"; event-outcome referents ("that
+||| much" / "that many" / "this way" — RULED a third context data
+||| class, sort-projected with runtime values, per the decision
+||| record §3; finding 24 holds the evidence, machinery is a coming
+||| chapter); "any number of" / "X" target groups
 ||| (corpus-frequent; constructors wait on verified whole cards); an
 ||| up-to-N group as an "other" witness ([CR#115.6] — it may denote
 ||| zero; no corpus line pairs them yet);

@@ -58,8 +58,14 @@ announce channel disappears. Proven consequences:
 A binding may record two kinds of data: projections of the mention phrase
 (determiner, kind, plurality — everything recoverable from the text) and
 fold-state accumulated by threading the effects (the referent's current
-zone/carrier). Never rules classifications: timing (announce vs. resolution),
-staleness, and agreement are always functions of the stored surface facts.
+zone/carrier). A third class is decided but not yet built: event-outcome
+referents — an event-producing clause introduces a referent for what it
+did, whose sort projects from the clause's surface while its value stays
+runtime; "that much" / "that many" read its quantity and "this way" reads
+its participant set (the workbench's finding 24 holds the evidence). The
+value itself is never stored. Never rules classifications: timing
+(announce vs. resolution), staleness, and agreement are always functions
+of the stored surface facts.
 The same derive-don't-store rule applies across layers — inflection derives
 from the subject, a move's from-zone derives from the referent's fold-state,
 delayed-clause staleness derives from the determiner the author wrote.
