@@ -32,22 +32,34 @@ rabidBite = DealDamage (Target creatureYouControl)
                        (Target creatureYouDontControl)
 
 -- "Target creature you control fights target creature you don't
--- control." — two same-sort slots are just two argument positions.
+-- control." (Prey Upon; its reminder text "(Each deals damage equal to
+-- its power to the other.)" omitted — a parenthetical gloss, not rules
+-- text, and the same expansion finding 20 refuses to treat as the
+-- operative spelling) — two same-sort slots are just two argument
+-- positions.
 preyUpon : Effect []
 preyUpon = Fights (Target creatureYouControl) (Target creatureYouDontControl)
 
 -- "Arc Trail deals 2 damage to any target and 1 damage to any other
 -- target." — "other" reaches back across the clause boundary; no index,
--- no Distinct.
+-- no Distinct. The oracle writes ONE verb over coordinated
+-- amount+recipient complements; the bench transcribes them
+-- sequentially under `AndThen` as a named stand-in, which mis-orders
+-- nothing binding-wise but serializes what the card states as a single
+-- instruction (ledger).
 arcTrail : Effect []
 arcTrail = AndThen (DealDamage This (Lit 2) (Target AnyTarget))
                    (DealDamage This (Lit 1) (Target anyOtherTarget))
 
 -- "Exile target creature you control, then return that card to the
--- battlefield." (Cloudshift; "under your control" elided with zone
--- ownership) — the exile RETAGS the referent's zone, so the carrier the
--- demonstrative must use flips from creature to card mid-sentence
--- ([CR#110.1]), and the return trip is just another Move.
+-- battlefield under your control." (Cloudshift) — the exile RETAGS the
+-- referent's zone, so the carrier the demonstrative must use flips from
+-- creature to card mid-sentence ([CR#110.1]), and the return trip is
+-- just another Move. "Under your control" is the DEFAULT made explicit
+-- — [CR#110.2a] puts an object under the control of the player the
+-- effect instructed to put it there, and You are that player — so the
+-- elision is derivable, unlike the owner-control override its siblings
+-- write.
 cloudshift : Effect []
 cloudshift = AndThen (exile (Target creatureYouControl))
                      (Move (That CardW) BattlefieldZ)
@@ -131,16 +143,21 @@ suspendedSentence = AndThen (destroy (Target (And [creature, ControlledBy anOppo
 
 -- "Exile this creature, then return it to the battlefield under its
 -- owner's control." (Flickering Spirit's activated ability; its
--- mana-only cost and "under its owner's control" elided) — the sorted
--- self-reference moved by the EFFECT: the exile mints the new object's
--- binding mid-sentence ([CR#400.7]) and "it" reads it.
+-- mana-only cost elided) — the sorted self-reference moved by the
+-- EFFECT: the exile mints the new object's binding mid-sentence
+-- ([CR#400.7]) and "it" reads it. "Under its owner's control" is an
+-- OVERRIDE of [CR#110.2a]'s default (the ability's controller is the
+-- instructed player), so its elision is meaning-carrying — pending the
+-- control-assignment axis.
 flickeringSpirit : Effect []
 flickeringSpirit = AndThen (exile (ThisOf Creature)) (Move It BattlefieldZ)
 
 -- "Exile target creature. Return that card to the battlefield under
 -- its owner's control at the beginning of the next end step." (Turn to
--- Mist; "under its owner's control" elided) — the delayed clause reads
--- the TARGET-determined referent as a settled particular under its
+-- Mist; "under its owner's control" is a meaning-carrying elision —
+-- the override of [CR#110.2a]'s instructed-player default, pending the
+-- control-assignment axis) — the delayed clause reads the
+-- TARGET-determined referent as a settled particular under its
 -- retagged carrier ([CR#603.7c] is determiner-blind); the fire-time
 -- zone expectation stays runtime (a mismatch is a no-op, not an
 -- illegality).
@@ -167,7 +184,9 @@ bondOfRevival = AndThen (Move (Target (And [creature, InZone (GraveyardOf You)])
 
 -- "When target creature dies this turn, return that card to the
 -- battlefield under its owner's control." (Graceful Reprieve; "under
--- its owner's control" elided) — the event query transforms the
+-- its owner's control" is a meaning-carrying elision — the override of
+-- [CR#110.2a]'s instructed-player default, pending the
+-- control-assignment axis) — the event query transforms the
 -- delayed context: the when-clause announces the watched target and
 -- dying retags it to the graveyard ([CR#700.4]), so "that card" is
 -- the carrier that resolves.
@@ -240,8 +259,10 @@ kindredDominance = AndThen (Choose (A (QualityNoun CreatureType)))
 
 -- "{2}, Sacrifice this artifact: Exile target creature. Return the
 -- exiled card to the battlefield under its owner's control at the
--- beginning of the next end step." (Voyager Staff; {2} and "under its
--- owner's control" elided) — THE finding-12 partner: past the colon
+-- beginning of the next end step." (Voyager Staff; {2} elided, and
+-- "under its owner's control" is a meaning-carrying elision — the
+-- override of [CR#110.2a]'s instructed-player default, pending the
+-- control-assignment axis) — THE finding-12 partner: past the colon
 -- the discourse holds TWO card mentions (the sacrificed self, the
 -- exiled target), so a bare demonstrative is ambiguous
 -- (badBareCardRead) and the text switches to the participle, whose
@@ -268,13 +289,18 @@ boshIronGolem = MkActivated (sacrifice You (A (HasType Artifact)))
 -- "{3}, Discard a card at random: This enchantment deals damage to
 -- any target equal to the mana value of the discarded card."
 -- (Pyromancy; {3} elided; the trailing "equal to …" is extraposition
--- — spelling's linearization of the same deal(src, amt, to) frame) —
--- the at-random marked indefinite finally has its positive
--- ([CR#701.9b] — no chooser), and the colon read is the participle at
--- the intrinsic CARD word, checked on current zone fold-state.
+-- — spelling's linearization of the same deal(src, amt, to) frame,
+-- and amounts introduce no bindings, so the fixed order is
+-- binding-neutral) — the at-random marked indefinite finally has its
+-- positive ([CR#701.9b] — no chooser), and the colon read is the
+-- participle at the intrinsic CARD word, checked on current zone
+-- fold-state. The self-reference is the SORTED one now that the type
+-- word exists: "this enchantment" is a description including a card
+-- type, so [CR#109.2] denotes the permanent (bare `This` was standing
+-- in for the missing `Enchantment` row).
 pyromancy : Activated []
 pyromancy = MkActivated (discards You (AAtRandom (InZone HandZ)))
-                        (DealDamage This
+                        (DealDamage (ThisOf Enchantment)
                                     (ManaValueOf (TheVerbed Discard CardW))
                                     (Target AnyTarget))
 
@@ -304,6 +330,37 @@ unsummon = Move (Target creature) HandZ
 phantomBlade : Effect []
 phantomBlade = AndThen (Choose (TargetUpTo 1 (And [creature, ControlledBy You])))
                        (destroy (TargetUpTo 1 (And [creature, Other])))
+
+-- "When this Case enters, choose target creature you don't control.
+-- Each creature you control deals 1 damage to that creature." (Case of
+-- the Gateway Express's enters trigger; the trigger shape itself and
+-- the card's To solve / Solved lines elided) — the DISTRIBUTIVE damage
+-- subject: "each creature you control" spreads the singular deal frame
+-- over its members, which is why the source gate admits `Each` where a
+-- COLLECTIVE group source stays unattested. The fronted choice
+-- sentence scopes the demonstrative that follows (finding 22), and the
+-- group source is no antecedent for it — `countWord` counts singulars.
+caseOfTheGatewayExpress : Effect []
+caseOfTheGatewayExpress = AndThen (Choose (Target creatureYouDontControl))
+                                  (DealDamage (Each creatureYouControl) (Lit 1)
+                                              (That (TypeW Creature)))
+
+-- "Cycling {2}" — "{2}, Discard this card: Draw a card." ([CR#702.29a];
+-- the {2} and the draw elided, the draw verb being unminted) — the
+-- standing justification for `InHandZone`'s untracked row: bare `This`
+-- is the source as an OBJECT ("this card"), so it projects no zone,
+-- while the SORTED self-reference now denotes the permanent
+-- ([CR#109.2]) and cannot be discarded (`badDiscardThisCreature`).
+cyclingCost : Effect []
+cyclingCost = discards You This
+
+-- "Exile target creature." spelled raw — the tag-ALIGNED twin of
+-- `badDestroyTaggedExile`: same body, agreeing tag. The `TagBody`
+-- witness travels explicitly because its auto search is flaky even
+-- here, at a concrete site with no nested autos — the same reason the
+-- `exile` macro passes `{ok = ExileB}`.
+rawExile : Effect []
+rawExile = Composite Exile (Move (Target creature) ExileZ) {ok = ExileB}
 
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
@@ -666,3 +723,105 @@ failing "countOnes Outcome"
   badThatMuchAmbig = AndThen (DealDamage This (Lit 3) (Target AnyTarget))
                              (AndThen (losesLife You (Lit 2))
                                       (gainsLife You ThatMuch))
+
+-- ===== Chapter thirteen negatives: the refuse-nonsense wave =====
+-- (Probed at the smallest construct that carries the gate — a bare
+-- `Predicate`/`Amount`/`Noun` where one exists: an auto-search failure
+-- nested inside another auto stalls the OUTER search and misreports.)
+
+-- "Other" needs a head-COMPATIBLE anchor. The guide reserves
+-- "another" for excluding the source or first referent and writes two
+-- separately described roles WITHOUT it ("target creature and target
+-- planeswalker"); the corpus pairs "other" only with overlapping
+-- heads. A land target is no anchor for "another creature" — even
+-- though sharing an object across such slots is rules-legal
+-- ([CR#601.2c]), which is what makes this templating, gated at the
+-- conjunction where the head type is known.
+failing "OtherAnchored"
+  badOtherCrossHead : Effect []
+  badOtherCrossHead = AndThen (destroy (Target (HasType Land)))
+                              (destroy (Target (And [creature, Other])))
+
+-- Every corpus for-each domain is noun-headed: "for each you control"
+-- names no set to count — the positive-head demand the determiners
+-- already carry (finding 39), now on the counted-set amount.
+failing "Headed"
+  badForEachHeadless : Amount []
+  badForEachHeadless = ForEach 1 (ControlledBy You)
+
+-- A written numeral is at least one — "1 life for each 0 creatures" is
+-- unwritten English. (The comparisons that legitimately carry zero read
+-- a count rather than write one; `Lit` stays ungated.)
+failing "AtLeastOne"
+  badForEachZero : Amount []
+  badForEachZero = ForEach 0 creature
+
+-- Zone negation itself is REAL oracle — "Each Vampire creature card
+-- you own that isn't on the battlefield has madness." (Falkenrath
+-- Gorger) — so `Not (InZone …)` stays writable. What it cannot do is
+-- contradict the zone the phrase itself places its referent in: a bare
+-- "creature" means the battlefield [CR#109.2].
+failing "ZoneCoherent"
+  badNotOnBattlefield : Predicate [] Object
+  badNotOnBattlefield = And [creature, Not (InZone BattlefieldZ)]
+
+-- No member negates a sibling: "of the chosen color and not of the
+-- chosen color" describes nothing.
+failing "ContradictionFree"
+  badQualityContradiction : Predicate [MkBinding AD (Quality Color) OneOf QualityP] Object
+  badQualityContradiction = And [OfChosen Color, Not (OfChosen Color)]
+
+-- …and the nested spelling is refused the same way — the member scan
+-- flattens conjunctions, so a clash one level down is no laundering.
+-- (A nested ZONE clash is the same nonsense but trips the zone gate
+-- first, so the nested probe uses a type contradiction to keep the pin
+-- unambiguous.)
+failing "ContradictionFree"
+  badNestedContradiction : Predicate [] Object
+  badNestedContradiction = And [creature, And [Not creature]]
+
+-- Attackers are declared from creatures their controller controls
+-- ([CR#508.1a]) and leaving the battlefield removes a permanent from
+-- combat ([CR#506.4]), so the status word seeds its own zone and
+-- clashes with an explicit hand clause — no new gate, the existing
+-- coherence one.
+failing "ZoneCoherent"
+  badAttackingInHand : Predicate [] Object
+  badAttackingInHand = And [Attacking, InZone HandZ]
+
+-- A COLLECTIVE group damage subject is unattested: oracle distributes
+-- the frame ("Each creature you control deals 1 damage to that
+-- creature.", Case of the Gateway Express) or names one source.
+failing "DamageSource"
+  badGroupDamageSource : Effect []
+  badGroupDamageSource = DealDamage (TargetGroup 2 creature) (Lit 3) (Target AnyPlayer)
+
+-- The class word is never negated: [CR#115.4] defines "any target"
+-- positively as the damage target class, and the guide forbids using it
+-- as a synonym for "any object" — so there is nothing for "non-" to
+-- take a complement in.
+failing "Negatable"
+  badNegatedAnyTarget : Predicate [] Object
+  badNegatedAnyTarget = Not AnyTarget
+
+-- …and it takes no modifier but "other" (Arc Trail's "any other
+-- target"): "any target in a graveyard" would be that forbidden
+-- synonym, spelled as a restriction.
+failing "AnyTargetLone"
+  badAnyTargetInGraveyard : Predicate [] Object
+  badAnyTargetInGraveyard = And [AnyTarget, InZone GraveyardZ]
+
+-- "Any target" is ITSELF the targeting form, so only the targeting
+-- determiners admit it: "a any target" and "each any target" are
+-- unwritable.
+failing "AnyTargetFree"
+  badAnyTargetUnderA : Noun [] Object
+  badAnyTargetUnderA = A AnyTarget
+
+-- A type-worded self-reference denotes the PERMANENT ([CR#109.2]), and
+-- discarding moves a card from a HAND ([CR#701.9a]): "discard this
+-- creature" is unwritable — cycling's cost says "this card"
+-- (`cyclingCost`).
+failing "InHandZone"
+  badDiscardThisCreature : Effect []
+  badDiscardThisCreature = discards You (ThisOf Creature)
