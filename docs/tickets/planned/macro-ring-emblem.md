@@ -1,5 +1,5 @@
 ---
-needs: [core-emblems]
+needs: [core-emblems, core-getdesignation-scopes-and-eviction]
 ---
 The Ring emblem and tempts-you progression (50 cards). The Ring is an emblem
 with a level-style progression.
@@ -25,11 +25,11 @@ until another does or you lose control of it. Not a copiable value
 
 ## Blocking seams (three)
 
-1. Object-scope, single-holder-with-eviction designation grant —
-   `GetDesignation` v1 covers player-scope flags only (author-flagged seam;
-   designation registry has no loader wiring yet). Ring-bearer needs
-   `Stored{scope: Object, uniqueness: PerPlayer, …}` with prior-holder
-   eviction.
+1. Object-scope, single-holder-with-eviction designation grant — owned by
+   `core-getdesignation-scopes-and-eviction`. The `Stored{scope: Object,
+   uniqueness: PerPlayer, …}` shape Ring-bearer needs already exists; what is
+   missing is `GetDesignation` coverage for it, prior-holder eviction, and
+   registry loader wiring.
 2. Per-player Ring-temptation count feeding the tier conditions.
 3. The unconditional tempted fact: [CR#701.54d] — the "whenever the Ring
    tempts you" trigger fires even if some or all of the [CR#701.54a] actions
