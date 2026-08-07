@@ -45,7 +45,7 @@
 |||    English attaches it; `Delayed` marks the clause future, and its
 |||    body's context keeps precisely the `survivors` — choice-determined
 |||    particular objects persist for the delayed trigger ([CR#603.7c],
-|||    `sneakAttack`), target-determined ones do not (the trigger
+|||    `throughTheBreach`), target-determined ones do not (the trigger
 |||    announces its own targets when it goes on the stack, [CR#603.3d];
 |||    `badStale`). No timing tag is stored: staleness is a function of
 |||    the determiner the author wrote.
@@ -61,7 +61,7 @@
 |||    Cloudshift's exile makes "that card" resolve and "that creature"
 |||    unspellable (`cloudshift`, `badStaleCarrier`), and the return trip
 |||    restores the typed battlefield noun for free because the head type
-|||    was never lost (`sneakAttack`'s "that creature" after the
+|||    was never lost (`throughTheBreach`'s "that creature" after the
 |||    hand-to-battlefield move).
 ||| 6. **Reads are strict-unique after their filter.** `It`/`They` demand
 |||    exactly one kind-compatible singular antecedent; `That c` demands
@@ -72,7 +72,7 @@
 |||    is `ControllerOf It` — a new Player referent enters the discourse
 |||    (readable as "that player"), while pronoun/demonstrative reads add
 |||    no binding, so a re-mentioned referent never becomes its own
-|||    ambiguity (`bitterDownfall`, `dealsThenDiscards`).
+|||    ambiguity (`bitterDownfall`, `immersturmSkullcairn`).
 ||| 8. **Keyword actions are Composite-tagged macros.** `destroy` mirrors
 |||    `plugins/builtin/macros/action/Destroy.ron` — the tag deontics key
 |||    on plus the `Move` body [CR#701.8a,701.8b]; `sacrifice` is spelled
@@ -89,10 +89,12 @@
 ||| subject/agent threading for declarative verbs (the `May` decider,
 ||| `sacrifice`'s agent, `discardsACard`'s owner linkage — one clause-
 ||| structure question, which also owns cost-introduced mentions:
-||| "Sacrifice this artifact: It deals 2 damage to any target" (Pyrite
+||| "{R}, Sacrifice this artifact: It deals 2 damage to any target" (Pyrite
 ||| Spellbomb) reads the cost's mention as the pronoun's antecedent); zone ownership ("your hand", "its owner's hand")
-||| and event queries (`Delayed` carries none); plural reads beyond the
-||| singular player "they" ("those creatures", "them", "the rest");
+||| and event queries (`Delayed` carries none); the player pronoun "they"
+||| (corpus-attested only inside trigger and unless clauses — Havoc,
+||| Tergrid's Lantern — so `They`'s positive waits on those constructions)
+||| and plural reads ("those creatures", "them", "the rest");
 ||| duration and the continuous-effect grammar (`Gain` elides "until end
 ||| of turn"); last-known-information reads (`bitterDownfall`'s "its
 ||| controller" resolves after the destroy because reads ignore zone —
@@ -496,7 +498,7 @@ public export
 creatureYouDontControl : Predicate bs Object
 creatureYouDontControl = And [creature, Not (ControlledBy You)]
 
--- "an opponent"
+-- "an opponent" (held for the predicate-inner-mention chapter)
 public export
 anOpponent : Noun bs Player
 anOpponent = A Opponent
@@ -549,10 +551,12 @@ losesLife who amt = ChangeLife who (Down amt)
 bolt : Effect []
 bolt = DealDamage This (Lit 3) (Target AnyTarget)
 
--- The design discussion's normative sketch:
--- "… deals 3 damage to each creature an opponent controls."
-eachSweep : Effect []
-eachSweep = DealDamage This (Lit 3) (Each (And [creature, ControlledBy anOpponent]))
+-- "Barrage of Boulders deals 1 damage to each creature you don't
+-- control." (Ferocious rider line elided) — the corpus has no "each
+-- creature an opponent controls": opponent-scoped sweeps say "you don't
+-- control" or plural "your opponents control" (a later chapter's noun).
+barrageOfBoulders : Effect []
+barrageOfBoulders = DealDamage This (Lit 1) (Each creatureYouDontControl)
 
 -- "Target creature you control deals damage equal to its power to target
 -- creature you don't control." — THE in-situ dividend: "its" is read
@@ -585,15 +589,17 @@ cloudshift = AndThen (exile (Target creatureYouControl))
                      (Move (That CardC) Battlefield)
 
 -- "You may put a creature card from your hand onto the battlefield. That
--- creature gains haste. At the beginning of the next end step, sacrifice
--- that creature." (Sneak Attack; per-card condition elided) — the
--- hand-to-battlefield move RESTORES the typed carrier (the head type was
--- projected at introduction, never lost), and the choice-determined
--- referent survives the delay [CR#603.7c] while a target would not.
-sneakAttack : Effect []
-sneakAttack = AndThen (May (Move (A (And [creature, InZone Hand])) Battlefield))
-                      (AndThen (gainsHaste (That (Perm Creature)))
-                               (Delayed (sacrifice (That (Perm Creature)))))
+-- creature gains haste. Sacrifice that creature at the beginning of the
+-- next end step." (Through the Breach; Splice line elided — real Sneak
+-- Attack says "the creature", a definite read this chapter doesn't mint)
+-- — the hand-to-battlefield move RESTORES the typed carrier (the head
+-- type was projected at introduction, never lost), the choice-determined
+-- referent survives the delay [CR#603.7c] while a target would not, and
+-- the trailing adverbial is the `Delayed` mark on its clause.
+throughTheBreach : Effect []
+throughTheBreach = AndThen (May (Move (A (And [creature, InZone Hand])) Battlefield))
+                           (AndThen (gainsHaste (That (Perm Creature)))
+                                    (Delayed (sacrifice (That (Perm Creature)))))
 
 -- "Destroy target creature. Its controller loses 2 life." (Bitter
 -- Downfall; its cost-reduction line elided) — the relational noun:
@@ -611,18 +617,16 @@ deadshot : Effect []
 deadshot = AndThen (Tap (Target creature))
                    (DealDamage It (PowerOf It) (Target (And [creature, Other])))
 
--- "… deals 3 damage to target player. That player discards a card." —
--- the sorted demonstrative at Player kind, and a keyword-action macro
--- (Discard) whose body moves a hand-zone choice.
-dealsThenDiscards : Effect []
-dealsThenDiscards = AndThen (DealDamage This (Lit 3) (Target AnyPlayer))
-                            (discardsACard (That PlayerC))
-
--- Normative sketch for the singular player "they":
--- "Target player loses 1 life. They lose 1 life."
-theySketch : Effect []
-theySketch = AndThen (losesLife (Target AnyPlayer) (Lit 1))
-                     (losesLife They (Lit 1))
+-- "It deals 3 damage to target player. That player discards a card."
+-- (Immersturm Skullcairn's activated ability; the land's other lines and
+-- the activation cost elided) — the sorted demonstrative at Player kind,
+-- and a keyword-action macro (Discard) whose body moves a hand-zone
+-- choice. The surface "It" reads the cost's sacrificed source — cost
+-- mentions are the clause-structure chapter; spelled `This` (the same
+-- object) until then.
+immersturmSkullcairn : Effect []
+immersturmSkullcairn = AndThen (DealDamage This (Lit 3) (Target AnyPlayer))
+                               (discardsACard (That PlayerC))
 
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
