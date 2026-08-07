@@ -3,7 +3,7 @@
 This document is an attempt to faithfully reverse-engineer the style guide used
 internally at Wizards of the Coast to author and edit Magic card Oracle text.
 
-Provenance: synthesized (2026-08) from the Vintage card corpus and the
+Provenance: synthesized from the Vintage card corpus and the
 Comprehensive Rules via the mtg-rules skill, with assistance from that skill's
 preexisting CR/corpus-derived grammar reference. It is independent of this
 repository's implementation and project documentation (transcript-audited: no
@@ -463,6 +463,11 @@ cards` with `a creature card with mana value 3 or greater`.
 
 Spell out fixed hand- and deck-size amounts: `Your maximum hand size is seven`
 and `twenty cards more than the minimum deck size`.
+
+In a prose numeral of four or more digits, separate each group of three digits
+with a comma: `1,000 or more time counters`, `each opponent loses 1,000 life`,
+the ability word `10,000 Needles`. Power/toughness notation takes no
+separator: `it gets +9999/+0 until end of turn`, `-0/-9999`.
 
 Use Roman numerals only for Saga chapter symbols. Use Arabic digits for Class
 levels, leveler bands, result tables, and Station thresholds.
