@@ -31,6 +31,7 @@
 //! proves the repoint changed no engine-side value. It retires with
 //! `core-demacro`.
 
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -143,6 +144,9 @@ fn load_core_macros(plugins: &[&str]) -> MacroSet {
         })
         .collect();
 
+    // Every kind this oracle declined to register, so the blanket swallow
+    // below can be pinned to the one gap that justifies it.
+    let mut swallowed: BTreeSet<String> = BTreeSet::new();
     while !pending.is_empty() {
         let attempted = pending.len();
         let mut failures = Vec::new();
@@ -159,7 +163,10 @@ fn load_core_macros(plugins: &[&str]) -> MacroSet {
                 // module doc — so a def this oracle can't register plays no
                 // role in it either way.
                 Ok(def) => match macros.replace(&def) {
-                    Ok(()) | Err(macro_ron::InsertError::UnknownKind { .. }) => {}
+                    Ok(()) => {}
+                    Err(macro_ron::InsertError::UnknownKind { kind, .. }) => {
+                        swallowed.insert(kind.to_string());
+                    }
                     Err(e) => panic!("inserting {}: {e}", path.display()),
                 },
                 Err(error) => failures.push((path, source, error)),
@@ -176,6 +183,15 @@ fn load_core_macros(plugins: &[&str]) -> MacroSet {
             .map(|(path, source, _)| (path, source))
             .collect();
     }
+    // Pin the swallow to its one justification: a mistyped `kinds:` would
+    // otherwise drop a definition out of this oracle in silence. Non-empty is
+    // half the assertion — an empty set means the `Card` gap closed and the
+    // swallow should go with it.
+    let expected: BTreeSet<String> = ["Card".to_owned()].into();
+    assert_eq!(
+        swallowed, expected,
+        "definitions were dropped at kinds this oracle does not know",
+    );
     macros
 }
 

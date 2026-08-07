@@ -228,7 +228,21 @@ a card file is card-authored text and restricted):
   frame.** It is recorded when argument text is captured and restored when
   that text is re-read; body re-reads are exempt however reached. (The
   `Ctx::frameless()` param-re-read path is exactly why frame-gating alone
-  is wrong.)
+  is wrong.) The bit therefore rides on the ARGUMENT, not on the frame: a
+  body that forwards a card-written argument into a nested macro passes the
+  bit on with it, so provenance survives any number of hops. Two things the
+  rule turns on that are easy to get backwards:
+  - **Granularity is per argument, not per byte.** An argument a body
+    assembles from its own text plus a forwarded hole (`Up(Param(0))`) is
+    restricted as a whole — text-level splicing loses the seam, and the
+    author's half has to decide, since the alternative is laundering it.
+    Definition text over-restricted this way fails loudly at the
+    identity-macro gate; it can never pass silently.
+  - **Reader-synthesized text is not author text.** The bare-numeral literal
+    splice (§4 sugar: `3` for `Literal(3)`) wraps the author's numeral in a
+    constructor the reader invented, and that wrapper reads FREE. Restricting
+    it would route every bare numeral through an identity macro and change
+    what a remembering kind stores.
 - **Entry points**: ONE restricted read API (a `read_semantic_card`/
   `read_semantic_token` pair or equivalent) shared by `Plugin::card`/
   `token`, the migrations graduation path, AND every typed production

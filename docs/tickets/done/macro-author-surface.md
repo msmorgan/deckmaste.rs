@@ -153,26 +153,39 @@ Three defects that only the first restricted read of the corpus could show.
   make this value differ from the one the engine loads, and a consumer grading
   against it would report green on a card that does not exist.
 
-## Deferred, with the cost known
+## Corrections landed at the final review
 
-- **The bare-numeral literal splice is subject to the ban.** `power: 1` splices
-  `Number(1)` and re-reads it under the reader's own restriction, so it routes
-  through the `Number` identity macro. Two consequences, both measured:
-  - At a kind with no `Expanded` variant (`StatValue`) the wrapper cannot be
-    built, so write-back is still `1` and byte-identity holds.
-  - At a kind that HAS one (`Count`), it can: a bare `3` reads back as
-    `Expanded(Literal, ["3"])` and WRITES AS `Literal(3)`. A stored-byte change
-    for a spelling class that merely happens not to occur in the corpus today —
-    corpus numerals all sit inside an invocation, whose raw argument text is
-    what write-back emits.
+- **The bare-numeral literal splice now reads free.** `power: 1` splices a
+  `Number(1)` wrapper the READER invented; §4 scopes restriction to AUTHOR
+  text, so the spliced re-read runs with `restricted: false` (frame preserved).
+  An author who spells `Literal(3)` out is not numeral-led, keeps the
+  restricted context, and still routes through the identity macro.
+
+  The earlier entry here deferred this and mis-stated why it was safe to defer:
+  it claimed the corpus does not spell bare numerals at `Count`. It does —
+  `Draw(3)`, `Mills(Target(0), 5)`, `Up(3)`, `Generic(1)` are all canon. What
+  actually kept the churn at zero is that every one of them sits inside an
+  enclosing remembering-kind expansion whose `args` are echoed back verbatim,
+  so the inner `Expanded` is never serialized. That is a structural accident of
+  where those numerals stand, not a property, which is why this is fixed rather
+  than left deferred.
 
   Also: deleting `plugins/builtin/macros/identity/Number.ron` would break
   `power: 1` on every card, with an error naming a token no author wrote.
 
-  Deferred, not dismissed: it cannot churn silently (the round-trip gate fails
-  loudly) and the fix is one argument — the spliced re-read should use a free
-  context, since the wrapper name is reader-synthesized text and §4 scopes
-  restriction to AUTHOR text.
+- **Restriction now rides on the ARGUMENT, not the frame.** It was maintained
+  past the first hop only by the invoked macro's declared-param-type check —
+  and every identity macro declares `Any`, whose validator accepts anything.
+  A body forwarding a card-written argument into a nested macro laundered it.
+  `FrameArgs` carries a per-argument provenance bit, `forward_arg` computes it
+  from what the splice pulled in, and `Frame` no longer carries one at all.
+  Same for a default expression that splices a supplied argument into itself.
+
+- **The hand-owned identity defs have a shape gate**
+  (`xtask::authoring::identity_shape`): body head equals the def's own name and
+  its holes match its declared params exactly, in both directions. That is what
+  keeps the enforcement hole above closed — a nested-invocation identity body
+  would reopen it.
 
 ## Gates
 

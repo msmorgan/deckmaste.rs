@@ -498,6 +498,14 @@ fn variant_signature(v: &Variant) -> Result<TokenStream> {
         Shape::Struct(fields) => {
             let field_attrs: Vec<&[Attribute]> =
                 fields.iter().map(|f| f.serde_attrs.as_slice()).collect();
+            // Empty container slice because a `SupportsMacros` enum CANNOT
+            // carry container serde attrs: `input::parse` rejects every
+            // `#[serde(...)]` on the enum outright, which is strictly stronger
+            // than [`reject_unmodellable_serde`]'s ban list. Pinned by
+            // `tests::supports_macros_rejects_every_container_serde_attr` — if
+            // that blanket ban is ever relaxed, this slice has to be filled in
+            // or `rename_all`/`default` would silently produce a field list
+            // that disagrees with serde.
             reject_unmodellable_serde(&[], &field_attrs)?;
             let params = fields.iter().map(|f| {
                 let ident = f.ident.as_ref().expect("struct fields are named");
@@ -1148,6 +1156,49 @@ mod tests {
                 input.ident
             );
         }
+    }
+
+    /// The enum path's half of the same guarantee, and the reason
+    /// [`super::variant_signature`] passes an empty container slice: a
+    /// `SupportsMacros` enum may carry NO container serde attr at all, so a
+    /// `rename_all`/`rename_all_fields`/`default` can never reach the
+    /// `VariantSignature::Named` field list it would silently falsify.
+    ///
+    /// Pinned rather than left implicit because the guarantee lives in
+    /// `input::parse` while the code that depends on it is in this module.
+    #[test]
+    fn supports_macros_rejects_every_container_serde_attr() {
+        let cases: Vec<DeriveInput> = vec![
+            parse_quote! {
+                #[serde(rename_all = "camelCase")]
+                enum A { One { one_two: u32 } }
+            },
+            parse_quote! {
+                #[serde(rename_all_fields = "camelCase")]
+                enum B { One { one_two: u32 } }
+            },
+            parse_quote! {
+                #[serde(default)]
+                enum C { One { a: u32 } }
+            },
+            parse_quote! {
+                #[serde(deny_unknown_fields)]
+                enum D { One { a: u32 } }
+            },
+        ];
+        for input in &cases {
+            assert!(
+                crate::input::parse(input).is_err(),
+                "`{}` should not derive SupportsMacros",
+                input.ident
+            );
+        }
+        // Vacuity control: the same enum without the container attr derives.
+        let clean: DeriveInput = parse_quote! {
+            enum E { One { a: u32 } }
+        };
+        let parsed = crate::input::parse(&clean).expect("no container attr, so it parses");
+        assert!(super::supports_macros(&parsed).is_ok());
     }
 
     /// The settings it DOES model still go through: a plain rename, a

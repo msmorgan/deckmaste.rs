@@ -734,6 +734,84 @@ mod drift {
     }
 }
 
+/// The drift test above compares `(kind, variant, signature)` ROWS. A body can
+/// satisfy every one of those while constructing something else entirely — and
+/// these files are hand-owned by design, so nothing but a test can hold their
+/// shape.
+#[cfg(test)]
+mod identity_shape {
+    use std::collections::BTreeSet;
+
+    /// Every committed identity def is a literal mirror of its own variant: the
+    /// body constructs the variant the def is named for, and forwards exactly
+    /// its declared params — no extras, none dropped.
+    ///
+    /// The nested-invocation case is the one that matters. An identity body
+    /// calling another macro would put the card's argument text one hop further
+    /// from the call site that wrote it, and these defs all declare `Any`
+    /// params, whose validator accepts anything.
+    #[test]
+    fn every_identity_def_mirrors_its_own_variant() {
+        let macros = deckmaste_semantics::macros::macro_set();
+        let dir = super::identity_dir();
+        let mut checked = 0usize;
+        let mut offenders = Vec::new();
+        for entry in std::fs::read_dir(&dir).expect("identity/ is readable") {
+            let path = entry.expect("directory entry").path();
+            if path.extension().and_then(std::ffi::OsStr::to_str) != Some("ron") {
+                continue;
+            }
+            let text = std::fs::read_to_string(&path).expect("def file is readable");
+            let def: macro_ron::MacroDef = macros
+                .read_str(&text)
+                .unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+            checked += 1;
+            let head = def.body_head(&macros);
+            let head = head.as_ref().map(macro_ron::Ident::as_str);
+            if head != Some(def.name.as_str()) {
+                offenders.push(format!(
+                    "{}: body constructs `{}`, not `{}`",
+                    path.display(),
+                    head.unwrap_or("<no leading identifier>"),
+                    def.name,
+                ));
+                continue;
+            }
+            let used: BTreeSet<String> = def
+                .body_param_keys(&macros)
+                .unwrap_or_else(|e| panic!("{}: {e}", path.display()))
+                .into_iter()
+                .collect();
+            let declared: BTreeSet<String> = match &def.params {
+                macro_ron::Params::Positional(types) => {
+                    (0..types.len()).map(|i| i.to_string()).collect()
+                }
+                macro_ron::Params::Named(map) => {
+                    map.keys().map(|key| key.as_str().to_owned()).collect()
+                }
+            };
+            if used != declared {
+                offenders.push(format!(
+                    "{}: body holes {used:?} do not match declared params {declared:?}",
+                    path.display(),
+                ));
+            }
+        }
+        // Vacuity floor: an empty or misdirected walk would otherwise pass.
+        assert!(
+            checked > 0,
+            "no identity defs found under {} — the walk is broken, not the directory clean",
+            dir.display()
+        );
+        assert!(
+            offenders.is_empty(),
+            "an identity def must construct its own variant and forward exactly its \
+             declared params:\n{}",
+            offenders.join("\n")
+        );
+    }
+}
+
 #[cfg(test)]
 mod coverage_gap {
     /// Every `NeedsIdentityMacro` row this generator declines to scaffold is
