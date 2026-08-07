@@ -2587,8 +2587,12 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     .filter(|candidate| {
                         matches!(
                             &candidate.meaning,
-                            MeaningKey::Noun(NounInstance::Mass(Noun::Catalog(atom)))
-                                if keyword_atom_carries_from(atom)
+                            MeaningKey::Noun(noun)
+                                if matches!(
+                                    noun.kind(),
+                                    crate::word::NounInstanceKind::Mass(Noun::Catalog(atom))
+                                        if keyword_atom_carries_from(atom)
+                                )
                         )
                     })
                     .map(|candidate| candidate.end)
@@ -2606,8 +2610,12 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .filter(|candidate| {
                     matches!(
                         &candidate.meaning,
-                        MeaningKey::Noun(NounInstance::Mass(Noun::Catalog(atom)))
-                            if keyword_atom_carries_from(atom)
+                        MeaningKey::Noun(noun)
+                            if matches!(
+                                noun.kind(),
+                                crate::word::NounInstanceKind::Mass(Noun::Catalog(atom))
+                                    if keyword_atom_carries_from(atom)
+                            )
                     )
                 })
                 .collect(),
@@ -2735,8 +2743,12 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     .into_iter()
                     .filter(|lexical_match| {
                         matches!(
-                            lexical_match.meaning,
-                            MeaningKey::Noun(NounInstance::Plural(_))
+                            &lexical_match.meaning,
+                            MeaningKey::Noun(noun)
+                                if matches!(
+                                    noun.kind(),
+                                    crate::word::NounInstanceKind::Plural(_)
+                                )
                         )
                     })
                     .collect()
@@ -2749,8 +2761,12 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     .into_iter()
                     .filter(|lexical_match| {
                         matches!(
-                            lexical_match.meaning,
-                            MeaningKey::Noun(NounInstance::Singular(_))
+                            &lexical_match.meaning,
+                            MeaningKey::Noun(noun)
+                                if matches!(
+                                    noun.kind(),
+                                    crate::word::NounInstanceKind::Singular(_)
+                                )
                         )
                     })
                     .collect()

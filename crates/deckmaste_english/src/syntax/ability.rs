@@ -695,10 +695,23 @@ impl FlavorHeader {
 /// token without recording it.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Sentence {
-    pub body: SentenceBody,
+    pub(crate) body: SentenceBody,
 }
 
 impl Sentence {
+    /// Builds the generated sentence family through its checked declaration
+    /// adapter. Dependent clauses are rejected.
+    ///
+    /// # Errors
+    ///
+    /// Returns a declaration violation when `clause` is not an independent,
+    /// standalone clause admitted by the generated sentence declaration.
+    pub fn try_from_clause(
+        clause: Clause,
+    ) -> Result<Self, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+        crate::constructions::sentence::build_sentence(clause)
+    }
+
     pub(crate) fn from_body(body: SentenceBody) -> Self {
         if let SentenceBody::Independent(clause) = body {
             return crate::constructions::sentence::build_sentence(Clause::Independent(clause))

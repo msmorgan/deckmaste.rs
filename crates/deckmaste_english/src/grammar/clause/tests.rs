@@ -34,7 +34,7 @@ use crate::word::Auxiliary;
 use crate::word::AuxiliaryInflection;
 use crate::word::ColorWord;
 use crate::word::Noun;
-use crate::word::NounInstance;
+use crate::word::NounInstanceKind;
 use crate::word::Number;
 use crate::word::Person;
 use crate::word::Tense;
@@ -153,8 +153,8 @@ fn singular_demonstratives_determine_mass_nouns() {
         Some(Determiner::Demonstrative(Demonstrative::That))
     );
     assert!(matches!(
-        nominal.head,
-        NounInstance::Mass(Noun::Word(Vocab::Damage))
+        nominal.head.kind(),
+        NounInstanceKind::Mass(Noun::Word(Vocab::Damage))
     ));
 
     // Negative (mirror direction): the plural demonstratives are still
@@ -201,8 +201,8 @@ fn flip_is_a_count_noun_alongside_its_irregular_verb() {
     };
     assert_eq!(nominal.determiner, Some(Determiner::The));
     assert!(matches!(
-        nominal.head,
-        NounInstance::Singular(Noun::Word(Vocab::Flip))
+        nominal.head.kind(),
+        NounInstanceKind::Singular(Noun::Word(Vocab::Flip))
     ));
 
     // Morphology: singular `flip`, plural `flips`, and the irregular verb
@@ -231,8 +231,8 @@ fn flip_is_a_count_noun_alongside_its_irregular_verb() {
     };
     assert_eq!(nominal.determiner, Some(Determiner::Indefinite));
     assert!(matches!(
-        nominal.head,
-        NounInstance::Singular(Noun::Word(Vocab::Coin))
+        nominal.head.kind(),
+        NounInstanceKind::Singular(Noun::Word(Vocab::Coin))
     ));
 }
 
@@ -1337,7 +1337,7 @@ fn finite_verbs_agree_with_their_subjects() {
     assert!(matches!(
         plural_subject,
         Subject(NounPhrase::Nominal(nominal))
-            if matches!(nominal.head, NounInstance::Plural(Noun::Word(Vocab::Spell)))
+            if matches!(nominal.head.kind(), NounInstanceKind::Plural(Noun::Word(Vocab::Spell)))
     ));
     assert_eq!(
         plural.verb.slot,
@@ -1376,10 +1376,11 @@ fn exact_quantities_can_measure_mass_nouns() {
             PredicateObject::NounPhrase(NounPhrase::Nominal(nominal))
                 if matches!(
                     nominal.determiner,
-                    Some(Determiner::Quantity(crate::syntax::Quantity::Exact(_)))
+                    Some(Determiner::Quantity(quantity))
+                        if matches!(quantity.kind(), crate::syntax::QuantityKind::Exact(_))
                 ) && matches!(
-                    nominal.head,
-                    NounInstance::Mass(Noun::Word(ref word)) if *word == expected
+                    nominal.head.kind(),
+                    NounInstanceKind::Mass(Noun::Word(word)) if *word == expected
                 )
         ));
     }
@@ -1398,8 +1399,8 @@ fn bonfire_recipient_is_full_coordination_with_a_shared_target_member() {
         panic!("expected a nominal damage object: {:#?}", predicate.object);
     };
     assert!(matches!(
-        damage.head,
-        NounInstance::Mass(Noun::Word(Vocab::Damage))
+        damage.head.kind(),
+        NounInstanceKind::Mass(Noun::Word(Vocab::Damage))
     ));
     let [NominalComplement::Prepositional(recipient)] = damage.complements.as_slice() else {
         panic!("damage must own exactly one recipient PP: {damage:#?}");
@@ -1592,7 +1593,7 @@ fn rules_object_gap_reaches_the_deepest_nested_pp_host() {
         let NounPhrase::Nominal(object) = object.as_ref() else {
             return None;
         };
-        matches!(object.head, NounInstance::Plural(_)).then_some(object)
+        matches!(object.head.kind(), NounInstanceKind::Plural(_)).then_some(object)
     }) else {
         panic!("expected a plural lands host below the damage PPs: {damage:#?}");
     };
@@ -1745,8 +1746,8 @@ fn rules_object_gap_prefers_the_nearest_preposition_without_stealing_its_subject
     };
     assert_eq!(subject.determiner, Some(Determiner::Target(None)));
     assert!(matches!(
-        subject.head,
-        NounInstance::Singular(Noun::Word(Vocab::Opponent))
+        subject.head.kind(),
+        NounInstanceKind::Singular(Noun::Word(Vocab::Opponent))
     ));
 }
 
@@ -1902,8 +1903,8 @@ fn common_head_object_survives_following_finite_clause_coordination() {
         [NominalModifier::Coordinated(_)]
     ));
     assert!(matches!(
-        card.head,
-        NounInstance::Singular(Noun::Word(Vocab::Card))
+        card.head.kind(),
+        NounInstanceKind::Singular(Noun::Word(Vocab::Card))
     ));
     assert!(matches!(
         coordination.rest.as_slice(),
@@ -1983,7 +1984,7 @@ fn repeated_damage_themes_coordinate_as_complete_noun_phrases() {
     assert!(matches!(
         objects.first().as_ref(),
         NounPhrase::Nominal(first)
-            if matches!(first.head, NounInstance::Mass(Noun::Word(Vocab::Damage)))
+            if matches!(first.head.kind(), NounInstanceKind::Mass(Noun::Word(Vocab::Damage)))
                 && matches!(first.complements.as_slice(), [NominalComplement::Prepositional(_)])
     ));
     assert!(matches!(
@@ -1992,7 +1993,7 @@ fn repeated_damage_themes_coordinate_as_complete_noun_phrases() {
             conjunction: Some(crate::syntax::NounPhraseConjunction::And),
             phrase: NounPhrase::Nominal(second),
             ..
-        }] if matches!(second.head, NounInstance::Mass(Noun::Word(Vocab::Damage)))
+        }] if matches!(second.head.kind(), NounInstanceKind::Mass(Noun::Word(Vocab::Damage)))
             && matches!(second.complements.as_slice(), [NominalComplement::Prepositional(_)])
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -2662,7 +2663,7 @@ fn temporal_noun_phrases_can_follow_direct_objects() {
         predicate.elements.as_slice(),
         [PredicateElement::Adjunct(PredicateAdjunct::Temporal(
             NounPhrase::Nominal(turn),
-        ))] if matches!(turn.head, NounInstance::Singular(Noun::Word(Vocab::Turn)))
+        ))] if matches!(turn.head.kind(), NounInstanceKind::Singular(Noun::Word(Vocab::Turn)))
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -2689,7 +2690,7 @@ fn selected_preposition_precedes_a_temporal_adjunct() {
             [
                 PredicateElement::Complement(PredicateComplement::Prepositional(_)),
                 PredicateElement::Adjunct(PredicateAdjunct::Temporal(NounPhrase::Nominal(time))),
-            ] if matches!(time.head, NounInstance::Singular(Noun::Word(Vocab::Time)))
+            ] if matches!(time.head.kind(), NounInstanceKind::Singular(Noun::Word(Vocab::Time)))
         ),
         "{predicate:#?}"
     );
@@ -2715,13 +2716,13 @@ fn ditransitive_frame_builds_an_indirect_object_complement() {
     assert!(matches!(
         predicate.object,
         PredicateObject::NounPhrase(NounPhrase::Nominal(ref number))
-            if matches!(number.head, NounInstance::Singular(Noun::Word(Vocab::Number)))
+            if matches!(number.head.kind(), NounInstanceKind::Singular(Noun::Word(Vocab::Number)))
     ));
     assert!(matches!(
         predicate.pre_object_elements.as_slice(),
         [PredicateElement::Complement(PredicateComplement::IndirectObject(
             NounPhrase::Nominal(player),
-        ))] if matches!(player.head, NounInstance::Singular(Noun::Word(Vocab::Player)))
+        ))] if matches!(player.head.kind(), NounInstanceKind::Singular(Noun::Word(Vocab::Player)))
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -2792,8 +2793,8 @@ fn fronted_cost_phrase_is_an_adjunct_with_an_infinitive_complement() {
         panic!("expected a nominal cost phrase: {noun_phrase:#?}");
     };
     assert!(matches!(
-        nominal.head,
-        NounInstance::Singular(Noun::Word(Vocab::Cost))
+        nominal.head.kind(),
+        NounInstanceKind::Singular(Noun::Word(Vocab::Cost))
     ));
     assert!(matches!(
         nominal.complements.as_slice(),
@@ -2842,7 +2843,7 @@ fn this_way_is_a_manner_adjunct_inside_a_condition() {
         condition.elements.as_slice(),
         [PredicateElement::Adjunct(PredicateAdjunct::Manner(
             NounPhrase::Nominal(way),
-        ))] if matches!(way.head, NounInstance::Singular(Noun::Word(Vocab::Way)))
+        ))] if matches!(way.head.kind(), NounInstanceKind::Singular(Noun::Word(Vocab::Way)))
     ));
     assert!(matches!(
         complex.matrix.as_ref(),
@@ -3695,7 +3696,11 @@ fn variable_value_constraint_parses_as_a_modal_copular_clause() {
     assert!(!predicate.distributive_each);
     assert!(matches!(
         predicate.complement,
-        CopularComplement::NounPhrase(NounPhrase::Quantity(Quantity::Exact(n))) if n.value == 0
+        CopularComplement::NounPhrase(NounPhrase::Quantity(quantity))
+            if matches!(
+                quantity.kind(),
+                crate::syntax::QuantityKind::Exact(n) if n.value == 0
+            )
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -3794,7 +3799,7 @@ fn passive_blocking_treats_this_turn_as_a_temporal_adjunct() {
         predicate.elements.as_slice(),
         [PredicateElement::Adjunct(PredicateAdjunct::Temporal(
             NounPhrase::Nominal(turn),
-        ))] if matches!(turn.head, NounInstance::Singular(Noun::Word(Vocab::Turn)))
+        ))] if matches!(turn.head.kind(), NounInstanceKind::Singular(Noun::Word(Vocab::Turn)))
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -4184,7 +4189,7 @@ fn recipient_passive_retains_the_theme_object() {
     assert!(matches!(
         &predicate.retained_object,
         Some(PredicateObject::NounPhrase(NounPhrase::Nominal(damage)))
-            if matches!(damage.head, NounInstance::Mass(Noun::Word(Vocab::Damage)))
+            if matches!(damage.head.kind(), NounInstanceKind::Mass(Noun::Word(Vocab::Damage)))
     ));
     assert!(matches!(
         predicate.elements.as_slice(),
@@ -4209,7 +4214,7 @@ fn recipient_passive_temporal_adjunct_is_not_a_retained_object() {
     assert!(matches!(
         &predicate.retained_object,
         Some(PredicateObject::NounPhrase(NounPhrase::Nominal(damage)))
-            if matches!(damage.head, NounInstance::Mass(Noun::Word(Vocab::Damage)))
+            if matches!(damage.head.kind(), NounInstanceKind::Mass(Noun::Word(Vocab::Damage)))
     ));
     assert!(matches!(
         predicate.elements.as_slice(),
@@ -4287,8 +4292,8 @@ fn postnominal_participial_phrase_reduces_only_with_a_retained_object() {
                     predicate.object,
                     PredicateObject::NounPhrase(NounPhrase::Nominal(ref damage))
                         if matches!(
-                            damage.head,
-                            NounInstance::Mass(Noun::Word(Vocab::Damage))
+                            damage.head.kind(),
+                            NounInstanceKind::Mass(Noun::Word(Vocab::Damage))
                         )
                 )
     ));
@@ -4425,7 +4430,7 @@ fn contracted_subject_recipient_passive_parses() {
     assert!(matches!(
         &predicate.retained_object,
         Some(PredicateObject::NounPhrase(NounPhrase::Nominal(damage)))
-            if matches!(damage.head, NounInstance::Mass(Noun::Word(Vocab::Damage)))
+            if matches!(damage.head.kind(), NounInstanceKind::Mass(Noun::Word(Vocab::Damage)))
     ));
 }
 
@@ -4997,7 +5002,7 @@ fn existential_host_does_not_adopt_a_bare_imperative_tail() {
 fn keyword_symbol_cost(
     nominal: &crate::syntax::NominalPhrase,
 ) -> (&str, &[crate::syntax::OracleSymbol]) {
-    let NounInstance::Mass(Noun::Catalog(atom)) = &nominal.head else {
+    let NounInstanceKind::Mass(Noun::Catalog(atom)) = nominal.head.kind() else {
         panic!("expected a catalog noun head, got {:?}", nominal.head);
     };
     let [
@@ -5028,7 +5033,10 @@ fn keyword_grant_symbol_cost_after_keyword_nominal() {
     let (canonical, symbols) = keyword_symbol_cost(nominal);
     assert_eq!(canonical, "Ward");
     assert_eq!(symbols.len(), 1);
-    assert!(matches!(nominal.head, NounInstance::Mass(Noun::Catalog(_))));
+    assert!(matches!(
+        nominal.head.kind(),
+        NounInstanceKind::Mass(Noun::Catalog(_))
+    ));
 }
 
 #[test]
@@ -5172,7 +5180,7 @@ fn keyword_grant_ordinary_noun_never_acquires_a_predicated_complement() {
 fn keyword_predicated_argument(
     nominal: &crate::syntax::NominalPhrase,
 ) -> (&str, &[crate::syntax::PredicatedQuality]) {
-    let NounInstance::Mass(Noun::Catalog(atom)) = &nominal.head else {
+    let NounInstanceKind::Mass(Noun::Catalog(atom)) = nominal.head.kind() else {
         panic!("expected a catalog noun head, got {:?}", nominal.head);
     };
     let [NominalComplement::KeywordArgument(KeywordArgument::Predicated(argument))] =
@@ -5356,8 +5364,8 @@ fn finite(sentence: &Sentence) -> (&Subject, &crate::syntax::PredicateHead) {
 }
 
 fn turn_head_spelling(nominal: &crate::syntax::NominalPhrase) -> &'static str {
-    match &nominal.head {
-        NounInstance::Singular(Noun::Word(word)) | NounInstance::Mass(Noun::Word(word)) => {
+    match nominal.head.kind() {
+        NounInstanceKind::Singular(Noun::Word(word)) | NounInstanceKind::Mass(Noun::Word(word)) => {
             word.spelling()
         }
         other => panic!("unexpected nominal head: {other:?}"),
@@ -5836,8 +5844,8 @@ fn cleanup_step_compound_is_not_split() {
     };
     assert!(
         matches!(
-            &nominal.head,
-            NounInstance::Plural(Noun::Word(word)) if word.spelling() == "step"
+            nominal.head.kind(),
+            NounInstanceKind::Plural(Noun::Word(word)) if word.spelling() == "step"
         ),
         "expected head `steps`: {nominal:#?}"
     );
@@ -5845,9 +5853,13 @@ fn cleanup_step_compound_is_not_split() {
         matches!(
             nominal.modifiers.as_slice(),
             [NominalModifier::Noun {
-                noun: NounInstance::Singular(Noun::Opaque(opaque)),
+                noun,
                 ..
-            }] if opaque.spelling() == "cleanup"
+            }] if matches!(
+                noun.kind(),
+                NounInstanceKind::Singular(Noun::Opaque(opaque))
+                    if opaque.spelling() == "cleanup"
+            )
         ),
         "`cleanup` must sit as an opaque MODIFIER of head `step`, never a split-out head: {nominal:#?}"
     );
@@ -5890,9 +5902,13 @@ fn next_cleanup_step_is_one_nominal() {
         nominal.modifiers.iter().any(|modifier| matches!(
             modifier,
             NominalModifier::Noun {
-                noun: NounInstance::Singular(Noun::Opaque(opaque)),
+                noun,
                 ..
-            } if opaque.spelling() == "cleanup"
+            } if matches!(
+                noun.kind(),
+                NounInstanceKind::Singular(Noun::Opaque(opaque))
+                    if opaque.spelling() == "cleanup"
+            )
         )),
         "expected `cleanup` as a modifier inside the same nominal: {nominal:#?}"
     );
@@ -5944,9 +5960,13 @@ fn known_noun_step_compounds_are_not_split() {
             )) && nominal.modifiers.iter().any(|modifier| matches!(
                 modifier,
                 NominalModifier::Noun {
-                    noun: NounInstance::Singular(Noun::Word(vocab)),
+                    noun,
                     ..
-                } if *vocab == expected_modifier
+                } if matches!(
+                    noun.kind(),
+                    NounInstanceKind::Singular(Noun::Word(vocab))
+                        if *vocab == expected_modifier
+                )
             )),
             "expected both compound modifiers attached, not split ({source}): {nominal:#?}"
         );

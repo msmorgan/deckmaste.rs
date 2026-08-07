@@ -270,7 +270,7 @@ mod tests {
     use deckmaste_english::syntax::PredicateObject;
     use deckmaste_english::syntax::SentenceBody;
     use deckmaste_english::word::Noun;
-    use deckmaste_english::word::NounInstance;
+    use deckmaste_english::word::NounInstanceKind;
 
     use super::*;
 
@@ -346,24 +346,24 @@ mod tests {
             };
             let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
                 predicate,
-            ))) = &sentence.body
+            ))) = sentence.body()
             else {
-                panic!("expected an imperative create clause: {:#?}", sentence.body);
+                panic!(
+                    "expected an imperative create clause: {:#?}",
+                    sentence.body()
+                );
             };
             let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &predicate.object else {
                 panic!("expected a nominal object: {:#?}", predicate.object);
             };
-            let [
-                NominalModifier::Noun {
-                    noun: NounInstance::Singular(Noun::Catalog(atom)),
-                    ..
-                },
-            ] = object.modifiers.as_slice()
-            else {
+            let [NominalModifier::Noun { noun, .. }] = object.modifiers.as_slice() else {
                 panic!(
                     "expected one catalog noun modifier: {:#?}",
                     object.modifiers
                 );
+            };
+            let NounInstanceKind::Singular(Noun::Catalog(atom)) = noun.kind() else {
+                panic!("expected one singular catalog noun modifier: {noun:#?}");
             };
             assert_eq!(atom.kind, CatalogKind::ArtifactType);
             assert_eq!(atom.canonical(), artifact_type);

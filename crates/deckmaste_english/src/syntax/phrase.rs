@@ -284,11 +284,31 @@ impl QuantityValue {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Quantity {
+pub struct Quantity(QuantityRepr);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum QuantityRepr {
     Exact(NumberLiteral),
     AtLeast(QuantityValue),
     /// `N or <word>` — a comparative floor (`N or more/greater`) or ceiling
     /// (`N or fewer/less`); the word is carried structurally.
+    OrComparison(QuantityValue, ComparativeWord),
+    Or(NumberLiteral, NumberLiteral),
+    UpTo(QuantityValue),
+    MoreThan(QuantityValue),
+    FewerThan(QuantityValue),
+    X,
+    Both,
+    ThatMany,
+    ThatMuch,
+}
+
+/// A read-only view of a validated [`Quantity`]. Constructing a view does not
+/// construct a quantity; use the checked `Quantity::try_*` functions for that.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum QuantityKind {
+    Exact(NumberLiteral),
+    AtLeast(QuantityValue),
     OrComparison(QuantityValue, ComparativeWord),
     Or(NumberLiteral, NumberLiteral),
     UpTo(QuantityValue),
@@ -307,42 +327,234 @@ impl serde::Serialize for Quantity {
     {
         use serde::ser::SerializeStructVariant;
 
-        match self {
-            Self::Exact(number) => {
-                serializer.serialize_newtype_variant("Quantity", 0, "Exact", number)
+        match self.0 {
+            QuantityRepr::Exact(number) => {
+                serializer.serialize_newtype_variant("Quantity", 0, "Exact", &number)
             }
-            Self::AtLeast(value) => {
-                serializer.serialize_newtype_variant("Quantity", 1, "AtLeast", value)
+            QuantityRepr::AtLeast(value) => {
+                serializer.serialize_newtype_variant("Quantity", 1, "AtLeast", &value)
             }
-            Self::OrComparison(value, comparative) => {
+            QuantityRepr::OrComparison(value, comparative) => {
                 let mut variant =
                     serializer.serialize_struct_variant("Quantity", 2, "OrComparison", 2)?;
-                variant.serialize_field("value", value)?;
-                variant.serialize_field("comparative", comparative)?;
+                variant.serialize_field("value", &value)?;
+                variant.serialize_field("comparative", &comparative)?;
                 variant.end()
             }
-            Self::Or(first, second) => {
+            QuantityRepr::Or(first, second) => {
                 let mut variant = serializer.serialize_struct_variant("Quantity", 3, "Or", 2)?;
-                variant.serialize_field("first", first)?;
-                variant.serialize_field("second", second)?;
+                variant.serialize_field("first", &first)?;
+                variant.serialize_field("second", &second)?;
                 variant.end()
             }
-            Self::UpTo(value) => serializer.serialize_newtype_variant("Quantity", 4, "UpTo", value),
-            Self::MoreThan(value) => {
-                serializer.serialize_newtype_variant("Quantity", 5, "MoreThan", value)
+            QuantityRepr::UpTo(value) => {
+                serializer.serialize_newtype_variant("Quantity", 4, "UpTo", &value)
             }
-            Self::FewerThan(value) => {
-                serializer.serialize_newtype_variant("Quantity", 6, "FewerThan", value)
+            QuantityRepr::MoreThan(value) => {
+                serializer.serialize_newtype_variant("Quantity", 5, "MoreThan", &value)
             }
-            Self::X => serializer.serialize_unit_variant("Quantity", 7, "X"),
-            Self::Both => serializer.serialize_unit_variant("Quantity", 8, "Both"),
-            Self::ThatMany => serializer.serialize_unit_variant("Quantity", 9, "ThatMany"),
-            Self::ThatMuch => serializer.serialize_unit_variant("Quantity", 10, "ThatMuch"),
+            QuantityRepr::FewerThan(value) => {
+                serializer.serialize_newtype_variant("Quantity", 6, "FewerThan", &value)
+            }
+            QuantityRepr::X => serializer.serialize_unit_variant("Quantity", 7, "X"),
+            QuantityRepr::Both => serializer.serialize_unit_variant("Quantity", 8, "Both"),
+            QuantityRepr::ThatMany => serializer.serialize_unit_variant("Quantity", 9, "ThatMany"),
+            QuantityRepr::ThatMuch => serializer.serialize_unit_variant("Quantity", 10, "ThatMuch"),
         }
     }
 }
 
+#[allow(
+    non_snake_case,
+    non_upper_case_globals,
+    reason = "private compatibility shims preserve enum-like internal construction sites"
+)]
 impl Quantity {
+    pub(crate) const fn Exact(number: NumberLiteral) -> Self {
+        Self(QuantityRepr::Exact(number))
+    }
+
+    pub(crate) const fn AtLeast(value: QuantityValue) -> Self {
+        Self(QuantityRepr::AtLeast(value))
+    }
+
+    pub(crate) const fn OrComparison(value: QuantityValue, word: ComparativeWord) -> Self {
+        Self(QuantityRepr::OrComparison(value, word))
+    }
+
+    pub(crate) const fn Or(first: NumberLiteral, second: NumberLiteral) -> Self {
+        Self(QuantityRepr::Or(first, second))
+    }
+
+    pub(crate) const fn UpTo(value: QuantityValue) -> Self {
+        Self(QuantityRepr::UpTo(value))
+    }
+
+    pub(crate) const fn MoreThan(value: QuantityValue) -> Self {
+        Self(QuantityRepr::MoreThan(value))
+    }
+
+    pub(crate) const fn FewerThan(value: QuantityValue) -> Self {
+        Self(QuantityRepr::FewerThan(value))
+    }
+
+    pub(crate) const X: Self = Self(QuantityRepr::X);
+    pub(crate) const Both: Self = Self(QuantityRepr::Both);
+    pub(crate) const ThatMany: Self = Self(QuantityRepr::ThatMany);
+    pub(crate) const ThatMuch: Self = Self(QuantityRepr::ThatMuch);
+
+    pub(crate) const fn repr(&self) -> &QuantityRepr {
+        &self.0
+    }
+
+    /// Returns the validated semantic shape without exposing a construction
+    /// path around the generated builders.
+    #[must_use]
+    pub const fn kind(self) -> QuantityKind {
+        match self.0 {
+            QuantityRepr::Exact(number) => QuantityKind::Exact(number),
+            QuantityRepr::AtLeast(value) => QuantityKind::AtLeast(value),
+            QuantityRepr::OrComparison(value, word) => QuantityKind::OrComparison(value, word),
+            QuantityRepr::Or(first, second) => QuantityKind::Or(first, second),
+            QuantityRepr::UpTo(value) => QuantityKind::UpTo(value),
+            QuantityRepr::MoreThan(value) => QuantityKind::MoreThan(value),
+            QuantityRepr::FewerThan(value) => QuantityKind::FewerThan(value),
+            QuantityRepr::X => QuantityKind::X,
+            QuantityRepr::Both => QuantityKind::Both,
+            QuantityRepr::ThatMany => QuantityKind::ThatMany,
+            QuantityRepr::ThatMuch => QuantityKind::ThatMuch,
+        }
+    }
+
+    /// Builds an exact quantity through its generated invariant checks.
+    ///
+    /// # Errors
+    ///
+    /// Returns a declaration violation when `number` is not admitted by the
+    /// generated exact-quantity declaration.
+    pub fn try_exact(
+        number: NumberLiteral,
+    ) -> Result<Self, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+        crate::constructions::quantity::build_quantity_exact(number)
+    }
+
+    /// Builds an `at least` quantity through its generated invariant checks.
+    ///
+    /// # Errors
+    ///
+    /// Returns a declaration violation when `value` is not admitted by the
+    /// generated lower-bound declaration.
+    pub fn try_at_least(
+        value: QuantityValue,
+    ) -> Result<Self, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+        crate::constructions::quantity::build_quantity_at_least(value, None)
+    }
+
+    /// Builds an `N or comparative` quantity through its generated checks.
+    ///
+    /// # Errors
+    ///
+    /// Returns a declaration violation when the value/comparative pair is not
+    /// admitted by the generated comparative-bound declaration.
+    pub fn try_or_comparison(
+        value: QuantityValue,
+        word: ComparativeWord,
+    ) -> Result<Self, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+        crate::constructions::quantity::build_quantity_at_least(value, Some(word))
+    }
+
+    /// Builds an `N or M` quantity through its generated invariant checks.
+    ///
+    /// # Errors
+    ///
+    /// Returns a declaration violation when either literal is not admitted by
+    /// the generated disjunctive-quantity declaration.
+    pub fn try_or(
+        first: NumberLiteral,
+        second: NumberLiteral,
+    ) -> Result<Self, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+        crate::constructions::quantity::build_quantity_or(first, second)
+    }
+
+    /// Builds an `up to` quantity through its generated invariant checks.
+    ///
+    /// # Errors
+    ///
+    /// Returns a declaration violation when `value` is not admitted by the
+    /// generated upper-bound declaration.
+    pub fn try_up_to(
+        value: QuantityValue,
+    ) -> Result<Self, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+        crate::constructions::quantity::build_quantity_up_to(value)
+    }
+
+    /// Builds a `more than` quantity through its generated invariant checks.
+    ///
+    /// # Errors
+    ///
+    /// Returns a declaration violation when `value` is not admitted by the
+    /// generated strict-lower-bound declaration.
+    pub fn try_more_than(
+        value: QuantityValue,
+    ) -> Result<Self, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+        crate::constructions::quantity::build_quantity_more_than(value)
+    }
+
+    /// Builds a `fewer than` quantity through its generated invariant checks.
+    ///
+    /// # Errors
+    ///
+    /// Returns a declaration violation when `value` is not admitted by the
+    /// generated strict-upper-bound declaration.
+    pub fn try_fewer_than(
+        value: QuantityValue,
+    ) -> Result<Self, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+        crate::constructions::quantity::build_quantity_fewer_than(value)
+    }
+
+    /// Builds the variable `X` quantity through its generated constructor.
+    ///
+    /// # Errors
+    ///
+    /// Returns a declaration violation if the generated `X` declaration
+    /// rejects construction.
+    pub fn try_x() -> Result<Self, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+        crate::constructions::quantity::build_quantity_x()
+    }
+
+    /// Builds `both` through its generated constructor.
+    ///
+    /// # Errors
+    ///
+    /// Returns a declaration violation if the generated `both` declaration
+    /// rejects construction.
+    pub fn try_both() -> Result<Self, deckmaste_construction_compiler::runtime::DeclarationViolation>
+    {
+        crate::constructions::quantity::build_quantity_both()
+    }
+
+    /// Builds `that many` through its generated constructor.
+    ///
+    /// # Errors
+    ///
+    /// Returns a declaration violation if the generated `that many`
+    /// declaration rejects construction.
+    pub fn try_that_many()
+    -> Result<Self, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+        crate::constructions::quantity::build_quantity_that_many()
+    }
+
+    /// Builds `that much` through its generated constructor.
+    ///
+    /// # Errors
+    ///
+    /// Returns a declaration violation if the generated `that much`
+    /// declaration rejects construction.
+    pub fn try_that_much()
+    -> Result<Self, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+        crate::constructions::quantity::build_quantity_that_much()
+    }
+
     #[must_use]
     pub fn noun_cardinality(self) -> NounCardinality {
         crate::constructions::quantity::noun_cardinality(self)

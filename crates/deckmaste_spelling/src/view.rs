@@ -786,10 +786,12 @@ mod tests {
         // The parser's generated noun builders still project the public
         // NounInstance value, so the generic spelling view must retain both
         // its identity variant and an opaque lexeme's exact source spelling.
-        let known = of(&NounInstance::Singular(Noun::Word(Vocab::Card)));
-        let opaque = of(&NounInstance::Mass(Noun::Opaque(OpaqueLexeme::new(
-            "BlOrPlE",
-        ))));
+        let known = of(&NounInstance::try_singular(Noun::Word(Vocab::Card))
+            .expect("card has a validated singular form"));
+        let opaque = of(
+            &NounInstance::try_mass(Noun::Opaque(OpaqueLexeme::new("BlOrPlE")))
+                .expect("opaque identities have a validated mass form"),
+        );
 
         assert!(matches!(
             known,
@@ -838,10 +840,11 @@ mod tests {
             value: 3,
             numeral: Numeral::Roman,
         };
-        let comparison = of(&Quantity::OrComparison(
+        let comparison = of(&Quantity::try_or_comparison(
             QuantityValue::Literal(number),
             ComparativeWord::Greater,
-        ));
+        )
+        .expect("a literal comparative quantity is valid"));
         let View::Node {
             name: "Quantity",
             variant: Some("OrComparison"),
@@ -870,7 +873,8 @@ mod tests {
             )
         );
 
-        let disjunction = of(&Quantity::Or(number, number));
+        let disjunction =
+            of(&Quantity::try_or(number, number).expect("a literal disjunction quantity is valid"));
         assert!(matches!(
             disjunction,
             View::Node {
@@ -880,10 +884,13 @@ mod tests {
             }
         ));
         assert_ne!(
-            of(&Quantity::OrComparison(
-                QuantityValue::Literal(number),
-                ComparativeWord::More,
-            )),
+            of(
+                &Quantity::try_or_comparison(
+                    QuantityValue::Literal(number),
+                    ComparativeWord::More,
+                )
+                .expect("a literal comparative quantity is valid"),
+            ),
             disjunction,
             "the two binary quantity families must remain frame-distinguishable"
         );

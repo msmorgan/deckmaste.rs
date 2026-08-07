@@ -30,7 +30,6 @@ use super::InfinitiveClause;
 use super::InfinitiveMarker;
 use super::Lowered;
 use super::Modal;
-use super::NounInstance;
 use super::NounPhrase;
 use super::PassivePredicate;
 use super::Phrase;
@@ -2600,9 +2599,5 @@ pub(super) fn nominal_adjunct_kind(phrase: &NounPhrase) -> Option<BareNominalAdj
     let NounPhrase::Nominal(nominal) = phrase else {
         return None;
     };
-    match &nominal.head {
-        NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun) => {
-            noun.bare_nominal_adjunct()
-        }
-    }
+    nominal.head.noun().bare_nominal_adjunct()
 }

@@ -62,7 +62,6 @@ mod tests {
     use crate::syntax::PredicateObject;
     use crate::syntax::SentenceBody;
     use crate::word::Noun;
-    use crate::word::NounInstance;
 
     #[test]
     fn exact_parse_wins_without_constructing_opacity_edges() {
@@ -96,8 +95,9 @@ mod tests {
         };
         assert_eq!(object.determiner, Some(Determiner::Indefinite));
         assert!(matches!(
-            &object.head,
-            NounInstance::Singular(Noun::Opaque(opaque)) if opaque.spelling() == "blorple"
+            object.head.kind(),
+            crate::word::NounInstanceKind::Singular(Noun::Opaque(opaque))
+                if opaque.spelling() == "blorple"
         ));
         assert!(parsed.construction_decisions().iter().any(|decision| {
             decision.selected().as_str() == "noun_opaque"
@@ -123,8 +123,9 @@ mod tests {
             panic!("expected one nominal direct object")
         };
         assert!(matches!(
-            &object.head,
-            NounInstance::Singular(Noun::Opaque(opaque)) if opaque.spelling() == "BlOrPlE"
+            object.head.kind(),
+            crate::word::NounInstanceKind::Singular(Noun::Opaque(opaque))
+                if opaque.spelling() == "BlOrPlE"
         ));
         assert!(parsed.construction_decisions().iter().any(|decision| {
             decision.selected().as_str() == "noun_opaque"
@@ -183,15 +184,17 @@ mod tests {
             matches!(
                 object.modifiers.as_slice(),
                 [
-                    NominalModifier::Noun {
-                        noun: NounInstance::Singular(Noun::Opaque(shiny)),
-                        ..
-                    },
-                    NominalModifier::Noun {
-                        noun: NounInstance::Singular(Noun::Opaque(strange)),
-                        ..
-                    },
-                ] if shiny.spelling() == "shiny" && strange.spelling() == "strange"
+                    NominalModifier::Noun { noun: shiny, .. },
+                    NominalModifier::Noun { noun: strange, .. },
+                ] if matches!(
+                    shiny.kind(),
+                    crate::word::NounInstanceKind::Singular(Noun::Opaque(shiny))
+                        if shiny.spelling() == "shiny"
+                ) && matches!(
+                    strange.kind(),
+                    crate::word::NounInstanceKind::Singular(Noun::Opaque(strange))
+                        if strange.spelling() == "strange"
+                )
             ),
             "{:#?}",
             object.modifiers

@@ -463,7 +463,12 @@ impl EnglishGrammar<'_, '_> {
         // the bare-apostrophe arm and then render back as `…'s`, breaking
         // round-trip. The bare marker is licensed only by a plural `NounInstance`.
         let word_filter = |word: &WordMatch| {
-            !plural_only || matches!(word, WordMatch::Noun(NounInstance::Plural(_)))
+            !plural_only
+                || matches!(
+                    word,
+                    WordMatch::Noun(noun)
+                        if matches!(noun.kind(), crate::word::NounInstanceKind::Plural(_))
+                )
         };
         let mut matches = Vocabulary::new()
             .matches(stem, LexicalSlot::Noun(NounUsage::Either))
@@ -784,12 +789,7 @@ pub(super) fn lexical_word_matches(
                     initial_sound,
                     adjunct,
                     opaque: false,
-                    recipient_passive_theme: matches!(
-                        noun,
-                        NounInstance::Singular(Noun::Word(Vocab::Damage))
-                            | NounInstance::Plural(Noun::Word(Vocab::Damage))
-                            | NounInstance::Mass(Noun::Word(Vocab::Damage))
-                    ),
+                    recipient_passive_theme: matches!(noun.noun(), Noun::Word(Vocab::Damage)),
                 },
                 // `other` is scanned as a count noun only so the anaphoric
                 // fused head `the other`/`the others` (the sibling of `the
@@ -823,8 +823,8 @@ pub(super) fn lexical_word_matches(
                     reading_dispreference: u32::from(is_fused_head_noun(&noun))
                         + u32::from(is_derived_agent_noun(&noun))
                         + u32::from(matches!(
-                            noun,
-                            NounInstance::Singular(Noun::Word(Vocab::Target))
+                            noun.kind(),
+                            crate::word::NounInstanceKind::Singular(Noun::Word(Vocab::Target))
                         )),
                     ..ParseCost::default()
                 },
@@ -913,21 +913,14 @@ pub(super) fn lexical_word_matches(
 }
 
 fn noun_coordination_head(noun: &NounInstance) -> Option<crate::catalog::CatalogAtom> {
-    match noun {
-        NounInstance::Singular(Noun::Catalog(atom))
-        | NounInstance::Plural(Noun::Catalog(atom))
-        | NounInstance::Mass(Noun::Catalog(atom)) => Some(atom.clone()),
+    match noun.noun() {
+        Noun::Catalog(atom) => Some(atom.clone()),
         _ => None,
     }
 }
 
 fn noun_coordination_domain(noun: &NounInstance) -> Option<CoordinationDomain> {
-    let noun = match noun {
-        NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun) => {
-            noun
-        }
-    };
-    match noun {
+    match noun.noun() {
         Noun::Catalog(atom) => match atom.kind {
             crate::catalog::CatalogKind::ArtifactType
             | crate::catalog::CatalogKind::BattleType
@@ -1111,10 +1104,10 @@ pub(super) const fn copula_agreement(
 }
 
 pub(super) fn noun_form(noun: &NounInstance) -> NounForm {
-    match noun {
-        NounInstance::Singular(_) => NounForm::Singular,
-        NounInstance::Plural(_) => NounForm::Plural,
-        NounInstance::Mass(_) => NounForm::Mass,
+    match noun.kind() {
+        crate::word::NounInstanceKind::Singular(_) => NounForm::Singular,
+        crate::word::NounInstanceKind::Plural(_) => NounForm::Plural,
+        crate::word::NounInstanceKind::Mass(_) => NounForm::Mass,
     }
 }
 
@@ -1125,33 +1118,18 @@ pub(super) fn noun_form(noun: &NounInstance) -> NounForm {
 /// `other`/`nearest`, the `NumberLiteral` quantity for `one` — wins wherever
 /// both complete; see [`lexical_word_matches`].
 pub(super) fn is_fused_head_noun(noun: &NounInstance) -> bool {
-    let inner = match noun {
-        NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun) => {
-            noun
-        }
-    };
     matches!(
-        inner,
+        noun.noun(),
         Noun::Word(Vocab::Nearest | Vocab::One | Vocab::Other)
     )
 }
 
 pub(super) fn is_derived_agent_noun(noun: &NounInstance) -> bool {
-    let inner = match noun {
-        NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun) => {
-            noun
-        }
-    };
-    matches!(inner, Noun::Agentive(_))
+    matches!(noun.noun(), Noun::Agentive(_))
 }
 
 pub(super) fn noun_adjunct_kind(noun: &NounInstance) -> Option<BareNominalAdjunct> {
-    let noun = match noun {
-        NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun) => {
-            noun
-        }
-    };
-    noun.bare_nominal_adjunct()
+    noun.noun().bare_nominal_adjunct()
 }
 
 pub(super) fn parse_symbol_sequence(source: &str) -> Option<Vec<OracleSymbol>> {
@@ -1166,11 +1144,7 @@ pub(super) fn parse_symbol_sequence(source: &str) -> Option<Vec<OracleSymbol>> {
 }
 
 pub(super) fn noun_initial_sound(noun: &NounInstance) -> Option<InitialSound> {
-    let noun_identity = match noun {
-        NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun) => {
-            noun
-        }
-    };
+    let noun_identity = noun.noun();
     match noun_identity {
         Noun::Word(vocab) => Some(Vocabulary::new().initial_sound(*vocab)),
         Noun::Catalog(atom) => Some(surface_initial_sound(atom.canonical())),

@@ -910,11 +910,7 @@ mod tests {
     }
 
     fn nominal_head_spelling(nominal: &NominalPhrase) -> &str {
-        let noun = match &nominal.head {
-            NounInstance::Singular(noun)
-            | NounInstance::Plural(noun)
-            | NounInstance::Mass(noun) => noun,
-        };
+        let noun = nominal.head.noun();
         match noun {
             Noun::Word(vocab) => vocab.spelling(),
             Noun::Catalog(atom) => atom.canonical(),
@@ -1046,9 +1042,13 @@ mod tests {
             matches!(
                 modifier,
                 crate::syntax::NominalModifier::Noun {
-                    noun: NounInstance::Singular(Noun::Word(vocab)),
+                    noun,
                     ..
-                } if vocab.spelling() == "base"
+                } if matches!(
+                    noun.kind(),
+                    crate::word::NounInstanceKind::Singular(Noun::Word(vocab))
+                        if vocab.spelling() == "base"
+                )
             )
         })
     }
@@ -1565,11 +1565,7 @@ mod tests {
     }
 
     fn nominal_is_counter(nominal: &NominalPhrase) -> bool {
-        let noun = match &nominal.head {
-            NounInstance::Singular(noun)
-            | NounInstance::Plural(noun)
-            | NounInstance::Mass(noun) => noun,
-        };
+        let noun = nominal.head.noun();
         matches!(
             noun,
             Noun::Word(vocab) if vocab.spelling() == "counter"

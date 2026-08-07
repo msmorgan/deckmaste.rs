@@ -33,6 +33,7 @@ mod tests {
     use crate::word::ColorWord;
     use crate::word::Noun;
     use crate::word::NounInstance;
+    use crate::word::NounInstanceKind;
     use crate::word::NounUsage;
     use crate::word::Pronoun;
     use crate::word::PronounCase;
@@ -80,15 +81,18 @@ mod tests {
             matches!(
                 nominal.modifiers.as_slice(),
                 [NominalModifier::Noun {
-                    noun: NounInstance::Singular(Noun::Word(Vocab::Draw)),
+                    noun,
                     ..
-                }]
+                }] if matches!(
+                    noun.kind(),
+                    NounInstanceKind::Singular(Noun::Word(Vocab::Draw))
+                )
             ),
             "{nominal:#?}"
         );
         assert!(matches!(
-            &nominal.head,
-            NounInstance::Singular(Noun::Word(word)) if word.spelling() == "step"
+            nominal.head.kind(),
+            NounInstanceKind::Singular(Noun::Word(word)) if word.spelling() == "step"
         ));
     }
 
@@ -114,8 +118,8 @@ mod tests {
                     nominal.modifiers.as_slice(),
                     [NominalModifier::CombatStepName { participants }]
                         if matches!(
-                            participants,
-                            NounInstance::Plural(Noun::Agentive(Verb::Word(
+                            participants.kind(),
+                            NounInstanceKind::Plural(Noun::Agentive(Verb::Word(
                                 Vocab::Attack | Vocab::Block
                             )))
                         )
@@ -123,8 +127,8 @@ mod tests {
                 "{source}: {nominal:#?}"
             );
             assert!(matches!(
-                &nominal.head,
-                NounInstance::Singular(Noun::Word(word)) if word.spelling() == "step"
+                nominal.head.kind(),
+                NounInstanceKind::Singular(Noun::Word(word)) if word.spelling() == "step"
             ));
         }
     }
@@ -170,15 +174,18 @@ mod tests {
             matches!(
                 nominal.modifiers.as_slice(),
                 [NominalModifier::Noun {
-                    noun: NounInstance::Singular(Noun::Word(Vocab::Combat)),
+                    noun,
                     ..
-                }]
+                }] if matches!(
+                    noun.kind(),
+                    NounInstanceKind::Singular(Noun::Word(Vocab::Combat))
+                )
             ),
             "{nominal:#?}"
         );
         assert!(matches!(
-            &nominal.head,
-            NounInstance::Mass(Noun::Word(Vocab::Damage))
+            nominal.head.kind(),
+            NounInstanceKind::Mass(Noun::Word(Vocab::Damage))
         ));
     }
 
@@ -779,7 +786,8 @@ mod tests {
         assert!(
             matches!(
                 recipient.determiner(),
-                Determiner::Target(Some(crate::syntax::Quantity::UpTo(_)))
+                Determiner::Target(Some(quantity))
+                    if matches!(quantity.kind(), crate::syntax::QuantityKind::UpTo(_))
             ),
             "expected the quantity and target marker on the shared group: {recipient:#?}"
         );
@@ -925,8 +933,8 @@ mod tests {
                 );
             };
             assert!(matches!(
-                nominal.head,
-                NounInstance::Singular(Noun::Word(Vocab::Card))
+                nominal.head.kind(),
+                NounInstanceKind::Singular(Noun::Word(Vocab::Card))
             ));
             assert!(
                 nominal
@@ -951,8 +959,8 @@ mod tests {
             [NominalModifier::Coordinated(_)]
         ));
         assert!(matches!(
-            nominal.head,
-            NounInstance::Singular(Noun::Word(Vocab::Spell))
+            nominal.head.kind(),
+            NounInstanceKind::Singular(Noun::Word(Vocab::Spell))
         ));
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
@@ -977,8 +985,8 @@ mod tests {
             [NominalModifier::Coordinated(_)]
         ));
         assert!(matches!(
-            counter.head,
-            NounInstance::Singular(Noun::Word(Vocab::Counter))
+            counter.head.kind(),
+            NounInstanceKind::Singular(Noun::Word(Vocab::Counter))
         ));
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
@@ -996,8 +1004,8 @@ mod tests {
             [NominalModifier::Coordinated(_)]
         ));
         assert!(matches!(
-            &nominal.head,
-            NounInstance::Singular(Noun::Catalog(atom)) if atom.canonical() == "Creature"
+            nominal.head.kind(),
+            NounInstanceKind::Singular(Noun::Catalog(atom)) if atom.canonical() == "Creature"
         ));
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
@@ -1014,18 +1022,15 @@ mod tests {
         };
         assert_eq!(*coordinated.determiner(), Determiner::Target(None));
         assert!(matches!(
-            coordinated.first().head,
-            NounInstance::Singular(Noun::Agentive(_))
+            coordinated.first().head.kind(),
+            NounInstanceKind::Singular(Noun::Agentive(_))
         ));
         assert!(matches!(
             coordinated.rest().as_slice(),
             [crate::syntax::NominalPhraseCoordination {
-                phrase: NominalPhrase {
-                    head: NounInstance::Singular(Noun::Agentive(_)),
-                    ..
-                },
+                phrase,
                 ..
-            }]
+            }] if matches!(phrase.head.kind(), NounInstanceKind::Singular(Noun::Agentive(_)))
         ));
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
@@ -1310,8 +1315,8 @@ mod tests {
             panic!("expected a nominal for an outlaw");
         };
         assert!(matches!(
-            &outlaw.head,
-            NounInstance::Singular(Noun::Catalog(atom)) if atom.is_rules_bundle()
+            outlaw.head.kind(),
+            NounInstanceKind::Singular(Noun::Catalog(atom)) if atom.is_rules_bundle()
         ));
     }
 
@@ -1461,9 +1466,12 @@ mod tests {
         assert!(matches!(
             one.noun_phrase(),
             Some(NounPhrase::Partitive(crate::syntax::PartitiveNounPhrase {
-                head: PartitiveHead::Quantity(crate::syntax::Quantity::Exact(number)),
+                head: PartitiveHead::Quantity(quantity),
                 ..
-            })) if number.value == 1
+            })) if matches!(
+                quantity.kind(),
+                crate::syntax::QuantityKind::Exact(number) if number.value == 1
+            )
         ));
     }
 
@@ -1553,8 +1561,8 @@ mod tests {
             panic!("expected a devotion nominal");
         };
         assert!(matches!(
-            &nominal.head,
-            NounInstance::Singular(Noun::Catalog(atom)) if atom.canonical() == "devotion"
+            nominal.head.kind(),
+            NounInstanceKind::Singular(Noun::Catalog(atom)) if atom.canonical() == "devotion"
         ));
         assert!(matches!(
             nominal.complements.as_slice(),
@@ -1583,9 +1591,13 @@ mod tests {
         assert!(matches!(
             counter.modifiers.as_slice(),
             [NominalModifier::Noun {
-                noun: NounInstance::Singular(Noun::Catalog(atom)),
+                noun,
                 ..
-            }] if atom.canonical() == "devotion"
+            }] if matches!(
+                noun.kind(),
+                NounInstanceKind::Singular(Noun::Catalog(atom))
+                    if atom.canonical() == "devotion"
+            )
         ));
     }
 
@@ -1626,8 +1638,8 @@ mod tests {
                 panic!("expected a nominal phrase for {source:?}");
             };
             assert!(matches!(
-                &nominal.head,
-                NounInstance::Singular(Noun::Word(word)) if word.spelling() == expected
+                nominal.head.kind(),
+                NounInstanceKind::Singular(Noun::Word(word)) if word.spelling() == expected
             ));
         }
     }
@@ -1716,8 +1728,8 @@ mod tests {
         };
         assert!(
             matches!(
-                &nominal.head,
-                NounInstance::Plural(Noun::Word(word)) if word.spelling() == "hand"
+                nominal.head.kind(),
+                NounInstanceKind::Plural(Noun::Word(word)) if word.spelling() == "hand"
             ),
             "{nominal:#?}"
         );
@@ -1740,8 +1752,8 @@ mod tests {
         );
         assert!(
             matches!(
-                &possessor_nominal.head,
-                NounInstance::Plural(Noun::Word(word)) if word.spelling() == "owner"
+                possessor_nominal.head.kind(),
+                NounInstanceKind::Plural(Noun::Word(word)) if word.spelling() == "owner"
             ),
             "{possessor_nominal:#?}"
         );
@@ -1841,7 +1853,10 @@ mod tests {
             panic!("expected a nominal phrase for {source:?}");
         };
         assert!(
-            matches!(&outer.head, NounInstance::Singular(Noun::Word(word)) if word.spelling() == "power"),
+            matches!(
+                outer.head.kind(),
+                NounInstanceKind::Singular(Noun::Word(word)) if word.spelling() == "power"
+            ),
             "{outer:#?}"
         );
         assert!(outer.modifiers.is_empty(), "{outer:#?}");
@@ -1874,8 +1889,9 @@ mod tests {
         );
         assert!(
             matches!(
-                &possessor.head,
-                NounInstance::Singular(Noun::Catalog(atom)) if atom.canonical() == "Creature"
+                possessor.head.kind(),
+                NounInstanceKind::Singular(Noun::Catalog(atom))
+                    if atom.canonical() == "Creature"
             ),
             "{possessor:#?}"
         );
@@ -1963,8 +1979,8 @@ mod tests {
         };
         assert!(
             matches!(
-                &possessor.head,
-                NounInstance::Plural(Noun::Catalog(atom)) if atom.canonical() == "Creature"
+                possessor.head.kind(),
+                NounInstanceKind::Plural(Noun::Catalog(atom)) if atom.canonical() == "Creature"
             ),
             "{possessor:#?}"
         );
@@ -2028,6 +2044,10 @@ mod tests {
         );
     }
 
+    #[allow(
+        clippy::too_many_lines,
+        reason = "one table-style regression test audits the complete public determiner taxonomy"
+    )]
     #[test]
     fn determiners_quantities_and_reciprocal_pronouns_keep_distinct_meanings() {
         let target = parse("up to three target creatures");
@@ -2036,12 +2056,15 @@ mod tests {
         };
         assert!(matches!(
             target.determiner,
-            Some(Determiner::Target(Some(crate::syntax::Quantity::UpTo(
-                crate::syntax::QuantityValue::Literal(number)
-            ))))
-                if number.value == 3
+            Some(Determiner::Target(Some(quantity)))
+                if matches!(
+                    quantity.kind(),
+                    crate::syntax::QuantityKind::UpTo(
+                        crate::syntax::QuantityValue::Literal(number)
+                    ) if number.value == 3
+                )
         ));
-        assert!(matches!(target.head, NounInstance::Plural(_)));
+        assert!(matches!(target.head.kind(), NounInstanceKind::Plural(_)));
 
         let at_least = parse("one or more creatures");
         let Some(NounPhrase::Nominal(at_least)) = at_least.noun_phrase() else {
@@ -2049,13 +2072,16 @@ mod tests {
         };
         assert!(matches!(
             at_least.determiner,
-            Some(Determiner::Quantity(crate::syntax::Quantity::OrComparison(
-                crate::syntax::QuantityValue::Literal(number),
-                crate::syntax::ComparativeWord::More
-            )))
-                if number.value == 1
+            Some(Determiner::Quantity(quantity))
+                if matches!(
+                    quantity.kind(),
+                    crate::syntax::QuantityKind::OrComparison(
+                        crate::syntax::QuantityValue::Literal(number),
+                        crate::syntax::ComparativeWord::More
+                    ) if number.value == 1
+                )
         ));
-        assert!(matches!(at_least.head, NounInstance::Plural(_)));
+        assert!(matches!(at_least.head.kind(), NounInstanceKind::Plural(_)));
 
         let either = parse("one or two target creatures");
         let Some(NounPhrase::Nominal(either)) = either.noun_phrase() else {
@@ -2063,10 +2089,14 @@ mod tests {
         };
         assert!(matches!(
             either.determiner,
-            Some(Determiner::Target(Some(crate::syntax::Quantity::Or(one, two))))
-                if one.value == 1 && two.value == 2
+            Some(Determiner::Target(Some(quantity)))
+                if matches!(
+                    quantity.kind(),
+                    crate::syntax::QuantityKind::Or(one, two)
+                        if one.value == 1 && two.value == 2
+                )
         ));
-        assert!(matches!(either.head, NounInstance::Plural(_)));
+        assert!(matches!(either.head.kind(), NounInstanceKind::Plural(_)));
 
         let definite_quantity = parse("the top three cards");
         let Some(NounPhrase::Nominal(definite_quantity)) = definite_quantity.noun_phrase() else {
@@ -2076,8 +2106,11 @@ mod tests {
             definite_quantity.modifiers.as_slice(),
             [
                 NominalModifier::Adjective { .. },
-                NominalModifier::Quantity(crate::syntax::Quantity::Exact(three)),
-            ] if three.value == 3
+                NominalModifier::Quantity(quantity),
+            ] if matches!(
+                quantity.kind(),
+                crate::syntax::QuantityKind::Exact(three) if three.value == 3
+            )
         ));
 
         let variable_quantity = parse("X cards");
@@ -2106,17 +2139,20 @@ mod tests {
             panic!("expected a die nominal");
         };
         assert!(matches!(
-            die.head,
-            NounInstance::Singular(Noun::Die(number)) if number.value == 20
+            die.head.kind(),
+            NounInstanceKind::Singular(Noun::Die(number)) if number.value == 20
         ));
 
         let partitive = parse("one of them");
         assert!(matches!(
             partitive.noun_phrase(),
             Some(NounPhrase::Partitive(crate::syntax::PartitiveNounPhrase {
-                head: crate::syntax::PartitiveHead::Quantity(crate::syntax::Quantity::Exact(one)),
+                head: crate::syntax::PartitiveHead::Quantity(quantity),
                 ..
-            })) if one.value == 1
+            })) if matches!(
+                quantity.kind(),
+                crate::syntax::QuantityKind::Exact(one) if one.value == 1
+            )
         ));
 
         let any = parse("any target");
@@ -2125,8 +2161,8 @@ mod tests {
         };
         assert_eq!(any.determiner, Some(Determiner::Any));
         assert!(matches!(
-            any.head,
-            NounInstance::Singular(Noun::Word(Vocab::Target))
+            any.head.kind(),
+            NounInstanceKind::Singular(Noun::Word(Vocab::Target))
         ));
 
         let no = parse("no cards");
@@ -2134,7 +2170,7 @@ mod tests {
             panic!("expected a no-determined nominal");
         };
         assert_eq!(no.determiner, Some(Determiner::No));
-        assert!(matches!(no.head, NounInstance::Plural(_)));
+        assert!(matches!(no.head.kind(), NounInstanceKind::Plural(_)));
 
         let much = parse("that much damage");
         let Some(NounPhrase::Nominal(much)) = much.noun_phrase() else {
@@ -2145,8 +2181,8 @@ mod tests {
             Some(Determiner::Quantity(crate::syntax::Quantity::ThatMuch))
         ));
         assert!(matches!(
-            much.head,
-            NounInstance::Mass(Noun::Word(Vocab::Damage))
+            much.head.kind(),
+            NounInstanceKind::Mass(Noun::Word(Vocab::Damage))
         ));
 
         let reciprocal = parse("each other");
@@ -2170,10 +2206,20 @@ mod tests {
             assert!(
                 matches!(
                     &nominal.determiner,
-                    Some(Determiner::Quantity(crate::syntax::Quantity::MoreThan(_))) if more
+                    Some(Determiner::Quantity(quantity))
+                        if more
+                            && matches!(
+                                quantity.kind(),
+                                crate::syntax::QuantityKind::MoreThan(_)
+                            )
                 ) || matches!(
                     &nominal.determiner,
-                    Some(Determiner::Quantity(crate::syntax::Quantity::FewerThan(_))) if !more
+                    Some(Determiner::Quantity(quantity))
+                        if !more
+                            && matches!(
+                                quantity.kind(),
+                                crate::syntax::QuantityKind::FewerThan(_)
+                            )
                 ),
                 "{source}: {nominal:#?}"
             );
@@ -2183,11 +2229,14 @@ mod tests {
         assert!(matches!(
             partitive.noun_phrase(),
             Some(NounPhrase::Partitive(crate::syntax::PartitiveNounPhrase {
-                head: crate::syntax::PartitiveHead::Quantity(crate::syntax::Quantity::MoreThan(
-                    crate::syntax::QuantityValue::Literal(one)
-                )),
+                head: crate::syntax::PartitiveHead::Quantity(quantity),
                 ..
-            })) if one.value == 1
+            })) if matches!(
+                quantity.kind(),
+                crate::syntax::QuantityKind::MoreThan(
+                    crate::syntax::QuantityValue::Literal(one)
+                ) if one.value == 1
+            )
         ));
     }
 
@@ -2232,11 +2281,15 @@ mod tests {
                     ..
                 },
                 NominalModifier::Noun {
-                    noun: NounInstance::Singular(Noun::Catalog(goblin)),
+                    noun,
                     ..
                 },
             ] if legendary.kind == CatalogKind::Supertype
-                && goblin.kind == CatalogKind::CreatureType
+                && matches!(
+                    noun.kind(),
+                    NounInstanceKind::Singular(Noun::Catalog(goblin))
+                        if goblin.kind == CatalogKind::CreatureType
+                )
         ));
 
         let controlled = parse("creature you control");
@@ -2424,7 +2477,6 @@ mod tests {
     #[test]
     fn characteristic_postmodifier_bounds_parse_as_structural_quantities() {
         use crate::syntax::ComparativeWord;
-        use crate::syntax::Quantity;
         // Causal pair: `or less` (ceiling) and its `or greater` (floor) mirror,
         // both as a `with <characteristic> N or <word>` postmodifier.
         for (source, value, word) in [
@@ -2444,8 +2496,13 @@ mod tests {
             );
             let bound = characteristic_bound(&parsed);
             assert!(
-                matches!(bound, Quantity::OrComparison(crate::syntax::QuantityValue::Literal(number), seen)
-                    if number.value == value && seen == word),
+                matches!(
+                    bound.kind(),
+                    crate::syntax::QuantityKind::OrComparison(
+                        crate::syntax::QuantityValue::Literal(number),
+                        seen
+                    ) if number.value == value && seen == word
+                ),
                 "{source}: {bound:?}"
             );
         }
@@ -2454,7 +2511,6 @@ mod tests {
     #[test]
     fn comparative_quantity_determiners_mirror_the_postmodifier() {
         use crate::syntax::ComparativeWord;
-        use crate::syntax::Quantity;
         // Causal pair: the same bound in determiner position — `two or fewer`
         // ceiling against its `three or more` floor mirror.
         for (source, value, word) in [
@@ -2474,11 +2530,14 @@ mod tests {
             assert!(
                 matches!(
                     &nominal.determiner,
-                    Some(Determiner::Quantity(Quantity::OrComparison(
-                        crate::syntax::QuantityValue::Literal(number),
-                        seen
-                    )))
-                        if number.value == value && *seen == word
+                    Some(Determiner::Quantity(quantity))
+                        if matches!(
+                            quantity.kind(),
+                            crate::syntax::QuantityKind::OrComparison(
+                                crate::syntax::QuantityValue::Literal(number),
+                                seen
+                            ) if number.value == value && seen == word
+                        )
                 ),
                 "{source}: {nominal:#?}"
             );
@@ -2487,7 +2546,6 @@ mod tests {
 
     #[test]
     fn variable_x_bounds_are_the_variable_not_roman_ten() {
-        use crate::syntax::Quantity;
         use crate::syntax::QuantityValue;
         // Causal pairs: the variable `X` against the literal that renders
         // identically (`up to ten`) and against an ordinary literal bound.
@@ -2534,7 +2592,6 @@ mod tests {
     #[test]
     fn variable_x_comparative_bounds_are_the_variable() {
         use crate::syntax::ComparativeWord;
-        use crate::syntax::Quantity;
         use crate::syntax::QuantityValue;
         // `power X or less` -> OrComparison(Variable, Less); mirrored against
         // an ordinary literal floor and ceiling.
@@ -2579,7 +2636,6 @@ mod tests {
 
     #[test]
     fn plain_value_and_number_coordination_are_not_comparative_bounds() {
-        use crate::syntax::Quantity;
         // Negative armor 1: a bare `with power 2` stays an exact value — no
         // comparative word, so no `or`-bound production fires.
         let plain = parse("creatures with power 2");
@@ -2588,7 +2644,10 @@ mod tests {
             "creatures with power 2"
         );
         assert!(
-            matches!(characteristic_bound(&plain), Quantity::Exact(number) if number.value == 2),
+            matches!(
+                characteristic_bound(&plain).kind(),
+                crate::syntax::QuantityKind::Exact(number) if number.value == 2
+            ),
             "plain characteristic must stay exact: {:?}",
             characteristic_bound(&plain)
         );
@@ -2602,8 +2661,12 @@ mod tests {
         assert!(
             matches!(
                 either.determiner,
-                Some(Determiner::Target(Some(Quantity::Or(one, two))))
-                    if one.value == 1 && two.value == 2
+                Some(Determiner::Target(Some(quantity)))
+                    if matches!(
+                        quantity.kind(),
+                        crate::syntax::QuantityKind::Or(one, two)
+                            if one.value == 1 && two.value == 2
+                    )
             ),
             "{either:#?}"
         );
@@ -2871,8 +2934,11 @@ mod tests {
         assert!(
             matches!(
                 nominal.determiner,
-                Some(Determiner::Quantity(crate::syntax::Quantity::Exact(number)))
-                    if number.value == 2
+                Some(Determiner::Quantity(quantity))
+                    if matches!(
+                        quantity.kind(),
+                        crate::syntax::QuantityKind::Exact(number) if number.value == 2
+                    )
             ),
             "expected an Exact(2) quantity determiner, got {:?}",
             nominal.determiner
@@ -3045,9 +3111,9 @@ mod tests {
         assert!(matches!(
             &second.phrase,
             NounPhrase::Nominal(NominalPhrase {
-                determiner: Some(Determiner::Quantity(crate::syntax::Quantity::UpTo(_))),
+                determiner: Some(Determiner::Quantity(quantity)),
                 ..
-            })
+            }) if matches!(quantity.kind(), crate::syntax::QuantityKind::UpTo(_))
         ));
         assert!(
             parsed.chart_stats().unique_items() < 50_000,

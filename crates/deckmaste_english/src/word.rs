@@ -31,6 +31,8 @@ pub use noun::Noun;
 pub use noun::NounDeclension;
 pub use noun::NounDefinition;
 pub use noun::NounInstance;
+pub use noun::NounInstanceKind;
+pub(crate) use noun::NounInstanceRepr;
 #[cfg(test)]
 use noun::NounSurface;
 pub(crate) use noun::regular_plural;
@@ -886,8 +888,10 @@ mod tests {
     fn regular_count_nouns_lookup_and_render_without_source_text() {
         let vocabulary = Vocabulary::new();
         let matches = vocabulary.matches("upkeep", LexicalSlot::Noun(NounUsage::Count));
-        let [WordMatch::Noun(NounInstance::Singular(Noun::Word(upkeep)))] = matches.as_slice()
-        else {
+        let [WordMatch::Noun(upkeep)] = matches.as_slice() else {
+            panic!("upkeep must have one singular count-noun analysis");
+        };
+        let NounInstanceKind::Singular(Noun::Word(upkeep)) = upkeep.kind() else {
             panic!("upkeep must have one singular count-noun analysis");
         };
 
@@ -910,8 +914,10 @@ mod tests {
     fn regular_mass_nouns_stay_out_of_count_noun_slots() {
         let vocabulary = Vocabulary::new();
         let matches = vocabulary.matches("knowledge", LexicalSlot::Noun(NounUsage::Mass));
-        let [WordMatch::Noun(NounInstance::Mass(Noun::Word(knowledge)))] = matches.as_slice()
-        else {
+        let [WordMatch::Noun(knowledge)] = matches.as_slice() else {
+            panic!("knowledge must have one mass-noun analysis");
+        };
+        let NounInstanceKind::Mass(Noun::Word(knowledge)) = knowledge.kind() else {
             panic!("knowledge must have one mass-noun analysis");
         };
 
@@ -1195,9 +1201,10 @@ mod tests {
             ("walker", "walk"),
         ] {
             let matches = vocabulary.matches(surface, LexicalSlot::Noun(NounUsage::Count));
-            let [WordMatch::Noun(NounInstance::Singular(Noun::Agentive(Verb::Word(verb))))] =
-                matches.as_slice()
-            else {
+            let [WordMatch::Noun(noun)] = matches.as_slice() else {
+                panic!("{surface} must have one derived agent-noun analysis: {matches:#?}");
+            };
+            let NounInstanceKind::Singular(Noun::Agentive(Verb::Word(verb))) = noun.kind() else {
                 panic!("{surface} must have one derived agent-noun analysis: {matches:#?}");
             };
             assert_eq!(verb.spelling(), base);

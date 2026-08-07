@@ -951,11 +951,10 @@ mod root_lowering_tests {
         let parsed = parse_nonterminal("three", &fixture_catalogs(), Nonterminal::Quantity)
             .expect("the generated scalar quantity parses");
         assert!(matches!(
-            parsed.quantity(),
-            Some(Quantity::Exact(super::super::NumberLiteral {
-                value: 3,
-                ..
-            }))
+            parsed.quantity().map(|quantity| quantity.kind()),
+            Some(crate::syntax::QuantityKind::Exact(
+                super::super::NumberLiteral { value: 3, .. }
+            ))
         ));
         let decision = parsed
             .construction_decisions()
@@ -1512,7 +1511,6 @@ mod generated_adapter_tests {
     use crate::constructions::probe;
     use crate::word::BareNominalAdjunct;
     use crate::word::Noun;
-    use crate::word::NounInstance;
     use crate::word::Vocab;
 
     static COORDINATION_GROUPS: &[&deckmaste_construction_compiler::runtime::GroupData] =
@@ -1646,7 +1644,7 @@ mod generated_adapter_tests {
             match (source, &parsed.syntax, features) {
                 (
                     "Elf",
-                    Lowered::Noun(NounInstance::Singular(Noun::Catalog(lowered))),
+                    Lowered::Noun(lowered),
                     Features::Noun {
                         identity: Some(feature_identity),
                         coordination_domain: Some(super::super::CoordinationDomain::Entity),
@@ -1656,10 +1654,14 @@ mod generated_adapter_tests {
                         opaque: false,
                         recipient_passive_theme: false,
                     },
-                ) => assert_eq!(lowered, feature_identity),
+                ) if matches!(
+                    lowered.kind(),
+                    crate::word::NounInstanceKind::Singular(Noun::Catalog(lowered))
+                        if lowered == feature_identity
+                ) => {}
                 (
                     "turn",
-                    Lowered::Noun(NounInstance::Singular(Noun::Word(Vocab::Turn))),
+                    Lowered::Noun(lowered),
                     Features::Noun {
                         identity: None,
                         coordination_domain: None,
@@ -1669,10 +1671,13 @@ mod generated_adapter_tests {
                         opaque: false,
                         recipient_passive_theme: false,
                     },
-                )
-                | (
+                ) if matches!(
+                    lowered.kind(),
+                    crate::word::NounInstanceKind::Singular(Noun::Word(Vocab::Turn))
+                ) => {}
+                (
                     "damage",
-                    Lowered::Noun(NounInstance::Mass(Noun::Word(Vocab::Damage))),
+                    Lowered::Noun(lowered),
                     Features::Noun {
                         identity: None,
                         coordination_domain: Some(super::super::CoordinationDomain::Damage),
@@ -1682,6 +1687,9 @@ mod generated_adapter_tests {
                         opaque: false,
                         recipient_passive_theme: true,
                     },
+                ) if matches!(
+                    lowered.kind(),
+                    crate::word::NounInstanceKind::Mass(Noun::Word(Vocab::Damage))
                 ) => {}
                 other => panic!("generated noun lost inherent state: {other:#?}"),
             }

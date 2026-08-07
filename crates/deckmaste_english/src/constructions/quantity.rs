@@ -9,6 +9,7 @@ use crate::numeral::Numeral;
 use crate::syntax::ComparativeWord;
 use crate::syntax::NumberLiteral;
 use crate::syntax::Quantity;
+use crate::syntax::QuantityRepr;
 use crate::syntax::QuantityValue;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -121,14 +122,14 @@ fn make_exact(number: NumberLiteral) -> Result<Quantity, DeclarationViolation> {
 }
 
 fn exact_parts(value: &Quantity) -> NumberLiteral {
-    let Quantity::Exact(number) = value else {
+    let QuantityRepr::Exact(number) = value.repr() else {
         unreachable!("quantity_exact dispatcher admits only Exact")
     };
     *number
 }
 
 const fn is_exact(value: &Quantity) -> bool {
-    matches!(value, Quantity::Exact(_))
+    matches!(value.repr(), QuantityRepr::Exact(_))
 }
 
 fn make_at_least(
@@ -142,19 +143,19 @@ fn make_at_least(
 }
 
 fn at_least_parts(value: &Quantity) -> (QuantityValue, Option<ComparativeWord>) {
-    match value {
-        Quantity::AtLeast(value) => (*value, None),
-        Quantity::OrComparison(value, word) => (*value, Some(*word)),
+    match value.repr() {
+        QuantityRepr::AtLeast(value) => (*value, None),
+        QuantityRepr::OrComparison(value, word) => (*value, Some(*word)),
         _ => unreachable!("quantity_at_least dispatcher admits only its two semantic shapes"),
     }
 }
 
 const fn is_at_least(value: &Quantity) -> bool {
-    matches!(value, Quantity::AtLeast(_))
+    matches!(value.repr(), QuantityRepr::AtLeast(_))
 }
 
 const fn is_or_comparison(value: &Quantity) -> bool {
-    matches!(value, Quantity::OrComparison(_, _))
+    matches!(value.repr(), QuantityRepr::OrComparison(_, _))
 }
 
 fn make_or(first: NumberLiteral, second: NumberLiteral) -> Result<Quantity, DeclarationViolation> {
@@ -165,14 +166,14 @@ fn make_or(first: NumberLiteral, second: NumberLiteral) -> Result<Quantity, Decl
 }
 
 fn or_parts(value: &Quantity) -> (NumberLiteral, NumberLiteral) {
-    let Quantity::Or(first, second) = value else {
+    let QuantityRepr::Or(first, second) = value.repr() else {
         unreachable!("quantity_or dispatcher admits only Or")
     };
     (*first, *second)
 }
 
 const fn is_or(value: &Quantity) -> bool {
-    matches!(value, Quantity::Or(_, _))
+    matches!(value.repr(), QuantityRepr::Or(_, _))
 }
 
 macro_rules! value_adapter {
@@ -182,7 +183,7 @@ macro_rules! value_adapter {
         }
 
         fn $parts(value: &Quantity) -> QuantityValue {
-            let Quantity::$variant(value) = value else {
+            let QuantityRepr::$variant(value) = value.repr() else {
                 unreachable!(concat!(
                     $construction,
                     " dispatcher received the wrong variant"
@@ -192,7 +193,7 @@ macro_rules! value_adapter {
         }
 
         const fn $recognizer(value: &Quantity) -> bool {
-            matches!(value, Quantity::$variant(_))
+            matches!(value.repr(), QuantityRepr::$variant(_))
         }
     };
 }
@@ -224,11 +225,11 @@ macro_rules! unit_adapter {
         }
 
         fn $parts(value: &Quantity) {
-            assert!(matches!(value, Quantity::$variant));
+            assert!(matches!(value.repr(), QuantityRepr::$variant));
         }
 
         const fn $recognizer(value: &Quantity) -> bool {
-            matches!(value, Quantity::$variant)
+            matches!(value.repr(), QuantityRepr::$variant)
         }
     };
 }

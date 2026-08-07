@@ -1041,11 +1041,7 @@ pub(super) fn open_name_interior(nominal: &mut NominalPhrase) {
 }
 
 pub(super) fn detach_keyword_noun(noun: &mut NounInstance) {
-    let inner = match noun {
-        NounInstance::Singular(inner) | NounInstance::Plural(inner) | NounInstance::Mass(inner) => {
-            inner
-        }
-    };
+    let inner = noun.noun_mut();
     if let Noun::Catalog(atom) = inner
         && atom.kind == CatalogKind::KeywordAbility
     {
@@ -1154,14 +1150,17 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
             // defense. If this guard ever fires, the slots have a bug — it
             // is not the safety mechanism.
             if !matches!(
-                participants,
-                NounInstance::Plural(
+                participants.kind(),
+                crate::word::NounInstanceKind::Plural(
                     Noun::Word(_) | Noun::Agentive(Verb::Word(Vocab::Attack | Vocab::Block))
                 )
             ) {
                 return None;
             }
-            if !matches!(head, NounInstance::Singular(Noun::Word(_))) {
+            if !matches!(
+                head.kind(),
+                crate::word::NounInstanceKind::Singular(Noun::Word(_))
+            ) {
                 return None;
             }
             Some(Lowered::Nominal(NominalPhrase {
@@ -1815,11 +1814,15 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
             else {
                 return None;
             };
-            let Lowered::Noun(head @ NounInstance::Singular(Noun::Word(Vocab::Number))) =
-                take(children, 1)?
-            else {
+            let Lowered::Noun(head) = take(children, 1)? else {
                 return None;
             };
+            if !matches!(
+                head.kind(),
+                crate::word::NounInstanceKind::Singular(Noun::Word(Vocab::Number))
+            ) {
+                return None;
+            }
             let Lowered::Preposition(preposition @ Preposition::Of) = take(children, 2)? else {
                 return None;
             };

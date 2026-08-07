@@ -5,14 +5,15 @@ use deckmaste_construction_compiler::runtime::GroupData;
 
 use crate::word::Noun;
 use crate::word::NounInstance;
+use crate::word::NounInstanceRepr;
 use crate::word::Vocabulary;
 
 pub(crate) fn is_opaque(value: &NounInstance) -> bool {
     matches!(
-        value,
-        NounInstance::Singular(Noun::Opaque(_))
-            | NounInstance::Plural(Noun::Opaque(_))
-            | NounInstance::Mass(Noun::Opaque(_))
+        value.repr(),
+        NounInstanceRepr::Singular(Noun::Opaque(_))
+            | NounInstanceRepr::Plural(Noun::Opaque(_))
+            | NounInstanceRepr::Mass(Noun::Opaque(_))
     )
 }
 

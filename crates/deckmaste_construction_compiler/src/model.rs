@@ -55,9 +55,7 @@ impl GroupDeclaration {
         else {
             return None;
         };
-        if first.bind_adapter.is_none() {
-            return None;
-        }
+        first.bind_adapter.as_ref()?;
 
         self.constructions
             .iter()

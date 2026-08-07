@@ -2270,12 +2270,7 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn noun_initial_sound(&self, noun: &NounInstance) -> Result<InitialSound, RenderError> {
-        let noun = match noun {
-            NounInstance::Singular(noun)
-            | NounInstance::Plural(noun)
-            | NounInstance::Mass(noun) => noun,
-        };
-        match noun {
+        match noun.noun() {
             Noun::Word(vocab) => Ok(self.vocabulary.initial_sound(*vocab)),
             Noun::Catalog(atom) => Ok(surface_initial_sound(atom.canonical())),
             Noun::Die(_) => Ok(InitialSound::Consonant),
@@ -2557,9 +2552,11 @@ impl<'identity> Renderer<'identity> {
 /// noun that happens to end in `s` still renders `'s`.
 fn possessive_marker(possessor: &NounPhrase) -> &'static str {
     match possessor {
-        NounPhrase::Nominal(nominal) => match nominal.head {
-            NounInstance::Plural(_) => "'",
-            NounInstance::Singular(_) | NounInstance::Mass(_) => "'s",
+        NounPhrase::Nominal(nominal) => match nominal.head.kind() {
+            crate::word::NounInstanceKind::Plural(_) => "'",
+            crate::word::NounInstanceKind::Singular(_) | crate::word::NounInstanceKind::Mass(_) => {
+                "'s"
+            }
         },
         _ => "'s",
     }
@@ -2664,10 +2661,8 @@ fn subject_is_enchant_keyword(subject: &Subject) -> bool {
     if !nominal.modifiers.is_empty() || nominal.determiner.is_some() {
         return false;
     }
-    let (NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun)) =
-        &nominal.head;
     matches!(
-        noun,
+        nominal.head.noun(),
         Noun::Catalog(atom)
             if atom.kind == CatalogKind::KeywordAbility && atom.canonical() == "Enchant"
     )
@@ -3175,9 +3170,7 @@ fn adjective_is_rules_bundle(adjective: &Adjective) -> bool {
 /// [`crate::catalog::Bundle`]) — only [`Noun::Catalog`] atoms can be. Bundle
 /// words hyphenate under `non-`.
 fn noun_is_rules_bundle(noun: &NounInstance) -> bool {
-    let (NounInstance::Singular(noun) | NounInstance::Plural(noun) | NounInstance::Mass(noun)) =
-        noun;
-    match noun {
+    match noun.noun() {
         Noun::Catalog(atom) => atom.is_rules_bundle(),
         Noun::Word(_) | Noun::Die(_) | Noun::Gerund(_) | Noun::Agentive(_) | Noun::Opaque(_) => {
             false
@@ -4484,11 +4477,15 @@ mod tests {
             .matches(surface, CatalogSlot::Noun(NounUsage::Count))
             .into_iter()
             .find_map(|catalog_match| match catalog_match.value {
-                CatalogValue::Word(WordMatch::Noun(noun @ NounInstance::Plural(_))) if plural => {
+                CatalogValue::Word(WordMatch::Noun(noun))
+                    if matches!(noun.kind(), crate::word::NounInstanceKind::Plural(_))
+                        && plural =>
+                {
                     Some(noun)
                 }
-                CatalogValue::Word(WordMatch::Noun(noun @ NounInstance::Singular(_)))
-                    if !plural =>
+                CatalogValue::Word(WordMatch::Noun(noun))
+                    if matches!(noun.kind(), crate::word::NounInstanceKind::Singular(_))
+                        && !plural =>
                 {
                     Some(noun)
                 }

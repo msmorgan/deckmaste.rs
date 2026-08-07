@@ -19,11 +19,137 @@ pub enum Noun {
     Opaque(OpaqueLexeme),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
-pub enum NounInstance {
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct NounInstance(NounInstanceRepr);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum NounInstanceRepr {
     Singular(Noun),
     Plural(Noun),
     Mass(Noun),
+}
+
+/// A read-only view of a validated [`NounInstance`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NounInstanceKind<'a> {
+    Singular(&'a Noun),
+    Plural(&'a Noun),
+    Mass(&'a Noun),
+}
+
+impl serde::Serialize for NounInstance {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match &self.0 {
+            NounInstanceRepr::Singular(noun) => {
+                serializer.serialize_newtype_variant("NounInstance", 0, "Singular", noun)
+            }
+            NounInstanceRepr::Plural(noun) => {
+                serializer.serialize_newtype_variant("NounInstance", 1, "Plural", noun)
+            }
+            NounInstanceRepr::Mass(noun) => {
+                serializer.serialize_newtype_variant("NounInstance", 2, "Mass", noun)
+            }
+        }
+    }
+}
+
+#[allow(
+    non_snake_case,
+    reason = "private compatibility shims preserve enum-like internal construction sites"
+)]
+impl NounInstance {
+    pub(crate) const fn Singular(noun: Noun) -> Self {
+        Self(NounInstanceRepr::Singular(noun))
+    }
+
+    pub(crate) const fn Plural(noun: Noun) -> Self {
+        Self(NounInstanceRepr::Plural(noun))
+    }
+
+    pub(crate) const fn Mass(noun: Noun) -> Self {
+        Self(NounInstanceRepr::Mass(noun))
+    }
+
+    pub(crate) const fn repr(&self) -> &NounInstanceRepr {
+        &self.0
+    }
+
+    /// Returns the noun identity shared by every grammatical form.
+    #[must_use]
+    pub const fn noun(&self) -> &Noun {
+        match &self.0 {
+            NounInstanceRepr::Singular(noun)
+            | NounInstanceRepr::Plural(noun)
+            | NounInstanceRepr::Mass(noun) => noun,
+        }
+    }
+
+    pub(crate) const fn noun_mut(&mut self) -> &mut Noun {
+        match &mut self.0 {
+            NounInstanceRepr::Singular(noun)
+            | NounInstanceRepr::Plural(noun)
+            | NounInstanceRepr::Mass(noun) => noun,
+        }
+    }
+
+    /// Returns the validated form and noun without exposing a constructor.
+    #[must_use]
+    pub const fn kind(&self) -> NounInstanceKind<'_> {
+        match &self.0 {
+            NounInstanceRepr::Singular(noun) => NounInstanceKind::Singular(noun),
+            NounInstanceRepr::Plural(noun) => NounInstanceKind::Plural(noun),
+            NounInstanceRepr::Mass(noun) => NounInstanceKind::Mass(noun),
+        }
+    }
+
+    /// Builds a singular noun identity through the generated noun family.
+    ///
+    /// # Errors
+    ///
+    /// Returns a declaration violation when `noun` has no valid singular form
+    /// in the generated known- or opaque-noun family.
+    pub fn try_singular(
+        noun: Noun,
+    ) -> Result<Self, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+        Self::validate(Self::Singular(noun))
+    }
+
+    /// Builds a plural noun identity through the generated noun family.
+    ///
+    /// # Errors
+    ///
+    /// Returns a declaration violation when `noun` has no valid plural form in
+    /// the generated known- or opaque-noun family.
+    pub fn try_plural(
+        noun: Noun,
+    ) -> Result<Self, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+        Self::validate(Self::Plural(noun))
+    }
+
+    /// Builds a mass noun identity through the generated noun family.
+    ///
+    /// # Errors
+    ///
+    /// Returns a declaration violation when `noun` has no valid mass form in
+    /// the generated known- or opaque-noun family.
+    pub fn try_mass(
+        noun: Noun,
+    ) -> Result<Self, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+        Self::validate(Self::Mass(noun))
+    }
+
+    fn validate(
+        value: Self,
+    ) -> Result<Self, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+        if crate::constructions::noun::is_opaque(&value) {
+            crate::constructions::noun::build_noun_opaque(value)
+        } else {
+            crate::constructions::noun::build_noun(value)
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
@@ -85,10 +211,10 @@ impl Vocabulary {
 
     #[must_use]
     pub fn render_noun(self, noun: &NounInstance) -> Option<String> {
-        let (noun, form) = match noun {
-            NounInstance::Singular(noun) => (noun, NounSurface::Singular),
-            NounInstance::Plural(noun) => (noun, NounSurface::Plural),
-            NounInstance::Mass(noun) => (noun, NounSurface::Mass),
+        let (noun, form) = match noun.repr() {
+            NounInstanceRepr::Singular(noun) => (noun, NounSurface::Singular),
+            NounInstanceRepr::Plural(noun) => (noun, NounSurface::Plural),
+            NounInstanceRepr::Mass(noun) => (noun, NounSurface::Mass),
         };
 
         match noun {

@@ -91,7 +91,6 @@ use crate::syntax::TriggeredAbility;
 use crate::syntax::TriggeredSentence;
 use crate::word::ColorWord;
 use crate::word::Noun;
-use crate::word::NounInstance;
 use crate::word::Verb;
 use crate::word::VerbSlot;
 use crate::word::Vocab;
@@ -2835,12 +2834,7 @@ fn copular_complement_head_is_opaque(clause: &IndependentClause) -> bool {
     let CopularComplement::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.complement else {
         return false;
     };
-    matches!(
-        nominal.head,
-        NounInstance::Singular(Noun::Opaque(_))
-            | NounInstance::Plural(Noun::Opaque(_))
-            | NounInstance::Mass(Noun::Opaque(_))
-    )
+    matches!(nominal.head.noun(), Noun::Opaque(_))
 }
 
 fn find_top_level_punctuation(tokens: &[Token], expected: Punctuation) -> Option<usize> {
@@ -3133,7 +3127,6 @@ mod tests {
     use crate::syntax::*;
     use crate::word::ColorWord;
     use crate::word::Noun;
-    use crate::word::NounInstance;
 
     #[test]
     fn activated_ability_has_cost_components_and_effect_sentences() {
@@ -3324,7 +3317,11 @@ mod tests {
                 }),
             }) if matches!(
                 coordinated.first().as_ref(),
-                NounPhrase::Quantity(Quantity::Exact(number)) if number.value == 1
+                NounPhrase::Quantity(quantity)
+                    if matches!(
+                        quantity.kind(),
+                        crate::syntax::QuantityKind::Exact(number) if number.value == 1
+                    )
             ) && matches!(
                 coordinated.rest().as_slice(),
                 [NounPhraseCoordination {
@@ -3811,8 +3808,12 @@ mod tests {
         };
         assert!(matches!(
             subject.modifiers.as_slice(),
-            [NominalModifier::Adjective { .. }, NominalModifier::Noun { noun: crate::word::NounInstance::Singular(crate::word::Noun::Catalog(goblin)), .. }]
-                if goblin.kind == CatalogKind::CreatureType
+            [NominalModifier::Adjective { .. }, NominalModifier::Noun { noun, .. }]
+                if matches!(
+                    noun.kind(),
+                    crate::word::NounInstanceKind::Singular(crate::word::Noun::Catalog(goblin))
+                        if goblin.kind == CatalogKind::CreatureType
+                )
         ));
     }
 
@@ -4246,11 +4247,14 @@ mod tests {
             &choice.imperative,
             Predicate::Transitive(TransitivePredicate {
                 kind: Transitive {
-                    object: PredicateObject::NounPhrase(NounPhrase::Quantity(Quantity::Exact(number))),
+                    object: PredicateObject::NounPhrase(NounPhrase::Quantity(quantity)),
                     ..
                 },
                 ..
-            }) if number.value == 1
+            }) if matches!(
+                quantity.kind(),
+                crate::syntax::QuantityKind::Exact(number) if number.value == 1
+            )
         ));
         assert_eq!(render(&report), source);
     }
@@ -5331,7 +5335,11 @@ mod tests {
             KeywordArgument::RestrictedCost {
                 restriction,
                 ..
-            } if matches!(*restriction, NounPhrase::Quantity(Quantity::OrComparison(..)))
+            } if matches!(
+                *restriction,
+                NounPhrase::Quantity(quantity)
+                    if matches!(quantity.kind(), crate::syntax::QuantityKind::OrComparison(..))
+            )
         ));
     }
 
@@ -6672,7 +6680,7 @@ mod tests {
         let PredicateObject::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.object else {
             panic!("expected a nominal object: {:?}", predicate.object);
         };
-        let NounInstance::Mass(Noun::Catalog(atom)) = &nominal.head else {
+        let crate::word::NounInstanceKind::Mass(Noun::Catalog(atom)) = nominal.head.kind() else {
             panic!("expected a catalog noun head: {:?}", nominal.head);
         };
         assert_eq!(atom.canonical(), "Hexproof from");

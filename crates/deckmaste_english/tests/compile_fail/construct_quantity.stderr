@@ -1,0 +1,10 @@
+error[E0624]: associated function `Exact` is private
+ --> tests/compile_fail/construct_quantity.rs:6:15
+  |
+6 |     Quantity::Exact(NumberLiteral {
+  |               ^^^^^ private associated function
+  |
+ ::: src/syntax/phrase.rs
+  |
+  |     pub(crate) const fn Exact(number: NumberLiteral) -> Self {
+  |     -------------------------------------------------------- private associated function defined here

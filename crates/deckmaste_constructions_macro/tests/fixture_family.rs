@@ -62,7 +62,7 @@ pub struct AdaptedScalar {
     scalar: FixtureScalar,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DispatchedValue {
     Scalar(FixtureScalar),
     Alpha,

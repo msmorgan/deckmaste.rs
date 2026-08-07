@@ -715,10 +715,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
         {
             self.noun_phrase(possessor, context);
         }
-        if let crate::word::NounInstance::Singular(crate::word::Noun::Opaque(opaque))
-        | crate::word::NounInstance::Plural(crate::word::Noun::Opaque(opaque))
-        | crate::word::NounInstance::Mass(crate::word::Noun::Opaque(opaque)) = &nominal.head
-        {
+        if let crate::word::Noun::Opaque(opaque) = nominal.head.noun() {
             self.lexical_opacity.push(LexicalOpacityRef {
                 kind: LexicalOpacityKind::Noun,
                 text: opaque.spelling(),
@@ -787,10 +784,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 }
             }
             NominalModifier::Noun { noun, .. } => {
-                if let crate::word::NounInstance::Singular(crate::word::Noun::Opaque(opaque))
-                | crate::word::NounInstance::Plural(crate::word::Noun::Opaque(opaque))
-                | crate::word::NounInstance::Mass(crate::word::Noun::Opaque(opaque)) = noun
-                {
+                if let crate::word::Noun::Opaque(opaque) = noun.noun() {
                     self.lexical_opacity.push(LexicalOpacityRef {
                         kind: LexicalOpacityKind::Noun,
                         text: opaque.spelling(),

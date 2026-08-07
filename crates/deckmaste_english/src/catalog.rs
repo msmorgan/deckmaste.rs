@@ -1010,7 +1010,11 @@ mod tests {
             .with_catalog(CatalogKind::Supertype, ["Legendary"]);
 
         let goblin = one_word_match(&catalogs, "Goblin", CatalogSlot::Noun(NounUsage::Count));
-        let WordMatch::Noun(NounInstance::Singular(Noun::Catalog(goblin_atom))) = goblin else {
+        let WordMatch::Noun(goblin) = goblin else {
+            panic!("expected a singular catalog noun, got {goblin:?}");
+        };
+        let crate::word::NounInstanceKind::Singular(Noun::Catalog(goblin_atom)) = goblin.kind()
+        else {
             panic!("expected a singular catalog noun, got {goblin:?}");
         };
         assert_eq!(goblin_atom.kind, CatalogKind::CreatureType);
@@ -1031,26 +1035,41 @@ mod tests {
         let plural = one_word_match(&catalogs, "Goblins", CatalogSlot::Noun(NounUsage::Count));
         assert!(matches!(
             plural,
-            WordMatch::Noun(NounInstance::Plural(Noun::Catalog(_)))
+            WordMatch::Noun(noun)
+                if matches!(
+                    noun.kind(),
+                    crate::word::NounInstanceKind::Plural(Noun::Catalog(_))
+                )
         ));
 
         let merfolk_matches = catalogs.matches("Merfolk", CatalogSlot::Noun(NounUsage::Count));
         assert!(merfolk_matches.iter().any(|catalog_match| matches!(
             &catalog_match.value,
-            CatalogValue::Word(WordMatch::Noun(NounInstance::Plural(Noun::Catalog(atom))))
-                if atom.kind == CatalogKind::CreatureType
+            CatalogValue::Word(WordMatch::Noun(noun))
+                if matches!(
+                    noun.kind(),
+                    crate::word::NounInstanceKind::Plural(Noun::Catalog(atom))
+                        if atom.kind == CatalogKind::CreatureType
                     && atom.vocab == Some(Vocab::Merfolk)
                     && atom.render_noun(true) == "Merfolk"
+                )
         )));
 
         let hero = one_word_match(&catalogs, "Hero", CatalogSlot::Noun(NounUsage::Count));
-        let WordMatch::Noun(NounInstance::Singular(Noun::Catalog(hero))) = hero else {
+        let WordMatch::Noun(hero) = hero else {
+            panic!("expected Hero to be a subtype");
+        };
+        let crate::word::NounInstanceKind::Singular(Noun::Catalog(hero)) = hero.kind() else {
             panic!("expected Hero to be a subtype");
         };
         assert_eq!(hero.kind, CatalogKind::CreatureType);
 
         let creature = one_word_match(&catalogs, "creature", CatalogSlot::Noun(NounUsage::Count));
-        let WordMatch::Noun(NounInstance::Singular(Noun::Catalog(creature))) = creature else {
+        let WordMatch::Noun(creature) = creature else {
+            panic!("expected creature to be a card type");
+        };
+        let crate::word::NounInstanceKind::Singular(Noun::Catalog(creature)) = creature.kind()
+        else {
             panic!("expected creature to be a card type");
         };
         assert_eq!(creature.kind, CatalogKind::CardType);
@@ -1164,9 +1183,12 @@ mod tests {
                     .iter()
                     .any(|catalog_match| matches!(
                         &catalog_match.value,
-                        CatalogValue::Word(WordMatch::Noun(NounInstance::Plural(
-                            Noun::Catalog(candidate)
-                        ))) if candidate.canonical() == singular
+                        CatalogValue::Word(WordMatch::Noun(noun))
+                            if matches!(
+                                noun.kind(),
+                                crate::word::NounInstanceKind::Plural(Noun::Catalog(candidate))
+                                    if candidate.canonical() == singular
+                            )
                     ))
             );
         }
@@ -1460,7 +1482,11 @@ mod tests {
         ));
         assert!(matches!(
             one_word_match(&catalogs, "Food", CatalogSlot::Noun(NounUsage::Count)),
-            WordMatch::Noun(NounInstance::Singular(Noun::Catalog(_)))
+            WordMatch::Noun(noun)
+                if matches!(
+                    noun.kind(),
+                    crate::word::NounInstanceKind::Singular(Noun::Catalog(_))
+                )
         ));
     }
 
@@ -1488,27 +1514,43 @@ mod tests {
         }
 
         // `party` is a count noun only, singular and plural, never attributive.
-        let WordMatch::Noun(NounInstance::Singular(Noun::Catalog(party))) =
+        let WordMatch::Noun(party) =
             one_word_match(&catalogs, "party", CatalogSlot::Noun(NounUsage::Count))
         else {
+            panic!("party must be a singular catalog noun");
+        };
+        let crate::word::NounInstanceKind::Singular(Noun::Catalog(party)) = party.kind() else {
             panic!("party must be a singular catalog noun");
         };
         assert!(party.is_rules_bundle());
         assert_eq!(party.render_noun(true), "parties");
         assert!(matches!(
             one_word_match(&catalogs, "parties", CatalogSlot::Noun(NounUsage::Count)),
-            WordMatch::Noun(NounInstance::Plural(Noun::Catalog(_)))
+            WordMatch::Noun(noun)
+                if matches!(
+                    noun.kind(),
+                    crate::word::NounInstanceKind::Plural(Noun::Catalog(_))
+                )
         ));
         assert!(catalogs.matches("party", CatalogSlot::Adjective).is_empty());
 
         // `outlaw` fills both the count-noun and the adjective slot.
         assert!(matches!(
             one_word_match(&catalogs, "outlaw", CatalogSlot::Noun(NounUsage::Count)),
-            WordMatch::Noun(NounInstance::Singular(Noun::Catalog(atom))) if atom.is_rules_bundle()
+            WordMatch::Noun(noun)
+                if matches!(
+                    noun.kind(),
+                    crate::word::NounInstanceKind::Singular(Noun::Catalog(atom))
+                        if atom.is_rules_bundle()
+                )
         ));
         assert!(matches!(
             one_word_match(&catalogs, "outlaws", CatalogSlot::Noun(NounUsage::Count)),
-            WordMatch::Noun(NounInstance::Plural(Noun::Catalog(_)))
+            WordMatch::Noun(noun)
+                if matches!(
+                    noun.kind(),
+                    crate::word::NounInstanceKind::Plural(Noun::Catalog(_))
+                )
         ));
         assert!(matches!(
             one_word_match(&catalogs, "outlaw", CatalogSlot::Adjective),

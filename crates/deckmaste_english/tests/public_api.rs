@@ -160,9 +160,12 @@ fn public_known_and_opaque_nouns_use_generated_identity_families() {
     // Direct-AST rendering crosses the same generated identity linearizer;
     // opaque spelling is never reconstructed from a byte witness or form.
     for (noun, expected) in [
-        (NounInstance::Singular(Noun::Word(Vocab::Card)), "card"),
         (
-            NounInstance::Mass(Noun::Opaque(OpaqueLexeme::new("blorple"))),
+            NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
+            "card",
+        ),
+        (
+            NounInstance::try_mass(Noun::Opaque(OpaqueLexeme::new("blorple"))).unwrap(),
             "blorple",
         ),
     ] {
@@ -177,6 +180,43 @@ fn public_known_and_opaque_nouns_use_generated_identity_families() {
             expected
         );
     }
+}
+
+#[test]
+fn public_invariant_bearing_syntax_uses_checked_constructors() {
+    let roman_x = NumberLiteral {
+        value: 10,
+        numeral: Numeral::Roman,
+    };
+    assert!(Quantity::try_exact(roman_x).is_err());
+    let one = NumberLiteral {
+        value: 1,
+        numeral: Numeral::Cardinal,
+    };
+    assert!(Quantity::try_exact(one).is_ok());
+
+    assert!(NounInstance::try_mass(Noun::Word(Vocab::Card)).is_err());
+    assert!(NounInstance::try_singular(Noun::Word(Vocab::Card)).is_ok());
+
+    let parsed = parse_fragment(
+        "Draw a card.",
+        &Catalogs::default(),
+        FragmentKind::Sentence,
+        "Test Card",
+        false,
+    )
+    .into_fragment()
+    .expect("independent sentence parses");
+    let Fragment::Sentence(parsed) = parsed else {
+        panic!("requested a sentence fragment")
+    };
+    let SentenceBody::Independent(clause) = parsed.body() else {
+        panic!("fixture is an independent clause")
+    };
+    assert_eq!(
+        Sentence::try_from_clause(Clause::Independent(clause.clone())).unwrap(),
+        parsed,
+    );
 }
 
 #[test]
@@ -410,7 +450,7 @@ fn existential_forms_expose_validated_features_and_keep_legacy_unit_names() {
             panic!("expected a paragraph for {source:?}");
         };
         let SentenceBody::Independent(IndependentClause::Existential(existential)) =
-            &paragraph.sentences[0].body
+            paragraph.sentences[0].body()
         else {
             panic!("expected an existential clause for {source:?}");
         };
@@ -620,7 +660,7 @@ fn public_parser_returns_a_source_independent_grammar_tree() {
         report.ast().abilities[0].kind,
         AbilityKind::Paragraph(ref paragraph)
             if matches!(
-                paragraph.sentences[0].body,
+                paragraph.sentences[0].body(),
                 SentenceBody::Independent(IndependentClause::Imperative(
                     Predicate::Transitive(_)
                 ))
@@ -787,14 +827,7 @@ impl<'syntax> SyntaxInventory<'syntax> {
     }
 
     fn has_noun_lexeme(&self, predicate: impl Fn(&Noun) -> bool) -> bool {
-        self.nouns.iter().any(|instance| {
-            let noun = match instance {
-                NounInstance::Singular(noun)
-                | NounInstance::Plural(noun)
-                | NounInstance::Mass(noun) => noun,
-            };
-            predicate(noun)
-        })
+        self.nouns.iter().any(|instance| predicate(instance.noun()))
     }
 
     fn has_adjective(&self, predicate: impl Fn(&Adjective) -> bool) -> bool {
@@ -923,7 +956,7 @@ impl<'syntax> SyntaxInventory<'syntax> {
 
     fn paragraph(&mut self, paragraph: &'syntax Paragraph) {
         for sentence in &paragraph.sentences {
-            match &sentence.body {
+            match sentence.body() {
                 SentenceBody::Independent(clause) => self.independent_clause(clause),
                 SentenceBody::Choice(choice) => {
                     if let Some(trigger) = &choice.trigger_prefix {
@@ -1424,7 +1457,7 @@ fn only_independent_clause(ast: &OracleText) -> &IndependentClause {
     let [sentence] = only_paragraph(ast).sentences.as_slice() else {
         panic!("expected exactly one sentence: {ast:#?}");
     };
-    let SentenceBody::Independent(clause) = &sentence.body else {
+    let SentenceBody::Independent(clause) = sentence.body() else {
         panic!("expected an independent-clause sentence: {ast:#?}");
     };
     clause
@@ -1628,7 +1661,7 @@ fn matrix_distributive_each(ast: &OracleText) -> bool {
 
 fn first_independent_in_paragraph(paragraph: &Paragraph) -> Option<&IndependentClause> {
     paragraph.sentences.iter().find_map(|sentence| {
-        let SentenceBody::Independent(clause) = &sentence.body else {
+        let SentenceBody::Independent(clause) = sentence.body() else {
             return None;
         };
         Some(clause)
@@ -1663,14 +1696,17 @@ fn is_any_number_of(phrase: &NounPhrase) -> bool {
     let NounPhrase::Nominal(NominalPhrase {
         determiner: Some(Determiner::Any),
         modifiers,
-        head: NounInstance::Singular(Noun::Word(Vocab::Number)),
+        head,
         complements,
         ..
     }) = phrase
     else {
         return false;
     };
-    modifiers.is_empty()
+    matches!(
+        head.kind(),
+        NounInstanceKind::Singular(Noun::Word(Vocab::Number))
+    ) && modifiers.is_empty()
         && matches!(
             complements.first(),
             Some(NominalComplement::Prepositional(
@@ -1888,9 +1924,13 @@ fn sliver_stays_a_creature_type_not_a_self_reference() {
         token.modifiers.iter().any(|modifier| matches!(
             modifier,
             NominalModifier::Noun {
-                noun: NounInstance::Singular(Noun::Catalog(atom)),
+                noun,
                 ..
-            } if atom.canonical() == "Sliver"
+            } if matches!(
+                noun.kind(),
+                NounInstanceKind::Singular(Noun::Catalog(atom))
+                    if atom.canonical() == "Sliver"
+            )
         )),
         "Sliver did not remain a creature-type modifier:\n{ast:#?}"
     );
@@ -1956,8 +1996,9 @@ fn a_the_headed_nickname_keeps_its_capital_the() {
             AbilityKind::Triggered(TriggeredAbility { effect, .. })
                 if matches!(
                     effect.sentences.as_slice(),
-                    [Sentence {
-                        body: SentenceBody::Independent(IndependentClause::Imperative(
+                    [sentence] if matches!(
+                        sentence.body(),
+                        SentenceBody::Independent(IndependentClause::Imperative(
                             Predicate::Transitive(TransitivePredicate {
                                 kind: Transitive {
                                     object: PredicateObject::NounPhrase(NounPhrase::ThisCard(
@@ -1967,9 +2008,8 @@ fn a_the_headed_nickname_keeps_its_capital_the() {
                                 },
                                 ..
                             })
-                        )),
-                        ..
-                    }]
+                        ))
+                    )
                 )
         ),
         "AST:\n{ast:#?}"
@@ -2271,47 +2311,50 @@ fn base_power_and_toughness_stat_sets_a_characteristic_pair() {
     else {
         panic!("expected a coordinated characteristic object: {ast}");
     };
-    assert!(
-        matches!(
-            coordination.first().as_ref(),
-            NounPhrase::Nominal(NominalPhrase {
-                modifiers,
-                head: NounInstance::Singular(Noun::Word(Vocab::Power)),
-                complements,
-                ..
-            }) if complements.is_empty()
-                && matches!(
-                    modifiers.as_slice(),
-                    [NominalModifier::Noun {
-                        polarity: Polarity::Positive,
-                        noun: NounInstance::Singular(Noun::Word(vocab)),
-                    }] if vocab.spelling() == "base"
-                )
-        ) && matches!(
-            coordination.rest().as_slice(),
-            [NounPhraseCoordination {
-                conjunction: Some(NounPhraseConjunction::And),
-                phrase: NounPhrase::Nominal(NominalPhrase {
-                    head: NounInstance::Mass(Noun::Word(Vocab::Toughness)),
-                    complements,
-                    ..
-                }),
-            }] if matches!(
-                complements.as_slice(),
-                [NominalComplement::PowerToughness(PowerToughness {
-                    power: SignedScalar {
-                        sign: ScalarSign::None,
-                        value: ScalarValue::X,
-                    },
-                    toughness: SignedScalar {
-                        sign: ScalarSign::None,
-                        value: ScalarValue::X,
-                    },
-                })]
-            )
-        ),
-        "AST:\n{ast}"
-    );
+    let NounPhrase::Nominal(first) = coordination.first().as_ref() else {
+        panic!("expected nominal first characteristic: {ast}")
+    };
+    assert!(matches!(
+        first.head.kind(),
+        NounInstanceKind::Singular(Noun::Word(Vocab::Power))
+    ));
+    assert!(first.complements.is_empty());
+    assert!(matches!(
+        first.modifiers.as_slice(),
+        [NominalModifier::Noun {
+            polarity: Polarity::Positive,
+            noun,
+        }] if matches!(
+            noun.kind(),
+            NounInstanceKind::Singular(Noun::Word(vocab)) if vocab.spelling() == "base"
+        )
+    ));
+    let [
+        NounPhraseCoordination {
+            conjunction: Some(NounPhraseConjunction::And),
+            phrase: NounPhrase::Nominal(second),
+        },
+    ] = coordination.rest().as_slice()
+    else {
+        panic!("expected the coordinated toughness characteristic: {ast}")
+    };
+    assert!(matches!(
+        second.head.kind(),
+        NounInstanceKind::Mass(Noun::Word(Vocab::Toughness))
+    ));
+    assert!(matches!(
+        second.complements.as_slice(),
+        [NominalComplement::PowerToughness(PowerToughness {
+            power: SignedScalar {
+                sign: ScalarSign::None,
+                value: ScalarValue::X,
+            },
+            toughness: SignedScalar {
+                sign: ScalarSign::None,
+                value: ScalarValue::X,
+            },
+        })]
+    ));
 }
 
 #[test]
@@ -2327,30 +2370,32 @@ fn base_power_or_toughness_quantity_bound_rides_the_existing_quantity_complement
     else {
         panic!("expected a coordinated characteristic object: {ast}");
     };
-    assert!(
-        matches!(
-            coordination.rest().as_slice(),
-            [NounPhraseCoordination {
-                conjunction: Some(NounPhraseConjunction::Or),
-                phrase: NounPhrase::Nominal(NominalPhrase {
-                    head: NounInstance::Mass(Noun::Word(Vocab::Toughness)),
-                    complements,
-                    ..
+    let [
+        NounPhraseCoordination {
+            conjunction: Some(NounPhraseConjunction::Or),
+            phrase: NounPhrase::Nominal(toughness),
+        },
+    ] = coordination.rest().as_slice()
+    else {
+        panic!("expected the coordinated toughness characteristic: {ast}")
+    };
+    assert!(matches!(
+        toughness.head.kind(),
+        NounInstanceKind::Mass(Noun::Word(Vocab::Toughness))
+    ));
+    assert!(matches!(
+        toughness.complements.as_slice(),
+        [NominalComplement::Quantity(quantity)] if matches!(
+            quantity.kind(),
+            QuantityKind::OrComparison(
+                QuantityValue::Literal(NumberLiteral {
+                    value: 1,
+                    numeral: Numeral::Arabic(false),
                 }),
-                ..
-            }] if matches!(
-                complements.as_slice(),
-                [NominalComplement::Quantity(Quantity::OrComparison(
-                    QuantityValue::Literal(NumberLiteral {
-                        value: 1,
-                        numeral: Numeral::Arabic(false),
-                    }),
-                    ComparativeWord::Less,
-                ))]
+                ComparativeWord::Less,
             )
-        ),
-        "AST:\n{ast}"
-    );
+        )
+    ));
 }
 
 // --- Activation-cost round --------------------------------------------------
@@ -2443,7 +2488,11 @@ fn cost_noun_phrases_coordinate_with_and_or() {
                     ..
                 })) if matches!(
                     coordinated.determiner(),
-                    Determiner::Quantity(Quantity::Exact(NumberLiteral { value: 2, .. }))
+                    Determiner::Quantity(quantity)
+                        if matches!(
+                            quantity.kind(),
+                            QuantityKind::Exact(NumberLiteral { value: 2, .. })
+                        )
                 ) && matches!(
                     coordinated.rest().as_slice(),
                     [NominalPhraseCoordination {
@@ -2530,8 +2579,10 @@ fn the_other_is_an_anaphoric_fused_head_nominal() {
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     assert!(
-        SyntaxInventory::from_ast(&ast)
-            .has_noun(|noun| matches!(noun, NounInstance::Singular(Noun::Word(Vocab::Other)))),
+        SyntaxInventory::from_ast(&ast).has_noun(|noun| matches!(
+            noun.kind(),
+            NounInstanceKind::Singular(Noun::Word(Vocab::Other))
+        )),
         "expected `other` to head the fused-head nominal\nAST:\n{ast}"
     );
 }
@@ -2544,8 +2595,10 @@ fn the_others_plural_fused_head_nominal_round_trips() {
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     assert!(
-        SyntaxInventory::from_ast(&ast)
-            .has_noun(|noun| matches!(noun, NounInstance::Plural(Noun::Word(Vocab::Other)))),
+        SyntaxInventory::from_ast(&ast).has_noun(|noun| matches!(
+            noun.kind(),
+            NounInstanceKind::Plural(Noun::Word(Vocab::Other))
+        )),
         "expected `others` to head the fused-head nominal\nAST:\n{ast}"
     );
 }
@@ -2566,8 +2619,10 @@ fn attributive_other_stays_an_adjective_not_a_noun_modifier() {
         "expected `other` as an adjective modifier\nAST:\n{ast}"
     );
     assert!(
-        !inventory
-            .has_noun(|noun| matches!(noun, NounInstance::Singular(Noun::Word(Vocab::Other)))),
+        !inventory.has_noun(|noun| matches!(
+            noun.kind(),
+            NounInstanceKind::Singular(Noun::Word(Vocab::Other))
+        )),
         "`other` must not reduce as a noun modifier\nAST:\n{ast}"
     );
 }
@@ -2650,10 +2705,10 @@ fn flavor_header_dash_is_not_read_as_an_appositive() {
     assert!(
         matches!(
             paragraph.sentences.as_slice(),
-            [Sentence {
-                body: SentenceBody::Independent(clause),
-                ..
-            }] if appositive(clause).is_none()
+            [sentence] if matches!(
+                sentence.body(),
+                SentenceBody::Independent(clause) if appositive(clause).is_none()
+            )
         ),
         "a flavor header must not become an appositive\nAST:\n{ast}"
     );
@@ -2670,10 +2725,7 @@ fn single_clause_dash_body_does_not_license_an_appositive() {
     assert!(
         matches!(
             only_paragraph(&ast).sentences.as_slice(),
-            [Sentence {
-                body: SentenceBody::Recovered(_),
-                ..
-            }]
+            [sentence] if matches!(sentence.body(), SentenceBody::Recovered(_))
         ),
         "a single-clause dash body must not become an appositive\nAST:\n{ast}"
     );
@@ -2692,10 +2744,7 @@ fn bare_power_toughness_sentence_is_a_verbless_body() {
     assert!(
         matches!(
             only_paragraph(&ast).sentences.as_slice(),
-            [Sentence {
-                body: SentenceBody::PowerToughness(_),
-                ..
-            }]
+            [sentence] if matches!(sentence.body(), SentenceBody::PowerToughness(_))
         ),
         "expected a verbless power/toughness body\nAST:\n{ast}"
     );
@@ -2712,10 +2761,7 @@ fn bare_power_toughness_without_a_period_stays_verbatim() {
     assert!(
         matches!(
             only_paragraph(&ast).sentences.as_slice(),
-            [Sentence {
-                body: SentenceBody::Recovered(_),
-                ..
-            }]
+            [sentence] if matches!(sentence.body(), SentenceBody::Recovered(_))
         ),
         "a periodless `N/N` must not become a P/T sentence body\nAST:\n{ast}"
     );
@@ -2733,8 +2779,8 @@ fn those_characteristics_anaphor_parses_as_a_plural_nominal() {
     assert_no_recovery(&ast);
     assert!(
         SyntaxInventory::from_ast(&ast).has_noun(|noun| matches!(
-            noun,
-            NounInstance::Plural(Noun::Word(vocab))
+            noun.kind(),
+            NounInstanceKind::Plural(Noun::Word(vocab))
                 if matches!(vocab, Vocab::Regular(_)) && vocab.spelling() == "characteristic"
         )),
         "expected the singular `characteristic` lemma pluralized under `those`\nAST:\n{ast}"
@@ -2866,10 +2912,10 @@ fn flavor_word_header_uncovers_a_villainous_choice_appositive() {
                 &only_ability(&ast).kind,
                 AbilityKind::Paragraph(Paragraph { sentences, .. }) if matches!(
                     sentences.as_slice(),
-                    [Sentence {
-                        body: SentenceBody::Independent(clause),
-                        ..
-                    }] if appositive(clause).is_some()
+                    [sentence] if matches!(
+                        sentence.body(),
+                        SentenceBody::Independent(clause) if appositive(clause).is_some()
+                    )
                 )
             ),
         "expected the inner villainous-choice appositive to parse\nAST:\n{ast}"
@@ -3001,8 +3047,10 @@ fn one_is_a_dispreferenced_fused_head_noun() {
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     assert!(
-        SyntaxInventory::from_ast(&ast)
-            .has_noun(|noun| matches!(noun, NounInstance::Singular(Noun::Word(Vocab::One)))),
+        SyntaxInventory::from_ast(&ast).has_noun(|noun| matches!(
+            noun.kind(),
+            NounInstanceKind::Singular(Noun::Word(Vocab::One))
+        )),
         "expected `One` to head the fused-head nominal\nAST:\n{ast}"
     );
 }
@@ -3020,10 +3068,12 @@ fn number_literal_one_still_wins_over_the_noun_reading() {
     let inventory = SyntaxInventory::from_ast(&ast);
     assert!(
         inventory.nominals.iter().any(|nominal| matches!(
-            nominal.determiner,
-            Some(Determiner::Target(Some(Quantity::UpTo(
-                QuantityValue::Literal(NumberLiteral { value: 1, .. })
-            ))))
+            nominal.determiner.as_ref(),
+            Some(Determiner::Target(Some(quantity)))
+                if matches!(
+                    quantity.kind(),
+                    QuantityKind::UpTo(QuantityValue::Literal(NumberLiteral { value: 1, .. }))
+                )
         )),
         "expected `one` as a number literal\nAST:\n{ast}"
     );
@@ -3132,8 +3182,8 @@ fn nearest_is_an_attributive_superlative_adjective() {
     assert!(
         inventory.has_adjective(|adjective| matches!(adjective, Adjective::Word(Vocab::Nearest)))
             && !inventory.has_noun(|noun| matches!(
-                noun,
-                NounInstance::Singular(Noun::Word(Vocab::Nearest))
+                noun.kind(),
+                NounInstanceKind::Singular(Noun::Word(Vocab::Nearest))
             )),
         "expected `nearest` as the superlative modifier\nAST:\n{ast}"
     );
@@ -3147,10 +3197,11 @@ fn nearest_retains_its_fused_head_noun_reading() {
     assert_no_recovery(&ast);
     let inventory = SyntaxInventory::from_ast(&ast);
     assert!(
-        inventory
-            .has_noun(|noun| matches!(noun, NounInstance::Singular(Noun::Word(Vocab::Nearest))))
-            && !inventory
-                .has_adjective(|adjective| matches!(adjective, Adjective::Word(Vocab::Nearest))),
+        inventory.has_noun(|noun| matches!(
+            noun.kind(),
+            NounInstanceKind::Singular(Noun::Word(Vocab::Nearest))
+        )) && !inventory
+            .has_adjective(|adjective| matches!(adjective, Adjective::Word(Vocab::Nearest))),
         "expected `nearest` to remain a fused nominal head\nAST:\n{ast}"
     );
 }
@@ -3244,8 +3295,8 @@ fn everything_mass_noun_round_trips() {
     assert_no_recovery(&ast);
     assert!(
         SyntaxInventory::from_ast(&ast).has_noun(|noun| matches!(
-            noun,
-            NounInstance::Mass(Noun::Word(vocab))
+            noun.kind(),
+            NounInstanceKind::Mass(Noun::Word(vocab))
                 if matches!(vocab, Vocab::Regular(_)) && vocab.spelling() == "everything"
         )),
         "expected `everything` as a mass noun\nAST:\n{ast}"
@@ -3716,10 +3767,11 @@ fn qfloat_core_one_or_two_each_gets_lowers_as_coordinated_np() {
             Some(NounPhrase::Coordinated(coordinated))
                 if matches!(
                     coordinated.first().as_ref(),
-                    NounPhrase::Nominal(NominalPhrase {
-                        head: NounInstance::Singular(Noun::Word(Vocab::One)),
-                        ..
-                    })
+                    NounPhrase::Nominal(nominal)
+                        if matches!(
+                            nominal.head.kind(),
+                            NounInstanceKind::Singular(Noun::Word(Vocab::One))
+                        )
                 )
         ),
         "expected the pre-existing coordinated fused-head `One` reading\nAST:\n{ast}"
@@ -3727,10 +3779,12 @@ fn qfloat_core_one_or_two_each_gets_lowers_as_coordinated_np() {
     assert!(
         !matches!(
             clause_subject(only_independent_clause(&ast)),
-            Some(NounPhrase::Nominal(NominalPhrase {
-                determiner: Some(Determiner::Target(Some(Quantity::Or(_, _)))),
-                ..
-            }))
+            Some(NounPhrase::Nominal(nominal))
+                if matches!(
+                    nominal.determiner.as_ref(),
+                    Some(Determiner::Target(Some(quantity)))
+                        if matches!(quantity.kind(), QuantityKind::Or(_, _))
+                )
         ),
         "Stage 1 is dropped this round; the subject must not become a single \
          `Quantity::Or(1, 2)` nominal\nAST:\n{ast}"
@@ -4090,17 +4144,22 @@ fn anof_cardinal_two_target_players_exchange_life_totals() {
         SyntaxInventory::from_ast(&ast)
             .nominals
             .iter()
-            .any(|nominal| matches!(
-                nominal,
-                NominalPhrase {
-                    determiner: Some(Determiner::Target(Some(Quantity::Exact(NumberLiteral {
-                        value: 2,
-                        numeral: Numeral::Cardinal,
-                    })))),
-                    head: NounInstance::Plural(Noun::Word(Vocab::Player)),
-                    ..
-                }
-            )),
+            .any(|nominal| {
+                matches!(
+                    nominal.determiner.as_ref(),
+                    Some(Determiner::Target(Some(quantity)))
+                        if matches!(
+                            quantity.kind(),
+                            QuantityKind::Exact(NumberLiteral {
+                                value: 2,
+                                numeral: Numeral::Cardinal,
+                            })
+                        )
+                ) && matches!(
+                    nominal.head.kind(),
+                    NounInstanceKind::Plural(Noun::Word(Vocab::Player))
+                )
+            }),
         "expected the quantified-target structure, not an opaque modifier\nAST:\n{ast}"
     );
 }
@@ -4131,15 +4190,19 @@ fn multiword_cardinal_plural_lowers_as_one_quantity() {
     };
     assert!(
         matches!(
-            nominal.determiner,
-            Some(Determiner::Quantity(Quantity::Exact(NumberLiteral {
-                value: 100,
-                numeral: Numeral::Cardinal,
-            })))
+            nominal.determiner.as_ref(),
+            Some(Determiner::Quantity(quantity))
+                if matches!(
+                    quantity.kind(),
+                    QuantityKind::Exact(NumberLiteral {
+                        value: 100,
+                        numeral: Numeral::Cardinal,
+                    })
+                )
         ),
         "the complete numeral span must lower as 100: {plural:#?}"
     );
-    assert!(matches!(nominal.head, NounInstance::Plural(_)));
+    assert!(matches!(nominal.head.kind(), NounInstanceKind::Plural(_)));
 }
 
 #[test]
@@ -4180,15 +4243,18 @@ fn quantified_target_cardinality_matches_the_public_quantity_contract() {
         })
     };
     assert_eq!(
-        Determiner::Target(Some(Quantity::AtLeast(literal(1)))).noun_cardinality(),
+        Determiner::Target(Some(Quantity::try_at_least(literal(1)).unwrap())).noun_cardinality(),
         NounCardinality::SingularCount
     );
     assert_eq!(
-        Determiner::Target(Some(Quantity::AtLeast(literal(3)))).noun_cardinality(),
+        Determiner::Target(Some(Quantity::try_at_least(literal(3)).unwrap())).noun_cardinality(),
         NounCardinality::PluralCount
     );
     assert_eq!(
-        Determiner::Target(Some(Quantity::AtLeast(QuantityValue::Variable))).noun_cardinality(),
+        Determiner::Target(Some(
+            Quantity::try_at_least(QuantityValue::Variable).unwrap(),
+        ))
+        .noun_cardinality(),
         NounCardinality::PluralCount
     );
 }
@@ -4265,8 +4331,10 @@ fn anof_cardinal_one_or_more_fused_head_gate_stays_green() {
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     assert!(
-        SyntaxInventory::from_ast(&ast)
-            .has_noun(|noun| matches!(noun, NounInstance::Singular(Noun::Word(Vocab::One)))),
+        SyntaxInventory::from_ast(&ast).has_noun(|noun| matches!(
+            noun.kind(),
+            NounInstanceKind::Singular(Noun::Word(Vocab::One))
+        )),
         "expected `One` to still head the fused-head nominal\nAST:\n{ast}"
     );
 }
@@ -4280,10 +4348,12 @@ fn anof_cardinal_number_literal_one_still_wins_gate_stays_green() {
     let inventory = SyntaxInventory::from_ast(&ast);
     assert!(
         inventory.nominals.iter().any(|nominal| matches!(
-            nominal.determiner,
-            Some(Determiner::Target(Some(Quantity::UpTo(
-                QuantityValue::Literal(NumberLiteral { value: 1, .. })
-            ))))
+            nominal.determiner.as_ref(),
+            Some(Determiner::Target(Some(quantity)))
+                if matches!(
+                    quantity.kind(),
+                    QuantityKind::UpTo(QuantityValue::Literal(NumberLiteral { value: 1, .. }))
+                )
         )),
         "expected `one` as a number literal\nAST:\n{ast}"
     );
