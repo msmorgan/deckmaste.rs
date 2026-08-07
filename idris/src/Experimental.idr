@@ -147,6 +147,31 @@
 |||    mid-sentence ([CR#400.7]) — Flickering Spirit's "it" reads its
 |||    own exile.
 |||
+||| Chapter five, temporal grammar (evidence: Jump, Giant Growth, Bond
+||| of Revival, Graceful Reprieve, Vraska's Stoneglare, Phthisis,
+||| Karplusan Yeti):
+|||
+||| 17. **Duration is trailing-adverbial data.** `Gain`/`Gets` carry
+|||    the stated duration ([CR#611.2a]); the unstated form is an
+|||    explicit `Nothing` (lasts until end of game) per the
+|||    written-Nothing convention — no defaults.
+||| 18. **An event query transforms the delayed context.** `Delayed`
+|||    names what it waits for; a time query settles only, and "when
+|||    [target] dies this turn" both announces its watched referent and
+|||    retags it to the graveyard ([CR#700.4]) — the event is a zone
+|||    transition, so `gracefulReprieve`'s "that card" resolves and
+|||    "that creature" is refused (`badDeadCreatureRead`).
+||| 19. **Last-known reads are the standing semantics.** Reads ignore
+|||    zone, so a dead referent's characteristics stay readable
+|||    (`vraskasStoneglare`; `phthisis` threads "power plus toughness"
+|||    as amount arithmetic); which VALUES those reads see is runtime —
+|||    the ability layer's story.
+||| 20. **`Fights` is confirmed primitive.** No operative oracle text
+|||    spells the mutual-damage expansion (reminder text only), and the
+|||    sequential family (`karplusanYeti`) is not equivalent — its two
+|||    clauses admit state-based actions between them, where
+|||    [CR#701.14a] deals one simultaneous event.
+|||
 ||| Not settled yet: the kind union ("any target" spans objects and
 ||| players [CR#115.4,115.1] — elided to `Object`);
 ||| owned-zone mentions beyond `You` ("its owner's hand" — destination
@@ -156,16 +181,17 @@
 ||| Factor / Rakdos, Patron of Chaos else-clauses); definite
 ||| descriptive reads ("the sacrificed creature", "the exiled card" —
 ||| also what `AAtRandom`'s positive waits on: Pyromancy reads "the
-||| discarded card"); event queries (`Delayed` carries none); the player pronoun "they"
+||| discarded card"); more event queries (upkeep / end-of-combat /
+||| leaves-the-battlefield — Slaughter Pact, Mirror Match, and
+||| Kjeldoran Elite Guard wait on pay, tokens, and an unknown-zone
+||| retag); the player pronoun "they"
 ||| (corpus-attested only inside trigger and unless clauses — Havoc,
 ||| Tergrid's Lantern — so `They`'s positive waits on those constructions)
 ||| and plural reads ("those creatures", "them", "the rest");
-||| duration and the continuous-effect grammar (`Gain` elides "until end
-||| of turn"); last-known-information reads (`bitterDownfall`'s "its
-||| controller" resolves after the destroy because reads ignore zone —
-||| deliberate, but [CR#109.4] gives off-battlefield objects no
-||| controller, so the LKI story belongs to the ability layer);
-||| simultaneity (blocks de-macroing `Fights`); Token / Spell
+||| static abilities and "for as long as" durations ([CR#611.2b],
+||| Kitesail Corsair); last-known VALUES (reads ignore zone — finding
+||| 19 — but [CR#109.4] gives off-battlefield objects no controller,
+||| so the value story belongs to the ability layer); Token / Spell
 ||| / stack-object / Amount carriers ("that much"; bare `This` stays
 ||| untracked, and "this spell" / "this card" carriers with it); "the
 ||| chosen [quality]" (quality-kind bindings); and coordination ellipsis (Arc
@@ -365,10 +391,18 @@ data OnBattlefield : Maybe Zone -> Type where
 ||| their parameters explicitly (e.g. a from-quality as `Maybe`, written
 ||| `Nothing` in the plain form), never as defaults.
 public export
-data Keyword = Haste
+data Keyword = Haste | Flying | Trample
 
 public export
 data Ability = KeywordAbility Keyword
+
+||| Durations, as the trailing adverbial writes them ([CR#611.2a] — a
+||| resolution-generated continuous effect "lasts as long as stated";
+||| with no stated duration it lasts until end of game, which is the
+||| explicit `Nothing` spelling per the no-defaults convention).
+||| "for as long as" durations ([CR#611.2b]) are a later chapter.
+public export
+data Duration = UntilEndOfTurn | UntilYourNextTurn
 
 ||| Keyword-action tags ([CR#701]) — core's `Composite` verb names.
 ||| `Destroy` and `Discard` mirror `plugins/builtin/macros/action/`;
@@ -562,12 +596,17 @@ mutual
   public export
   data Amount : Bindings -> Type where
     Lit : Nat -> Amount bs
-    PowerOf : Noun bs Object -> Amount bs   -- "[its/…] power"
+    PowerOf : Noun bs Object -> Amount bs      -- "[its/…] power"
+    ToughnessOf : Noun bs Object -> Amount bs  -- "[its/…] toughness"
+    -- "[a] plus [b]" — the second operand reads after the first.
+    Plus : (a : Amount bs) -> Amount (amtIntro a) -> Amount bs
 
   public export
   amtIntro : {bs : Bindings} -> Amount bs -> Bindings
   amtIntro (Lit n) = bs
   amtIntro (PowerOf nom) = nomIntro nom
+  amtIntro (ToughnessOf nom) = nomIntro nom
+  amtIntro (Plus a b) = amtIntro b
 
   ||| Life-total change operands ([CR#119.3]; `Set` is a later chapter).
   public export
@@ -580,6 +619,23 @@ mutual
   lifeIntro (Up a) = amtIntro a
   lifeIntro (Down a) = amtIntro a
 
+  ||| What a delayed clause waits for — time queries introduce nothing;
+  ||| an object-event query names its watched referent ("when target
+  ||| creature dies this turn", Graceful Reprieve — the when-clause is
+  ||| where that target is announced).
+  public export
+  data EventQuery : Bindings -> Type where
+    NextEndStep : EventQuery bs                     -- "at the beginning of the next end step"
+    DiesThisTurn : Noun bs Object -> EventQuery bs  -- "when [n] dies this turn" ([CR#700.4])
+
+  ||| The context a delayed body reads: settled particulars, with the
+  ||| event's own transition applied — dying retags the watched
+  ||| referent to the graveyard exactly as a move would ([CR#700.4]).
+  public export
+  delayedCtx : {bs : Bindings} -> EventQuery bs -> Bindings
+  delayedCtx NextEndStep = settleTargets bs
+  delayedCtx (DiesThisTurn n) = settleTargets (moveIntro n Graveyard)
+
   ||| Clauses. Constructor argument order IS textual order, and each
   ||| argument is typed in the context its predecessors built — the
   ||| telescope is the whole term, not a special clause-list feature.
@@ -590,9 +646,11 @@ mutual
     -- "[src] deals [amt] damage to [to]"
     DealDamage : {k : Kind} -> (src : Noun bs Object) -> (amt : Amount (nomIntro src)) ->
                  (to : Noun (amtIntro amt) k) -> Effect bs
-    -- "[a] fights [b]" ([CR#701.14a]). De-macroable in principle to the
-    -- mutual-damage expansion; simultaneity is not yet mintable, so it
-    -- stays primitive for now (classification unconfirmed).
+    -- "[a] fights [b]" ([CR#701.14a]). Primitive, confirmed: the
+    -- expansion is a single simultaneous event, which no clause
+    -- sequence reproduces (state-based actions can intervene between
+    -- sentences — see `karplusanYeti`), and no operative oracle text
+    -- spells it out (reminder text only).
     Fights : (a : Noun bs Object) -> (b : Noun (nomIntro a) Object) -> Effect bs
     -- "tap [n]" ([CR#701.26a]) — core basis.
     Tap : Noun bs Object -> Effect bs
@@ -603,9 +661,13 @@ mutual
     Move : (what : Noun bs Object) -> (to : ZoneExpr (nomIntro what)) -> Effect bs
     -- "[who] gains/loses [amt] life" ([CR#119.3]) — core basis (merged).
     ChangeLife : (who : Noun bs Player) -> (op : LifeOp (nomIntro who)) -> Effect bs
-    -- "[n] gains [ability]" — duration and the continuous-effect grammar
-    -- are a later chapter.
-    Gain : Noun bs Object -> Ability -> Effect bs
+    -- "[n] gains [ability] [duration]" — establishes a continuous
+    -- effect for the stated duration ([CR#611.2a]).
+    Gain : Noun bs Object -> Ability -> Maybe Duration -> Effect bs
+    -- "[n] gets [+p/+t] [duration]" — the stat-modifying continuous
+    -- effect, same duration discipline.
+    Gets : Noun bs Object -> (pow : Integer) -> (tou : Integer) ->
+           Maybe Duration -> Effect bs
     -- the keyword-action tag ([CR#701]): the named verb deontics and
     -- replacements key on, wrapping its expansion body ([CR#701.8b] —
     -- only a Destroy-tagged move IS a destruction).
@@ -631,11 +693,11 @@ mutual
     May : (decider : Noun bs Player) -> Effect (nomIntro decider) -> Effect bs
     -- sentence/clause sequence: the discourse advances left to right.
     AndThen : (e1 : Effect bs) -> (e2 : Effect (effIntro e1)) -> Effect bs
-    -- "[e] at the beginning of the next end step" — the temporal
-    -- adverbial stays on its clause; the body reads the discourse as
-    -- settled particulars (`settleTargets`, [CR#603.7c,603.3d]).
-    -- Event queries are a later chapter.
-    Delayed : Effect (settleTargets bs) -> Effect bs
+    -- "[e] [when/at event-query]" — the temporal adverbial stays on
+    -- its clause (leading vs trailing position is linearization); the
+    -- body reads the discourse as settled particulars transformed by
+    -- the event (`delayedCtx`, [CR#603.7c,603.3d]).
+    Delayed : (ev : EventQuery bs) -> Effect (delayedCtx ev) -> Effect bs
 
   ||| Retag the binding a moved noun denotes: an introducing noun's own
   ||| fresh binding, or the unique binding a read resolved to (strict
@@ -711,12 +773,13 @@ mutual
   effIntro (Tap n) = nomIntro n
   effIntro (Move what to) = moveIntro what (zoneSort to)
   effIntro (ChangeLife who op) = lifeIntro op
-  effIntro (Gain n _) = nomIntro n
+  effIntro (Gain n _ _) = nomIntro n
+  effIntro (Gets n _ _ _) = nomIntro n
   effIntro (Composite _ e) = effIntro e
   effIntro (Does s e) = effIntro e
   effIntro (May d e) = effIntro e            -- a declined May skips at runtime, not in scope
   effIntro (AndThen e1 e2) = effIntro e2
-  effIntro (Delayed e) = bs                  -- a future clause mentions nothing NOW
+  effIntro (Delayed ev e) = bs               -- a future clause mentions nothing NOW
 
 -- ===== The activated-ability juncture =====
 
@@ -792,15 +855,20 @@ public export
 discardsACard : (agent : Noun bs Player) -> Effect bs
 discardsACard agent = Does agent (Composite Discard (Move (A (InZone HandZ)) GraveyardZ))
 
--- "[n] gains haste"
+-- "[n] gains haste [duration]"
 public export
-gainsHaste : Noun bs Object -> Effect bs
-gainsHaste n = Gain n (KeywordAbility Haste)
+gainsHaste : Noun bs Object -> Maybe Duration -> Effect bs
+gainsHaste n d = Gain n (KeywordAbility Haste) d
 
 -- "[who] loses [amt] life"
 public export
 losesLife : (who : Noun bs Player) -> Amount (nomIntro who) -> Effect bs
 losesLife who amt = ChangeLife who (Down amt)
+
+-- "[who] gains [amt] life"
+public export
+gainsLife : (who : Noun bs Player) -> Amount (nomIntro who) -> Effect bs
+gainsLife who amt = ChangeLife who (Up amt)
 
 -- ===== Positives (must typecheck) =====
 
@@ -855,8 +923,8 @@ cloudshift = AndThen (exile (Target creatureYouControl))
 -- is the `Delayed` mark on its clause.
 throughTheBreach : Effect []
 throughTheBreach = AndThen (May You (Move (A (And [creature, InZone (HandOf You)])) BattlefieldZ))
-                           (AndThen (gainsHaste (That (Perm Creature)))
-                                    (Delayed (sacrifice You (That (Perm Creature)))))
+                           (AndThen (gainsHaste (That (Perm Creature)) Nothing)
+                                    (Delayed NextEndStep (sacrifice You (That (Perm Creature)))))
 
 -- "Destroy target creature. Its controller loses 2 life." (Bitter
 -- Downfall; its cost-reduction line elided) — the relational noun:
@@ -939,7 +1007,63 @@ flickeringSpirit = AndThen (exile (ThisOf Creature)) (Move It BattlefieldZ)
 -- illegality).
 turnToMist : Effect []
 turnToMist = AndThen (exile (Target creature))
-                     (Delayed (Move (That CardC) BattlefieldZ))
+                     (Delayed NextEndStep (Move (That CardC) BattlefieldZ))
+
+-- "Target creature gains flying until end of turn." (Jump) — the
+-- duration as trailing-adverbial data ([CR#611.2a]).
+jump : Effect []
+jump = Gain (Target creature) (KeywordAbility Flying) (Just UntilEndOfTurn)
+
+-- "Target creature gets +3/+3 until end of turn." (Giant Growth)
+giantGrowth : Effect []
+giantGrowth = Gets (Target creature) 3 3 (Just UntilEndOfTurn)
+
+-- "Return target creature card from your graveyard to the
+-- battlefield. It gains haste until your next turn." (Bond of
+-- Revival) — an owned-zone source and the cross-turn duration; the
+-- return is just a Move, and "it" reads the retagged referent.
+bondOfRevival : Effect []
+bondOfRevival = AndThen (Move (Target (And [creature, InZone (GraveyardOf You)])) BattlefieldZ)
+                        (gainsHaste It (Just UntilYourNextTurn))
+
+-- "When target creature dies this turn, return that card to the
+-- battlefield under its owner's control." (Graceful Reprieve; "under
+-- its owner's control" elided) — the event query transforms the
+-- delayed context: the when-clause announces the watched target and
+-- dying retags it to the graveyard ([CR#700.4]), so "that card" is
+-- the carrier that resolves.
+gracefulReprieve : Effect []
+gracefulReprieve = Delayed (DiesThisTurn (Target creature))
+                           (Move (That CardC) BattlefieldZ)
+
+-- "Destroy target creature. You gain life equal to its toughness."
+-- (Vraska's Stoneglare; its tutor clause elided) — a last-known read:
+-- reads ignore zone, so the dead referent's characteristics stay
+-- readable; which values they see is runtime (the ability layer's
+-- story).
+vraskasStoneglare : Effect []
+vraskasStoneglare = AndThen (destroy (Target creature))
+                            (gainsLife You (ToughnessOf It))
+
+-- "Destroy target creature. Its controller loses life equal to its
+-- power plus its toughness." (Phthisis; its Suspend line elided) —
+-- the relational noun over the dead referent, and amount arithmetic
+-- threading left to right.
+phthisis : Effect []
+phthisis = AndThen (destroy (Target creature))
+                   (losesLife (ControllerOf It) (Plus (PowerOf It) (ToughnessOf It)))
+
+-- "This creature deals damage equal to its power to target creature.
+-- That creature deals damage equal to its power to this creature."
+-- (Karplusan Yeti's activated ability; its {T} cost elided, and the
+-- source-referring "its" is spelled as the self-reference — source
+-- mentions don't bind) — the SEQUENTIAL cousin of fight: two one-shot
+-- damage clauses, not [CR#701.14a]'s single simultaneous event
+-- (state-based actions can intervene between the sentences), which is
+-- why `Fights` stays primitive.
+karplusanYeti : Effect []
+karplusanYeti = AndThen (DealDamage (ThisOf Creature) (PowerOf (ThisOf Creature)) (Target creature))
+                        (DealDamage (That (Perm Creature)) (PowerOf It) (ThisOf Creature))
 
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
@@ -970,7 +1094,7 @@ failing "countOnes"
 -- zone, never its determiner).
 failing "OnBattlefield"
   badStale : Effect []
-  badStale = AndThen (destroy (Target creature)) (Delayed (sacrifice You It))
+  badStale = AndThen (destroy (Target creature)) (Delayed NextEndStep (sacrifice You It))
 
 -- "Another target" inside a delayed clause can only be distinct from
 -- the DELAYED ability's own targets — it announces in its own event
@@ -982,7 +1106,7 @@ failing "OnBattlefield"
 failing "anyTargeted"
   badDelayedOther : Effect []
   badDelayedOther = AndThen (DealDamage This (Lit 2) (Target AnyTarget))
-                            (Delayed (DealDamage This (Lit 1) (Target anyOtherTarget)))
+                            (Delayed NextEndStep (DealDamage This (Lit 1) (Target anyOtherTarget)))
 
 -- After the exile, the referent no longer answers to "creature": its
 -- carrier is derived from the RETAGGED zone ([CR#110.1]), so the typed
@@ -1017,6 +1141,14 @@ failing "countOnes"
 failing "OnBattlefield"
   badSacrificeExiled : Effect []
   badSacrificeExiled = AndThen (exile (Target creature)) (sacrifice You It)
+
+-- After the watched target dies, it no longer answers to "creature":
+-- the event retag flips the carrier ([CR#700.4,110.1]) — "that card"
+-- is the spelling that resolves (see `gracefulReprieve`).
+failing "countCarrier"
+  badDeadCreatureRead : Effect []
+  badDeadCreatureRead = Delayed (DiesThisTurn (Target creature))
+                                (Move (That (Perm Creature)) BattlefieldZ)
 
 -- Two predicate-inner opponents leave "that player" ambiguous — the
 -- uniqueness gate reaches inside relative clauses too. (Not
