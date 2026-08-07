@@ -46,11 +46,11 @@
 //! ([`reserved_tokens`]). Without that check a frame could smuggle in text
 //! that relocation would mistake for a hole.
 //!
-//! Singular retries use distinct canonical spellings of the value one. They
-//! cannot be globally reserved because literal `+1/+1` material and ordinary
-//! words such as `one` are valid in frames. Their safety check is instead
-//! structural: relocation still requires each value-and-notation witness to
-//! occur exactly once.
+//! Singular retries reuse the Arabic value one. It cannot be globally reserved
+//! because literal `+1/+1` material and ordinary `1` literals are valid in
+//! frames. The planner therefore records each inserted occurrence's position
+//! among all bounded `1` surfaces, and relocation requires an exact bijection
+//! with the matching parse nodes before it replaces only those occurrences.
 
 use std::fmt;
 
@@ -73,15 +73,6 @@ pub const SELF_WITNESS: &str = "Zzframeself";
 /// witness and never a frame literal, given [`reserved_tokens`] rejects an
 /// authored `41`.
 pub const RESERVED_NUMERALS: [u32; 6] = [41, 43, 47, 53, 59, 61];
-
-/// Collision-distinguishable surfaces for singular-safe retry witnesses.
-/// Each is a canonical notation for the semantic value one.
-pub const SINGULAR_NUMERALS: [(&str, Numeral); 4] = [
-    ("1", Numeral::Arabic(false)),
-    ("one", Numeral::Cardinal),
-    ("first", Numeral::Ordinal),
-    ("I", Numeral::Roman),
-];
 
 /// Which carrier a witness uses — the thing relocation looks for in the
 /// parsed tree.
@@ -157,23 +148,19 @@ pub fn numeral(slot: usize) -> anyhow::Result<Witness> {
     })
 }
 
-/// A collision-distinguishable numeric witness whose value licenses a
-/// singular count-noun surface.
-///
-/// # Errors
-/// If more simultaneous singular witnesses are requested than
-/// [`SINGULAR_NUMERALS`] provides.
-pub fn singular_numeral(variant: usize) -> anyhow::Result<Witness> {
-    let (surface, notation) = SINGULAR_NUMERALS.get(variant).copied().ok_or_else(|| {
-        anyhow::anyhow!(
-            "a frame may hold at most {} independently witnessed singular count holes",
-            SINGULAR_NUMERALS.len(),
-        )
-    })?;
-    Ok(Witness {
-        text: surface.to_string(),
-        kind: WitnessKind::Numeral { value: 1, notation },
-    })
+/// The reusable numeric witness whose value licenses a singular count-noun
+/// surface. Its individual occurrence is tracked by the frame planner, so a
+/// frame may use it for every supported numeric hole without confusing those
+/// holes with one another or with authored `1` literals.
+#[must_use]
+pub fn singular_numeral() -> Witness {
+    Witness {
+        text: "1".to_string(),
+        kind: WitnessKind::Numeral {
+            value: 1,
+            notation: Numeral::Arabic(false),
+        },
+    }
 }
 
 /// The witness for a phrasal hole at param index `param`, whose declared type
@@ -285,18 +272,15 @@ mod tests {
 
     #[test]
     fn numeral_witnesses_are_unique_per_slot_and_run_out_loudly() {
-        let mut all: Vec<String> = (0..RESERVED_NUMERALS.len())
+        let all: Vec<String> = (0..RESERVED_NUMERALS.len())
             .map(|slot| numeral(slot).unwrap().text)
             .collect();
-        all.extend(
-            (0..SINGULAR_NUMERALS.len()).map(|variant| singular_numeral(variant).unwrap().text),
-        );
         let mut sorted = all.clone();
         sorted.sort();
         sorted.dedup();
         assert_eq!(sorted.len(), all.len());
         assert!(numeral(RESERVED_NUMERALS.len()).is_err());
-        assert!(singular_numeral(SINGULAR_NUMERALS.len()).is_err());
+        assert_eq!(singular_numeral().text, "1");
     }
 
     #[test]

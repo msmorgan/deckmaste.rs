@@ -13,8 +13,8 @@
 //!    `zzhole0` for a phrasal hole, normally a reserved numeral `41` for a
 //!    count hole, and the face name `Zzframeself` for `~`. If strict noun
 //!    agreement rejects a singular count frame, the compiler retries subsets of
-//!    numeric holes with distinct value-one notations. The result is ordinary
-//!    English.
+//!    numeric holes with value-one witnesses. Repeated witnesses are
+//!    distinguished by their source occurrence. The result is ordinary English.
 //! 2. **Parse.** [`parse_fragment`] at the frame's category. The parse must be
 //!    [`clean`](deckmaste_english::FragmentReport::clean) — a frame that only
 //!    half-parses is a build error naming the frame, never a silently degraded
@@ -394,6 +394,17 @@ struct PlannedHole {
     /// says `~` more than once — every occurrence is the same referent, so
     /// they share a hole and relocation expects that many landing sites.
     occurrences: usize,
+    /// A numeric witness's bounded surface occurrence in the witnessed text.
+    /// The total includes authored identical surfaces; relocation requires
+    /// the parse to expose exactly that many markers and selects only this
+    /// ordinal, making repeated singular witnesses collision-safe.
+    marker_occurrence: Option<MarkerOccurrence>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct MarkerOccurrence {
+    ordinal: usize,
+    total: usize,
 }
 
 struct Plan {
@@ -402,48 +413,39 @@ struct Plan {
     numeric_holes: usize,
 }
 
-fn singular_witness_assignments(numeric_holes: usize) -> Vec<Vec<Option<usize>>> {
+fn bounded_surface_offsets(text: &str, surface: &str) -> Vec<usize> {
+    let is_digit_surface = surface.chars().all(|character| character.is_ascii_digit());
+    let continues = |character: char| {
+        if is_digit_surface {
+            character.is_ascii_digit()
+        } else {
+            character.is_alphanumeric()
+        }
+    };
+    text.match_indices(surface)
+        .filter_map(|(offset, _)| {
+            let before = text[..offset].chars().next_back();
+            let after = text[offset + surface.len()..].chars().next();
+            (!before.is_some_and(&continues) && !after.is_some_and(&continues)).then_some(offset)
+        })
+        .collect()
+}
+
+fn singular_witness_assignments(numeric_holes: usize) -> Vec<Vec<bool>> {
     let mut assignments = Vec::new();
-    for singular_count in 1..=numeric_holes.min(witness::SINGULAR_NUMERALS.len()) {
+    for singular_count in 1..=numeric_holes {
         for selected in 1_u64..(1_u64 << numeric_holes) {
             if selected.count_ones() as usize != singular_count {
                 continue;
             }
-            let slots = (0..numeric_holes)
-                .filter(|slot| selected & (1_u64 << slot) != 0)
-                .collect::<Vec<_>>();
-            assign_singular_variants(
-                &slots,
-                0,
-                &mut vec![None; numeric_holes],
-                0,
-                &mut assignments,
+            assignments.push(
+                (0..numeric_holes)
+                    .map(|slot| selected & (1_u64 << slot) != 0)
+                    .collect(),
             );
         }
     }
     assignments
-}
-
-fn assign_singular_variants(
-    slots: &[usize],
-    next: usize,
-    assignment: &mut [Option<usize>],
-    used: u8,
-    assignments: &mut Vec<Vec<Option<usize>>>,
-) {
-    let Some(&slot) = slots.get(next) else {
-        assignments.push(assignment.to_vec());
-        return;
-    };
-    for variant in 0..witness::SINGULAR_NUMERALS.len() {
-        let bit = 1_u8 << variant;
-        if used & bit != 0 {
-            continue;
-        }
-        assignment[slot] = Some(variant);
-        assign_singular_variants(slots, next + 1, assignment, used | bit, assignments);
-        assignment[slot] = None;
-    }
 }
 
 fn plan_holes(spec: &FrameSpec, params: &[String]) -> anyhow::Result<Plan> {
@@ -453,7 +455,7 @@ fn plan_holes(spec: &FrameSpec, params: &[String]) -> anyhow::Result<Plan> {
 fn plan_holes_with_singular(
     spec: &FrameSpec,
     params: &[String],
-    singular_numeric_variants: &[Option<usize>],
+    singular_numeric_slots: &[bool],
 ) -> anyhow::Result<Plan> {
     let reserved = witness::reserved_tokens(&spec.text);
     anyhow::ensure!(
@@ -465,6 +467,7 @@ fn plan_holes_with_singular(
 
     let mut text = String::with_capacity(spec.text.len());
     let mut by_param: Vec<Option<Witness>> = vec![None; params.len()];
+    let mut witness_offsets = vec![None; params.len()];
     let mut order = Vec::new();
     let mut self_refs = 0usize;
     let mut numeric_slot = 0usize;
@@ -497,19 +500,21 @@ fn plan_holes_with_singular(
                  (each param on exactly one constituent)"
             );
             let witness = if witness::is_numeric_param(param_type) {
-                let witness = match singular_numeric_variants
+                let witness = if singular_numeric_slots
                     .get(numeric_slot)
                     .copied()
-                    .flatten()
+                    .unwrap_or(false)
                 {
-                    Some(variant) => witness::singular_numeral(variant)?,
-                    None => witness::numeral(numeric_slot)?,
+                    witness::singular_numeral()
+                } else {
+                    witness::numeral(numeric_slot)?
                 };
                 numeric_slot += 1;
                 witness
             } else {
                 witness::lexeme(param_type, param)
             };
+            witness_offsets[param] = Some(text.len());
             text.push_str(&witness.text);
             by_param[param] = Some(witness);
             order.push(param);
@@ -559,11 +564,28 @@ fn plan_holes_with_singular(
     let mut holes: Vec<PlannedHole> = order
         .into_iter()
         .filter_map(|param| {
-            by_param[param].clone().map(|witness| PlannedHole {
-                index: 0,
-                param: Some(param),
-                witness,
-                occurrences: 1,
+            by_param[param].clone().map(|witness| {
+                let marker_occurrence =
+                    matches!(witness.kind, WitnessKind::Numeral { .. }).then(|| {
+                        let offsets = bounded_surface_offsets(&text, &witness.text);
+                        let inserted = witness_offsets[param]
+                            .expect("a planned param witness has an insertion offset");
+                        let ordinal = offsets
+                            .iter()
+                            .position(|offset| *offset == inserted)
+                            .expect("the inserted witness is a bounded surface occurrence");
+                        MarkerOccurrence {
+                            ordinal,
+                            total: offsets.len(),
+                        }
+                    });
+                PlannedHole {
+                    index: 0,
+                    param: Some(param),
+                    witness,
+                    occurrences: 1,
+                    marker_occurrence,
+                }
             })
         })
         .collect();
@@ -574,6 +596,7 @@ fn plan_holes_with_singular(
             param: None,
             witness: Witness::self_reference(),
             occurrences: self_refs,
+            marker_occurrence: None,
         });
     }
     for (index, hole) in holes.iter_mut().enumerate() {
@@ -663,21 +686,56 @@ impl PlacedHole {
 }
 
 /// Locates one planned hole in the parsed tree and decides its class.
+#[cfg(test)]
 fn place(tree: &View, planned: PlannedHole) -> anyhow::Result<PlacedHole> {
+    let markers = select_markers(tree, &planned)?;
+    place_at_markers(tree, planned, markers)
+}
+
+fn select_markers(tree: &View, planned: &PlannedHole) -> anyhow::Result<Vec<TreePath>> {
     let witness = &planned.witness;
-    let markers: Vec<TreePath> = tree
+    let markers = tree
         .walk()
         .into_iter()
         .filter(|(path, node)| is_marker_at(tree, path, node, witness))
         .map(|(path, _)| path)
-        .collect();
+        .collect::<Vec<_>>();
+    let Some(occurrence) = planned.marker_occurrence else {
+        anyhow::ensure!(
+            markers.len() == planned.occurrences,
+            "witness `{witness}` for hole {} was found {} time(s) in the parse, expected {}",
+            planned.index,
+            markers.len(),
+            planned.occurrences,
+        );
+        return Ok(markers);
+    };
     anyhow::ensure!(
-        markers.len() == planned.occurrences,
-        "witness `{witness}` for hole {} was found {} time(s) in the parse, expected {}",
+        markers.len() == occurrence.total,
+        "witness `{witness}` for hole {} was found {} time(s) in the parse, but the witnessed \
+         source has {} bounded occurrence(s)",
         planned.index,
         markers.len(),
-        planned.occurrences,
+        occurrence.total,
     );
+    let marker = markers.get(occurrence.ordinal).cloned().ok_or_else(|| {
+        anyhow::anyhow!(
+            "witness `{witness}` for hole {} has source occurrence {}, but the parse has only {} \
+             marker(s)",
+            planned.index,
+            occurrence.ordinal,
+            markers.len(),
+        )
+    })?;
+    Ok(vec![marker])
+}
+
+fn place_at_markers(
+    tree: &View,
+    planned: PlannedHole,
+    markers: Vec<TreePath>,
+) -> anyhow::Result<PlacedHole> {
+    let witness = &planned.witness;
 
     // Every site of one hole necessarily gets the same class: the only hole
     // that can have more than one site is `~` (a param may be holed exactly
@@ -700,7 +758,23 @@ fn place(tree: &View, planned: PlannedHole) -> anyhow::Result<PlacedHole> {
 }
 
 fn place_all(tree: &View, planned: Vec<PlannedHole>) -> anyhow::Result<Vec<PlacedHole>> {
-    planned.into_iter().map(|hole| place(tree, hole)).collect()
+    let mut claimed_markers = Vec::new();
+    let mut placed = Vec::with_capacity(planned.len());
+    for hole in planned {
+        let markers = select_markers(tree, &hole)?;
+        for marker in &markers {
+            anyhow::ensure!(
+                !claimed_markers.contains(marker),
+                "witness `{}` for hole {} selected parse marker {marker}, which another hole \
+                 already claimed",
+                hole.witness,
+                hole.index,
+            );
+        }
+        claimed_markers.extend(markers.iter().cloned());
+        placed.push(place_at_markers(tree, hole, markers)?);
+    }
+    Ok(placed)
 }
 
 fn number_literal_notation_matches(tree: &View, path: &TreePath, expected: Numeral) -> bool {
@@ -719,12 +793,15 @@ fn number_literal_notation_matches(tree: &View, path: &TreePath, expected: Numer
     let Some((_, notation)) = fields.iter().find(|(field, _)| *field == "numeral") else {
         return false;
     };
-    match expected {
-        Numeral::Cardinal => notation.variant_name() == Some("Cardinal"),
-        Numeral::Ordinal => notation.variant_name() == Some("Ordinal"),
-        Numeral::Arabic(_) => notation.variant_name() == Some("Arabic"),
-        Numeral::Roman => notation.variant_name() == Some("Roman"),
+    notation == &view::of(&expected)
+}
+
+fn is_number_literal_value(tree: &View, path: &TreePath) -> bool {
+    if path.0.last() != Some(&PathStep::Field("value")) {
+        return false;
     }
+    let parent = TreePath(path.0[..path.0.len().saturating_sub(1)].to_vec());
+    parent.resolve(tree).and_then(View::type_name) == Some("NumberLiteral")
 }
 
 fn numeric_scalar_value(node: &View) -> Option<i32> {
@@ -746,9 +823,14 @@ fn is_marker_at(tree: &View, path: &TreePath, node: &View, witness: &Witness) ->
             matches!(node, View::Scalar { kind: "str", repr } if *repr == witness.text)
         }
         WitnessKind::Numeral { value, notation } => {
-            numeric_scalar_value(node) == Some(value)
-                && (number_literal_notation_matches(tree, path, notation)
-                    || matches!(node, View::Scalar { repr, .. } if *repr == witness.text))
+            if numeric_scalar_value(node) != Some(value) {
+                return false;
+            }
+            if is_number_literal_value(tree, path) {
+                number_literal_notation_matches(tree, path, notation)
+            } else {
+                matches!(node, View::Scalar { repr, .. } if *repr == witness.text)
+            }
         }
         // The face name is consumed by the parser's identity machinery and
         // never reaches the tree as a spelling, so the self-reference is
@@ -1938,7 +2020,7 @@ mod tests {
                 .iter()
                 .map(|hole| hole.witness.text.as_str())
                 .collect::<Vec<_>>(),
-            ["one", "I"]
+            ["1", "1"]
         );
         let kinds = singular
             .agreement
@@ -1952,6 +2034,150 @@ mod tests {
         assert!(
             kinds.contains(&AgreeKind::NounNumberFromHole(1)),
             "{kinds:?}"
+        );
+    }
+
+    #[test]
+    fn four_singular_count_holes_have_a_bijective_witness_plan() {
+        let params = ["Count", "Count", "Count", "Count"]
+            .map(String::from)
+            .to_vec();
+        let compile_one = |text: &str| {
+            compile(
+                &bare(text),
+                FragmentKind::Nominal,
+                &params,
+                &Catalogs::default(),
+                &reader(),
+            )
+            .unwrap_or_else(|error| panic!("{text}: {error:#}"))
+        };
+        let plural = compile_one(
+            "<Param(0)> cards, <Param(1)> cards, <Param(2)> cards, and <Param(3)> cards",
+        );
+        assert_sites_resolve(&plural);
+        assert_eq!(
+            plural
+                .holes
+                .iter()
+                .map(|hole| hole.witness.text.as_str())
+                .collect::<Vec<_>>(),
+            ["41", "43", "47", "53"]
+        );
+
+        let singular =
+            compile_one("<Param(0)> card, <Param(1)> card, <Param(2)> card, and <Param(3)> card");
+        assert_eq!(singular.tree, plural.tree);
+        assert_sites_resolve(&singular);
+        assert_eq!(
+            singular
+                .holes
+                .iter()
+                .map(|hole| hole.witness.text.as_str())
+                .collect::<Vec<_>>(),
+            ["1", "1", "1", "1"]
+        );
+        let kinds = singular
+            .agreement
+            .iter()
+            .map(|dependency| dependency.kind)
+            .collect::<Vec<_>>();
+        for hole in 0..4 {
+            assert!(
+                kinds.contains(&AgreeKind::NounNumberFromHole(hole)),
+                "missing hole {hole}: {kinds:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn six_singular_count_holes_reach_the_supported_numeric_capacity() {
+        let params = ["Count", "Count", "Count", "Count", "Count", "Count"]
+            .map(String::from)
+            .to_vec();
+        let compile_one = |text: &str| {
+            compile(
+                &bare(text),
+                FragmentKind::Nominal,
+                &params,
+                &Catalogs::default(),
+                &reader(),
+            )
+            .unwrap_or_else(|error| panic!("{text}: {error:#}"))
+        };
+        let plural = compile_one(
+            "<Param(0)> cards and <Param(1)> cards and <Param(2)> cards and \
+             <Param(3)> cards and <Param(4)> cards and <Param(5)> cards",
+        );
+        assert_sites_resolve(&plural);
+        assert_eq!(
+            plural
+                .holes
+                .iter()
+                .map(|hole| hole.witness.text.as_str())
+                .collect::<Vec<_>>(),
+            ["41", "43", "47", "53", "59", "61"]
+        );
+
+        let singular = compile_one(
+            "<Param(0)> card and <Param(1)> card and <Param(2)> card and \
+             <Param(3)> card and <Param(4)> card and <Param(5)> card",
+        );
+        assert_eq!(singular.tree, plural.tree);
+        assert_sites_resolve(&singular);
+        assert_eq!(
+            singular
+                .holes
+                .iter()
+                .map(|hole| hole.witness.text.as_str())
+                .collect::<Vec<_>>(),
+            ["1", "1", "1", "1", "1", "1"]
+        );
+        let kinds = singular
+            .agreement
+            .iter()
+            .map(|dependency| dependency.kind)
+            .collect::<Vec<_>>();
+        for hole in 0..6 {
+            assert!(
+                kinds.contains(&AgreeKind::NounNumberFromHole(hole)),
+                "missing hole {hole}: {kinds:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn repeated_singular_witness_does_not_claim_an_authored_one() {
+        let params = ["Count".to_string()];
+        let compile_one = |text: &str| {
+            compile(
+                &bare(text),
+                FragmentKind::Nominal,
+                &params,
+                &Catalogs::default(),
+                &reader(),
+            )
+            .unwrap_or_else(|error| panic!("{text}: {error:#}"))
+        };
+        let plural = compile_one("<Param(0)> cards and 1 card");
+        let singular = compile_one("<Param(0)> card and 1 card");
+        assert_eq!(singular.tree, plural.tree);
+        assert_sites_resolve(&singular);
+        assert_sites_resolve(&plural);
+        assert_eq!(singular.holes[0].witness.text, "1");
+        assert_eq!(holes_in(&singular.tree), [0]);
+        assert_eq!(
+            singular
+                .tree
+                .walk()
+                .iter()
+                .filter(|(_, node)| matches!(
+                    node,
+                    View::Scalar { kind: "i32", repr } if repr == "1"
+                ))
+                .count(),
+            1,
+            "the authored `1 card` must remain in the normalized tree"
         );
     }
 
@@ -1994,8 +2220,9 @@ mod tests {
         assert_eq!(singular.tree, plural.tree);
         assert_sites_resolve(&singular);
         assert_sites_resolve(&plural);
-        assert_eq!(singular.holes[0].witness.text, "one");
+        assert_eq!(singular.holes[0].witness.text, "1");
         assert_eq!(plural.holes[0].witness.text, "41");
+        assert_eq!(holes_in(&singular.tree), [0]);
     }
 
     // -----------------------------------------------------------------
@@ -2017,6 +2244,7 @@ mod tests {
             param: Some(0),
             witness,
             occurrences: 1,
+            marker_occurrence: None,
         };
 
         let tree = parse_witnessed(
@@ -2042,6 +2270,21 @@ mod tests {
             format!("{never:#}").contains("found 0 time(s)"),
             "{never:#}"
         );
+    }
+
+    #[test]
+    fn a_number_literal_marker_requires_the_witness_notation() {
+        let witness = witness::singular_numeral();
+        for (text, expected) in [("1 card", 1), ("one card", 0), ("I card", 0)] {
+            let tree = parse_witnessed(text, FragmentKind::Nominal, &Catalogs::default())
+                .unwrap_or_else(|error| panic!("{text}: {error:#}"));
+            let found = tree
+                .walk()
+                .into_iter()
+                .filter(|(path, node)| is_marker_at(&tree, path, node, &witness))
+                .count();
+            assert_eq!(found, expected, "{text}");
+        }
     }
 
     /// Compiles a `Nominal` frame with one `Predicate` hole.
