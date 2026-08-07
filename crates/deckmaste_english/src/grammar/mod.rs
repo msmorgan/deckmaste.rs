@@ -10,12 +10,12 @@ mod nominal;
 mod generated;
 
 #[cfg(test)]
-mod exact;
+pub(crate) mod exact;
 
 mod lowering;
 #[path = "parse_nonterminal.rs"]
 mod parse_support;
-mod reduction;
+pub(crate) mod reduction;
 mod rules;
 mod scan;
 
@@ -55,6 +55,7 @@ use scan::this_card_matches;
 use crate::Numeral;
 use crate::Span;
 use crate::catalog::CatalogAtom;
+#[cfg(test)]
 use crate::catalog::CatalogKind;
 use crate::catalog::CatalogSlot;
 use crate::catalog::CatalogValue;
@@ -2994,11 +2995,14 @@ impl Grammar for EnglishGrammar<'_, '_> {
     ) -> ParseCost {
         match self.impls.get(rule.index()).copied() {
             Some(RuleImpl::Generated(generated)) => {
-                let Some(construction) = generated.group.constructions.get(generated.construction)
-                else {
+                if !std::ptr::eq(
+                    generated.group,
+                    &raw const crate::constructions::nominal::NOMINAL_DECLARATION,
+                ) {
                     return ParseCost::default();
-                };
-                let Some(construction) = generated::NominalConstruction::from_id(construction.id)
+                }
+                let Some(fields) =
+                    reduction::generated_completed_field_features(generated, completed_children)
                 else {
                     return ParseCost::default();
                 };
@@ -3009,37 +3013,34 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 let attachment_extent = u32::try_from(end.saturating_sub(rule_start))
                     .unwrap_or(u32::MAX)
                     .max(1);
-                match construction {
-                    generated::NominalConstruction::NominalRelative
-                        if completed_children.len() == 2
-                            && matches!(
-                                completed_children.get(1),
-                                Some(Features::RelativeClause {
-                                    gap: GapState::Object,
-                                    object_gap_requires_rules_object: true,
-                                    ..
-                                })
-                            ) =>
-                    {
-                        ParseCost {
-                            attachment_count: 1,
-                            attachment_distance,
-                            ..ParseCost::default()
-                        }
-                    }
-                    generated::NominalConstruction::RulesObjectFollowupNominalRelative
-                    | generated::NominalConstruction::RulesObjectFollowupNominalPrepositional
-                        if completed_children.len() == 2 =>
-                    {
-                        ParseCost {
-                            attachment_count: 1,
-                            attachment_distance,
-                            attachment_extent,
-                            ..ParseCost::default()
-                        }
-                    }
-                    _ => ParseCost::default(),
+                let distance_marked =
+                    crate::constructions::nominal::reduce_nominal_attachment_distance(
+                        generated.construction,
+                        &fields,
+                    )
+                    .is_some();
+                let extent_marked =
+                    crate::constructions::nominal::reduce_nominal_attachment_extent(
+                        generated.construction,
+                        &fields,
+                    )
+                    .is_some();
+                if distance_marked {
+                    return ParseCost {
+                        attachment_count: 1,
+                        attachment_distance,
+                        ..ParseCost::default()
+                    };
                 }
+                if extent_marked {
+                    return ParseCost {
+                        attachment_count: 1,
+                        attachment_distance,
+                        attachment_extent,
+                        ..ParseCost::default()
+                    };
+                }
+                ParseCost::default()
             }
             Some(RuleImpl::Handwritten(_) | RuleImpl::GeneratedAux(_)) | None => {
                 ParseCost::default()
@@ -3060,33 +3061,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     && clause::accepts_predicate_prefix(tag, completed_children, latest_child)
             }
             Some(RuleImpl::Generated(generated)) => {
-                let Some(construction) = generated.group.constructions.get(generated.construction)
-                else {
-                    return false;
-                };
-                generated::NominalConstruction::from_id(construction.id).is_none_or(
-                    |construction| match construction {
-                        generated::NominalConstruction::PredicatedArgumentFromExtend
-                        | generated::NominalConstruction::PredicatedArgumentBareExtend
-                            if completed_children == 2 =>
-                        {
-                            matches!(latest_child, Features::Conjunction(Conjunction::And))
-                        }
-                        generated::NominalConstruction::ReducedRecipientPassiveNominalAdjunct
-                            if completed_children == 1 =>
-                        {
-                            matches!(
-                                latest_child,
-                                Features::VerbPhrase {
-                                    object,
-                                    frame,
-                                    ..
-                                } if frame.is_recipient_passive() && object.has_direct_object()
-                            )
-                        }
-                        _ => true,
-                    },
-                )
+                reduction::generated_accepts_prefix(generated, completed_children, latest_child)
             }
             Some(RuleImpl::GeneratedAux(_)) => true,
             None => false,

@@ -3,7 +3,7 @@
 pub(crate) mod coordination;
 #[cfg(test)]
 pub(crate) mod law;
-pub(crate) mod nominal;
+pub(crate) use crate::syntax::nominal_constructions as nominal;
 pub(crate) mod noun;
 #[cfg(test)]
 pub(crate) mod probe;

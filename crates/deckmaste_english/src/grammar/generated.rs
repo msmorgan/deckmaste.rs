@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use deckmaste_construction_compiler::runtime::AtomData;
 use deckmaste_construction_compiler::runtime::ConstructionData;
 use deckmaste_construction_compiler::runtime::ElementData;
+use deckmaste_construction_compiler::runtime::EvidenceSourceData;
 use deckmaste_construction_compiler::runtime::FieldKindData;
 use deckmaste_construction_compiler::runtime::GroupData;
 use deckmaste_construction_compiler::runtime::PredicateData;
@@ -29,7 +30,6 @@ pub(super) enum GeneratedFeatureCombinator {
     CompleteSentence,
     CompleteNounPhraseCoordination,
     SharedDeterminerCoordination,
-    Nominal,
 }
 
 impl GeneratedFeatureCombinator {
@@ -38,16 +38,15 @@ impl GeneratedFeatureCombinator {
             "complete_sentence" => Some(Self::CompleteSentence),
             "complete_noun_phrase_coordination" => Some(Self::CompleteNounPhraseCoordination),
             "shared_determiner_coordination" => Some(Self::SharedDeterminerCoordination),
-            "nominal" => Some(Self::Nominal),
             _ => None,
         }
     }
 
     pub(super) fn from_construction(construction: &ConstructionData) -> Option<Self> {
-        let [feature] = construction.feature_combinators else {
-            return None;
-        };
-        Self::from_name(feature.combinator)
+        construction
+            .feature_combinators
+            .iter()
+            .find_map(|feature| Self::from_name(feature.combinator))
     }
 
     const fn admits_shared_preposition(self) -> bool {
@@ -63,7 +62,7 @@ impl GeneratedFeatureCombinator {
                 precedence: 1,
                 ..super::ParseCost::default()
             },
-            Self::CompleteSentence | Self::SharedDeterminerCoordination | Self::Nominal => {
+            Self::CompleteSentence | Self::SharedDeterminerCoordination => {
                 super::ParseCost::default()
             }
         }
@@ -73,7 +72,6 @@ impl GeneratedFeatureCombinator {
         match self {
             Self::CompleteSentence | Self::CompleteNounPhraseCoordination => 0,
             Self::SharedDeterminerCoordination => 1,
-            Self::Nominal => usize::MAX,
         }
     }
 
@@ -82,24 +80,25 @@ impl GeneratedFeatureCombinator {
             Self::CompleteSentence => 0,
             Self::CompleteNounPhraseCoordination => 1,
             Self::SharedDeterminerCoordination => 2,
-            Self::Nominal => usize::MAX,
         }
     }
 
     const fn complements_argument(self) -> Option<usize> {
         match self {
-            Self::CompleteSentence | Self::CompleteNounPhraseCoordination | Self::Nominal => None,
+            Self::CompleteSentence | Self::CompleteNounPhraseCoordination => None,
             Self::SharedDeterminerCoordination => Some(3),
         }
     }
 
     pub(super) fn argument_field_index(
+        self,
         construction: &ConstructionData,
         argument: usize,
     ) -> Option<usize> {
-        let [feature] = construction.feature_combinators else {
-            return None;
-        };
+        let feature = construction
+            .feature_combinators
+            .iter()
+            .find(|feature| Self::from_name(feature.combinator) == Some(self))?;
         let name = feature.args.get(argument)?;
         construction
             .fields
@@ -108,24 +107,25 @@ impl GeneratedFeatureCombinator {
     }
 
     pub(super) fn first_member_field_index(self, construction: &ConstructionData) -> Option<usize> {
-        Self::argument_field_index(construction, self.first_member_argument())
+        self.argument_field_index(construction, self.first_member_argument())
     }
 
     pub(super) fn rest_field_index(self, construction: &ConstructionData) -> Option<usize> {
-        Self::argument_field_index(construction, self.rest_argument())
+        self.argument_field_index(construction, self.rest_argument())
     }
 
     pub(super) fn complements_field_index(self, construction: &ConstructionData) -> Option<usize> {
-        Self::argument_field_index(construction, self.complements_argument()?)
+        self.argument_field_index(construction, self.complements_argument()?)
     }
 
     pub(super) fn sequence_argument_element(
+        self,
         construction: &ConstructionData,
         argument: usize,
     ) -> Option<&'static str> {
         let field = construction
             .fields
-            .get(Self::argument_field_index(construction, argument)?)?;
+            .get(self.argument_field_index(construction, argument)?)?;
         let FieldKindData::Sequence { element } = field.kind else {
             return None;
         };
@@ -133,7 +133,7 @@ impl GeneratedFeatureCombinator {
     }
 
     pub(super) fn member_element(self, construction: &ConstructionData) -> Option<&'static str> {
-        Self::sequence_argument_element(construction, self.rest_argument())
+        self.sequence_argument_element(construction, self.rest_argument())
     }
 
     pub(super) fn member_value_field_index(
@@ -161,108 +161,6 @@ impl GeneratedFeatureCombinator {
                 field.kind,
                 FieldKindData::Subtree { category, .. } if category == member_category
             )
-        })
-    }
-}
-
-/// The closed semantic selector for the declaration-driven M01 feature
-/// combinator. Unlike [`super::RuleTag`], these identities never register a
-/// handwritten chart production; they are resolved only from generated
-/// declaration metadata.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum NominalConstruction {
-    NominalNoun,
-    NominalAdjective,
-    NominalNounModifier,
-    NominalCombatStepName,
-    NominalNegatedModifier,
-    NominalQuantityModifier,
-    NominalPowerToughnessModifier,
-    NominalDeterminer,
-    NominalPrepositional,
-    NominalInfinitive,
-    NominalQuantityComplement,
-    NominalKeywordSymbolArgument,
-    PredicatedQualityFrom,
-    PredicatedArgumentFromSingle,
-    PredicatedArgumentFromExtend,
-    NominalKeywordPredicatedArgument,
-    PredicatedQualityBare,
-    PredicatedArgumentBareSingle,
-    PredicatedArgumentBareExtend,
-    NominalKeywordAtomCarriedPredicatedArgument,
-    NominalRelative,
-    RulesObjectNominalBase,
-    RulesObjectFollowupNominalRelative,
-    RulesObjectFollowupNominalPrepositional,
-    NominalReducedRecipientPassive,
-    ReducedRecipientPassiveTheme,
-    ReducedRecipientPassiveNominalAdjunct,
-    NominalPostpositiveAdjective,
-    NominalPostpositiveAdjectiveConjoinedPrepositional,
-    NominalPostpositiveAdjectiveConjoined,
-    NominalPostpositiveAdjectiveAsyndetic,
-    NominalPostpositiveAdjectiveOxford,
-    NominalComparison,
-    NominalDevotion,
-    DevotionColorSingle,
-    DevotionColorPair,
-    NominalTimesClause,
-}
-
-impl NominalConstruction {
-    pub(super) fn from_id(id: &str) -> Option<Self> {
-        Some(match id {
-            "nominal_noun" => Self::NominalNoun,
-            "nominal_adjective" => Self::NominalAdjective,
-            "nominal_noun_modifier" => Self::NominalNounModifier,
-            "nominal_combat_step_name" => Self::NominalCombatStepName,
-            "nominal_negated_modifier" => Self::NominalNegatedModifier,
-            "nominal_quantity_modifier" => Self::NominalQuantityModifier,
-            "nominal_power_toughness_modifier" => Self::NominalPowerToughnessModifier,
-            "nominal_determiner" => Self::NominalDeterminer,
-            "nominal_prepositional" => Self::NominalPrepositional,
-            "nominal_infinitive" => Self::NominalInfinitive,
-            "nominal_quantity_complement" => Self::NominalQuantityComplement,
-            "nominal_keyword_symbol_argument" => Self::NominalKeywordSymbolArgument,
-            "predicated_quality_from" => Self::PredicatedQualityFrom,
-            "predicated_argument_from_single" => Self::PredicatedArgumentFromSingle,
-            "predicated_argument_from_extend" => Self::PredicatedArgumentFromExtend,
-            "nominal_keyword_predicated_argument" => Self::NominalKeywordPredicatedArgument,
-            "predicated_quality_bare" => Self::PredicatedQualityBare,
-            "predicated_argument_bare_single" => Self::PredicatedArgumentBareSingle,
-            "predicated_argument_bare_extend" => Self::PredicatedArgumentBareExtend,
-            "nominal_keyword_atom_carried_predicated_argument" => {
-                Self::NominalKeywordAtomCarriedPredicatedArgument
-            }
-            "nominal_relative" => Self::NominalRelative,
-            "rules_object_nominal_base" => Self::RulesObjectNominalBase,
-            "rules_object_followup_nominal_relative" => Self::RulesObjectFollowupNominalRelative,
-            "rules_object_followup_nominal_prepositional" => {
-                Self::RulesObjectFollowupNominalPrepositional
-            }
-            "nominal_reduced_recipient_passive" => Self::NominalReducedRecipientPassive,
-            "reduced_recipient_passive_theme" => Self::ReducedRecipientPassiveTheme,
-            "reduced_recipient_passive_nominal_adjunct" => {
-                Self::ReducedRecipientPassiveNominalAdjunct
-            }
-            "nominal_postpositive_adjective" => Self::NominalPostpositiveAdjective,
-            "nominal_postpositive_adjective_conjoined_prepositional" => {
-                Self::NominalPostpositiveAdjectiveConjoinedPrepositional
-            }
-            "nominal_postpositive_adjective_conjoined" => {
-                Self::NominalPostpositiveAdjectiveConjoined
-            }
-            "nominal_postpositive_adjective_asyndetic" => {
-                Self::NominalPostpositiveAdjectiveAsyndetic
-            }
-            "nominal_postpositive_adjective_oxford" => Self::NominalPostpositiveAdjectiveOxford,
-            "nominal_comparison" => Self::NominalComparison,
-            "nominal_devotion" => Self::NominalDevotion,
-            "devotion_color_single" => Self::DevotionColorSingle,
-            "devotion_color_pair" => Self::DevotionColorPair,
-            "nominal_times_clause" => Self::NominalTimesClause,
-            _ => return None,
         })
     }
 }
@@ -413,6 +311,13 @@ pub(super) enum GeneratedAssemblyError {
         group: &'static str,
         element: &'static str,
     },
+    /// Evidence metadata must name a semantic source whose English feature
+    /// adapter is total. Reject unsupported paths while assembling the active
+    /// constructicon instead of emitting a label with no concrete value.
+    UnsupportedEvidenceSource {
+        construction: &'static str,
+        source: EvidenceSourceData,
+    },
 }
 
 /// Deterministic internal-category ids: the sorted set of `internal`
@@ -463,6 +368,11 @@ fn engine_category(name: &str) -> Option<Nonterminal> {
         "Sentence" => Nonterminal::Sentence,
         _ => return None,
     })
+}
+
+#[cfg(test)]
+pub(crate) fn declared_category_nonterminal(name: &str) -> Option<Nonterminal> {
+    engine_category(name)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -664,6 +574,66 @@ fn validate_field_adapters(groups: &[&'static GroupData]) -> Result<(), Generate
     Ok(())
 }
 
+fn evidence_requirement_is_supported(construction: &ConstructionData, path: &str) -> bool {
+    let conjunction_field = construction.fields.iter().any(|field| {
+        field.name == path
+            && matches!(
+                field.kind,
+                FieldKindData::Scalar {
+                    codec: "Conjunction" | "NounPhraseConjunction"
+                }
+            )
+    });
+    conjunction_field
+        && construction.requirements.iter().any(|requirement| {
+            matches!(
+                requirement.predicate,
+                PredicateData::In {
+                    path: candidate,
+                    ..
+                } if candidate == path
+            )
+        })
+}
+
+fn evidence_source_is_supported(
+    construction: &ConstructionData,
+    source: EvidenceSourceData,
+) -> bool {
+    match source {
+        EvidenceSourceData::Requirement(path) => {
+            evidence_requirement_is_supported(construction, path)
+        }
+        EvidenceSourceData::Output("attachment") => construction.category == "NominalPhrase",
+        EvidenceSourceData::Field("predicate.frame") => construction.fields.iter().any(|field| {
+            field.name == "predicate"
+                && matches!(
+                    field.kind,
+                    FieldKindData::Subtree {
+                        category: "TransitivePredicate",
+                        ..
+                    }
+                )
+        }),
+        EvidenceSourceData::Category => true,
+        EvidenceSourceData::Output(_) | EvidenceSourceData::Field(_) => false,
+    }
+}
+
+fn validate_evidence_sources(groups: &[&'static GroupData]) -> Result<(), GeneratedAssemblyError> {
+    for construction in groups.iter().flat_map(|group| group.constructions.iter()) {
+        if let Some(evidence) = construction.evidence
+            && !evidence_source_is_supported(construction, evidence.source)
+        {
+            return Err(GeneratedAssemblyError::UnsupportedEvidenceSource {
+                construction: construction.id,
+                source: evidence.source,
+            });
+        }
+    }
+    Ok(())
+}
+
 fn atom_expected(
     cats: &BTreeMap<&'static str, u16>,
     aux: &AuxCategories,
@@ -847,6 +817,7 @@ pub(super) fn register_generated(
         }
     }
     validate_field_adapters(groups)?;
+    validate_evidence_sources(groups)?;
     let aux = auxiliary_categories(groups, cats.len());
     if groups.iter().any(|group| {
         group.element_data.iter().any(|element| {
@@ -1031,19 +1002,14 @@ fn generated_cost(construction: &ConstructionData) -> super::ParseCost {
         super::ParseCost::default,
         GeneratedFeatureCombinator::base_cost,
     );
-    if matches!(
-        construction.id,
-        "nominal_adjective"
-            | "nominal_noun_modifier"
-            | "nominal_negated_modifier"
-            | "nominal_quantity_modifier"
-            | "nominal_power_toughness_modifier"
-            | "nominal_quantity_complement"
-    ) {
-        cost.precedence = 1;
-    }
-    if construction.id == "nominal_postpositive_adjective_conjoined_prepositional" {
-        cost.attachment_count = 1;
+    for output in construction.feature_combinators {
+        match output.target {
+            "base_precedence" => cost.precedence = cost.precedence.saturating_add(1),
+            "base_attachment_count" => {
+                cost.attachment_count = cost.attachment_count.saturating_add(1);
+            }
+            _ => {}
+        }
     }
     cost
 }
@@ -1278,6 +1244,10 @@ mod tests {
     use deckmaste_construction_compiler::runtime::AtomData;
     use deckmaste_construction_compiler::runtime::ConstructionData;
     use deckmaste_construction_compiler::runtime::ElementData;
+    use deckmaste_construction_compiler::runtime::EvidenceData;
+    use deckmaste_construction_compiler::runtime::EvidenceKindData;
+    use deckmaste_construction_compiler::runtime::EvidenceSourceData;
+    use deckmaste_construction_compiler::runtime::FeatureCombinatorData;
     use deckmaste_construction_compiler::runtime::FieldData;
     use deckmaste_construction_compiler::runtime::FieldKindData;
     use deckmaste_construction_compiler::runtime::FormData;
@@ -1288,6 +1258,7 @@ mod tests {
     use super::super::rules::RegistrationOrder;
     use super::super::rules::RuleBuilder;
     use super::GeneratedAssemblyError;
+    use super::GeneratedFeatureCombinator;
     use super::internal_categories;
     use super::register_generated;
     use crate::surface::Punctuation;
@@ -1317,6 +1288,8 @@ mod tests {
             requirements: &[],
             recognition_requirements: &[],
             feature_combinators: &[],
+            evidence: None,
+            erased_partial_builder: None,
             erased_builder: None,
             erased_projector: None,
         }
@@ -1335,6 +1308,49 @@ mod tests {
         erased_recognizer: None,
         atoms: &[AtomData::Lexeme("word")],
     }];
+
+    #[test]
+    fn engine_combinator_discovery_preserves_legacy_targets_among_typed_outputs() {
+        const FIELDS: &[FieldData] = &[
+            FieldData {
+                name: "first",
+                kind: FieldKindData::Scalar {
+                    codec: "Conjunction",
+                },
+            },
+            FieldData {
+                name: "rest",
+                kind: FieldKindData::Scalar {
+                    codec: "Conjunction",
+                },
+            },
+        ];
+        const OUTPUTS: &[FeatureCombinatorData] = &[
+            FeatureCombinatorData {
+                target: "base_precedence",
+                combinator: "mark_generated_cost",
+                args: &["rest"],
+            },
+            FeatureCombinatorData {
+                target: "first",
+                combinator: "complete_noun_phrase_coordination",
+                args: &["first", "rest"],
+            },
+        ];
+        let construction = ConstructionData {
+            feature_combinators: OUTPUTS,
+            ..construction("coordination", "NounPhrase", false, FIELDS, WORD_FORM)
+        };
+
+        let combinator = GeneratedFeatureCombinator::from_construction(&construction)
+            .expect("the closed engine combinator is independent of its output target");
+        assert_eq!(
+            combinator,
+            GeneratedFeatureCombinator::CompleteNounPhraseCoordination
+        );
+        assert_eq!(combinator.first_member_field_index(&construction), Some(0));
+        assert_eq!(combinator.rest_field_index(&construction), Some(1));
+    }
 
     #[test]
     fn unknown_category_is_refused() {
@@ -1361,6 +1377,39 @@ mod tests {
                 construction: "np_only",
                 category: "DefinitelyUnknown",
             }
+        );
+    }
+
+    #[test]
+    fn unsupported_evidence_source_is_refused_before_registration() {
+        const CONSTRUCTIONS: &[ConstructionData] = &[ConstructionData {
+            evidence: Some(EvidenceData {
+                kind: EvidenceKindData::Feature,
+                label: "synthetic output",
+                source: EvidenceSourceData::Output("unknown.path"),
+            }),
+            ..construction("np_only", "NounPhrase", false, WORD_FIELDS, WORD_FORM)
+        }];
+        const GROUP: GroupData = GroupData {
+            name: "g",
+            elements: &[],
+            element_data: &[],
+            lenses: &[],
+            constructions: CONSTRUCTIONS,
+        };
+        let cats = internal_categories(&[&GROUP]);
+        let mut builder = RuleBuilder::default();
+        let error = register_generated(&mut builder, &[&GROUP], &cats).unwrap_err();
+        assert_eq!(
+            error,
+            GeneratedAssemblyError::UnsupportedEvidenceSource {
+                construction: "np_only",
+                source: EvidenceSourceData::Output("unknown.path"),
+            }
+        );
+        assert!(
+            builder.finish(RegistrationOrder::Normal).rules.is_empty(),
+            "unsupported evidence must fail before mutating the rule builder",
         );
     }
 
@@ -1895,6 +1944,8 @@ mod tests {
             requirements: &[],
             recognition_requirements: &[],
             feature_combinators: &[],
+            evidence: None,
+            erased_partial_builder: None,
             erased_builder: None,
             erased_projector: None,
         }];

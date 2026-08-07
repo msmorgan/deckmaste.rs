@@ -11,6 +11,7 @@ use super::Catalogs;
 use super::ChartResult;
 use super::ChartStats;
 use super::Clause;
+use super::Conjunction;
 use super::EnglishGrammar;
 use super::EnglishLexicalSlot;
 use super::EnglishSurfaceWitness;
@@ -21,6 +22,7 @@ use super::ForestSymbol;
 use super::GrammarError;
 use super::MeaningKey;
 use super::NodeId;
+use super::NominalAttachmentPhase;
 use super::Nonterminal;
 use super::NounPhrase;
 use super::OpacityMode;
@@ -282,6 +284,7 @@ fn parse_nonterminal_with_mode_and_registration_order(
     );
     let mut construction_decisions = Vec::new();
     collect_construction_decisions(
+        &grammar,
         &chart.forest,
         root,
         &best,
@@ -415,6 +418,7 @@ pub(crate) fn parse_nonterminal_with_activation(
 }
 
 fn collect_construction_decisions(
+    grammar: &EnglishGrammar<'_, '_>,
     forest: &EnglishForest,
     node: NodeId,
     best: &BestParse,
@@ -450,14 +454,18 @@ fn collect_construction_decisions(
                 alternative.is_dominated(),
             )
         });
-        decisions.push(ConstructionDecision::new(
-            span,
-            production,
-            family,
-            cost,
-            reason,
-            alternatives,
-        ));
+        let evidence_value =
+            selected_generated_evidence_value(grammar, forest, node, best, production);
+        assert!(
+            family.evidence().kind() == crate::construction::ConstructionEvidenceKind::Structural
+                || evidence_value.is_some(),
+            "selected semantic evidence for {} must resolve to its concrete generated edge",
+            production.construction,
+        );
+        decisions.push(
+            ConstructionDecision::new(span, production, family, cost, reason, alternatives)
+                .with_evidence_value(evidence_value),
+        );
     }
 
     let Some(alternative) = best.alternative(node) else {
@@ -467,8 +475,223 @@ fn collect_construction_decisions(
         return;
     };
     for &child in &alternative.children {
-        collect_construction_decisions(forest, child, best, tokens, registry, decisions);
+        collect_construction_decisions(grammar, forest, child, best, tokens, registry, decisions);
     }
+}
+
+fn selected_generated_evidence_value(
+    grammar: &EnglishGrammar<'_, '_>,
+    forest: &EnglishForest,
+    node: NodeId,
+    best: &BestParse,
+    production: crate::construction::ProductionId,
+) -> Option<String> {
+    use deckmaste_construction_compiler::runtime::EvidenceSourceData;
+
+    if let Some((super::rules::RuleImpl::Generated(rule), children)) =
+        selected_impl_and_children(grammar, forest, node, best)
+    {
+        let construction = rule
+            .group
+            .constructions
+            .get(rule.construction)
+            .expect("selected generated rule retains its declaration construction");
+        let form_ordinal = construction
+            .forms
+            .get(rule.form)
+            .expect("selected generated rule retains its declaration form")
+            .ordinal;
+        if construction.id == production.construction.as_str()
+            && form_ordinal == production.ordinal
+            && let Some(evidence) = construction.evidence
+        {
+            let evaluate = || -> Option<String> {
+                match evidence.source {
+                    EvidenceSourceData::Requirement(path) => {
+                        let fields = selected_generated_field_features(forest, rule, &children)?;
+                        let field_index = construction
+                            .fields
+                            .iter()
+                            .position(|field| field.name == path)?;
+                        let feature = fields.get(field_index)?.as_ref()?;
+                        let requirement =
+                            construction.requirements.iter().find_map(|requirement| {
+                                predicate_for_path(&requirement.predicate, path)
+                            })?;
+                        requirement_evidence_value(path, feature, requirement)
+                    }
+                    EvidenceSourceData::Output(path) => {
+                        output_evidence_value(path, forest.node(node).key.constituent_features()?)
+                    }
+                    EvidenceSourceData::Field(path) => {
+                        let (field_name, feature_path) = path.split_once('.')?;
+                        let fields = selected_generated_field_features(forest, rule, &children)?;
+                        let field_index = construction
+                            .fields
+                            .iter()
+                            .position(|field| field.name == field_name)?;
+                        field_evidence_value(
+                            field_name,
+                            feature_path,
+                            fields.get(field_index)?.as_ref()?,
+                        )
+                    }
+                    EvidenceSourceData::Category => {
+                        Some(format!("category={}", construction.category))
+                    }
+                }
+            };
+            return Some(evaluate().unwrap_or_else(|| {
+                panic!(
+                    "validated evidence source {:?} for {} did not evaluate on its selected chart edge",
+                    evidence.source, construction.id,
+                )
+            }));
+        }
+    }
+
+    let forest_node = forest.node(node);
+    let alternative = forest_node.alternatives.get(best.alternative(node)?)?;
+    alternative.children.iter().find_map(|&child| {
+        selected_generated_evidence_value(grammar, forest, child, best, production)
+    })
+}
+
+fn selected_generated_field_features<'a>(
+    forest: &'a EnglishForest,
+    rule: super::rules::GeneratedRuleRef,
+    children: &[NodeId],
+) -> Option<Vec<Option<&'a Features>>> {
+    use deckmaste_construction_compiler::runtime::AtomData;
+    use deckmaste_construction_compiler::runtime::FieldKindData;
+
+    let construction = rule.group.constructions.get(rule.construction)?;
+    let form = construction.forms.get(rule.form)?;
+    let mut fields = vec![None; construction.fields.len()];
+    let mut child_index = usize::from(matches!(
+        rule.context,
+        super::rules::GeneratedRuleContext::SharedPreposition
+    ));
+    for (atom_index, atom) in form.atoms.iter().enumerate() {
+        if matches!(atom, AtomData::Literal(_)) {
+            child_index += 1;
+            continue;
+        }
+        let path = match atom {
+            AtomData::Hole(path) | AtomData::Lexeme(path) | AtomData::Identity(path) => *path,
+            AtomData::Literal(_) => unreachable!(),
+        };
+        let field_index = construction
+            .fields
+            .iter()
+            .position(|field| field.name == path)?;
+        if matches!(
+            construction.fields[field_index].kind,
+            FieldKindData::Sequence { .. }
+        ) && rule.sequence_atoms & (1_u64 << atom_index) == 0
+        {
+            continue;
+        }
+        let child = *children.get(child_index)?;
+        child_index += 1;
+        fields[field_index] = forest.node(child).key.constituent_features();
+    }
+    (child_index == children.len()).then_some(fields)
+}
+
+fn predicate_for_path<'a>(
+    predicate: &'a deckmaste_construction_compiler::runtime::PredicateData,
+    path: &str,
+) -> Option<&'a deckmaste_construction_compiler::runtime::PredicateData> {
+    use deckmaste_construction_compiler::runtime::PredicateData;
+
+    match predicate {
+        PredicateData::LenAtLeast {
+            path: candidate, ..
+        }
+        | PredicateData::LenIs {
+            path: candidate, ..
+        }
+        | PredicateData::In {
+            path: candidate, ..
+        }
+        | PredicateData::IsSome { path: candidate }
+        | PredicateData::IsNone { path: candidate }
+            if *candidate == path =>
+        {
+            Some(predicate)
+        }
+        PredicateData::All(predicates) | PredicateData::Any(predicates) => predicates
+            .iter()
+            .find_map(|predicate| predicate_for_path(predicate, path)),
+        _ => None,
+    }
+}
+
+fn requirement_evidence_value(
+    path: &str,
+    feature: &Features,
+    predicate: &deckmaste_construction_compiler::runtime::PredicateData,
+) -> Option<String> {
+    let deckmaste_construction_compiler::runtime::PredicateData::In { allowed, .. } = predicate
+    else {
+        return None;
+    };
+    let actual = match feature {
+        Features::Conjunction(Conjunction::And) => "And",
+        Features::Conjunction(Conjunction::Or) => "Or",
+        Features::Conjunction(Conjunction::Then) => "Then",
+        Features::Conjunction(Conjunction::Plus) => "Plus",
+        Features::Conjunction(Conjunction::AndOr) => "AndOr",
+        _ => return None,
+    };
+    Some(format!(
+        "{path}={actual};allowed=[{}];matched={}",
+        allowed.join(","),
+        allowed.contains(&actual),
+    ))
+}
+
+fn output_evidence_value(path: &str, feature: &Features) -> Option<String> {
+    let Features::Nominal { attachment, .. } = feature else {
+        return None;
+    };
+    if path != "attachment" {
+        return None;
+    }
+    let value = match attachment {
+        NominalAttachmentPhase::Open => "open".to_owned(),
+        NominalAttachmentPhase::Prepositional {
+            nearer_relative_host,
+        } => format!("prepositional(nearer_relative_host={nearer_relative_host})"),
+        NominalAttachmentPhase::Relative => "relative".to_owned(),
+        NominalAttachmentPhase::RulesObjectRelative => "rules_object_relative".to_owned(),
+        NominalAttachmentPhase::RelativeBareCopula => "relative_bare_copula".to_owned(),
+        NominalAttachmentPhase::ReducedRecipientPassive => "reduced_recipient_passive".to_owned(),
+        NominalAttachmentPhase::PostpositiveAdjective => "postpositive_adjective".to_owned(),
+        NominalAttachmentPhase::Comparison => "comparison".to_owned(),
+    };
+    Some(format!("{path}={value}"))
+}
+
+fn field_evidence_value(field: &str, path: &str, feature: &Features) -> Option<String> {
+    let Features::VerbPhrase {
+        frame,
+        object,
+        indirect_object,
+        ..
+    } = feature
+    else {
+        return None;
+    };
+    if path != "frame" {
+        return None;
+    }
+    Some(format!(
+        "{field}.{path}={{recipient_passive:{},direct_object:{},indirect_object:{indirect_object}}}",
+        frame.is_recipient_passive(),
+        object.has_direct_object(),
+    ))
 }
 
 fn collect_selected_spans(
@@ -682,8 +905,8 @@ fn find_shared_determiner_edit(
 ) -> Option<SharedDeterminerEdit> {
     match (before, after) {
         (NounPhrase::Nominal(original), NounPhrase::CoordinatedNominal(group)) => {
-            let mut first = original.clone();
-            let determiner = first.determiner.take()?;
+            let (determiner, first) =
+                crate::constructions::nominal::parts_nominal_determiner(original)?;
             if group.determiner() != &determiner || group.first().as_ref() != &first {
                 return None;
             }
@@ -699,8 +922,11 @@ fn find_shared_determiner_edit(
                 && group.rest().len() == original.rest().len() + 1
                 && group.rest().starts_with(original.rest()) =>
         {
-            let mut determined_first = original.first().as_ref().clone();
-            determined_first.determiner = Some(original.determiner().clone());
+            let determined_first = crate::constructions::nominal::build_nominal_determiner(
+                original.determiner().clone(),
+                original.first().as_ref().clone(),
+            )
+            .ok()?;
             Some(SharedDeterminerEdit {
                 determined_first: NounPhrase::Nominal(determined_first),
                 determiner: original.determiner().clone(),
@@ -708,18 +934,18 @@ fn find_shared_determiner_edit(
             })
         }
         (NounPhrase::Nominal(before), NounPhrase::Nominal(after))
-            if before.determiner == after.determiner
-                && before.modifiers == after.modifiers
-                && before.head == after.head
-                && before.complements.len() == after.complements.len()
-                && !before.complements.is_empty()
-                && before.complements[..before.complements.len() - 1]
-                    == after.complements[..after.complements.len() - 1] =>
+            if before.determiner() == after.determiner()
+                && before.modifiers() == after.modifiers()
+                && before.head() == after.head()
+                && before.complements().len() == after.complements().len()
+                && !before.complements().is_empty()
+                && before.complements()[..before.complements().len() - 1]
+                    == after.complements()[..after.complements().len() - 1] =>
         {
             let (
                 super::NominalComplement::Prepositional(before),
                 super::NominalComplement::Prepositional(after),
-            ) = (before.complements.last()?, after.complements.last()?)
+            ) = (before.complements().last()?, after.complements().last()?)
             else {
                 return None;
             };
@@ -1324,6 +1550,7 @@ mod root_lowering_tests {
 mod registration_order_tests {
     use super::super::generated::GeneratedActivation;
     use super::*;
+    use crate::construction::ConstructionEvidenceKind;
     use crate::construction::ConstructionId;
     use crate::constructions::probe;
     use crate::forest::SelectionReason;
@@ -1555,6 +1782,89 @@ mod registration_order_tests {
                     "{winner}>{loser} changed under {order:?} registration for {source:?}",
                 );
             }
+        }
+    }
+
+    #[test]
+    fn declaration_evidence_values_follow_the_selected_semantic_edges() {
+        let positives = [
+            (
+                "This creature has protection from red and from blue.",
+                "predicated_argument_from_extend",
+                ConstructionEvidenceKind::Guard,
+                "keyword-grant conjunction gate",
+                "conjunction=And;allowed=[And];matched=true",
+            ),
+            (
+                "This card deals damage to you and creatures you control.",
+                "rules_object_nominal_base",
+                ConstructionEvidenceKind::Role,
+                "rules-object attachment role",
+                "category=RulesObjectNominal",
+            ),
+            (
+                "If a creature dealt damage this way would die this turn, exile it instead.",
+                "nominal_reduced_recipient_passive",
+                ConstructionEvidenceKind::Guard,
+                "reduced-recipient-passive frame",
+                "predicate.frame={recipient_passive:true,direct_object:true,indirect_object:false}",
+            ),
+            (
+                "This creature has protection from artifacts.",
+                "nominal_prepositional",
+                ConstructionEvidenceKind::Feature,
+                "nominal attachment phase",
+                "attachment=prepositional(nearer_relative_host=false)",
+            ),
+        ];
+        for (source, id, kind, label, value) in positives {
+            let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence)
+                .unwrap_or_else(|error| panic!("positive evidence fixture {source:?}: {error:?}"));
+            let decision = parsed
+                .construction_decisions()
+                .iter()
+                .find(|decision| decision.selected().as_str() == id)
+                .unwrap_or_else(|| panic!("missing {id} decision for {source:?}: {parsed:#?}"));
+            assert_eq!(decision.evidence().kind(), kind, "{source:?}");
+            assert_eq!(decision.evidence().label(), label, "{source:?}");
+            assert_eq!(decision.evidence_value(), Some(value), "{source:?}");
+        }
+
+        for (source, excluded) in [
+            (
+                "This creature has protection from red.",
+                "predicated_argument_from_extend",
+            ),
+            (
+                "This card deals damage to a creature.",
+                "rules_object_nominal_base",
+            ),
+            (
+                "If a creature attacks this turn, exile it instead.",
+                "nominal_reduced_recipient_passive",
+            ),
+            ("A card is red.", "nominal_prepositional"),
+        ] {
+            let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence)
+                .unwrap_or_else(|error| panic!("negative evidence fixture {source:?}: {error:?}"));
+            assert!(
+                parsed.sentence().is_some(),
+                "{source:?} did not lower as a sentence"
+            );
+            assert!(
+                parsed
+                    .construction_decisions()
+                    .iter()
+                    .any(|decision| decision.selected().as_str() == "sentence"),
+                "{source:?} lacks its expected neighboring sentence decision: {parsed:#?}",
+            );
+            assert!(
+                parsed
+                    .construction_decisions()
+                    .iter()
+                    .all(|decision| decision.selected().as_str() != excluded),
+                "negative fixture unexpectedly selected {excluded}: {parsed:#?}",
+            );
         }
     }
 

@@ -21,6 +21,7 @@ mod fragment;
 mod grammar;
 mod identity;
 mod input;
+pub mod nominal;
 mod numeral;
 mod parse;
 pub mod renderer;

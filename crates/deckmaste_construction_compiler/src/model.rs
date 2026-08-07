@@ -48,65 +48,127 @@ impl GroupDeclaration {
     /// `parts_*` matches.
     #[must_use]
     pub(crate) fn inverse_dispatch_family(&self) -> Option<InverseDispatchFamily<'_>> {
-        let first = self.constructions.first()?;
-        if self.constructions.len() >= 2
-            && let AstShape::Bind {
-                path: first_path, ..
-            } = &first.ast
-            && first.bind_adapter.is_some()
-            && self.constructions.iter().all(|construction| {
-                matches!(
-                    &construction.ast,
-                    AstShape::Bind { path, .. } if path.value == first_path.value
-                ) && construction.bind_adapter.is_some()
-                    && !construction.forms.is_empty()
-                    && construction
-                        .forms
-                        .iter()
-                        .all(|form| form.value_guard.is_some() && !form.fallback)
-            })
-        {
-            return Some(InverseDispatchFamily {
-                target: first_path,
-                kind: InverseDispatchKind::ValueGuard,
-            });
-        }
+        inverse_dispatch_family_from(&self.constructions.iter().collect::<Vec<_>>(), None)
+    }
 
-        let lensed = self
-            .constructions
-            .iter()
-            .filter(|construction| construction.lens.is_some())
-            .collect::<Vec<_>>();
-        let [first, _, ..] = lensed.as_slice() else {
-            return None;
-        };
-        let AstShape::Bind {
-            path: first_path, ..
-        } = &first.ast
-        else {
-            return None;
-        };
-        lensed
-            .iter()
-            .all(|construction| {
-                matches!(
-                    &construction.ast,
-                    AstShape::Bind { path, .. } if path.value == first_path.value
-                )
-            })
-            .then_some(InverseDispatchFamily {
-                target: first_path,
-                kind: if self
+    /// Returns every declaration-selected inverse family, grouped by chart
+    /// category as well as bound Rust target. A group may intentionally bind
+    /// the same Rust type through distinct semantic categories; keeping those
+    /// categories separate prevents a language-side selector from becoming a
+    /// second authority.
+    #[must_use]
+    pub(crate) fn inverse_dispatch_families(&self) -> Vec<InverseDispatchFamily<'_>> {
+        let mut categories = Vec::<&Spanned<String>>::new();
+        for construction in &self.constructions {
+            if !categories
+                .iter()
+                .any(|category| category.value == construction.category.value)
+            {
+                categories.push(&construction.category);
+            }
+        }
+        categories
+            .into_iter()
+            .filter_map(|category| {
+                let members = self
                     .constructions
                     .iter()
-                    .any(|construction| guarded_adapter_for_target(construction, &first_path.value))
-                {
-                    InverseDispatchKind::Mixed
-                } else {
-                    InverseDispatchKind::LensParts
-                },
+                    .filter(|construction| construction.category.value == category.value)
+                    .collect::<Vec<_>>();
+                inverse_dispatch_family_from(&members, Some(category))
             })
+            .collect()
     }
+
+    /// Returns inverse families whose bound Rust target spans more than one
+    /// declared category. These compose the category dispatchers into the
+    /// target-level entry point needed by consumers that hold only the Rust
+    /// value, without asking the language layer to rediscover its category.
+    #[must_use]
+    pub(crate) fn inverse_target_dispatch_families(&self) -> Vec<InverseDispatchFamily<'_>> {
+        let mut targets = Vec::<&Spanned<String>>::new();
+        for construction in &self.constructions {
+            let AstShape::Bind { path, .. } = &construction.ast else {
+                continue;
+            };
+            if !targets.iter().any(|target| target.value == path.value) {
+                targets.push(path);
+            }
+        }
+        targets
+            .into_iter()
+            .filter_map(|target| {
+                let members = self
+                    .constructions
+                    .iter()
+                    .filter(|construction| {
+                        matches!(
+                            &construction.ast,
+                            AstShape::Bind { path, .. } if path.value == target.value
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                let first_category = &members.first()?.category.value;
+                members
+                    .iter()
+                    .any(|construction| construction.category.value != *first_category)
+                    .then(|| inverse_dispatch_family_from(&members, None))?
+            })
+            .collect()
+    }
+}
+
+fn inverse_dispatch_family_from<'a>(
+    constructions: &[&'a ConstructionDeclaration],
+    category: Option<&'a Spanned<String>>,
+) -> Option<InverseDispatchFamily<'a>> {
+    let first = *constructions.first()?;
+    if let AstShape::Bind {
+        path: first_path, ..
+    } = &first.ast
+        && constructions
+            .iter()
+            .all(|construction| guarded_adapter_for_target(construction, &first_path.value))
+    {
+        return Some(InverseDispatchFamily {
+            target: first_path,
+            category,
+            kind: InverseDispatchKind::ValueGuard,
+        });
+    }
+
+    let lensed = constructions
+        .iter()
+        .copied()
+        .filter(|construction| construction.lens.is_some())
+        .collect::<Vec<_>>();
+    let first = lensed.first()?;
+    let AstShape::Bind {
+        path: first_path, ..
+    } = &first.ast
+    else {
+        return None;
+    };
+    lensed
+        .iter()
+        .all(|construction| {
+            matches!(
+                &construction.ast,
+                AstShape::Bind { path, .. } if path.value == first_path.value
+            )
+        })
+        .then_some(InverseDispatchFamily {
+            target: first_path,
+            category,
+            kind: if constructions
+                .iter()
+                .any(|construction| guarded_adapter_for_target(construction, &first_path.value))
+            {
+                InverseDispatchKind::Mixed
+            } else {
+                InverseDispatchKind::LensParts
+            },
+        })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -119,12 +181,19 @@ pub(crate) enum InverseDispatchKind {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct InverseDispatchFamily<'a> {
     pub target: &'a Spanned<String>,
+    pub category: Option<&'a Spanned<String>>,
     pub kind: InverseDispatchKind,
 }
 
 impl InverseDispatchFamily<'_> {
     #[must_use]
     pub(crate) fn contains(self, construction: &ConstructionDeclaration) -> bool {
+        if self
+            .category
+            .is_some_and(|category| category.value != construction.category.value)
+        {
+            return false;
+        }
         let AstShape::Bind { path, .. } = &construction.ast else {
             return false;
         };
@@ -165,6 +234,10 @@ pub struct ConstructionDeclaration {
     pub lens: Option<LensApplication>,
     pub projection: Option<Spanned<String>>,
     pub constraints: Vec<Constraint>,
+    /// Authored provenance for the semantic fact that makes this
+    /// construction's selected chart edge meaningful. The source is kept in
+    /// declaration metadata so consumers never need a parallel ID table.
+    pub evidence: Option<EvidenceDeclaration>,
     pub witnesses: Vec<WitnessDeclaration>,
     pub forms: Vec<FormDeclaration>,
     pub dominance: Vec<DominanceEdge>,
@@ -173,9 +246,41 @@ pub struct ConstructionDeclaration {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EvidenceDeclaration {
+    pub kind: EvidenceKind,
+    pub label: Spanned<String>,
+    pub source: EvidenceSource,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EvidenceKind {
+    Guard,
+    Feature,
+    Role,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EvidenceSource {
+    /// The selected field value evaluated against the authored `require`
+    /// predicate naming this path.
+    Requirement(FieldPath),
+    /// A feature on the completed construction output.
+    Output(FieldPath),
+    /// A feature on one selected construction input field.
+    Field(FieldPath),
+    /// The declaration's selected chart category.
+    Category,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LensDeclaration {
     pub name: Spanned<String>,
     pub owner_type: Spanned<String>,
+    /// Optional owner-local capability used when the target's fields are
+    /// private. The constructor and destructurer carry the complete lens
+    /// record in declaration order, so generated code never needs field
+    /// visibility.
+    pub adapter: Option<BindAdapter>,
     pub fields: Vec<LensFieldDeclaration>,
 }
 
@@ -362,6 +467,10 @@ pub enum Constraint {
     Recognize(Spanned<Predicate>),
     DeriveFeature {
         target: FieldPath,
+        /// A concrete feature type makes the combinator a typed callback
+        /// selected and dispatched by generated code. Untyped combinators
+        /// retain the portable metadata-only vocabulary.
+        feature_type: Option<Spanned<String>>,
         combinator: Spanned<String>,
         args: Vec<FieldPath>,
     },
@@ -463,7 +572,6 @@ pub const KNOWN_COMBINATORS: &[&str] = &[
     "quantity_plural",
     "quantity_plural_count",
     "quantity_mass",
-    "nominal",
 ];
 
 /// `snake_case` to `PascalCase`. Shared between `validate.rs`'s EC006

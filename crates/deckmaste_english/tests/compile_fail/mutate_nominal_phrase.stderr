@@ -1,0 +1,5 @@
+error[E0616]: field `head` of struct `NominalPhrase` is private
+ --> tests/compile_fail/mutate_nominal_phrase.rs:5:13
+  |
+5 |     nominal.head = head;
+  |             ^^^^ private field

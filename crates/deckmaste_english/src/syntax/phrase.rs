@@ -12,6 +12,7 @@ use super::clause::RelativeClause;
 use super::clause::TransitivePredicate;
 use crate::Numeral;
 use crate::catalog::CatalogAtom;
+use crate::catalog::CatalogKind;
 use crate::constructions::coordination::CoordinatedNominalPhrase;
 use crate::constructions::coordination::CoordinatedNounPhrase;
 use crate::features::Comma;
@@ -19,6 +20,7 @@ use crate::features::Conjunction;
 use crate::word::Adjective;
 use crate::word::ColorWord;
 use crate::word::InitialSound;
+use crate::word::Noun;
 use crate::word::NounInstance;
 use crate::word::Pronoun;
 use crate::word::PronounCase;
@@ -881,13 +883,85 @@ pub use crate::features::Conjunction as NounPhraseConjunction;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct NominalPhrase {
-    pub(crate) determiner: Option<Determiner>,
-    pub(crate) modifiers: Vec<NominalModifier>,
-    pub(crate) head: NounInstance,
-    pub(crate) complements: Vec<NominalComplement>,
+    determiner: Option<Determiner>,
+    modifiers: Vec<NominalModifier>,
+    head: NounInstance,
+    complements: Vec<NominalComplement>,
 }
 
 impl NominalPhrase {
+    /// Complete owner-local projection used by declaration-generated lens
+    /// code. Keeping this capability beside the private fields lets generated
+    /// builders rebuild validated values without widening field visibility.
+    const fn from_projection_parts(
+        determiner: Option<Determiner>,
+        modifiers: Vec<NominalModifier>,
+        head: NounInstance,
+        complements: Vec<NominalComplement>,
+    ) -> Self {
+        Self {
+            determiner,
+            modifiers,
+            head,
+            complements,
+        }
+    }
+
+    fn into_projection_parts(
+        self,
+    ) -> (
+        Option<Determiner>,
+        Vec<NominalModifier>,
+        NounInstance,
+        Vec<NominalComplement>,
+    ) {
+        (self.determiner, self.modifiers, self.head, self.complements)
+    }
+
+    // Sealed declaration capability: these mutable views are private to the
+    // owner and its nominal-declaration child. Generated public builders
+    // perform the final inverse validation.
+    fn declaration_modifiers_mut(&mut self) -> &mut Vec<NominalModifier> {
+        &mut self.modifiers
+    }
+
+    fn declaration_complements_mut(&mut self) -> &mut Vec<NominalComplement> {
+        &mut self.complements
+    }
+
+    /// Deliberate test-only escape hatch for constructing malformed or
+    /// independent expected values without widening the production boundary.
+    #[cfg(test)]
+    pub(crate) const fn test_from_projection_parts(
+        determiner: Option<Determiner>,
+        modifiers: Vec<NominalModifier>,
+        head: NounInstance,
+        complements: Vec<NominalComplement>,
+    ) -> Self {
+        Self::from_projection_parts(determiner, modifiers, head, complements)
+    }
+
+    /// Re-label keyword-ability catalog atoms after a `named` modifier opens
+    /// proper-name interior. This mutation belongs beside the private owner;
+    /// callers cannot obtain mutable field views.
+    pub(crate) fn open_name_interior(&mut self) {
+        fn detach(noun: &mut NounInstance) {
+            let inner = noun.noun_mut();
+            if let Noun::Catalog(atom) = inner
+                && atom.kind == CatalogKind::KeywordAbility
+            {
+                *inner = Noun::Opaque(OpaqueLexeme::new(atom.spelling()));
+            }
+        }
+
+        detach(&mut self.head);
+        for modifier in &mut self.modifiers {
+            if let NominalModifier::Noun { noun, .. } = modifier {
+                detach(noun);
+            }
+        }
+    }
+
     /// Builds a bare nominal through the generated noun-head declaration.
     ///
     /// # Errors
@@ -924,6 +998,12 @@ impl NominalPhrase {
         &self.complements
     }
 }
+
+// The declaration module is an owner child so its generated lens and adapter
+// code can use the private projection capability without exposing it to crate
+// siblings.
+#[path = "../constructions/nominal.rs"]
+pub(crate) mod nominal_constructions;
 
 /// The productive `non-` polarity of a nominal modifier. `land card` and
 /// `nonland card` are the *same* outer modifier node — an attributive

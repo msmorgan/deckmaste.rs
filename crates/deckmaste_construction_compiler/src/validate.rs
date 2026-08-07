@@ -8,6 +8,7 @@ use crate::diag::sort_key;
 use crate::model::Constraint;
 use crate::model::ConstructionDeclaration;
 use crate::model::ElementDeclaration;
+use crate::model::EvidenceSource;
 use crate::model::FieldBinding;
 use crate::model::FieldKind;
 use crate::model::FieldPath;
@@ -62,6 +63,7 @@ fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     check_empty_bound_elements(group, diags);
     check_dominance_cycles(group, diags);
     check_paths(group, diags);
+    check_typed_feature_callbacks(group, diags);
     check_kinds(group, diags);
     check_lenses(group, diags);
     check_forms(group, diags);
@@ -71,15 +73,142 @@ fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     check_strata(group, diags);
 }
 
+/// Typed callbacks are executable generated code, so every argument must map
+/// directly to one declaration field. Each output target independently owns
+/// one concrete type and one generated reducer; this lets declarations carry
+/// additional typed semantic outputs without a language-side ID table.
+fn check_typed_feature_callbacks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
+    let mut signatures = Vec::<(String, String, proc_macro2::Span, String)>::new();
+    for construction in &group.constructions {
+        let id = construction.id.value.as_str();
+        let typed = construction
+            .constraints
+            .iter()
+            .filter_map(|constraint| {
+                let Constraint::DeriveFeature {
+                    target,
+                    feature_type: Some(feature_type),
+                    args,
+                    ..
+                } = constraint
+                else {
+                    return None;
+                };
+                Some((target, feature_type, args))
+            })
+            .collect::<Vec<_>>();
+
+        let mut construction_targets = Vec::<String>::new();
+        for (target, feature_type, args) in typed {
+            let target_name = target.dotted();
+            if construction_targets.contains(&target_name) {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::TypedFeatureMismatch,
+                        id,
+                        format!(
+                            "construction declares more than one typed callback for `{target_name}`"
+                        ),
+                    )
+                    .with_span(feature_type.span),
+                );
+            } else {
+                construction_targets.push(target_name.clone());
+            }
+
+            if let Some((_, expected_type, span, first_id)) = signatures
+                .iter()
+                .find(|(candidate, _, _, _)| *candidate == target_name)
+            {
+                if feature_type.value != *expected_type {
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::TypedFeatureMismatch,
+                            id,
+                            format!(
+                                "typed callback targets `{target_name}: {}` but group `{}` already declares `{target_name}: {expected_type}`",
+                                feature_type.value, group.name.value,
+                            ),
+                        )
+                        .with_span(feature_type.span)
+                        .with_note(
+                            format!("first typed feature callback is on `{first_id}`"),
+                            *span,
+                        ),
+                    );
+                }
+            } else {
+                signatures.push((
+                    target_name.clone(),
+                    feature_type.value.clone(),
+                    feature_type.span,
+                    id.to_owned(),
+                ));
+            }
+
+            if target.segments.len() != 1 {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::UnsupportedConstraintPath,
+                        id,
+                        format!("typed feature target `{target_name}` must be one output name"),
+                    )
+                    .with_span(target.segments[1].span),
+                );
+            }
+
+            for arg in args {
+                if arg.segments.len() != 1 {
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::UnsupportedConstraintPath,
+                            id,
+                            format!(
+                                "typed feature argument `{}` must name one top-level construction field",
+                                arg.dotted(),
+                            ),
+                        )
+                        .with_span(arg.segments[1].span),
+                    );
+                    continue;
+                }
+                let field = &arg.segments[0];
+                if !construction
+                    .ast
+                    .fields()
+                    .iter()
+                    .any(|binding| binding.field.value == field.value)
+                {
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::UnknownFieldPath,
+                            id,
+                            format!(
+                                "typed feature argument `{}` does not name a construction field",
+                                field.value,
+                            ),
+                        )
+                        .with_span(field.span),
+                    );
+                }
+            }
+        }
+    }
+}
+
 /// Opaque whole-value predicates cannot prove their own complement. Canonical
 /// selection is therefore total only when they have one unconditional
 /// fallback, and source order is non-semantic only when that fallback is
 /// unique. Explicit ordinal replay remains available for every form.
 fn check_fallback_contract(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     let inverse_dispatch_family = group.inverse_dispatch_family();
+    let inverse_dispatch_families = group.inverse_dispatch_families();
     for construction in &group.constructions {
-        let inverse_dispatch_member =
-            inverse_dispatch_family.is_some_and(|family| family.contains(construction));
+        let inverse_dispatch_member = inverse_dispatch_family
+            .is_some_and(|family| family.contains(construction))
+            || inverse_dispatch_families
+                .iter()
+                .any(|family| family.contains(construction));
         let id = construction.id.value.as_str();
         let mut fallbacks = construction
             .forms
@@ -550,15 +679,90 @@ fn check_generated_names(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) 
             }
         }
     }
+    check_generated_dispatch_names(group, &mut seen_values, diags);
+}
+
+fn check_generated_dispatch_names(
+    group: &GroupDeclaration,
+    seen_values: &mut std::collections::HashMap<String, (proc_macro2::Span, &'static str, String)>,
+    diags: &mut Vec<Diagnostic>,
+) {
     if group.inverse_dispatch_family().is_some() {
         let dispatcher = format!("linearize_{}_group_with", group.name.value);
         record_generated_name(
-            &mut seen_values,
+            seen_values,
             diags,
             &dispatcher,
             group.name.span,
             "group inverse dispatcher",
             group.name.value.clone(),
+        );
+    }
+    for family in group.inverse_dispatch_families() {
+        let category = family
+            .category
+            .expect("category inverse families carry a category");
+        let dispatcher = format!(
+            "linearize_{}_{}_with",
+            group.name.value,
+            crate::model::snake_case(&category.value),
+        );
+        record_generated_name(
+            seen_values,
+            diags,
+            &dispatcher,
+            category.span,
+            "category inverse dispatcher",
+            category.value.clone(),
+        );
+    }
+    for family in group.inverse_target_dispatch_families() {
+        let dispatcher = format!(
+            "linearize_{}_{}_with",
+            group.name.value,
+            crate::model::snake_case(&family.target.value),
+        );
+        record_generated_name(
+            seen_values,
+            diags,
+            &dispatcher,
+            family.target.span,
+            "target inverse dispatcher",
+            family.target.value.clone(),
+        );
+    }
+    let mut typed_targets = Vec::<(&FieldPath, &crate::model::Spanned<String>)>::new();
+    for construction in &group.constructions {
+        for constraint in &construction.constraints {
+            let Constraint::DeriveFeature {
+                target,
+                feature_type: Some(feature_type),
+                ..
+            } = constraint
+            else {
+                continue;
+            };
+            if !typed_targets
+                .iter()
+                .any(|(candidate, _)| candidate.dotted() == target.dotted())
+            {
+                typed_targets.push((target, feature_type));
+            }
+        }
+    }
+    for (target, feature_type) in typed_targets {
+        let reducer = format!(
+            "reduce_{}_{}",
+            group.name.value,
+            target.dotted().replace('.', "_")
+        );
+        record_generated_name(
+            seen_values,
+            diags,
+            &reducer,
+            feature_type.span,
+            "typed feature reducer",
+            target.dotted(),
         );
     }
 }
@@ -959,6 +1163,7 @@ fn check_construction_paths(
             }
         }
     }
+    check_evidence_path(group, construction, diags);
     for form in &construction.forms {
         let Some(guard) = &form.guard else { continue };
         let mut paths: Vec<&FieldPath> = Vec::new();
@@ -981,6 +1186,92 @@ fn check_construction_paths(
                 );
             }
         }
+    }
+}
+
+fn check_evidence_path(
+    group: &GroupDeclaration,
+    construction: &ConstructionDeclaration,
+    diags: &mut Vec<Diagnostic>,
+) {
+    let Some(evidence) = &construction.evidence else {
+        return;
+    };
+    let id = construction.id.value.as_str();
+    match &evidence.source {
+        EvidenceSource::Requirement(path) => {
+            if path.segments.len() != 1 {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::UnsupportedConstraintPath,
+                        id,
+                        format!(
+                            "evidence requirement `{}` must name one top-level construction field",
+                            path.dotted(),
+                        ),
+                    )
+                    .with_span(path.span),
+                );
+            } else if let Err(bad) = resolve_path(group, construction, path) {
+                let segment = &path.segments[bad.index];
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::UnknownFieldPath,
+                        id,
+                        format!(
+                            "evidence requirement references `{}`: `{}` does not resolve",
+                            path.dotted(),
+                            segment.value,
+                        ),
+                    )
+                    .with_span(segment.span),
+                );
+            } else if !construction.constraints.iter().any(|constraint| {
+                let Constraint::Require(requirement) = constraint else {
+                    return false;
+                };
+                let mut paths = Vec::new();
+                collect_all_paths(&requirement.value, &mut paths);
+                paths.into_iter().any(|candidate| candidate == path)
+            }) {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::UnsupportedConstraintPath,
+                        id,
+                        format!(
+                            "evidence requirement `{}` must name a path in an authored `require` clause",
+                            path.dotted(),
+                        ),
+                    )
+                    .with_span(path.span),
+                );
+            }
+        }
+        EvidenceSource::Field(path) => {
+            let Some(root) = path.segments.first() else {
+                return;
+            };
+            if !construction
+                .ast
+                .fields()
+                .iter()
+                .any(|field| field.field.value == root.value)
+            {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::UnknownFieldPath,
+                        id,
+                        format!(
+                            "evidence field references `{}`: `{}` is not a construction field",
+                            path.dotted(),
+                            root.value,
+                        ),
+                    )
+                    .with_span(root.span),
+                );
+            }
+        }
+        EvidenceSource::Output(_) | EvidenceSource::Category => {}
     }
 }
 
@@ -2161,9 +2452,13 @@ fn required_facts(
 
 fn check_surface_domain(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     let inverse_dispatch_family = group.inverse_dispatch_family();
+    let inverse_dispatch_families = group.inverse_dispatch_families();
     for construction in &group.constructions {
-        let inverse_dispatch_member =
-            inverse_dispatch_family.is_some_and(|family| family.contains(construction));
+        let inverse_dispatch_member = inverse_dispatch_family
+            .is_some_and(|family| family.contains(construction))
+            || inverse_dispatch_families
+                .iter()
+                .any(|family| family.contains(construction));
         let id = construction.id.value.as_str();
         let has_free_witness = construction
             .witnesses
@@ -2293,8 +2588,17 @@ fn check_constraints(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
             .constraints
             .iter()
             .filter_map(|constraint| match constraint {
-                Constraint::DeriveFeature { combinator, .. } => Some(combinator),
-                Constraint::Require(_) | Constraint::Recognize(_) => None,
+                Constraint::DeriveFeature {
+                    feature_type: None,
+                    combinator,
+                    ..
+                } => Some(combinator),
+                Constraint::DeriveFeature {
+                    feature_type: Some(_),
+                    ..
+                }
+                | Constraint::Require(_)
+                | Constraint::Recognize(_) => None,
             })
             .chain(
                 construction
@@ -2468,6 +2772,7 @@ pub(crate) mod fixtures {
                 lens: None,
                 projection: None,
                 constraints: vec![],
+                evidence: None,
                 witnesses: vec![],
                 forms: vec![FormDeclaration {
                     name: Spanned::call_site("binary".to_owned()),
@@ -2517,6 +2822,120 @@ mod tests {
         let group = minimal_group();
         let validated = validate(&group).expect("minimal group is valid");
         assert_eq!(validated.group().constructions.len(), 1);
+    }
+
+    #[test]
+    fn evidence_requirement_must_reference_an_authored_requirement() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group detached_evidence;
+            construction guarded: Phrase {
+                own Guarded { conjunction: lex Conjunction, }
+                evidence guard "conjunction gate" from requirement conjunction;
+                form only @ 0 = lex(conjunction);
+            }
+        })
+        .expect("evidence syntax parses before semantic validation");
+        let err = validate(&group).expect_err("detached evidence must be rejected");
+        assert_eq!(codes(&err), vec!["EC032"]);
+        assert_eq!(
+            message_for(&err, "EC032"),
+            "evidence requirement `conjunction` must name a path in an authored `require` clause",
+        );
+    }
+
+    #[test]
+    fn typed_feature_callback_rejects_an_unknown_argument_field() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group typed_unknown;
+            construction base: Node {
+                bind Node via make_node, split_node { head: hole Head, }
+                derive features: Feature = reduce_base(missing);
+                form only @ 0 = head;
+                selection unique;
+            }
+        })
+        .expect("typed callback syntax parses");
+        let err = validate(&group).expect_err("the emitter cannot index an unknown field");
+        assert_eq!(codes(&err), vec!["EC010"]);
+        assert_eq!(
+            message_for(&err, "EC010"),
+            "typed feature argument `missing` does not name a construction field",
+        );
+    }
+
+    #[test]
+    fn typed_feature_callback_rejects_a_nested_argument_path() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group typed_nested;
+            construction base: Node {
+                bind Node via make_node, split_node { head: hole Head, }
+                derive features: Feature = reduce_base(head.kind);
+                form only @ 0 = head;
+                selection unique;
+            }
+        })
+        .expect("typed callback syntax parses");
+        let err = validate(&group).expect_err("callbacks receive top-level field features only");
+        assert_eq!(codes(&err), vec!["EC032"]);
+        assert_eq!(
+            message_for(&err, "EC032"),
+            "typed feature argument `head.kind` must name one top-level construction field",
+        );
+    }
+
+    #[test]
+    fn typed_feature_callbacks_share_one_type_per_output_target() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group typed_signature;
+            construction base: Node {
+                bind Node via make_base, split_base { head: hole Head, }
+                derive features: Feature = reduce_base(head);
+                form only @ 0 = head;
+                selection unique;
+            }
+            construction extend: Node {
+                bind Node via make_extend, split_extend { tail: hole Tail, }
+                derive features: OtherFeature = reduce_extend(tail);
+                form only @ 0 = tail;
+                selection unique;
+            }
+        })
+        .expect("typed callback syntax parses");
+        let err = validate(&group).expect_err("one generated reducer needs one concrete type");
+        assert_eq!(codes(&err), vec!["EC034"]);
+        assert!(
+            message_for(&err, "EC034").contains("targets `features: OtherFeature`"),
+            "diagnostic names the conflicting signature: {err:?}",
+        );
+    }
+
+    #[test]
+    fn every_typed_output_reducer_is_reserved_in_the_generated_namespace() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group typed_outputs;
+            construction base: Node {
+                own Base { head: hole Head, }
+                derive features: Feature = reduce_base(head);
+                derive precedence: Feature = disprefer_base(head);
+                form only @ 0 = head;
+                selection unique;
+            }
+        })
+        .expect("multiple typed outputs parse");
+        let mut seen = std::collections::HashMap::new();
+        let mut diags = Vec::new();
+
+        check_generated_dispatch_names(&group, &mut seen, &mut diags);
+
+        assert!(
+            diags.is_empty(),
+            "distinct typed outputs do not collide: {diags:?}"
+        );
+        assert!(seen.contains_key("reduce_typed_outputs_features"));
+        assert!(
+            seen.contains_key("reduce_typed_outputs_precedence"),
+            "every emitted typed reducer must participate in EC006 name validation: {seen:?}",
+        );
     }
 
     #[test]
@@ -4336,6 +4755,7 @@ mod tests {
             .constraints
             .push(crate::model::Constraint::DeriveFeature {
                 target: crate::model::FieldPath::call_site("conjunction"),
+                feature_type: None,
                 combinator: crate::model::Spanned::call_site("summon_grammar_demon".to_owned()),
                 args: vec![],
             });
@@ -4387,6 +4807,7 @@ mod tests {
             .constraints
             .push(crate::model::Constraint::DeriveFeature {
                 target: crate::model::FieldPath::call_site("conjunction"),
+                feature_type: None,
                 combinator: crate::model::Spanned::call_site("fixed".to_owned()),
                 args: vec![],
             });

@@ -57,6 +57,16 @@ pub(crate) struct GeneratedNominalParse {
     pub(crate) form_ordinal: u16,
 }
 
+/// The generated root attribution of an exact derivation, independent of the
+/// root category's Rust payload type. Unlike [`GeneratedParse`], this does not
+/// require every handwritten subtree below the generated root to itself be a
+/// generated construction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct GeneratedRootParse {
+    pub(crate) construction: &'static str,
+    pub(crate) form_ordinal: u16,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct GeneratedSentenceParse {
     pub(crate) value: crate::syntax::Sentence,
@@ -278,7 +288,7 @@ pub(crate) enum ExactParseError {
 /// nothing being admitted. Dominance-losing derivations are included
 /// (dominance is selection preference, not admission), and no opaque-noun
 /// retry ever runs.
-pub(crate) fn parse_as(
+pub(super) fn parse_as(
     source: &str,
     catalogs: &Catalogs,
     nonterminal: Nonterminal,
@@ -293,6 +303,149 @@ pub(crate) fn parse_as(
         budget,
         RegistrationOrder::Normal,
     )
+}
+
+#[cfg(test)]
+fn parse_generated_root_as_with_registration_order(
+    source: &str,
+    catalogs: &Catalogs,
+    nonterminal: Nonterminal,
+    category: &str,
+    expected: &dyn std::any::Any,
+    budget: usize,
+    order: RegistrationOrder,
+) -> Result<Vec<ExactParse<GeneratedRootParse, EnglishSurfaceWitness>>, ExactParseError> {
+    let self_reference = SelfReference::default();
+    let surface = lex(source);
+    let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
+    let grammar = EnglishGrammar::with_opacity_mode_and_registration_order(
+        source,
+        catalogs,
+        nonterminal,
+        OpacityMode::Exact,
+        self_reference,
+        order,
+        GeneratedActivation::Production,
+    );
+    let chart = parse_chart(&grammar, &tokens).map_err(ExactParseError::Grammar)?;
+    let mut remaining = budget;
+    let mut results = Vec::new();
+    for &root in &chart.roots {
+        let selections = chart
+            .forest
+            .enumerate_selections(root, &mut remaining)
+            .map_err(|error| match error {
+                SelectionEnumerationError::Cycle(_) => ExactParseError::Cycle,
+                SelectionEnumerationError::BudgetExhausted => {
+                    ExactParseError::TooManyAlternatives { budget }
+                }
+            })?;
+        for selection in selections {
+            let forest_node = chart.forest.node(root);
+            let Some(alternative_index) = selection.alternative(root) else {
+                continue;
+            };
+            let Some(alternative) = forest_node.alternatives.get(alternative_index) else {
+                continue;
+            };
+            let Some(rule) = alternative.rule else { continue };
+            let Some(RuleImpl::Generated(generated)) = grammar.impls.get(rule.index()).copied()
+            else {
+                continue;
+            };
+            let Some(construction) = generated.group.constructions.get(generated.construction)
+            else {
+                continue;
+            };
+            let Some(form) = construction.forms.get(generated.form) else {
+                continue;
+            };
+            let Some(lowered) = lower(&grammar, &chart.forest, root, &selection) else {
+                continue;
+            };
+            if !lowered_matches_expected(category, &lowered, expected) {
+                continue;
+            }
+            let ast = GeneratedRootParse {
+                construction: construction.id,
+                form_ordinal: form.ordinal,
+            };
+            let Some(exact) = chart.forest.exact_result(root, alternative_index, ast) else {
+                continue;
+            };
+            if !results.contains(&exact) {
+                results.push(exact);
+            }
+        }
+    }
+    Ok(results)
+}
+
+#[cfg(test)]
+fn lowered_matches_expected(
+    category: &str,
+    lowered: &Lowered,
+    expected: &dyn std::any::Any,
+) -> bool {
+    use crate::constructions::nominal::ReducedRecipientPassiveTheme;
+    use crate::constructions::nominal::RulesObjectFollowupNominal;
+    use crate::constructions::nominal::RulesObjectNominal;
+
+    match category {
+        "NominalPhrase" => matches!(
+            (lowered, expected.downcast_ref::<crate::syntax::NominalPhrase>()),
+            (Lowered::Nominal(actual), Some(expected)) if actual == expected
+        ),
+        "RulesObjectNominal" => matches!(
+            (lowered, expected.downcast_ref::<RulesObjectNominal>()),
+            (Lowered::Nominal(actual), Some(expected)) if actual == expected.as_nominal()
+        ),
+        "RulesObjectFollowupNominal" => matches!(
+            (
+                lowered,
+                expected.downcast_ref::<RulesObjectFollowupNominal>(),
+            ),
+            (Lowered::Nominal(actual), Some(expected)) if actual == expected.as_nominal()
+        ),
+        "ReducedRecipientPassiveTheme" => matches!(
+            (
+                lowered,
+                expected.downcast_ref::<ReducedRecipientPassiveTheme>(),
+            ),
+            (Lowered::NounPhrase(actual), Some(expected)) if actual == expected.as_noun_phrase()
+        ),
+        "PredicatedQualityFrom" | "PredicatedQualityBare" => matches!(
+            (
+                lowered,
+                expected.downcast_ref::<crate::syntax::PredicatedQuality>(),
+            ),
+            (Lowered::PredicatedQuality(actual), Some(expected)) if actual == expected
+        ),
+        "PredicatedArgumentFrom" | "PredicatedArgumentBare" => matches!(
+            (
+                lowered,
+                expected.downcast_ref::<crate::syntax::PredicatedArgument>(),
+            ),
+            (Lowered::PredicatedArgument(actual), Some(expected)) if actual == expected
+        ),
+        "DevotionColors" => matches!(
+            (
+                lowered,
+                expected.downcast_ref::<crate::syntax::DevotionColors>(),
+            ),
+            (Lowered::DevotionColors(actual), Some(expected)) if actual == expected
+        ),
+        "TransitivePredicate" => {
+            let Lowered::Generated(value) = lowered else {
+                return false;
+            };
+            value
+                .downcast_ref::<crate::syntax::TransitivePredicate>()
+                .zip(expected.downcast_ref::<crate::syntax::TransitivePredicate>())
+                .is_some_and(|(actual, expected)| actual == expected)
+        }
+        other => panic!("M01 exact value matcher has no declared category `{other}`"),
+    }
 }
 
 fn parse_as_with_registration_order(
@@ -344,6 +497,38 @@ fn parse_as_with_registration_order(
         }
     }
     Ok(results)
+}
+
+#[cfg(test)]
+pub(crate) fn parse_production_as_declared_category_in_both_orders(
+    source: &str,
+    catalogs: &Catalogs,
+    category: &str,
+    expected: &dyn std::any::Any,
+    budget: usize,
+) -> Result<[Vec<ExactParse<GeneratedRootParse, EnglishSurfaceWitness>>; 2], ExactParseError> {
+    let nonterminal = super::generated::declared_category_nonterminal(category)
+        .unwrap_or_else(|| panic!("M01 construction has unmapped declared category `{category}`"));
+    Ok([
+        parse_generated_root_as_with_registration_order(
+            source,
+            catalogs,
+            nonterminal,
+            category,
+            expected,
+            budget,
+            RegistrationOrder::Normal,
+        )?,
+        parse_generated_root_as_with_registration_order(
+            source,
+            catalogs,
+            nonterminal,
+            category,
+            expected,
+            budget,
+            RegistrationOrder::Reversed,
+        )?,
+    ])
 }
 
 fn parse_generated_noun_phrase_as(
@@ -764,12 +949,14 @@ mod tests {
                         kind: crate::syntax::Transitive {
                             pre_object_elements: Vec::new(),
                             object: crate::syntax::PredicateObject::NounPhrase(
-                                crate::syntax::NounPhrase::Nominal(crate::syntax::NominalPhrase {
-                                    determiner: Some(crate::syntax::Determiner::Indefinite),
-                                    modifiers: Vec::new(),
-                                    head: NounInstance::Singular(Noun::Word(Vocab::Card)),
-                                    complements: Vec::new(),
-                                }),
+                                crate::syntax::NounPhrase::Nominal(
+                                    crate::syntax::NominalPhrase::test_from_projection_parts(
+                                        Some(crate::syntax::Determiner::Indefinite),
+                                        Vec::new(),
+                                        NounInstance::Singular(Noun::Word(Vocab::Card)),
+                                        Vec::new(),
+                                    ),
+                                ),
                             ),
                         },
                         elements: Vec::new(),
@@ -797,12 +984,12 @@ mod tests {
     }
 
     fn nominal(head: Vocab) -> NominalPhrase {
-        NominalPhrase {
-            determiner: None,
-            modifiers: Vec::new(),
-            head: NounInstance::Singular(Noun::Word(head)),
-            complements: Vec::new(),
-        }
+        NominalPhrase::test_from_projection_parts(
+            None,
+            Vec::new(),
+            NounInstance::Singular(Noun::Word(head)),
+            Vec::new(),
+        )
     }
 
     fn noun_phrase(head: Vocab) -> NounPhrase {
@@ -997,7 +1184,7 @@ mod tests {
     }
 
     fn nominal_head_spelling(nominal: &NominalPhrase) -> &str {
-        let noun = nominal.head.noun();
+        let noun = nominal.head().noun();
         match noun {
             Noun::Word(vocab) => vocab.spelling(),
             Noun::Catalog(atom) => atom.canonical(),
@@ -1053,7 +1240,7 @@ mod tests {
         nominal: &'syntax NominalPhrase,
         found: &mut Vec<&'syntax crate::syntax::CoordinatedNounPhrase>,
     ) {
-        for complement in &nominal.complements {
+        for complement in nominal.complements() {
             collect_complement_coordinations(complement, found);
         }
     }
@@ -1125,7 +1312,7 @@ mod tests {
     }
 
     fn has_base_modifier(nominal: &NominalPhrase) -> bool {
-        nominal.modifiers.iter().any(|modifier| {
+        nominal.modifiers().iter().any(|modifier| {
             matches!(
                 modifier,
                 crate::syntax::NominalModifier::Noun {
@@ -1160,7 +1347,7 @@ mod tests {
             && (!requires_base || has_base_modifier(power))
             && (!requires_value
                 || matches!(
-                    toughness.complements.as_slice(),
+                    toughness.complements(),
                     [NominalComplement::PowerToughness(_)]
                 ))
     }
@@ -1193,7 +1380,7 @@ mod tests {
         expected: crate::syntax::Preposition,
     ) -> bool {
         match noun_phrase {
-            NounPhrase::Nominal(nominal) => nominal.complements.iter().any(|complement| {
+            NounPhrase::Nominal(nominal) => nominal.complements().iter().any(|complement| {
                 matches!(
                     complement,
                     NominalComplement::Prepositional(preposition)
@@ -1317,17 +1504,17 @@ mod tests {
             panic!("expected Sway of the Stars' remaining nominals: {coordination:#?}");
         };
         assert!(matches!(
-            first.determiner,
+            first.determiner(),
             Some(Determiner::Possessive(crate::syntax::Possessor::Pronoun(
                 crate::word::Pronoun::They,
             )))
         ));
         assert_eq!(nominal_head_spelling(first), "hand");
         assert_eq!(graveyard.conjunction, None);
-        assert_eq!(graveyard_phrase.determiner, None);
+        assert_eq!(graveyard_phrase.determiner(), None);
         assert_eq!(nominal_head_spelling(graveyard_phrase), "graveyard");
         assert_eq!(permanents.conjunction, Some(Conjunction::And));
-        assert_eq!(permanents_phrase.determiner, Some(Determiner::All));
+        assert_eq!(permanents_phrase.determiner(), Some(&Determiner::All));
         assert_eq!(nominal_head_spelling(permanents_phrase), "permanent");
     }
 
@@ -1385,9 +1572,9 @@ mod tests {
         else {
             panic!("The Tale of Tamiyo did not select nominal members: {coordination:#?}");
         };
-        assert_eq!(first.determiner, Some(Determiner::Target(None)));
-        assert_eq!(middle_phrase.determiner, None);
-        assert_eq!(final_member_phrase.determiner, None);
+        assert_eq!(first.determiner(), Some(&Determiner::Target(None)));
+        assert_eq!(middle_phrase.determiner(), None);
+        assert_eq!(final_member_phrase.determiner(), None);
         assert_eq!(middle.conjunction, None);
         assert_eq!(final_member.conjunction, Some(Conjunction::AndOr));
         assert_eq!(
@@ -1417,12 +1604,12 @@ mod tests {
         };
         assert_eq!(nominal_head_spelling(first), "Creature");
         assert!(matches!(
-            first.complements.as_slice(),
+            first.complements(),
             [NominalComplement::Prepositional(preposition)]
                 if preposition.head().preposition == crate::syntax::Preposition::With
         ));
         assert_eq!(nominal_head_spelling(second), "player");
-        assert!(second.complements.is_empty());
+        assert!(second.complements().is_empty());
         assert_eq!(
             coordination_verdict(&coordination),
             CoordinationVerdict::Admitted
@@ -1637,7 +1824,7 @@ mod tests {
         nominal_is_counter(first)
             && nominal_is_counter(second_phrase)
             && second.conjunction == Some(Conjunction::And)
-            && second_phrase.complements.iter().any(|complement| {
+            && second_phrase.complements().iter().any(|complement| {
                 matches!(
                     complement,
                     NominalComplement::Prepositional(preposition)
@@ -1652,7 +1839,7 @@ mod tests {
     }
 
     fn nominal_is_counter(nominal: &NominalPhrase) -> bool {
-        let noun = nominal.head.noun();
+        let noun = nominal.head().noun();
         matches!(
             noun,
             Noun::Word(vocab) if vocab.spelling() == "counter"
@@ -1686,7 +1873,7 @@ mod tests {
                         matches!(
                             destination,
                             NounPhrase::Nominal(nominal)
-                                if nominal.determiner == Some(Determiner::Demonstrative(
+                                if nominal.determiner() == Some(&Determiner::Demonstrative(
                                     crate::syntax::Demonstrative::That
                                 )) && nominal_head_spelling(nominal) == "Creature"
                         )
@@ -1734,7 +1921,7 @@ mod tests {
             let NounPhrase::Nominal(other_nominal) = &other.phrase else {
                 return false;
             };
-            other_nominal.complements.iter().any(|complement| {
+            other_nominal.complements().iter().any(|complement| {
                 let NominalComplement::Prepositional(preposition) = complement else {
                     return false;
                 };
@@ -2206,8 +2393,8 @@ mod tests {
             "any card or spell",
         );
         let (_, first, rest, complements) = coordination::parts_shared_determiner_nominal(&binary);
-        assert_eq!(first.determiner, None);
-        assert_eq!(rest[0].phrase.determiner, None);
+        assert_eq!(first.determiner(), None);
+        assert_eq!(rest[0].phrase.determiner(), None);
         assert!(complements.is_empty());
 
         let oxford = coordination::build_shared_determiner_nominal(
@@ -2485,7 +2672,7 @@ mod tests {
         const SOURCES: &[&str] = &["artifact", "creature", "land", "planeswalker"];
         let source = SOURCES[index];
         match parse_fixture_noun_phrase(source) {
-            NounPhrase::Nominal(nominal) if nominal.determiner.is_none() => nominal,
+            NounPhrase::Nominal(nominal) if nominal.determiner().is_none() => nominal,
             reading => panic!(
                 "strict nominal member ground was not a bare nominal for {source:?}: {reading:#?}"
             ),

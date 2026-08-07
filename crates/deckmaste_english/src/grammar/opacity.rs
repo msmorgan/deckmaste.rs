@@ -93,9 +93,9 @@ mod tests {
         let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &predicate.object else {
             panic!("expected one nominal direct object");
         };
-        assert_eq!(object.determiner, Some(Determiner::Indefinite));
+        assert_eq!(object.determiner(), Some(&Determiner::Indefinite));
         assert!(matches!(
-            object.head.kind(),
+            object.head().kind(),
             crate::word::NounInstanceKind::Singular(Noun::Opaque(opaque))
                 if opaque.spelling() == "blorple"
         ));
@@ -123,7 +123,7 @@ mod tests {
             panic!("expected one nominal direct object")
         };
         assert!(matches!(
-            object.head.kind(),
+            object.head().kind(),
             crate::word::NounInstanceKind::Singular(Noun::Opaque(opaque))
                 if opaque.spelling() == "BlOrPlE"
         ));
@@ -182,7 +182,7 @@ mod tests {
         };
         assert!(
             matches!(
-                object.modifiers.as_slice(),
+                object.modifiers(),
                 [
                     NominalModifier::Noun { noun: shiny, .. },
                     NominalModifier::Noun { noun: strange, .. },
@@ -197,7 +197,7 @@ mod tests {
                 )
             ),
             "{:#?}",
-            object.modifiers
+            object.modifiers()
         );
     }
 

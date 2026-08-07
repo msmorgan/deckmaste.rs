@@ -280,6 +280,30 @@ pub(crate) fn render_sentence_form(value: &Sentence, ordinal: u16) -> Result<Str
     }
 }
 
+#[cfg(test)]
+pub(crate) fn render_nominal_construction_form<T>(
+    value: &T,
+    ordinal: u16,
+    linearize: impl FnOnce(
+        &T,
+        u16,
+        &mut GeneratedNominalRenderer<'_, '_>,
+    ) -> Result<
+        (),
+        deckmaste_construction_compiler::runtime::LinearizationError<RenderError>,
+    >,
+) -> Result<String, RenderError> {
+    let renderer = Renderer::new("Test Card", false);
+    let mut visitor = GeneratedNominalRenderer::new(&renderer);
+    match linearize(value, ordinal, &mut visitor) {
+        Ok(()) => Ok(visitor.finish()),
+        Err(deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error)) => {
+            Err(error)
+        }
+        Err(error) => unreachable!("declared exact nominal form is selectable: {error:?}"),
+    }
+}
+
 impl Determiner {
     /// Renders a determiner that does not require card-name context.
     ///
@@ -348,7 +372,7 @@ struct GeneratedCoordinationRenderer<'renderer, 'identity> {
     skip_payload_subtrees: usize,
 }
 
-struct GeneratedNominalRenderer<'renderer, 'identity> {
+pub(crate) struct GeneratedNominalRenderer<'renderer, 'identity> {
     renderer: &'renderer Renderer<'identity>,
     rendered: String,
     pending_determiner: Option<Determiner>,
@@ -558,6 +582,10 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
         Ok(())
     }
 
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the total generated category adapter keeps every supported nominal hole explicit"
+    )]
     fn subtree<T: std::any::Any>(
         &mut self,
         category: &'static str,
@@ -590,6 +618,24 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                 }
                 self.renderer.nominal_phrase(nominal)?
             }
+            "RulesObjectNominal" => self.renderer.nominal_phrase(
+                value
+                    .downcast_ref::<crate::constructions::nominal::RulesObjectNominal>()
+                    .expect("the rules-object base hole preserves its typed role")
+                    .as_nominal(),
+            )?,
+            "RulesObjectFollowupNominal" => self.renderer.nominal_phrase(
+                value
+                    .downcast_ref::<crate::constructions::nominal::RulesObjectFollowupNominal>()
+                    .expect("the rules-object followup hole preserves its typed role")
+                    .as_nominal(),
+            )?,
+            "ReducedRecipientPassiveTheme" => self.renderer.noun_phrase(
+                value
+                    .downcast_ref::<crate::constructions::nominal::ReducedRecipientPassiveTheme>()
+                    .expect("the reduced-passive theme hole preserves its typed role")
+                    .as_noun_phrase(),
+            )?,
             "NounPhrase" => self.renderer.noun_phrase(
                 value
                     .downcast_ref::<NounPhrase>()
@@ -653,7 +699,7 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                     .downcast_ref::<PredicatedQuality>()
                     .expect("the keyword-quality hole preserves PredicatedQuality");
                 Self::accept_generated(
-                    crate::constructions::nominal::linearize_predicated_quality_from_family_with(
+                    crate::constructions::nominal::linearize_predicated_quality_from_with(
                         value, self,
                     ),
                 )?;
@@ -664,7 +710,7 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                     .downcast_ref::<PredicatedQuality>()
                     .expect("the keyword-quality hole preserves PredicatedQuality");
                 Self::accept_generated(
-                    crate::constructions::nominal::linearize_predicated_quality_bare_family_with(
+                    crate::constructions::nominal::linearize_predicated_quality_bare_with(
                         value, self,
                     ),
                 )?;
@@ -675,7 +721,7 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                     .downcast_ref::<PredicatedArgument>()
                     .expect("the keyword argument hole preserves PredicatedArgument");
                 Self::accept_generated(
-                    crate::constructions::nominal::linearize_predicated_argument_from_family_with(
+                    crate::constructions::nominal::linearize_nominal_predicated_argument_from_with(
                         value, self,
                     ),
                 )?;
@@ -686,7 +732,7 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                     .downcast_ref::<PredicatedArgument>()
                     .expect("the keyword argument hole preserves PredicatedArgument");
                 Self::accept_generated(
-                    crate::constructions::nominal::linearize_predicated_argument_bare_family_with(
+                    crate::constructions::nominal::linearize_nominal_predicated_argument_bare_with(
                         value, self,
                     ),
                 )?;
@@ -697,8 +743,8 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                     .downcast_ref::<crate::syntax::DevotionColors>()
                     .expect("the devotion hole preserves DevotionColors");
                 Self::accept_generated(
-                    crate::constructions::nominal::linearize_devotion_colors_family_with(
-                        *value, self,
+                    crate::constructions::nominal::linearize_nominal_devotion_colors_with(
+                        value, self,
                     ),
                 )?;
                 return Ok(());
@@ -822,14 +868,19 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                 self.push(&self.renderer.noun_phrase(noun_phrase)?);
             }
             "NominalPhrase" => {
-                let mut nominal = value
+                let nominal = value
                     .downcast_ref::<NominalPhrase>()
-                    .expect("the declaration's NominalPhrase hole preserves its Rust type")
-                    .clone();
+                    .expect("the declaration's NominalPhrase hole preserves its Rust type");
                 if let Some(determiner) = self.pending_determiner.take() {
-                    nominal.determiner = Some(determiner);
+                    let determiner = if determiner == Determiner::Indefinite {
+                        indefinite_article_for(self.renderer.nominal_initial_sound(nominal)?)
+                            .to_owned()
+                    } else {
+                        self.renderer.determiner(&determiner)?
+                    };
+                    self.push(&determiner);
                 }
-                self.push(&self.renderer.nominal_phrase(&nominal)?);
+                self.push(&self.renderer.nominal_phrase(nominal)?);
             }
             other => panic!("unexpected coordination subtree category `{other}`"),
         }
@@ -1280,7 +1331,7 @@ impl<'identity> Renderer<'identity> {
         argument: &PredicatedArgument,
     ) -> Result<String, RenderError> {
         let mut visitor = GeneratedNominalRenderer::new(self);
-        let result = crate::constructions::nominal::linearize_predicated_argument_family_with(
+        let result = crate::constructions::nominal::linearize_nominal_predicated_argument_with(
             argument,
             &mut visitor,
         );
@@ -1293,8 +1344,8 @@ impl<'identity> Renderer<'identity> {
         colors: crate::syntax::DevotionColors,
     ) -> Result<String, RenderError> {
         let mut visitor = GeneratedNominalRenderer::new(self);
-        let result = crate::constructions::nominal::linearize_devotion_colors_family_with(
-            colors,
+        let result = crate::constructions::nominal::linearize_nominal_devotion_colors_with(
+            &colors,
             &mut visitor,
         );
         GeneratedNominalRenderer::accept_generated(result)?;
@@ -2387,7 +2438,10 @@ impl<'identity> Renderer<'identity> {
 
     fn nominal_phrase(&self, phrase: &NominalPhrase) -> Result<String, RenderError> {
         let mut visitor = GeneratedNominalRenderer::new(self);
-        match crate::constructions::nominal::linearize_nominal_group_with(phrase, &mut visitor) {
+        match crate::constructions::nominal::linearize_nominal_nominal_phrase_with(
+            phrase,
+            &mut visitor,
+        ) {
             Ok(()) => Ok(visitor.finish()),
             Err(deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error)) => {
                 Err(error)
@@ -2405,14 +2459,9 @@ impl<'identity> Renderer<'identity> {
     /// explicitly outside M01, then recurses immediately back through the
     /// generated nominal family for the residual owner.
     fn non_m01_nominal_remainder(&self, phrase: &NominalPhrase) -> Result<String, RenderError> {
-        if matches!(
-            phrase.complements.last(),
-            Some(NominalComplement::PowerToughness(_))
-        ) {
-            let mut nominal = phrase.clone();
-            let Some(NominalComplement::PowerToughness(value)) = nominal.complements.pop() else {
-                unreachable!("the checked final complement is power/toughness")
-            };
+        if let Some((nominal, value)) =
+            crate::constructions::nominal::project_nominal_power_toughness_remainder(phrase)
+        {
             return Ok(format!(
                 "{} {}/{}",
                 self.nominal_phrase(&nominal)?,
@@ -2421,15 +2470,9 @@ impl<'identity> Renderer<'identity> {
             ));
         }
 
-        if phrase.determiner.is_none()
-            && phrase.complements.is_empty()
-            && matches!(
-                phrase.modifiers.first(),
-                Some(NominalModifier::Coordinated(_))
-            )
+        if let Some((modifier, nominal)) =
+            crate::constructions::nominal::project_nominal_coordinated_modifier_remainder(phrase)
         {
-            let mut nominal = phrase.clone();
-            let modifier = nominal.modifiers.remove(0);
             let (prefix, trailing) = self.render_nominal_modifier(&modifier)?;
             let mut parts = vec![prefix, self.nominal_phrase(&nominal)?];
             parts.extend(trailing);
@@ -2541,10 +2584,10 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn nominal_initial_sound(&self, phrase: &NominalPhrase) -> Result<InitialSound, RenderError> {
-        if let Some(first) = phrase.modifiers.first() {
+        if let Some(first) = phrase.modifiers().first() {
             return self.modifier_initial_sound(first);
         }
-        self.noun_initial_sound(&phrase.head)
+        self.noun_initial_sound(phrase.head())
     }
 
     fn modifier_initial_sound(
@@ -2858,7 +2901,7 @@ impl<'identity> Renderer<'identity> {
 /// noun that happens to end in `s` still renders `'s`.
 fn possessive_marker(possessor: &NounPhrase) -> &'static str {
     match possessor {
-        NounPhrase::Nominal(nominal) => match nominal.head.kind() {
+        NounPhrase::Nominal(nominal) => match nominal.head().kind() {
             crate::word::NounInstanceKind::Plural(_) => "'",
             crate::word::NounInstanceKind::Singular(_) | crate::word::NounInstanceKind::Mass(_) => {
                 "'s"
@@ -2964,11 +3007,11 @@ fn subject_is_enchant_keyword(subject: &Subject) -> bool {
     let NounPhrase::Nominal(nominal) = &subject.0 else {
         return false;
     };
-    if !nominal.modifiers.is_empty() || nominal.determiner.is_some() {
+    if !nominal.modifiers().is_empty() || nominal.determiner().is_some() {
         return false;
     }
     matches!(
-        nominal.head.noun(),
+        nominal.head().noun(),
         Noun::Catalog(atom)
             if atom.kind == CatalogKind::KeywordAbility && atom.canonical() == "Enchant"
     )
@@ -3895,7 +3938,7 @@ mod tests {
         let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &predicate.object else {
             panic!("expected a nominal object");
         };
-        let [NominalComplement::Relative(relative)] = object.complements.as_slice() else {
+        let [NominalComplement::Relative(relative)] = object.complements() else {
             panic!("expected one relative complement: {object:#?}");
         };
         assert!(
@@ -4212,8 +4255,8 @@ mod tests {
                         noun: catalog_noun(&catalogs, "Goblin", false),
                     },
                 ],
-                creatures.head,
-                creatures.complements,
+                creatures.head().clone(),
+                creatures.complements().to_vec(),
             ))),
             verb_phrase(
                 Vocab::Get,
@@ -4813,12 +4856,12 @@ mod tests {
         head: NounInstance,
         complements: Vec<NominalComplement>,
     ) -> NounPhrase {
-        NounPhrase::Nominal(NominalPhrase {
+        NounPhrase::Nominal(NominalPhrase::test_from_projection_parts(
             determiner,
             modifiers,
             head,
             complements,
-        })
+        ))
     }
 
     fn verb_phrase(vocab: Vocab, slot: VerbSlot, dependents: Vec<VerbDependent>) -> VerbPhrase {
@@ -5004,9 +5047,9 @@ mod tests {
     }
 
     fn power_toughness_nominal(power: ScalarValue) -> NominalPhrase {
-        NominalPhrase {
-            determiner: Some(Determiner::Indefinite),
-            modifiers: vec![NominalModifier::PowerToughness(PowerToughness {
+        NominalPhrase::test_from_projection_parts(
+            Some(Determiner::Indefinite),
+            vec![NominalModifier::PowerToughness(PowerToughness {
                 power: SignedScalar {
                     sign: ScalarSign::None,
                     value: power,
@@ -5016,9 +5059,9 @@ mod tests {
                     value: power,
                 },
             })],
-            head: NounInstance::Singular(Noun::Word(Vocab::Token)),
-            complements: vec![],
-        }
+            NounInstance::Singular(Noun::Word(Vocab::Token)),
+            vec![],
+        )
     }
 
     #[test]

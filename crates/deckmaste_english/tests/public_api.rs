@@ -219,6 +219,171 @@ fn public_invariant_bearing_syntax_uses_checked_constructors() {
 }
 
 #[test]
+fn public_nominal_phrase_has_a_complete_read_only_projection() {
+    let head =
+        NounInstance::try_singular(Noun::Word(Vocab::Card)).expect("card is a singular count noun");
+    let nominal = NominalPhrase::try_from_noun(head.clone())
+        .expect("the generated bare-noun declaration admits card");
+
+    assert_eq!(nominal.determiner(), None);
+    assert!(nominal.modifiers().is_empty());
+    assert_eq!(nominal.head(), &head);
+    assert!(nominal.complements().is_empty());
+
+    let fragment = Fragment::Nominal(NounPhrase::Nominal(nominal));
+    assert_eq!(
+        render_fragment(&fragment, "Test Card", false).expect("checked nominal renders"),
+        "card",
+    );
+}
+
+#[test]
+fn public_nominal_construction_api_exposes_every_checked_m01_builder() {
+    use deckmaste_english::nominal as nominal_api;
+
+    // This tuple is an external-crate visibility census of all 37 M01
+    // construction doors. Representative calls below then prove that the
+    // opaque staged types compose across the major nominal subfamilies.
+    let all_builders = (
+        nominal_api::build_nominal_noun,
+        nominal_api::build_nominal_adjective,
+        nominal_api::build_nominal_noun_modifier,
+        nominal_api::build_nominal_combat_step_name,
+        nominal_api::build_nominal_negated_modifier,
+        nominal_api::build_nominal_quantity_modifier,
+        nominal_api::build_nominal_power_toughness_modifier,
+        nominal_api::build_nominal_determiner,
+        nominal_api::build_nominal_prepositional,
+        nominal_api::build_nominal_infinitive,
+        nominal_api::build_nominal_quantity_complement,
+        nominal_api::build_nominal_keyword_symbol_argument,
+        nominal_api::build_predicated_quality_from,
+        nominal_api::build_predicated_argument_from_single,
+        nominal_api::build_predicated_argument_from_extend,
+        nominal_api::build_nominal_keyword_predicated_argument,
+        nominal_api::build_predicated_quality_bare,
+        nominal_api::build_predicated_argument_bare_single,
+        nominal_api::build_predicated_argument_bare_extend,
+        nominal_api::build_nominal_keyword_atom_carried_predicated_argument,
+        nominal_api::build_nominal_relative,
+        nominal_api::build_rules_object_nominal_base,
+        nominal_api::build_rules_object_followup_nominal_relative,
+        nominal_api::build_rules_object_followup_nominal_prepositional,
+        nominal_api::build_nominal_reduced_recipient_passive,
+        nominal_api::build_reduced_recipient_passive_theme,
+        nominal_api::build_reduced_recipient_passive_nominal_adjunct,
+        nominal_api::build_nominal_postpositive_adjective,
+        nominal_api::build_nominal_postpositive_adjective_conjoined_prepositional,
+        nominal_api::build_nominal_postpositive_adjective_conjoined,
+        nominal_api::build_nominal_postpositive_adjective_asyndetic,
+        nominal_api::build_nominal_postpositive_adjective_oxford,
+        nominal_api::build_nominal_comparison,
+        nominal_api::build_nominal_devotion,
+        nominal_api::build_devotion_color_single,
+        nominal_api::build_devotion_color_pair,
+        nominal_api::build_nominal_times_clause,
+    );
+    std::hint::black_box(all_builders);
+
+    let card = nominal_api::build_nominal_noun(
+        NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
+    )
+    .unwrap();
+    let red_card = nominal_api::build_nominal_adjective(
+        AdjectivePhrase {
+            degree: None,
+            head: Adjective::Color(ColorWord::Red),
+            complements: Vec::new(),
+        },
+        card.clone(),
+    )
+    .unwrap();
+    let (adjective, adjective_base) = nominal_api::parts_nominal_adjective(&red_card);
+    assert_eq!(
+        nominal_api::build_nominal_adjective(adjective, adjective_base).unwrap(),
+        red_card,
+    );
+
+    let parsed_pp = parse_fragment(
+        "card in a graveyard",
+        &Catalogs::default(),
+        FragmentKind::Nominal,
+        "Test Card",
+        false,
+    )
+    .into_fragment()
+    .expect("prepositional nominal parses");
+    let Fragment::Nominal(NounPhrase::Nominal(parsed_pp)) = parsed_pp else {
+        panic!("fixture is a nominal noun phrase");
+    };
+    let (base, preposition) = nominal_api::parts_nominal_prepositional(&parsed_pp);
+    assert_eq!(
+        nominal_api::build_nominal_prepositional(base, preposition).unwrap(),
+        parsed_pp,
+    );
+
+    let rules_object = nominal_api::build_rules_object_nominal_base(card.clone()).unwrap();
+    assert_eq!(rules_object.as_nominal(), &card);
+
+    let damage =
+        nominal_api::build_nominal_noun(NounInstance::try_mass(Noun::Word(Vocab::Damage)).unwrap())
+            .unwrap();
+    let reduced_theme = nominal_api::build_reduced_recipient_passive_theme(damage.clone()).unwrap();
+    assert_eq!(reduced_theme.as_noun_phrase(), &NounPhrase::Nominal(damage));
+
+    let quality =
+        nominal_api::build_predicated_quality_from(Preposition::From, Some(ColorWord::Red), None)
+            .unwrap();
+    let argument = nominal_api::build_predicated_argument_from_single(quality).unwrap();
+    let quality = nominal_api::parts_predicated_argument_from_single(&argument);
+    assert_eq!(
+        nominal_api::build_predicated_argument_from_single(quality).unwrap(),
+        argument,
+    );
+
+    let colors = nominal_api::build_devotion_color_pair(
+        ColorWord::White,
+        deckmaste_english::features::Conjunction::And,
+        ColorWord::Black,
+    )
+    .unwrap();
+    assert_eq!(
+        nominal_api::parts_devotion_color_pair(&colors),
+        (
+            ColorWord::White,
+            deckmaste_english::features::Conjunction::And,
+            ColorWord::Black,
+        ),
+    );
+
+    let sentence = parse_fragment(
+        "Draw a card.",
+        &Catalogs::default(),
+        FragmentKind::Sentence,
+        "Test Card",
+        false,
+    )
+    .into_fragment()
+    .expect("sentence fixture parses");
+    let Fragment::Sentence(sentence) = sentence else {
+        panic!("fixture is a sentence");
+    };
+    let SentenceBody::Independent(clause) = sentence.body() else {
+        panic!("fixture has an independent clause");
+    };
+    let times = nominal_api::build_nominal_times_clause(
+        NounInstance::try_plural(Noun::Word(Vocab::Time)).unwrap(),
+        Box::new(clause.clone()),
+    )
+    .unwrap();
+    let (head, clause) = nominal_api::parts_nominal_times_clause(&times);
+    assert_eq!(
+        nominal_api::build_nominal_times_clause(head, clause).unwrap(),
+        times,
+    );
+}
+
+#[test]
 fn public_sentence_forms_reject_renderer_inconsistent_outer_periods() {
     // Mutation caught: admit the period form without checking the same
     // contextual terminal classes used by public rendering.

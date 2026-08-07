@@ -325,23 +325,18 @@ pub(in crate::grammar) fn accepts_predicate_prefix(
     }
 }
 
-/// Feature projection for the declaration-owned recipient-passive nominal
-/// adjunct extension. The generated construction selects this adapter; no
-/// handwritten [`RuleTag`] owns or registers the shape.
-pub(in crate::grammar) fn reduce_generated_recipient_passive_nominal_adjunct(
-    children: &[Child<'_, EnglishGrammar<'_, '_>>],
+pub(crate) fn reduce_generated_recipient_passive_nominal_adjunct_features(
+    predicate: &Features,
+    noun_phrase: &Features,
 ) -> Option<Features> {
     let Features::NounPhrase {
         adjunct: Some(adjunct),
         ..
-    } = children.get(1)?.features
+    } = noun_phrase
     else {
         return None;
     };
-    extend_predicate(
-        children.first()?,
-        PredicateAttachment::NominalAdjunct(*adjunct),
-    )
+    extend_predicate_features(predicate, PredicateAttachment::NominalAdjunct(*adjunct))
 }
 
 fn accepts_shared_copular_coordination_prefix(tag: RuleTag, features: &Features) -> Option<bool> {
@@ -778,6 +773,17 @@ pub(super) fn extend_predicate(
     predicate: &Child<'_, EnglishGrammar<'_, '_>>,
     attachment: PredicateAttachment,
 ) -> Option<Reduced> {
+    extend_predicate_features(predicate.features, attachment)
+}
+
+#[allow(
+    clippy::too_many_lines,
+    reason = "one exhaustive match per predicate-attachment variant is intentionally verbose"
+)]
+pub(crate) fn extend_predicate_features(
+    predicate: &Features,
+    attachment: PredicateAttachment,
+) -> Option<Reduced> {
     let Features::VerbPhrase {
         form,
         passive,
@@ -790,7 +796,7 @@ pub(super) fn extend_predicate(
         object_gap_requires_rules_object,
         subjunctive,
         ..
-    } = predicate.features
+    } = predicate
     else {
         return None;
     };

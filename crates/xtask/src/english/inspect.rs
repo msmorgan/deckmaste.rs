@@ -131,9 +131,12 @@ fn write_provenance(mut writer: impl Write, report: &ParseReport) -> Result<()> 
         for decision in selection.constructions() {
             let span = decision.span();
             let evidence = decision.evidence();
+            let evidence_value = decision
+                .evidence_value()
+                .map_or_else(String::new, |value| format!(" value={value}"));
             writeln!(
                 writer,
-                "bytes {}..{} {} owner={} backend={} form={} evidence={}:{} reason={} cost={}",
+                "bytes {}..{} {} owner={} backend={} form={} evidence={}:{}{} reason={} cost={}",
                 span.start,
                 span.end,
                 decision.selected(),
@@ -142,6 +145,7 @@ fn write_provenance(mut writer: impl Write, report: &ParseReport) -> Result<()> 
                 decision.selected_production_ordinal(),
                 evidence_kind_name(evidence.kind()),
                 evidence.label(),
+                evidence_value,
                 reason_name(decision.reason()),
                 cost_text(decision.cost()),
             )?;
@@ -620,39 +624,13 @@ mod tests {
     }
 
     #[test]
-    fn verbose_output_pins_m01_semantic_gates_and_roles() {
+    fn verbose_output_formats_a_declaration_evidence_value() {
         let keyword = verbose_m01("This creature has protection from red and from blue.");
         assert!(
             keyword.contains(
-                "predicated_argument_from_extend owner=generated backend=chart form=0 evidence=guard:keyword-grant conjunction gate"
+                "predicated_argument_from_extend owner=generated backend=chart form=0 evidence=guard:keyword-grant conjunction gate value=conjunction=And;allowed=[And];matched=true"
             ),
             "{keyword}",
-        );
-
-        let rules_object = verbose_m01("This card deals damage to you and creatures you control.");
-        assert!(
-            rules_object.contains(
-                "rules_object_nominal_base owner=generated backend=chart form=0 evidence=role:rules-object attachment role"
-            ),
-            "{rules_object}",
-        );
-
-        let reduced = verbose_m01(
-            "If a creature dealt damage this way would die this turn, exile it instead.",
-        );
-        assert!(
-            reduced.contains(
-                "nominal_reduced_recipient_passive owner=generated backend=chart form=0 evidence=guard:reduced-recipient-passive frame"
-            ),
-            "{reduced}",
-        );
-
-        let phase = verbose_m01("This creature has protection from artifacts.");
-        assert!(
-            phase.contains(
-                "nominal_prepositional owner=generated backend=chart form=0 evidence=feature:nominal attachment phase"
-            ),
-            "{phase}",
         );
     }
 

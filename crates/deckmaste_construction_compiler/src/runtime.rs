@@ -361,8 +361,38 @@ pub struct ConstructionData {
     pub requirements: &'static [RequirementData],
     pub recognition_requirements: &'static [RequirementData],
     pub feature_combinators: &'static [FeatureCombinatorData],
+    pub evidence: Option<EvidenceData>,
+    /// Semantic assembly used only while chart feature validation is still
+    /// in progress. This applies authored `require` clauses and the bind
+    /// adapter, but deliberately does not claim the completed value satisfies
+    /// an inverse form.
+    pub erased_partial_builder: Option<ErasedBuilder>,
+    /// Final type-erased ingress. This crosses the same checked typed builder
+    /// as public construction, including complete-value inverse recognition.
     pub erased_builder: Option<ErasedBuilder>,
     pub erased_projector: Option<ErasedProjector>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EvidenceData {
+    pub kind: EvidenceKindData,
+    pub label: &'static str,
+    pub source: EvidenceSourceData,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EvidenceKindData {
+    Guard,
+    Feature,
+    Role,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EvidenceSourceData {
+    Requirement(&'static str),
+    Output(&'static str),
+    Field(&'static str),
+    Category,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

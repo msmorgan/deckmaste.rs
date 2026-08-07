@@ -2,7 +2,6 @@ use super::Adjective;
 use super::AdjectivePhrase;
 use super::AuxiliaryInstance;
 use super::CardOrientation;
-use super::CatalogKind;
 use super::Clause;
 use super::ComparisonComplement;
 use super::ComparisonMarker;
@@ -21,7 +20,6 @@ use super::InfinitiveClause;
 use super::KeywordArgument;
 use super::MeaningKey;
 use super::NodeId;
-use super::NominalComplement;
 use super::NominalModifier;
 use super::NominalPhrase;
 use super::Noun;
@@ -335,7 +333,7 @@ fn lower_generated_construction(
         }
     }
     let fields = fields.into_iter().collect::<Option<Vec<_>>>()?;
-    let value = construction.erased_builder?(fields).ok()?;
+    let value = construction.erased_partial_builder?(fields).ok()?;
     let value = match construction.erased_projector {
         Some(projector) => projector(value).ok()?,
         None => value,
@@ -1100,22 +1098,21 @@ pub(super) fn lower_possessive_noun_phrase(
             let Lowered::Noun(head) = take(children, 0)? else {
                 return None;
             };
-            Some(Lowered::PossessiveNominal(NominalPhrase {
-                determiner: None,
-                modifiers: Vec::new(),
-                head,
-                complements: Vec::new(),
-            }))
+            Some(Lowered::PossessiveNominal(
+                NominalPhrase::try_from_noun(head).ok()?,
+            ))
         }
         RuleTag::PossessiveNounDetermined => {
             let Lowered::Determiner(determiner) = take(children, 0)? else {
                 return None;
             };
-            let Lowered::PossessiveNominal(mut nominal) = take(children, 1)? else {
+            let Lowered::PossessiveNominal(nominal) = take(children, 1)? else {
                 return None;
             };
-            nominal.determiner = Some(determiner);
-            Some(Lowered::PossessiveNominal(nominal))
+            Some(Lowered::PossessiveNominal(
+                crate::constructions::nominal::build_nominal_determiner(determiner, nominal)
+                    .ok()?,
+            ))
         }
         RuleTag::DeterminerPossessiveNoun => {
             let Lowered::PossessiveNominal(possessor) = take(children, 0)? else {
@@ -1133,16 +1130,11 @@ pub(super) fn lower_possessive_noun_phrase(
                 return None;
             };
             if introduces_proper_name(&adjective) {
-                open_name_interior(&mut nominal);
+                nominal.open_name_interior();
             }
-            nominal.modifiers.insert(
-                0,
-                NominalModifier::Adjective {
-                    polarity: Polarity::Positive,
-                    phrase: adjective,
-                },
-            );
-            Some(Lowered::PossessiveNominal(nominal))
+            Some(Lowered::PossessiveNominal(
+                crate::constructions::nominal::build_nominal_adjective(adjective, nominal).ok()?,
+            ))
         }
         _ => None,
     }
@@ -1202,24 +1194,6 @@ pub(super) fn introduces_proper_name(adjective: &AdjectivePhrase) -> bool {
 /// canonical singular). This also leaves the adjectival `differently named
 /// <type>` reading — which shares this flat shape but carries no keyword atom —
 /// untouched.
-pub(super) fn open_name_interior(nominal: &mut NominalPhrase) {
-    detach_keyword_noun(&mut nominal.head);
-    for modifier in &mut nominal.modifiers {
-        if let NominalModifier::Noun { noun, .. } = modifier {
-            detach_keyword_noun(noun);
-        }
-    }
-}
-
-pub(super) fn detach_keyword_noun(noun: &mut NounInstance) {
-    let inner = noun.noun_mut();
-    if let Noun::Catalog(atom) = inner
-        && atom.kind == CatalogKind::KeywordAbility
-    {
-        *inner = Noun::Opaque(OpaqueLexeme::new(atom.spelling()));
-    }
-}
-
 #[allow(
     clippy::too_many_lines,
     reason = "lowering nominals is intentionally long"
@@ -1300,16 +1274,19 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
             }))
         }
         RuleTag::NominalPowerToughnessComplement => {
-            let Lowered::Nominal(mut nominal) = take(children, 0)? else {
+            let Lowered::Nominal(nominal) = take(children, 0)? else {
                 return None;
             };
             let Lowered::PowerToughness(power_toughness) = take(children, 1)? else {
                 return None;
             };
-            nominal
-                .complements
-                .push(NominalComplement::PowerToughness(power_toughness));
-            Some(Lowered::Nominal(nominal))
+            Some(Lowered::Nominal(
+                crate::constructions::nominal::build_nominal_power_toughness_complement(
+                    nominal,
+                    power_toughness,
+                )
+                .ok()?,
+            ))
         }
         RuleTag::ModifierConjunctAdjective => {
             let Lowered::AdjectivePhrase(phrase) = take(children, 0)? else {
@@ -1381,13 +1358,16 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
             let Lowered::CoordinatedModifier(coordinated) = take(children, 0)? else {
                 return None;
             };
-            let Lowered::Nominal(mut nominal) = take(children, 1)? else {
+            let Lowered::Nominal(nominal) = take(children, 1)? else {
                 return None;
             };
-            nominal
-                .modifiers
-                .insert(0, NominalModifier::Coordinated(coordinated));
-            Some(Lowered::Nominal(nominal))
+            Some(Lowered::Nominal(
+                crate::constructions::nominal::build_nominal_coordinated_modifier(
+                    coordinated,
+                    nominal,
+                )
+                .ok()?,
+            ))
         }
         _ => None,
     }
@@ -1528,14 +1508,17 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
             let Lowered::NounPhrase(whole) = take(children, 3)? else {
                 return None;
             };
-            Some(Lowered::NounPhrase(NounPhrase::Nominal(NominalPhrase {
-                determiner: Some(determiner),
-                modifiers: Vec::new(),
-                head,
-                complements: vec![NominalComplement::Prepositional(
-                    PrepositionalPhrase::simple(preposition, Phrase::NounPhrase(Box::new(whole))),
-                )],
-            })))
+            let nominal = crate::constructions::nominal::build_nominal_determiner(
+                determiner,
+                NominalPhrase::try_from_noun(head).ok()?,
+            )
+            .ok()?;
+            let nominal = crate::constructions::nominal::build_nominal_prepositional(
+                nominal,
+                PrepositionalPhrase::simple(preposition, Phrase::NounPhrase(Box::new(whole))),
+            )
+            .ok()?;
+            Some(Lowered::NounPhrase(NounPhrase::Nominal(nominal)))
         }
         RuleTag::NounPhraseMinus
         | RuleTag::NounPhraseHalf

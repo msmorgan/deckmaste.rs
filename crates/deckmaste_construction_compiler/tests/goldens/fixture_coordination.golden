@@ -593,6 +593,39 @@ mod __constructions_fixture_coordination {
         }
         Ok(Box::new(result))
     }
+    fn __erased_partial_build_fixture_pair(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut values = values.into_iter();
+        let members: Vec<FixtureMember> = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "fixture_pair",
+            "members",
+            stringify!(Vec < FixtureMember >),
+        )?;
+        let conjunction: Conjunction = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "fixture_pair",
+            "conjunction",
+            stringify!(Conjunction),
+        )?;
+        if values.next().is_some() {
+            return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
+                owner: "fixture_pair",
+            });
+        }
+        FixturePairNode::try_new(members, conjunction)
+            .map(|value| {
+                Box::new(value)
+                    as ::deckmaste_construction_compiler::runtime::ErasedValue
+            })
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::ErasedBuildError::Declaration,
+            )
+    }
     fn __erased_build_fixture_pair(
         values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
     ) -> Result<
@@ -618,6 +651,39 @@ mod __constructions_fixture_coordination {
             });
         }
         FixturePairNode::try_new(members, conjunction)
+            .map(|value| {
+                Box::new(value)
+                    as ::deckmaste_construction_compiler::runtime::ErasedValue
+            })
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::ErasedBuildError::Declaration,
+            )
+    }
+    fn __erased_partial_build_fixture_solo(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut values = values.into_iter();
+        let phrase: FixturePhrase = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "fixture_solo",
+            "phrase",
+            stringify!(FixturePhrase),
+        )?;
+        let alt: Option<FixturePhrase> = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "fixture_solo",
+            "alt",
+            stringify!(Option < FixturePhrase >),
+        )?;
+        if values.next().is_some() {
+            return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
+                owner: "fixture_solo",
+            });
+        }
+        FixtureSoloNode::try_new(phrase, alt)
             .map(|value| {
                 Box::new(value)
                     as ::deckmaste_construction_compiler::runtime::ErasedValue
@@ -887,6 +953,8 @@ mod __constructions_fixture_coordination {
                 ],
                 recognition_requirements: &[],
                 feature_combinators: &[],
+                evidence: None,
+                erased_partial_builder: Some(__erased_partial_build_fixture_pair),
                 erased_builder: Some(__erased_build_fixture_pair),
                 erased_projector: Some(__erased_project_fixture_pair),
             },
@@ -954,6 +1022,8 @@ mod __constructions_fixture_coordination {
                 ],
                 recognition_requirements: &[],
                 feature_combinators: &[],
+                evidence: None,
+                erased_partial_builder: Some(__erased_partial_build_fixture_solo),
                 erased_builder: Some(__erased_build_fixture_solo),
                 erased_projector: None,
             },

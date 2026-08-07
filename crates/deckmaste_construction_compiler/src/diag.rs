@@ -87,6 +87,7 @@ pub enum DiagCode {
     UnknownCombinator,
     UnsupportedConstraintPath,
     LensCannotRebuild,
+    TypedFeatureMismatch,
     SelfDominance,
     DominanceCycle,
     FreeWitnessStratum,
@@ -125,6 +126,7 @@ impl DiagCode {
             Self::UnknownCombinator => "EC031",
             Self::UnsupportedConstraintPath => "EC032",
             Self::LensCannotRebuild => "EC033",
+            Self::TypedFeatureMismatch => "EC034",
             Self::SelfDominance => "EC040",
             Self::DominanceCycle => "EC041",
             Self::FreeWitnessStratum => "EC050",
@@ -182,6 +184,7 @@ mod tests {
         assert_eq!(DiagCode::NonContiguousLensClaim.as_str(), "EC019");
         assert_eq!(DiagCode::UnsupportedConstraintPath.as_str(), "EC032");
         assert_eq!(DiagCode::LensCannotRebuild.as_str(), "EC033");
+        assert_eq!(DiagCode::TypedFeatureMismatch.as_str(), "EC034");
         assert_eq!(DiagCode::FreeWitnessStratum.as_str(), "EC050");
         assert_eq!(DiagCode::DiscourseFeatureExcluded.as_str(), "EC051");
     }

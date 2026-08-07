@@ -13,6 +13,9 @@ use crate::model::ConstructionDeclaration;
 use crate::model::DominanceEdge;
 use crate::model::ElementDeclaration;
 use crate::model::ElementVariantDeclaration;
+use crate::model::EvidenceDeclaration;
+use crate::model::EvidenceKind;
+use crate::model::EvidenceSource;
 use crate::model::FieldBinding;
 use crate::model::FieldKind;
 use crate::model::FieldPath;
@@ -45,6 +48,14 @@ mod kw {
     syn::custom_keyword!(require);
     syn::custom_keyword!(recognize);
     syn::custom_keyword!(derive);
+    syn::custom_keyword!(evidence);
+    syn::custom_keyword!(guard);
+    syn::custom_keyword!(feature);
+    syn::custom_keyword!(role);
+    syn::custom_keyword!(requirement);
+    syn::custom_keyword!(output);
+    syn::custom_keyword!(field);
+    syn::custom_keyword!(category);
     syn::custom_keyword!(witness);
     syn::custom_keyword!(stored);
     syn::custom_keyword!(derived);
@@ -122,6 +133,18 @@ fn parse_lens_declaration(input: ParseStream<'_>) -> syn::Result<LensDeclaration
     let name = spanned_ident(input)?;
     input.parse::<kw::bind>()?;
     let owner_type = spanned_type_path(input)?;
+    let adapter = if input.peek(kw::via) {
+        input.parse::<kw::via>()?;
+        let constructor = spanned_type_path(input)?;
+        input.parse::<syn::Token![,]>()?;
+        let destructurer = spanned_type_path(input)?;
+        Some(BindAdapter {
+            constructor,
+            destructurer,
+        })
+    } else {
+        None
+    };
     let content;
     syn::braced!(content in input);
     let mut fields = Vec::new();
@@ -155,6 +178,7 @@ fn parse_lens_declaration(input: ParseStream<'_>) -> syn::Result<LensDeclaration
     Ok(LensDeclaration {
         name,
         owner_type,
+        adapter,
         fields,
     })
 }
@@ -354,6 +378,10 @@ fn peek_method(input: ParseStream<'_>) -> bool {
         && fork.peek(syn::token::Paren)
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "the construction body keeps its closed statement grammar in one dispatch loop"
+)]
 fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclaration> {
     let internal = input.peek(kw::internal);
     if internal {
@@ -369,6 +397,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
     let mut projection = None;
     let mut lens = None;
     let mut constraints = Vec::new();
+    let mut evidence = None;
     let mut witnesses = Vec::new();
     let mut forms = Vec::new();
     let mut dominance = Vec::new();
@@ -415,6 +444,12 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
         } else if content.peek(kw::derive) {
             content.parse::<kw::derive>()?;
             let target = parse_path(&content)?;
+            let feature_type = if content.peek(syn::Token![:]) {
+                content.parse::<syn::Token![:]>()?;
+                Some(spanned_type_path(&content)?)
+            } else {
+                None
+            };
             content.parse::<syn::Token![=]>()?;
             let combinator = spanned_ident(&content)?;
             let args_content;
@@ -423,9 +458,19 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
             content.parse::<syn::Token![;]>()?;
             constraints.push(Constraint::DeriveFeature {
                 target,
+                feature_type,
                 combinator,
                 args,
             });
+        } else if content.peek(kw::evidence) {
+            let declaration = parse_evidence(&content)?;
+            if evidence.is_some() {
+                return Err(syn::Error::new(
+                    declaration.label.span,
+                    "evidence may be declared at most once",
+                ));
+            }
+            evidence = Some(declaration);
         } else if content.peek(kw::witness) {
             content.parse::<kw::witness>()?;
             let name = spanned_ident(&content)?;
@@ -474,7 +519,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
             deserialize = true;
         } else {
             return Err(content.error(
-                "expected project / lens / recognize require / require / derive / witness / form / dominates / dominated by / selection / deserialize",
+                "expected project / lens / recognize require / require / derive / evidence / witness / form / dominates / dominated by / selection / deserialize",
             ));
         }
     }
@@ -487,11 +532,55 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
         lens,
         projection,
         constraints,
+        evidence,
         witnesses,
         forms,
         dominance,
         selection,
         deserialize,
+    })
+}
+
+fn parse_evidence(input: ParseStream<'_>) -> syn::Result<EvidenceDeclaration> {
+    input.parse::<kw::evidence>()?;
+    let kind = if input.peek(kw::guard) {
+        input.parse::<kw::guard>()?;
+        EvidenceKind::Guard
+    } else if input.peek(kw::feature) {
+        input.parse::<kw::feature>()?;
+        EvidenceKind::Feature
+    } else if input.peek(kw::role) {
+        input.parse::<kw::role>()?;
+        EvidenceKind::Role
+    } else {
+        return Err(input.error("expected guard / feature / role evidence kind"));
+    };
+    let label = input.parse::<syn::LitStr>()?;
+    let label = Spanned {
+        value: label.value(),
+        span: label.span(),
+    };
+    input.parse::<kw::from>()?;
+    let source = if input.peek(kw::requirement) {
+        input.parse::<kw::requirement>()?;
+        EvidenceSource::Requirement(parse_path(input)?)
+    } else if input.peek(kw::output) {
+        input.parse::<kw::output>()?;
+        EvidenceSource::Output(parse_path(input)?)
+    } else if input.peek(kw::field) {
+        input.parse::<kw::field>()?;
+        EvidenceSource::Field(parse_path(input)?)
+    } else if input.peek(kw::category) {
+        input.parse::<kw::category>()?;
+        EvidenceSource::Category
+    } else {
+        return Err(input.error("expected requirement / output / field / category evidence source"));
+    };
+    input.parse::<syn::Token![;]>()?;
+    Ok(EvidenceDeclaration {
+        kind,
+        label,
+        source,
     })
 }
 
@@ -841,6 +930,64 @@ mod tests {
     }
 
     #[test]
+    fn evidence_sources_are_preserved_in_declaration_metadata() {
+        let parsed = parse_group(quote::quote! {
+            group evidence_sources;
+
+            construction guarded: Phrase {
+                own Guarded { conjunction: lex Conjunction, }
+                require conjunction in [And];
+                evidence guard "conjunction gate" from requirement conjunction;
+            }
+            construction featured: Phrase {
+                own Featured { nominal: hole Phrase, }
+                evidence feature "attachment phase" from output attachment;
+            }
+            construction role: Phrase {
+                own Role { nominal: hole Phrase, }
+                evidence role "chart role" from category;
+            }
+            construction framed: Phrase {
+                own Framed { predicate: hole Predicate, }
+                evidence guard "passive frame" from field predicate.frame;
+            }
+        })
+        .expect("all evidence source syntaxes parse");
+
+        let guarded = parsed.constructions[0]
+            .evidence
+            .as_ref()
+            .expect("guard evidence");
+        assert_eq!(guarded.kind, EvidenceKind::Guard);
+        assert_eq!(guarded.label.value, "conjunction gate");
+        assert!(matches!(
+            &guarded.source,
+            EvidenceSource::Requirement(path) if path.dotted() == "conjunction"
+        ));
+        assert!(matches!(
+            parsed.constructions[1]
+                .evidence
+                .as_ref()
+                .map(|evidence| &evidence.source),
+            Some(EvidenceSource::Output(path)) if path.dotted() == "attachment"
+        ));
+        assert!(matches!(
+            parsed.constructions[2]
+                .evidence
+                .as_ref()
+                .map(|evidence| &evidence.source),
+            Some(EvidenceSource::Category)
+        ));
+        assert!(matches!(
+            parsed.constructions[3]
+                .evidence
+                .as_ref()
+                .map(|evidence| &evidence.source),
+            Some(EvidenceSource::Field(path)) if path.dotted() == "predicate.frame"
+        ));
+    }
+
+    #[test]
     fn nonfinal_quantifier_is_preserved_as_its_own_path_segment() {
         let parsed = parse_group(quote::quote! {
             group quantified;
@@ -1160,10 +1307,12 @@ mod tests {
         match &construction.constraints[0] {
             Constraint::DeriveFeature {
                 target,
+                feature_type,
                 combinator,
                 args,
             } => {
                 assert_eq!(target.segments[0].value, "f");
+                assert!(feature_type.is_none());
                 assert_eq!(combinator.value, "combine");
                 assert_eq!(args.len(), 1);
                 assert_eq!(args[0].segments[0].value, "f");

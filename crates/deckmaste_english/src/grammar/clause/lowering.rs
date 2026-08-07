@@ -2588,5 +2588,5 @@ pub(super) fn nominal_adjunct_kind(phrase: &NounPhrase) -> Option<BareNominalAdj
     let NounPhrase::Nominal(nominal) = phrase else {
         return None;
     };
-    nominal.head.noun().bare_nominal_adjunct()
+    nominal.head().noun().bare_nominal_adjunct()
 }

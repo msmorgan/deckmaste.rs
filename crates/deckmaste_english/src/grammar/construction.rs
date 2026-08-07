@@ -115,27 +115,22 @@ fn generated_family(
         ConstructionId::new(construction.id),
         ConstructionOwner::Generated,
         ConstructionBackend::Chart,
-        generated_evidence(construction.id),
+        generated_evidence(construction),
     )
 }
 
-fn generated_evidence(id: &str) -> ConstructionEvidence {
-    match id {
-        "predicated_argument_from_extend" | "predicated_argument_bare_extend" => {
-            ConstructionEvidence::guard("keyword-grant conjunction gate")
-        }
-        "rules_object_nominal_base"
-        | "rules_object_followup_nominal_relative"
-        | "rules_object_followup_nominal_prepositional" => {
-            ConstructionEvidence::role("rules-object attachment role")
-        }
-        "nominal_reduced_recipient_passive"
-        | "reduced_recipient_passive_theme"
-        | "reduced_recipient_passive_nominal_adjunct" => {
-            ConstructionEvidence::guard("reduced-recipient-passive frame")
-        }
-        "nominal_prepositional" => ConstructionEvidence::feature("nominal attachment phase"),
-        _ => ConstructionEvidence::structural("generated production"),
+fn generated_evidence(
+    construction: &deckmaste_construction_compiler::runtime::ConstructionData,
+) -> ConstructionEvidence {
+    use deckmaste_construction_compiler::runtime::EvidenceKindData;
+
+    let Some(evidence) = construction.evidence else {
+        return ConstructionEvidence::structural("generated production");
+    };
+    match evidence.kind {
+        EvidenceKindData::Guard => ConstructionEvidence::guard(evidence.label),
+        EvidenceKindData::Feature => ConstructionEvidence::feature(evidence.label),
+        EvidenceKindData::Role => ConstructionEvidence::role(evidence.label),
     }
 }
 
@@ -315,6 +310,8 @@ mod tests {
                 requirements: &[],
                 recognition_requirements: &[],
                 feature_combinators: &[],
+                evidence: None,
+                erased_partial_builder: None,
                 erased_builder: None,
                 erased_projector: None,
             }];
@@ -386,47 +383,10 @@ mod tests {
         // Mutations caught: leave any M01 family registered through RuleTag,
         // omit one declaration from the atomic activation, or drop/add an
         // edge from the tracked M01 dominance graph.
-        let ids = [
-            "nominal_noun",
-            "nominal_adjective",
-            "nominal_noun_modifier",
-            "nominal_combat_step_name",
-            "nominal_negated_modifier",
-            "nominal_quantity_modifier",
-            "nominal_power_toughness_modifier",
-            "nominal_determiner",
-            "nominal_prepositional",
-            "nominal_infinitive",
-            "nominal_quantity_complement",
-            "nominal_keyword_symbol_argument",
-            "predicated_quality_from",
-            "predicated_argument_from_single",
-            "predicated_argument_from_extend",
-            "nominal_keyword_predicated_argument",
-            "predicated_quality_bare",
-            "predicated_argument_bare_single",
-            "predicated_argument_bare_extend",
-            "nominal_keyword_atom_carried_predicated_argument",
-            "nominal_relative",
-            "rules_object_nominal_base",
-            "rules_object_followup_nominal_relative",
-            "rules_object_followup_nominal_prepositional",
-            "nominal_reduced_recipient_passive",
-            "reduced_recipient_passive_theme",
-            "reduced_recipient_passive_nominal_adjunct",
-            "nominal_postpositive_adjective",
-            "nominal_postpositive_adjective_conjoined_prepositional",
-            "nominal_postpositive_adjective_conjoined",
-            "nominal_postpositive_adjective_asyndetic",
-            "nominal_postpositive_adjective_oxford",
-            "nominal_comparison",
-            "nominal_devotion",
-            "devotion_color_single",
-            "devotion_color_pair",
-            "nominal_times_clause",
-        ];
-        assert_eq!(ids.len(), 37);
-        for name in ids {
+        let declarations = crate::constructions::nominal::NOMINAL_DECLARATION.constructions;
+        assert_eq!(declarations.len(), 37);
+        for construction in declarations {
+            let name = construction.id;
             let id = ConstructionId::new(name);
             assert!(
                 handwritten_registry().family(id).is_none(),
@@ -502,6 +462,8 @@ mod tests {
                 requirements: &[],
                 recognition_requirements: &[],
                 feature_combinators: &[],
+                evidence: None,
+                erased_partial_builder: None,
                 erased_builder: None,
                 erased_projector: None,
             }];
@@ -535,6 +497,8 @@ mod tests {
                 requirements: &[],
                 recognition_requirements: &[],
                 feature_combinators: &[],
+                evidence: None,
+                erased_partial_builder: None,
                 erased_builder: None,
                 erased_projector: None,
             }];
@@ -557,6 +521,8 @@ mod tests {
                 requirements: &[],
                 recognition_requirements: &[],
                 feature_combinators: &[],
+                evidence: None,
+                erased_partial_builder: None,
                 erased_builder: None,
                 erased_projector: None,
             }];
@@ -601,6 +567,8 @@ mod tests {
                 requirements: &[],
                 recognition_requirements: &[],
                 feature_combinators: &[],
+                evidence: None,
+                erased_partial_builder: None,
                 erased_builder: None,
                 erased_projector: None,
             }];

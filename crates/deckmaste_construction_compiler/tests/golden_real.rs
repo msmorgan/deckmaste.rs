@@ -99,6 +99,10 @@ fn fixture_elements() -> Vec<ElementDeclaration> {
 /// The plan's fixture family, hand-built. Task 11 proves the DSL text
 /// parses to exactly this value (spans aside).
 #[must_use]
+#[allow(
+    clippy::too_many_lines,
+    reason = "the hand-built golden fixture intentionally keeps the complete declaration visible"
+)]
 pub fn fixture_coordination_group() -> GroupDeclaration {
     GroupDeclaration {
         name: Spanned::call_site("fixture_coordination".to_owned()),
@@ -143,6 +147,7 @@ pub fn fixture_coordination_group() -> GroupDeclaration {
                         allowed: vec!["Present".to_owned()],
                     })),
                 ],
+                evidence: None,
                 witnesses: vec![WitnessDeclaration {
                     name: Spanned::call_site("oxford".to_owned()),
                     class: WitnessClass::Stored {
@@ -226,6 +231,7 @@ pub fn fixture_coordination_group() -> GroupDeclaration {
                 constraints: vec![Constraint::Require(Spanned::call_site(Predicate::IsNone {
                     path: FieldPath::call_site("alt"),
                 }))],
+                evidence: None,
                 witnesses: vec![WitnessDeclaration {
                     name: Spanned::call_site("gap".to_owned()),
                     class: WitnessClass::Free {

@@ -5,6 +5,7 @@ mod phrase;
 
 pub use ability::*;
 pub use clause::*;
+pub(crate) use phrase::nominal_constructions;
 pub use phrase::*;
 
 pub use crate::constructions::coordination::CoordinatedNominalPhrase;
@@ -711,21 +712,21 @@ impl<'syntax> RecoveryWalker<'syntax> {
     }
 
     fn nominal_phrase(&mut self, nominal: &'syntax NominalPhrase, context: Option<RecoveryRole>) {
-        if let Some(Determiner::Possessive(Possessor::NounPhrase(possessor))) = &nominal.determiner
+        if let Some(Determiner::Possessive(Possessor::NounPhrase(possessor))) = nominal.determiner()
         {
             self.noun_phrase(possessor, context);
         }
-        if let crate::word::Noun::Opaque(opaque) = nominal.head.noun() {
+        if let crate::word::Noun::Opaque(opaque) = nominal.head().noun() {
             self.lexical_opacity.push(LexicalOpacityRef {
                 kind: LexicalOpacityKind::Noun,
                 text: opaque.spelling(),
                 source_tokens: 1,
             });
         }
-        for modifier in &nominal.modifiers {
+        for modifier in nominal.modifiers() {
             self.nominal_modifier(modifier, context);
         }
-        for complement in &nominal.complements {
+        for complement in nominal.complements() {
             self.nominal_complement(complement, context);
         }
     }
@@ -1016,17 +1017,19 @@ mod tests {
             abilities: vec![
                 paragraph_recovered("clause"),
                 paragraph(IndependentClause::Intransitive(
-                    Subject(NounPhrase::Nominal(NominalPhrase {
-                        determiner: None,
-                        modifiers: vec![NominalModifier::Noun {
-                            polarity: Polarity::Positive,
-                            noun: NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new(
-                                "flimflam",
-                            ))),
-                        }],
-                        head: NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("blorple"))),
-                        complements: vec![],
-                    })),
+                    Subject(NounPhrase::Nominal(
+                        NominalPhrase::test_from_projection_parts(
+                            None,
+                            vec![NominalModifier::Noun {
+                                polarity: Polarity::Positive,
+                                noun: NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new(
+                                    "flimflam",
+                                ))),
+                            }],
+                            NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("blorple"))),
+                            vec![],
+                        ),
+                    )),
                     intransitive(Vocab::Draw),
                 )),
                 Ability {
@@ -1141,12 +1144,14 @@ mod tests {
                 head,
                 kind: Transitive {
                     pre_object_elements: vec![],
-                    object: PredicateObject::NounPhrase(NounPhrase::Nominal(NominalPhrase {
-                        determiner: None,
-                        modifiers: vec![],
-                        head: NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("blorple"))),
-                        complements: vec![],
-                    })),
+                    object: PredicateObject::NounPhrase(NounPhrase::Nominal(
+                        NominalPhrase::test_from_projection_parts(
+                            None,
+                            vec![],
+                            NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("blorple"))),
+                            vec![],
+                        ),
+                    )),
                 },
                 elements: vec![],
             },
@@ -1166,18 +1171,20 @@ mod tests {
 
     #[test]
     fn recovery_walker_descends_into_shared_group_complements() {
-        let known_nominal = |head| NominalPhrase {
-            determiner: None,
-            modifiers: vec![],
-            head: NounInstance::Singular(Noun::Word(head)),
-            complements: vec![],
+        let known_nominal = |head| {
+            NominalPhrase::test_from_projection_parts(
+                None,
+                vec![],
+                NounInstance::Singular(Noun::Word(head)),
+                vec![],
+            )
         };
-        let opaque = NounPhrase::Nominal(NominalPhrase {
-            determiner: None,
-            modifiers: vec![],
-            head: NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("blorple"))),
-            complements: vec![],
-        });
+        let opaque = NounPhrase::Nominal(NominalPhrase::test_from_projection_parts(
+            None,
+            vec![],
+            NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("blorple"))),
+            vec![],
+        ));
         let subject = NounPhrase::CoordinatedNominal(
             CoordinatedNominalPhrase::try_new(
                 Determiner::Any,

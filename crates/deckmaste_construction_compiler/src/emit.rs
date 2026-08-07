@@ -49,6 +49,9 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
         .map(|construction| linearizer(group, construction))
         .collect();
     let group_linearizer = inverse_group_linearizer(group);
+    let category_linearizers = inverse_category_linearizers(group);
+    let target_linearizers = inverse_target_linearizers(group);
+    let typed_feature_reducers = typed_feature_reducers(group);
     let erased_element_builders: Vec<TokenStream> = group
         .elements
         .iter()
@@ -132,6 +135,9 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
             #(#bind_constructions)*
             #(#linearizers)*
             #group_linearizer
+            #(#category_linearizers)*
+            #(#target_linearizers)*
+            #(#typed_feature_reducers)*
             #(#erased_element_builders)*
             #(#erased_construction_builders)*
             #(#erased_construction_projectors)*
@@ -144,13 +150,141 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
     }
 }
 
+fn typed_feature_reducers(group: &GroupDeclaration) -> Vec<TokenStream> {
+    let mut outputs = Vec::<(String, &crate::model::Spanned<String>)>::new();
+    for construction in &group.constructions {
+        for constraint in &construction.constraints {
+            let crate::model::Constraint::DeriveFeature {
+                target,
+                feature_type: Some(feature_type),
+                ..
+            } = constraint
+            else {
+                continue;
+            };
+            let target = target.dotted();
+            if !outputs.iter().any(|(candidate, _)| *candidate == target) {
+                outputs.push((target, feature_type));
+            }
+        }
+    }
+    outputs
+        .into_iter()
+        .map(|(target, feature_type)| typed_feature_reducer(group, &target, feature_type))
+        .collect()
+}
+
+fn typed_feature_reducer(
+    group: &GroupDeclaration,
+    target: &str,
+    feature_type: &crate::model::Spanned<String>,
+) -> TokenStream {
+    let typed = group
+        .constructions
+        .iter()
+        .enumerate()
+        .filter_map(|(index, construction)| {
+            construction.constraints.iter().find_map(|constraint| {
+                let crate::model::Constraint::DeriveFeature {
+                    target: candidate,
+                    feature_type: Some(_),
+                    combinator,
+                    args,
+                } = constraint
+                else {
+                    return None;
+                };
+                (candidate.dotted() == target).then_some((index, construction, combinator, args))
+            })
+        })
+        .collect::<Vec<_>>();
+    let feature_type = parse_type(&feature_type.value);
+    let target = target.replace('.', "_");
+    let function = quote::format_ident!("reduce_{}_{}", group.name.value, target);
+    let arms = typed
+        .into_iter()
+        .map(|(index, construction, combinator, args)| {
+            let index = proc_macro2::Literal::usize_unsuffixed(index);
+            let callback = parse_type(&combinator.value);
+            let fields = construction.ast.fields();
+            let args = args.iter().map(|arg| {
+                let field = arg
+                    .segments
+                    .first()
+                    .expect("validated typed feature arguments are nonempty");
+                let field_index = fields
+                    .iter()
+                    .position(|binding| binding.field.value == field.value)
+                    .expect("validated typed feature arguments name construction fields");
+                let index = proc_macro2::Literal::usize_unsuffixed(field_index);
+                if matches!(
+                    fields[field_index].kind,
+                    crate::model::FieldKind::Optional { .. }
+                ) {
+                    quote! { fields.get(#index).copied().flatten() }
+                } else {
+                    quote! { fields.get(#index).copied().flatten()? }
+                }
+            });
+            quote! { #index => #callback(#(#args),*), }
+        });
+    quote! {
+        pub fn #function(
+            construction: usize,
+            fields: &[Option<&#feature_type>],
+        ) -> Option<#feature_type> {
+            match construction {
+                #(#arms)*
+                _ => None,
+            }
+        }
+    }
+}
+
 fn inverse_group_linearizer(group: &GroupDeclaration) -> TokenStream {
     let Some(family) = group.inverse_dispatch_family() else {
         return quote! {};
     };
+    let function = quote::format_ident!("linearize_{}_group_with", group.name.value);
+    inverse_family_linearizer(group, family, &function)
+}
+
+fn inverse_category_linearizers(group: &GroupDeclaration) -> Vec<TokenStream> {
+    group
+        .inverse_dispatch_families()
+        .into_iter()
+        .map(|family| {
+            let category = crate::model::snake_case(
+                &family
+                    .category
+                    .expect("category families carry their declared category")
+                    .value,
+            );
+            let function = quote::format_ident!("linearize_{}_{}_with", group.name.value, category);
+            inverse_family_linearizer(group, family, &function)
+        })
+        .collect()
+}
+
+fn inverse_target_linearizers(group: &GroupDeclaration) -> Vec<TokenStream> {
+    group
+        .inverse_target_dispatch_families()
+        .into_iter()
+        .map(|family| {
+            let target = crate::model::snake_case(&family.target.value);
+            let function = quote::format_ident!("linearize_{}_{}_with", group.name.value, target);
+            inverse_family_linearizer(group, family, &function)
+        })
+        .collect()
+}
+
+fn inverse_family_linearizer(
+    group: &GroupDeclaration,
+    family: crate::model::InverseDispatchFamily<'_>,
+    function: &proc_macro2::Ident,
+) -> TokenStream {
     let target = parse_type(&family.target.value);
     let group_name = group.name.value.as_str();
-    let function = quote::format_ident!("linearize_{}_group_with", group.name.value);
     let constructions = group
         .constructions
         .iter()
@@ -167,8 +301,9 @@ fn inverse_group_linearizer(group: &GroupDeclaration) -> TokenStream {
                     let conditions = construction.forms.iter().map(|form| {
                         let predicate = parse_type(
                             &form
-                                .value_guard
+                                .inverse_guard
                                 .as_ref()
+                                .or(form.value_guard.as_ref())
                                 .expect("inverse-dispatch forms carry recognizers")
                                 .value,
                         );
@@ -616,14 +751,17 @@ fn erased_construction_builder(
     construction: &ConstructionDeclaration,
 ) -> TokenStream {
     let owner = construction.id.value.as_str();
+    let partial_function = quote::format_ident!("__erased_partial_build_{}", construction.id.value);
     let function = quote::format_ident!("__erased_build_{}", construction.id.value);
     let fields = construction.ast.fields();
     let reads = erased_field_reads(owner, fields, group);
+    let partial_reads = reads.clone();
+    let final_reads = reads;
     let field_names: Vec<proc_macro2::Ident> = fields
         .iter()
         .map(|binding| quote::format_ident!("{}", binding.field.value))
         .collect();
-    let build = match &construction.ast {
+    let partial_build = match &construction.ast {
         AstShape::Own { name, .. } => {
             let target = quote::format_ident!("{}", name.value);
             quote! { #target::try_new(#(#field_names),*) }
@@ -664,7 +802,35 @@ fn erased_construction_builder(
             }
         }
     };
+    let final_build = match &construction.ast {
+        AstShape::Own { name, .. } => {
+            let target = quote::format_ident!("{}", name.value);
+            quote! { #target::try_new(#(#field_names),*) }
+        }
+        AstShape::Bind { .. } => {
+            let build_fn = quote::format_ident!("build_{}", construction.id.value);
+            quote! { #build_fn(#(#field_names),*) }
+        }
+    };
     quote! {
+        fn #partial_function(
+            values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+        ) -> Result<
+            ::deckmaste_construction_compiler::runtime::ErasedValue,
+            ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+        > {
+            let mut values = values.into_iter();
+            #(#partial_reads)*
+            if values.next().is_some() {
+                return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
+                    owner: #owner,
+                });
+            }
+            #partial_build
+                .map(|value| Box::new(value) as ::deckmaste_construction_compiler::runtime::ErasedValue)
+                .map_err(::deckmaste_construction_compiler::runtime::ErasedBuildError::Declaration)
+        }
+
         fn #function(
             values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
         ) -> Result<
@@ -672,13 +838,13 @@ fn erased_construction_builder(
             ::deckmaste_construction_compiler::runtime::ErasedBuildError,
         > {
             let mut values = values.into_iter();
-            #(#reads)*
+            #(#final_reads)*
             if values.next().is_some() {
                 return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
                     owner: #owner,
                 });
             }
-            #build
+            #final_build
                 .map(|value| Box::new(value) as ::deckmaste_construction_compiler::runtime::ErasedValue)
                 .map_err(::deckmaste_construction_compiler::runtime::ErasedBuildError::Declaration)
         }
@@ -800,6 +966,66 @@ fn lens_construct(
     target: &TokenStream,
     construction_id: &str,
 ) -> TokenStream {
+    if let Some(adapter) = &lens.adapter {
+        let constructor = parse_type(&adapter.constructor.value);
+        let destructurer = parse_type(&adapter.destructurer.value);
+        let owner_fields = lens
+            .fields
+            .iter()
+            .map(|field| quote::format_ident!("__lens_{}", field.name.value))
+            .collect::<Vec<_>>();
+        if let Some(source) = &application.source {
+            let source = quote::format_ident!("{}", source.value);
+            let edits = application.edits.iter().map(|edit| {
+                let target_field =
+                    quote::format_ident!("__lens_{}", edit.target.segments[0].value);
+                let value = quote::format_ident!("{}", edit.value.value);
+                match edit.kind {
+                    LensEditKind::Focus => {
+                        let requirement = format!("{}.is_none()", edit.target.dotted());
+                        quote! {
+                            if #target_field.is_some() {
+                                return Err(::deckmaste_construction_compiler::runtime::DeclarationViolation {
+                                    construction: #construction_id,
+                                    requirement: #requirement,
+                                });
+                            }
+                            #target_field = Some(#value);
+                        }
+                    }
+                    LensEditKind::Prepend => quote! { #target_field.insert(0, #value); },
+                    LensEditKind::Append => quote! { #target_field.push(#value); },
+                }
+            });
+            return quote! {
+                let (#(mut #owner_fields),*) = #destructurer(#source);
+                #(#edits)*
+                Ok(#constructor(#(#owner_fields),*))
+            };
+        }
+
+        let values = lens.fields.iter().map(|field| {
+            let edit = application
+                .edits
+                .iter()
+                .find(|edit| edit.target.segments[0].value == field.name.value);
+            match (edit, &field.kind) {
+                (Some(edit), LensFieldKind::Value { .. }) => {
+                    let value = quote::format_ident!("{}", edit.value.value);
+                    quote! { #value }
+                }
+                (Some(edit), LensFieldKind::Optional { .. }) => {
+                    let value = quote::format_ident!("{}", edit.value.value);
+                    quote! { Some(#value) }
+                }
+                (None, LensFieldKind::Optional { .. }) => quote! { None },
+                (None, LensFieldKind::Vector { .. }) => quote! { Vec::new() },
+                _ => unreachable!("validated: EC017/EC033 admit only rebuildable focus edits"),
+            }
+        });
+        return quote! { Ok(#constructor(#(#values),*)) };
+    }
+
     if let Some(source) = &application.source {
         let source = quote::format_ident!("{}", source.value);
         let edits = application.edits.iter().map(|edit| {
@@ -858,6 +1084,85 @@ fn lens_destructure(
     application: &LensApplication,
     field_names: &[proc_macro2::Ident],
 ) -> TokenStream {
+    if let Some(adapter) = &lens.adapter {
+        let constructor = parse_type(&adapter.constructor.value);
+        let destructurer = parse_type(&adapter.destructurer.value);
+        let owner_fields = lens
+            .fields
+            .iter()
+            .map(|field| quote::format_ident!("__lens_{}", field.name.value))
+            .collect::<Vec<_>>();
+        if let Some(source) = &application.source {
+            let source_ident = quote::format_ident!("{}", source.value);
+            let extracts = application.edits.iter().map(|edit| {
+                let target_field = quote::format_ident!("__lens_{}", edit.target.segments[0].value);
+                let value = quote::format_ident!("{}", edit.value.value);
+                match edit.kind {
+                    LensEditKind::Focus => quote! { let #value = #target_field.take()?; },
+                    LensEditKind::Prepend => quote! {
+                        if #target_field.is_empty() {
+                            return None;
+                        }
+                        let #value = #target_field.remove(0);
+                    },
+                    LensEditKind::Append => quote! { let #value = #target_field.pop()?; },
+                }
+            });
+            return quote! {
+                let (#(mut #owner_fields),*) = #destructurer(value.clone());
+                #(#extracts)*
+                let #source_ident = #constructor(#(#owner_fields),*);
+                Some((#(#field_names),*))
+            };
+        }
+
+        let default_checks = lens.fields.iter().filter_map(|field| {
+            let claimed = application
+                .edits
+                .iter()
+                .any(|edit| edit.target.segments[0].value == field.name.value);
+            if claimed {
+                return None;
+            }
+            let field_name = quote::format_ident!("__lens_{}", field.name.value);
+            match field.kind {
+                LensFieldKind::Optional { .. } => {
+                    Some(quote! { if #field_name.is_some() { return None; } })
+                }
+                LensFieldKind::Vector { .. } => {
+                    Some(quote! { if !#field_name.is_empty() { return None; } })
+                }
+                LensFieldKind::Value { .. } => {
+                    unreachable!("validated: EC033 rejects unclaimed required owner fields")
+                }
+            }
+        });
+        let extracts = application.edits.iter().map(|edit| {
+            let target_field = quote::format_ident!("__lens_{}", edit.target.segments[0].value);
+            let value = quote::format_ident!("{}", edit.value.value);
+            let owner_field = lens
+                .fields
+                .iter()
+                .find(|field| field.name.value == edit.target.segments[0].value)
+                .expect("validated lens target");
+            match owner_field.kind {
+                LensFieldKind::Value { .. } => quote! { let #value = #target_field.clone(); },
+                LensFieldKind::Optional { .. } => {
+                    quote! { let #value = #target_field.clone()?; }
+                }
+                LensFieldKind::Vector { .. } => {
+                    unreachable!("validated: no-source vector edits are not focusable")
+                }
+            }
+        });
+        return quote! {
+            let (#(mut #owner_fields),*) = #destructurer(value.clone());
+            #(#default_checks)*
+            #(#extracts)*
+            Some((#(#field_names),*))
+        };
+    }
+
     if let Some(source) = &application.source {
         let source_ident = quote::format_ident!("{}", source.value);
         let extracts = application.edits.iter().map(|edit| {
@@ -984,10 +1289,22 @@ fn lens_bind_construction(
         .iter()
         .map(|field| lens_field_type(&field.kind))
         .collect();
-    let assert_types = owner_fields
-        .iter()
-        .zip(&owner_types)
-        .map(|(field, ty)| quote! { let _: &#ty = #field; });
+    let adapter_assert = lens.adapter.is_some();
+    let assert_types = owner_fields.iter().zip(&owner_types).map(|(field, ty)| {
+        if adapter_assert {
+            quote! { let _: &#ty = &#field; }
+        } else {
+            quote! { let _: &#ty = #field; }
+        }
+    });
+
+    let assert_destructure = lens.adapter.as_ref().map_or_else(
+        || quote! { let #target { #(#owner_fields),* } = value; },
+        |adapter| {
+            let destructurer = parse_type(&adapter.destructurer.value);
+            quote! { let (#(#owner_fields),*) = #destructurer(value.clone()); }
+        },
+    );
 
     let construct = checked_inverse_construct(
         construction,
@@ -1000,7 +1317,7 @@ fn lens_bind_construction(
     quote! {
         #[allow(dead_code, reason = "the exhaustive record pattern and typed borrows are the lens shape check")]
         fn #assert_fn(value: &#target) {
-            let #target { #(#owner_fields),* } = value;
+            #assert_destructure
             #(#assert_types)*
         }
 
@@ -2309,6 +2626,10 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
         .lens
         .as_ref()
         .map_or_else(|| quote! { None }, lens_application_row);
+    let evidence = construction
+        .evidence
+        .as_ref()
+        .map_or_else(|| quote! { None }, evidence_row);
     // `dominance` holds every edge this construction is named in, winner or
     // loser (see `edges_leaving_the_group_are_not_cycle_checked_here` in
     // validate.rs, whose edge lists exactly that shape). `dominates` means
@@ -2340,6 +2661,7 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
         .filter_map(|constraint| {
             let Constraint::DeriveFeature {
                 target,
+                feature_type: _,
                 combinator,
                 args,
             } = constraint
@@ -2392,6 +2714,8 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
             })
         })
         .collect();
+    let erased_partial_builder =
+        quote::format_ident!("__erased_partial_build_{}", construction.id.value);
     let erased_builder = quote::format_ident!("__erased_build_{}", construction.id.value);
     quote! {
         ::deckmaste_construction_compiler::runtime::ConstructionData {
@@ -2412,9 +2736,50 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
             requirements: &[#(#requirements),*],
             recognition_requirements: &[#(#recognition_requirements),*],
             feature_combinators: &[#(#feature_combinators),*],
+            evidence: #evidence,
+            erased_partial_builder: Some(#erased_partial_builder),
             erased_builder: Some(#erased_builder),
             erased_projector: #erased_projector,
         }
+    }
+}
+
+fn evidence_row(evidence: &crate::model::EvidenceDeclaration) -> TokenStream {
+    let label = evidence.label.value.as_str();
+    let kind = match evidence.kind {
+        crate::model::EvidenceKind::Guard => quote! {
+            ::deckmaste_construction_compiler::runtime::EvidenceKindData::Guard
+        },
+        crate::model::EvidenceKind::Feature => quote! {
+            ::deckmaste_construction_compiler::runtime::EvidenceKindData::Feature
+        },
+        crate::model::EvidenceKind::Role => quote! {
+            ::deckmaste_construction_compiler::runtime::EvidenceKindData::Role
+        },
+    };
+    let source = match &evidence.source {
+        crate::model::EvidenceSource::Requirement(path) => {
+            let path = path.dotted();
+            quote! { ::deckmaste_construction_compiler::runtime::EvidenceSourceData::Requirement(#path) }
+        }
+        crate::model::EvidenceSource::Output(path) => {
+            let path = path.dotted();
+            quote! { ::deckmaste_construction_compiler::runtime::EvidenceSourceData::Output(#path) }
+        }
+        crate::model::EvidenceSource::Field(path) => {
+            let path = path.dotted();
+            quote! { ::deckmaste_construction_compiler::runtime::EvidenceSourceData::Field(#path) }
+        }
+        crate::model::EvidenceSource::Category => quote! {
+            ::deckmaste_construction_compiler::runtime::EvidenceSourceData::Category
+        },
+    };
+    quote! {
+        Some(::deckmaste_construction_compiler::runtime::EvidenceData {
+            kind: #kind,
+            label: #label,
+            source: #source,
+        })
     }
 }
 
@@ -2544,6 +2909,50 @@ fn reexports(group: &GroupDeclaration) -> Vec<TokenStream> {
             group.name.value
         ));
     }
+    for family in group.inverse_dispatch_families() {
+        let category = crate::model::snake_case(
+            &family
+                .category
+                .expect("category inverse families carry a category")
+                .value,
+        );
+        items.push(quote::format_ident!(
+            "linearize_{}_{}_with",
+            group.name.value,
+            category
+        ));
+    }
+    for family in group.inverse_target_dispatch_families() {
+        items.push(quote::format_ident!(
+            "linearize_{}_{}_with",
+            group.name.value,
+            crate::model::snake_case(&family.target.value)
+        ));
+    }
+    let mut typed_targets = Vec::new();
+    for construction in &group.constructions {
+        for constraint in &construction.constraints {
+            let crate::model::Constraint::DeriveFeature {
+                target,
+                feature_type: Some(_),
+                ..
+            } = constraint
+            else {
+                continue;
+            };
+            let target = target.dotted().replace('.', "_");
+            if !typed_targets.contains(&target) {
+                typed_targets.push(target);
+            }
+        }
+    }
+    for target in typed_targets {
+        items.push(quote::format_ident!(
+            "reduce_{}_{}",
+            group.name.value,
+            target
+        ));
+    }
     items.push(declaration_ident(group));
     items
         .iter()
@@ -2597,6 +3006,33 @@ mod tests {
         assert!(
             rendered.contains("conjunction in [And, Or]"),
             "human-readable requirement string"
+        );
+    }
+
+    #[test]
+    fn evidence_metadata_emits_kind_label_and_declaration_source() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group evidence_metadata;
+            construction guarded: Phrase {
+                own Guarded { conjunction: lex Conjunction, }
+                require conjunction in [And];
+                evidence guard "conjunction gate" from requirement conjunction;
+                form only @ 0 = lex(conjunction);
+            }
+        })
+        .expect("evidence fixture parses");
+        let validated = validate(&group).expect("evidence fixture validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            rendered.contains("evidence: Some("),
+            "evidence metadata is present: {rendered}",
+        );
+        assert!(
+            rendered.contains("EvidenceKindData::Guard")
+                && rendered.contains("label: \"conjunction gate\"")
+                && rendered.contains("EvidenceSourceData::Requirement(")
+                && rendered.contains("\"conjunction\","),
+            "evidence metadata is declaration-derived: {rendered}",
         );
     }
 
@@ -2765,6 +3201,161 @@ mod tests {
             !rendered.contains("struct NounPhraseCoordination")
                 && !rendered.contains("struct MinimalNode"),
             "bind mode emits no owned construction struct: {rendered}"
+        );
+    }
+
+    #[test]
+    fn bind_erased_builders_separate_partial_assembly_from_final_validation() {
+        // Chart reduction needs the semantic adapter before all feature gates
+        // have run. Every external erased ingress, however, must cross the
+        // same checked typed builder (including its inverse recognizer).
+        let group = crate::parse::parse_group(quote::quote! {
+            group erased_boundary;
+            construction wrapped: Node {
+                bind Node via make_node, split_node {
+                    head: hole Head,
+                }
+                form only @ 0 inverse check(is_wrapped) = head;
+                selection unique;
+            }
+        })
+        .expect("erased-boundary declaration parses");
+        let validated = validate(&group).expect("erased-boundary declaration validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            rendered.contains("fn __erased_partial_build_wrapped(")
+                && rendered.contains("fn __erased_build_wrapped(")
+                && rendered.contains("build_wrapped(head)"),
+            "partial assembly and final checked ingress are distinct: {rendered}",
+        );
+        assert!(
+            rendered.contains("erased_partial_builder: Some(__erased_partial_build_wrapped)")
+                && rendered.contains("erased_builder: Some(__erased_build_wrapped)"),
+            "runtime metadata exposes both intentional doors: {rendered}",
+        );
+    }
+
+    #[test]
+    fn typed_feature_callbacks_emit_one_declaration_order_dispatcher() {
+        // Mutations caught: route language feature semantics through a
+        // handwritten construction-ID table, erase the callback's feature
+        // type, or silently ignore its declared field arguments.
+        let group = crate::parse::parse_group(quote::quote! {
+            group typed_features;
+            construction base: Node {
+                bind Node via make_base, split_base {
+                    head: hole Head,
+                }
+                derive features: Feature = reduce_base(head);
+                form only @ 0 = head;
+                selection unique;
+            }
+            construction extend: Node {
+                bind Node via make_extend, split_extend {
+                    node: hole Node,
+                    tail: hole Tail,
+                }
+                derive features: Feature = reduce_extend(node, tail);
+                form only @ 0 = node tail;
+                selection unique;
+            }
+        })
+        .expect("typed feature declarations parse");
+        let validated = validate(&group).expect("typed feature declarations validate");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            rendered.contains("pub fn reduce_typed_features_features(")
+                && rendered.contains("0 => reduce_base(")
+                && rendered.contains("reduce_extend(")
+                && rendered.contains("fields.get(1).copied().flatten()?"),
+            "the compiler emits declaration-order typed callback dispatch: {rendered}",
+        );
+    }
+
+    #[test]
+    fn distinct_typed_output_targets_emit_independent_dispatchers() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group typed_outputs;
+            construction base: Node {
+                bind Node via make_base, split_base { head: hole Head, }
+                derive features: Feature = reduce_base(head);
+                derive precedence: Feature = disprefer_base(head);
+                form only @ 0 = head;
+                selection unique;
+            }
+            construction extend: Node {
+                bind Node via make_extend, split_extend { tail: hole Tail, }
+                derive features: Feature = reduce_extend(tail);
+                form only @ 0 = tail;
+                selection unique;
+            }
+        })
+        .expect("multiple typed output syntax parses");
+        let validated = validate(&group).expect("distinct typed outputs validate independently");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            rendered.contains("pub fn reduce_typed_outputs_features(")
+                && rendered.contains("pub fn reduce_typed_outputs_precedence(")
+                && rendered.contains("0 => disprefer_base("),
+            "each declaration output owns its generated typed dispatcher: {rendered}",
+        );
+    }
+
+    #[test]
+    fn one_group_emits_an_inverse_dispatcher_for_each_declared_category() {
+        // Mutations caught: infer one inverse target for the whole group, drop
+        // a category because it binds the same Rust type as another category,
+        // or restore a language-side family selector.
+        let group = crate::parse::parse_group(quote::quote! {
+            group category_families;
+            construction left_one: Left {
+                bind Shared via make_left_one, split_left_one { token: lex Token }
+                form only @ 0 when check(is_left_one) = lex(token);
+                selection unique;
+            }
+            construction left_two: Left {
+                bind Shared via make_left_two, split_left_two { token: lex Token }
+                form only @ 0 when check(is_left_two) = lex(token);
+                selection unique;
+            }
+            construction right_one: Right {
+                bind Shared via make_right_one, split_right_one { token: lex Token }
+                form only @ 0 when check(is_right_one) = lex(token);
+                selection unique;
+            }
+            construction right_two: Right {
+                bind Shared via make_right_two, split_right_two { token: lex Token }
+                form only @ 0 when check(is_right_two) = lex(token);
+                selection unique;
+            }
+        })
+        .expect("multi-category inverse fixture parses");
+        let validated = validate(&group).expect("multi-category inverse fixture validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            rendered.contains("pub fn linearize_category_families_left_with<V>(")
+                && rendered.contains("pub fn linearize_category_families_right_with<V>(")
+                && rendered.contains("pub fn linearize_category_families_shared_with<V>("),
+            "each category and its shared bound target own emitted inverse families: {rendered}",
+        );
+    }
+
+    #[test]
+    fn singleton_category_emits_its_inverse_dispatcher() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group singleton_category;
+            construction only: Only {
+                bind Shared via make_only, split_only { token: lex Token }
+                form only @ 0 when check(is_only) = lex(token);
+                selection unique;
+            }
+        })
+        .expect("singleton category fixture parses");
+        let validated = validate(&group).expect("singleton category fixture validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            rendered.contains("pub fn linearize_singleton_category_only_with<V>("),
+            "a one-construction category still owns an emitted inverse family: {rendered}",
         );
     }
 

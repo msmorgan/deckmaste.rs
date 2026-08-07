@@ -78,6 +78,7 @@ pub struct ConstructionDecision {
     owner: ConstructionOwner,
     backend: ConstructionBackend,
     evidence: ConstructionEvidence,
+    evidence_value: Option<String>,
     cost: ParseCost,
     reason: SelectionReason,
     alternatives: Vec<ConstructionAlternative>,
@@ -98,6 +99,7 @@ impl ConstructionDecision {
             owner: family.owner(),
             backend: family.backend(),
             evidence: family.evidence(),
+            evidence_value: None,
             cost,
             reason,
             alternatives,
@@ -106,6 +108,11 @@ impl ConstructionDecision {
 
     pub(crate) fn offset(mut self, offset: usize) -> Self {
         self.span = Span::new(self.span.start + offset, self.span.end + offset);
+        self
+    }
+
+    pub(crate) fn with_evidence_value(mut self, evidence_value: Option<String>) -> Self {
+        self.evidence_value = evidence_value;
         self
     }
 
@@ -138,6 +145,13 @@ impl ConstructionDecision {
     #[must_use]
     pub const fn evidence(&self) -> ConstructionEvidence {
         self.evidence
+    }
+
+    /// The concrete selected chart value that substantiates the declaration's
+    /// evidence source, when that construction authors semantic evidence.
+    #[must_use]
+    pub fn evidence_value(&self) -> Option<&str> {
+        self.evidence_value.as_deref()
     }
 
     #[must_use]

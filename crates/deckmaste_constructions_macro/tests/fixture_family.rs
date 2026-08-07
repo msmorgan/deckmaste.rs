@@ -21,6 +21,20 @@
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct FixturePhrase;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FixtureFeature(u8);
+
+#[allow(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "generated typed feature callbacks receive borrowed declaration fields"
+)]
+fn combine_pair_features(
+    left: &FixtureFeature,
+    right: Option<&FixtureFeature>,
+) -> Option<FixtureFeature> {
+    Some(FixtureFeature(left.0.checked_add(right?.0)?))
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum FixturePair {
     Pair(FixturePairNode),
@@ -770,7 +784,8 @@ fn mixed_lens_family_dispatch_includes_guarded_adapters_for_the_same_owner() {
 }
 
 #[test]
-fn typed_builder_checks_inverse_ownership_while_erased_builder_assembles_chart_intermediates() {
+fn typed_builder_checks_inverse_ownership_while_partial_erased_builder_assembles_chart_intermediates()
+ {
     // Mutations guarded: let the public checked door manufacture a value
     // whose outer inverse belongs elsewhere, or apply that whole-value check
     // to chart assembly and thereby reject a valid noncanonical intermediate
@@ -788,15 +803,16 @@ fn typed_builder_checks_inverse_ownership_while_erased_builder_assembles_chart_i
         .iter()
         .find(|construction| construction.id == "mixed_lens_prepend")
         .expect("the checked lens construction is declared");
-    let intermediate = declaration
-        .erased_builder
-        .expect("chart lowering has an erased assembly door")(vec![
-        Box::new(flattened_owner()),
-        Box::new(LensToken::Inserted),
-    ])
-    .expect("chart assembly retains a noncanonical intermediate")
-    .downcast::<FlattenedLensRecord>()
-    .expect("the erased door returns the declared owner");
+    let intermediate =
+        declaration
+            .erased_partial_builder
+            .expect("chart lowering has an explicit partial erased assembly door")(vec![
+            Box::new(flattened_owner()),
+            Box::new(LensToken::Inserted),
+        ])
+        .expect("chart assembly retains a noncanonical intermediate")
+        .downcast::<FlattenedLensRecord>()
+        .expect("the erased door returns the declared owner");
     assert_eq!(intermediate.prefix[0], LensToken::Inserted);
     assert_eq!(intermediate.suffix, [LensToken::Suffix]);
 
@@ -1455,6 +1471,7 @@ deckmaste_constructions_macro::constructions! {
             right: opt hole FixturePhrase,
         }
         require right.is_some();
+        derive features: FixtureFeature = combine_pair_features(left, right);
         form both @ 0 when right.is_some() = left right;
     }
 
@@ -1496,6 +1513,45 @@ deckmaste_constructions_macro::constructions! {
         witness notation = stored scalar;
         form only @ 0 = lex(scalar);
     }
+}
+
+#[test]
+fn typed_reducer_and_both_erased_ingress_doors_execute_the_fixture_declaration() {
+    let construction = BIND_PROBE_DECLARATION
+        .constructions
+        .iter()
+        .position(|construction| construction.id == "bind_pair")
+        .expect("bind pair declaration");
+    assert_eq!(
+        reduce_bind_probe_features(
+            construction,
+            &[Some(&FixtureFeature(2)), Some(&FixtureFeature(3))],
+        ),
+        Some(FixtureFeature(5)),
+    );
+
+    let declaration = &BIND_PROBE_DECLARATION.constructions[construction];
+    let partial = declaration
+        .erased_partial_builder
+        .expect("chart assembly door")(vec![
+        Box::new(FixturePhrase),
+        Box::new(Some(FixturePhrase)),
+    ])
+    .expect("valid partial assembly")
+    .downcast::<BoundPair>()
+    .expect("partial door returns the bound type");
+    let final_value = declaration
+        .erased_builder
+        .expect("checked final ingress door")(vec![
+        Box::new(FixturePhrase),
+        Box::new(Some(FixturePhrase)),
+    ])
+    .expect("valid final assembly")
+    .downcast::<BoundPair>()
+    .expect("final door returns the bound type");
+    let typed = build_bind_pair(FixturePhrase, Some(FixturePhrase)).expect("typed ingress");
+    assert_eq!(*partial, typed);
+    assert_eq!(*final_value, typed);
 }
 
 #[test]

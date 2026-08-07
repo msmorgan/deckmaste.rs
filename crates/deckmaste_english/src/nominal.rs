@@ -1,0 +1,91 @@
+//! Checked construction and projection API for the derived nominal family.
+//!
+//! Every builder validates the declaration's requirements and inverse shape
+//! before returning a value. The matching `parts_*` function is the read-only
+//! typed projection for that same construction. Raw [`NominalPhrase`] fields
+//! remain private; callers compose nominal values only through these doors.
+//!
+//! [`NominalPhrase`]: crate::syntax::NominalPhrase
+
+pub use crate::constructions::nominal::PredicatedArgumentBare;
+pub use crate::constructions::nominal::PredicatedArgumentFrom;
+pub use crate::constructions::nominal::PredicatedQualityBare;
+pub use crate::constructions::nominal::PredicatedQualityFrom;
+pub use crate::constructions::nominal::ReducedRecipientPassiveTheme;
+pub use crate::constructions::nominal::RulesObjectFollowupNominal;
+pub use crate::constructions::nominal::RulesObjectNominal;
+pub use crate::constructions::nominal::SymbolSequence;
+pub use crate::constructions::nominal::build_devotion_color_pair;
+pub use crate::constructions::nominal::build_devotion_color_single;
+pub use crate::constructions::nominal::build_nominal_adjective;
+pub use crate::constructions::nominal::build_nominal_combat_step_name;
+pub use crate::constructions::nominal::build_nominal_comparison;
+pub use crate::constructions::nominal::build_nominal_determiner;
+pub use crate::constructions::nominal::build_nominal_devotion;
+pub use crate::constructions::nominal::build_nominal_infinitive;
+pub use crate::constructions::nominal::build_nominal_keyword_atom_carried_predicated_argument;
+pub use crate::constructions::nominal::build_nominal_keyword_predicated_argument;
+pub use crate::constructions::nominal::build_nominal_keyword_symbol_argument;
+pub use crate::constructions::nominal::build_nominal_negated_modifier;
+pub use crate::constructions::nominal::build_nominal_noun;
+pub use crate::constructions::nominal::build_nominal_noun_modifier;
+pub use crate::constructions::nominal::build_nominal_postpositive_adjective;
+pub use crate::constructions::nominal::build_nominal_postpositive_adjective_asyndetic;
+pub use crate::constructions::nominal::build_nominal_postpositive_adjective_conjoined;
+pub use crate::constructions::nominal::build_nominal_postpositive_adjective_conjoined_prepositional;
+pub use crate::constructions::nominal::build_nominal_postpositive_adjective_oxford;
+pub use crate::constructions::nominal::build_nominal_power_toughness_modifier;
+pub use crate::constructions::nominal::build_nominal_prepositional;
+pub use crate::constructions::nominal::build_nominal_quantity_complement;
+pub use crate::constructions::nominal::build_nominal_quantity_modifier;
+pub use crate::constructions::nominal::build_nominal_reduced_recipient_passive;
+pub use crate::constructions::nominal::build_nominal_relative;
+pub use crate::constructions::nominal::build_nominal_times_clause;
+pub use crate::constructions::nominal::build_predicated_argument_bare_extend;
+pub use crate::constructions::nominal::build_predicated_argument_bare_single;
+pub use crate::constructions::nominal::build_predicated_argument_from_extend;
+pub use crate::constructions::nominal::build_predicated_argument_from_single;
+pub use crate::constructions::nominal::build_predicated_quality_bare;
+pub use crate::constructions::nominal::build_predicated_quality_from;
+pub use crate::constructions::nominal::build_reduced_recipient_passive_nominal_adjunct;
+pub use crate::constructions::nominal::build_reduced_recipient_passive_theme;
+pub use crate::constructions::nominal::build_rules_object_followup_nominal_prepositional;
+pub use crate::constructions::nominal::build_rules_object_followup_nominal_relative;
+pub use crate::constructions::nominal::build_rules_object_nominal_base;
+pub use crate::constructions::nominal::parts_devotion_color_pair;
+pub use crate::constructions::nominal::parts_devotion_color_single;
+pub use crate::constructions::nominal::parts_nominal_adjective;
+pub use crate::constructions::nominal::parts_nominal_combat_step_name;
+pub use crate::constructions::nominal::parts_nominal_comparison;
+pub use crate::constructions::nominal::parts_nominal_determiner;
+pub use crate::constructions::nominal::parts_nominal_devotion;
+pub use crate::constructions::nominal::parts_nominal_infinitive;
+pub use crate::constructions::nominal::parts_nominal_keyword_atom_carried_predicated_argument;
+pub use crate::constructions::nominal::parts_nominal_keyword_predicated_argument;
+pub use crate::constructions::nominal::parts_nominal_keyword_symbol_argument;
+pub use crate::constructions::nominal::parts_nominal_negated_modifier;
+pub use crate::constructions::nominal::parts_nominal_noun;
+pub use crate::constructions::nominal::parts_nominal_noun_modifier;
+pub use crate::constructions::nominal::parts_nominal_postpositive_adjective;
+pub use crate::constructions::nominal::parts_nominal_postpositive_adjective_asyndetic;
+pub use crate::constructions::nominal::parts_nominal_postpositive_adjective_conjoined;
+pub use crate::constructions::nominal::parts_nominal_postpositive_adjective_conjoined_prepositional;
+pub use crate::constructions::nominal::parts_nominal_postpositive_adjective_oxford;
+pub use crate::constructions::nominal::parts_nominal_power_toughness_modifier;
+pub use crate::constructions::nominal::parts_nominal_prepositional;
+pub use crate::constructions::nominal::parts_nominal_quantity_complement;
+pub use crate::constructions::nominal::parts_nominal_quantity_modifier;
+pub use crate::constructions::nominal::parts_nominal_reduced_recipient_passive;
+pub use crate::constructions::nominal::parts_nominal_relative;
+pub use crate::constructions::nominal::parts_nominal_times_clause;
+pub use crate::constructions::nominal::parts_predicated_argument_bare_extend;
+pub use crate::constructions::nominal::parts_predicated_argument_bare_single;
+pub use crate::constructions::nominal::parts_predicated_argument_from_extend;
+pub use crate::constructions::nominal::parts_predicated_argument_from_single;
+pub use crate::constructions::nominal::parts_predicated_quality_bare;
+pub use crate::constructions::nominal::parts_predicated_quality_from;
+pub use crate::constructions::nominal::parts_reduced_recipient_passive_nominal_adjunct;
+pub use crate::constructions::nominal::parts_reduced_recipient_passive_theme;
+pub use crate::constructions::nominal::parts_rules_object_followup_nominal_prepositional;
+pub use crate::constructions::nominal::parts_rules_object_followup_nominal_relative;
+pub use crate::constructions::nominal::parts_rules_object_nominal_base;

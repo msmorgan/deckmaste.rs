@@ -2834,7 +2834,7 @@ fn copular_complement_head_is_opaque(clause: &IndependentClause) -> bool {
     let CopularComplement::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.complement else {
         return false;
     };
-    matches!(nominal.head.noun(), Noun::Opaque(_))
+    matches!(nominal.head().noun(), Noun::Opaque(_))
 }
 
 fn find_top_level_punctuation(tokens: &[Token], expected: Punctuation) -> Option<usize> {
@@ -3449,7 +3449,7 @@ mod tests {
         else {
             panic!("expected nominal subject");
         };
-        assert_eq!(subject.determiner, Some(Determiner::Target(None)));
+        assert_eq!(subject.determiner(), Some(&Determiner::Target(None)));
     }
 
     #[test]
@@ -3807,7 +3807,7 @@ mod tests {
             panic!("expected coordination");
         };
         assert!(matches!(
-            subject.modifiers.as_slice(),
+            subject.modifiers(),
             [NominalModifier::Adjective { .. }, NominalModifier::Noun { noun, .. }]
                 if matches!(
                     noun.kind(),
@@ -5970,14 +5970,15 @@ mod tests {
             matches!(
                 &sentence.body,
                 SentenceBody::Independent(IndependentClause::Intransitive(
-                    Subject(NounPhrase::Nominal(NominalPhrase {
-                        determiner: Some(Determiner::Possessive(Possessor::NounPhrase(possessor))),
-                        ..
-                    })),
+                    Subject(NounPhrase::Nominal(nominal)),
                     _
                 )) if matches!(
-                    possessor.as_ref(),
-                    NounPhrase::ThisCard(ThisCardForm::AbbreviatedName)
+                    nominal.determiner(),
+                    Some(Determiner::Possessive(Possessor::NounPhrase(possessor)))
+                        if matches!(
+                            possessor.as_ref(),
+                            NounPhrase::ThisCard(ThisCardForm::AbbreviatedName)
+                        )
                 )
             ),
             "possessive nickname did not reach self-reference disambiguation: {:#?}",
@@ -6685,16 +6686,16 @@ mod tests {
         let PredicateObject::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.object else {
             panic!("expected a nominal object: {:?}", predicate.object);
         };
-        let crate::word::NounInstanceKind::Mass(Noun::Catalog(atom)) = nominal.head.kind() else {
-            panic!("expected a catalog noun head: {:?}", nominal.head);
+        let crate::word::NounInstanceKind::Mass(Noun::Catalog(atom)) = nominal.head().kind() else {
+            panic!("expected a catalog noun head: {:?}", nominal.head());
         };
         assert_eq!(atom.canonical(), "Hexproof from");
         let [NominalComplement::KeywordArgument(KeywordArgument::Predicated(argument))] =
-            nominal.complements.as_slice()
+            nominal.complements()
         else {
             panic!(
                 "expected exactly one predicated keyword argument complement: {:?}",
-                nominal.complements
+                nominal.complements()
             );
         };
         let [first, second] = argument.qualities.as_slice() else {

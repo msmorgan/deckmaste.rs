@@ -19,11 +19,47 @@ use crate::catalog::CatalogKind;
 use crate::features::Conjunction;
 use crate::features::NounCardinality;
 use crate::grammar::AdjectiveComparisonState;
+use crate::grammar::Features;
+use crate::grammar::reduction::nominal_attributive_adjective_is_admitted;
+use crate::grammar::reduction::nominal_prepositional_attachment_is_admitted;
+use crate::grammar::reduction::reduce_devotion_color_pair;
+use crate::grammar::reduction::reduce_devotion_color_single;
+use crate::grammar::reduction::reduce_nominal_adjective;
+use crate::grammar::reduction::reduce_nominal_combat_step_name;
+use crate::grammar::reduction::reduce_nominal_comparison;
+use crate::grammar::reduction::reduce_nominal_determiner;
+use crate::grammar::reduction::reduce_nominal_devotion;
+use crate::grammar::reduction::reduce_nominal_infinitive;
+use crate::grammar::reduction::reduce_nominal_keyword_predicated_argument;
+use crate::grammar::reduction::reduce_nominal_keyword_symbol_argument;
+use crate::grammar::reduction::reduce_nominal_negated_modifier;
+use crate::grammar::reduction::reduce_nominal_noun;
+use crate::grammar::reduction::reduce_nominal_noun_modifier;
+use crate::grammar::reduction::reduce_nominal_postpositive_adjective;
+use crate::grammar::reduction::reduce_nominal_postpositive_adjective_asyndetic;
+use crate::grammar::reduction::reduce_nominal_postpositive_adjective_conjoined_prepositional;
+use crate::grammar::reduction::reduce_nominal_postpositive_adjective_continuation;
+use crate::grammar::reduction::reduce_nominal_power_toughness_modifier;
+use crate::grammar::reduction::reduce_nominal_prepositional;
+use crate::grammar::reduction::reduce_nominal_quantity_complement;
+use crate::grammar::reduction::reduce_nominal_quantity_modifier;
+use crate::grammar::reduction::reduce_nominal_reduced_recipient_passive;
+use crate::grammar::reduction::reduce_nominal_relative;
+use crate::grammar::reduction::reduce_nominal_times_clause;
+use crate::grammar::reduction::reduce_predicated_argument_extend;
+use crate::grammar::reduction::reduce_predicated_argument_single;
+use crate::grammar::reduction::reduce_predicated_quality;
+use crate::grammar::reduction::reduce_recipient_passive_nominal_adjunct;
+use crate::grammar::reduction::reduce_recipient_passive_theme;
+use crate::grammar::reduction::reduce_rules_object_followup_prepositional;
+use crate::grammar::reduction::reduce_rules_object_followup_relative;
+use crate::grammar::reduction::reduce_rules_object_nominal_base;
 use crate::syntax::AdjectiveComplement;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::AdjectivePhraseCoordination;
 use crate::syntax::ComparisonComplement;
 use crate::syntax::CoordinatedAdjectivePhrase;
+use crate::syntax::CoordinatedModifier;
 use crate::syntax::Determiner;
 use crate::syntax::DevotionColors;
 use crate::syntax::IndependentClause;
@@ -59,50 +95,68 @@ use crate::word::VerbSlot;
 use crate::word::Vocab;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct RulesObjectNominal(NominalPhrase);
+pub struct RulesObjectNominal(NominalPhrase);
 
 impl RulesObjectNominal {
     pub(crate) fn from_nominal(nominal: NominalPhrase) -> Self {
         Self(nominal)
     }
 
-    pub(crate) fn into_nominal(self) -> NominalPhrase {
+    #[must_use]
+    pub fn into_nominal(self) -> NominalPhrase {
         self.0
+    }
+
+    #[must_use]
+    pub const fn as_nominal(&self) -> &NominalPhrase {
+        &self.0
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct RulesObjectFollowupNominal(NominalPhrase);
+pub struct RulesObjectFollowupNominal(NominalPhrase);
 
 impl RulesObjectFollowupNominal {
     pub(crate) fn from_nominal(nominal: NominalPhrase) -> Self {
         Self(nominal)
     }
 
-    pub(crate) fn into_nominal(self) -> NominalPhrase {
+    #[must_use]
+    pub fn into_nominal(self) -> NominalPhrase {
         self.0
+    }
+
+    #[must_use]
+    pub const fn as_nominal(&self) -> &NominalPhrase {
+        &self.0
     }
 }
 
-type PredicatedQualityFrom = PredicatedQuality;
-type PredicatedQualityBare = PredicatedQuality;
-type PredicatedArgumentFrom = PredicatedArgument;
-type PredicatedArgumentBare = PredicatedArgument;
+pub type PredicatedQualityFrom = PredicatedQuality;
+pub type PredicatedQualityBare = PredicatedQuality;
+pub type PredicatedArgumentFrom = PredicatedArgument;
+pub type PredicatedArgumentBare = PredicatedArgument;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ReducedRecipientPassiveTheme(NounPhrase);
+pub struct ReducedRecipientPassiveTheme(NounPhrase);
 
 impl ReducedRecipientPassiveTheme {
     pub(crate) fn from_noun_phrase(noun_phrase: NounPhrase) -> Self {
         Self(noun_phrase)
     }
 
-    pub(crate) fn into_noun_phrase(self) -> NounPhrase {
+    #[must_use]
+    pub fn into_noun_phrase(self) -> NounPhrase {
         self.0
+    }
+
+    #[must_use]
+    pub const fn as_noun_phrase(&self) -> &NounPhrase {
+        &self.0
     }
 }
 
-type SymbolSequence = Vec<OracleSymbol>;
+pub type SymbolSequence = Vec<OracleSymbol>;
 
 fn violation(construction: &'static str, requirement: &'static str) -> DeclarationViolation {
     DeclarationViolation {
@@ -111,9 +165,143 @@ fn violation(construction: &'static str, requirement: &'static str) -> Declarati
     }
 }
 
+fn disprefer_recipient_passive_theme_infinitive(nominal: &Features) -> Option<Features> {
+    matches!(
+        nominal,
+        Features::Nominal {
+            recipient_passive_theme: true,
+            ..
+        }
+    )
+    .then(|| nominal.clone())
+}
+
+fn disprefer_nearer_relative_host(nominal: &Features) -> Option<Features> {
+    matches!(
+        nominal,
+        Features::Nominal {
+            attachment: crate::grammar::NominalAttachmentPhase::Prepositional {
+                nearer_relative_host: true,
+            },
+            ..
+        }
+    )
+    .then(|| nominal.clone())
+}
+
+fn mark_generated_cost(feature: &Features) -> Option<Features> {
+    Some(feature.clone())
+}
+
+fn mark_rules_object_relative_attachment(relative: &Features) -> Option<Features> {
+    matches!(
+        relative,
+        Features::RelativeClause {
+            gap: crate::features::GapState::Object,
+            object_gap_requires_rules_object: true,
+            ..
+        }
+    )
+    .then(|| relative.clone())
+}
+
+fn mark_rules_object_followup_relative_attachment(
+    base: Option<&Features>,
+    followup: Option<&Features>,
+    relative: &Features,
+) -> Option<Features> {
+    (base.is_some() != followup.is_some() && matches!(relative, Features::RelativeClause { .. }))
+        .then(|| relative.clone())
+}
+
+fn mark_rules_object_followup_prepositional_attachment(
+    _nominal: &Features,
+    preposition: &Features,
+) -> Option<Features> {
+    matches!(preposition, Features::PrepositionalPhrase { .. }).then(|| preposition.clone())
+}
+
+fn admit_recipient_passive_prefix(predicate: &Features) -> Option<Features> {
+    matches!(
+        predicate,
+        Features::VerbPhrase {
+            object,
+            frame,
+            ..
+        } if frame.is_recipient_passive()
+            && !matches!(object, crate::grammar::PredicateObjectState::None)
+    )
+    .then(|| predicate.clone())
+}
+
 fn prepend_modifier(mut nominal: NominalPhrase, modifier: NominalModifier) -> NominalPhrase {
-    nominal.modifiers.insert(0, modifier);
+    nominal.declaration_modifiers_mut().insert(0, modifier);
     nominal
+}
+
+pub(crate) fn project_nominal_power_toughness_remainder(
+    value: &NominalPhrase,
+) -> Option<(NominalPhrase, PowerToughness)> {
+    let mut nominal = value.clone();
+    let NominalComplement::PowerToughness(stats) = nominal.declaration_complements_mut().pop()?
+    else {
+        return None;
+    };
+    Some((nominal, stats))
+}
+
+pub(crate) fn project_nominal_coordinated_modifier_remainder(
+    value: &NominalPhrase,
+) -> Option<(NominalModifier, NominalPhrase)> {
+    if value.determiner().is_some()
+        || !value.complements().is_empty()
+        || !matches!(
+            value.modifiers().first(),
+            Some(NominalModifier::Coordinated(_))
+        )
+    {
+        return None;
+    }
+    let mut nominal = value.clone();
+    let modifier = nominal.declaration_modifiers_mut().remove(0);
+    Some((modifier, nominal))
+}
+
+pub(crate) fn build_nominal_power_toughness_complement(
+    mut nominal: NominalPhrase,
+    stats: PowerToughness,
+) -> Result<NominalPhrase, DeclarationViolation> {
+    if !general_attachment_base_is_admitted(&nominal) {
+        return Err(violation(
+            "nominal_power_toughness_complement",
+            "the nominal attachment phase admits a power/toughness complement",
+        ));
+    }
+    nominal
+        .declaration_complements_mut()
+        .push(NominalComplement::PowerToughness(stats));
+    Ok(nominal)
+}
+
+pub(crate) fn build_nominal_coordinated_modifier(
+    coordinated: CoordinatedModifier,
+    nominal: NominalPhrase,
+) -> Result<NominalPhrase, DeclarationViolation> {
+    let repeats_head = std::iter::once(coordinated.first.as_ref())
+        .chain(coordinated.rest.iter().map(|member| &member.modifier))
+        .any(|modifier| {
+            matches!(modifier, NominalModifier::Noun { noun, .. } if noun == nominal.head())
+        });
+    if !prefix_is_outermost(&nominal) || repeats_head {
+        return Err(violation(
+            "nominal_coordinated_modifier",
+            "the coordinated modifier is outermost and does not repeat the nominal head",
+        ));
+    }
+    Ok(prepend_modifier(
+        nominal,
+        NominalModifier::Coordinated(coordinated),
+    ))
 }
 
 fn cardinality_accepts(cardinality: NounCardinality, head: &NounInstance) -> bool {
@@ -166,12 +354,33 @@ fn make_nominal_adjective(
     ))
 }
 
+fn attributive_adjective_is_admitted(adjective: &AdjectivePhrase) -> bool {
+    nominal_attributive_adjective_is_admitted(
+        matches!(adjective.head, Adjective::CardOrientation(_)),
+        adjective.degree.is_some(),
+    )
+}
+
+fn prepositional_nominal_attachment_is_admitted(preposition: &PrepositionalPhrase) -> bool {
+    let head = preposition.head();
+    let by_gerund = head.preposition == Preposition::By
+        && matches!(
+            head.object.as_ref(),
+            Phrase::Clause(clause)
+                if matches!(
+                    clause.as_ref(),
+                    crate::syntax::Clause::Dependent(crate::syntax::DependentClause::Gerund(_))
+                )
+        );
+    nominal_prepositional_attachment_is_admitted(!by_gerund)
+}
+
 fn split_nominal_adjective(value: &NominalPhrase) -> (AdjectivePhrase, NominalPhrase) {
     let mut nominal = value.clone();
     let NominalModifier::Adjective {
         polarity: Polarity::Positive,
         phrase,
-    } = nominal.modifiers.remove(0)
+    } = nominal.declaration_modifiers_mut().remove(0)
     else {
         unreachable!("nominal_adjective parts require a positive adjective prefix")
     };
@@ -196,7 +405,7 @@ fn split_nominal_noun_modifier(value: &NominalPhrase) -> (NounInstance, NominalP
     let NominalModifier::Noun {
         polarity: Polarity::Positive,
         noun,
-    } = nominal.modifiers.remove(0)
+    } = nominal.declaration_modifiers_mut().remove(0)
     else {
         unreachable!("nominal_noun_modifier parts require a positive noun prefix")
     };
@@ -219,26 +428,26 @@ fn make_nominal_combat_step_name(
             "head is singular step",
         ));
     }
-    Ok(NominalPhrase {
-        determiner: None,
-        modifiers: vec![NominalModifier::CombatStepName { participants }],
+    Ok(NominalPhrase::from_projection_parts(
+        None,
+        vec![NominalModifier::CombatStepName { participants }],
         head,
-        complements: Vec::new(),
-    })
+        Vec::new(),
+    ))
 }
 
 fn split_nominal_combat_step_name(value: &NominalPhrase) -> (NounInstance, NounInstance) {
-    let [NominalModifier::CombatStepName { participants }] = value.modifiers.as_slice() else {
+    let [NominalModifier::CombatStepName { participants }] = value.modifiers() else {
         unreachable!("combat-step nominal has exactly its formative modifier")
     };
-    (participants.clone(), value.head.clone())
+    (participants.clone(), value.head().clone())
 }
 
 fn make_nominal_quantity_modifier(
     quantity: Quantity,
     nominal: NominalPhrase,
 ) -> Result<NominalPhrase, DeclarationViolation> {
-    if !cardinality_accepts(quantity.noun_cardinality(), &nominal.head) {
+    if !cardinality_accepts(quantity.noun_cardinality(), nominal.head()) {
         return Err(violation(
             "nominal_quantity_modifier",
             "quantity cardinality accepts the nominal head",
@@ -252,7 +461,7 @@ fn make_nominal_quantity_modifier(
 
 fn split_nominal_quantity_modifier(value: &NominalPhrase) -> (Quantity, NominalPhrase) {
     let mut nominal = value.clone();
-    let NominalModifier::Quantity(quantity) = nominal.modifiers.remove(0) else {
+    let NominalModifier::Quantity(quantity) = nominal.declaration_modifiers_mut().remove(0) else {
         unreachable!("quantity-modified nominal has a quantity prefix")
     };
     (quantity, nominal)
@@ -272,7 +481,8 @@ fn split_nominal_power_toughness_modifier(
     value: &NominalPhrase,
 ) -> (PowerToughness, NominalPhrase) {
     let mut nominal = value.clone();
-    let NominalModifier::PowerToughness(stats) = nominal.modifiers.remove(0) else {
+    let NominalModifier::PowerToughness(stats) = nominal.declaration_modifiers_mut().remove(0)
+    else {
         unreachable!("power/toughness-modified nominal has a stats prefix")
     };
     (stats, nominal)
@@ -291,14 +501,16 @@ macro_rules! nominal_complement_adapter {
                 ));
             }
             nominal
-                .complements
+                .declaration_complements_mut()
                 .push(NominalComplement::$variant(complement));
             Ok(nominal)
         }
 
         fn $parts(value: &NominalPhrase) -> (NominalPhrase, $ty) {
             let mut nominal = value.clone();
-            let Some(NominalComplement::$variant(complement)) = nominal.complements.pop() else {
+            let Some(NominalComplement::$variant(complement)) =
+                nominal.declaration_complements_mut().pop()
+            else {
                 unreachable!(concat!($id, " parts require their final complement"))
             };
             (nominal, complement)
@@ -335,11 +547,11 @@ nominal_complement_adapter!(
     "nominal_relative"
 );
 fn reduced_recipient_passive_theme_nominal_is_admitted(nominal: &NominalPhrase) -> bool {
-    nominal.determiner.is_none()
-        && nominal.modifiers.is_empty()
-        && nominal.complements.is_empty()
+    nominal.determiner().is_none()
+        && nominal.modifiers().is_empty()
+        && nominal.complements().is_empty()
         && matches!(
-            nominal.head.kind(),
+            nominal.head().kind(),
             NounInstanceKind::Mass(Noun::Word(Vocab::Damage))
         )
 }
@@ -394,7 +606,7 @@ fn make_nominal_reduced_recipient_passive(
         ));
     }
     nominal
-        .complements
+        .declaration_complements_mut()
         .push(NominalComplement::ReducedRecipientPassive(predicate));
     Ok(nominal)
 }
@@ -403,7 +615,8 @@ fn split_nominal_reduced_recipient_passive(
     value: &NominalPhrase,
 ) -> (NominalPhrase, TransitivePredicate) {
     let mut nominal = value.clone();
-    let Some(NominalComplement::ReducedRecipientPassive(predicate)) = nominal.complements.pop()
+    let Some(NominalComplement::ReducedRecipientPassive(predicate)) =
+        nominal.declaration_complements_mut().pop()
     else {
         unreachable!("reduced-recipient-passive parts require their final complement")
     };
@@ -413,21 +626,22 @@ fn make_nominal_postpositive_adjective(
     mut nominal: NominalPhrase,
     adjective: AdjectivePhrase,
 ) -> Result<NominalPhrase, DeclarationViolation> {
-    if !nominal.complements.is_empty() || has_postnominal_comparison(&nominal) {
+    if !nominal.complements().is_empty() || has_postnominal_comparison(&nominal) {
         return Err(violation(
             "nominal_postpositive_adjective",
             "the nominal attachment phase is open",
         ));
     }
     nominal
-        .complements
+        .declaration_complements_mut()
         .push(NominalComplement::Adjective(adjective));
     Ok(nominal)
 }
 
 fn split_nominal_postpositive_adjective(value: &NominalPhrase) -> (NominalPhrase, AdjectivePhrase) {
     let mut nominal = value.clone();
-    let Some(NominalComplement::Adjective(adjective)) = nominal.complements.pop() else {
+    let Some(NominalComplement::Adjective(adjective)) = nominal.declaration_complements_mut().pop()
+    else {
         unreachable!("postpositive-adjective parts require their final complement")
     };
     (nominal, adjective)
@@ -469,24 +683,24 @@ fn split_nominal_keyword_symbol_argument(
 ) {
     let [
         NominalComplement::KeywordArgument(KeywordArgument::Costed(KeywordCost::Symbols(symbols))),
-    ] = value.complements.as_slice()
+    ] = value.complements()
     else {
         unreachable!("symbol keyword nominal carries one symbol-cost argument")
     };
     if let [symbol] = symbols.as_slice() {
-        (value.head.clone(), Some(symbol.clone()), None)
+        (value.head().clone(), Some(symbol.clone()), None)
     } else {
-        (value.head.clone(), None, Some(symbols.clone()))
+        (value.head().clone(), None, Some(symbols.clone()))
     }
 }
 
 fn keyword_nominal(head: NounInstance, argument: KeywordArgument) -> NominalPhrase {
-    NominalPhrase {
-        determiner: None,
-        modifiers: Vec::new(),
+    NominalPhrase::from_projection_parts(
+        None,
+        Vec::new(),
         head,
-        complements: vec![NominalComplement::KeywordArgument(argument)],
-    }
+        vec![NominalComplement::KeywordArgument(argument)],
+    )
 }
 
 fn keyword_atom_from_head(head: &NounInstance) -> Option<&CatalogAtom> {
@@ -749,11 +963,11 @@ fn split_nominal_keyword_predicated_argument(
     value: &NominalPhrase,
 ) -> (NounInstance, PredicatedArgument) {
     let [NominalComplement::KeywordArgument(KeywordArgument::Predicated(argument))] =
-        value.complements.as_slice()
+        value.complements()
     else {
         unreachable!("predicated keyword nominal carries one predicated argument")
     };
-    (value.head.clone(), argument.clone())
+    (value.head().clone(), argument.clone())
 }
 
 fn make_rules_object_nominal_base(
@@ -764,6 +978,23 @@ fn make_rules_object_nominal_base(
 
 fn split_rules_object_nominal_base(value: &RulesObjectNominal) -> NominalPhrase {
     value.0.clone()
+}
+
+fn nominal_has_rules_object_relative_edge(value: &NominalPhrase) -> bool {
+    matches!(
+        value.complements().last(),
+        Some(NominalComplement::Relative(RelativeClause {
+            body:
+                crate::syntax::RelativeBody::ObjectGap {
+                    predicate,
+                    ..
+                },
+            ..
+        })) if matches!(
+            predicate.head.verb.verb,
+            crate::word::Verb::Word(Vocab::Control | Vocab::Own)
+        )
+    )
 }
 
 fn make_rules_object_followup_nominal_relative(
@@ -782,7 +1013,7 @@ fn make_rules_object_followup_nominal_relative(
         }
     };
     nominal
-        .complements
+        .declaration_complements_mut()
         .push(NominalComplement::Relative(relative));
     Ok(RulesObjectFollowupNominal::from_nominal(nominal))
 }
@@ -795,14 +1026,23 @@ fn split_rules_object_followup_nominal_relative(
     RelativeClause,
 ) {
     let mut nominal = value.0.clone();
-    let Some(NominalComplement::Relative(relative)) = nominal.complements.pop() else {
+    let Some(NominalComplement::Relative(relative)) = nominal.declaration_complements_mut().pop()
+    else {
         unreachable!("rules-object followup ends in a relative")
     };
-    (
-        None,
-        Some(RulesObjectFollowupNominal::from_nominal(nominal)),
-        relative,
-    )
+    if nominal_has_rules_object_relative_edge(&nominal) {
+        (
+            Some(RulesObjectNominal::from_nominal(nominal)),
+            None,
+            relative,
+        )
+    } else {
+        (
+            None,
+            Some(RulesObjectFollowupNominal::from_nominal(nominal)),
+            relative,
+        )
+    }
 }
 
 fn make_rules_object_followup_nominal_prepositional(
@@ -811,7 +1051,7 @@ fn make_rules_object_followup_nominal_prepositional(
 ) -> Result<RulesObjectFollowupNominal, DeclarationViolation> {
     let mut nominal = nominal.into_nominal();
     nominal
-        .complements
+        .declaration_complements_mut()
         .push(NominalComplement::Prepositional(preposition));
     Ok(RulesObjectFollowupNominal::from_nominal(nominal))
 }
@@ -820,7 +1060,9 @@ fn split_rules_object_followup_nominal_prepositional(
     value: &RulesObjectFollowupNominal,
 ) -> (RulesObjectFollowupNominal, PrepositionalPhrase) {
     let mut nominal = value.0.clone();
-    let Some(NominalComplement::Prepositional(preposition)) = nominal.complements.pop() else {
+    let Some(NominalComplement::Prepositional(preposition)) =
+        nominal.declaration_complements_mut().pop()
+    else {
         unreachable!("rules-object followup ends in a prepositional phrase")
     };
     (
@@ -866,7 +1108,7 @@ fn make_reduced_recipient_passive_nominal_adjunct(
             "adjunct is a nominal noun phrase",
         ));
     };
-    let adjunct = match nominal.head.noun().bare_nominal_adjunct() {
+    let adjunct = match nominal.head().noun().bare_nominal_adjunct() {
         Some(BareNominalAdjunct::Temporal) => PredicateAdjunct::Temporal(noun_phrase),
         Some(BareNominalAdjunct::Manner) => PredicateAdjunct::Manner(noun_phrase),
         None => {
@@ -912,7 +1154,7 @@ fn append_postpositive(
     conjunction: Option<Conjunction>,
     adjective: AdjectivePhrase,
 ) -> Result<NominalPhrase, DeclarationViolation> {
-    let previous = nominal.complements.pop().ok_or_else(|| {
+    let previous = nominal.declaration_complements_mut().pop().ok_or_else(|| {
         violation(
             "nominal_postpositive_adjective_conjoined",
             "a preceding postpositive adjective exists",
@@ -941,7 +1183,7 @@ fn append_postpositive(
         }
     };
     nominal
-        .complements
+        .declaration_complements_mut()
         .push(NominalComplement::CoordinatedAdjective(coordinated));
     Ok(nominal)
 }
@@ -952,10 +1194,7 @@ fn make_nominal_postpositive_adjective_conjoined_prepositional(
     mut adjective: AdjectivePhrase,
     preposition: PrepositionalPhrase,
 ) -> Result<NominalPhrase, DeclarationViolation> {
-    if !matches!(
-        nominal.complements.as_slice(),
-        [NominalComplement::Adjective(_)]
-    ) {
+    if !matches!(nominal.complements(), [NominalComplement::Adjective(_)]) {
         return Err(violation(
             "nominal_postpositive_adjective_conjoined_prepositional",
             "a binary continuation follows exactly one postpositive adjective",
@@ -1002,10 +1241,7 @@ fn make_nominal_postpositive_adjective_conjoined(
     conjunction: Conjunction,
     adjective: AdjectivePhrase,
 ) -> Result<NominalPhrase, DeclarationViolation> {
-    if !matches!(
-        nominal.complements.as_slice(),
-        [NominalComplement::Adjective(_)]
-    ) {
+    if !matches!(nominal.complements(), [NominalComplement::Adjective(_)]) {
         return Err(violation(
             "nominal_postpositive_adjective_conjoined",
             "a binary continuation follows exactly one postpositive adjective",
@@ -1033,7 +1269,7 @@ fn make_nominal_postpositive_adjective_asyndetic(
     nominal: NominalPhrase,
     adjective: AdjectivePhrase,
 ) -> Result<NominalPhrase, DeclarationViolation> {
-    let extends_open_run = match nominal.complements.as_slice() {
+    let extends_open_run = match nominal.complements() {
         [NominalComplement::Adjective(_)] => true,
         [NominalComplement::CoordinatedAdjective(CoordinatedAdjectivePhrase { rest, .. })] => rest
             .last()
@@ -1062,7 +1298,7 @@ fn make_nominal_postpositive_adjective_oxford(
     adjective: AdjectivePhrase,
 ) -> Result<NominalPhrase, DeclarationViolation> {
     if !matches!(
-        nominal.complements.as_slice(),
+        nominal.complements(),
         [NominalComplement::CoordinatedAdjective(CoordinatedAdjectivePhrase {
             rest,
             ..
@@ -1092,7 +1328,8 @@ fn split_postpositive(
     conjoined: bool,
 ) -> (NominalPhrase, Option<Conjunction>, AdjectivePhrase) {
     let mut nominal = value.clone();
-    let Some(NominalComplement::CoordinatedAdjective(mut coordinated)) = nominal.complements.pop()
+    let Some(NominalComplement::CoordinatedAdjective(mut coordinated)) =
+        nominal.declaration_complements_mut().pop()
     else {
         unreachable!("postpositive continuation ends in coordinated adjectives")
     };
@@ -1101,11 +1338,13 @@ fn split_postpositive(
         .pop()
         .expect("coordinated adjective has a continuation");
     assert_eq!(continuation.conjunction.is_some(), conjoined);
-    nominal.complements.push(if coordinated.rest.is_empty() {
-        NominalComplement::Adjective(*coordinated.first)
-    } else {
-        NominalComplement::CoordinatedAdjective(coordinated)
-    });
+    nominal
+        .declaration_complements_mut()
+        .push(if coordinated.rest.is_empty() {
+            NominalComplement::Adjective(*coordinated.first)
+        } else {
+            NominalComplement::CoordinatedAdjective(coordinated)
+        });
     (nominal, continuation.conjunction, continuation.phrase)
 }
 
@@ -1119,12 +1358,16 @@ fn make_nominal_comparison(
             "comparison follows only an open or prepositional nominal",
         ));
     }
-    let adjective = nominal.modifiers.iter_mut().rev().find_map(|modifier| {
-        let NominalModifier::Adjective { phrase, .. } = modifier else {
-            return None;
-        };
-        adjective_is_pending_comparative(phrase).then_some(phrase)
-    });
+    let adjective = nominal
+        .declaration_modifiers_mut()
+        .iter_mut()
+        .rev()
+        .find_map(|modifier| {
+            let NominalModifier::Adjective { phrase, .. } = modifier else {
+                return None;
+            };
+            adjective_is_pending_comparative(phrase).then_some(phrase)
+        });
     let Some(adjective) = adjective else {
         return Err(violation(
             "nominal_comparison",
@@ -1140,7 +1383,7 @@ fn make_nominal_comparison(
 fn split_nominal_comparison(value: &NominalPhrase) -> (NominalPhrase, ComparisonComplement) {
     let mut nominal = value.clone();
     let adjective = nominal
-        .modifiers
+        .declaration_modifiers_mut()
         .iter_mut()
         .rev()
         .find_map(|modifier| match modifier {
@@ -1231,19 +1474,19 @@ fn make_nominal_devotion(
             "head is the rules-defined devotion value",
         ));
     }
-    Ok(NominalPhrase {
-        determiner: None,
-        modifiers: Vec::new(),
-        head: NounInstance::Singular(Noun::Catalog(head)),
-        complements: vec![NominalComplement::Devotion(colors)],
-    })
+    Ok(NominalPhrase::from_projection_parts(
+        None,
+        Vec::new(),
+        NounInstance::Singular(Noun::Catalog(head)),
+        vec![NominalComplement::Devotion(colors)],
+    ))
 }
 
 fn split_nominal_devotion(value: &NominalPhrase) -> (CatalogAtom, DevotionColors) {
-    let Noun::Catalog(head) = value.head.noun() else {
+    let Noun::Catalog(head) = value.head().noun() else {
         unreachable!("devotion nominal has its catalog head")
     };
-    let [NominalComplement::Devotion(colors)] = value.complements.as_slice() else {
+    let [NominalComplement::Devotion(colors)] = value.complements() else {
         unreachable!("devotion nominal has its color complement")
     };
     (head.clone(), *colors)
@@ -1259,23 +1502,23 @@ fn make_nominal_times_clause(
     ) {
         return Err(violation("nominal_times_clause", "head is plural times"));
     }
-    Ok(NominalPhrase {
-        determiner: None,
-        modifiers: Vec::new(),
+    Ok(NominalPhrase::from_projection_parts(
+        None,
+        Vec::new(),
         head,
-        complements: vec![NominalComplement::EventClause(clause)],
-    })
+        vec![NominalComplement::EventClause(clause)],
+    ))
 }
 
 fn split_nominal_times_clause(value: &NominalPhrase) -> (NounInstance, Box<IndependentClause>) {
-    let [NominalComplement::EventClause(clause)] = value.complements.as_slice() else {
+    let [NominalComplement::EventClause(clause)] = value.complements() else {
         unreachable!("times nominal carries one event clause")
     };
-    (value.head.clone(), clause.clone())
+    (value.head().clone(), clause.clone())
 }
 
 fn has_postnominal_comparison(value: &NominalPhrase) -> bool {
-    value.modifiers.iter().any(|modifier| {
+    value.modifiers().iter().any(|modifier| {
         matches!(
             modifier,
             NominalModifier::Adjective { phrase, .. }
@@ -1290,7 +1533,7 @@ fn has_postnominal_comparison(value: &NominalPhrase) -> bool {
 fn general_attachment_base_is_admitted(value: &NominalPhrase) -> bool {
     !has_postnominal_comparison(value)
         && !matches!(
-            value.complements.last(),
+            value.complements().last(),
             Some(
                 NominalComplement::ReducedRecipientPassive(_)
                     | NominalComplement::Adjective(_)
@@ -1303,8 +1546,8 @@ fn prefix_before_final_allows_general_attachment(value: &NominalPhrase) -> bool 
     !has_postnominal_comparison(value)
         && !matches!(
             value
-                .complements
-                .get(..value.complements.len().saturating_sub(1))
+                .complements()
+                .get(..value.complements().len().saturating_sub(1))
                 .and_then(|prefix| prefix.last()),
             Some(
                 NominalComplement::ReducedRecipientPassive(_)
@@ -1316,14 +1559,14 @@ fn prefix_before_final_allows_general_attachment(value: &NominalPhrase) -> bool 
 
 fn has_only_prepositional_complements(value: &NominalPhrase) -> bool {
     value
-        .complements
+        .complements()
         .iter()
         .all(|complement| matches!(complement, NominalComplement::Prepositional(_)))
 }
 
 fn is_devotion_body(value: &NominalPhrase) -> bool {
     matches!(
-        (value.head.kind(), value.complements.as_slice()),
+        (value.head().kind(), value.complements()),
         (
             NounInstanceKind::Singular(Noun::Catalog(atom)),
             [NominalComplement::Devotion(_)]
@@ -1333,7 +1576,7 @@ fn is_devotion_body(value: &NominalPhrase) -> bool {
 
 fn is_times_clause_body(value: &NominalPhrase) -> bool {
     matches!(
-        (value.head.kind(), value.complements.as_slice()),
+        (value.head().kind(), value.complements()),
         (
             NounInstanceKind::Plural(Noun::Word(Vocab::Time)),
             [NominalComplement::EventClause(_)]
@@ -1342,26 +1585,28 @@ fn is_times_clause_body(value: &NominalPhrase) -> bool {
 }
 
 fn prefix_is_outermost(value: &NominalPhrase) -> bool {
-    value.determiner.is_none()
+    value.determiner().is_none()
         && !has_postnominal_comparison(value)
-        && (value.complements.is_empty() || is_devotion_body(value) || is_times_clause_body(value))
+        && (value.complements().is_empty()
+            || is_devotion_body(value)
+            || is_times_clause_body(value))
 }
 
 fn is_nominal_adjective(value: &NominalPhrase) -> bool {
     prefix_is_outermost(value)
         && matches!(
-            value.modifiers.first(),
+            value.modifiers().first(),
             Some(NominalModifier::Adjective {
                 polarity: Polarity::Positive,
-                ..
-            })
+                phrase,
+            }) if attributive_adjective_is_admitted(phrase)
         )
 }
 
 fn is_nominal_noun_modifier(value: &NominalPhrase) -> bool {
     prefix_is_outermost(value)
         && matches!(
-            value.modifiers.first(),
+            value.modifiers().first(),
             Some(NominalModifier::Noun {
                 polarity: Polarity::Positive,
                 ..
@@ -1372,17 +1617,17 @@ fn is_nominal_noun_modifier(value: &NominalPhrase) -> bool {
 fn is_nominal_combat_step_name(value: &NominalPhrase) -> bool {
     prefix_is_outermost(value)
         && matches!(
-            value.modifiers.as_slice(),
+            value.modifiers(),
             [NominalModifier::CombatStepName { participants }]
                 if is_combat_step_participants(participants)
         )
-        && is_combat_step_head(&value.head)
+        && is_combat_step_head(value.head())
 }
 
 fn is_nominal_negated_modifier(value: &NominalPhrase) -> bool {
     prefix_is_outermost(value)
         && matches!(
-            value.modifiers.first(),
+            value.modifiers().first(),
             Some(
                 NominalModifier::Adjective {
                     polarity: Polarity::Negative,
@@ -1398,32 +1643,34 @@ fn is_nominal_negated_modifier(value: &NominalPhrase) -> bool {
 fn is_nominal_quantity_modifier(value: &NominalPhrase) -> bool {
     prefix_is_outermost(value)
         && matches!(
-            value.modifiers.first(),
+            value.modifiers().first(),
             Some(NominalModifier::Quantity(quantity))
-                if cardinality_accepts(quantity.noun_cardinality(), &value.head)
+                if cardinality_accepts(quantity.noun_cardinality(), value.head())
         )
 }
 
 fn is_nominal_power_toughness_modifier(value: &NominalPhrase) -> bool {
     prefix_is_outermost(value)
         && matches!(
-            value.modifiers.first(),
+            value.modifiers().first(),
             Some(NominalModifier::PowerToughness(_))
         )
 }
 
 fn is_nominal_determiner(value: &NominalPhrase) -> bool {
     value
-        .determiner
+        .determiner()
         .as_ref()
-        .is_some_and(|determiner| cardinality_accepts(determiner.noun_cardinality(), &value.head))
+        .is_some_and(|determiner| cardinality_accepts(determiner.noun_cardinality(), value.head()))
         && !has_postnominal_comparison(value)
-        && (value.complements.is_empty() || is_devotion_body(value) || is_times_clause_body(value))
+        && (value.complements().is_empty()
+            || is_devotion_body(value)
+            || is_times_clause_body(value))
 }
 
 fn final_complement(value: &NominalPhrase) -> Option<&NominalComplement> {
     (!has_postnominal_comparison(value))
-        .then(|| value.complements.last())
+        .then(|| value.complements().last())
         .flatten()
 }
 
@@ -1431,7 +1678,8 @@ fn is_nominal_prepositional(value: &NominalPhrase) -> bool {
     prefix_before_final_allows_general_attachment(value)
         && matches!(
             final_complement(value),
-            Some(NominalComplement::Prepositional(_))
+            Some(NominalComplement::Prepositional(preposition))
+                if prepositional_nominal_attachment_is_admitted(preposition)
         )
 }
 
@@ -1452,15 +1700,15 @@ fn is_nominal_quantity_complement(value: &NominalPhrase) -> bool {
 }
 
 fn keyword_atom(value: &NominalPhrase) -> Option<&CatalogAtom> {
-    keyword_atom_from_head(&value.head)
+    keyword_atom_from_head(value.head())
 }
 
 fn is_nominal_keyword_symbol_single(value: &NominalPhrase) -> bool {
     keyword_atom(value).is_some()
-        && value.determiner.is_none()
-        && value.modifiers.is_empty()
+        && value.determiner().is_none()
+        && value.modifiers().is_empty()
         && matches!(
-            value.complements.as_slice(),
+            value.complements(),
             [NominalComplement::KeywordArgument(KeywordArgument::Costed(
                 KeywordCost::Symbols(symbols)
             ))] if symbols.len() == 1
@@ -1469,10 +1717,10 @@ fn is_nominal_keyword_symbol_single(value: &NominalPhrase) -> bool {
 
 fn is_nominal_keyword_symbol_sequence(value: &NominalPhrase) -> bool {
     keyword_atom(value).is_some()
-        && value.determiner.is_none()
-        && value.modifiers.is_empty()
+        && value.determiner().is_none()
+        && value.modifiers().is_empty()
         && matches!(
-            value.complements.as_slice(),
+            value.complements(),
             [NominalComplement::KeywordArgument(KeywordArgument::Costed(
                 KeywordCost::Symbols(symbols)
             ))] if symbols.len() >= 2
@@ -1481,10 +1729,10 @@ fn is_nominal_keyword_symbol_sequence(value: &NominalPhrase) -> bool {
 
 fn is_nominal_keyword_predicated_argument(value: &NominalPhrase) -> bool {
     keyword_atom(value).is_some_and(|atom| !crate::grammar::keyword_atom_carries_from(atom))
-        && value.determiner.is_none()
-        && value.modifiers.is_empty()
+        && value.determiner().is_none()
+        && value.modifiers().is_empty()
         && matches!(
-            value.complements.as_slice(),
+            value.complements(),
             [NominalComplement::KeywordArgument(KeywordArgument::Predicated(argument))]
                 if !argument.qualities.is_empty()
                     && argument.qualities.iter().all(|quality| quality.preposition == Some(Preposition::From))
@@ -1493,10 +1741,10 @@ fn is_nominal_keyword_predicated_argument(value: &NominalPhrase) -> bool {
 
 fn is_nominal_keyword_atom_carried_predicated_argument(value: &NominalPhrase) -> bool {
     keyword_atom(value).is_some_and(crate::grammar::keyword_atom_carries_from)
-        && value.determiner.is_none()
-        && value.modifiers.is_empty()
+        && value.determiner().is_none()
+        && value.modifiers().is_empty()
         && matches!(
-            value.complements.as_slice(),
+            value.complements(),
             [NominalComplement::KeywordArgument(KeywordArgument::Predicated(argument))]
                 if !argument.qualities.is_empty()
                     && argument.qualities.first().is_some_and(|quality| quality.preposition.is_none())
@@ -1529,14 +1777,11 @@ fn final_coordinated_adjective(value: &NominalPhrase) -> Option<&CoordinatedAdje
 }
 
 fn is_nominal_postpositive_adjective(value: &NominalPhrase) -> bool {
-    matches!(
-        value.complements.as_slice(),
-        [NominalComplement::Adjective(_)]
-    )
+    matches!(value.complements(), [NominalComplement::Adjective(_)])
 }
 
 fn is_nominal_postpositive_adjective_conjoined_prepositional(value: &NominalPhrase) -> bool {
-    value.complements.len() == 1
+    value.complements().len() == 1
         && final_coordinated_adjective(value).is_some_and(|coordinated| {
             coordinated.rest.len() == 1
                 && coordinated.rest.last().is_some_and(|last| {
@@ -1553,7 +1798,7 @@ fn is_nominal_postpositive_adjective_conjoined_prepositional(value: &NominalPhra
 }
 
 fn is_nominal_postpositive_adjective_conjoined(value: &NominalPhrase) -> bool {
-    value.complements.len() == 1
+    value.complements().len() == 1
         && final_coordinated_adjective(value).is_some_and(|coordinated| {
             coordinated.rest.len() == 1
                 && coordinated.rest[0].conjunction.is_some()
@@ -1565,14 +1810,14 @@ fn is_nominal_postpositive_adjective_conjoined(value: &NominalPhrase) -> bool {
 }
 
 fn is_nominal_postpositive_adjective_asyndetic(value: &NominalPhrase) -> bool {
-    value.complements.len() == 1
+    value.complements().len() == 1
         && final_coordinated_adjective(value)
             .and_then(|coordinated| coordinated.rest.last())
             .is_some_and(|last| last.conjunction.is_none())
 }
 
 fn is_nominal_postpositive_adjective_oxford(value: &NominalPhrase) -> bool {
-    value.complements.len() == 1
+    value.complements().len() == 1
         && final_coordinated_adjective(value).is_some_and(|coordinated| {
             coordinated.rest.len() >= 2
                 && coordinated
@@ -1585,7 +1830,7 @@ fn is_nominal_postpositive_adjective_oxford(value: &NominalPhrase) -> bool {
 fn is_nominal_comparison(value: &NominalPhrase) -> bool {
     has_only_prepositional_complements(value)
         && value
-            .modifiers
+            .modifiers()
             .iter()
             .filter_map(|modifier| match modifier {
                 NominalModifier::Adjective { phrase, .. }
@@ -1600,17 +1845,17 @@ fn is_nominal_comparison(value: &NominalPhrase) -> bool {
 }
 
 fn is_nominal_devotion(value: &NominalPhrase) -> bool {
-    value.determiner.is_none() && value.modifiers.is_empty() && is_devotion_body(value)
+    value.determiner().is_none() && value.modifiers().is_empty() && is_devotion_body(value)
 }
 
 fn is_nominal_times_clause(value: &NominalPhrase) -> bool {
-    value.determiner.is_none() && value.modifiers.is_empty() && is_times_clause_body(value)
+    value.determiner().is_none() && value.modifiers().is_empty() && is_times_clause_body(value)
 }
 
 deckmaste_constructions_macro::constructions! {
     group nominal;
 
-    lens nominal_phrase bind NominalPhrase {
+    lens nominal_phrase bind NominalPhrase via NominalPhrase::from_projection_parts, NominalPhrase::into_projection_parts {
         determiner: opt Determiner,
         modifiers: vec NominalModifier,
         head: value NounInstance,
@@ -1624,7 +1869,7 @@ deckmaste_constructions_macro::constructions! {
         lens nominal_phrase {
             focus head with head;
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_noun(head);
         form only @ 0 = head;
         selection unique;
     }
@@ -1634,7 +1879,8 @@ deckmaste_constructions_macro::constructions! {
             adjective: hole AdjectivePhrase,
             nominal: hole NominalPhrase,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_adjective(adjective, nominal);
+        derive base_precedence: Features = mark_generated_cost(adjective);
         form only @ 0 inverse check(is_nominal_adjective) = adjective nominal;
         selection unique;
     }
@@ -1644,7 +1890,8 @@ deckmaste_constructions_macro::constructions! {
             noun: hole NounInstance,
             nominal: hole NominalPhrase,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_noun_modifier(noun, nominal);
+        derive base_precedence: Features = mark_generated_cost(noun);
         form only @ 0 inverse check(is_nominal_noun_modifier) = noun nominal;
         selection unique;
     }
@@ -1654,7 +1901,7 @@ deckmaste_constructions_macro::constructions! {
             participants: identity NounInstance via CombatStepParticipants,
             head: identity NounInstance via CombatStepHead,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_combat_step_name(participants, head);
         form only @ 0 inverse check(is_nominal_combat_step_name) = "declare" identity(participants) identity(head);
         selection unique;
     }
@@ -1667,7 +1914,8 @@ deckmaste_constructions_macro::constructions! {
         lens nominal_phrase from nominal {
             prepend modifiers with modifier;
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_negated_modifier(nominal);
+        derive base_precedence: Features = mark_generated_cost(nominal);
         form only @ 0 inverse check(is_nominal_negated_modifier) = identity(modifier) nominal;
         selection unique;
     }
@@ -1677,7 +1925,8 @@ deckmaste_constructions_macro::constructions! {
             quantity: hole Quantity,
             nominal: hole NominalPhrase,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_quantity_modifier(quantity, nominal);
+        derive base_precedence: Features = mark_generated_cost(quantity);
         form only @ 0 inverse check(is_nominal_quantity_modifier) = quantity nominal;
         dominates nominal_prepositional;
         dominates nominal_postpositive_adjective;
@@ -1690,7 +1939,8 @@ deckmaste_constructions_macro::constructions! {
             stats: hole PowerToughness,
             nominal: hole NominalPhrase,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_power_toughness_modifier(stats, nominal);
+        derive base_precedence: Features = mark_generated_cost(stats);
         form only @ 0 inverse check(is_nominal_power_toughness_modifier) = stats nominal;
         selection unique;
     }
@@ -1703,7 +1953,7 @@ deckmaste_constructions_macro::constructions! {
         lens nominal_phrase from nominal {
             focus determiner with determiner;
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_determiner(determiner, nominal);
         form only @ 0 inverse check(is_nominal_determiner) = determiner nominal;
         dominates nominal_comparison;
         selection unique;
@@ -1714,7 +1964,8 @@ deckmaste_constructions_macro::constructions! {
             nominal: hole NominalPhrase,
             preposition: hole PrepositionalPhrase,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_prepositional(nominal, preposition);
+        evidence feature "nominal attachment phase" from output attachment;
         form only @ 0 inverse check(is_nominal_prepositional) = nominal preposition;
         dominates nominal_infinitive;
         dominates nominal_coordinated_modifier;
@@ -1728,7 +1979,8 @@ deckmaste_constructions_macro::constructions! {
             nominal: hole NominalPhrase,
             infinitive: hole InfinitiveClause,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_infinitive(nominal, infinitive);
+        derive precedence: Features = disprefer_recipient_passive_theme_infinitive(nominal);
         form only @ 0 inverse check(is_nominal_infinitive) = nominal infinitive;
         selection unique;
     }
@@ -1738,7 +1990,8 @@ deckmaste_constructions_macro::constructions! {
             nominal: hole NominalPhrase,
             quantity: hole Quantity,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_quantity_complement(nominal, quantity);
+        derive base_precedence: Features = mark_generated_cost(quantity);
         form only @ 0 inverse check(is_nominal_quantity_complement) = nominal quantity;
         selection unique;
     }
@@ -1749,7 +2002,7 @@ deckmaste_constructions_macro::constructions! {
             symbol: opt lex OracleSymbol,
             sequence: opt lex SymbolSequence,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_keyword_symbol_argument(head);
         form symbol @ 0 when symbol.is_some() inverse check(is_nominal_keyword_symbol_single) = identity(head) lex(symbol);
         form sequence @ 1 inverse check(is_nominal_keyword_symbol_sequence) otherwise = identity(head) lex(sequence);
         selection unique;
@@ -1762,9 +2015,9 @@ deckmaste_constructions_macro::constructions! {
             noun_phrase: opt hole NounPhrase,
         }
         require preposition in [From, For];
-        derive features = nominal();
-        form color @ 0 when color.is_some() = lex(preposition) lex(color);
-        form noun_phrase @ 1 otherwise = lex(preposition) noun_phrase;
+        derive features: Features = reduce_predicated_quality();
+        form color @ 0 when color.is_some() inverse check(is_linearizable_predicated_quality_introduced) = lex(preposition) lex(color);
+        form noun_phrase @ 1 inverse check(is_linearizable_predicated_quality_introduced) otherwise = lex(preposition) noun_phrase;
         selection unique;
     }
 
@@ -1772,8 +2025,8 @@ deckmaste_constructions_macro::constructions! {
         bind PredicatedArgument via make_predicated_argument_from_single, split_predicated_argument_single {
             quality: hole PredicatedQualityFrom,
         }
-        derive features = nominal();
-        form only @ 0 = quality;
+        derive features: Features = reduce_predicated_argument_single(quality);
+        form only @ 0 inverse check(is_predicated_argument_from_single) = quality;
         selection unique;
     }
 
@@ -1784,8 +2037,9 @@ deckmaste_constructions_macro::constructions! {
             quality: hole PredicatedQualityFrom,
         }
         require conjunction in [And];
-        derive features = nominal();
-        form only @ 0 = argument lex(conjunction) quality;
+        evidence guard "keyword-grant conjunction gate" from requirement conjunction;
+        derive features: Features = reduce_predicated_argument_extend(argument, conjunction, quality);
+        form only @ 0 inverse check(is_predicated_argument_from_extend) = argument lex(conjunction) quality;
         selection unique;
     }
 
@@ -1794,7 +2048,7 @@ deckmaste_constructions_macro::constructions! {
             head: identity NounInstance via ExplicitPredicatedKeywordNoun,
             argument: hole PredicatedArgumentFrom,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_keyword_predicated_argument(head, argument);
         form only @ 0 inverse check(is_nominal_keyword_predicated_argument) = identity(head) argument;
         selection unique;
     }
@@ -1805,10 +2059,10 @@ deckmaste_constructions_macro::constructions! {
             adjective: opt hole AdjectivePhrase,
             noun_phrase: opt hole NounPhrase,
         }
-        derive features = nominal();
-        form color @ 0 when color.is_some() = lex(color);
-        form adjective @ 1 when all(color.is_none(), adjective.is_some()) = adjective;
-        form noun_phrase @ 2 otherwise = noun_phrase;
+        derive features: Features = reduce_predicated_quality();
+        form color @ 0 when color.is_some() inverse check(is_declared_predicated_quality_bare) = lex(color);
+        form adjective @ 1 when all(color.is_none(), adjective.is_some()) inverse check(is_declared_predicated_quality_bare) = adjective;
+        form noun_phrase @ 2 inverse check(is_declared_predicated_quality_bare) otherwise = noun_phrase;
         selection unique;
     }
 
@@ -1816,8 +2070,8 @@ deckmaste_constructions_macro::constructions! {
         bind PredicatedArgument via make_predicated_argument_bare_single, split_predicated_argument_single {
             quality: hole PredicatedQualityBare,
         }
-        derive features = nominal();
-        form only @ 0 = quality;
+        derive features: Features = reduce_predicated_argument_single(quality);
+        form only @ 0 inverse check(is_predicated_argument_bare_single) = quality;
         selection unique;
     }
 
@@ -1828,8 +2082,9 @@ deckmaste_constructions_macro::constructions! {
             quality: hole PredicatedQualityFrom,
         }
         require conjunction in [And];
-        derive features = nominal();
-        form only @ 0 = argument lex(conjunction) quality;
+        evidence guard "keyword-grant conjunction gate" from requirement conjunction;
+        derive features: Features = reduce_predicated_argument_extend(argument, conjunction, quality);
+        form only @ 0 inverse check(is_predicated_argument_bare_extend) = argument lex(conjunction) quality;
         selection unique;
     }
 
@@ -1838,7 +2093,7 @@ deckmaste_constructions_macro::constructions! {
             head: identity NounInstance via AtomCarriedPredicatedKeywordNoun,
             argument: hole PredicatedArgumentBare,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_keyword_predicated_argument(head, argument);
         form only @ 0 inverse check(is_nominal_keyword_atom_carried_predicated_argument) = identity(head) argument;
         selection unique;
     }
@@ -1848,7 +2103,9 @@ deckmaste_constructions_macro::constructions! {
             nominal: hole NominalPhrase,
             relative: hole RelativeClause,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_relative(nominal, relative);
+        derive precedence: Features = disprefer_nearer_relative_host(nominal);
+        derive attachment_distance: Features = mark_rules_object_relative_attachment(relative);
         form only @ 0 inverse check(is_nominal_relative) = nominal relative;
         dominates nominal_prepositional;
         selection unique;
@@ -1858,7 +2115,8 @@ deckmaste_constructions_macro::constructions! {
         bind RulesObjectNominal via make_rules_object_nominal_base, split_rules_object_nominal_base {
             nominal: hole NominalPhrase,
         }
-        derive features = nominal();
+        derive features: Features = reduce_rules_object_nominal_base(nominal);
+        evidence role "rules-object attachment role" from category;
         form only @ 0 = nominal;
         selection unique;
     }
@@ -1869,7 +2127,9 @@ deckmaste_constructions_macro::constructions! {
             followup: opt hole RulesObjectFollowupNominal,
             relative: hole RelativeClause,
         }
-        derive features = nominal();
+        derive features: Features = reduce_rules_object_followup_relative(base, followup, relative);
+        derive attachment_extent: Features = mark_rules_object_followup_relative_attachment(base, followup, relative);
+        evidence role "rules-object attachment role" from category;
         form base @ 0 when base.is_some() = base relative;
         form followup @ 1 otherwise = followup relative;
         selection unique;
@@ -1880,7 +2140,9 @@ deckmaste_constructions_macro::constructions! {
             nominal: hole RulesObjectFollowupNominal,
             preposition: hole PrepositionalPhrase,
         }
-        derive features = nominal();
+        derive features: Features = reduce_rules_object_followup_prepositional(nominal, preposition);
+        derive attachment_extent: Features = mark_rules_object_followup_prepositional_attachment(nominal, preposition);
+        evidence role "rules-object attachment role" from category;
         form only @ 0 = nominal preposition;
         selection unique;
     }
@@ -1890,7 +2152,8 @@ deckmaste_constructions_macro::constructions! {
             nominal: hole NominalPhrase,
             predicate: hole TransitivePredicate,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_reduced_recipient_passive(nominal, predicate);
+        evidence guard "reduced-recipient-passive frame" from field predicate.frame;
         form only @ 0 inverse check(is_nominal_reduced_recipient_passive) = nominal predicate;
         dominates nominal_noun;
         selection unique;
@@ -1900,7 +2163,7 @@ deckmaste_constructions_macro::constructions! {
         bind ReducedRecipientPassiveTheme via make_reduced_recipient_passive_theme, split_reduced_recipient_passive_theme {
             nominal: hole NominalPhrase,
         }
-        derive features = nominal();
+        derive features: Features = reduce_recipient_passive_theme(nominal);
         form only @ 0 = nominal;
         selection unique;
     }
@@ -1910,7 +2173,9 @@ deckmaste_constructions_macro::constructions! {
             predicate: hole TransitivePredicate,
             noun_phrase: hole NounPhrase,
         }
-        derive features = nominal();
+        derive features: Features = reduce_recipient_passive_nominal_adjunct(predicate, noun_phrase);
+        derive prefix_admission: Features = admit_recipient_passive_prefix(predicate);
+        evidence guard "reduced-recipient-passive frame" from field predicate.frame;
         form only @ 0 = predicate noun_phrase;
         selection unique;
     }
@@ -1920,7 +2185,7 @@ deckmaste_constructions_macro::constructions! {
             nominal: hole NominalPhrase,
             adjective: hole AdjectivePhrase,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_postpositive_adjective(nominal, adjective);
         form only @ 0 inverse check(is_nominal_postpositive_adjective) = nominal adjective;
         selection unique;
     }
@@ -1932,7 +2197,8 @@ deckmaste_constructions_macro::constructions! {
             adjective: hole AdjectivePhrase,
             preposition: hole PrepositionalPhrase,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_postpositive_adjective_conjoined_prepositional(nominal, conjunction, adjective, preposition);
+        derive base_attachment_count: Features = mark_generated_cost(preposition);
         form only @ 0 inverse check(is_nominal_postpositive_adjective_conjoined_prepositional) = nominal lex(conjunction) adjective preposition;
         selection unique;
     }
@@ -1943,7 +2209,7 @@ deckmaste_constructions_macro::constructions! {
             conjunction: lex Conjunction,
             adjective: hole AdjectivePhrase,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_postpositive_adjective_continuation(nominal, conjunction, adjective);
         form only @ 0 inverse check(is_nominal_postpositive_adjective_conjoined) = nominal lex(conjunction) adjective;
         selection unique;
     }
@@ -1953,7 +2219,7 @@ deckmaste_constructions_macro::constructions! {
             nominal: hole NominalPhrase,
             adjective: hole AdjectivePhrase,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_postpositive_adjective_asyndetic(nominal, adjective);
         form only @ 0 inverse check(is_nominal_postpositive_adjective_asyndetic) = nominal "," adjective;
         selection unique;
     }
@@ -1964,7 +2230,7 @@ deckmaste_constructions_macro::constructions! {
             conjunction: lex Conjunction,
             adjective: hole AdjectivePhrase,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_postpositive_adjective_continuation(nominal, conjunction, adjective);
         form only @ 0 inverse check(is_nominal_postpositive_adjective_oxford) = nominal "," lex(conjunction) adjective;
         selection unique;
     }
@@ -1974,7 +2240,7 @@ deckmaste_constructions_macro::constructions! {
             nominal: hole NominalPhrase,
             comparison: hole ComparisonComplement,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_comparison(nominal, comparison);
         form only @ 0 inverse check(is_nominal_comparison) = nominal comparison;
         selection unique;
     }
@@ -1984,7 +2250,7 @@ deckmaste_constructions_macro::constructions! {
             head: identity CatalogAtom via DevotionValue,
             colors: hole DevotionColors,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_devotion(head, colors);
         form only @ 0 inverse check(is_nominal_devotion) = identity(head) "to" colors;
         selection unique;
     }
@@ -1993,8 +2259,8 @@ deckmaste_constructions_macro::constructions! {
         bind DevotionColors via make_devotion_color_single, split_devotion_color_single {
             color: lex ColorWord,
         }
-        derive features = nominal();
-        form only @ 0 = lex(color);
+        derive features: Features = reduce_devotion_color_single(color);
+        form only @ 0 inverse check(is_devotion_color_single) = lex(color);
         selection unique;
     }
 
@@ -2005,8 +2271,8 @@ deckmaste_constructions_macro::constructions! {
             second: lex ColorWord,
         }
         require conjunction in [And];
-        derive features = nominal();
-        form only @ 0 = lex(first) lex(conjunction) lex(second);
+        derive features: Features = reduce_devotion_color_pair(first, conjunction, second);
+        form only @ 0 inverse check(is_devotion_color_pair) = lex(first) lex(conjunction) lex(second);
         selection unique;
     }
 
@@ -2015,19 +2281,13 @@ deckmaste_constructions_macro::constructions! {
             head: identity NounInstance via TimesNoun,
             clause: hole box IndependentClause,
         }
-        derive features = nominal();
+        derive features: Features = reduce_nominal_times_clause(head, clause);
         form only @ 0 inverse check(is_nominal_times_clause) = identity(head) clause;
         selection unique;
     }
 }
 
 pub(crate) static GROUPS: &[&GroupData] = &[&NOMINAL_DECLARATION];
-
-fn no_nominal_family_match<E>() -> deckmaste_construction_compiler::runtime::LinearizationError<E> {
-    deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
-        group: "nominal",
-    }
-}
 
 fn is_linearizable_predicated_quality_introduced(value: &PredicatedQuality) -> bool {
     is_linearizable_predicated_preposition(value.preposition)
@@ -2042,107 +2302,55 @@ fn is_declared_predicated_quality_bare(value: &PredicatedQuality) -> bool {
         )
 }
 
-pub(crate) fn linearize_predicated_quality_from_family_with<V>(
-    value: &PredicatedQuality,
-    visitor: &mut V,
-) -> Result<(), deckmaste_construction_compiler::runtime::LinearizationError<V::Error>>
-where
-    V: deckmaste_construction_compiler::runtime::LinearizationVisitor,
-{
-    if !is_linearizable_predicated_quality_introduced(value) {
-        return Err(no_nominal_family_match());
-    }
-    linearize_predicated_quality_from_with(value, visitor)
-}
-
-pub(crate) fn linearize_predicated_quality_bare_family_with<V>(
-    value: &PredicatedQuality,
-    visitor: &mut V,
-) -> Result<(), deckmaste_construction_compiler::runtime::LinearizationError<V::Error>>
-where
-    V: deckmaste_construction_compiler::runtime::LinearizationVisitor,
-{
-    if !is_declared_predicated_quality_bare(value) {
-        return Err(no_nominal_family_match());
-    }
-    linearize_predicated_quality_bare_with(value, visitor)
-}
-
-pub(crate) fn linearize_predicated_argument_from_family_with<V>(
-    value: &PredicatedArgument,
-    visitor: &mut V,
-) -> Result<(), deckmaste_construction_compiler::runtime::LinearizationError<V::Error>>
-where
-    V: deckmaste_construction_compiler::runtime::LinearizationVisitor,
-{
-    if value.qualities.is_empty()
-        || !value
+fn is_predicated_argument_from_single(value: &PredicatedArgument) -> bool {
+    value.qualities.len() == 1
+        && value
             .qualities
             .iter()
             .all(is_linearizable_predicated_quality_introduced)
-    {
-        return Err(no_nominal_family_match());
-    }
-    if value.qualities.len() == 1 {
-        linearize_predicated_argument_from_single_with(value, visitor)
-    } else {
-        linearize_predicated_argument_from_extend_with(value, visitor)
-    }
 }
 
-pub(crate) fn linearize_predicated_argument_bare_family_with<V>(
-    value: &PredicatedArgument,
-    visitor: &mut V,
-) -> Result<(), deckmaste_construction_compiler::runtime::LinearizationError<V::Error>>
-where
-    V: deckmaste_construction_compiler::runtime::LinearizationVisitor,
-{
-    let Some((first, rest)) = value.qualities.split_first() else {
-        return Err(no_nominal_family_match());
-    };
-    if !is_declared_predicated_quality_bare(first)
-        || !rest
+fn is_predicated_argument_from_extend(value: &PredicatedArgument) -> bool {
+    value.qualities.len() >= 2
+        && value
+            .qualities
             .iter()
             .all(is_linearizable_predicated_quality_introduced)
-    {
-        return Err(no_nominal_family_match());
-    }
-    if rest.is_empty() {
-        linearize_predicated_argument_bare_single_with(value, visitor)
-    } else {
-        linearize_predicated_argument_bare_extend_with(value, visitor)
-    }
 }
 
-pub(crate) fn linearize_predicated_argument_family_with<V>(
-    value: &PredicatedArgument,
-    visitor: &mut V,
-) -> Result<(), deckmaste_construction_compiler::runtime::LinearizationError<V::Error>>
-where
-    V: deckmaste_construction_compiler::runtime::LinearizationVisitor,
-{
-    if value
-        .qualities
-        .first()
-        .is_some_and(is_linearizable_predicated_quality_introduced)
-    {
-        linearize_predicated_argument_from_family_with(value, visitor)
-    } else {
-        linearize_predicated_argument_bare_family_with(value, visitor)
-    }
+fn is_predicated_argument_bare_single(value: &PredicatedArgument) -> bool {
+    value.qualities.len() == 1
+        && value
+            .qualities
+            .first()
+            .is_some_and(is_declared_predicated_quality_bare)
 }
 
-pub(crate) fn linearize_devotion_colors_family_with<V>(
-    value: DevotionColors,
-    visitor: &mut V,
-) -> Result<(), deckmaste_construction_compiler::runtime::LinearizationError<V::Error>>
-where
-    V: deckmaste_construction_compiler::runtime::LinearizationVisitor,
-{
-    match value {
-        DevotionColors::Color(_) => linearize_devotion_color_single_with(&value, visitor),
-        DevotionColors::Pair(..) => linearize_devotion_color_pair_with(&value, visitor),
-    }
+fn is_predicated_argument_bare_extend(value: &PredicatedArgument) -> bool {
+    let Some((first, rest)) = value.qualities.split_first() else {
+        return false;
+    };
+    !rest.is_empty()
+        && is_declared_predicated_quality_bare(first)
+        && rest
+            .iter()
+            .all(is_linearizable_predicated_quality_introduced)
+}
+
+#[allow(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "generated inverse checks receive borrowed declaration fields"
+)]
+const fn is_devotion_color_single(value: &DevotionColors) -> bool {
+    matches!(value, DevotionColors::Color(_))
+}
+
+#[allow(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "generated inverse checks receive borrowed declaration fields"
+)]
+const fn is_devotion_color_pair(value: &DevotionColors) -> bool {
+    matches!(value, DevotionColors::Pair(..))
 }
 
 #[cfg(test)]
@@ -2150,68 +2358,83 @@ mod tests {
     use super::*;
     use crate::word::Adjective;
 
-    const M01_IDS: [&str; 37] = [
-        "nominal_noun",
-        "nominal_adjective",
-        "nominal_noun_modifier",
-        "nominal_combat_step_name",
-        "nominal_negated_modifier",
-        "nominal_quantity_modifier",
-        "nominal_power_toughness_modifier",
-        "nominal_determiner",
-        "nominal_prepositional",
-        "nominal_infinitive",
-        "nominal_quantity_complement",
-        "nominal_keyword_symbol_argument",
-        "predicated_quality_from",
-        "predicated_argument_from_single",
-        "predicated_argument_from_extend",
-        "nominal_keyword_predicated_argument",
-        "predicated_quality_bare",
-        "predicated_argument_bare_single",
-        "predicated_argument_bare_extend",
-        "nominal_keyword_atom_carried_predicated_argument",
-        "nominal_relative",
-        "rules_object_nominal_base",
-        "rules_object_followup_nominal_relative",
-        "rules_object_followup_nominal_prepositional",
-        "nominal_reduced_recipient_passive",
-        "reduced_recipient_passive_theme",
-        "reduced_recipient_passive_nominal_adjunct",
-        "nominal_postpositive_adjective",
-        "nominal_postpositive_adjective_conjoined_prepositional",
-        "nominal_postpositive_adjective_conjoined",
-        "nominal_postpositive_adjective_asyndetic",
-        "nominal_postpositive_adjective_oxford",
-        "nominal_comparison",
-        "nominal_devotion",
-        "devotion_color_single",
-        "devotion_color_pair",
-        "nominal_times_clause",
-    ];
-
     #[test]
     fn declaration_metadata_names_every_m01_builder_and_feature_projection() {
         // Mutations caught: omit or rename an atomic M01 row, retain a row
-        // without its checked builder, or bypass declaration-selected feature
-        // reduction for one nominal construction.
-        assert_eq!(
-            NOMINAL_DECLARATION
-                .constructions
-                .iter()
-                .map(|construction| construction.id)
-                .collect::<Vec<_>>(),
-            M01_IDS,
-        );
+        // without its checked builder, or fall back to the former shared
+        // `nominal` ID dispatcher instead of a declaration-selected callback.
+        assert_eq!(NOMINAL_DECLARATION.constructions.len(), 37);
         assert!(
             NOMINAL_DECLARATION
                 .constructions
                 .iter()
-                .all(|construction| construction.erased_builder.is_some()
-                    && construction.bind_path.is_some()
-                    && construction.feature_combinators.len() == 1
-                    && construction.feature_combinators[0].combinator == "nominal")
+                .all(|construction| {
+                    let mut projections = construction
+                        .feature_combinators
+                        .iter()
+                        .filter(|projection| projection.target == "features");
+                    let Some(projection) = projections.next() else {
+                        return false;
+                    };
+                    if projections.next().is_some() {
+                        return false;
+                    }
+                    construction.erased_builder.is_some()
+                        && construction.bind_path.is_some()
+                        && projection.combinator.starts_with("reduce_")
+                        && projection.combinator != "nominal"
+                        && projection.args.iter().all(|argument| {
+                            construction
+                                .fields
+                                .iter()
+                                .any(|field| field.name == *argument)
+                        })
+                })
         );
+    }
+
+    #[test]
+    fn declaration_typed_precedence_callbacks_own_nominal_cost_gates() {
+        fn nominal(recipient_passive_theme: bool) -> Features {
+            crate::grammar::reduction::reduce_nominal_noun(&Features::Noun {
+                identity: None,
+                coordination_domain: None,
+                form: crate::grammar::NounForm::Singular,
+                initial_sound: crate::features::Onset::Consonant,
+                adjunct: None,
+                opaque: false,
+                recipient_passive_theme,
+            })
+            .expect("noun features produce nominal features")
+        }
+
+        let infinitive = NOMINAL_DECLARATION
+            .constructions
+            .iter()
+            .position(|construction| construction.id == "nominal_infinitive")
+            .expect("infinitive declaration");
+        let passive_theme = nominal(true);
+        let ordinary = nominal(false);
+        assert!(reduce_nominal_precedence(infinitive, &[Some(&passive_theme), None]).is_some());
+        assert!(reduce_nominal_precedence(infinitive, &[Some(&ordinary), None]).is_none());
+
+        let relative = NOMINAL_DECLARATION
+            .constructions
+            .iter()
+            .position(|construction| construction.id == "nominal_relative")
+            .expect("relative declaration");
+        let nearer_host = crate::grammar::reduction::reduce_nominal_prepositional(
+            &ordinary,
+            &Features::PrepositionalPhrase {
+                preposition: Preposition::Of,
+                nominal_attachment: true,
+                shared_determiner_object: false,
+                nearer_relative_host: true,
+            },
+        )
+        .expect("preposition opens a nearer relative host");
+        assert!(reduce_nominal_precedence(relative, &[Some(&nearer_host), None]).is_some());
+        assert!(reduce_nominal_precedence(relative, &[Some(&ordinary), None]).is_none());
     }
 
     #[test]
@@ -2365,17 +2588,74 @@ mod tests {
         reason = "the ordered table intentionally keeps all 37 atomic M01 projections visible in one drift gate"
     )]
     fn every_m01_checked_builder_round_trips_through_generated_parts() {
-        // Mutations caught: omit a checked door or generated destructurer,
-        // wire one declaration to the wrong adapter, reorder its fields, or
-        // let a checked builder manufacture a value its parts projection does
-        // not recognize. The final ordered assertion keeps this behavioral
-        // table in lockstep with the complete atomic M01 declaration list.
+        // Mutations caught: omit a checked door, generated destructurer, or
+        // per-form inverse; wire one declaration to the wrong adapter; reorder
+        // fields; or let a different construction take credit for an emitted
+        // surface. The final ordered assertion keeps this behavioral table in
+        // lockstep with the complete atomic M01 declaration list.
         let mut exercised = Vec::new();
+        let mut exercised_forms = Vec::new();
+        let exact_catalogs = crate::Catalogs::default()
+            .with_catalog(
+                CatalogKind::KeywordAbility,
+                ["Ward", "Protection", "Hexproof", "Hexproof from"],
+            )
+            .with_catalog(CatalogKind::CardType, ["Creature"]);
+        macro_rules! exact_form {
+            ($id:literal, $value:expr, $ordinal:literal, $linearizer:path) => {{
+                let source = crate::renderer::render_nominal_construction_form(
+                    &$value,
+                    $ordinal,
+                    |value, ordinal, visitor| $linearizer(value, ordinal, visitor),
+                )
+                .unwrap_or_else(|error| {
+                    panic!(
+                        "{} form {} did not linearize through its emitted entry: {error:?}",
+                        $id, $ordinal
+                    )
+                });
+                exercised_forms.push(($id, $ordinal));
+                let category = NOMINAL_DECLARATION
+                    .constructions
+                    .iter()
+                    .find(|construction| construction.id == $id)
+                    .unwrap_or_else(|| panic!("missing M01 construction {}", $id))
+                    .category;
+                let orders = crate::grammar::exact::parse_production_as_declared_category_in_both_orders(
+                    &source,
+                    &exact_catalogs,
+                    category,
+                    &$value,
+                    100_000,
+                )
+                .unwrap_or_else(|error| {
+                    panic!(
+                        "{} form {} exact parse failed for {source:?}: {error:?}",
+                        $id, $ordinal
+                    )
+                });
+                for parses in orders {
+                    let actual_roots = parses
+                        .iter()
+                        .map(|parse| {
+                            (parse.ast().construction, parse.ast().form_ordinal)
+                        })
+                        .collect::<std::collections::BTreeSet<_>>();
+                    let expected_roots = std::collections::BTreeSet::from([($id, $ordinal)]);
+                    assert_eq!(
+                        actual_roots, expected_roots,
+                        "{} form {} rendered {source:?}, but exact parsing attributed it to {parses:#?}",
+                        $id, $ordinal,
+                    );
+                }
+            }};
+        }
         macro_rules! records {
-            ($id:literal, $value:expr, $rebuilt:expr) => {{
+            ($id:literal, $value:expr, $rebuilt:expr, $linearizer:path) => {{
                 let value = $value;
                 let rebuilt = $rebuilt;
                 assert_eq!(rebuilt, value, "{} projection", $id);
+                exact_form!($id, value, 0, $linearizer);
                 exercised.push($id);
                 value
             }};
@@ -2387,7 +2667,8 @@ mod tests {
         records!(
             "nominal_noun",
             nominal_noun,
-            build_nominal_noun(head).unwrap()
+            build_nominal_noun(head).unwrap(),
+            linearize_nominal_noun_form_with
         );
 
         let nominal_adjective = build_nominal_adjective(red_adjective(), card_nominal()).unwrap();
@@ -2395,7 +2676,8 @@ mod tests {
         records!(
             "nominal_adjective",
             nominal_adjective,
-            build_nominal_adjective(adjective, nominal).unwrap()
+            build_nominal_adjective(adjective, nominal).unwrap(),
+            linearize_nominal_adjective_form_with
         );
 
         let nominal_noun_modifier = build_nominal_noun_modifier(
@@ -2407,7 +2689,8 @@ mod tests {
         records!(
             "nominal_noun_modifier",
             nominal_noun_modifier,
-            build_nominal_noun_modifier(noun, nominal).unwrap()
+            build_nominal_noun_modifier(noun, nominal).unwrap(),
+            linearize_nominal_noun_modifier_form_with
         );
 
         let nominal_combat_step_name = build_nominal_combat_step_name(
@@ -2419,7 +2702,8 @@ mod tests {
         records!(
             "nominal_combat_step_name",
             nominal_combat_step_name,
-            build_nominal_combat_step_name(participants, head).unwrap()
+            build_nominal_combat_step_name(participants, head).unwrap(),
+            linearize_nominal_combat_step_name_form_with
         );
 
         let modifier = NominalModifier::Noun {
@@ -2433,7 +2717,8 @@ mod tests {
         records!(
             "nominal_negated_modifier",
             nominal_negated_modifier,
-            build_nominal_negated_modifier(modifier, nominal).unwrap()
+            build_nominal_negated_modifier(modifier, nominal).unwrap(),
+            linearize_nominal_negated_modifier_form_with
         );
 
         let one = Quantity::try_exact(crate::syntax::NumberLiteral {
@@ -2447,7 +2732,8 @@ mod tests {
         records!(
             "nominal_quantity_modifier",
             nominal_quantity_modifier,
-            build_nominal_quantity_modifier(quantity, nominal).unwrap()
+            build_nominal_quantity_modifier(quantity, nominal).unwrap(),
+            linearize_nominal_quantity_modifier_form_with
         );
 
         let stats = PowerToughness {
@@ -2467,7 +2753,8 @@ mod tests {
         records!(
             "nominal_power_toughness_modifier",
             nominal_power_toughness_modifier,
-            build_nominal_power_toughness_modifier(stats, nominal).unwrap()
+            build_nominal_power_toughness_modifier(stats, nominal).unwrap(),
+            linearize_nominal_power_toughness_modifier_form_with
         );
 
         let nominal_determiner =
@@ -2477,7 +2764,8 @@ mod tests {
         records!(
             "nominal_determiner",
             nominal_determiner,
-            build_nominal_determiner(determiner, nominal).unwrap()
+            build_nominal_determiner(determiner, nominal).unwrap(),
+            linearize_nominal_determiner_form_with
         );
 
         let preposition = PrepositionalPhrase::simple(
@@ -2490,12 +2778,18 @@ mod tests {
         records!(
             "nominal_prepositional",
             nominal_prepositional,
-            build_nominal_prepositional(nominal, preposition.clone()).unwrap()
+            build_nominal_prepositional(nominal, preposition.clone()).unwrap(),
+            linearize_nominal_prepositional_form_with
         );
 
-        let IndependentClause::Imperative(predicate) = parsed_independent("Draw a card.") else {
+        let IndependentClause::Imperative(mut predicate) = parsed_independent("Draw a card.")
+        else {
             panic!("imperative fixture has an imperative predicate")
         };
+        let crate::syntax::Predicate::Transitive(transitive) = &mut predicate else {
+            panic!("draw fixture has a transitive predicate")
+        };
+        transitive.head.verb.slot = VerbSlot::Infinitive;
         let infinitive = InfinitiveClause {
             negated: false,
             marker: crate::syntax::InfinitiveMarker::To,
@@ -2506,7 +2800,8 @@ mod tests {
         records!(
             "nominal_infinitive",
             nominal_infinitive,
-            build_nominal_infinitive(nominal, infinitive).unwrap()
+            build_nominal_infinitive(nominal, infinitive).unwrap(),
+            linearize_nominal_infinitive_form_with
         );
 
         let nominal_quantity_complement =
@@ -2515,7 +2810,8 @@ mod tests {
         records!(
             "nominal_quantity_complement",
             nominal_quantity_complement,
-            build_nominal_quantity_complement(nominal, quantity).unwrap()
+            build_nominal_quantity_complement(nominal, quantity).unwrap(),
+            linearize_nominal_quantity_complement_form_with
         );
 
         let ward_catalogs =
@@ -2527,7 +2823,16 @@ mod tests {
         records!(
             "nominal_keyword_symbol_argument",
             nominal_keyword_symbol_argument,
-            build_nominal_keyword_symbol_argument(head, symbol, sequence).unwrap()
+            build_nominal_keyword_symbol_argument(head, symbol, sequence).unwrap(),
+            linearize_nominal_keyword_symbol_argument_form_with
+        );
+        let nominal_keyword_symbol_sequence =
+            parsed_nominal_with_catalogs("ward {2}{U}", &exact_catalogs);
+        exact_form!(
+            "nominal_keyword_symbol_argument",
+            nominal_keyword_symbol_sequence,
+            1,
+            linearize_nominal_keyword_symbol_argument_form_with
         );
 
         let predicated_quality_from =
@@ -2537,7 +2842,22 @@ mod tests {
         let predicated_quality_from = records!(
             "predicated_quality_from",
             predicated_quality_from,
-            build_predicated_quality_from(predicated_preposition, color, noun_phrase).unwrap()
+            build_predicated_quality_from(predicated_preposition, color, noun_phrase).unwrap(),
+            linearize_predicated_quality_from_form_with
+        );
+        let predicated_quality_from_noun_phrase = build_predicated_quality_from(
+            Preposition::From,
+            None,
+            Some(NounPhrase::Nominal(
+                build_nominal_determiner(Determiner::Indefinite, card_nominal()).unwrap(),
+            )),
+        )
+        .unwrap();
+        exact_form!(
+            "predicated_quality_from",
+            predicated_quality_from_noun_phrase,
+            1,
+            linearize_predicated_quality_from_form_with
         );
 
         let predicated_argument_from_single =
@@ -2546,7 +2866,8 @@ mod tests {
         let predicated_argument_from_single = records!(
             "predicated_argument_from_single",
             predicated_argument_from_single,
-            build_predicated_argument_from_single(quality).unwrap()
+            build_predicated_argument_from_single(quality).unwrap(),
+            linearize_predicated_argument_from_single_form_with
         );
 
         let second_from =
@@ -2562,7 +2883,8 @@ mod tests {
         let predicated_argument_from_extend = records!(
             "predicated_argument_from_extend",
             predicated_argument_from_extend,
-            build_predicated_argument_from_extend(argument, conjunction, quality).unwrap()
+            build_predicated_argument_from_extend(argument, conjunction, quality).unwrap(),
+            linearize_predicated_argument_from_extend_form_with
         );
 
         let protection_catalogs =
@@ -2577,7 +2899,8 @@ mod tests {
         records!(
             "nominal_keyword_predicated_argument",
             nominal_keyword_predicated_argument,
-            build_nominal_keyword_predicated_argument(head, argument).unwrap()
+            build_nominal_keyword_predicated_argument(head, argument).unwrap(),
+            linearize_nominal_keyword_predicated_argument_form_with
         );
 
         let predicated_quality_bare =
@@ -2587,7 +2910,30 @@ mod tests {
         let predicated_quality_bare = records!(
             "predicated_quality_bare",
             predicated_quality_bare,
-            build_predicated_quality_bare(color, adjective, noun_phrase).unwrap()
+            build_predicated_quality_bare(color, adjective, noun_phrase).unwrap(),
+            linearize_predicated_quality_bare_form_with
+        );
+        let predicated_quality_bare_adjective =
+            build_predicated_quality_bare(None, Some(red_adjective()), None).unwrap();
+        exact_form!(
+            "predicated_quality_bare",
+            predicated_quality_bare_adjective,
+            1,
+            linearize_predicated_quality_bare_form_with
+        );
+        let predicated_quality_bare_noun_phrase = build_predicated_quality_bare(
+            None,
+            None,
+            Some(NounPhrase::Nominal(
+                build_nominal_determiner(Determiner::Indefinite, card_nominal()).unwrap(),
+            )),
+        )
+        .unwrap();
+        exact_form!(
+            "predicated_quality_bare",
+            predicated_quality_bare_noun_phrase,
+            2,
+            linearize_predicated_quality_bare_form_with
         );
 
         let predicated_argument_bare_single =
@@ -2596,7 +2942,8 @@ mod tests {
         let predicated_argument_bare_single = records!(
             "predicated_argument_bare_single",
             predicated_argument_bare_single,
-            build_predicated_argument_bare_single(quality).unwrap()
+            build_predicated_argument_bare_single(quality).unwrap(),
+            linearize_predicated_argument_bare_single_form_with
         );
 
         let final_from =
@@ -2612,7 +2959,8 @@ mod tests {
         let predicated_argument_bare_extend = records!(
             "predicated_argument_bare_extend",
             predicated_argument_bare_extend,
-            build_predicated_argument_bare_extend(argument, conjunction, quality).unwrap()
+            build_predicated_argument_bare_extend(argument, conjunction, quality).unwrap(),
+            linearize_predicated_argument_bare_extend_form_with
         );
 
         let hexproof_catalogs = crate::Catalogs::default()
@@ -2631,29 +2979,37 @@ mod tests {
         records!(
             "nominal_keyword_atom_carried_predicated_argument",
             nominal_keyword_atom_carried_predicated_argument,
-            build_nominal_keyword_atom_carried_predicated_argument(head, argument).unwrap()
+            build_nominal_keyword_atom_carried_predicated_argument(head, argument).unwrap(),
+            linearize_nominal_keyword_atom_carried_predicated_argument_form_with
         );
 
-        let nominal_relative = parsed_nominal("creature you control");
+        let nominal_relative =
+            parsed_nominal_with_catalogs("creature you control", &exact_catalogs);
         let (relative_base, relative) = parts_nominal_relative(&nominal_relative);
-        records!(
+        let nominal_relative = records!(
             "nominal_relative",
             nominal_relative,
-            build_nominal_relative(relative_base.clone(), relative.clone()).unwrap()
+            build_nominal_relative(relative_base.clone(), relative.clone()).unwrap(),
+            linearize_nominal_relative_form_with
         );
 
-        let rules_object_nominal_base = build_rules_object_nominal_base(card_nominal()).unwrap();
+        let rules_object_nominal_base =
+            build_rules_object_nominal_base(nominal_relative.clone()).unwrap();
         let nominal = parts_rules_object_nominal_base(&rules_object_nominal_base);
-        records!(
+        let rules_object_nominal_base = records!(
             "rules_object_nominal_base",
             rules_object_nominal_base,
-            build_rules_object_nominal_base(nominal).unwrap()
+            build_rules_object_nominal_base(nominal).unwrap(),
+            linearize_rules_object_nominal_base_form_with
         );
 
+        let ordinary_relative_nominal =
+            parsed_nominal_with_catalogs("creature that attacks", &exact_catalogs);
+        let (_, ordinary_relative) = parts_nominal_relative(&ordinary_relative_nominal);
         let rules_object_followup_nominal_relative = build_rules_object_followup_nominal_relative(
-            Some(build_rules_object_nominal_base(relative_base).unwrap()),
+            Some(rules_object_nominal_base),
             None,
-            relative,
+            ordinary_relative.clone(),
         )
         .unwrap();
         let (base, followup, relative) =
@@ -2661,7 +3017,20 @@ mod tests {
         let rules_object_followup_nominal_relative = records!(
             "rules_object_followup_nominal_relative",
             rules_object_followup_nominal_relative,
-            build_rules_object_followup_nominal_relative(base, followup, relative).unwrap()
+            build_rules_object_followup_nominal_relative(base, followup, relative).unwrap(),
+            linearize_rules_object_followup_nominal_relative_form_with
+        );
+        let repeated_rules_object_followup = build_rules_object_followup_nominal_relative(
+            None,
+            Some(rules_object_followup_nominal_relative.clone()),
+            ordinary_relative,
+        )
+        .unwrap();
+        exact_form!(
+            "rules_object_followup_nominal_relative",
+            repeated_rules_object_followup,
+            1,
+            linearize_rules_object_followup_nominal_relative_form_with
         );
 
         let rules_object_followup_nominal_prepositional =
@@ -2676,24 +3045,27 @@ mod tests {
         records!(
             "rules_object_followup_nominal_prepositional",
             rules_object_followup_nominal_prepositional,
-            build_rules_object_followup_nominal_prepositional(nominal, preposition).unwrap()
+            build_rules_object_followup_nominal_prepositional(nominal, preposition).unwrap(),
+            linearize_rules_object_followup_nominal_prepositional_form_with
         );
 
-        let IndependentClause::Deontic(
-            crate::syntax::Subject(NounPhrase::Nominal(reduced_subject)),
-            _,
-            _,
-        ) = parsed_independent("A creature dealt damage this way can't block this turn.")
-        else {
-            panic!("reduced-passive fixture has a deontic nominal subject")
-        };
+        let reduced_subject =
+            parsed_nominal_with_catalogs("a creature dealt damage this way", &exact_catalogs);
+        let (reduced_base, reduced_predicate) =
+            parts_nominal_reduced_recipient_passive(&reduced_subject);
+        let (_, reduced_base) = parts_nominal_determiner(&reduced_base)
+            .expect("fixture creature carries its indefinite determiner");
+        let reduced_subject =
+            build_nominal_reduced_recipient_passive(reduced_base, reduced_predicate.clone())
+                .expect("bare creature admits the same reduced recipient-passive predicate");
         let (reduced_base, reduced_predicate) =
             parts_nominal_reduced_recipient_passive(&reduced_subject);
         records!(
             "nominal_reduced_recipient_passive",
             reduced_subject,
             build_nominal_reduced_recipient_passive(reduced_base, reduced_predicate.clone())
-                .unwrap()
+                .unwrap(),
+            linearize_nominal_reduced_recipient_passive_form_with
         );
 
         let damage = build_nominal_noun(NounInstance::Mass(Noun::Word(Vocab::Damage))).unwrap();
@@ -2703,7 +3075,8 @@ mod tests {
         records!(
             "reduced_recipient_passive_theme",
             reduced_recipient_passive_theme,
-            build_reduced_recipient_passive_theme(nominal).unwrap()
+            build_reduced_recipient_passive_theme(nominal).unwrap(),
+            linearize_reduced_recipient_passive_theme_form_with
         );
 
         let (predicate, noun_phrase) =
@@ -2711,7 +3084,8 @@ mod tests {
         records!(
             "reduced_recipient_passive_nominal_adjunct",
             reduced_predicate,
-            build_reduced_recipient_passive_nominal_adjunct(predicate, noun_phrase).unwrap()
+            build_reduced_recipient_passive_nominal_adjunct(predicate, noun_phrase).unwrap(),
+            linearize_reduced_recipient_passive_nominal_adjunct_form_with
         );
 
         let nominal_postpositive_adjective =
@@ -2721,7 +3095,8 @@ mod tests {
         records!(
             "nominal_postpositive_adjective",
             nominal_postpositive_adjective,
-            build_nominal_postpositive_adjective(nominal, adjective).unwrap()
+            build_nominal_postpositive_adjective(nominal, adjective).unwrap(),
+            linearize_nominal_postpositive_adjective_form_with
         );
 
         let blue_adjective = || AdjectivePhrase {
@@ -2760,7 +3135,8 @@ mod tests {
                 adjective,
                 preposition,
             )
-            .unwrap()
+            .unwrap(),
+            linearize_nominal_postpositive_adjective_conjoined_prepositional_form_with
         );
 
         let conjoined_base =
@@ -2779,7 +3155,8 @@ mod tests {
             "nominal_postpositive_adjective_conjoined",
             nominal_postpositive_adjective_conjoined,
             build_nominal_postpositive_adjective_conjoined(nominal, conjunction, adjective)
-                .unwrap()
+                .unwrap(),
+            linearize_nominal_postpositive_adjective_conjoined_form_with
         );
 
         let asyndetic_base =
@@ -2793,7 +3170,8 @@ mod tests {
         let nominal_postpositive_adjective_asyndetic = records!(
             "nominal_postpositive_adjective_asyndetic",
             nominal_postpositive_adjective_asyndetic,
-            build_nominal_postpositive_adjective_asyndetic(nominal, adjective).unwrap()
+            build_nominal_postpositive_adjective_asyndetic(nominal, adjective).unwrap(),
+            linearize_nominal_postpositive_adjective_asyndetic_form_with
         );
 
         let nominal_postpositive_adjective_oxford = build_nominal_postpositive_adjective_oxford(
@@ -2807,7 +3185,8 @@ mod tests {
         records!(
             "nominal_postpositive_adjective_oxford",
             nominal_postpositive_adjective_oxford,
-            build_nominal_postpositive_adjective_oxford(nominal, conjunction, adjective).unwrap()
+            build_nominal_postpositive_adjective_oxford(nominal, conjunction, adjective).unwrap(),
+            linearize_nominal_postpositive_adjective_oxford_form_with
         );
 
         let comparison = ComparisonComplement {
@@ -2833,16 +3212,20 @@ mod tests {
         records!(
             "nominal_comparison",
             nominal_comparison,
-            build_nominal_comparison(nominal, comparison).unwrap()
+            build_nominal_comparison(nominal, comparison).unwrap(),
+            linearize_nominal_comparison_form_with
         );
 
-        let mut nominal_devotion = parsed_nominal("your devotion to green");
-        nominal_devotion.determiner = None;
+        let nominal_devotion = parsed_nominal("your devotion to green");
+        let (_, modifiers, head, complements) = nominal_devotion.into_projection_parts();
+        let nominal_devotion =
+            NominalPhrase::from_projection_parts(None, modifiers, head, complements);
         let (head, colors) = parts_nominal_devotion(&nominal_devotion);
         records!(
             "nominal_devotion",
             nominal_devotion,
-            build_nominal_devotion(head, colors).unwrap()
+            build_nominal_devotion(head, colors).unwrap(),
+            linearize_nominal_devotion_form_with
         );
 
         let devotion_color_single = build_devotion_color_single(ColorWord::Green).unwrap();
@@ -2850,7 +3233,8 @@ mod tests {
         records!(
             "devotion_color_single",
             devotion_color_single,
-            build_devotion_color_single(color).unwrap()
+            build_devotion_color_single(color).unwrap(),
+            linearize_devotion_color_single_form_with
         );
 
         let devotion_color_pair =
@@ -2860,7 +3244,8 @@ mod tests {
         records!(
             "devotion_color_pair",
             devotion_color_pair,
-            build_devotion_color_pair(first, conjunction, second).unwrap()
+            build_devotion_color_pair(first, conjunction, second).unwrap(),
+            linearize_devotion_color_pair_form_with
         );
 
         let nominal_times_clause = build_nominal_times_clause(
@@ -2872,10 +3257,32 @@ mod tests {
         records!(
             "nominal_times_clause",
             nominal_times_clause,
-            build_nominal_times_clause(head, clause).unwrap()
+            build_nominal_times_clause(head, clause).unwrap(),
+            linearize_nominal_times_clause_form_with
         );
 
-        assert_eq!(exercised, M01_IDS);
+        assert_eq!(
+            exercised,
+            NOMINAL_DECLARATION
+                .constructions
+                .iter()
+                .map(|construction| construction.id)
+                .collect::<Vec<_>>(),
+        );
+        assert_eq!(
+            exercised_forms,
+            NOMINAL_DECLARATION
+                .constructions
+                .iter()
+                .flat_map(|construction| {
+                    construction
+                        .forms
+                        .iter()
+                        .map(move |form| (construction.id, form.ordinal))
+                })
+                .collect::<Vec<_>>(),
+            "every declared M01 form has one construction-specific exact law",
+        );
     }
 
     #[test]
@@ -3095,6 +3502,133 @@ mod tests {
         );
     }
 
+    #[test]
+    fn attributive_card_orientation_crosses_only_the_partial_chart_door() {
+        let orientation = AdjectivePhrase {
+            degree: None,
+            head: Adjective::CardOrientation(crate::word::CardOrientation::FaceDown),
+            complements: Vec::new(),
+        };
+        assert!(build_nominal_adjective(orientation.clone(), card_nominal()).is_err());
+
+        let declaration = NOMINAL_DECLARATION
+            .constructions
+            .iter()
+            .find(|construction| construction.id == "nominal_adjective")
+            .expect("the adjective construction is declared");
+        let partial = declaration
+            .erased_partial_builder
+            .expect("chart partial builder exists")(vec![
+            Box::new(orientation.clone()),
+            Box::new(card_nominal()),
+        ])
+        .expect("partial chart assembly precedes feature rejection");
+        let partial = *partial
+            .downcast::<NominalPhrase>()
+            .expect("nominal adjective partial value keeps its type");
+        assert_nominal_inverse_rejects(&partial);
+        assert!(
+            declaration.erased_builder.expect("checked builder exists")(vec![
+                Box::new(orientation),
+                Box::new(card_nominal()),
+            ])
+            .is_err()
+        );
+
+        assert!(build_nominal_adjective(red_adjective(), card_nominal()).is_ok());
+    }
+
+    #[test]
+    fn measured_adjective_crosses_only_the_partial_chart_door() {
+        let measured = AdjectivePhrase {
+            degree: Some(crate::syntax::NumberLiteral {
+                value: 2,
+                numeral: crate::Numeral::Cardinal,
+            }),
+            head: Adjective::Word(Vocab::Greater),
+            complements: Vec::new(),
+        };
+        assert!(build_nominal_adjective(measured.clone(), card_nominal()).is_err());
+
+        let declaration = NOMINAL_DECLARATION
+            .constructions
+            .iter()
+            .find(|construction| construction.id == "nominal_adjective")
+            .expect("the adjective construction is declared");
+        let partial = declaration
+            .erased_partial_builder
+            .expect("chart partial builder exists")(vec![
+            Box::new(measured.clone()),
+            Box::new(card_nominal()),
+        ])
+        .expect("partial chart assembly precedes feature rejection");
+        let partial = *partial
+            .downcast::<NominalPhrase>()
+            .expect("measured adjective partial value keeps its type");
+        assert_nominal_inverse_rejects(&partial);
+        assert!(
+            declaration.erased_builder.expect("checked builder exists")(vec![
+                Box::new(measured),
+                Box::new(card_nominal()),
+            ])
+            .is_err()
+        );
+
+        let pending = AdjectivePhrase {
+            degree: None,
+            head: Adjective::Word(Vocab::Greater),
+            complements: Vec::new(),
+        };
+        assert!(build_nominal_adjective(pending, card_nominal()).is_ok());
+    }
+
+    #[test]
+    fn by_gerund_pp_crosses_only_the_partial_chart_door() {
+        let IndependentClause::Imperative(predicate) = parsed_independent("Sacrifice a card.")
+        else {
+            panic!("gerund fixture starts from an imperative predicate");
+        };
+        let by_gerund = PrepositionalPhrase::simple(
+            Preposition::By,
+            Phrase::Clause(Box::new(crate::syntax::Clause::Dependent(
+                crate::syntax::DependentClause::Gerund(crate::syntax::GerundClause {
+                    predicate: Box::new(predicate),
+                    attachments: Vec::new(),
+                }),
+            ))),
+        );
+        assert!(build_nominal_prepositional(card_nominal(), by_gerund.clone()).is_err());
+
+        let declaration = NOMINAL_DECLARATION
+            .constructions
+            .iter()
+            .find(|construction| construction.id == "nominal_prepositional")
+            .expect("the prepositional construction is declared");
+        let partial = declaration
+            .erased_partial_builder
+            .expect("chart partial builder exists")(vec![
+            Box::new(card_nominal()),
+            Box::new(by_gerund.clone()),
+        ])
+        .expect("partial chart assembly precedes feature rejection");
+        let partial = *partial
+            .downcast::<NominalPhrase>()
+            .expect("prepositional partial value keeps its type");
+        assert_nominal_inverse_rejects(&partial);
+        assert!(
+            declaration.erased_builder.expect("checked builder exists")(vec![
+                Box::new(card_nominal()),
+                Box::new(by_gerund),
+            ])
+            .is_err()
+        );
+
+        assert!(
+            build_nominal_prepositional(card_nominal(), preposition_with_card(Preposition::By),)
+                .is_ok()
+        );
+    }
+
     fn participle(tense: crate::word::Tense, verb: Vocab) -> AdjectivePhrase {
         AdjectivePhrase {
             degree: None,
@@ -3238,11 +3772,11 @@ mod tests {
         // Mutation caught: enforce the participle/`by` contract only at the
         // checked builder while the generated inverse still accepts a raw
         // invariant-breaking value.
-        let invalid = NominalPhrase {
-            determiner: None,
-            modifiers: Vec::new(),
-            head: NounInstance::Singular(Noun::Word(Vocab::Card)),
-            complements: vec![NominalComplement::CoordinatedAdjective(
+        let invalid = NominalPhrase::from_projection_parts(
+            None,
+            Vec::new(),
+            NounInstance::Singular(Noun::Word(Vocab::Card)),
+            vec![NominalComplement::CoordinatedAdjective(
                 CoordinatedAdjectivePhrase {
                     first: Box::new(participle(crate::word::Tense::Present, Vocab::Block)),
                     rest: vec![AdjectivePhraseCoordination {
@@ -3256,7 +3790,7 @@ mod tests {
                     }],
                 },
             )],
-        };
+        );
         assert_nominal_inverse_rejects(&invalid);
     }
 
@@ -3404,56 +3938,62 @@ mod tests {
         // decoration, or let writable AST fields bypass cardinality, identity,
         // attachment-phase, reduced-passive, and specialized-head gates.
         let plural_cards = NounInstance::Plural(Noun::Word(Vocab::Card));
-        assert_nominal_inverse_rejects(&NominalPhrase {
-            determiner: Some(Determiner::Each),
-            modifiers: Vec::new(),
-            head: plural_cards.clone(),
-            complements: Vec::new(),
-        });
+        assert_nominal_inverse_rejects(&NominalPhrase::from_projection_parts(
+            Some(Determiner::Each),
+            Vec::new(),
+            plural_cards.clone(),
+            Vec::new(),
+        ));
 
         let one = Quantity::try_exact(crate::syntax::NumberLiteral {
             value: 1,
             numeral: crate::Numeral::Cardinal,
         })
         .unwrap();
-        assert_nominal_inverse_rejects(&NominalPhrase {
-            determiner: None,
-            modifiers: vec![NominalModifier::Quantity(one)],
-            head: plural_cards,
-            complements: Vec::new(),
-        });
+        assert_nominal_inverse_rejects(&NominalPhrase::from_projection_parts(
+            None,
+            vec![NominalModifier::Quantity(one)],
+            plural_cards,
+            Vec::new(),
+        ));
 
-        assert_nominal_inverse_rejects(&NominalPhrase {
-            determiner: None,
-            modifiers: Vec::new(),
-            head: NounInstance::Singular(Noun::Word(Vocab::Ability)),
-            complements: vec![NominalComplement::KeywordArgument(KeywordArgument::Costed(
+        assert_nominal_inverse_rejects(&NominalPhrase::from_projection_parts(
+            None,
+            Vec::new(),
+            NounInstance::Singular(Noun::Word(Vocab::Ability)),
+            vec![NominalComplement::KeywordArgument(KeywordArgument::Costed(
                 KeywordCost::Symbols(vec![OracleSymbol::new("{2}").unwrap()]),
             ))],
-        });
+        ));
 
-        assert_nominal_inverse_rejects(&NominalPhrase {
-            determiner: None,
-            modifiers: vec![NominalModifier::CombatStepName {
+        assert_nominal_inverse_rejects(&NominalPhrase::from_projection_parts(
+            None,
+            vec![NominalModifier::CombatStepName {
                 participants: NounInstance::Singular(Noun::Word(Vocab::Card)),
             }],
-            head: NounInstance::Singular(Noun::Word(Vocab::Step)),
-            complements: Vec::new(),
-        });
+            NounInstance::Singular(Noun::Word(Vocab::Step)),
+            Vec::new(),
+        ));
 
         let mut invalid_phase = parsed_nominal("card in a graveyard");
         invalid_phase
-            .complements
+            .declaration_complements_mut()
             .insert(0, NominalComplement::Adjective(red_adjective()));
         assert_nominal_inverse_rejects(&invalid_phase);
 
-        let mut invalid_devotion = parsed_nominal("your devotion to green");
-        invalid_devotion.determiner = None;
-        invalid_devotion.head = NounInstance::Singular(Noun::Word(Vocab::Card));
+        let invalid_devotion = parsed_nominal("your devotion to green");
+        let (_, modifiers, _, complements) = invalid_devotion.into_projection_parts();
+        let invalid_devotion = NominalPhrase::from_projection_parts(
+            None,
+            modifiers,
+            NounInstance::Singular(Noun::Word(Vocab::Card)),
+            complements,
+        );
         assert_nominal_inverse_rejects(&invalid_devotion);
 
         let mut invalid_times = parsed_nominal("the number of times you drew a card");
-        let [NominalComplement::Prepositional(of)] = invalid_times.complements.as_mut_slice()
+        let [NominalComplement::Prepositional(of)] =
+            invalid_times.declaration_complements_mut().as_mut_slice()
         else {
             panic!("number-of-times fixture keeps its of complement")
         };
@@ -3463,17 +4003,22 @@ mod tests {
         let NounPhrase::Nominal(times) = object.as_mut() else {
             panic!("the of object is the times nominal")
         };
-        times.head = NounInstance::Plural(Noun::Word(Vocab::Card));
+        *times = NominalPhrase::from_projection_parts(
+            times.determiner().cloned(),
+            times.modifiers().to_vec(),
+            NounInstance::Plural(Noun::Word(Vocab::Card)),
+            times.complements().to_vec(),
+        );
         assert_nominal_inverse_rejects(times);
 
-        let invalid_determined_times = NominalPhrase {
-            determiner: Some(Determiner::All),
-            modifiers: Vec::new(),
-            head: NounInstance::Plural(Noun::Word(Vocab::Card)),
-            complements: vec![NominalComplement::EventClause(Box::new(
+        let invalid_determined_times = NominalPhrase::from_projection_parts(
+            Some(Determiner::All),
+            Vec::new(),
+            NounInstance::Plural(Noun::Word(Vocab::Card)),
+            vec![NominalComplement::EventClause(Box::new(
                 parsed_independent("You draw a card."),
             ))],
-        };
+        );
         assert_nominal_inverse_rejects(&invalid_determined_times);
     }
 
