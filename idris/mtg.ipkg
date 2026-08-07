@@ -5,6 +5,7 @@ modules = Semantics
         , Cards
         , Spec
         , Experimental
+        , Bridge
         , EmitTables
 
 sourcedir = "src"
