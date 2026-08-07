@@ -21,8 +21,9 @@ From `idris/`, with `~/.local/bin` on `PATH` for `idris2`:
 
     idris2 --build mtg.ipkg
 
-Builds and typechecks all seven modules (Semantics, Macros, Cards, Spec,
-Experimental, Bridge, EmitTables) under `%default total`. `Spec.idr` is the
+Builds and typechecks every module listed in `mtg.ipkg` under `%default
+total` (`src/Bridge.idr` — the new⇄old translation pairs — is parked out of
+the build for now and catches up when the lowering work resumes). `Spec.idr` is the
 self-checking regression suite — every `failing "<message>"` block must fail
 WITH its pinned message (the same soundness invariants the `cargo xtask
 idris-check` re-emit gate enforces on the Rust corpus); `Cards.idr` is the

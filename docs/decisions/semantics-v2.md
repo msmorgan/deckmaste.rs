@@ -10,8 +10,9 @@ freely with the design discussion.
 The evidence artifacts are the Idris workbench
 (`idris/src/Experimental.idr` — typechecking positives, pinned `failing`
 negatives) and its translation guide (`idris/src/Bridge.idr` — new⇄old pairs
-and the T-rule inventory); this document is the contract those artifacts
-probe. The workbench is deliberately divorced from the current verifier and
+and the T-rule inventory; parked out of the build while chapters accumulate,
+resuming with the lowering work); this document is the contract those
+artifacts probe. The workbench is deliberately divorced from the current verifier and
 from runnability; it becomes the real semantics validator only when v2
 replaces the verifier's shape.
 
@@ -127,8 +128,9 @@ mimicked.
 The workbench grows chapter by chapter: pick one structural question, ground
 it in real parses (`cargo xtask english inspect` / `bracket`, corpus lines)
 and the style guide, prove the shape with typechecking positives and pinned
-`failing` negatives, record findings in the module doc and pairs in the
-Bridge. Reference machinery comes before vocabulary breadth. Completion is
+`failing` negatives, record findings in the module doc; Bridge pairs
+catch up in batch when the lowering work resumes. Reference machinery comes
+before vocabulary breadth. Completion is
 two audits — every English AST construction has a settled v2 counterpart or
 an explicit lowering note, and the old worked corpus transcribes cleanly —
 after which this contract plus the Bridge T-rule inventory spec the

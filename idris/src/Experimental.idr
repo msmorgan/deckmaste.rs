@@ -7,7 +7,8 @@
 ||| typechecker is the only consumer. Grow the target shape in this file;
 ||| the eventual macro/card rewrite aims at what accumulates here.
 ||| (`Bridge` holds worked new-form ⇄ verifier-form pairs — the seed of the
-||| lowering changes that accompany that rewrite.)
+||| lowering changes that accompany that rewrite; parked out of the build
+||| for now so chapters here don't drag the old grammar along.)
 |||
 ||| The draft contract is `docs/decisions/semantics-v2.md` — the layer
 ||| boundary, the context-data rule, vocabulary, the constructor/macro
