@@ -259,6 +259,27 @@ impl MacroDef {
     pub fn frames(&self) -> &[FrameSpec] {
         &self.frames
     }
+
+    /// The body's OUTERMOST identifier, if it has one — the thing the body
+    /// constructs. `None` for a scalar, a list, or an unnamed struct. Shallow
+    /// by construction; see
+    /// [`leading_invoked_name`](crate::expand::leading_invoked_name).
+    #[must_use]
+    pub fn body_head(&self, macros: &MacroSet) -> Option<Ident> {
+        crate::expand::leading_invoked_name(&self.body, macros.options())
+    }
+
+    /// Every `Param(...)` hole in the body, each rendered the way it is
+    /// addressed (`0`, `cost`), in walk order. Lets a caller check a body
+    /// against its declared signature in both directions.
+    ///
+    /// # Errors
+    /// If the body is not readable as RON.
+    pub fn body_param_keys(&self, macros: &MacroSet) -> Result<Vec<String>, String> {
+        let mut keys = Vec::new();
+        crate::expand::collect_param_keys(&self.body, macros.options(), &mut keys)?;
+        Ok(keys.iter().map(ToString::to_string).collect())
+    }
 }
 
 /// Why a macro couldn't be registered.
@@ -296,6 +317,10 @@ pub enum InsertError {
         param: Ident,
         reason: String,
     },
+    /// A definition's body can't be elided the way its `Elidable(...)` params
+    /// promise — a comment between its entries, chiefly. Caught here so it
+    /// fails at load, not the first time a card writes the short form.
+    UnelidableBody { name: Ident, reason: String },
     /// A definition's body invokes a macro whose expansion eventually
     /// invokes it again — directly (a self-reference) or through a chain of
     /// other macros. Caught here so it fails at load, not only at runtime
@@ -360,6 +385,9 @@ impl fmt::Display for InsertError {
                 reason,
             } => {
                 write!(f, "macro `{name}` param `{param}` default: {reason}")
+            }
+            InsertError::UnelidableBody { name, reason } => {
+                write!(f, "macro `{name}`: {reason}")
             }
             InsertError::Cycle { name, path } => write!(
                 f,
@@ -563,7 +591,34 @@ impl MacroSet {
     /// not validated here: validators read with macros in scope, and load
     /// order would make that flaky — the filled text is validated per
     /// invocation instead.)
+    ///
+    /// The `Elidable(...)` params get their own load-time pre-flight here: the
+    /// body-side elision walk is run for the shortest call this signature
+    /// admits, so a body it could not cut (a comment between its entries) is
+    /// refused at load rather than at the first card that writes the short
+    /// form. See [`crate::expand::check_elidable_entries`].
     fn check_defaults(&self, def: &MacroDef) -> Result<(), InsertError> {
+        let elidable: Vec<crate::expand::ParamKey> = match &def.params {
+            Params::Positional(types) => types
+                .iter()
+                .enumerate()
+                .filter(|(_, ty)| ty.elidable)
+                .map(|(i, _)| crate::expand::ParamKey::Index(i))
+                .collect(),
+            Params::Named(signature) => signature
+                .iter()
+                .filter(|(_, ty)| ty.elidable)
+                .map(|(name, _)| crate::expand::ParamKey::Name(*name))
+                .collect(),
+        };
+        if !elidable.is_empty() {
+            crate::expand::check_elidable_entries(def.body(), &elidable, &self.options).map_err(
+                |reason| InsertError::UnelidableBody {
+                    name: def.name,
+                    reason,
+                },
+            )?;
+        }
         let signature = match &def.params {
             Params::Positional(types) => {
                 if types.iter().any(|t| t.default.is_some()) {

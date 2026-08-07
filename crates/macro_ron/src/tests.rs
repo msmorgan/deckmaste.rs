@@ -52,7 +52,10 @@ fn kinds() -> KindSet {
     kinds.add(
         Kind::new("Quantity")
             .remembers_expansion()
-            .literal_wrapper("Literal"),
+            .literal_wrapper("Literal")
+            // Declared so the cycle check can tell `Literal`'s identity macro
+            // from a self-invocation, the way the derive supplies it in anger.
+            .with_variants(QUANTITY_VARIANTS),
     );
     // embeds_untagged fixture kinds: EmbedHost embeds EmbedRef untagged;
     // EmbedRef remembers its own macro expansions.
@@ -203,6 +206,9 @@ impl Serialize for Ability {
         }
     }
 }
+
+/// `Quantity`'s dispatch set, hand-written like [`FILTER_VARIANTS`].
+const QUANTITY_VARIANTS: &[&str] = &["X", "CountOf", "Literal", "Expanded"];
 
 /// The literal-sugar kind, like `Quantity`: strict grammar (`Literal(3)`),
 /// with bare digit-led values spliced by the reader.
@@ -3371,6 +3377,78 @@ fn unregistered_kinds_keep_their_native_variants() {
     assert!(matches!(value, Filter::Expanded(_)), "{value:?}");
 }
 
+/// One hop further than
+/// [`an_argument_keeps_its_restriction_inside_a_free_body`]: the body forwards
+/// the card's argument into a NESTED macro invocation, so it travels as
+/// `read_args` argument text rather than as a resolved hole. It is
+/// still the author's text, so it stays restricted through the second frame.
+/// `Any`'s validator accepts anything, so nothing else can catch it here — the
+/// declared-param-type check is a second line, not this one.
+#[test]
+fn a_forwarded_argument_stays_restricted_in_a_nested_invocation() {
+    let mut macros = empty();
+    macros
+        .insert(&def(
+            r#"(name: "Wrap", kinds: [Filter], params: [Any], body: OneOf([Param(0)]))"#,
+        ))
+        .unwrap();
+    macros
+        .insert(&def(
+            r#"(name: "Outer", kinds: [Filter], params: [Any], body: Wrap(Param(0)))"#,
+        ))
+        .unwrap();
+    let err = macros
+        .read_str_restricted::<Filter>("Outer(Any)")
+        .unwrap_err();
+    assert!(err.to_string().contains("not author vocabulary"), "{err}");
+    macros.read_str::<Filter>("Outer(Any)").unwrap();
+}
+
+/// A default expression that splices the invocation's own argument carries
+/// that argument's restriction: `defaulted` exempts the definition's text, not
+/// the author's text spliced into it.
+#[test]
+fn a_default_that_splices_an_argument_keeps_its_restriction() {
+    let mut macros = empty();
+    macros
+        .insert(&def(r#"(name: "Echo", kinds: [Filter],
+                params: { "f": Any, "g": Default(Any, Param(f)) }, body: Param(g))"#))
+        .unwrap();
+    let err = macros
+        .read_str_restricted::<Filter>("Echo(f: Any)")
+        .unwrap_err();
+    assert!(err.to_string().contains("not author vocabulary"), "{err}");
+    macros.read_str::<Filter>("Echo(f: Any)").unwrap();
+}
+
+/// The bare-numeral splice is text the READER invented, so by the same
+/// provenance rule it is free: a bare `3` keeps reading as the native
+/// `Literal(3)` under restriction rather than routing through the identity
+/// macro and changing what round-trips.
+#[test]
+fn a_bare_numeral_splice_is_reader_text_and_reads_free() {
+    assert_eq!(
+        empty().read_str_restricted::<Quantity>("3").unwrap(),
+        Quantity::Literal(3)
+    );
+    let mut macros = empty();
+    macros
+        .insert(&def(
+            r#"(name: "Literal", kinds: [Quantity], params: [Count], body: Literal(Param(0)))"#,
+        ))
+        .unwrap();
+    assert_eq!(
+        macros.read_str_restricted::<Quantity>("3").unwrap(),
+        Quantity::Literal(3)
+    );
+    // An author who spells the wrapper out wrote it, so it still routes
+    // through the identity macro.
+    let spelled = macros
+        .read_str_restricted::<Quantity>("Literal(3)")
+        .unwrap();
+    assert!(matches!(spelled, Quantity::Expanded(_)), "{spelled:?}");
+}
+
 // ---------------------------------------------------------------------------
 // Optional-parameter elision (`Elidable(Type)`)
 //
@@ -3655,6 +3733,61 @@ fn eliding_every_body_entry_takes_the_trailing_comma() {
 
     let long: Event = macros.read_str_restricted("Idle(who: You)").unwrap();
     assert_eq!(long, Event::Idle { who: Who::You });
+}
+
+/// A comment where an elidable entry's separator has to be located makes that
+/// entry impossible to cut, and that is a property of the DEFINITION: refused
+/// at load, not at the first card that happens to write the short form.
+///
+/// The elidable entry leads, so its cut takes the separator AFTER it — the one
+/// branch that has to scan. (An entry with a surviving predecessor cuts between
+/// two known value spans and swallows any comment in the gap, which is why the
+/// same comment one entry later is not an error.)
+#[test]
+fn a_comment_between_elidable_body_entries_is_refused_at_load() {
+    let error = elision_set()
+        .insert(&def(r#"(
+            name: "Commented",
+            kinds: [Event],
+            params: { "what": Any, "who": Elidable(Any) },
+            body: Cast(
+                who: Param(who),
+                // a note
+                what: Param(what),
+            ),
+        )"#))
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("a comment between"), "{error}");
+}
+
+/// The same body without the comment loads and elides — the control that keeps
+/// the check above from passing for the wrong reason.
+#[test]
+fn an_uncommented_elidable_body_still_loads() {
+    let mut macros = elision_set();
+    macros
+        .insert(&def(r#"(
+            name: "Uncommented",
+            kinds: [Event],
+            params: { "what": Any, "who": Elidable(Any) },
+            body: Cast(
+                who: Param(who),
+                what: Param(what),
+            ),
+        )"#))
+        .unwrap();
+    let short: Event = macros
+        .read_str_restricted(r#"Uncommented(what: "bolt")"#)
+        .unwrap();
+    assert_eq!(
+        short,
+        Event::Cast {
+            who: Who::Anyone,
+            what: "bolt".into(),
+            cause: Who::Anyone,
+        }
+    );
 }
 
 /// Elidable positional params must be the trailing ones — a call supplies a

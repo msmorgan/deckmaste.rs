@@ -118,21 +118,35 @@ struct Frame<'de> {
     /// applies its own defaults. Empty for every non-elidable signature, which
     /// is what keeps expansion byte-identical for defs predating the form.
     elided: Vec<ParamKey>,
-    /// Whether the invocation's argument text was captured from restricted
-    /// (author-facing) source. Recorded here because restriction follows the
-    /// text's provenance, not the frame it is substituted into: a card-written
-    /// argument stays restricted inside a free macro body. Filled-in defaults
-    /// are exempt — they come from the definition, not the author's text.
+}
+
+/// One invocation argument: its raw source, and whether that source is
+/// restricted (author-facing) text.
+///
+/// Restriction rides on the ARGUMENT, not on the frame, because it follows the
+/// text's provenance rather than the frame the text is substituted into: a
+/// card-written argument stays restricted inside a free macro body, and — since
+/// [`forward_arg`] carries the flag into the nested invocation's own argument —
+/// stays restricted however many macros forward it on.
+///
+/// Provenance is tracked per argument, not per byte. An argument a body
+/// assembles out of its own text and a forwarded hole (`Up(Param(0))`) is
+/// therefore restricted as a whole: the author's half decides, since the
+/// alternative is laundering it. Definition text that gets over-restricted this
+/// way fails loudly at the identity-macro gate; it can never pass silently.
+#[derive(Clone, Copy)]
+pub(crate) struct Arg<'de> {
+    text: &'de str,
     restricted: bool,
 }
 
 /// Invocation arguments, as raw source each, shaped like the signature.
 #[derive(Clone)]
 pub(crate) enum FrameArgs<'de> {
-    Positional(Vec<&'de str>),
-    /// Name, raw source, and whether the source is a filled-in default
+    Positional(Vec<Arg<'de>>),
+    /// Name, argument, and whether the argument is a filled-in default
     /// (excluded from synthesized invocations so short calls round-trip).
-    Named(Vec<(Ident, &'de str, bool)>),
+    Named(Vec<(Ident, Arg<'de>, bool)>),
 }
 
 /// What a `Param(...)` hole addresses: `Param(0)` or `Param(cost)`.
@@ -175,21 +189,21 @@ const MAX_DEPTH: usize = 64;
 
 impl<'de> Ctx<'de, '_> {
     /// Resolves a `Param(...)` hole against the current frame, with the
-    /// restriction its text was captured under. A filled-in default is the
-    /// definition's own text, so it is never restricted however the
-    /// invocation was written.
+    /// restriction its own text was captured under ([`Arg`]). A filled-in
+    /// default is the definition's own text, so it is free unless the default
+    /// expression spliced an argument of the invocation into itself.
     fn param(&self, key: ParamKey) -> Result<(&'de str, bool), String> {
         let frame = self
             .frame
             .ok_or_else(|| format!("Param({key}) outside any macro expansion"))?;
         let arg = match (&frame.args, key) {
             (FrameArgs::Positional(args), ParamKey::Index(index)) => {
-                args.get(index).map(|arg| (*arg, frame.restricted))
+                args.get(index).map(|arg| (arg.text, arg.restricted))
             }
             (FrameArgs::Named(args), ParamKey::Name(name)) => args
                 .iter()
                 .find(|(k, _, _)| *k == name)
-                .map(|(_, v, defaulted)| (*v, frame.restricted && !defaulted)),
+                .map(|(_, arg, _)| (arg.text, arg.restricted)),
             _ => None,
         };
         arg.ok_or_else(|| {
@@ -674,21 +688,22 @@ enum HoleMode {
 }
 
 /// Walks `fragment` — a subslice of `root` — recording every `Param(...)`
-/// hole as its byte range in `root` and the argument text that fills it.
+/// hole as its byte range in `root`, the argument text that fills it, and
+/// whether that text is restricted. The last is what stops text-level splicing
+/// from laundering provenance: the splice loses the seam between the two texts,
+/// so the caller has to carry the flag out with it.
 fn collect_holes<'de>(
     root: &str,
     fragment: &'de str,
     ctx: &Ctx<'de, '_>,
     mode: HoleMode,
-    edits: &mut Vec<(Range<usize>, &'de str)>,
+    edits: &mut Vec<(Range<usize>, &'de str, bool)>,
 ) -> Result<(), String> {
     match decompose(fragment, ctx.read.macros.options())? {
         Node::Hole(key) => match (ctx.param(key), mode) {
-            // Text-level splicing: the filled text is re-read at whatever
-            // position it lands in, which is where restriction applies.
-            (Ok((arg, _)), _) => {
+            (Ok((arg, restricted)), _) => {
                 let start = fragment.as_ptr() as usize - root.as_ptr() as usize;
-                edits.push((start..start + fragment.len(), arg));
+                edits.push((start..start + fragment.len(), arg, restricted));
             }
             (Err(reason), HoleMode::Strict) => return Err(reason),
             // The produced definition's own hole: leave the text alone.
@@ -700,7 +715,8 @@ fn collect_holes<'de>(
         // frame resolves. The inner text is left un-walked.
         Node::Quote(inner) => {
             let start = fragment.as_ptr() as usize - root.as_ptr() as usize;
-            edits.push((start..start + fragment.len(), inner.get_ron().trim()));
+            // The inner text is the meta's own body text, never an argument.
+            edits.push((start..start + fragment.len(), inner.get_ron().trim(), false));
         }
         Node::Branch(children) => {
             for child in children {
@@ -859,25 +875,47 @@ pub(crate) fn leading_invoked_name(body: &str, options: &ron::Options) -> Option
 /// produced definition — `PassThrough`). ron itself locates every value as
 /// a subslice of the fragment, so holes are spliced by offset and a string
 /// literal mentioning `Param` is never confused for one.
+///
+/// The second half of the result is the spliced text's own restriction: `ctx`'s
+/// own, plus that of every argument spliced in. See [`Arg`] for why the whole
+/// fragment takes the restricted half's flag.
 fn substitute_params<'de>(
     source: &'de str,
     ctx: &Ctx<'de, '_>,
     mode: HoleMode,
-) -> Result<std::borrow::Cow<'de, str>, String> {
+) -> Result<(std::borrow::Cow<'de, str>, bool), String> {
     let mut edits = Vec::new();
     collect_holes(source, source, ctx, mode, &mut edits)?;
+    let restricted = ctx.restricted || edits.iter().any(|(_, _, restricted)| *restricted);
     if edits.is_empty() {
-        return Ok(std::borrow::Cow::Borrowed(source));
+        return Ok((std::borrow::Cow::Borrowed(source), restricted));
     }
     let mut out = String::new();
     let mut copied = 0;
-    for (range, argument) in edits {
+    for (range, argument, _) in edits {
         out.push_str(&source[copied..range.start]);
         out.push_str(argument);
         copied = range.end;
     }
     out.push_str(&source[copied..]);
-    Ok(std::borrow::Cow::Owned(out))
+    Ok((std::borrow::Cow::Owned(out), restricted))
+}
+
+/// [`substitute_params`], with the result interned in the read arena so it can
+/// be re-read as borrowed source: the spliced text and its restriction.
+fn substitute_into<'de>(
+    source: &'de str,
+    ctx: &Ctx<'de, '_>,
+    mode: HoleMode,
+) -> Result<(&'de str, bool), String> {
+    let (resolved, restricted) = substitute_params(source, ctx, mode)?;
+    Ok((
+        match resolved {
+            std::borrow::Cow::Borrowed(source) => source,
+            std::borrow::Cow::Owned(resolved) => ctx.read.splice(resolved),
+        },
+        restricted,
+    ))
 }
 
 /// How a value's immediate children sit in its source, which decides whether
@@ -1052,6 +1090,12 @@ fn entry_start(root: &str, from: usize) -> Result<usize, String> {
 /// construction: an entry with a surviving predecessor takes the separator
 /// BEFORE it, and one in the leading run takes the separator after it
 /// instead, so the container's opener is never left facing a comma.
+///
+/// The recursion descends into every surviving child, INCLUDING the arguments
+/// of a nested macro invocation the body writes. An elision can therefore cut
+/// an inner call's argument, not just a top-level entry of the body's own
+/// constructor — uniform with how a hole resolves anywhere it stands, and the
+/// only reading under which `M(inner: Inner(x: Param(x)))` elides `x` at all.
 fn collect_elisions(
     root: &str,
     fragment: &str,
@@ -1102,6 +1146,10 @@ fn collect_elisions(
             continue;
         }
         if i > 0 && (0..i).any(|j| !droppable[j]) {
+            // No comment scan here, unlike the leading-run branch below: this
+            // cut runs between two known value spans, where RON admits only
+            // whitespace, one comma, and comments — all non-semantic, so
+            // taking the whole span is safe without locating the separator.
             cuts.push(spans[i - 1].end..spans[i].end);
             continue;
         }
@@ -1112,6 +1160,24 @@ fn collect_elisions(
         cuts.push(entry_start(root, from)?..entry_start(root, spans[i].end)?);
     }
     Ok(())
+}
+
+/// The load-time pre-flight for a definition that declares `Elidable(...)`
+/// params: runs the elision walk over `body` for the SHORTEST call — every
+/// elidable param omitted at once — and reports what it would refuse.
+///
+/// [`entry_start`] refuses a comment between a body's entries, which without
+/// this fires the first time a card writes the short form rather than when the
+/// definition loads. These files are hand-owned, so the difference matters:
+/// the trailing comment reads as harmless right up until someone else's card
+/// fails.
+pub(crate) fn check_elidable_entries(
+    body: &str,
+    elidable: &[ParamKey],
+    options: &ron::Options,
+) -> Result<(), String> {
+    let mut cuts = Vec::new();
+    collect_elisions(body, body, elidable, options, &mut cuts)
 }
 
 /// The body text to re-read for an expansion whose invocation omitted an
@@ -1178,9 +1244,15 @@ pub(crate) fn fill_positional_params(
     let read = ReadCtx::new(macros);
     let frame = Frame {
         name: owner,
-        args: FrameArgs::Positional(args.to_vec()),
+        args: FrameArgs::Positional(
+            args.iter()
+                .map(|text| Arg {
+                    text,
+                    restricted: false,
+                })
+                .collect(),
+        ),
         elided: Vec::new(),
-        restricted: false,
     };
     let ctx = Ctx {
         read: &read,
@@ -1188,7 +1260,7 @@ pub(crate) fn fill_positional_params(
         depth: 0,
         restricted: false,
     };
-    substitute_params(body, &ctx, HoleMode::Strict).map(std::borrow::Cow::into_owned)
+    substitute_params(body, &ctx, HoleMode::Strict).map(|(filled, _)| filled.into_owned())
 }
 
 /// Every positional `Param(i)` index `body` holes, in the order the walk
@@ -1264,8 +1336,9 @@ fn splice_child<'de>(
 /// current frame (typically `Splice(Param(i))`), must itself be a `[...]`
 /// list, and its elements replace the `Splice(...)` in place. Returns `None`
 /// when the list carries no `Splice` element, so the caller re-reads it
-/// unchanged.
-fn splice_seq<'de>(source: &'de str, ctx: &Ctx<'de, '_>) -> Result<Option<String>, String> {
+/// unchanged; otherwise the rewritten list and whether any inlined element
+/// came from restricted argument text (see [`Arg`]).
+fn splice_seq<'de>(source: &'de str, ctx: &Ctx<'de, '_>) -> Result<Option<(String, bool)>, String> {
     let options = ctx.read.macros.options();
     let mut de = ron_deserializer(source, options).map_err(|e| e.to_string())?;
     // Top-level elements as raw subslices; a non-list source (a whole-value
@@ -1274,6 +1347,7 @@ fn splice_seq<'de>(source: &'de str, ctx: &Ctx<'de, '_>) -> Result<Option<String
         return Ok(None);
     };
     let mut spliced_any = false;
+    let mut spliced_restricted = false;
     let mut out: Vec<String> = Vec::new();
     for element in elements {
         let element = element.get_ron();
@@ -1284,7 +1358,9 @@ fn splice_seq<'de>(source: &'de str, ctx: &Ctx<'de, '_>) -> Result<Option<String
         spliced_any = true;
         // Resolve `X` (typically `Param(i)`) against the frame, then require a
         // `[...]` list and inline its elements.
-        let list_src: String = substitute_params(inner, ctx, HoleMode::Strict)?.into_owned();
+        let (list_src, restricted) = substitute_params(inner, ctx, HoleMode::Strict)?;
+        let list_src: String = list_src.into_owned();
+        spliced_restricted |= restricted;
         let mut list_de = ron_deserializer(&list_src, options).map_err(|e| e.to_string())?;
         let inner_elements = Vec::<&RawValue>::deserialize(&mut list_de).map_err(|_| {
             format!("`Splice({inner})` resolves to `{list_src}`, which is not a list")
@@ -1296,7 +1372,7 @@ fn splice_seq<'de>(source: &'de str, ctx: &Ctx<'de, '_>) -> Result<Option<String
     if !spliced_any {
         return Ok(None);
     }
-    Ok(Some(format!("[{}]", out.join(", "))))
+    Ok(Some((format!("[{}]", out.join(", ")), spliced_restricted)))
 }
 
 /// Names the macro whose body failed: the reread's span points into a
@@ -1359,7 +1435,6 @@ impl<'de, D: Deserializer<'de>> MacroAware<'de, '_, D> {
                     name,
                     args: invoked.args,
                     elided: invoked.elided,
-                    restricted: self.ctx.restricted,
                 };
                 let ctx = self.ctx.expansion(&frame).map_err(D::Error::custom)?;
                 let body =
@@ -1417,9 +1492,19 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
             });
         }
         // Element-level splices: inline every top-level `Splice(X)`.
-        if let Some(rewritten) = splice_seq(source, &self.ctx).map_err(Self::Error::custom)? {
+        if let Some((rewritten, restricted)) =
+            splice_seq(source, &self.ctx).map_err(Self::Error::custom)?
+        {
             let spliced = self.ctx.read.splice(rewritten);
-            return reread(spliced, self.ctx, Intercept::Skip, |de| {
+            // Inlining loses the seam between the body's own elements and the
+            // author's, so the rewritten list carries the restricted half's
+            // provenance (see [`Arg`]). The frame stays: the body's own
+            // elements may still hole.
+            let ctx = Ctx {
+                restricted: self.ctx.restricted || restricted,
+                ..self.ctx
+            };
+            return reread(spliced, ctx, Intercept::Skip, |de| {
                 de.deserialize_seq(visitor)
             });
         }
@@ -1454,12 +1539,11 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
                     de.deserialize_newtype_struct(name, visitor)
                 });
             }
-            let resolved = match substitute_params(source, &self.ctx, HoleMode::PassThrough)
-                .map_err(Self::Error::custom)?
-            {
-                std::borrow::Cow::Borrowed(source) => source,
-                std::borrow::Cow::Owned(resolved) => self.ctx.read.splice(resolved),
-            };
+            // The capture is a produced definition's body, read back as raw
+            // text (`Skip`), so no restriction decision is taken here — the
+            // body is read as author vocabulary or not when it is USED.
+            let (resolved, _) = substitute_into(source, &self.ctx, HoleMode::PassThrough)
+                .map_err(Self::Error::custom)?;
             return reread(resolved, self.ctx, Intercept::Skip, |de| {
                 de.deserialize_newtype_struct(name, visitor)
             });
@@ -1491,12 +1575,12 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
                 de.deserialize_any(visitor)
             });
         }
-        let resolved = match substitute_params(source, &self.ctx, HoleMode::Strict)
-            .map_err(Self::Error::custom)?
-        {
-            std::borrow::Cow::Borrowed(source) => source,
-            std::borrow::Cow::Owned(resolved) => self.ctx.read.splice(resolved),
-        };
+        // The resolved fragment goes to ron NATIVELY (no wrapper), so no
+        // restriction applies inside untagged content however it was written —
+        // the spliced provenance has nowhere to be consulted. Untagged content
+        // is buffered scalars and containers, not a macro-dispatch position.
+        let (resolved, _) =
+            substitute_into(source, &self.ctx, HoleMode::Strict).map_err(Self::Error::custom)?;
         let mut de = ron_deserializer(resolved, self.ctx.read.macros.options())
             .map_err(Self::Error::custom)?;
         let value = de
@@ -1566,7 +1650,18 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
                     .is_some_and(|rest| rest.starts_with(|c: char| c.is_ascii_digit()));
             if numeral_led {
                 let spliced = self.ctx.read.splice(format!("{wrapper}({source})"));
-                return reread(spliced, self.ctx, Intercept::Full, |de| {
+                // The wrapper is text the READER invented, and restriction
+                // follows textual provenance (spec §4): read it free, or a
+                // bare numeral would route through the wrapper's identity
+                // macro and change what a remembering kind stores. The frame
+                // is kept, so a `Param` hole inside `source` still resolves.
+                // An author who spells `Literal(3)` out is not numeral-led and
+                // takes the verbatim branch below, still restricted.
+                let free = Ctx {
+                    restricted: false,
+                    ..self.ctx
+                };
+                return reread(spliced, free, Intercept::Full, |de| {
                     de.deserialize_enum(name, variants, visitor)
                 });
             }
@@ -1714,22 +1809,22 @@ fn fill_defaults<'de>(
     name: Ident,
     signature: &'de std::collections::HashMap<Ident, ParamType>,
     missing: Vec<&'de Ident>,
-    args: &mut Vec<(Ident, &'de str, bool)>,
+    args: &mut Vec<(Ident, Arg<'de>, bool)>,
     read: &'de ReadCtx<'de>,
 ) -> Result<(), String> {
-    // Default expressions are definition text: free vocabulary, and the args
-    // they splice against are only used to fill them, never re-read as author
-    // input here.
+    // The supplied args are what a default expression's holes splice against;
+    // each carries its own restriction, which the splice carries out with it.
     let supplied = Frame {
         name,
         args: FrameArgs::Named(args.clone()),
         elided: Vec::new(),
-        restricted: false,
     };
     let fill_ctx = Ctx {
         read,
         frame: Some(&supplied),
         depth: 0,
+        // A default expression is the definition's own text: free until it
+        // splices one of the invocation's arguments into itself.
         restricted: false,
     };
     for key in missing {
@@ -1738,14 +1833,9 @@ fn fill_defaults<'de>(
             .default
             .as_deref()
             .expect("non-defaulted missing params errored by the caller");
-        let filled = match substitute_params(default, &fill_ctx, HoleMode::Strict)? {
-            std::borrow::Cow::Borrowed(text) => text,
-            std::borrow::Cow::Owned(text) => read.splice(text),
-        };
-        // A filled-in default is the definition's own text — free vocabulary
-        // however the invocation was written (`Ctx::param` agrees).
-        validate_arg(name, *key, ty, filled, read.macros, false)?;
-        args.push((*key, filled, true));
+        let (text, restricted) = substitute_into(default, &fill_ctx, HoleMode::Strict)?;
+        validate_arg(name, *key, ty, text, read.macros, restricted)?;
+        args.push((*key, Arg { text, restricted }, true));
     }
     Ok(())
 }
@@ -1762,14 +1852,22 @@ fn fill_defaults<'de>(
 /// runs, keeping the argument byte-identical to before this pre-substitution
 /// step existed — including a misused top-level `Quote(...)`, which stays
 /// intact for the invoked macro's own reader to reject.
-fn forward_arg<'de>(raw: &'de str, ctx: Ctx<'de, '_>) -> Result<&'de str, String> {
+///
+/// The forwarded argument carries its own restriction ([`Arg`]) rather than
+/// inheriting the invoked macro's frame: at the top level that is the
+/// document's (a card's arguments are the author's text), and inside a body it
+/// is the restriction of whatever the splice pulled in. Without this a
+/// card-written argument went free the moment a body passed it on to a nested
+/// macro.
+fn forward_arg<'de>(raw: &'de str, ctx: Ctx<'de, '_>) -> Result<Arg<'de>, String> {
     if ctx.frame.is_none() {
-        return Ok(raw);
+        return Ok(Arg {
+            text: raw,
+            restricted: ctx.restricted,
+        });
     }
-    match substitute_params(raw, &ctx, HoleMode::PassThrough)? {
-        std::borrow::Cow::Borrowed(s) => Ok(s),
-        std::borrow::Cow::Owned(s) => Ok(ctx.read.splice(s)),
-    }
+    let (text, restricted) = substitute_into(raw, &ctx, HoleMode::PassThrough)?;
+    Ok(Arg { text, restricted })
 }
 
 /// Reads the arguments the definition's signature says to expect: its shape
@@ -1852,13 +1950,14 @@ fn read_args<'de, 'f, A: VariantAccess<'de>>(
                     )
                 }));
             }
-            let args: Vec<&'de str> = args
+            let args: Vec<Arg<'de>> = args
                 .into_iter()
                 .map(|raw| forward_arg(raw, ctx))
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(A::Error::custom)?;
             for (i, ty) in types.iter().take(args.len()).enumerate() {
-                validate_arg(name, i + 1, ty, args[i], ctx.read.macros, ctx.restricted)
+                let arg = args[i];
+                validate_arg(name, i + 1, ty, arg.text, ctx.read.macros, arg.restricted)
                     .map_err(A::Error::custom)?;
             }
             let elided = (args.len()..types.len()).map(ParamKey::Index).collect();
@@ -1869,9 +1968,9 @@ fn read_args<'de, 'f, A: VariantAccess<'de>>(
         }
         Params::Named(signature) => {
             let args = variant.struct_variant(&[], NamedArgs)?;
-            let args: Vec<(Ident, &'de str)> = args
+            let args: Vec<(Ident, Arg<'de>)> = args
                 .into_iter()
-                .map(|(key, raw)| forward_arg(raw, ctx).map(|raw| (key, raw)))
+                .map(|(key, raw)| forward_arg(raw, ctx).map(|arg| (key, arg)))
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(A::Error::custom)?;
             for (i, (key, _)) in args.iter().enumerate() {
@@ -1910,10 +2009,10 @@ fn read_args<'de, 'f, A: VariantAccess<'de>>(
                 let ty = signature
                     .get(key)
                     .expect("argument keys were checked against the signature above");
-                validate_arg(name, *key, ty, arg, ctx.read.macros, ctx.restricted)
+                validate_arg(name, *key, ty, arg.text, ctx.read.macros, arg.restricted)
                     .map_err(A::Error::custom)?;
             }
-            let mut args: Vec<(Ident, &'de str, bool)> =
+            let mut args: Vec<(Ident, Arg<'de>, bool)> =
                 args.into_iter().map(|(k, v)| (k, v, false)).collect();
             fill_defaults(name, signature, missing, &mut args, ctx.read)
                 .map_err(A::Error::custom)?;
@@ -1999,7 +2098,6 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
             name: ident,
             args: invoked.args,
             elided: invoked.elided,
-            restricted: self.ctx.restricted,
         };
         let ctx = self.ctx.expansion(&frame).map_err(A::Error::custom)?;
         let body = elide_body(def.body(), &frame, self.ctx.read).map_err(A::Error::custom)?;
@@ -2063,7 +2161,7 @@ pub(crate) fn synthesize_expanded(
             write!(out, ", args: Positional([").unwrap();
             for (i, arg) in args.iter().enumerate() {
                 let sep = if i > 0 { ", " } else { "" };
-                write!(out, "{sep}{:?}", arg.trim()).unwrap();
+                write!(out, "{sep}{:?}", arg.text.trim()).unwrap();
             }
             write!(out, "])").unwrap();
         }
@@ -2077,7 +2175,7 @@ pub(crate) fn synthesize_expanded(
             let supplied = args.iter().filter(|(_, _, defaulted)| !defaulted);
             for (i, (key, arg, _)) in supplied.enumerate() {
                 let sep = if i > 0 { ", " } else { "" };
-                write!(out, "{sep}({:?}, {:?})", key.as_str(), arg.trim()).unwrap();
+                write!(out, "{sep}({:?}, {:?})", key.as_str(), arg.text.trim()).unwrap();
             }
             write!(out, "])").unwrap();
         }
