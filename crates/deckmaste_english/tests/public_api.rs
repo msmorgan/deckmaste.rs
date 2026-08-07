@@ -4115,6 +4115,85 @@ fn anof_cardinal_lowercase_object_position_unchanged() {
 }
 
 #[test]
+fn multiword_cardinal_plural_lowers_as_one_quantity() {
+    let catalogs = Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"]);
+
+    let plural = parse_fragment(
+        "one hundred creatures",
+        &catalogs,
+        FragmentKind::Nominal,
+        "",
+        false,
+    );
+    assert!(plural.clean(), "{plural:#?}");
+    let Some(Fragment::Nominal(NounPhrase::Nominal(nominal))) = plural.fragment() else {
+        panic!("expected a nominal fragment: {plural:#?}");
+    };
+    assert!(
+        matches!(
+            nominal.determiner,
+            Some(Determiner::Quantity(Quantity::Exact(NumberLiteral {
+                value: 100,
+                numeral: Numeral::Cardinal,
+            })))
+        ),
+        "the complete numeral span must lower as 100: {plural:#?}"
+    );
+    assert!(matches!(nominal.head, NounInstance::Plural(_)));
+}
+
+#[test]
+fn multiword_cardinal_singular_cannot_repartition_through_opacity() {
+    let catalogs = Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"]);
+
+    let singular = parse_fragment(
+        "one hundred creature",
+        &catalogs,
+        FragmentKind::Nominal,
+        "",
+        false,
+    );
+    assert!(
+        singular.fragment().is_none(),
+        "100 cannot govern a singular count noun: {singular:#?}"
+    );
+
+    let unknown = parse_fragment(
+        "blorple creature",
+        &catalogs,
+        FragmentKind::Nominal,
+        "",
+        false,
+    );
+    assert!(
+        unknown.clean(),
+        "a genuinely unknown modifier remains eligible for opacity: {unknown:#?}"
+    );
+}
+
+#[test]
+fn quantified_target_cardinality_matches_the_public_quantity_contract() {
+    let literal = |value| {
+        QuantityValue::Literal(NumberLiteral {
+            value,
+            numeral: Numeral::Cardinal,
+        })
+    };
+    assert_eq!(
+        Determiner::Target(Some(Quantity::AtLeast(literal(1)))).noun_cardinality(),
+        NounCardinality::SingularCount
+    );
+    assert_eq!(
+        Determiner::Target(Some(Quantity::AtLeast(literal(3)))).noun_cardinality(),
+        NounCardinality::PluralCount
+    );
+    assert_eq!(
+        Determiner::Target(Some(Quantity::AtLeast(QuantityValue::Variable))).noun_cardinality(),
+        NounCardinality::PluralCount
+    );
+}
+
+#[test]
 fn anof_cardinal_numeral_codec_contract_untouched() {
     // The codec contract is untouched: only the grammar folds case.
     assert!(Numeral::Cardinal.parse("Two").is_err());

@@ -496,26 +496,14 @@ impl Determiner {
             Self::Demonstrative(Demonstrative::This | Demonstrative::That) => {
                 NounCardinality::SingularOrMass
             }
-            Self::Demonstrative(Demonstrative::These | Demonstrative::Those)
-            | Self::Target(Some(Quantity::Or(_, _) | Quantity::X | Quantity::Both)) => {
+            Self::Demonstrative(Demonstrative::These | Demonstrative::Those) => {
                 NounCardinality::PluralCount
             }
-            Self::Target(Some(Quantity::Exact(number))) if number.value == 1 => {
-                NounCardinality::SingularCount
-            }
-            Self::Target(Some(
-                Quantity::UpTo(value) | Quantity::MoreThan(value) | Quantity::FewerThan(value),
-            )) if value.is_one() => NounCardinality::SingularCount,
-            Self::Target(Some(
-                Quantity::Exact(_)
-                | Quantity::AtLeast(_)
-                | Quantity::OrComparison(_, _)
-                | Quantity::UpTo(_)
-                | Quantity::MoreThan(_)
-                | Quantity::FewerThan(_)
-                | Quantity::ThatMany,
-            )) => NounCardinality::PluralCount,
-            Self::Target(Some(Quantity::ThatMuch)) => NounCardinality::Mass,
+            Self::Target(Some(quantity)) => match quantity.noun_cardinality() {
+                NounCardinality::SingularOrMass => NounCardinality::SingularCount,
+                NounCardinality::PluralOrMass => NounCardinality::PluralCount,
+                cardinality => cardinality,
+            },
             Self::Quantity(quantity) => quantity.noun_cardinality(),
             Self::All => NounCardinality::PluralOrMass,
             Self::The | Self::Possessive(_) | Self::Any | Self::No => {

@@ -2499,55 +2499,22 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     .collect()
             }
             EnglishLexicalSlot::QuantityNumber => {
-                let Some(surface) = self.token_text(tokens, start) else {
-                    return Vec::new();
-                };
-                let mut surfaces = vec![(start + 1, surface)];
-                let mut end = start + 1;
-                while matches!(
-                    tokens.get(end).map(|token| token.kind),
-                    Some(TokenKind::Punctuation(Punctuation::Comma))
-                ) && matches!(
-                    tokens.get(end + 1).map(|token| token.kind),
-                    Some(TokenKind::Integer)
-                ) {
-                    end += 2;
-                    let span = Span::new(tokens[start].span.start, tokens[end - 1].span.end);
-                    let Some(grouped) = span.text(self.source) else {
-                        break;
-                    };
-                    surfaces.push((end, grouped));
-                }
                 let mut matches = Vec::new();
-                for (end, surface) in surfaces {
-                    for notation in [
-                        Numeral::Cardinal,
-                        Numeral::Ordinal,
-                        Numeral::Arabic(false),
-                        Numeral::Arabic(true),
-                        Numeral::Roman,
-                    ] {
-                        let Some(value) = parse_notation(
-                            notation,
-                            surface,
-                            Self::is_sentence_initial(tokens, start),
-                        ) else {
-                            continue;
-                        };
-                        matches.push(LexicalMatch {
-                            end,
-                            features: Features::Number { is_one: value == 1 },
-                            meaning: MeaningKey::Number(NumberLiteral {
-                                value,
-                                numeral: notation,
-                            }),
-                            local_cost: ParseCost {
-                                reading_dispreference: u32::from(notation == Numeral::Ordinal),
-                                precedence: u32::from(notation == Numeral::Roman && surface == "X"),
-                                ..ParseCost::default()
-                            },
-                        });
-                    }
+                for (end, number) in self.recognized_numerals(tokens, start) {
+                    matches.push(LexicalMatch {
+                        end,
+                        features: Features::Number {
+                            is_one: number.value == 1,
+                        },
+                        meaning: MeaningKey::Number(number),
+                        local_cost: ParseCost {
+                            reading_dispreference: u32::from(number.numeral == Numeral::Ordinal),
+                            precedence: u32::from(
+                                number.numeral == Numeral::Roman && number.value == 10,
+                            ),
+                            ..ParseCost::default()
+                        },
+                    });
                 }
                 matches
             }

@@ -46,11 +46,15 @@
 //! ([`reserved_tokens`]). Without that check a frame could smuggle in text
 //! that relocation would mistake for a hole.
 //!
-//! The singular retry uses `1`, which cannot be globally reserved because
-//! literal `+1/+1` material is valid in frames. Its safety check is instead
-//! structural: relocation still requires the witness to occur exactly once.
+//! Singular retries use distinct canonical spellings of the value one. They
+//! cannot be globally reserved because literal `+1/+1` material and ordinary
+//! words such as `one` are valid in frames. Their safety check is instead
+//! structural: relocation still requires each value-and-notation witness to
+//! occur exactly once.
 
 use std::fmt;
+
+use deckmaste_english::Numeral;
 
 /// Every synthetic witness starts with this, so one case-insensitive
 /// substring test rejects an authored frame that collides with the reserved
@@ -70,10 +74,14 @@ pub const SELF_WITNESS: &str = "Zzframeself";
 /// authored `41`.
 pub const RESERVED_NUMERALS: [u32; 6] = [41, 43, 47, 53, 59, 61];
 
-/// The singular-safe retry witness. The frame compiler uses it only when an
-/// ordinary plural witness cannot parse a singular citation authoring such as
-/// `<Count> card` under strict quantity/noun agreement.
-pub const SINGULAR_NUMERAL: u32 = 1;
+/// Collision-distinguishable surfaces for singular-safe retry witnesses.
+/// Each is a canonical notation for the semantic value one.
+pub const SINGULAR_NUMERALS: [(&str, Numeral); 4] = [
+    ("1", Numeral::Arabic(false)),
+    ("one", Numeral::Cardinal),
+    ("first", Numeral::Ordinal),
+    ("I", Numeral::Roman),
+];
 
 /// Which carrier a witness uses — the thing relocation looks for in the
 /// parsed tree.
@@ -82,9 +90,9 @@ pub enum WitnessKind {
     /// An opaque noun. Found in the tree as a `str` scalar equal to the
     /// witness text (the `OpaqueLexeme`'s spelling).
     Lexeme,
-    /// A reserved numeral. Found in the tree as an integer scalar whose
-    /// `repr` is the witness text.
-    Numeral,
+    /// A numeral. Found in a `NumberLiteral` by semantic value plus notation;
+    /// digit witnesses inside power/toughness scalars use their exact text.
+    Numeral { value: i32, notation: Numeral },
     /// The self-reference. Found *structurally* — as a `NounPhrase::ThisCard`
     /// node — because the card name never survives into the tree as a
     /// spelling.
@@ -142,17 +150,30 @@ pub fn numeral(slot: usize) -> anyhow::Result<Witness> {
     })?;
     Ok(Witness {
         text: value.to_string(),
-        kind: WitnessKind::Numeral,
+        kind: WitnessKind::Numeral {
+            value: value.cast_signed(),
+            notation: Numeral::Arabic(false),
+        },
     })
 }
 
-/// A numeric witness whose value licenses a singular count-noun surface.
-#[must_use]
-pub fn singular_numeral() -> Witness {
-    Witness {
-        text: SINGULAR_NUMERAL.to_string(),
-        kind: WitnessKind::Numeral,
-    }
+/// A collision-distinguishable numeric witness whose value licenses a
+/// singular count-noun surface.
+///
+/// # Errors
+/// If more simultaneous singular witnesses are requested than
+/// [`SINGULAR_NUMERALS`] provides.
+pub fn singular_numeral(variant: usize) -> anyhow::Result<Witness> {
+    let (surface, notation) = SINGULAR_NUMERALS.get(variant).copied().ok_or_else(|| {
+        anyhow::anyhow!(
+            "a frame may hold at most {} independently witnessed singular count holes",
+            SINGULAR_NUMERALS.len(),
+        )
+    })?;
+    Ok(Witness {
+        text: surface.to_string(),
+        kind: WitnessKind::Numeral { value: 1, notation },
+    })
 }
 
 /// The witness for a phrasal hole at param index `param`, whose declared type
@@ -267,12 +288,15 @@ mod tests {
         let mut all: Vec<String> = (0..RESERVED_NUMERALS.len())
             .map(|slot| numeral(slot).unwrap().text)
             .collect();
-        all.push(singular_numeral().text);
+        all.extend(
+            (0..SINGULAR_NUMERALS.len()).map(|variant| singular_numeral(variant).unwrap().text),
+        );
         let mut sorted = all.clone();
         sorted.sort();
         sorted.dedup();
         assert_eq!(sorted.len(), all.len());
         assert!(numeral(RESERVED_NUMERALS.len()).is_err());
+        assert!(singular_numeral(SINGULAR_NUMERALS.len()).is_err());
     }
 
     #[test]

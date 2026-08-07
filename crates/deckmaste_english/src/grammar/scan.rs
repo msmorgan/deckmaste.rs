@@ -60,7 +60,65 @@ use super::WordMatch;
 use super::parse_notation;
 use super::surface_initial_sound;
 
+const NUMERAL_NOTATIONS: [Numeral; 5] = [
+    Numeral::Cardinal,
+    Numeral::Ordinal,
+    Numeral::Arabic(false),
+    Numeral::Arabic(true),
+    Numeral::Roman,
+];
+
 impl EnglishGrammar<'_, '_> {
+    pub(super) fn recognized_numerals(
+        &self,
+        tokens: &[Token],
+        start: usize,
+    ) -> Vec<(usize, NumberLiteral)> {
+        let Some(first) = tokens.get(start) else {
+            return Vec::new();
+        };
+        if !matches!(first.kind, TokenKind::Word | TokenKind::Integer) {
+            return Vec::new();
+        }
+
+        let mut matches = Vec::new();
+        for end in (start + 1)..=tokens.len() {
+            let last = &tokens[end - 1];
+            if !matches!(
+                last.kind,
+                TokenKind::Word | TokenKind::Integer | TokenKind::Punctuation(Punctuation::Comma)
+            ) {
+                break;
+            }
+            let span = Span::new(first.span.start, last.span.end);
+            let Some(surface) = span.text(self.source) else {
+                break;
+            };
+            for notation in NUMERAL_NOTATIONS {
+                if let Some(value) =
+                    parse_notation(notation, surface, Self::is_sentence_initial(tokens, start))
+                {
+                    matches.push((
+                        end,
+                        NumberLiteral {
+                            value,
+                            numeral: notation,
+                        },
+                    ));
+                }
+            }
+        }
+        matches
+    }
+
+    fn token_is_in_recognized_numeral(&self, tokens: &[Token], index: usize) -> bool {
+        (0..=index).any(|start| {
+            self.recognized_numerals(tokens, start)
+                .into_iter()
+                .any(|(end, _)| index < end)
+        })
+    }
+
     pub(super) fn scan_verb(
         &self,
         tokens: &[Token],
@@ -231,24 +289,7 @@ impl EnglishGrammar<'_, '_> {
             || !self.scan_preposition(tokens, start).is_empty()
             || !self.scan_conjunction(tokens, start, false).is_empty()
             || self.subordinator_at(tokens, start).is_some()
-            || self.token_text(tokens, start).is_some_and(|surface| {
-                [
-                    Numeral::Cardinal,
-                    Numeral::Ordinal,
-                    Numeral::Arabic(false),
-                    Numeral::Arabic(true),
-                    Numeral::Roman,
-                ]
-                .into_iter()
-                .any(|notation| {
-                    super::parse_notation(
-                        notation,
-                        surface,
-                        Self::is_sentence_initial(tokens, start),
-                    )
-                    .is_some()
-                })
-            })
+            || self.token_is_in_recognized_numeral(tokens, start)
             || EnglishLexicalSlot::LITERAL_SLOTS
                 .iter()
                 .copied()
