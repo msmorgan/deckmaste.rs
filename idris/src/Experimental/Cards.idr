@@ -675,33 +675,47 @@ fireNavyTrebuchet =
     (MkToken (Just (2, 1)) [] (MkTypeLine [Construct] [Artifact, Creature])
              [KeywordAbility Flying] (Just "Ballistic Boulder"))
 
--- "create a 0/0 black Zombie Army creature token" — amass's first leg,
--- and the rule's own words rather than a card's reminder text:
--- [CR#701.47a] defines "amass [subtype] N" as "If you don't control an
--- Army creature, create a 0/0 black [subtype] Army creature token.
--- Choose an Army creature you control. Put N +1/+1 counters on that
--- creature. If it isn't a [subtype], it becomes a [subtype] in addition
--- to its other types." Angrath, Captain of Chaos writes "Amass Zombies
--- 2"; this is the token it makes. The negated-condition wrapper is the
--- elision (`Not(Condition)` is ledgered), and the MULTI-SUBTYPE line is
+-- "If you don't control an Army creature, create a 0/0 black Zombie Army
+-- creature token." — amass's first SENTENCE, whole, and the rule's own
+-- words rather than a card's reminder text: [CR#701.47a] defines "amass
+-- [subtype] N" as "If you don't control an Army creature, create a 0/0
+-- black [subtype] Army creature token. Choose an Army creature you
+-- control. Put N +1/+1 counters on that creature. If it isn't a
+-- [subtype], it becomes a [subtype] in addition to its other types."
+-- Angrath, Captain of Chaos writes "Amass Zombies 2"; this is the
+-- sentence that makes its token. Nothing is elided any more — the
+-- negated condition chapter nineteen had to drop is written here, which
+-- is R3's retro-open of that ledger entry — and the MULTI-SUBTYPE line is
 -- what the leg contributes on its own: two subtypes over one card type.
 amassZombiesToken : Effect []
-amassZombiesToken = create (Lit 1) (creatureTok 0 0 [Black] [Zombie, Army])
+amassZombiesToken =
+  If (create (Lit 1) (creatureTok 0 0 [Black] [Zombie, Army]))
+     (notSo (Exists (And [HasSubtype Army, creature, ControlledBy You])))
+     Nothing
 
 -- "Choose an Army creature you control. Put two +1/+1 counters on that
--- creature. It becomes a Zombie in addition to its other types."
--- (amass Zombies 2's remaining legs, [CR#701.47a]; the last sentence's
--- "if it isn't a Zombie" wrapper elided with the negated condition, and
--- the leg is written apart from the token above because the rule's
--- branch makes them the SAME object and this grammar has no way to say
--- so — written as one term the two mentions would be two) — the subtype
--- word as a head noun, the counter clause over an anaphoric subject, and
--- the durationless type addition that is amass's whole point.
+-- creature. If it isn't a Zombie, it becomes a Zombie in addition to its
+-- other types." — amass Zombies 2's last THREE sentences, whole
+-- ([CR#701.47a]), and the choose-then-refer glue end to end: the choice
+-- clause introduces the referent, the counter clause reads it with the
+-- sorted demonstrative, and the type addition reads it again with the
+-- pronoun under its own negated condition. Both of chapter nineteen's
+-- elisions are gone.
+-- It is still written apart from the sentence above, and the reason is
+-- now EXACT rather than general: written as one term, the token that
+-- sentence conditionally creates and the Army this one chooses are two
+-- creature mentions, so "that creature" has two candidates and the
+-- uniqueness discipline refuses it (`badAmassOneTerm`) — the whole gap,
+-- one anaphor wide. The rule's own two mentions denote one object in
+-- either branch, which is a fact about the game and not about the
+-- sentences, and no mention channel here can see it (ledger).
 amassZombiesArmy : Effect []
 amassZombiesArmy =
   Sequentially [Choose (a (And [HasSubtype Army, creature, ControlledBy You])),
                 PutCounters (Lit 2) PlusOnePlusOne (That (TypeW Creature)),
-                becomes (That (TypeW Creature)) (subtypesOnly [Zombie]) Nothing]
+                If (becomes It (subtypesOnly [Zombie]) Nothing)
+                   (itIsntA (HasSubtype Zombie))
+                   Nothing]
 
 -- "Put a +1/+1 counter on target creature." (Battlegrowth) — the
 -- counter flagship, and the whole card. Agent-silent ([CR#122.1]; core's
@@ -775,19 +789,132 @@ cowardKiller = Sequentially [cantBlock (target creature) (Just thisTurn),
 clavilenoPhrase : Predicate [] Object
 clavilenoPhrase = And [creature, Attacking, Not (HasSubtype Demon)]
 
--- "If you control a Demon, each opponent loses 2 life and you gain 2
--- life. Otherwise, you lose 2 life." (Unholy Annex's end-step trigger;
--- the trigger header and the sentence before it — "draw a card", no draw
--- vocabulary — elided as Blindblast's is) — chapter eighteen's ELSE arm,
--- opened with the card that finally writes both arms in vocabulary this
--- grammar has. The consequent is a two-clause sequence in a body slot,
--- which is where a sequence may still stand; the arm is a `Maybe` field
--- and reads only what preceded the conditional.
+-- "Draw a card. If you control a Demon, each opponent loses 2 life and
+-- you gain 2 life. Otherwise, you lose 2 life." (Unholy Annex's end-step
+-- trigger, whole but for the trigger header) — chapter eighteen's ELSE
+-- arm, opened with the card that finally writes both arms in vocabulary
+-- this grammar has. The consequent is a two-clause sequence in a body
+-- slot, which is where a sequence may still stand; the arm is a `Maybe`
+-- field and reads only what preceded the conditional. The leading draw is
+-- the RETRO-OPEN: chapter eighteen elided it for want of the verb, and
+-- the elision is what made this a bare conditional rather than the
+-- sequence the card writes.
 unholyAnnex : Effect []
-unholyAnnex = If (Sequentially [losesLife (Each Opponent) (Lit 2),
-                                gainsLife You (Lit 2)])
-                 (Exists (And [HasSubtype Demon, ControlledBy You]))
-                 (Just (losesLife You (Lit 2)))
+unholyAnnex =
+  Sequentially [drawACard,
+                If (Sequentially [losesLife (Each Opponent) (Lit 2),
+                                  gainsLife You (Lit 2)])
+                   (Exists (And [HasSubtype Demon, ControlledBy You]))
+                   (Just (losesLife You (Lit 2)))]
+
+-- ===== Cards drawn, modes chosen, and what a choice leaves behind: the composite-glue chapter =====
+
+-- "Draw two cards." (Divination; the whole card) — the draw verb's
+-- flagship, and the plainest shape it has: the imperative's unpronounced
+-- subject spelled as `You`, and a written numeral in the count slot.
+divination : Effect []
+divination = drawCards 2
+
+-- "Target player draws three cards." (Ancestral Recall; the whole card) —
+-- the SUBJECTED form, and why the drawer is a slot rather than the
+-- imperative's silent `You`: the same clause writes both.
+ancestralRecall : Effect []
+ancestralRecall = Draw (target AnyPlayer) (Lit 3)
+
+-- "Each player draws X cards." (Prosperity; the whole card, its {X}
+-- announced with the mana cost as every X is [CR#107.3a]) — the
+-- distributive subject and the announced amount, neither of them
+-- vocabulary this row had to mint.
+prosperity : Effect []
+prosperity = Draw (Each AnyPlayer) XVal
+
+-- "Draw a card for each creature you control." (Collective Unconscious;
+-- the whole card) — the for-each amount in the count slot, which is the
+-- whole point of reusing `Amount` instead of minting a number path: the
+-- adverbial that scales damage scales a draw unchanged.
+collectiveUnconscious : Effect []
+collectiveUnconscious = Draw You (forEach creatureYouControl)
+
+-- "Target creature gets +1/+1 until end of turn. Draw a card." (Killian's
+-- Confidence; its graveyard-return trigger is a second ability) — the
+-- commonest sentence in the corpus in the position it is almost always
+-- written in, and the proof that it introduces nothing: the sequence ends
+-- there because there is nothing left to say about the card drawn.
+killiansConfidence : Effect []
+killiansConfidence = Sequentially [gets (target creature) 1 1 (Just untilEndOfTurn),
+                                   drawACard]
+
+-- "Blindblast deals 1 damage to target creature. That creature can't
+-- block this turn. Draw a card." (Blindblast; the whole card at last) —
+-- the RETRO-OPEN of chapter fifteen's elision, which was elided for want
+-- of the draw verb and nothing else.
+blindblastWhole : Effect []
+blindblastWhole = Sequentially [DealDamage This (Lit 1) (target creature),
+                                cantBlock (That (TypeW Creature)) (Just thisTurn),
+                                drawACard]
+
+-- "{2}, Discard this card: Draw a card." — cycling's expansion
+-- ([CR#702.29a]) with its EFFECT written, which `cyclingCost` above could
+-- not have: the mana half of the cost stays elided as every mana cost
+-- does, and the discard is the same term that justifies `DiscardOk`'s
+-- bare-`This` row.
+cycling : Activated []
+cycling = MkActivated (discards You This) drawACard
+
+-- "Choose one — • Abrade deals 3 damage to target creature. • Destroy
+-- target artifact." (Abrade; the whole card) — the modal flagship, at the
+-- headcount four hundred seventy cards write. The two modes are typed in
+-- the SAME discourse and not in one another's: neither reads the other,
+-- and each announces its own targets only if it is chosen ([CR#700.2c]).
+abrade : Effect []
+abrade = chooseOne [DealDamage This (Lit 3) (target creature),
+                    destroy (target artifact)]
+
+-- "Choose two — • Destroy all artifacts. • Destroy all enchantments. •
+-- Destroy all creatures with mana value 3 or less. • Destroy all
+-- creatures with mana value 4 or greater." (Austere Command; the whole
+-- card) — a counted headcount over four modes, with the comparison
+-- chapter's bound inside two of them. Two of four, never two of two:
+-- a headcount that fixes the whole list instructs no choice at all
+-- (`ModesFit`, `badModalFixedWhole`).
+austereCommand : Effect []
+austereCommand =
+  chooseTwo [destroy (AllOf artifact),
+             destroy (AllOf enchantment),
+             destroy (AllOf (And [creature, Compare ManaValue OrLess (Lit 3)])),
+             destroy (AllOf (And [creature, Compare ManaValue OrGreater (Lit 4)]))]
+
+-- "Choose one or both — • Target creature gets -1/-1 until end of turn. •
+-- Put a +1/+1 counter on target creature." (Azula Always Lies; the whole
+-- card) — the one-to-two range under the word that names the whole of a
+-- two-item list, and the sharpest evidence for the list-not-telescope
+-- shape: BOTH modes write "target creature" and neither is the other's
+-- "other", because each announces its own ([CR#700.2c,601.2c]). Written
+-- as a sequence the second phrase would have to say "another".
+azulaAlwaysLies : Effect []
+azulaAlwaysLies =
+  chooseOneOrBoth [gets (target creature) (-1) (-1) (Just untilEndOfTurn),
+                   PutCounters (Lit 1) PlusOnePlusOne (target creature)]
+
+-- "Choose one or more — • Destroy target artifact. • Destroy target
+-- enchantment. • Destroy target land." (Rain of Thorns; the whole card) —
+-- the OPEN top, whose word says the mode list is its own bound. Nineteen
+-- cards write it and none over two modes: at two the word is "both".
+rainOfThorns : Effect []
+rainOfThorns = chooseOneOrMore [destroy (target artifact),
+                                destroy (target enchantment),
+                                destroy (target land)]
+
+-- "Choose an opponent. That player sacrifices a creature of their
+-- choice." (Myrkul's Edict, the 1—9 face of its d20 roll; the roll is a
+-- carrier this grammar does not spell, elided as a trigger header is) —
+-- the choose clause as an INTRODUCER, and one mention serving two reads:
+-- the next sentence's demonstrative subject, and the unique player
+-- antecedent "of their choice" needs (`countChoosers`).
+myrkulsEdict : Effect []
+myrkulsEdict = Sequentially [Choose (a Opponent),
+                             sacrifice (That PlayerW) (aTheirChoice creature)]
+
 
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
@@ -2055,3 +2182,102 @@ failing "countOnes"
   badOtherwiseReadsIfArm = If (create (Lit 1) (creatureTok 1 1 [Black] [Zombie]))
                               (Exists creatureYouControl)
                               (Just (Tap It))
+
+-- ===== What a mode may read, what a headcount may fix, and what a draw leaves =====
+
+-- A modal offers TWO OR MORE options ([CR#700.2] says so in its own
+-- definition), so a one-mode "modal" is not one — it is the sentence
+-- itself with a choice clause bolted on front, and no card writes it.
+failing "AtLeastTwo"
+  badModalOneMode : Effect []
+  badModalOneMode = Modal (upTo 1) [destroy (target artifact)]
+
+-- A headcount that fixes the whole list instructs no choice: "Choose two
+-- —" over exactly two modes has one answer, and [CR#700.2] calls a spell
+-- modal for the INSTRUCTIONS to choose. Zero cards write it — every
+-- printed exact headcount is strictly under its list, and the two forms
+-- whose top reaches the list ("one or both", "one or more") are ranges.
+failing "ModesFit"
+  badModalFixedWhole : Effect []
+  badModalFixedWhole = chooseTwo [destroy (target artifact),
+                                  destroy (target enchantment)]
+
+-- Nor may a headcount reach PAST the list: three of two options names
+-- nothing at all.
+failing "ModesFit"
+  badModalOverreach : Effect []
+  badModalOverreach = Modal (exactly 3) [destroy (target artifact),
+                                         destroy (target enchantment)]
+
+-- The mode list is a LIST and not a telescope: the modes are chosen at
+-- cast ([CR#700.2a]) and an unchosen one's targets are never announced
+-- ([CR#700.2c] — the spell is "treated as though it did not have those
+-- targets"), so a mode that reads a sibling's mention reads something
+-- that may never have existed. Every bullet in the corpus
+-- that opens with a pronoun reaches PAST the modal to the trigger before
+-- it — Kogla and Yidaro's two modes both read the same outside antecedent
+-- and neither reads the other — and zero read a sibling.
+failing "countOnes"
+  badModalReadsAcrossModes : Effect []
+  badModalReadsAcrossModes = chooseOne [destroy (target artifact), Tap It]
+
+-- And nothing after the modal reads into it, for the same reason pointed
+-- forward: Blood on the Snow writes "Then return a creature or
+-- planeswalker card … from your graveyard" — a description covering both
+-- modes' outcomes — exactly where an anaphor would have gone.
+failing "countOnes"
+  badReadsAfterModal : Effect []
+  badReadsAfterModal =
+    Sequentially [chooseOne [destroy (target artifact), destroy (target enchantment)],
+                  Tap It]
+
+-- WHICH condition frames take a "not" is a closed table. The comparison
+-- frame does not: a bound has a negative of its own, and English writes
+-- that instead — "if its power isn't 4 or greater" is written zero times.
+failing "CondNegatable"
+  badNegatedComparison : Effect []
+  badNegatedComparison =
+    If (destroy (target artifact))
+       (notSo (CompareAmt (manaValueOf It) OrLess (Lit 2)))
+       Nothing
+
+-- Nor does a negation take one: no corpus line writes a condition under
+-- two of them, English collapsing the pair into the positive.
+failing "CondNegatable"
+  badDoubleNegatedCondition : Effect []
+  badDoubleNegatedCondition =
+    If (destroy (target artifact))
+       (notSo (notSo (Exists creatureYouControl)))
+       Nothing
+
+-- A drawn card is not a mention. The corpus never reads one back across a
+-- sentence boundary — "Draw a card." followed by "it" or "that card" is
+-- written zero times, and the card IS read only inside the coordination
+-- that reveals it ("Draw a card and reveal it. If it isn't a land card,
+-- discard it."), a verb-phrase coordination this grammar does not spell.
+failing "countWord"
+  badDrawnCardRemention : Effect []
+  badDrawnCardRemention = Sequentially [drawACard, exile (That CardW)]
+
+-- Amass Zombies 2 as ONE term, which [CR#701.47a] writes as one
+-- definition and this grammar cannot: with the conditional token creation
+-- in front of it, "Put N +1/+1 counters on that creature" has TWO
+-- creature mentions to choose between — the token that sentence may have
+-- made, and the Army this one chose — and the no-recency discipline
+-- (finding 26) refuses the bare demonstrative rather than guess. The
+-- rule's two mentions denote ONE object in either branch (the token, when
+-- there is one, is the only Army creature there is to choose), which is a
+-- fact about the game that no mention channel here records. The nearest
+-- honest forms are `amassZombiesToken` and `amassZombiesArmy`, whole
+-- sentences both, and this pin is the seam between them.
+failing "countWord"
+  badAmassOneTerm : Effect []
+  badAmassOneTerm =
+    Sequentially [If (create (Lit 1) (creatureTok 0 0 [Black] [Zombie, Army]))
+                     (notSo (Exists (And [HasSubtype Army, creature, ControlledBy You])))
+                     Nothing,
+                  Choose (a (And [HasSubtype Army, creature, ControlledBy You])),
+                  PutCounters (Lit 2) PlusOnePlusOne (That (TypeW Creature)),
+                  If (becomes It (subtypesOnly [Zombie]) Nothing)
+                     (itIsntA (HasSubtype Zombie))
+                     Nothing]

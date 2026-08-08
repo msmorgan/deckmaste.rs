@@ -10,8 +10,11 @@ import public Experimental
 -- as core's are (`plugins/builtin/macros/quantity/`): "[n]" for the
 -- exact count, "up to [n]" for core's `AtMost` under the oracle's own
 -- word, "any number of" for the unbounded range. Core's `AtLeast` and
--- `Between` ("one or two targets") spell over the same primitive; they
--- wait on a corpus line that needs them.
+-- `Between` waited on a corpus line that needed them and the MODAL
+-- headcount is it: "one or more" is `atLeast` and "one or both" is the
+-- one-to-two `Between`, nineteen and fifty-two cards. What still waits
+-- is the TARGET-position spelling of either ("one or two target
+-- creatures"), which no bench card writes.
 
 -- "[n] target [pred]s" — the exact count
 -- spelling: (construction-owned -- quantity wording; verified real family:
@@ -35,6 +38,31 @@ upTo n = Range Nothing (Just n)
 public export
 anyNumber : Quantity
 anyNumber = Range Nothing Nothing
+
+-- "[n] or more" — core's `AtLeast` under the oracle's own word, which
+-- the modal headcount is what finally needed: "Choose one or more —"
+-- heads nineteen cards, over three, four, or five modes, and it is the
+-- form that appears exactly where "one or both" cannot, the list running
+-- past two.
+-- spelling: ["<Param(0)> or more"] (matches core's `AtLeast` over the same
+-- Range primitive)
+public export
+atLeast : Nat -> Quantity
+atLeast n = Range (Just n) Nothing
+
+-- "one or both" — the range from one to two under the word that names
+-- the whole of a two-item list. Fifty-two modal cards write it and every
+-- one of them offers EXACTLY two modes, which is what "both" says; the
+-- same range over three modes would have to write "one or two", and the
+-- corpus writes that zero times, all scopes. That agreement is a
+-- linearization side condition and not a gate — the numeric relation is
+-- `ModesFit`'s, and which WORDS a top-of-the-list range spells is the
+-- renderer's, "or both" at two and "or more" above.
+-- spelling: ["one or both"] (core's `Between(1, 2)` under the two-item
+-- word; see `atLeast` for the unbounded sibling)
+public export
+oneOrBoth : Quantity
+oneOrBoth = Range (Just 1) (Just 2)
 
 -- "target [pred]" — the singular counted mention. One constructor
 -- serves every quantity ([CR#601.2c] announces them all alike); at
@@ -575,6 +603,82 @@ becomes : (n : Noun bs Object) -> (added : TypeLine) -> (d : Maybe Duration) ->
           {auto 0 sp : SpanOk TypeAddition d} -> Effect bs
 becomes n added d = Continuously (BecomesAlso n added {zn} {ne} {af}) d {sp}
 
+-- The draw surfaces, over the one `Draw` primitive ([CR#121.1]). The
+-- imperative's unpronounced subject is `You` spelled explicitly, which is
+-- the `create`/`sacrifice` pattern, and the count is the ordinary amount
+-- vocabulary.
+
+-- "Draw a card." — the single commonest sentence in the corpus (a
+-- thousand nine hundred sixty-three lines).
+-- spelling: ["draw a card"], kind: Sentence
+public export
+drawACard : Effect bs
+drawACard = Draw You (Lit 1)
+
+-- "Draw [n] cards." — the counted imperative ("Draw two cards", two
+-- hundred seventy-four lines; "Draw three cards", a hundred twenty-eight).
+-- spelling: ["draw <Param(0)> cards"], kind: Sentence
+public export
+drawCards : Nat -> Effect bs
+drawCards n = Draw You (Lit n)
+
+-- "[who] draws a card" — the subjected form ("Target player draws a
+-- card", twenty lines; "Each player draws a card", twenty-nine).
+-- spelling: ["<Param(0)> draws a card"], kind: Sentence (auto-inflection
+-- supplies the agreement)
+public export
+drawsACard : (who : Noun bs Player) -> Effect bs
+drawsACard who = Draw who (Lit 1)
+
+-- The modal headcount surfaces, one macro per phrase the corpus writes
+-- over the one `Modal` primitive ([CR#700.2]). Each is the quantity
+-- vocabulary in the modal's head slot and nothing more; the gates travel
+-- to the caller, an abstract mode list being unable to discharge them.
+
+-- "Choose one — • … • …" — four hundred seventy cards, over two, three,
+-- or four modes.
+-- spelling: ["choose one — <Param(0)>"], kind: Sentence
+public export
+chooseOne : (modes : List (Effect bs)) ->
+            {auto 0 tw : AtLeastTwo (modeCount modes)} ->
+            {auto 0 mf : ModesFit (exactly 1) (modeCount modes)} -> Effect bs
+chooseOne modes = Modal (exactly 1) modes {tw} {mf}
+
+-- "Choose two — • … • …" — thirty-two cards, over three or four modes.
+-- spelling: ["choose two — <Param(0)>"], kind: Sentence
+public export
+chooseTwo : (modes : List (Effect bs)) ->
+            {auto 0 tw : AtLeastTwo (modeCount modes)} ->
+            {auto 0 mf : ModesFit (exactly 2) (modeCount modes)} -> Effect bs
+chooseTwo modes = Modal (exactly 2) modes {tw} {mf}
+
+-- "Choose one or both — • … • …" — fifty-two cards, every one over
+-- exactly two modes (see `oneOrBoth`).
+-- spelling: ["choose one or both — <Param(0)>"], kind: Sentence
+public export
+chooseOneOrBoth : (modes : List (Effect bs)) ->
+                  {auto 0 tw : AtLeastTwo (modeCount modes)} ->
+                  {auto 0 mf : ModesFit Macros.oneOrBoth (modeCount modes)} -> Effect bs
+chooseOneOrBoth modes = Modal Macros.oneOrBoth modes {tw} {mf}
+
+-- "Choose one or more — • … • …" — nineteen cards, over three, four, or
+-- five modes (see `atLeast`).
+-- spelling: ["choose one or more — <Param(0)>"], kind: Sentence
+public export
+chooseOneOrMore : (modes : List (Effect bs)) ->
+                  {auto 0 tw : AtLeastTwo (modeCount modes)} ->
+                  {auto 0 mf : ModesFit (atLeast 1) (modeCount modes)} -> Effect bs
+chooseOneOrMore modes = Modal (atLeast 1) modes {tw} {mf}
+
+-- "if [subject] don't/doesn't [condition]" / "if [subject] isn't
+-- [predicate]" — the negated condition ([CR#701.47a] writes both of
+-- amass's branches with it).
+-- spelling: (construction-owned -- negates its inner condition's own
+-- frame; see Condition.NotCond)
+public export
+notSo : (c : Condition bs) -> {auto 0 ng : CondNegatable c} -> Condition bs
+notSo c = NotCond c {ng}
+
 -- "it's [pred]" — the reference-matches condition over the singular
 -- object read, which is the subject every corpus line writes it with
 -- ("if it's a creature card", "if it's attacking").
@@ -584,3 +688,14 @@ public export
 itsA : (p : Predicate bs Object) -> {auto 0 ok : countOnes Object bs = 1} ->
        {auto 0 af : AnyTargetFree p} -> Condition bs
 itsA p = Matches (It {ok}) p {af}
+
+-- "it isn't [pred]" — `itsA` negated, the frame amass's last sentence
+-- writes ("If it isn't a Zombie, …", [CR#701.47a]) and real card text
+-- with it ("If it isn't a creature, it becomes a 0/0 creature in addition
+-- to its other types.").
+-- spelling: ["it isn't <Param(0)>"], kind: TODO(reason: condition
+-- fragment, see itsA)
+public export
+itIsntA : (p : Predicate bs Object) -> {auto 0 ok : countOnes Object bs = 1} ->
+          {auto 0 af : AnyTargetFree p} -> Condition bs
+itIsntA p = NotCond (itsA p {ok} {af}) {ng = MkCondNegatable}

@@ -1684,6 +1684,233 @@ agreed on):
    have put two mentions where the rule has one. R3 adds the
    modal frame and the branch; the legs are here.
 
+## Chapter Twenty — The Composite Glue
+
+Chapter twenty, the round whose exit test was a keyword-action
+composite written end to end (evidence: Divination, Ancestral
+Recall, Prosperity, Collective Unconscious, Killian's Confidence,
+Blindblast, Abrade, Austere Command, Azula Always Lies, Rain of
+Thorns, Myrkul's Edict, Unholy Annex, cycling by way of
+[CR#702.29a], and amass by way of [CR#701.47a]; and, for what the
+round measured rather than built, Blood on the Snow, Thermal
+Flux, Kogla and Yidaro, Blizzard Specter, Judith Carnage
+Connoisseur, Kitsune Ace, Gylwain Casting Director, Pip-Boy 3000,
+Fblthp the Lost. The round that got three of amass's four
+sentences into one term and can name the anaphor that blocks the
+fourth):
+
+90. **The draw verb is its own clause row and not a keyword
+   action, and it introduces nothing.** [CR#701] is the keyword
+   actions and drawing is not among them — [CR#121.1] gives it a
+   rule of its own — so the clause sits beside `ChangeLife`
+   rather than under a `Composite` tag, and it carries its
+   SUBJECT for `ChangeLife`'s reason: both spellings are ordinary
+   oracle, the imperative with its unpronounced `You` (a thousand
+   nine hundred sixty-three lines write "draw a card") and the
+   subjected form ("Target player draws a card", twenty; "Each
+   player draws a card", twenty-nine). The count is the ordinary
+   magnitude vocabulary and no parallel number path: `Lit`
+   ("Draw two cards", two hundred seventy-four), `XVal` ("Draw X
+   cards", seventy-six), the for-each amount ("Draw a card for
+   each …", a hundred thirty-seven), and a read ("Draw cards equal
+   to the sacrificed creature's power", eighty-two). What the row
+   contributes to the discourse is MEASURED and it is nothing but
+   its subject: no corpus line reads a drawn card back across a
+   sentence boundary — "Draw a card." followed by "it" or "that
+   card" is written zero times, and the three near misses are two
+   reminder parentheticals and Fblthp, whose "if it entered from
+   your library" reads the creature that entered rather than the
+   card drawn. The one place the drawn card IS read is inside the
+   coordination that reveals it ("Draw a card and reveal it. If it
+   isn't a land card, discard it.", four lines), a verb-phrase
+   coordination this grammar does not spell, and that construction
+   is what would reopen the question. No OUTCOME binding either:
+   "that many cards" reads a count from somewhere else, never from
+   a draw.
+91. **[CR#700.2] supplies both halves of the modal node's shape,
+   and the headcount table is the corpus's, not the brief's.** The
+   rule defines a modal spell as one with "two or more options in
+   a bulleted list preceded by instructions for a player to choose
+   a number of those options" — so the mode minimum is the rule's
+   own and not a presumption (`AtLeastTwo`, reused unchanged from
+   the sequence chapter), and the headcount is a NUMBER, which
+   means it is the one quantity vocabulary. Measured by card:
+   "Choose one —" four hundred seventy, "Choose two —" thirty-two,
+   "Choose three —" one (Mishra, Eminent One, over six modes),
+   "Choose one or both —" fifty-two, "Choose one or more —"
+   nineteen, "Choose up to one —" seven. The briefing premise that
+   "up to two" and "up to three" were attested was false: both are
+   written zero times in every scope, as are "choose four", "two
+   or more", and "one or two". The mode COUNTS are as informative:
+   "one or both" appears over exactly two modes every one of its
+   fifty-two times, which is what the word "both" says, and "one
+   or more" never appears over two — at two the word is "both".
+92. **The mode list is a LIST and not a telescope, and that is
+   this chapter's structural finding.** Every mode is typed in the
+   discourse the modal itself stands in, so a mode reads
+   everything before the modal and nothing a sibling introduced,
+   and the modal contributes nothing outward. All three directions
+   were measured before they were encoded. INWARD: of the six
+   bullets in the corpus that open with a pronoun, every one
+   reaches past the modal to the sentence before it — Kogla and
+   Yidaro's "When Kogla and Yidaro enters, choose one — • It gains
+   trample and haste until end of turn. • It fights target
+   creature you don't control." has BOTH modes reading the same
+   outside antecedent, and Blizzard Specter's "That player",
+   Judith's "That spell", Kitsune Ace's "That Vehicle", Gylwain's
+   and Pip-Boy 3000's "that creature" are the same shape.
+   ACROSS: zero bullets read a sibling. OUTWARD: of the forty-eight
+   modal cards with a non-bullet line after the list, all but two
+   are keyword packaging (entwine, equip, cycling, flashback,
+   rebound, crew, suspend, reinforce); Thermal Flux's trailing
+   line names nothing; and Blood on the Snow is the positive
+   proof — "Choose one — • Destroy all creatures. • Destroy all
+   planeswalkers. Then return a creature or planeswalker card …
+   from your graveyard to the battlefield" writes a DESCRIPTION
+   covering both modes' outcomes exactly where an anaphor would
+   have gone. The rule says why: [CR#700.2a] chooses the modes at
+   cast, and [CR#700.2c] has an unchosen mode's targets never
+   announced at all, the spell being "treated as though it did not
+   have those targets". So this is `predDelta (Or _) = []` and
+   `condDelta = []` one construction up, and for their reason
+   (`badModalReadsAcrossModes`, `badReadsAfterModal`).
+   Azula Always Lies is what the list buys: "Choose one or both —
+   • Target creature gets -1/-1 until end of turn. • Put a +1/+1
+   counter on target creature." writes "target creature" in BOTH
+   modes and neither is the other's "other", because each
+   announces its own ([CR#601.2c] lets the same object be chosen
+   once per instance of the word). Written as a sequence the
+   second phrase would have had to say "another".
+93. **The modal headcount is what finally needed core's `AtLeast`
+   and `Between`.** The quantity macros have carried a note since
+   chapter one that those two spell over the same `Range`
+   primitive and wait on a corpus line that needs them; "Choose
+   one or more —" is `atLeast 1` and "Choose one or both —" is the
+   one-to-two `Between`, nineteen and fifty-two cards. What still
+   waits is the TARGET-position spelling of either ("one or two
+   target creatures"), which no bench card writes. Which WORDS a
+   headcount spells depends on the mode count as well as the
+   range — a top that equals the list writes "or both" at two and
+   "or more" above — and that is a linearization side condition,
+   recorded and unchecked exactly as the leading-versus-trailing
+   conditional is.
+94. **`ModesFit` is a relation on the PAIR, and its two demands
+   are impossibility and choice.** A headcount cannot reach past
+   the modes offered — three of two options names nothing
+   (`badModalOverreach`) — and a headcount that fixes the whole
+   list instructs no choice at all, [CR#700.2] calling a spell
+   modal for the INSTRUCTIONS to choose a number: "Choose two —"
+   over exactly two modes has one answer, and zero cards write it
+   (`badModalFixedWhole`). Every printed exact headcount is
+   strictly under its list; the two forms whose top reaches the
+   list are ranges, which have a choice to make inside them. The
+   relation lives beside `WellFormedQ` rather than inside it
+   because neither demand is about the quantity alone.
+95. **The condition negation lands, and the ledger's own reason
+   for holding it was the thing that had gone stale.** Chapter
+   eighteen deferred core's `Not(Condition)` on the count of
+   twenty-four "if you control no …" lines whose every carrier was
+   a trigger's intervening-"if" or an activation restriction. The
+   count was short: a hundred and twelve one-shot lines write it
+   across the two frames it reaches — "if you don't control a/an
+   …" fifty-nine, "if you control no …" twenty-four, "if there are
+   no …" seventeen, "if no [creature/player/opponent] …" twelve on
+   the existential side; "if it isn't …" twenty-four and "if it's
+   not a …" thirty-seven on the reference side — and [CR#701.47a]
+   writes BOTH of amass's branches with it. WHICH frames take a
+   "not" is a closed table and not the row's license: the
+   existential and the reference frames do, the COMPARISON frame
+   does not, because a bound has a negative of its own and English
+   writes that instead ("if its power isn't 4 or greater", zero
+   lines), and a negation under a negation is written zero times
+   likewise (`badNegatedComparison`,
+   `badDoubleNegatedCondition`). The constructor is named
+   `NotCond` because `Predicate` already owns `Not` in this
+   namespace — `CompareAmt` against `Compare` made the same move
+   first.
+96. **The choose-then-refer glue needed no new machinery, which is
+   the finding.** `Choose` already introduced what it chose
+   (`effIntro (Choose n) = nomIntro n`), so the pattern the amass
+   macro is built on — a choice clause whose referent the
+   following sentences read — was writable the moment the reads it
+   feeds existed. Myrkul's Edict is the demonstration on a card:
+   "Choose an opponent. That player sacrifices a creature of their
+   choice." has one choice clause serving two reads, the next
+   sentence's demonstrative subject and the unique player
+   antecedent "of their choice" demands (`countChoosers`). What
+   this chapter had to add for amass was on the OTHER side of the
+   glue: the negated condition finding 95 opened, and nothing
+   else.
+97. **THE AMASS VERDICT: pass with a gap, and the gap is one
+   anaphor wide.** Amass Zombies 2 is now three sentences in one
+   term and one sentence beside it, where chapter nineteen had two
+   terms with both negated conditions elided. `amassZombiesToken`
+   writes [CR#701.47a]'s first sentence WHOLE — "If you don't
+   control an Army creature, create a 0/0 black Zombie Army
+   creature token." — and `amassZombiesArmy` writes the last three
+   whole: "Choose an Army creature you control. Put two +1/+1
+   counters on that creature. If it isn't a Zombie, it becomes a
+   Zombie in addition to its other types." Nothing is elided in
+   either. What refuses is joining them, and the failing sentence
+   is exactly identifiable: "Put N +1/+1 counters on that
+   creature." With the conditional creation in front of it the
+   discourse holds TWO creature mentions — the token that sentence
+   may have made, and the Army this one chose — so the sorted
+   demonstrative has two candidates and the no-recency discipline
+   (finding 26) refuses it rather than guess
+   (`badAmassOneTerm`, a pin so the seam is bench-visible). The
+   diagnosis chapter nineteen guessed at is confirmed and can now
+   be stated exactly: the rule's two mentions denote ONE object in
+   either branch — when the token exists it is the only Army
+   creature there is to choose, and when it does not exist there
+   is only the chosen one — so the count that fails is a count of
+   MENTIONS where the rule is speaking about objects. Two designs
+   would close it and neither is a row: a HEDGED-mention channel,
+   marking a binding introduced under a condition and having the
+   definite reads prefer an unhedged candidate when one exists
+   (which [CR#701.47a] itself is the evidence for, and which the
+   corpus does not contradict — every conditional mention it reads
+   back, Lieutenant's Thopter and the Eldrazi Spawn among them, is
+   the only candidate there is); or an identity channel saying two
+   mentions co-refer. Both are context-data questions the §3
+   ruling has to answer first, and both are ledgered rather than
+   forced.
+98. **"The chosen [noun]" is witnessed and stays shut, and the
+   reason is the bench rather than the corpus.** The surface is
+   real and plentiful — "the chosen creature" thirty lines, "the
+   chosen player" twenty-nine, "the chosen card" twenty-six, "the
+   chosen permanent" ten, "the chosen creatures" eight — and it is
+   `TheVerbed`'s frame exactly, a definite participle read that
+   real text switches to where a bare demonstrative would be
+   ambiguous (Stolen Uniform's "Attach it to the chosen creature", with
+   two mentions in scope, is finding 26's shape on the nose). It
+   is not opened because no card that writes the SINGULAR read is
+   writable here: every candidate needs vocabulary this file does
+   not have — the plural definite, mill, kicker, teamwork, copies,
+   an X counted off artifacts — and the house rule is that a row
+   without a bench positive from a real card does not open. Two
+   further halves of the family were already ledgered and stay
+   there: the plural twin, and the PLAYER read, which needs
+   provenance on the binding rather than on the object payload
+   (finding 27's frontier — `Stamp` lives inside `ObjectP`, so no
+   participle reaches a player). Whoever opens it should note that
+   the provenance vocabulary would have to widen: `VerbName` is
+   the [CR#701] keyword-action tags today, and "choose" is not one
+   of them.
+99. **Four retro-opens, claimed.** Chapter fifteen's Blindblast
+   elided "Draw a card." for want of the verb and now writes the
+   whole card (`blindblastWhole`); chapter eighteen's Unholy Annex
+   elided the same sentence and was thereby a bare conditional
+   where the card writes a sequence (`unholyAnnex`); cycling's
+   expansion had its effect elided on the same ground and now
+   writes it, the mana half of the cost staying elided as every
+   mana cost does (`cycling`, [CR#702.29a]); and the quantity
+   macros' standing note that core's `AtLeast` and `Between` await
+   a corpus line is discharged by finding 93. What the round did
+   NOT reopen is the draw CLUSTER the ledger parks beside the
+   verb — the library zone and its ordered positions, miracle's
+   draw-ordinal memory — none of which the verb alone touches.
+
 ## Engine-Boundary Deferrals
 
 Engine-boundary deferrals (deliberate, and to stay so): the
@@ -1777,9 +2004,11 @@ than 7"; fifty-one "is less than" lines, eighteen "is greater
 than", almost all against a phrasal standard) together with the
 life-total reader they mostly measure, which `Characteristic`
 does not carry and which would make `Comparator` a per-frame
-table; the CONDITION negation (core's `Not(Condition)`; "if you
-control no …", twenty-four lines, every carrier a trigger's
-intervening-"if" or an activation restriction); "unless" whole
+table; [LANDED, finding 95 — the CONDITION negation is
+`NotCond`, over a closed table of the frames English negates:
+the existential and the reference frames, not the comparison
+frame and not another negation. The wait's own count was short by
+a factor of five]; "unless" whole
 — the action form is [CR#118.12a]'s own rewrite into finding 73's
 node and waits on the cost algebra (a hundred forty-five "unless
 you pay", a hundred eighty-six "unless [someone] pays",
@@ -1792,8 +2021,17 @@ should re-use `Condition` inside `Cant`'s shape as core does with
 lines, fifty-eight of them "attacks each combat if able"), which
 is the deontic-obligation polarity core keeps beside `Cant` and
 not a condition at all; the chosen-OBJECT
-definites ("the chosen creatures" — V.A.T.S./Victimize wait on
-"any number of" groups and if-you-do); plural participle reads
+definites, both numbers (finding 98: "the chosen creature" thirty
+lines, "the chosen card" twenty-six, "the chosen permanent" ten,
+"the chosen creatures" eight, "the chosen player" twenty-nine —
+`TheVerbed`'s frame exactly, and shut because no card writing the
+singular read is writable in this vocabulary, every candidate
+needing the plural definite, mill, kicker, teamwork, copies, or an
+X counted off artifacts. Opening it widens `VerbName` past the
+[CR#701] keyword-action tags it holds today, and the PLAYER read
+needs provenance on the binding rather than inside `ObjectP`;
+V.A.T.S./Victimize wait on "any number of" groups and if-you-do
+besides); plural participle reads
 ("the exiled cards", Hide on the Ceiling — group twins of
 `TheVerbed`); the PERMANENT word (demonstrative "that permanent"
 and participle "the sacrificed permanent", Broadside Bombardiers —
@@ -1986,6 +2224,38 @@ subtype-headed DAMAGE recipient, refused today because
 (finding 79) — conservative rather than measured, and the first
 thing to check if a "deals N damage to target [subtype]" line
 turns up.
+Chapter twenty's own deferrals, each measured: modal keyword
+PACKAGING, which is a cost story rather than a grammar one and is
+ledgered by name and count — entwine (thirty-two cards, "Choose
+both if you pay the entwine cost"), spree (twenty-one, "Choose one
+or more additional costs"), escalate (nine, "Pay this cost for each
+mode chosen beyond the first"), the per-mode additional cost
+([CR#700.2h]), the pawprint worth-of-modes headcount
+([CR#700.2i]), and the "You may choose the same mode more than
+once" instruction ([CR#700.2d], six lines); the CONDITIONAL
+HEADCOUNT UPGRADE ("Choose one. If this spell was kicked, you may
+choose both instead", twenty-six cards, which is why twenty-two
+lines write the header with a period instead of the em dash), a
+replacement of the modal's own quantity and so R6's; "Choose up to
+one —" (seven cards, every one over exactly two modes), which the
+quantity vocabulary already spells (`upTo 1`) and which has no
+macro or positive because not one of those seven has both modes
+writable in this vocabulary; the AMASS seam of finding 97, wanting
+either a hedged-mention channel (a binding introduced under a
+condition, which the definite reads pass over when an unhedged
+candidate exists) or a co-reference channel, both of them §3
+context-data questions; amass's own definites ([CR#701.47c] — "the
+amassed Army" three lines, "the Army you amassed" one, a
+keyword-scoped read no general vocabulary reaches); the drawn-card
+read inside a revealing coordination ("Draw a card and reveal it.",
+four lines), which is the verb-phrase coordination the ledger
+already parks beside Arc Trail's complements; a draw OUTCOME sort
+(no line reads a draw's own magnitude, so `OutcomeSort` grew no
+row); and the READ-count extraposition on a draw ("draw cards equal
+to the sacrificed creature's power" against "draw two cards" — the
+bare plural before the phrase, one more linearization side
+condition).
+
 The context-as-phrase-telescope collapse (bindings storing
 the mention terms themselves, every projection computed) stays open as
 a possible later simplification — less pressing since the payload

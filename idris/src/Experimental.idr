@@ -268,6 +268,43 @@ quantPlur : Quantity -> Plurality
 quantPlur (Range _ (Just (S Z))) = OneOf
 quantPlur (Range _ _) = ManyOf
 
+||| Numeral equality, over the one ordering primitive rather than a
+||| second table of its own.
+public export
+eqNat : Nat -> Nat -> Bool
+eqNat a b = leNat a b && leNat b a
+
+||| Whether a modal headcount FITS the list of modes it heads
+||| ([CR#700.2]) — two demands, and both are about the pair rather than
+||| about either half, which is why they are one relation and not a
+||| widening of `WellFormedQ`.
+|||
+||| The first is impossibility: a headcount cannot reach past the modes
+||| offered ("choose three" of two options names nothing), so a WRITTEN
+||| maximum is no greater than the count. The corpus never comes close —
+||| every printed headcount is strictly under its list but for the two
+||| open-topped forms, whose top IS the count and whose words say so
+||| ("one or both" over exactly two, fifty-two cards; "one or more" over
+||| three, four, or five, nineteen cards).
+|||
+||| The second is that a modal offers a CHOICE: [CR#700.2] calls a spell
+||| modal when its bulleted options come "preceded by instructions for a
+||| player to choose a number of those options", and a headcount that
+||| fixes the whole list instructs nothing — "Choose two —" over two
+||| modes has one answer. Zero cards write it (`badModalFixedWhole`).
+||| An open top escapes this by construction, having a range to choose
+||| in; so does every "up to", which may take fewer.
+public export
+modesFit : Quantity -> Nat -> Bool
+modesFit (Range Nothing Nothing) n = True
+modesFit (Range Nothing (Just hi)) n = leNat hi n
+modesFit (Range (Just lo) Nothing) n = leNat lo n
+modesFit (Range (Just lo) (Just hi)) n = leNat hi n && not (eqNat lo hi && eqNat hi n)
+
+public export
+data ModesFit : Quantity -> Nat -> Type where
+  MkModesFit : {auto 0 ok : modesFit q n = True} -> ModesFit q n
+
 ||| A written numeral is at least one — "for each zero creatures" is
 ||| unwritten English (`badForEachZero`).
 public export
@@ -3285,6 +3322,59 @@ mutual
     CompareAmt : (subj : Amount bs) -> (r : Comparator) -> (bound : Amount bs) ->
                  {auto 0 rd : ReadAmount subj} ->
                  {auto 0 wb : WrittenBound bound} -> Condition bs
+    -- "if you don't control an Army creature" / "if it isn't a Zombie" —
+    -- the CONDITION negation, core's `Not(Condition)`
+    -- (`deckmaste_core/src/condition.rs`) and the ledger's own entry,
+    -- opened here because [CR#701.47a] writes BOTH of amass's branches
+    -- with it and the corpus writes it far past the carriers the ledger
+    -- had counted: a hundred and twelve one-shot lines across the two
+    -- rows it reaches ("if you don't control a/an …" fifty-nine, "if you
+    -- control no …" twenty-four, "if there are no …" seventeen, "if no
+    -- [creature/player/opponent] …" twelve on the existential side;
+    -- "if it isn't …" twenty-four and "if it's not a …" thirty-seven on
+    -- the reference side), and the sentence that fixes the shape is real
+    -- card text and not the rule alone — "Put two +1/+1 counters on
+    -- target artifact, creature, or land you control. Untap that
+    -- permanent. If it isn't a creature, it becomes a 0/0 creature in
+    -- addition to its other types."
+    -- WHICH rows may be negated is a closed table and not this row's
+    -- license (`CondNegatable`): the two frames above are written, the
+    -- comparison frame is not — "if its power isn't 4 or greater" is
+    -- written zero times, English saying it with the opposite comparator
+    -- instead — and a negation of a negation is written zero times too.
+    -- The negated condition still contributes nothing (`condDelta`); it
+    -- is a hole for the reason every condition is one, and doubly so,
+    -- the false branch being the one that runs.
+    -- spelling: (construction-owned -- negates its inner condition's own
+    -- frame, exactly as Predicate's Not does: the fronted-subject
+    -- existential becomes "<subject> don't/doesn't <verb> <Param(0)>" or
+    -- the determiner negation "<subject> controls no <Param(0)>", and the
+    -- copular reference frame becomes "<Param(0)> isn't <Param(1)>". The
+    -- transform depends on the negated condition's own shape), kind:
+    -- TODO(reason: condition fragment, see Exists)
+    -- The NAME is core's `Not` disambiguated from the predicate negation
+    -- exactly as `CompareAmt` is disambiguated from `Compare` — one
+    -- namespace, two frames, and the argument type in the name.
+    NotCond : (c : Condition bs) -> {auto 0 ng : CondNegatable c} -> Condition bs
+
+  ||| Which condition frames English negates — a closed full-row table,
+  ||| so a new condition declares whether its own frame takes a "not".
+  ||| The existential and the reference frames do (`Exists`, `Matches`);
+  ||| the comparison frame does not, because a bound has a NEGATIVE of
+  ||| its own — "if its power isn't 4 or greater" is written zero times
+  ||| and "3 or less" is what English writes there — and a negation
+  ||| under a negation is written zero times likewise
+  ||| (`badNegatedComparison`, `badDoubleNegatedCondition`).
+  public export
+  condNegatable : {0 bs : Bindings} -> Condition bs -> Bool
+  condNegatable (Exists p) = True
+  condNegatable (Matches n p) = True
+  condNegatable (CompareAmt subj r bound) = False
+  condNegatable (NotCond c) = False
+
+  public export
+  data CondNegatable : Condition bs -> Type where
+    MkCondNegatable : {auto 0 ok : condNegatable c = True} -> CondNegatable c
 
   ||| What a condition contributes to the discourse: NOTHING, on every
   ||| row. This is the disjunction hole (`predDelta (Or _) = []`) at
@@ -3311,6 +3401,7 @@ mutual
   condDelta (Exists p) = []
   condDelta (Matches n p) = []
   condDelta (CompareAmt subj r bound) = []
+  condDelta (NotCond c) = []
 
   ||| The continuous effects a resolving clause can establish
   ||| ([CR#611.2]) — the PART of the sentence that survives its
@@ -3504,6 +3595,38 @@ mutual
     -- constructors.ron's `GainLife` entry / the merged ChangeLife family),
     -- kind: Sentence
     ChangeLife : (who : Noun bs Player) -> (op : LifeOp (nomIntro who)) -> Effect bs
+    -- "[who] draw(s) [amt] card(s)" ([CR#121.1] — a player draws by
+    -- putting the top card of their library into their hand). Not a
+    -- keyword action: [CR#701]'s list does not contain it, drawing being
+    -- its own game action, so the clause is a row of its own beside
+    -- `ChangeLife` rather than a `Composite` tag — and it carries its
+    -- SUBJECT the same way and for the same reason, both spellings being
+    -- ordinary oracle ("Draw a card." with the imperative's unpronounced
+    -- `You`, a thousand nine hundred sixty-three lines; "Target player
+    -- draws a card", twenty; "Each player draws a card", twenty-nine).
+    -- The COUNT is the ordinary magnitude vocabulary and no parallel
+    -- number path: "Draw two cards" (two hundred seventy-four) is a
+    -- `Lit`, "Draw X cards" (seventy-six) is `XVal`, "Draw a card for
+    -- each opponent who lost life this turn" (a hundred thirty-seven
+    -- for-each lines) is the for-each amount, and "Draw cards equal to
+    -- the sacrificed creature's power" (eighty-two) is a read.
+    -- It introduces NOTHING but its subject, and that is measured rather
+    -- than assumed: not one corpus line reads a drawn card back across a
+    -- sentence boundary — "Draw a card." followed by "it"/"that card" is
+    -- written zero times, and the three near misses are two reminder
+    -- parentheticals and Fblthp, whose "if it entered from your library"
+    -- reads the CREATURE that entered, not the card drawn. The drawn card
+    -- IS read inside the coordination that reveals it ("Draw a card and
+    -- reveal it. If it isn't a land card, discard it.", four lines),
+    -- which is a verb-phrase coordination this grammar does not spell;
+    -- that construction is what would reopen the question (ledger).
+    -- spelling: ["<Param(0)> draw(s) <Param(1)> card(s)"], kind: Sentence
+    -- (the imperative leaves the agent unpronounced; the noun "card"
+    -- pluralises with the count, and at one the numeral is the article
+    -- "a". A count that is READ rather than written extraposes -- "draw
+    -- cards equal to <Param(1)>", the bare plural before the phrase --
+    -- which is a linearization choice, unchecked here)
+    Draw : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) -> Effect bs
     -- "[static effect] [duration]" — the clause whose resolution
     -- establishes a continuous effect for the span it states
     -- ([CR#611.2a] — it "lasts as long as stated"), which is core's
@@ -3765,6 +3888,71 @@ mutual
     -- Sentence)
     Sequentially : {0 n : Nat} -> Effects n bs ->
                    {auto 0 ok : AtLeastTwo n} -> Effect bs
+    -- "Choose [q] — • [mode] • [mode] …" — the MODAL clause
+    -- ([CR#700.2]: a spell or ability is modal when it has "two or more
+    -- options in a bulleted list preceded by instructions for a player to
+    -- choose a number of those options"). The rule supplies both halves
+    -- of the node's shape: the headcount is a QUANTITY, so it is the one
+    -- quantity vocabulary and no parallel number path (`exactly`,
+    -- `upTo`, and the new `atLeast`/`oneOrBoth` over the same `Range`
+    -- primitive), and the modes are two or more (`AtLeastTwo`), which is
+    -- the rule's own minimum and not a presumption — no one-mode modal
+    -- exists in corpus, and by [CR#700.2] none could.
+    -- The attested headcounts, by card: "Choose one —" four hundred
+    -- seventy, "Choose two —" thirty-two, "Choose three —" one (Mishra,
+    -- Eminent One, over six modes), "Choose one or both —" fifty-two,
+    -- "Choose one or more —" nineteen, "Choose up to one —" seven. The
+    -- brief's "up to two"/"up to three" are written ZERO times, all
+    -- scopes; so are "choose four", "two or more", and "one or two".
+    -- The MODE LIST IS A LIST AND NOT A TELESCOPE — the whole finding of
+    -- this row, and the structural difference from `Effects` beside it.
+    -- Every mode is typed in `bs`, the discourse the modal itself stands
+    -- in, so a mode reads everything BEFORE the modal and nothing a
+    -- sibling mode introduced. Both directions are measured. Inward: the
+    -- six bullets that open with a pronoun all reach past the modal to
+    -- the trigger that precedes it ("When Kogla and Yidaro enters, choose
+    -- one — • It gains trample and haste until end of turn. • It fights
+    -- target creature you don't control." — BOTH modes read the same
+    -- outside antecedent, neither reads the other; likewise Blizzard
+    -- Specter's "That player", Judith's "That spell", Kitsune Ace's "That
+    -- Vehicle", Gylwain's and Pip-Boy 3000's "that creature"). Across:
+    -- zero bullets read a sibling, and [CR#700.2a] says why — the modes
+    -- are chosen at cast, and an unchosen mode's targets are never
+    -- announced at all — [CR#700.2c] has the spell "treated as though it
+    -- did not have those targets" — so a sibling's phrase may have named
+    -- nobody at all.
+    -- OUTWARD it contributes nothing (`effIntro`), which is the same fact
+    -- pointed forward and is equally measured: of the forty-eight modal
+    -- cards with a non-bullet line after the list, all but two are
+    -- keyword packaging (entwine, equip, cycling, flashback, rebound,
+    -- crew, suspend, reinforce), and neither survivor reads a mode.
+    -- Thermal Flux's trailing line names nothing, and Blood on the Snow
+    -- is the positive proof: "Choose one — • Destroy all creatures. •
+    -- Destroy all planeswalkers. Then return a creature or planeswalker
+    -- card … from your graveyard" writes a DESCRIPTION covering both
+    -- modes' outcomes exactly where an anaphor would have gone. So this
+    -- is `predDelta (Or _) = []` and `condDelta = []` one construction
+    -- up, and for their reason (`badModalReadsAcrossModes`,
+    -- `badReadsAfterModal`).
+    -- What is NOT here, and is keyword PACKAGING rather than grammar:
+    -- entwine (thirty-two cards — "Choose both if you pay the entwine
+    -- cost"), spree (twenty-one), escalate (nine), and the "You may
+    -- choose the same mode more than once" instruction ([CR#700.2d], six
+    -- lines). The pawprint worth-of-modes form ([CR#700.2i]) and the
+    -- per-mode additional cost ([CR#700.2h]) are the cost algebra's.
+    -- spelling: ["choose <Param(0)> — <Param(1)>"] (Param(0) = the
+    -- headcount's own words, see Quantity's macros; Param(1) = the mode
+    -- list, one bullet "•" per mode, each mode its own sentence or
+    -- sentences. WHICH words a headcount writes depends on the mode count
+    -- as well as the range -- a top that equals the list spells "or
+    -- both" at two modes and "or more" above -- which is a linearization
+    -- side condition, unchecked here as the leading/trailing conditional
+    -- is), kind: Sentence
+    Modal : (q : Quantity) -> (modes : List (Effect bs)) ->
+            {auto 0 nz : NonZeroQ q} ->
+            {auto 0 wf : WellFormedQ q} ->
+            {auto 0 tw : AtLeastTwo (modeCount modes)} ->
+            {auto 0 mf : ModesFit q (modeCount modes)} -> Effect bs
     -- "[e] [when/at event-query]" — the temporal adverbial stays on
     -- its clause (leading vs trailing position is linearization); the
     -- body reads the discourse as settled particulars transformed by
@@ -3773,6 +3961,15 @@ mutual
     -- leading position swaps the order, linearization's choice -- see
     -- EventQuery), kind: Sentence
     Delayed : (ev : EventQuery bs) -> Effect (delayedCtx ev) -> Effect bs
+
+  ||| How many modes a modal offers — `length` written in this mutual
+  ||| block rather than borrowed from the Prelude, because the count sits
+  ||| in the constructor's own type and the positivity checker reads only
+  ||| the functions declared alongside the type it is checking.
+  public export
+  modeCount : {0 bs : Bindings} -> List (Effect bs) -> Nat
+  modeCount [] = Z
+  modeCount (_ :: es) = S (modeCount es)
 
   ||| A clause sequence as a TELESCOPE, not a list of independent
   ||| clauses: each element is typed in the bindings its predecessors
@@ -4110,6 +4307,12 @@ mutual
   effIntro (Move what to) = moveIntro Nothing what (zoneSort to)
   effIntro (ChangeLife who (Up a)) = outcomeB LifeGained :: lifeIntro (Up a)
   effIntro (ChangeLife who (Down a)) = outcomeB LifeLost :: lifeIntro (Down a)
+  -- the subject and whatever its count read, and nothing else: the drawn
+  -- card is not a mention (see `Draw`), and no OUTCOME binding either —
+  -- `ThatMuch` reads a magnitude an earlier clause produced, and no
+  -- corpus line reads a draw's ("draw that many cards" reads a count
+  -- from somewhere else, never from a draw).
+  effIntro (Draw who amt) = amtIntro amt
   effIntro (Continuously se _) = staticIntro se
   -- the created token enters the discourse as the indefinite mention its
   -- phrase is ("a … token"), on the battlefield ([CR#111.1] — tokens are
@@ -4132,6 +4335,12 @@ mutual
   -- construction over).
   effIntro (If e c oth) = condDelta c ++ effIntro e
   effIntro (Sequentially es) = effsIntro es
+  -- a modal names NOBODY the sentences after it can read: the modes are
+  -- chosen at cast ([CR#700.2a]) and an unchosen one's targets are never
+  -- announced ([CR#700.2c]), so no mode's phrase is guaranteed to have
+  -- named anything, and Blood on the Snow writes a description where the
+  -- anaphor would go rather than take the risk.
+  effIntro (Modal q modes) = bs
   effIntro (Delayed ev e) = bs               -- a future clause mentions nothing NOW
 
   ||| What a may-clause leaves behind: the MAIN LINE's discourse — the
