@@ -1114,7 +1114,14 @@
 ||| queries); counters as per-HOLDER state — objects AND players
 ||| ([CR#122.1]; poison and rad ride the player), with put/remove
 ||| verbs and count reads; mana production and payment
-||| ([CR#106.4]); and control ASSIGNMENT on a battlefield move — a
+||| ([CR#106.4]); DESIGNATIONS, which ride all three holders the way
+||| the counters above ride two — a player's ("the monarch",
+||| [CR#725.1]; "the initiative", [CR#726.1]), a permanent's (the
+||| Ring-bearer, [CR#701.54b]), and the GAME's own (day and night,
+||| [CR#731.1]) — each a definite noun phrase naming a role rather
+||| than an object, which is why the definite sweep below surfaced
+||| them and had nowhere to put them; and control ASSIGNMENT on a
+||| battlefield move — a
 ||| controller argument the move primitive does not carry, since
 ||| [CR#110.2a] gives the instructed player by default and only an
 ||| explicit "under [player]'s control" overrides it. Leaf
@@ -1144,8 +1151,10 @@
 ||| renderer has to undo the collapse; the two that are not bounds are
 ||| "one or two" (a disjunction of exact counts, waiting with the
 ||| divided damage above) and "both" ("both creatures have
-||| deathtouch" — a definite plural presupposing a two-membered
-||| antecedent); activation restrictions and frequency riders
+||| deathtouch"), which is not a quantity word at all but the group
+||| COMPLEMENT below, a definite plural presupposing a two-membered
+||| antecedent no binding records; activation restrictions and
+||| frequency riders
 ||| ("Activate only as a sorcery", "Activate only during your turn and
 ||| only once each turn") — a legality rider with a turn-scoped count,
 ||| the ability layer's rather than any clause's; nonfinite and
@@ -1158,10 +1167,19 @@
 ||| exception riders ("except it's legendary", "except it's not
 ||| legendary") — one characteristic of what the clause just made,
 ||| overridden after the fact, so they want the copy/token vocabulary
-||| and the layer words together; partitives ("Put one of them into
-||| your hand and the rest on the bottom of your library in any
-||| order") — selection from an established group, twin of "the rest"
-||| above and of the pile partitions below; set-exception noun phrases
+||| and the layer words together; the group COMPLEMENT, one family
+||| under three words — "the rest" ("Put one of them into your hand
+||| and the rest on the bottom of your library in any order", six
+||| hundred and fifty-two lines), "the other" ("Exile one of them and
+||| put the other into your hand", a hundred and ten bare uses), and
+||| "both" above (nineteen) — selection from an established group and
+||| the leftover it defines, twin of the pile partitions below, and
+||| the one deferral the definite sweep found that names a missing
+||| PRIMITIVE rather than a missing word: a binding records a
+||| mention's `Plurality` and its `Determiner`, neither of which
+||| carries how MANY, so nothing here can presuppose a two-membered
+||| antecedent or subtract one mention from another; set-exception
+||| noun phrases
 ||| ("choose a card type other than creature", Arachne, Psionic
 ||| Weaver) — a complement
 ||| over a QUALITY domain, which `Other`'s object distinctness is not,
@@ -1236,11 +1254,72 @@
 ||| the spelling pass marked those constructors construction-owned or
 ||| TODO instead of giving them a fragment of their own.
 |||
-||| One family stays unmapped deliberately, being the next CHAPTER
-||| rather than a deferral: the generic definite and possessive noun
-||| phrases (which "both" above waits on). Comparatives were a second
-||| and have SPLIT, as coordination and the auxiliaries did before
-||| them: chapter sixteen took the BOUNDED qualifier — a written
+||| One family was held back as the next CHAPTER rather than a
+||| deferral — the generic definite and possessive noun phrases — and
+||| the sweep that went to take it found no chapter there. The
+||| parser's eight generic constructions (the closed determiner word,
+||| the quantity determiner, the possessive noun bare, determined,
+||| adjective-premodified, and occupying the determiner slot, the
+||| bare demonstrative, and the determiner-nominal carrier itself)
+||| are all CARRIERS — a slot for a word — where this file names the
+||| RELATION the word carries, so the sweep MAPPED rather than built.
+||| The closed determiners go across one for one: "a"/"an" is `A`,
+||| "each" is `Each`, "all" is `AllOf`, "another" is the `Other`
+||| conjunct on a determined head, "this"/"that"/"those" are
+||| `This`/`ThisOf`/`That`/`Those`, and "any" is `AnyTarget` in the
+||| damage class beside the unbounded `Quantity` of "any number of"
+||| (its third use, "mana of any color", rides the mana axis above).
+||| Two do not go across, and neither is a definite: "no" is a
+||| condition word — its corpus mass is "if you control no untapped
+||| lands", "if no mana was spent", and "with no mana cost", which
+||| are the conditions, the layer words, and the exception riders
+||| above — and the bare quantity determiner is the counted
+||| untargeted group already ledgered.
+|||
+||| "The" itself is what the sweep was for, and it is not a free
+||| anaphoric determiner. The guide gives the antecedent job to
+||| "that"/"those" and licenses "the" for the chosen quality, the
+||| participle read, and "the rest" — the first two typed here
+||| already as `OfChosen` and `TheVerbed` (uniqueness-gated exactly
+||| as the guide states it), the third the group complement above,
+||| which is why `TheD` is already a `Determiner` row. Across the
+||| eleven thousand corpus lines carrying "the", the mass is zone
+||| words ("the battlefield", a `ZoneExpr`), the trigger frame ("the
+||| beginning of"), and axes named above — library order ("the top",
+||| "the bottom"), aggregation ("the number of"), extremal selection
+||| ("the greatest"), copying ("the copy"), the stack read ("the
+||| target"), and the designations. The residue is a SURFACE
+||| alternate: a re-mention written "the player" where the guide
+||| would write "that player" ("Then if that player has no cards in
+||| hand" beside "If the player doesn't, creatures they control can't
+||| attack you this turn"). A `The` constructor would be `That` with
+||| a different word and no new meaning, so that gap is the
+||| renderer's rather than this file's.
+|||
+||| The possessives divide by RELATION, which is how this file spells
+||| them: "its owner's hand" and "an opponent's graveyard" are
+||| `HandOf`/`GraveyardOf`, "its controller"/"its owner" are
+||| `ControllerOf`/`OwnerOf`, "that creature's power" is `PowerOf`,
+||| and the adjective-premodified possessor is benched already ("the
+||| sacrificed artifact's mana value"). The possessor is gated on
+||| being SINGULAR and never on being definite, which the corpus
+||| supports — sixty-five lines write "an opponent's graveyard". The
+||| possessed nouns with no constructor are nouns this file has no
+||| term for at all, the library and the turn parts and control
+||| assignment and the life total, each waiting on its own axis
+||| rather than on possession. Two possessor SHAPES wait: the plural
+||| relational ("their owners' hands", a hundred and four lines,
+||| `badGroupOwner`) and the distributive singular ("each player's
+||| graveyard", thirteen), the second being the dependent iteration
+||| above rather than a possessive gap. The bare demonstrative noun
+||| phrase, last of the eight, has no rules-text witness at all:
+||| every corpus line ending a clause on one is reminder text
+||| ("Target a creature as you cast this", "Put a level counter on
+||| this"), where "this" is the source `This` already names.
+|||
+||| Comparatives were a second such family and have SPLIT, as
+||| coordination and the auxiliaries did before them: chapter sixteen
+||| took the BOUNDED qualifier — a written
 ||| numeral or X, under "or less"/"or greater" — and four families are
 ||| left, each waiting on an axis rather than on more comparison
 ||| machinery. The PHRASAL standard is the largest: "with power less
