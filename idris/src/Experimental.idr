@@ -782,6 +782,108 @@
 |||    four gates and finds the rest already standing is the shape the
 |||    projections were built for.
 |||
+||| Chapter sixteen, the bounded comparison (evidence: Defeat,
+||| Terashi's Verdict, Pillar of Light, Lucky Offering; the corpus
+||| split between the two comparison FRAMES is the chapter's sharpest
+||| single fact):
+||| 59. **A bound is a MODIFIER, and all three of its parts are
+|||    written.** "Destroy target creature with power 2 or less."
+|||    (Defeat) puts the qualifier where "attacking" and "you control"
+|||    already stand — a sibling in the flat modifier list, heading
+|||    nothing (`badBareComparison`) — so the phrase needed no new noun
+|||    layer, only a new word. What the word carries is the
+|||    characteristic, the comparator, and the bound, which is core's
+|||    `CharacteristicPredicate::Stat(Stat, Cmp, Count)` part for part
+|||    (`filter.rs`, whose own example is `Stat(Power, AtLeast, 3)`).
+|||    Four hundred sixty-three corpus lines bound a mana value, three
+|||    hundred three a power, twenty-five a toughness: a first-rank
+|||    construction, and one the workbench could not spell at all until
+|||    now.
+||| 60. **There are two comparison FRAMES, and the bound's shape picks
+|||    the one.** Core's `Cmp` offers five comparators (`condition.rs`)
+|||    and English writes two of them against a numeral. "With power
+|||    less than 4" and "with mana value greater than 3" are written
+|||    zero times each; the strict comparators appear only against a
+|||    PHRASAL standard, and in the other word order — "with power less
+|||    than Yasova Dragonclaw's power", "with mana value less than or
+|||    equal to the number of lands you control", ninety-nine lines of
+|||    "less than or equal to" alone. So the postposed frame takes a
+|||    WRITTEN bound and nothing else: a numeral, or the X announced
+|||    with the cost ([CR#107.3a]; ninety-one lines), never an amount
+|||    that has to be computed (`badPhrasalBound`, `WrittenBound`). The
+|||    english crate had already cut the surface at exactly this joint
+|||    and for its own reasons — `QuantityRepr::OrComparison(value,
+|||    word)` for this frame against `ComparisonComplement { Than |
+|||    ThanOrEqualTo, standard }` for the other (`syntax/phrase.rs`) —
+|||    which is the strongest kind of corroboration available here: two
+|||    independent measurements of the same corpus drawing the same
+|||    line. The comparative WORD is not a choice either. Every scalar
+|||    characteristic takes "greater"/"less" and never "more"/"fewer",
+|||    which is why the comparator rows carry their own words rather
+|||    than deriving them from a direction.
+||| 61. **The characteristic presupposes a TYPE and, pointedly, not a
+|||    zone.** Only a creature has power or toughness: a noncreature
+|||    permanent has neither, and a noncreature object off the
+|||    battlefield has them only if they are printed on it
+|||    ([CR#208.3]). Mana value is defined for every object ([CR#202.3],
+|||    with [CR#202.3a] giving even a costless one the value zero). The
+|||    corpus says both in its own voice — no power or toughness bound
+|||    sits on any head but a creature's, while mana value is bounded
+|||    on cards, spells, permanents, artifacts, planeswalkers, and
+|||    enchantments alike — so `seedType` gets its first row backed by a
+|||    TABLE (`comparedType`) where the status words had a fixed
+|||    answer, and "attacking noncreature"'s refusal extends to
+|||    "noncreature with power 2 or less" (`badNoncreaturePower`) with
+|||    no new gate. The zone half is where the parallel with `Attacking`
+|||    STOPS, and it matters: attacking is a battlefield designation,
+|||    but a creature card keeps the power printed on it wherever it
+|||    lies ([CR#208.1] prints it on the CARD, and [CR#208.3] withholds
+|||    it off the battlefield only from noncreature objects), and every
+|||    object has a mana value wherever it stands, so the bound seeds
+|||    no zone and "return target creature
+|||    card with power 2 or less from your graveyard to the
+|||    battlefield" stands. Reading a presupposition as a placement
+|||    would have been finding 43's move made once too often. The
+|||    characteristic enum is three rows against core's five for the
+|||    same reason the comparator enum is two against five: "loyalty N
+|||    or less" and "defense N or greater" ([CR#209.1,210.1]) are
+|||    written zero times, so the short enum is a measurement, not a
+|||    shortcut.
+||| 62. **A phrase bounds a characteristic at most once.** No corpus
+|||    noun phrase carries two bounds; the lines that look like it are
+|||    two phrases ("Creatures you control with power 2 or less can't
+|||    be blocked by creatures with power 3 or greater"). The gate is
+|||    therefore a multiplicity CAP, the one "other" and the class word
+|||    already answer to, and not a range solver — which is what makes
+|||    it both honest and cheap: the empty pair ("power 2 or less"
+|||    beside "power 4 or greater") and the satisfiable pair are
+|||    refused on the same evidence, that oracle writes neither
+|||    (`badDoubleComparison`). An interval, when a line finally wants
+|||    one, will be a construction with its own word rather than two
+|||    qualifiers stacked. This is the fifth auto `And` now carries, so
+|||    the masking question was asked of every one: each pin fails on
+|||    its OWN gate, the new cap included, and the class word still
+|||    refuses a bound at `AnyTargetLone` one slot earlier
+|||    (`badAnyTargetComparison`).
+||| 63. **The negation is a comparator flip, and the rest was already
+|||    standing.** Oracle never negates a bound — zero "non-", zero
+|||    "doesn't have power", zero "without power 2" — and it does not
+|||    have to, because the game's numbers are integers ([CR#107.1]):
+|||    "not power 2 or less" IS "power 3 or greater", exactly, with no
+|||    gap between them for a negation to name. So the row is
+|||    unnegatable (`badNegatedComparison`), which is finding 42's De
+|||    Morgan argument made exact by the discreteness rather than by
+|||    comma-chaining. Everything else the bound met was already built:
+|||    alternatives must presuppose ALIKE, so a power bound beside a
+|||    mana value bound is refused by finding 51's gate with no rule of
+|||    its own (`badMixedCharacteristicDisjunct`); `predEq` gained its
+|||    three-part row so a repeated alternative is seen
+|||    (`badRepeatedComparisonDisjunct`); and every determiner,
+|||    quantity, and for-each domain carries a bound untouched — as do
+|||    a disjunctive head ("Destroy target artifact or enchantment with
+|||    mana value 3 or less") and an "other" with a real anchor, both
+|||    audited.
+|||
 ||| Engine-boundary deferrals (deliberate, and to stay so): the
 ||| workbench spells the ENGLISH; committed event structure is
 ||| core's. The per-combatant fight fact is the type case — core
@@ -1034,8 +1136,10 @@
 ||| alternative quantity WORDINGS — `Quantity` is already a range with
 ||| both bounds optional, so "at least three", "three or more", and
 ||| "more than two" are ONE bound pair under three words (a count
-||| against a literal, not the comparative family's value
-||| comparisons), which puts the gap on the spelling rather than the
+||| against a literal, not chapter sixteen's bound on a
+||| characteristic — and English keeps the two apart in the word
+||| itself, count nouns taking "more"/"fewer" where a characteristic
+||| takes "greater"/"less"), which puts the gap on the spelling rather than the
 ||| structure: the semantics is right to collapse them and the
 ||| renderer has to undo the collapse; the two that are not bounds are
 ||| "one or two" (a disjunction of exact counts, waiting with the
@@ -1132,9 +1236,37 @@
 ||| the spelling pass marked those constructors construction-owned or
 ||| TODO instead of giving them a fragment of their own.
 |||
-||| Two families stay unmapped deliberately, being the next CHAPTERS
-||| rather than deferrals: comparatives, and the generic definite and
-||| possessive noun phrases (which "both" above waits on). The deontic
+||| One family stays unmapped deliberately, being the next CHAPTER
+||| rather than a deferral: the generic definite and possessive noun
+||| phrases (which "both" above waits on). Comparatives were a second
+||| and have SPLIT, as coordination and the auxiliaries did before
+||| them: chapter sixteen took the BOUNDED qualifier — a written
+||| numeral or X, under "or less"/"or greater" — and four families are
+||| left, each waiting on an axis rather than on more comparison
+||| machinery. The PHRASAL standard is the largest: "with power less
+||| than Yasova Dragonclaw's power", "with mana value less than or
+||| equal to the number of lands you control" — a hundred-odd lines,
+||| the other word order, and the whole of core's strict `Cmp` rows,
+||| waiting on a comparison whose right-hand side is a noun phrase
+||| read off a second object (finding 60's other frame). The PLAYER
+||| attribute is next, and is not a variant of that one: "13 or
+||| less life" is the same frame around a player's own number rather
+||| than an object's — core spells it in a separate constructor for
+||| that reason (`Predicate::PlayerStatCmp(PlayerAttr, Cmp, Count)`,
+||| `filter.rs`) — and even the comparative word changes, life taking
+||| "more"/"less" where a characteristic takes "greater"/"less" and
+||| "N or greater life" appearing zero times. It waits on the player
+||| attributes, not on this chapter's row. The COORDINATED
+||| characteristic is smaller and sharper: "with power or toughness 4
+||| or greater" coordinates the READS under one bound in eight lines,
+||| which `Or` cannot spell because it coordinates PREDICATES and the
+||| bound here is one word for the pair. The AGGREGATE is the last —
+||| "with total power N or greater" (crew and saddle, thirty-four
+||| lines), "with total mana value N or greater" (collect evidence,
+||| forty-one) — a bound on a chosen SET's sum rather than on one
+||| object's number, which is core's `CountBound` and
+||| `CostComponent::TapTotal` territory and wants the counted-group
+||| amount `badGroupPower` already names. The deontic
 ||| auxiliaries were a third and have SPLIT the way coordination did:
 ||| chapter fifteen took the one-shot restriction clause, and what is
 ||| left is the STATIC reading ("Enchanted creature can't attack or
@@ -1184,6 +1316,80 @@ combatant Enchantment = False
 public export
 data FightParticipant : Maybe CardType -> Type where
   Fighter : {auto 0 ok : combatant t = True} -> FightParticipant (Just t)
+
+||| The numeric characteristics a phrase can put a BOUND on. Core's
+||| `Stat` carries five (`deckmaste_core/src/count.rs`: power and
+||| toughness [CR#208.1], mana value [CR#202.3], loyalty [CR#209.1],
+||| defense [CR#210.1]); the two missing here are the two the bounded
+||| frame never takes — "loyalty N or less" and "defense N or greater"
+||| appear zero times each on the corpus — so the shorter enum is a
+||| measured fact rather than a shortcut. Full rows everywhere below,
+||| so a fourth characteristic has to declare which heads carry it
+||| before it can be written.
+public export
+-- spelling: (construction-owned catalog -- Power="power", Toughness=
+-- "toughness", ManaValue="mana value"; each row is the characteristic's own
+-- word inside Compare's frame, never spelled alone. Same three names core's
+-- `Stat` gives its own first three rows (count.rs))
+data Characteristic = Power | Toughness | ManaValue
+
+||| Characteristic equality, per-row — `sameZone`'s discipline.
+public export
+sameChar : Characteristic -> Characteristic -> Bool
+sameChar Power Power = True
+sameChar Power _ = False
+sameChar Toughness Toughness = True
+sameChar Toughness _ = False
+sameChar ManaValue ManaValue = True
+sameChar ManaValue _ = False
+
+||| The two comparators a WRITTEN bound takes. Core's `Cmp` has five
+||| (`condition.rs`: `Eq`, `AtLeast`, `AtMost`, `Greater`, `Less`) and
+||| the relation here is exactly its `AtMost` and `AtLeast`; what the
+||| workbench cannot borrow is the other three, because English does
+||| not spell them against a numeral. "Power less than 4" and "mana
+||| value greater than 3" are written zero times; the strict
+||| comparators appear only against a PHRASAL standard ("power less
+||| than Yasova Dragonclaw's power", "mana value less than or equal to
+||| the number of lands you control"), which is a different frame with
+||| a different word order and waits on the ledger. The two rows are
+||| therefore the whole bounded vocabulary, and a third is a totality
+||| error.
+public export
+-- spelling: (construction-owned catalog -- OrLess="or less", OrGreater=
+-- "or greater", each following its bound inside Compare's frame. The
+-- comparative word is fixed by the HEAD CLASS, not chosen: every scalar
+-- characteristic takes greater/less and never more/fewer, which the english
+-- crate stores rather than derives (`ComparativeWord`, syntax/phrase.rs))
+data Comparator = OrLess | OrGreater
+
+public export
+sameCmp : Comparator -> Comparator -> Bool
+sameCmp OrLess OrLess = True
+sameCmp OrLess _ = False
+sameCmp OrGreater OrGreater = True
+sameCmp OrGreater _ = False
+
+||| Which card type a characteristic PRESUPPOSES of the object read —
+||| the characteristic half of the closed table `deedType` writes for
+||| deeds. Power and toughness belong to creatures: a noncreature
+||| permanent has neither, and a noncreature object off the battlefield
+||| has them only if they are printed on it ([CR#208.3]). Mana value
+||| belongs to every object ([CR#202.3] defines it for one, and
+||| [CR#202.3a] gives even a costless object the value zero), so it
+||| presupposes nothing and the corpus agrees on both counts: no power
+||| or toughness bound is written on any head but a creature's, while
+||| mana value is bounded on cards, spells, permanents, artifacts,
+||| planeswalkers, and enchantments alike. The Vehicle is the caveat
+||| [CR#208.3] leaves open — a noncreature card CAN carry printed
+||| power in a graveyard — and the corpus never writes it, so the
+||| creature row is exact for what English spells; revisit if a
+||| printed-P/T noncreature head ever turns up.
+public export
+comparedType : Characteristic -> Maybe CardType
+comparedType Power = Just Creature
+comparedType Toughness = Just Creature
+comparedType ManaValue = Nothing
 
 ||| Quality sorts — the choosable characteristics ([CR#105.1,302.3];
 ||| only what the chapters need).
@@ -2080,6 +2286,24 @@ mutual
     -- spelling: ["blocking"], kind: TODO(reason: non-head status modifier
     -- per hasHead)
     Blocking : Predicate bs Object
+    -- "with [characteristic] [n] or less/greater" — a numeric BOUND on
+    -- one of the object's own numbers ([CR#208.1] power and toughness,
+    -- [CR#202.3] mana value), and core's
+    -- `CharacteristicPredicate::Stat(Stat, Cmp, Count)` in the same
+    -- three parts (`filter.rs`, whose own example is
+    -- `Stat(Power, AtLeast, 3)`). The bound is WRITTEN — a numeral or
+    -- the announced X (`WrittenBound`) — because that is the frame
+    -- this wording belongs to: a phrasal standard takes "less than
+    -- (or equal to)" instead and waits on the ledger.
+    -- spelling: (construction-owned -- the postnominal qualifier "with
+    -- <Param(0)> <Param(2)> <Param(1)>", the comparator supplying its own
+    -- trailing word; mirrors the english crate's
+    -- `QuantityRepr::OrComparison(value, word)` against its separate
+    -- `ComparisonComplement { Than | ThanOrEqualTo, standard }` for the
+    -- phrasal frame, syntax/phrase.rs), kind: TODO(reason: non-head
+    -- postnominal qualifier per hasHead)
+    Compare : (c : Characteristic) -> (r : Comparator) -> (bound : Amount bs) ->
+              {auto 0 wb : WrittenBound bound} -> Predicate bs Object
     -- spelling: ["in <Param(0)>"] (also "from <Param(0)>", see comment),
     -- kind: Nominal (hasHead = True; implicit head is the zone's carrier,
     -- e.g. "a card in your hand")
@@ -2090,14 +2314,16 @@ mutual
     -- contradict the phrase's own default (`ZoneCoherent`), no member
     -- may negate a sibling or a type a sibling presupposes
     -- (`ContradictionFree`), an "other" needs a head-compatible anchor
-    -- and fills its one slot at most once (`OtherAnchored`), and the
+    -- and fills its one slot at most once (`OtherAnchored`), the
     -- class word "any target" takes no modifiers but "other" and is
-    -- itself written exactly once (`AnyTargetLone`).
+    -- itself written exactly once (`AnyTargetLone`), and a phrase puts
+    -- a bound on a characteristic at most once (`LoneComparison`).
     -- spelling: (construction-owned -- flat modifier-list juxtaposition, not
     -- itself a word; kind follows whether a member hasHead)
     And : (ps : List (Predicate bs k)) -> {auto 0 zc : ZoneCoherent ps} ->
           {auto 0 cf : ContradictionFree ps} -> {auto 0 oa : OtherAnchored ps} ->
-          {auto 0 at : AnyTargetLone ps} -> Predicate bs k
+          {auto 0 at : AnyTargetLone ps} -> {auto 0 lc : LoneComparison ps} ->
+          Predicate bs k
     -- sibling ALTERNATIVES, still one referent. Where a conjunction's
     -- members all describe the same object at once, a disjunction's
     -- describe it in place of one another: "Destroy target artifact or
@@ -2288,6 +2514,20 @@ mutual
   seedType : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Maybe CardType
   seedType Attacking = Just Creature
   seedType Blocking = Just Creature
+  -- a bound on a number presupposes an object that HAS that number,
+  -- which is the status word's shape with a table in place of a fixed
+  -- answer: power and toughness demand a creature ([CR#208.3]), mana
+  -- value demands nothing ([CR#202.3]). What it does NOT presuppose is
+  -- a zone, and that is the difference from the status words above:
+  -- attacking is a battlefield designation, while a creature card in a
+  -- graveyard keeps the power printed on it ([CR#208.1] prints it on
+  -- the card; [CR#208.3] withholds it off the battlefield only from
+  -- noncreature objects) and
+  -- every object has a mana value wherever it stands — which is why
+  -- "return target creature card with power 2 or less from your
+  -- graveyard to the battlefield" is ordinary oracle and no zone seed
+  -- may refuse it.
+  seedType (Compare c _ _) = comparedType c
   seedType (And ps) = seedTypeAll ps
   seedType (Or ps) = seedTypeJoin ps
   seedType _ = Nothing
@@ -2334,6 +2574,7 @@ mutual
   hasHead (ControlledBy _) = False
   hasHead Attacking = False
   hasHead Blocking = False
+  hasHead (Compare _ _ _) = False
   hasHead (InZone _) = True
   hasHead (And ps) = hasHeadAny ps
   -- ANY member heads a conjunction — one head plus its modifiers —
@@ -2461,6 +2702,12 @@ mutual
   predEq Attacking _ = False
   predEq Blocking Blocking = True
   predEq Blocking _ = False
+  -- all three parts, since all three are written words: the same
+  -- characteristic, the same comparator, and the same bound. `boundEq`
+  -- is conservative where the rest of this function is.
+  predEq (Compare c r b) (Compare d s e) = sameChar c d && sameCmp r s &&
+                                           boundEq b e
+  predEq (Compare _ _ _) _ = False
   predEq (InZone z) (InZone w) = sameZone (zoneSort z) (zoneSort w)
   predEq (InZone _) _ = False
   -- member by member, in order: a structured alternative repeated word
@@ -2684,6 +2931,42 @@ mutual
   data AnyTargetLone : List (Predicate bs k) -> Type where
     MkAnyTargetLone : {auto 0 ok : anyTargetLone ps = True} -> AnyTargetLone ps
 
+  public export
+  isComparison : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+  isComparison (Compare _ _ _) = True
+  isComparison _ = False
+
+  public export
+  countComparisons : {0 bs : Bindings} -> {0 k : Kind} ->
+                     List (Predicate bs k) -> Nat
+  countComparisons [] = Z
+  countComparisons (p :: ps) =
+    if isComparison p then S (countComparisons ps) else countComparisons ps
+
+  ||| A phrase bounds a characteristic AT MOST ONCE. The corpus writes
+  ||| no noun phrase with two bounds in it — the pairs that look like
+  ||| one are two separate phrases ("Creatures you control with power 2
+  ||| or less can't be blocked by creatures with power 3 or greater")
+  ||| — so a second bound is the multiplicity error "other" and the
+  ||| class word already answer for (`badDoubleComparison`). Writing it
+  ||| as a CAP rather than as arithmetic is what makes it honest and
+  ||| cheap at once: the empty-range pair ("power 2 or less" beside
+  ||| "power 4 or greater") is refused because the phrase says it
+  ||| twice, not because a range solver went looking, and the
+  ||| satisfiable pair is refused on exactly the same evidence — that
+  ||| oracle does not write it. An interval, when the corpus finally
+  ||| wants one, is a construction with its own word, not two
+  ||| qualifiers stacked.
+  public export
+  loneComparison : {0 bs : Bindings} -> {0 k : Kind} ->
+                   List (Predicate bs k) -> Bool
+  loneComparison ps = atMostOne (countComparisons (flattenPs ps))
+
+  public export
+  data LoneComparison : List (Predicate bs k) -> Type where
+    MkLoneComparison : {auto 0 ok : loneComparison ps = True} ->
+                       LoneComparison ps
+
   ||| A coordination offers two alternatives or more. At one it offers
   ||| none and spells exactly what the bare alternative spells
   ||| (`badSingletonOr`), at zero it spells nothing at all
@@ -2861,6 +3144,7 @@ mutual
   negatable (ControlledBy _) = True
   negatable Attacking = True
   negatable Blocking = True
+  negatable (Compare _ _ _) = False
   negatable (InZone _) = True
   negatable (And _) = False
   negatable (Or _) = False
@@ -2892,6 +3176,11 @@ mutual
   anyTargetFree (ControlledBy n) = nounAnyTargetFree n
   anyTargetFree Attacking = True
   anyTargetFree Blocking = True
+  -- the bound is a numeral or the announced X (`WrittenBound`), and
+  -- neither carries a noun for the class word to hide in. That is the
+  -- row's whole warrant, so `writtenBound` is where a widened bound
+  -- vocabulary is forced to come back and re-answer this.
+  anyTargetFree (Compare _ _ _) = True
   anyTargetFree (InZone z) = zoneAnyTargetFree z
   anyTargetFree (And ps) = anyTargetFreeAll ps
   -- the alternatives are scanned exactly as conjuncts are: the class
@@ -3294,6 +3583,43 @@ mutual
   amtIntro ThatMuch = bs
   amtIntro XVal = bs
   amtIntro (Plus a b) = amtIntro b
+
+  ||| May this amount stand as a comparison's BOUND? Only the two that
+  ||| are WRITTEN as a value: the numeral, and the X announced with the
+  ||| cost ([CR#107.3a]) — three hundred and more corpus lines for the
+  ||| numeral against ninety-one for X, and nothing else at all. The
+  ||| refusal is not that the other amounts are meaningless but that
+  ||| they belong to the OTHER frame: a phrasal standard is written
+  ||| "less than or equal to the number of lands you control", never
+  ||| "the number of lands you control or less", so admitting one here
+  ||| would spell a real comparison with a word order oracle does not
+  ||| use (`badPhrasalBound`). Full rows, so a new amount declares
+  ||| which frame it belongs to — and `anyTargetFree`'s comparison row
+  ||| leans on the answer, the two writable bounds carrying no noun.
+  public export
+  writtenBound : {0 bs : Bindings} -> Amount bs -> Bool
+  writtenBound (Lit _) = True
+  writtenBound (PowerOf _) = False
+  writtenBound (ToughnessOf _) = False
+  writtenBound (ManaValueOf _) = False
+  writtenBound (ForEach _ _) = False
+  writtenBound ThatMuch = False
+  writtenBound XVal = True
+  writtenBound (Plus _ _) = False
+
+  public export
+  data WrittenBound : Amount bs -> Type where
+    MkWrittenBound : {auto 0 ok : writtenBound b = True} -> WrittenBound b
+
+  ||| Two bounds, compared as written. Conservative in `predEq`'s
+  ||| direction and for its reason: the catch-all reads "not provably
+  ||| the same value", and the constructor's own gate means the only
+  ||| bounds that ever reach here are the two rows above.
+  public export
+  boundEq : {0 bs : Bindings} -> Amount bs -> Amount bs -> Bool
+  boundEq (Lit a) (Lit b) = a == b
+  boundEq XVal XVal = True
+  boundEq _ _ = False
 
   ||| Life-total change operands ([CR#119.3]; `Set` is a later chapter).
   public export

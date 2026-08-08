@@ -469,6 +469,49 @@ blindblast = Sequentially [DealDamage This (Lit 1) (target creature),
 blindingFlare : Effect []
 blindingFlare = Cant (TargetGroup anyNumber creature) Block ThisTurn
 
+-- ===== A bound on a characteristic: the comparatives chapter =====
+
+-- "Destroy target creature with power 2 or less." (Defeat) — the
+-- flagship, and the whole card. The qualifier is a sibling MODIFIER
+-- like any other, so the phrase needed no new noun layer: what is new
+-- is the three written parts core spells in the same order
+-- (`Stat(Power, AtMost, 2)`), and the presupposition that comes with
+-- them — only a creature has power ([CR#208.3]).
+defeat : Effect []
+defeat = destroy (target (And [creature, Compare Power OrLess (Lit 2)]))
+
+-- "Destroy target attacking creature with power 3 or less." (Terashi's
+-- Verdict) — a status word and a bound in ONE phrase, which is the
+-- interaction worth a positive: both members presuppose a creature and
+-- the contradiction scan has to let them, positive types stacking
+-- rather than clashing. The zone comes from `Attacking` alone; the
+-- bound places nothing.
+terashisVerdict : Effect []
+terashisVerdict =
+  destroy (target (And [creature, Attacking, Compare Power OrLess (Lit 3)]))
+
+-- "Exile target creature with toughness 4 or greater." (Pillar of
+-- Light) — the other comparator and the other creature-gated
+-- characteristic, so the two-row vocabulary is spelled end to end by
+-- real cards rather than by one card and an argument.
+pillarOfLight : Effect []
+pillarOfLight =
+  exile (target (And [creature, Compare Toughness OrGreater (Lit 4)]))
+
+-- "Destroy target artifact with mana value 3 or less. You gain 3
+-- life." (Lucky Offering) — mana value on a NONCREATURE head, which is
+-- the whole point of the characteristic table having a second answer:
+-- every object has a mana value ([CR#202.3]), so this phrase
+-- presupposes no type and the artifact head stands unchallenged. The
+-- corpus bounds mana value on cards, spells, permanents, artifacts,
+-- planeswalkers, and enchantments alike, and bounds power on nothing
+-- but creatures.
+luckyOffering : Effect []
+luckyOffering =
+  Sequentially [destroy (target (And [artifact,
+                                      Compare ManaValue OrLess (Lit 3)])),
+                gainsLife You (Lit 3)]
+
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
 -- "other" with no target before it: the presupposition has no witness.
@@ -1344,3 +1387,82 @@ failing "GrantSpan"
 failing "span : Duration"
   badStaticCant : Effect []
   badStaticCant = Cant (target creature) Block
+
+-- ===== What carries a bound, and how it is written =====
+
+-- A bound is a MODIFIER: "with power 2 or less" describes something
+-- and names nothing, so it cannot be what a determiner determines.
+-- The same refusal "attacking" and "other" already take.
+failing "Headed"
+  badBareComparison : Noun [] Object
+  badBareComparison = target (Compare Power OrLess (Lit 2))
+
+-- Only a creature has power ([CR#208.3] — a noncreature permanent has
+-- none, and a noncreature object off the battlefield has one only if
+-- it is printed there), so a phrase that bounds power and denies the
+-- type describes nothing. The presupposition rides the bound exactly
+-- as it rides "attacking" (`badAttackingNoncreature`), the type table
+-- supplying the answer in place of a fixed row.
+failing "ContradictionFree"
+  badNoncreaturePower : Predicate [] Object
+  badNoncreaturePower = And [Compare Power OrLess (Lit 2), Not creature]
+
+-- Oracle never negates a bound. It flips the comparator instead, and
+-- can: the game's numbers are integers ([CR#107.1]), so "not power 2
+-- or less" IS "power 3 or greater" exactly, with no gap between the
+-- two for a negation to name. The corpus writes no "non-", no "doesn't
+-- have power", and no "without power 2" — the same De Morgan the
+-- writer does for conjunctions (finding 42), here made exact by the
+-- discreteness rather than by chaining.
+failing "Negatable"
+  badNegatedComparison : Predicate [] Object
+  badNegatedComparison = Not (Compare Power OrLess (Lit 2))
+
+-- One phrase, one bound. The empty pair is the obvious case — power at
+-- most two and at least four describes nothing — but the gate is a
+-- multiplicity cap rather than a range solver, so the SATISFIABLE pair
+-- is refused on the same evidence: no corpus noun phrase carries two
+-- bounds at all. An interval is a construction with its own word, not
+-- two qualifiers stacked.
+failing "LoneComparison"
+  badDoubleComparison : Predicate [] Object
+  badDoubleComparison = And [creature, Compare Power OrLess (Lit 2),
+                             Compare Power OrGreater (Lit 4)]
+
+-- The bound is WRITTEN — a numeral or the announced X — and a phrasal
+-- standard belongs to the other frame. Oracle writes "with power less
+-- than this creature's power", never "with this creature's power or
+-- less": admitting the amount here would spell a real comparison in a
+-- word order the language does not use, so the frame is refused and
+-- the comparison-to-a-phrase family waits on the ledger.
+failing "WrittenBound"
+  badPhrasalBound : Predicate [] Object
+  badPhrasalBound = Compare Power OrLess (PowerOf This)
+
+-- An alternative repeated word for word is no alternative, and a bound
+-- is compared by all three of its written parts to see it — the row
+-- `predEq` gained this chapter, on the lesson `And` taught it
+-- (`badRepeatedStructuredDisjunct`).
+failing "DistinctDisjuncts"
+  badRepeatedComparisonDisjunct : Predicate [] Object
+  badRepeatedComparisonDisjunct = Or [Compare Power OrLess (Lit 2),
+                                      Compare Power OrLess (Lit 2)]
+
+-- Alternatives must presuppose alike, and two characteristics do not:
+-- a power bound demands a creature where a mana value bound demands
+-- nothing, so "with power 2 or less or mana value 3 or less" commits
+-- on one side and stays silent on the other. This is the guide's
+-- repeat-the-carrier rule reaching a new pair of seeds with no gate of
+-- its own — finding 51's shape, one chapter on.
+failing "ParallelDisjuncts"
+  badMixedCharacteristicDisjunct : Predicate [] Object
+  badMixedCharacteristicDisjunct = Or [Compare Power OrLess (Lit 2),
+                                       Compare ManaValue OrLess (Lit 3)]
+
+-- The class word takes no modifiers but "other" ([CR#115.4] fixes the
+-- class by rule, and a bound would narrow it), so the qualifier is
+-- refused by the gate that was already there — no comparison rule
+-- needed to say so.
+failing "AnyTargetLone"
+  badAnyTargetComparison : Predicate [] Object
+  badAnyTargetComparison = And [AnyTarget, Compare Power OrLess (Lit 2)]
