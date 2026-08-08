@@ -2868,18 +2868,49 @@ failing "countOnes"
 
 -- ===== What a complement may exclude, and what a batch may read =====
 
--- The complement's anchor is a READ and never a mention: "each other
--- creature" announces ONE phrase, and an anchor written with a
--- determiner would announce a second one the sentence never spelled.
-failing "Bindingless"
+-- The complement's anchor may not be an INDEFINITE: "each other
+-- creature" announces one phrase, and "other than a creature" would
+-- announce a second referent the sentence never spelled. Unwritten
+-- English, and it stays refused.
+failing "ComplementAnchor"
   badComplementAnchorAnnounces : Predicate [] Object
   badComplementAnchorAnnounces = OtherThan (a creature)
 
--- Nor may it announce a TARGET, which is the same refusal with the
--- determiner that also makes a legality demand.
-failing "Bindingless"
-  badComplementAnchorTargets : Predicate [] Object
-  badComplementAnchorTargets = OtherThan (target creature)
+-- "Each player other than target player creates a 5/5 red Dragon
+-- creature token with flying." (Death by Dragons, whole) — the TARGETED
+-- anchor, and chapter twenty-six's correction: the old blanket
+-- bindingless demand refused this line, reading "announces a referent
+-- the sentence never spelled" off a phrase that spells its referent out
+-- loud. [CR#601.2c] announces it as the spell is cast like every other
+-- target, and `predDelta` carries the announcement out with the phrase
+-- the complement modifies. The distributed create is Grismold's own
+-- shape at a different count and a token with a keyword.
+deathByDragons : Effect []
+deathByDragons =
+  Create (Each (And [AnyPlayer, OtherThan (target AnyPlayer)])) (Lit 1)
+         (MkToken (Just (5, 5)) [Red] (MkTypeLine [Dragon] [Creature])
+                  [KeywordAbility Flying] Nothing) []
+
+-- "Prevent all combat damage that would be dealt by creatures other than
+-- target creature this turn." (Terrifying Presence) — the anchor half of
+-- the second targeted line, written on its own. The full sentence needs
+-- the SOURCE-restricted prevention shield chapter twenty-five ledgered
+-- ("dealt BY", where this vocabulary's `Prevents` scopes by recipient),
+-- so what lands here is the phrase, which is what the finding was about.
+terrifyingPresenceAnchor : Predicate [] Object
+terrifyingPresenceAnchor = And [creature, OtherThan (target creature)]
+
+-- The anchor is SINGULAR, which is the second half of the correction and
+-- the one that keeps the deferred family deferred: this constructor
+-- subtracts ONE referent, and a plural anchor passed to it is group
+-- subtraction — finding 111's subset complement, which no corpus line
+-- writes ("other than them/those/these" returns zero lines in supported
+-- and all-cards scope alike). Written over a counted target, which asks
+-- the number question and nothing else; the plural READ ("other than
+-- those creatures") is the same gate a group mention later.
+failing "ComplementAnchor"
+  badPluralComplementAnchor : Predicate [] Object
+  badPluralComplementAnchor = OtherThan (TargetGroup (upTo 2) creature)
 
 -- The anchor has to be something the phrase could have described:
 -- "each other creature" anchored to a LAND subtracts nothing, and no
@@ -2967,6 +2998,51 @@ failing "countOnes"
   badSimultaneousReadsOutcome =
     Simultaneously [DealDamage This (Lit 2) (target creature),
                     gainsLife You ThatMuch]
+
+-- The MAY is the same fact through a wrapper, and chapter twenty-six's
+-- headline: the batch's telescope threaded `preIntro`, which is not the
+-- announcement-only function it was taken for — `preIntro (May …)` is
+-- `mayIntro`, the optional clause's DEED. So a sibling could put a
+-- counter on a token the player may not have made. [CR#118.12] makes
+-- the offer a cost checked by whether the player chose to pay it,
+-- "regardless of what events actually occurred", and [CR#608.2f]
+-- processes the batch's actions at once, so nothing in the batch's one
+-- pre-state can be the token. The telescope threads `annIntro` now.
+failing "countOnes Object"
+  badSimultaneousReadsMayDeed : Effect []
+  badSimultaneousReadsMayDeed =
+    Simultaneously [may You (create (Lit 1) (creatureTok 1 1 [Green] [Plant])),
+                    PutCounters (Lit 1) PlusOnePlusOne It]
+
+-- …and the magnitude twin, which is `badSimultaneousReadsOutcome`
+-- reached through the same wrapper.
+failing "countOnes Outcome"
+  badSimultaneousReadsMayOutcome : Effect []
+  badSimultaneousReadsMayOutcome =
+    Simultaneously [may You (DealDamage This (Lit 2) (target creature)),
+                    gainsLife You ThatMuch]
+
+-- OUTWARD, a batch leaves behind EVERY element's deed and not the last
+-- one's: two creates in one instruction leave two tokens ([CR#608.2f]
+-- processes both actions), so the sentence after cannot say "it".
+-- Chapter twenty-two folded the last element's `effIntro` and recorded
+-- the simplification; this is the row that shows it was one
+-- (`simIntro`, `deedDelta`).
+failing "countOnes Object"
+  badBatchTwoCreatesThenIt : Effect []
+  badBatchTwoCreatesThenIt =
+    Sequentially [Simultaneously [create (Lit 1) (creatureTok 1 1 [Green] [Plant]),
+                                 create (Lit 1) (creatureTok 1 1 [White] [Soldier])],
+                  PutCounters (Lit 1) PlusOnePlusOne It]
+
+-- The magnitude twin outward: two outcomes in one batch, and "that
+-- much" does not say which.
+failing "countOnes Outcome"
+  badBatchTwoOutcomesThenThatMuch : Effect []
+  badBatchTwoOutcomesThenThatMuch =
+    Sequentially [Simultaneously [DealDamage This (Lit 2) (target creature),
+                                 losesLife (target Opponent) (Lit 3)],
+                  gainsLife You ThatMuch]
 
 -- Control is a PERMANENT's ([CR#110.2] gives every permanent a
 -- controller; [CR#109.4] gives an object that is neither on the stack
@@ -3146,6 +3222,22 @@ failing "countParts"
   badRestWithoutPart : Effect []
   badRestWithoutPart = Sequentially [lookAt (topCards 4), Move TheRest onBottomZ]
 
+-- One disposition per remainder, per path. "The rest" names what is
+-- OUTSTANDING of a group, and once it has been placed nothing is:
+-- Impulse writes one partition and one disposition, and the only three
+-- corpus lines carrying two "the rest" phrases put them in mutually
+-- exclusive if/instead/otherwise arms, which this refusal leaves
+-- writable because a branch arm is typed in the discourse BEFORE the
+-- disposition. The move spends the group (`groupSpent`).
+failing "countGroups"
+  badRestDisposedTwice : Effect []
+  badRestDisposedTwice =
+    Sequentially [ lookAt (topCards 4)
+                 , Move (oneOf Them) handZ
+                 , Move TheRest onBottomZ
+                 , Move TheRest graveyardZ
+                 ]
+
 -- The direction chapter twenty-two refused, and it stays refused: two
 -- separately announced targets are two mentions and never a pair
 -- ([CR#601.2c], finding 127), so no complement can subtract inside
@@ -3207,6 +3299,23 @@ failing "SearchableZone"
   badSearchBattlefield : Effect []
   badSearchBattlefield = Search You battlefieldZ creature
 
+-- Nor is a POSITION in a library a zone a search looks through, which is
+-- the same rule read one step further in: [CR#701.23a] looks at "all
+-- cards in that zone" and [CR#401.2] makes the library "a single
+-- face-down pile", so "the top of your library" is a place in the zone
+-- and not the zone. The sort alone could not tell them apart —
+-- `zoneSort` projects `Library` off either — so the clause asks the
+-- PHRASE as well (`WholeZone`). The arrangement rider makes the nonsense
+-- plain: a search cannot look through cards "in a random order".
+failing "WholeZone"
+  badSearchLibraryPosition : Effect []
+  badSearchLibraryPosition = Search You (LibraryAt OnTop Nothing Bare) land
+
+failing "WholeZone"
+  badSearchLibraryPositionOrdered : Effect []
+  badSearchLibraryPositionOrdered =
+    Search You (LibraryAt OnBottom (Just RandomOrder) Bare) creature
+
 -- The search's description is the zone's, not another zone's: the
 -- clause supplies the place, so a phrase carrying its own is two
 -- answers to one question.
@@ -3231,6 +3340,20 @@ failing "WrittenCount"
 failing "WrittenCount"
   badMillZero : Effect []
   badMillZero = millCards 0
+
+-- A DISTRIBUTED mill leaves a plural group, and the count is not what
+-- says so — the subject is. [CR#701.17a] has each milled-at player put
+-- that many cards from their own library into their own graveyard, so
+-- "each player mills a card" puts one card per player there and the
+-- sentence after it cannot say "it". Locke, Treasure Hunter reads the
+-- group plural in the next breath ("each player mills a card. … you may
+-- cast a spell from among those cards"; the trigger shell and the
+-- among-restriction are ledgered). Derived exactly as `Create`'s
+-- distributed count is (`outputPlur`).
+failing "countOnes Object"
+  badDistributedMillSingular : Effect []
+  badDistributedMillSingular =
+    Sequentially [Mill (Each AnyPlayer) (Lit 1), exile It]
 
 -- A partitive reaches into a GROUP, not into a description: "one of a
 -- creature you control" is not English, and the determiner has no
@@ -3401,10 +3524,36 @@ failing "NotInstead"
 -- [CR#614.6]: a replaced event "never happens". So the replaced
 -- clause's OUTCOME is not there to read — "that much" after a damage
 -- clause that was replaced measures nothing — even though the same
--- clause's announced target is ([CR#601.2c]). The two halves of
--- `preIntro` divide exactly here.
+-- clause's announced target is ([CR#601.2c]). `annIntro` and `effIntro`
+-- divide exactly here.
 failing "countOnes Outcome"
   badInsteadReadsReplacedOutcome : Effect []
   badInsteadReadsReplacedOutcome =
     insteadOf (DealDamage This (Lit 3) (target AnyTarget))
+              (gainsLife You ThatMuch)
+
+-- The same refusal through a SEQUENCE, which is where it used to leak:
+-- the replacement was typed in `preIntro replaced`, and a sequence's
+-- pre-state is its last clause's over the DEED telescope, so an earlier
+-- step's outcome walked into a replacement for an event that never
+-- happened. The announcement channel is a hole at a sequence, its
+-- elements being typed over each other's `effIntro` (`annIntro`).
+failing "countOnes Outcome"
+  badInsteadReadsReplacedSequenceOutcome : Effect []
+  badInsteadReadsReplacedSequenceOutcome =
+    insteadOf (Sequentially [DealDamage This (Lit 3) (target creature), drawACard])
+              (gainsLife You ThatMuch)
+
+-- And through a CONDITIONAL wrapping an optional clause, which is the
+-- recursion that carried either defect: chapter twenty-five opened the
+-- conditional's announcement channel on `preIntro e`, correctly for the
+-- flat clause it was opened for (Overload's "that artifact", Colossal
+-- Growth's "that creature") and not for a composite. It is structural
+-- now, so the nested may's damage outcome is not there to read.
+failing "countOnes Outcome"
+  badConditionalInsteadReadsMayOutcome : Effect []
+  badConditionalInsteadReadsMayOutcome =
+    insteadOf (If (may You (DealDamage This (Lit 2) (target creature)))
+                  (Exists creature)
+                  Nothing)
               (gainsLife You ThatMuch)

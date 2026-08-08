@@ -613,6 +613,29 @@ public export
 theRestOk : Bindings -> Bool
 theRestOk bs = eqNat (countGroups bs) 1 && not (eqNat (countParts bs) Z)
 
+||| What disposing of a partition's REMAINDER leaves behind: the group
+||| mention is SPENT. Chapter twenty-six's finding, and it is one word —
+||| "the rest" names what is outstanding of a group, so once the rest has
+||| been placed there is nothing outstanding and a second "the rest" in
+||| the same breath names nothing (`badRestDisposedTwice`). The state the
+||| phrase needs was already on the binding list: dropping the group
+||| makes `theRestOk` false for every later clause on the SAME path,
+||| while a branch arm typed in the discourse BEFORE the disposition
+||| still sees it — which is exactly what the corpus writes, the only
+||| three lines with two "the rest" phrases putting them in mutually
+||| exclusive if/instead/otherwise arms.
+||| The parts stay: a part that was taken is a referent that moved, and
+||| later text may still read it. Group mentions the sentence assembled
+||| some other way go with it, which costs nothing written — no corpus
+||| line reads a second group back across a remainder disposal, and the
+||| move already contributed nothing of its own (`moveIntro`).
+public export
+groupSpent : Bindings -> Bindings
+groupSpent [] = []
+groupSpent (b@(MkBinding PartD _ _ _) :: bs) = b :: groupSpent bs
+groupSpent (MkBinding _ Object ManyOf _ :: bs) = groupSpent bs
+groupSpent (b :: bs) = b :: groupSpent bs
+
 ||| The zone of the unique group mention — what a complement read
 ||| inherits, the group's own place ([CR#701.20b]: exposing a card does
 ||| not move it, so a looked-at library slice is still in the library).
@@ -1195,7 +1218,7 @@ public export
 -- Army"), as a bare noun head ("an Army you control"), or after "becomes a"
 -- in a type-addition clause; never spelled alone)
 data Subtype = Zombie | Army | Soldier | Thopter | Construct | Fractal
-             | Coward | Demon | Plant
+             | Coward | Demon | Plant | Dragon
 
 ||| Subtype equality, per-row catch-alls — `sameVerb`'s discipline.
 public export
@@ -1218,6 +1241,8 @@ sameSub Demon Demon = True
 sameSub Demon _ = False
 sameSub Plant Plant = True
 sameSub Plant _ = False
+sameSub Dragon Dragon = True
+sameSub Dragon _ = False
 
 ||| Which card type a subtype's set belongs to — [CR#205.1a] names the
 ||| sets themselves (creature types, land types, artifact types,
@@ -1240,6 +1265,7 @@ subtypeType Fractal = Creature
 subtypeType Coward = Creature
 subtypeType Demon = Creature
 subtypeType Plant = Creature
+subtypeType Dragon = Creature
 
 ||| Counter kinds ([CR#122.1] — "a marker placed on an object or player
 ||| that modifies its characteristics and/or interacts with a rule,
@@ -2248,6 +2274,25 @@ mutual
   zoneSort (ZoneAt z _) = z
   zoneSort (LibraryAt _ _ _) = Library
 
+  ||| Does this zone phrase name the zone AS A WHOLE? The sort does not
+  ||| answer it — `zoneSort` reads `Library` off "the top of your
+  ||| library" as readily as off "your library" — and one clause needs
+  ||| the difference. [CR#701.23a] defines searching as looking at "all
+  ||| cards in that zone", so a search takes the pile and never a place
+  ||| in it; [CR#401.2] is why the two can be told apart at all, a
+  ||| library being "a single face-down pile" whose positions are not
+  ||| zones of their own. Full rows, so a new zone phrase declares
+  ||| whether it names a whole zone.
+  public export
+  wholeZone : ZoneExpr bs -> Bool
+  wholeZone (ZoneAt _ _) = True
+  wholeZone (LibraryAt _ _ _) = False
+
+  ||| The whole-zone demand as a witness.
+  public export
+  data WholeZone : ZoneExpr bs -> Type where
+    MkWholeZone : {auto 0 ok : wholeZone z = True} -> WholeZone z
+
   ||| The order rider a zone phrase writes, if it can carry one — the
   ||| ordered library's alone ([CR#401.4] speaks of a POSITION in a
   ||| library and nothing else). What `Move` consults to ask its patient
@@ -2395,13 +2440,18 @@ mutual
     -- it ([CR#115.4]'s "another target"), so its anchor is every earlier
     -- target and the discourse supplies it; this one subtracts ONE
     -- referent the clause names, and carries it.
-    -- The anchor is a READ and never a mention (`Bindingless`, the
-    -- discipline `Matches` makes of its subject): "each other creature"
-    -- announces one phrase, not two, so an anchor written as "a
-    -- creature" or "target creature" would announce a referent the
-    -- sentence never spelled (`badComplementAnchorAnnounces`). Its
-    -- KIND is the phrase's own, by the index — "each other player"
-    -- excludes a player and cannot exclude a creature.
+    -- The anchor is a READ or a written TARGET, and singular
+    -- (`ComplementAnchor`, chapter twenty-six). It used to be a read
+    -- ONLY — the blanket `Bindingless` demand `Matches` makes of its
+    -- subject — and that conflated two questions: an anchor written as
+    -- "a creature" would indeed announce a referent the sentence never
+    -- spelled (`badComplementAnchorAnnounces`), but "other than target
+    -- player" spells its referent out loud and the corpus writes it
+    -- twice (Death by Dragons, Terrifying Presence). The announcement
+    -- travels with the phrase now (`predDelta`). Its KIND is the
+    -- phrase's own, by the index — "each other player" excludes a
+    -- player and cannot exclude a creature — and its NUMBER is
+    -- singular, one referent being what this constructor subtracts.
     -- What it does NOT need is a count, and that is the finding: the
     -- definite sweep filed this family with "the rest" under one
     -- heading and they come apart. Subtracting a REFERENT from a
@@ -2413,7 +2463,7 @@ mutual
     -- unpronounced -- English leaves it to salience, and the source-anchored
     -- reading is the corpus's mass), kind: TODO(reason: non-head modifier
     -- per hasHead)
-    OtherThan : (n : Noun bs k) -> {auto 0 bl : Bindingless n} -> Predicate bs k
+    OtherThan : (n : Noun bs k) -> {auto 0 ca : ComplementAnchor n} -> Predicate bs k
     -- "any target" ([CR#115.4]: creature, player, planeswalker, or
     -- battle). NOT yet de-macroable: needs `Or` and the object/player
     -- kind join; primitive only until a chapter grows those.
@@ -3907,6 +3957,14 @@ mutual
   -- is why "Destroy target artifact or enchantment" still leaves an
   -- "it" behind.
   predDelta (Or ps) = []
+  -- the anchored complement carries its ANCHOR's announcement, chapter
+  -- twenty-six. The anchor is usually a read and contributes nothing,
+  -- which is why this row was invisible under the old blanket demand;
+  -- the two lines that write a target there ("Each player other than
+  -- target player …", Death by Dragons) announce it like any other
+  -- target phrase ([CR#601.2c]), and the announcement belongs to the
+  -- phrase the complement modifies.
+  predDelta (OtherThan n) = nounDelta n
   predDelta _ = []
 
   public export
@@ -4213,6 +4271,65 @@ mutual
   public export
   data Bindingless : Noun bs k -> Type where
     MkBindingless : {auto 0 ok : nounDelta n = []} -> Bindingless n
+
+  ||| Which phrase may ANCHOR a complement — chapter twenty-six's
+  ||| replacement for the blanket `Bindingless` demand `OtherThan`
+  ||| carried, and the correction is that "valid anchor" and
+  ||| "introduces no binding" were never the same question. The old
+  ||| demand refused the only two corpus lines whose anchor is written
+  ||| as a target: "Each player other than target player creates a 5/5
+  ||| red Dragon creature token with flying" (Death by Dragons) and
+  ||| "Prevent all combat damage that would be dealt by creatures other
+  ||| than target creature this turn" (Terrifying Presence). Those
+  ||| targets are announced like any other ([CR#601.2c]), and the
+  ||| announcement now travels with the phrase (`predDelta`) instead of
+  ||| being refused for existing.
+  |||
+  ||| So the SHAPE question is asked on its own: an anchor is a READ,
+  ||| or a phrase the text writes as a target. What stays out is the
+  ||| determiner that would announce a referent the sentence never
+  ||| spelled — "other than a creature" is unwritten English and
+  ||| `Indefinite` still refuses it (`badComplementAnchorAnnounces`) —
+  ||| and every determiner that names a set rather than a referent
+  ||| (`Each`, `AllOf`, `EachOf`, the slice, the partitive, the
+  ||| remainder), which subtract nothing an anchor can subtract.
+  ||| Full rows, so a new noun declares whether it can anchor one.
+  public export
+  anchorPhrase : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+  anchorPhrase This = True
+  anchorPhrase (AsType t n) = anchorPhrase n
+  anchorPhrase You = True
+  anchorPhrase (Each _) = False
+  anchorPhrase (Indefinite _ _) = False
+  anchorPhrase (TargetGroup _ _) = True
+  anchorPhrase (AllOf _) = False
+  anchorPhrase (EachOf _) = False
+  anchorPhrase (LibrarySlice _ _ _) = False
+  anchorPhrase (SomeOf _ _) = False
+  anchorPhrase TheRest = False
+  anchorPhrase It = True
+  anchorPhrase They = True
+  anchorPhrase Them = True
+  anchorPhrase (Those _) = True
+  anchorPhrase (That _) = True
+  anchorPhrase (TheVerbed _ _) = True
+  anchorPhrase (ControllerOf _) = True
+  anchorPhrase (OwnerOf _) = True
+
+  ||| The complement anchor as a witness: the right SHAPE, and singular.
+  ||| The number half is the second of chapter twenty-six's two
+  ||| corrections and it is the one that keeps the family honest — the
+  ||| constructor subtracts ONE anchored referent, and a plural read
+  ||| passed there ("other than those creatures") is group subtraction,
+  ||| the subset-complement family finding 111 deferred and that no
+  ||| corpus line writes at all: `other than them/those/these` returns
+  ||| zero lines, supported scope and all-cards scope alike
+  ||| (`badPluralComplementAnchor`).
+  public export
+  data ComplementAnchor : Noun bs k -> Type where
+    MkComplementAnchor : {auto 0 sh : anchorPhrase n = True} ->
+                         {auto 0 one : nounPlur n = OneOf} ->
+                         ComplementAnchor n
 
   ||| Which phrases a choice clause can SELECT — the introduction
   ||| discipline chapter twenty gave the indefinite article, asked of
@@ -5352,9 +5469,18 @@ mutual
     -- spelling: ["<Param(0)> search(es) <Param(1)> for <Param(2)>"] (the
     -- imperative leaves the agent unpronounced; the description takes the
     -- indefinite article and the zone's own "card" word), kind: Sentence
+    -- WHICH zone phrase is two demands and not one, and chapter
+    -- twenty-six is where they came apart: the SORT must be a zone a
+    -- search may look through (`SearchableZone`), and the PHRASE must
+    -- name that zone whole (`WholeZone`). Reading only the sort let
+    -- "search the top of your library" through, arrangement rider and
+    -- all, because `zoneSort` projects `Library` off a position exactly
+    -- as it does off the pile ([CR#701.23a] looks at "all cards in that
+    -- zone"; `badSearchLibraryPosition`).
     Search : (who : Noun bs Player) -> (z : ZoneExpr (nomIntro who)) ->
              (p : Predicate (nomIntro who) Object) ->
              {auto 0 sz : SearchableZone (zoneSort z)} ->
+             {auto 0 wz : WholeZone z} ->
              {auto 0 hd : Headed p} ->
              {auto 0 af : AnyTargetFree p} ->
              {auto 0 zf : ZoneFree p} -> Effect bs
@@ -5863,7 +5989,7 @@ mutual
     -- replacement is the replacement clause's own If node, not a slot
     -- here), kind: TODO(reason: a two-sentence body isn't one of the five
     -- FragmentKinds -- each half is its own Sentence)
-    InsteadOf : (replaced : Effect bs) -> (repl : Effect (preIntro replaced)) ->
+    InsteadOf : (replaced : Effect bs) -> (repl : Effect (annIntro replaced)) ->
                 {auto 0 na : NotInstead replaced} ->
                 {auto 0 nb : NotInstead repl} -> Effect bs
     -- "[clause] until [event]" — the [CR#610.3] rider, and it is NOT a
@@ -5891,7 +6017,7 @@ mutual
     -- spelling: ["<Param(0)> until <Param(1)>"] (trailing rider, no
     -- comma; the event is spelled in the finite mood -- see GameEvent),
     -- kind: Sentence
-    HeldUntil : (e : Effect bs) -> (ev : GameEvent (preIntro e)) ->
+    HeldUntil : (e : Effect bs) -> (ev : GameEvent (annIntro e)) ->
                 {auto 0 ok : HeldClause e} ->
                 {auto 0 hd : Holdable ev} -> Effect bs
 
@@ -6065,10 +6191,13 @@ mutual
     MkNotSeq : {auto 0 ok : isSeq e = False} -> NotSeq e
 
   ||| A simultaneous batch as an ANNOUNCEMENT telescope: each element is
-  ||| typed in the bindings its predecessors ANNOUNCED (`preIntro`) and
+  ||| typed in the bindings its predecessors ANNOUNCED (`annIntro`) and
   ||| not in what they did (`effIntro`, which is `Effects` beside it).
   ||| One line of difference between the two types, and it is the whole
-  ||| semantic contrast between the two containers.
+  ||| semantic contrast between the two containers. The thread was
+  ||| `preIntro` until chapter twenty-six, which is nearly the same list
+  ||| and not the same function: a `May` element's optional DEED crossed
+  ||| into its siblings through it (`badSimultaneousReadsMayDeed`).
   ||| Length-indexed, which is all `Simultaneously` needs to demand two.
   ||| Written with list syntax, so a batch reads as its macro writes it.
   -- spelling: (construction-owned -- list syntax for the Simultaneously
@@ -6079,7 +6208,7 @@ mutual
     data SimEffects : Nat -> Bindings -> Type where
       Nil : SimEffects Z bs
       (::) : (e : Effect bs) -> {auto 0 ns : NotSim e} -> {auto 0 nq : NotSeq e} ->
-             SimEffects n (preIntro e) -> SimEffects (S n) bs
+             SimEffects n (annIntro e) -> SimEffects (S n) bs
 
   ||| Is this clause itself a simultaneous batch?
   public export
@@ -6308,7 +6437,10 @@ mutual
   -- group's, part of which went somewhere else, and one zone field
   -- cannot hold two answers. No corpus line reads the group back after
   -- its complement moves, so the hole costs nothing that is written.
-  moveIntro p TheRest z = bs
+  -- It SPENDS the group besides (`groupSpent`, chapter twenty-six):
+  -- the remainder is outstanding until it is placed and there is only
+  -- one of it, so a second disposition on the same path names nothing.
+  moveIntro p TheRest z = groupSpent bs
   moveIntro p It z = setZoneIt p z bs
   moveIntro p Them z = setZoneThem p z bs
   moveIntro p (That w) z = setZoneThat p w z bs
@@ -6448,8 +6580,19 @@ mutual
   -- public, so [CR#701.17c] lets later text find it. No head type: a mill
   -- takes cards off the top of a hidden pile and says nothing about them,
   -- the same silence `LibrarySlice` keeps.
+  -- Its NUMBER is the clause's, which is the count and the SUBJECT
+  -- together and not the count alone (`outputPlur`, chapter
+  -- twenty-six) — the same derivation `Create` beside it uses, and for
+  -- the same reason: [CR#701.17a] has each milled-at player put that
+  -- many cards into their own graveyard, so "each player mills a card"
+  -- puts one card per player into the graveyards and the mention is
+  -- plural even though the count says one. Locke, Treasure Hunter reads
+  -- it plural in the next breath ("each player mills a card. … you may
+  -- cast a spell from among those cards"); the singular `It` there is
+  -- refused now (`badDistributedMillSingular`).
   effIntro (Mill who amt) =
-    MkBinding TheD Object (amtPlur amt) (ObjectP Nothing (Just Graveyard) Nothing)
+    MkBinding TheD Object (outputPlur (nounPlur who) (amtPlur amt))
+              (ObjectP Nothing (Just Graveyard) Nothing)
       :: amtIntro amt
   -- the found object, in the zone it was found in ([CR#701.23a]) -- the
   -- "it"/"that card" every search sentence goes on to place.
@@ -6526,12 +6669,12 @@ mutual
   -- clause's phrases announced ([CR#601.2c] announces them whatever
   -- resolution makes of the event, and [CR#614.6] is what makes the
   -- outcome unavailable: the replaced event never happened).
-  effIntro (InsteadOf replaced repl) = preIntro replaced
+  effIntro (InsteadOf replaced repl) = annIntro replaced
   -- the undo is scheduled on an event that has not happened, so what
   -- this clause leaves behind is not settled yet: the exiled object may
   -- be in exile or back on the battlefield when a later sentence reads
   -- it. The announcement is all that is safe ([CR#601.2c]).
-  effIntro (HeldUntil e ev) = preIntro e
+  effIntro (HeldUntil e ev) = annIntro e
 
   ||| What a clause has ANNOUNCED by the time its own trailing condition
   ||| is read — the pre-resolution twin of `effIntro`, and the whole of
@@ -6598,7 +6741,13 @@ mutual
   -- functions are exactly the pre/post distinction chapter twenty-one
   -- drew, and this row is the first place where they had been made to
   -- agree by hand.
-  preIntro (If e c oth) = condDelta c ++ preIntro e
+  -- The channel is `annIntro`'s now, chapter twenty-six: `preIntro` was
+  -- never announcement-only, so copying it here exported a nested may's
+  -- deed and a nested sequence's outcome along with the targets
+  -- (`badConditionalInsteadReadsMayOutcome`). The flat case — which is
+  -- the case the channel was opened for — is unchanged, a flat clause's
+  -- announcement being the same list under either name.
+  preIntro (If e c oth) = condDelta c ++ annIntro e
   preIntro (Sequentially es) = preIntros es
   preIntro (Simultaneously es) = simPres es
   preIntro (Modal q modes) = bs
@@ -6607,8 +6756,165 @@ mutual
   -- may have announced phrases of its own, but only one of the two ran
   -- and the one that certainly did not is the replaced clause's EVENT,
   -- not its phrases ([CR#614.6] against [CR#601.2c]).
-  preIntro (InsteadOf replaced repl) = preIntro replaced
-  preIntro (HeldUntil e ev) = preIntro e
+  preIntro (InsteadOf replaced repl) = annIntro replaced
+  preIntro (HeldUntil e ev) = annIntro e
+
+  ||| THE ANNOUNCEMENT CHANNEL — chapter twenty-six's, and the whole of
+  ||| this chapter's answer to a distinction chapters twenty-one through
+  ||| twenty-five kept borrowing `preIntro` for. What a clause's PHRASES
+  ||| have named by the time the spell is cast ([CR#601.2c] announces
+  ||| every target as the spell is cast, whatever resolution later makes
+  ||| of it) and nothing whatever about what the clause DID.
+  |||
+  ||| `preIntro` is not that function and never was. It is the broader
+  ||| PRE-RESOLUTION summary ordinary sequential prose needs — the
+  ||| twin of `effIntro` one moment earlier — and on a FLAT clause the
+  ||| two agree exactly, which is why three constructions could type
+  ||| their announcement-only slots on it and look right. They came
+  ||| apart on composites, in three directions and all of them measured:
+  ||| a `May`'s row is `mayIntro`, so the optional body's DEED crossed
+  ||| into a simultaneous sibling that had not seen it happen
+  ||| (`badSimultaneousReadsMayDeed`, `badSimultaneousReadsMayOutcome`);
+  ||| a `Sequentially`'s row is its last clause's pre-state over the
+  ||| DEED telescope, so an earlier step's outcome reached a replacement
+  ||| for an event [CR#614.6] says never happened
+  ||| (`badInsteadReadsReplacedSequenceOutcome`); and `If` forwarded
+  ||| either of them recursively
+  ||| (`badConditionalInsteadReadsMayOutcome`).
+  |||
+  ||| So the rows differ from `preIntro` in exactly the places a clause
+  ||| CONTAINS another clause: `May` announces its BODY's phrases and
+  ||| nothing its arms did, `If` its conditioned clause's, `InsteadOf`
+  ||| and `HeldUntil` the clause they wrap. A `Sequentially` is a hole —
+  ||| not a hedge, a consequence of the telescope: its elements are
+  ||| typed over each other's `effIntro`, so no later element's
+  ||| announcement can be lifted out without the deeds it was typed in.
+  ||| A BATCH is not, because its telescope is this function's
+  ||| (`annSims`), which is what makes the announcements accumulate
+  ||| across a batch while the deeds do not.
+  |||
+  ||| Every other row is `preIntro`'s answer verbatim, written out
+  ||| rather than delegated so that a new clause has to declare its own
+  ||| announcement.
+  public export
+  annIntro : {bs : Bindings} -> Effect bs -> Bindings
+  annIntro (DealDamage src amt to) = nomIntro to
+  annIntro (Distribute v amt among) = nomIntro among
+  annIntro (Fights a b) = nomIntro b
+  annIntro (Tap n) = nomIntro n
+  annIntro (Choose n) = nomIntro n
+  annIntro (Move what to) = nomIntro what
+  annIntro (ChangeLife who (Up a)) = lifeIntro (Up a)
+  annIntro (ChangeLife who (Down a)) = lifeIntro (Down a)
+  annIntro (ChangeLife who (Set a)) = lifeIntro (Set a)
+  annIntro (Draw who amt) = amtIntro amt
+  annIntro (Expose v who what) = exposedIntro what
+  annIntro (Mill who amt) = amtIntro amt
+  annIntro (Search who z p) = predDelta p ++ nomIntro who
+  annIntro (Shuffle whose) = nomIntro whose
+  annIntro (Continuously se _) = staticIntro se
+  annIntro (Create agent count tok riders) = amtIntro count
+  annIntro (PutCounters amt kind on) = nomIntro on
+  annIntro (RemoveCounters amt kind from) = nomIntro from
+  annIntro (Composite v (Move what to)) = nomIntro what
+  annIntro (Composite _ e) = annIntro e
+  annIntro (Does s v (Move what to)) = nomIntro what
+  annIntro (Does s v e) = annIntro e
+  -- the BODY's phrases, on every row. [CR#601.2c] announces a target
+  -- written inside an optional clause whether or not the player takes
+  -- the offer, so the body's phrases are announced; what the body DID
+  -- is `mayIntro`'s business and not this function's. The ARMS
+  -- contribute nothing here, and the reason is structural rather than a
+  -- ruling: an arm is typed over the body's `effIntro`, so its own
+  -- announcement cannot be taken without the body's deeds coming with
+  -- it. Under-reporting, and in the safe direction.
+  annIntro (May d body did notd) = annIntro body
+  annIntro (If e c oth) = condDelta c ++ annIntro e
+  annIntro (Sequentially es) = bs
+  annIntro (Simultaneously es) = annSims es
+  annIntro (Modal q modes) = bs
+  annIntro (Delayed ev e) = bs
+  annIntro (InsteadOf replaced repl) = annIntro replaced
+  annIntro (HeldUntil e ev) = annIntro e
+
+  ||| A BATCH's announcements: the telescope's own end. `SimEffects`
+  ||| threads this function, so walking to the last element reaches
+  ||| every element's phrases at once — the accumulation `effsIntro`
+  ||| performs for deeds, performed for announcements.
+  public export
+  annSims : {bs : Bindings} -> {0 n : Nat} -> SimEffects n bs -> Bindings
+  annSims [] = bs
+  annSims (e :: es) = annSims es
+
+  ||| What a clause contributes BEYOND its announcement — the deed half
+  ||| of `effIntro`, written as a delta so a batch can fold every
+  ||| element's in (`simIntro`). Chapter twenty-two folded only the LAST
+  ||| element's `effIntro` and recorded the simplification ("the union
+  ||| for every row the container reaches today"); the general case is
+  ||| the union, and the case that shows it is two deeds of one kind —
+  ||| "create a token" beside "create a token" leaves TWO tokens
+  ||| ([CR#608.2f] processes a batch's actions simultaneously, so both
+  ||| happened), and a following "it" must refuse as ambiguous rather
+  ||| than silently pick the last (`badBatchTwoCreatesThenIt`,
+  ||| `badBatchTwoOutcomesThenThatMuch`).
+  |||
+  ||| It is the DELTA and not the whole answer because the announcement
+  ||| telescope already carries each element's phrases: `effIntro`'s
+  ||| answer folded whole would count them twice, and a doubled mention
+  ||| breaks the uniqueness gates every read makes. So each row states
+  ||| what the deed adds that the phrase did not — an outcome, a created
+  ||| token, a found or milled group — and nothing else.
+  |||
+  ||| Two kinds of row answer `[]` for a reason worth stating. A clause
+  ||| that RETAGS (the three zone-writing rows) or one that REMOVES
+  ||| (a shuffle) does not add a binding at all, so it has no delta;
+  ||| chapter twenty-two named this and the corpus still agrees — no
+  ||| line writes a batch whose element moves an object, and the reads
+  ||| INSIDE such a batch are refused anyway
+  ||| (`badSimultaneousReadsRetag`). And a CONTAINER answers `[]`
+  ||| because what it leaves behind is not a delta over its own
+  ||| announcement: a may's arms and a conditional's branches are
+  ||| `mayIntro`'s cut, a sequence and a batch are refused as batch
+  ||| elements outright (`NotSeq`, `NotSim`), and a replacement
+  ||| contributes its announcement and no outcome by [CR#614.6].
+  public export
+  deedDelta : {bs : Bindings} -> Effect bs -> List Binding
+  deedDelta (DealDamage src amt to) = [outcomeB DamageDealt]
+  deedDelta (Distribute (DividedDamage _) amt among) = [outcomeB DamageDealt]
+  deedDelta (Distribute (DistributedCounters _) amt among) = []
+  deedDelta (Fights a b) = []
+  deedDelta (Tap n) = []
+  deedDelta (Choose n) = []
+  deedDelta (Move what to) = []
+  deedDelta (ChangeLife who (Up a)) = [outcomeB LifeGained]
+  deedDelta (ChangeLife who (Down a)) = [outcomeB LifeLost]
+  deedDelta (ChangeLife who (Set a)) = []
+  deedDelta (Draw who amt) = []
+  deedDelta (Expose v who what) = []
+  deedDelta (Mill who amt) =
+    [MkBinding TheD Object (outputPlur (nounPlur who) (amtPlur amt))
+               (ObjectP Nothing (Just Graveyard) Nothing)]
+  deedDelta (Search who z p) =
+    [MkBinding AD Object OneOf (ObjectP (seedTy p) (Just (zoneSort z)) Nothing)]
+  deedDelta (Shuffle whose) = []
+  deedDelta (Continuously se _) = []
+  deedDelta (Create agent count tok riders) =
+    [MkBinding AD Object (outputPlur (nounPlur agent) (amtPlur count))
+               (ObjectP (tokenHeadTy tok) (Just Battlefield) Nothing)]
+  deedDelta (PutCounters amt kind on) = []
+  deedDelta (RemoveCounters amt kind from) = []
+  deedDelta (Composite v (Move what to)) = []
+  deedDelta (Composite _ e) = deedDelta e
+  deedDelta (Does s v (Move what to)) = []
+  deedDelta (Does s v e) = deedDelta e
+  deedDelta (May d body did notd) = []
+  deedDelta (If e c oth) = []
+  deedDelta (Sequentially es) = []
+  deedDelta (Simultaneously es) = []
+  deedDelta (Modal q modes) = []
+  deedDelta (Delayed ev e) = []
+  deedDelta (InsteadOf replaced repl) = []
+  deedDelta (HeldUntil e ev) = []
 
   ||| A sequence's pre-state is its LAST clause's: every earlier clause
   ||| has resolved by the time the trailing condition is read.
@@ -6658,15 +6964,25 @@ mutual
   effsIntro [] = bs
   effsIntro (e :: es) = effsIntro es
 
-  ||| What a whole BATCH contributes: its last element's discourse, the
-  ||| announcement telescope having threaded every predecessor's phrases
-  ||| through. The empty and singleton cases are unreachable through
-  ||| `Simultaneously` (`AtLeastTwo`) and are written for totality.
+  ||| What a whole BATCH contributes: EVERY element's deed over the
+  ||| announcement telescope — the union, chapter twenty-six's
+  ||| correction to chapter twenty-two's recorded simplification. It
+  ||| used to be the LAST element's `effIntro`, which was the union for
+  ||| every row the container reached then (the control grant introduces
+  ||| its phrase and does nothing else) and is not the union in general:
+  ||| two creates in one batch leave two tokens, and reading the deed
+  ||| off the end made the second one the only one there was, so a
+  ||| following "it" resolved where the sentence is ambiguous
+  ||| ([CR#608.2f]: both actions are processed, so both happened).
+  ||| The deeds go in as DELTAS (`deedDelta`) because the telescope has
+  ||| already carried each element's announced phrases; folding whole
+  ||| `effIntro`s would count those twice.
+  ||| The empty case is unreachable through `Simultaneously`
+  ||| (`AtLeastTwo`) and is written for totality.
   public export
   simIntro : {bs : Bindings} -> {0 n : Nat} -> SimEffects n bs -> Bindings
   simIntro [] = bs
-  simIntro (e :: []) = effIntro e
-  simIntro (e :: es) = simIntro es
+  simIntro (e :: es) = deedDelta e ++ simIntro es
 
   ||| A batch's PRE-state: what its elements have announced and nothing
   ||| they did — the last element's own `preIntro` over the same

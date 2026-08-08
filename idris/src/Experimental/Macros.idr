@@ -286,20 +286,20 @@ anyOtherTarget = And [AnyTarget, Other]
 -- spelling: ["other creature"] (register variant "another creature"),
 -- kind: Nominal (And [creature, OtherThan n] -- see Predicate.OtherThan)
 public export
-otherCreature : (n : Noun bs Object) -> {auto 0 bl : Bindingless n} ->
+otherCreature : (n : Noun bs Object) -> {auto 0 ca : ComplementAnchor n} ->
                 {auto 0 ty : anchorTyFits [Creature] (nounTy n) = True} ->
                 Predicate bs Object
-otherCreature n = And [creature, OtherThan n {bl}]
+otherCreature n = And [creature, OtherThan n {ca}]
 
 -- "other creature(s) you control [than n]" — the corpus's commonest
 -- complement phrase (a hundred and thirty-seven plural lines, seventy-five
 -- of the distributive "each other creature you control").
 -- spelling: ["other creature you control"], kind: Nominal
 public export
-otherCreatureYouControl : (n : Noun bs Object) -> {auto 0 bl : Bindingless n} ->
+otherCreatureYouControl : (n : Noun bs Object) -> {auto 0 ca : ComplementAnchor n} ->
                           {auto 0 ty : anchorTyFits [Creature] (nounTy n) = True} ->
                           Predicate bs Object
-otherCreatureYouControl n = And [creature, ControlledBy You, OtherThan n {bl}]
+otherCreatureYouControl n = And [creature, ControlledBy You, OtherThan n {ca}]
 
 -- "other player" — the player-kind complement, anchored to `You`
 -- ([CR#102.1] makes "player" the universal word, so the exclusion is
@@ -1114,7 +1114,7 @@ exileUntil n ev = HeldUntil (exile n) ev {ok = MkHeldClause} {hd}
 -- spelling: ["<Param(0)>. <Param(1)> instead."], kind: TODO(reason:
 -- two-sentence body -- see Effect.InsteadOf)
 public export
-insteadOf : (replaced : Effect bs) -> (repl : Effect (preIntro replaced)) ->
+insteadOf : (replaced : Effect bs) -> (repl : Effect (annIntro replaced)) ->
             {auto 0 na : NotInstead replaced} ->
             {auto 0 nb : NotInstead repl} -> Effect bs
 insteadOf replaced repl = InsteadOf replaced repl {na} {nb}

@@ -3164,6 +3164,205 @@ Scarwood Treefolk, Doubling Season, and regeneration by way of
    real one — a new entry rather than an old one, and a cousin of the
    coordination and extraposition gaps the ledger already keeps.
 
+## Chapter Twenty-Six — The Announcement Channel
+
+Chapter twenty-six, where the function three constructions had been
+borrowing turns out to be two functions (evidence: Death by Dragons,
+Terrifying Presence, Locke Treasure Hunter, Sylvan Scrying, Impulse,
+Phyrexian Infiltrator, Colossal Growth, Volatile Stormdrake, Sudden
+Substitution; and, for what the round measured rather than built,
+Calix Destiny's Hand, Basilica Guards, Secret Invasion, Gaea's Liege,
+Graceful Antelope, Rampant Growth, Cloudshift, Scarwood Treefolk).
+
+149. **The announcement channel is its own function, and `preIntro`
+   was never it.** Chapter twenty-one drew the pre/post distinction and
+   chapter twenty-five opened the conditional's announcement export on
+   it, and both were right about the CLAUSE they were looking at and
+   wrong about the function they reached for. `preIntro` is the
+   pre-resolution twin of `effIntro` — what the discourse holds one
+   moment before the clause resolves — and on a FLAT clause that is the
+   same list as its announcements, which is why three constructions
+   could type their announcement-only slots on it and look correct for
+   four chapters. They come apart wherever a clause CONTAINS another
+   clause, and the round found all three directions and proved each with
+   a term that typechecked. A `May`'s row is `mayIntro`, the optional
+   body's DEED, so a simultaneous sibling could put a counter on a token
+   the player may never have made: [CR#118.12] makes the offer a cost
+   checked by whether the player chose to pay it, "regardless of what
+   events actually occurred", and [CR#608.2f] processes a batch's actions
+   at once, so nothing in the batch's one pre-state can be that token
+   (`badSimultaneousReadsMayDeed`, `badSimultaneousReadsMayOutcome`). A
+   `Sequentially`'s row is its last clause's pre-state over the DEED
+   telescope, so an earlier step's outcome walked into a replacement for
+   an event [CR#614.6] says never happened — and the ATOMIC form of the
+   same read was already refused, which is what proved the wrapper opened
+   it rather than the row (`badInsteadReadsReplacedSequenceOutcome`
+   against `badInsteadReadsReplacedOutcome`). And `If` forwarded either
+   defect recursively (`badConditionalInsteadReadsMayOutcome`). So the
+   repair is a distinct STRUCTURAL traversal, `annIntro`: what a clause's
+   phrases have named by the time the spell is cast ([CR#601.2c]) and
+   nothing about what it did. `SimEffects` threads it, `preIntro (If …)`
+   exports it, and `InsteadOf` and `HeldUntil` type their trailing halves
+   in it. `preIntro` keeps the job it was built for — the trailing
+   condition's context, which is a pre-state question and not an
+   announcement one.
+150. **A sequence is a HOLE in that channel, and the hole is a
+   consequence rather than a hedge.** `annIntro (Sequentially es) = bs`,
+   and the reason is the telescope: `Effects` types each element over its
+   predecessors' `effIntro`, so no later element's announcement can be
+   lifted out without carrying the deeds it was typed in. A BATCH is not
+   a hole, and the difference is exactly that its telescope is this
+   function's — which is what makes announcements accumulate across a
+   batch while deeds do not, in one line of one type. The same shape
+   answers the `May` arms, which contribute nothing here: an arm is typed
+   over the body's `effIntro`, so `annIntro (May …)` takes the BODY's
+   phrases and stops. Under-reporting, and in the direction that refuses.
+151. **The batch's outward discourse is the UNION, and chapter
+   twenty-two's recorded simplification was one.** That chapter folded
+   the LAST element's `effIntro` over the announcement telescope and
+   wrote down that this "IS the union for every row the container reaches
+   today" — true then, and the case that shows it was a simplification is
+   two deeds of one kind: two creates in one instruction leave two
+   tokens, both actions having been processed ([CR#608.2f]), so the
+   sentence after cannot say "it" and must refuse as ambiguous
+   (`badBatchTwoCreatesThenIt`, `badBatchTwoOutcomesThenThatMuch`). The
+   fold takes DELTAS (`deedDelta`) rather than whole answers, and that is
+   the interesting half: the telescope has already carried every
+   element's announced phrases, so folding `effIntro`s whole would count
+   them twice and a doubled mention breaks every uniqueness gate a read
+   makes. So each row states what its DEED adds that its PHRASE did not —
+   an outcome, a created token, a found or milled group — and the rows
+   that RETAG (the zone-writing three) or REMOVE (a shuffle) answer with
+   nothing, having no delta to give. That last is chapter twenty-two's
+   own note kept and made uniform: no corpus line writes a batch whose
+   element moves an object, and the reads INSIDE such a batch were
+   already refused (`badSimultaneousReadsRetag`). The exchange family is
+   unmoved, which is the check that mattered — a control grant introduces
+   its phrase and does nothing else, so union and last-element agree on
+   it exactly.
+152. **A search takes the ZONE and never a place in it, and the sort
+   could not tell the difference.** `zoneSort` projects `Library` off
+   "the top of your library" as readily as off "your library", so gating
+   the search on the sort alone admitted "search the top of your library"
+   — arrangement rider and all, which makes the nonsense plain, a search
+   cannot look through cards "in a random order". [CR#701.23a] defines
+   searching as looking at "all cards in that zone", and [CR#401.2] is
+   what lets the two phrases be told apart at all: a library is "a single
+   face-down pile", so its positions are places in a zone and not zones.
+   The clause asks the PHRASE now as well as the sort (`WholeZone`,
+   `badSearchLibraryPosition`), which is the same two-questions-one-gate
+   correction the complement anchor gets below.
+153. **A distributed mill's NUMBER is the clause's, which is the
+   subject and the count together.** [CR#701.17a] has each milled-at
+   player put that many cards from their own library into their own
+   graveyard, so "each player mills a card" puts one card per player
+   there and the group is plural though the count says one. The row was
+   keyed on the count alone, which made the mention singular and let "it"
+   through; it is `outputPlur (nounPlur who) (amtPlur amt)` now, the
+   derivation `Create` has used since chapter twenty-three, and the
+   singular read is refused (`badDistributedMillSingular`). Locke,
+   Treasure Hunter is the line — "each player mills a card. If a land
+   card was milled this way, create a Treasure token. Until end of turn,
+   you may cast a spell from among those cards" — and it lands no
+   positive here, its plural read being the among-restriction the ledger
+   already keeps and its shell a trigger. The fix arrives with its
+   refusal pinned and its witness waiting, which is the honest order.
+154. **A complement's anchor is a READ or a written TARGET, and
+   "valid anchor" was never the same question as "introduces no
+   binding".** Chapter twenty-two gave `OtherThan` the blanket
+   bindingless demand `Matches` makes of its subject, on the reading that
+   an anchor with a determiner would announce a referent the sentence
+   never spelled. That is exactly right for the indefinite — "other than
+   a creature" is unwritten English and stays refused
+   (`badComplementAnchorAnnounces`) — and exactly wrong for a target,
+   which spells its referent out loud. The corpus writes two such lines
+   and the demand refused both: "Each player other than target player
+   creates a 5/5 red Dragon creature token with flying" (Death by
+   Dragons) and "Prevent all combat damage that would be dealt by
+   creatures other than target creature this turn" (Terrifying Presence),
+   and `other than target` returns exactly those two in supported and
+   all-cards scope alike. [CR#601.2c] announces those targets as the
+   spell is cast like any other, so the announcement now travels with the
+   phrase the complement modifies (`predDelta (OtherThan n)`). Death by
+   Dragons lands WHOLE on the distributed-create machinery chapter
+   twenty-three built; Terrifying Presence lands as its phrase, the rest
+   of its sentence wanting the source-restricted shield chapter
+   twenty-five ledgered. The second half of the correction is the one
+   that keeps the deferred family deferred: the anchor must be SINGULAR.
+   The constructor subtracts one referent, and a plural anchor passed to
+   it is group subtraction — finding 111's subset complement — which the
+   loosened shape would otherwise have admitted silently through "those"
+   (`badPluralComplementAnchor`). No corpus line writes one: `other than
+   them`, `other than those`, and `other than these` return zero in both
+   scopes.
+155. **A partition's remainder is spent when it is placed, and the
+   state was already on the binding list.** "The rest" names what is
+   OUTSTANDING of a group, so once the rest has been placed there is
+   nothing outstanding and a second "the rest" in the same breath names
+   nothing — and nothing in the phrase's presupposition said so, which
+   let one look be partitioned once and disposed of twice. The fix is one
+   word in the move's contribution: disposing of the remainder SPENDS the
+   group mention (`groupSpent`), which makes `theRestOk` false for every
+   later clause on the same path and leaves the branch arms alone, an arm
+   being typed in the discourse BEFORE the disposition. That is exactly
+   what the corpus asks for — Impulse writes one partition and one
+   disposition, and the only three lines carrying two "the rest" phrases
+   put them in mutually exclusive if/instead/otherwise arms
+   (`badRestDisposedTwice`). It costs nothing already written: all four
+   partition positives dispose of the remainder in their last clause, and
+   the group-read-after-disposal hole was chapter twenty-four's own note.
+156. **The one leak reported against the control grant was not one,
+   and the dependency is why.** An outside reading of
+   `staticIntro (GainsControl who what) = nomIntro what` said the gaining
+   player is dropped, so that "target player gains control …" could not
+   be read back by a later sentence or by the clause's own duration. The
+   right-hand side is only half the row: `what` is typed in
+   `nomIntro who`, so the player's announcement is carried THROUGH the
+   dependency and both reads typecheck today. Probed both ways before
+   refusing — a following sentence reads the player, and so does a
+   `ForAsLongAs` on the grant itself — and the reading is what
+   Phyrexian Infiltrator's batch has depended on since chapter
+   twenty-two, its second half finding the first half's target through
+   exactly this path. Refused with the mechanism named rather than
+   with a measurement, because the measurement points the other way:
+   the family IS attested, four lines reading the gaining player back
+   ("Target opponent gains control of another target permanent you
+   control. If they do, you draw a card"), and every one of them reads
+   it inside the mandatory "if/when [a player] does" arm [CR#118.12]
+   governs, which waits with the cost algebra.
+157. **What the round measured and returned.** The entry-rider FIELD
+   is confirmed in shape by a second reading and stays ledgered with its
+   execution: [CR#603.6d] calls "[This permanent] enters tapped" a static
+   ability in as many words and [CR#614.1c,614.1d] file the text as a
+   replacement effect, so the sentence belongs to the abilities layer,
+   while the one-shot twin (Rampant Growth's "put that card onto the
+   battlefield tapped") is a rider on the move; the settled shape is a
+   closed rider BUNDLE on `Move` rather than a scalar, gated to
+   battlefield destinations, with the controller as an optional override
+   over [CR#110.2a]'s default. Chapter twenty-five's ninety-one-line
+   "until [object] leaves the battlefield" split is independently
+   confirmed at 86 one-shot exile/undo lines ([CR#610.3]), three phasing
+   lines ([CR#610.4]), and three continuous ones, the totals overlapping
+   once because Secret Invasion writes both families in one line; the
+   three continuous ones are Secret Invasion's copy clause, Gaea's Liege
+   and Graceful Antelope's base-type settings, none writable by the
+   landed continuous rows. Two readings of landed rows were checked and
+   both came back legal rather than leaky: Calix, Destiny's Hand's
+   "Exile target creature or enchantment you don't control until target
+   enchantment you control leaves the battlefield" is a `HeldUntil` whose
+   ENDPOINT is a second announced target, which the rider's own typing
+   permits and no rule forbids; and Basilica Guards' "each opponent loses
+   1 life and you gain that much life" is not a simultaneous batch that
+   would have to read a sibling's outcome, [CR#608.2c] following
+   instructions "in the order written", so it is a `Sequentially` and the
+   outcome read is the ordinary one. Last, an existential event DURATION
+   ("until a creature dies") was raised and is unattested: zero lines in
+   either scope for that phrasing and zero for any "until … dies", the
+   nearest real forms being the iterated reveal ("reveals cards from the
+   top of their library until a creature card is revealed"), which is a
+   repetition construction and not a duration at all, and one
+   monarch-endpoint exile. Dropped rather than ledgered.
+
 ## Engine-Boundary Deferrals
 
 Engine-boundary deferrals (deliberate, and to stay so): the
@@ -3535,7 +3734,16 @@ call sites, so it is measured and named here rather than taken.
 four "under the control of an opponent of your choice", two the bare
 "under your control", one the replacement "it enters under your
 control instead" that wants the enter event finding 141 measured and
-did not mint]; the type-SETTING sibling of
+did not mint. The FIELD's SHAPE is settled as of chapter twenty-six and
+only its execution waits: one dependent arrival slot on `Move` carrying
+a closed rider BUNDLE rather than a scalar, because tapped, attacking,
+and the controller override COMBINE and separate `MoveTapped` /
+`MoveUnderControl` constructors would multiply the move by its
+combinations; gated to battlefield destinations, there being nothing
+for an arrival rider to say about any other zone; and the controller
+written as an OPTIONAL override rather than a required field, since
+[CR#110.2a] supplies the instructed player's control by default and the
+hundred thirty-two lines are the departures from it]; the type-SETTING sibling of
 finding 86 ([CR#205.1a] — the bare "becomes a 3/3 Elemental
 creature", which REPLACES the prior types where the "in addition"
 phrase keeps them) together with the base-P/T setting so often
@@ -3693,7 +3901,10 @@ common source phrasings, plus the twenty-eight "the next time a source of
 your choice would deal damage" shields and the eight bare "by a source of
 your choice"), which [CR#609.7] gives its own machinery and [CR#615.9]
 its own recheck rule, and which is a rider on the damage NOUN rather than
-a slot on the clause; prevention's ADDITIONAL effect ([CR#615.5] — "the
+a slot on the clause — its complement ANCHOR came unblocked in chapter
+twenty-six, Terrifying Presence's "creatures other than target creature"
+being `terrifyingPresenceAnchor`, so what the line waits on is the
+shield's source slot alone; prevention's ADDITIONAL effect ([CR#615.5] — "the
 prevention takes place at the time the original event would have
 happened; the rest of the effect takes place immediately afterward";
 twenty lines read "damage prevented this way"), which is the "this way"
