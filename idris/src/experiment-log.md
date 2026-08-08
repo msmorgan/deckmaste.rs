@@ -2338,7 +2338,9 @@ Negative, Tahngarth Talruum Hero, Master Thief by way of
    demand tap and destroy already carry applies
    (`badGainControlGraveyard`); the STACK half of [CR#109.4] is
    real English ("exchange control of target noncreature spell and
-   target creature") and waits with the spell carrier.
+   target creature") and waits with the stack-object CONTROL carrier —
+   the spell carrier itself landed in chapter thirty and left that line
+   where it was, finding 197.
 118. **The for-as-long-as duration landed, and it made `Duration`
    a context.** Chapter eighteen measured this row and ledgered it
    on a missing clause rather than a missing shape; the clause is
@@ -4176,6 +4178,310 @@ blocker it named turning out to be the design:
    keyword actions (amass, earthbend, surveil), the die roll, the mana
    addition, and the attach.
 
+## Chapter Thirty — The Card
+
+Chapter thirty, the outermost container and the last absent primitive
+family (evidence: Scathe Zombies, Rorix Bladewing, Aladdin's Ring,
+Moonlit Wake, Anthem of Champions, Counterspell, Hymn of Rebirth,
+Zimone Quandrix Prodigy, Preeminent Captain, Workhorse, Desperate
+Castaways, Silent Assassin, Beast Whisperer, Skaab Ruinator, Escape to
+the Wilds; and, for what the round measured rather than built, Squee
+the Immortal, Hogaak Arisen Necropolis, Brazen Cannonade, Locke
+Treasure Hunter, Escape to the Wilds' second line). The round the
+fragments became cards:
+
+188. **The card container is a thin RECORD, and what it buys is the one
+   question no ability line can answer about itself.** [CR#200.1] lists
+   fifteen parts; five of them are language and the rest are printing,
+   so `Card` carries the name, the mana cost, the type line, the text
+   box and the power-and-toughness pair, and leaves the illustration,
+   the expansion symbol and their neighbours where they are. Nothing in
+   that list is a construction — this is the first type here that is
+   not one — and the container would be inert if the parts were all it
+   held. What makes it necessary is [CR#113.3a]: "any text on an
+   instant or sorcery spell is a spell ability unless it's an activated
+   ability, a triggered ability, or a static ability that fits the
+   criteria described" [CR#113.6]. That sentence qualifies an ability by
+   what its CARD is, and no line carries that fact, so `Ability` could
+   grow its fourth [CR#113.3] row but could not gate it until something
+   knew the type line. `cardAbilityOk` is the gate and the reason the
+   type exists. Core reaches the same shape at
+   `deckmaste_semantics/src/card.rs` and the three divergences are each
+   measured: core's flat `types`/`subtypes` fields are chapter
+   nineteen's `TypeLine` record here (the same two lists under one name,
+   shared with the two clause readers); core's `color_indicator`
+   ([CR#204.1] — a printed dot, not language), `loyalty` and `defense`
+   are absent; and core's `Card` wraps a face in a two-faced enum
+   ([CR#712.8]) where a face is what this record is. The NAME is a
+   `String` and the one field with no grammar in it, carried for
+   `TokenChars`' reason at a second site — [CR#201.1] makes it a printed
+   part, and modern oracle templating writes "this creature" in the text
+   box, so nothing here reads it back.
+189. **The rules text is a LIST OF LINES on BOTH sides of the split, and
+   the rule the round was sent to read says so in its own "unless".**
+   The question set was whether a permanent card's text is ability lines
+   and an instant's is an `Effect`. It is not: [CR#113.3a] makes the
+   spell ability a CATEGORY of ability ([CR#113.3] listing four), so
+   both cards hold a list and what differs is which rows the list may
+   contain. The spell card's default row then holds exactly the `Effect`
+   the other reading would have made the whole field, which is why the
+   two designs look alike from outside and why only one of them can say
+   what Counterspell's line is. The table is full rows over two card
+   classes and five ability rows, and each cell has its own ground. The
+   SPELL row is [CR#113.3a] read forwards on a spell card and backwards
+   on a permanent one — a spell ability is followed "while an instant or
+   sorcery spell is resolving", which a permanent card's text never is.
+   The ACTIVATED and TRIGGERED rows are open on both sides, that being
+   the rule's own list of exceptions. The STATIC row is open on
+   permanents and shut on spell cards, and the shutting is [CR#113.6]'s
+   criteria rather than a count: its first sentence sends an instant's
+   abilities to the stack where every `StaticEffect` row here
+   establishes a battlefield continuous effect, and the two exception
+   families a spell card really prints — [CR#113.6d]'s alternative costs
+   and [CR#113.6e]'s cast restrictions — this grammar spells neither
+   (`badStaticOnSorcery`). The KEYWORD row is shut on spell cards by
+   measurement instead: the three keywords this file carries are
+   flying, trample and haste, and none is printed on an instant or a
+   sorcery (`badKeywordOnInstant`). Two card types had to arrive for the
+   table to be askable, `Instant` and `Sorcery`, and their `typeRank`
+   entries are the file's first UNWITNESSED cells — no printed type line
+   here writes either beside another card type, so the order is a
+   convention the rank must pick and nothing measures.
+190. **Six whole cards, and what changed is what a bench term IS.**
+   Every positive before this round was a fragment — a clause, a
+   sentence, an ability line, with the rest of the card named in a
+   comment and elided. These are printed cards top to bottom, one per
+   container shape, and none of them elides a part: Scathe Zombies
+   ({2}{B}, Creature — Zombie, 2/2, no rules text) is the VANILLA card
+   and the shape that shows an empty text box is a card with nothing to
+   say rather than one that failed to be written; Rorix Bladewing
+   ({3}{R}{R}{R}, Legendary Creature — Dragon, 6/5, "Flying, haste") is
+   the FRENCH VANILLA and the supertype's witness, its one comma-joined
+   line holding two abilities; Aladdin's Ring ({8}, Artifact) is the
+   ACTIVATED card, a compound cost and a damage clause with the class
+   word in its recipient slot; Moonlit Wake ({2}{W}, Enchantment) the
+   TRIGGERED card; Anthem of Champions ({G}{W}, Enchantment) the STATIC
+   card, and the shortest statement in the corpus that is one; and
+   Counterspell ({U}{U}, Instant, "Counter target spell.") the SPELL
+   card, which needed the container to exist at all — the same sentence
+   after a colon on a permanent would be an activated ability's effect,
+   and [CR#113.3a] settles which by asking what the card is. Hymn of
+   Rebirth ({3}{G}{W}, Sorcery) is a seventh, and it doubles as the
+   arrival rider's whole-card witness. The four demands are separate
+   witnesses rather than one gathered one, and that is a pin discipline
+   rather than a taste: a gathering type reports its own name whichever
+   question refused (`CardLine`, `CardText`, `CardPt`, `CardCost`).
+   SUPERTYPES land, at one row of [CR#205.4a]'s five, and they land on
+   the CARD rather than on `TypeLine` — [CR#205.4b] makes a supertype
+   "independent of its card type and subtype", and `TypeLine`'s two
+   existing readers write none between them, so the third reader is the
+   one that has them. `Legendary` is Rorix's; `Basic` wants a land-type
+   subtype vocabulary, `Snow` a supertype nothing here writes (its mana
+   symbol landed in chapter twenty-seven), and `World` and `Ongoing` are
+   legacy and Archenemy. LOYALTY does not land and the blocker is not
+   the cost: a loyalty ability is an activated ability whose cost is a
+   symbol change, and `Cost` could carry that cheaply, but no whole
+   planeswalker is writable — `CardType` has no `Planeswalker` row,
+   [CR#606.3]'s shared once-per-turn cap is core's third use-limit row
+   waiting with it, the eight hundred thirty-two bracketed cost
+   components are a symbol vocabulary of their own, and the planeswalker
+   subtypes are a set apart. Ledgered whole, as the round was told to if
+   the witnesses did not land whole.
+191. **The Move rider bundle costs FORTY-THREE fewer call sites than the
+   ledger promised, and the reason is an idiom that arrived after the
+   estimate.** The design was settled in chapter twenty-six and only its
+   execution waited: one arrival slot on `Move` carrying a closed rider
+   BUNDLE rather than a scalar, because the riders combine — three
+   hundred fifteen lines write "onto the battlefield tapped", nineteen
+   of them "tapped and attacking", and a hundred thirty-five "under
+   [someone]'s control", and a placement can wear a rider from each half
+   at once. Separate `MoveTapped` / `MoveUnderControl` constructors
+   would have multiplied the verb by its combinations. The entry half is
+   chapter nineteen's `TokenRider` list SHARED and its `ridersOk` shapes
+   verbatim, which is finding 179's sharing at a third site; the
+   CONTROLLER is a second field and not a third rider word, because it
+   takes a noun where the other two are bare participles, and it is an
+   OVERRIDE rather than a required field because [CR#110.2a] already
+   gives the instructed player control. The gate is the battlefield, and
+   both halves have their own rule for it: [CR#110.5b] says permanents
+   "enter the battlefield untapped … unless a spell or ability says
+   otherwise", which is the tapped rider's own rule and exists nowhere
+   else, and [CR#109.4] gives an object off the stack and off the
+   battlefield no controller to override (`badMoveRidersToGraveyard`,
+   `badMoveControlToHand`). What the ledger's forty-three call sites
+   turned out to be is zero: chapter twenty-seven's activated line
+   introduced the `{default …}` named-implicit slot, and a defaulted
+   slot changes no pattern and no call site. The estimate was written
+   before the idiom existed. Witnesses are Zimone, Quandrix Prodigy's
+   first ability (tapped), Preeminent Captain's second line (tapped and
+   attacking), and Hymn of Rebirth whole (under your control).
+192. **The enters-with-COUNTERS entry opens, and the blocker the ledger
+   recorded was about the wrong container.** Three hundred eighty-six
+   lines of the four hundred fourteen "enters with" write counters, and
+   the entry has said since chapter nineteen that they want "a counter
+   AMOUNT where `TokenRider` is a two-row enum". They do; what the
+   re-check found is that an `Amount bs` was never going to fit there at
+   any price, `TokenRider` being shared with `TokenChars`, an unindexed
+   record. Put in a second `StaticEffect` row instead, the line needs no
+   new vocabulary at all — the count is `WrittenCount`'s written
+   magnitude and the kind is `CounterKind`'s — and the two rows answer
+   the same `staticKind`, which is the claim that they are one class of
+   statement ([CR#603.6d,614.1d] file them together). Workhorse's first
+   line is the witness. The kind vocabulary reaches a hundred sixty-eight
+   of the three hundred eighty-six (ninety-nine plural and sixty-two
+   singular "+1/+1", seven "-1/-1") and the rest are the counter catalog
+   itself — time, oil, fade, charge, indestructible, finality, shield,
+   divinity, eight lines apiece and fewer — which is a different ledger
+   entry from the one this closes.
+193. **The spell carrier is four rows and a zone, and it stops exactly
+   where the round said to stop.** The STACK arrives as a `Zone` row and
+   not as a second object sort, because [CR#112.1] identifies the two in
+   one sentence — "a spell is a card on the stack" — so the spell WORD
+   is this zone's carrier noun exactly as "card" is the four
+   card-zones' ([CR#108.2]) and a type word is the battlefield's
+   ([CR#109.2]). That identity is what makes the whole family cheap: "a
+   spell" is `InZone stackZ`, "a creature spell" the type word under the
+   same clause, and `NounWord` gains `SpellW` so "that spell" reads back
+   (thirty-one lines). The zone is public ([CR#400.2] names it), shared
+   rather than possessed ([CR#400.1]), and never a `Move` destination —
+   [CR#601.2a] puts a card there as the first step of CASTING, an action
+   a player takes rather than a placement a sentence writes, which is
+   core's own `exclude(Library, Stack)` (`badMoveToStack`). On top of it:
+   the CAST event, a thousand and sixty-nine headers (nine hundred
+   forty-eight "Whenever", a hundred twenty-one "When"; the caster is
+   "you" seven hundred thirty-six times, "a player" a hundred nine, "an
+   opponent" eighty-four), two noun slots for `DealsCombatDamage`'s
+   reason, and the one event row that does NOT retag because the rule
+   already did — [CR#601.2a] moved the card to the stack before the
+   event finished. And the COUNTER verb ([CR#701.6a]), a hundred
+   ninety-three lines of which fifty-two are Counterspell's bare
+   sentence, with one noun slot and no destination: the rule does say
+   where a countered spell goes and the sentence does not, and a `Move`
+   the sentence never writes is the engine's fact. The BOUNDARY is where
+   the round was told to leave it. Copy machinery is out (seventy-one
+   "spell you control" lines are all of it); the ability half of
+   [CR#701.6a] is out, an ability on the stack being an object
+   [CR#109.1] this noun vocabulary has no word for; and the
+   counter-UNLESS family is refused by chapter twenty-seven's
+   linearization wall, not by anything this round could have fixed —
+   all fifty-three of those lines write "unless ITS CONTROLLER pays",
+   the anaphoric payer [CR#118.12a]'s rewrite types before the clause
+   that announces it (`badUnlessAnaphoricPayer`, unchanged).
+194. **The cast PERMISSION was waiting on two things smaller than a
+   spell carrier, and one of them was a reading rather than a row.**
+   Chapter twenty-eight sent the two hundred ninety-three "you may cast
+   … from your graveyard" lines to wait for the carrier, on the reading
+   that "cast" takes a SPELL where "play" takes a CARD. [CR#701.5b] says
+   the opposite in four words — "to cast a card is to cast it as a
+   spell" — so the complement is not what separates the verbs, and
+   [CR#604.6] brackets them as a SLOT in its own templates ("You may
+   [cast/play] [this card] …"). What does separate them is the LAND:
+   [CR#601.1a] makes "play" the union of playing a land and casting a
+   spell, and [CR#305.9] makes the exclusion a rule — "it can't be cast
+   as a spell" — so the gate is a type demand on the complement's head
+   (`badCastALand`). The second thing was the SOURCE zone, derived in
+   chapter twenty-eight from the complement's binding because the
+   impulse family exiles first and says "that card"; the graveyard
+   family writes the zone IN the permission over a complement that
+   carries none, so the slot is now a defaulted `Maybe` and `Nothing`
+   means "read it off the complement". Skaab Ruinator, which chapter
+   twenty-eight named by name, is the witness. And the family's SIZE is
+   corrected in passing: of the two hundred ninety-three lines, two
+   hundred eight are parenthetical keyword REMINDER text (disturb,
+   flashback, escape and their neighbours) and eighty-five are real
+   ability lines; the "from exile" hundred eighteen divide a hundred
+   thirteen to five the same way. The ledger's count was a reminder-text
+   count, which is the sort of thing only a carrier arriving can show.
+195. **"This way" is ONE construction with two surfaces, and the
+   plurality was the real gap.** A thousand and fifteen lines carry the
+   phrase. The participial back-reference and the attributive participle
+   pick out the same referent under this grammar's uniqueness discipline
+   — a read's obligation is `= 1`, so there is never a second stamp of
+   the same verb for the deictic to disambiguate against — which makes
+   "the card exiled this way" and "the exiled card" two spellings of
+   `TheVerbed` rather than two constructions. That is finding 26's own
+   reasoning one level up: the participle is already the disambiguator
+   English switches to where a bare demonstrative would be ambiguous,
+   and "this way" is the same switch worn as a phrase. It is a TABLE and
+   not a free slot, because the two surfaces are not interchangeable per
+   verb: exile writes both (a hundred eighty-four attributive against a
+   hundred eighteen deictic), sacrifice both (a hundred twenty-three
+   against twenty-nine), discard both (twenty-two against thirty-nine),
+   and DESTROY writes the deictic only — fifty-one lines against zero
+   (`badDestroyedAttributive`). What was actually missing was the
+   PLURAL: `verbedMatch` answered `False` to every `ManyOf` binding, so
+   a group action's participants had no participle to be read by, and
+   the family's actions are group actions. `ThoseVerbed` is to `Them`
+   what `TheVerbed` is to `That`, and Escape to the Wilds' first line is
+   the witness — "Exile the top five cards of your library. You may play
+   cards exiled this way until the end of your next turn." The verb
+   families are attested with their counts and the boundary named:
+   revealed a hundred twenty-three, exiled a hundred eighteen, destroyed
+   fifty-one, milled forty-three, discarded thirty-nine, cast
+   thirty-three, countered thirty-one, sacrificed twenty-nine, tapped
+   nineteen. Only the four that are `VerbName` tags can be written,
+   because the stamp keys on that enum and reveal, mill, tap and cast
+   are `Effect` rows with no tag; and the family's two commonest
+   CONSUMERS want structure this round did not build — the distributive
+   determiner ("each card exiled this way" is twenty-one lines, the
+   single commonest frame) and the for-each amount ("for each creature
+   destroyed this way"), which wants `CountOf` to accept a group MENTION
+   where it takes a description. Both are ledgered with those counts.
+196. **What the round retro-opened, and what it did not.** Claimed:
+   the enters-with-counters entry (finding 192); the cast EVENT and the
+   cast-verb PERMISSION, chapter twenty-eight's two largest (findings
+   193, 194); the "unless" MARKING word, which chapter twenty-eight
+   measured at a hundred fifty lines and one word away and which is now
+   a two-row table gated on the condition's polarity — "unless [C]" is
+   "as long as not [C]" with the negation on the subordinator, so the
+   row demands a negated condition and spells the positive underneath
+   (Desperate Castaways, the whole card; `badUnlessOnPositive`); and
+   the SIXTH turn part, [CR#511.2] saying outright that abilities which
+   trigger "at end of combat" trigger "as the end of combat step
+   begins", so it is a part beginning like the other five and only its
+   surface is short — [CR#513.1a] recording that the end step's
+   identical wording was errata'd and this one was not. The bench's
+   witness for it is the DELAYED clause (Silent Assassin, the whole
+   card) rather than one of the eleven headers, because every one of
+   those wants a blocking-RELATION predicate ("creatures blocking or
+   blocked by this creature") or a combat lookback ("if this creature
+   attacked or blocked this combat"). Re-checked and still shut, with
+   its blocker unchanged: Brazen Cannonade's raid header, which the
+   sixth part does not open — it wants a postcombat main phase (ten
+   corpus lines) and an "if you attacked this turn" lookback, neither of
+   them the end of combat. Partly claimed, narrowed: Locke, Treasure
+   Hunter's Mug ability, whose trigger shell landed in chapter
+   twenty-eight and whose cast VERB landed here, leaving three smaller
+   things — "if a land card was MILLED this way" wants a participle tag
+   the mill clause does not carry, "create a Treasure token" wants the
+   predefined-token catalog, and "from among those cards" is the
+   among-restriction, re-measured at three hundred thirty "from among
+   them/those cards" of four hundred fifty-seven "from among" and still
+   a domain restriction on a description rather than a determiner over a
+   group.
+197. **What the round measured and returned.** The [CR#109.4] STACK
+   caveat is revisited now that the zone exists, and the answer is that
+   `seedZone (ControlledBy _)` stays on the battlefield: the relation
+   constrains its referent to a two-zone SET where `seedZone` names one
+   zone, so seeding the stack instead would lose the graveyard refusal
+   without buying the spell, and what the shape wants is a zone-SET seed
+   or a second admissibility table. Measured before leaving it —
+   seventy-one lines write "spell(s) you control", six "an opponent
+   controls", two "you don't control", and every one is copy machinery
+   (`badControlledSpell`). The DELAYED cast is real and unwritable:
+   thirty-six lines write "When you next cast a … spell this turn", and
+   every body either grants an ability to an object on the stack, which
+   `Gains` refuses by zone, or copies the spell. The cast event's other
+   two readers are measured silences — nothing intercepts a cast, the
+   nearest family being [CR#118.9]'s alternative cost, and no line ends
+   a duration at one. And the entry-rider half of the "unless" marking
+   is attested and unreached: all thirty-nine "enters tapped unless"
+   lines want a basic land TYPE ([CR#305.6]'s five, a subtype vocabulary
+   this file has no rows for), the "legendary" supertype as a
+   PREDICATE rather than a type-line field, a counted comparison over
+   "other lands", or a game-state condition — so the marking word lands
+   on the deed restriction alone.
+
 ## Engine-Boundary Deferrals
 
 Engine-boundary deferrals (deliberate, and to stay so): the
@@ -4542,7 +4848,11 @@ themselves (core declares both as open plugin data —
 registry — where this file grows witnessed rows, and the two
 choices are the same choice made twice); token SUPERTYPES
 ("create Boo, a legendary 1/1 red Hamster creature token", forty-six
-lines), a third list on the type line neither reader witnesses;
+lines), a third list on the type line neither of THIS record's readers
+witnesses — the CARD's own supertype list landed in chapter thirty at
+one row and it landed on the card rather than here, [CR#205.4b] making a
+supertype independent of the card type and subtype, so the token's
+forty-six lines stay with the predefined-token catalog they arrive with;
 the X/X token BODY (forty-seven of the sixty X/X token lines say
 "where X is …"), which is an effect-DEFINED X rather than the
 announced cost variable [CR#107.3a] `XVal` carries, so it waits on
@@ -4554,23 +4864,25 @@ lines write a move-counters phrase; "remove all … counters", fifty;
 proliferate, seventy-seven), which core keeps as its own
 `MoveCounters` action over a `CounterSpec` whose `AllKinds` row
 quantifies over the kinds PRESENT — a quantity over kinds the
-written amount vocabulary has no term for; [the TAPPED half LANDED,
-finding 179 — "enters tapped" is a hundred thirty-two lines and
-`Ability.Static` over `EntersRider` is the row, Abandoned Outpost's
-"This land enters tapped." being one of the three bare ones; the
-COUNTERS half stays, three hundred eighty-six lines of the four hundred
-fourteen "enters with", wanting a counter AMOUNT where `TokenRider` is a
-two-row enum. Chapter nineteen sent them to the replacement
-axis and the replacement axis sent them to the ABILITIES layer:
-[CR#603.6d] calls the text a static ability in as many words and
-[CR#614.1c,614.1d] file it as a replacement effect. What is writable
-without an ability container is the ONE-SHOT twin, a rider on the
-move rather than a replacement — "onto the battlefield tapped" three
-hundred fifteen lines, "tapped and attacking" nineteen (chapter
-nineteen's own `ridersOk` trio at a second site), and "onto the
-battlefield under [whose] control" a hundred thirty-two, which is
-the control-override entry above. One field on `Move` and forty-three
-call sites, so it is measured and named here rather than taken.
+written amount vocabulary has no term for; [the WHOLE entry is LANDED as
+of chapter thirty and only the counter-KIND catalog remains of it. The
+tapped half went in chapter twenty-eight, finding 179 — "enters tapped"
+is a hundred thirty-two lines and `Ability.Static` over `EntersRider` is
+the row, Abandoned Outpost's "This land enters tapped." being one of the
+three bare ones. The COUNTERS half is finding 192's, and the blocker
+recorded here was about the wrong container: an `Amount bs` could never
+have gone into `TokenRider`, that enum being shared with the unindexed
+`TokenChars`, so the line is a second `StaticEffect` row answering the
+same `staticKind` and needing no new vocabulary (Workhorse). What is
+left of the three hundred eighty-six lines is the two hundred eighteen
+whose counter kind is outside `CounterKind`'s three rows. The ONE-SHOT
+twin is finding 191's, a closed rider BUNDLE on `Move` — "onto the
+battlefield tapped" three hundred fifteen lines, "tapped and attacking"
+nineteen (chapter nineteen's own `ridersOk` trio at a second site), and
+"onto the battlefield under [whose] control" a hundred thirty-five, the
+control-override entry above — and the forty-three call sites this entry
+promised turned out to be zero, a defaulted named implicit changing no
+pattern and no site.
 "Enters under [whose] control" is attested and tiny: nine lines,
 four "under the control of an opponent of your choice", two the bare
 "under your control", one the replacement "it enters under your
@@ -4673,10 +4985,13 @@ it), both of which want the layer words; the TEXT-BOX exchange
 ([CR#701.12h,612.5], Exchange of Words — one card, and the
 text-changing layer's); the STACK-object control carrier
 ("Exchange control of target noncreature spell and target
-creature" — [CR#109.4] gives stack objects a controller and `Zone`
-has no stack row, so the control clause's battlefield demand is
-exact for what this vocabulary can describe and this line is not
-describable at all); "lose control of" (ten lines, every one of
+creature" — [CR#109.4] gives stack objects a controller, and the stack
+ZONE landed in chapter thirty without moving this: `seedZone` gives the
+controller relation ONE zone where the rule gives it two, so "target
+spell you control" is refused by the zone coherence rather than by a
+missing carrier (`badControlledSpell`, seventy-one lines plus eight, all
+of them copy machinery), and what the shape wants is a zone-SET seed or
+a second admissibility table beside `seedZone`); "lose control of" (ten lines, every one of
 them a trigger condition — "When you lose control of this
 creature, …" — so it is the event axis's word and not a clause
 verb, and as of chapter twenty-eight the event axis exists and has no
@@ -4701,11 +5016,21 @@ restriction on a description rather than a determiner over a group —
 core keeps it as `Selection::AmongNoted` over a recorded key expressly so
 that a "this way" anaphor does not re-evaluate a filter — and which is
 the OTHER route into a partition, the one three hundred and more "the
-rest" lines take; the "THIS WAY" participles ("revealed this way", a
-hundred twenty-three; "milled this way", forty-three), the `TheVerbed`
-cousin the ledger already calls the largest family, now with two more
-verbs wanting rows and with [CR#701.20a] and [CR#701.17c] supplying the
-reason they are legitimate reads where a drawn card's would not be;
+rest" lines take, re-measured in chapter thirty at three hundred thirty
+"from among them/those cards" of four hundred fifty-seven "from among"
+and unmoved; [the "THIS WAY" participles are LANDED, finding 195 — the
+construction is `TheVerbed` with a second SURFACE and a plural twin
+rather than a family of its own, and [CR#701.20a] and [CR#701.17c] are
+still the reason those reads are legitimate where a drawn card's would
+not be. What survives the entry is the verbs: only `VerbName`'s four
+tags carry a stamp, so "revealed this way" (a hundred twenty-three),
+"milled this way" (forty-three), "cast this way" (thirty-three),
+"countered this way" (thirty-one) and "tapped this way" (nineteen) want
+a participle vocabulary wider than the keyword-action tags, and the two
+commonest CONSUMERS want structure of their own — the distributive
+determiner ("each card exiled this way", twenty-one lines) and the
+for-each amount ("for each creature destroyed this way"), which wants
+`CountOf` to accept a group MENTION];
 FACE-DOWN exile ("exile the top card of your library face down",
 ninety-three lines), a per-object status the move vocabulary has no rider
 for and which pairs with the object-status axis the stat deltas already
@@ -4834,15 +5159,44 @@ Chapter twenty-eight's own deferrals, each measured. The REFLEXIVE
 trigger is TAKEN, finding 183: the mini-round found that "you do" is a
 pro-verb rather than an event word, so the construction reads the
 enclosing clause and no `GameEvent` row was needed — what remains from
-that entry is the "this way" participle the rule names in the same
-breath, a thousand and fifteen lines and still ledgered, plus two cards
-whose blockers moved somewhere smaller (Yes Man, Personal Securitron on
-a quest `CounterKind`; Heart-Piercer Manticore on [CR#608.2h]'s
-last-known information). Still open: the CAST event
-(nine hundred forty-nine headers, "whenever [someone] casts …"), whose
-complement is a SPELL and which therefore waits on the stack carrier the
-exchange chapter ledgered ([CR#109.4] gives stack objects a controller
-and `Zone` has no stack row); the put-into-a-graveyard TRIGGER (a hundred
+that entry is two cards whose blockers moved somewhere smaller (Yes Man,
+Personal Securitron on a quest `CounterKind`; Heart-Piercer Manticore on
+[CR#608.2h]'s last-known information). The "this way" participle the rule
+names in the same breath, a thousand and fifteen lines, is TAKEN too,
+finding 195: it is one construction with two surfaces rather than a second
+construction, and what was actually missing was the PLURAL participle
+read — what remains from that entry is the family's two commonest
+consumers, the distributive determiner ("each card exiled this way",
+twenty-one lines and the single commonest frame) and the for-each amount
+("for each creature destroyed this way"), which wants `CountOf` to accept
+a group MENTION where it takes a description, plus the verbs beyond
+`VerbName`'s four tags (revealed a hundred twenty-three, milled
+forty-three, cast thirty-three, countered thirty-one, tapped nineteen).
+The CAST event is TAKEN, finding 193, and the stack row and the spell
+word arrived with it. The CAST-verb permission is TAKEN, finding 194,
+and its recorded blocker was a reading rather than a row — [CR#701.5b]
+makes "to cast a card" ordinary and [CR#604.6] brackets the verb as a
+slot — with its count corrected there: of the two hundred ninety-three
+"from your graveyard" lines two hundred eight are keyword REMINDER text
+and eighty-five are ability lines, and the hundred eighteen "from exile"
+divide a hundred thirteen to five. The enters-with COUNTERS rider is
+TAKEN, finding 192, leaving the counter-KIND catalog beyond
+`CounterKind`'s three rows (time, oil, fade, charge, indestructible,
+finality, shield, divinity and their neighbours, eight lines apiece and
+fewer). The "unless" MARKING is TAKEN, finding 196, on the deed
+restriction alone: the hundred eleven "can't … unless" lines are
+writable and the thirty-nine "enters tapped unless" ones each want a
+basic land TYPE ([CR#305.6]'s five, a subtype vocabulary this file has no
+rows for), the "legendary" supertype as a PREDICATE rather than a
+type-line field, a counted comparison over "other lands", or a
+game-state condition. And the END-OF-COMBAT header is TAKEN as a
+`TurnPart` row, finding 196, with the eleven headers themselves still
+unwritable — each wants a blocking-RELATION predicate or a combat
+lookback — so the delayed clause carries the witness. Still open: the
+DELAYED cast (thirty-six lines, "When you next cast a … spell this
+turn", every body either granting an ability to an object on the stack,
+which `Gains` refuses by zone, or copying the spell); the
+put-into-a-graveyard TRIGGER (a hundred
 nine, ninety of them "from the battlefield"), a different row from the
 departure because [CR#603.6c] says an ability triggering on a zone "from
 anywhere" is never a leaves-the-battlefield ability; the BECOMES family
@@ -4851,30 +5205,45 @@ thirty-three, "becomes blocked" a hundred fifty-nine, "becomes the target
 of" a hundred twenty-eight), one row per state transition and each with
 the rule's own note that they "trigger only at the time the named event
 happens"; the life-gain trigger (sixty, and [CR#119.9] rewrites it into a
-source-caused event before it triggers); the END-OF-COMBAT header
-("At end of combat", eleven lines), which [CR#511.2] makes the end of
-combat STEP's beginning — a sixth turn part `TurnPart` has no row for,
-with [CR#513.1a] recording that the end-step twin was errata'd out of
-the same wording; the trigger's own INSTRUCTIONS, a third restriction
+source-caused event before it triggers); the trigger's own INSTRUCTIONS, a third restriction
 surface beside the activated line's three ([CR#603.1a]'s target limits,
 [CR#603.2h]'s "Do this only once each turn" at thirty-two lines,
 [CR#603.2d]'s "triggers an additional time" at twenty-nine); the STATE
 trigger ([CR#603.8]), zero corpus lines here and a trigger over a game
-state rather than an event; the "unless" MARKING on a conditional static,
-one word between the built row and a hundred fifty lines ("can't …
-unless" a hundred eleven, "enters tapped unless" thirty-nine) — the
-negated "as long as" spelling is writable today at thirteen lines, so
-what is missing is the second word for it and not the structure; the
-enters-with COUNTERS rider (three hundred eighty-six lines, above); the
-CAST-verb permission ("You may cast this card from your graveyard", two
-hundred ninety-three; "you may cast … from exile", a hundred eighteen),
-which wants the same spell carrier the cast event does, the glossary
-making "play" the card verb and "cast" the spell verb; the permission's
+state rather than an event; the permission's
 generic PLURAL subject ("You may play lands from your graveyard",
 Crucible of Worlds), which is the deontic chapter's own bare-plural entry
 at a new site; and the QUOTED grant grown by two — English grants a
 triggered ability and a static ability by quoting them exactly as it
 grants an activated one (`badGainsTriggered`, `badGainsStatic`).
+
+Chapter thirty's own deferrals, each measured. LOYALTY, whole: a loyalty
+ability is an activated ability whose cost is a symbol change and `Cost`
+would carry that cheaply, but no planeswalker is writable end to end —
+`CardType` has no `Planeswalker` row, the bracketed "[+1]"/"[−7]" cost
+symbols are eight hundred thirty-two components and a vocabulary of their
+own, [CR#606.3]'s once-per-turn cap shared across a planeswalker's
+abilities is core's third use-limit row waiting with them, and the
+planeswalker subtypes are a set apart. The card's remaining PARTS: the
+colour indicator ([CR#204.1] — a printed dot and not language), the
+defense number, and [CR#208.2]'s star power and toughness, which is a
+characteristic-defining ability ([CR#604.3]) this container has no
+ability row for. The four unwitnessed SUPERTYPE rows of [CR#205.4a]'s
+five — `Basic` wanting a land-type subtype vocabulary, `Snow` a
+supertype nothing here writes, `World` and `Ongoing` legacy and
+Archenemy — and the "legendary" supertype as a PREDICATE rather than a
+type-line field, which is what the "enters tapped unless you control a
+legendary creature" lines want. Two-FACED cards ([CR#712.8] gives each
+face its own characteristics; core wraps a face in a layout enum where
+this record IS a face). The SpellCard-by-Static cell's one real
+exception: [CR#604.6]'s play permission is printed on spell cards
+(flashback's own template) and the container's table refuses it there,
+a per-row carve-out wanting an axis the table does not have. The COUNTER
+verb's ability half ([CR#701.6a] counters "a spell or ability"), an
+ability on the stack being an object [CR#109.1] this noun vocabulary has
+no word for. And Escape to the Wilds' second line, "You may play an
+additional land this turn", the play COUNT — a permission over how many
+times an action may be taken rather than over what may be played.
 
 The context-as-phrase-telescope collapse (bindings storing
 the mention terms themselves, every projection computed) stays open as

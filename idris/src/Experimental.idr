@@ -26,10 +26,18 @@ module Experimental
 ||| declarations, like the keyword and verb macro names.
 public export
 -- spelling: (construction-owned catalog -- Creature="creature", Artifact=
--- "artifact", Land="land", Enchantment="enchantment"; each row is a TypeDef
--- macro's own word (see cardtype/Creature.ron), consumed by HasType/AsType,
--- never spelled alone)
-data CardType = Creature | Artifact | Land | Enchantment
+-- "artifact", Land="land", Enchantment="enchantment", Instant="instant",
+-- Sorcery="sorcery"; each row is a TypeDef macro's own word (see
+-- cardtype/Creature.ron), consumed by HasType/AsType and by the card
+-- container's type line, never spelled alone)
+-- (The two SPELL types are chapter thirty's, and they arrive with the
+-- card container rather than with a clause: [CR#113.3a] defines the
+-- spell ability by what its CARD is -- "any text on an instant or
+-- sorcery spell is a spell ability" -- so the container cannot ask the
+-- question without the two words. No clause construction here writes
+-- either: "target instant or sorcery spell" is the copy machinery's
+-- and out of scope.)
+data CardType = Creature | Artifact | Land | Enchantment | Instant | Sorcery
 
 ||| Fight participation, per type — the stand-in for reading a
 ||| combat-participant grant from the TypeDef declaration, distinct
@@ -42,6 +50,8 @@ combatant Creature = True
 combatant Artifact = False
 combatant Land = False
 combatant Enchantment = False
+combatant Instant = False
+combatant Sorcery = False
 
 ||| The projected-head gate the fight slots consume — an untyped head
 ||| cannot prove participation, and the witness carries the grant
@@ -391,8 +401,22 @@ data Determiner = TargetD | AD | EachD | AllD | TheD | PartD
 ||| the SORT: it lives where English writes it, on the position phrase
 ||| (`LibraryAt`), exactly as ownership does. Core makes the same split
 ||| (`Zone::Library` beside `Destination::Library(Anchor)`).
+|||
+||| The STACK is chapter thirty's row and the last absent one this
+||| grammar needs, [CR#405.1] making it the place a cast card goes. It
+||| arrives as a zone and not as a second object sort because [CR#112.1]
+||| identifies the two in one sentence — "a spell is a card on the
+||| stack" — so the spell WORD is this zone's carrier noun exactly as
+||| "card" is the four hidden-and-graveyard zones' ([CR#108.2]) and a
+||| type word is the battlefield's ([CR#109.2]). It is never a `Move`
+||| destination (`DestOk` has no row, which is core's own
+||| `exclude(Library, Stack)` on `Destination` — "the stack never a
+||| `Move` target"), and it is shared rather than possessed
+||| ([CR#400.1]; no `Possessable` row), so "your stack" is unwritable
+||| for the same reason "your battlefield" is. Core's `Command` row is
+||| still not ported: zero corpus lines here need it.
 public export
-data Zone = Battlefield | Graveyard | Exile | Hand | Library
+data Zone = Battlefield | Graveyard | Exile | Hand | Library | Stack
 
 ||| Zone equality, per-row: a new zone is a totality error on its
 ||| missing row, never a silent False.
@@ -408,6 +432,8 @@ sameZone Hand Hand = True
 sameZone Hand _ = False
 sameZone Library Library = True
 sameZone Library _ = False
+sameZone Stack Stack = True
+sameZone Stack _ = False
 
 ||| A position IN the ordered library ([CR#401.2]) — the two words
 ||| English writes bare, and the whole of the attested position
@@ -552,6 +578,10 @@ sameCT Land Land = True
 sameCT Land _ = False
 sameCT Enchantment Enchantment = True
 sameCT Enchantment _ = False
+sameCT Instant Instant = True
+sameCT Instant _ = False
+sameCT Sorcery Sorcery = True
+sameCT Sorcery _ = False
 
 ||| Singular mentions of a kind, counted — the wildcard pronoun's
 ||| obligation is `= 1`: zero is an unbound anaphor, two an ambiguous one
@@ -741,6 +771,8 @@ publicZone Graveyard = True
 publicZone Exile = True
 publicZone Hand = False
 publicZone Library = False
+-- [CR#400.2] lists the stack among the public zones by name.
+publicZone Stack = True
 
 ||| WHICH way an exposure clause shows a card, and it is the whole of
 ||| the axis: [CR#701.20a] has revealing "show that card to all
@@ -777,6 +809,7 @@ exposableZone Battlefield = False
 exposableZone Graveyard = False
 exposableZone Exile = False
 exposableZone Library = False
+exposableZone Stack = False
 
 public export
 data ExposableZone : Zone -> Type where
@@ -796,6 +829,7 @@ searchableZone Graveyard = True
 searchableZone Hand = True
 searchableZone Battlefield = False
 searchableZone Exile = False
+searchableZone Stack = False
 
 public export
 data SearchableZone : Zone -> Type where
@@ -869,9 +903,57 @@ zoneOfThem (b :: bs) = zoneOfThem bs
 ||| Token, spell, and stack-object words are later chapters.
 public export
 -- spelling: (construction-owned catalog -- TypeW t = t's own CardType word,
--- CardW = "card", PlayerW = "player"; consumed by That/Those/TheVerbed, e.g.
--- That (TypeW Creature) = "that creature". Never spelled alone)
-data NounWord = TypeW CardType | CardW | PlayerW
+-- CardW = "card", SpellW = "spell", PlayerW = "player"; consumed by
+-- That/Those/TheVerbed, e.g. That (TypeW Creature) = "that creature",
+-- That SpellW = "that spell". Never spelled alone)
+data NounWord = TypeW CardType | CardW | SpellW | PlayerW
+
+||| The two SURFACES of the participle read, and the round's answer to
+||| what "this way" is. The attributive premodifier ("the exiled card")
+||| and the postnominal deictic ("the card exiled this way") pick out
+||| the same referent under this grammar's uniqueness discipline —
+||| a read's obligation is `= 1`, so there is never a second stamp of the
+||| same verb for the deictic to disambiguate against — which makes them
+||| one construction with two spellings rather than two constructions.
+||| That is finding 26's own reasoning arriving one level up: the
+||| participle is already the disambiguator English switches to where a
+||| bare demonstrative would be ambiguous, and "this way" is the same
+||| switch worn as a phrase instead of a prefix.
+|||
+||| It is a TABLE and not a free slot, because the two surfaces are not
+||| interchangeable per verb. Counted over the four keyword-action tags:
+||| exile writes both (a hundred eighty-four attributive against a
+||| hundred eighteen "this way"), sacrifice both (a hundred twenty-three
+||| against twenty-nine), discard both (twenty-two against thirty-nine),
+||| and DESTROY writes the deictic only — "destroyed this way" is
+||| fifty-one lines and "the destroyed [noun]" is zero
+||| (`badDestroyedAttributive`).
+public export
+-- spelling: ["the <verb> <noun>", "the <noun> <verb> this way"] (row
+-- order: Attributive/ThisWay; the verb is VerbName's lemma inflected as
+-- a past participle either way, and the marking decides only where it
+-- stands and whether the deictic follows. Spelled only through
+-- TheVerbed / ThoseVerbed)
+data VerbedMarking = Attributive | ThisWay
+
+||| Which surface each verb tag writes. Full rows, so a new verb tag
+||| declares both cells.
+public export
+verbedMarkingOk : VerbName -> VerbedMarking -> Bool
+verbedMarkingOk Destroy Attributive = False
+verbedMarkingOk Destroy ThisWay = True
+verbedMarkingOk Sacrifice Attributive = True
+verbedMarkingOk Sacrifice ThisWay = True
+verbedMarkingOk Exile Attributive = True
+verbedMarkingOk Exile ThisWay = True
+verbedMarkingOk Discard Attributive = True
+verbedMarkingOk Discard ThisWay = True
+
+||| The marking demand as a witness, named apart so a pin says which
+||| question refused.
+public export
+data VerbedMarkingOk : VerbName -> VerbedMarking -> Type where
+  MkVerbedMarkingOk : {auto 0 ok : verbedMarkingOk v m = True} -> VerbedMarkingOk v m
 
 public export
 tyIs : CardType -> Maybe CardType -> Bool
@@ -888,6 +970,12 @@ isCardZone (Just Graveyard) = True
 isCardZone (Just Exile) = True
 isCardZone (Just Hand) = True
 isCardZone (Just Library) = True
+-- The stack is the second zone where an object does NOT answer to
+-- "card", and the rule says so directly: [CR#112.1] calls a card on the
+-- stack a SPELL, and the corpus writes "counter target spell" and never
+-- "counter target card on the stack". So the demonstrative there is
+-- `SpellW`, exactly as it is a type word on the battlefield.
+isCardZone (Just Stack) = False
 
 ||| Currently on the battlefield, strictly — the typed noun's
 ||| demonstrative demand ([CR#110.1]); untracked does not qualify.
@@ -899,6 +987,23 @@ onFieldZone (Just Graveyard) = False
 onFieldZone (Just Exile) = False
 onFieldZone (Just Hand) = False
 onFieldZone (Just Library) = False
+onFieldZone (Just Stack) = False
+
+||| On the STACK, strictly — where an object answers to "spell"
+||| ([CR#112.1]: "a spell is a card on the stack"), the third of the
+||| three carrier-word questions this file asks of a zone beside
+||| `isCardZone` and `onFieldZone`. Untracked does not qualify, for
+||| their reason: a phrase that says nothing about where its referent
+||| is has not said it is on the stack.
+public export
+onStackZone : Maybe Zone -> Bool
+onStackZone Nothing = False
+onStackZone (Just Battlefield) = False
+onStackZone (Just Graveyard) = False
+onStackZone (Just Exile) = False
+onStackZone (Just Hand) = False
+onStackZone (Just Library) = False
+onStackZone (Just Stack) = True
 
 ||| Build the stamp a retag writes: the moving verb's tag (if any)
 ||| plus whether the referent stood on the battlefield BEFORE the
@@ -924,6 +1029,15 @@ wordNow CardW (MkBinding _ _ _ (ObjectP _ zn _)) = isCardZone zn
 wordNow CardW (MkBinding _ _ _ PlayerP) = False
 wordNow CardW (MkBinding _ _ _ QualityP) = False
 wordNow CardW (MkBinding _ _ _ (OutcomeP _)) = False
+-- The stack's carrier word, and the rule that makes it one is
+-- [CR#112.1]'s identity rather than a corpus count: "a spell is a card
+-- on the stack", so the same object answers to "card" nowhere the stack
+-- is and to "spell" only there. The corpus reads it back thirty-one
+-- times ("Counter target spell. … where X is THAT SPELL's mana value").
+wordNow SpellW (MkBinding _ _ _ (ObjectP _ zn _)) = onStackZone zn
+wordNow SpellW (MkBinding _ _ _ PlayerP) = False
+wordNow SpellW (MkBinding _ _ _ QualityP) = False
+wordNow SpellW (MkBinding _ _ _ (OutcomeP _)) = False
 wordNow PlayerW (MkBinding _ _ _ (ObjectP _ _ _)) = False
 wordNow PlayerW (MkBinding _ _ _ PlayerP) = True
 wordNow PlayerW (MkBinding _ _ _ QualityP) = False
@@ -933,6 +1047,7 @@ public export
 kindOfW : NounWord -> Kind
 kindOfW (TypeW _) = Object
 kindOfW CardW = Object
+kindOfW SpellW = Object
 kindOfW PlayerW = Player
 
 ||| The PROVENANCE half of the participle read: is this mention the
@@ -960,6 +1075,11 @@ public export
 verbedWordOk : NounWord -> Stamp -> Maybe CardType -> Maybe Zone -> Bool
 verbedWordOk (TypeW t) (MkStamp _ wasF) ty zn = wasF && tyIs t ty
 verbedWordOk CardW st ty zn = isCardZone zn
+-- The spell word takes a participle for the same reason the card word
+-- does — it names a current zone rather than a remembered state — and
+-- the corpus writes one: "the spell cast this way" is thirteen lines
+-- and "countered this way" thirty-one.
+verbedWordOk SpellW st ty zn = onStackZone zn
 verbedWordOk PlayerW st ty zn = False
 
 ||| The participle's two halves as the one check the scans want: the
@@ -979,6 +1099,24 @@ verbedMatch v w (MkBinding _ _ _ PlayerP) = False
 verbedMatch v w (MkBinding _ _ _ QualityP) = False
 verbedMatch v w (MkBinding _ _ _ (OutcomeP _)) = False
 
+||| The GROUP twin — "[the] cards [verbed] this way". Chapter thirty's
+||| row, and the one the participle read had been refusing since it was
+||| minted: `verbedMatch` answers `False` to every `ManyOf` binding, so
+||| a plural action's participants had no participle to be read by. The
+||| corpus writes the plural at least as often as the singular where the
+||| family lives — "cards revealed this way" seventy against twenty-eight
+||| singular, "cards exiled this way" twenty-nine against fifty, "cards
+||| milled this way" thirteen against twelve — because the actions the
+||| construction reads back are group actions.
+public export
+verbedMatchMany : VerbName -> NounWord -> Binding -> Bool
+verbedMatchMany v w (MkBinding _ _ ManyOf (ObjectP ty zn (Just st))) = stampWordOk v w st ty zn
+verbedMatchMany v w (MkBinding _ _ ManyOf (ObjectP _ _ Nothing)) = False
+verbedMatchMany v w (MkBinding _ _ OneOf (ObjectP _ _ _)) = False
+verbedMatchMany v w (MkBinding _ _ _ PlayerP) = False
+verbedMatchMany v w (MkBinding _ _ _ QualityP) = False
+verbedMatchMany v w (MkBinding _ _ _ (OutcomeP _)) = False
+
 ||| Mentions the definite participle read reaches — its obligation is
 ||| `= 1`, the same strict uniqueness as every other read.
 public export
@@ -986,6 +1124,28 @@ countVerbed : VerbName -> NounWord -> Bindings -> Nat
 countVerbed v w [] = Z
 countVerbed v w (b :: bs) =
   if verbedMatch v w b then S (countVerbed v w bs) else countVerbed v w bs
+
+||| Group mentions the plural participle read reaches — the same strict
+||| `= 1` uniqueness, counted over groups.
+public export
+countManyVerbed : VerbName -> NounWord -> Bindings -> Nat
+countManyVerbed v w [] = Z
+countManyVerbed v w (b :: bs) =
+  if verbedMatchMany v w b then S (countManyVerbed v w bs) else countManyVerbed v w bs
+
+||| The current zone of the plural participle read's referent.
+public export
+zoneOfManyVerbed : VerbName -> NounWord -> Bindings -> Maybe Zone
+zoneOfManyVerbed v w [] = Nothing
+zoneOfManyVerbed v w (b :: bs) =
+  if verbedMatchMany v w b then bindingZone b else zoneOfManyVerbed v w bs
+
+||| The projected head type of the plural participle read's referent.
+public export
+tyOfManyVerbed : VerbName -> NounWord -> Bindings -> Maybe CardType
+tyOfManyVerbed v w [] = Nothing
+tyOfManyVerbed v w (b :: bs) =
+  if verbedMatchMany v w b then bindingTy b else tyOfManyVerbed v w bs
 
 ||| The current zone of the participle read's referent.
 public export
@@ -1520,6 +1680,16 @@ typeRank Enchantment = 0
 typeRank Artifact = 1
 typeRank Land = 2
 typeRank Creature = 3
+-- The two SPELL types take the last ranks and the ranks are
+-- UNWITNESSED, which the comment says rather than the table hiding it:
+-- no printed type line and no corpus line writes either beside another
+-- card type here, so the order is a convention the rank has to pick and
+-- nothing measures. ([CR#205.1a] does keep them under a type-setting
+-- effect — "an object with either the instant or sorcery card type
+-- retains that type" — which is the one place a mixed line could arise,
+-- and it is an effect this grammar has no construction for.)
+typeRank Instant = 4
+typeRank Sorcery = 5
 
 ||| Strictly ascending by rank — which is the ORDER and the
 ||| duplicate-freeness at once, a repeated word being the one thing a
@@ -1685,12 +1855,15 @@ tokenHeadTy t = lastType t.line.tys
 ||| this one — so a new row is a totality error on `spanUse` and on
 ||| every table the triggers chapter adds.
 public export
--- spelling: ["turn", "upkeep", "end step", "combat", "untap step"] (row
--- order: Turn/Upkeep/EndStep/Combat/UntapStep; the bare part word --
--- DurationEnd's boundary and possession supply everything around it),
--- kind: TODO(reason: adverbial fragment -- not one of Nominal/Sentence/
--- Cost/KeywordLine/Ability)
-data TurnPart = Turn | Upkeep | EndStep | Combat | UntapStep
+-- spelling: ["turn", "upkeep", "end step", "combat", "untap step",
+-- "end of combat"] (row order: Turn/Upkeep/EndStep/Combat/UntapStep/
+-- EndOfCombat; the bare part word -- DurationEnd's boundary and
+-- possession supply everything around it. EndOfCombat is the one row
+-- whose word contains its own boundary noun, which is why its beginning
+-- is written "at end of combat" and not "at the beginning of …" --
+-- see partUse), kind: TODO(reason: adverbial fragment -- not one of
+-- Nominal/Sentence/Cost/KeywordLine/Ability)
+data TurnPart = Turn | Upkeep | EndStep | Combat | UntapStep | EndOfCombat
 
 ||| Whose part a possessed endpoint names. CLOSED and pronominal: the
 ||| corpus possesses a duration endpoint with a possessive DETERMINER
@@ -1877,7 +2050,7 @@ public export
 -- GameEvent)
 data EventName = Death | Departure | Destruction | DamageTaken
                | CardDrawn | Entry | AttackDeclaration | BlockDeclaration
-               | CombatDamage | PartBeginning
+               | CombatDamage | PartBeginning | SpellCast
 
 ||| WHICH constructions write a clause over a given event — `SpanUse`'s
 ||| shape asked of the event axis, and it tells the same two silences
@@ -1930,6 +2103,21 @@ eventUse AttackDeclaration = TriggeredOnly
 eventUse BlockDeclaration = TriggeredOnly
 eventUse CombatDamage = TriggeredOnly
 eventUse PartBeginning = TriggeredAndDelayed
+-- The CAST event, chapter twenty-eight's biggest unminted family and
+-- the first row that needed a whole zone under it. Nine hundred
+-- forty-eight "Whenever [someone] casts …" headers and a hundred
+-- twenty-one "When …". It is trigger-only, and each of the other three
+-- readers is a measured silence rather than an oversight: nothing
+-- INTERCEPTS a cast ([CR#614.1]'s replacements watch events, and the
+-- cast is a player ACTION taken with priority — the nearest real
+-- family, "you may cast … without paying its mana cost", is
+-- [CR#118.9]'s alternative cost and not a replacement of the casting);
+-- no line ends a duration at one; and the DELAYED form is real at
+-- thirty-six lines ("When you next cast a creature spell this turn, …")
+-- but not one of them is writable — every body either grants an ability
+-- to an object on the STACK, which `Gains` refuses by zone, or copies
+-- the spell (ledger).
+eventUse SpellCast = TriggeredOnly
 
 ||| May the would/instead clause intercept an event of this class? Full
 ||| rows in the answer axis, so a new `EventUse` declares every reader.
@@ -2021,6 +2209,10 @@ eventSpan Entry = Unattested
 eventSpan AttackDeclaration = Unattested
 eventSpan BlockDeclaration = Unattested
 eventSpan CombatDamage = Unattested
+-- Zero lines end a duration at a cast: the eleven "until … cast"
+-- matches are all iterated-reveal repetitions ("until they cast a
+-- spell" is written none), not adverbials.
+eventSpan SpellCast = Unattested
 eventSpan PartBeginning = Unclaimed
 
 ||| How many times an interception fires — [CR#614.3]'s two ways for a
@@ -2063,6 +2255,8 @@ replUseOk CardDrawn NextTimeOnly = True
 -- would/instead clause writes has no multiplicity word to choose, so
 -- both cells are `False` and the refusal a writer meets is
 -- `Interceptable`'s.
+replUseOk SpellCast Repeatedly = False
+replUseOk SpellCast NextTimeOnly = False
 replUseOk Entry Repeatedly = False
 replUseOk Entry NextTimeOnly = False
 replUseOk AttackDeclaration Repeatedly = False
@@ -2147,6 +2341,14 @@ triggerWordOk CardDrawn At = False
 triggerWordOk Entry When = True
 triggerWordOk Entry Whenever = True
 triggerWordOk Entry At = False
+-- Both header words, and the corpus divides them the way finding 172
+-- said it would: "Whenever [someone] casts" at nine hundred forty-eight
+-- against a hundred twenty-one "When", the casting being a repeatable
+-- event whichever subject it takes. `At` is refused with every other
+-- object event ([CR#603.2b] reserves it for phases and steps).
+triggerWordOk SpellCast When = True
+triggerWordOk SpellCast Whenever = True
+triggerWordOk SpellCast At = False
 triggerWordOk AttackDeclaration When = True
 triggerWordOk AttackDeclaration Whenever = True
 triggerWordOk AttackDeclaration At = False
@@ -2214,6 +2416,25 @@ partUse Combat (Just ThatPlayers) = PartUnattested
 partUse UntapStep Nothing = PartUnattested
 partUse UntapStep (Just Yours) = PartUnattested
 partUse UntapStep (Just ThatPlayers) = PartUnattested
+-- The sixth part, and the one whose header word hides its structure.
+-- [CR#511.2] says outright what "At end of combat" names — abilities
+-- "that trigger 'at end of combat' trigger as the end of combat step
+-- begins" — so it is a part BEGINNING like the other five and only its
+-- surface is short, the part's own word carrying the boundary noun.
+-- [CR#513.1a] records that the end step's twin was written the same way
+-- once ("at end of turn") and was errata'd to the explicit form; this
+-- one was not. Eleven headers, and every one of them wants a
+-- blocking-RELATION predicate ("creatures blocking or blocked by this
+-- creature") or a combat lookback ("if this creature attacked or
+-- blocked this combat") — so the cell is written and the bench's
+-- witness is the DELAYED clause instead, where the same event needs no
+-- such phrase (Silent Assassin). Possessed, the header is unattested:
+-- zero lines write "at your end of combat" or its neighbours, the four
+-- "end of combat on your …" lines all being [CR#511.2]'s other reading,
+-- the phase-endpoint duration.
+partUse EndOfCombat Nothing = PartTriggered
+partUse EndOfCombat (Just Yours) = PartUnattested
+partUse EndOfCombat (Just ThatPlayers) = PartUnattested
 
 ||| The answer axis, full rows, so a new `PartUse` declares its reader.
 public export
@@ -2301,18 +2522,31 @@ deedType Attack Agent Creature = True
 deedType Attack Agent Artifact = False
 deedType Attack Agent Land = False
 deedType Attack Agent Enchantment = False
+-- The two SPELL types answer False everywhere for a reason no count is
+-- needed for: [CR#506.3] says "only a creature can attack or block",
+-- and an instant or sorcery is never even a permanent ([CR#110.4]:
+-- "instant and sorcery cards can't enter the battlefield and thus
+-- can't be permanents").
+deedType Attack Agent Instant = False
+deedType Attack Agent Sorcery = False
 deedType Attack Patient Creature = False
 deedType Attack Patient Artifact = False
 deedType Attack Patient Land = False
 deedType Attack Patient Enchantment = False
+deedType Attack Patient Instant = False
+deedType Attack Patient Sorcery = False
 deedType Block Agent Creature = True
 deedType Block Agent Artifact = False
 deedType Block Agent Land = False
 deedType Block Agent Enchantment = False
+deedType Block Agent Instant = False
+deedType Block Agent Sorcery = False
 deedType Block Patient Creature = True
 deedType Block Patient Artifact = False
 deedType Block Patient Land = False
 deedType Block Patient Enchantment = False
+deedType Block Patient Instant = False
+deedType Block Patient Sorcery = False
 
 ||| The deed's demand on its subject's projected head, as a witness —
 ||| `FightParticipant`'s shape for the combat grants, reading the voice
@@ -2350,6 +2584,66 @@ public export
 data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition
                 | ControlGrant | Replacement | Prevention
                 | Conditional | PlayPermission | EntryRider
+
+||| The MARKING WORD a conditional static writes over its condition —
+||| the one word chapter twenty-eight measured a hundred fifty lines
+||| behind. "As long as" and "unless" are not two constructions but one
+||| construction with two spellings of the SAME negation: "unless [C]"
+||| holds the statement true while C is false, which is "as long as
+||| not [C]" with the "not" moved onto the marking word. No rule assigns
+||| either word — [CR#611.3a] licenses the wrapper and says nothing about
+||| its surface — so this is the corpus's fact, and the corpus is
+||| lopsided: the bare "as long as" writes nine hundred twelve lines of
+||| which thirteen are negated ("Creatures you control get +1/+1 as long
+||| as you control no nonartifact, nonwhite creatures"), while "unless"
+||| writes a hundred fifty in the two shapes that need it — "can't …
+||| unless" at a hundred eleven and "enters tapped unless" at thirty-nine.
+public export
+-- spelling: ["as long as", "unless"] (row order: AsLongAs/Unless; the
+-- subordinator introducing the condition clause. Unless writes the
+-- NEGATION it carries, so its condition's own words are the positive
+-- ones -- "unless you control an artifact", never "unless you control no
+-- artifact". Spelled only through StaticEffect.Conditionally)
+data CondMarking = AsLongAs | Unless
+
+||| The VERB a play permission writes. [CR#604.6] brackets the pair in
+||| its own templates — "You may [cast/play] [this card] …" — so this is
+||| a slot the rule itself declares, and chapter twenty-eight's reading
+||| of it needed one correction: it recorded the verb as DERIVED from the
+||| complement's kind, "cast" belonging to a spell and "play" to a card,
+||| and [CR#701.5b] says the opposite in four words — "to cast a card is
+||| to cast it as a spell". A card is what both verbs take.
+|||
+||| What separates them is the LAND, and the glossary derivation is
+||| still the right one read the other way: "playing a card" means
+||| "playing that card as a land or casting that card as a spell,
+||| whichever is appropriate" ([CR#601.1a]), so "play" is the union and
+||| "cast" the half of it that excludes lands — [CR#305.9] making that
+||| exclusion a rule, "if an object is both a land and another card type,
+||| it can be played only as a land. It can't be cast as a spell."
+||| Counts: three hundred fifty-two "you may play" lines against two
+||| hundred ninety-three "you may cast … from your graveyard" and a
+||| hundred eighteen "from exile".
+public export
+-- spelling: ["play", "cast"] (row order: Play/Cast; the bare verb after
+-- the modal, "you may play <what>" / "you may cast <what>". Spelled only
+-- through StaticEffect.MayPlay)
+data PlayVerb = Play | Cast
+
+||| Which verb may take which complement. `Play` takes anything
+||| ([CR#601.1a]'s union), `Cast` refuses a LAND-headed one outright
+||| ([CR#305.9]) and passes a silent head for `zoneFits`' reason — a
+||| phrase that names no type has not named a land (`badCastALand`).
+public export
+castableTy : PlayVerb -> Maybe CardType -> Bool
+castableTy Play _ = True
+castableTy Cast Nothing = True
+castableTy Cast (Just Creature) = True
+castableTy Cast (Just Artifact) = True
+castableTy Cast (Just Land) = False
+castableTy Cast (Just Enchantment) = True
+castableTy Cast (Just Instant) = True
+castableTy Cast (Just Sorcery) = True
 
 ||| The attestation table's other half: which classes of adverbial each
 ||| construction writes. Full rows in both directions. The shape of it
@@ -2657,10 +2951,24 @@ playableFrom (Just Graveyard) = True
 playableFrom (Just Exile) = True
 playableFrom (Just Hand) = True
 playableFrom (Just Library) = True
+-- The STACK is the second refusal and it is the battlefield's reason
+-- exactly one step earlier: [CR#112.1] makes an object there a spell,
+-- and a spell has already been cast. [CR#113.6d,113.6e] are the near
+-- miss and worth naming — an ability that modifies what its own object
+-- costs to cast, or restricts how it can be cast, "functions on the
+-- stack" — but that is a cost or a restriction functioning there, not a
+-- permission to cast something already on it (`badPlayFromStack`).
+playableFrom (Just Stack) = False
 
 public export
 data PlayableFrom : Maybe Zone -> Type where
   MkPlayableFrom : {auto 0 ok : playableFrom z = True} -> PlayableFrom z
+
+||| The verb's demand on its complement, as a witness named apart so a
+||| pin says which of the permission's two questions refused.
+public export
+data CastableTy : PlayVerb -> Maybe CardType -> Type where
+  MkCastableTy : {auto 0 ok : castableTy v ty = True} -> CastableTy v ty
 
 ||| Which adverbial a DELAYED trigger states as its duration
 ||| ([CR#603.7b] — it "will trigger only once … unless it has a stated
@@ -3094,8 +3402,16 @@ mutual
   -- "isn't controlled by any player" ([CR#109.4]), so "a creature you
   -- control in your graveyard" describes nothing
   -- (`badControlledInGraveyard`). The stack is the caveat — [CR#109.4]
-  -- grants stack objects a controller too, and `Zone` has no stack row
-  -- today, so the battlefield seed is exact; revisit when one lands.
+  -- grants stack objects a controller too. The stack row landed in
+  -- chapter thirty and the revisit's answer is that the seed stays
+  -- where it is: the relation constrains its referent to a two-zone SET
+  -- where `seedZone` names ONE zone, so seeding the stack instead would
+  -- lose the graveyard refusal without buying the spell. What the shape
+  -- wants is a zone-SET seed, or a second admissibility table beside
+  -- this one, and not a changed row. Measured before leaving it:
+  -- seventy-one lines write "spell(s) you control", six "an opponent
+  -- controls", two "you don't control", and every one of them is copy
+  -- machinery (`badControlledSpell`; ledger).
   seedZone (ControlledBy _) = Just Battlefield
   seedZone (And ps) = seedZoneAll ps
   -- the same agreement rule the head projection uses: "attacking or
@@ -4297,8 +4613,27 @@ mutual
     -- spelling: ["the <Param(0)> <Param(1)>"] (Param(0) = VerbName's lemma,
     -- rendered as its past participle by auto-inflection; Param(1) =
     -- NounWord's own word), kind: Nominal
+    -- The MARKING is a defaulted slot over `verbedMarkingOk`'s table:
+    -- one read, two surfaces, and the table is what keeps `Destroy`'s
+    -- deictic-only spelling from being spelled the other way.
     TheVerbed : (v : VerbName) -> (w : NounWord) ->
-                {auto 0 ok : countVerbed v w bs = 1} -> Noun bs (kindOfW w)
+                {default Attributive marking : VerbedMarking} ->
+                {auto 0 ok : countVerbed v w bs = 1} ->
+                {auto 0 mk : VerbedMarkingOk v marking} -> Noun bs (kindOfW w)
+    -- "[the] [noun]s [verbed] this way": the participle read's PLURAL
+    -- twin, and the row the "this way" family mostly lives in. It is to
+    -- `Them` what `TheVerbed` is to `That` — the marked read English
+    -- switches to when a bare plural pronoun would not say which group —
+    -- and it carries the same two axes and the same strict uniqueness,
+    -- counted over `ManyOf` bindings (`countManyVerbed`).
+    -- spelling: ["the <Param(1)>s <Param(0)>", "<Param(1)>s <Param(0)>
+    -- this way"] (the marking decides; the head noun pluralises, and the
+    -- definite article is written or not by the frame the phrase stands
+    -- in -- "You may play cards exiled this way" writes none)
+    ThoseVerbed : (v : VerbName) -> (w : NounWord) ->
+                  {default Attributive marking : VerbedMarking} ->
+                  {auto 0 ok : countManyVerbed v w bs = 1} ->
+                  {auto 0 mk : VerbedMarkingOk v marking} -> Noun bs (kindOfW w)
     -- "[object]'s controller" / "its owner": relational nouns — a NEW
     -- player referent derived from a SINGULAR object mention
     -- ([CR#108.3,109.4]; a group's owners need the plural relational,
@@ -4342,6 +4677,7 @@ mutual
   nounEqRef (Those _) _ = False
   nounEqRef (That _) _ = False
   nounEqRef (TheVerbed _ _) _ = False
+  nounEqRef (ThoseVerbed _ _) _ = False
   nounEqRef (ControllerOf _) _ = False
   nounEqRef (OwnerOf _) _ = False
 
@@ -4369,6 +4705,7 @@ mutual
   nounAnyTargetFree (Those _) = True
   nounAnyTargetFree (That _) = True
   nounAnyTargetFree (TheVerbed _ _) = True
+  nounAnyTargetFree (ThoseVerbed _ _) = True
   nounAnyTargetFree (ControllerOf n) = nounAnyTargetFree n
   nounAnyTargetFree (OwnerOf n) = nounAnyTargetFree n
 
@@ -4466,6 +4803,7 @@ mutual
   nounDelta (That w) = []
   nounDelta (Those w) = []
   nounDelta (TheVerbed v w) = []
+  nounDelta (ThoseVerbed v w) = []
   nounDelta (ControllerOf n) = MkBinding TheD Player OneOf PlayerP :: nounDelta n
   nounDelta (OwnerOf n) = MkBinding TheD Player OneOf PlayerP :: nounDelta n
 
@@ -4817,6 +5155,7 @@ mutual
   anchorPhrase (Those _) = True
   anchorPhrase (That _) = True
   anchorPhrase (TheVerbed _ _) = True
+  anchorPhrase (ThoseVerbed _ _) = True
   anchorPhrase (ControllerOf _) = True
   anchorPhrase (OwnerOf _) = True
 
@@ -4877,6 +5216,7 @@ mutual
   choosable (Those _) = False
   choosable (That _) = False
   choosable (TheVerbed _ _) = False
+  choosable (ThoseVerbed _ _) = False
   choosable (ControllerOf _) = False
   choosable (OwnerOf _) = False
 
@@ -4930,6 +5270,10 @@ mutual
   groupMention They = False
   groupMention (That _) = False
   groupMention (TheVerbed _ _) = False
+  -- The plural participle read DOES name a group, which is the whole
+  -- difference from its singular twin, so the partitive determiners
+  -- ("one of them", "the rest") can stand over it.
+  groupMention (ThoseVerbed _ _) = True
   groupMention (ControllerOf _) = False
   groupMention (OwnerOf _) = False
 
@@ -5138,6 +5482,39 @@ mutual
   data CondNegatable : Condition bs -> Type where
     MkCondNegatable : {auto 0 ok : condNegatable c = True} -> CondNegatable c
 
+  ||| Is this condition NEGATED at its own frame? The question the
+  ||| "unless" marking asks, and a different one from `condNegatable`
+  ||| beside it: that table says which frames English will put a "not"
+  ||| on, this one reads whether one is there. Full rows, so a new
+  ||| condition declares its answer here too.
+  public export
+  condNegated : {0 bs : Bindings} -> Condition bs -> Bool
+  condNegated (Exists _) = False
+  condNegated (Matches _ _) = False
+  condNegated (CompareAmt _ _ _) = False
+  condNegated (NotCond _) = True
+
+  ||| Which marking word a conditional static may write over which
+  ||| condition. "As long as" takes either polarity — nine hundred twelve
+  ||| lines, thirteen of them negated — where "unless" IS the negation,
+  ||| so it takes only a negated condition and spells the positive
+  ||| underneath it. The refusal is what keeps the two spellings one
+  ||| construction: "unless you control no artifact" is a double negative
+  ||| the corpus writes zero times (`badUnlessOnPositive` names the other
+  ||| direction, a positive condition wearing the word that would negate
+  ||| it a second time).
+  public export
+  markingOk : {0 bs : Bindings} -> CondMarking -> Condition bs -> Bool
+  markingOk AsLongAs _ = True
+  markingOk Unless c = condNegated c
+
+  ||| The marking demand as a witness, named apart so a pin says which
+  ||| question refused.
+  public export
+  data MarkingOk : {0 bs : Bindings} -> CondMarking -> Condition bs -> Type where
+    MkMarkingOk : {0 c : Condition bs} ->
+                  {auto 0 ok : markingOk m c = True} -> MarkingOk m c
+
   ||| What a condition contributes to the discourse: NOTHING, on every
   ||| row. This is the disjunction hole (`predDelta (Or _) = []`) at
   ||| clause level and for the same reason — a condition may be false,
@@ -5334,6 +5711,29 @@ mutual
     -- answer (`badTriggerAtUntapStep`, `badTriggerAtEachUpkeep`).
     BeginningOf : (part : TurnPart) -> (whose : Maybe Whose) ->
                   {auto 0 pu : PartTriggerable part whose} -> GameEvent bs
+    -- "[who] cast(s) [what]" ([CR#601.2] — casting is what a player does
+    -- to move a card to the stack and pay its costs; [CR#701.5a] words
+    -- the keyword action the same way). Chapter twenty-eight's largest
+    -- unminted family, a thousand and sixty-nine headers, and the one
+    -- that could not be written before because its complement is a
+    -- SPELL: [CR#112.1] makes a spell a card ON THE STACK, so the
+    -- complement's zone clause is the whole of what the word means and
+    -- the demand is that it name that zone.
+    -- TWO noun slots, the caster and the spell, which is
+    -- `DealsCombatDamage`'s shape and for its reason — the corpus writes
+    -- both and divides on both. The caster: "you" seven hundred
+    -- thirty-six, "a player" a hundred nine, "an opponent" eighty-four.
+    -- The complement is the ordinary noun phrase and needs no vocabulary
+    -- of its own, "a creature spell" being the type word under the stack
+    -- clause exactly as "a creature card in your graveyard" is the type
+    -- word under a graveyard one.
+    -- spelling: ["<Param(0)> cast(s) <Param(1)>"] (the finite clause the
+    -- header word introduces; the complement's own zone clause is
+    -- UNSPELLED -- "a spell", "a creature spell" -- the stack being the
+    -- zone whose carrier noun is the word itself [CR#112.1], the same
+    -- elision "card" makes for the four hidden zones)
+    Casts : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
+            {auto 0 zn : ZoneFits (nounZone what) (Just Stack)} -> GameEvent bs
 
   ||| Which row an event pattern is, for the event tables.
   public export
@@ -5348,6 +5748,7 @@ mutual
   eventName (Blocks _) = BlockDeclaration
   eventName (DealsCombatDamage _ _) = CombatDamage
   eventName (BeginningOf _ _) = PartBeginning
+  eventName (Casts _ _) = SpellCast
 
   ||| What an event pattern contributes to the discourse: its subject
   ||| phrase, exactly as a clause contributes its own. The event has not
@@ -5366,6 +5767,7 @@ mutual
   eventIntro (Blocks n) = nomIntro n
   eventIntro (DealsCombatDamage n to) = nomIntro to
   eventIntro (BeginningOf _ _) = bs
+  eventIntro (Casts _ what) = nomIntro what
 
   ||| The discourse AFTER the event has happened — the second projection
   ||| the trigger container forced, and the sharpest single difference
@@ -5399,6 +5801,14 @@ mutual
   eventAfter (Attacks n) = nomIntro n
   eventAfter (Blocks n) = nomIntro n
   eventAfter (DealsCombatDamage n to) = nomIntro to
+  -- The cast event does NOT retag, and it is the one row whose
+  -- non-retagging is the rule's own doing rather than a silence:
+  -- [CR#601.2a] moves the card to the stack as the FIRST step of
+  -- casting, so the phrase was already announced with the zone the
+  -- event leaves it in. "Whenever you cast a creature spell, that spell
+  -- gains … " reads a spell on the stack, which is where the phrase put
+  -- it.
+  eventAfter (Casts _ what) = nomIntro what
   eventAfter (BeginningOf _ _) = bs
 
   ||| The grammatical number of an event's SUBJECT, for the one reader
@@ -5427,6 +5837,7 @@ mutual
   eventSubjectPlur (Blocks n) = nounPlur n
   eventSubjectPlur (DealsCombatDamage n _) = nounPlur n
   eventSubjectPlur (BeginningOf _ _) = OneOf
+  eventSubjectPlur (Casts _ what) = nounPlur what
 
   ||| The context a delayed body reads: the event's own after-discourse
   ||| with the outer clause's targets SETTLED — [CR#603.7c] refers to
@@ -5544,6 +5955,17 @@ mutual
   spanUse (Until (StartOf UntapStep Nothing)) = Unattested
   spanUse (Until (StartOf UntapStep (Just Yours))) = Unattested
   spanUse (Until (StartOf UntapStep (Just ThatPlayers))) = Unattested
+  -- The sixth part writes NO duration endpoint in any possession, and
+  -- the reason is that "until end of combat" already has a cell:
+  -- [CR#511.2] splits the two readings in one sentence — abilities that
+  -- trigger "at end of combat" trigger as the STEP begins, while effects
+  -- that last "until end of combat" expire at the end of the combat
+  -- PHASE — so the duration names `Combat` and only the header names
+  -- this row. "Until the end of combat step" is two corpus lines and
+  -- both are reminder text.
+  spanUse (Until (StartOf EndOfCombat Nothing)) = Unattested
+  spanUse (Until (StartOf EndOfCombat (Just Yours))) = Unattested
+  spanUse (Until (StartOf EndOfCombat (Just ThatPlayers))) = Unattested
   -- "until (the) end of [part]" — the end boundary is the one that
   -- writes bare, and the bare forms are where the grants live.
   spanUse (Until (EndOf Turn Nothing)) = GrantsTypesControlReplacementAndPermission
@@ -5569,6 +5991,12 @@ mutual
   spanUse (Until (EndOf UntapStep Nothing)) = Unattested
   spanUse (Until (EndOf UntapStep (Just Yours))) = Unattested
   spanUse (Until (EndOf UntapStep (Just ThatPlayers))) = Unattested
+  -- The end of the end-of-combat step is a boundary English never names
+  -- at all: the phrase that would spell it, "until end of combat", is
+  -- [CR#511.2]'s PHASE endpoint and lives four rows up.
+  spanUse (Until (EndOf EndOfCombat Nothing)) = Unattested
+  spanUse (Until (EndOf EndOfCombat (Just Yours))) = Unattested
+  spanUse (Until (EndOf EndOfCombat (Just ThatPlayers))) = Unattested
   -- "for as long as [condition]" — the one adverbial with no turn
   -- boundary in it at all ([CR#611.2b]), and the widest class in the
   -- table: the control grant writes it forty-two times, the stat delta
@@ -5617,6 +6045,27 @@ mutual
   ||| setting base power and toughness, conditional statics — arrive
   ||| with the ability layer, and each is a new `StaticKind` row that
   ||| the span tables will force to declare its adverbials.
+  ||| Where a play permission takes its card FROM: the zone phrase it
+  ||| writes, or, when it writes none, the zone the complement's own
+  ||| binding already carries. A written phrase must name a zone one can
+  ||| play from ([CR#604.6]) AND must agree with whatever the complement
+  ||| says, which is `zoneFits`' ordinary silence-is-no-evidence reading
+  ||| — "this card" projects nothing, so the phrase is free to place it,
+  ||| while an exiled binding under a "from your graveyard" phrase would
+  ||| be a quarrel (`badPlayFromWrongZone`).
+  public export
+  playSourceOk : {0 bs : Bindings} -> Maybe Zone -> Maybe (ZoneExpr bs) -> Bool
+  playSourceOk zn Nothing = playableFrom zn
+  playSourceOk zn (Just z) = playableFrom (Just (zoneSort z)) &&
+                             zoneFits zn (Just (zoneSort z))
+
+  ||| The source demand as a witness, named apart so a pin says which of
+  ||| the permission's three questions refused.
+  public export
+  data PlaySource : {0 bs : Bindings} -> Maybe Zone -> Maybe (ZoneExpr bs) -> Type where
+    MkPlaySource : {0 fz : Maybe (ZoneExpr bs)} ->
+                   {auto 0 ok : playSourceOk zn fz = True} -> PlaySource zn fz
+
   public export
   data StaticEffect : Bindings -> Type where
     -- "[n] gets [+p/+t]" — the stat-modifying continuous effect
@@ -5817,13 +6266,26 @@ mutual
     -- rule, unchanged).
     -- What it does NOT nest is itself: no corpus line writes two "as
     -- long as" clauses over one statement (`badDoubleConditional`).
+    -- The MARKING word is a defaulted slot and its one gate is a
+    -- polarity check: "unless [C]" IS "as long as not [C]" with the
+    -- negation moved onto the subordinator, so the row demands that the
+    -- condition it marks actually be negated and spells the positive
+    -- inside (`MarkingOk`, `badUnlessOnPositive`). That is the whole of
+    -- what chapter twenty-eight left — "the negated 'as long as'
+    -- spelling is writable today at thirteen lines, so what is missing
+    -- is the second word for it and not the structure".
     -- spelling: ["as long as <Param(0)>, <Param(1)>"] (the fronted form is
     -- the corpus's ordinary one; the trailing "…, as long as <Param(0)>"
     -- linearization is the same sentence -- "This creature gets +4/+4 as
     -- long as there are seven or more cards in your graveyard" -- and the
-    -- inner statement supplies its own frame), kind: Sentence
+    -- inner statement supplies its own frame. Under the Unless marking
+    -- the clause is written the other way round and the condition sheds
+    -- its own negation: "<Param(1)> unless <Param(0)'s positive>"),
+    -- kind: Sentence
     Conditionally : (c : Condition bs) -> (se : StaticEffect bs) ->
-                    {auto 0 nn : NotConditional se} -> StaticEffect bs
+                    {default AsLongAs marking : CondMarking} ->
+                    {auto 0 nn : NotConditional se} ->
+                    {auto 0 mk : MarkingOk marking c} -> StaticEffect bs
     -- "[who] may play [what]" — the PERMISSION static, core's
     -- `Deontic::May(Cast{…})` (`deontic.rs`) and the permissive twin the
     -- deontic surface has been missing since chapter fifteen minted
@@ -5832,30 +6294,47 @@ mutual
     -- you could cast or play it from", and it names the three templates
     -- outright — "You may [cast/play] [this card] …", "You can't
     -- [cast/play] [this card] …", "[Cast/Play] [this card] only …".
-    -- The VERB is derived and not a slot, and the glossary derives it:
-    -- "to play a card is to play that card as a land or cast that card
-    -- as a spell, whichever is appropriate" ([CR#601.1a] says the same),
-    -- so "play" is the general verb over a CARD and "cast" the narrow
-    -- one over a SPELL. This vocabulary describes cards and permanents
-    -- and has no spell carrier (ledger), so the row spells "play" and
-    -- the two hundred ninety-three "you may cast … from your graveyard"
-    -- lines wait with the carrier that would let their complement be a
-    -- spell.
-    -- The SOURCE zone is the phrase's own and not a slot, which is the
-    -- derivable-default discipline a third time (finding 124's
-    -- "under your control"): the impulse family exiles its cards in the
-    -- sentence before and says "that card", so the binding already
-    -- carries the zone, and `playableFrom` is what checks it.
+    -- The VERB is a SLOT, and [CR#604.6] brackets it as one in its own
+    -- templates ("You may [cast/play] [this card] …"). Chapter
+    -- twenty-eight derived it instead, on the reading that "cast" takes
+    -- a spell where "play" takes a card, and sent the two hundred
+    -- ninety-three "you may cast … from your graveyard" lines to wait
+    -- for a spell carrier. The carrier has arrived and shows the
+    -- reading was wrong rather than blocked: [CR#701.5b] says "to cast a
+    -- card is to cast it as a spell", so both verbs take a card and the
+    -- complement is not what separates them. What separates them is the
+    -- LAND — [CR#601.1a] makes "play" the union of playing a land and
+    -- casting a spell, and [CR#305.9] makes the exclusion a rule, "it
+    -- can't be cast as a spell" — so the gate is a type demand on the
+    -- complement's head and not a zone one (`castableTy`,
+    -- `badCastALand`).
+    -- The SOURCE zone is a DEFAULTED slot, and the two families are why
+    -- it is neither a required field nor a pure derivation. The impulse
+    -- family exiles its cards in the sentence before and then says "that
+    -- card" with no zone phrase at all (two hundred twenty-eight lines),
+    -- so the binding already carries the zone and the slot stays empty —
+    -- finding 124's derivable default, unchanged. The graveyard family
+    -- writes the zone IN the permission over a complement that carries
+    -- none ("You may cast this card from your graveyard", where "this
+    -- card" is the source object and projects no zone), so there the
+    -- phrase is the only thing that says where. One slot, `Nothing`
+    -- meaning "read it off the complement" (`playSourceOk`).
     -- The permission is NOT the deed restriction with a polarity flip,
     -- and the zone is why: `Cant` demands a battlefield subject because
     -- combat is fought there, and this row demands the exact opposite —
     -- a card anywhere BUT the battlefield (`badPlayFromBattlefield`).
-    -- spelling: ["<Param(0)> may play <Param(1)>"] (the duration adverbial
+    -- spelling: ["<Param(0)> may play <Param(1)>", "<Param(0)> may cast
+    -- <Param(1)>", "<Param(0)> may play <Param(1)> from <Param(3)>",
+    -- "<Param(0)> may cast <Param(1)> from <Param(3)>"] (selects on the
+    -- verb slot and on whether the source is written; the duration adverbial
     -- belongs to the Continuously envelope, not here; the fronted
     -- linearization "Until your next end step, you may play those cards" is
     -- the same sentence), kind: Sentence
     MayPlay : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-              {auto 0 pz : PlayableFrom (nounZone what)} -> StaticEffect bs
+              {default Play verb : PlayVerb} ->
+              {default Nothing from : Maybe (ZoneExpr (nomIntro what))} ->
+              {auto 0 pz : PlaySource (nounZone what) from} ->
+              {auto 0 cv : CastableTy verb (nounTy what)} -> StaticEffect bs
     -- "[n] enters tapped" — the ENTRY rider, and the third family
     -- chapter twenty-five sent to a container that did not exist.
     -- [CR#603.6d] settles what it is in as many words: text reading
@@ -5872,17 +6351,46 @@ mutual
     -- lines and "enters attacking" is written zero times as a
     -- permanent's own ability, because a permanent's line cannot know
     -- there is a combat (`entryRiderOk`, `badEntersAttackingLine`).
-    -- What is NOT here is the counters half, and it is the bigger one:
-    -- "enters with … counters on it" is three hundred eighty-six lines
-    -- of the four hundred fourteen "enters with", and it wants a counter
-    -- AMOUNT in the rider where this vocabulary has a two-row enum
-    -- (ledger).
+    -- The counters half is the row BELOW rather than a third rider
+    -- word, and the reason it could never have been one is where the
+    -- rider vocabulary lives.
     -- spelling: ["<Param(0)> enters <Param(1)>"] (Param(1) writes the bare
     -- participle, "tapped"; the corpus's three bare lines are "This
     -- artifact/creature/land enters tapped."), kind: Sentence
     EntersRider : (n : Noun bs Object) -> (rider : TokenRider) ->
                   {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                   {auto 0 ro : EntryRiderOk rider} -> StaticEffect bs
+    -- "[n] enters with [amt] [kind] counters on it" — the OTHER entry
+    -- replacement, three hundred eighty-six lines of the four hundred
+    -- fourteen "enters with", and the same [CR#603.6d,614.1d] pair files
+    -- it: the sentence is a static ability and the replacement is the
+    -- engine's. The ledger held it on the observation that it "wants a
+    -- counter AMOUNT where `TokenRider` is a two-row enum", and the
+    -- re-check is that the observation was about the wrong container.
+    -- `TokenRider` is SHARED with `TokenChars`, an unindexed record, so
+    -- an `Amount bs` cannot go in it at any price; put here instead, the
+    -- amount and the kind are the vocabulary `PutCounters` has carried
+    -- since chapter nineteen, unchanged and unwidened. One row, no new
+    -- terms — which is why this is a second constructor and not a third
+    -- rider, and why it shares `EntryRider` as its `staticKind`: the two
+    -- sentences are one class of statement and every table that keys on
+    -- the kind already has its cell.
+    -- The COUNT is `WrittenCount`'s written magnitude, the corpus
+    -- writing "a" a hundred twenty-eight times, "two" fifty-seven,
+    -- "three" forty-three and "X" fifty-three; the KIND is
+    -- `CounterKind`, which reaches a hundred sixty-eight of the three
+    -- hundred eighty-six lines (ninety-nine plural and sixty-two
+    -- singular "+1/+1", seven "-1/-1") and leaves the rest to the
+    -- counter catalog itself — time, oil, fade, charge, indestructible,
+    -- finality, shield and their neighbours, eight lines apiece and
+    -- fewer (ledger).
+    -- spelling: ["<Param(0)> enters with <Param(1)> <Param(2)> counter(s)
+    -- on it"] (the counter noun pluralises with the count and the kind
+    -- writes its own word before it -- see CounterKind), kind: Sentence
+    EntersWithCounters : (n : Noun bs Object) -> (amt : Amount bs) ->
+                         (kind : CounterKind) ->
+                         {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                         {auto 0 wc : WrittenCount amt} -> StaticEffect bs
 
   ||| Which riders a PERMANENT's own line writes, against the two
   ||| chapter nineteen minted for a token's with-clause. One row of the
@@ -5976,7 +6484,11 @@ mutual
   staticKind (Prevents _ _ _) = Prevention
   staticKind (Conditionally _ _) = Conditional
   staticKind (MayPlay _ _) = PlayPermission
+  -- Both entry replacements answer the SAME kind, which is the claim
+  -- that they are one class of statement: [CR#603.6d,614.1d] file them
+  -- together and every table keyed on the kind already has the cell.
   staticKind (EntersRider _ _) = EntryRider
+  staticKind (EntersWithCounters _ _ _) = EntryRider
 
   ||| What a continuous clause contributes to the discourse: its
   ||| subject, exactly as the one-shot clauses contribute theirs.
@@ -5998,6 +6510,7 @@ mutual
   staticIntro (Conditionally c se) = staticIntro se
   staticIntro (MayPlay who what) = nomIntro what
   staticIntro (EntersRider n _) = nomIntro n
+  staticIntro (EntersWithCounters n _ _) = nomIntro n
 
   ||| Which clause a DIVISION writes. [CR#601.2d] and [CR#115.7f] both
   ||| name "divide or distribute" as one mechanic over one pair of
@@ -6097,6 +6610,80 @@ mutual
   exposedIntro : {bs : Bindings} -> Exposed bs -> Bindings
   exposedIntro (ExposedCards n) = nomIntro n
   exposedIntro (ExposedZone z) = zoneDelta z ++ bs
+
+  ||| The ARRIVAL riders a placement writes — "put that card onto the
+  ||| battlefield TAPPED", "tapped AND ATTACKING", "UNDER YOUR CONTROL".
+  ||| A closed BUNDLE and not three constructors, because the riders
+  ||| COMBINE: "put it onto the battlefield tapped under your control" is
+  ||| one placement wearing two of them, and separate `MoveTapped` /
+  ||| `MoveUnderControl` rows would have multiplied the verb by its
+  ||| combinations. Counts: three hundred fifteen lines write "onto the
+  ||| battlefield tapped" (nineteen of them "tapped and attacking") and a
+  ||| hundred thirty-five write "onto the battlefield under [someone]'s
+  ||| control".
+  |||
+  ||| The entry half is chapter nineteen's `TokenRider` list SHARED and
+  ||| its `ridersOk` shapes verbatim — a token's with-clause and a
+  ||| placement's adverbial name the same two riders in the same fixed
+  ||| order — which is finding 179's sharing at a third site. The
+  ||| CONTROLLER is a separate field and not a third rider word, because
+  ||| it takes a noun where the other two are bare participles.
+  |||
+  ||| It is an OVERRIDE and not a required field: [CR#110.2a] already
+  ||| gives an instructed player control of what they put onto the
+  ||| battlefield, so the unwritten slot is the rule's default and the
+  ||| hundred thirty-five written ones are departures from it. One
+  ||| controller, [CR#109.4]'s own singular (`CtrlSingular`).
+  public export
+  data MoveRiders : Bindings -> Type where
+    -- spelling: (construction-owned -- the adverbials trailing the
+    -- destination phrase, entry riders first and the controller last:
+    -- "onto the battlefield tapped and attacking under your control".
+    -- Each entry rider is TokenRider's own word; the controller writes
+    -- "under <Param(1)>'s control" with the possessive. An empty bundle
+    -- writes nothing at all.)
+    MkMoveRiders : (entry : List TokenRider) ->
+                   (ctrl : Maybe (Noun bs Player)) ->
+                   {auto 0 ro : RidersOk entry} ->
+                   {auto 0 one : CtrlSingular ctrl} -> MoveRiders bs
+
+  ||| A control override names ONE player ([CR#109.4] — an object on the
+  ||| battlefield has a controller, not controllers), the same demand
+  ||| `ControlledBy` and `GainsControl` make of their possessor.
+  public export
+  data CtrlSingular : {0 bs : Bindings} -> Maybe (Noun bs Player) -> Type where
+    NoOverride : CtrlSingular Nothing
+    OneController : {0 n : Noun bs Player} ->
+                    {auto 0 one : nounPlur n = OneOf} -> CtrlSingular (Just n)
+
+  ||| Does the bundle write anything? The empty bundle is the placement
+  ||| with no adverbial after it, which is what every `Move` before this
+  ||| round wrote.
+  public export
+  ridersWritten : {0 bs : Bindings} -> MoveRiders bs -> Bool
+  ridersWritten (MkMoveRiders [] Nothing) = False
+  ridersWritten _ = True
+
+  ||| Arrival riders are BATTLEFIELD-only, and the reason is that there
+  ||| is nothing for one to say anywhere else: both entry riders are
+  ||| battlefield ARRIVALS ([CR#110.5b] — permanents "enter the
+  ||| battlefield untapped … unless a spell or ability says otherwise",
+  ||| which is the tapped rider's own rule; [CR#506.3a] words the second
+  ||| one as an effect that "would put a … permanent onto the
+  ||| battlefield attacking"), and [CR#109.4] gives an
+  ||| object off the stack and off the battlefield no controller to
+  ||| override. Zero corpus lines write a rider on any other
+  ||| destination (`badMoveRidersToGraveyard`, `badMoveRidersToHand`).
+  public export
+  ridersFitZone : {0 bs : Bindings} -> MoveRiders bs -> Zone -> Bool
+  ridersFitZone r z = not (ridersWritten r) || sameZone z Battlefield
+
+  ||| The battlefield demand as a witness, named apart so a pin says
+  ||| which question refused.
+  public export
+  data RidersFit : {0 bs : Bindings} -> MoveRiders bs -> Zone -> Type where
+    MkRidersFit : {0 r : MoveRiders bs} ->
+                  {auto 0 ok : ridersFitZone r z = True} -> RidersFit r z
 
   ||| A COST — what the activator PAYS, which is a different thing from
   ||| what an ability DOES ([CR#602.1a]: "the activation cost is everything
@@ -6275,9 +6862,40 @@ mutual
     -- to }`) because its group term is a different sort; here plurality
     -- is a property of the one patient slot, so no second row is needed
     -- and none is minted.
+    -- The RIDERS are a defaulted slot for the reason the activated
+    -- line's three restrictions are: every placement can carry them and
+    -- almost none writes one, so the unwritten bundle is the sentence
+    -- with no adverbial after its destination and costs no call site a
+    -- word. Gated to the battlefield (`RidersFit`), and the whole
+    -- vocabulary is `MoveRiders`.
     Move : (what : Noun bs Object) -> (to : ZoneExpr (nomIntro what)) ->
+           {default (MkMoveRiders [] Nothing) riders : MoveRiders (nomIntro what)} ->
            {auto 0 ok : DestOk to} ->
-           {auto 0 arr : ArrangementOk (nounPlur what) to} -> Effect bs
+           {auto 0 arr : ArrangementOk (nounPlur what) to} ->
+           {auto 0 rf : RidersFit riders (zoneSort to)} -> Effect bs
+    -- "counter [what]" ([CR#701.6a] — "to counter a spell or ability
+    -- means to cancel it, removing it from the stack. It doesn't resolve
+    -- and none of its effects occur"). The verb the stack carrier
+    -- exists for: a hundred ninety-three lines write "counter target
+    -- … spell", fifty-two of them the bare "Counter target spell."
+    -- One noun slot and no zone destination, which is the difference
+    -- from every other removal verb here. [CR#701.6a] does say where a
+    -- countered spell goes — "put into its owner's graveyard" — but the
+    -- sentence does not, and a `Move` the sentence never writes is the
+    -- engine's fact and not this grammar's (`Composite`'s three tags
+    -- each name a move oracle SPELLS; this verb names none).
+    -- The complement is a SPELL and the demand says so by zone
+    -- ([CR#112.1]) — "counter target creature" is unwritable, the
+    -- battlefield permanent having already resolved
+    -- (`badCounterPermanent`). The ABILITY half of [CR#701.6a] is real
+    -- English ("counter that ability", "counter target activated or
+    -- triggered ability") and is ledgered: an ability on the stack is an
+    -- OBJECT [CR#109.1] this noun vocabulary has no word for, the stack
+    -- clause reaching only what [CR#112.1] calls a spell.
+    -- spelling: ["counter <Param(0)>"], kind: Sentence (the imperative
+    -- leaves the agent unpronounced, as destroy and exile do)
+    CounterSpell : (what : Noun bs Object) ->
+                   {auto 0 zn : ZoneFits (nounZone what) (Just Stack)} -> Effect bs
     -- "[who] gains/loses [amt] life" ([CR#119.3]) — core basis (merged).
     -- spelling: ["<Param(0)> gains <Param(1)> life", "<Param(0)> loses
     -- <Param(1)> life"] (selects on the embedded LifeOp, Up/Down; mirrors
@@ -7093,6 +7711,7 @@ mutual
   heldUntilOk (Distribute _ _ _) = False
   heldUntilOk (Fights _ _) = False
   heldUntilOk (Tap _) = False
+  heldUntilOk (CounterSpell _) = False
   heldUntilOk (Choose _) = False
   heldUntilOk (Move _ _) = False
   heldUntilOk (ChangeLife _ _) = False
@@ -7203,6 +7822,10 @@ mutual
   reflexEncloseUse (Pay _ _) = EncReflexive        -- 66, all of them offered
   reflexEncloseUse (Composite _ _) = EncReflexive  -- 51, every one an exile
   reflexEncloseUse (Tap _) = EncReflexive          -- 13
+  -- No line writes "counter target spell. When you do, …": the
+  -- countering is mandatory wherever it appears, so there is no offer
+  -- for the pro-verb to abbreviate.
+  reflexEncloseUse (CounterSpell _) = EncUnattested
   reflexEncloseUse (Create _ _ _ _) = EncReflexive -- 8
   reflexEncloseUse (PutCounters _ _ _) = EncReflexive    -- 8
   reflexEncloseUse (RemoveCounters _ _ _) = EncReflexive -- 7
@@ -7304,6 +7927,10 @@ mutual
   costActionOk (Distribute _ _ _) = False
   costActionOk (Fights _ _) = False
   costActionOk (Tap _) = True
+  -- Zero cost components counter a spell: [CR#602.1a] makes a cost what
+  -- the ACTIVATOR pays, and cancelling somebody else's spell is not a
+  -- payment (`badCounterAsCost`).
+  costActionOk (CounterSpell _) = False
   costActionOk (Choose _) = False
   costActionOk (Move _ _) = True
   costActionOk (ChangeLife _ (Down _)) = True
@@ -7386,6 +8013,8 @@ mutual
   effEq (Fights _ _) _ = False
   effEq (Tap a) (Tap b) = nounEqRef a b
   effEq (Tap _) _ = False
+  effEq (CounterSpell a) (CounterSpell b) = nounEqRef a b
+  effEq (CounterSpell _) _ = False
   effEq (Choose _) _ = False
   effEq (Move a s) (Move b t) = nounEqRef a b && sameZone (zoneSort s) (zoneSort t)
   effEq (Move _ _) _ = False
@@ -7527,6 +8156,7 @@ mutual
   nounIsAnyTarget (Those _) = False
   nounIsAnyTarget (That _) = False
   nounIsAnyTarget (TheVerbed _ _) = False
+  nounIsAnyTarget (ThoseVerbed _ _) = False
   nounIsAnyTarget (ControllerOf _) = False
   nounIsAnyTarget (OwnerOf _) = False
 
@@ -7699,6 +8329,13 @@ mutual
     if verbedMatch v w b then setZone p z b :: bs else b :: setZoneVerbed p v w z bs
 
   public export
+  setZoneManyVerbed : Maybe VerbName -> VerbName -> NounWord -> Zone -> Bindings -> Bindings
+  setZoneManyVerbed p v w z [] = []
+  setZoneManyVerbed p v w z (b :: bs) =
+    if verbedMatchMany v w b then setZone p z b :: bs
+                             else b :: setZoneManyVerbed p v w z bs
+
+  public export
   moveIntro : {bs : Bindings} -> {k : Kind} -> Maybe VerbName -> Noun bs k -> Zone -> Bindings
   moveIntro p nn@(Each pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(Indefinite m pr) z = setZoneHead p z (nomIntro nn)
@@ -7727,6 +8364,7 @@ mutual
   moveIntro p (That w) z = setZoneThat p w z bs
   moveIntro p (Those w) z = setZoneThose p w z bs
   moveIntro p (TheVerbed v w) z = setZoneVerbed p v w z bs
+  moveIntro p (ThoseVerbed v w) z = setZoneManyVerbed p v w z bs
   moveIntro p This z = bs
   -- a moved sorted self-reference mints the new object's binding
   -- ([CR#400.7]; see the constructor comment). The stamp's at-verb
@@ -7774,6 +8412,7 @@ mutual
   nounZone (That w) = zoneOfThat w bs
   nounZone (Those w) = zoneOfThose w bs
   nounZone (TheVerbed v w) = zoneOfVerbed v w bs
+  nounZone (ThoseVerbed v w) = zoneOfManyVerbed v w bs
   nounZone (ControllerOf n) = Nothing
   nounZone (OwnerOf n) = Nothing
 
@@ -7801,6 +8440,7 @@ mutual
   nounTy (That w) = tyOfThat w bs
   nounTy (Those w) = tyOfThose w bs
   nounTy (TheVerbed v w) = tyOfVerbed v w bs
+  nounTy (ThoseVerbed v w) = tyOfManyVerbed v w bs
   nounTy (ControllerOf n) = Nothing
   nounTy (OwnerOf n) = Nothing
 
@@ -7831,6 +8471,7 @@ mutual
   nounPlur (That w) = OneOf
   nounPlur (Those w) = ManyOf
   nounPlur (TheVerbed v w) = OneOf
+  nounPlur (ThoseVerbed v w) = ManyOf
   nounPlur (ControllerOf n) = OneOf
   nounPlur (OwnerOf n) = OneOf
 
@@ -7840,6 +8481,10 @@ mutual
   effIntro (DealDamage src amt to) = outcomeB DamageDealt :: nomIntro to
   effIntro (Fights a b) = nomIntro b
   effIntro (Tap n) = nomIntro n
+  -- The countering announces its patient and nothing else: [CR#701.6a]
+  -- puts the countered spell into a graveyard, but the sentence never
+  -- writes that move, so there is no retag for this clause to record.
+  effIntro (CounterSpell what) = nomIntro what
   effIntro (Choose n) = nomIntro n
   effIntro (Move what to) = moveIntro Nothing what (zoneSort to)
   effIntro (ChangeLife who (Up a)) = outcomeB LifeGained :: lifeIntro (Up a)
@@ -7993,6 +8638,7 @@ mutual
   preIntro (Distribute v amt among) = nomIntro among
   preIntro (Fights a b) = nomIntro b
   preIntro (Tap n) = nomIntro n
+  preIntro (CounterSpell what) = nomIntro what
   preIntro (Choose n) = nomIntro n
   preIntro (Move what to) = nomIntro what
   preIntro (ChangeLife who (Up a)) = lifeIntro (Up a)
@@ -8093,6 +8739,7 @@ mutual
   annIntro (Distribute v amt among) = nomIntro among
   annIntro (Fights a b) = nomIntro b
   annIntro (Tap n) = nomIntro n
+  annIntro (CounterSpell what) = nomIntro what
   annIntro (Choose n) = nomIntro n
   annIntro (Move what to) = nomIntro what
   annIntro (ChangeLife who (Up a)) = lifeIntro (Up a)
@@ -8177,6 +8824,7 @@ mutual
   deedDelta (Distribute (DistributedCounters _) amt among) = []
   deedDelta (Fights a b) = []
   deedDelta (Tap n) = []
+  deedDelta (CounterSpell _) = []
   deedDelta (Choose n) = []
   deedDelta (Move what to) = []
   deedDelta (ChangeLife who (Up a)) = [outcomeB LifeGained]
@@ -8509,6 +9157,27 @@ mutual
     Static : (se : StaticEffect []) ->
              {auto 0 ln : StaticLine se} ->
              {auto 0 ut : Untargeting se} -> Ability
+    -- "[instruction]" — the SPELL ability, [CR#113.3]'s fourth category
+    -- and the last row this container was missing. [CR#113.3a] defines
+    -- it by two things and this row carries both: it is "followed as
+    -- instructions while an instant or sorcery spell is resolving", so
+    -- the payload is a plain `Effect` and nothing else — no cost, no
+    -- event, no header word — and the qualification is a fact about the
+    -- CARD ("any text on an instant or sorcery spell is a spell ability
+    -- unless …"), which no line carries about itself. That is why the
+    -- row lives here and its gate lives on the container (`cardLineOk`):
+    -- the same sentence "Draw two cards." is a spell ability on
+    -- Divination and, word for word, an activated ability's effect after
+    -- a colon.
+    -- Typed at the EMPTY context like its three siblings, which for this
+    -- row is not a claim but the rule: [CR#608.2c] has the controller
+    -- follow the spell's instructions "in the order written", and the
+    -- first of them is the first thing on the card with nothing said
+    -- before it.
+    -- spelling: ["<Param(0)>"] (pass-through; the effect supplies its own
+    -- sentence in the imperative, which is what an instruction is),
+    -- kind: Ability
+    Spell : (eff : Effect []) -> Ability
 
   ||| May this ability be GRANTED by a clause? Only the keyword. English
   ||| grants an activated ability by QUOTING it — "Enchanted land has
@@ -8543,6 +9212,13 @@ mutual
   -- (`badGainsTriggered`, `badGainsStatic`).
   grantableAb (Triggered _ _ _) = False
   grantableAb (Static _) = False
+  -- The spell ability is not grantable either, and this refusal is a
+  -- CATEGORY error rather than a missing quotation: [CR#113.3a] makes a
+  -- spell ability something an instant or sorcery SPELL has while it
+  -- resolves, and a `Gains` clause grants to a permanent on the
+  -- battlefield ([CR#604.1]) — there is nothing there for one to be
+  -- (`badGainsSpellAbility`).
+  grantableAb (Spell _) = False
 
   ||| The grant demand as a witness, named apart so a pin says which
   ||| question refused.
@@ -8571,3 +9247,232 @@ mutual
   costsIntro : {bs : Bindings} -> {0 n : Nat} -> CostSeq n bs -> Bindings
   costsIntro [] = bs
   costsIntro (c :: cs) = costsIntro cs
+
+-- ===== The card container =====
+
+||| SUPERTYPES ([CR#205.4a] closes the list at five: basic, legendary,
+||| ongoing, snow, world). ONE row here, whittled to what a witness
+||| needs exactly as `CardType` is whittled to six of fifteen — a
+||| supertype is an ordinary catalog word, not a rules-fixed structure
+||| like `Color`, so an unwitnessed row would be a phrase nothing here
+||| writes.
+|||
+||| The field this rides on is the CARD's and not `TypeLine`'s, and
+||| [CR#205.4b] is the reason it can be: "an object's supertype is
+||| independent of its card type and subtype", so the three lists are
+||| three facts printed on one line rather than one bundle. `TypeLine`'s
+||| two readers — the token's defined characteristics and the type
+||| ADDITION clause — write no supertype between them (chapter
+||| nineteen's forty-six "legendary … token" lines are the token half
+||| and stay ledgered with the predefined-token catalog they arrive
+||| with), and the third reader, the printed card, is the one that has
+||| them. `Legendary` is the row a bench witness needs (Rorix
+||| Bladewing); the other four are measured and left — `Basic` is a
+||| land-type vocabulary this file has no subtype rows for, `Snow` a
+||| mana-and-permanent axis whose symbol landed in chapter twenty-seven
+||| and whose supertype nothing here writes, `World` and `Ongoing`
+||| legacy and Archenemy respectively.
+public export
+-- spelling: ["legendary"] (the supertype word, printed before the card
+-- types and after nothing: "Legendary Creature — Dragon". Spelled only
+-- through Card)
+data Supertype = Legendary
+
+||| Supertype equality, per-row catch-alls — `sameCT`'s discipline.
+public export
+sameSupertype : Supertype -> Supertype -> Bool
+sameSupertype Legendary Legendary = True
+
+||| Is this card type a PERMANENT type? [CR#110.4] gives the list —
+||| "there are six permanent types: artifact, battle, creature,
+||| enchantment, land, and planeswalker" — and names the exclusion in the
+||| next breath: "instant and sorcery cards can't enter the battlefield
+||| and thus can't be permanents", which is exactly the pair this file
+||| added for the container. Full rows, so a new card type declares which
+||| side of the container's gate it stands on.
+public export
+permanentType : CardType -> Bool
+permanentType Creature = True
+permanentType Artifact = True
+permanentType Land = True
+permanentType Enchantment = True
+permanentType Instant = False
+permanentType Sorcery = False
+
+||| Which of the two things a card's TEXT can be, read off its type
+||| line. [CR#113.3a] makes this the container's central question and
+||| asks it of the card and never of the line: "any text on an instant
+||| or sorcery spell is a spell ability unless it's an activated
+||| ability, a triggered ability, or a static ability that fits the
+||| criteria described" [CR#113.6].
+public export
+data CardClass = PermanentCard | SpellCard
+
+||| A line naming ANY non-permanent type is a spell card. The
+||| disjunction rather than a conjunction is [CR#205.1a]'s doing — "an
+||| object with either the instant or sorcery card type retains that
+||| type" — so the spell type is the one that cannot be argued away.
+||| A typeless line answers `PermanentCard` and is unreachable through
+||| the container, which demands a non-empty line (`CardLine`).
+public export
+cardClassOf : List CardType -> CardClass
+cardClassOf [] = PermanentCard
+cardClassOf (t :: ts) = if permanentType t then cardClassOf ts else SpellCard
+
+||| WHICH ability rows a card of each class may carry — the container's
+||| gate, and the round's central finding written as a table. Full rows
+||| in both directions, so a new ability row and a new card class each
+||| have to declare their answer.
+|||
+||| The SPELL row is [CR#113.3a] exactly: a spell ability is followed
+||| "while an instant or sorcery spell is resolving", so a permanent
+||| card's text is never one, and a spell card's text is one by DEFAULT
+||| — the rule's "unless" naming the three exceptions rather than the
+||| rule. That is the answer to the design question the round was set:
+||| the split is not "permanent cards hold `List Ability` and spells
+||| hold an `Effect`". Both hold a list of lines; what differs is which
+||| rows the list may contain, and the spell card's default row happens
+||| to hold exactly the `Effect` the other reading would have made the
+||| whole field.
+||| The ACTIVATED and TRIGGERED rows are open on both sides, which is
+||| the same sentence's other half — the rule lists them as things a
+||| spell card's text can be — and the corpus agrees: cycling is an
+||| activated ability printed on sorceries, and "When you cycle this
+||| card, …" a triggered one.
+||| The STATIC row is open on permanents and shut on spell cards, and
+||| the shutting is [CR#113.6]'s criteria rather than a count.
+||| [CR#113.3a] admits a static ability on a spell card only if it fits
+||| that rule, and [CR#113.6] gives the general case away in its first
+||| sentence — "abilities of an instant or sorcery spell usually
+||| function only while that object is on the stack" — where every
+||| `StaticEffect` row here establishes a continuous effect on the
+||| BATTLEFIELD. The two exception families a spell card really prints
+||| are [CR#113.6d]'s alternative-cost abilities and [CR#113.6e]'s
+||| play restrictions, and this grammar spells neither; the play
+||| PERMISSION it does spell ([CR#604.6]) is real on spell cards too
+||| (flashback's own template) and is ledgered rather than carved out of
+||| this cell, a per-row exception wanting an axis the table does not
+||| have (`badStaticOnSorcery`).
+||| The KEYWORD row is shut on spell cards on a measurement rather than
+||| a rule: the three keywords this file carries are [CR#702]'s
+||| flying, trample and haste, all of them abilities of a permanent in
+||| combat, and none is printed on an instant or sorcery
+||| (`badKeywordOnInstant`).
+public export
+cardAbilityOk : CardClass -> Ability -> Bool
+cardAbilityOk PermanentCard (KeywordAbility _) = True
+cardAbilityOk PermanentCard (Activated _ _) = True
+cardAbilityOk PermanentCard (Triggered _ _ _) = True
+cardAbilityOk PermanentCard (Static _) = True
+cardAbilityOk PermanentCard (Spell _) = False
+cardAbilityOk SpellCard (KeywordAbility _) = False
+cardAbilityOk SpellCard (Activated _ _) = True
+cardAbilityOk SpellCard (Triggered _ _ _) = True
+cardAbilityOk SpellCard (Static _) = False
+cardAbilityOk SpellCard (Spell _) = True
+
+||| Every line of a card's text is admissible for its own type line.
+public export
+cardTextOk : List CardType -> List Ability -> Bool
+cardTextOk tys [] = True
+cardTextOk tys (a :: as) = cardAbilityOk (cardClassOf tys) a && cardTextOk tys as
+
+||| A card's P/T slot against its types — `tokenPtOk`'s table at a
+||| second site and one-directional for its reason. [CR#208.1] says a
+||| CREATURE card "has two numbers separated by a slash printed in its
+||| lower right corner", so the creature type demands them; the converse
+||| is not demanded, [CR#301.7]'s Vehicle printing a power and toughness
+||| without the creature type. What the slot does NOT carry is
+||| [CR#208.2]'s star: a characteristic-defining ability setting power
+||| and toughness is an ability line this container has no row for
+||| (ledger).
+public export
+cardPtOk : List CardType -> Maybe (Nat, Nat) -> Bool
+cardPtOk tys pt = case (lineHasType Creature tys, pt) of
+  (True, Nothing) => False
+  _ => True
+
+||| A land card writes NO mana cost, and [CR#202.1b] is the rule:
+||| "some objects have no mana cost. This normally includes all land
+||| cards", the absence representing an unpayable cost [CR#118.6]. The
+||| demand is one-directional in the other direction from the P/T one —
+||| a nonland card may also write none (Evermind, the suspend-only
+||| cards), so only the land row is closed (`badLandWithManaCost`).
+public export
+cardCostOk : List CardType -> Maybe ManaCost -> Bool
+cardCostOk tys cost = case (lineHasType Land tys, cost) of
+  (True, Just _) => False
+  _ => True
+
+||| The three demands as witnesses, named apart so a pin says which one
+||| refused (the `TokenTyped`/`TokenPt` discipline).
+public export
+data CardLine : TypeLine -> Type where
+  MkCardLine : {auto 0 ne : lineNonEmpty l = True} ->
+               {auto 0 ord : typesOrdered l.tys = True} ->
+               {auto 0 sf : subsFitLine l.subs l.tys = True} -> CardLine l
+
+public export
+data CardText : TypeLine -> List Ability -> Type where
+  MkCardText : {auto 0 ok : cardTextOk l.tys as = True} -> CardText l as
+
+public export
+data CardPt : TypeLine -> Maybe (Nat, Nat) -> Type where
+  MkCardPt : {0 stats : Maybe (Nat, Nat)} ->
+             {auto 0 ok : cardPtOk l.tys stats = True} -> CardPt l stats
+
+public export
+data CardCost : TypeLine -> Maybe ManaCost -> Type where
+  MkCardCost : {auto 0 ok : cardCostOk l.tys c = True} -> CardCost l c
+
+||| A CARD — the outermost container, and the first type here that is
+||| not a construction at all. [CR#200.1] lists fifteen parts; this
+||| record carries the five the grammar has anything to say about (name,
+||| mana cost, type line, text box, power and toughness) and leaves the
+||| rest to the printer — illustration, expansion symbol, collector
+||| number and their neighbours are not language.
+|||
+||| What the container BUYS is the question no ability line can answer
+||| about itself. [CR#113.3a] makes the spell ability a fact about the
+||| card ("any text on an instant or sorcery spell …"), so `Ability.Spell`
+||| could exist as a row but could not be gated until something knew the
+||| type line; `cardAbilityOk` is that gate and the reason this type
+||| exists at all.
+|||
+||| Core's shape is `deckmaste_semantics/src/card.rs`'s `CardFace`, and
+||| the divergences are three and each is measured. Core keeps
+||| `types`/`subtypes` as two flat fields where this carries chapter
+||| nineteen's `TypeLine` record, which is the same two lists under one
+||| name and shared with the two clause readers. Core carries
+||| `color_indicator`, `loyalty` and `defense`; none is written here —
+||| the colour indicator is a printed dot and not language ([CR#204.1]),
+||| and the loyalty pair is ledgered with the planeswalker type and its
+||| bracketed cost symbols. And core's `Card` wraps `CardFace` in a
+||| two-faced enum ([CR#712.8] gives each face its own characteristics);
+||| a face is what this record is, and the layouts are the engine's.
+|||
+||| The NAME is a `String` and the one field with no grammar in it,
+||| carried for `TokenChars`' reason at a second site: [CR#201.1] makes
+||| it a printed part, and modern oracle templating writes "this
+||| creature" rather than the name in the text box, so nothing here
+||| reads it back.
+public export
+-- spelling: (construction-owned -- the card's printed layout rather than
+-- a sentence: the name, then the mana cost, then the type line
+-- (supertypes, card types, an em dash and the subtypes when written),
+-- then the text box's lines one per ability, then the P/T pair as
+-- "<power>/<toughness>". Never spelled inside another construction)
+record Card where
+  constructor MkCard
+  name : String
+  cost : Maybe ManaCost
+  supers : List Supertype
+  line : TypeLine
+  text : List Ability
+  pt : Maybe (Nat, Nat)
+
+-- (The container's four demands are NOT gathered into one witness, and
+-- the reason is the pin discipline: a gathering type would report its
+-- own name whichever demand refused, where four separate ones let a
+-- `failing` block say which question the card failed. They are threaded
+-- to the construction site by the `card` macro instead.)

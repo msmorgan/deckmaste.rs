@@ -130,6 +130,50 @@ public export
 handZ : ZoneExpr bs
 handZ = ZoneAt Hand Bare
 
+-- "the stack" as a zone phrase — never a destination ([CR#405.1] puts a
+-- cast card there by the casting itself, and `DestOk` has no row), only
+-- the zone a description names.
+-- spelling: (construction-owned -- the zone word is UNSPELLED wherever a
+-- description carries it, the carrier noun "spell" standing for the
+-- whole phrase [CR#112.1])
+public export
+stackZ : ZoneExpr bs
+stackZ = ZoneAt Stack Bare
+
+-- "[a] spell" — the stack's carrier noun ([CR#112.1]: "a spell is a card
+-- on the stack"), which is why the phrase is a ZONE clause and not a
+-- head word of its own: the same object is a card everywhere else and a
+-- spell only here, exactly as `InZone graveyardZ` writes "card in a
+-- graveyard".
+-- spelling: ["spell"], kind: Nominal (InZone stackZ, whose zone word is
+-- unspelled -- see Zone.Stack)
+public export
+spell : Predicate bs Object
+spell = InZone stackZ
+
+-- A whole CARD, with the container's four demands threaded to the call
+-- site — the record itself carries no gates, records having no room for
+-- one, so this is where a card term proves itself well formed.
+-- spelling: (construction-owned -- pass-through to Card's own printed
+-- layout; see Card)
+public export
+card : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) ->
+       (line : TypeLine) -> (text : List Ability) -> (stats : Maybe (Nat, Nat)) ->
+       {auto 0 ln : CardLine line} ->
+       {auto 0 tx : CardText line text} ->
+       {auto 0 pts : CardPt line stats} ->
+       {auto 0 mc : CardCost line cost} ->
+       Card
+card name cost supers line text stats = MkCard name cost supers line text stats
+
+-- "counter [n]" ([CR#701.6a])
+-- spelling: ["counter <Param(0)>"], kind: Sentence (CounterSpell -- see
+-- Effect.CounterSpell)
+public export
+counterSpell : (n : Noun bs Object) ->
+               {auto 0 zn : ZoneFits (nounZone n) (Just Stack)} -> Effect bs
+counterSpell n = CounterSpell n {zn}
+
 -- "graveyard" — the sort-only form, as `handZ`.
 -- spelling: ["graveyard"], kind: Nominal (bare sort-only form, see handZ)
 public export
@@ -390,6 +434,53 @@ public export
 exile : Noun bs Object -> Effect bs
 exile n = Composite Exile (Move n exileZ) {ok = ExileB}
 
+-- "put [n] onto the battlefield" — the placement with no adverbial after
+-- it, which is what `Move … battlefieldZ` has always spelled; named so
+-- the three ridden forms below read as its siblings.
+-- spelling: ["put <Param(0)> onto the battlefield"], kind: Sentence
+-- (Move … battlefieldZ with the empty rider bundle -- see MoveRiders)
+public export
+putOntoBattlefield : (n : Noun bs Object) ->
+                     {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
+                     Effect bs
+putOntoBattlefield n = Move n battlefieldZ
+
+-- "put [n] onto the battlefield tapped" — three hundred fifteen lines,
+-- the rider family's centre ([CR#110.5b] is the rule it overrides).
+-- spelling: ["put <Param(0)> onto the battlefield tapped"], kind: Sentence
+public export
+putOntoBattlefieldTapped : (n : Noun bs Object) ->
+                           {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
+                           Effect bs
+putOntoBattlefieldTapped n =
+  Move n battlefieldZ {riders = MkMoveRiders [EntersTapped] Nothing}
+
+-- "put [n] onto the battlefield tapped and attacking" — nineteen lines
+-- ([CR#506.3a]); the token twin is `createTappedAttacking`, and both
+-- read chapter nineteen's `ridersOk` shapes.
+-- spelling: ["put <Param(0)> onto the battlefield tapped and attacking"],
+-- kind: Sentence
+public export
+putOntoBattlefieldTappedAttacking :
+  (n : Noun bs Object) ->
+  {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
+  Effect bs
+putOntoBattlefieldTappedAttacking n =
+  Move n battlefieldZ {riders = MkMoveRiders [EntersTapped, EntersAttacking] Nothing}
+
+-- "put [n] onto the battlefield under your control" — a hundred
+-- twenty-seven of the hundred thirty-five control lines, the override of
+-- [CR#110.2a]'s default made explicit.
+-- spelling: ["put <Param(0)> onto the battlefield under your control"],
+-- kind: Sentence
+public export
+putOntoBattlefieldUnderYourControl :
+  (n : Noun bs Object) ->
+  {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
+  Effect bs
+putOntoBattlefieldUnderYourControl n =
+  Move n battlefieldZ {riders = MkMoveRiders [] (Just You)}
+
 -- "[agent] sacrifice(s) [n]" ([CR#701.21a]) — one macro per lemma: the
 -- imperative spells `You` explicitly, inflection is the frame's. The
 -- performer is the sacrificed permanent's controller [CR#701.21a]; no
@@ -529,6 +620,19 @@ asLongAs : (c : Condition bs) -> (se : StaticEffect bs) ->
            {auto 0 nn : NotConditional se} -> StaticEffect bs
 asLongAs c se = Conditionally c se {nn}
 
+-- "[statement] unless [condition]" — the SAME wrapper under its second
+-- marking word, which is why the macro takes the POSITIVE condition and
+-- negates it: "unless" carries the negation, so what the caller writes
+-- is what the card prints. A hundred fifty lines ("can't … unless" a
+-- hundred eleven, "enters tapped unless" thirty-nine).
+-- spelling: ["<Param(1)> unless <Param(0)>"], kind: Sentence
+-- (Conditionally (NotCond …) … {marking = Unless} -- see CondMarking)
+public export
+unlessSo : (c : Condition bs) -> (se : StaticEffect bs) ->
+           {auto 0 ng : CondNegatable c} ->
+           {auto 0 nn : NotConditional se} -> StaticEffect bs
+unlessSo c se = Conditionally (NotCond c) se {marking = Unless} {nn}
+
 -- "[n] enters tapped" ([CR#603.6d]) — the entry rider as a line, the
 -- one rider a permanent's own text writes.
 -- spelling: ["<Param(0)> enters tapped"], kind: Sentence
@@ -538,6 +642,18 @@ entersTapped : (n : Noun bs Object) ->
                {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                StaticEffect bs
 entersTapped n = EntersRider n EntersTapped {zn}
+
+-- "[n] enters with [k] [kind] counters on it" ([CR#603.6d,614.1d]) —
+-- the other entry replacement, three hundred eighty-six lines.
+-- spelling: ["<Param(0)> enters with <Param(1)> <Param(2)> counter(s) on
+-- it"], kind: Sentence (EntersWithCounters -- see
+-- StaticEffect.EntersWithCounters)
+public export
+entersWithCounters : (n : Noun bs Object) -> (k : Nat) -> (kind : CounterKind) ->
+                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                     {auto 0 wc : WrittenCount {bs} (Lit k)} ->
+                     StaticEffect bs
+entersWithCounters n k kind = EntersWithCounters n (Lit k) kind {zn}
 
 -- "[n] gets [+p/+t] [duration]" — the stat change and its adverbial,
 -- the envelope's two halves under one name. Each grant macro threads

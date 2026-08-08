@@ -1653,6 +1653,213 @@ anointerOfValor =
     (mayWhen You (Pay You (Mana [generic 3]))
                  (PutCounters (Lit 1) PlusOnePlusOne (That (TypeW Creature))))
 
+-- ===== The card container round: arrival riders =====
+
+-- "{1}, {T}: You may put a land card from your hand onto the battlefield
+-- tapped." (Zimone, Quandrix Prodigy's first ability) — the arrival
+-- rider's centre, three hundred fifteen lines. The adverbial rides the
+-- PLACEMENT and is not a second verb: [CR#110.5b] makes untapped the
+-- default a permanent enters with "unless a spell or ability says
+-- otherwise", and this is the sentence saying otherwise.
+zimoneQuandrixProdigy : Ability
+zimoneQuandrixProdigy =
+  Activated (Compound [Mana [generic 1], TapSymbol])
+            (may You (putOntoBattlefieldTapped
+                        (a (And [land, InZone (handOf You)]))))
+
+-- "Whenever this creature attacks, you may put a Soldier creature card
+-- from your hand onto the battlefield tapped and attacking."
+-- (Preeminent Captain's second line; its First strike line is a
+-- keyword) — the two entry riders COMBINED, which is why the bundle is
+-- a list and not a scalar. Nineteen lines, and [CR#506.3a] words the
+-- second one as an effect that "would put a … permanent onto the
+-- battlefield attacking".
+preeminentCaptain : Ability
+preeminentCaptain =
+  Triggered Whenever (Attacks This)
+    (may You (putOntoBattlefieldTappedAttacking
+                (a (And [HasSubtype Soldier, creature, InZone (handOf You)]))))
+
+-- "Put target creature card from a graveyard onto the battlefield under
+-- your control." (Hymn of Rebirth, the whole card's text) — the
+-- CONTROLLER override, a hundred twenty-seven of the hundred thirty-five
+-- control lines. [CR#110.2a] already gives the instructed player control
+-- of what they put onto the battlefield, so the phrase restates the
+-- default here and the other eight lines are the departures from it —
+-- which is why the slot is a `Maybe` and not a field.
+hymnOfRebirth : Effect []
+hymnOfRebirth =
+  putOntoBattlefieldUnderYourControl
+    (target (And [creature, InZone graveyardZ]))
+
+-- "This creature can't attack unless you control an artifact."
+-- (Desperate Castaways, the whole card's text) — the MARKING WORD
+-- chapter twenty-eight measured a hundred fifty lines behind, and the
+-- structure it needed was already built: this is `asLongAs` over a
+-- negated condition with the negation spelled on the subordinator
+-- instead of inside the clause. A hundred eleven "can't … unless"
+-- lines, and this is the shape all of them have.
+desperateCastaways : Ability
+desperateCastaways =
+  Static (unlessSo (Exists (And [artifact, ControlledBy You]))
+                   (Cant thisCreature Attack Agent))
+
+-- "{3}{B}: Destroy target blocking creature at end of combat."
+-- (Silent Assassin, the whole card's text) — the SIXTH turn part.
+-- [CR#511.2] says what "at end of combat" names in as many words:
+-- abilities that trigger there "trigger as the end of combat step
+-- begins", so it is a part beginning like the other five and only the
+-- surface is short — the part word carries its own boundary noun, which
+-- is why [CR#513.1a] had to errata the end step's identical wording ("at
+-- end of turn") and left this one alone. The DELAYED clause is the
+-- bench's witness rather than the eleven trigger headers, because every
+-- one of those wants a blocking-relation predicate or a combat lookback.
+silentAssassin : Ability
+silentAssassin =
+  Activated (Mana [generic 3, pip Black])
+            (Delayed (BeginningOf EndOfCombat Nothing)
+                     (destroy (target (And [Blocking, creature]))))
+
+-- "This creature enters with four +1/+1 counters on it." (Workhorse's
+-- first line; its mana ability is a second line and wants a production
+-- clause) — the ledger's enters-with-COUNTERS entry, three hundred
+-- eighty-six lines, and the re-check that opened it: the blocker was
+-- recorded as a missing amount in `TokenRider`, and the amount was never
+-- going to fit there — that enum is shared with an unindexed record.
+-- Put in its own row instead, the line needs no new vocabulary at all,
+-- the count being `WrittenCount`'s and the kind `CounterKind`'s.
+workhorse : Ability
+workhorse = Static (entersWithCounters thisCreature 4 PlusOnePlusOne)
+
+-- ===== The card container round: the spell carrier =====
+
+-- "Counter target spell." (Counterspell, the whole card's text) — the
+-- verb the stack row exists for, and fifty-two lines write exactly this
+-- sentence. The complement is a SPELL and the word is the ZONE's:
+-- [CR#112.1] says "a spell is a card on the stack", so the noun phrase
+-- is a zone clause whose word goes unspelled, exactly as "card" goes
+-- unspelled under a graveyard clause.
+counterspell : Effect []
+counterspell = counterSpell (target spell)
+
+-- "Whenever you cast a creature spell, draw a card." (Beast Whisperer,
+-- the whole card's text) — the CAST event, chapter twenty-eight's
+-- largest unminted family at a thousand and sixty-nine headers. Two
+-- noun slots, and the complement needs no vocabulary of its own: "a
+-- creature spell" is the type word under the stack clause.
+beastWhisperer : Ability
+beastWhisperer =
+  Triggered Whenever (Casts You (a (And [creature, spell]))) drawACard
+
+-- "You may cast this card from your graveyard." (Skaab Ruinator's third
+-- line; its additional-cost line is [CR#118.8]'s and its Flying line a
+-- keyword) — the card chapter twenty-eight named by name as waiting for
+-- this. What it was waiting for turned out to be two smaller things
+-- than a spell carrier: the VERB, which [CR#604.6] brackets as a slot
+-- and [CR#701.5b] frees from the complement's kind ("to cast a card is
+-- to cast it as a spell"), and the SOURCE-zone slot, "this card"
+-- projecting no zone of its own for the derivation to read.
+skaabRuinator : Ability
+skaabRuinator =
+  Static (MayPlay You This {verb = Cast} {from = Just (graveyardOf You)})
+
+-- ===== The card container round: "this way" =====
+
+-- "Exile the top five cards of your library. You may play cards exiled
+-- this way until the end of your next turn." (Escape to the Wilds' first
+-- line; its second, "You may play an additional land this turn", is the
+-- play-COUNT and has no row) — the participial back-reference, and the
+-- two things it needed. The PLURAL participle read, because the actions
+-- this construction reads back are group actions and `verbedMatch`
+-- refused every `ManyOf` binding; and the MARKING, because "this way" is
+-- the same read as "the exiled cards" wearing a deictic instead of a
+-- prefix — one construction, two surfaces, and under this grammar's
+-- `= 1` uniqueness there is never a second stamp for the deictic to
+-- disambiguate against.
+escapeToTheWilds : Effect []
+escapeToTheWilds =
+  Sequentially [exile (topCards 5),
+                Continuously
+                  (MayPlay You (ThoseVerbed Exile CardW {marking = ThisWay}))
+                  (Just (Until (EndOf Turn (Just Yours))))]
+
+-- ===== The card container round: six WHOLE CARDS =====
+--
+-- Everything above this point is a fragment: a clause, a sentence, an
+-- ability line. These six are the first terms here that are a printed
+-- CARD top to bottom — name, mana cost, type line, every line of the
+-- text box, and the power and toughness — one per container shape.
+-- Where a part is elided the comment says which and why.
+
+-- Scathe Zombies {2}{B}, Creature — Zombie, 2/2, no rules text. The
+-- VANILLA card, and the shape that shows what the container is: an
+-- empty text box is a card with nothing to say, not a card that failed
+-- to be written. Nothing elided.
+scatheZombies : Card
+scatheZombies = card "Scathe Zombies" (Just [generic 2, pip Black]) []
+                     (MkTypeLine [Zombie] [Creature]) [] (Just (2, 2))
+
+-- Rorix Bladewing {3}{R}{R}{R}, Legendary Creature — Dragon, 6/5,
+-- "Flying, haste". The FRENCH VANILLA card: two keyword lines printed
+-- as one comma-joined line, which the text box holds as two abilities —
+-- [CR#702.1] has an object "list only the name of the ability as a
+-- 'keyword'", one name one ability. It is also the
+-- SUPERTYPE's witness — the one row [CR#205.4a]'s five that a card here
+-- needs. Nothing elided.
+rorixBladewing : Card
+rorixBladewing =
+  card "Rorix Bladewing" (Just [generic 3, pip Red, pip Red, pip Red])
+       [Legendary] (MkTypeLine [Dragon] [Creature])
+       [KeywordAbility Flying, KeywordAbility Haste] (Just (6, 5))
+
+-- Aladdin's Ring {8}, Artifact, "{8}, {T}: This artifact deals 4 damage
+-- to any target." The ACTIVATED-ability card, whole: a compound cost
+-- with a mana run and the tap symbol, and a damage clause with the
+-- class word in its recipient slot. Nothing elided.
+aladdinsRing : Card
+aladdinsRing =
+  card "Aladdin's Ring" (Just [generic 8]) [] (MkTypeLine [] [Artifact])
+       [Activated (Compound [Mana [generic 8], TapSymbol])
+                  (DealDamage thisArtifact (Lit 4) (target AnyTarget))]
+       Nothing
+
+-- Moonlit Wake {2}{W}, Enchantment, "Whenever a creature dies, you gain
+-- 1 life." The TRIGGERED-ability card, whole — the same ability line
+-- chapter twenty-eight benched, now with the card around it. Nothing
+-- elided.
+moonlitWakeCard : Card
+moonlitWakeCard =
+  card "Moonlit Wake" (Just [generic 2, pip White]) []
+       (MkTypeLine [] [Enchantment]) [moonlitWake] Nothing
+
+-- Anthem of Champions {G}{W}, Enchantment, "Creatures you control get
+-- +1/+1." The STATIC-ability card, whole, and the shortest statement in
+-- the corpus that is one: [CR#604.1] "written as statements, and
+-- they're simply true". Nothing elided.
+anthemOfChampions : Card
+anthemOfChampions =
+  card "Anthem of Champions" (Just [pip Green, pip White]) []
+       (MkTypeLine [] [Enchantment])
+       [Static (Gets (AllOf creatureYouControl) 1 1)] Nothing
+
+-- Counterspell {U}{U}, Instant, "Counter target spell." The SPELL card,
+-- whole, and the one that needed the container to exist: the same
+-- sentence is a spell ability here and would be an activated ability's
+-- effect after a colon on a permanent, and [CR#113.3a] settles which by
+-- asking what the CARD is. Nothing elided.
+counterspellCard : Card
+counterspellCard =
+  card "Counterspell" (Just [pip Blue, pip Blue]) []
+       (MkTypeLine [] [Instant]) [Spell counterspell] Nothing
+
+-- Hymn of Rebirth {3}{G}{W}, Sorcery, "Put target creature card from a
+-- graveyard onto the battlefield under your control." A second spell
+-- card, and the arrival rider's whole-card witness at the same time.
+hymnOfRebirthCard : Card
+hymnOfRebirthCard =
+  card "Hymn of Rebirth" (Just [generic 3, pip Green, pip White]) []
+       (MkTypeLine [] [Sorcery]) [Spell hymnOfRebirth] Nothing
+
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
 -- "other" with no target before it: the presupposition has no witness.
@@ -4149,8 +4356,10 @@ failing "SpanOk"
 -- you could cast or play it from", and the battlefield is not one. The
 -- refusal is the exact inverse of `Cant`'s battlefield DEMAND, which is
 -- why the permissive twin could not be the prohibition with its polarity
--- flipped.
-failing "PlayableFrom"
+-- flipped. (The pin now names `PlaySource`, the witness that reads
+-- `playableFrom` on whichever of the two places states the zone — the
+-- complement's binding here, since no source phrase is written.)
+failing "PlaySource"
   badPlayFromBattlefield : Effect []
   badPlayFromBattlefield =
     Continuously (MayPlay You (a creature)) (Just thisTurn)
@@ -4338,3 +4547,235 @@ failing "OnBattlefield"
   badReflexiveTapsSacrificed : Effect []
   badReflexiveTapsSacrificed =
     Reflexively (sacrifice You (a creature)) (Tap It)
+
+-- ===== What a placement may arrive with =====
+
+-- An arrival rider is BATTLEFIELD-only. [CR#110.5b] states the default
+-- the "tapped" rider overrides — permanents "enter the battlefield
+-- untapped … unless a spell or ability says otherwise" — and there is
+-- no such default anywhere else, a card in a graveyard being neither
+-- tapped nor untapped ([CR#110.5] gives STATUS to permanents). Zero
+-- corpus lines write a rider on any other destination.
+failing "RidersFit"
+  badMoveRidersToGraveyard : Effect []
+  badMoveRidersToGraveyard =
+    Move (target creature) graveyardZ
+         {riders = MkMoveRiders [EntersTapped] Nothing}
+
+-- …and the control override is refused there by the same gate, for
+-- [CR#109.4]'s reason rather than [CR#110.5b]'s: an object that is
+-- neither on the stack nor on the battlefield "aren't controlled by any
+-- player", so a hand arrival has no controller to name.
+failing "RidersFit"
+  badMoveControlToHand : Effect []
+  badMoveControlToHand =
+    Move (target creature) handZ {riders = MkMoveRiders [] (Just You)}
+
+-- The entry riders keep chapter nineteen's SHAPES, sharing `ridersOk`
+-- with the token with-clause rather than re-minting one: attacking
+-- alone is written zero times in either frame, a creature put onto the
+-- battlefield attacking being put there tapped as well.
+failing "RidersOk"
+  badMoveAttackingUntapped : Effect []
+  badMoveAttackingUntapped =
+    Move (target creature) battlefieldZ
+         {riders = MkMoveRiders [EntersAttacking] Nothing}
+
+-- …and the order is fixed there too, no line writing "attacking and
+-- tapped".
+failing "RidersOk"
+  badMoveRidersReversed : Effect []
+  badMoveRidersReversed =
+    Move (target creature) battlefieldZ
+         {riders = MkMoveRiders [EntersAttacking, EntersTapped] Nothing}
+
+-- ONE controller ([CR#109.4] — an object on the battlefield has a
+-- controller, not controllers), which is `ControlledBy`'s own demand at
+-- a second site. "Under their owners' control" is two lines and a
+-- plural relational this vocabulary does not spell.
+failing "CtrlSingular"
+  badMoveRidersPluralController : Effect []
+  badMoveRidersPluralController =
+    Move (target creature) battlefieldZ
+         {riders = MkMoveRiders [] (Just (AllOf otherPlayer))}
+
+-- ===== What a card may be made of, what a spell carrier may hold, and
+-- ===== what a participle may be marked with
+
+-- A permanent card's text is never a SPELL ability. [CR#113.3a] defines
+-- the category by when it is followed — "while an instant or sorcery
+-- spell is resolving" — and a creature card's text is never that. This
+-- is the container's central gate seen from the side the rule states.
+failing "CardText"
+  badSpellAbilityOnPermanent : Card
+  badSpellAbilityOnPermanent =
+    card "" (Just [pip Blue]) [] (MkTypeLine [] [Creature])
+         [Spell drawACard] (Just (1, 1))
+
+-- …and a spell card's text is not a STATIC ability, on the same rule's
+-- other clause: [CR#113.3a] admits one only if it "fits the criteria
+-- described" [CR#113.6], and that rule says abilities of an instant or
+-- sorcery "usually function only while that object is on the stack"
+-- where every `StaticEffect` row here establishes a continuous effect on
+-- the battlefield.
+failing "CardText"
+  badStaticOnSorcery : Card
+  badStaticOnSorcery =
+    card "" (Just [pip Green]) [] (MkTypeLine [] [Sorcery])
+         [Static (Gets (AllOf creatureYouControl) 1 1)] Nothing
+
+-- The keyword row is shut on a spell card by MEASUREMENT rather than by
+-- rule: the three keywords this file carries are [CR#702]'s flying,
+-- trample and haste, all of them abilities of a permanent in combat, and
+-- no instant or sorcery is printed with one.
+failing "CardText"
+  badKeywordOnInstant : Card
+  badKeywordOnInstant =
+    card "" (Just [pip Red]) [] (MkTypeLine [] [Instant])
+         [KeywordAbility Flying] Nothing
+
+-- A creature card writes its two numbers ([CR#208.1] — "a creature card
+-- has two numbers separated by a slash printed in its lower right
+-- corner"), which is `tokenPtOk`'s demand at the printed card.
+failing "CardPt"
+  badCreatureCardNoPt : Card
+  badCreatureCardNoPt =
+    card "" (Just [pip Green]) [] (MkTypeLine [] [Creature]) [] Nothing
+
+-- A land card writes NO mana cost ([CR#202.1b]: "some objects have no
+-- mana cost. This normally includes all land cards"), the absence being
+-- an unpayable cost [CR#118.6] rather than an omission.
+failing "CardCost"
+  badLandWithManaCost : Card
+  badLandWithManaCost =
+    card "" (Just [generic 1]) [] (MkTypeLine [] [Land]) [] Nothing
+
+-- A card's type line says SOMETHING — [CR#205.1] has it contain "the
+-- card's card type(s)" without qualification, where the subtypes and
+-- supertypes are there "if applicable".
+failing "CardLine"
+  badCardNoTypes : Card
+  badCardNoTypes =
+    card "" (Just [generic 1]) [] (MkTypeLine [] []) [] Nothing
+
+-- …and it writes them in the printed ORDER, which is `typesOrdered`'s
+-- rank at its third reader: "artifact creature" is five hundred
+-- ninety-four lines and "creature artifact" none.
+failing "CardLine"
+  badCardTypeOrder : Card
+  badCardTypeOrder =
+    card "" (Just [generic 2]) [] (MkTypeLine [] [Creature, Artifact]) []
+         (Just (2, 2))
+
+-- A clause cannot GRANT a spell ability, and this refusal is a category
+-- error rather than the quotation gap its three siblings carry: a
+-- `Gains` clause grants to a permanent on the battlefield and a spell
+-- ability is something an instant or sorcery spell has while it resolves
+-- ([CR#113.3a]).
+failing "Grantable"
+  badGainsSpellAbility : Effect []
+  badGainsSpellAbility =
+    gains (target creature) (Spell drawACard) Nothing
+
+-- The countering's complement is a SPELL, and the zone is what says so
+-- ([CR#112.1] — "a spell is a card on the stack"). A battlefield
+-- permanent has already resolved and there is nothing left to cancel.
+failing "ZoneFits"
+  badCounterPermanent : Effect []
+  badCounterPermanent = counterSpell (target creature)
+
+-- Cancelling somebody else's spell is not a PAYMENT. [CR#602.1a] makes
+-- an activation cost what the activator pays, and the cost table's
+-- measurement is the same one finding 159 made of destroy: zero corpus
+-- lines write a counter before a colon.
+failing "CostAction"
+  badCounterAsCost : Ability
+  badCounterAsCost =
+    Activated (Do (counterSpell (target spell))) drawACard
+
+-- The stack is not a place one plays a card FROM: [CR#112.1] makes an
+-- object there a spell, and a spell has already been cast. That is the
+-- battlefield refusal one step earlier.
+failing "PlaySource"
+  badPlayFromStack : Effect []
+  badPlayFromStack =
+    Continuously (MayPlay You (a spell)) (Just thisTurn)
+
+-- "Cast" excludes the LAND, and the rule is [CR#305.9]: "if an object is
+-- both a land and another card type, it can be played only as a land. It
+-- can't be cast as a spell." The general verb is what those lines write
+-- ("You may play lands from your graveyard").
+failing "CastableTy"
+  badCastALand : Effect []
+  badCastALand =
+    Continuously (MayPlay You (a (And [land, InZone (graveyardOf You)]))
+                             {verb = Cast})
+                 (Just thisTurn)
+
+-- A written source phrase must AGREE with what the complement already
+-- says: the permission's two ways of naming a zone are one fact, and
+-- `zoneFits` is the same silence-is-no-evidence reading every other
+-- zone demand uses.
+failing "PlaySource"
+  badPlayFromWrongZone : Effect []
+  badPlayFromWrongZone =
+    Continuously (MayPlay You (a (And [creature, InZone exileZ]))
+                             {from = Just (graveyardOf You)})
+                 (Just thisTurn)
+
+-- Nothing MOVES to the stack. [CR#601.2a] puts a card there as the first
+-- step of casting it, which is an action a player takes and not a
+-- placement a sentence writes — core excludes the same destination by
+-- name (`Destination`'s `exclude(Library, Stack)`).
+failing "DestOk"
+  badMoveToStack : Effect []
+  badMoveToStack = Move (target creature) stackZ
+
+-- "Unless" IS the negation, so it takes a negated condition and spells
+-- the positive underneath. A positive condition under the word would be
+-- the negation written twice, which no line writes.
+failing "MarkingOk"
+  badUnlessOnPositive : Ability
+  badUnlessOnPositive =
+    Static (Conditionally (Exists (And [artifact, ControlledBy You]))
+                          (Cant thisCreature Attack Agent)
+                          {marking = Unless})
+
+-- The end-of-combat header takes no POSSESSOR. Zero lines write "at your
+-- end of combat" or its neighbours; the four "end of combat on your …"
+-- lines are [CR#511.2]'s other reading, the phase-endpoint duration that
+-- `EndOf Combat` already spells.
+failing "PartTriggerable"
+  badTriggerAtYourEndOfCombat : Ability
+  badTriggerAtYourEndOfCombat =
+    Triggered At (BeginningOf EndOfCombat (Just Yours)) drawACard
+
+-- …and the sixth part names no duration endpoint at all, [CR#511.2]
+-- putting "until end of combat" at the end of the combat PHASE, which is
+-- `Combat`'s cell. One phrase, one slot.
+failing "SpanOk"
+  badUntilEndOfCombatStep : Effect []
+  badUntilEndOfCombatStep =
+    gets (target creature) 1 1 (Just (Until (StartOf EndOfCombat Nothing)))
+
+-- The participle's two surfaces are not interchangeable per verb.
+-- "Destroyed this way" is fifty-one lines and "the destroyed [noun]" is
+-- zero, so the destroy row writes the deictic only — which is what makes
+-- this a table and not a free slot.
+failing "VerbedMarkingOk"
+  badDestroyedAttributive : Effect []
+  badDestroyedAttributive =
+    Sequentially [destroy (target creature),
+                  exile (TheVerbed Destroy CardW {marking = Attributive})]
+
+-- The controller relation still seeds the BATTLEFIELD, and the stack
+-- row's arrival is what makes that a measured refusal rather than a
+-- caveat: [CR#109.4] gives stack objects a controller too, so "target
+-- spell you control" is real English (seventy-one lines, plus six for an
+-- opponent and two negated), and the phrase is refused because
+-- `seedZone` names one zone where the relation constrains to two. Every
+-- one of those lines is copy machinery, which is why the shape is
+-- ledgered rather than repaired here.
+failing "ZoneCoherent"
+  badControlledSpell : Predicate [] Object
+  badControlledSpell = And [spell, ControlledBy You]
