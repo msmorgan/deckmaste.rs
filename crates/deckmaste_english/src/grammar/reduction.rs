@@ -2218,7 +2218,9 @@ pub(super) fn reduce_generated(
     let construction = rule.group.constructions.get(rule.construction)?;
     let form = construction.forms.get(rule.form)?;
     let (preposition, mut child_index) = match rule.context {
-        super::rules::GeneratedRuleContext::Value => (None, 0_usize),
+        super::rules::GeneratedRuleContext::Value
+        | super::rules::GeneratedRuleContext::ObjectGap
+        | super::rules::GeneratedRuleContext::ReducedRecipientPassive => (None, 0_usize),
         super::rules::GeneratedRuleContext::SharedPreposition => {
             let Features::Preposition(preposition) = children.first()?.features else {
                 return None;
@@ -2257,10 +2259,16 @@ pub(super) fn reduce_generated(
     if !generated_surface_sequence_scalars_match(rule, &fields) {
         return None;
     }
+    let feature_target = match rule.context {
+        super::rules::GeneratedRuleContext::Value
+        | super::rules::GeneratedRuleContext::SharedPreposition => "features",
+        super::rules::GeneratedRuleContext::ObjectGap => "object_gap",
+        super::rules::GeneratedRuleContext::ReducedRecipientPassive => "reduced_passive",
+    };
     let typed_features = super::generated::typed_feature_projection(
         rule.group,
         rule.construction,
-        "features",
+        feature_target,
         &fields,
     );
     let noun_phrase_features = match typed_features {
@@ -2268,7 +2276,12 @@ pub(super) fn reduce_generated(
         None => generated_construction_features(rule.group, construction, &fields)?,
     };
     let features = match (rule.context, preposition) {
-        (super::rules::GeneratedRuleContext::Value, None) => noun_phrase_features,
+        (
+            super::rules::GeneratedRuleContext::Value
+            | super::rules::GeneratedRuleContext::ObjectGap
+            | super::rules::GeneratedRuleContext::ReducedRecipientPassive,
+            None,
+        ) => noun_phrase_features,
         (super::rules::GeneratedRuleContext::SharedPreposition, Some(preposition)) => {
             generated_prepositional_coordination_features(
                 rule,

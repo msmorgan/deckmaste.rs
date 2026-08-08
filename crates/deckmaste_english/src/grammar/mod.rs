@@ -1,5 +1,10 @@
 pub(crate) mod ability;
 mod clause;
+pub(crate) use clause::PredicateAttachment;
+pub(crate) use clause::auxiliary_form;
+pub(crate) use clause::extend_predicate_features;
+pub(crate) use clause::fold_auxiliary_passive;
+pub(crate) use clause::lowered_nominal_adjunct_kind;
 pub(crate) mod construction;
 mod opacity;
 
@@ -164,6 +169,26 @@ use crate::word::Vocabulary;
 use crate::word::WordMatch;
 use crate::word::surface_initial_sound;
 
+pub(crate) fn predicate_features_are_argument_complete(features: &Features) -> bool {
+    matches!(
+        features,
+        Features::VerbPhrase {
+            passive,
+            object,
+            indirect_object,
+            selected_preposition,
+            frame,
+            ..
+        } if clause::predicate_arguments_complete(
+            *frame,
+            *passive,
+            *object,
+            *indirect_object,
+            *selected_preposition,
+        )
+    )
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct VerbPhrase {
     auxiliaries: Vec<AuxiliaryInstance>,
@@ -190,7 +215,7 @@ pub(crate) struct VerbAnalysis {
     reason = "subordinate verb dependents are staged for later grammar milestones"
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum VerbDependent {
+pub(crate) enum VerbDependent {
     DirectObject(NounPhrase),
     IndirectObject(NounPhrase),
     PredicateComplement(Phrase),
@@ -251,6 +276,141 @@ impl VerbPhrase {
             && !self.distributive_each
     }
 
+    pub(crate) fn declaration_with_auxiliary(
+        mut predicate: Self,
+        auxiliary: AuxiliaryInstance,
+    ) -> Self {
+        predicate.auxiliaries.insert(0, auxiliary);
+        predicate
+    }
+
+    pub(crate) fn declaration_auxiliary_parts(&self) -> Option<(AuxiliaryInstance, Self)> {
+        let mut predicate = self.clone();
+        let auxiliary = predicate.auxiliaries.first().copied()?;
+        predicate.auxiliaries.remove(0);
+        Some((auxiliary, predicate))
+    }
+
+    pub(crate) fn declaration_proform(auxiliary: AuxiliaryInstance) -> Self {
+        Self {
+            auxiliaries: vec![auxiliary],
+            first_auxiliary_contracted_with_subject: false,
+            preverb_modifiers: Vec::new(),
+            verb: VerbInstance {
+                verb: crate::word::Verb::Word(Vocab::Do),
+                slot: VerbSlot::Infinitive,
+            },
+            frame: crate::word::PROFORM_PREDICATE_FRAMES[0],
+            dependents: Vec::new(),
+            distributive_each: false,
+        }
+    }
+
+    pub(crate) fn declaration_proform_part(&self) -> Option<AuxiliaryInstance> {
+        (self.frame.is_proform()
+            && self.verb.verb == crate::word::Verb::Word(Vocab::Do)
+            && self.verb.slot == VerbSlot::Infinitive
+            && self.auxiliaries.len() == 1
+            && !self.first_auxiliary_contracted_with_subject
+            && self.preverb_modifiers.is_empty()
+            && self.dependents.is_empty()
+            && !self.distributive_each)
+            .then(|| self.auxiliaries[0])
+    }
+
+    pub(crate) fn declaration_last_dependent_parts(&self) -> Option<(Self, VerbDependent)> {
+        let mut predicate = self.clone();
+        let dependent = predicate.dependents.pop()?;
+        Some((predicate, dependent))
+    }
+
+    pub(crate) fn declaration_into_dependent_projection(mut self) -> (Vec<VerbDependent>, Self) {
+        let dependents = std::mem::take(&mut self.dependents);
+        (dependents, self)
+    }
+
+    pub(crate) fn declaration_from_dependent_projection(
+        mut shell: Self,
+        dependents: Vec<VerbDependent>,
+    ) -> Self {
+        shell.dependents = dependents;
+        shell
+    }
+
+    pub(crate) fn declaration_frame(&self) -> PredicateFrame {
+        self.frame
+    }
+
+    pub(crate) fn declaration_core_features(&self) -> Option<Features> {
+        let mut features = if self.frame.is_proform() {
+            let auxiliary = self.declaration_proform_part()?;
+            crate::constructions::predicate::reduce_verb_phrase_auxiliary_proform_features(
+                &Features::Auxiliary(auxiliary.into()),
+            )?
+        } else {
+            crate::grammar::reduction::reduce_verb_phrase_base(&Features::Verb {
+                slot: self.verb.slot,
+                frame: self.frame,
+                head_is_copular: self.verb.verb == crate::word::Verb::Word(Vocab::Be),
+                object_gap_requires_rules_object: false,
+            })?
+        };
+        for dependent in &self.dependents {
+            let attachment = match dependent {
+                VerbDependent::DirectObject(_) => PredicateAttachment::DirectObject,
+                VerbDependent::IndirectObject(_) => PredicateAttachment::IndirectObject,
+                VerbDependent::Temporal(_) => {
+                    PredicateAttachment::NominalAdjunct(BareNominalAdjunct::Temporal)
+                }
+                VerbDependent::Manner(_) => {
+                    PredicateAttachment::NominalAdjunct(BareNominalAdjunct::Manner)
+                }
+                VerbDependent::Adverbial(Phrase::AdjectivePhrase(_)) => {
+                    PredicateAttachment::AdjectiveComplement
+                }
+                VerbDependent::PredicateComplement(Phrase::PrepositionalPhrase(pp)) => {
+                    PredicateAttachment::Prepositional(pp.head().preposition)
+                }
+                VerbDependent::Prepositional(pp) => {
+                    PredicateAttachment::Prepositional(pp.head().preposition)
+                }
+                VerbDependent::Infinitive(_) => PredicateAttachment::InfinitiveComplement,
+                _ => return None,
+            };
+            features = extend_predicate_features(&features, attachment)?;
+        }
+        if !self.frame.is_proform() {
+            for auxiliary in self.auxiliaries.iter().rev() {
+                features = crate::constructions::predicate::reduce_verb_phrase_auxiliary_features(
+                    &Features::Auxiliary((*auxiliary).into()),
+                    &features,
+                )?;
+            }
+        }
+        Some(features)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn declaration_core_arguments_complete(&self) -> bool {
+        matches!(
+            self.declaration_core_features(),
+            Some(Features::VerbPhrase {
+                passive,
+                object,
+                indirect_object,
+                selected_preposition,
+                frame,
+                ..
+            }) if clause::predicate_arguments_complete(
+                frame,
+                passive,
+                object,
+                indirect_object,
+                selected_preposition,
+            )
+        )
+    }
+
     #[cfg(test)]
     pub(crate) fn test_add_preverb_modifier(&mut self, modifier: PreverbModifier) {
         self.preverb_modifiers.push(modifier);
@@ -258,10 +418,21 @@ impl VerbPhrase {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct InfinitiveClause {
+pub(crate) struct InfinitiveClause {
     negated: bool,
     marker: InfinitiveMarker,
     predicate: Box<VerbPhrase>,
+}
+
+impl InfinitiveClause {
+    #[cfg(test)]
+    pub(crate) fn declaration_to(predicate: VerbPhrase) -> Self {
+        Self {
+            negated: false,
+            marker: InfinitiveMarker::To,
+            predicate: Box::new(predicate),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -317,6 +488,10 @@ impl From<AuxiliaryInstance> for AuxiliaryFeatures {
 }
 
 impl AuxiliaryFeatures {
+    pub(crate) const fn inflection(self) -> AuxiliaryInflection {
+        self.inflection
+    }
+
     const fn with_contraction(
         self,
         contraction: crate::features::Contraction,
@@ -611,6 +786,8 @@ pub(crate) enum EnglishLexicalSlot {
     Noun(NounUsage),
     PossessiveNoun,
     Verb(VerbSlot),
+    /// All lexical verb slots behind the generated predicate identity adapter.
+    AnyVerb,
     /// A past participle whose lexical frame licenses recipient passivization.
     /// The scan-time frame filter is the production's first categorical gate;
     /// generic verb phrases are never predicted from the nominal attachment.
@@ -799,6 +976,7 @@ impl EnglishLexicalSlot {
             | Self::Noun(_)
             | Self::PossessiveNoun
             | Self::Verb(_)
+            | Self::AnyVerb
             | Self::ReducedRecipientPassiveParticiple
             | Self::Adjective
             | Self::ColorWord
@@ -899,6 +1077,7 @@ impl EnglishLexicalSlot {
             | Self::Noun(_)
             | Self::PossessiveNoun
             | Self::Verb(_)
+            | Self::AnyVerb
             | Self::ReducedRecipientPassiveParticiple
             | Self::Adjective
             | Self::ColorWord
@@ -2606,6 +2785,10 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 })
                 .collect(),
             EnglishLexicalSlot::Verb(verb_slot) => self.scan_verb(tokens, start, verb_slot),
+            EnglishLexicalSlot::AnyVerb => crate::word::VERB_SLOTS
+                .iter()
+                .flat_map(|slot| self.scan_verb(tokens, start, *slot))
+                .collect(),
             EnglishLexicalSlot::ReducedRecipientPassiveParticiple => self
                 .scan_verb(tokens, start, VerbSlot::PastParticiple)
                 .into_iter()

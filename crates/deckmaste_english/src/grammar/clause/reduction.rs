@@ -951,7 +951,7 @@ pub(crate) fn extend_predicate_features(
     reason = "attachment validation needs the coin-result category, not its value"
 )]
 #[derive(Debug, Clone, Copy)]
-pub(super) enum PredicateAttachment {
+pub(crate) enum PredicateAttachment {
     Adjunct,
     DirectObject,
     IndirectObject,
@@ -993,7 +993,7 @@ pub(super) enum PredicateAttachment {
 /// Returns `None` when the combination is ill-formed — a passive may keep a
 /// direct object only as a recipient passive's retained theme, and never keeps
 /// an explicit indirect object.
-pub(super) fn fold_auxiliary_passive(
+pub(crate) fn fold_auxiliary_passive(
     auxiliary: impl Into<super::AuxiliaryFeatures>,
     child_form: PredicateForm,
     child_passive: bool,
@@ -1017,7 +1017,7 @@ pub(super) fn fold_auxiliary_passive(
     Some(passive)
 }
 
-pub(super) fn predicate_arguments_complete(
+pub(in crate::grammar) fn predicate_arguments_complete(
     frame: PredicateFrame,
     passive: bool,
     object: PredicateObjectState,
@@ -2224,7 +2224,7 @@ fn coordination_agrees(first_features: &Features, next_features: &Features) -> b
         || hosted_imperative
 }
 
-pub(super) fn auxiliary_form(
+pub(crate) fn auxiliary_form(
     auxiliary: impl Into<super::AuxiliaryFeatures>,
     child: PredicateForm,
 ) -> Option<PredicateForm> {

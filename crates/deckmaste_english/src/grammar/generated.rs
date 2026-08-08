@@ -402,6 +402,18 @@ pub(super) fn typed_feature_projection(
         ("predicate", "features") => Some(
             crate::constructions::predicate::reduce_predicate_features(construction, fields),
         ),
+        ("predicate", "object_gap") => {
+            Some(crate::constructions::predicate::reduce_predicate_object_gap(construction, fields))
+        }
+        ("predicate", "reduced_passive") => Some(
+            crate::constructions::predicate::reduce_predicate_reduced_passive(construction, fields),
+        ),
+        ("predicate", "argument_complete") => Some(
+            crate::constructions::predicate::reduce_predicate_argument_complete(
+                construction,
+                fields,
+            ),
+        ),
         _ => None,
     }
 }
@@ -531,6 +543,8 @@ fn identity_slot(
         });
     }
     match (value_type, provider) {
+        ("VerbAnalysis", "LexicalVerb") => Ok(EnglishLexicalSlot::AnyVerb),
+        ("AuxiliaryInstance", "Auxiliary") => Ok(EnglishLexicalSlot::Auxiliary),
         ("NounInstance", "KnownNoun") => {
             Ok(EnglishLexicalSlot::Noun(crate::word::NounUsage::Either))
         }
@@ -970,6 +984,68 @@ pub(super) fn register_generated(
                         rhs.clone(),
                         generated_cost(construction),
                     );
+                    for (target, context, alternate_lhs) in [
+                        (
+                            "object_gap",
+                            GeneratedRuleContext::ObjectGap,
+                            Nonterminal::ObjectGapVerbPhrase,
+                        ),
+                        (
+                            "reduced_passive",
+                            GeneratedRuleContext::ReducedRecipientPassive,
+                            Nonterminal::ReducedRecipientPassive,
+                        ),
+                    ] {
+                        if !construction
+                            .feature_combinators
+                            .iter()
+                            .any(|feature| feature.target == target)
+                        {
+                            continue;
+                        }
+                        let alternate_rhs = rhs
+                            .iter()
+                            .map(|expected| match (context, *expected) {
+                                (
+                                    GeneratedRuleContext::ObjectGap,
+                                    Expected::Nonterminal(Nonterminal::VerbPhrase),
+                                ) => Expected::Nonterminal(Nonterminal::ObjectGapVerbPhrase),
+                                (
+                                    GeneratedRuleContext::ReducedRecipientPassive,
+                                    Expected::Nonterminal(Nonterminal::VerbPhrase),
+                                ) => Expected::Nonterminal(Nonterminal::ReducedRecipientPassive),
+                                (
+                                    GeneratedRuleContext::ReducedRecipientPassive,
+                                    Expected::Nonterminal(Nonterminal::NounPhrase),
+                                ) if construction.id == "verb_phrase_direct_object" => {
+                                    Expected::Nonterminal(Nonterminal::ReducedRecipientPassiveTheme)
+                                }
+                                (
+                                    GeneratedRuleContext::ReducedRecipientPassive,
+                                    Expected::Lexical(EnglishLexicalSlot::AnyVerb),
+                                ) => Expected::Lexical(
+                                    EnglishLexicalSlot::ReducedRecipientPassiveParticiple,
+                                ),
+                                _ => *expected,
+                            })
+                            .collect::<Vec<_>>();
+                        builder.add_generated_with_cost(
+                            RuleImpl::Generated(GeneratedRuleRef {
+                                group,
+                                construction: construction_index,
+                                form: form_index,
+                                sequence_atoms: present,
+                                context,
+                            }),
+                            ProductionId {
+                                construction: ConstructionId::new(construction.id),
+                                ordinal: form.ordinal,
+                            },
+                            alternate_lhs,
+                            alternate_rhs,
+                            generated_cost(construction),
+                        );
+                    }
                     if GeneratedFeatureCombinator::from_construction(construction)
                         .is_some_and(GeneratedFeatureCombinator::admits_shared_preposition)
                     {

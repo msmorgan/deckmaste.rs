@@ -45,6 +45,12 @@ mod lowering;
 mod reduction;
 mod rules;
 
+pub(crate) use reduction::PredicateAttachment;
+pub(crate) use reduction::auxiliary_form;
+pub(crate) use reduction::extend_predicate_features;
+pub(crate) use reduction::fold_auxiliary_passive;
+pub(in crate::grammar) use reduction::predicate_arguments_complete;
+
 #[cfg(test)]
 mod tests;
 
@@ -53,6 +59,7 @@ pub(super) use lowering::finish_infinitive;
 pub(super) use lowering::finish_reduced_recipient_passive;
 pub(super) use lowering::finish_simple_clause;
 pub(super) use lowering::lower_clause;
+pub(crate) use lowering::lowered_nominal_adjunct_kind;
 pub(super) use reduction::accepts_predicate_prefix;
 pub(super) use reduction::reduce_clause;
 pub(crate) use reduction::reduce_generated_recipient_passive_nominal_adjunct_features;

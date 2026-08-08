@@ -2532,7 +2532,7 @@ pub(super) const fn is_modal(auxiliary: Auxiliary) -> bool {
     )
 }
 
-pub(super) fn lowered_nominal_adjunct_kind(
+pub(crate) fn lowered_nominal_adjunct_kind(
     predicate: &VerbPhrase,
     phrase: &NounPhrase,
 ) -> Option<BareNominalAdjunct> {

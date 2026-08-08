@@ -39,6 +39,8 @@ pub(super) struct GeneratedRuleRef {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum GeneratedRuleContext {
     Value,
+    ObjectGap,
+    ReducedRecipientPassive,
     SharedPreposition,
 }
 

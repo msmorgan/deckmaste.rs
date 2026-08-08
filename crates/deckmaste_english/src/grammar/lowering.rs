@@ -279,7 +279,9 @@ fn lower_generated_construction(
     let form = construction.forms.get(rule.form)?;
     let mut children = children.into_iter();
     let preposition = match rule.context {
-        super::rules::GeneratedRuleContext::Value => None,
+        super::rules::GeneratedRuleContext::Value
+        | super::rules::GeneratedRuleContext::ObjectGap
+        | super::rules::GeneratedRuleContext::ReducedRecipientPassive => None,
         super::rules::GeneratedRuleContext::SharedPreposition => {
             let Lowered::Preposition(preposition) = children.next()? else {
                 return None;
@@ -346,7 +348,13 @@ fn lower_generated_construction(
     }
     let projected = project_generated_category(construction, value)?;
     match (rule.context, preposition, projected) {
-        (super::rules::GeneratedRuleContext::Value, None, projected) => Some(projected),
+        (
+            super::rules::GeneratedRuleContext::Value
+            | super::rules::GeneratedRuleContext::ObjectGap
+            | super::rules::GeneratedRuleContext::ReducedRecipientPassive,
+            None,
+            projected,
+        ) => Some(projected),
         (
             super::rules::GeneratedRuleContext::SharedPreposition,
             Some(preposition),
@@ -413,6 +421,10 @@ fn project_generated_category(
         let value = value.downcast::<Sentence>().ok()?;
         return Some(Lowered::Sentence(*value));
     }
+    if construction.category == "Verb" {
+        let value = value.downcast::<VerbAnalysis>().ok()?;
+        return Some(Lowered::Verb(*value));
+    }
     if construction.category == "VerbPhrase" {
         let value = value.downcast::<VerbPhrase>().ok()?;
         return Some(Lowered::VerbPhrase(*value));
@@ -462,6 +474,24 @@ fn erased_field(
 ) -> Option<deckmaste_construction_compiler::runtime::ErasedValue> {
     use deckmaste_construction_compiler::runtime::FieldKindData as K;
     match kind {
+        K::Identity {
+            value_type: "VerbAnalysis",
+            ..
+        } => {
+            let Lowered::Verb(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Identity {
+            value_type: "AuxiliaryInstance",
+            ..
+        } => {
+            let Lowered::Auxiliary(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
         K::Identity {
             value_type: "NounInstance",
             ..
@@ -599,6 +629,7 @@ fn erased_subtree(
     }
     match category {
         "Verb" => typed!(Verb, value),
+        "VerbPhrase" => typed!(VerbPhrase, value),
         "NounInstance" => typed!(Noun, value),
         "NounPhrase" => typed!(NounPhrase, value),
         "ReducedRecipientPassiveTheme" => {
