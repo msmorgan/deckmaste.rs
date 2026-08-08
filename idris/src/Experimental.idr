@@ -1157,10 +1157,9 @@ public export
 -- Madness.ron's parameterized "madness <Param(0)>")
 data Keyword = Haste | Flying | Trample
 
-public export
--- spelling: (construction-owned -- pass-through; the word is entirely
--- KeywordAbility's Keyword argument's own, see Keyword)
-data Ability = KeywordAbility Keyword
+-- (The `Ability` CONTAINER that carries these — the type above `Effect` —
+-- lives in the mutual block, its activated row needing `Cost` and
+-- `Effect`.)
 
 -- ===== Colors, subtypes, counters, and token characteristics =====
 
@@ -1189,6 +1188,19 @@ namespace Chroma
   -- never spelled alone)
   data Color = White | Blue | Black | Red | Green
 
+  ||| A color or the absence of one — the piece chapter nineteen minted
+  ||| `Color` without and named as the mana-symbol channel's ([CR#107.4c]:
+  ||| "{C}" is one colorless mana, and colorless is not a color
+  ||| [CR#105.1]). It lands where core puts it, beside `Color` in the same
+  ||| file (`deckmaste_core/src/color.rs`) rather than beside the symbols
+  ||| that consume it, and on the same ruling: a closed rules catalog, so
+  ||| both rows stand whether or not a bench line spells them.
+  public export
+  -- spelling: (component-owned -- never a word. Written inside a symbol's
+  -- braces: "C" for Colorless, the color's own letter for OfColor -- core's
+  -- `ColorOrColorless::from_code`, whose "C" arm is the one this row adds)
+  data ColorOrColorless = Colorless | OfColor Color
+
 ||| Color equality, per-row — `sameZone`'s discipline, so a new color is a
 ||| totality error rather than a silent `False`.
 public export
@@ -1203,6 +1215,67 @@ sameColor Red Red = True
 sameColor Red _ = False
 sameColor Green Green = True
 sameColor Green _ = False
+
+-- ===== Mana symbols and printed mana costs =====
+
+||| The component a hybrid or Phyrexian symbol is built OUT of: a generic
+||| amount or one specific kind of mana ([CR#107.4b] makes a numeral
+||| generic, [CR#107.4a,107.4c] make the six specific pips). Ported from
+||| core almost verbatim by the same explicit ruling `Color` was
+||| (`deckmaste_core/src/mana.rs`, `SimpleManaSymbol`), and the settled
+||| Idris spec agrees row for row (`Semantics.idr`). This is the second
+||| closed vocabulary the workbench does NOT whittle to witnessed rows: a
+||| mana symbol is a rules-fixed catalog and a missing row would be a hole
+||| in the rules rather than an unattested phrase.
+public export
+-- spelling: (component-owned -- never spelled alone. Written inside a
+-- ManaSymbol's braces: Generic n as the numeral "{2}", Specific as the
+-- one-letter code "{W}"/"{C}"; the halves of a hybrid are joined by "/")
+data SimpleManaSymbol = Generic Nat | Specific ColorOrColorless
+
+||| A printed mana symbol ([CR#107.4] lists the closed set). The five
+||| colored, the colorless, and the numerals ride `Simple`; the hybrid
+||| families are ONE compositional row, so `{W/U}` is `Hybrid (Specific
+||| (OfColor White)) Blue`, the monocolored `{2/B}` is `Hybrid (Generic 2)
+||| Black`, and the colorless-hybrid `{C/W}` is `Hybrid (Specific
+||| Colorless) White` ([CR#107.4e] — "a hybrid mana symbol is also a
+||| colored mana symbol, even if one of its components is colorless").
+||| `Phyrexian` takes a COLOR rather than a `SimpleManaSymbol` on its left,
+||| which is [CR#107.4f]'s own list making the type carry its
+||| well-formedness: the fifteen printed Phyrexian symbols are five colored
+||| and ten hybrid-colored, and there is no `{2/P}` or `{C/P}` to write.
+||| Deliberately a hair more permissive than the printed set exactly where
+||| core is — an unprinted `{5/W}` is representable — which core marks as
+||| variant headroom and this file inherits rather than re-litigates.
+|||
+||| This is the PRINTED cost language and not what a mana ability
+||| produces; core keeps `ManaSpec` apart for that, and no clause here
+||| produces mana at all (ledger).
+public export
+-- spelling: (each symbol writes itself between braces, and a cost is the
+-- symbols run together with no separator: Simple (Generic n) = "{n}",
+-- Simple (Specific c) = "{W}".."{G}"/"{C}", Hybrid l r = "{l/r}" on the two
+-- halves' own codes, Phyrexian c Nothing = "{W/P}", Phyrexian c (Just d) =
+-- "{W/U/P}", Variable = "{X}", SnowMana = "{S}")
+data ManaSymbol = Simple SimpleManaSymbol
+                | Hybrid SimpleManaSymbol Color
+                | Phyrexian Color (Maybe Color)
+                | Variable
+                | SnowMana
+
+||| A printed mana cost: the symbol sequence, in the order the card writes
+||| it ([CR#202.1] — "a card's mana cost is indicated by mana symbols";
+||| [CR#202.1a] makes paying it a per-symbol match). A LIST because that is
+||| all oracle's spelling is, "{1}{R}" being two symbols run together, and
+||| because core's `ManaCost` is the same newtype over a symbol slice. The
+||| empty list is the {0} cost's neighbour and not the same thing:
+||| [CR#118.5] makes "{0}" a payment of nothing, written `[Simple (Generic
+||| 0)]`, where the empty list is core's "no mana cost" ([CR#202.1b],
+||| unpayable) — a distinction the type keeps for free and no clause here
+||| exercises.
+public export
+ManaCost : Type
+ManaCost = List ManaSymbol
 
 ||| Subtypes, as catalog atoms ([CR#205.3m] — creatures and kindreds
 ||| share one open list of creature types). Witnessed rows, and
@@ -1355,7 +1428,13 @@ subsFitLine (s :: ss) tys = lineHasType (subtypeType s) tys && subsFitLine ss ty
 |||
 ||| Core's `Token` (`deckmaste_core/src/token.rs`) field for field, minus
 ||| what no corpus line here needs: supertypes (ledger) and the abilities
-||| beyond bare keywords. Color rides a LIST, exactly as core's
+||| beyond bare keywords — the with-clause slot holds `Keyword` itself
+||| rather than the `Ability` container, which is what every corpus token
+||| line writes ("with flying"). The QUOTED form is real English and
+||| ledgered with its count ("create a 1/1 red Mercenary creature token
+||| with \"{T}: …\"", seven lines), and it is a quotation the container has
+||| no row for; narrowing the field is what keeps the container from
+||| admitting it silently. Color rides a LIST, exactly as core's
 ||| `color_indicator` does, and the empty list is where English writes the
 ||| word "colorless" ([CR#105.2c] — a colorless object has no color).
 ||| The name is a `Maybe`: [CR#111.4] synthesizes an unnamed token's name
@@ -1367,7 +1446,7 @@ record TokenChars where
   pt : Maybe (Nat, Nat)
   colors : List Color
   line : TypeLine
-  abilities : List Ability
+  abilities : List Keyword
   name : Maybe String
 
 ||| A token is a PERMANENT ([CR#111.1] — "a marker used to represent any
@@ -4940,12 +5019,16 @@ mutual
     Gets : (n : Noun bs Object) -> (pow : Integer) -> (tou : Integer) ->
            {auto 0 ok : OnBattlefield (nounZone n)} -> StaticEffect bs
     -- "[n] gains [ability]" — the keyword grant, same battlefield
-    -- discipline.
+    -- discipline. The ability slot is the whole container now, and the
+    -- gate is what keeps the widening honest: English grants an ACTIVATED
+    -- ability by quoting it, which is not this clause's spelling
+    -- (`Grantable`, `badGainsActivated`).
     -- spelling: ["<Param(0)> gains <Param(1)>"] (the trailing duration
     -- adverbial belongs to the Continuously envelope, not here),
     -- kind: Sentence
-    Gains : (n : Noun bs Object) -> Ability ->
-            {auto 0 ok : OnBattlefield (nounZone n)} -> StaticEffect bs
+    Gains : (n : Noun bs Object) -> (ab : Ability) ->
+            {auto 0 ok : OnBattlefield (nounZone n)} ->
+            {auto 0 gr : Grantable ab} -> StaticEffect bs
     -- "[n] can't [deed, in a voice]" — the DEONTIC: a continuous effect
     -- denying its subject a deed, which is core's
     -- `Deontic(Cant(…))` under the same envelope
@@ -5270,6 +5353,103 @@ mutual
   exposedIntro : {bs : Bindings} -> Exposed bs -> Bindings
   exposedIntro (ExposedCards n) = nomIntro n
   exposedIntro (ExposedZone z) = zoneDelta z ++ bs
+
+  ||| A COST — what the activator PAYS, which is a different thing from
+  ||| what an ability DOES ([CR#602.1a]: "the activation cost is everything
+  ||| before the colon … must be paid by the player who is activating
+  ||| it"). The type is what closes the ledger's cost-GRAMMAR entry: the
+  ||| colon used to accept any clause at all, so "Draw a card:" was
+  ||| writable and no rule made it so.
+  |||
+  ||| Its payloads REUSE the clause machinery rather than parallel it —
+  ||| [CR#118.1] makes a cost "an action or payment" the payer carries
+  ||| out, so
+  ||| "Sacrifice a creature" is the sacrifice CLAUSE under `Do` and not a
+  ||| second sacrifice verb. What is NOT a clause is the two SYMBOLS:
+  ||| [CR#107.5] gives "{T}" the fixed meaning "tap this permanent", a
+  ||| self-patient with no noun phrase in it, and the corpus writes the
+  ||| symbol three thousand two hundred fifty-nine times against a
+  ||| hundred seventy-one English tap clauses ("Tap an untapped creature
+  ||| you control"), which is two surfaces and not one. Core keeps the
+  ||| same split (`CostComponent::{Tap, Untap}` beside `Do(Action)`); the
+  ||| settled Idris spec spells `{T}` as `Do (Tap This)` instead, and that
+  ||| is a recorded DIVERGENCE — a semantic normalization this grammar
+  ||| cannot make, the symbol being a different thing on the page.
+  |||
+  ||| What the grammar claims is the sentence's cost STRUCTURE and nothing
+  ||| about the game: not payability ([CR#118.3] — "a player can't pay a
+  ||| cost without having the necessary resources"), not timing, not the
+  ||| total-cost pipeline ([CR#601.2f]'s increases and reductions, core's
+  ||| `CostChange`), not the alternative-cost swap ([CR#118.9]). Those are
+  ||| engine boundaries and stay ledgered.
+  public export
+  data Cost : Bindings -> Type where
+    -- The mana component ([CR#202.1a]) — a symbol sequence, whose whole
+    -- spelling is the symbols run together.
+    -- spelling: ["<Param(0)>"] (the symbol list, no separator: "{1}{R}",
+    -- "{X}{X}{G}" -- see ManaSymbol for the per-symbol rendering)
+    Mana : ManaCost -> Cost bs
+    -- "{T}" ([CR#107.5]) — the symbol, whose patient is the permanent
+    -- with the ability and is never written.
+    -- spelling: ["{T}"], kind: Cost
+    TapSymbol : Cost bs
+    -- "{Q}", the untap symbol — attested at eighteen cost components
+    -- (Merrow Grimeblotter), and the reason it is a row beside `{T}`
+    -- rather than a negation of one: [CR#602.5a] names the two together
+    -- as the summoning-sickness pair, which is what core's
+    -- `CostPredicate::IncludesTapSymbol` asks about.
+    -- spelling: ["{Q}"], kind: Cost
+    UntapSymbol : Cost bs
+    -- Pay by PERFORMING an action ([CR#118.1] — "to pay a cost, a
+    -- player carries out the instructions") — the clause itself,
+    -- gated to the payable verbs (`CostAction`). Core's
+    -- `CostComponent::Do` and the settled spec's `Do` alike.
+    -- spelling: ["<Param(0)>"] (the clause's own sentence, capitalised as
+    -- a cost component: "Sacrifice a creature", "Discard a card", "Pay 2
+    -- life" -- the life payment's cost spelling is the verb "pay", where
+    -- the same clause in sentence position writes "loses"; see CostAction)
+    Do : (e : Effect bs) -> {auto 0 ok : CostAction e} -> Cost bs
+    -- Two or more components at once, which oracle joins with commas
+    -- ("{1}{B}, Pay 2 life:", Erebos, God of the Dead). Order is TEXTUAL
+    -- and not an order of payment: [CR#601.2h] has the player pay the
+    -- components "in any order", which is why the elements thread
+    -- announcements and why nothing here should read a sibling's deed —
+    -- no corpus line does.
+    -- spelling: ["<Param(0)>"] (the components joined by ", " in written
+    -- order; the whole sequence precedes the colon)
+    Compound : {0 n : Nat} -> CostSeq n bs ->
+               {auto 0 two : AtLeastTwo n} -> Cost bs
+
+  ||| What a cost's phrases announce to the effect after the colon. A mana
+  ||| amount and the two symbols name nobody; an action component names
+  ||| whatever its clause named ("Sacrifice a creature:" — Bosh, Iron
+  ||| Golem's cost is read by its effect). The activated ability filters
+  ||| this through `publicOnly`, which is the survivorship question and
+  ||| not this one.
+  public export
+  costIntro : {bs : Bindings} -> Cost bs -> Bindings
+  costIntro (Mana _) = bs
+  costIntro TapSymbol = bs
+  costIntro UntapSymbol = bs
+  costIntro (Do e) = effIntro e
+  costIntro (Compound cs) = costsIntro cs
+
+  ||| Is this component itself a compound?
+  public export
+  isCompound : {0 bs : Bindings} -> Cost bs -> Bool
+  isCompound (Compound _) = True
+  isCompound _ = False
+
+  ||| A compound's ELEMENTS are components, never compounds — the same
+  ||| one-meaning-one-spelling refusal `NotSeq` makes, and for the same
+  ||| reason: nesting re-mints the right-nested tree the n-ary telescope
+  ||| replaced, and core reaches the flat form by normalizing instead
+  ||| (`Cost::normalize` splices a nested cost into the surrounding list).
+  public export
+  data NotCompound : Cost bs -> Type where
+    MkNotCompound : {auto 0 ok : isCompound c = False} -> NotCompound c
+
+
 
   ||| Clauses. Constructor argument order IS textual order, and each
   ||| argument is typed in the context its predecessors built — the
@@ -5688,6 +5868,27 @@ mutual
     Does : (subj : Noun bs Player) -> (v : VerbName) ->
            (e : Effect (nomIntro subj)) ->
            {auto 0 tb : TagBody v e} -> Effect bs
+    -- "[who] pay(s) [cost]" — the payment as a CLAUSE, which is what the
+    -- unless family needs and the only reason this row exists: [CR#118.12a]
+    -- rewrites "[Do something] unless [a player does something else]" into
+    -- "[A player may do something else]. If [that player doesn't], [do
+    -- something]", so the may's BODY has to be able to say "pays {3}" —
+    -- a hundred forty-five "unless you pay" lines and a hundred
+    -- eighty-five "unless [someone] pays". The complement is a whole
+    -- `Cost` and not a mana amount, which is measured: a hundred
+    -- seventy-eight of those complements are one symbol run, twenty-four
+    -- are "N life", and the rest are the cost words this vocabulary does
+    -- not spell (echo, upkeep, "its mana cost" — ledger).
+    -- The clause is NOT the cost type wearing a verb: a cost is paid to
+    -- activate ([CR#602.1a]) where this is a sentence that resolves, and
+    -- the same `Cost` value stands in both places exactly as core's
+    -- `Action::Pay(Cost)` does.
+    -- spelling: ["<Param(0)> pay(s) <Param(1)>"], kind: Sentence (the verb
+    -- inflects with the subject -- "you pay {3}" against "its controller
+    -- pays {3}"; a life component under this verb writes "3 life", the
+    -- shared verb swallowing the component's own "Pay")
+    Pay : (who : Noun bs Player) -> (c : Cost (nomIntro who)) ->
+          {auto 0 pb : Payable c} -> Effect bs
     -- "[decider] may [effect]" — the decider slot ([CR#608.2d]; the
     -- resolving default is the controller [CR#608.2c]). Decider and
     -- performer can differ ("[player] may have [source] deal … to
@@ -5723,21 +5924,35 @@ mutual
     -- occurred". So the branch is not an event read at all — which is
     -- why the declined arm has nothing to mention, the payment having
     -- never been started, and why no channel recording outcomes would
-    -- have served. The MANDATORY twin ("[Do something]. If you do, …",
-    -- with no "may") is the same rule's first shape, a hundred and
-    -- forty-two lines writing no "may" anywhere; it waits with the cost
-    -- algebra that has to spell an unoffered payment. So does the ELSE
-    -- sentence "Otherwise, …", which is `If`'s branch and not this
-    -- one's.
+    -- have served. The ELSE sentence "Otherwise, …" is `If`'s branch and
+    -- not this one's.
+    -- The MANDATORY twin ("[Do something]. If you do, …", with no "may",
+    -- a hundred and forty-two lines) is THIS NODE with the offer emptied,
+    -- and that is chapter eighteen's ledger entry read the way its own
+    -- rule reads: [CR#118.12] states both shapes in one sentence and gives
+    -- them one reader, checking "whether the player chose to pay an
+    -- optional cost OR STARTED TO PAY A MANDATORY COST, regardless of what
+    -- events actually occurred". Every consequence therefore carries over
+    -- unchanged — the arm asymmetry, the opacity of the join, the deed
+    -- that never happened (the rule's own Standstill example is a
+    -- mandatory sacrifice that could not be paid) — so a second row would
+    -- have duplicated `mayIntro`, `annIntro`, `deedDelta` and the
+    -- refusals with them. The offer is the ONLY difference, so it is the
+    -- only thing that varies: `Nothing` is the bare instruction, whose
+    -- "if you do" takes its pronoun from the BODY's own agent rather than
+    -- from a decider the sentence never wrote.
     -- spelling: ["<Param(0)> may <Param(1)>", "<Param(0)> may <Param(1)>.
     -- If <Param(0)> do, <Param(2)>.", "<Param(0)> may <Param(1)>. If
     -- <Param(0)> don't, <Param(3)>."] (the anaphor's pronoun and its verb
     -- agreement are the DECIDER's own -- "if you do" against Risk Factor's
     -- "if they don't" -- so auto-inflection supplies both from Param(0);
-    -- mirrors core's May struct field-for-field), kind: Sentence
-    May : (decider : Noun bs Player) -> (body : Effect (nomIntro decider)) ->
+    -- mirrors core's May struct field-for-field. With Param(0) absent the
+    -- offer is unwritten and the sentence is the bare body -- "<Param(1)>.
+    -- If <agent of Param(1)> do, <Param(2)>." -- which is the [CR#118.12]
+    -- mandatory shape), kind: Sentence
+    May : (offer : Maybe (Noun bs Player)) -> (body : Effect (mayCtx offer)) ->
           (ifDid : Maybe (Effect (effIntro body))) ->
-          (ifNot : Maybe (Effect (nomIntro decider))) -> Effect bs
+          (ifNot : Maybe (Effect (mayCtx offer))) -> Effect bs
     -- "[clause] if [condition]" — the ordinary conditional, whose "if"
     -- has "only its normal English meaning" ([CR#603.4]).
     -- Argument order is TEXTUAL order and the binding flow is why:
@@ -6052,6 +6267,7 @@ mutual
   heldUntilOk (Composite Exile (Move _ _)) = True
   heldUntilOk (Composite _ _) = False
   heldUntilOk (Does _ _ _) = False
+  heldUntilOk (Pay _ _) = False
   heldUntilOk (May _ _ _ _) = False
   heldUntilOk (If _ _ _) = False
   heldUntilOk (Sequentially _) = False
@@ -6060,6 +6276,98 @@ mutual
   heldUntilOk (Delayed _ _) = False
   heldUntilOk (InsteadOf _ _) = False
   heldUntilOk (HeldUntil _ _) = False
+
+  ||| May this cost stand as the complement of the VERB "pay"? A cost is
+  ||| the whole thing an ability charges; "pay" is one English verb, and
+  ||| the two are not the same set. The complements were counted where the
+  ||| verb appears most: a hundred seventy-eight "unless [someone] pays"
+  ||| lines take one symbol run, twenty-four take "N life", and every
+  ||| other payment after "unless" writes its OWN verb ("unless you
+  ||| sacrifice a land", "unless you discard a card" — seventy-one lines
+  ||| across sacrifice, discard, exile and tap), never "pay". So a
+  ||| sacrifice is a payment but not a payABLE, and saying otherwise would
+  ||| spell "you pay sacrifice a creature" (`badPayBySacrificing`). The
+  ||| symbols are refused for the same reason and more sharply: "{T}" is a
+  ||| cost that can only be written before a colon, no sentence anywhere
+  ||| spelling it as a verb phrase. The compound is refused as unattested
+  ||| — no corpus line writes "pay" over a comma-joined cost.
+  public export
+  payableOk : {0 bs : Bindings} -> Cost bs -> Bool
+  payableOk (Mana _) = True
+  payableOk TapSymbol = False
+  payableOk UntapSymbol = False
+  payableOk (Do (ChangeLife _ (Down _))) = True
+  payableOk (Do _) = False
+  payableOk (Compound _) = False
+
+  ||| The pay-complement demand as a witness.
+  public export
+  data Payable : Cost bs -> Type where
+    MkPayable : {auto 0 ok : payableOk c = True} -> Payable c
+
+  ||| May this clause stand as a payment? [CR#602.1a] makes a cost what
+  ||| the ACTIVATOR pays, so the table is not "is this a legal sentence"
+  ||| but "does oracle write this before a colon" — and the corpus answers
+  ||| per verb, which is why this is a table and not a blanket yes. The
+  ||| counts are components of symbol-led activation costs, so they
+  ||| UNDERCOUNT the action-only costs ("Sacrifice this creature:", which
+  ||| leads its own line): sacrifice eleven hundred eighty-four, discard
+  ||| two hundred twenty, remove-counters two hundred twelve, exile a
+  ||| hundred ninety-one, pay-life ninety-five, tap forty-four, return
+  ||| twenty-nine, put-counters fourteen, reveal seven, mill five. The
+  ||| refusals are measured the same way and are zeroes: no line writes
+  ||| "Destroy …:" or "Draw …:" or a shuffle or a search as a cost, which
+  ||| is the ledger's own note that "you lose N life" and a delayed clause
+  ||| are not payments ([CR#118.1]). Core's `Action::is_cost_eligible`
+  ||| lists the same verbs and reaches them from the engine side.
+  |||
+  ||| The LIFE row is directional, and measured: ninety-five "Pay N life"
+  ||| components against zero gain-life ones, so `Down` pays and `Up` does
+  ||| not (`badGainLifeCost`). Core admits the whole family, and a
+  ||| gain-life cost does exist — [CR#119.7] speaks of "a cost that
+  ||| involves having that player gain life" — but the cards that print
+  ||| one (Invigorate) spell it as an ALTERNATIVE cost ([CR#118.9]), a
+  ||| base swap, never before a colon. The divergence is the frame's.
+  public export
+  costActionOk : {0 bs : Bindings} -> Effect bs -> Bool
+  costActionOk (DealDamage _ _ _) = False
+  costActionOk (Distribute _ _ _) = False
+  costActionOk (Fights _ _) = False
+  costActionOk (Tap _) = True
+  costActionOk (Choose _) = False
+  costActionOk (Move _ _) = True
+  costActionOk (ChangeLife _ (Down _)) = True
+  costActionOk (ChangeLife _ _) = False
+  costActionOk (Draw _ _) = False
+  costActionOk (Expose Reveal _ _) = True
+  costActionOk (Expose _ _ _) = False
+  costActionOk (Mill _ _) = True
+  costActionOk (Search _ _ _) = False
+  costActionOk (Shuffle _) = False
+  costActionOk (Continuously _ _) = False
+  costActionOk (Create _ _ _ _) = False
+  costActionOk (PutCounters _ _ _) = True
+  costActionOk (RemoveCounters _ _ _) = True
+  costActionOk (Composite Exile _) = True
+  costActionOk (Composite _ _) = False
+  costActionOk (Does _ Sacrifice _) = True
+  costActionOk (Does _ Discard _) = True
+  costActionOk (Does _ _ _) = False
+  costActionOk (Pay _ _) = False
+  costActionOk (May _ _ _ _) = False
+  costActionOk (If _ _ _) = False
+  costActionOk (Sequentially _) = False
+  costActionOk (Simultaneously _) = False
+  costActionOk (Modal _ _) = False
+  costActionOk (Delayed _ _) = False
+  costActionOk (InsteadOf _ _) = False
+  costActionOk (HeldUntil _ _) = False
+
+  ||| The payability demand as a witness, so a pin says which question
+  ||| refused (`Headed`'s discipline).
+  public export
+  data CostAction : Effect bs -> Type where
+    MkCostAction : {auto 0 ok : costActionOk e = True} -> CostAction e
 
   public export
   data HeldClause : Effect bs -> Type where
@@ -6124,6 +6432,7 @@ mutual
   effEq (Composite v e) (Composite w f) = sameVerb v w && effEq e f
   effEq (Composite _ _) _ = False
   effEq (Does _ _ _) _ = False
+  effEq (Pay _ _) _ = False
   effEq (May _ _ _ _) _ = False
   effEq (If _ _ _) _ = False
   effEq (Sequentially _) _ = False
@@ -6628,6 +6937,7 @@ mutual
   effIntro (Composite _ e) = effIntro e
   effIntro (Does s v (Move what to)) = moveIntro (Just v) what (zoneSort to)
   effIntro (Does s v e) = effIntro e
+  effIntro (Pay who c) = costIntro c
   effIntro (May d body did notd) = mayIntro body did notd
   -- NEITHER arm contributes: only one of them ever runs. The else arm
   -- was always a hole (it REPLACES the main line, `mayIntro`'s cut one
@@ -6727,6 +7037,7 @@ mutual
   preIntro (Composite _ e) = preIntro e
   preIntro (Does s v (Move what to)) = nomIntro what
   preIntro (Does s v e) = preIntro e
+  preIntro (Pay who c) = nomIntro who
   preIntro (May d body did notd) = mayIntro body did notd
   -- THE ANNOUNCEMENT CHANNEL, chapter twenty-five's. This row used to
   -- be `condDelta c ++ bs` — `effIntro`'s answer copied — and the copy
@@ -6828,6 +7139,7 @@ mutual
   -- ruling: an arm is typed over the body's `effIntro`, so its own
   -- announcement cannot be taken without the body's deeds coming with
   -- it. Under-reporting, and in the safe direction.
+  annIntro (Pay who c) = nomIntro who
   annIntro (May d body did notd) = annIntro body
   annIntro (If e c oth) = condDelta c ++ annIntro e
   annIntro (Sequentially es) = bs
@@ -6907,6 +7219,7 @@ mutual
   deedDelta (Composite _ e) = deedDelta e
   deedDelta (Does s v (Move what to)) = []
   deedDelta (Does s v e) = deedDelta e
+  deedDelta (Pay who c) = []
   deedDelta (May d body did notd) = []
   deedDelta (If e c oth) = []
   deedDelta (Sequentially es) = []
@@ -6949,6 +7262,18 @@ mutual
   ||| exactly one arm ran and the sentences after the may cannot know
   ||| which. Selecting the if-you-do arm's mentions there was reading one
   ||| branch as if it were both (`badBothArmsAntecedent`).
+  ||| The context a may's BODY and its declined arm are typed in. An
+  ||| offered may writes its decider first, so the body reads it ("Target
+  ||| opponent may sacrifice a creature") and so does the "if they don't"
+  ||| arm reaching back to the offerer. The MANDATORY twin writes no
+  ||| decider at all, so there is nothing extra to read and the body is
+  ||| typed where the sentence stands — the whole difference between the
+  ||| two [CR#118.12] shapes, in one function.
+  public export
+  mayCtx : {bs : Bindings} -> Maybe (Noun bs Player) -> Bindings
+  mayCtx Nothing = bs
+  mayCtx (Just d) = nomIntro d
+
   public export
   mayIntro : {bs : Bindings} -> (body : Effect bs) ->
              Maybe (Effect (effIntro body)) -> Maybe (Effect bs) -> Bindings
@@ -6993,16 +7318,138 @@ mutual
   simPres (e :: []) = preIntro e
   simPres (e :: es) = simPres es
 
--- ===== The activated-ability juncture =====
+  ||| When an ability may be activated ([CR#602.5d,602.5e]). A CLOSED pair
+  ||| — the CR names exactly two "Activate only as a [card type]"
+  ||| restrictions and both are printed, five hundred twenty-three lines
+  ||| for the sorcery form and five for the instant one — so both rows
+  ||| stand though only the first has a bench witness. `Nothing` on the
+  ||| slot is the unrestricted default, which is instant speed
+  ||| ([CR#117.1b] — "a player may activate an activated ability any time
+  ||| they have priority"); the settled Idris spec spells that default as an
+  ||| `AsInstant` value instead, and the difference is only where the
+  ||| absence is written.
+  |||
+  ||| What is NOT here is the turn-part window ("Activate only during your
+  ||| upkeep", thirty-two lines; "during your turn", forty-one; "during
+  ||| your turn, before attackers are declared", nineteen; about a hundred
+  ||| twenty in all, core's `Timing::DuringTurn`/`DuringStep`). Its
+  ||| vocabulary nearly exists — `TurnPart` and `Whose` are chapter
+  ||| seventeen's — and the two lines that break it are exact: "Activate
+  ||| only during any upkeep step" writes a possessor `Whose` has no word
+  ||| for, neither yours nor a named player's. Measured and ledgered.
+  public export
+  -- spelling: ["Activate only as a sorcery", "Activate only as an instant"]
+  -- (a full sentence after the effect, [CR#602.1b] putting activation
+  -- instructions last; conjoined with a sibling restriction by "and only"),
+  -- kind: Sentence
+  data Timing = AsSorcery | AsInstant
 
-||| "[cost]: [effect]" ([CR#602.1]) — just the colon: the cost's
-||| object-moving/tapping component as an ordinary clause, the effect
-||| typed in the cost's public-zone survivors (`publicOnly`). Mana,
-||| {T}, and activation instructions are elided the way positives elide
-||| rider lines; the full ability layer stays parked.
-public export
--- spelling: ["<Param(0)>: <Param(1)>"], kind: Ability (the activated-ability
--- line shape; TODO(reason: not directly confirmed against a real
--- Activated-shaped catalog entry among the artifacts studied this pass))
-data Activated : Bindings -> Type where
-  MkActivated : (cost : Effect bs) -> Effect (publicOnly (effIntro cost)) -> Activated bs
+  ||| How often an ability may be activated ([CR#602.5b]) — "Activate only
+  ||| once each turn" (eighty-six lines) and the per-game "Activate only
+  ||| once" (eight). `Nothing` is unlimited. Core keeps a LIST here and a
+  ||| third row with it (`LoyaltyOncePerTurn`, [CR#606.3]'s shared cap);
+  ||| the list is a divergence measured rather than copied — no corpus
+  ||| line writes two use limits on one ability, the conjunctions being
+  ||| limit-with-window ("only during your upkeep and only once each
+  ||| turn") or limit-with-guard — and the loyalty row waits with the
+  ||| loyalty COST surface it is inseparable from (the bracketed "[+1]",
+  ||| eight hundred thirty-two components, a symbol vocabulary of its own).
+  public export
+  -- spelling: ["Activate only once each turn", "Activate only once"]
+  -- (a full sentence, placed like Timing's; the per-game form writes no
+  -- period of its own -- see [CR#702.177a] exhaust)
+  data UsageLimit = OncePerTurn | OncePerGame
+
+  ||| An ABILITY ([CR#113]) — the first type above `Effect`, and the
+  ||| container a card's printed lines are made of. It carries the
+  ||| activated row now and is shaped to GROW the others: the triggered
+  ||| row ([CR#113.3c,603]) and the static row ([CR#113.3d,604]) are the
+  ||| next round's, the spell row ([CR#113.3a]) belongs with the card
+  ||| container, and each arrives as a row here rather than as a type of
+  ||| its own — which is what core and the settled Idris spec both do
+  ||| (`Ability::{Static, Activated, Triggered, Spell, Keyword}`).
+  |||
+  ||| The keyword row was this type's whole content before, and keeping it
+  ||| is the point: what a `Gains` clause grants and what a card prints
+  ||| are one category ([CR#113.3] lists them together), so the container
+  ||| is grown rather than parallelled. It is UNINDEXED, which is the
+  ||| claim that an ability line is context-closed — its cost is the first
+  ||| thing on the line and reads no discourse before it. Core is
+  ||| unindexed too; the spec indexes its `Ability` so a keyword
+  ||| DESUGARING can reference an anaphor, and this file has no keyword
+  ||| desugaring.
+  public export
+  data Ability : Type where
+    -- spelling: (construction-owned -- pass-through; the word is entirely
+    -- KeywordAbility's Keyword argument's own, see Keyword)
+    KeywordAbility : Keyword -> Ability
+    -- "[cost]: [effect]" ([CR#602.1] spells the whole line, activation
+    -- instructions and all: "[Cost]: [Effect.] [Activation instructions
+    -- (if any).]"). The effect is typed in the cost's PUBLIC-zone
+    -- survivors, which is the juncture this file has had since the colon
+    -- was first minted; what is new is that the cost is a `Cost`.
+    -- The three restriction slots are separate for a corpus reason, not
+    -- a core-imitating one: oracle CONJOINS them ("Activate only during
+    -- your upkeep and only once each turn"; "Activate only if you control
+    -- ten or more permanents and only as a sorcery"), so one restriction
+    -- row would have had to spell a conjunction of unlike things.
+    -- The GUARD is typed at the empty context and not in the cost's
+    -- survivors, which is [CR#602.5]'s own placement: a restriction on
+    -- use is checked before the ability is activated at all, where the
+    -- cost is not paid until [CR#601.2h], so nothing the cost names can
+    -- be read by the condition that decides whether the cost may be paid.
+    -- It reuses `Condition` verbatim, chapter eighteen's seam ([CR#603.4]
+    -- keeps the ordinary "if" and the trigger's intervening-"if" apart by
+    -- CARRIER, and this is a third carrier of the same three questions).
+    -- spelling: ["<Param(0)>: <Param(1)>"] plus one sentence per written
+    -- restriction, appended after the effect in the order
+    -- window/limit/guard and joined by "and only" when more than one is
+    -- written ([CR#602.1b]: activation instructions "appear last, after
+    -- the ability's effect"), kind: Ability
+    Activated : (cost : Cost []) ->
+                (eff : Effect (publicOnly (costIntro cost))) ->
+                {default Nothing window : Maybe Timing} ->
+                {default Nothing limit : Maybe UsageLimit} ->
+                {default Nothing guard : Maybe (Condition [])} -> Ability
+
+  ||| May this ability be GRANTED by a clause? Only the keyword. English
+  ||| grants an activated ability by QUOTING it — "Enchanted land has
+  ||| \"{T}: Add {B}\"" (twenty-five lines), "Equipped creature has
+  ||| \"{T}: …\"" (ten), "All Slivers have \"{T}: …\"" (seven), and the
+  ||| token with-clause form (seven) — which is a construction this
+  ||| grammar has no quotation for, where "gains flying" is a bare
+  ||| keyword. Growing the container is what made the refusal necessary:
+  ||| the row exists now, so the grant site has to say no to it
+  ||| (`badGainsActivated`).
+  public export
+  grantableAb : Ability -> Bool
+  grantableAb (KeywordAbility _) = True
+  grantableAb (Activated _ _) = False
+
+  ||| The grant demand as a witness, named apart so a pin says which
+  ||| question refused.
+  public export
+  data Grantable : Ability -> Type where
+    MkGrantable : {auto 0 ok : grantableAb ab = True} -> Grantable ab
+
+  ||| A cost's components in written order, length-indexed so `Compound`
+  ||| can demand two. Its own namespace for `SimEffects`' reason — a third
+  ||| telescope would collide on the list sugar — and LAST in the block for
+  ||| a mechanical one: a namespace ends the enclosing mutual scope's
+  ||| forward reach, so everything that needs to name a later type has to
+  ||| stand above it.
+  -- spelling: (construction-owned -- list syntax for the Compound
+  -- telescope; Nil/(::) are Idris list sugar, not English words)
+  namespace Paid
+    public export
+    data CostSeq : Nat -> Bindings -> Type where
+      Nil : CostSeq Z bs
+      (::) : (c : Cost bs) -> {auto 0 nc : NotCompound c} ->
+             CostSeq n (costIntro c) -> CostSeq (S n) bs
+
+  ||| What a whole component sequence contributes: its last element's
+  ||| discourse, the telescope having threaded every predecessor's.
+  public export
+  costsIntro : {bs : Bindings} -> {0 n : Nat} -> CostSeq n bs -> Bindings
+  costsIntro [] = bs
+  costsIntro (c :: cs) = costsIntro cs

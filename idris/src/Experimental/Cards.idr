@@ -94,25 +94,32 @@ deadshot : Effect []
 deadshot = Sequentially [Tap (target creature),
                          DealDamage It (powerOf It) (target (And [creature, Other]))]
 
--- "Sacrifice this land: It deals 3 damage to target player. That
--- player discards a card." (Immersturm Skullcairn; its mana and {T}
--- cost components, the land's other lines, and its timing line elided)
--- — the cost's sacrificed self is the effect's "It": the cost move
--- mints the referent ([CR#400.7]) and it survives the colon publicly
--- ([CR#400.7j]); then the sorted demonstrative at Player kind and a
--- keyword-action macro (Discard) whose body moves a hand-zone choice.
-immersturmSkullcairn : Activated []
-immersturmSkullcairn = MkActivated (sacrifice You thisLand)
-                                   (Sequentially [DealDamage It (Lit 3) (target AnyPlayer),
-                                                  discardsACard (That PlayerW)])
+-- "{1}{B}{R}{R}, {T}, Sacrifice this land: It deals 3 damage to target
+-- player. That player discards a card. Activate only as a sorcery."
+-- (Immersturm Skullcairn; the land's other lines elided) — the ability
+-- WHOLE, cost components and activation instruction included, where the
+-- same card was three elisions deep last chapter. The cost's sacrificed
+-- self is the effect's "It": the cost move mints the referent
+-- ([CR#400.7]) and it survives the colon publicly ([CR#400.7j]); then
+-- the sorted demonstrative at Player kind and a keyword-action macro
+-- (Discard) whose body moves a hand-zone choice.
+immersturmSkullcairn : Ability
+immersturmSkullcairn =
+  Activated (Compound [Mana [generic 1, pip Black, pip Red, pip Red], TapSymbol,
+                       Do (sacrifice You thisLand)])
+            (Sequentially [DealDamage It (Lit 3) (target AnyPlayer),
+                           discardsACard (That PlayerW)])
+            {window = Just AsSorcery}
 
 -- "{R}, Sacrifice this artifact: It deals 2 damage to any target."
--- (Pyrite Spellbomb, first ability; {R} and the card's second ability
--- elided) — the smallest cost-antecedent pair: the sorted
--- self-reference moved by the cost is the only mention "It" can reach.
-pyriteSpellbomb : Activated []
-pyriteSpellbomb = MkActivated (sacrifice You thisArtifact)
-                              (DealDamage It (Lit 2) (target AnyTarget))
+-- (Pyrite Spellbomb, first ability; the card's second ability elided) —
+-- the smallest cost-antecedent pair: the sorted self-reference moved by
+-- the cost is the only mention "It" can reach. Its mana half is written
+-- now, which is what makes the pair a two-component cost rather than a
+-- one-component one with a note.
+pyriteSpellbomb : Ability
+pyriteSpellbomb = Activated (Compound [Mana [pip Red], Do (sacrifice You thisArtifact)])
+                            (DealDamage It (Lit 2) (target AnyTarget))
 
 -- "Target player sacrifices a creature of their choice." (Diabolic
 -- Edict) — the declarative clause: the target subject introduces, the
@@ -296,9 +303,9 @@ kindredDominance = Sequentially [Choose (a (QualityNoun CreatureType)),
 -- (badBareCardRead) and the text switches to the participle, whose
 -- verb filter picks the exile; the delay carries it as usual
 -- ([CR#603.7c]).
-voyagerStaff : Activated []
-voyagerStaff = MkActivated (sacrifice You thisArtifact)
-                           (Sequentially [exile (target creature),
+voyagerStaff : Ability
+voyagerStaff = Activated (Compound [Mana [generic 2], Do (sacrifice You thisArtifact)])
+                         (Sequentially [exile (target creature),
                                           Delayed NextEndStep (Move (TheVerbed Exile CardW) battlefieldZ)])
 
 -- "{3}{R}, Sacrifice an artifact: Bosh deals damage equal to the
@@ -308,11 +315,12 @@ voyagerStaff = MkActivated (sacrifice You thisArtifact)
 -- but "artifact" describes it under the verb — checked on the
 -- time-stable projected head type, the axis a declared type word
 -- lives on (finding 27).
-boshIronGolem : Activated []
-boshIronGolem = MkActivated (sacrifice You (a (HasType Artifact)))
-                            (DealDamage This
-                                        (manaValueOf (TheVerbed Sacrifice (TypeW Artifact)))
-                                        (target AnyTarget))
+boshIronGolem : Ability
+boshIronGolem = Activated (Compound [Mana [generic 3, pip Red],
+                                     Do (sacrifice You (a (HasType Artifact)))])
+                          (DealDamage This
+                                      (manaValueOf (TheVerbed Sacrifice (TypeW Artifact)))
+                                      (target AnyTarget))
 
 -- "{3}, Discard a card at random: This enchantment deals damage to
 -- any target equal to the mana value of the discarded card."
@@ -326,11 +334,12 @@ boshIronGolem = MkActivated (sacrifice You (a (HasType Artifact)))
 -- word exists: "this enchantment" is a description including a card
 -- type, so [CR#109.2] denotes the permanent (bare `This` was standing
 -- in for the missing `Enchantment` row).
-pyromancy : Activated []
-pyromancy = MkActivated (discards You (aAtRandom (InZone handZ)))
-                        (DealDamage thisEnchantment
-                                    (manaValueOf (TheVerbed Discard CardW))
-                                    (target AnyTarget))
+pyromancy : Ability
+pyromancy = Activated (Compound [Mana [generic 3],
+                                 Do (discards You (aAtRandom (InZone handZ)))])
+                      (DealDamage thisEnchantment
+                                  (manaValueOf (TheVerbed Discard CardW))
+                                  (target AnyTarget))
 
 -- "Target opponent loses 1 life for each attacking creature you
 -- control. You gain that much life." (Foul-Tongue Shriek) — the
@@ -676,7 +685,7 @@ additiveEvolution = Sequentially [create (Lit 1) (creatureTok 0 0 [Green, Blue] 
 aviationPioneer : Effect []
 aviationPioneer =
   create (Lit 1) (MkToken (Just (1, 1)) [] (MkTypeLine [Thopter] [Artifact, Creature])
-                          [KeywordAbility Flying] Nothing)
+                          [Flying] Nothing)
 
 -- "Whenever you attack, create a 2/1 colorless Construct artifact
 -- creature token with flying named Ballistic Boulder that's tapped and
@@ -690,7 +699,7 @@ fireNavyTrebuchet : Effect []
 fireNavyTrebuchet =
   createTappedAttacking (Lit 1)
     (MkToken (Just (2, 1)) [] (MkTypeLine [Construct] [Artifact, Creature])
-             [KeywordAbility Flying] (Just "Ballistic Boulder"))
+             [Flying] (Just "Ballistic Boulder"))
 
 -- "If you don't control an Army creature, create a 0/0 black Zombie Army
 -- creature token. Choose an Army creature you control. Put two +1/+1
@@ -759,10 +768,10 @@ kaitoBaneOfNightmares = Sequentially [Tap (target creature),
 -- word in the subject is chapter thirteen's vocabulary unchanged, and the
 -- demonstrative reaches past the sacrificed self because that one sits in
 -- a graveyard.
-ashnodsTransmogrant : Activated []
+ashnodsTransmogrant : Ability
 ashnodsTransmogrant =
-  MkActivated (sacrifice You thisArtifact)
-              (Sequentially [PutCounters (Lit 1) PlusOnePlusOne
+  Activated (Compound [TapSymbol, Do (sacrifice You thisArtifact)])
+            (Sequentially [PutCounters (Lit 1) PlusOnePlusOne
                                          (target (And [creature, Not artifact])),
                              becomes (That (TypeW Creature)) (typesOnly [Artifact]) Nothing])
 
@@ -867,8 +876,8 @@ blindblastWhole = Sequentially [DealDamage This (Lit 1) (target creature),
 -- not have: the mana half of the cost stays elided as every mana cost
 -- does, and the discard is the same term that justifies `DiscardOk`'s
 -- bare-`This` row.
-cycling : Activated []
-cycling = MkActivated (discards You This) drawACard
+cycling : Ability
+cycling = Activated (Compound [Mana [generic 2], Do (discards You This)]) drawACard
 
 -- "Choose one — • Abrade deals 3 damage to target creature. • Destroy
 -- target artifact." (Abrade; the whole card) — the modal flagship, at the
@@ -1337,6 +1346,127 @@ zimoneDrawTwo =
                             OrGreater (Lit 8))
                 Nothing)
 
+-- ===== Chapter twenty-seven positives: costs, symbols, and the first
+-- ability container =====
+
+-- "{1}{U/B}, {Q}: Target creature gets -2/-0 until end of turn."
+-- (Merrow Grimeblotter; its reminder gloss "({Q} is the untap symbol.)"
+-- omitted as reminder text always is) — the HYBRID symbol and the untap
+-- symbol in one cost, which is the pair the port had to carry and the
+-- corpus writes together on exactly this card.
+merrowGrimeblotter : Ability
+merrowGrimeblotter =
+  Activated (Compound [Mana [generic 1, hybridPip Blue Black], UntapSymbol])
+            (gets (target creature) (-2) 0 (Just untilEndOfTurn))
+
+-- "{1}{S}: This creature gets +1/+0 until end of turn." (Phyrexian
+-- Snowcrusher) — the snow symbol ([CR#107.4h]), which is neither a color
+-- nor a type of mana and is why `ManaSymbol` needs a row for it rather
+-- than a colorless pip with a note.
+phyrexianSnowcrusher : Ability
+phyrexianSnowcrusher =
+  Activated (Mana [generic 1, SnowMana])
+            (gets thisCreature 1 0 (Just untilEndOfTurn))
+
+-- "{1}{C}: This creature gets +2/+1 until end of turn." (Havoc Sower;
+-- its Devoid line and reminder gloss elided) — the COLORLESS pip
+-- ([CR#107.4c]), which is what `ColorOrColorless` was ported for: the
+-- token's empty color list could say "colorless" but no color could say
+-- "{C}".
+havocSower : Ability
+havocSower =
+  Activated (Mana [generic 1, colorlessPip])
+            (gets thisCreature 2 1 (Just untilEndOfTurn))
+
+-- "{1}{B}, Pay 2 life: Draw a card." (Erebos, God of the Dead; its other
+-- three lines elided) — the life payment as a cost COMPONENT, which is
+-- the same `ChangeLife` clause the sentence grammar already had, wearing
+-- the cost frame's verb.
+erebos : Ability
+erebos = Activated (Compound [Mana [generic 1, pip Black], payLife You 2]) drawACard
+
+-- "{1}{R/G}: Put a +1/+1 counter on this creature. Activate only as a
+-- sorcery." (Savageborn Hydra; its double strike and enters-with lines
+-- elided) — the activation WINDOW ([CR#602.5d]), and a second hybrid
+-- cost under it.
+savagebornHydra : Ability
+savagebornHydra =
+  Activated (Mana [generic 1, hybridPip Red Green])
+            (PutCounters (Lit 1) PlusOnePlusOne thisCreature)
+            {window = Just AsSorcery}
+
+-- "{1}{G}: This creature gets +2/+2 until end of turn. Activate only
+-- once each turn." (Basking Rootwalla; its madness line elided) — the
+-- use LIMIT ([CR#602.5b]), the second restriction slot.
+baskingRootwalla : Ability
+baskingRootwalla =
+  Activated (Mana [generic 1, pip Green])
+            (gets thisCreature 2 2 (Just untilEndOfTurn))
+            {limit = Just OncePerTurn}
+
+-- "{3}, {T}: Draw a card. Activate only if you control a creature with
+-- power 4 or greater." (Bonders' Enclave; its mana ability elided) — the
+-- activation GUARD, and the point of the seam chapter eighteen left: the
+-- condition is `Condition` unchanged, the postnominal comparison is
+-- chapter sixteen's unchanged, and the carrier is new.
+bondersEnclave : Ability
+bondersEnclave =
+  Activated (Compound [Mana [generic 3], TapSymbol])
+            drawACard
+            {guard = Just (Exists (And [creature, ControlledBy You,
+                                        Compare Power OrGreater (Lit 4)]))}
+
+-- "{W}, {T}: Remove a -1/-1 counter from target creature. If you do, you
+-- gain 2 life." (Woeleecher) — the MANDATORY "if you do" ([CR#118.12]),
+-- which is `May` with its offer emptied: no "may" is written anywhere on
+-- the line, and the arm still asks whether the payment was started.
+woeleecher : Ability
+woeleecher =
+  Activated (Compound [Mana [pip White], TapSymbol])
+            (doThen (RemoveCounters (Lit 1) MinusOneMinusOne (target creature))
+                    (gainsLife You (Lit 2)))
+
+-- "Sacrifice this creature unless you pay {2}." (Molting Harpy; its
+-- upkeep trigger shell and flying line elided) — the UNLESS family's
+-- first positive, and it is [CR#118.12a]'s own rewrite rather than a
+-- construction: "[Do something] unless [a player does something else]"
+-- means "[A player may do something else]. If [that player doesn't], [do
+-- something]", so the sentence is the may node read backwards, the
+-- payment in the body and the main clause in the declined arm.
+moltingHarpy : Effect []
+moltingHarpy = mayElse You (Pay You (Mana [generic 2])) (sacrifice You thisCreature)
+
+-- "Tap this creature unless you pay 1 life." (Carnophage; upkeep shell
+-- elided) — the same frame with a LIFE payment, which is what makes the
+-- verb's complement a whole `Cost` and not a mana amount.
+carnophage : Effect []
+carnophage = mayElse You (Pay You (payLife You 1)) (Tap thisCreature)
+
+-- "Sacrifice this enchantment unless you discard a card." (Solitary
+-- Confinement; upkeep shell and its other three lines elided) — the
+-- ACTION half of the same family, where the offered payment is an
+-- ordinary clause and no "pay" is written at all. Seventy-one corpus
+-- lines pay an unless with a non-mana action.
+solitaryConfinement : Effect []
+solitaryConfinement = mayElse You (discardsACard You) (sacrifice You thisEnchantment)
+
+
+-- "{W}{W}: Create a 1/1 white Soldier creature token. Activate only if
+-- you control no creatures and only once each turn." (Security Detail —
+-- the WHOLE card, one line long) — two restrictions conjoined, which is
+-- why the slots are separate rather than one restriction row, and the
+-- guard is a NEGATED condition: chapter eighteen measured "if you
+-- control no …" and could not place it, every carrier of those lines
+-- being a trigger's intervening-"if" or an activation restriction. This
+-- is that carrier.
+securityDetail : Ability
+securityDetail =
+  Activated (Mana [pip White, pip White])
+            (create (Lit 1) (creatureTok 1 1 [White] [Soldier]))
+            {limit = Just OncePerTurn}
+            {guard = Just (notSo (Exists (And [creature, ControlledBy You])))}
+
+
 
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
@@ -1398,8 +1528,8 @@ failing "countWord"
 -- hand is hidden; no [CR#400.7] exception reaches it, and
 -- Soratami Cloudskater-family costs write no such read back).
 failing "publicOnly"
-  badHiddenCost : Activated []
-  badHiddenCost = MkActivated (Move (a creature) handZ) (Tap It)
+  badHiddenCost : Ability
+  badHiddenCost = Activated (Do (Move (a creature) handZ)) (Tap It)
 
 -- Two cost moves leave two candidate antecedents ("Discard a card,
 -- Sacrifice a creature: …" — Falkenrath Pit Fighter-family): a bare
@@ -1408,10 +1538,10 @@ failing "publicOnly"
 -- eight), never a bare pronoun. (The verb is exile — zone-blind —
 -- so the pin isolates the ambiguity, not a zone gate.)
 failing "countOnes"
-  badTwoCostMentions : Activated []
-  badTwoCostMentions = MkActivated (Sequentially [discardsACard You,
-                                                  sacrifice You (a creature)])
-                                   (exile It)
+  badTwoCostMentions : Ability
+  badTwoCostMentions = Activated (Compound [Do (discardsACard You),
+                                            Do (sacrifice You (a creature))])
+                                 (exile It)
 
 -- The zone half of sacrifice's implicit restriction as a type error:
 -- an exiled referent is not sacrificeable [CR#701.21a].
@@ -1462,25 +1592,25 @@ failing "Payload Player"
 -- The participle's verb filter has no witness: the cost discarded,
 -- nothing was sacrificed.
 failing "countVerbed"
-  badVerbedWrongVerb : Activated []
-  badVerbedWrongVerb = MkActivated (discardsACard You)
-                                   (Move (TheVerbed Sacrifice CardW) battlefieldZ)
+  badVerbedWrongVerb : Ability
+  badVerbedWrongVerb = Activated (Do (discardsACard You))
+                                 (Move (TheVerbed Sacrifice CardW) battlefieldZ)
 
 -- The noun word misses on the type axis: an artifact was sacrificed,
 -- so "the sacrificed creature" has no referent.
 failing "countVerbed"
-  badVerbedWrongNoun : Activated []
-  badVerbedWrongNoun = MkActivated (sacrifice You (a (HasType Artifact)))
-                                   (Move (TheVerbed Sacrifice (TypeW Creature)) battlefieldZ)
+  badVerbedWrongNoun : Ability
+  badVerbedWrongNoun = Activated (Do (sacrifice You (a (HasType Artifact))))
+                                 (Move (TheVerbed Sacrifice (TypeW Creature)) battlefieldZ)
 
 -- Two same-verb stamps leave the participle ambiguous — the same
 -- strict uniqueness as every read (real costs of this shape name
 -- distinct verbs, which is what the filter buys).
 failing "countVerbed"
-  badVerbedAmbig : Activated []
-  badVerbedAmbig = MkActivated (Sequentially [sacrifice You (a creature),
-                                              sacrifice You (a creature)])
-                               (Move (TheVerbed Sacrifice CardW) battlefieldZ)
+  badVerbedAmbig : Ability
+  badVerbedAmbig = Activated (Compound [Do (sacrifice You (a creature)),
+                                        Do (sacrifice You (a creature))])
+                             (Move (TheVerbed Sacrifice CardW) battlefieldZ)
 
 -- No participle reads a player, and the word is what says so: it
 -- fixes the phrase's KIND exactly as it does for the demonstrative
@@ -1495,10 +1625,10 @@ failing "kindOfW PlayerW"
 -- mentions (the sacrificed self, the exiled target) make "that card"
 -- ambiguous — the participle is what real text switches to here.
 failing "countWord"
-  badBareCardRead : Activated []
-  badBareCardRead = MkActivated (sacrifice You thisArtifact)
-                                (Sequentially [exile (target creature),
-                                               Delayed NextEndStep (Move (That CardW) battlefieldZ)])
+  badBareCardRead : Ability
+  badBareCardRead = Activated (Do (sacrifice You thisArtifact))
+                              (Sequentially [exile (target creature),
+                                             Delayed NextEndStep (Move (That CardW) battlefieldZ)])
 
 -- ===== Chapter nine negatives: the audit round =====
 
@@ -1698,10 +1828,10 @@ failing "OneOf"
 -- corpus discard family reads "the discarded card" only) — the
 -- stamp's at-verb frame refuses the type word.
 failing "countVerbed"
-  badDiscardedCreatureWord : Activated []
+  badDiscardedCreatureWord : Ability
   badDiscardedCreatureWord =
-    MkActivated (discards You (aAtRandom (And [creature, InZone handZ])))
-                (DealDamage This
+    Activated (Do (discards You (aAtRandom (And [creature, InZone handZ]))))
+              (DealDamage This
                             (manaValueOf (TheVerbed Discard (TypeW Creature)))
                             (target AnyTarget))
 
@@ -2859,7 +2989,7 @@ failing "countOnes"
 failing "countOnes"
   badBothArmsAntecedent : Effect []
   badBothArmsAntecedent =
-    Sequentially [May You (gainsLife You (Lit 1))
+    Sequentially [May (Just You) (gainsLife You (Lit 1))
                        (Just (create (Lit 1) (creatureTok 1 1 [White] [Soldier])))
                        (Just (create (Lit 2) (creatureTok 1 1 [White] [Soldier]))),
                   PutCounters (Lit 1) PlusOnePlusOne It]
@@ -2889,7 +3019,7 @@ deathByDragons : Effect []
 deathByDragons =
   Create (Each (And [AnyPlayer, OtherThan (target AnyPlayer)])) (Lit 1)
          (MkToken (Just (5, 5)) [Red] (MkTypeLine [Dragon] [Creature])
-                  [KeywordAbility Flying] Nothing) []
+                  [Flying] Nothing) []
 
 -- "Prevent all combat damage that would be dealt by creatures other than
 -- target creature this turn." (Terrifying Presence) — the anchor half of
@@ -3557,3 +3687,113 @@ failing "countOnes Outcome"
                   (Exists creature)
                   Nothing)
               (gainsLife You ThatMuch)
+
+-- ===== What may be paid, what may be spelled "pay", and what may be
+-- granted =====
+
+-- A draw is not a payment. The colon used to accept any clause at all,
+-- which is what the ledger's cost-GRAMMAR entry named: [CR#602.1a] makes
+-- a cost what the ACTIVATOR pays, and no corpus line writes "Draw a
+-- card:" before a colon (zero, against eleven hundred eighty-four
+-- sacrifice components).
+failing "CostAction"
+  badDrawAsCost : Ability
+  badDrawAsCost = Activated (Do drawACard) drawACard
+
+-- Nor is a destruction, which is the sharper half of the same table:
+-- sacrifice and exile ARE cost verbs and destroy is not, so the refusal
+-- has to key on the composite's TAG and not on the move underneath it
+-- (zero "Destroy …:" components).
+failing "CostAction"
+  badDestroyAsCost : Ability
+  badDestroyAsCost = Activated (Do (destroy (a creature))) drawACard
+
+-- The life row is DIRECTIONAL: ninety-five "Pay N life" components
+-- against zero gain-life ones, so paying life is a cost and gaining it
+-- is not. A gain-life cost does exist — [CR#119.7] speaks of "a cost
+-- that involves having that player gain life" — and the cards that print
+-- one spell it as an ALTERNATIVE cost ([CR#118.9]), a base swap rather
+-- than an activation cost.
+failing "CostAction"
+  badGainLifeCost : Ability
+  badGainLifeCost = Activated (Do (gainsLife You (Lit 2))) drawACard
+
+-- "Pay" is one English VERB and a cost is the whole thing an ability
+-- charges. A sacrifice is a payment ([CR#118.1] — a cost is "an action
+-- or payment") and is not payABLE:
+-- the seventy-one non-mana unless lines write their own verb ("unless
+-- you sacrifice a land"), never "pay".
+failing "Payable"
+  badPayBySacrificing : Effect []
+  badPayBySacrificing = Pay You (Do (sacrifice You (a creature)))
+
+-- The tap symbol still more sharply: it is a cost that exists only
+-- before a colon ([CR#107.5] gives it its meaning there), and no
+-- sentence anywhere spells it as a verb phrase.
+failing "Payable"
+  badPayTapSymbol : Effect []
+  badPayTapSymbol = Pay You TapSymbol
+
+-- And no line writes "pay" over a comma-joined cost: the compound is a
+-- cost SHAPE, not a complement English's pay-verb takes.
+failing "Payable"
+  badPayCompound : Effect []
+  badPayCompound = Pay You (Compound [Mana [generic 1], TapSymbol])
+
+-- Growing the container is what made this refusal necessary. English
+-- grants an activated ability by QUOTING it — "Enchanted land has \"{T}:
+-- Add {B}\"", twenty-five lines, and the equipped/all-Slivers twins with
+-- it — which is a construction this grammar has no quotation for, where
+-- "gains flying" is a bare keyword.
+failing "Grantable"
+  badGainsActivated : Effect []
+  badGainsActivated = gains (target creature)
+                            (Activated (Mana [generic 1]) drawACard)
+                            (Just untilEndOfTurn)
+
+-- The token with-clause is the same refusal one type lower, and it is
+-- why that field holds `Keyword` and not the container: seven corpus
+-- lines create a token with a quoted activated ability, and none of them
+-- is writable without the quotation.
+failing "Keyword"
+  badTokenActivatedAbility : TokenChars
+  badTokenActivatedAbility =
+    MkToken (Just (1, 1)) [Red] (MkTypeLine [] [Creature])
+            [Activated (Mana [generic 1]) drawACard] Nothing
+
+-- A compound's ELEMENTS are components: nesting re-mints the
+-- right-nested tree the telescope replaced, and core reaches the flat
+-- form by normalizing instead (`Cost::normalize`).
+failing "NotCompound"
+  badNestedCompound : Ability
+  badNestedCompound =
+    Activated (Compound [Compound [Mana [generic 1], TapSymbol], TapSymbol]) drawACard
+
+-- And a compound of one is the component itself spelled a second way —
+-- the singleton-sequence refusal at the cost layer.
+failing "AtLeastTwo"
+  badSingletonCompound : Ability
+  badSingletonCompound = Activated (Compound [Mana [generic 1]]) drawACard
+
+-- The arm asymmetry carries to the MANDATORY twin unchanged, which is
+-- the check that the two shapes really are one node: the declined arm
+-- runs only when the payment was never started ([CR#118.12] — "started
+-- to pay a mandatory cost, regardless of what events actually
+-- occurred"), so the body's phrase named nobody it can read.
+failing "countOnes"
+  badIfNotReadsMandatoryBody : Effect []
+  badIfNotReadsMandatoryBody = doElse (sacrifice You (a creature)) (exile It)
+
+
+-- The unless family's OTHER half, and the shape of its wall: a hundred
+-- twenty-five "unless its/their controller pays" lines, forty-three
+-- "unless that player pays" and nine "unless any player pays" name their
+-- payer with an anaphor into the MAIN clause ("Return target creature to
+-- its owner's hand unless its controller pays {1}"). [CR#118.12a]'s
+-- rewrite is not linearization-preserving — it puts the may first — so
+-- the payer phrase is typed before the clause that announces what it
+-- reads, and "it" has nothing to reach.
+failing "countOnes"
+  badUnlessAnaphoricPayer : Effect []
+  badUnlessAnaphoricPayer =
+    mayElse (ControllerOf It) (Pay You (Mana [generic 1])) (Tap (target creature))

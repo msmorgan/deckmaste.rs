@@ -3363,6 +3363,272 @@ Graceful Antelope, Rampant Growth, Cloudshift, Scarwood Treefolk).
    repetition construction and not a duration at all, and one
    monarch-endpoint exile. Dropped rather than ledgered.
 
+## Chapter Twenty-Seven — The Cost Algebra
+
+Chapter twenty-seven, the first thing above a clause (evidence:
+Immersturm Skullcairn, Merrow Grimeblotter, Phyrexian Snowcrusher,
+Havoc Sower, Erebos God of the Dead, Savageborn Hydra, Basking
+Rootwalla, Bonders' Enclave, Security Detail, Woeleecher, Molting
+Harpy, Carnophage, Solitary Confinement; and, for what the round
+measured rather than built, Solphim Mayhem Dominus, Stiltzkin Moogle
+Merchant, Yes Man, Bill Ferny, Sacred Mesa. The round the colon
+stopped accepting anything):
+
+158. **The mana symbols are a port, and the hybrid families are ONE
+   row because the rules build them that way.** The explicit ruling
+   that carried `Color` in chapter nineteen carries the symbol side
+   here, so `SimpleManaSymbol`/`ManaSymbol`/`ManaCost` are core's
+   (`deckmaste_core/src/mana.rs`) row for row, and the settled Idris
+   spec agrees with core row for row as well — three independent
+   spellings of one closed catalog. What the port BUYS is visible in
+   the shape rather than the count: `Hybrid (SimpleManaSymbol) Color`
+   is one constructor covering three printed families, the two-color
+   `{W/U}`, the monocolored `{2/B}`, and the colorless-hybrid `{C/W}`,
+   because [CR#107.4e] says a hybrid symbol is a colored symbol "even
+   if one of its components is colorless" and the left half is exactly
+   the component that varies. `Phyrexian` takes a `Color` and not a
+   `SimpleManaSymbol` on its left, which is the type carrying its own
+   well-formedness off [CR#107.4f]'s list: the fifteen printed
+   Phyrexian symbols are five colored and ten hybrid-colored, and
+   there is no `{2/P}` or `{C/P}` to write. The one place the port is
+   deliberately looser than the CR is where core is, an unprinted
+   `{5/W}` being representable on purpose, and that is inherited
+   rather than re-litigated. `ColorOrColorless` lands here too, the
+   piece chapter nineteen named and skipped, and it lands where core
+   puts it — beside `Color`, not beside the symbols — because the
+   colorless pip is a fact about mana and not about the symbol
+   grammar. The bench witnesses the common rows and three of the
+   exotic ones: the hybrid and the untap symbol together on Merrow
+   Grimeblotter, the snow symbol on Phyrexian Snowcrusher, the
+   colorless pip on Havoc Sower. The PHYREXIAN row stands on the
+   ruling alone, and the reason is measured rather than assumed: the
+   corpus writes thirty-nine Phyrexian components in activation costs
+   and not one of their abilities is writable here — twenty-odd are
+   "Transform this creature", and the rest want an indestructible
+   counter, a counted untargeted group, or a cast-from-exile
+   permission. Solphim, Mayhem Dominus is the named real spelling.
+159. **A cost is not an Effect, and what says so is a per-VERB table.**
+   The colon has accepted any clause at all since it was minted, which
+   is the ledger's own cost-GRAMMAR entry, and the repair is not a
+   blanket rule but a measurement: [CR#602.1a] makes a cost what the
+   ACTIVATOR pays, so the question is which verbs oracle actually
+   writes before a colon. Counted over the components of symbol-led
+   activation costs — an undercount, since an action-only cost leads
+   its own line — sacrifice runs to eleven hundred eighty-four,
+   discard two hundred twenty, remove-counters two hundred twelve,
+   exile a hundred ninety-one, pay-life ninety-five, tap forty-four,
+   return twenty-nine, put-counters fourteen, reveal seven, mill five.
+   The refusals are the same measurement coming back zero: no line
+   writes a destruction, a draw, a shuffle or a search as a cost
+   (`badDrawAsCost`, `badDestroyAsCost`). The sharp case is the
+   composite, where the refusal has to key on the TAG and not on the
+   move underneath it — sacrifice and exile are cost verbs and destroy
+   is not, and all three are a `Move` to a zone. Core's
+   `Action::is_cost_eligible` lists the same verbs and reaches them
+   from the engine side, which is the agreement worth having. The LIFE
+   row is directional and that is measured too: ninety-five "Pay N
+   life" components against zero gain-life ones (`badGainLifeCost`).
+   And the ledger's own note about this cell needs one correction. It
+   said "you lose N life" is not a payment, citing [CR#119.4]; the
+   rule says the opposite in as many words — "if a player pays life,
+   the payment is subtracted from their life total; in other words,
+   the player loses that much life" — so the two are ONE clause and
+   the distinction is the FRAME it stands in ([CR#118.1]: a cost is an
+   action "necessary to take another action"). `Do (ChangeLife who
+   (Down n))` spells "Pay 2 life" before a colon and "you lose 2 life"
+   in a sentence, which is what the spelling comment now says.
+160. **The tap symbol is not the tap clause, and the corpus writes
+   both.** [CR#107.5] gives "{T}" a fixed meaning in an activation
+   cost — "tap this permanent" — with no noun phrase in it at all,
+   where "Tap an untapped creature you control" is an ordinary clause
+   with a described patient. The counts are three thousand two hundred
+   fifty-nine symbol components against a hundred seventy-one English
+   tap clauses, and the untap symbol "{Q}" is eighteen more. So `Cost`
+   carries `TapSymbol` and `UntapSymbol` as rows beside `Do`, which is
+   core's split exactly (`CostComponent::{Tap, Untap}`), and it is a
+   recorded DIVERGENCE from the settled Idris spec, which normalizes
+   "{T}" to `Do (Tap This)`. The spec is not wrong about the game; it
+   is making a semantic identification this grammar cannot make,
+   because the two are different things on the page. The untap symbol
+   earns its own row rather than a negation for a second reason worth
+   keeping: [CR#602.5a] names "{T}" and "{Q}" TOGETHER as the pair a
+   summoning-sick creature cannot pay, which is what core's
+   `CostPredicate::IncludesTapSymbol` asks about, so a grammar that
+   spelled one as the other's negation would have to unspell it there.
+161. **A cost's components thread ANNOUNCEMENTS and not payments, and
+   the rule is what fixes that.** Oracle joins components with commas
+   ("{1}{B}{R}{R}, {T}, Sacrifice this land:") and the effect after the
+   colon reads what they named, so the sequence has to accumulate
+   something. What it must NOT accumulate is settled by [CR#601.2h]:
+   the player pays the components "in any order", so no component can
+   depend on a sibling having been paid, and no corpus line writes one
+   that does. `CostSeq` is therefore the announcement telescope
+   `SimEffects` is, not the deed telescope `Effects` is — the same one
+   line of difference between the two containers chapter twenty-six
+   drew, arrived at from a rule instead of from a leak. The compound
+   inherits the two refusals its siblings carry: an element is a
+   component and never a compound (`badNestedCompound` — core reaches
+   the flat form by normalizing instead, `Cost::normalize`), and a
+   compound of one is the component spelled twice
+   (`badSingletonCompound`).
+162. **"Pay" is one English VERB where a cost is everything an ability
+   charges, and the two sets are not the same.** The unless family
+   needed a payment CLAUSE — [CR#118.12a] rewrites "[Do something]
+   unless [a player does something else]" into "[A player may do
+   something else]. If [that player doesn't], [do something]", so the
+   may's body has to be able to say "pays {3}" — and the obvious move,
+   letting the verb take a whole `Cost`, is half right. Its complement
+   is measured where the verb appears most: of the unless-payment
+   complements, a hundred seventy-eight are one symbol run and
+   twenty-four are "N life", and every other payment after "unless"
+   writes its OWN verb — "unless you sacrifice a land", "unless you
+   discard a card", seventy-one lines across four verbs — and never
+   "pay". So a sacrifice is a payment and is not payABLE
+   (`badPayBySacrificing`), the tap symbol still more sharply, being a
+   cost that exists only before a colon (`badPayTapSymbol`), and the
+   compound is unattested under the verb (`badPayCompound`). The row
+   itself is core's `Action::Pay(Cost)`: one `Cost` value standing in
+   two frames, paid to activate in one and resolving as a sentence in
+   the other.
+163. **The ability container is the granted-ability type GROWN, and it
+   is unindexed.** `Ability` has existed here since chapter twelve as
+   one row, `KeywordAbility Keyword`, with a doc comment calling
+   itself the granted-ability vocabulary "minimally". Growing that
+   into the container rather than minting a second type is what
+   [CR#113.3] licenses — the four categories are one category of
+   thing — and it is what core and the settled spec both do
+   (`Ability::{Static, Activated, Triggered, Spell, Keyword}`). It is
+   UNINDEXED, and that is a claim rather than a convenience: an
+   ability line is context-closed, its cost being the first thing on
+   the line with no discourse before it. Core is unindexed too; the
+   spec indexes its `Ability` so a keyword DESUGARING can carry an
+   anaphor, and this file has no keyword desugaring. The widening
+   costs exactly one refusal, and paying it is what keeps the
+   container honest: English grants an activated ability by QUOTING
+   it — "Enchanted land has \"{T}: Add {B}\"" (twenty-five lines), the
+   equipped and all-Slivers twins (ten and seven), the token
+   with-clause form (seven) — and this grammar has no quotation, so
+   the grant site says no (`Grantable`, `badGainsActivated`). The
+   token's with-clause slot is narrowed to `Keyword` for the same
+   reason and refuses the container by type
+   (`badTokenActivatedAbility`).
+164. **Three activation restrictions are three SLOTS because oracle
+   conjoins them, and the guard is typed before the cost.** A thousand
+   lines write "Activate only …" and they divide into three families
+   that co-occur: the window ("as a sorcery", five hundred
+   twenty-three; "as an instant", five), the use limit ("only once
+   each turn", eighty-six; "only once", eight), and the state guard
+   ("only if …", two hundred thirty-seven). The conjunction is what
+   settles the shape — "Activate only during your upkeep and only once
+   each turn", "Activate only if you control ten or more permanents
+   and only as a sorcery" — because one restriction row would have had
+   to spell a conjunction of unlike things. Security Detail is the
+   bench's whole-card witness at two of the three. The GUARD reuses
+   `Condition` verbatim, which is chapter eighteen's seam paying off
+   exactly as that chapter predicted, and it is typed at the EMPTY
+   context rather than in the cost's survivors — [CR#602.5]'s own
+   placement, since a restriction on use is checked before the ability
+   is activated at all where the cost is not paid until [CR#601.2h].
+   Nothing the cost names can be read by the condition deciding
+   whether the cost may be paid. That is also chapter eighteen's
+   negation finding finding its carrier: "Activate only if you control
+   no creatures" is three lines and Security Detail is one of them.
+165. **The mandatory "if you do" is the may node with its OFFER
+   emptied, and one rule is why.** [CR#118.12] states both shapes in a
+   single sentence — "[Do something]. If [a player] [does, doesn't, or
+   can't], [effect]." Or "[A player] may [do something]. …" — and
+   gives them ONE reader, checking "whether the player chose to pay an
+   optional cost OR STARTED TO PAY A MANDATORY COST, regardless of
+   what events actually occurred". Every consequence chapter eighteen
+   drew for the offered form therefore carries over untouched: the arm
+   asymmetry, the opacity of the join, the deed that may never have
+   happened — the rule's own Standstill example is a MANDATORY
+   sacrifice that could not be paid and whose arm did not run. So the
+   offer is the only thing that varies, and it is the only thing that
+   varies: `May` takes a `Maybe` decider now, `Nothing` being the bare
+   instruction whose "if you do" takes its pronoun from the BODY's own
+   agent because the sentence never wrote a decider. A second row
+   would have duplicated `mayIntro`, `annIntro`, `deedDelta` and the
+   refusals with them, and the check that it would have been a
+   duplicate is that the declined arm's refusal reproduces itself
+   without a line of new machinery (`badIfNotReadsMandatoryBody`
+   beside `badIfNotReadsMayBody`). Woeleecher is the positive, and it
+   is a whole activated ability: "{W}, {T}: Remove a -1/-1 counter
+   from target creature. If you do, you gain 2 life."
+166. **The unless family lands, and the wall it hits is a
+   LINEARIZATION wall.** Six hundred ninety-six lines write "unless",
+   and the round can now say which of them the machinery reaches.
+   [CR#118.12a]'s rewrite needs no new structure at all, exactly as
+   chapter eighteen recorded — the sentence is `May` with an `ifNot`
+   arm, the payment in the body and the main clause in the arm — so
+   what decides writability is who the PAYER is. Two hundred
+   forty-one lines pay in the second person ("unless you pay",
+   a hundred forty-five; "unless you sacrifice/discard/exile/tap" and
+   their neighbours, ninety-six), and those land: Molting Harpy,
+   Carnophage and Solitary Confinement are the three frames. A
+   hundred twenty-five write "unless its/their controller pays",
+   forty-three "unless that player pays" and nine "unless any player
+   pays", and those do NOT, for a reason the node makes visible: the
+   rules' rewrite is not linearization-preserving. It puts the may
+   first, so the payer phrase is typed before the clause that
+   announces what it reads, and "its controller" has nothing to reach
+   (`badUnlessAnaphoricPayer`). That is a sharper statement than the
+   stack blocker those lines mostly also carry, and it is the one that
+   would survive the stack arriving. The STATE half is re-checked and
+   unmoved: "unless you control a legendary creature" is a negated
+   `Condition` whose carriers are entering-tapped replacements and
+   durationless static deontics (sixty-two lines and a hundred eleven
+   "can't … unless"), and the cost vocabulary does nothing for either
+   — they want the abilities layer, which is the next round's.
+167. **What the round retro-opened, and what it did not.** Claimed:
+   the cost GRAMMAR entry, whose repair is finding 159's table; the
+   MANDATORY "if you do" entry, finding 165; the action half of the
+   "unless" entry, finding 166; and chapter eighteen's activation
+   restriction, which its own finding 76 promised would reuse
+   `Condition` verbatim and does. Re-checked and still shut, each with
+   its blocker relocated rather than repeated: finding 156's four
+   control-grant read-backs are no longer waiting on the [CR#118.12]
+   arm, which now exists, and are waiting on four different things —
+   Stiltzkin, Moogle Merchant on the PERMANENT word ("another target
+   permanent you control"), Bill Ferny on a subtype head plus a
+   remove-from-combat verb, Yes Man on a reflexive trigger
+   ("When they do") plus the turn-part window, and Kain on a trigger
+   shell plus the "that many"/"that much" reads. Checked and NOT
+   opened: the `InsteadOf` whole-card exercisers and the conditional
+   headcount upgrade, whose ledgered blockers are kicker, revolt,
+   madness, poison counters, the commander and monarch reads and a
+   conjunction `Condition` has no frame for — kicker is the only one
+   the cost algebra touches at all, and it wants the declared OPTIONAL
+   cost with its tag and its three read channels, not the cost type.
+   The event-query entry's own wording is updated instead of claimed:
+   Slaughter Pact waited on "pay, tokens, and an unknown-zone retag",
+   and pay has landed, leaving the delayed upkeep query and a
+   lose-the-game clause.
+168. **What the round measured and returned.** The MANA ability is an
+   activated ability and nothing else structurally — [CR#605.1a] makes
+   it one by four criteria, none of them about its shape — so it
+   belongs in this container and cannot be written here for want of a
+   production clause, three hundred thirty-two lines spelling the bare
+   "{T}: Add …" alone. The LOYALTY cost is eight hundred thirty-two
+   components and a symbol vocabulary of its own (the bracketed
+   "[+1]"/"[−7]"), which is why core's third use-limit row
+   (`LoyaltyOncePerTurn`, [CR#606.3]'s cap shared across a
+   planeswalker's abilities) waits with it rather than with the two
+   built here. The turn-part WINDOW is about a hundred twenty lines
+   ("during your upkeep", thirty-two; "during your turn", forty-one;
+   "during your turn, before attackers are declared", nineteen) and is
+   nearly writable — `TurnPart` and `Whose` are chapter seventeen's —
+   with two lines naming the exact gap: "Activate only during any
+   upkeep step" writes a possessor `Whose` has no word for. The
+   cost-language reads are seventy-four lines and one row apiece:
+   "unless [someone] pays its echo cost" and the upkeep-cost twin want
+   a keyword's own cost, and "pays its mana cost" is core's
+   `ManaCostOf` over a reference. And the whole total-cost pipeline is
+   named and left where it was: [CR#601.2f]'s increases and reductions
+   (core's `CostChange`), [CR#118.9]'s alternative-cost base swap, and
+   [CR#118.8b]'s declared optional costs with their tags — engine
+   traffic and keyword packaging, not sentence grammar.
+
 ## Engine-Boundary Deferrals
 
 Engine-boundary deferrals (deliberate, and to stay so): the
@@ -3446,12 +3712,14 @@ the UNTAP deed under a "for as long as" duration ([CR#611.2b]), so
 it waits on both, chapter fifteen's restriction clause having
 landed with neither); [LANDED, finding 73 — `May`'s if-you-do /
 if-not branches are two `Maybe` slots on the clause, and the
-declined arm reads only what preceded the may]; the MANDATORY
-"if you do" ("[Do something]. If you do, …" with no offer — a
-hundred and forty-two lines write no "may" anywhere), which
-[CR#118.12] governs jointly with the offered form and calls a
-cost check rather than an event read, so it waits with the cost
-algebra that has to spell an unoffered payment; [LANDED, finding 88 — the ELSE sentence
+declined arm reads only what preceded the may]; [LANDED, finding 165 — the MANDATORY
+"if you do" is `May` with its OFFER emptied, not a second row.
+[CR#118.12] states both shapes in one sentence and gives them one
+reader ("chose to pay an optional cost or STARTED TO PAY A MANDATORY
+COST, regardless of what events actually occurred"), so the arm
+asymmetry and the opacity carry over untouched and the decider slot
+became a `Maybe`. The bare instruction's "if you do" takes its pronoun
+from the body's own agent; Woeleecher is the positive]; [LANDED, finding 88 — the ELSE sentence
 "Otherwise, …" is `If`'s third slot, a `Maybe` field typed in the
 discourse BEFORE the conditional and contributing nothing outward,
 opened on Unholy Annex once tokens and counters made both of a
@@ -3480,16 +3748,25 @@ table; [LANDED, finding 95 — the CONDITION negation is
 `NotCond`, over a closed table of the frames English negates:
 the existential and the reference frames, not the comparison
 frame and not another negation. The wait's own count was short by
-a factor of five]; "unless" whole
-— the action form is [CR#118.12a]'s own rewrite into finding 73's
-node and waits on the cost algebra (a hundred forty-five "unless
-you pay", a hundred eighty-six "unless [someone] pays",
-seventy-one non-mana payments), the state form is a negated
-condition whose carriers are entering-tapped replacements and
-durationless static deontics (sixty-two "unless you control", a
-hundred nine "can't … unless"), and the conditioned deontic
-should re-use `Condition` inside `Cant`'s shape as core does with
-`StaticEffect::Conditionally`; "if able" (two hundred fifty-one
+a factor of five]; [HALF LANDED, finding 166 — "unless"
+whole. The action form needed no new structure, exactly as chapter
+eighteen recorded: it is [CR#118.12a]'s rewrite onto `May`'s `ifNot`
+arm, and what it waited on was the cost vocabulary. Two hundred
+forty-one lines pay in the SECOND PERSON and land (Molting Harpy,
+Carnophage, Solitary Confinement — the pay-mana, pay-life and action
+frames). What is still shut is the ANAPHORIC PAYER: a hundred
+twenty-five "unless its/their controller pays", forty-three "unless
+that player pays" and nine "unless any player pays" name their payer
+by reading the MAIN clause, and the rules' own rewrite is not
+linearization-preserving — it puts the may first, so the payer phrase
+is typed before the clause that announces what it reads
+(`badUnlessAnaphoricPayer`). That blocker outlives the stack
+vocabulary those lines mostly also want. The STATE form is unmoved and
+still a negated condition whose carriers are entering-tapped
+replacements and durationless static deontics (sixty-two "unless you
+control", a hundred eleven "can't … unless"), and the conditioned
+deontic should re-use `Condition` inside `Cant`'s shape as core does
+with `StaticEffect::Conditionally`]; "if able" (two hundred fifty-one
 lines, fifty-eight of them "attacks each combat if able"), which
 is the deontic-obligation polarity core keeps beside `Cant` and
 not a condition at all; the chosen-OBJECT
@@ -3511,20 +3788,24 @@ the before-state question and its "or" disjunction; no bench card
 spells either, so `NounWord` waits to grow it); the
 additional-cast-cost juncture (Fling — "the sacrificed creature"
 across a casting cost, the same public-survivors discipline as
-the colon, constructor unminted); the cost GRAMMAR (the colon
-accepts ANY clause as a cost, but [CR#602.1a] makes a cost what
-the activator pays — delayed clauses and "you lose N life" are
-not payments [CR#118.1,119.4], and a cost's OUTCOME mention leaks
-through `publicOnly` to the effect; restrict the pre-colon sort
-with the cost-participle work); hidden-zone identity (a move into
+the colon, constructor unminted); [LANDED, finding 159 — the cost
+GRAMMAR. The colon takes a `Cost` now, whose action row is gated by a
+per-VERB table measured off the corpus rather than by a blanket rule,
+and core's `Action::is_cost_eligible` names the same verbs from the
+engine side. One part of this entry was wrong and is corrected in
+place: "you lose N life" IS the same clause as "Pay N life" —
+[CR#119.4] says paying life is losing that much life in as many words
+— so the distinction is the FRAME ([CR#118.1]) and not the verb, and
+`Do (ChangeLife who (Down n))` spells both]; hidden-zone identity (a move into
 hand keeps its binding readable, but [CR#400.7] mints a new
 object and [CR#400.7j] lets the effect re-find it only in a
 PUBLIC zone — introduction-in-hand via predicate stays legal,
 retention across a hidden-bound move must not; wants a
 trackedness distinction the payload does not yet carry); more event queries (upkeep / end-of-combat /
-leaves-the-battlefield — Slaughter Pact, Mirror Match, and
-Kjeldoran Elite Guard wait on pay, tokens, and an unknown-zone
-retag); the player pronoun "they"
+leaves-the-battlefield — Mirror Match and Kjeldoran Elite Guard wait
+on tokens and an unknown-zone retag; Slaughter Pact's "pay" LANDED
+with finding 162, so what it still wants is the delayed upkeep query
+and a lose-the-game clause); the player pronoun "they"
 (corpus-attested only inside trigger and unless clauses — Havoc,
 Tergrid's Lantern — so `They`'s positive waits on those
 constructions), player groups ("each opponent … they"
@@ -3939,6 +4220,50 @@ replacements, durations, and condition lookbacks alike
 container, which is what would make the third reader real and what would
 decide whether the "this turn" on the delayed query is part of the event
 or part of its frame.
+
+Chapter twenty-seven's own deferrals, each measured: the MANA ability,
+which [CR#605.1a] makes an activated ability by four criteria none of
+which is about its shape — so the container already holds it and what is
+missing is a production clause, three hundred thirty-two lines writing
+the bare "{T}: Add …" and core keeping produced mana a separate type
+from printed symbols (`ManaSpec` beside `ManaSymbol`); the LOYALTY cost
+(eight hundred thirty-two bracketed components, "[+1]"/"[−7]"), a symbol
+vocabulary of its own, which core's third use-limit row carries with it
+(`LoyaltyOncePerTurn`, [CR#606.3]'s cap shared across a planeswalker's
+abilities rather than per-ability); the turn-part WINDOW ("Activate only
+during your upkeep", thirty-two lines; "during your turn", forty-one;
+"during your turn, before attackers are declared", nineteen; about a
+hundred twenty in all, core's `Timing::DuringTurn`/`DuringStep`), whose
+vocabulary is nearly chapter seventeen's already and whose exact gap is
+two lines wide — "Activate only during any upkeep step" writes a
+possessor `Whose` has no word for, neither yours nor a named player's;
+the cost-language READS (seventy-four lines — "unless [someone] pays its
+echo cost" and its upkeep-cost twin want a keyword's own cost, and "pays
+its mana cost" is core's `ManaCostOf` over a reference, the cost-language
+twin of the numeric mana-value read); the declared OPTIONAL cost with its
+tag and three read channels ([CR#118.8b]; core's `OptionalCost` +
+`CostTag`, read by `Condition::PaidCost`, `Count::TimesPaid` and
+`Predicate::WasPaidWith`), which is what kicker and the conditional
+headcount upgrade actually want and is keyword packaging rather than
+sentence grammar; the total-cost PIPELINE ([CR#601.2f] increases and
+reductions, core's `CostChange`) and the alternative-cost base swap
+([CR#118.9], core's `AlternativeCost`), both engine traffic; the
+per-pip alternative payment (convoke/delve/improvise — core's
+`PayPips(PipClass, PayAct)`), which is a static ability's; the aggregate
+TapTotal cost ([CR#702.122a] crew — core and the settled spec both carry
+it as one row and no corpus line here needs it yet); the QUOTED ability
+grant ("Enchanted land has \"{T}: Add {B}\"", twenty-five lines; the
+equipped and all-Slivers twins, ten and seven; the token with-clause,
+seven), a quotation construction this grammar has no row for and the one
+thing the container's widening had to refuse (`badGainsActivated`,
+`badTokenActivatedAbility`); the UNTAP clause, five cost components
+("Untap a permanent you control") with no `Effect` row to stand on — the
+untap SYMBOL landed, the verb did not; and the PHYREXIAN symbol row,
+which stands on the port ruling alone: thirty-nine Phyrexian components
+appear in activation costs and not one of their abilities is writable
+here (twenty-odd are "Transform this creature"; the rest want an
+indestructible counter, a counted untargeted group, or a cast-from-exile
+permission), with Solphim, Mayhem Dominus named as the real spelling.
 
 The context-as-phrase-telescope collapse (bindings storing
 the mention terms themselves, every projection computed) stays open as

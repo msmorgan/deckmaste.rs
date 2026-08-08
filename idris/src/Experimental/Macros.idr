@@ -532,6 +532,7 @@ gets n pow tou d = Continuously (Gets n pow tou) d
 public export
 gains : (n : Noun bs Object) -> (a : Ability) -> (d : Maybe (Duration (nomIntro n))) ->
         {auto 0 ok : OnBattlefield (nounZone n)} ->
+        {auto 0 gr : Grantable a} ->
         {auto 0 sp : SpanOk KeywordGrant d} -> Effect bs
 gains n a d = Continuously (Gains n a) d
 
@@ -640,7 +641,7 @@ gainsLife who amt = ChangeLife who (Up amt)
 -- spelling: ["<Param(0)> may <Param(1)>"], kind: Sentence
 public export
 may : (decider : Noun bs Player) -> Effect (nomIntro decider) -> Effect bs
-may d body = May d body Nothing Nothing
+may d body = May (Just d) body Nothing Nothing
 
 -- "[decider] may [effect]. If [decider] do, [effect]." — the taken
 -- branch, which reads everything the body introduced.
@@ -650,7 +651,7 @@ may d body = May d body Nothing Nothing
 public export
 mayThen : (decider : Noun bs Player) -> (body : Effect (nomIntro decider)) ->
           Effect (effIntro body) -> Effect bs
-mayThen d body did = May d body (Just did) Nothing
+mayThen d body did = May (Just d) body (Just did) Nothing
 
 -- "[decider] may [effect]. If [decider] don't, [effect]." — the
 -- declined branch, which reads only what preceded the may.
@@ -659,7 +660,7 @@ mayThen d body did = May d body (Just did) Nothing
 public export
 mayElse : (decider : Noun bs Player) -> (body : Effect (nomIntro decider)) ->
           Effect (nomIntro decider) -> Effect bs
-mayElse d body notd = May d body Nothing (Just notd)
+mayElse d body notd = May (Just d) body Nothing (Just notd)
 
 -- "[decider] may [effect]. If [decider] do, [effect]. If [decider]
 -- don't, [effect]." — both branches, each typed as its own surface types
@@ -670,7 +671,7 @@ mayElse d body notd = May d body Nothing (Just notd)
 public export
 mayThenElse : (decider : Noun bs Player) -> (body : Effect (nomIntro decider)) ->
               Effect (effIntro body) -> Effect (nomIntro decider) -> Effect bs
-mayThenElse d body did notd = May d body (Just did) (Just notd)
+mayThenElse d body did notd = May (Just d) body (Just did) (Just notd)
 
 -- The token characteristics, as the two shapes the corpus writes them in:
 -- the plain creature token, which is the overwhelming majority, and the
@@ -1118,3 +1119,75 @@ insteadOf : (replaced : Effect bs) -> (repl : Effect (annIntro replaced)) ->
             {auto 0 na : NotInstead replaced} ->
             {auto 0 nb : NotInstead repl} -> Effect bs
 insteadOf replaced repl = InsteadOf replaced repl {na} {nb}
+
+-- The mana symbols as one-word names, so a cost reads the way the card
+-- prints it. Each is a projection of `ManaSymbol`'s compositional shape
+-- and none is a construction of its own — the symbol vocabulary is the
+-- port, these are its spellings.
+
+-- "{n}" — the generic numeral ([CR#107.4b]).
+-- spelling: ["{<Param(0)>}"], kind: Cost (component-owned -- see ManaSymbol)
+public export
+generic : Nat -> ManaSymbol
+generic n = Simple (Generic n)
+
+-- "{W}".."{G}" — a colored pip ([CR#107.4a]).
+-- spelling: ["{<Param(0) code>}"], kind: Cost (see ManaSymbol)
+public export
+pip : Color -> ManaSymbol
+pip c = Simple (Specific (OfColor c))
+
+-- "{C}" — the colorless pip ([CR#107.4c]).
+-- spelling: ["{C}"], kind: Cost (see ManaSymbol)
+public export
+colorlessPip : ManaSymbol
+colorlessPip = Simple (Specific Colorless)
+
+-- "{W/U}" — the two-color hybrid ([CR#107.4e]).
+-- spelling: ["{<Param(0) code>/<Param(1) code>}"], kind: Cost
+public export
+hybridPip : Color -> Color -> ManaSymbol
+hybridPip a b = Hybrid (Specific (OfColor a)) b
+
+-- "{2/B}" — the monocolored hybrid, whose left half is a generic amount
+-- ([CR#107.4e]).
+-- spelling: ["{<Param(0)>/<Param(1) code>}"], kind: Cost
+public export
+monoHybridPip : Nat -> Color -> ManaSymbol
+monoHybridPip n c = Hybrid (Generic n) c
+
+-- "{W/P}" — the Phyrexian pip ([CR#107.4f]).
+-- spelling: ["{<Param(0) code>/P}"], kind: Cost
+public export
+phyrexianPip : Color -> ManaSymbol
+phyrexianPip c = Phyrexian c Nothing
+
+-- "Pay [n] life" as a cost component ([CR#118.3b]) — the life clause
+-- under `Do`, which is what makes it the SAME payment the sentence
+-- "you lose N life" describes and not a second verb (core spells it
+-- `Do(ChangeLife(You, Down(n)))` too).
+-- spelling: ["Pay <Param(1)> life"], kind: Cost (the cost spelling of
+-- ChangeLife's Down; the sentence frame writes "<Param(0)> loses
+-- <Param(1)> life" for the same clause)
+public export
+payLife : (who : Noun bs Player) -> (n : Nat) -> Cost bs
+payLife who n = Do (ChangeLife who (Down (Lit n)))
+
+-- "[body]. If [body's agent] do, [effect]." — the MANDATORY twin of
+-- `mayThen` ([CR#118.12], a hundred forty-two lines): the same node with
+-- no offer, so the first sentence is an instruction and the arm still
+-- asks whether the payment was started.
+-- spelling: ["<Param(0)>. If <agent of Param(0)> do, <Param(1)>."],
+-- kind: Sentence (the anaphor's pronoun is the body's own agent -- "if
+-- you do" for an imperative, "if they do" for a named subject)
+public export
+doThen : (body : Effect bs) -> Effect (effIntro body) -> Effect bs
+doThen body did = May Nothing body (Just did) Nothing
+
+-- "[body]. If [body's agent] don't, [effect]." — the declined arm of the
+-- same mandatory node, which reads only what preceded the instruction.
+-- spelling: ["<Param(0)>. If <agent of Param(0)> don't, <Param(1)>."],
+-- kind: Sentence (see doThen)
+public export
+doElse : (body : Effect bs) -> Effect bs -> Effect bs
+doElse body notd = May Nothing body Nothing (Just notd)
