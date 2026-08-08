@@ -6,14 +6,36 @@ import public Experimental
 
 %default total
 
+-- The named quantities, macros over the one `Range` primitive exactly
+-- as core's are (`plugins/builtin/macros/quantity/`): "[n]" for the
+-- exact count, "up to [n]" for core's `AtMost` under the oracle's own
+-- word, "any number of" for the unbounded range. Core's `AtLeast` and
+-- `Between` ("one or two targets") spell over the same primitive; they
+-- wait on a corpus line that needs them.
+
+-- "[n] target [pred]s" — the exact count
+public export
+exactly : Nat -> Quantity
+exactly n = Range (Just n) (Just n)
+
+-- "up to [n] target [pred]s"
+public export
+upTo : Nat -> Quantity
+upTo n = Range Nothing (Just n)
+
+-- "any number of target [pred]s"
+public export
+anyNumber : Quantity
+anyNumber = Range Nothing Nothing
+
 -- "target [pred]" — the singular counted mention. One constructor
--- serves every count ([CR#601.2c] announces them all alike); at one
--- the numeral is what rendering leaves unwritten ("target creature",
--- never "one target creature").
+-- serves every quantity ([CR#601.2c] announces them all alike); at
+-- exactly one the numeral is what rendering leaves unwritten ("target
+-- creature", never "one target creature").
 public export
 target : (p : Predicate bs k) -> {auto tk : Targetable k} ->
          {auto 0 hd : Headed p} -> Noun bs k
-target p = TargetGroup 1 p {tk} {hd}
+target p = TargetGroup (exactly 1) p {tk} {hd}
 
 -- "creature"
 public export

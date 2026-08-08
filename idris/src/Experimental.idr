@@ -193,8 +193,8 @@
 |||
 ||| 21. **Groups are bindings like any other.** A counted target
 |||    mention ("two target creatures", "up to four …") binds once, and
-|||    its numeral is ARITY data: the only thing any consumer reads off
-|||    it is grammatical number (`upToPlur`), never a membership fact
+|||    its quantity is ARITY data: the only thing any consumer reads off
+|||    it is grammatical number (`quantPlur`), never a membership fact
 |||    ([CR#601.2c] fixes the count at announce, and the one read that
 |||    wants a number wants the ACTUAL count, not the bound).
 |||    `Them`/`Those c` are the strict-unique plural twins of the
@@ -306,10 +306,11 @@
 |||    card [CR#108.3], "their owners' hands", Aether Burst, being
 |||    the plural relational, future vocabulary): `nounPlur` projects
 |||    grammatical number (`badGroupPower`, `badGroupOwner`). Counted
-|||    mentions refine: the numeral is a written one, so it is at least
-|||    one (`badZeroGroup`), and the number it projects is its own —
-|||    "up to one" and the exact one both bind singular (Ty Lee, Chi
-|||    Blocker's "It" remention; `upToPlur` serves both counted forms).
+|||    mentions refine: the quantity is a written one, so its maximum
+|||    is at least one (`badZeroGroup`), and the number it projects is
+|||    its own — "up to one" and the exact one both bind singular (Ty
+|||    Lee, Chi Blocker's "It" remention; `quantPlur` reads the maximum,
+|||    which is what both spellings share).
 |||    This finding's original refusal of up-to mentions as "other"
 |||    witnesses is repealed by finding 35.
 ||| 31. **Marked clauses carry their obligations.** "Of their choice"
@@ -379,8 +380,10 @@
 |||    target creature": the anchor SLOT exists even when its
 |||    denotation may be empty ([CR#115.6]), distinctness over an
 |||    empty anchor is vacuous, and distinctness stays predicate
-|||    content ([CR#601.2c]). `anyTargeted` counts `TargetUpToD`
-|||    mentions; finding 30's contrary refusal is repealed.
+|||    content ([CR#601.2c]). `anyTargeted` counts up-to mentions;
+|||    finding 30's contrary refusal is repealed. That the two spellings
+|||    are one witness is why they now share one determiner tag — the
+|||    emptiness is the quantity's, not the word's.
 ||| 36. **Grammatical number gates the argument slots.** The binary
 |||    fight frame takes two singular combatants ([CR#701.14a];
 |||    every corpus "X fights Y" line is singular — the plural form
@@ -390,13 +393,19 @@
 |||    union read "creatures your opponents control" waits with the
 |||    player groups, "their owners' hands" with the plural
 |||    relationals); the minted dies-watcher is singular; and a
-|||    counted mention carries its number in its NUMERAL. One
-|||    constructor serves every count (`TargetGroup`, floored at
-|||    `AtLeastOne`) and the singular is a macro over it
-|||    (`target p = TargetGroup 1 p`), so two-up survives as a
-|||    RENDERING rule rather than a type floor: the numeral is
-|||    unwritten at one ("target creature", never "one target
-|||    creature") and written from two ("two target creatures"). Fight
+|||    counted mention carries its number in its QUANTITY. One
+|||    constructor serves every quantity (`TargetGroup`, mirroring
+|||    core's single `TargetSpec::Target(Quantity, Predicate)` announce
+|||    form) and the named forms are macros over the one `Range`
+|||    primitive exactly as core's are — `target p = TargetGroup
+|||    (exactly 1) p`, `upTo n`, `anyNumber` — so both the singular and
+|||    the up-to phrase are spellings of one mention, and two-up
+|||    survives as a RENDERING rule rather than a type floor: the
+|||    numeral is unwritten at one ("target creature", never "one target
+|||    creature") and written from two ("two target creatures"). What
+|||    the type still refuses is a quantity admitting nothing: the
+|||    MAXIMUM is at least one (`NonZeroQ`, `badZeroGroup`), which kills
+|||    "up to zero" in the same stroke as "zero". Fight
 |||    participation reads a GRANT, not a type name: `combatant` is
 |||    the stand-in for a TypeDef-declared combat-participant grant
 |||    — distinct from May(Attack)/May(Block), fight keying on type
@@ -464,12 +473,15 @@
 |||    those carry their own structures (a division, an each-of
 |||    recipient — ledger), so "lone class word" constrains "any
 |||    target" itself, not the family it belongs to. That makes the
-|||    third refusal a question of the COUNT once the counted mention
-|||    is one constructor (finding 36): the class word belongs at one,
-|||    where the phrase IS the singular form ("Lightning Bolt deals 3
-|||    damage to any target"), and is refused from two up until the
-|||    plural structures land — `AnyTargetAtCount`,
-|||    `badGroupAnyTarget`.
+|||    third refusal a question of the QUANTITY once the counted
+|||    mention is one constructor (finding 36): the class word belongs
+|||    at exactly one, where the phrase IS the singular form
+|||    ("Lightning Bolt deals 3 damage to any target"), and at any
+|||    up-to bound, which the corpus writes outright ("each of up to
+|||    two targets", Fall of the Titans); the exact group from two up
+|||    and the unbounded "any number of" are refused until the plural
+|||    structures land — `AnyTargetAtCount`, `badGroupAnyTarget`,
+|||    `badAnyNumberAnyTarget`.
 ||| 41. **The sorted self-reference stands on the battlefield.** "This
 |||    creature" / "this enchantment" is a description including a
 |||    card type, so [CR#109.2] denotes the PERMANENT: `ThisOf`
@@ -620,17 +632,23 @@
 ||| Asmodeus; and condition-supplied scalars — Tellah, Great Sage's
 ||| mana SPENT is not a clause outcome at all, so it arrives with the
 ||| conditions axis); "any number of" / "X" target groups
-||| (corpus-frequent; constructors wait on verified whole cards), and
+||| (corpus-frequent; the QUANTITY spells the unbounded form now, while
+||| the variable one waits on bounds that admit a variable — core's
+||| range is over a `Count`, whose `X` row this one's `Nat` has no
+||| answer to — and both wait on verified whole cards for a positive),
+||| and
 ||| with them the PLURAL damage-class forms — [CR#115.4] names
 ||| "another target," "two targets," and similar expressly alongside
 ||| "any target", and the corpus writes them either as a division
 ||| ("deals 2 damage divided as you choose among one or two targets",
 ||| Chandra's Pyrohelix) or as an each-of recipient ("Fall of the
 ||| Titans deals X damage to each of up to two targets"); the bare
-||| up-to noun already spells (`TargetUpTo n AnyTarget`), while the
-||| division and each-of RECIPIENT structures wait with this axis, and
-||| the exact-count mention admits the class word only at ONE — the
-||| singular form itself — refusing it from two up until they land
+||| up-to noun already spells (`TargetGroup (upTo n) AnyTarget`), as
+||| does the unbounded quantity itself (`anyNumber`), while the
+||| division and each-of RECIPIENT structures and a verified whole-card
+||| positive wait with this axis, and the exact-count mention admits
+||| the class word only at ONE — the singular form itself — refusing it
+||| from two up, and from the unbounded quantity, until they land
 ||| (`AnyTargetAtCount`);
 ||| counted UNTARGETED groups ("four lands you control" — Burning of
 ||| Xinye's subject-destroy positive waits on them); the
@@ -818,30 +836,58 @@ isOne : Plurality -> Bool
 isOne OneOf = True
 isOne ManyOf = False
 
-||| A counted mention's grammatical number, read off its numeral: one
-||| is SINGULAR — "target creature" and "up to one target creature"
-||| both rement as "it" (Ty Lee, Chi Blocker) — and larger counts are
-||| groups. Choosing zero [CR#115.6] is runtime's null read, not a
-||| grammar fact.
+||| How many objects a counted mention takes — core's `Quantity`
+||| (`deckmaste_core/src/quantity.rs`): ONE primitive, a range with
+||| both bounds optional (`Nothing` = unbounded that side, so
+||| [CR#601.2c]'s "any number" is `Range Nothing Nothing`). The
+||| readable named forms are macros over it in core and macros over it
+||| here (`exactly`, `upTo`, `anyNumber` in `Experimental.Macros`,
+||| answering core's `Exactly`/`AtMost`/`AnyNumber`; its `AtLeast` and
+||| `Between` spell over the same primitive when a corpus line wants
+||| them). A magnitude is not a quantity — that is `Amount`.
 public export
-upToPlur : Nat -> Plurality
-upToPlur (S Z) = OneOf
-upToPlur n = ManyOf
+data Quantity : Type where
+  Range : Maybe Nat -> Maybe Nat -> Quantity
 
-||| A written numeral is at least one — "zero target creatures" is
-||| unwritten English (`badZeroGroup`, `badForEachZero`).
+||| A written quantity permits at least one object ([CR#115.1] — a slot
+||| cannot target nothing). The UPPER bound carries the demand: a
+||| statically zero maximum is unwritten English however it is spelled,
+||| exactly ("zero target creatures") or as a bound ("up to zero") —
+||| `badZeroGroup`. An ABSENT maximum is the unbounded "any number of",
+||| and a zero LOWER bound is what every "up to" has, so neither is
+||| touched.
+public export
+data NonZeroQ : Quantity -> Type where
+  UnboundedAbove : NonZeroQ (Range lo Nothing)
+  MaxAtLeastOne : NonZeroQ (Range lo (Just (S n)))
+
+||| A counted mention's grammatical number, read off its quantity: one
+||| is SINGULAR — "target creature" and "up to one target creature"
+||| both rement as "it" (Ty Lee, Chi Blocker) — and every wider
+||| quantity is a group. The MAXIMUM is what number reads; choosing
+||| fewer [CR#115.6] is runtime's null read, not a grammar fact.
+public export
+quantPlur : Quantity -> Plurality
+quantPlur (Range _ (Just (S Z))) = OneOf
+quantPlur (Range _ _) = ManyOf
+
+||| A written numeral is at least one — "for each zero creatures" is
+||| unwritten English (`badForEachZero`).
 public export
 data AtLeastOne : Nat -> Type where
   OneUp : AtLeastOne (S n)
 
 ||| The introducing word of a mention — a SURFACE projection ("target",
-||| "up to [n] target", "a", "each", "all", or a definite/derived
-||| mention). Rules facts (the settled-target boundary, the "other"
-||| presupposition) are functions of it, never stored alongside it —
-||| and "up to" is its own word because its group may be empty
-||| [CR#115.6]; its MENTION still witnesses "other" (finding 35).
+||| "a", "each", "all", or a definite/derived mention). Rules facts
+||| (the settled-target boundary, the "other" presupposition) are
+||| functions of it, never stored alongside it. Counted target mentions
+||| share ONE tag whatever their quantity: "up to" once held its own on
+||| the theory that a possibly-empty group [CR#115.6] was a different
+||| word for the presupposition to see, but finding 35 repealed that
+||| and no consumer ever told the two apart — the emptiness lives in
+||| the quantity, as it does in core's single announce form.
 public export
-data Determiner = TargetD | TargetUpToD | AD | EachD | AllD | TheD
+data Determiner = TargetD | AD | EachD | AllD | TheD
 
 ||| Zone sorts, minimally ([CR#400.1] family) — the fold-state tag a
 ||| binding carries. Ownership is not stored here; it lives in the
@@ -999,8 +1045,6 @@ anyTargeted : Kind -> Bindings -> Bool
 anyTargeted k [] = False
 anyTargeted k (MkBinding TargetD k' _ _ :: bs) =
   if sameKind k k' then True else anyTargeted k bs
-anyTargeted k (MkBinding TargetUpToD k' _ _ :: bs) =
-  if sameKind k k' then True else anyTargeted k bs
 anyTargeted k (_ :: bs) = anyTargeted k bs
 
 ||| Head-type compatibility between an "other" phrase and a candidate
@@ -1020,8 +1064,6 @@ public export
 anyTargetedTy : Kind -> CardType -> Bindings -> Bool
 anyTargetedTy k t [] = False
 anyTargetedTy k t (b@(MkBinding TargetD k' _ _) :: bs) =
-  if sameKind k k' && anchorTyOk t (bindingTy b) then True else anyTargetedTy k t bs
-anyTargetedTy k t (b@(MkBinding TargetUpToD k' _ _) :: bs) =
   if sameKind k k' && anchorTyOk t (bindingTy b) then True else anyTargetedTy k t bs
 anyTargetedTy k t (_ :: bs) = anyTargetedTy k t bs
 
@@ -1045,8 +1087,6 @@ public export
 settleTargets : Bindings -> Bindings
 settleTargets [] = []
 settleTargets (MkBinding TargetD k plur payload :: bs) =
-  MkBinding TheD k plur payload :: settleTargets bs
-settleTargets (MkBinding TargetUpToD k plur payload :: bs) =
   MkBinding TheD k plur payload :: settleTargets bs
 settleTargets (b :: bs) = b :: settleTargets bs
 
@@ -1862,25 +1902,29 @@ mutual
     MkAnyTargetFree : {auto 0 ok : anyTargetFree p = True} -> AnyTargetFree p
 
   ||| May a counted target mention spell the class word? The answer is
-  ||| the COUNT's, not the determiner's. At one the phrase IS the
-  ||| singular damage-class form [CR#115.4] defines — "Lightning Bolt
-  ||| deals 3 damage to any target" — so the class word is exactly what
-  ||| belongs there. At two and up [CR#115.4] names the plural forms
-  ||| ("two targets" and similar) in the same breath, but the corpus
-  ||| writes them with structures the bare exact-group mention does not
-  ||| spell — a division ("divided as you choose among one or two
-  ||| targets") or an each-of recipient ("each of up to two targets") —
-  ||| so the ban stands with that ledgered axis (`badGroupAnyTarget`).
+  ||| the QUANTITY's, not the determiner's. At exactly one the phrase
+  ||| IS the singular damage-class form [CR#115.4] defines — "Lightning
+  ||| Bolt deals 3 damage to any target" — so the class word is exactly
+  ||| what belongs there, and an up-to mention takes it at any bound
+  ||| because the corpus writes that outright ("Fall of the Titans
+  ||| deals X damage to each of up to two targets"). What is refused is
+  ||| the EXACT group from two up and the unbounded "any number of":
+  ||| [CR#115.4] names those plural forms in the same breath, but the
+  ||| corpus writes them with structures the bare group mention does
+  ||| not spell — a division ("divided as you choose among one or two
+  ||| targets") or an each-of recipient — so the ban stands with that
+  ||| ledgered axis (`badGroupAnyTarget`, `badAnyNumberAnyTarget`).
   public export
   anyTargetOkAt : {0 bs : Bindings} -> {0 k : Kind} ->
-                  Nat -> Predicate bs k -> Bool
-  anyTargetOkAt (S Z) p = True
-  anyTargetOkAt n p = anyTargetFree p
+                  Quantity -> Predicate bs k -> Bool
+  anyTargetOkAt (Range (Just (S Z)) (Just (S Z))) p = True
+  anyTargetOkAt (Range Nothing (Just _)) p = True
+  anyTargetOkAt (Range _ _) p = anyTargetFree p
 
   public export
-  data AnyTargetAtCount : Nat -> Predicate bs k -> Type where
-    MkAnyTargetAtCount : {auto 0 ok : anyTargetOkAt n p = True} ->
-                         AnyTargetAtCount n p
+  data AnyTargetAtCount : Quantity -> Predicate bs k -> Type where
+    MkAnyTargetAtCount : {auto 0 ok : anyTargetOkAt q p = True} ->
+                         AnyTargetAtCount q p
 
   public export
   zoneOr : Zone -> Maybe Zone -> Zone
@@ -1934,22 +1978,22 @@ mutual
     AAtRandom : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
                 {auto 0 hd : Headed p} ->
                 {auto 0 af : AnyTargetFree p} -> Noun bs k
-    -- "[n] target [pred]s" / "up to [n] target [pred]s": the counted
-    -- target mentions — one binding each, announced [CR#601.2c], and
-    -- only objects and players are targetable ([CR#115.1] —
-    -- `badTargetColor`). The numeral is ARITY data: the phrase's
-    -- grammatical number reads it (`upToPlur`), it is at least one
-    -- (`badZeroGroup`), and at exactly one the phrase IS the singular
-    -- "target [noun]" — the `target` macro, whose numeral rendering
-    -- leaves unwritten. Distinctness stays announce business
-    -- ([CR#601.2c]); the count never encodes it.
-    TargetGroup : (n : Nat) -> (p : Predicate bs k) ->
-                  {auto tk : Targetable k} -> {auto 0 nz : AtLeastOne n} ->
+    -- "[quantity] target [pred]": the counted target mention — one
+    -- binding, announced [CR#601.2c], and only objects and players are
+    -- targetable ([CR#115.1] — `badTargetColor`). ONE constructor
+    -- serves every quantity, mirroring core's single announce form
+    -- `TargetSpec::Target(Quantity, Predicate)`, so "target creature",
+    -- "two target creatures" and "up to two target creatures" differ
+    -- only in the range they carry. That quantity is ARITY data: the
+    -- phrase's grammatical number reads it (`quantPlur`), it permits
+    -- at least one (`badZeroGroup`), and at exactly one the phrase IS
+    -- the singular "target [noun]" — the `target` macro, whose numeral
+    -- rendering leaves unwritten. Distinctness stays announce business
+    -- ([CR#601.2c]); the quantity never encodes it.
+    TargetGroup : (q : Quantity) -> (p : Predicate bs k) ->
+                  {auto tk : Targetable k} -> {auto 0 nz : NonZeroQ q} ->
                   {auto 0 hd : Headed p} ->
-                  {auto 0 af : AnyTargetAtCount n p} -> Noun bs k
-    TargetUpTo : (n : Nat) -> (p : Predicate bs k) ->
-                 {auto tk : Targetable k} -> {auto 0 nz : AtLeastOne n} ->
-                 {auto 0 hd : Headed p} -> Noun bs k
+                  {auto 0 af : AnyTargetAtCount q p} -> Noun bs k
     -- "all [pred]s": the set-level group — a surface determiner the
     -- guide keeps distinct from distributive "each" (the CR fixes both
     -- sets at resolution and separates them no further).
@@ -2010,7 +2054,6 @@ mutual
   nounEqRef (ATheirChoice _) _ = False
   nounEqRef (AAtRandom _) _ = False
   nounEqRef (TargetGroup _ _) _ = False
-  nounEqRef (TargetUpTo _ _) _ = False
   nounEqRef (AllOf _) _ = False
   nounEqRef It It = True
   nounEqRef It _ = False
@@ -2038,7 +2081,6 @@ mutual
   nounAnyTargetFree (ATheirChoice p) = anyTargetFree p
   nounAnyTargetFree (AAtRandom p) = anyTargetFree p
   nounAnyTargetFree (TargetGroup _ p) = anyTargetFree p
-  nounAnyTargetFree (TargetUpTo _ p) = anyTargetFree p
   nounAnyTargetFree (AllOf p) = anyTargetFree p
   nounAnyTargetFree It = True
   nounAnyTargetFree They = True
@@ -2086,8 +2128,7 @@ mutual
   nounDelta (A p {ph}) = bindFor AD OneOf ph p :: predDelta p
   nounDelta (ATheirChoice p {ph}) = bindFor AD OneOf ph p :: predDelta p
   nounDelta (AAtRandom p {ph}) = bindFor AD OneOf ph p :: predDelta p
-  nounDelta (TargetGroup n p {tk}) = bindFor TargetD (upToPlur n) (targetablePhrasal tk) p :: predDelta p
-  nounDelta (TargetUpTo n p {tk}) = bindFor TargetUpToD (upToPlur n) (targetablePhrasal tk) p :: predDelta p
+  nounDelta (TargetGroup q p {tk}) = bindFor TargetD (quantPlur q) (targetablePhrasal tk) p :: predDelta p
   nounDelta (AllOf p {ph}) = bindFor AllD ManyOf ph p :: predDelta p
   nounDelta It = []
   nounDelta They = []
@@ -2454,8 +2495,7 @@ mutual
   moveIntro p nn@(A pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(ATheirChoice pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(AAtRandom pr) z = setZoneHead p z (nomIntro nn)
-  moveIntro p nn@(TargetGroup n pr) z = setZoneHead p z (nomIntro nn)
-  moveIntro p nn@(TargetUpTo n pr) z = setZoneHead p z (nomIntro nn)
+  moveIntro p nn@(TargetGroup q pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(AllOf pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p It z = setZoneIt p z bs
   moveIntro p Them z = setZoneThem p z bs
@@ -2491,8 +2531,7 @@ mutual
   nounZone (A p) = Just (zoneOr Battlefield (seedZone p))
   nounZone (ATheirChoice p) = Just (zoneOr Battlefield (seedZone p))
   nounZone (AAtRandom p) = Just (zoneOr Battlefield (seedZone p))
-  nounZone (TargetGroup n p) = Just (zoneOr Battlefield (seedZone p))
-  nounZone (TargetUpTo n p) = Just (zoneOr Battlefield (seedZone p))
+  nounZone (TargetGroup q p) = Just (zoneOr Battlefield (seedZone p))
   nounZone (AllOf p) = Just (zoneOr Battlefield (seedZone p))
   nounZone It = zoneOfIt bs
   nounZone They = Nothing
@@ -2516,8 +2555,7 @@ mutual
   nounTy (A p) = seedTy p
   nounTy (ATheirChoice p) = seedTy p
   nounTy (AAtRandom p) = seedTy p
-  nounTy (TargetGroup n p) = seedTy p
-  nounTy (TargetUpTo n p) = seedTy p
+  nounTy (TargetGroup q p) = seedTy p
   nounTy (AllOf p) = seedTy p
   nounTy It = tyOfIt bs
   nounTy They = Nothing
@@ -2540,8 +2578,7 @@ mutual
   nounPlur (A p) = OneOf
   nounPlur (ATheirChoice p) = OneOf
   nounPlur (AAtRandom p) = OneOf
-  nounPlur (TargetGroup n p) = upToPlur n
-  nounPlur (TargetUpTo n p) = upToPlur n
+  nounPlur (TargetGroup q p) = quantPlur q
   nounPlur (AllOf p) = ManyOf
   nounPlur It = OneOf
   nounPlur They = OneOf

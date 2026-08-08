@@ -229,7 +229,7 @@ karplusanYeti = AndThen (DealDamage (ThisOf Creature) (PowerOf (ThisOf Creature)
 -- elided) — a counted group mention, read back by the sorted plural
 -- demonstrative.
 fulgentDistraction : Effect []
-fulgentDistraction = AndThen (Choose (TargetGroup 2 creature))
+fulgentDistraction = AndThen (Choose (TargetGroup (exactly 2) creature))
                              (Tap (Those (TypeW Creature)))
 
 -- "Choose up to four target creature cards in your graveyard that
@@ -239,7 +239,7 @@ fulgentDistraction = AndThen (Choose (TargetGroup 2 creature))
 -- owned-zone predicate, and the plural wildcard riding the return's
 -- retag.
 continueSpell : Effect []
-continueSpell = AndThen (Choose (TargetUpTo 4 (And [creature, InZone (GraveyardOf You)])))
+continueSpell = AndThen (Choose (TargetGroup (upTo 4) (And [creature, InZone (GraveyardOf You)])))
                         (Move Them BattlefieldZ)
 
 -- "Choose a color. Sudden Demise deals X damage to each creature of
@@ -329,8 +329,8 @@ unsummon = Move (target creature) HandZ
 -- mention is a real "other" anchor: the witness is the MENTION, not
 -- a nonempty denotation (finding 35).
 phantomBlade : Effect []
-phantomBlade = AndThen (Choose (TargetUpTo 1 (And [creature, ControlledBy You])))
-                       (destroy (TargetUpTo 1 (And [creature, Other])))
+phantomBlade = AndThen (Choose (TargetGroup (upTo 1) (And [creature, ControlledBy You])))
+                       (destroy (TargetGroup (upTo 1) (And [creature, Other])))
 
 -- "When this Case enters, choose target creature you don't control.
 -- Each creature you control deals 1 damage to that creature." (Case of
@@ -470,8 +470,8 @@ failing "countQuality"
 -- the same strict-uniqueness gate as the singular.
 failing "countManys"
   badThemAmbig : Effect []
-  badThemAmbig = AndThen (Choose (TargetGroup 2 creature))
-                         (AndThen (Choose (TargetGroup 2 creature))
+  badThemAmbig = AndThen (Choose (TargetGroup (exactly 2) creature))
+                         (AndThen (Choose (TargetGroup (exactly 2) creature))
                                   (Tap Them))
 
 -- Two predicate-inner opponents leave "that player" ambiguous — the
@@ -660,7 +660,7 @@ failing "DiscardOk"
 -- Soulblast), and is future vocabulary.
 failing "OneOf"
   badGroupPower : Effect []
-  badGroupPower = AndThen (Choose (TargetGroup 2 creature))
+  badGroupPower = AndThen (Choose (TargetGroup (exactly 2) creature))
                           (gainsLife You (PowerOf Them))
 
 -- Two cards need not share an owner [CR#108.3] — oracle writes the
@@ -668,22 +668,24 @@ failing "OneOf"
 -- vocabulary.
 failing "OneOf"
   badGroupOwner : Effect []
-  badGroupOwner = AndThen (Choose (TargetGroup 2 creature))
+  badGroupOwner = AndThen (Choose (TargetGroup (exactly 2) creature))
                           (losesLife (OwnerOf Them) (Lit 1))
 
--- A written numeral is at least one: "zero target creatures" is
--- unwritten English. (One IS writable — it is the singular form the
--- `target` macro spells, rendered without its numeral.)
-failing "AtLeastOne"
+-- A written quantity permits at least one: "zero target creatures" is
+-- unwritten English, and so is the "up to zero" spelling of it — the
+-- demand is on the quantity's MAXIMUM. (One IS writable: it is the
+-- singular form the `target` macro spells, rendered without its
+-- numeral.)
+failing "NonZeroQ"
   badZeroGroup : Effect []
-  badZeroGroup = Choose (TargetGroup 0 creature)
+  badZeroGroup = Choose (TargetGroup (exactly 0) creature)
 
 -- The binary fight frame takes singular combatants — a group versus
 -- one has no defined pairing; the plural form is the reciprocal
 -- "those creatures fight each other" (ledger).
 failing "OneOf"
   badFightGroup : Effect []
-  badFightGroup = Fights (TargetGroup 2 creature) (target creature)
+  badFightGroup = Fights (TargetGroup (exactly 2) creature) (target creature)
 
 -- "a creature two target opponents control": an object has one
 -- controller [CR#109.4]; the union possessor ("creatures your
@@ -692,19 +694,19 @@ failing "OneOf"
 -- slot stalls the outer coherence search instead.)
 failing "OneOf"
   badControlledByGroup : Predicate [] Object
-  badControlledByGroup = ControlledBy (TargetGroup 2 Opponent)
+  badControlledByGroup = ControlledBy (TargetGroup (exactly 2) Opponent)
 
 -- Hands and graveyards are per-player zones [CR#400.1]: one zone
 -- owned by two players at once is unwritable.
 failing "OneOf"
   badGraveyardOfGroup : ZoneExpr []
-  badGraveyardOfGroup = GraveyardOf (TargetGroup 2 Opponent)
+  badGraveyardOfGroup = GraveyardOf (TargetGroup (exactly 2) Opponent)
 
 -- The minted dies-watcher is singular (Graceful Reprieve's shape);
 -- plural watches wait for corpus evidence.
 failing "OneOf"
   badDiesGroup : Effect []
-  badDiesGroup = Delayed (DiesThisTurn (TargetGroup 2 creature)) (gainsLife You (Lit 1))
+  badDiesGroup = Delayed (DiesThisTurn (TargetGroup (exactly 2) creature)) (gainsLife You (Lit 1))
 
 -- A bare type word denotes a permanent [CR#109.2], and what was
 -- discarded left a HAND: "the discarded creature" is unwritten (the
@@ -808,7 +810,7 @@ failing "ZoneCoherent"
 -- creature.", Case of the Gateway Express) or names one source.
 failing "DamageSource"
   badGroupDamageSource : Effect []
-  badGroupDamageSource = DealDamage (TargetGroup 2 creature) (Lit 3) (target AnyPlayer)
+  badGroupDamageSource = DealDamage (TargetGroup (exactly 2) creature) (Lit 3) (target AnyPlayer)
 
 -- The class word is never negated: [CR#115.4] defines "any target"
 -- positively as the damage target class, and the guide forbids using it
@@ -832,15 +834,24 @@ failing "AnyTargetFree"
   badAnyTargetUnderA : Noun [] Object
   badAnyTargetUnderA = A AnyTarget
 
--- …and the targeting determiner admits it only at the SINGULAR count:
--- "any target" is the singular damage-class form [CR#115.4] defines, so
--- `target AnyTarget` is the whole of it (bolt, Arc Trail, Pyromancy).
--- The plural damage-class forms [CR#115.4] names alongside it carry
+-- …and the targeting determiner admits it only at the quantities that
+-- spell it: "any target" is the singular damage-class form [CR#115.4]
+-- defines, so `target AnyTarget` is the whole of the exact case (bolt,
+-- Arc Trail, Pyromancy), joined by the up-to mention the corpus writes
+-- outright ("each of up to two targets", Fall of the Titans). The
+-- plural damage-class forms [CR#115.4] names alongside it carry
 -- structures the bare exact-group mention does not spell — a division,
 -- an each-of recipient (ledger) — so "two any targets" stays closed.
 failing "AnyTargetAtCount"
   badGroupAnyTarget : Noun [] Object
-  badGroupAnyTarget = TargetGroup 2 AnyTarget
+  badGroupAnyTarget = TargetGroup (exactly 2) AnyTarget
+
+-- …and the unbounded quantity with it: "any number of any targets"
+-- names no attested structure either, and the ban has to see the
+-- quantity's SHAPE rather than a numeral to refuse it.
+failing "AnyTargetAtCount"
+  badAnyNumberAnyTarget : Noun [] Object
+  badAnyNumberAnyTarget = TargetGroup anyNumber AnyTarget
 
 -- A type-worded self-reference denotes the PERMANENT ([CR#109.2]), and
 -- discarding moves a card from a HAND ([CR#701.9a]): "discard this
