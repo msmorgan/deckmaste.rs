@@ -423,10 +423,12 @@ arrowsOfJustice = DealDamage This (Lit 4)
 
 -- "another target creature or land" — the selector reaches over the
 -- whole coordination, as the corpus writes it ("Another target Wolf or
--- Werewolf you control"), and the anchor it then demands is the
--- UNTYPED one: a disjunctive head fixes no type, so any same-kind
--- target mention satisfies it (finding 44). Posed in a target context,
--- the presupposition being the point rather than the test.
+-- Werewolf you control"), and the anchor it demands is compatible with
+-- SOME alternative's head: a coordinated head fixes no type on its
+-- referent but offers one per alternative (finding 44). Posed here at
+-- an untyped target mention, which any head accepts — the
+-- presupposition being the point rather than the test; the cross-head
+-- refusal is `badDisjunctiveOtherCrossHead`'s.
 anotherDisjunctPhrase : Predicate [MkBinding TargetD Object OneOf
                                              (ObjectP Nothing (Just Battlefield) Nothing)] Object
 anotherDisjunctPhrase = And [Or [creature, land], Other]
@@ -1168,3 +1170,77 @@ failing "countWord"
     Sequentially [Tap (target (Or [And [creature, ControlledBy anOpponent],
                                    And [land, ControlledBy You]])),
                   losesLife (That PlayerW) (Lit 1)]
+
+-- ===== What a wrapper hides: buried seeds, head sets, re-minted trees =====
+
+-- A presupposition written inside an alternative is written all the
+-- same. Both alternatives here are attacking or blocking, so both
+-- demand a creature ([CR#506.3]) and the conjunction may not go on to
+-- negate the type — but the conjunction BURIED in each alternative hid
+-- that from the scan, `flattenPs` leaving an `Or` whole by design.
+failing "ContradictionFree"
+  badWrappedStatusLaunder : Predicate [] Object
+  badWrappedStatusLaunder =
+    And [Or [And [artifact, Attacking], And [land, Blocking]], Not creature]
+
+-- Alternatives that place their referent differently are not
+-- alternatives at all: "attacking artifact" stands on the battlefield
+-- and a bare "land" says nothing about where it stands. Compared
+-- through [CR#109.2]'s default the two looked parallel, and the
+-- disagreement came back instead as a projection of NOTHING — which
+-- was enough to let `And [this, InZone GraveyardZ]` stand, a phrase
+-- placing its referent in two zones at once. Refused at the
+-- coordination, where the disagreement is.
+failing "ParallelDisjuncts"
+  badPartialZoneJoin : Predicate [] Object
+  badPartialZoneJoin = Or [And [artifact, Attacking], land]
+
+-- The singular quantity licenses the class word as the phrase's HEAD,
+-- not wherever it can hide: "target creature the controller of any
+-- target controls" spells it in a possessor, where a counted mention
+-- forbids it exactly as "a" does (`badAnyTargetEmbedded`).
+failing "AnyTargetAtCount"
+  badEmbeddedAnyTargetExact1 : Noun [] Object
+  badEmbeddedAnyTargetExact1 =
+    target (And [creature, ControlledBy (ControllerOf (target AnyTarget))])
+
+-- A range runs upward: "between three and two target creatures" names
+-- an empty interval, and the number read off the maximum would call
+-- that plural besides.
+failing "WellFormedQ"
+  badDescendingRange : Noun [] Object
+  badDescendingRange = TargetGroup (Range (Just 3) (Just 2)) creature
+
+-- …and it starts at one. "Zero or more target creatures" is a second
+-- spelling of "any number of target creatures" — [CR#107.1c] has "any
+-- number" permit zero already — and the corpus writes only the second.
+failing "WellFormedQ"
+  badZeroLowerRange : Noun [] Object
+  badZeroLowerRange = TargetGroup (Range (Just 0) Nothing) creature
+
+-- A coordinated head offers one type per alternative, not none: an
+-- earlier LAND anchors "another target artifact or enchantment" no
+-- better than it anchors "another target artifact" (`badOtherCrossHead`).
+-- Posed at a land target, the anchor being the point.
+failing "OtherAnchored"
+  badDisjunctiveOtherCrossHead : Predicate [MkBinding TargetD Object OneOf
+                                                      (ObjectP (Just Land) (Just Battlefield) Nothing)] Object
+  badDisjunctiveOtherCrossHead = And [Or [artifact, enchantment], Other]
+
+-- "Artifact or artifact" is caught by comparing the two words; the
+-- same repetition spelled with a modifier went through, the member
+-- equality having declined to look inside a conjunction at all.
+failing "DistinctDisjuncts"
+  badRepeatedStructuredDisjunct : Predicate [] Object
+  badRepeatedStructuredDisjunct =
+    Or [And [creature, ControlledBy You], And [creature, ControlledBy You]]
+
+-- A sequence's ELEMENTS are clauses. Nesting one re-mints the
+-- right-nested tree the n-ary list replaced and spells a
+-- three-sentence card a second way; what may still hold a sequence is
+-- a clause slot taking a body, not an element position.
+failing "NotSeq"
+  badNestedSequence : Effect []
+  badNestedSequence =
+    Sequentially [Sequentially [destroy (target creature), exile (target creature)],
+                  destroy (target land)]

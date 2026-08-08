@@ -106,7 +106,12 @@
 ||| typed in what its predecessors introduced — finding 1's threading
 ||| made a constructor — and it runs two clauses at minimum, one being
 ||| the clause itself and none being no instruction at all
-||| (`badSingletonSequence`, `badEmptySequence`)):
+||| (`badSingletonSequence`, `badEmptySequence`). Its elements are
+||| clauses and not sequences: nesting one re-mints the very tree the
+||| list replaced, spelling a three-sentence card twice
+||| (`NotSeq`, `badNestedSequence`), while the slots that take a BODY
+||| — a "may" arm, a delayed clause, a tagged composite — go on
+||| holding whatever the card brackets there):
 |||
 ||| 9. **Subjects are the factored who-slot.** Verbs the CR gives a
 |||    player actor ([CR#701.21a,701.9a]) put their performer in clause
@@ -410,9 +415,15 @@
 |||    survives as a RENDERING rule rather than a type floor: the
 |||    numeral is unwritten at one ("target creature", never "one target
 |||    creature") and written from two ("two target creatures"). What
-|||    the type still refuses is a quantity admitting nothing: the
-|||    MAXIMUM is at least one (`NonZeroQ`, `badZeroGroup`), which kills
-|||    "up to zero" in the same stroke as "zero". Fight
+|||    the type still refuses is a quantity that admits nothing or
+|||    reads backwards: the MAXIMUM is at least one (`NonZeroQ`,
+|||    `badZeroGroup`), which kills "up to zero" in the same stroke as
+|||    "zero", and the range runs UPWARD from a written minimum of at
+|||    least one (`WellFormedQ`) — a descending pair names an empty
+|||    interval and would read as plural besides, and a zero minimum
+|||    spells what "any number of" already spells, [CR#107.1c] having
+|||    "any number" permit zero outright (`badDescendingRange`,
+|||    `badZeroLowerRange`). Fight
 |||    participation reads a GRANT, not a type name: `combatant` is
 |||    the stand-in for a TypeDef-declared combat-participant grant
 |||    — distinct from May(Attack)/May(Block), fight keying on type
@@ -494,7 +505,12 @@
 |||    of the Titans); the exact group from two up and the unbounded
 |||    "any number of" are refused until the plural structures land
 |||    — `AnyTargetAtCount`, `badGroupAnyTarget`,
-|||    `badAnyNumberAnyTarget`.
+|||    `badAnyNumberAnyTarget`. What those two quantities permit is the
+|||    class word as the phrase's HEAD, not the word wherever it hides:
+|||    a possessor buried in a relative clause spells it under a
+|||    counted mention exactly as it does under "a"
+|||    (`badEmbeddedAnyTargetExact1`), so the embedded scan runs
+|||    beneath every quantity.
 ||| 41. **The sorted self-reference stands on the battlefield.** "This
 |||    creature" / "this enchantment" is a description including a
 |||    card type, so [CR#109.2] denotes the PERMANENT: `ThisOf`
@@ -526,6 +542,11 @@
 |||    laundering (`badNestedContradiction`). The member equality they
 |||    share is deliberately conservative on the rows carrying a noun:
 |||    "not provably the same" under-refuses rather than over-refuses.
+|||    It is NOT conservative on the rows carrying structure, though it
+|||    began that way: a conjunction compares member by member, so the
+|||    same phrase written twice is recognized wherever the equality is
+|||    consulted — including as an alternative repeated word for word,
+|||    which the blanket row waved through (`badRepeatedStructuredDisjunct`).
 ||| 43. **Status words seed the zone they presuppose.** Attackers are
 |||    declared from creatures their controller controls
 |||    ([CR#508.1a]), and leaving the battlefield removes a permanent
@@ -542,7 +563,12 @@
 |||    that mention must be compatible with (`OtherAnchored`; an
 |||    untyped head — Arc Trail's "any other target", a player-kind
 |||    "other" — accepts any same-kind anchor, which is exactly
-|||    finding 3's gate). The guide reserves "another" for excluding
+|||    finding 3's gate). The head is a SET, once a coordination can
+|||    write one: "another target creature or land" fixes no type on
+|||    its referent (finding 50) but offers TWO heads to anchor
+|||    against, and reading that silence as untypedness let an earlier
+|||    artifact anchor it (`badDisjunctiveOtherCrossHead`) — silence as
+|||    permission, the third time. The guide reserves "another" for excluding
 |||    the source or first referent and writes two separately
 |||    described roles WITHOUT it ("target creature and target
 |||    planeswalker"); the corpus pairs "other" only with overlapping
@@ -610,7 +636,13 @@
 |||    nonsense around it is refused by the gates that were already
 |||    there (`badAttackingOrBlockingInGraveyard`,
 |||    `badNoncreatureAttackingOrBlocking`) — finding 43's shape a
-|||    second time.
+|||    second time. Not flattening puts the whole weight on those
+|||    projections, so they have to reach as far as the flattening
+|||    would have: a presupposition written inside a nested
+|||    CONJUNCTION, which an alternative may hold, is written all the
+|||    same, and the type seed had no such row until an "attacking
+|||    artifact or blocking land" laundered one past the negation
+|||    (`badWrappedStatusLaunder`).
 ||| 50. **A disjunctive head is untyped, and the untyped row had to
 |||    go.** "Artifact or enchantment" fixes no card type, so `seedTy`
 |||    projects none — the honest silence. `DamageableTy` used to read
@@ -627,7 +659,15 @@
 |||    status word cannot stand in each other's place, which the guide
 |||    says outright ("Repeat the carrier when the alternatives have
 |||    different domains or modifiers") — and parallel in PLACE, since
-|||    the phrase places its referent once. The three words that cannot
+|||    the phrase places its referent once. Parallel in what they
+|||    COMMIT, too, which the place rule only looked like: comparing
+|||    the alternatives through [CR#109.2]'s default made a committed
+|||    zone and a silent one agree, and the disagreement then surfaced
+|||    downstream as a projection of nothing, where a conjunction could
+|||    place the phrase somewhere else entirely
+|||    (`badPartialZoneJoin`). Comparing the SEEDS, silence included,
+|||    is what makes the joins honest: a projection of nothing now
+|||    means every alternative was silent. The three words that cannot
 |||    be alternatives share one reason: each is written once for the
 |||    whole coordination. "Any target" IS the union [CR#115.4] fixes
 |||    by disjunction ("creatures, players, planeswalkers, or
@@ -906,7 +946,8 @@
 ||| your hand and the rest on the bottom of your library in any
 ||| order") — selection from an established group, twin of "the rest"
 ||| above and of the pile partitions below; set-exception noun phrases
-||| ("choose a card type other than creature", Arachne) — a complement
+||| ("choose a card type other than creature", Arachne, Psionic
+||| Weaver) — a complement
 ||| over a QUALITY domain, which `Other`'s object distinctness is not,
 ||| waiting with the chosen-quality bindings; arithmetic and rounding
 ||| ("Target opponent loses half their life, rounded up") — `Plus` is
@@ -1123,6 +1164,36 @@ public export
 data NonZeroQ : Quantity -> Type where
   UnboundedAbove : NonZeroQ (Range lo Nothing)
   MaxAtLeastOne : NonZeroQ (Range lo (Just (S n)))
+
+||| A written quantity also runs UPWARD, from a minimum of at least
+||| one — the demands `NonZeroQ`'s upper bound cannot make, since a
+||| range is two numbers and only one of them is up there. A DESCENDING
+||| range admits nothing at all ("between three and two target
+||| creatures" names an empty interval, and the plurality read off the
+||| maximum would lie about it besides), and a ZERO minimum spells
+||| nothing the unbounded form does not already say: [CR#107.1c] has
+||| "any number" permit zero outright, so "zero or more target
+||| creatures" is a second spelling of "any number of target
+||| creatures" — and one the corpus never writes
+||| (`badDescendingRange`, `badZeroLowerRange`). An absent minimum is
+||| every "up to", untouched.
+||| "No greater than", per row over the written numerals.
+public export
+leNat : Nat -> Nat -> Bool
+leNat Z _ = True
+leNat (S _) Z = False
+leNat (S a) (S b) = leNat a b
+
+public export
+quantWellFormed : Quantity -> Bool
+quantWellFormed (Range Nothing _) = True
+quantWellFormed (Range (Just Z) _) = False
+quantWellFormed (Range (Just (S n)) Nothing) = True
+quantWellFormed (Range (Just (S n)) (Just hi)) = leNat (S n) hi
+
+public export
+data WellFormedQ : Quantity -> Type where
+  MkWellFormedQ : {auto 0 ok : quantWellFormed q = True} -> WellFormedQ q
 
 ||| A counted mention's grammatical number, read off its quantity: one
 ||| is SINGULAR — "target creature" and "up to one target creature"
@@ -1348,14 +1419,29 @@ anyTargetedTy k t (b@(MkBinding TargetD k' _ _) :: bs) =
   if sameKind k k' && anchorTyOk t (bindingTy b) then True else anyTargetedTy k t bs
 anyTargetedTy k t (_ :: bs) = anyTargetedTy k t bs
 
-||| The "other" presupposition's witness search, by the phrase's own
-||| projected head: an UNTYPED head (Arc Trail's "any other target",
-||| a player-kind "other") accepts any same-kind anchor, which is
-||| exactly `anyTargeted`; a typed head demands a type-compatible one.
+||| The "other" presupposition's witness search, over the head types
+||| the phrase OFFERS. The empty set is the genuinely untyped head (Arc
+||| Trail's "any other target", a player-kind "other") and accepts any
+||| same-kind anchor, which is exactly `anyTargeted`; a written head
+||| demands a type-compatible anchor. A COORDINATED head offers one
+||| type per alternative rather than none: "another target creature or
+||| land" is anchored by an earlier creature or by an earlier land, and
+||| by an earlier artifact it is not (`badDisjunctiveOtherCrossHead`).
+||| Reading its silence as "untyped" was the same mistake finding 50
+||| found in `DamageableTy`.
+||| SOME listed head type has a compatible anchor. Its own empty list is
+||| the exhausted search, not an untyped head — the two readings of `[]`
+||| have to stay apart, or every typed head would fall through to
+||| accepting anything (`badOtherCrossHead` caught exactly that).
 public export
-anchorFound : Kind -> Maybe CardType -> Bindings -> Bool
-anchorFound k Nothing ctx = anyTargeted k ctx
-anchorFound k (Just t) ctx = anyTargetedTy k t ctx
+anchorFoundSome : Kind -> List CardType -> Bindings -> Bool
+anchorFoundSome k [] ctx = False
+anchorFoundSome k (t :: ts) ctx = anyTargetedTy k t ctx || anchorFoundSome k ts ctx
+
+public export
+anchorFound : Kind -> List CardType -> Bindings -> Bool
+anchorFound k [] ctx = anyTargeted k ctx
+anchorFound k (t :: ts) ctx = anchorFoundSome k (t :: ts) ctx
 
 ||| A future clause's context: the outer clause's announced targets
 ||| cross the boundary as SETTLED PARTICULARS — readable like any
@@ -1798,8 +1884,9 @@ mutual
     -- forces the alternatives to describe the same sort of thing
     -- without a gate. The obligations are listed in DECLARATION
     -- order: a coordination needs two alternatives (`TwoDisjuncts`),
-    -- they are PARALLEL — the same grammatical rank, placed in the
-    -- same zone (`ParallelDisjuncts`) — a word that fills one
+    -- they are PARALLEL — the same grammatical rank, and committing
+    -- their referent alike, zone and presupposed type both
+    -- (`ParallelDisjuncts`) — a word that fills one
     -- phrase-level slot is not an alternative (`CoordinableDisjuncts`),
     -- and no alternative repeats another (`DistinctDisjuncts`).
     -- spelling: (construction-owned -- serial-comma coordination with a
@@ -1865,6 +1952,40 @@ mutual
     Nothing => False
     Just u => sameCT t u && allSeedTy t ps
 
+  public export
+  optCT : Maybe CardType -> List CardType
+  optCT Nothing = []
+  optCT (Just t) = [t]
+
+  ||| The head types a phrase OFFERS, as a SET — `seedTy`'s answer to
+  ||| the question "other" asks. The two differ on a coordination only,
+  ||| and they must: `seedTy` projects the ONE type the phrase fixes
+  ||| onto its referent, and "artifact or enchantment" fixes none, but
+  ||| it does not thereby offer nothing to anchor against — it offers
+  ||| one head per alternative. The empty list is the head that really
+  ||| is untyped (the class word, a zone clause's implicit card), and a
+  ||| conjunction takes the first member that offers anything, exactly
+  ||| as `seedTyAll` does.
+  public export
+  headTys : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> List CardType
+  headTys (And ps) = headTysAll ps
+  headTys (Or ps) = headTysJoin ps
+  headTys p = optCT (seedTy p)
+
+  public export
+  headTysAll : {0 bs : Bindings} -> {0 k : Kind} ->
+               List (Predicate bs k) -> List CardType
+  headTysAll [] = []
+  headTysAll (p :: ps) = case headTys p of
+    [] => headTysAll ps
+    ts => ts
+
+  public export
+  headTysJoin : {0 bs : Bindings} -> {0 k : Kind} ->
+                List (Predicate bs k) -> List CardType
+  headTysJoin [] = []
+  headTysJoin (p :: ps) = headTys p ++ headTysJoin ps
+
   ||| The zone a predicate places its referent in — a bare description
   ||| means the battlefield ([CR#109.2]); a zone clause says otherwise,
   ||| and a battlefield STATE word says the same thing the zone clause
@@ -1894,7 +2015,10 @@ mutual
   -- the same agreement rule the head projection uses: "attacking or
   -- blocking" places its referent on the battlefield because BOTH
   -- alternatives do, while "artifact or enchantment" places it
-  -- nowhere of its own and leaves the phrase's default to speak.
+  -- nowhere of its own and leaves the phrase's default to speak. A
+  -- disagreement never reaches here — `ParallelDisjuncts` refuses it
+  -- at the coordination — so a `Nothing` out of the join always means
+  -- silence rather than a quarrel.
   seedZone (Or ps) = seedZoneJoin ps
   seedZone _ = Nothing
 
@@ -1924,18 +2048,35 @@ mutual
   ||| twin of `seedZone`, and a different question from `seedTy`, which
   ||| projects the phrase's own HEAD. Only a creature can attack or
   ||| block ([CR#506.3]), so the status word presupposes the type
-  ||| exactly as it presupposes the battlefield. No `And` row is needed:
-  ||| the only consumer scans `flattenPs`. A disjunction DOES need one,
-  ||| because `flattenPs` leaves it whole: it presupposes what every
-  ||| alternative presupposes, which is how "attacking or blocking"
-  ||| keeps demanding a creature ([CR#506.3] names both words in one
-  ||| breath) though neither word survives alone.
+  ||| exactly as it presupposes the battlefield. It recurses through
+  ||| BOTH list forms, exactly as `seedZone` does. A disjunction
+  ||| presupposes what every alternative presupposes, which is how
+  ||| "attacking or blocking" keeps demanding a creature ([CR#506.3]
+  ||| names both words in one breath) though neither word survives
+  ||| alone. A conjunction needs its row for the alternatives' sake:
+  ||| the coherence scans see a top-level conjunction through
+  ||| `flattenPs`, but one BURIED in an alternative is left whole, and
+  ||| the presupposition written there is written all the same
+  ||| ("attacking artifact or blocking land" demands a creature twice
+  ||| over — `badWrappedStatusLaunder`, which read as unpresupposing
+  ||| while this row was missing).
   public export
   seedType : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Maybe CardType
   seedType Attacking = Just Creature
   seedType Blocking = Just Creature
+  seedType (And ps) = seedTypeAll ps
   seedType (Or ps) = seedTypeJoin ps
   seedType _ = Nothing
+
+  ||| A conjunction presupposes what its first presupposing member
+  ||| does — `seedZoneAll`'s rule, for the type twin.
+  public export
+  seedTypeAll : {0 bs : Bindings} -> {0 k : Kind} ->
+                List (Predicate bs k) -> Maybe CardType
+  seedTypeAll [] = Nothing
+  seedTypeAll (p :: ps) = case seedType p of
+    Just t => Just t
+    Nothing => seedTypeAll ps
 
   public export
   seedTypeJoin : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -2067,10 +2208,13 @@ mutual
     MkZoneCoherent : {auto 0 ok : zonesOk ps = True} -> ZoneCoherent ps
 
   ||| Syntactic predicate equality — enough to spot a member that
-  ||| contradicts a sibling. Still CONSERVATIVE on the rows carrying a
-  ||| noun, but no longer VACUOUSLY so: `ControlledBy` compares its
-  ||| possessor with `nounEqRef`, so the syntactically identical
-  ||| contradiction stops laundering through it. `False` reads "not
+  ||| contradicts a sibling, or an alternative that repeats one. Still
+  ||| CONSERVATIVE on the rows carrying a noun, but no longer
+  ||| VACUOUSLY so on the rows carrying STRUCTURE: `ControlledBy`
+  ||| compares its possessor with `nounEqRef` and a conjunction its
+  ||| members pointwise, so neither the syntactically identical
+  ||| contradiction nor the syntactically identical alternative
+  ||| launders through a blanket `False`. That `False` reads "not
   ||| provably the SAME referent", so the gate under-refuses rather
   ||| than over-refuses. Per-row catch-alls, so a new predicate form is
   ||| a totality error.
@@ -2095,13 +2239,19 @@ mutual
   predEq Blocking _ = False
   predEq (InZone z) (InZone w) = sameZone (zoneSort z) (zoneSort w)
   predEq (InZone _) _ = False
+  -- member by member, in order: a structured alternative repeated word
+  -- for word is the same repetition "artifact or artifact" is, and the
+  -- conservative row saw none of it (`badRepeatedStructuredDisjunct`).
+  -- Order-sensitive, which under-refuses a re-ordered spelling of the
+  -- same modifiers — conservative in the direction the rest of the
+  -- function is.
+  predEq (And xs) (And ys) = predEqAll xs ys
   predEq (And _) _ = False
-  -- as conservative as the conjunction's row, and safe for the same
-  -- reason: `Not` reaches neither combinator, so no negation pair can
-  -- launder through the `False`. What it costs is only the repeated
-  -- ALTERNATIVE spelled two ways ("artifact or artifact" is caught,
-  -- "(A or B) written twice" is not — nothing may nest an `Or` in an
-  -- `Or` anyway).
+  -- the coordination keeps the blanket row, and pays nothing for it:
+  -- nothing may nest an `Or` in an `Or` (`CoordinableDisjuncts`), so
+  -- two coordinations never meet as alternatives, and `Not` reaches
+  -- neither combinator, so no negation pair launders through the
+  -- `False` either.
   predEq (Or _) _ = False
   predEq (Not a) (Not b) = predEq a b
   predEq (Not _) _ = False
@@ -2109,6 +2259,14 @@ mutual
   predEq Other _ = False
   predEq AnyTarget AnyTarget = True
   predEq AnyTarget _ = False
+
+  ||| Two member lists, pointwise and in order.
+  public export
+  predEqAll : {0 bs : Bindings} -> {0 k : Kind} ->
+              List (Predicate bs k) -> List (Predicate bs k) -> Bool
+  predEqAll [] [] = True
+  predEqAll (x :: xs) (y :: ys) = predEq x y && predEqAll xs ys
+  predEqAll _ _ = False
 
   ||| Are these two members each other's negation?
   public export
@@ -2210,19 +2368,21 @@ mutual
   ||| carries its anchor presupposition as a hypothesis, and `x && True`
   ||| would stay stuck on the neutral `x`.
   public export
-  otherAnchorOk : {bs : Bindings} -> (k : Kind) -> Maybe CardType ->
+  otherAnchorOk : {bs : Bindings} -> (k : Kind) -> List CardType ->
                   List (Predicate bs k) -> Bool
-  otherAnchorOk k t ps = atMostOne (countOthers (flattenPs ps)) &&
-                         (if hasOtherAny ps then anchorFound k t bs else True)
+  otherAnchorOk k ts ps = atMostOne (countOthers (flattenPs ps)) &&
+                          (if hasOtherAny ps then anchorFound k ts bs else True)
 
   ||| The head-typed "other" presupposition as a witness ([CR#115.4];
   ||| the guide reserves "another" for excluding the source or first
   ||| referent, and writes two separately described roles without it).
-  ||| Player-kind "other" needs no head type — kind agreement is the
-  ||| whole obligation.
+  ||| The head is read as a SET (`headTys`), so a coordinated head
+  ||| demands an anchor compatible with SOME alternative rather than
+  ||| with none. Player-kind "other" needs no head type — kind
+  ||| agreement is the whole obligation.
   public export
   data OtherAnchored : List (Predicate bs k) -> Type where
-    MkOtherAnchored : {auto 0 ok : otherAnchorOk k (seedTyAll ps) ps = True} ->
+    MkOtherAnchored : {auto 0 ok : otherAnchorOk k (headTysAll ps) ps = True} ->
                       OtherAnchored ps
 
   public export
@@ -2317,45 +2477,66 @@ mutual
   data TwoDisjuncts : List (Predicate bs k) -> Type where
     MkTwoDisjuncts : {auto 0 ok : atLeastTwoPs ps = True} -> TwoDisjuncts ps
 
-  ||| The zone an ALTERNATIVE commits its referent to, the phrase-level
-  ||| default included: alternatives are compared the way whole phrases
-  ||| would be, so a bare description is the battlefield ([CR#109.2])
-  ||| here exactly as it is anywhere else.
-  public export
-  disjunctZone : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Zone
-  disjunctZone p = zoneOr Battlefield (seedZone p)
-
   public export
   headsUniform : {0 bs : Bindings} -> {0 k : Kind} ->
                  Bool -> List (Predicate bs k) -> Bool
   headsUniform b [] = True
   headsUniform b (p :: ps) = (if hasHead p then b else not b) && headsUniform b ps
 
+  ||| Do two alternatives place their referent the same way? Naming the
+  ||| same zone counts, and so does saying nothing about it — but
+  ||| silence beside a commitment does NOT, because the phrase's own
+  ||| projection has to speak for the coordination entire.
   public export
-  zonesUniform : {0 bs : Bindings} -> {0 k : Kind} ->
-                 Zone -> List (Predicate bs k) -> Bool
-  zonesUniform z [] = True
-  zonesUniform z (p :: ps) = sameZone z (disjunctZone p) && zonesUniform z ps
+  sameSeedZone : Maybe Zone -> Maybe Zone -> Bool
+  sameSeedZone Nothing Nothing = True
+  sameSeedZone (Just z) (Just w) = sameZone z w
+  sameSeedZone _ _ = False
+
+  ||| The type twin of `sameSeedZone`, over what the alternatives
+  ||| PRESUPPOSE.
+  public export
+  sameSeedType : Maybe CardType -> Maybe CardType -> Bool
+  sameSeedType Nothing Nothing = True
+  sameSeedType (Just t) (Just u) = sameCT t u
+  sameSeedType _ _ = False
+
+  public export
+  seedsUniform : {0 bs : Bindings} -> {0 k : Kind} -> Maybe Zone -> Maybe CardType ->
+                 List (Predicate bs k) -> Bool
+  seedsUniform z t [] = True
+  seedsUniform z t (p :: ps) = sameSeedZone z (seedZone p) &&
+                               sameSeedType t (seedType p) &&
+                               seedsUniform z t ps
 
   ||| Alternatives are PARALLEL: each one has to be able to stand where
-  ||| the others stand. Two ways a phrase can fail that, and the guide
-  ||| names the first outright — "Repeat the carrier when the
+  ||| the others stand. Three ways a phrase can fail that, and the guide
+  ||| names them with one sentence — "Repeat the carrier when the
   ||| alternatives have different domains or modifiers". A head noun
   ||| and a bare modifier are not interchangeable ("artifact or
-  ||| attacking" is unwritable, `badHeadlessDisjunct`), and neither are
-  ||| a hand card and a battlefield permanent, because the phrase
-  ||| places its referent ONCE: the corpus writes cross-zone
-  ||| alternatives ("an Equipment card from your hand or graveyard",
-  ||| seventeen lines) under a shared preposition, which is a zone
-  ||| disjunction the single-valued projection cannot carry, so it is
-  ||| refused here and ledgered rather than mis-projected
-  ||| (`badCrossZoneDisjunction`).
+  ||| attacking" is unwritable, `badHeadlessDisjunct`); neither are a
+  ||| hand card and a battlefield permanent, because the phrase places
+  ||| its referent ONCE (the corpus writes cross-zone alternatives —
+  ||| "an Equipment card from your hand or graveyard", seventeen lines
+  ||| — under a shared preposition, which is a zone disjunction the
+  ||| single-valued projection cannot carry, so it is refused here and
+  ||| ledgered rather than mis-projected, `badCrossZoneDisjunction`);
+  ||| and neither is an alternative that COMMITS beside one that stays
+  ||| silent. The comparison is on the SEEDS themselves, silence
+  ||| included, not on the defaults they fall back to: reading both
+  ||| through [CR#109.2]'s battlefield made "attacking artifact or
+  ||| land" look parallel, and the disagreement then reappeared as a
+  ||| projection of NOTHING, which is what let the surrounding
+  ||| conjunction place the phrase in a graveyard (`badPartialZoneJoin`).
+  ||| Agreement here is what makes the joins honest downstream: a
+  ||| `Nothing` out of `seedZoneJoin` now means every alternative was
+  ||| silent, never that they disagreed.
   public export
   parallelDisjuncts : {0 bs : Bindings} -> {0 k : Kind} ->
                       List (Predicate bs k) -> Bool
   parallelDisjuncts [] = True
   parallelDisjuncts (p :: ps) = headsUniform (hasHead p) ps &&
-                                zonesUniform (disjunctZone p) ps
+                                seedsUniform (seedZone p) (seedType p) ps
 
   public export
   data ParallelDisjuncts : List (Predicate bs k) -> Type where
@@ -2519,11 +2700,20 @@ mutual
   ||| not spell — a division ("divided as you choose among one or two
   ||| targets") or an each-of recipient — so the ban stands with that
   ||| ledgered axis (`badGroupAnyTarget`, `badAnyNumberAnyTarget`).
+  ||| What the two permitting quantities license is the class word as
+  ||| the phrase's HEAD, never the class word wherever it turns up: a
+  ||| possessor buried in a relative clause spells "any target" under a
+  ||| counted mention exactly as loudly as under "a"
+  ||| (`badEmbeddedAnyTargetExact1`), so the embedded scan runs beneath
+  ||| every quantity. The head case needs no scan of its own —
+  ||| `AnyTargetLone` allows the class word no companion but "other",
+  ||| and neither word carries a noun to bury one in.
   public export
   anyTargetOkAt : {0 bs : Bindings} -> {0 k : Kind} ->
                   Quantity -> Predicate bs k -> Bool
-  anyTargetOkAt (Range (Just (S Z)) (Just (S Z))) p = True
-  anyTargetOkAt (Range Nothing (Just _)) p = True
+  anyTargetOkAt (Range (Just (S Z)) (Just (S Z))) p = headIsAnyTarget p ||
+                                                      anyTargetFree p
+  anyTargetOkAt (Range Nothing (Just _)) p = headIsAnyTarget p || anyTargetFree p
   anyTargetOkAt (Range _ _) p = anyTargetFree p
 
   public export
@@ -2611,7 +2801,8 @@ mutual
     -- "two target creatures" and "up to two target creatures" differ
     -- only in the range they carry. That quantity is ARITY data: the
     -- phrase's grammatical number reads it (`quantPlur`), it permits
-    -- at least one (`badZeroGroup`), and at exactly one the phrase IS
+    -- at least one (`badZeroGroup`) and runs upward from one
+    -- (`badDescendingRange`, `badZeroLowerRange`), and at exactly one the phrase IS
     -- the singular "target [noun]" — the `target` macro, whose numeral
     -- rendering leaves unwritten. Distinctness stays announce business
     -- ([CR#601.2c]); the quantity never encodes it.
@@ -2622,6 +2813,7 @@ mutual
     -- "<Param(0)> target <Param(1)>")
     TargetGroup : (q : Quantity) -> (p : Predicate bs k) ->
                   {auto tk : Targetable k} -> {auto 0 nz : NonZeroQ q} ->
+                  {auto 0 wf : WellFormedQ q} ->
                   {auto 0 hd : Headed p} ->
                   {auto 0 af : AnyTargetAtCount q p} -> Noun bs k
     -- "all [pred]s": the set-level group — a surface determiner the
@@ -3070,7 +3262,9 @@ mutual
     -- (core admits `Sequentially([])` structurally — the workbench,
     -- spelling English, does not; `badEmptySequence`), and a
     -- one-clause sequence is a second spelling of that one clause
-    -- (`badSingletonSequence`).
+    -- (`badSingletonSequence`). Its elements are clauses and not
+    -- sequences themselves (`NotSeq`, `badNestedSequence`) — the tree
+    -- this replaced, refused rather than re-mintable.
     -- spelling: (construction-owned -- the clause-SEQUENCE list sugar over
     -- `Effects`; no connective word of its own ("X. Y." vs "X, then Y." is
     -- the renderer's choice); mirrors core's n-ary
@@ -3101,7 +3295,28 @@ mutual
   -- Sequentially)
   data Effects : Nat -> Bindings -> Type where
     Nil : Effects Z bs
-    (::) : (e : Effect bs) -> Effects n (effIntro e) -> Effects (S n) bs
+    (::) : (e : Effect bs) -> {auto 0 ns : NotSeq e} ->
+           Effects n (effIntro e) -> Effects (S n) bs
+
+  ||| Is this clause itself a sequence?
+  public export
+  isSeq : {0 bs : Bindings} -> Effect bs -> Bool
+  isSeq (Sequentially _) = True
+  isSeq _ = False
+
+  ||| A sequence's ELEMENTS are clauses, not sequences. `Sequentially
+  ||| [Sequentially [a, b], c]` re-mints the right-nested tree the
+  ||| n-ary telescope was built to replace, and spells a three-sentence
+  ||| card a second way (`badNestedSequence`) — the same
+  ||| one-meaning-one-spelling refusal the singleton sequence gets, and
+  ||| the one core reaches by flattening in `normalize` instead. What
+  ||| may still hold a sequence is a clause slot that takes a BODY — a
+  ||| "may" arm, a delayed clause, a tagged composite — where the
+  ||| nesting is the card's own bracketing rather than a second
+  ||| spelling of the list.
+  public export
+  data NotSeq : Effect bs -> Type where
+    MkNotSeq : {auto 0 ok : isSeq e = False} -> NotSeq e
 
   ||| Does this noun phrase spell "any target"? Only a counted target
   ||| mention can — every other determiner demands an any-target-free

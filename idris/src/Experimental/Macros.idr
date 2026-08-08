@@ -43,10 +43,16 @@ anyNumber = Range Nothing Nothing
 -- spelling: [(text: "target <Param(0)>", when: [(quantity, "Exactly(1)")])],
 -- kind: Nominal (this macro IS the Exactly(1) branch of constructors.ron's
 -- own `Target` entry -- verified line-for-line against that file)
+-- The class-word obligation travels as a hypothesis: at exactly one the
+-- quantity permits "any target" as the phrase's HEAD but still refuses
+-- one buried in a possessor, which an abstract predicate cannot answer
+-- here — so the macro demands what `TargetGroup` demands and each call
+-- site discharges it.
 public export
 target : (p : Predicate bs k) -> {auto tk : Targetable k} ->
-         {auto 0 hd : Headed p} -> Noun bs k
-target p = TargetGroup (exactly 1) p {tk} {hd}
+         {auto 0 hd : Headed p} ->
+         {auto 0 af : AnyTargetAtCount (exactly 1) p} -> Noun bs k
+target p = TargetGroup (exactly 1) p {tk} {hd} {af}
 
 -- "creature"
 -- spelling: ["creature"], kind: Nominal (hasHead = True; HasType Creature)
