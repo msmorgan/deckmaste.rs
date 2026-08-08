@@ -866,7 +866,7 @@ failing "DiscardOk"
   badDiscardThisCreature : Effect []
   badDiscardThisCreature = discards You (ThisOf Creature)
 
--- ===== Chapter fourteen negatives: the fourth wave =====
+-- ===== Laundering routes: wrappers, doubled words, untracked reads =====
 
 -- Negation is ATOMIC: oracle's non-/isn't/doesn't attaches to one
 -- modifier, and a conjunction is negated per-member (De Morgan is the
@@ -927,9 +927,11 @@ failing "DiscardOk"
   badDiscardIt : Effect [MkBinding AD Object OneOf (ObjectP Nothing Nothing Nothing)]
   badDiscardIt = discards You It
 
--- …and the class word is no hand card either: "any target" heads no
--- zone clause, so the phrase carries the battlefield default
--- ([CR#109.2]) and discard refuses it.
+-- …and the class word is no hand card either: it heads no zone clause
+-- and takes no [CR#109.2] default (it describes no object to place),
+-- so the phrase reaches discard with no zone at all — neither the bare
+-- self-reference nor a tracked hand card, which is the whole of the
+-- gate.
 failing "DiscardOk"
   badDiscardAnyTarget : Effect []
   badDiscardAnyTarget = discards You (target AnyTarget)
@@ -961,3 +963,39 @@ failing "AtLeastTwo"
 failing "AtLeastTwo"
   badSingletonSequence : Effect []
   badSingletonSequence = Sequentially [destroy (target creature)]
+
+-- ===== The kind-union round: the class word places nothing =====
+
+-- "Any target" NAMES [CR#115.4]'s damage class — creature, player,
+-- planeswalker, or battle — instead of describing an object, so
+-- [CR#109.2] has nothing to place on the battlefield and the phrase
+-- projects no zone. Destruction moves a battlefield permanent
+-- ([CR#701.8a]); the corpus writes no "Destroy any target", and the
+-- refusal now falls out of the zone gate the verb already had.
+failing "OnBattlefield"
+  badDestroyAnyTarget : Effect []
+  badDestroyAnyTarget = destroy (target AnyTarget)
+
+-- The same refusal one verb over and at the raw constructor — tapping
+-- takes a battlefield object ([CR#701.26a]) — so it is the projection
+-- that changed, not one macro's demand.
+failing "OnBattlefield"
+  badTapAnyTarget : Effect []
+  badTapAnyTarget = Tap (target AnyTarget)
+
+-- …and the mention is no better placed when it is read back: the
+-- binding an any-target phrase introduces records the phrase's own
+-- silence, so "it" inherits no battlefield the phrase never claimed.
+failing "OnBattlefield"
+  badDestroyAnyTargetRemention : Effect []
+  badDestroyAnyTargetRemention = Sequentially [DealDamage This (Lit 3) (target AnyTarget),
+                                               destroy It]
+
+-- The recipient gate reads the NOUN, and that is what keeps the class
+-- word's own row from becoming a zone-free hole: bare `This` is the
+-- source as an object ("this spell") and projects no zone either, but
+-- it is no damage recipient ([CR#120.1a] — a battle, a creature, or a
+-- planeswalker; players by [CR#120.1]).
+failing "DamageRecipient"
+  badDamageThis : Effect []
+  badDamageThis = DealDamage This (Lit 1) This

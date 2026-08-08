@@ -465,7 +465,7 @@
 |||
 ||| 40. **"Any target" is a lone class word.** The guide reserves it
 |||    for the rules-defined damage target class ([CR#115.4]) and
-|||    forbids it as a synonym for "any object". Three refusals
+|||    forbids it as a synonym for "any object". Four refusals
 |||    follow: it takes no modifier but "other" (Arc Trail's "any
 |||    other target" is the sole corpus companion — `AnyTargetLone`,
 |||    `badAnyTargetInGraveyard`); it is never negated, there being no
@@ -474,20 +474,26 @@
 |||    targeting form, so the non-targeting determiners and the
 |||    for-each domain demand an any-target-free phrase — "a any
 |||    target" and "each any target" are unwritable (`AnyTargetFree`,
-|||    `badAnyTargetUnderA`). What is stated here is the SINGULAR
-|||    form's rule: [CR#115.4] names "another target," "two targets,"
-|||    and similar plural damage-class forms in the same breath, and
-|||    those carry their own structures (a division, an each-of
-|||    recipient — ledger), so "lone class word" constrains "any
-|||    target" itself, not the family it belongs to. That makes the
-|||    third refusal a question of the QUANTITY once the counted
-|||    mention is one constructor (finding 36): the class word belongs
-|||    at exactly one, where the phrase IS the singular form
-|||    ("Lightning Bolt deals 3 damage to any target"), and at any
-|||    up-to bound, which the corpus writes outright ("each of up to
-|||    two targets", Fall of the Titans); the exact group from two up
-|||    and the unbounded "any number of" are refused until the plural
-|||    structures land — `AnyTargetAtCount`, `badGroupAnyTarget`,
+|||    `badAnyTargetUnderA`); and it DESCRIBES no object, so
+|||    [CR#109.2] has nothing to place on the battlefield and the
+|||    phrase projects no zone — which is what refuses it to every
+|||    battlefield-demanding verb (`nounZone`, `badDestroyAnyTarget`,
+|||    `badTapAnyTarget`) while damage still takes it, by a recipient
+|||    row read off the NOUN (`DamageRecipient`, `badDamageThis`).
+|||    What is stated here is the SINGULAR form's rule:
+|||    [CR#115.4] names "another target," "two targets," and similar
+|||    plural damage-class forms in the same breath, and those carry
+|||    their own structures (a division, an each-of recipient —
+|||    ledger), so "lone class word" constrains "any target" itself,
+|||    not the family it belongs to. That makes the third refusal a
+|||    question of the QUANTITY once the counted mention is one
+|||    constructor (finding 36): the class word belongs at exactly
+|||    one, where the phrase IS the singular form ("Lightning Bolt
+|||    deals 3 damage to any target"), and at any up-to bound, which
+|||    the corpus writes outright ("each of up to two targets", Fall
+|||    of the Titans); the exact group from two up and the unbounded
+|||    "any number of" are refused until the plural structures land
+|||    — `AnyTargetAtCount`, `badGroupAnyTarget`,
 |||    `badAnyNumberAnyTarget`.
 ||| 41. **The sorted self-reference stands on the battlefield.** "This
 |||    creature" / "this enchantment" is a description including a
@@ -577,14 +583,33 @@
 ||| never).
 |||
 ||| Not settled yet: the kind union ("any target" spans objects and
-||| players [CR#115.4,115.1] — elided to `Object`; the elision leaks:
-||| any-target phrases ride the [CR#109.2] battlefield default, so
-||| battlefield-demanding verbs accept them — "Destroy any target" is
-||| corpus-absent but typechecks — and severing the default breaks the
-||| damage positives, because `DamageRecipient`'s object row demands
-||| the battlefield too. The refusal wants `DamageRecipient` re-keyed
-||| to see the NOUN — a naive zone-free row would over-admit bare
-||| `This` — which is this union item's design work, not a gate patch);
+||| players [CR#115.4,115.1] — elided to `Object`). The elision's LEAK
+||| is closed, and by fixing a projection rather than patching a gate:
+||| the class word describes no object, so [CR#109.2]'s battlefield
+||| default has nothing to place and the phrase projects no zone,
+||| which is how every battlefield-demanding verb comes to refuse it
+||| through the demand it already carried (`badDestroyAnyTarget`,
+||| `badTapAnyTarget`); the binding the mention introduces records the
+||| same silence, so reading it back inherits nothing better
+||| (`badDestroyAnyTargetRemention`). Damage keeps the phrase by a
+||| recipient row of its own — `DamageRecipient` asks the NOUN now, as
+||| `DiscardOk` does — which is what a zone-free object row could not
+||| have done without admitting bare `This`, the source as an object
+||| (`badDamageThis`). What is left is the union proper, and it is a
+||| KIND question rather than a zone one: `AnyTarget` is typed
+||| `Predicate bs Object`, so the mention binds an OBJECT, the reads
+||| that reach it are the object pronouns ("it", never "that
+||| player"), and its recipient row asserts damageability without
+||| saying which kind was chosen. Core settles none of this by
+||| example: it has no kind index at all — one `Reference` spanning
+||| both, with `DealDamage(Reference, Count, Reference)` taking the
+||| same type in the source and patient slots
+||| (`deckmaste_core/src/action.rs`, `reference.rs`: "Players are
+||| objects") — whereas the kind index HERE is what buys the anaphora
+||| discipline (uniqueness counted per kind). So the union wants `Or`
+||| at the predicate level and a kind join the reads can project
+||| through, not the deletion of kinds — which is what the `AnyTarget`
+||| constructor has claimed since it was minted;
 ||| owned-zone PREDICATE mentions beyond `You` ("a card in an
 ||| opponent's graveyard" — [CR#400.3] makes the possessive an owner
 ||| FILTER, finding 34; the inner noun does not fold yet); controller
@@ -1386,23 +1411,16 @@ data Targetable : Kind -> Type where
 
 ||| Damageable head types ([CR#120.1a] — damage can't be dealt to an
 ||| object that's not a battle, a creature, or a planeswalker): the
-||| creature row, plus the untyped head (wildcards, "any target").
-||| New rows arrive with their types' declarations.
+||| creature row, plus the head a read leaves untyped — a fold-state
+||| that records no type word is not evidence of an illegal one, so
+||| the demand is on what the phrase SAYS. The class word "any target"
+||| no longer arrives here: it names the [CR#115.4] class itself and
+||| has its own recipient row. New rows arrive with their types'
+||| declarations.
 public export
 data DamageableTy : Maybe CardType -> Type where
   DamCreature : DamageableTy (Just Creature)
   DamUntyped : DamageableTy Nothing
-
-||| Who can take damage ([CR#120.1,120.1a] — battles, creatures,
-||| planeswalkers, players; never a quality, never an off-battlefield
-||| card, never a noncreature artifact or land): a player, or a
-||| damageable-headed object on the battlefield (untracked, like the
-||| source's own mention, passes).
-public export
-data DamageRecipient : Kind -> Maybe Zone -> Maybe CardType -> Type where
-  PlayerTakes : DamageRecipient Player z t
-  ObjectTakes : {auto 0 field : OnBattlefield z} ->
-                {auto 0 dm : DamageableTy t} -> DamageRecipient Object z t
 
 ||| The kinds a noun PHRASE can describe — objects, players, chosen
 ||| qualities. Outcomes are clause-introduced only: no determiner
@@ -1869,6 +1887,18 @@ mutual
   anyIsAnyTarget [] = False
   anyIsAnyTarget (p :: ps) = isAnyTarget p || anyIsAnyTarget ps
 
+  ||| Is the class word this phrase's HEAD — is the phrase "any target"
+  ||| (or Arc Trail's "any other target")? The flattened member scan
+  ||| answers exactly that: `AnyTargetLone` already forbids any
+  ||| companion but "other", so a phrase holding the word IS the class
+  ||| word. It deliberately does NOT reach into embedded nouns the way
+  ||| `anyTargetFree` does — "target creature the controller of any
+  ||| target controls" has a creature head and a creature's zone; the
+  ||| class word is somebody else's possessor there.
+  public export
+  headIsAnyTarget : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+  headIsAnyTarget p = anyIsAnyTarget (flattenPs [p])
+
   public export
   allLoneOk : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
   allLoneOk [] = True
@@ -2015,11 +2045,20 @@ mutual
 
   ||| Build the binding a determined mention introduces: projections of
   ||| the phrase only. Total over the PHRASAL kinds — outcomes have no
-  ||| determiner phrase, which the `Phrasal` witness enforces.
+  ||| determiner phrase, which the `Phrasal` witness enforces. The zone
+  ||| recorded is the phrase's own, so the class word records none, on
+  ||| the same ground `nounZone` gives it none: a later read of an
+  ||| any-target mention is no better placed than the mention was
+  ||| (`badDestroyAnyTargetRemention`).
   public export
   bindFor : Determiner -> Plurality -> {k : Kind} -> Phrasal k -> Predicate bs k -> Binding
   bindFor det plur PhObject p =
-    MkBinding det Object plur (ObjectP (seedTy p) (Just (zoneOr Battlefield (seedZone p))) Nothing)
+    MkBinding det Object plur
+              (ObjectP (seedTy p)
+                       (if headIsAnyTarget p
+                          then Nothing
+                          else Just (zoneOr Battlefield (seedZone p)))
+                       Nothing)
   bindFor det plur PhPlayer p = MkBinding det Player plur PlayerP
   bindFor det plur {k = Quality q} PhQuality p = MkBinding det (Quality q) plur QualityP
 
@@ -2388,18 +2427,20 @@ mutual
   ||| record); keyword actions live in the macro layer below.
   public export
   data Effect : Bindings -> Type where
-    -- "[src] deals [amt] damage to [to]" — the recipient is a player
-    -- or a damageable battlefield object ([CR#120.1,120.1a];
-    -- `badDamageGraveyardCard`, `badDamageToColor`,
-    -- `badDamageArtifact`), and the SOURCE is singular or
-    -- distributive (`DamageSource`; `badGroupDamageSource`).
+    -- "[src] deals [amt] damage to [to]" — the recipient is a player,
+    -- the class word that names the damage class outright, or a
+    -- damageable battlefield object ([CR#120.1,120.1a];
+    -- `DamageRecipient`, asked of the noun — `badDamageGraveyardCard`,
+    -- `badDamageToColor`, `badDamageArtifact`, `badDamageThis`), and
+    -- the SOURCE is singular or distributive (`DamageSource`;
+    -- `badGroupDamageSource`).
     -- spelling: ["<Param(0)> deals <Param(1)> damage to <Param(2)>"],
     -- kind: Sentence (matches constructors.ron's `DealDamage` entry exactly
     -- -- Reference/Count/Reference)
     DealDamage : {k : Kind} -> (src : Noun bs Object) -> (amt : Amount (nomIntro src)) ->
                  (to : Noun (amtIntro amt) k) ->
                  {auto 0 ds : DamageSource src} ->
-                 {auto 0 rk : DamageRecipient k (nounZone to) (nounTy to)} -> Effect bs
+                 {auto 0 rk : DamageRecipient to} -> Effect bs
     -- "[a] fights [b]" ([CR#701.14a] — only battlefield creatures
     -- fight [CR#701.14b]; `badFightGraveyard`, `badFightLand`).
     -- Primitive, confirmed: both damages dealt simultaneously, which
@@ -2561,6 +2602,53 @@ mutual
     Nil : Effects Z bs
     (::) : (e : Effect bs) -> Effects n (effIntro e) -> Effects (S n) bs
 
+  ||| Does this noun phrase spell "any target"? Only a counted target
+  ||| mention can — every other determiner demands an any-target-free
+  ||| phrase, and the reads carry no phrase at all. Full rows, so a new
+  ||| determiner declares its answer.
+  public export
+  nounIsAnyTarget : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+  nounIsAnyTarget (TargetGroup _ p) = headIsAnyTarget p
+  nounIsAnyTarget This = False
+  nounIsAnyTarget (ThisOf _) = False
+  nounIsAnyTarget You = False
+  nounIsAnyTarget (Each _) = False
+  nounIsAnyTarget (A _) = False
+  nounIsAnyTarget (ATheirChoice _) = False
+  nounIsAnyTarget (AAtRandom _) = False
+  nounIsAnyTarget (AllOf _) = False
+  nounIsAnyTarget It = False
+  nounIsAnyTarget They = False
+  nounIsAnyTarget Them = False
+  nounIsAnyTarget (Those _) = False
+  nounIsAnyTarget (That _) = False
+  nounIsAnyTarget (TheVerbed _ _) = False
+  nounIsAnyTarget (ControllerOf _) = False
+  nounIsAnyTarget (OwnerOf _) = False
+
+  ||| Who can take damage ([CR#120.1,120.1a] — battles, creatures,
+  ||| planeswalkers, players; never a quality, never an off-battlefield
+  ||| card, never a noncreature artifact or land) — asked of the NOUN,
+  ||| the way `DiscardOk` asks its verb's question. Three rows: any
+  ||| player; the class word, which NAMES [CR#115.4]'s damage class and
+  ||| so answers for itself without a zone or a head type; and every
+  ||| other object phrase, which must stand on the battlefield under a
+  ||| damageable head. The middle row is what lets the class word's
+  ||| zone projection stay honest — "any target" places its referent
+  ||| nowhere, so `nounZone` gives it none and the battlefield verbs
+  ||| refuse it (`badDestroyAnyTarget`) — where a zone-FREE object row
+  ||| would have bought the same refusal at the price of admitting bare
+  ||| `This`, the source as an object, which takes no damage
+  ||| (`badDamageThis`).
+  public export
+  data DamageRecipient : Noun bs k -> Type where
+    PlayerTakes : DamageRecipient {k = Player} n
+    AnyTargetTakes : {auto 0 ok : nounIsAnyTarget n = True} ->
+                     DamageRecipient {k = Object} n
+    ObjectTakes : {auto 0 field : OnBattlefield (nounZone n)} ->
+                  {auto 0 dm : DamageableTy (nounTy n)} ->
+                  DamageRecipient {k = Object} n
+
   ||| The hand half of discard's implicit restriction, asked of the
   ||| NOUN rather than of a zone ([CR#701.9a] — a discard moves a card
   ||| from a hand). Two rows, and only two: the bare self-reference,
@@ -2721,7 +2809,14 @@ mutual
   ||| description that includes a card type, so [CR#109.2] places it on
   ||| the battlefield exactly as it places "target creature" there;
   ||| bare `This` is the source as an object ("this spell", cycling's
-  ||| "Discard this card") and stays untracked.
+  ||| "Discard this card") and stays untracked. The one counted
+  ||| mention that takes no default is the class word: "any target" is
+  ||| not a description of an object but the NAME of [CR#115.4]'s
+  ||| damage class, which spans players, so [CR#109.2] has nothing to
+  ||| place and the phrase projects no zone — which is how every
+  ||| battlefield-demanding verb comes to refuse it through the
+  ||| ordinary gate (`badDestroyAnyTarget`, `badTapAnyTarget`), damage
+  ||| taking it by its own recipient row instead.
   public export
   nounZone : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe Zone
   nounZone This = Nothing
@@ -2731,7 +2826,8 @@ mutual
   nounZone (A p) = Just (zoneOr Battlefield (seedZone p))
   nounZone (ATheirChoice p) = Just (zoneOr Battlefield (seedZone p))
   nounZone (AAtRandom p) = Just (zoneOr Battlefield (seedZone p))
-  nounZone (TargetGroup q p) = Just (zoneOr Battlefield (seedZone p))
+  nounZone (TargetGroup q p) =
+    if headIsAnyTarget p then Nothing else Just (zoneOr Battlefield (seedZone p))
   nounZone (AllOf p) = Just (zoneOr Battlefield (seedZone p))
   nounZone It = zoneOfIt bs
   nounZone They = Nothing
