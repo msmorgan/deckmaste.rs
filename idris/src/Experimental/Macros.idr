@@ -54,6 +54,55 @@ target : (p : Predicate bs k) -> {auto tk : Targetable k} ->
          {auto 0 af : AnyTargetAtCount (exactly 1) p} -> Noun bs k
 target p = TargetGroup (exactly 1) p {tk} {hd} {af}
 
+-- The zone phrases, one macro per surface English writes over the two
+-- axes `ZoneAt` carries: the zone word bare, and the zone word under a
+-- possessive. Core names a zone the same bare way wherever it names one
+-- (`StatePredicate::InZone(Zone)`, `Destination::Zone(Zone)`) and keeps
+-- ownership beside it as its own relation (`RelationPredicate::Owner`,
+-- `filter.rs`); these six are that pair multiplied out into the phrases
+-- the corpus actually writes.
+
+-- "the battlefield" — shared ([CR#400.1]), so it takes no possessive.
+-- spelling: ["the battlefield"], kind: Nominal
+public export
+battlefieldZ : ZoneExpr bs
+battlefieldZ = ZoneAt Battlefield Bare
+
+-- "exile" — shared likewise.
+-- spelling: ["exile"], kind: Nominal
+public export
+exileZ : ZoneExpr bs
+exileZ = ZoneAt Exile Bare
+
+-- "hand" — the sort-only form: a per-player zone written with no
+-- owner, which is what a macro expansion needs when the card text
+-- named none (see `ZoneScope`).
+-- spelling: ["hand"], kind: Nominal (bare sort-only form -- macro
+-- expansions whose English wrote no owner)
+public export
+handZ : ZoneExpr bs
+handZ = ZoneAt Hand Bare
+
+-- "graveyard" — the sort-only form, as `handZ`.
+-- spelling: ["graveyard"], kind: Nominal (bare sort-only form, see handZ)
+public export
+graveyardZ : ZoneExpr bs
+graveyardZ = ZoneAt Graveyard Bare
+
+-- "[player]'s hand" — the owned form. The possessor is singular, and
+-- the demand travels to the caller as everywhere else.
+-- spelling: ["<Param(0)>'s hand"], kind: Nominal (e.g. "your hand",
+-- "its owner's hand")
+public export
+handOf : (n : Noun bs Player) -> {auto 0 one : nounPlur n = OneOf} -> ZoneExpr bs
+handOf n = ZoneAt Hand (OwnedBy n {ps = HandIsOwned} {one})
+
+-- "[player]'s graveyard" — the owned form, as `handOf`.
+-- spelling: ["<Param(0)>'s graveyard"], kind: Nominal (see handOf)
+public export
+graveyardOf : (n : Noun bs Player) -> {auto 0 one : nounPlur n = OneOf} -> ZoneExpr bs
+graveyardOf n = ZoneAt Graveyard (OwnedBy n {ps = GraveyardIsOwned} {one})
+
 -- The sorted self-reference, one macro per type word the corpus
 -- writes it with: the source ascribed a card type ([CR#109.2] then
 -- reading the PERMANENT), which is `AsType` over `This` and nothing
@@ -247,7 +296,7 @@ forEach p = nForEach 1 p {hd} {af}
 -- macro IS that def)
 public export
 destroy : (n : Noun bs Object) -> {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
-destroy n = Composite Destroy (Move n GraveyardZ) {ok = DestroyB {z = ok}}
+destroy n = Composite Destroy (Move n graveyardZ) {ok = DestroyB {z = ok}}
 
 -- "exile [n]" ([CR#701.13a]) — speculative pending its real macro.
 -- spelling: ["exile <Param(0)>"], kind: Sentence (speculative -- no
@@ -255,7 +304,7 @@ destroy n = Composite Destroy (Move n GraveyardZ) {ok = DestroyB {z = ok}}
 -- to Destroy.ron's shape)
 public export
 exile : Noun bs Object -> Effect bs
-exile n = Composite Exile (Move n ExileZ) {ok = ExileB}
+exile n = Composite Exile (Move n exileZ) {ok = ExileB}
 
 -- "[agent] sacrifice(s) [n]" ([CR#701.21a]) — one macro per lemma: the
 -- imperative spells `You` explicitly, inflection is the frame's. The
@@ -271,7 +320,7 @@ exile n = Composite Exile (Move n ExileZ) {ok = ExileB}
 public export
 sacrifice : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
             {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
-sacrifice agent n = Does agent Sacrifice (Move n GraveyardZ) {tb = SacrificeB {z = ok}}
+sacrifice agent n = Does agent Sacrifice (Move n graveyardZ) {tb = SacrificeB {z = ok}}
 
 -- "[agent] discard(s) [n]" — the hand→graveyard move [CR#701.9a] with
 -- the subject in clause position. The CR routes by the card's OWNER;
@@ -286,16 +335,16 @@ sacrifice agent n = Does agent Sacrifice (Move n GraveyardZ) {tb = SacrificeB {z
 public export
 discards : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
            {auto 0 dk : DiscardOk n} -> Effect bs
-discards agent n = Does agent Discard (Move n GraveyardZ) {tb = DiscardB {d = dk}}
+discards agent n = Does agent Discard (Move n graveyardZ) {tb = DiscardB {d = dk}}
 
 -- "[agent] discard(s) a card" — the common phrase, spelled sort-only
 -- (an owned-hand expansion needs a subject-read noun the vocabulary
 -- lacks — not-settled).
 -- spelling: ["<Param(0)> discard(s) a card"], kind: Sentence (sort-only
--- expansion of `discards` at `a (InZone HandZ)`; not an independent frame)
+-- expansion of `discards` at `a (InZone handZ)`; not an independent frame)
 public export
 discardsACard : (agent : Noun bs Player) -> Effect bs
-discardsACard agent = discards agent (a (InZone HandZ))
+discardsACard agent = discards agent (a (InZone handZ))
 
 -- "[n] gains haste [duration]" — the duration slot is the grant's own
 -- adverbial, so the macro carries `GrantSpan` through to its caller.
