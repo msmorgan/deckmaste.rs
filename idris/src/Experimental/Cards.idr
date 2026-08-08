@@ -76,7 +76,7 @@ cloudshift = Sequentially [exile (target creatureYouControl),
 throughTheBreach : Effect []
 throughTheBreach = Sequentially [may You (Move (a (And [creature, InZone (handOf You)])) battlefieldZ),
                                  gainsHaste (That (TypeW Creature)) Nothing,
-                                 Delayed NextEndStep (sacrifice You (That (TypeW Creature)))]
+                                 Delayed (BeginningOf EndStep Nothing) (sacrifice You (That (TypeW Creature)))]
 
 -- "Destroy target creature. Its controller loses 2 life." (Bitter
 -- Downfall; its cost-reduction line elided) — the relational noun:
@@ -172,7 +172,7 @@ flickeringSpirit = Sequentially [exile thisCreature,
 -- illegality).
 turnToMist : Effect []
 turnToMist = Sequentially [exile (target creature),
-                           Delayed NextEndStep (Move (That CardW) battlefieldZ)]
+                           Delayed (BeginningOf EndStep Nothing) (Move (That CardW) battlefieldZ)]
 
 -- "Target creature gains flying until end of turn." (Jump) — the
 -- duration as trailing-adverbial data ([CR#611.2a]), and the clause
@@ -226,7 +226,7 @@ bondOfRevival = Sequentially [Move (target (And [creature, InZone (graveyardOf Y
 -- dying retags it to the graveyard ([CR#700.4]), so "that card" is
 -- the carrier that resolves.
 gracefulReprieve : Effect []
-gracefulReprieve = Delayed (DiesThisTurn (target creature))
+gracefulReprieve = Delayed (Dies (target creature)) {span = Just ThisTurn}
                            (Move (That CardW) battlefieldZ)
 
 -- "Destroy target creature. You gain life equal to its toughness."
@@ -306,7 +306,7 @@ kindredDominance = Sequentially [Choose (a (QualityNoun CreatureType)),
 voyagerStaff : Ability
 voyagerStaff = Activated (Compound [Mana [generic 2], Do (sacrifice You thisArtifact)])
                          (Sequentially [exile (target creature),
-                                          Delayed NextEndStep (Move (TheVerbed Exile CardW) battlefieldZ)])
+                                          Delayed (BeginningOf EndStep Nothing) (Move (TheVerbed Exile CardW) battlefieldZ)])
 
 -- "{3}{R}, Sacrifice an artifact: Bosh deals damage equal to the
 -- sacrificed artifact's mana value to any target." (Bosh, Iron Golem;
@@ -1267,7 +1267,7 @@ lookAtTopThenBin =
 botBashingTime : Effect []
 botBashingTime =
   Sequentially [ DealDamage This (Lit 6) (target creature)
-               , ifWouldInstead (WouldDie (That (TypeW Creature))) (exile It) (Just thisTurn)
+               , ifWouldInstead (Dies (That (TypeW Creature))) (exile It) (Just thisTurn)
                ]
 
 -- "{1}: The next time you would draw a card this turn, this enchantment
@@ -1277,7 +1277,7 @@ botBashingTime =
 -- single-use one are different effects and the writer has to say which
 -- ([CR#614.11] gives draw replacement its own paragraph).
 wordsOfWar : Effect []
-wordsOfWar = nextTimeWouldInstead (WouldDraw You)
+wordsOfWar = nextTimeWouldInstead (Draws You)
                                   (DealDamage This (Lit 2) (target AnyTarget))
                                   (Just thisTurn)
 
@@ -1286,7 +1286,7 @@ wordsOfWar = nextTimeWouldInstead (WouldDraw You)
 -- that touches no object at all, which is what [CR#611.2c]'s
 -- rules-modifying half looks like from the clause side.
 wordsOfWorship : Effect []
-wordsOfWorship = nextTimeWouldInstead (WouldDraw You)
+wordsOfWorship = nextTimeWouldInstead (Draws You)
                                       (gainsLife You (Lit 5))
                                       (Just thisTurn)
 
@@ -1320,7 +1320,7 @@ shieldmatesBlessing =
 -- the `Duration` row over the same event stays unclaimed.
 banisherPriest : Effect []
 banisherPriest = exileUntil (target (And [creature, ControlledBy anOpponent]))
-                            (WouldLeave thisCreature)
+                            (Leaves thisCreature)
 
 -- "[0]: Draw a card. If you control three or more artifacts, draw two
 -- cards instead." (Tezzeret, Artifice Master) — the SELF-replacement
@@ -1468,6 +1468,133 @@ securityDetail =
 
 
 
+-- ===== The triggered line and the static line: the ability chapter =====
+
+-- "When this creature enters, draw a card." (Cloudkin Seer; its flying
+-- line is a second ability, not part of this one) — the trigger corpus's
+-- single commonest shape, two thousand four hundred seventy-three lines
+-- of "When this [permanent] enters".
+cloudkinSeer : Ability
+cloudkinSeer = Triggered When (Enters This) drawACard
+
+-- "Whenever a creature dies, you gain 1 life." (Moonlit Wake, whole) —
+-- the same event under a DESCRIPTION, which is what moves the header
+-- word: one object enters once and dies once, so a fixed subject takes
+-- "When", and a description ranging over many takes "Whenever".
+moonlitWake : Ability
+moonlitWake = Triggered Whenever (Dies (a creature)) (gainsLife You (Lit 1))
+
+-- "Whenever a creature you control dies, exile it." (Promise of
+-- Tomorrow's first line) — the trigger's participant read BACK, and the
+-- read is what shows the after-discourse is right: "it" finds a card in
+-- a graveyard ([CR#603.6,700.4]), which is exactly what exile wants and
+-- exactly what the interception's replacement must not have.
+promiseOfTomorrow : Ability
+promiseOfTomorrow = Triggered Whenever (Dies (a creatureYouControl)) (exile It)
+
+-- "At the beginning of your upkeep, draw a card." (Staff of Nin's first
+-- line) — the turn-part event, the one row whose header word is fixed
+-- ([CR#603.2b]) and the only one with no noun phrase in it.
+staffOfNin : Ability
+staffOfNin = Triggered At (BeginningOf Upkeep (Just Yours)) drawACard
+
+-- "Whenever this creature attacks, draw a card." (Library Larcenist,
+-- whole) — the fixed subject taking "Whenever", which is the header
+-- word tracking the EVENT's repeatability rather than the subject's
+-- fixity: a creature attacks many times.
+libraryLarcenist : Ability
+libraryLarcenist = Triggered Whenever (Attacks This) drawACard
+
+-- "Whenever this creature blocks, it deals 1 damage to target attacking
+-- creature." (Elite Javelineer, whole) — the block event, and a trigger
+-- that TARGETS ([CR#115.1d]), which is the line the static row cannot
+-- write.
+eliteJavelineer : Ability
+eliteJavelineer =
+  Triggered Whenever (Blocks This)
+            (DealDamage This (Lit 1) (target (And [creature, Attacking])))
+
+-- "Whenever this creature deals combat damage to a player, draw a
+-- card." (Jhessian Thief's second line; its prowess line is a keyword)
+-- — the two-slot event, and its recipient reads the damage clause's own
+-- table for the third time.
+jhessianThief : Ability
+jhessianThief =
+  Triggered Whenever (DealsCombatDamage This (a AnyPlayer)) drawACard
+
+-- "When this creature enters, if you control an artifact, draw a card."
+-- (Scholar of Stars, whole) — the INTERVENING "if" ([CR#603.4]), which
+-- is `Condition` verbatim in a fourth carrier. The rule is what makes it
+-- a slot rather than an ordinary trailing conditional: it applies "only
+-- to an 'if' that immediately follows a trigger condition", and it is
+-- checked twice, once as the event occurs and again on resolution.
+scholarOfStars : Ability
+scholarOfStars =
+  Triggered When (Enters This) drawACard
+            {intervening = Just (Exists (And [artifact, ControlledBy You]))}
+
+-- "Creatures you control can't attack." (Glacial Chasm's third line) —
+-- the durationless deontic `badStaticCant` has refused since chapter
+-- seventeen, in the container it was waiting for.
+glacialChasmCant : Ability
+glacialChasmCant = Static (Cant (AllOf creatureYouControl) Attack Agent)
+
+-- "Prevent all damage that would be dealt to you." (Glacial Chasm's
+-- fourth line) — `badStandingPrevention`'s own sentence, one line below
+-- the last on the same card.
+glacialChasmShield : Ability
+glacialChasmShield = Static (Prevents AnyDamage AllOfIt (shieldingIt You))
+
+-- "If a creature an opponent controls would die, exile it instead."
+-- (Misery's Shadow's first line) — `badStandingIntercept` as a
+-- positive, and the standing interception chapter twenty-five refused
+-- with the container named.
+miserysShadow : Ability
+miserysShadow =
+  Static (Intercepts (Dies (a (And [creature, ControlledBy (a Opponent)])))
+                     (exile It) Repeatedly)
+
+-- "Metalcraft — Creatures you control get +3/+0 as long as you control
+-- three or more artifacts." (Jor Kadeen, the Prevailer's second line;
+-- the ability word has no rules meaning [CR#207.2c]) — the CONDITIONAL
+-- static, [CR#611.3a]'s live re-check, and the nine-hundred-twelve-line
+-- family chapter twenty-two measured and could not write.
+jorKadeen : Ability
+jorKadeen =
+  Static (asLongAs (CompareAmt (CountOf (And [artifact, ControlledBy You]))
+                               OrGreater (Lit 3))
+                   (Gets (AllOf creatureYouControl) 3 0))
+
+-- "This land enters tapped." (Abandoned Outpost's first line) — the
+-- entry rider [CR#603.6d] calls a static ability in as many words, owed
+-- from three sites since chapter twenty-five and paid here.
+abandonedOutpost : Ability
+abandonedOutpost = Static (entersTapped (AsType Land This))
+
+-- "{T}: Exile the top card of your library. Until your next end step,
+-- you may play it." (Yasmin Khan's first ability) — the play PERMISSION,
+-- the May-side deontic the surface has lacked since chapter fifteen. It
+-- is the construction that claims the end-step endpoint the span table
+-- has carried as `Unclaimed` since chapter seventeen, and the zone it
+-- permits from is the sentence BEFORE it: the exile retags the card, so
+-- "it" is in exile and `playableFrom` reads that off the binding.
+yasminKhan : Ability
+yasminKhan =
+  Activated TapSymbol
+            (Sequentially [exile topCard,
+                           Continuously (MayPlay You It) (Just untilYourNextEndStep)])
+
+-- "Until end of combat on your next turn, you may play that card."
+-- (Brazen Cannonade's second line, whose raid trigger and postcombat
+-- main-phase header are two turn-structure words this vocabulary does
+-- not have) — the SECOND `Unclaimed` cell the permission claims, and
+-- the one chapter twenty-two named by card when it wrote the cell's
+-- reason down.
+brazenCannonadePermission : Effect []
+brazenCannonadePermission =
+  Sequentially [exile topCard,
+                Continuously (MayPlay You It) (Just (Until (EndOf Combat (Just Yours))))]
+
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
 -- "other" with no target before it: the presupposition has no witness.
@@ -1500,7 +1627,7 @@ failing "countOnes"
 failing "OnBattlefield"
   badStale : Effect []
   badStale = Sequentially [destroy (target creature),
-                           Delayed NextEndStep (sacrifice You It)]
+                           Delayed (BeginningOf EndStep Nothing) (sacrifice You It)]
 
 -- "Another target" inside a delayed clause can only be distinct from
 -- the DELAYED ability's own targets — it announces in its own event
@@ -1512,7 +1639,7 @@ failing "OnBattlefield"
 failing "anyTargeted"
   badDelayedOther : Effect []
   badDelayedOther = Sequentially [DealDamage This (Lit 2) (target AnyTarget),
-                                  Delayed NextEndStep (DealDamage This (Lit 1) (target anyOtherTarget))]
+                                  Delayed (BeginningOf EndStep Nothing) (DealDamage This (Lit 1) (target anyOtherTarget))]
 
 -- After the exile, the referent no longer answers to "creature": its
 -- carrier is derived from the RETAGGED zone ([CR#110.1]), so the typed
@@ -1555,7 +1682,7 @@ failing "OnBattlefield"
 -- is the spelling that resolves (see `gracefulReprieve`).
 failing "countWord"
   badDeadCreatureRead : Effect []
-  badDeadCreatureRead = Delayed (DiesThisTurn (target creature))
+  badDeadCreatureRead = Delayed (Dies (target creature)) {span = Just ThisTurn}
                                 (Move (That (TypeW Creature)) battlefieldZ)
 
 -- "The chosen type" with only a color chosen: the quality read is
@@ -1628,7 +1755,7 @@ failing "countWord"
   badBareCardRead : Ability
   badBareCardRead = Activated (Do (sacrifice You thisArtifact))
                               (Sequentially [exile (target creature),
-                                             Delayed NextEndStep (Move (That CardW) battlefieldZ)])
+                                             Delayed (BeginningOf EndStep Nothing) (Move (That CardW) battlefieldZ)])
 
 -- ===== Chapter nine negatives: the audit round =====
 
@@ -1652,10 +1779,16 @@ failing "FightParticipant"
   badFightLand = Fights (target (HasType Land)) (target creatureYouDontControl)
 
 -- Dying is the battlefield-to-graveyard transition [CR#700.4]: an
--- already-graveyard card cannot die this turn.
-failing "OnBattlefield"
+-- already-graveyard card cannot die this turn. The demand is
+-- `zoneFits`' as of chapter twenty-eight rather than `OnBattlefield`'s,
+-- and the refusal is unchanged by the loosening: a phrase that STATES
+-- the graveyard still contradicts the battlefield, while the phrase
+-- that states nothing ("this creature", the trigger corpus's own
+-- subject at two thousand four hundred seventy-three lines) passes on
+-- its silence.
+failing "ZoneFits"
   badDiesInGraveyard : Effect []
-  badDiesInGraveyard = Delayed (DiesThisTurn (target (And [creature, InZone (graveyardOf You)])))
+  badDiesInGraveyard = Delayed (Dies (target (And [creature, InZone (graveyardOf You)]))) {span = Just ThisTurn}
                                (Move (That CardW) battlefieldZ)
 
 -- Damage reaches players and battlefield objects only [CR#120.1]:
@@ -1714,7 +1847,7 @@ failing "Targetable"
 
 -- The one-shot stat modification takes a battlefield object: a dead
 -- referent doesn't get +3/+3.
-failing "OnBattlefield"
+failing "ZoneFits"
   badGetsGraveyard : Effect []
   badGetsGraveyard = Sequentially [destroy (target creature),
                                    gets It 3 3 (Just untilEndOfTurn)]
@@ -1821,7 +1954,8 @@ failing "Possessable"
 -- plural watches wait for corpus evidence.
 failing "OneOf"
   badDiesGroup : Effect []
-  badDiesGroup = Delayed (DiesThisTurn (TargetGroup (exactly 2) creature)) (gainsLife You (Lit 1))
+  badDiesGroup = Delayed (Dies (TargetGroup (exactly 2) creature)) {span = Just ThisTurn}
+                         (gainsLife You (Lit 1))
 
 -- A bare type word denotes a permanent [CR#109.2], and what was
 -- discarded left a HAND: "the discarded creature" is unwritten (the
@@ -2333,16 +2467,19 @@ failing "DeedParticipant"
 -- removed from combat ([CR#506.4]), so a graveyard card has no deed to
 -- be denied. The gate is the one destroy, tap, and "gets" already
 -- carry.
-failing "OnBattlefield"
+failing "ZoneFits"
   badCantInGraveyard : Effect []
   badCantInGraveyard =
     cantBlock (target (And [creature, InZone graveyardZ])) (Just thisTurn)
 
 -- The class word names [CR#115.4]'s damage class, describes no object,
 -- and so places none — and the restriction needed no rule of its own to
--- refuse it, the projection doing it through the battlefield demand
--- exactly as for destroy and tap (`badDestroyAnyTarget`).
-failing "OnBattlefield"
+-- refuse it, and as of chapter twenty-eight the refusal lands one
+-- demand over: the zone demand is `zoneFits`' now and silence passes it,
+-- so what catches the class word is the DEED's head-type demand — a
+-- phrase that describes no object fixes no type, which is
+-- `badCantDisjunctSubject`'s refusal reaching a second silent phrase.
+failing "DeedParticipant"
   badCantAnyTarget : Effect []
   badCantAnyTarget = cantBlock (target AnyTarget) (Just thisTurn)
 
@@ -2756,7 +2893,7 @@ failing "LineNonEmpty"
 
 -- A type change is a continuous effect on a permanent: a graveyard card
 -- has no types for the clause to add to on the battlefield.
-failing "OnBattlefield"
+failing "ZoneFits"
   badBecomesInGraveyard : Effect []
   badBecomesInGraveyard =
     becomes (target (And [creature, InZone (graveyardOf You)])) (typesOnly [Artifact]) Nothing
@@ -3178,7 +3315,7 @@ failing "countOnes Outcome"
 -- controller; [CR#109.4] gives an object that is neither on the stack
 -- nor on the battlefield none), so the grant takes a battlefield
 -- referent like every other continuous clause.
-failing "OnBattlefield"
+failing "ZoneFits"
   badGainControlGraveyard : Effect []
   badGainControlGraveyard =
     gainControl (target (And [creature, InZone graveyardZ])) Nothing
@@ -3523,7 +3660,7 @@ failing "GroupMention"
 failing "SpanOk Replacement"
   badStandingIntercept : Effect []
   badStandingIntercept =
-    ifWouldInstead (WouldDie (target creature)) (exile It) Nothing
+    ifWouldInstead (Dies (target creature)) (exile It) Nothing
 
 -- The same refusal on the shield: forty-nine "Prevent all …" lines
 -- state no duration and every one of them is a static ability
@@ -3547,7 +3684,7 @@ failing "SpanOk Prevention"
 failing "SpanOk Replacement"
   badInterceptForAsLongAs : Effect []
   badInterceptForAsLongAs =
-    ifWouldInstead (WouldDie (target creature)) (exile It)
+    ifWouldInstead (Dies (target creature)) (exile It)
                    (Just (ForAsLongAs (Exists creatureYouControl)))
 
 -- Real oracle English, no clause of ours: thirty-one lines write "would
@@ -3559,7 +3696,7 @@ failing "SpanOk Replacement"
 failing "Interceptable"
   badInterceptDestruction : Effect []
   badInterceptDestruction =
-    ifWouldInstead (WouldBeDestroyed (target creature)) (exile It) (Just thisTurn)
+    ifWouldInstead (IsDestroyed (target creature)) (exile It) (Just thisTurn)
 
 -- The multiplicity word is the event's to choose. "The next time
 -- [subject] would die" is written zero times against fifty-seven
@@ -3568,7 +3705,7 @@ failing "Interceptable"
 failing "ReplUseOk"
   badNextTimeWouldDie : Effect []
   badNextTimeWouldDie =
-    nextTimeWouldInstead (WouldDie (target creature)) (exile It) (Just thisTurn)
+    nextTimeWouldInstead (Dies (target creature)) (exile It) (Just thisTurn)
 
 -- And the inverse, measured the same way: "if you would draw a card
 -- this turn" is written zero times against nine "the next time you
@@ -3577,15 +3714,15 @@ failing "ReplUseOk"
 failing "ReplUseOk"
   badIfWouldDraw : Effect []
   badIfWouldDraw =
-    ifWouldInstead (WouldDraw You) (gainsLife You (Lit 5)) (Just thisTurn)
+    ifWouldInstead (Draws You) (gainsLife You (Lit 5)) (Just thisTurn)
 
 -- Dying is the battlefield-to-graveyard transition ([CR#700.4]), so the
 -- watched object stands on the battlefield — `EventQuery`'s own demand
 -- asked by the other reader of the same event.
-failing "OnBattlefield"
+failing "ZoneFits"
   badWouldDieInGraveyard : Effect []
   badWouldDieInGraveyard =
-    ifWouldInstead (WouldDie (target (And [creature, InZone (graveyardOf You)])))
+    ifWouldInstead (Dies (target (And [creature, InZone (graveyardOf You)])))
                    (exile It) (Just thisTurn)
 
 -- The replacement is a HOLE outward. [CR#614.7] says a replacement
@@ -3596,7 +3733,7 @@ failing "OnBattlefield"
 failing "countOnes Object"
   badInterceptReplacementAntecedent : Effect []
   badInterceptReplacementAntecedent =
-    Sequentially [ nextTimeWouldInstead (WouldDraw You)
+    Sequentially [ nextTimeWouldInstead (Draws You)
                                         (create (Lit 1) (creatureTok 1 1 [Green] [Soldier]))
                                         (Just thisTurn)
                  , sacrifice You It
@@ -3612,7 +3749,7 @@ failing "countOnes Object"
 failing "SpanOk PtDelta"
   badGetsUntilLeavesBattlefield : Effect []
   badGetsUntilLeavesBattlefield =
-    gets (target creature) 2 2 (Just (UntilEvent (WouldLeave thisCreature)))
+    gets (target creature) 2 2 (Just (UntilEvent (Leaves thisCreature)))
 
 -- The rider goes on a zone change to EXILE and on nothing else: nothing
 -- returns from a graveyard "until", and the corpus writes the rider
@@ -3620,7 +3757,7 @@ failing "SpanOk PtDelta"
 failing "HeldClause"
   badHeldUntilDestroy : Effect []
   badHeldUntilDestroy =
-    HeldUntil (destroy (target creature)) (WouldLeave thisCreature)
+    HeldUntil (destroy (target creature)) (Leaves thisCreature)
 
 -- And the event half of the same gate: the rider waits for a
 -- leaves-the-battlefield event and for no other. Not one line writes
@@ -3628,7 +3765,7 @@ failing "HeldClause"
 failing "Holdable"
   badHeldUntilDies : Effect []
   badHeldUntilDies =
-    HeldUntil (exile (target creature)) (WouldDie thisCreature)
+    HeldUntil (exile (target creature)) (Dies thisCreature)
 
 -- The held object's ZONE is not settled by the clause: the undo is
 -- scheduled on an event that has not happened, so the exiled creature
@@ -3639,7 +3776,7 @@ failing "Holdable"
 failing "countWord CardW"
   badHeldUntilExileRetag : Effect []
   badHeldUntilExileRetag =
-    Sequentially [ exileUntil (target creature) (WouldLeave thisCreature)
+    Sequentially [ exileUntil (target creature) (Leaves thisCreature)
                  , Move (That CardW) handZ
                  ]
 
@@ -3797,3 +3934,231 @@ failing "countOnes"
   badUnlessAnaphoricPayer : Effect []
   badUnlessAnaphoricPayer =
     mayElse (ControllerOf It) (Pay You (Mana [generic 1])) (Tap (target creature))
+
+
+-- ===== What may trigger, what may be stated as a line, and what a
+-- ===== permission may permit
+
+-- [CR#603.2b] gives "at the beginning of" a phase or step its own
+-- clause, and the corpus honors it without exception: one thousand six
+-- hundred seventy-eight headers open with "At the beginning of" and
+-- every one of them names a turn part. No object event takes the word.
+failing "TriggerWordOk"
+  badAtEnters : Ability
+  badAtEnters = Triggered At (Enters This) drawACard
+
+-- …and the inverse, which is the half that makes the table a table: the
+-- turn-part beginning takes neither English word, "When the beginning of
+-- your upkeep" being written zero times against six hundred forty-one
+-- "At the beginning of your upkeep".
+failing "TriggerWordOk"
+  badWhenUpkeep : Ability
+  badWhenUpkeep = Triggered When (BeginningOf Upkeep (Just Yours)) drawACard
+
+-- Real oracle English in one mood and none in the other: thirty-one
+-- lines write "would be destroyed" (regeneration's reminder text,
+-- [CR#614.8]) and NOT ONE writes "whenever [something] is destroyed" as
+-- a header — the modern templating for that event is "dies", which is a
+-- different row. `EventUnclaimed` is the only class no reader claims.
+failing "Triggerable"
+  badTriggerOnDestruction : Ability
+  badTriggerOnDestruction = Triggered Whenever (IsDestroyed (a creature)) drawACard
+
+-- The untap step's beginning is written zero times in every possession —
+-- the turn-part grid's emptiest row, and `PartUnattested` says so.
+failing "PartTriggerable"
+  badTriggerAtUntapStep : Ability
+  badTriggerAtUntapStep = Triggered At (BeginningOf UntapStep Nothing) drawACard
+
+-- Nor the turn's own beginning: "at the beginning of your turn" is zero
+-- lines, because the UPKEEP is what English names there.
+failing "PartTriggerable"
+  badTriggerAtYourTurn : Ability
+  badTriggerAtYourTurn = Triggered At (BeginningOf Turn (Just Yours)) drawACard
+
+-- The other silence, and it is the possessor gap chapter twenty-seven
+-- measured from the activation side: "At the beginning of each upkeep"
+-- (thirty-six), "each opponent's upkeep" (thirty-three) and "the upkeep
+-- of enchanted creature's controller" (twenty-seven) are real headers
+-- whose possessor is a quantifier or a nominal, and `Whose` is a
+-- two-word pronominal vocabulary. Unpossessed is not what they write.
+failing "PartTriggerable"
+  badTriggerAtTheUpkeep : Ability
+  badTriggerAtTheUpkeep = Triggered At (BeginningOf Upkeep Nothing) drawACard
+
+-- The trigger's effect reads the event's AFTER-discourse, and this is
+-- the refusal that shows it: [CR#603.6] has a zone-change trigger "look
+-- for the object in the zone that it moved to", so after "Whenever a
+-- creature dies" the referent is a card in a graveyard and tapping it is
+-- the dead-referent refusal ([CR#701.26a]). The interception's
+-- replacement, over the same event row, taps it perfectly well — the
+-- event has not happened there ([CR#614.6]).
+failing "OnBattlefield"
+  badTriggerTapsDeadCreature : Ability
+  badTriggerTapsDeadCreature = Triggered Whenever (Dies (a creature)) (Tap It)
+
+-- A static ability does not TARGET. [CR#115.1a..115.1e] enumerate what
+-- can — an instant or sorcery spell, an activated ability, a triggered
+-- ability, and the keyword abilities that represent those — and
+-- [CR#115.1b] says of the nearest case outright that "an Aura permanent
+-- doesn't target anything; only the spell is targeted". The same
+-- statement is impeccable as a resolving CLAUSE with a span
+-- (`cantAttack (target creature) (Just thisTurn)`), which is what makes
+-- this the line's own refusal rather than the deontic's.
+failing "Untargeting"
+  badStaticTargets : Ability
+  badStaticTargets = Static (Cant (target creature) Attack Agent)
+
+-- The one static effect English does not state as a line. Its stative
+-- form is a different VERB — "You control enchanted creature" (seven
+-- lines) — where every other row inflects the same verb it writes as a
+-- clause ("gains"/"has", "becomes"/"is"). Zero lines write a
+-- durationless "gains control of".
+failing "StaticLine"
+  badStaticGainsControl : Ability
+  badStaticGainsControl = Static (GainsControl You (AllOf creatureYouControl))
+
+-- "As long as" is not a duration adverbial and its statement is not a
+-- resolving clause: the conditional static is an ability line and
+-- nothing else, so `absentOk Conditional` is `False` and every
+-- `admitsSpan` cell with it is too. One preposition tells the two
+-- constructions apart — [CR#611.2b]'s "FOR as long as" is the duration
+-- (two hundred ten lines, and `Duration.ForAsLongAs` already spells it),
+-- [CR#611.3a]'s bare "as long as" is this (nine hundred twelve).
+failing "SpanOk"
+  badConditionalClause : Effect []
+  badConditionalClause =
+    Continuously (asLongAs (Exists creatureYouControl)
+                           (Gets (AllOf creatureYouControl) 1 1))
+                 Nothing
+
+-- And no line conditions a statement twice: the singleton discipline
+-- `badNestedCompound` keeps at the cost layer, one type up.
+failing "NotConditional"
+  badDoubleConditional : Ability
+  badDoubleConditional =
+    Static (asLongAs (Exists creatureYouControl)
+                     (asLongAs (Exists (And [artifact, ControlledBy You]))
+                               (Gets (AllOf creatureYouControl) 1 1)))
+
+-- The entry rider is a static ability and not a clause either
+-- ([CR#603.6d] says so in as many words), which is the third of the
+-- three families chapter twenty-five sent to a container that did not
+-- exist. "Put [card] onto the battlefield tapped" is the one-shot twin
+-- and it is a rider on a MOVE, not a continuous effect (ledger).
+failing "SpanOk"
+  badEntryRiderClause : Effect []
+  badEntryRiderClause = Continuously (entersTapped (AllOf creatureYouControl)) Nothing
+
+-- …and the line writes ONE of the two riders. A token's with-clause can
+-- say "tapped and attacking" because a resolving effect knows there is a
+-- combat; a permanent's own static ability applies whenever it enters,
+-- from any zone in any step, and the corpus writes the second rider on
+-- such a line zero times.
+failing "EntryRiderOk"
+  badEntersAttackingLine : Ability
+  badEntersAttackingLine = Static (EntersRider (AsType Land This) EntersAttacking)
+
+-- The permission divides the same way, and it is the sharpest of the
+-- three because it writes spans freely: ninety-eight "this turn",
+-- twenty-two "until the end of your next turn", twenty-six "for as long
+-- as", eight "until your next end step" — and states none at all only
+-- when it is the card's own line ("You may cast this card from your
+-- graveyard").
+failing "SpanOk"
+  badStandingPermission : Effect []
+  badStandingPermission =
+    Sequentially [exile topCard, Continuously (MayPlay You It) Nothing]
+
+-- Nor at an endpoint the permission does not write: "until end of
+-- combat" is the two GRANTS' word and the permission's zero times.
+failing "SpanOk"
+  badPermissionUntilEndOfCombat : Effect []
+  badPermissionUntilEndOfCombat =
+    Sequentially [exile topCard,
+                  Continuously (MayPlay You It) (Just untilEndOfCombat)]
+
+-- The new cell is the permission's ALONE, which is what `PermissionOnly`
+-- claims: eight lines write "until your next end step" and every one of
+-- them permits playing just-exiled cards. No grant writes it.
+failing "SpanOk"
+  badGainsUntilYourNextEndStep : Effect []
+  badGainsUntilYourNextEndStep =
+    gains (target creature) (KeywordAbility Flying) (Just untilYourNextEndStep)
+
+-- A permanent on the battlefield has already been played: [CR#604.6]
+-- files the permission as functioning "while a card is in any zone that
+-- you could cast or play it from", and the battlefield is not one. The
+-- refusal is the exact inverse of `Cant`'s battlefield DEMAND, which is
+-- why the permissive twin could not be the prohibition with its polarity
+-- flipped.
+failing "PlayableFrom"
+  badPlayFromBattlefield : Effect []
+  badPlayFromBattlefield =
+    Continuously (MayPlay You (a creature)) (Just thisTurn)
+
+-- Growing the container grew its refusal with it: English grants a
+-- triggered ability by QUOTING it, exactly as it grants an activated one
+-- ("Enchanted creature has 'When this creature dies, …'"), and this
+-- grammar has no quotation.
+failing "Grantable"
+  badGainsTriggered : Effect []
+  badGainsTriggered =
+    gains (target creature) (Triggered When (Enters This) drawACard)
+          (Just untilEndOfTurn)
+
+-- …and a static ability the same way ("as long as enchanted permanent is
+-- an Equipment, it has 'Equipped creature gets +1/+1 and has trample'").
+failing "Grantable"
+  badGainsStatic : Effect []
+  badGainsStatic =
+    gains (target creature) (Static (Cant (AllOf creatureYouControl) Attack Agent))
+          (Just untilEndOfTurn)
+
+-- [CR#603.7b] gives a delayed trigger ONE stated duration and names the
+-- phrase: "unless it has a stated duration, such as 'this turn'". The
+-- corpus writes no other — Graceful Reprieve's "when target creature
+-- dies this turn" is the family, and the boundary endpoints belong to
+-- continuous effects, which a delayed trigger is not.
+failing "DelaySpanOk"
+  badDelayedUntilEndOfTurn : Effect []
+  badDelayedUntilEndOfTurn =
+    Delayed (Dies (target creature)) {span = Just untilEndOfTurn}
+            (Move (That CardW) battlefieldZ)
+
+-- The delayed clause reads three events of the ten and the attack is not
+-- one: "sacrifice it when this creature attacks" is written zero times,
+-- the delayed family being the end-step beginning, the departure and the
+-- death.
+failing "Awaitable"
+  badDelayedOnAttack : Effect []
+  badDelayedOnAttack =
+    Delayed (Attacks (target creature)) (sacrifice You (That (TypeW Creature)))
+
+-- The event vocabulary's four readers disagree, and the entry is the
+-- clearest case: two thousand eight hundred ninety-one trigger headers
+-- and no would/instead clause of ours. The fourteen enter-interceptions
+-- the corpus does write are the entry RIDER — [CR#603.6d]'s static
+-- ability, which is now a row of its own with its own spelling — so the
+-- would-clause has nothing left to say about the event.
+failing "Interceptable"
+  badInterceptEnters : Effect []
+  badInterceptEnters =
+    ifWouldInstead (Enters (a creature)) (exile It) (Just thisTurn)
+
+-- …and the [CR#610.3] rider does not wait for one either: "exile it
+-- until a creature enters" is written zero times, the rider's whole
+-- corpus being the departure.
+failing "Holdable"
+  badHeldUntilEnters : Effect []
+  badHeldUntilEnters = exileUntil (target creature) (Enters (a creature))
+
+-- The turn-part beginning is real oracle as a duration endpoint —
+-- "until the beginning of your next upkeep", twenty-eight lines — and
+-- the adverbial that writes it is `DurationEnd`'s own `StartOf` row. One
+-- phrase, one slot: the event axis must not spell the same endpoint a
+-- second way, which is what `Unclaimed` records here.
+failing "SpanOk"
+  badUntilBeginningOfUpkeep : Effect []
+  badUntilBeginningOfUpkeep =
+    gets (target creature) 3 3 (Just (UntilEvent (BeginningOf Upkeep (Just Yours))))

@@ -512,6 +512,33 @@ public export
 untilYourNextUpkeep : Duration bs
 untilYourNextUpkeep = Until (StartOf Upkeep (Just Yours))
 
+-- "until your next end step" ([CR#513]) — the impulse family's own
+-- endpoint and nobody else's (`PermissionOnly`), eight lines of "You
+-- may play those cards until your next end step".
+-- spelling: (construction-owned -- the possessed start-of-end-step endpoint)
+public export
+untilYourNextEndStep : Duration bs
+untilYourNextEndStep = Until (StartOf EndStep (Just Yours))
+
+-- "as long as [condition], [statement]" ([CR#611.3a]) — the conditional
+-- static, named for the words it writes.
+-- spelling: ["as long as <Param(0)>, <Param(1)>"], kind: Sentence
+-- (Conditionally -- see StaticEffect.Conditionally)
+public export
+asLongAs : (c : Condition bs) -> (se : StaticEffect bs) ->
+           {auto 0 nn : NotConditional se} -> StaticEffect bs
+asLongAs c se = Conditionally c se {nn}
+
+-- "[n] enters tapped" ([CR#603.6d]) — the entry rider as a line, the
+-- one rider a permanent's own text writes.
+-- spelling: ["<Param(0)> enters tapped"], kind: Sentence
+-- (EntersRider … EntersTapped -- see StaticEffect.EntersRider)
+public export
+entersTapped : (n : Noun bs Object) ->
+               {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+               StaticEffect bs
+entersTapped n = EntersRider n EntersTapped {zn}
+
 -- "[n] gets [+p/+t] [duration]" — the stat change and its adverbial,
 -- the envelope's two halves under one name. Each grant macro threads
 -- the clause's demands to its caller: a battlefield subject, and a span
@@ -522,7 +549,7 @@ untilYourNextUpkeep = Until (StartOf Upkeep (Just Yours))
 public export
 gets : (n : Noun bs Object) -> (pow : Integer) -> (tou : Integer) ->
        (d : Maybe (Duration (nomIntro n))) ->
-       {auto 0 ok : OnBattlefield (nounZone n)} ->
+       {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} ->
        {auto 0 sp : SpanOk PtDelta d} -> Effect bs
 gets n pow tou d = Continuously (Gets n pow tou) d
 
@@ -531,7 +558,7 @@ gets n pow tou d = Continuously (Gets n pow tou) d
 -- kind: Sentence (Continuously (Gains …) d -- see StaticEffect.Gains)
 public export
 gains : (n : Noun bs Object) -> (a : Ability) -> (d : Maybe (Duration (nomIntro n))) ->
-        {auto 0 ok : OnBattlefield (nounZone n)} ->
+        {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} ->
         {auto 0 gr : Grantable a} ->
         {auto 0 sp : SpanOk KeywordGrant d} -> Effect bs
 gains n a d = Continuously (Gains n a) d
@@ -542,7 +569,7 @@ gains n a d = Continuously (Gains n a) d
 -- StaticEffect.Gains)
 public export
 gainsHaste : (n : Noun bs Object) -> (d : Maybe (Duration (nomIntro n))) ->
-             {auto 0 ok : OnBattlefield (nounZone n)} ->
+             {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} ->
              {auto 0 sp : SpanOk KeywordGrant d} -> Effect bs
 gainsHaste n d = gains n (KeywordAbility Haste) d
 
@@ -562,7 +589,7 @@ gainsHaste n d = gains n (KeywordAbility Haste) d
 -- spelling: ["<Param(0)> can't attack <Param(1)>"], kind: Sentence
 public export
 cantAttack : (n : Noun bs Object) -> (span : Maybe (Duration (nomIntro n))) ->
-             {auto 0 zn : OnBattlefield (nounZone n)} ->
+             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
              {auto 0 dp : DeedParticipant Attack Agent (nounTy n)} ->
              {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
 cantAttack n span = Continuously (Cant n Attack Agent {zn} {dp}) span {sp}
@@ -572,7 +599,7 @@ cantAttack n span = Continuously (Cant n Attack Agent {zn} {dp}) span {sp}
 -- spelling: ["<Param(0)> can't block <Param(1)>"], kind: Sentence
 public export
 cantBlock : (n : Noun bs Object) -> (span : Maybe (Duration (nomIntro n))) ->
-            {auto 0 zn : OnBattlefield (nounZone n)} ->
+            {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
             {auto 0 dp : DeedParticipant Block Agent (nounTy n)} ->
             {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
 cantBlock n span = Continuously (Cant n Block Agent {zn} {dp}) span {sp}
@@ -582,7 +609,7 @@ cantBlock n span = Continuously (Cant n Block Agent {zn} {dp}) span {sp}
 -- spelling: ["<Param(0)> can't be blocked <Param(1)>"], kind: Sentence
 public export
 cantBeBlocked : (n : Noun bs Object) -> (span : Maybe (Duration (nomIntro n))) ->
-                {auto 0 zn : OnBattlefield (nounZone n)} ->
+                {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                 {auto 0 dp : DeedParticipant Block Patient (nounTy n)} ->
                 {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
 cantBeBlocked n span = Continuously (Cant n Block Patient {zn} {dp}) span {sp}
@@ -600,7 +627,7 @@ cantBeBlocked n span = Continuously (Cant n Block Patient {zn} {dp}) span {sp}
 -- StaticEffect.GainsControl)
 public export
 gainControl : (n : Noun bs Object) -> (d : Maybe (Duration (nomIntro n))) ->
-              {auto 0 zn : OnBattlefield (nounZone n)} ->
+              {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
               {auto 0 sp : SpanOk ControlGrant d} -> Effect bs
 gainControl n d = Continuously (GainsControl You n {zn}) d {sp}
 
@@ -611,7 +638,7 @@ gainControl n d = Continuously (GainsControl You n {zn}) d {sp}
 public export
 gainsControl : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
                (d : Maybe (Duration (nomIntro what))) ->
-               {auto 0 zn : OnBattlefield (nounZone what)} ->
+               {auto 0 zn : ZoneFits (nounZone what) (Just Battlefield)} ->
                {auto 0 sp : SpanOk ControlGrant d} -> Effect bs
 gainsControl who what d = Continuously (GainsControl who what {zn}) d {sp}
 
@@ -742,7 +769,7 @@ createTappedAttacking count tok =
 public export
 becomes : (n : Noun bs Object) -> (added : TypeLine) ->
           (d : Maybe (Duration (nomIntro n))) ->
-          {auto 0 zn : OnBattlefield (nounZone n)} ->
+          {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
           {auto 0 ne : LineNonEmpty added} ->
           {auto 0 nw : AddsSomething (nounTy n) added} ->
           {auto 0 af : AddedFits (nounTy n) added} ->

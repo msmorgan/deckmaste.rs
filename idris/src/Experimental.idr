@@ -672,6 +672,17 @@ anchorTyOk : CardType -> Maybe CardType -> Bool
 anchorTyOk t Nothing = True
 anchorTyOk t (Just t') = sameCT t t'
 
+||| Is ANY target-determined mention in scope, of any kind at all? The
+||| kind-blind twin, and the static ability line is what needed it:
+||| [CR#115.1a..115.1e] enumerate the things that can target and a static
+||| ability is not among them, so the question the line asks is not
+||| "which kind" but "any".
+public export
+anyTargetedAt : Bindings -> Bool
+anyTargetedAt [] = False
+anyTargetedAt (MkBinding TargetD _ _ _ :: _) = True
+anyTargetedAt (_ :: bs) = anyTargetedAt bs
+
 ||| The typed twin of `anyTargeted`: is a target mention of this kind
 ||| AND a compatible head type in scope? The style guide writes two
 ||| separately described roles WITHOUT "other" ("target creature and
@@ -1758,8 +1769,8 @@ data DurationEnd = StartOf TurnPart (Maybe Whose)
 ||| "until the end of your next turn" was eighty-three lines of play
 ||| permissions and control grants with no construction to claim it, and
 ||| four of those lines are naked control grants, so the cell is
-||| `ControlGrantOnly` and the class is the control grant's alone. The
-||| ninth row is the new adverbial's own (`GrantsRestrictionsAndControl`
+||| `ControlGrantAndPermission` and the class is the control grant's alone. The
+||| ninth row is the new adverbial's own (`GrantsRestrictionsControlAndPermission`
 ||| — everything but the type addition), and the end-step cells stay
 ||| `Unclaimed` on a measurement rather than an assumption: the one
 ||| corpus line pairing control with an end step writes it as a DELAYED
@@ -1769,7 +1780,7 @@ data DurationEnd = StartOf TurnPart (Maybe Whose)
 ||| SHIELD constructions — the replacement interception and the
 ||| prevention shield — both write "this turn", so the restriction's own
 ||| current-turn word stops being the restriction's alone
-||| (`RestrictionsAndShields`); the interception ALSO writes the two
+||| (`RestrictionsShieldsPermissionsAndDelays`); the interception ALSO writes the two
 ||| cross-clause endpoints the restriction and the grants divide
 ||| ("Until end of turn, if one or more tokens would be created under
 ||| your control, twice that many of those tokens are created instead",
@@ -1780,105 +1791,204 @@ data DurationEnd = StartOf TurnPart (Maybe Whose)
 ||| prevention lines carry "this turn" and not one carries "until end of
 ||| turn" or any possessed endpoint, which is the sharpest single-word
 ||| answer in the table.
+||| Chapter twenty-eight renamed FOUR cells and opened one, and the
+||| construction that did it is the play PERMISSION — the row chapter
+||| twenty-two's own doc predicted when it wrote that "until the end of
+||| your next turn is eighty-three lines of play permissions and control
+||| grants". The permission writes "this turn" (ninety-eight lines, "You
+||| may play that card this turn"), "until the end of your next turn"
+||| (twenty-two, joining the four naked control grants that had the cell
+||| to themselves), "for as long as" (twenty-six), and "until end of
+||| turn" (two, Spark of Creativity's own), so four cells gain a name.
+||| What it OPENS is `PermissionOnly`: "until your next end step" is the
+||| impulse family's second word and nobody else's — eight lines, every
+||| one of them a permission over just-exiled cards ("Exile the top two
+||| cards of your library. You may play those cards until your next end
+||| step"), and the cell had been `Unclaimed` since chapter seventeen for
+||| exactly the construction that now claims it. Its two siblings stay
+||| `Unclaimed` on the same measurement: "until the next end step" is one
+||| becomes-a-copy line and "until that player's next end step" is
+||| written zero times.
+||| The DELAYED clause joins "this turn" in the same round and it is
+||| [CR#603.7b] that puts it there — "a delayed triggered ability will
+||| trigger only once … unless it has a stated duration, such as 'this
+||| turn'" — which is the ledger's own question about where Graceful
+||| Reprieve's "this turn" belongs, answered by the rule that names the
+||| phrase.
 public export
-data SpanUse = Unattested | Unclaimed | GrantsAndControl | GrantsTypesControlAndReplacement
-             | KeywordGrantOnly | RestrictionsAndShields | GrantsRestrictionsAndReplacement
-             | ControlGrantOnly | GrantsRestrictionsAndControl
+data SpanUse = Unattested | Unclaimed | GrantsAndControl | GrantsTypesControlReplacementAndPermission
+             | KeywordGrantOnly | RestrictionsShieldsPermissionsAndDelays | GrantsRestrictionsAndReplacement
+             | ControlGrantAndPermission | GrantsRestrictionsControlAndPermission
+             | PermissionOnly
 
 -- ===== Event patterns (the vocabulary the "would" clause and the
 -- "until" clause share) =====
 
-||| The events oracle names when it intercepts one or waits for one —
-||| the vocabulary two constructions read and no rule enumerates. Closed
-||| and row-enumerated, so a new event is a totality error on every
-||| table below before anything can be written with it.
+||| The events oracle names when it intercepts one, waits for one, or
+||| TRIGGERS off one — the vocabulary four constructions read and no rule
+||| enumerates. Closed and row-enumerated, so a new event is a totality
+||| error on every table below before anything can be written with it.
 |||
 ||| Which events are HERE is the corpus's answer. Counted over the whole
-||| supported corpus, with the "would" mood and the plain mood counted
-||| separately because they are two constructions: "would die" a hundred
-||| and one lines against no "until … dies" at all; "would leave the
-||| battlefield" fifty-three against "until … leaves the battlefield"
-||| ninety-one; "would be destroyed" thirty-one; "would be dealt
-||| [damage]" three hundred eighty-five; "would draw" fifty. Everything
-||| below that is ledgered with its count rather than minted — the
-||| put-into-a-graveyard event (fifty-seven), the enter event (fourteen),
-||| the create event (thirteen), the life-change pair (eight and one) —
-||| because no construction here writes a clause over them.
+||| supported corpus, with the moods counted separately because they are
+||| different constructions: "would die" a hundred and one lines against
+||| no "until … dies" at all and nine hundred and thirty trigger headers
+||| ("When this [permanent] dies" three hundred eighty-two, "Whenever
+||| [description] dies" two hundred eighty-five, and their siblings);
+||| "would leave the battlefield" fifty-three against "until … leaves
+||| the battlefield" ninety-one and a hundred fifty-five trigger headers;
+||| "would be destroyed" thirty-one and NOT ONE trigger; "would be dealt
+||| [damage]" three hundred eighty-five against sixty triggers; "would
+||| draw" fifty against fifty-two triggers. The five rows chapter
+||| twenty-eight adds are the trigger corpus's own: the enter event
+||| (two thousand eight hundred ninety-one headers — two thousand four
+||| hundred seventy-three "When this [permanent] enters" and four hundred
+||| eighteen over a description), the attack (one thousand ninety-six),
+||| the block (a hundred fifty-eight), combat damage (six hundred
+||| eighty-eight, six hundred twenty-five of them "to a player"), and the
+||| turn-part beginning (one thousand six hundred seventy-eight).
+||| Everything below that is ledgered with its count rather than minted —
+||| the put-into-a-graveyard event (a hundred nine as a trigger, fifty-
+||| seven as an interception), the cast event (nine hundred thirty-two),
+||| the becomes-tapped event (a hundred), the becomes-the-target event
+||| (a hundred twenty-eight), the create event (thirteen), the
+||| life-change pair (eight and one).
+|||
+||| The NAMES are the event class and not any construction's spelling,
+||| which is chapter twenty-eight's correction: `GameEvent`'s rows carry
+||| the finite verb phrase ("dies", "enters") and this key carries the
+||| happening it names ("Death", "Entry"), because the round that gave
+||| the vocabulary a third and fourth reader is the round the old
+||| `Would`-prefixed spelling stopped being true of half of them.
 |||
 ||| Core spells this space as ONE open filter type (`EventFilter`,
 ||| `deckmaste_core/src/event.rs`) shared by triggers, replacements,
-||| durations, and condition lookbacks. That is right for an engine and
-||| premature here: the trigger container does not exist yet, and the
-||| two constructions that DO exist disagree about which events they
-||| write — which is what the tables below record and a single filter
-||| type could not.
+||| durations, and condition lookbacks. The MERGE is taken here as of
+||| chapter twenty-eight — the delayed clause's own query type is gone
+||| and reads this vocabulary like everyone else — and what stays apart
+||| from core is the table below, which records that the four
+||| constructions still disagree about which events they write.
 public export
--- spelling: (construction-owned -- each row is a VERB PHRASE whose subject
--- and mood the reading construction supplies: the interception writes it
--- after "would" ("would die", "would be destroyed"), the held-until rider
--- writes it finite ("leaves the battlefield"). Spelled only through
+-- spelling: (construction-owned -- each row NAMES a happening whose verb
+-- phrase, subject and mood the reading construction supplies: the
+-- interception writes it after "would" ("would die", "would be
+-- destroyed"), the held-until rider and the trigger header write it
+-- finite ("leaves the battlefield", "dies"). Spelled only through
 -- GameEvent)
-data EventName = Dies | LeavesBattlefield | IsDestroyed | IsDealtDamage
-               | DrawsCard
+data EventName = Death | Departure | Destruction | DamageTaken
+               | CardDrawn | Entry | AttackDeclaration | BlockDeclaration
+               | CombatDamage | PartBeginning
 
 ||| WHICH constructions write a clause over a given event — `SpanUse`'s
 ||| shape asked of the event axis, and it tells the same two silences
 ||| apart. `EventUnattested` means no corpus line writes any clause over
-||| the event in either mood; `EventUnclaimed` means the clause is real
+||| the event in any mood; `EventUnclaimed` means the clause is real
 ||| oracle English and no construction HERE writes it.
 |||
-||| The two claimed rows and the two unclaimed ones are worth their
-||| counts. `Dies` is `InterceptedOnly`: fifty-seven lines write "if
-||| [subject] would die this turn, [replacement] instead" and
-||| twenty-four of them write it in exactly one frame ("If that creature
-||| would die this turn, exile it instead"), while nothing anywhere ends
-||| a duration at a death. `LeavesBattlefield` is `HeldUntilOnly` from
-||| the other side: eighty-six lines hang the [CR#610.3] rider on it and
-||| its interception exists only INSIDE granted quoted abilities ("It
-||| gains 'If this creature would leave the battlefield, exile it
-||| instead'"), a container this grammar has no word for.
-||| `IsDestroyed` is `EventUnclaimed` because its replacement is
+||| Four readers now, and the class names spell the SET each event is
+||| written by. `Death` is the widest: fifty-seven lines write "if
+||| [subject] would die this turn, [replacement] instead" and twenty-four
+||| of them write it in exactly one frame ("If that creature would die
+||| this turn, exile it instead"), nine hundred and thirty write a
+||| trigger header over it, Graceful Reprieve writes the delayed clause,
+||| and nothing anywhere ends a duration at a death. `Departure` never
+||| takes the interception outside a granted quoted ability ("It gains
+||| 'If this creature would leave the battlefield, exile it instead'"),
+||| a container this grammar has no word for, but it takes the other
+||| three: eighty-six [CR#610.3] riders, a hundred fifty-five trigger
+||| headers, and the delayed clause Portcullis and Stangg write ("Return
+||| that card to the battlefield under its owner's control when this
+||| artifact leaves the battlefield").
+||| `Destruction` is the one row NO construction claims and the only one
+||| that stays `EventUnclaimed` outright: its replacement is
 ||| regeneration's four-part instruction ([CR#614.8] — tap, remove from
-||| combat, heal), none of which this vocabulary writes; `IsDealtDamage`
-||| is `EventUnclaimed` because its replacement is the redirection
-||| family ([CR#614.9] — "that damage is dealt to [other] instead"),
-||| which wants a damage clause whose amount is the intercepted event's.
+||| combat, heal), none of which this vocabulary writes, and its trigger
+||| header is written zero times in the modern templating. `DamageTaken`
+||| loses the interception for the redirection family's reason
+||| ([CR#614.9] — "that damage is dealt to [other] instead", a damage
+||| clause whose amount is the intercepted event's) and keeps the trigger
+||| ("Whenever this creature is dealt damage", sixty lines).
+||| The five new rows are triggers and nothing else, except the turn-part
+||| beginning, which is also the delayed clause's ordinary word ("at the
+||| beginning of the next end step", four hundred thirteen lines, only
+||| one of which BEGINS its ability — [CR#603.7] says the word "won't
+||| usually begin" a delayed trigger, and the corpus agrees at 412 to 1).
 public export
-data EventUse = EventUnattested | EventUnclaimed | InterceptedOnly
-              | HeldUntilOnly | InterceptedAndHeld
+data EventUse = EventUnattested | EventUnclaimed | TriggeredOnly
+              | InterceptedAndTriggered | InterceptedTriggeredAndDelayed
+              | HeldTriggeredAndDelayed | TriggeredAndDelayed
 
 public export
 eventUse : EventName -> EventUse
-eventUse Dies = InterceptedOnly
-eventUse LeavesBattlefield = HeldUntilOnly
-eventUse IsDestroyed = EventUnclaimed
-eventUse IsDealtDamage = EventUnclaimed
-eventUse DrawsCard = InterceptedOnly
+eventUse Death = InterceptedTriggeredAndDelayed
+eventUse Departure = HeldTriggeredAndDelayed
+eventUse Destruction = EventUnclaimed
+eventUse DamageTaken = TriggeredOnly
+eventUse CardDrawn = InterceptedAndTriggered
+eventUse Entry = TriggeredOnly
+eventUse AttackDeclaration = TriggeredOnly
+eventUse BlockDeclaration = TriggeredOnly
+eventUse CombatDamage = TriggeredOnly
+eventUse PartBeginning = TriggeredAndDelayed
 
 ||| May the would/instead clause intercept an event of this class? Full
-||| rows in the answer axis, so a new `EventUse` declares both readers.
+||| rows in the answer axis, so a new `EventUse` declares every reader.
 public export
 admitsIntercept : EventUse -> Bool
 admitsIntercept EventUnattested = False
 admitsIntercept EventUnclaimed = False
-admitsIntercept InterceptedOnly = True
-admitsIntercept HeldUntilOnly = False
-admitsIntercept InterceptedAndHeld = True
+admitsIntercept TriggeredOnly = False
+admitsIntercept InterceptedAndTriggered = True
+admitsIntercept InterceptedTriggeredAndDelayed = True
+admitsIntercept HeldTriggeredAndDelayed = False
+admitsIntercept TriggeredAndDelayed = False
 
 ||| May a [CR#610.3] zone-change rider wait for an event of this class?
 public export
 admitsHold : EventUse -> Bool
 admitsHold EventUnattested = False
 admitsHold EventUnclaimed = False
-admitsHold InterceptedOnly = False
-admitsHold HeldUntilOnly = True
-admitsHold InterceptedAndHeld = True
+admitsHold TriggeredOnly = False
+admitsHold InterceptedAndTriggered = False
+admitsHold InterceptedTriggeredAndDelayed = False
+admitsHold HeldTriggeredAndDelayed = True
+admitsHold TriggeredAndDelayed = False
+
+||| May a TRIGGERED ability's header name an event of this class
+||| ([CR#603.1] — "[When/Whenever/At] [trigger condition or event],
+||| [effect]")? The reader chapter twenty-eight added, and the widest of
+||| the four: every event this vocabulary spells is written as a trigger
+||| header except the destruction, whose modern templating is "dies".
+public export
+admitsTrigger : EventUse -> Bool
+admitsTrigger EventUnattested = False
+admitsTrigger EventUnclaimed = False
+admitsTrigger TriggeredOnly = True
+admitsTrigger InterceptedAndTriggered = True
+admitsTrigger InterceptedTriggeredAndDelayed = True
+admitsTrigger HeldTriggeredAndDelayed = True
+admitsTrigger TriggeredAndDelayed = True
+
+||| May a DELAYED clause wait for an event of this class ([CR#603.7])?
+||| The narrowest reader: three events carry the whole family — the
+||| turn-part beginning ("at the beginning of the next end step"), the
+||| departure (Portcullis, Stangg, Mysterio), and the death (Graceful
+||| Reprieve's "when target creature dies this turn").
+public export
+admitsDelay : EventUse -> Bool
+admitsDelay EventUnattested = False
+admitsDelay EventUnclaimed = False
+admitsDelay TriggeredOnly = False
+admitsDelay InterceptedAndTriggered = False
+admitsDelay InterceptedTriggeredAndDelayed = True
+admitsDelay HeldTriggeredAndDelayed = True
+admitsDelay TriggeredAndDelayed = True
 
 ||| Which duration-adverbial class an event-ended "until" phrase falls
 ||| in — the event axis's own row of chapter seventeen's attestation
 ||| table, and the finding is that every row is a silence.
 |||
-||| `LeavesBattlefield` is `Unclaimed` and the composition is why. The
+||| `Departure` is `Unclaimed` and the composition is why. The
 ||| ninety-one lines that write "until [object] leaves the battlefield"
 ||| are eighty-six zone changes ([CR#610.3] — a one-shot exile that
 ||| schedules its own undo, NOT a continuous effect) and three phasings
@@ -1893,11 +2003,25 @@ admitsHold InterceptedAndHeld = True
 ||| end of turn, whenever another creature dies").
 public export
 eventSpan : EventName -> SpanUse
-eventSpan Dies = Unattested
-eventSpan LeavesBattlefield = Unclaimed
-eventSpan IsDestroyed = Unattested
-eventSpan IsDealtDamage = Unattested
-eventSpan DrawsCard = Unattested
+eventSpan Death = Unattested
+eventSpan Departure = Unclaimed
+eventSpan Destruction = Unattested
+eventSpan DamageTaken = Unattested
+eventSpan CardDrawn = Unattested
+-- The four new OBJECT events are `Unattested` for the same reason the
+-- older four are: no corpus line ends a duration at an entry, an attack,
+-- a block, or a combat-damage event. The turn-part beginning is the one
+-- row that is neither, and its silence is a DOUBLE-SPELLING refusal
+-- rather than an absence: "until the beginning of your next upkeep" is
+-- twenty-eight real lines, and the adverbial that writes them is
+-- `DurationEnd`'s own `StartOf` row. One phrase, one slot — an event
+-- clause spelling the same endpoint a second way is exactly what this
+-- table exists to catch (`badUntilBeginningOfUpkeep`).
+eventSpan Entry = Unattested
+eventSpan AttackDeclaration = Unattested
+eventSpan BlockDeclaration = Unattested
+eventSpan CombatDamage = Unattested
+eventSpan PartBeginning = Unclaimed
 
 ||| How many times an interception fires — [CR#614.3]'s two ways for a
 ||| replacement effect to end, "used up" against "duration expired",
@@ -1924,16 +2048,179 @@ data ReplUse = Repeatedly | NextTimeOnly
 
 public export
 replUseOk : EventName -> ReplUse -> Bool
-replUseOk Dies Repeatedly = True
-replUseOk Dies NextTimeOnly = False
-replUseOk LeavesBattlefield Repeatedly = True
-replUseOk LeavesBattlefield NextTimeOnly = False
-replUseOk IsDestroyed Repeatedly = False
-replUseOk IsDestroyed NextTimeOnly = True
-replUseOk IsDealtDamage Repeatedly = True
-replUseOk IsDealtDamage NextTimeOnly = True
-replUseOk DrawsCard Repeatedly = False
-replUseOk DrawsCard NextTimeOnly = True
+replUseOk Death Repeatedly = True
+replUseOk Death NextTimeOnly = False
+replUseOk Departure Repeatedly = True
+replUseOk Departure NextTimeOnly = False
+replUseOk Destruction Repeatedly = False
+replUseOk Destruction NextTimeOnly = True
+replUseOk DamageTaken Repeatedly = True
+replUseOk DamageTaken NextTimeOnly = True
+replUseOk CardDrawn Repeatedly = False
+replUseOk CardDrawn NextTimeOnly = True
+-- The five trigger-only events answer NEITHER, and the table says so
+-- rather than the interception's own gate saying it twice: an event no
+-- would/instead clause writes has no multiplicity word to choose, so
+-- both cells are `False` and the refusal a writer meets is
+-- `Interceptable`'s.
+replUseOk Entry Repeatedly = False
+replUseOk Entry NextTimeOnly = False
+replUseOk AttackDeclaration Repeatedly = False
+replUseOk AttackDeclaration NextTimeOnly = False
+replUseOk BlockDeclaration Repeatedly = False
+replUseOk BlockDeclaration NextTimeOnly = False
+replUseOk CombatDamage Repeatedly = False
+replUseOk CombatDamage NextTimeOnly = False
+replUseOk PartBeginning Repeatedly = False
+replUseOk PartBeginning NextTimeOnly = False
+
+-- ===== The trigger header's opening word =====
+
+||| The word a triggered ability opens with ([CR#603.1] — "[When/
+||| Whenever/At] [trigger condition or event], [effect]"). No rule
+||| distinguishes the three: [CR#113.3c] lists them together as words a
+||| triggered ability "include(s) (and usually begin(s) with)", and
+||| nothing anywhere assigns one to an event. So the word is a SLOT and
+||| the corpus is the only evidence about which slot fillings are real.
+|||
+||| What the corpus assigns absolutely is `At`, and one rule is why.
+||| [CR#603.2b] gives "at the beginning of" a phase or step its own
+||| clause — "when a phase or step begins, all abilities that trigger 'at
+||| the beginning of' that phase or step trigger" — and the corpus honors
+||| it without exception: one thousand six hundred seventy-eight lines
+||| open with "At the beginning of", every one of them a turn-part
+||| beginning, and no object event takes the word at all. The twelve
+||| "At end of combat" lines are the same event at the other boundary in
+||| pre-modern templating, and they are ledgered rather than minted.
+|||
+||| What the corpus does NOT assign is the When/Whenever split, and
+||| measuring it is this round's finding rather than a gate. The word
+||| tracks REPEATABILITY, which is finding 142's own reasoning arriving
+||| at a second construction: a once-per-object event with a fixed
+||| subject takes "When" ("When this [permanent] enters" two thousand
+||| four hundred seventy-three against eighty-five, "When this
+||| [permanent] dies" three hundred eighty-two against one), the same
+||| event over a DESCRIPTION takes "Whenever" because the description
+||| ranges over many objects ("Whenever [a] … enters" four hundred
+||| eighteen against twelve, "… dies" two hundred eighty-five against
+||| six), and an event that repeats for one object takes "Whenever" even
+||| with the fixed subject ("Whenever this creature attacks" six hundred
+||| ten against nine). The residue is what keeps it out of the type:
+||| every counterexample is an ability that destroys its own source
+||| ("When a creature enters, sacrifice this artifact and …"), so the
+||| word is answering a question about the EFFECT, and the eighty-five
+||| "Whenever this [permanent] enters" lines are compound headers
+||| ("enters or attacks") this grammar has no coordination for. A gate
+||| keyed on the event alone would have to refuse real oracle either way,
+||| so it refuses only what [CR#603.2b] settles.
+public export
+-- spelling: ["When", "Whenever", "At"] (the header's first word, followed
+-- by the event clause, a comma, and the effect; the turn-part event
+-- supplies "the beginning of" itself -- see GameEvent.BeginningOf),
+-- kind: TODO(reason: header fragment -- not one of Nominal/Sentence/
+-- Cost/KeywordLine/Ability)
+data TriggerWord = When | Whenever | At
+
+||| Which opening word an event's header may take. Full rows over
+||| (event x word), so a new event declares its word before it can be
+||| triggered on. Every object event answers `True` to both English
+||| words and `False` to `At`; the turn-part beginning inverts it exactly
+||| ([CR#603.2b]). The two events no trigger writes at all answer `False`
+||| throughout, and the refusal a writer meets there is `Triggerable`'s.
+public export
+triggerWordOk : EventName -> TriggerWord -> Bool
+triggerWordOk Death When = True
+triggerWordOk Death Whenever = True
+triggerWordOk Death At = False
+triggerWordOk Departure When = True
+triggerWordOk Departure Whenever = True
+triggerWordOk Departure At = False
+triggerWordOk Destruction When = False
+triggerWordOk Destruction Whenever = False
+triggerWordOk Destruction At = False
+triggerWordOk DamageTaken When = True
+triggerWordOk DamageTaken Whenever = True
+triggerWordOk DamageTaken At = False
+triggerWordOk CardDrawn When = True
+triggerWordOk CardDrawn Whenever = True
+triggerWordOk CardDrawn At = False
+triggerWordOk Entry When = True
+triggerWordOk Entry Whenever = True
+triggerWordOk Entry At = False
+triggerWordOk AttackDeclaration When = True
+triggerWordOk AttackDeclaration Whenever = True
+triggerWordOk AttackDeclaration At = False
+triggerWordOk BlockDeclaration When = True
+triggerWordOk BlockDeclaration Whenever = True
+triggerWordOk BlockDeclaration At = False
+triggerWordOk CombatDamage When = True
+triggerWordOk CombatDamage Whenever = True
+triggerWordOk CombatDamage At = False
+triggerWordOk PartBeginning When = False
+triggerWordOk PartBeginning Whenever = False
+triggerWordOk PartBeginning At = True
+
+-- ===== Which turn-part beginnings a header names =====
+
+||| The two silences again, asked of the (part x possession) grid the
+||| turn-part trigger header writes. `PartUnattested` is a beginning no
+||| corpus line names; `PartUnclaimed` is one it names with a possessor
+||| this vocabulary has no word for.
+public export
+data PartUse = PartUnattested | PartUnclaimed | PartTriggered
+
+||| WHICH turn-part beginnings a header names, over the SHARED
+||| endpoint vocabulary chapter seventeen minted for durations and said
+||| out loud was the trigger's too. Full rows over five parts and three
+||| possessions — fifteen cells — so a new `TurnPart` or a new `Whose` is
+||| a totality error here as well as on `spanUse`.
+|||
+||| The counts. `Upkeep` is the family's centre at six hundred forty-one
+||| possessed lines ("At the beginning of your upkeep"); `EndStep` writes
+||| both the possessed form (three hundred fifty-nine) and the
+||| UNPOSSESSED one (twenty-five, "At the beginning of the end step,
+||| destroy all Goblins"), which is the one cell where the bare part word
+||| is the whole phrase; `Combat` writes two hundred thirty-four
+||| possessed lines and extraposes the possessive onto the turn ("At the
+||| beginning of combat on your turn"), which is Brazen Cannonade's move
+||| in the duration table appearing here as an ordinary spelling.
+||| `Turn` and `UntapStep` are written ZERO times in every possession:
+||| the turn's own beginning is not a trigger event English names — the
+||| upkeep is what it names instead — and no line triggers at an untap
+||| step's beginning.
+||| The `PartUnclaimed` cells are the possessor gap chapter twenty-seven
+||| measured from the other side. "At the beginning of each upkeep"
+||| (thirty-six), "each opponent's upkeep" (thirty-three), "the upkeep of
+||| enchanted creature's controller" (twenty-seven) and "each end step"
+||| (eighty) are real headers whose possessor is a QUANTIFIER or a
+||| nominal, and `Whose` is a two-word pronominal vocabulary by
+||| construction. `ThatPlayers` is the anaphoric row and it stays a
+||| silence here too: one line writes "at the beginning of that player's
+||| upkeep" and none writes any other part.
+public export
+partUse : TurnPart -> Maybe Whose -> PartUse
+partUse Turn Nothing = PartUnattested
+partUse Turn (Just Yours) = PartUnattested
+partUse Turn (Just ThatPlayers) = PartUnattested
+partUse Upkeep Nothing = PartUnclaimed
+partUse Upkeep (Just Yours) = PartTriggered
+partUse Upkeep (Just ThatPlayers) = PartUnclaimed
+partUse EndStep Nothing = PartTriggered
+partUse EndStep (Just Yours) = PartTriggered
+partUse EndStep (Just ThatPlayers) = PartUnattested
+partUse Combat Nothing = PartUnattested
+partUse Combat (Just Yours) = PartTriggered
+partUse Combat (Just ThatPlayers) = PartUnattested
+partUse UntapStep Nothing = PartUnattested
+partUse UntapStep (Just Yours) = PartUnattested
+partUse UntapStep (Just ThatPlayers) = PartUnattested
+
+||| The answer axis, full rows, so a new `PartUse` declares its reader.
+public export
+admitsPartTrigger : PartUse -> Bool
+admitsPartTrigger PartUnattested = False
+admitsPartTrigger PartUnclaimed = False
+admitsPartTrigger PartTriggered = True
 
 -- ===== Prevention shields (the damage class and the shield's size) =====
 
@@ -2051,9 +2338,18 @@ data DeedParticipant : Deed -> Role -> Maybe CardType -> Type where
 ||| creatures would deal this turn" applies to creatures that were not on
 ||| the battlefield when it began). That is why `Replacement` and
 ||| `Prevention` carry no subject noun where the other five do.
+||| The three rows chapter twenty-eight adds are the first that are NOT
+||| clause constructions at all: the conditional static, the entry rider
+||| and the play permission answer `False` to every cell of `admitsSpan`
+||| and to `absentOk`, so no `Continuously` clause can establish one, and
+||| the only construction that writes them is the static ABILITY line
+||| (`staticAsAbility`). That is the shape of a table with two readers
+||| rather than one — the same move `eventUse` makes for the four
+||| constructions that read an event.
 public export
 data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition
                 | ControlGrant | Replacement | Prevention
+                | Conditional | PlayPermission | EntryRider
 
 ||| The attestation table's other half: which classes of adverbial each
 ||| construction writes. Full rows in both directions. The shape of it
@@ -2127,66 +2423,103 @@ admitsSpan : StaticKind -> SpanUse -> Bool
 admitsSpan PtDelta Unattested = False
 admitsSpan PtDelta Unclaimed = False
 admitsSpan PtDelta GrantsAndControl = True
-admitsSpan PtDelta GrantsTypesControlAndReplacement = True
+admitsSpan PtDelta GrantsTypesControlReplacementAndPermission = True
 admitsSpan PtDelta KeywordGrantOnly = False
-admitsSpan PtDelta RestrictionsAndShields = False
+admitsSpan PtDelta RestrictionsShieldsPermissionsAndDelays = False
 admitsSpan PtDelta GrantsRestrictionsAndReplacement = True
-admitsSpan PtDelta ControlGrantOnly = False
-admitsSpan PtDelta GrantsRestrictionsAndControl = True
+admitsSpan PtDelta ControlGrantAndPermission = False
+admitsSpan PtDelta GrantsRestrictionsControlAndPermission = True
+admitsSpan PtDelta PermissionOnly = False
 admitsSpan KeywordGrant Unattested = False
 admitsSpan KeywordGrant Unclaimed = False
 admitsSpan KeywordGrant GrantsAndControl = True
-admitsSpan KeywordGrant GrantsTypesControlAndReplacement = True
+admitsSpan KeywordGrant GrantsTypesControlReplacementAndPermission = True
 admitsSpan KeywordGrant KeywordGrantOnly = True
-admitsSpan KeywordGrant RestrictionsAndShields = False
+admitsSpan KeywordGrant RestrictionsShieldsPermissionsAndDelays = False
 admitsSpan KeywordGrant GrantsRestrictionsAndReplacement = True
-admitsSpan KeywordGrant ControlGrantOnly = False
-admitsSpan KeywordGrant GrantsRestrictionsAndControl = True
+admitsSpan KeywordGrant ControlGrantAndPermission = False
+admitsSpan KeywordGrant GrantsRestrictionsControlAndPermission = True
+admitsSpan KeywordGrant PermissionOnly = False
 admitsSpan DeedRestriction Unattested = False
 admitsSpan DeedRestriction Unclaimed = False
 admitsSpan DeedRestriction GrantsAndControl = False
-admitsSpan DeedRestriction GrantsTypesControlAndReplacement = False
+admitsSpan DeedRestriction GrantsTypesControlReplacementAndPermission = False
 admitsSpan DeedRestriction KeywordGrantOnly = False
-admitsSpan DeedRestriction RestrictionsAndShields = True
+admitsSpan DeedRestriction RestrictionsShieldsPermissionsAndDelays = True
 admitsSpan DeedRestriction GrantsRestrictionsAndReplacement = True
-admitsSpan DeedRestriction ControlGrantOnly = False
-admitsSpan DeedRestriction GrantsRestrictionsAndControl = True
+admitsSpan DeedRestriction ControlGrantAndPermission = False
+admitsSpan DeedRestriction GrantsRestrictionsControlAndPermission = True
+admitsSpan DeedRestriction PermissionOnly = False
 admitsSpan TypeAddition Unattested = False
 admitsSpan TypeAddition Unclaimed = False
 admitsSpan TypeAddition GrantsAndControl = False
-admitsSpan TypeAddition GrantsTypesControlAndReplacement = True
+admitsSpan TypeAddition GrantsTypesControlReplacementAndPermission = True
 admitsSpan TypeAddition KeywordGrantOnly = False
-admitsSpan TypeAddition RestrictionsAndShields = False
+admitsSpan TypeAddition RestrictionsShieldsPermissionsAndDelays = False
 admitsSpan TypeAddition GrantsRestrictionsAndReplacement = False
-admitsSpan TypeAddition ControlGrantOnly = False
-admitsSpan TypeAddition GrantsRestrictionsAndControl = False
+admitsSpan TypeAddition ControlGrantAndPermission = False
+admitsSpan TypeAddition GrantsRestrictionsControlAndPermission = False
+admitsSpan TypeAddition PermissionOnly = False
 admitsSpan ControlGrant Unattested = False
 admitsSpan ControlGrant Unclaimed = False
 admitsSpan ControlGrant GrantsAndControl = True
-admitsSpan ControlGrant GrantsTypesControlAndReplacement = True
+admitsSpan ControlGrant GrantsTypesControlReplacementAndPermission = True
 admitsSpan ControlGrant KeywordGrantOnly = False
-admitsSpan ControlGrant RestrictionsAndShields = False
+admitsSpan ControlGrant RestrictionsShieldsPermissionsAndDelays = False
 admitsSpan ControlGrant GrantsRestrictionsAndReplacement = False
-admitsSpan ControlGrant ControlGrantOnly = True
-admitsSpan ControlGrant GrantsRestrictionsAndControl = True
+admitsSpan ControlGrant ControlGrantAndPermission = True
+admitsSpan ControlGrant GrantsRestrictionsControlAndPermission = True
+admitsSpan ControlGrant PermissionOnly = False
 admitsSpan Replacement Unattested = False
 admitsSpan Replacement Unclaimed = False
 admitsSpan Replacement GrantsAndControl = False
-admitsSpan Replacement GrantsTypesControlAndReplacement = True
+admitsSpan Replacement GrantsTypesControlReplacementAndPermission = True
 admitsSpan Replacement KeywordGrantOnly = False
-admitsSpan Replacement RestrictionsAndShields = True
+admitsSpan Replacement RestrictionsShieldsPermissionsAndDelays = True
 admitsSpan Replacement GrantsRestrictionsAndReplacement = True
-admitsSpan Replacement ControlGrantOnly = False
-admitsSpan Replacement GrantsRestrictionsAndControl = False
+admitsSpan Replacement ControlGrantAndPermission = False
+admitsSpan Replacement GrantsRestrictionsControlAndPermission = False
+admitsSpan Replacement PermissionOnly = False
 admitsSpan Prevention Unattested = False
 admitsSpan Prevention Unclaimed = False
 admitsSpan Prevention GrantsAndControl = False
-admitsSpan Prevention GrantsTypesControlAndReplacement = False
+admitsSpan Prevention GrantsTypesControlReplacementAndPermission = False
 admitsSpan Prevention KeywordGrantOnly = False
-admitsSpan Prevention RestrictionsAndShields = True
+admitsSpan Prevention RestrictionsShieldsPermissionsAndDelays = True
 admitsSpan Prevention GrantsRestrictionsAndReplacement = False
-admitsSpan Prevention ControlGrantOnly = False
-admitsSpan Prevention GrantsRestrictionsAndControl = False
+admitsSpan Prevention ControlGrantAndPermission = False
+admitsSpan Prevention GrantsRestrictionsControlAndPermission = False
+admitsSpan Prevention PermissionOnly = False
+admitsSpan Conditional Unattested = False
+admitsSpan Conditional Unclaimed = False
+admitsSpan Conditional GrantsAndControl = False
+admitsSpan Conditional GrantsTypesControlReplacementAndPermission = False
+admitsSpan Conditional KeywordGrantOnly = False
+admitsSpan Conditional RestrictionsShieldsPermissionsAndDelays = False
+admitsSpan Conditional GrantsRestrictionsAndReplacement = False
+admitsSpan Conditional ControlGrantAndPermission = False
+admitsSpan Conditional GrantsRestrictionsControlAndPermission = False
+admitsSpan Conditional PermissionOnly = False
+admitsSpan PlayPermission Unattested = False
+admitsSpan PlayPermission Unclaimed = False
+admitsSpan PlayPermission GrantsAndControl = False
+admitsSpan PlayPermission GrantsTypesControlReplacementAndPermission = True
+admitsSpan PlayPermission KeywordGrantOnly = False
+admitsSpan PlayPermission RestrictionsShieldsPermissionsAndDelays = True
+admitsSpan PlayPermission GrantsRestrictionsAndReplacement = False
+admitsSpan PlayPermission ControlGrantAndPermission = True
+admitsSpan PlayPermission GrantsRestrictionsControlAndPermission = True
+admitsSpan PlayPermission PermissionOnly = True
+admitsSpan EntryRider Unattested = False
+admitsSpan EntryRider Unclaimed = False
+admitsSpan EntryRider GrantsAndControl = False
+admitsSpan EntryRider GrantsTypesControlReplacementAndPermission = False
+admitsSpan EntryRider KeywordGrantOnly = False
+admitsSpan EntryRider RestrictionsShieldsPermissionsAndDelays = False
+admitsSpan EntryRider GrantsRestrictionsAndReplacement = False
+admitsSpan EntryRider ControlGrantAndPermission = False
+admitsSpan EntryRider GrantsRestrictionsControlAndPermission = False
+admitsSpan EntryRider PermissionOnly = False
 
 ||| Whether a construction can write NO duration at all. A grant can:
 ||| the unwritten span is [CR#611.2a]'s end-of-game default, which the
@@ -2233,6 +2566,124 @@ absentOk TypeAddition = True
 absentOk ControlGrant = True
 absentOk Replacement = False
 absentOk Prevention = False
+-- The three new rows answer `False` for the restriction's reason taken
+-- one step further: they are not clause constructions at all. A
+-- durationless "as long as" static, a durationless entry rider and a
+-- durationless play permission are each the static ABILITY line and
+-- nothing else, so there is no `Continuously` clause for the span to be
+-- absent from (`badConditionalClause`, `badEntryRiderClause`,
+-- `badStandingPermission`). The PERMISSION is the sharpest of the three
+-- because it writes spans freely as a clause — ninety-eight "this turn",
+-- twenty-two "until the end of your next turn", twenty-six "for as long
+-- as", eight "until your next end step" — and states none at all only
+-- when it is a card's own line ("You may cast this card from your
+-- graveyard").
+absentOk Conditional = False
+absentOk PlayPermission = False
+absentOk EntryRider = False
+
+||| Whether English writes this static effect as a bare ability LINE —
+||| the OTHER reader of the same axis, and the one chapter twenty-eight
+||| opened. [CR#604.1] says what the line is ("static abilities … are
+||| written as statements, and they're simply true") and [CR#611.3b] says
+||| why it states no duration (the continuous effect "applies at all
+||| times that the permanent generating it is on the battlefield"), so
+||| the question is only which of these effects English is willing to
+||| state.
+|||
+||| Nine of the ten rows answer yes and the one that says no says
+||| something about ENGLISH rather than about the effect. The ability
+||| line and the resolving clause differ in ASPECT, not in vocabulary:
+||| the clause is an instruction and takes the inchoative verb, the line
+||| is a statement and takes the stative one. "Target creature gains
+||| flying until end of turn" against "Creatures you control have haste"
+||| (six hundred fourteen lines); "Target land becomes an Island in
+||| addition to its other types" against "Creatures you control are the
+||| chosen type in addition to their other types" (a hundred fifty-eight
+||| against seventy-two). The stat delta and the deed restriction write
+||| ONE word in both frames ("get", "can't") because English has no
+||| separate inchoative for them, which is why the split was invisible
+||| until a construction needed both.
+||| `ControlGrant` is the row that says no, and the reason is that the
+||| stative form of "gain control of" is a different VERB. English writes
+||| the standing fact as "You control enchanted creature" (seven lines)
+||| and writes "gains control of" as a durationless line zero times, so
+||| the line is a construction this row does not spell rather than an
+||| inflection of it (`badStaticGainsControl`, ledger).
+||| The two SHIELD rows and the three new rows are the families three
+||| chapters refused as clauses and this table finally houses: the
+||| standing interception ("If a creature an opponent controls would die,
+||| exile it instead" — Misery's Shadow, Stone of Erech, Gisa), the
+||| standing shield ("Prevent all damage that would be dealt to you" —
+||| Glacial Chasm, ninety lines), the conditional static (nine hundred
+||| twelve "as long as" lines), the entry rider ([CR#603.6d]'s own text)
+||| and the play permission.
+public export
+staticAsAbility : StaticKind -> Bool
+staticAsAbility PtDelta = True
+staticAsAbility KeywordGrant = True
+staticAsAbility DeedRestriction = True
+staticAsAbility TypeAddition = True
+staticAsAbility ControlGrant = False
+staticAsAbility Replacement = True
+staticAsAbility Prevention = True
+staticAsAbility Conditional = True
+staticAsAbility PlayPermission = True
+staticAsAbility EntryRider = True
+
+||| Which zones a play permission names as its source ([CR#604.6] — a
+||| static ability of this shape "appl(ies) while a card is in any zone
+||| that you could cast or play it from"). Full rows over the five zones
+||| and the silence, because the permission's own phrase is what places
+||| its card: the impulse family exiles first and then permits ("Exile
+||| the top card of your library. You may play that card until your next
+||| end step", two hundred twenty-eight lines), the graveyard family
+||| names the zone in the permission ("You may cast this card from your
+||| graveyard", two hundred ninety-three), the library family names the
+||| top ("You may play lands from the top of your library", two hundred
+||| eight) and the hand is the rules' own default, named per card type
+||| ([CR#302.1] for a creature, [CR#305.1] for a land — "a player who has
+||| priority may cast/play a … card from their hand"; seventy explicit
+||| lines write it anyway). The BATTLEFIELD is the one refusal and it is a rules fact
+||| rather than a count: a permanent on the battlefield has already been
+||| played, so no line permits playing one (`badPlayFromBattlefield`).
+||| Silence passes for `zoneFits`' reason — an untracked referent asserts
+||| nothing about where it is.
+public export
+playableFrom : Maybe Zone -> Bool
+playableFrom Nothing = True
+playableFrom (Just Battlefield) = False
+playableFrom (Just Graveyard) = True
+playableFrom (Just Exile) = True
+playableFrom (Just Hand) = True
+playableFrom (Just Library) = True
+
+public export
+data PlayableFrom : Maybe Zone -> Type where
+  MkPlayableFrom : {auto 0 ok : playableFrom z = True} -> PlayableFrom z
+
+||| Which adverbial a DELAYED trigger states as its duration
+||| ([CR#603.7b] — it "will trigger only once … unless it has a stated
+||| duration, such as 'this turn'"). The rule names the phrase and the
+||| corpus writes no other: Graceful Reprieve's "when target creature
+||| dies this turn" is the family, and "at the beginning of the next end
+||| step" states nothing at all. Full rows over `SpanUse`, so a new
+||| adverbial class declares this reader too, and every class but the
+||| current-turn one is `False` — the delayed clause writes no boundary
+||| endpoint and no for-as-long-as ([CR#611.2b]'s adverbial belongs to a
+||| continuous effect, and a delayed trigger is not one).
+public export
+admitsDelaySpan : SpanUse -> Bool
+admitsDelaySpan Unattested = False
+admitsDelaySpan Unclaimed = False
+admitsDelaySpan GrantsAndControl = False
+admitsDelaySpan GrantsTypesControlReplacementAndPermission = False
+admitsDelaySpan KeywordGrantOnly = False
+admitsDelaySpan RestrictionsShieldsPermissionsAndDelays = True
+admitsDelaySpan GrantsRestrictionsAndReplacement = False
+admitsDelaySpan ControlGrantAndPermission = False
+admitsDelaySpan GrantsRestrictionsControlAndPermission = False
+admitsDelaySpan PermissionOnly = False
 
 ||| How an indefinite phrase MARKS its choice method — the axis three
 ||| constructors used to spell three times. Choice method is surface
@@ -4275,32 +4726,6 @@ mutual
   lifeIntro (Down a) = amtIntro a
   lifeIntro (Set a) = amtIntro a
 
-  ||| What a delayed clause waits for — time queries introduce nothing;
-  ||| an object-event query names its watched referent ("when target
-  ||| creature dies this turn", Graceful Reprieve — the when-clause is
-  ||| where that target is announced).
-  public export
-  data EventQuery : Bindings -> Type where
-    -- spelling: ["at the beginning of the next end step"], kind: TODO(reason:
-    -- temporal-adverbial fragment -- not one of the five FragmentKinds)
-    NextEndStep : EventQuery bs                     -- "at the beginning of the next end step"
-    -- "when [n] dies this turn" ([CR#700.4] — dying IS the
-    -- battlefield-to-graveyard transition, so the watched referent
-    -- stands on the battlefield; `badDiesInGraveyard`).
-    -- spelling: ["when <Param(0)> dies this turn"], kind: TODO(reason:
-    -- temporal-adverbial fragment, see NextEndStep)
-    DiesThisTurn : (n : Noun bs Object) ->
-                   {auto 0 ok : OnBattlefield (nounZone n)} ->
-                   {auto 0 one : nounPlur n = OneOf} -> EventQuery bs
-
-  ||| The context a delayed body reads: settled particulars, with the
-  ||| event's own transition applied — dying retags the watched
-  ||| referent to the graveyard exactly as a move would ([CR#700.4]).
-  public export
-  delayedCtx : {bs : Bindings} -> EventQuery bs -> Bindings
-  delayedCtx NextEndStep = settleTargets bs
-  delayedCtx (DiesThisTurn n) = settleTargets (moveIntro Nothing n Graveyard)
-
   ||| May this amount stand as a comparison's SUBJECT — the thing
   ||| measured, on the left of "is"? The exact complement of
   ||| `writtenBound`, and for the same reason: a comparison in English
@@ -4831,44 +5256,98 @@ mutual
   -- mood and the opening word: Intercepts writes "if <subject> would
   -- <event>" or "the next time <subject> would <event>" per ReplUse,
   -- HeldUntil and Duration.UntilEvent write the finite "<subject>
-  -- <event>s". Never spelled alone)
+  -- <event>s", the trigger header writes the same finite form after
+  -- When/Whenever/At. Never spelled alone)
   data GameEvent : Bindings -> Type where
     -- "[n] dies" ([CR#700.4] — dying IS the battlefield-to-graveyard
-    -- transition, so the watched object stands on the battlefield, which
-    -- is `EventQuery`'s own demand one construction over;
+    -- transition, so the watched object is one the battlefield can hold;
     -- `badWouldDieInGraveyard`).
-    WouldDie : (n : Noun bs Object) ->
-               {auto 0 zn : OnBattlefield (nounZone n)} -> GameEvent bs
+    Dies : (n : Noun bs Object) ->
+           {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
     -- "[n] leaves the battlefield" ([CR#603.6c] names the transition —
     -- from the battlefield to another zone) — the O-Ring endpoint.
-    WouldLeave : (n : Noun bs Object) ->
-                 {auto 0 zn : OnBattlefield (nounZone n)} -> GameEvent bs
+    Leaves : (n : Noun bs Object) ->
+             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
     -- "[n] would be destroyed" ([CR#701.8a] — destruction moves a
     -- permanent from the battlefield to its owner's graveyard;
     -- [CR#701.8c] names regeneration as the effect that replaces the
     -- destruction event, which is this row's whole corpus).
-    WouldBeDestroyed : (n : Noun bs Object) ->
-                       {auto 0 zn : OnBattlefield (nounZone n)} -> GameEvent bs
+    IsDestroyed : (n : Noun bs Object) ->
+                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
     -- "damage would be dealt to [n]" ([CR#120.1] — damage is dealt to a
     -- player or a battlefield permanent), the event prevention watches
     -- and redirection replaces. Reads the same recipient row the damage
     -- CLAUSE reads (`DamageRecipient`), which is what keeps one damage
     -- vocabulary rather than two.
-    WouldBeDealtDamage : {k : Kind} -> (to : Noun bs k) ->
-                         {auto 0 rk : DamageRecipient to} -> GameEvent bs
+    IsDealtDamage : {k : Kind} -> (to : Noun bs k) ->
+                    {auto 0 rk : DamageRecipient to} -> GameEvent bs
     -- "[who] would draw a card" ([CR#121.1] — a draw moves the top card
     -- of a library to its owner's hand; [CR#614.11] makes draw
     -- replacement its own paragraph).
-    WouldDraw : (who : Noun bs Player) -> GameEvent bs
+    Draws : (who : Noun bs Player) -> GameEvent bs
+    -- "[n] enters" ([CR#603.6a] — "enters-the-battlefield abilities
+    -- trigger when a permanent enters the battlefield … written 'When
+    -- [this object] enters, …' or 'Whenever a [type] enters, …'"). The
+    -- corpus has RETEMPLATED this event out from under its old wording:
+    -- of the whole supported corpus exactly ONE line still writes
+    -- "enters the battlefield" as the trigger's own verb phrase, against
+    -- two thousand eight hundred ninety-one bare "enters" headers, so
+    -- the row spells the short form and the long one is history rather
+    -- than a variant.
+    Enters : (n : Noun bs Object) ->
+             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
+    -- "[n] attacks" ([CR#508.1] declares attackers; the event is the
+    -- declaration). It does NOT carry `Cant`'s deed gate, and the reason
+    -- is the same rule read the other way. [CR#506.3] says "only a
+    -- creature can attack or block" of the object at the moment it
+    -- attacks; the trigger's subject is a DESCRIPTION that need not be a
+    -- creature when the sentence is read, and the corpus writes exactly
+    -- that — "When a Vehicle you control attacks, exile enchanted
+    -- creature", a Vehicle being an artifact ([CR#301.7]) that a crew
+    -- ability animates first. So the deontic demands the grant and the
+    -- event demands nothing of the type, which is the one place these
+    -- two constructions part over one rule.
+    Attacks : (n : Noun bs Object) ->
+              {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
+    -- "[n] blocks" ([CR#509.1] declares blockers), the same shape a
+    -- second time.
+    Blocks : (n : Noun bs Object) ->
+             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
+    -- "[n] deals combat damage to [to]" ([CR#510.2] — combat damage is
+    -- what the combat damage step deals, the adjective `DamageKind`
+    -- already carries). TWO noun slots because the corpus writes both
+    -- and the recipient is what the family divides on: six hundred
+    -- twenty-five of the six hundred eighty-eight lines write "to a
+    -- player". The recipient row is the damage CLAUSE's own
+    -- (`DamageRecipient`), the third construction to read it.
+    DealsCombatDamage : {k : Kind} -> (n : Noun bs Object) ->
+                        (to : Noun (nomIntro n) k) ->
+                        {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                        {auto 0 rk : DamageRecipient to} -> GameEvent bs
+    -- "the beginning of [whose] [part]" ([CR#603.2b] — "when a phase or
+    -- step begins, all abilities that trigger 'at the beginning of' that
+    -- phase or step trigger"). The ONLY event with no noun phrase in it
+    -- at all, which is why it is also the only one whose header word is
+    -- fixed (`triggerWordOk`, `At`). Its part-and-possession grid is
+    -- chapter seventeen's endpoint vocabulary, shared as that chapter
+    -- said it would be, and which cells are written is `partUse`'s
+    -- answer (`badTriggerAtUntapStep`, `badTriggerAtEachUpkeep`).
+    BeginningOf : (part : TurnPart) -> (whose : Maybe Whose) ->
+                  {auto 0 pu : PartTriggerable part whose} -> GameEvent bs
 
   ||| Which row an event pattern is, for the event tables.
   public export
   eventName : {0 bs : Bindings} -> GameEvent bs -> EventName
-  eventName (WouldDie _) = Dies
-  eventName (WouldLeave _) = LeavesBattlefield
-  eventName (WouldBeDestroyed _) = IsDestroyed
-  eventName (WouldBeDealtDamage _) = IsDealtDamage
-  eventName (WouldDraw _) = DrawsCard
+  eventName (Dies _) = Death
+  eventName (Leaves _) = Departure
+  eventName (IsDestroyed _) = Destruction
+  eventName (IsDealtDamage _) = DamageTaken
+  eventName (Draws _) = CardDrawn
+  eventName (Enters _) = Entry
+  eventName (Attacks _) = AttackDeclaration
+  eventName (Blocks _) = BlockDeclaration
+  eventName (DealsCombatDamage _ _) = CombatDamage
+  eventName (BeginningOf _ _) = PartBeginning
 
   ||| What an event pattern contributes to the discourse: its subject
   ||| phrase, exactly as a clause contributes its own. The event has not
@@ -4877,11 +5356,88 @@ mutual
   ||| ([CR#601.2c]), which is why the replacement clause can say "it".
   public export
   eventIntro : {bs : Bindings} -> GameEvent bs -> Bindings
-  eventIntro (WouldDie n) = nomIntro n
-  eventIntro (WouldLeave n) = nomIntro n
-  eventIntro (WouldBeDestroyed n) = nomIntro n
-  eventIntro (WouldBeDealtDamage to) = nomIntro to
-  eventIntro (WouldDraw who) = nomIntro who
+  eventIntro (Dies n) = nomIntro n
+  eventIntro (Leaves n) = nomIntro n
+  eventIntro (IsDestroyed n) = nomIntro n
+  eventIntro (IsDealtDamage to) = nomIntro to
+  eventIntro (Draws who) = nomIntro who
+  eventIntro (Enters n) = nomIntro n
+  eventIntro (Attacks n) = nomIntro n
+  eventIntro (Blocks n) = nomIntro n
+  eventIntro (DealsCombatDamage n to) = nomIntro to
+  eventIntro (BeginningOf _ _) = bs
+
+  ||| The discourse AFTER the event has happened — the second projection
+  ||| the trigger container forced, and the sharpest single difference
+  ||| between this vocabulary's readers. The interception's replacement
+  ||| reads `eventIntro`, because [CR#614.6] says the replaced event
+  ||| never happens and the phrase's announcement is all there is; the
+  ||| TRIGGER's effect reads this, because [CR#603.6] says the ability
+  ||| "look(s) for the object in the zone that it moved to". So
+  ||| "Whenever a creature dies, return it to the battlefield" finds a
+  ||| card in a graveyard where "If a creature would die, exile it
+  ||| instead" finds a permanent on the battlefield, and it is one
+  ||| function each way rather than a flag.
+  ||| Only the two ZONE-CHANGE events retag ([CR#603.6] calls them
+  ||| zone-change triggers and names these two as the common pair): dying
+  ||| moves the object to its owner's graveyard ([CR#700.4]) and entering
+  ||| places it on the battlefield ([CR#603.6a]). The departure is the
+  ||| row that does NOT retag, and the reason is that its destination is
+  ||| not stated — [CR#603.6c] says a leaves-the-battlefield ability
+  ||| "checks for it only in the first zone that it went to" and the
+  ||| sentence never says which zone that is, so the phrase keeps the
+  ||| zone it was announced with and the retag it cannot compute is a
+  ||| silence rather than a guess.
+  public export
+  eventAfter : {bs : Bindings} -> GameEvent bs -> Bindings
+  eventAfter (Dies n) = moveIntro Nothing n Graveyard
+  eventAfter (Leaves n) = nomIntro n
+  eventAfter (IsDestroyed n) = moveIntro Nothing n Graveyard
+  eventAfter (IsDealtDamage to) = nomIntro to
+  eventAfter (Draws who) = nomIntro who
+  eventAfter (Enters n) = moveIntro Nothing n Battlefield
+  eventAfter (Attacks n) = nomIntro n
+  eventAfter (Blocks n) = nomIntro n
+  eventAfter (DealsCombatDamage n to) = nomIntro to
+  eventAfter (BeginningOf _ _) = bs
+
+  ||| The grammatical number of an event's SUBJECT, for the one reader
+  ||| that demands one. [CR#603.7b] gives a delayed trigger a single
+  ||| firing by default — "it will trigger only once, the next time its
+  ||| trigger event occurs", and if the event happens twice at once "the
+  ||| controller … chooses which event causes the ability to trigger" —
+  ||| and the corpus writes the watched referent singular without
+  ||| exception (Graceful Reprieve's "when target creature dies this
+  ||| turn", Stangg's "when that token leaves the battlefield"). The
+  ||| turn-part beginning has no subject at all and answers `OneOf`,
+  ||| there being one such beginning per turn.
+  ||| The other three readers ask nothing: "Whenever one or more
+  ||| creatures die" is ordinary trigger English and the interception
+  ||| writes plural subjects too, so the demand belongs to the delayed
+  ||| clause and not to the vocabulary (`badDiesGroup`).
+  public export
+  eventSubjectPlur : {bs : Bindings} -> GameEvent bs -> Plurality
+  eventSubjectPlur (Dies n) = nounPlur n
+  eventSubjectPlur (Leaves n) = nounPlur n
+  eventSubjectPlur (IsDestroyed n) = nounPlur n
+  eventSubjectPlur (IsDealtDamage to) = nounPlur to
+  eventSubjectPlur (Draws who) = nounPlur who
+  eventSubjectPlur (Enters n) = nounPlur n
+  eventSubjectPlur (Attacks n) = nounPlur n
+  eventSubjectPlur (Blocks n) = nounPlur n
+  eventSubjectPlur (DealsCombatDamage n _) = nounPlur n
+  eventSubjectPlur (BeginningOf _ _) = OneOf
+
+  ||| The context a delayed body reads: the event's own after-discourse
+  ||| with the outer clause's targets SETTLED — [CR#603.7c] refers to
+  ||| particular objects determiner-blind, and the delayed ability
+  ||| announces its own targets in its own event ([CR#603.3d,601.2c]).
+  ||| One line since the merge, where it used to be a per-query table:
+  ||| the retag it applied for the death query is `eventAfter`'s job now,
+  ||| and every event gets it.
+  public export
+  delayedCtx : {bs : Bindings} -> GameEvent bs -> Bindings
+  delayedCtx ev = settleTargets (eventAfter ev)
 
   ||| The would/instead clause's gate on its event, keyed onto the event
   ||| table rather than mirroring the constructor list.
@@ -4897,11 +5453,38 @@ mutual
     MkHoldable : {auto 0 ok : admitsHold (eventUse (eventName ev)) = True} ->
                  Holdable ev
 
+  ||| The trigger header's gate, the same question asked by the third
+  ||| reader ([CR#603.1]).
+  public export
+  data Triggerable : GameEvent bs -> Type where
+    MkTriggerable : {auto 0 ok : admitsTrigger (eventUse (eventName ev)) = True} ->
+                    Triggerable ev
+
+  ||| The delayed clause's gate, the same question asked by the fourth
+  ||| ([CR#603.7]).
+  public export
+  data Awaitable : GameEvent bs -> Type where
+    MkAwaitable : {auto 0 ok : admitsDelay (eventUse (eventName ev)) = True} ->
+                  Awaitable ev
+
   ||| Whether an interception may be written with THIS multiplicity
   ||| word, over the event it intercepts ([CR#614.3]'s two endings).
   public export
   data ReplUseOk : GameEvent bs -> ReplUse -> Type where
     MkReplUseOk : {auto 0 ok : replUseOk (eventName ev) u = True} -> ReplUseOk ev u
+
+  ||| Whether a header may open with THIS word, over the event it names
+  ||| ([CR#603.1]'s three-way choice, [CR#603.2b]'s one fixed assignment).
+  public export
+  data TriggerWordOk : GameEvent bs -> TriggerWord -> Type where
+    MkTriggerWordOk : {auto 0 ok : triggerWordOk (eventName ev) w = True} ->
+                      TriggerWordOk ev w
+
+  ||| Whether a turn-part beginning is one the corpus names.
+  public export
+  data PartTriggerable : TurnPart -> Maybe Whose -> Type where
+    MkPartTriggerable : {auto 0 ok : admitsPartTrigger (partUse p w) = True} ->
+                        PartTriggerable p w
 
   ||| The attestation table: every duration this vocabulary can spell,
   ||| against the constructions that write it. FULL ROWS over (boundary x
@@ -4932,7 +5515,7 @@ mutual
   ||| construction, not on a duration.
   public export
   spanUse : {0 bs : Bindings} -> Duration bs -> SpanUse
-  spanUse ThisTurn = RestrictionsAndShields
+  spanUse ThisTurn = RestrictionsShieldsPermissionsAndDelays
   -- "until [poss] next [part]" — the start boundary writes no boundary
   -- word, and takes possession or the definite article, never nothing.
   spanUse (Until (StartOf Turn Nothing)) = Unattested
@@ -4941,8 +5524,19 @@ mutual
   spanUse (Until (StartOf Upkeep Nothing)) = Unattested
   spanUse (Until (StartOf Upkeep (Just Yours))) = KeywordGrantOnly
   spanUse (Until (StartOf Upkeep (Just ThatPlayers))) = Unattested
+  -- The end-step endpoints, and chapter twenty-eight's first opening.
+  -- The YOURS cell is the impulse family's own word and nobody else's:
+  -- eight lines write "until your next end step" and every one of them
+  -- permits playing just-exiled cards (Yasmin Khan, Dragonhawk). Its two
+  -- siblings stay `Unclaimed` on a measurement rather than an
+  -- assumption: "until the next end step" is one becomes-a-copy line,
+  -- and "until that player's next end step" is one play permission
+  -- carrying [CR#118.9]'s alternative cost ("they may play that card
+  -- without paying its mana cost"), which is a rider the permission row
+  -- does not spell and the ledger already keeps
+  -- (`badGainsUntilYourNextEndStep`).
   spanUse (Until (StartOf EndStep Nothing)) = Unclaimed
-  spanUse (Until (StartOf EndStep (Just Yours))) = Unclaimed
+  spanUse (Until (StartOf EndStep (Just Yours))) = PermissionOnly
   spanUse (Until (StartOf EndStep (Just ThatPlayers))) = Unclaimed
   spanUse (Until (StartOf Combat Nothing)) = Unattested
   spanUse (Until (StartOf Combat (Just Yours))) = Unattested
@@ -4952,8 +5546,8 @@ mutual
   spanUse (Until (StartOf UntapStep (Just ThatPlayers))) = Unattested
   -- "until (the) end of [part]" — the end boundary is the one that
   -- writes bare, and the bare forms are where the grants live.
-  spanUse (Until (EndOf Turn Nothing)) = GrantsTypesControlAndReplacement
-  spanUse (Until (EndOf Turn (Just Yours))) = ControlGrantOnly
+  spanUse (Until (EndOf Turn Nothing)) = GrantsTypesControlReplacementAndPermission
+  spanUse (Until (EndOf Turn (Just Yours))) = ControlGrantAndPermission
   spanUse (Until (EndOf Turn (Just ThatPlayers))) = Unattested
   spanUse (Until (EndOf Upkeep Nothing)) = Unattested
   spanUse (Until (EndOf Upkeep (Just Yours))) = Unclaimed
@@ -4962,7 +5556,15 @@ mutual
   spanUse (Until (EndOf EndStep (Just Yours))) = Unattested
   spanUse (Until (EndOf EndStep (Just ThatPlayers))) = Unattested
   spanUse (Until (EndOf Combat Nothing)) = GrantsAndControl
-  spanUse (Until (EndOf Combat (Just Yours))) = Unclaimed
+  -- The possessed end-of-combat endpoint, and chapter twenty-eight's
+  -- second opening. One line writes it — Brazen Cannonade's "Until end
+  -- of combat on your next turn, you may play that card" — which is the
+  -- weight chapter seventeen gave Glyph of Destruction at the
+  -- unpossessed cell, and it is a play permission exactly as chapter
+  -- twenty-two's doc said it was. The possessive extraposes onto the
+  -- TURN and not the combat, which is `DurationEnd`'s own spelling note
+  -- and not a second structure.
+  spanUse (Until (EndOf Combat (Just Yours))) = PermissionOnly
   spanUse (Until (EndOf Combat (Just ThatPlayers))) = Unattested
   spanUse (Until (EndOf UntapStep Nothing)) = Unattested
   spanUse (Until (EndOf UntapStep (Just Yours))) = Unattested
@@ -4972,7 +5574,7 @@ mutual
   -- table: the control grant writes it forty-two times, the stat delta
   -- six, the keyword grant four, the restriction ten, and the type
   -- ADDITION not once.
-  spanUse (ForAsLongAs _) = GrantsRestrictionsAndControl
+  spanUse (ForAsLongAs _) = GrantsRestrictionsControlAndPermission
   -- "until [event]" — the endpoint named by a happening rather than by
   -- a turn boundary, and every one of its rows is a silence. The answer
   -- is delegated to the event axis so that a new event has to declare
@@ -4986,6 +5588,15 @@ mutual
   data SpanOk : StaticKind -> Maybe (Duration bs) -> Type where
     SpanUnstated : {auto 0 ok : absentOk k = True} -> SpanOk k Nothing
     SpanStated : {auto 0 ok : admitsSpan k (spanUse d) = True} -> SpanOk k (Just d)
+
+  ||| The delayed clause's own duration gate ([CR#603.7b]). Unstated is
+  ||| always fine — that is the rule's once-only default, not an
+  ||| omission — so the unstated row carries no side condition, which is
+  ||| where it parts from `SpanOk`'s.
+  public export
+  data DelaySpanOk : Maybe (Duration bs) -> Type where
+    DelayOnce : DelaySpanOk Nothing
+    DelayFor : {auto 0 ok : admitsDelaySpan (spanUse d) = True} -> DelaySpanOk (Just d)
 
   ||| The continuous effects a resolving clause can establish
   ||| ([CR#611.2]) — the PART of the sentence that survives its
@@ -5017,7 +5628,7 @@ mutual
     -- pair, e.g. "+1/+1"; the trailing duration adverbial belongs to the
     -- Continuously envelope, not here), kind: Sentence
     Gets : (n : Noun bs Object) -> (pow : Integer) -> (tou : Integer) ->
-           {auto 0 ok : OnBattlefield (nounZone n)} -> StaticEffect bs
+           {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} -> StaticEffect bs
     -- "[n] gains [ability]" — the keyword grant, same battlefield
     -- discipline. The ability slot is the whole container now, and the
     -- gate is what keeps the widening honest: English grants an ACTIVATED
@@ -5027,7 +5638,7 @@ mutual
     -- adverbial belongs to the Continuously envelope, not here),
     -- kind: Sentence
     Gains : (n : Noun bs Object) -> (ab : Ability) ->
-            {auto 0 ok : OnBattlefield (nounZone n)} ->
+            {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} ->
             {auto 0 gr : Grantable ab} -> StaticEffect bs
     -- "[n] can't [deed, in a voice]" — the DEONTIC: a continuous effect
     -- denying its subject a deed, which is core's
@@ -5060,7 +5671,7 @@ mutual
     -- Mirrors core's Continuously-over-Cant pair -- no single RON
     -- constructor entry confirmed for the fused clause this pass)
     Cant : (n : Noun bs Object) -> (deed : Deed) -> (role : Role) ->
-           {auto 0 zn : OnBattlefield (nounZone n)} ->
+           {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
            {auto 0 dp : DeedParticipant deed role (nounTy n)} -> StaticEffect bs
     -- "[n] becomes [type line] in addition to its other types" — the
     -- ADDING type change, and [CR#205.1b] is the whole of why it is one
@@ -5085,7 +5696,7 @@ mutual
     -- pluralisation the renderer's; the trailing duration adverbial belongs
     -- to the Continuously envelope, not here), kind: Sentence
     BecomesAlso : (n : Noun bs Object) -> (added : TypeLine) ->
-                  {auto 0 zn : OnBattlefield (nounZone n)} ->
+                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                   {auto 0 ne : LineNonEmpty added} ->
                   {auto 0 nw : AddsSomething (nounTy n) added} ->
                   {auto 0 af : AddedFits (nounTy n) added} -> StaticEffect bs
@@ -5121,7 +5732,7 @@ mutual
     -- leaves the agent unpronounced; the trailing duration adverbial belongs
     -- to the Continuously envelope, not here), kind: Sentence
     GainsControl : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-                   {auto 0 zn : OnBattlefield (nounZone what)} -> StaticEffect bs
+                   {auto 0 zn : ZoneFits (nounZone what) (Just Battlefield)} -> StaticEffect bs
     -- "if [event], [replacement] instead" / "the next time [event],
     -- [replacement] instead" — the REPLACEMENT effect as a continuous
     -- one, which is [CR#614.1]'s own first sentence ("Some continuous
@@ -5178,6 +5789,131 @@ mutual
     -- envelope, not here), kind: Sentence
     Prevents : (kind : DamageKind) -> (size : Shield bs) ->
                (scope : DamageScope (shieldIntro size)) -> StaticEffect bs
+    -- "as long as [condition], [effect]" — the CONDITIONAL static
+    -- ([CR#611.3a] — a continuous effect from a static ability "isn't
+    -- 'locked in'; it applies at any given moment to whatever its text
+    -- indicates", which is what makes a live condition possible at all),
+    -- and core's `StaticEffect::Conditionally(Condition, StaticEffect)`
+    -- at the same address (`continuous.rs`, cited to the same rule).
+    -- It WRAPS rather than takes a field, which is core's own note
+    -- ("the `condition:` field of the deleted `StaticAbility` struct,
+    -- now a composable effect wrapper") and English's: the clause is
+    -- one adverbial over a whole statement, and the statement it wraps
+    -- is any of the others ("as long as you control a Gate, this
+    -- creature has double strike"; "as long as enchanted permanent is a
+    -- creature, it gets +3/+3"; "as long as an artifact creature you
+    -- control is attacking, prevent all damage that would be dealt to
+    -- Sanwell"). Nine hundred twelve corpus lines carry the bare "as
+    -- long as", against two hundred ten for the DURATION adverbial
+    -- [CR#611.2b] spells with "for" in front — one preposition apart and
+    -- two different constructions, which is why the duration row and
+    -- this one both exist (`badForAsLongAsStatic` in reverse:
+    -- `badConditionalClause`).
+    -- The condition reads what the wrapped statement has ANNOUNCED, not
+    -- the other way round: it is typed in `bs` and the statement in
+    -- `condDelta`'s nothing, so "as long as it has a +1/+1 counter on
+    -- it" reads what the LINE's own subject named and never what the
+    -- condition did (a condition contributes nothing — finding 88's
+    -- rule, unchanged).
+    -- What it does NOT nest is itself: no corpus line writes two "as
+    -- long as" clauses over one statement (`badDoubleConditional`).
+    -- spelling: ["as long as <Param(0)>, <Param(1)>"] (the fronted form is
+    -- the corpus's ordinary one; the trailing "…, as long as <Param(0)>"
+    -- linearization is the same sentence -- "This creature gets +4/+4 as
+    -- long as there are seven or more cards in your graveyard" -- and the
+    -- inner statement supplies its own frame), kind: Sentence
+    Conditionally : (c : Condition bs) -> (se : StaticEffect bs) ->
+                    {auto 0 nn : NotConditional se} -> StaticEffect bs
+    -- "[who] may play [what]" — the PERMISSION static, core's
+    -- `Deontic::May(Cast{…})` (`deontic.rs`) and the permissive twin the
+    -- deontic surface has been missing since chapter fifteen minted
+    -- `Cant` alone. [CR#604.6] is the rule that files it: a static
+    -- ability of this shape "appl(ies) while a card is in any zone that
+    -- you could cast or play it from", and it names the three templates
+    -- outright — "You may [cast/play] [this card] …", "You can't
+    -- [cast/play] [this card] …", "[Cast/Play] [this card] only …".
+    -- The VERB is derived and not a slot, and the glossary derives it:
+    -- "to play a card is to play that card as a land or cast that card
+    -- as a spell, whichever is appropriate" ([CR#601.1a] says the same),
+    -- so "play" is the general verb over a CARD and "cast" the narrow
+    -- one over a SPELL. This vocabulary describes cards and permanents
+    -- and has no spell carrier (ledger), so the row spells "play" and
+    -- the two hundred ninety-three "you may cast … from your graveyard"
+    -- lines wait with the carrier that would let their complement be a
+    -- spell.
+    -- The SOURCE zone is the phrase's own and not a slot, which is the
+    -- derivable-default discipline a third time (finding 124's
+    -- "under your control"): the impulse family exiles its cards in the
+    -- sentence before and says "that card", so the binding already
+    -- carries the zone, and `playableFrom` is what checks it.
+    -- The permission is NOT the deed restriction with a polarity flip,
+    -- and the zone is why: `Cant` demands a battlefield subject because
+    -- combat is fought there, and this row demands the exact opposite —
+    -- a card anywhere BUT the battlefield (`badPlayFromBattlefield`).
+    -- spelling: ["<Param(0)> may play <Param(1)>"] (the duration adverbial
+    -- belongs to the Continuously envelope, not here; the fronted
+    -- linearization "Until your next end step, you may play those cards" is
+    -- the same sentence), kind: Sentence
+    MayPlay : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
+              {auto 0 pz : PlayableFrom (nounZone what)} -> StaticEffect bs
+    -- "[n] enters tapped" — the ENTRY rider, and the third family
+    -- chapter twenty-five sent to a container that did not exist.
+    -- [CR#603.6d] settles what it is in as many words: text reading
+    -- "[This permanent] enters tapped" is "a static ability — not a
+    -- triggered ability — whose effect occurs as part of the event that
+    -- puts the permanent onto the battlefield", and [CR#614.1d] files
+    -- that effect as a replacement. So the SENTENCE is a static ability
+    -- line, which is what this row is, and the replacement machinery is
+    -- the engine's.
+    -- The rider vocabulary is chapter nineteen's `TokenRider`, shared
+    -- rather than re-minted — the token's with-clause and the
+    -- permanent's own line name the same two riders — and the line
+    -- writes only ONE of them: "enters tapped" is a hundred thirty-two
+    -- lines and "enters attacking" is written zero times as a
+    -- permanent's own ability, because a permanent's line cannot know
+    -- there is a combat (`entryRiderOk`, `badEntersAttackingLine`).
+    -- What is NOT here is the counters half, and it is the bigger one:
+    -- "enters with … counters on it" is three hundred eighty-six lines
+    -- of the four hundred fourteen "enters with", and it wants a counter
+    -- AMOUNT in the rider where this vocabulary has a two-row enum
+    -- (ledger).
+    -- spelling: ["<Param(0)> enters <Param(1)>"] (Param(1) writes the bare
+    -- participle, "tapped"; the corpus's three bare lines are "This
+    -- artifact/creature/land enters tapped."), kind: Sentence
+    EntersRider : (n : Noun bs Object) -> (rider : TokenRider) ->
+                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                  {auto 0 ro : EntryRiderOk rider} -> StaticEffect bs
+
+  ||| Which riders a PERMANENT's own line writes, against the two
+  ||| chapter nineteen minted for a token's with-clause. One row of the
+  ||| two, and the asymmetry is the finding: a token is created BY a
+  ||| resolving effect that knows whether combat is happening, so
+  ||| "create a 1/1 … token tapped and attacking" is nineteen lines; a
+  ||| permanent's own static ability applies whenever that permanent
+  ||| enters, from any zone and in any step, so it can say "tapped" and
+  ||| has no occasion to say "attacking" — and the corpus writes the
+  ||| second rider on a permanent's own line zero times.
+  public export
+  entryRiderOk : TokenRider -> Bool
+  entryRiderOk EntersTapped = True
+  entryRiderOk EntersAttacking = False
+
+  public export
+  data EntryRiderOk : TokenRider -> Type where
+    MkEntryRiderOk : {auto 0 ok : entryRiderOk r = True} -> EntryRiderOk r
+
+  ||| A static statement that is not already conditioned. The corpus
+  ||| writes one "as long as" per statement and never two, which is the
+  ||| singleton discipline `badNestedCompound` and `badDoubleNegated`
+  ||| already keep at two other sites.
+  public export
+  notConditional : {0 bs : Bindings} -> StaticEffect bs -> Bool
+  notConditional (Conditionally _ _) = False
+  notConditional _ = True
+
+  public export
+  data NotConditional : StaticEffect bs -> Type where
+    MkNotConditional : {auto 0 ok : notConditional se = True} -> NotConditional se
 
   ||| HOW MUCH damage a shield stops — [CR#615.7]'s numbered shield
   ||| against the unnumbered one, and they are two rows rather than one
@@ -5238,6 +5974,9 @@ mutual
   staticKind (GainsControl _ _) = ControlGrant
   staticKind (Intercepts _ _ _) = Replacement
   staticKind (Prevents _ _ _) = Prevention
+  staticKind (Conditionally _ _) = Conditional
+  staticKind (MayPlay _ _) = PlayPermission
+  staticKind (EntersRider _ _) = EntryRider
 
   ||| What a continuous clause contributes to the discourse: its
   ||| subject, exactly as the one-shot clauses contribute theirs.
@@ -5254,6 +5993,11 @@ mutual
   staticIntro (GainsControl who what) = nomIntro what
   staticIntro (Intercepts ev repl use) = eventIntro ev
   staticIntro (Prevents kind size scope) = scopeIntro scope
+  -- the wrapper announces what its statement announced: the "as long as"
+  -- phrase is an adverbial and a condition contributes nothing.
+  staticIntro (Conditionally c se) = staticIntro se
+  staticIntro (MayPlay who what) = nomIntro what
+  staticIntro (EntersRider n _) = nomIntro n
 
   ||| Which clause a DIVISION writes. [CR#601.2d] and [CR#115.7f] both
   ||| name "divide or distribute" as one mechanic over one pair of
@@ -6161,14 +6905,47 @@ mutual
             {auto 0 mf : ModesFit q (modeCount modes)} ->
             {auto 0 mh : ModalHead q (modeCount modes)} ->
             {auto 0 dm : distinctModes modes = True} -> Effect bs
-    -- "[e] [when/at event-query]" — the temporal adverbial stays on
-    -- its clause (leading vs trailing position is linearization); the
-    -- body reads the discourse as settled particulars transformed by
-    -- the event (`delayedCtx`, [CR#603.7c,603.3d]).
-    -- spelling: ["<Param(1)> <Param(0)>"] (trailing adverbial position;
-    -- leading position swaps the order, linearization's choice -- see
-    -- EventQuery), kind: Sentence
-    Delayed : (ev : EventQuery bs) -> Effect (delayedCtx ev) -> Effect bs
+    -- "[e] [when/at event]" — the DELAYED triggered ability
+    -- ([CR#603.7] — "an effect may create a delayed triggered ability
+    -- that can do something at a later time … will contain 'when',
+    -- 'whenever', or 'at', although that word won't usually begin the
+    -- ability"). The temporal adverbial stays on its clause (leading vs
+    -- trailing position is linearization); the body reads the discourse
+    -- as settled particulars transformed by the event (`delayedCtx`,
+    -- [CR#603.7c,603.3d]).
+    -- Its event is the SHARED vocabulary as of chapter twenty-eight,
+    -- which is the ledger's own merge taken: the query type it used to
+    -- carry had two rows that were an end-step beginning and a death,
+    -- both of which `GameEvent` spells, and keeping two vocabularies for
+    -- one set of happenings is what the merge removes. What is NOT the
+    -- same as the ability line is the container: a delayed trigger is
+    -- CREATED by a resolving effect ([CR#603.7a] — "during the
+    -- resolution of spells or abilities, as the result of a replacement
+    -- effect being applied, or as a result of a static ability that
+    -- allows a player to take an action") and so is an `Effect` row
+    -- typed in the discourse its creator built, where the card-text
+    -- trigger is an `Ability` row typed at the empty context. Two
+    -- constructions, one event vocabulary — which is exactly the
+    -- relation `Intercepts` and `HeldUntil` already have.
+    -- The SPAN is the slot [CR#603.7b] names: "a delayed triggered
+    -- ability will trigger only once — the next time its trigger event
+    -- occurs — unless it has a stated duration, such as 'this turn'".
+    -- So the unwritten span is the once-only default and "this turn" is
+    -- the one adverbial the family writes (Graceful Reprieve's "when
+    -- target creature dies this turn"), which is what the span tables
+    -- now record (`admitsDelaySpan`, `badDelayedUntilEndOfTurn`).
+    -- spelling: ["<Param(2)> <Param(0)><Param(1)>"] (trailing adverbial
+    -- position; leading position swaps the order, linearization's choice.
+    -- The event supplies its own header word -- "when <event>", "at the
+    -- beginning of the next end step" -- with "next" derivable exactly as
+    -- it is for a duration endpoint, and Param(1) writes the stated
+    -- duration after it), kind: Sentence
+    Delayed : (ev : GameEvent bs) ->
+              {default Nothing span : Maybe (Duration bs)} ->
+              Effect (delayedCtx ev) ->
+              {auto 0 aw : Awaitable ev} ->
+              {auto 0 one : eventSubjectPlur ev = OneOf} ->
+              {auto 0 so : DelaySpanOk span} -> Effect bs
     -- "[replaced]. [replacement] instead." — the SELF-replacement
     -- ([CR#614.15]: an effect of a resolving spell or ability that
     -- replaces part or all of that spell or ability's OWN effects, and
@@ -7361,13 +8138,25 @@ mutual
   data UsageLimit = OncePerTurn | OncePerGame
 
   ||| An ABILITY ([CR#113]) — the first type above `Effect`, and the
-  ||| container a card's printed lines are made of. It carries the
-  ||| activated row now and is shaped to GROW the others: the triggered
-  ||| row ([CR#113.3c,603]) and the static row ([CR#113.3d,604]) are the
-  ||| next round's, the spell row ([CR#113.3a]) belongs with the card
-  ||| container, and each arrives as a row here rather than as a type of
+  ||| container a card's printed lines are made of. Three of [CR#113.3]'s
+  ||| four categories are rows here as of chapter twenty-eight — the
+  ||| activated ([CR#113.3b,602]), the triggered ([CR#113.3c,603]) and the
+  ||| static ([CR#113.3d,604]) — and the fourth, the spell ability
+  ||| ([CR#113.3a]), belongs with the card container because [CR#113.3a]
+  ||| defines it by what its CARD is ("any text on an instant or sorcery
+  ||| spell is a spell ability unless …"), which is a fact no ability line
+  ||| carries about itself. Each arrives as a row rather than as a type of
   ||| its own — which is what core and the settled Idris spec both do
   ||| (`Ability::{Static, Activated, Triggered, Spell, Keyword}`).
+  |||
+  ||| What the three rows have in common is what makes the container one
+  ||| container: none of them is indexed by a discourse, because an
+  ||| ability line is context-closed. What they DIVIDE on is a
+  ||| discipline the round had to state: the ACTIVATED line's effect
+  ||| reads the cost's survivors, the TRIGGERED line's reads the event's
+  ||| after-discourse, and the STATIC line reads nothing at all, being a
+  ||| statement rather than an instruction ([CR#604.1] — "written as
+  ||| statements, and they're simply true").
   |||
   ||| The keyword row was this type's whole content before, and keeping it
   ||| is the point: what a `Gains` clause grants and what a card prints
@@ -7411,6 +8200,85 @@ mutual
                 {default Nothing window : Maybe Timing} ->
                 {default Nothing limit : Maybe UsageLimit} ->
                 {default Nothing guard : Maybe (Condition [])} -> Ability
+    -- "[When/Whenever/At] [event], [if condition,] [effect]"
+    -- ([CR#603.1] spells the whole line: "[When/Whenever/At] [trigger
+    -- condition or event], [effect]. [Instructions (if any).]").
+    -- The WORD is a slot and not a derivation, because no rule assigns
+    -- it and the corpus assigns only one of the three absolutely
+    -- ([CR#603.2b]; `TriggerWord`, `triggerWordOk`). What the corpus
+    -- DOES assign — "When" for a once-per-object event with a fixed
+    -- subject, "Whenever" otherwise — is finding 142's repeatability
+    -- reasoning at a second construction and is recorded there rather
+    -- than gated here, because its exceptions turn on what the EFFECT
+    -- does ("When a creature enters, sacrifice this artifact …").
+    -- The EFFECT is typed in the event's AFTER-discourse and not in what
+    -- its phrases announced, which is the one place this row parts from
+    -- `Intercepts` over the same vocabulary: [CR#603.6] has a
+    -- zone-change trigger "look for the object in the zone that it moved
+    -- to", so "Whenever a creature dies, return it to the battlefield"
+    -- reads a card in a graveyard (`eventAfter`;
+    -- `badTriggerReadsPreEventZone`).
+    -- The INTERVENING "if" reuses `Condition` verbatim — chapter
+    -- eighteen's seam a fourth time — and [CR#603.4] is why it is this
+    -- row's slot rather than an ordinary trailing conditional: the rule
+    -- applies "only to an 'if' that immediately follows a trigger
+    -- condition", checks it as the event occurs AND again on resolution,
+    -- and says in as many words that "the word 'if' has only its normal
+    -- English meaning anywhere else in the text of a card". It is typed
+    -- in the event's after-discourse too, and the corpus is what settles
+    -- that: "Whenever another creature you control dies, if it had
+    -- counters on it, put its counters on this creature" reads the dead
+    -- creature in the condition, and a thousand and forty-seven lines
+    -- write the frame.
+    -- The line takes NO duration, and the reason is [CR#611.3b]: an
+    -- ability line is not an effect, so there is nothing for a duration
+    -- to bound. What a triggered ability's effect lasts for is the
+    -- effect's own adverbial, one level down.
+    -- spelling: ["<Param(0)> <Param(1)>, <Param(2)>",
+    -- "<Param(0)> <Param(1)>, if <Param(3)>, <Param(2)>"] (the header word,
+    -- the event's own finite clause, a comma, and the effect; the
+    -- intervening condition sits between two commas when written --
+    -- see [CR#603.4]), kind: Ability
+    Triggered : (word : TriggerWord) -> (ev : GameEvent []) ->
+                (eff : Effect (eventAfter ev)) ->
+                {default Nothing intervening : Maybe (Condition (eventAfter ev))} ->
+                {auto 0 tr : Triggerable ev} ->
+                {auto 0 wo : TriggerWordOk ev word} -> Ability
+    -- "[statement]" — the STATIC ability ([CR#113.3d,604.1]: "static
+    -- abilities do something all the time rather than being activated or
+    -- triggered. They are written as statements, and they're simply
+    -- true"). Core's `Ability::Static(StaticEffect)` exactly, and the
+    -- row that finally houses the families three chapters refused as
+    -- effect-sentences: the durationless "can't" (Pacifism, Glacial
+    -- Chasm), the standing interception ("If a creature an opponent
+    -- controls would die, exile it instead"), the standing shield
+    -- ("Prevent all damage that would be dealt to you"), the entry rider
+    -- ([CR#603.6d]) and the conditional static.
+    -- NO duration slot, and [CR#611.3b] is why in as many words: the
+    -- effect "applies at all times that the permanent generating it is
+    -- on the battlefield or the object generating it is in the
+    -- appropriate zone". A `Continuously` clause states its span
+    -- because it outlives its own resolution; a static ability has
+    -- nothing to outlive.
+    -- Two gates. WHICH statements English writes as a line is
+    -- `staticAsAbility`, and the one refusal is the control grant, whose
+    -- stative form is a different verb ("You control enchanted
+    -- creature"; `badStaticGainsControl`). And a static ability does not
+    -- TARGET: [CR#115.1a..115.1e] enumerate what can — an instant or
+    -- sorcery spell, an activated ability, a triggered ability, and the
+    -- keyword abilities that represent those — and [CR#115.1b] says of
+    -- the nearest case outright that "an Aura permanent doesn't target
+    -- anything; only the spell is targeted". So the line refuses a
+    -- target-determined subject (`Untargeting`, `badStaticTargets`),
+    -- which is the sharpest single difference between this row and the
+    -- other two: the trigger targets ([CR#115.1d]) and the activated
+    -- ability targets ([CR#115.1c]), and only the statement cannot.
+    -- spelling: ["<Param(0)>"] (pass-through; the statement supplies its
+    -- own sentence, in the STATIVE aspect the line takes -- see
+    -- staticAsAbility), kind: Ability
+    Static : (se : StaticEffect []) ->
+             {auto 0 ln : StaticLine se} ->
+             {auto 0 ut : Untargeting se} -> Ability
 
   ||| May this ability be GRANTED by a clause? Only the keyword. English
   ||| grants an activated ability by QUOTING it — "Enchanted land has
@@ -7421,10 +8289,30 @@ mutual
   ||| keyword. Growing the container is what made the refusal necessary:
   ||| the row exists now, so the grant site has to say no to it
   ||| (`badGainsActivated`).
+  ||| The static line's two demands as witnesses, named apart so a pin
+  ||| says which question refused.
+  public export
+  data StaticLine : StaticEffect bs -> Type where
+    MkStaticLine : {auto 0 ok : staticAsAbility (staticKind se) = True} -> StaticLine se
+
+  public export
+  data Untargeting : StaticEffect bs -> Type where
+    MkUntargeting : {auto 0 ok : anyTargetedAt (staticIntro se) = False} -> Untargeting se
+
   public export
   grantableAb : Ability -> Bool
   grantableAb (KeywordAbility _) = True
   grantableAb (Activated _ _) = False
+  -- Neither of the two new lines is grantable either, and the refusal is
+  -- the QUOTATION's a second and third time: English grants a triggered
+  -- ability by quoting it ("Enchanted creature has 'When this creature
+  -- dies, …'") exactly as it grants an activated one, and it grants a
+  -- static ability by quoting it too ("as long as enchanted permanent is
+  -- an Equipment, it has 'Equipped creature gets +1/+1 and has
+  -- trample'"). One construction, three refusals
+  -- (`badGainsTriggered`, `badGainsStatic`).
+  grantableAb (Triggered _ _ _) = False
+  grantableAb (Static _) = False
 
   ||| The grant demand as a witness, named apart so a pin says which
   ||| question refused.

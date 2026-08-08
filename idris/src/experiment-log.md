@@ -3629,6 +3629,386 @@ stopped accepting anything):
    [CR#118.8b]'s declared optional costs with their tags — engine
    traffic and keyword packaging, not sentence grammar.
 
+## Chapter Twenty-Eight — The Ability Line
+
+Chapter twenty-eight, where the container gets its two remaining rows
+and the grammar learns to write a sentence that is not an instruction
+(evidence: Cloudkin Seer, Moonlit Wake, Promise of Tomorrow, Staff of
+Nin, Library Larcenist, Elite Javelineer, Jhessian Thief, Scholar of
+Stars, Glacial Chasm, Misery's Shadow, Jor Kadeen the Prevailer,
+Abandoned Outpost, Yasmin Khan, Brazen Cannonade; and, for what the
+round measured rather than built, Locke Treasure Hunter, Ana Sanctuary,
+Krovikan Vampire, Crucible of Worlds, Skaab Ruinator, Heart-Piercer
+Manticore):
+
+169. **A static ability is a STATEMENT, and English marks it by
+   ASPECT.** [CR#604.1] says what the line is in words the grammar can
+   use — "static abilities do something all the time rather than being
+   activated or triggered. They are written as statements, and they're
+   simply true" — and [CR#611.3b] says why it states no duration: the
+   effect "applies at all times that the permanent generating it is on
+   the battlefield or the object generating it is in the appropriate
+   zone". So `Static` takes a `StaticEffect` and nothing else, and the
+   families three chapters refused as effect-sentences move in with no
+   new vocabulary at all: Glacial Chasm's "Creatures you control can't
+   attack" is `badStaticCant`'s own sentence, its "Prevent all damage
+   that would be dealt to you" is `badStandingPrevention`'s, and Misery's
+   Shadow's "If a creature an opponent controls would die, exile it
+   instead" is `badStandingIntercept`'s. What the round had to discover
+   before the row would hold was that the line and the clause are not the
+   same sentence twice. The clause is an instruction and takes the
+   INCHOATIVE verb; the line is a statement and takes the STATIVE one.
+   "Target creature gains flying until end of turn" against "Creatures
+   you control have haste" — six hundred fourteen lines of the second;
+   "Target land becomes an Island in addition to its other types" against
+   "Creatures you control are the chosen type in addition to their other
+   types" — a hundred fifty-eight against seventy-two. The stat delta and
+   the deed restriction write one word in both frames ("get", "can't")
+   because English has no separate inchoative for either, which is why
+   the split stayed invisible until a construction needed both moods of
+   one row. `staticAsAbility` is the table, full rows, and it has exactly
+   one refusal: the CONTROL grant, whose stative form is a different verb
+   altogether. English states the standing fact as "You control enchanted
+   creature" (seven lines) and writes a durationless "gains control of"
+   zero times, so the line is a construction that row does not spell
+   rather than an inflection of it (`badStaticGainsControl`).
+170. **A static ability cannot TARGET, and the rule enumerates who
+   can.** [CR#115.1a..115.1e] list the things that are targeted — an
+   instant or sorcery spell, an activated ability, a triggered ability,
+   and the keyword abilities that represent one of those — and a static
+   ability is not on the list. [CR#115.1b] says the nearest case outright:
+   "an Aura permanent doesn't target anything; only the spell is
+   targeted." That is the sharpest single difference between the three
+   ability rows this file now holds, because the other two DO target
+   ([CR#115.1c] for the activated, [CR#115.1d] for the triggered), and
+   Elite Javelineer's "Whenever this creature blocks, it deals 1 damage
+   to target attacking creature" is the trigger exercising it on the
+   bench. So the line demands a target-free statement (`Untargeting`,
+   `badStaticTargets`), and the demand is asked of the discourse the
+   statement ANNOUNCES rather than of its constructors — one kind-blind
+   scan of `staticIntro`, which is `anyTargeted` with the kind index
+   dropped, because the question the rule asks is not which kind was
+   targeted but whether anything was.
+171. **The event vocabulary has FOUR readers now, and the merge the
+   ledger has carried since chapter twenty-five is taken.** `EventQuery`
+   is gone. Its two rows were an end-step beginning and a death, both of
+   which `GameEvent` spells, and keeping two vocabularies for one set of
+   happenings was the thing the ledger said the trigger container would
+   settle. What the merge exposed is that the readers disagree about the
+   TENSE as well as about the event. The interception's replacement reads
+   what the event's phrases announced, because [CR#614.6] says the
+   replaced event never happens; the trigger's effect reads what the
+   event LEFT BEHIND, because [CR#603.6] has a zone-change trigger "look
+   for the object in the zone that it moved to". So `eventIntro` gained a
+   twin, `eventAfter`, and the difference is a whole card: "Whenever a
+   creature you control dies, exile it" (Promise of Tomorrow) finds a
+   card in a graveyard, while "If a creature would die, exile it instead"
+   finds a permanent on the battlefield, and tapping the trigger's
+   referent is the dead-referent refusal (`badTriggerTapsDeadCreature`).
+   Only the two zone-change events retag, which is [CR#603.6]'s own pair;
+   the DEPARTURE deliberately does not, because [CR#603.6c] has a
+   leaves-the-battlefield ability check "only in the first zone that it
+   went to" and the sentence never says which zone that is — a retag the
+   grammar cannot compute is a silence, not a guess. The old delayed
+   context is one line now (`delayedCtx ev = settleTargets (eventAfter
+   ev)`), the retag it used to spell per query having become everybody's.
+172. **The trigger's opening word is a SLOT, and exactly one third of
+   it is derivable.** [CR#603.1] writes the shape with the three words in
+   a bracket and [CR#113.3c] lists them together as words a triggered
+   ability "include(s) (and usually begin(s) with)"; no rule anywhere
+   assigns one. What the corpus assigns absolutely is `At`, and
+   [CR#603.2b] is why — "when a phase or step begins, all abilities that
+   trigger 'at the beginning of' that phase or step trigger" — with one
+   thousand six hundred seventy-eight headers opening that way and every
+   one of them a turn part, and no object event taking the word at all
+   (`badAtEnters`, `badWhenUpkeep`). The When/Whenever split is measured
+   and NOT gated, and saying why is the finding. The word tracks
+   REPEATABILITY, which is finding 142's own reasoning arriving at a
+   second construction: a once-per-object event with a fixed subject
+   takes "When" ("When this [permanent] enters" two thousand four hundred
+   seventy-three against eighty-five, "When this [permanent] dies" three
+   hundred eighty-two against one), the same event over a description
+   takes "Whenever" because the description ranges over many objects
+   (four hundred eighteen against twelve, two hundred eighty-five against
+   six), and an event that repeats for one object takes "Whenever" even
+   with the fixed subject ("Whenever this creature attacks" six hundred
+   ten against nine). The residue is what keeps it out of the type. Every
+   counterexample on the "When" side is an ability that destroys its own
+   source ("When a creature enters, sacrifice this artifact and create X
+   … tokens"), so the word is answering a question about the EFFECT and
+   not about the event; and the eighty-five "Whenever this [permanent]
+   enters" lines are compound headers ("enters or attacks") this grammar
+   has no coordination for. A gate keyed on the event alone would have to
+   refuse real oracle in one direction or the other, so it refuses only
+   what a rule settles.
+173. **The turn-part header is the shared endpoint vocabulary, and
+   chapter seventeen said so before it existed.** That chapter's own doc
+   wrote that `TurnPart` "is the SHARED vocabulary — the trigger headers
+   the later chapter must spell name the same parts, and a second enum
+   would drift from this one", and the promise is kept: `BeginningOf`
+   takes chapter seventeen's part and chapter seventeen's possessor, and
+   the fifteen cells get their own attestation table (`partUse`). The
+   grid is startlingly empty. `Upkeep` possessed is six hundred forty-one
+   lines, `EndStep` possessed three hundred fifty-nine and UNPOSSESSED
+   twenty-five ("At the beginning of the end step, destroy all Goblins" —
+   the one cell where a bare part word is the whole phrase), `Combat`
+   possessed two hundred thirty-four with the possessive extraposed onto
+   the turn ("At the beginning of combat on your turn"), and every other
+   cell is a silence. `Turn` is zero in all three possessions, because
+   the turn's own beginning is not an event English names — the upkeep is
+   what it names there — and `UntapStep` is zero likewise
+   (`badTriggerAtYourTurn`, `badTriggerAtUntapStep`). The `PartUnclaimed`
+   cells are chapter twenty-seven's possessor gap measured from the other
+   side: "at the beginning of each upkeep" (thirty-six), "each opponent's
+   upkeep" (thirty-three), "the upkeep of enchanted creature's
+   controller" (twenty-seven) and "each end step" (eighty) are real
+   headers whose possessor is a QUANTIFIER or a nominal, and `Whose` is a
+   two-word pronominal vocabulary by construction (`badTriggerAtTheUpkeep`).
+   The event row is also the only one with no noun phrase in it, which is
+   why it is the only one whose header word is fixed.
+174. **The intervening "if" is `Condition` verbatim in a fourth
+   carrier, and the rule makes it a slot rather than a sentence.**
+   [CR#603.4] is unusually explicit about all three things a grammar
+   needs: it applies "only to an 'if' that immediately follows a trigger
+   condition", the ability "triggers only if it is [true]", and "it
+   checks the stated condition again as it resolves". The last clause is
+   the carrier distinction chapter eighteen predicted — one condition
+   checked at two times, which is a fact about the ABILITY and not about
+   the condition — and the rule closes the door on reading it as ordinary
+   English in the same breath: "the word 'if' has only its normal English
+   meaning anywhere else in the text of a card". One thousand and
+   forty-seven lines write the frame (three hundred forty-four after
+   "When", two hundred seventy after "Whenever", four hundred thirty-three
+   after "At the beginning"). It is typed in the event's AFTER-discourse
+   for the same reason the effect is, and the corpus settles that rather
+   than the rule: "Whenever another creature you control dies, if it had
+   counters on it, put its counters on this creature" reads the dead
+   creature inside the condition. Scholar of Stars is the bench's whole
+   card.
+175. **A delayed trigger and a trigger line are one vocabulary in two
+   containers, and they should not be merged further.** [CR#603.7a] makes
+   the delayed one a thing that is CREATED — "during the resolution of
+   spells or abilities, as the result of a replacement effect being
+   applied, or as a result of a static ability that allows a player to
+   take an action" — so it is an `Effect` row typed in the discourse its
+   creator built, where the card-text trigger is an `Ability` row typed
+   at the empty context. Two containers, one event vocabulary, which is
+   exactly the relation `Intercepts` and `HeldUntil` have had since
+   chapter twenty-five. [CR#603.7] even records the linearization
+   difference: the delayed ability contains "when", "whenever", or "at",
+   "although that word won't usually begin the ability", and the corpus
+   agrees at four hundred twelve to one — "at the beginning of the next
+   end step" appears four hundred thirteen times and begins its ability
+   once. The ledger's open question about the "this turn" on the old
+   death query is answered by [CR#603.7b] naming the phrase: a delayed
+   ability "will trigger only once — the next time its trigger event
+   occurs — unless it has a stated duration, such as 'this turn'". So the
+   span is the frame's and a slot, its unstated value is the rule's
+   once-only default rather than an omission, and "this turn" is the one
+   adverbial the family writes (`admitsDelaySpan`,
+   `badDelayedUntilEndOfTurn`). The delayed clause reads three of the ten
+   events and the attestation says which: the turn-part beginning, the
+   departure (Portcullis, Stangg, Mysterio), and the death (Graceful
+   Reprieve), with the attack and its neighbours refused
+   (`badDelayedOnAttack`). One demand stayed behind with the container it
+   belongs to: the watched referent is SINGULAR (`eventSubjectPlur`,
+   `badDiesGroup`), which is [CR#603.7b]'s single firing, where the
+   trigger line writes "Whenever one or more creatures die" as ordinary
+   English.
+176. **The conditional static is core's wrapper and English's
+   adverbial, and one preposition tells it from a duration.**
+   [CR#611.3a] is what makes it possible at all — a continuous effect
+   from a static ability "isn't 'locked in'; it applies at any given
+   moment to whatever its text indicates" — and core files the row at the
+   same address with the same cite (`StaticEffect::Conditionally`,
+   `continuous.rs`), with its own comment saying it used to be a
+   `condition:` FIELD and is now "a composable effect wrapper". English
+   agrees with the wrapper reading: the clause is one adverbial over a
+   whole statement, and the statement is any of the others ("as long as
+   you control a Gate, this creature has double strike"; "as long as an
+   artifact creature you control is attacking, prevent all damage that
+   would be dealt to Sanwell"). Nine hundred twelve corpus lines carry
+   the bare "as long as" against two hundred ten for [CR#611.2b]'s "FOR
+   as long as", which is the duration `Duration.ForAsLongAs` has spelled
+   since chapter twenty-two — one preposition apart and two different
+   constructions, and the table is what keeps them apart
+   (`badConditionalClause`: the conditional static answers `False` to
+   every `admitsSpan` cell and to `absentOk`, being an ability line and
+   never a clause). It does not nest, no line writing two "as long as"
+   clauses over one statement (`badDoubleConditional`). Jor Kadeen, the
+   Prevailer is the bench's line, ability word and all — [CR#207.2c]
+   gives "Metalcraft" no rules meaning, so the sentence under it is the
+   whole ability.
+177. **The May-side deontic arrives, and it is not `Cant` with its
+   polarity flipped.** [CR#604.6] files the family and names its
+   templates: a static ability "appl(ies) while a card is in any zone
+   that you could cast or play it from (usually your hand)", and the
+   shapes are "You may [cast/play] [this card] …", "You can't [cast/play]
+   [this card] …", and "[Cast/Play] [this card] only …". Three hundred
+   fifty-two lines write "you may play" and two hundred twenty-eight of
+   them are the impulse family. The row is core's `Deontic::May(Cast{…})`
+   with two of core's four fields DERIVED rather than carried. The VERB
+   is derived because the glossary derives it — "to play a card is to
+   play that card as a land or cast that card as a spell, whichever is
+   appropriate", and [CR#601.1a] says the same — so "play" is the general
+   verb over a CARD and "cast" the narrow one over a SPELL, and this
+   vocabulary describes cards and permanents and has no spell carrier, so
+   the two hundred ninety-three "you may cast … from your graveyard"
+   lines wait with the carrier that would let their complement be a spell
+   (Skaab Ruinator, Hogaak). The SOURCE zone is derived because the
+   sentence before it supplies one: the impulse family exiles its cards
+   and then says "that card", so the binding already carries the zone and
+   `playableFrom` reads it off, which is finding 124's derivable-default
+   discipline at a third site. And the row is emphatically not the
+   prohibition negated, because the ZONE demand inverts: `Cant` demands a
+   battlefield subject since combat is fought there, and the permission
+   refuses one outright, a permanent on the battlefield having already
+   been played (`badPlayFromBattlefield`).
+178. **The permission is what claims two `Unclaimed` span cells, and
+   chapter twenty-two named one of them by card.** The G3-era span table
+   has carried its silences with their reasons attached, and two of those
+   reasons were this construction. "Until your next end step" is eight
+   lines and every one of them permits playing just-exiled cards, so the
+   cell is `PermissionOnly` and Yasmin Khan is the bench's whole ability
+   ("{T}: Exile the top card of your library. Until your next end step,
+   you may play it"). "Until end of combat on your next turn" is one line
+   — Brazen Cannonade's — which is the weight chapter seventeen gave
+   Glyph of Destruction at the unpossessed cell, and chapter twenty-two's
+   own doc had already written down what it was waiting for. Four more
+   cells are RENAMED rather than opened, which is chapter twenty-two's
+   move a third time: the permission writes "this turn" (ninety-eight
+   lines), "until the end of your next turn" (twenty-two, joining the
+   four naked control grants that had the cell to themselves), "for as
+   long as" (twenty-six) and "until end of turn" (two, Spark of
+   Creativity's own). The two end-step siblings stay `Unclaimed` on a
+   measurement: "until the next end step" is one becomes-a-copy line and
+   "until that player's next end step" is one permission carrying
+   [CR#118.9]'s alternative cost, a rider the row does not spell.
+   The DELAYED clause joins "this turn" in the same table, which is why
+   the current-turn cell now names four constructions.
+179. **The entry rider is a static ability, and the corpus writes ONE
+   of the two riders it could.** [CR#603.6d] settles the category in as
+   many words — text reading "[This permanent] enters tapped" is "a
+   static ability — not a triggered ability — whose effect occurs as part
+   of the event that puts the permanent onto the battlefield" — and
+   [CR#614.1d] files the effect as a replacement, which is the engine's.
+   So the sentence is a line and the row is here, three sites' worth of
+   ledger paid at once. The vocabulary is chapter nineteen's `TokenRider`
+   SHARED rather than re-minted: a token's with-clause and a permanent's
+   own text name the same two riders, and the asymmetry between them is
+   the finding. A token is created by a resolving effect that knows there
+   is a combat, so "tapped and attacking" is nineteen lines; a permanent's
+   static ability applies whenever it enters, from any zone in any step,
+   so it can say "tapped" (a hundred thirty-two lines, of which
+   Abandoned Outpost's "This land enters tapped." is one of three bare
+   ones) and writes the second rider zero times (`entryRiderOk`,
+   `badEntersAttackingLine`). The counters half is the bigger one and it
+   is ledgered: "enters with … counters on it" is three hundred
+   eighty-six lines of the four hundred fourteen "enters with", and it
+   wants a counter AMOUNT where the rider vocabulary is a two-row enum.
+180. **The battlefield demand was too strong, and the round that
+   needed `This` as a subject is the round that showed it.** Every
+   continuous-effect row demanded `OnBattlefield (nounZone n)`, which
+   accepts only a phrase that PROJECTS the battlefield. The trigger
+   corpus's commonest subject is "this creature" and `This` projects no
+   zone at all, so the demand refused two thousand four hundred
+   seventy-three lines of "When this creature enters" before they could
+   be written. The repair is not to drop the demand but to ask the
+   question the refusal was always for: `zoneFits` already says that
+   silence on either side is no evidence and a STATED zone must agree,
+   which is exactly the difference between "this creature" and "target
+   creature in your graveyard". Every refusal survives the change with
+   its witness renamed (`badDiesInGraveyard`, `badWouldDieInGraveyard`,
+   `badGetsGraveyard`, `badCantInGraveyard`, `badBecomesInGraveyard`,
+   `badGainControlGraveyard`), and one relocates in a way worth
+   recording: the class word "any target" now meets the DEED's head-type
+   demand rather than the zone one (`badCantAnyTarget`), because a phrase
+   that describes no object fixes no type either, which is
+   `badCantDisjunctSubject`'s refusal reaching a second silent phrase.
+   The same reading is why the attack and block events carry NO deed
+   gate: [CR#506.3]'s "only a creature can attack or block" is about the
+   object at the moment it attacks, and a trigger's subject is a
+   description that need not be a creature when the sentence is read —
+   "When a Vehicle you control attacks, exile enchanted creature", a
+   Vehicle being an artifact ([CR#301.7]) that a crew ability animates
+   first. The deontic demands the grant; the event demands nothing of the
+   type; one rule, two constructions, opposite answers.
+181. **What the round retro-opened, and what it did not.** Claimed:
+   the standing interception and the standing shield, both ledgered from
+   chapter twenty-five and both now bench positives on real cards; the
+   entry rider, owed from three sites; the durationless deontic, owed
+   since chapter seventeen; the event-vocabulary MERGE; the conditional
+   static, measured in chapter twenty-two at nine hundred-odd lines with
+   no carrier; and two `Unclaimed` span cells. Partly claimed, with the
+   remainder located exactly: the "unless" STATE half, whose carrier has
+   arrived — a negated `Condition` under a conditional static is
+   writable, and thirteen corpus lines write precisely that spelling
+   ("Creatures you control get +1/+1 as long as you control no
+   nonartifact, nonwhite creatures") — while the hundred eleven "can't …
+   unless" lines and the thirty-nine "enters tapped unless" lines are one
+   MARKING WORD away, "unless" being a second word for a negated "as long
+   as" rather than a second construction; and Locke, Treasure Hunter's
+   Mug ability, whose shell was a trigger and is now writable ("Whenever
+   Locke attacks"), leaving the "this way" participle and the
+   among-restriction, both already ledgered. Re-checked and still shut,
+   each with its blocker relocated: Ana Sanctuary now has its trigger
+   shell and its intervening "if" and waits on the PERMANENT word, a
+   colour-quality predicate, and a conjunction `Condition` has no frame
+   for; finding 156's four are unmoved except Kain, whose trigger shell
+   exists and whose "that many"/"that much" reads do not, and Yes Man,
+   whose reflexive trigger is deferred below; Brazen Cannonade's
+   permission clause lands and its raid header does not, wanting a
+   postcombat main phase `TurnPart` has no row for and an "if you
+   attacked this turn" lookback. The "lose control of" family is
+   relocated rather than opened: chapter twenty-two sent its ten lines to
+   the event axis, and the event axis now exists and has no row for them
+   — "When you lose control of this creature" is an event ([CR#603.10d]
+   makes it one that looks back in time), and ten lines is the whole
+   corpus, so it is ledgered with its count and its rule.
+182. **What the round measured and returned.** The REFLEXIVE trigger
+   is deferred with its blocker named, and the blocker is not the May
+   machinery. [CR#603.12] describes it as an ability a resolving effect
+   creates "that triggers 'when [a player] [does or doesn't]' take that
+   action or 'when [something happens] this way'", and the corpus writes
+   "When you do," two hundred ninety times. What the `May` node and the
+   cost algebra already give is the OFFER; what is missing is the trigger
+   EVENT, because "you do" is an anaphor to the offer's own body and
+   `GameEvent` has no row that reads a clause rather than describing a
+   happening. That is a construction and not a row — the same kind of
+   thing as the "this way" participle it shares a rule with — so it goes
+   to its own mini-round with the shape recorded. The CAST event is the
+   biggest single family the round did not mint: nine hundred forty-nine
+   headers write "whenever [someone] casts …", and its complement is a
+   SPELL, the carrier the ledger has kept since the exchange chapter
+   ([CR#109.4] gives stack objects a controller and `Zone` has no stack
+   row). Below it, measured and ledgered with counts: the
+   put-into-a-graveyard event (a hundred nine trigger headers, ninety of
+   them "from the battlefield" — [CR#603.6c] says an ability that
+   triggers on a zone "from anywhere" is never a leaves-the-battlefield
+   ability, so the two are different rows); the becomes-family
+   ([CR#603.2e] — "becomes tapped" a hundred, "becomes untapped"
+   thirty-three, "becomes blocked" a hundred fifty-nine, "becomes the
+   target of" a hundred twenty-eight, and the rule's own note that these
+   "trigger only at the time the named event happens"); the life-gain
+   trigger (sixty, and [CR#119.9] rewrites it before it triggers); the
+   end-of-combat header ("At end of combat", eleven lines, which
+   [CR#511.2] makes the end of combat STEP's beginning — a sixth turn
+   part `TurnPart` has no row for, [CR#513.1a] recording that the
+   end-step twin was errata'd out of this wording); the trigger's own
+   instructions ([CR#603.1a] limits on targets, [CR#603.2h]'s "Do this
+   only once each turn" at thirty-two lines, [CR#603.2d]'s "triggers an
+   additional time" at twenty-nine — a third restriction surface beside
+   the activated line's three); and the STATE trigger ([CR#603.8]), which
+   is a trigger over a game STATE rather than an event and whose corpus
+   here is zero lines. Two things the static row did NOT let in: the
+   generic PLURAL subject ("You may play lands from your graveyard",
+   Crucible of Worlds), which the ledger has kept since the deontic
+   chapter and which is why the permission's graveyard cell has an
+   attestation and no bench line; and the QUOTED grant, which grew two
+   more refusals rather than fewer — English grants a triggered ability
+   and a static ability by quoting them exactly as it grants an activated
+   one (`badGainsTriggered`, `badGainsStatic`).
+
 ## Engine-Boundary Deferrals
 
 Engine-boundary deferrals (deliberate, and to stay so): the
@@ -3737,8 +4117,12 @@ condition's own subject phrase, which is a different demand;
 the whole-card witnesses of the opened half are ledgered by their
 blockers rather than by the channel — Overload and Prohibit want
 kicker, Fatal Push revolt, Anoint with Affliction poison counters,
-Welcome to the Fold madness, Ana Sanctuary a permanent-word
-conjunction; the STRICT
+Welcome to the Fold madness, and Ana Sanctuary, whose blocker list
+SHRANK in chapter twenty-eight without emptying: its trigger shell and
+its intervening "if" are built now ("At the beginning of your upkeep, if
+you control a blue or black permanent, …"), so what remains is the
+permanent WORD, a colour-quality predicate, and the conjunction
+`Condition` has no frame for; the STRICT
 comparators in the condition frame ("if your life total is less
 than 7"; fifty-one "is less than" lines, eighteen "is greater
 than", almost all against a phrasal standard) together with the
@@ -3801,11 +4185,15 @@ hand keeps its binding readable, but [CR#400.7] mints a new
 object and [CR#400.7j] lets the effect re-find it only in a
 PUBLIC zone — introduction-in-hand via predicate stays legal,
 retention across a hidden-bound move must not; wants a
-trackedness distinction the payload does not yet carry); more event queries (upkeep / end-of-combat /
-leaves-the-battlefield — Mirror Match and Kjeldoran Elite Guard wait
-on tokens and an unknown-zone retag; Slaughter Pact's "pay" LANDED
-with finding 162, so what it still wants is the delayed upkeep query
-and a lose-the-game clause); the player pronoun "they"
+trackedness distinction the payload does not yet carry); [LANDED in the
+vocabulary, findings 171 and 173 — the upkeep query and the
+leaves-the-battlefield query are `BeginningOf Upkeep (Just Yours)` and
+`Leaves` now, and the delayed clause reads both; the end-of-combat one is
+still missing its TURN PART, "At end of combat" being the end of combat
+STEP's beginning ([CR#511.2]) at eleven lines. What the named cards want
+is unchanged and is elsewhere: Mirror Match and Kjeldoran Elite Guard on
+tokens and an unknown-zone retag, Slaughter Pact on a lose-the-game
+clause]; the player pronoun "they"
 (corpus-attested only inside trigger and unless clauses — Havoc,
 Tergrid's Lantern — so `They`'s positive waits on those
 constructions), player groups ("each opponent … they"
@@ -3939,10 +4327,14 @@ the vocabulary cannot spell — four positives elide it, each named
 meaning-carrying in its comment: Turn to Mist, Flickering Spirit,
 Graceful Reprieve, Voyager Staff); and the rest of the DEONTIC
 surface, chapter fifteen having taken the one-shot restriction
-clause and nothing else. The STATIC form is the largest piece:
-"Enchanted creature can't attack" (Pacifism) is durationless and
-continuous, so it belongs to the ability layer with the other
-static abilities rather than to any clause. Beside it: deed
+clause and nothing else. [The STATIC form LANDED, finding 169 — the
+durationless "can't" is `Ability.Static` over the same `Cant` row, and
+Glacial Chasm's "Creatures you control can't attack." is the bench line.
+The May-side polarity landed with it in ONE shape only, finding 177:
+the play permission ([CR#604.6]) is a `StaticEffect` row of its own, and
+the Must and Gate polarities core keeps beside `Cant` are still the
+requirement family ([CR#508.1d,509.1c]), arbitrated rather than
+subtracted, at fifty-eight "attacks each combat if able" lines.] Beside it: deed
 COORDINATION, one "can't" over two deeds ("Target creature can't
 attack or block this turn.", six lines, and the detain family's
 cross-turn form — `Or` coordinates PREDICATES, and a deed is not
@@ -3995,15 +4387,16 @@ lines write a move-counters phrase; "remove all … counters", fifty;
 proliferate, seventy-seven), which core keeps as its own
 `MoveCounters` action over a `CounterSpec` whose `AllKinds` row
 quantifies over the kinds PRESENT — a quantity over kinds the
-written amount vocabulary has no term for; [MEASURED and RETURNED, finding 147 — the
-enters-with riders ("enters with … counters", four hundred fourteen
-lines, three hundred eighty-six of them "counters on it"; "enters
-tapped", a hundred thirty-two, only three of them a bare
-one-sentence ability). Chapter nineteen sent them to the replacement
-axis and the replacement axis sends them to the ABILITIES layer:
+written amount vocabulary has no term for; [the TAPPED half LANDED,
+finding 179 — "enters tapped" is a hundred thirty-two lines and
+`Ability.Static` over `EntersRider` is the row, Abandoned Outpost's
+"This land enters tapped." being one of the three bare ones; the
+COUNTERS half stays, three hundred eighty-six lines of the four hundred
+fourteen "enters with", wanting a counter AMOUNT where `TokenRider` is a
+two-row enum. Chapter nineteen sent them to the replacement
+axis and the replacement axis sent them to the ABILITIES layer:
 [CR#603.6d] calls the text a static ability in as many words and
-[CR#614.1c,614.1d] file it as a replacement effect, so the sentence
-is the static ability line `badStaticCant` refuses. What is writable
+[CR#614.1c,614.1d] file it as a replacement effect. What is writable
 without an ability container is the ONE-SHOT twin, a rider on the
 move rather than a replacement — "onto the battlefield tapped" three
 hundred fifteen lines, "tapped and attacking" nineteen (chapter
@@ -4119,7 +4512,10 @@ exact for what this vocabulary can describe and this line is not
 describable at all); "lose control of" (ten lines, every one of
 them a trigger condition — "When you lose control of this
 creature, …" — so it is the event axis's word and not a clause
-verb); and the batch's OUTWARD contribution where an element moves
+verb, and as of chapter twenty-eight the event axis exists and has no
+ROW for it: [CR#603.10d] makes it a trigger that looks back in time,
+Duplicity and Gustha's Scepter write the line form and Krovikan Vampire
+the delayed one, and ten lines is the whole corpus); and the batch's OUTWARD contribution where an element moves
 an object, which is written today as the last element's own
 `effIntro` and would have to be a built union instead (finding
 116); no corpus line writes a batch over zone-changing clauses,
@@ -4212,14 +4608,16 @@ the complement ELLIPSIS (Galvanic Blast's "deals 4 damage instead", the
 replacement clause that inherits the replaced clause's patient rather
 than restating it), a new entry beside Arc Trail's coordination and
 Pyromancy's extraposition and the same kind of thing — a linearization
-the sentence grammar has no slot for; and the EVENT-VOCABULARY MERGE:
-`EventQuery`'s `DiesThisTurn` and `GameEvent`'s `WouldDie` are the same
-happening in two moods, and core keeps one `EventFilter` for triggers,
-replacements, durations, and condition lookbacks alike
-(`deckmaste_core/src/event.rs`). Merging them here waits on the TRIGGER
-container, which is what would make the third reader real and what would
-decide whether the "this turn" on the delayed query is part of the event
-or part of its frame.
+the sentence grammar has no slot for; and [the EVENT-VOCABULARY MERGE
+LANDED, findings 171 and 175 — `EventQuery` is gone, the delayed clause
+reads `GameEvent` like the other three constructions, and the "this
+turn" is the FRAME's: [CR#603.7b] names the phrase as a delayed
+ability's stated duration in as many words. What the merge exposed is
+the thing a single filter type could not have: the readers disagree
+about TENSE as well as about the event, so `eventIntro` (what the
+phrases announced, [CR#614.6]) and `eventAfter` (what the event left
+behind, [CR#603.6]) are two projections and the trigger reads the
+second].
 
 Chapter twenty-seven's own deferrals, each measured: the MANA ability,
 which [CR#605.1a] makes an activated ability by four criteria none of
@@ -4264,6 +4662,50 @@ appear in activation costs and not one of their abilities is writable
 here (twenty-odd are "Transform this creature"; the rest want an
 indestructible counter, a counted untargeted group, or a cast-from-exile
 permission), with Solphim, Mayhem Dominus named as the real spelling.
+
+Chapter twenty-eight's own deferrals, each measured: the REFLEXIVE
+trigger ([CR#603.12] — "When you do," two hundred ninety lines, "When
+they do," two), sanctioned as its own mini-round and blocked on the
+trigger EVENT rather than on the offer: "you do" is an anaphor to the
+enclosing may's body and `GameEvent` has no row that reads a clause
+instead of describing a happening, which is the same kind of gap as the
+"this way" participle the rule names in the same breath; the CAST event
+(nine hundred forty-nine headers, "whenever [someone] casts …"), whose
+complement is a SPELL and which therefore waits on the stack carrier the
+exchange chapter ledgered ([CR#109.4] gives stack objects a controller
+and `Zone` has no stack row); the put-into-a-graveyard TRIGGER (a hundred
+nine, ninety of them "from the battlefield"), a different row from the
+departure because [CR#603.6c] says an ability triggering on a zone "from
+anywhere" is never a leaves-the-battlefield ability; the BECOMES family
+([CR#603.2e] — "becomes tapped" a hundred, "becomes untapped"
+thirty-three, "becomes blocked" a hundred fifty-nine, "becomes the target
+of" a hundred twenty-eight), one row per state transition and each with
+the rule's own note that they "trigger only at the time the named event
+happens"; the life-gain trigger (sixty, and [CR#119.9] rewrites it into a
+source-caused event before it triggers); the END-OF-COMBAT header
+("At end of combat", eleven lines), which [CR#511.2] makes the end of
+combat STEP's beginning — a sixth turn part `TurnPart` has no row for,
+with [CR#513.1a] recording that the end-step twin was errata'd out of
+the same wording; the trigger's own INSTRUCTIONS, a third restriction
+surface beside the activated line's three ([CR#603.1a]'s target limits,
+[CR#603.2h]'s "Do this only once each turn" at thirty-two lines,
+[CR#603.2d]'s "triggers an additional time" at twenty-nine); the STATE
+trigger ([CR#603.8]), zero corpus lines here and a trigger over a game
+state rather than an event; the "unless" MARKING on a conditional static,
+one word between the built row and a hundred fifty lines ("can't …
+unless" a hundred eleven, "enters tapped unless" thirty-nine) — the
+negated "as long as" spelling is writable today at thirteen lines, so
+what is missing is the second word for it and not the structure; the
+enters-with COUNTERS rider (three hundred eighty-six lines, above); the
+CAST-verb permission ("You may cast this card from your graveyard", two
+hundred ninety-three; "you may cast … from exile", a hundred eighteen),
+which wants the same spell carrier the cast event does, the glossary
+making "play" the card verb and "cast" the spell verb; the permission's
+generic PLURAL subject ("You may play lands from your graveyard",
+Crucible of Worlds), which is the deontic chapter's own bare-plural entry
+at a new site; and the QUOTED grant grown by two — English grants a
+triggered ability and a static ability by quoting them exactly as it
+grants an activated one (`badGainsTriggered`, `badGainsStatic`).
 
 The context-as-phrase-telescope collapse (bindings storing
 the mention terms themselves, every projection computed) stays open as
