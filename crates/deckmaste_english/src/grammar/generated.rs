@@ -202,7 +202,7 @@ pub(super) fn coordination_delimiter_fields(
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(super) enum GeneratedActivation {
+pub(crate) enum GeneratedActivation {
     /// The production constructicon.
     Production,
     /// Test-only handwritten control with no generated group active.
@@ -343,6 +343,8 @@ pub(super) fn internal_categories(groups: &[&'static GroupData]) -> BTreeMap<&'s
 /// categories. Payload-specific conversion remains a lowering concern.
 fn engine_category(name: &str) -> Option<Nonterminal> {
     Some(match name {
+        "Verb" => Nonterminal::Verb,
+        "VerbPhrase" => Nonterminal::VerbPhrase,
         "Noun" | "NounInstance" => Nonterminal::Noun,
         "NounPhrase" => Nonterminal::NounPhrase,
         "NominalPhrase" => Nonterminal::Nominal,
@@ -368,6 +370,40 @@ fn engine_category(name: &str) -> Option<Nonterminal> {
         "Sentence" => Nonterminal::Sentence,
         _ => return None,
     })
+}
+
+/// Runs a declaration-emitted typed feature callback without coupling the
+/// chart adapter to one nominal declaration address. The outer option says
+/// whether this group owns the requested output; the inner option is the
+/// callback's semantic admission result.
+pub(super) fn typed_feature_projection(
+    group: &GroupData,
+    construction: usize,
+    target: &str,
+    fields: &[Option<&super::Features>],
+) -> Option<Option<super::Features>> {
+    match (group.name, target) {
+        ("nominal", "features") => Some(crate::constructions::nominal::reduce_nominal_features(
+            construction,
+            fields,
+        )),
+        ("nominal", "precedence") => Some(
+            crate::constructions::nominal::reduce_nominal_precedence(construction, fields),
+        ),
+        ("nominal", "prefix_admission") => Some(
+            crate::constructions::nominal::reduce_nominal_prefix_admission(construction, fields),
+        ),
+        ("nominal", "attachment_distance") => Some(
+            crate::constructions::nominal::reduce_nominal_attachment_distance(construction, fields),
+        ),
+        ("nominal", "attachment_extent") => Some(
+            crate::constructions::nominal::reduce_nominal_attachment_extent(construction, fields),
+        ),
+        ("predicate", "features") => Some(
+            crate::constructions::predicate::reduce_predicate_features(construction, fields),
+        ),
+        _ => None,
+    }
 }
 
 #[cfg(test)]

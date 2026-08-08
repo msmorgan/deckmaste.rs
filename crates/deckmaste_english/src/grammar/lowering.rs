@@ -413,6 +413,10 @@ fn project_generated_category(
         let value = value.downcast::<Sentence>().ok()?;
         return Some(Lowered::Sentence(*value));
     }
+    if construction.category == "VerbPhrase" {
+        let value = value.downcast::<VerbPhrase>().ok()?;
+        return Some(Lowered::VerbPhrase(*value));
+    }
     #[cfg(test)]
     match construction.id {
         "probe_word" => {
@@ -594,6 +598,7 @@ fn erased_subtree(
         }};
     }
     match category {
+        "Verb" => typed!(Verb, value),
         "NounInstance" => typed!(Noun, value),
         "NounPhrase" => typed!(NounPhrase, value),
         "ReducedRecipientPassiveTheme" => {

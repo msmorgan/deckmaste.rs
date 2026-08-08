@@ -2257,14 +2257,15 @@ pub(super) fn reduce_generated(
     if !generated_surface_sequence_scalars_match(rule, &fields) {
         return None;
     }
-    let typed_nominal = std::ptr::eq(
+    let typed_features = super::generated::typed_feature_projection(
         rule.group,
-        &raw const crate::constructions::nominal::NOMINAL_DECLARATION,
+        rule.construction,
+        "features",
+        &fields,
     );
-    let noun_phrase_features = if typed_nominal {
-        crate::constructions::nominal::reduce_nominal_features(rule.construction, &fields)?
-    } else {
-        generated_construction_features(rule.group, construction, &fields)?
+    let noun_phrase_features = match typed_features {
+        Some(features) => features?,
+        None => generated_construction_features(rule.group, construction, &fields)?,
     };
     let features = match (rule.context, preposition) {
         (super::rules::GeneratedRuleContext::Value, None) => noun_phrase_features,
@@ -2280,10 +2281,15 @@ pub(super) fn reduce_generated(
         _ => return None,
     };
     let mut local_cost = super::ParseCost::default();
-    if typed_nominal
-        && crate::constructions::nominal::reduce_nominal_precedence(rule.construction, &fields)
-            .is_some()
-    {
+    if matches!(
+        super::generated::typed_feature_projection(
+            rule.group,
+            rule.construction,
+            "precedence",
+            &fields,
+        ),
+        Some(Some(_))
+    ) {
         local_cost.precedence = local_cost.precedence.saturating_add(1);
     }
     if rule.context == super::rules::GeneratedRuleContext::SharedPreposition {
@@ -2300,6 +2306,47 @@ pub(super) fn reduce_generated(
         features,
         local_cost,
     })
+}
+
+pub(crate) fn reduce_verb_phrase_base(head: &Features) -> Option<Features> {
+    let Features::Verb {
+        slot,
+        frame,
+        head_is_copular,
+        object_gap_requires_rules_object,
+    } = head
+    else {
+        return None;
+    };
+    let form = predicate_form(*slot);
+    Some(Features::VerbPhrase {
+        form,
+        passive: false,
+        object: super::PredicateObjectState::None,
+        indirect_object: false,
+        selected_preposition: false,
+        phase: super::PredicateAttachmentPhase::Object,
+        frame: *frame,
+        bare: true,
+        head_is_copular: *head_is_copular,
+        object_gap_requires_rules_object: *object_gap_requires_rules_object,
+        subjunctive: false,
+    })
+}
+
+pub(in crate::grammar) const fn predicate_form(
+    slot: crate::features::VerbSlot,
+) -> super::PredicateForm {
+    match slot {
+        crate::features::VerbSlot::Imperative => super::PredicateForm::Imperative,
+        crate::features::VerbSlot::Infinitive => super::PredicateForm::Infinitive,
+        crate::features::VerbSlot::Present { person, number }
+        | crate::features::VerbSlot::Past { person, number } => {
+            super::PredicateForm::Finite(Some(super::Agreement { person, number }))
+        }
+        crate::features::VerbSlot::PresentParticiple => super::PredicateForm::PresentParticiple,
+        crate::features::VerbSlot::PastParticiple => super::PredicateForm::PastParticiple,
+    }
 }
 
 pub(super) fn generated_completed_field_features(
@@ -2419,12 +2466,6 @@ pub(super) fn generated_accepts_prefix(
     if prefix_output.args != [path] {
         return true;
     }
-    if !std::ptr::eq(
-        rule.group,
-        &raw const crate::constructions::nominal::NOMINAL_DECLARATION,
-    ) {
-        return false;
-    }
     let Some(field_index) = construction
         .fields
         .iter()
@@ -2434,8 +2475,15 @@ pub(super) fn generated_accepts_prefix(
     };
     let mut fields = vec![None; construction.fields.len()];
     fields[field_index] = Some(latest_child);
-    crate::constructions::nominal::reduce_nominal_prefix_admission(rule.construction, &fields)
-        .is_some()
+    matches!(
+        super::generated::typed_feature_projection(
+            rule.group,
+            rule.construction,
+            "prefix_admission",
+            &fields,
+        ),
+        Some(Some(_))
+    )
 }
 
 fn generated_requirements_match(

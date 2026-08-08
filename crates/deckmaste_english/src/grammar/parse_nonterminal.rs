@@ -356,7 +356,7 @@ pub(super) fn select_registry(
     match activation.groups() {
         None => SelectedRegistry::Static(super::construction::handwritten_registry()),
         Some(groups) => SelectedRegistry::Owned(
-            super::construction::merged_registry(groups)
+            super::construction::merged_registry_for_activation(groups)
                 .expect("active generated groups must merge"),
         ),
     }

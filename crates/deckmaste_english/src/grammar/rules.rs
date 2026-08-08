@@ -92,6 +92,28 @@ pub(super) enum RegistrationOrder {
 }
 
 impl RuleBuilder {
+    pub(super) fn replace_handwritten_families_for_generated_test(
+        &mut self,
+        groups: &[&'static deckmaste_construction_compiler::runtime::GroupData],
+    ) {
+        let generated_ids = groups
+            .iter()
+            .flat_map(|group| {
+                group
+                    .constructions
+                    .iter()
+                    .map(|construction| construction.id)
+            })
+            .collect::<std::collections::BTreeSet<_>>();
+        self.registrations.retain(|registration| {
+            let RuleImpl::Handwritten(tag) = registration.rule_impl else {
+                return true;
+            };
+            let id: &'static str = tag.into();
+            !generated_ids.contains(id)
+        });
+    }
+
     pub(super) fn add(
         &mut self,
         tag: RuleTag,

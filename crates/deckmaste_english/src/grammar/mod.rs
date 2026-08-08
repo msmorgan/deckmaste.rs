@@ -8,6 +8,8 @@ mod opacity;
 mod nominal;
 
 mod generated;
+#[cfg(test)]
+pub(crate) use generated::GeneratedActivation;
 
 #[cfg(test)]
 pub(crate) mod exact;
@@ -15,6 +17,8 @@ pub(crate) mod exact;
 mod lowering;
 #[path = "parse_nonterminal.rs"]
 mod parse_support;
+#[cfg(test)]
+pub(crate) use parse_support::parse_nonterminal_with_activation;
 pub(crate) mod reduction;
 mod rules;
 mod scan;
@@ -161,7 +165,7 @@ use crate::word::WordMatch;
 use crate::word::surface_initial_sound;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct VerbPhrase {
+pub(crate) struct VerbPhrase {
     auxiliaries: Vec<AuxiliaryInstance>,
     first_auxiliary_contracted_with_subject: bool,
     preverb_modifiers: Vec<PreverbModifier>,
@@ -210,6 +214,47 @@ enum VerbDependent {
     /// ordinary `Prepositional` dependent so it cannot be mistaken for the
     /// verb frame's own selected-preposition complement.
     Exception(PrepositionalPhrase),
+}
+
+impl VerbAnalysis {
+    pub(crate) const fn new(instance: VerbInstance, frame: PredicateFrame) -> Self {
+        Self { instance, frame }
+    }
+
+    pub(crate) const fn instance(&self) -> &VerbInstance {
+        &self.instance
+    }
+}
+
+impl VerbPhrase {
+    pub(crate) fn from_base(head: VerbAnalysis) -> Self {
+        Self {
+            auxiliaries: Vec::new(),
+            first_auxiliary_contracted_with_subject: false,
+            preverb_modifiers: Vec::new(),
+            verb: head.instance,
+            frame: head.frame,
+            dependents: Vec::new(),
+            distributive_each: false,
+        }
+    }
+
+    pub(crate) fn base_head(&self) -> VerbAnalysis {
+        VerbAnalysis::new(self.verb.clone(), self.frame)
+    }
+
+    pub(crate) fn is_declaration_base(&self) -> bool {
+        self.auxiliaries.is_empty()
+            && !self.first_auxiliary_contracted_with_subject
+            && self.preverb_modifiers.is_empty()
+            && self.dependents.is_empty()
+            && !self.distributive_each
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_add_preverb_modifier(&mut self, modifier: PreverbModifier) {
+        self.preverb_modifiers.push(modifier);
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1934,6 +1979,9 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         // objects; family order does not decide their selection.
         builder.add_rules_object_attachment_rules();
         if let Some(groups) = activation.groups() {
+            if !activation.is_production() {
+                builder.replace_handwritten_families_for_generated_test(groups);
+            }
             let cats = generated::internal_categories(groups);
             generated::register_generated(&mut builder, groups, &cats)
                 .expect("active generated groups must assemble");
@@ -2995,12 +3043,6 @@ impl Grammar for EnglishGrammar<'_, '_> {
     ) -> ParseCost {
         match self.impls.get(rule.index()).copied() {
             Some(RuleImpl::Generated(generated)) => {
-                if !std::ptr::eq(
-                    generated.group,
-                    &raw const crate::constructions::nominal::NOMINAL_DECLARATION,
-                ) {
-                    return ParseCost::default();
-                }
                 let Some(fields) =
                     reduction::generated_completed_field_features(generated, completed_children)
                 else {
@@ -3013,18 +3055,24 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 let attachment_extent = u32::try_from(end.saturating_sub(rule_start))
                     .unwrap_or(u32::MAX)
                     .max(1);
-                let distance_marked =
-                    crate::constructions::nominal::reduce_nominal_attachment_distance(
+                let distance_marked = matches!(
+                    generated::typed_feature_projection(
+                        generated.group,
                         generated.construction,
+                        "attachment_distance",
                         &fields,
-                    )
-                    .is_some();
-                let extent_marked =
-                    crate::constructions::nominal::reduce_nominal_attachment_extent(
+                    ),
+                    Some(Some(_))
+                );
+                let extent_marked = matches!(
+                    generated::typed_feature_projection(
+                        generated.group,
                         generated.construction,
+                        "attachment_extent",
                         &fields,
-                    )
-                    .is_some();
+                    ),
+                    Some(Some(_))
+                );
                 if distance_marked {
                     return ParseCost {
                         attachment_count: 1,

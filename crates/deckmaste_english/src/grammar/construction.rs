@@ -80,6 +80,28 @@ pub(crate) fn family_by_id(id: ConstructionId) -> Option<ConstructionFamily> {
 pub(super) fn merged_registry(
     groups: &[&'static deckmaste_construction_compiler::runtime::GroupData],
 ) -> Result<ConstructionRegistry, ConstructionRegistryError> {
+    merged_registry_with_replacements(groups, false)
+}
+
+pub(super) fn merged_registry_for_activation(
+    groups: &[&'static deckmaste_construction_compiler::runtime::GroupData],
+) -> Result<ConstructionRegistry, ConstructionRegistryError> {
+    merged_registry_with_replacements(groups, true)
+}
+
+fn merged_registry_with_replacements(
+    groups: &[&'static deckmaste_construction_compiler::runtime::GroupData],
+    replace_handwritten: bool,
+) -> Result<ConstructionRegistry, ConstructionRegistryError> {
+    let generated_ids = groups
+        .iter()
+        .flat_map(|group| {
+            group
+                .constructions
+                .iter()
+                .map(|construction| construction.id)
+        })
+        .collect::<std::collections::BTreeSet<_>>();
     let generated_families = groups
         .iter()
         .flat_map(|group| group.constructions.iter().map(generated_family));
@@ -103,7 +125,13 @@ pub(super) fn merged_registry(
         })
     });
     ConstructionRegistry::new(
-        RuleTag::iter().map(family).chain(generated_families),
+        RuleTag::iter()
+            .filter(|tag| {
+                let id: &'static str = (*tag).into();
+                !replace_handwritten || !generated_ids.contains(id)
+            })
+            .map(family)
+            .chain(generated_families),
         dominance_edges().into_iter().chain(generated_edges),
     )
 }

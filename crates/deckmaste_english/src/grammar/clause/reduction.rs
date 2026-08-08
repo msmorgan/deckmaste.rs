@@ -22,7 +22,6 @@ use super::PronounCase;
 use super::Reduced;
 use super::RuleTag;
 use super::VerbParticle;
-use super::VerbSlot;
 use super::lowering::is_modal;
 use super::propagate;
 use crate::features::ComplementRole;
@@ -419,29 +418,7 @@ pub(super) fn reduce_predicate(
     match tag {
         RuleTag::Verb => Some(propagate(children.first()?)),
         RuleTag::VerbPhraseBase => {
-            let Features::Verb {
-                slot,
-                frame,
-                head_is_copular,
-                object_gap_requires_rules_object,
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            let form = predicate_form(*slot);
-            Some(Features::VerbPhrase {
-                form,
-                passive: false,
-                object: PredicateObjectState::None,
-                indirect_object: false,
-                selected_preposition: false,
-                phase: PredicateAttachmentPhase::Object,
-                frame: *frame,
-                bare: true,
-                head_is_copular: *head_is_copular,
-                object_gap_requires_rules_object: *object_gap_requires_rules_object,
-                subjunctive: false,
-            })
+            crate::grammar::reduction::reduce_verb_phrase_base(children.first()?.features)
         }
         RuleTag::VerbPhraseAuxiliaryProform => {
             let Features::Auxiliary(auxiliary) = children.first()?.features else {
@@ -2245,18 +2222,6 @@ fn coordination_agrees(first_features: &Features, next_features: &Features) -> b
         || imperative_sequence
         || subjectless_modal_predicate
         || hosted_imperative
-}
-
-pub(super) const fn predicate_form(slot: VerbSlot) -> PredicateForm {
-    match slot {
-        VerbSlot::Imperative => PredicateForm::Imperative,
-        VerbSlot::Infinitive => PredicateForm::Infinitive,
-        VerbSlot::Present { person, number } | VerbSlot::Past { person, number } => {
-            PredicateForm::Finite(Some(Agreement { person, number }))
-        }
-        VerbSlot::PresentParticiple => PredicateForm::PresentParticiple,
-        VerbSlot::PastParticiple => PredicateForm::PastParticiple,
-    }
 }
 
 pub(super) fn auxiliary_form(

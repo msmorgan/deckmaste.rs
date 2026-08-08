@@ -5,6 +5,7 @@ pub(crate) mod coordination;
 pub(crate) mod law;
 pub(crate) use crate::syntax::nominal_constructions as nominal;
 pub(crate) mod noun;
+pub(crate) mod predicate;
 #[cfg(test)]
 pub(crate) mod probe;
 pub(crate) mod quantity;

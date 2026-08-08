@@ -61,10 +61,10 @@ use super::VerbPhrase;
 use super::VerbSlot;
 use super::Vocab;
 use super::reduction::auxiliary_form;
-use super::reduction::predicate_form;
 use super::take;
 use crate::features::ComplementRole;
 use crate::features::Conjunction;
+use crate::grammar::reduction::predicate_form;
 use crate::syntax::ObjectGapPredicate;
 
 pub(in crate::grammar) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
