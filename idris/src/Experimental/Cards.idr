@@ -44,13 +44,13 @@ preyUpon = Fights (target creatureYouControl) (target creatureYouDontControl)
 -- "Arc Trail deals 2 damage to any target and 1 damage to any other
 -- target." — "other" reaches back across the clause boundary; no index,
 -- no Distinct. The oracle writes ONE verb over coordinated
--- amount+recipient complements; the bench transcribes them
--- sequentially under `AndThen` as a named stand-in, which mis-orders
--- nothing binding-wise but serializes what the card states as a single
+-- amount+recipient complements; the bench transcribes them as a
+-- two-clause `Sequentially`, a named stand-in that mis-orders nothing
+-- binding-wise but serializes what the card states as a single
 -- instruction (ledger).
 arcTrail : Effect []
-arcTrail = AndThen (DealDamage This (Lit 2) (target AnyTarget))
-                   (DealDamage This (Lit 1) (target anyOtherTarget))
+arcTrail = Sequentially [DealDamage This (Lit 2) (target AnyTarget),
+                         DealDamage This (Lit 1) (target anyOtherTarget)]
 
 -- "Exile target creature you control, then return that card to the
 -- battlefield under your control." (Cloudshift) — the exile RETAGS the
@@ -62,8 +62,8 @@ arcTrail = AndThen (DealDamage This (Lit 2) (target AnyTarget))
 -- elision is derivable, unlike the owner-control override its siblings
 -- write.
 cloudshift : Effect []
-cloudshift = AndThen (exile (target creatureYouControl))
-                     (Move (That CardW) BattlefieldZ)
+cloudshift = Sequentially [exile (target creatureYouControl),
+                           Move (That CardW) BattlefieldZ]
 
 -- "You may put a creature card from your hand onto the battlefield. That
 -- creature gains haste. Sacrifice that creature at the beginning of the
@@ -74,9 +74,9 @@ cloudshift = AndThen (exile (target creatureYouControl))
 -- referent survives the delay [CR#603.7c], and the trailing adverbial
 -- is the `Delayed` mark on its clause.
 throughTheBreach : Effect []
-throughTheBreach = AndThen (May You (Move (A (And [creature, InZone (HandOf You)])) BattlefieldZ))
-                           (AndThen (gainsHaste (That (TypeW Creature)) Nothing)
-                                    (Delayed NextEndStep (sacrifice You (That (TypeW Creature)))))
+throughTheBreach = Sequentially [May You (Move (A (And [creature, InZone (HandOf You)])) BattlefieldZ),
+                                 gainsHaste (That (TypeW Creature)) Nothing,
+                                 Delayed NextEndStep (sacrifice You (That (TypeW Creature)))]
 
 -- "Destroy target creature. Its controller loses 2 life." (Bitter
 -- Downfall; its cost-reduction line elided) — the relational noun:
@@ -84,15 +84,15 @@ throughTheBreach = AndThen (May You (Move (A (And [creature, InZone (HandOf You)
 -- object (whose "its" still resolves — the retag moved it to the
 -- graveyard, it didn't unmention it).
 bitterDownfall : Effect []
-bitterDownfall = AndThen (destroy (target creature))
-                         (losesLife (ControllerOf It) (Lit 2))
+bitterDownfall = Sequentially [destroy (target creature),
+                               losesLife (ControllerOf It) (Lit 2)]
 
 -- "Tap target creature. It deals damage equal to its power to another
 -- target creature." (Deadshot) — pronoun as source, and "another" is
 -- the same `Other` modifier "any other target" uses.
 deadshot : Effect []
-deadshot = AndThen (Tap (target creature))
-                   (DealDamage It (PowerOf It) (target (And [creature, Other])))
+deadshot = Sequentially [Tap (target creature),
+                         DealDamage It (PowerOf It) (target (And [creature, Other]))]
 
 -- "Sacrifice this land: It deals 3 damage to target player. That
 -- player discards a card." (Immersturm Skullcairn; its mana and {T}
@@ -103,8 +103,8 @@ deadshot = AndThen (Tap (target creature))
 -- keyword-action macro (Discard) whose body moves a hand-zone choice.
 immersturmSkullcairn : Activated []
 immersturmSkullcairn = MkActivated (sacrifice You (ThisOf Land))
-                                   (AndThen (DealDamage It (Lit 3) (target AnyPlayer))
-                                            (discardsACard (That PlayerW)))
+                                   (Sequentially [DealDamage It (Lit 3) (target AnyPlayer),
+                                                  discardsACard (That PlayerW)])
 
 -- "{R}, Sacrifice this artifact: It deals 2 damage to any target."
 -- (Pyrite Spellbomb, first ability; {R} and the card's second ability
@@ -139,8 +139,8 @@ cryOfContrition = discardsACard (target AnyPlayer)
 -- opponent enters the discourse from INSIDE the target's predicate,
 -- and the sorted demonstrative reads it.
 suspendedSentence : Effect []
-suspendedSentence = AndThen (destroy (target (And [creature, ControlledBy anOpponent])))
-                            (losesLife (That PlayerW) (Lit 3))
+suspendedSentence = Sequentially [destroy (target (And [creature, ControlledBy anOpponent])),
+                                  losesLife (That PlayerW) (Lit 3)]
 
 -- "Exile this creature, then return it to the battlefield under its
 -- owner's control." (Flickering Spirit's activated ability; its
@@ -151,7 +151,8 @@ suspendedSentence = AndThen (destroy (target (And [creature, ControlledBy anOppo
 -- instructed player), so its elision is meaning-carrying — pending the
 -- control-assignment axis.
 flickeringSpirit : Effect []
-flickeringSpirit = AndThen (exile (ThisOf Creature)) (Move It BattlefieldZ)
+flickeringSpirit = Sequentially [exile (ThisOf Creature),
+                                 Move It BattlefieldZ]
 
 -- "Exile target creature. Return that card to the battlefield under
 -- its owner's control at the beginning of the next end step." (Turn to
@@ -163,8 +164,8 @@ flickeringSpirit = AndThen (exile (ThisOf Creature)) (Move It BattlefieldZ)
 -- zone expectation stays runtime (a mismatch is a no-op, not an
 -- illegality).
 turnToMist : Effect []
-turnToMist = AndThen (exile (target creature))
-                     (Delayed NextEndStep (Move (That CardW) BattlefieldZ))
+turnToMist = Sequentially [exile (target creature),
+                           Delayed NextEndStep (Move (That CardW) BattlefieldZ)]
 
 -- "Target creature gains flying until end of turn." (Jump) — the
 -- duration as trailing-adverbial data ([CR#611.2a]).
@@ -180,8 +181,8 @@ giantGrowth = Gets (target creature) 3 3 (Just UntilEndOfTurn)
 -- Revival) — an owned-zone source and the cross-turn duration; the
 -- return is just a Move, and "it" reads the retagged referent.
 bondOfRevival : Effect []
-bondOfRevival = AndThen (Move (target (And [creature, InZone (GraveyardOf You)])) BattlefieldZ)
-                        (gainsHaste It (Just UntilYourNextTurn))
+bondOfRevival = Sequentially [Move (target (And [creature, InZone (GraveyardOf You)])) BattlefieldZ,
+                              gainsHaste It (Just UntilYourNextTurn)]
 
 -- "When target creature dies this turn, return that card to the
 -- battlefield under its owner's control." (Graceful Reprieve; "under
@@ -201,16 +202,16 @@ gracefulReprieve = Delayed (DiesThisTurn (target creature))
 -- readable; which values they see is runtime (the ability layer's
 -- story).
 vraskasStoneglare : Effect []
-vraskasStoneglare = AndThen (destroy (target creature))
-                            (gainsLife You (ToughnessOf It))
+vraskasStoneglare = Sequentially [destroy (target creature),
+                                  gainsLife You (ToughnessOf It)]
 
 -- "Destroy target creature. Its controller loses life equal to its
 -- power plus its toughness." (Phthisis; its Suspend line elided) —
 -- the relational noun over the dead referent, and amount arithmetic
 -- threading left to right.
 phthisis : Effect []
-phthisis = AndThen (destroy (target creature))
-                   (losesLife (ControllerOf It) (Plus (PowerOf It) (ToughnessOf It)))
+phthisis = Sequentially [destroy (target creature),
+                         losesLife (ControllerOf It) (Plus (PowerOf It) (ToughnessOf It))]
 
 -- "This creature deals damage equal to its power to target creature.
 -- That creature deals damage equal to its power to this creature."
@@ -221,16 +222,16 @@ phthisis = AndThen (destroy (target creature))
 -- simultaneously (state-based actions see neither mid-resolution,
 -- [CR#704.4]), which is why `Fights` stays primitive.
 karplusanYeti : Effect []
-karplusanYeti = AndThen (DealDamage (ThisOf Creature) (PowerOf (ThisOf Creature)) (target creature))
-                        (DealDamage (That (TypeW Creature)) (PowerOf It) (ThisOf Creature))
+karplusanYeti = Sequentially [DealDamage (ThisOf Creature) (PowerOf (ThisOf Creature)) (target creature),
+                              DealDamage (That (TypeW Creature)) (PowerOf It) (ThisOf Creature)]
 
 -- "Choose two target creatures. Tap those creatures, then unattach
 -- all Equipment from them." (Fulgent Distraction; the unattach clause
 -- elided) — a counted group mention, read back by the sorted plural
 -- demonstrative.
 fulgentDistraction : Effect []
-fulgentDistraction = AndThen (Choose (TargetGroup (exactly 2) creature))
-                             (Tap (Those (TypeW Creature)))
+fulgentDistraction = Sequentially [Choose (TargetGroup (exactly 2) creature),
+                                   Tap (Those (TypeW Creature))]
 
 -- "Choose up to four target creature cards in your graveyard that
 -- were put there from the battlefield this turn. Return them to the
@@ -239,8 +240,8 @@ fulgentDistraction = AndThen (Choose (TargetGroup (exactly 2) creature))
 -- owned-zone predicate, and the plural wildcard riding the return's
 -- retag.
 continueSpell : Effect []
-continueSpell = AndThen (Choose (TargetGroup (upTo 4) (And [creature, InZone (GraveyardOf You)])))
-                        (Move Them BattlefieldZ)
+continueSpell = Sequentially [Choose (TargetGroup (upTo 4) (And [creature, InZone (GraveyardOf You)])),
+                              Move Them BattlefieldZ]
 
 -- "Choose a color. Sudden Demise deals X damage to each creature of
 -- the chosen color." (Sudden Demise) — a quality mention: the chosen
@@ -248,15 +249,15 @@ continueSpell = AndThen (Choose (TargetGroup (upTo 4) (And [creature, InZone (Gr
 -- predicate-internal read demands it uniquely; X is the announced
 -- cost variable ([CR#107.3a]).
 suddenDemise : Effect []
-suddenDemise = AndThen (Choose (A (QualityNoun Color)))
-                       (DealDamage This XVal (Each (And [creature, OfChosen Color])))
+suddenDemise = Sequentially [Choose (A (QualityNoun Color)),
+                             DealDamage This XVal (Each (And [creature, OfChosen Color]))]
 
 -- "Choose a creature type. Destroy all creatures that aren't of the
 -- chosen type." (Kindred Dominance) — the set-level "all" determiner
 -- over a negated quality read.
 kindredDominance : Effect []
-kindredDominance = AndThen (Choose (A (QualityNoun CreatureType)))
-                           (destroy (AllOf (And [creature, Not (OfChosen CreatureType)])))
+kindredDominance = Sequentially [Choose (A (QualityNoun CreatureType)),
+                                 destroy (AllOf (And [creature, Not (OfChosen CreatureType)]))]
 
 -- "{2}, Sacrifice this artifact: Exile target creature. Return the
 -- exiled card to the battlefield under its owner's control at the
@@ -271,8 +272,8 @@ kindredDominance = AndThen (Choose (A (QualityNoun CreatureType)))
 -- ([CR#603.7c]).
 voyagerStaff : Activated []
 voyagerStaff = MkActivated (sacrifice You (ThisOf Artifact))
-                           (AndThen (exile (target creature))
-                                    (Delayed NextEndStep (Move (TheVerbed Exile CardW) BattlefieldZ)))
+                           (Sequentially [exile (target creature),
+                                          Delayed NextEndStep (Move (TheVerbed Exile CardW) BattlefieldZ)])
 
 -- "{3}{R}, Sacrifice an artifact: Bosh deals damage equal to the
 -- sacrificed artifact's mana value to any target." (Bosh, Iron Golem;
@@ -312,9 +313,9 @@ pyromancy = MkActivated (discards You (AAtRandom (InZone HandZ)))
 -- "that much" reads the unique outcome in scope, sort-blind. The
 -- attacking modifier is a battlefield state word ([CR#508.1a]).
 foulTongueShriek : Effect []
-foulTongueShriek = AndThen (losesLife (target Opponent)
-                                      (ForEach 1 (And [Attacking, creature, ControlledBy You])))
-                           (gainsLife You ThatMuch)
+foulTongueShriek = Sequentially [losesLife (target Opponent)
+                                           (ForEach 1 (And [Attacking, creature, ControlledBy You])),
+                                 gainsLife You ThatMuch]
 
 -- "Return target creature to its owner's hand." (Unsummon) — the
 -- destination is bare `HandZ`: [CR#400.3] admits no other hand, so
@@ -329,8 +330,8 @@ unsummon = Move (target creature) HandZ
 -- mention is a real "other" anchor: the witness is the MENTION, not
 -- a nonempty denotation (finding 35).
 phantomBlade : Effect []
-phantomBlade = AndThen (Choose (TargetGroup (upTo 1) (And [creature, ControlledBy You])))
-                       (destroy (TargetGroup (upTo 1) (And [creature, Other])))
+phantomBlade = Sequentially [Choose (TargetGroup (upTo 1) (And [creature, ControlledBy You])),
+                             destroy (TargetGroup (upTo 1) (And [creature, Other]))]
 
 -- "When this Case enters, choose target creature you don't control.
 -- Each creature you control deals 1 damage to that creature." (Case of
@@ -342,9 +343,9 @@ phantomBlade = AndThen (Choose (TargetGroup (upTo 1) (And [creature, ControlledB
 -- sentence scopes the demonstrative that follows (finding 22), and the
 -- group source is no antecedent for it — `countWord` counts singulars.
 caseOfTheGatewayExpress : Effect []
-caseOfTheGatewayExpress = AndThen (Choose (target creatureYouDontControl))
-                                  (DealDamage (Each creatureYouControl) (Lit 1)
-                                              (That (TypeW Creature)))
+caseOfTheGatewayExpress = Sequentially [Choose (target creatureYouDontControl),
+                                        DealDamage (Each creatureYouControl) (Lit 1)
+                                                   (That (TypeW Creature))]
 
 -- "Cycling {2}" — "{2}, Discard this card: Draw a card." ([CR#702.29a];
 -- the {2} and the draw elided, the draw verb being unminted) — the
@@ -388,13 +389,15 @@ failing "anyTargeted"
 -- is the point: the controlled language never writes this.)
 failing "countOnes"
   badIt : Effect []
-  badIt = AndThen (Fights (target creature) (target creature)) (Tap It)
+  badIt = Sequentially [Fights (target creature) (target creature),
+                        Tap It]
 
 -- A group is not a singular antecedent: "each creature … it" has no
 -- referent for "it" (the plurality guard).
 failing "countOnes"
   badTheyIt : Effect []
-  badTheyIt = AndThen (DealDamage This (Lit 3) (Each creature)) (Tap It)
+  badTheyIt = Sequentially [DealDamage This (Lit 3) (Each creature),
+                            Tap It]
 
 -- The delay does not launder a dead referent: sacrifice's zone demand
 -- reads fold-state through the boundary, and the destroyed target sits
@@ -403,7 +406,8 @@ failing "countOnes"
 -- zone, never its determiner).
 failing "OnBattlefield"
   badStale : Effect []
-  badStale = AndThen (destroy (target creature)) (Delayed NextEndStep (sacrifice You It))
+  badStale = Sequentially [destroy (target creature),
+                           Delayed NextEndStep (sacrifice You It)]
 
 -- "Another target" inside a delayed clause can only be distinct from
 -- the DELAYED ability's own targets — it announces in its own event
@@ -414,8 +418,8 @@ failing "OnBattlefield"
 -- creature" from the outer clause.)
 failing "anyTargeted"
   badDelayedOther : Effect []
-  badDelayedOther = AndThen (DealDamage This (Lit 2) (target AnyTarget))
-                            (Delayed NextEndStep (DealDamage This (Lit 1) (target anyOtherTarget)))
+  badDelayedOther = Sequentially [DealDamage This (Lit 2) (target AnyTarget),
+                                  Delayed NextEndStep (DealDamage This (Lit 1) (target anyOtherTarget))]
 
 -- After the exile, the referent no longer answers to "creature": its
 -- carrier is derived from the RETAGGED zone ([CR#110.1]), so the typed
@@ -423,8 +427,8 @@ failing "anyTargeted"
 -- error ("that card" is the spelling that resolves; see `cloudshift`).
 failing "countWord"
   badStaleCarrier : Effect []
-  badStaleCarrier = AndThen (exile (target creatureYouControl))
-                            (Move (That (TypeW Creature)) BattlefieldZ)
+  badStaleCarrier = Sequentially [exile (target creatureYouControl),
+                                  Move (That (TypeW Creature)) BattlefieldZ]
 
 -- A hidden-zone cost mention is unreadable past the colon: the card
 -- bounced to hand is not among the public survivors ([CR#400.2] —
@@ -442,15 +446,16 @@ failing "publicOnly"
 -- so the pin isolates the ambiguity, not a zone gate.)
 failing "countOnes"
   badTwoCostMentions : Activated []
-  badTwoCostMentions = MkActivated (AndThen (discardsACard You)
-                                            (sacrifice You (A creature)))
+  badTwoCostMentions = MkActivated (Sequentially [discardsACard You,
+                                                  sacrifice You (A creature)])
                                    (exile It)
 
 -- The zone half of sacrifice's implicit restriction as a type error:
 -- an exiled referent is not sacrificeable [CR#701.21a].
 failing "OnBattlefield"
   badSacrificeExiled : Effect []
-  badSacrificeExiled = AndThen (exile (target creature)) (sacrifice You It)
+  badSacrificeExiled = Sequentially [exile (target creature),
+                                     sacrifice You It]
 
 -- After the watched target dies, it no longer answers to "creature":
 -- the event retag flips the carrier ([CR#700.4,110.1]) — "that card"
@@ -470,18 +475,18 @@ failing "countQuality"
 -- the same strict-uniqueness gate as the singular.
 failing "countManys"
   badThemAmbig : Effect []
-  badThemAmbig = AndThen (Choose (TargetGroup (exactly 2) creature))
-                         (AndThen (Choose (TargetGroup (exactly 2) creature))
-                                  (Tap Them))
+  badThemAmbig = Sequentially [Choose (TargetGroup (exactly 2) creature),
+                               Choose (TargetGroup (exactly 2) creature),
+                               Tap Them]
 
 -- Two predicate-inner opponents leave "that player" ambiguous — the
 -- uniqueness gate reaches inside relative clauses too. (Not
 -- oracle-legal text; the guide would repeat the noun.)
 failing "countWord"
   badInnerAmbig : Effect []
-  badInnerAmbig = AndThen (Fights (target (And [creature, ControlledBy anOpponent]))
-                                  (target (And [creature, ControlledBy anOpponent])))
-                          (losesLife (That PlayerW) (Lit 1))
+  badInnerAmbig = Sequentially [Fights (target (And [creature, ControlledBy anOpponent]))
+                                       (target (And [creature, ControlledBy anOpponent])),
+                                losesLife (That PlayerW) (Lit 1)]
 
 -- The representation-level witness of the §3 kind-indexing rule: a
 -- binding cannot record data its kind cannot have — "a player in your
@@ -510,8 +515,8 @@ failing "countVerbed"
 -- distinct verbs, which is what the filter buys).
 failing "countVerbed"
   badVerbedAmbig : Activated []
-  badVerbedAmbig = MkActivated (AndThen (sacrifice You (A creature))
-                                        (sacrifice You (A creature)))
+  badVerbedAmbig = MkActivated (Sequentially [sacrifice You (A creature),
+                                              sacrifice You (A creature)])
                                (Move (TheVerbed Sacrifice CardW) BattlefieldZ)
 
 -- Voyager Staff's shape with the bare demonstrative: two card
@@ -520,8 +525,8 @@ failing "countVerbed"
 failing "countWord"
   badBareCardRead : Activated []
   badBareCardRead = MkActivated (sacrifice You (ThisOf Artifact))
-                                (AndThen (exile (target creature))
-                                         (Delayed NextEndStep (Move (That CardW) BattlefieldZ)))
+                                (Sequentially [exile (target creature),
+                                               Delayed NextEndStep (Move (That CardW) BattlefieldZ)])
 
 -- ===== Chapter nine negatives: the audit round =====
 
@@ -555,8 +560,8 @@ failing "OnBattlefield"
 -- the destroyed referent sits in the graveyard.
 failing "DamageRecipient"
   badDamageGraveyardCard : Effect []
-  badDamageGraveyardCard = AndThen (destroy (target creature))
-                                   (DealDamage This (Lit 3) It)
+  badDamageGraveyardCard = Sequentially [destroy (target creature),
+                                         DealDamage This (Lit 3) It]
 
 -- A quality cannot take damage [CR#120.1].
 failing "DamageRecipient"
@@ -590,8 +595,8 @@ failing "Negatable"
 -- names no opponent for "that player" to read.
 failing "countWord"
   badNegatedAntecedent : Effect []
-  badNegatedAntecedent = AndThen (Tap (target (And [creature, Not (ControlledBy anOpponent)])))
-                                 (losesLife (That PlayerW) (Lit 1))
+  badNegatedAntecedent = Sequentially [Tap (target (And [creature, Not (ControlledBy anOpponent)])),
+                                       losesLife (That PlayerW) (Lit 1)]
 
 -- An object is in ONE zone: contradicted zone conjuncts refuse in
 -- either order.
@@ -609,8 +614,8 @@ failing "Targetable"
 -- referent doesn't get +3/+3.
 failing "OnBattlefield"
   badGetsGraveyard : Effect []
-  badGetsGraveyard = AndThen (destroy (target creature))
-                             (Gets It 3 3 (Just UntilEndOfTurn))
+  badGetsGraveyard = Sequentially [destroy (target creature),
+                                   Gets It 3 3 (Just UntilEndOfTurn)]
 
 -- A card never enters another player's hand [CR#400.3]: owned
 -- destinations are owner-routed, so this is unwritable.
@@ -660,16 +665,16 @@ failing "DiscardOk"
 -- Soulblast), and is future vocabulary.
 failing "OneOf"
   badGroupPower : Effect []
-  badGroupPower = AndThen (Choose (TargetGroup (exactly 2) creature))
-                          (gainsLife You (PowerOf Them))
+  badGroupPower = Sequentially [Choose (TargetGroup (exactly 2) creature),
+                                gainsLife You (PowerOf Them)]
 
 -- Two cards need not share an owner [CR#108.3] — oracle writes the
 -- plural relational ("their owners' hands", Aether Burst), future
 -- vocabulary.
 failing "OneOf"
   badGroupOwner : Effect []
-  badGroupOwner = AndThen (Choose (TargetGroup (exactly 2) creature))
-                          (losesLife (OwnerOf Them) (Lit 1))
+  badGroupOwner = Sequentially [Choose (TargetGroup (exactly 2) creature),
+                                losesLife (OwnerOf Them) (Lit 1)]
 
 -- A written quantity permits at least one: "zero target creatures" is
 -- unwritten English, and so is the "up to zero" spelling of it — the
@@ -736,9 +741,9 @@ failing "countOnes Outcome"
 -- same strict uniqueness as every read.
 failing "countOnes Outcome"
   badThatMuchAmbig : Effect []
-  badThatMuchAmbig = AndThen (DealDamage This (Lit 3) (target AnyTarget))
-                             (AndThen (losesLife You (Lit 2))
-                                      (gainsLife You ThatMuch))
+  badThatMuchAmbig = Sequentially [DealDamage This (Lit 3) (target AnyTarget),
+                                   losesLife You (Lit 2),
+                                   gainsLife You ThatMuch]
 
 -- ===== Chapter thirteen negatives: the refuse-nonsense wave =====
 -- (Probed at the smallest construct that carries the gate — a bare
@@ -755,8 +760,8 @@ failing "countOnes Outcome"
 -- conjunction where the head type is known.
 failing "OtherAnchored"
   badOtherCrossHead : Effect []
-  badOtherCrossHead = AndThen (destroy (target (HasType Land)))
-                              (destroy (target (And [creature, Other])))
+  badOtherCrossHead = Sequentially [destroy (target (HasType Land)),
+                                    destroy (target (And [creature, Other]))]
 
 -- Every corpus for-each domain is noun-headed: "for each you control"
 -- names no set to count — the positive-head demand the determiners
@@ -938,3 +943,21 @@ failing "DiscardOk"
 failing "ZoneCoherent"
   badControlledInGraveyard : Predicate [] Object
   badControlledInGraveyard = And [creature, ControlledBy You, InZone GraveyardZ]
+
+-- ===== The converge-on-core round: sequence arity =====
+
+-- A sequence of no clauses is no instruction at all. Core admits
+-- `Sequentially([])` structurally — it is a data shape there, and an
+-- empty body is a useful identity for the engine — but nothing writes
+-- an empty sentence list, so the workbench refuses what it cannot
+-- render.
+failing "AtLeastTwo"
+  badEmptySequence : Effect []
+  badEmptySequence = Sequentially []
+
+-- …and a sequence of one clause is not a sequence either: it spells
+-- exactly what the clause alone spells, and one meaning gets one
+-- spelling.
+failing "AtLeastTwo"
+  badSingletonSequence : Effect []
+  badSingletonSequence = Sequentially [destroy (target creature)]

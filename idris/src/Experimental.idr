@@ -99,7 +99,14 @@
 |||
 ||| Chapter three, clause structure (evidence: Diabolic Edict, Innocent
 ||| Blood, Cry of Contrition, Pyrite Spellbomb, Immersturm Skullcairn;
-||| Browbeat/Risk Factor for the decider split):
+||| Browbeat/Risk Factor for the decider split. The clause SEQUENCE is
+||| n-ary, as core's `OneShotEffect::Sequentially` is: a card writes a
+||| LIST of sentences, and the binary `AndThen` this replaced imposed a
+||| right-nested tree no card has. Its elements are a TELESCOPE, each
+||| typed in what its predecessors introduced — finding 1's threading
+||| made a constructor — and it runs two clauses at minimum, one being
+||| the clause itself and none being no instruction at all
+||| (`badSingletonSequence`, `badEmptySequence`)):
 |||
 ||| 9. **Subjects are the factored who-slot.** Verbs the CR gives a
 |||    player actor ([CR#701.21a,701.9a]) put their performer in clause
@@ -672,9 +679,9 @@
 ||| chosen [quality]" (quality-kind bindings); coordinated verb
 ||| COMPLEMENTS ("deals 2 damage to any target and 1 damage to any
 ||| other target", Arc Trail — one verb distributing over paired
-||| amount+recipient complements; the bench transcribes them
-||| sequentially under `AndThen` as a named stand-in, which mis-orders
-||| nothing binding-wise but serializes what the card states as one
+||| amount+recipient complements; the bench transcribes them as a
+||| two-clause `Sequentially`, a named stand-in that mis-orders nothing
+||| binding-wise but serializes what the card states as one
 ||| instruction); amount EXTRAPOSITION (`DealDamage` fixes
 ||| amount-before-recipient order while oracle writes both — "deals
 ||| damage equal to its power to target creature" against "deals damage
@@ -838,8 +845,9 @@ isOne ManyOf = False
 
 ||| How many objects a counted mention takes — core's `Quantity`
 ||| (`deckmaste_core/src/quantity.rs`): ONE primitive, a range with
-||| both bounds optional (`Nothing` = unbounded that side, so
-||| [CR#601.2c]'s "any number" is `Range Nothing Nothing`). The
+||| both bounds optional (`Nothing` = unbounded that side, so "any
+||| number of" is `Range Nothing Nothing` — the variable target count
+||| [CR#601.2c] has its caster announce before choosing). The
 ||| readable named forms are macros over it in core and macros over it
 ||| here (`exactly`, `upTo`, `anyNumber` in `Experimental.Macros`,
 ||| answering core's `Exactly`/`AtMost`/`AnyNumber`; its `AtLeast` and
@@ -876,6 +884,12 @@ quantPlur (Range _ _) = ManyOf
 public export
 data AtLeastOne : Nat -> Type where
   OneUp : AtLeastOne (S n)
+
+||| A sequence runs at least two clauses — what makes it a sequence
+||| rather than a sentence (`badEmptySequence`, `badSingletonSequence`).
+public export
+data AtLeastTwo : Nat -> Type where
+  TwoUp : AtLeastTwo (S (S n))
 
 ||| The introducing word of a mention — a SURFACE projection ("target",
 ||| "a", "each", "all", or a definite/derived mention). Rules facts
@@ -2353,13 +2367,35 @@ mutual
     -- them"), so the body is any clause, not the decider's own verb
     -- phrase; if-you-do/if-not branches are later growth.
     May : (decider : Noun bs Player) -> Effect (nomIntro decider) -> Effect bs
-    -- sentence/clause sequence: the discourse advances left to right.
-    AndThen : (e1 : Effect bs) -> (e2 : Effect (effIntro e1)) -> Effect bs
+    -- the clause SEQUENCE — a card's sentence list and its "…, then
+    -- …" alike ([CR#608.2c] orders sub-effects), mirroring core's
+    -- `OneShotEffect::Sequentially`: n-ary, because a card writes n
+    -- sentences and nothing in the ordering is binary. The discourse
+    -- advances left to right, which the `Effects` telescope carries.
+    -- At least TWO clauses: an empty sequence is no instruction at all
+    -- (core admits `Sequentially([])` structurally — the workbench,
+    -- spelling English, does not; `badEmptySequence`), and a
+    -- one-clause sequence is a second spelling of that one clause
+    -- (`badSingletonSequence`).
+    Sequentially : {0 n : Nat} -> Effects n bs ->
+                   {auto 0 ok : AtLeastTwo n} -> Effect bs
     -- "[e] [when/at event-query]" — the temporal adverbial stays on
     -- its clause (leading vs trailing position is linearization); the
     -- body reads the discourse as settled particulars transformed by
     -- the event (`delayedCtx`, [CR#603.7c,603.3d]).
     Delayed : (ev : EventQuery bs) -> Effect (delayedCtx ev) -> Effect bs
+
+  ||| A clause sequence as a TELESCOPE, not a list of independent
+  ||| clauses: each element is typed in the bindings its predecessors
+  ||| introduced, so "Destroy target creature. Its controller discards
+  ||| a card." can read the destroyed creature in the second sentence.
+  ||| Length-indexed, which is all `Sequentially` needs to demand two.
+  ||| Written with list syntax, so a card's sentences read as the card
+  ||| writes them.
+  public export
+  data Effects : Nat -> Bindings -> Type where
+    Nil : Effects Z bs
+    (::) : (e : Effect bs) -> Effects n (effIntro e) -> Effects (S n) bs
 
   ||| The hand half of discard's implicit restriction, asked of the
   ||| NOUN rather than of a zone ([CR#701.9a] — a discard moves a card
@@ -2606,8 +2642,15 @@ mutual
   effIntro (Does s v (Move what to)) = moveIntro (Just v) what (zoneSort to)
   effIntro (Does s v e) = effIntro e
   effIntro (May d e) = effIntro e            -- a declined May skips at runtime, not in scope
-  effIntro (AndThen e1 e2) = effIntro e2
+  effIntro (Sequentially es) = effsIntro es
   effIntro (Delayed ev e) = bs               -- a future clause mentions nothing NOW
+
+  ||| What a whole sequence contributes: its last clause's discourse,
+  ||| the telescope having threaded every predecessor's through.
+  public export
+  effsIntro : {bs : Bindings} -> {0 n : Nat} -> Effects n bs -> Bindings
+  effsIntro [] = bs
+  effsIntro (e :: es) = effsIntro es
 
 -- ===== The activated-ability juncture =====
 
