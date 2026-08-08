@@ -54,6 +54,36 @@ target : (p : Predicate bs k) -> {auto tk : Targetable k} ->
          {auto 0 af : AnyTargetAtCount (exactly 1) p} -> Noun bs k
 target p = TargetGroup (exactly 1) p {tk} {hd} {af}
 
+-- The sorted self-reference, one macro per type word the corpus
+-- writes it with: the source ascribed a card type ([CR#109.2] then
+-- reading the PERMANENT), which is `AsType` over `This` and nothing
+-- more. Bare `This` remains its own word — "this spell", cycling's
+-- "Discard this card" ([CR#702.29a]).
+
+-- "this creature"
+-- spelling: ["this creature"], kind: Nominal
+public export
+thisCreature : Noun bs Object
+thisCreature = AsType Creature This
+
+-- "this artifact"
+-- spelling: ["this artifact"], kind: Nominal
+public export
+thisArtifact : Noun bs Object
+thisArtifact = AsType Artifact This
+
+-- "this enchantment"
+-- spelling: ["this enchantment"], kind: Nominal
+public export
+thisEnchantment : Noun bs Object
+thisEnchantment = AsType Enchantment This
+
+-- "this land"
+-- spelling: ["this land"], kind: Nominal
+public export
+thisLand : Noun bs Object
+thisLand = AsType Land This
+
 -- "creature"
 -- spelling: ["creature"], kind: Nominal (hasHead = True; HasType Creature)
 public export

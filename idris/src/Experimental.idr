@@ -137,7 +137,7 @@
 ||| 12. **The colon is a public-zone filter.** An activated effect reads
 |||    its cost's mentions through `publicOnly` ([CR#400.2], current
 |||    zone): a tapped cost-mention survives unmoved, the moved sorted
-|||    self-reference (`ThisOf`) mints the new object's binding
+|||    self-reference (`AsType`; `thisArtifact`) mints the new object's binding
 |||    ([CR#400.7]) that the effect's "It" reads ([CR#400.7j] —
 |||    `pyriteSpellbomb`, `immersturmSkullcairn`), a bounce-to-hand is
 |||    unreadable past the colon (`badHiddenCost`), and two cost moves
@@ -166,7 +166,7 @@
 |||    presupposition and fresh announcing stay local to the delayed
 |||    ability.
 ||| 16. **The self-reference moves like anything else.** An
-|||    effect-position `ThisOf` move mints the new object's binding
+|||    effect-position ascribed-self move (`AsType`) mints the new object's binding
 |||    mid-sentence ([CR#400.7]) — Flickering Spirit's "it" reads its
 |||    own exile.
 |||
@@ -515,10 +515,17 @@
 |||    beneath every quantity.
 ||| 41. **The sorted self-reference stands on the battlefield.** "This
 |||    creature" / "this enchantment" is a description including a
-|||    card type, so [CR#109.2] denotes the PERMANENT: `ThisOf`
+|||    card type, so [CR#109.2] denotes the PERMANENT: the ascription
 |||    projects the battlefield where bare `This` — the source as an
 |||    object ("this spell", cycling's "Discard this card") — projects
-|||    nothing. Discarding the sorted form is thereby unwritable
+|||    nothing. The granularity round then put the two halves on their
+|||    own axes: identity is `This` (core's `Reference::This` carries
+|||    no type either), the type word is `AsType` over it, and the
+|||    battlefield projection belongs to the WORD, not to the
+|||    self-reference — which is the rule's own reading. What may be
+|||    ascribed stays a closed table (`Ascribable`, the source alone),
+|||    so the projection cannot silently follow the constructor onto a
+|||    noun that never earned it. Discarding the sorted form is thereby unwritable
 |||    ([CR#701.9a] moves a HAND card; `badDiscardThisCreature`), and
 |||    the cost that justifies discard's bare-`This` row is cycling's
 |||    own ([CR#702.29a]; `cyclingCost`) — the row now sits on the NOUN
@@ -1022,7 +1029,7 @@
 ||| Voldaren, Red Hulk — "another"/"any other" excluding the SOURCE;
 ||| the sorted self-reference is typed and battlefield-projected
 ||| already (finding 41), so what this waits on is the source ENTERING
-||| the discourse: `This`/`ThisOf` introduce no binding, and the anchor
+||| the discourse: `This` and its ascriptions introduce no binding, and the anchor
 ||| search reads bindings);
 ||| static "as long as" conditions ([CR#611.3], Kitesail Corsair —
 ||| the card has no "for") and effect-created "for as long as"
@@ -1272,7 +1279,7 @@
 ||| The closed determiners go across one for one: "a"/"an" is `A`,
 ||| "each" is `Each`, "all" is `AllOf`, "another" is the `Other`
 ||| conjunct on a determined head, "this"/"that"/"those" are
-||| `This`/`ThisOf`/`That`/`Those`, and "any" is `AnyTarget` in the
+||| `This`/`AsType`/`That`/`Those`, and "any" is `AnyTarget` in the
 ||| damage class beside the unbounded `Quantity` of "any number of"
 ||| (its third use, "mana of any color", rides the mana axis above).
 ||| Two do not go across, and neither is a definite: "no" is a
@@ -1380,7 +1387,7 @@ module Experimental
 public export
 -- spelling: (construction-owned catalog -- Creature="creature", Artifact=
 -- "artifact", Land="land", Enchantment="enchantment"; each row is a TypeDef
--- macro's own word (see cardtype/Creature.ron), consumed by HasType/ThisOf,
+-- macro's own word (see cardtype/Creature.ron), consumed by HasType/AsType,
 -- never spelled alone)
 data CardType = Creature | Artifact | Land | Enchantment
 
@@ -2114,7 +2121,7 @@ countChoosers bs = countOnes Player bs + countManys Player bs
 ||| battlefield-demanding slot: the referent's zone must BE the
 ||| battlefield. The permissive untracked row is gone — it existed for
 ||| the sorted self-reference, which now projects its own zone
-||| ([CR#109.2], `nounZone (ThisOf …)`); bare `This` is the source as an
+||| ([CR#109.2], `nounZone (AsType …)`); bare `This` is the source as an
 ||| object and never denotes a permanent, so nothing legal needs it.
 ||| The controller half needs fold-state the context does not carry
 ||| (not-settled).
@@ -3361,15 +3368,32 @@ mutual
     -- spelling: ["~"], kind: Nominal (matches constructors.ron's `This`
     -- entry exactly -- nullary self-reference sigil)
     This : Noun bs Object       -- the source, by self-name or "this spell" [CR#113.7]
-    -- the sorted self-reference "this artifact"/"this land"/"this
-    -- creature": the source under its type noun. Unmoved it introduces
-    -- nothing (like `This`); MOVED it mints a fresh binding — the move
-    -- makes it a new object [CR#400.7], which is why cost-position
-    -- "Sacrifice this artifact" leaves a referent the effect's "It" can
-    -- read ([CR#400.7j] is the exception letting the effect find it).
-    -- spelling: ["this <Param(0)>"], kind: Nominal (Param(0) = CardType's
-    -- word; the sorted self-reference, [CR#109.2])
-    ThisOf : CardType -> Noun bs Object
+    -- the TYPE ASCRIPTION: a noun read under a card-type word, which
+    -- is what "this artifact"/"this land"/"this creature" is —
+    -- `This`'s identity plus a type noun, two axes and not one
+    -- constructor. Core keeps identity type-free (`Reference::This`
+    -- carries nothing, `reference.rs`), so the type word is this
+    -- layer's business, and the projections it earns are the type
+    -- word's: it names the head type, and a description including a
+    -- card type and no zone/card/spell/source word denotes a
+    -- PERMANENT ([CR#109.2]) — so the ascribed phrase stands on the
+    -- battlefield where the bare source ("this spell", cycling's
+    -- "Discard this card" [CR#702.29a]) stands nowhere the grammar
+    -- tracks. Unmoved it introduces what its argument introduces
+    -- (nothing, for the source); MOVED it mints a fresh binding — the
+    -- move makes it a new object [CR#400.7], which is why
+    -- cost-position "Sacrifice this artifact" leaves a referent the
+    -- effect's "It" can read ([CR#400.7j] is the exception letting the
+    -- effect find it). WHICH nouns take an ascription is a closed
+    -- table (`Ascribable`), not this row's business: the corpus writes
+    -- the sorted reading of the source and of nothing else.
+    -- spelling: (construction-owned -- the card-type word read over its
+    -- argument's own phrase; at the source that is "this <Param(0)>",
+    -- constructors.ron's `This` sigil under a type word, and the
+    -- macros own it: thisCreature/thisArtifact/thisEnchantment/thisLand),
+    -- kind: Nominal
+    AsType : (t : CardType) -> (n : Noun bs Object) ->
+             {auto 0 asc : Ascribable n} -> Noun bs Object
     -- spelling: ["you"], kind: Nominal (matches constructors.ron's `You`
     -- entry exactly)
     You : Noun bs Player        -- "you" [CR#109.5]
@@ -3489,7 +3513,7 @@ mutual
   nounEqRef : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Noun bs k -> Bool
   nounEqRef This This = True
   nounEqRef This _ = False
-  nounEqRef (ThisOf _) _ = False
+  nounEqRef (AsType _ _) _ = False
   nounEqRef You You = True
   nounEqRef You _ = False
   nounEqRef (Each _) _ = False
@@ -3517,7 +3541,7 @@ mutual
   public export
   nounAnyTargetFree : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   nounAnyTargetFree This = True
-  nounAnyTargetFree (ThisOf _) = True
+  nounAnyTargetFree (AsType t n) = nounAnyTargetFree n
   nounAnyTargetFree You = True
   nounAnyTargetFree (Each p) = anyTargetFree p
   nounAnyTargetFree (A p) = anyTargetFree p
@@ -3565,7 +3589,7 @@ mutual
   public export
   nounDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
   nounDelta This = []
-  nounDelta (ThisOf t) = []
+  nounDelta (AsType t n) = nounDelta n
   nounDelta You = []
   nounDelta (Each p {ph}) = bindFor EachD ManyOf ph p :: predDelta p
   nounDelta (A p {ph}) = bindFor AD OneOf ph p :: predDelta p
@@ -4029,7 +4053,7 @@ mutual
   nounIsAnyTarget : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   nounIsAnyTarget (TargetGroup _ p) = headIsAnyTarget p
   nounIsAnyTarget This = False
-  nounIsAnyTarget (ThisOf _) = False
+  nounIsAnyTarget (AsType t n) = nounIsAnyTarget n
   nounIsAnyTarget You = False
   nounIsAnyTarget (Each _) = False
   nounIsAnyTarget (A _) = False
@@ -4082,6 +4106,23 @@ mutual
   data DiscardOk : Noun bs Object -> Type where
     DiscardThis : DiscardOk This
     DiscardTracked : {auto 0 z : nounZone n = Just Hand} -> DiscardOk n
+
+  ||| Which nouns take a card-type ascription — the closed table
+  ||| `AsType` reads instead of carrying its scope in its row. One
+  ||| entry: the SOURCE, whose sorted reading ("this creature", "this
+  ||| artifact") is the only one the corpus writes. Every other noun
+  ||| either says its own type in the predicate it carries ("target
+  ||| creature" is a `HasType` phrase, not an ascribed one) or is a
+  ||| read whose antecedent already fixed the head, and re-sorting a
+  ||| read is the demonstrative's job ("that creature", `That`). The
+  ||| table is what keeps `AsType`'s [CR#109.2] battlefield projection
+  ||| honest: the rule speaks of a description carrying a card type and
+  ||| NO zone word, which is exactly what the source under a type noun
+  ||| is — so a second row has to argue for that projection again
+  ||| before it can be written.
+  public export
+  data Ascribable : Noun bs Object -> Type where
+    AscribeThis : Ascribable This
 
   ||| A keyword tag's legal expansion body ([CR#701.8a] family): the
   ||| tag and its move agree, so no term can pair a verb's deontic
@@ -4212,10 +4253,10 @@ mutual
   moveIntro p This z = bs
   -- a moved sorted self-reference mints the new object's binding
   -- ([CR#400.7]; see the constructor comment). The stamp's at-verb
-  -- frame stays conservatively False — a ThisOf-cost participle TYPE
+  -- frame stays conservatively False — an ascribed-self cost participle TYPE
   -- word waits on a corpus witness, so the pre-move zone is passed as
   -- untracked here rather than read off `nounZone`.
-  moveIntro p (ThisOf t) z = MkBinding TheD Object OneOf (ObjectP (Just t) (Just z) (mkStamp p Nothing)) :: bs
+  moveIntro p (AsType t n) z = MkBinding TheD Object OneOf (ObjectP (Just t) (Just z) (mkStamp p Nothing)) :: bs
   moveIntro p You z = bs
   moveIntro p They z = bs
   moveIntro p (ControllerOf n) z = nomIntro (ControllerOf n)
@@ -4239,7 +4280,7 @@ mutual
   public export
   nounZone : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe Zone
   nounZone This = Nothing
-  nounZone (ThisOf t) = Just Battlefield
+  nounZone (AsType t n) = Just Battlefield
   nounZone You = Nothing
   nounZone (Each p) = Just (zoneOr Battlefield (seedZone p))
   nounZone (A p) = Just (zoneOr Battlefield (seedZone p))
@@ -4264,7 +4305,7 @@ mutual
   public export
   nounTy : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe CardType
   nounTy This = Nothing
-  nounTy (ThisOf t) = Just t
+  nounTy (AsType t n) = Just t
   nounTy You = Nothing
   nounTy (Each p) = seedTy p
   nounTy (A p) = seedTy p
@@ -4287,7 +4328,7 @@ mutual
   public export
   nounPlur : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Plurality
   nounPlur This = OneOf
-  nounPlur (ThisOf t) = OneOf
+  nounPlur (AsType t n) = nounPlur n
   nounPlur You = OneOf
   nounPlur (Each p) = ManyOf
   nounPlur (A p) = OneOf

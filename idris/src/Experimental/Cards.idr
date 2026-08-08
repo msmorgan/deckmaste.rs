@@ -102,7 +102,7 @@ deadshot = Sequentially [Tap (target creature),
 -- ([CR#400.7j]); then the sorted demonstrative at Player kind and a
 -- keyword-action macro (Discard) whose body moves a hand-zone choice.
 immersturmSkullcairn : Activated []
-immersturmSkullcairn = MkActivated (sacrifice You (ThisOf Land))
+immersturmSkullcairn = MkActivated (sacrifice You thisLand)
                                    (Sequentially [DealDamage It (Lit 3) (target AnyPlayer),
                                                   discardsACard (That PlayerW)])
 
@@ -111,7 +111,7 @@ immersturmSkullcairn = MkActivated (sacrifice You (ThisOf Land))
 -- elided) — the smallest cost-antecedent pair: the sorted
 -- self-reference moved by the cost is the only mention "It" can reach.
 pyriteSpellbomb : Activated []
-pyriteSpellbomb = MkActivated (sacrifice You (ThisOf Artifact))
+pyriteSpellbomb = MkActivated (sacrifice You thisArtifact)
                               (DealDamage It (Lit 2) (target AnyTarget))
 
 -- "Target player sacrifices a creature of their choice." (Diabolic
@@ -151,7 +151,7 @@ suspendedSentence = Sequentially [destroy (target (And [creature, ControlledBy a
 -- instructed player), so its elision is meaning-carrying — pending the
 -- control-assignment axis.
 flickeringSpirit : Effect []
-flickeringSpirit = Sequentially [exile (ThisOf Creature),
+flickeringSpirit = Sequentially [exile thisCreature,
                                  Move It BattlefieldZ]
 
 -- "Exile target creature. Return that card to the battlefield under
@@ -222,8 +222,8 @@ phthisis = Sequentially [destroy (target creature),
 -- simultaneously (state-based actions see neither mid-resolution,
 -- [CR#704.4]), which is why `Fights` stays primitive.
 karplusanYeti : Effect []
-karplusanYeti = Sequentially [DealDamage (ThisOf Creature) (powerOf (ThisOf Creature)) (target creature),
-                              DealDamage (That (TypeW Creature)) (powerOf It) (ThisOf Creature)]
+karplusanYeti = Sequentially [DealDamage thisCreature (powerOf thisCreature) (target creature),
+                              DealDamage (That (TypeW Creature)) (powerOf It) thisCreature]
 
 -- "Choose two target creatures. Tap those creatures, then unattach
 -- all Equipment from them." (Fulgent Distraction; the unattach clause
@@ -271,7 +271,7 @@ kindredDominance = Sequentially [Choose (A (QualityNoun CreatureType)),
 -- verb filter picks the exile; the delay carries it as usual
 -- ([CR#603.7c]).
 voyagerStaff : Activated []
-voyagerStaff = MkActivated (sacrifice You (ThisOf Artifact))
+voyagerStaff = MkActivated (sacrifice You thisArtifact)
                            (Sequentially [exile (target creature),
                                           Delayed NextEndStep (Move (TheVerbed Exile CardW) BattlefieldZ)])
 
@@ -302,7 +302,7 @@ boshIronGolem = MkActivated (sacrifice You (A (HasType Artifact)))
 -- in for the missing `Enchantment` row).
 pyromancy : Activated []
 pyromancy = MkActivated (discards You (AAtRandom (InZone HandZ)))
-                        (DealDamage (ThisOf Enchantment)
+                        (DealDamage thisEnchantment
                                     (manaValueOf (TheVerbed Discard CardW))
                                     (target AnyTarget))
 
@@ -661,7 +661,7 @@ failing "countVerbed"
 -- ambiguous — the participle is what real text switches to here.
 failing "countWord"
   badBareCardRead : Activated []
-  badBareCardRead = MkActivated (sacrifice You (ThisOf Artifact))
+  badBareCardRead = MkActivated (sacrifice You thisArtifact)
                                 (Sequentially [exile (target creature),
                                                Delayed NextEndStep (Move (That CardW) BattlefieldZ)])
 
@@ -1001,7 +1001,16 @@ failing "AnyTargetAtCount"
 -- (`cyclingCost`).
 failing "DiscardOk"
   badDiscardThisCreature : Effect []
-  badDiscardThisCreature = discards You (ThisOf Creature)
+  badDiscardThisCreature = discards You thisCreature
+
+-- The ascription is the SOURCE's, and only the source's: "target
+-- creature" already says its type in the predicate it carries, so
+-- sorting it a second time spells nothing new — and it would carry
+-- [CR#109.2]'s battlefield projection onto a phrase that never argued
+-- for it. The closed table is the whole refusal.
+failing "Ascribable"
+  badAscribedTarget : Noun [] Object
+  badAscribedTarget = AsType Creature (target creature)
 
 -- ===== Laundering routes: wrappers, doubled words, untracked reads =====
 
