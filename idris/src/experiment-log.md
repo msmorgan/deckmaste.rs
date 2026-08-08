@@ -1627,14 +1627,18 @@ agreed on):
    effect lasts indefinitely.)", which is [CR#611.2a]'s
    end-of-game default said out loud on a card. One cell is
    thin and is flagged rather than hidden: the cross-turn span
-   (`EveryStatic`) is opened on a SINGLE line, "Until your next
-   turn, target artifact you control becomes a 5/5 creature in
-   addition to its other types", whose clause fuses a base-P/T
+   (then `EveryStatic`) is opened on a SINGLE line, "Until your
+   next turn, target artifact you control becomes a 5/5 creature
+   in addition to its other types", whose clause fuses a base-P/T
    setting this vocabulary has no word for onto the type
    addition. Answering it `False` would have made the name
    `EveryStatic` a lie, and the line really does write the
-   adverbial over a type addition, so the cell is open and
-   marked for re-measurement.
+   adverbial over a type addition, so the cell is open and marked
+   for re-measurement. (Re-measured and CLOSED in chapter
+   twenty-one, finding 104: three co-occurrences in two hundred
+   sixty-four lines, each otherwise explained, so the cell is
+   `False` and the class is `GrantsAndRestrictions` — the name
+   went rather than the honesty.)
 88. **The "Otherwise" arm is `May`'s declined arm one
    construction over — and it opened on the card, not on the
    design.** Chapter eighteen wrote the design and could not fill
@@ -1675,13 +1679,18 @@ agreed on):
    the phrase this chapter builds against appears on cards ONLY
    as reminder text, and finding 20's ruling refuses reminder
    text as the operative spelling. The rule is not reminder text.
-   All three legs are written (`amassZombiesToken`,
-   `amassZombiesArmy`), and only the two negated conditions are
+   All three legs are written (then `amassZombiesToken` and
+   `amassZombiesArmy`; folded into `amassZombiesTwo` by chapter
+   twenty-one), and only the two negated conditions are
    elided, both already ledgered. They are written as TWO terms
    rather than one for a reason worth stating: the rule's branch
    makes the created token and the chosen Army the same object,
    and this grammar has no way to say so, so a single term would
-   have put two mentions where the rule has one. R3 adds the
+   have put two mentions where the rule has one. (That premise is
+   FALSE and chapter twenty-one says why: Doubling Season can make
+   two Armies, [CR#614.1a], so the created token and the chosen
+   Army need not be the same object at all — and the one term
+   lands once the created token stops escaping its branch.) R3 adds the
    modal frame and the branch; the legs are here.
 
 ## Chapter Twenty — The Composite Glue
@@ -1858,7 +1867,9 @@ fourth):
    may have made, and the Army this one chose — so the sorted
    demonstrative has two candidates and the no-recency discipline
    (finding 26) refuses it rather than guess
-   (`badAmassOneTerm`, a pin so the seam is bench-visible). The
+   (then `badAmassOneTerm`, a pin so the seam is bench-visible;
+   converted to the positive `amassZombiesTwo` by chapter
+   twenty-one, finding 102). The
    diagnosis chapter nineteen guessed at is confirmed and can now
    be stated exactly: the rule's two mentions denote ONE object in
    either branch — when the token exists it is the only Army
@@ -1874,7 +1885,11 @@ fourth):
    the only candidate there is); or an identity channel saying two
    mentions co-refer. Both are context-data questions the §3
    ruling has to answer first, and both are ledgered rather than
-   forced.
+   forced. (Neither was needed. Chapter twenty-one closed the gap
+   from the other end — the conditional arm stops exporting at all
+   — and [CR#701.47c] says the referent was the CHOSEN creature
+   the whole time, so the identity channel would have encoded a
+   falsehood.)
 98. **"The chosen [noun]" is witnessed and stays shut, and the
    reason is the bench rather than the corpus.** The surface is
    real and plentiful — "the chosen creature" thirty lines, "the
@@ -1910,6 +1925,267 @@ fourth):
    NOT reopen is the draw CLUSTER the ledger parks beside the
    verb — the library zone and its ordered positions, miracle's
    draw-ordinal memory — none of which the verb alone touches.
+
+## Chapter Twenty-One — The Branch Arm
+
+Chapter twenty-one, a FIX round rather than a build round: the
+fifth duck wave's thirteen findings and three directed questions,
+each re-verified against the machinery and against the cards
+before anything was touched (evidence: Crovax the Cursed, Through
+the Breach, Akoum Stonewaker, Baral and Kari Zev, Overload,
+Doubling Season, Rankle Master of Pranks, Aviation Pioneer,
+Additive Evolution, Tezzeret Cruel Machinist, Rootwise Survivor,
+Absorbing Man, Angrath Captain of Chaos, Abrade, Divination, Raise
+the Alarm, Battlegrowth, Dryad Arbor, Flanking Licid, and amass by
+way of [CR#701.47a,701.47c]; and, for what the round measured
+rather than built, Elephant Resurgence, Ajani Adversary of
+Tyrants, Blizzard Specter, Kogla and Yidaro, Blood on the Snow,
+Thermal Flux, Rankle and Torbran. The round that got amass's four
+sentences into ONE term). All thirteen machinery claims
+reproduced; two of the wave's card attributions did not, and are
+recorded as refused below.
+
+100. **A branch arm is a HOLE, and the conditioned clause is one
+   of them.** The workbench had this right for the two arms that
+   REPLACE a main line — "if you don't" and "Otherwise" both
+   contribute nothing, because the arm runs exactly when the main
+   line did not — and wrong for the main line of a conditional
+   itself: `If` exported everything its clause introduced, so
+   "create a token if you control a creature" left an
+   unconditional "it" behind for every sentence after it. The
+   reason the replacing arms are holes is the reason this clause
+   is one, read the other way round: the condition may have been
+   FALSE, and then the clause never ran and its phrase named
+   nobody. What survives a conditional is now the discourse that
+   entered it (`badConditionalArmAntecedent`). And the two-armed
+   `May` joins at the BODY rather than at either arm: [CR#118.12]
+   makes the branch a record of whether the player chose to pay
+   "regardless of what events actually occurred", so exactly one
+   arm ran and nothing after the may can know which — selecting
+   the if-you-do arm's mentions there was reading one branch as
+   though it were both (`badBothArmsAntecedent`). Crovax the
+   Cursed is the card that writes the pair, and it reads neither
+   arm afterward. What did NOT change is the may's own body,
+   because Through the Breach reads it in the very next sentence
+   ("You may put a creature card from your hand onto the
+   battlefield. That creature gains haste.") — a declined may
+   skips at runtime, not in scope, which is the ruling `mayIntro`
+   has carried since it was minted and which the wave's blanket
+   arm-local proposal would have broken.
+101. **A trailing condition is read in the clause's
+   ANNOUNCEMENT, not in its result.** Chapter eighteen wrote the
+   divergence into `If`'s own comment — the condition is evaluated
+   before the clause it modifies and WRITTEN after it, so the
+   telescope typed it against a discourse the clause had already
+   updated — and named the thing to watch for: a zone-sensitive
+   read in a trailing condition. It landed. "Destroy target
+   creature if it's in a graveyard" typechecked precisely because
+   the destroy had already retagged its own target. The fix is the
+   timing rather than the textual order: `preIntro` is what a
+   clause has ANNOUNCED by the time its condition is read — its
+   phrases' mentions with their announced zones, since [CR#601.2c]
+   announces targets whatever clause spells them — and NOT what
+   the clause did, so the three zone-writing rows leave their
+   object unmoved and unstamped, `Create` leaves no token
+   ([CR#111.1] — an effect is what puts one onto the
+   battlefield), and the damage and life
+   rows leave no outcome. The other half is a gate: a copular
+   condition says something about a referent placed somewhere
+   else already, so its description's zone must agree with the
+   subject's ([CR#109.2a] — a description naming a zone means an
+   object in that zone; `ZoneFits`,
+   `badTrailingPostStateZone`). Overload is untouched — mana
+   value belongs to every object [CR#202.3] and is read zone-free
+   — which is what makes this a correction to WHEN the condition
+   is read and not to where it is written.
+102. **Amass is one term.** The payoff of finding 100, and the
+   gap chapters nineteen and twenty could only write in halves.
+   [CR#701.47a] defines "amass [subtype] N" as four sentences:
+   the conditional token creation, the choice, the counters on
+   "that creature", and the conditional type addition. With the
+   conditional arm a hole, the token the first sentence may have
+   made is not in scope when the third sentence writes its
+   demonstrative, so "that creature" has exactly one candidate —
+   the Army the second sentence CHOSE — and the whole definition
+   typechecks (`amassZombiesTwo`; the two half-cards it replaces
+   are gone, their split having existed only for this gap). The
+   rule agrees twice. [CR#701.47c] says "the Army you amassed"
+   means "the creature you chose", so the choice is the binder and
+   the creation is not. And the channel the wave's alternative
+   would have needed — merging the created token with the chosen
+   Army into one referent — is not merely unspellable but FALSE:
+   Doubling Season reads "If an effect would create one or more
+   tokens under your control, it creates twice that many of those
+   tokens instead", which [CR#614.1a] makes a replacement effect,
+   so amass can create TWO Armies and then choose either. The
+   grammar's refusal to identify them is the rules' refusal.
+103. **A choice clause SELECTS, or it is not a choice.** The
+   choose glue had no gate on its noun at all, so "Choose you"
+   typechecked and was treated as a fresh introduction. A choice
+   binds a new referent out of a described set, and the corpus
+   writes exactly that: "choose a/an …" four hundred ninety-one
+   lines, "choose target …" a hundred sixty, plus "choose two",
+   "choose up to", "choose any number of", "choose another" — and
+   "choose you", "choose it", "choose them" zero times each. The
+   twenty-five "choose the …" lines are all descriptive nouns
+   ("the name of a nonland card", "the value of X", "the same
+   mode"), not definite participants. So the two INTRODUCING
+   determiners are the whole vocabulary (`choosable`,
+   `badChooseYou`), which is chapter twenty's introduction
+   discipline asked of the clause instead of the article. The gate
+   is about the determiner and not the kind: "Choose an opponent"
+   is untouched (`myrkulsEdict`).
+104. **A type addition must ADD, and it does not cross turns.**
+   Two corrections to the same row. First: "in addition to its
+   other types" retains what the object had and states what it
+   gains ([CR#205.1b]), so a clause stating only what its subject
+   already is states nothing — "target creature becomes a creature
+   in addition to its other types" instructed nothing and
+   typechecked (`badBecomesOwnType`). Tezzeret's adds creature to
+   an ARTIFACT and Neurok Transmuter's adds artifact to a
+   CREATURE; the gate under-refuses in `predEq`'s direction, a
+   subtype never being provably redundant here and [CR#701.47a]
+   guarding that case in the text instead ("If it isn't a
+   [subtype], …"). Second: chapter nineteen opened the cross-turn
+   span cell on ONE apparent witness and flagged it for
+   re-measurement. The re-measurement closes it. Two hundred
+   sixty-four supported lines write "in addition to its/their/
+   his/her other types"; exactly three carry "until your next
+   turn", and every one is otherwise explained — Rootwise
+   Survivor's duration belongs to the separate haste grant in the
+   next sentence, Absorbing Man's clause is a copy construction,
+   and Tezzeret, Cruel Machinist's "becomes a 5/5 creature in
+   addition to its other types" fuses a base-P/T setting onto the
+   addition. No line writes a NAKED type addition across turns
+   (`badTypeAdditionAcrossTurns`), and the class had to be renamed
+   with the cell: `EveryStatic` had stopped being every static, so
+   it is `GrantsAndRestrictions` now, which is what it is.
+   Tezzeret goes to the ledger as the compound construction's
+   witness.
+105. **A condition negates a POSITIVE description, and tests one
+   that says something.** Two laundering routes through the
+   copular frame. `condNegatable` answered `True` for the
+   reference frame whatever its predicate, so "if it isn't a
+   non-artifact" typechecked — a negation of a negation, which the
+   predicate layer already refuses of itself (`negatable (Not _) =
+   False`) and which the condition frame could take of an
+   already-negative phrase from outside. The polarity is now read
+   through the combinators, where an inner negation can hide
+   inside a conjunction the predicate layer's own row never sees
+   (`predNegFree`, `badNegatedNegativeMatch`). And the frame
+   demanded no content at all, so `Matches It (And [])` tested
+   nothing: the copular frame cannot demand a HEAD — "if it's
+   attacking" and "if it's tapped" are real oracle and head
+   nothing — so the weaker demand is its own table (`predSays`,
+   `badMatchesNothing`).
+106. **The modal headcount vocabulary is CLOSED, and the modes
+   are distinct.** The frame admitted any range the algebra
+   permitted, so "Choose up to two —" typechecked though no card
+   writes it. Measured over supported lines carrying the bulleted
+   em-dash: "choose one —" eighty-four, "choose two —" three,
+   "choose three —" one, "choose up to one —" five, "choose one or
+   both —" four, "choose one or more —" four, "choose any number
+   —" two. Written zero times in any scope: "choose up to two —",
+   "choose up to three —", "choose four", "two or more", "one or
+   two". So the head vocabulary is the three small fixed counts,
+   the one-capped "up to", the two open tops whose maximum IS the
+   list, and the unbounded head (`modalHead`, `badModalUpToTwo`).
+   The wave's proposed attested set omitted "up to one"; the
+   corpus has it, so it is a row. Separately, two identical modes
+   are one mode written twice and the choice between them decides
+   nothing — [CR#700.2] wants "instructions for a player to choose
+   a number of those options" and [CR#700.2d] has a player
+   normally unable to "choose the same mode more than once", the
+   cards that lift it saying so in words rather than by printing
+   the bullet twice (`distinctModes`, `badDuplicateModes`). The
+   check is structural and conservative in `predEq`'s direction,
+   and most of `effEq`'s rows are that conservatism rather than
+   laziness: a clause's later arguments are typed in the context
+   its earlier ones built, so two clauses' payloads generally
+   inhabit two different types and cannot be compared at all.
+   Finally the attested unbounded head got its surface
+   (`chooseAnyNumber`, Rankle, Master of Pranks), and its floor is
+   honestly zero: [CR#107.1c] lets a player told to choose "any
+   number" choose "any positive number or zero", and [CR#700.2]
+   imposes no minimum of its own, so declining every mode is a
+   legal reading and the quantity says so structurally.
+107. **A token's characteristics are a PHRASE, not a set.**
+   [CR#111.3] makes the stated characteristics the token's text,
+   which cuts both ways: a color written twice is a word written
+   twice, and the type words come in an order. Measured: "artifact
+   creature" five hundred ninety-four lines against "creature
+   artifact" none, "artifact land" four against none, "land
+   creature" eleven against none (Dryad Arbor's token),
+   "enchantment creature" thirty-three, and one line placing
+   enchantment ahead of artifact — a single total order over the
+   four words this vocabulary has, written once as a rank rather
+   than guessed at pairwise, with the Enchantment/Land pair riding
+   on transitivity and the Licid template's "creature enchantment"
+   the one counterexample (`typeRank`, `badTokenTypeOrder`).
+   Colors take the duplicate demand and NOT the ordering one, and
+   the corpus is why: Additive Evolution writes "a 0/0 green and
+   blue Fractal creature token", which the mana order would have
+   spelled the other way round (`badTokenDuplicateColor`).
+108. **A WRITTEN action count is at least one; a read one need
+   not be.** "Draw zero cards", "create zero tokens", and "put
+   zero counters" all typechecked and none is written anywhere, as
+   a numeral or as a determiner, in any scope — [CR#121.1] makes a
+   draw the movement of a card, [CR#111.1] a token a marker put
+   onto the battlefield, [CR#122.1] a counter a marker placed on
+   something, and a zero of any of them instructs nothing. What
+   stays writable is the count that EVALUATES to zero: X's value
+   is its controller's to choose and announce ([CR#107.3a]) with
+   nothing flooring it, a for-each domain can be empty,
+   "that much" can be nothing. So the gate is on the SPELLING and
+   not the value (`writtenCount`, `badDrawZero`, `badCreateZero`,
+   `badPutZeroCounters`), which is finding 45's discipline
+   (`badForEachZero`) reaching the action counts while `Lit`
+   itself stays ungated for the bounds — "mana value 0 or less"
+   measures rather than instructs.
+109. **What the wave got wrong, recorded rather than smoothed
+   over.** All thirteen machinery claims reproduced exactly, which
+   is the useful part; two card attributions did not. Angrath,
+   Captain of Chaos was cited as writing "Choose an Army creature
+   you control" and "If it isn't a Zombie, it becomes a Zombie in
+   addition to its other types" — its reminder text writes neither
+   ("Put two +1/+1 counters on an Army you control. It's also a
+   Zombie. If you don't control an Army, create a 0/0 black Zombie
+   Army creature token first.", the pre-errata wording). Both
+   phrases are [CR#701.47a]'s own, which is where this file takes
+   them from and always did. And "Wick, Whorled Mind", offered as
+   a negative control for the Amass question, is not a card;
+   nothing by that name exists. The blanket direction on finding
+   100 was refused for the same kind of reason: real oracle DOES
+   read an arm-introduced referent from outside — Through the
+   Breach reads the may's body, Akoum Stonewaker reads the
+   if-you-do arm's token ("If you do, create a 3/1 red Elemental
+   creature token … Exile that token …"), and Baral and Kari Zev
+   reads the if-you-DON'T arm's ("If you don't, create First Mate
+   Ragavan … It gains haste until end of turn.") — so the leak was
+   the unconditional JOIN, not the escape, and the fix is the join.
+   Two findings were refused as fix-round work and ledgered
+   whole: distributed creation plurality (Elephant Resurgence) and
+   the each-of distributed recipient (Ajani, Adversary of
+   Tyrants), which belong to the plurality axis and not to a gate
+   on either clause.
+110. **Modes are a list, re-attacked and unmoved.** Chapter
+   twenty's ruling — a mode reads everything before the modal and
+   nothing a sibling introduced, and a modal exports nothing — was
+   put to a wider sweep: five hundred eighty-one supported modal
+   card records, no sibling-mode referent read and no post-modal
+   sentence reading a mode-introduced referent. The apparent
+   counterexamples resolve BEFORE the list. Blizzard Specter's
+   "That player" is the combat-damaged player of the trigger that
+   heads the ability, not anything a mode named; Kogla and
+   Yidaro's "It" is the source, read alike by both bullets; and
+   Blood on the Snow's trailing "Then return a creature or
+   planeswalker card …" writes a DESCRIPTION covering both modes'
+   outcomes exactly where an anaphor would have gone, which is the
+   positive proof rather than a near miss. [CR#700.2c] is the
+   reason: an unchosen mode's targets are never announced, the
+   spell being "treated as though it did not have those targets",
+   so a sibling's phrase may have named nobody at all. No code
+   changed.
 
 ## Engine-Boundary Deferrals
 
@@ -2075,7 +2351,21 @@ with them the PLURAL damage-class forms — [CR#115.4] names
 "any target", and the corpus writes them either as a division
 ("deals 2 damage divided as you choose among one or two targets",
 Chandra's Pyrohelix) or as an each-of recipient ("Fall of the
-Titans deals X damage to each of up to two targets"); the bare
+Titans deals X damage to each of up to two targets"); the fifth
+duck wave adds two witnesses to the same axis, both refused as
+fix-round patches and parked here instead. The COUNTER clause
+takes the each-of recipient too — "Put a +1/+1 counter on each of
+up to two target creatures" (Ajani, Adversary of Tyrants) — so the
+distributed recipient is not damage's alone, and what the counter
+verb accepts today (a bare up-to group) is one distributive word
+short of what the card writes. And a distributed AGENT makes a
+distributed group: "Each player creates a green Elephant creature
+token. Those creatures have …" (Elephant Resurgence) makes one
+token per player and reads them back as a plural, where the create
+clause reads its output plurality off the COUNT alone and so calls
+them one. Both want output plurality derived from agent
+distributivity as well as per-agent amount, which is the plurality
+axis itself rather than a gate on either clause. The bare
 up-to noun already spells (`TargetGroup (upTo n) AnyTarget`), as
 does the unbounded quantity itself (`anyNumber`), while the
 division and each-of RECIPIENT structures and a verified whole-card
@@ -2217,8 +2507,17 @@ and not the create instruction's; the type-SETTING sibling of
 finding 86 ([CR#205.1a] — the bare "becomes a 3/3 Elemental
 creature", which REPLACES the prior types where the "in addition"
 phrase keeps them) together with the base-P/T setting so often
-fused to it ("becomes a 5/5 creature"), which are the layer words
-and which the one thin `EveryStatic` cell rests on; and the
+fused to it ("becomes a 5/5 creature"), which are the layer words —
+and the COMPOUND of the two is now this axis's named witness:
+Tezzeret, Cruel Machinist's "[0]: Until your next turn, target
+artifact you control becomes a 5/5 creature in addition to its
+other types" is one clause setting base power and toughness AND
+adding a type, and it is the only line in the corpus that appeared
+to put a cross-turn span on a type addition. Chapter twenty-one
+closed that cell (`GrantsAndRestrictions`, finding 104) on the
+reading that the span belongs to the compound rather than to the
+naked addition, so this card is what the compound construction has
+to write when it opens; and the
 subtype-headed DAMAGE recipient, refused today because
 `HasSubtype` projects no card type for `DamageableTy` to read
 (finding 79) — conservative rather than measured, and the first

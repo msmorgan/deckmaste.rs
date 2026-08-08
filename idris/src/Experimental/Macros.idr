@@ -503,7 +503,7 @@ public export
 gainsLife : (who : Noun bs Player) -> Amount (nomIntro who) -> Effect bs
 gainsLife who amt = ChangeLife who (Up amt)
 
--- The three may-clause surfaces, macros over the one `May` primitive
+-- The four may-clause surfaces, macros over the one `May` primitive
 -- exactly as core's branchless and branching mays are one node
 -- (`deckmaste_core/src/effect.rs`). What varies is which anaphoric
 -- sentence follows, and the branch fields are where it goes; the
@@ -533,6 +533,17 @@ public export
 mayElse : (decider : Noun bs Player) -> (body : Effect (nomIntro decider)) ->
           Effect (nomIntro decider) -> Effect bs
 mayElse d body notd = May d body Nothing (Just notd)
+
+-- "[decider] may [effect]. If [decider] do, [effect]. If [decider]
+-- don't, [effect]." — both branches, each typed as its own surface types
+-- it: the taken arm reads the body, the declined arm reads only what
+-- preceded the may. Crovax the Cursed writes it.
+-- spelling: ["<Param(0)> may <Param(1)>. If <Param(0)> do, <Param(2)>. If
+-- <Param(0)> don't, <Param(3)>."], kind: Sentence (see mayThen)
+public export
+mayThenElse : (decider : Noun bs Player) -> (body : Effect (nomIntro decider)) ->
+              Effect (effIntro body) -> Effect (nomIntro decider) -> Effect bs
+mayThenElse d body did notd = May d body (Just did) (Just notd)
 
 -- The token characteristics, as the two shapes the corpus writes them in:
 -- the plain creature token, which is the overwhelming majority, and the
@@ -572,8 +583,10 @@ public export
 create : (count : Amount bs) -> (tok : TokenChars) ->
          {auto 0 tt : TokenTyped tok} ->
          {auto 0 tp : TokenPt tok} ->
-         {auto 0 sf : SubtypesFit tok} -> Effect bs
-create count tok = Create You count tok [] {tt} {tp} {sf} {rr = MkRidersOk}
+         {auto 0 sf : SubtypesFit tok} ->
+         {auto 0 tc : TokenCanonical tok} ->
+         {auto 0 wc : WrittenCount count} -> Effect bs
+create count tok = Create You count tok [] {tt} {tp} {sf} {tc} {wc} {rr = MkRidersOk}
 
 -- "Create [count] [chars] token(s) that's tapped and attacking"
 -- ([CR#508.4]) — the arrival pair, which is the only shape the corpus
@@ -585,9 +598,12 @@ public export
 createTappedAttacking : (count : Amount bs) -> (tok : TokenChars) ->
                         {auto 0 tt : TokenTyped tok} ->
                         {auto 0 tp : TokenPt tok} ->
-                        {auto 0 sf : SubtypesFit tok} -> Effect bs
+                        {auto 0 sf : SubtypesFit tok} ->
+                        {auto 0 tc : TokenCanonical tok} ->
+                        {auto 0 wc : WrittenCount count} -> Effect bs
 createTappedAttacking count tok =
-  Create You count tok [EntersTapped, EntersAttacking] {tt} {tp} {sf} {rr = MkRidersOk}
+  Create You count tok [EntersTapped, EntersAttacking] {tt} {tp} {sf} {tc} {wc}
+         {rr = MkRidersOk}
 
 -- "[n] becomes [type line] in addition to its other types [duration]"
 -- ([CR#205.1b]) — the static effect and its adverbial under one name, the
@@ -599,9 +615,10 @@ public export
 becomes : (n : Noun bs Object) -> (added : TypeLine) -> (d : Maybe Duration) ->
           {auto 0 zn : OnBattlefield (nounZone n)} ->
           {auto 0 ne : LineNonEmpty added} ->
+          {auto 0 nw : AddsSomething (nounTy n) added} ->
           {auto 0 af : AddedFits (nounTy n) added} ->
           {auto 0 sp : SpanOk TypeAddition d} -> Effect bs
-becomes n added d = Continuously (BecomesAlso n added {zn} {ne} {af}) d {sp}
+becomes n added d = Continuously (BecomesAlso n added {zn} {ne} {nw} {af}) d {sp}
 
 -- The draw surfaces, over the one `Draw` primitive ([CR#121.1]). The
 -- imperative's unpronounced subject is `You` spelled explicitly, which is
@@ -619,8 +636,8 @@ drawACard = Draw You (Lit 1)
 -- hundred seventy-four lines; "Draw three cards", a hundred twenty-eight).
 -- spelling: ["draw <Param(0)> cards"], kind: Sentence
 public export
-drawCards : Nat -> Effect bs
-drawCards n = Draw You (Lit n)
+drawCards : (n : Nat) -> {auto 0 wc : WrittenCount {bs} (Lit n)} -> Effect bs
+drawCards n = Draw You (Lit n) {wc}
 
 -- "[who] draws a card" — the subjected form ("Target player draws a
 -- card", twenty lines; "Each player draws a card", twenty-nine).
@@ -641,16 +658,20 @@ drawsACard who = Draw who (Lit 1)
 public export
 chooseOne : (modes : List (Effect bs)) ->
             {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-            {auto 0 mf : ModesFit (exactly 1) (modeCount modes)} -> Effect bs
-chooseOne modes = Modal (exactly 1) modes {tw} {mf}
+            {auto 0 mf : ModesFit (exactly 1) (modeCount modes)} ->
+            {auto 0 mh : ModalHead (exactly 1) (modeCount modes)} ->
+            {auto 0 dm : distinctModes modes = True} -> Effect bs
+chooseOne modes = Modal (exactly 1) modes {tw} {mf} {mh} {dm}
 
 -- "Choose two — • … • …" — thirty-two cards, over three or four modes.
 -- spelling: ["choose two — <Param(0)>"], kind: Sentence
 public export
 chooseTwo : (modes : List (Effect bs)) ->
             {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-            {auto 0 mf : ModesFit (exactly 2) (modeCount modes)} -> Effect bs
-chooseTwo modes = Modal (exactly 2) modes {tw} {mf}
+            {auto 0 mf : ModesFit (exactly 2) (modeCount modes)} ->
+            {auto 0 mh : ModalHead (exactly 2) (modeCount modes)} ->
+            {auto 0 dm : distinctModes modes = True} -> Effect bs
+chooseTwo modes = Modal (exactly 2) modes {tw} {mf} {mh} {dm}
 
 -- "Choose one or both — • … • …" — fifty-two cards, every one over
 -- exactly two modes (see `oneOrBoth`).
@@ -658,8 +679,10 @@ chooseTwo modes = Modal (exactly 2) modes {tw} {mf}
 public export
 chooseOneOrBoth : (modes : List (Effect bs)) ->
                   {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-                  {auto 0 mf : ModesFit Macros.oneOrBoth (modeCount modes)} -> Effect bs
-chooseOneOrBoth modes = Modal Macros.oneOrBoth modes {tw} {mf}
+                  {auto 0 mf : ModesFit Macros.oneOrBoth (modeCount modes)} ->
+                  {auto 0 mh : ModalHead Macros.oneOrBoth (modeCount modes)} ->
+                  {auto 0 dm : distinctModes modes = True} -> Effect bs
+chooseOneOrBoth modes = Modal Macros.oneOrBoth modes {tw} {mf} {mh} {dm}
 
 -- "Choose one or more — • … • …" — nineteen cards, over three, four, or
 -- five modes (see `atLeast`).
@@ -667,8 +690,28 @@ chooseOneOrBoth modes = Modal Macros.oneOrBoth modes {tw} {mf}
 public export
 chooseOneOrMore : (modes : List (Effect bs)) ->
                   {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-                  {auto 0 mf : ModesFit (atLeast 1) (modeCount modes)} -> Effect bs
-chooseOneOrMore modes = Modal (atLeast 1) modes {tw} {mf}
+                  {auto 0 mf : ModesFit (atLeast 1) (modeCount modes)} ->
+                  {auto 0 mh : ModalHead (atLeast 1) (modeCount modes)} ->
+                  {auto 0 dm : distinctModes modes = True} -> Effect bs
+chooseOneOrMore modes = Modal (atLeast 1) modes {tw} {mf} {mh} {dm}
+
+-- "Choose any number — • … • …" — the unbounded head, and the one where
+-- the floor is genuinely zero: [CR#107.1c] says that a player instructed
+-- to choose "any number" "may choose any positive number or zero", so a
+-- controller may take none of the modes at all. [CR#700.2] asks only
+-- that the list be preceded by "instructions for a player to choose a
+-- number of those options" and imposes no minimum of its own, and the
+-- quantity says the same thing structurally (`anyNumber` is the range
+-- open at both ends). Two corpus lines head a bulleted list with it —
+-- Rankle, Master of Pranks and Rankle and Torbran.
+-- spelling: ["choose any number — <Param(0)>"], kind: Sentence
+public export
+chooseAnyNumber : (modes : List (Effect bs)) ->
+                  {auto 0 tw : AtLeastTwo (modeCount modes)} ->
+                  {auto 0 mf : ModesFit Macros.anyNumber (modeCount modes)} ->
+                  {auto 0 mh : ModalHead Macros.anyNumber (modeCount modes)} ->
+                  {auto 0 dm : distinctModes modes = True} -> Effect bs
+chooseAnyNumber modes = Modal Macros.anyNumber modes {tw} {mf} {mh} {dm}
 
 -- "if [subject] don't/doesn't [condition]" / "if [subject] isn't
 -- [predicate]" — the negated condition ([CR#701.47a] writes both of
@@ -686,8 +729,10 @@ notSo c = NotCond c {ng}
 -- not one of Nominal/Sentence/Cost/KeywordLine/Ability)
 public export
 itsA : (p : Predicate bs Object) -> {auto 0 ok : countOnes Object bs = 1} ->
+       {auto 0 sy : PredSays p} ->
+       {auto 0 zc : ZoneFits (zoneOfIt bs) (seedZone p)} ->
        {auto 0 af : AnyTargetFree p} -> Condition bs
-itsA p = Matches (It {ok}) p {af}
+itsA p = Matches (It {ok}) p {sy} {zc} {af}
 
 -- "it isn't [pred]" — `itsA` negated, the frame amass's last sentence
 -- writes ("If it isn't a Zombie, …", [CR#701.47a]) and real card text
@@ -697,5 +742,8 @@ itsA p = Matches (It {ok}) p {af}
 -- fragment, see itsA)
 public export
 itIsntA : (p : Predicate bs Object) -> {auto 0 ok : countOnes Object bs = 1} ->
-          {auto 0 af : AnyTargetFree p} -> Condition bs
-itIsntA p = NotCond (itsA p {ok} {af}) {ng = MkCondNegatable}
+          {auto 0 sy : PredSays p} ->
+          {auto 0 zc : ZoneFits (zoneOfIt bs) (seedZone p)} ->
+          {auto 0 af : AnyTargetFree p} ->
+          {auto 0 nf : predNegFree p = True} -> Condition bs
+itIsntA p = NotCond (itsA p {ok} {sy} {zc} {af}) {ng = MkCondNegatable {ok = nf}}

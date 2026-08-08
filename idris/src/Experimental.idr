@@ -305,6 +305,39 @@ public export
 data ModesFit : Quantity -> Nat -> Type where
   MkModesFit : {auto 0 ok : modesFit q n = True} -> ModesFit q n
 
+||| Which modal headcounts English WRITES — the attestation table beside
+||| `modesFit`'s well-formedness one, and a separate relation for the
+||| separate question: `modesFit` asks whether a headcount could name a
+||| choice at all, this asks whether oracle spells it. The counts are
+||| supported-corpus lines carrying the bulleted em-dash: "choose one —"
+||| eighty-four, "choose two —" three, "choose three —" one (Mishra,
+||| Eminent One), "choose up to one —" five, "choose one or both —"
+||| four, "choose one or more —" four, "choose any number —" two (Rankle,
+||| Master of Pranks; Rankle and Torbran). Written ZERO times, all
+||| scopes: "choose up to two —", "choose up to three —", "choose four",
+||| "two or more", "one or two". So the vocabulary is the three small
+||| fixed counts, the one-capped "up to", the two open tops, and the
+||| unbounded head — and an unattested head is refused rather than
+||| inferred from the range algebra (`badModalUpToTwo`).
+||| The two OPEN TOPS take their maximum from the list: "one or both"
+||| over exactly two modes and "one or more" over more, which is what
+||| those words say. A one-to-two range over three modes would have to
+||| spell "one or two" and no card does, so the top is required to BE the
+||| count rather than merely fit under it.
+public export
+modalHead : Quantity -> Nat -> Bool
+modalHead (Range Nothing Nothing) n = True
+modalHead (Range Nothing (Just (S Z))) n = True
+modalHead (Range Nothing (Just _)) n = False
+modalHead (Range (Just (S Z)) Nothing) n = True
+modalHead (Range (Just _) Nothing) n = False
+modalHead (Range (Just lo) (Just hi)) n =
+  (eqNat lo hi && leNat lo 3) || (eqNat lo 1 && eqNat hi n)
+
+public export
+data ModalHead : Quantity -> Nat -> Type where
+  MkModalHead : {auto 0 ok : modalHead q n = True} -> ModalHead q n
+
 ||| A written numeral is at least one — "for each zero creatures" is
 ||| unwritten English (`badForEachZero`).
 public export
@@ -827,6 +860,35 @@ public export
 data OnBattlefield : Maybe Zone -> Type where
   OnField : OnBattlefield (Just Battlefield)
 
+||| A reference's OWN zone against the zone its description reads —
+||| `zonesAgree`'s agreement rule pointed at the one place the subject
+||| is external to the phrase. A noun phrase places its referent itself,
+||| so "creature card in your graveyard" has its zone story checked
+||| inside the conjunction; a copular condition instead says something
+||| about a referent placed somewhere else already, and "it's in a
+||| graveyard" said of a battlefield mention describes nothing
+||| (a description naming a zone means an object in THAT zone,
+||| [CR#109.2a], so it picks out nothing the subject could be).
+||| Silence on either side is no evidence and passes: an untracked
+||| subject answers for nothing, and a description that names no zone
+||| asks nothing of one.
+public export
+zoneFits : Maybe Zone -> Maybe Zone -> Bool
+zoneFits Nothing _ = True
+zoneFits (Just _) Nothing = True
+zoneFits (Just a) (Just b) = sameZone a b
+
+||| The copular condition's zone gate as a witness (`OnBattlefield`'s
+||| shape — a plain `Maybe Zone` relation, so the mutual block below can
+||| call it from a constructor's type). It is chapter twenty-one's other
+||| half of the trailing-condition timing correction: with the condition
+||| typed in `preIntro`, the subject of "Destroy target creature if it's
+||| in a graveyard" is on the battlefield where its phrase announced it,
+||| and this is what notices (`badTrailingPostStateZone`).
+public export
+data ZoneFits : Maybe Zone -> Maybe Zone -> Type where
+  MkZoneFits : {auto 0 ok : zoneFits subj desc = True} -> ZoneFits subj desc
+
 ||| What "target" can take ([CR#115.1] — objects and players; a
 ||| quality is choosable, never targetable).
 public export
@@ -1125,6 +1187,70 @@ data SubtypesFit : TokenChars -> Type where
   MkSubtypesFit : {auto 0 ok : subsFitLine t.line.subs t.line.tys = True} ->
                   SubtypesFit t
 
+||| Where a card type stands in a type line — a rank rather than a
+||| comparison table, because the corpus fixes a TOTAL order over these
+||| four words and a rank is that order written once. Measured pairwise
+||| over supported oracle: "artifact creature" five hundred ninety-four
+||| lines against "creature artifact" none, "artifact land" four against
+||| none, "land creature" eleven against none (Dryad Arbor's token,
+||| "1/1 green Forest Dryad land creature token"), "enchantment
+||| creature" thirty-three, and "enchantment artifact creature" the one
+||| line that places enchantment ahead of artifact. The Enchantment/Land
+||| pair is written neither way and rides on transitivity, which is what
+||| a rank buys and a pair table would have had to guess at. The one
+||| counterexample is the Licid template's "becomes a creature
+||| enchantment … instead of a creature" (Flanking Licid), a
+||| pre-standardization wording against thirty-three the other way.
+public export
+typeRank : CardType -> Nat
+typeRank Enchantment = 0
+typeRank Artifact = 1
+typeRank Land = 2
+typeRank Creature = 3
+
+||| Strictly ascending by rank — which is the ORDER and the
+||| duplicate-freeness at once, a repeated word being the one thing a
+||| strict order cannot admit. [CR#111.3] makes a token's stated
+||| characteristics its text, so "creature artifact token" and "white
+||| white Soldier" are not two spellings of a bundle but two bundles
+||| oracle never writes (`badTokenTypeOrder`, `badTokenDuplicateColor`).
+public export
+ltNat : Nat -> Nat -> Bool
+ltNat a b = leNat (S a) b
+
+public export
+typesOrdered : List CardType -> Bool
+typesOrdered [] = True
+typesOrdered (t :: []) = True
+typesOrdered (t :: u :: ts) = ltNat (typeRank t) (typeRank u) &&
+                              typesOrdered (u :: ts)
+
+||| Colors are duplicate-free but NOT ordered, and the corpus is why:
+||| Additive Evolution writes "a 0/0 green and blue Fractal creature
+||| token", which the mana order would have spelled the other way round.
+||| So the demand is only that no color is written twice ([CR#105.2] —
+||| an object "can be one or more of the five colors, or … no color at
+||| all", which is a property it has or lacks and never counts).
+public export
+colorMember : Color -> List Color -> Bool
+colorMember c [] = False
+colorMember c (d :: ds) = sameColor c d || colorMember c ds
+
+public export
+colorsDistinct : List Color -> Bool
+colorsDistinct [] = True
+colorsDistinct (c :: cs) = not (colorMember c cs) && colorsDistinct cs
+
+||| The token bundle's surface form as one witness: its colors written
+||| once each, its type line in the order oracle writes it.
+public export
+tokenCanonical : TokenChars -> Bool
+tokenCanonical t = colorsDistinct t.colors && typesOrdered t.line.tys
+
+public export
+data TokenCanonical : TokenChars -> Type where
+  MkTokenCanonical : {auto 0 ok : tokenCanonical t = True} -> TokenCanonical t
+
 ||| The type-addition clause's own subtype check, which is the token's
 ||| with one more place to look: a subtype the clause adds may sit on a
 ||| card type the SAME clause adds ("becomes a Spirit artifact creature")
@@ -1146,6 +1272,35 @@ addedFits subj (MkTypeLine (s :: ss) tys) =
 public export
 data AddedFits : Maybe CardType -> TypeLine -> Type where
   MkAddedFits : {auto 0 ok : addedFits subj tl = True} -> AddedFits subj tl
+
+||| Does a type-addition clause ADD anything? "In addition to its other
+||| types" [CR#205.1b] retains what the object had and states what it
+||| gains, so a clause that states only what the subject already is
+||| states nothing: "target creature becomes a creature in addition to
+||| its other types" is no instruction, and the corpus writes no line
+||| where the added type is the subject's own head (Tezzeret's adds
+||| creature to an ARTIFACT, Neurok Transmuter's adds artifact to a
+||| CREATURE). The subject's head is the only thing the discourse knows
+||| about it, so that is what "already" can mean here: a SUBTYPE is
+||| never provably redundant (no mention carries its subtypes) and an
+||| untyped subject entails nothing, both of which pass — the gate
+||| under-refuses in `predEq`'s direction. [CR#701.47a] guards the
+||| subtype case in the text instead, with a condition ("If it isn't a
+||| [subtype], …") rather than a grammar rule (`badBecomesOwnType`).
+public export
+anyNewType : Maybe CardType -> List CardType -> Bool
+anyNewType subj [] = False
+anyNewType subj (t :: ts) = not (tyIs t subj) || anyNewType subj ts
+
+public export
+addsSomething : Maybe CardType -> TypeLine -> Bool
+addsSomething subj (MkTypeLine [] tys) = anyNewType subj tys
+addsSomething subj (MkTypeLine (_ :: _) tys) = True
+
+public export
+data AddsSomething : Maybe CardType -> TypeLine -> Type where
+  MkAddsSomething : {auto 0 ok : addsSomething subj tl = True} ->
+                    AddsSomething subj tl
 
 public export
 data LineNonEmpty : TypeLine -> Type where
@@ -1319,7 +1474,8 @@ data Duration = ThisTurn | Until DurationEnd
 ||| clause is somewhere else (a play permission, a base-P/T setting).
 ||| The rest name the observed splits, and they are strikingly clean:
 ||| the current-turn adverbials divide the grants from the restrictions
-||| exactly, and only the cross-turn span is written by everything.
+||| exactly, and the cross-turn span is the only one both families
+||| write.
 |||
 ||| Chapter nineteen SPLIT one of these rows rather than joining it. The
 ||| type-addition clause writes "until end of turn" and never "until end
@@ -1332,7 +1488,7 @@ data Duration = ThisTurn | Until DurationEnd
 ||| combat endpoint alone.
 public export
 data SpanUse = Unattested | Unclaimed | BothGrants | GrantsAndTypes
-             | KeywordGrantOnly | RestrictionsOnly | EveryStatic
+             | KeywordGrantOnly | RestrictionsOnly | GrantsAndRestrictions
 
 ||| The attestation table: every duration this vocabulary can spell,
 ||| against the constructions that write it. FULL ROWS over (boundary x
@@ -1367,7 +1523,7 @@ spanUse ThisTurn = RestrictionsOnly
 -- "until [poss] next [part]" — the start boundary writes no boundary
 -- word, and takes possession or the definite article, never nothing.
 spanUse (Until (StartOf Turn Nothing)) = Unattested
-spanUse (Until (StartOf Turn (Just Yours))) = EveryStatic
+spanUse (Until (StartOf Turn (Just Yours))) = GrantsAndRestrictions
 spanUse (Until (StartOf Turn (Just ThatPlayers))) = Unclaimed
 spanUse (Until (StartOf Upkeep Nothing)) = Unattested
 spanUse (Until (StartOf Upkeep (Just Yours))) = KeywordGrantOnly
@@ -1495,12 +1651,15 @@ data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition
 
 ||| The attestation table's other half: which classes of adverbial each
 ||| construction writes. Full rows in both directions. The shape of it
-||| is the finding — `EveryStatic` is the only class every row admits,
-||| and the two current-turn words divide the grants from the
-||| restrictions with nothing shared, which is why the detain family's
+||| is the finding — the cross-turn span is the one class both GRANTS and
+||| the RESTRICTION admit, and the two current-turn words divide those
+||| two families with nothing shared, which is why the detain family's
 ||| cross-turn span ("Up to one target creature can't attack or block
 ||| until your next turn") is the one place a restriction and a grant
-||| write the same words.
+||| write the same words. It is not the class every static admits, and
+||| the class name says so since chapter twenty-one: the type addition is
+||| out of it, which is the row that used to be called `EveryStatic` and
+||| had stopped being true of it.
 ||| The type-addition row is chapter nineteen's, and it is what split
 ||| `BothGrants`. Two hundred and twenty corpus lines write "in addition
 ||| to its other types"; the great majority state no span at all (the
@@ -1513,13 +1672,21 @@ data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition
 ||| becomes a Coward in addition to its other types until end of turn"
 ||| gives the restriction "this turn" and the type addition "until end of
 ||| turn" in one breath, which is chapter seventeen's division confirmed
-||| by a card that writes both halves at once. The cross-turn span is the
-||| thin cell: one line writes it ("Until your next turn, target artifact
-||| you control becomes a 5/5 creature in addition to its other types"),
-||| and its clause fuses a base-P/T setting this vocabulary has no word
-||| for onto the type addition, so the cell is opened on a single fused
-||| line and flagged here for re-measurement rather than resting on
-||| silence.
+||| by a card that writes both halves at once. The cross-turn cell is
+||| CLOSED, and chapter twenty-one closed it on the re-measurement
+||| chapter nineteen asked for: two hundred sixty-four supported lines
+||| write "in addition to its/their/his/her other types" and exactly
+||| three of them carry "until your next turn", every one otherwise
+||| explained. Rootwise Survivor's duration belongs to the SEPARATE haste
+||| grant beside it ("That land becomes a 0/0 Elemental creature in
+||| addition to its other types. It gains haste until your next turn.");
+||| Absorbing Man's clause is a copy construction, the type addition
+||| riding inside an "except" list; and Tezzeret, Cruel Machinist's
+||| "becomes a 5/5 creature in addition to its other types" fuses a base
+||| power/toughness setting this vocabulary has no word for onto the
+||| addition. No line writes a NAKED type addition across turns, so the
+||| honest value is `False` (`badTypeAdditionAcrossTurns`) and Tezzeret
+||| waits on the compound base-P/T-setting construction (ledger).
 public export
 admitsSpan : StaticKind -> SpanUse -> Bool
 admitsSpan PtDelta Unattested = False
@@ -1528,28 +1695,28 @@ admitsSpan PtDelta BothGrants = True
 admitsSpan PtDelta GrantsAndTypes = True
 admitsSpan PtDelta KeywordGrantOnly = False
 admitsSpan PtDelta RestrictionsOnly = False
-admitsSpan PtDelta EveryStatic = True
+admitsSpan PtDelta GrantsAndRestrictions = True
 admitsSpan KeywordGrant Unattested = False
 admitsSpan KeywordGrant Unclaimed = False
 admitsSpan KeywordGrant BothGrants = True
 admitsSpan KeywordGrant GrantsAndTypes = True
 admitsSpan KeywordGrant KeywordGrantOnly = True
 admitsSpan KeywordGrant RestrictionsOnly = False
-admitsSpan KeywordGrant EveryStatic = True
+admitsSpan KeywordGrant GrantsAndRestrictions = True
 admitsSpan DeedRestriction Unattested = False
 admitsSpan DeedRestriction Unclaimed = False
 admitsSpan DeedRestriction BothGrants = False
 admitsSpan DeedRestriction GrantsAndTypes = False
 admitsSpan DeedRestriction KeywordGrantOnly = False
 admitsSpan DeedRestriction RestrictionsOnly = True
-admitsSpan DeedRestriction EveryStatic = True
+admitsSpan DeedRestriction GrantsAndRestrictions = True
 admitsSpan TypeAddition Unattested = False
 admitsSpan TypeAddition Unclaimed = False
 admitsSpan TypeAddition BothGrants = False
 admitsSpan TypeAddition GrantsAndTypes = True
 admitsSpan TypeAddition KeywordGrantOnly = False
 admitsSpan TypeAddition RestrictionsOnly = False
-admitsSpan TypeAddition EveryStatic = True
+admitsSpan TypeAddition GrantsAndRestrictions = False
 
 ||| Whether a construction can write NO duration at all. A grant can:
 ||| the unwritten span is [CR#611.2a]'s end-of-game default, which the
@@ -2618,6 +2785,77 @@ mutual
   data Negatable : Predicate bs k -> Type where
     MkNegatable : {auto 0 ok : negatable p = True} -> Negatable p
 
+  ||| Does this phrase SAY anything? Every atomic modifier does, by
+  ||| being a word; a conjunction says what its members say, so the
+  ||| EMPTY one says nothing at all. `Headed` is the stronger demand the
+  ||| determiner slots make and the copular condition cannot — "if it's
+  ||| attacking" and "if it's tapped" head nothing and are real oracle —
+  ||| so the weaker one is its own table (`badMatchesNothing`). A
+  ||| coordination is already two alternatives deep (`TwoDisjuncts`) and
+  ||| a negation says what it negates. Full rows.
+  public export
+  predSays : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+  predSays (HasType _) = True
+  predSays (HasSubtype _) = True
+  predSays AnyPlayer = True
+  predSays Opponent = True
+  predSays (QualityNoun _) = True
+  predSays (OfChosen _) = True
+  predSays (ControlledBy _) = True
+  predSays Attacking = True
+  predSays Blocking = True
+  predSays (Compare _ _ _) = True
+  predSays (InZone _) = True
+  predSays (And ps) = predSaysAny ps
+  predSays (Or _) = True
+  predSays (Not p) = predSays p
+  predSays Other = True
+  predSays AnyTarget = True
+
+  public export
+  predSaysAny : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
+  predSaysAny [] = False
+  predSaysAny (p :: ps) = predSays p || predSaysAny ps
+
+  public export
+  data PredSays : Predicate bs k -> Type where
+    MkPredSays : {auto 0 ok : predSays p = True} -> PredSays p
+
+  ||| Is this phrase free of negation, at any depth a combinator
+  ||| reaches? The condition frames take a "not" of their own
+  ||| ([CR#701.47a] writes one — "If it isn't a [subtype], …"), and what
+  ||| they may not take it of is a phrase that already carries one:
+  ||| "if it isn't a non-artifact" is a negation of a negation however
+  ||| the two are spelled, and the corpus writes none
+  ||| (`badNegatedNegativeMatch`). This is `negatable (Not _) = False`,
+  ||| the predicate layer's atomic-only negation, said one construction
+  ||| up — where the inner negation can hide inside a conjunction that
+  ||| the predicate layer's own row never sees. Full rows.
+  public export
+  predNegFree : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+  predNegFree (HasType _) = True
+  predNegFree (HasSubtype _) = True
+  predNegFree AnyPlayer = True
+  predNegFree Opponent = True
+  predNegFree (QualityNoun _) = True
+  predNegFree (OfChosen _) = True
+  predNegFree (ControlledBy _) = True
+  predNegFree Attacking = True
+  predNegFree Blocking = True
+  predNegFree (Compare _ _ _) = True
+  predNegFree (InZone _) = True
+  predNegFree (And ps) = predNegFreeAll ps
+  predNegFree (Or ps) = predNegFreeAll ps
+  predNegFree (Not _) = False
+  predNegFree Other = True
+  predNegFree AnyTarget = True
+
+  public export
+  predNegFreeAll : {0 bs : Bindings} -> {0 k : Kind} ->
+                   List (Predicate bs k) -> Bool
+  predNegFreeAll [] = True
+  predNegFreeAll (p :: ps) = predNegFree p && predNegFreeAll ps
+
   ||| Does no part of this phrase spell "any target"? The class word is
   ||| ITSELF the targeting form — "a any target" and "each any target"
   ||| are unwritable — so only the targeting determiners admit it. The
@@ -3126,6 +3364,40 @@ mutual
   data WrittenBound : Amount bs -> Type where
     MkWrittenBound : {auto 0 ok : writtenBound b = True} -> WrittenBound b
 
+  ||| A count English WRITES is at least one. Drawing, creating, and
+  ||| counter-placing all spell their number, and no corpus line spells
+  ||| it zero — not as a numeral ("draw zero cards"), not as a
+  ||| determiner ("create no tokens"), in any scope. [CR#121.1] makes a
+  ||| draw the movement of a card, [CR#111.1] a token a marker put onto
+  ||| the battlefield, and [CR#122.1] a counter a marker placed on
+  ||| something; a zero of any of them instructs nothing, and English
+  ||| writes nothing instead (`badDrawZero`, `badCreateZero`,
+  ||| `badPutZeroCounters`).
+  ||| It is the LITERAL SPELLING that is refused and not the value. An
+  ||| amount that is READ can evaluate to zero and stay perfectly
+  ||| written — X's value is its controller's to choose and announce
+  ||| ([CR#107.3a]) and nothing floors it, a for-each domain can
+  ||| be empty, "that much" can be nothing — so those rows pass and only
+  ||| the written numeral is asked to be positive. That is `AtLeastOne`'s
+  ||| discipline (`badForEachZero`) reaching the action counts, and it is
+  ||| why `Lit` itself stays ungated: a bound of zero is a real
+  ||| comparison ("with mana value 0 or less" measures rather than
+  ||| instructs). A sum is written where BOTH its operands are.
+  public export
+  writtenCount : {0 bs : Bindings} -> Amount bs -> Bool
+  writtenCount (Lit Z) = False
+  writtenCount (Lit (S _)) = True
+  writtenCount (StatOf _ _) = True
+  writtenCount (CountOf _) = True
+  writtenCount (Times _ a) = writtenCount a
+  writtenCount ThatMuch = True
+  writtenCount XVal = True
+  writtenCount (Plus a b) = writtenCount a && writtenCount b
+
+  public export
+  data WrittenCount : Amount bs -> Type where
+    MkWrittenCount : {auto 0 ok : writtenCount a = True} -> WrittenCount a
+
   ||| Two bounds, compared as written. Conservative in `predEq`'s
   ||| direction and for its reason: the catch-all reads "not provably
   ||| the same value", and the constructor's own gate means the only
@@ -3228,6 +3500,46 @@ mutual
   data Bindingless : Noun bs k -> Type where
     MkBindingless : {auto 0 ok : nounDelta n = []} -> Bindingless n
 
+  ||| Which phrases a choice clause can SELECT — the introduction
+  ||| discipline chapter twenty gave the indefinite article, asked of
+  ||| "Choose". A choice binds a NEW referent out of a described set, so
+  ||| the phrase has to describe one: the corpus writes "choose a/an …"
+  ||| (four hundred ninety-one lines), "choose target …" (a hundred
+  ||| sixty), "choose two/three …", "choose up to …", "choose any number
+  ||| of …", "choose another …" — every one of them a selection from a
+  ||| description — and writes "choose you", "choose it", and "choose
+  ||| them" zero times each. Choosing an ALREADY DEFINITE participant is
+  ||| not a choice at all: there is nothing to select among, and the
+  ||| clause would announce a mention it did not bind
+  ||| (`badChooseYou`). The distributive and universal determiners are
+  ||| out for the neighbouring reason — "choose each creature" selects
+  ||| nothing either — leaving the two introducing determiners exactly.
+  ||| It reads the constructor rather than `nounDelta`, unlike
+  ||| `Bindingless` beside it, because a relative clause's possessor
+  ||| makes a read's delta nonempty without making the read a choice.
+  ||| Full rows.
+  public export
+  choosable : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+  choosable This = False
+  choosable (AsType _ _) = False
+  choosable You = False
+  choosable (Each _) = False
+  choosable (Indefinite _ _) = True
+  choosable (TargetGroup _ _) = True
+  choosable (AllOf _) = False
+  choosable It = False
+  choosable They = False
+  choosable Them = False
+  choosable (Those _) = False
+  choosable (That _) = False
+  choosable (TheVerbed _ _) = False
+  choosable (ControllerOf _) = False
+  choosable (OwnerOf _) = False
+
+  public export
+  data Choosable : Noun bs k -> Type where
+    MkChoosable : {auto 0 ok : choosable n = True} -> Choosable n
+
   ||| A truth-valued test a clause can be conditioned on — core's
   ||| `Condition` (`deckmaste_core/src/condition.rs`), and named after
   ||| it. The three rows here are core's first three exactly
@@ -3296,6 +3608,8 @@ mutual
     -- here), kind: TODO(reason: condition fragment, see Exists)
     Matches : {k : Kind} -> (n : Noun bs k) -> (p : Predicate bs k) ->
               {auto 0 bl : Bindingless n} ->
+              {auto 0 sy : PredSays p} ->
+              {auto 0 zc : ZoneFits (nounZone n) (seedZone p)} ->
               {auto 0 af : AnyTargetFree p} -> Condition bs
     -- "its mana value is 2 or less" — a measured amount against a
     -- written bound, which is core's `Compare(Count, Cmp, Count)` with
@@ -3365,10 +3679,16 @@ mutual
   ||| and "3 or less" is what English writes there — and a negation
   ||| under a negation is written zero times likewise
   ||| (`badNegatedComparison`, `badDoubleNegatedCondition`).
+  ||| The two open rows are open CONDITIONALLY, which is chapter
+  ||| twenty-one's correction: the frame negates a POSITIVE phrase only.
+  ||| A blanket `True` let the polarity launder — "if it isn't a
+  ||| non-artifact" is the double negation the row below refuses,
+  ||| written one construction down instead (`predNegFree`,
+  ||| `badNegatedNegativeMatch`).
   public export
   condNegatable : {0 bs : Bindings} -> Condition bs -> Bool
-  condNegatable (Exists p) = True
-  condNegatable (Matches n p) = True
+  condNegatable (Exists p) = predNegFree p
+  condNegatable (Matches n p) = predNegFree p
   condNegatable (CompareAmt subj r bound) = False
   condNegatable (NotCond c) = False
 
@@ -3402,6 +3722,7 @@ mutual
   condDelta (Matches n p) = []
   condDelta (CompareAmt subj r bound) = []
   condDelta (NotCond c) = []
+
 
   ||| The continuous effects a resolving clause can establish
   ||| ([CR#611.2]) — the PART of the sentence that survives its
@@ -3499,6 +3820,7 @@ mutual
     BecomesAlso : (n : Noun bs Object) -> (added : TypeLine) ->
                   {auto 0 zn : OnBattlefield (nounZone n)} ->
                   {auto 0 ne : LineNonEmpty added} ->
+                  {auto 0 nw : AddsSomething (nounTy n) added} ->
                   {auto 0 af : AddedFits (nounTy n) added} -> StaticEffect bs
 
   ||| Which row a static effect is, for the span tables.
@@ -3574,7 +3896,8 @@ mutual
     -- resolution-time and nontarget ([CR#115.1] keeps the words
     -- apart): here the fronted sentence scopes everything after it.
     -- spelling: ["choose <Param(0)>"], kind: Sentence
-    Choose : {k : Kind} -> Noun bs k -> Effect bs
+    Choose : {k : Kind} -> (n : Noun bs k) ->
+             {auto 0 ch : Choosable n} -> Effect bs
     -- "[move] [n] [to zone]" — the zone-change primitive every keyword
     -- action's body bottoms out in ([CR#701.8a] shape). Destination
     -- only: the from-zone is the referent's fold-state, which this
@@ -3626,7 +3949,8 @@ mutual
     -- "a". A count that is READ rather than written extraposes -- "draw
     -- cards equal to <Param(1)>", the bare plural before the phrase --
     -- which is a linearization choice, unchecked here)
-    Draw : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) -> Effect bs
+    Draw : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) ->
+           {auto 0 wc : WrittenCount amt} -> Effect bs
     -- "[static effect] [duration]" — the clause whose resolution
     -- establishes a continuous effect for the span it states
     -- ([CR#611.2a] — it "lasts as long as stated"), which is core's
@@ -3683,6 +4007,8 @@ mutual
              {auto 0 tt : TokenTyped tok} ->
              {auto 0 tp : TokenPt tok} ->
              {auto 0 sf : SubtypesFit tok} ->
+             {auto 0 tc : TokenCanonical tok} ->
+             {auto 0 wc : WrittenCount count} ->
              {auto 0 rr : RidersOk riders} -> Effect bs
     -- "Put [amt] [kind] counter(s) on [n]" ([CR#122.1]) — core's
     -- `PutCounters(Reference, CounterRef, Count)`, with the arguments in
@@ -3706,6 +4032,7 @@ mutual
     -- pluralises with the count, and at one the numeral is the article "a")
     PutCounters : (amt : Amount bs) -> (kind : CounterKind) ->
                   (on : Noun (amtIntro amt) Object) ->
+                  {auto 0 wc : WrittenCount amt} ->
                   {auto 0 zn : OnBattlefield (nounZone on)} -> Effect bs
     -- "Remove [amt] [kind] counter(s) from [n]" — the twin, and core's
     -- `RemoveCounters` beside `PutCounters` for the same reason: removal
@@ -3723,6 +4050,7 @@ mutual
     -- kind: Sentence (as PutCounters, with the preposition "from")
     RemoveCounters : (amt : Amount bs) -> (kind : CounterKind) ->
                      (from : Noun (amtIntro amt) Object) ->
+                     {auto 0 wc : WrittenCount amt} ->
                      {auto 0 zn : OnBattlefield (nounZone from)} -> Effect bs
     -- the keyword-action tag ([CR#701]): the named verb deontics and
     -- replacements key on, wrapping its expansion body ([CR#701.8b] —
@@ -3829,18 +4157,21 @@ mutual
     -- nothing the clause introduced, which is the ordinary case; the
     -- leading form that DOES read back is the target-announcing family
     -- and is refused (`condDelta`, `badMatchesTargetSubject`).
-    -- A DIVERGENCE worth stating: the condition is evaluated before
-    -- the clause it modifies takes effect, but it is WRITTEN after it,
-    -- so the telescope types it against a discourse the clause has
-    -- already updated — Overload's artifact is retagged to the
-    -- graveyard by the destroy before "its mana value" is read here.
-    -- Nothing in this vocabulary notices (mana value belongs to every
-    -- object, [CR#202.3], and is read zone-free), but a zone-sensitive
-    -- read in a trailing condition would, and it is the first thing to
-    -- check when one lands.
-    -- The condition contributes nothing (`condDelta`), so the clause's
-    -- own contribution is unchanged by conditioning it — written in
-    -- terms of `condDelta` rather than assuming it.
+    -- The DIVERGENCE chapter eighteen wrote here has landed, and it is
+    -- closed: the condition is evaluated before the clause it modifies
+    -- takes effect but WRITTEN after it, so typing it in the clause's
+    -- post-state let it read a world the clause had not made — a
+    -- zone-sensitive trailing condition was named as the thing to watch
+    -- for, and "Destroy target creature if it's in a graveyard" is it
+    -- (`badTrailingPostStateZone`). The condition is typed in
+    -- `preIntro` now: what the clause's phrases ANNOUNCED, with the
+    -- announced zone, and nothing the clause did. Overload is unmoved —
+    -- mana value belongs to every object [CR#202.3] and is read
+    -- zone-free — which is what makes this a correction to the timing
+    -- rather than to the textual-order design.
+    -- The conditioned clause is a HOLE outward (`effIntro`), for the
+    -- reason the else arm below is one: the condition may be false, and
+    -- then this clause never ran and its phrase named nothing.
     -- The ELSE arm ("Otherwise, …", a hundred and seventy-five lines) is
     -- the third slot chapter eighteen designed and could not fill, opened
     -- here now that a card's both arms are writable: Unholy Annex's "If
@@ -3866,7 +4197,7 @@ mutual
     -- introduced -- a linearization side condition, unchecked here, like the
     -- leading/trailing choice on Delayed -- and the else arm is available
     -- only in the leading order), kind: Sentence
-    If : (e : Effect bs) -> (c : Condition (effIntro e)) ->
+    If : (e : Effect bs) -> (c : Condition (preIntro e)) ->
          (otherwise : Maybe (Effect bs)) -> Effect bs
     -- the clause SEQUENCE — a card's sentence list and its "…, then
     -- …" alike ([CR#608.2c] orders sub-effects), mirroring core's
@@ -3952,7 +4283,9 @@ mutual
             {auto 0 nz : NonZeroQ q} ->
             {auto 0 wf : WellFormedQ q} ->
             {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-            {auto 0 mf : ModesFit q (modeCount modes)} -> Effect bs
+            {auto 0 mf : ModesFit q (modeCount modes)} ->
+            {auto 0 mh : ModalHead q (modeCount modes)} ->
+            {auto 0 dm : distinctModes modes = True} -> Effect bs
     -- "[e] [when/at event-query]" — the temporal adverbial stays on
     -- its clause (leading vs trailing position is linearization); the
     -- body reads the discourse as settled particulars transformed by
@@ -3970,6 +4303,64 @@ mutual
   modeCount : {0 bs : Bindings} -> List (Effect bs) -> Nat
   modeCount [] = Z
   modeCount (_ :: es) = S (modeCount es)
+
+  ||| Syntactic clause equality — `predEq`'s discipline one layer up, and
+  ||| conservative in exactly its direction: `True` means "provably the
+  ||| same clause", so a `False` is "not provably the same" and the gate
+  ||| that reads it under-refuses. Most rows are that `False`, and the
+  ||| reason is the telescope rather than laziness: a clause's later
+  ||| arguments are typed in the context its earlier ones built, so two
+  ||| clauses' payloads generally inhabit two different types and cannot
+  ||| be compared at all. What CAN be compared is compared — the verb
+  ||| tag, a same-context noun (`nounEqRef`), a destination zone, and the
+  ||| written count of the imperative draw, whose subject is spelled
+  ||| `You` and so puts both amounts in one context. Per-row catch-alls,
+  ||| so a new clause is a totality error on its missing row.
+  public export
+  effEq : {0 bs : Bindings} -> Effect bs -> Effect bs -> Bool
+  effEq (DealDamage _ _ _) _ = False
+  effEq (Fights _ _) _ = False
+  effEq (Tap a) (Tap b) = nounEqRef a b
+  effEq (Tap _) _ = False
+  effEq (Choose _) _ = False
+  effEq (Move a s) (Move b t) = nounEqRef a b && sameZone (zoneSort s) (zoneSort t)
+  effEq (Move _ _) _ = False
+  effEq (ChangeLife _ _) _ = False
+  effEq (Draw You a) (Draw You b) = boundEq a b
+  effEq (Draw _ _) _ = False
+  effEq (Continuously _ _) _ = False
+  effEq (Create _ _ _ _) _ = False
+  effEq (PutCounters _ _ _) _ = False
+  effEq (RemoveCounters _ _ _) _ = False
+  effEq (Composite v e) (Composite w f) = sameVerb v w && effEq e f
+  effEq (Composite _ _) _ = False
+  effEq (Does _ _ _) _ = False
+  effEq (May _ _ _ _) _ = False
+  effEq (If _ _ _) _ = False
+  effEq (Sequentially _) _ = False
+  effEq (Modal _ _) _ = False
+  effEq (Delayed _ _) _ = False
+
+  ||| No mode repeats another. [CR#700.2] calls a spell modal when its
+  ||| bulleted options are "preceded by instructions for a player to
+  ||| choose a number of those options", and two identical options are
+  ||| one option written twice — the choice between them decides nothing.
+  ||| [CR#700.2d] settles it from the other side: a player choosing more
+  ||| than one mode "normally can't choose the same mode more than once",
+  ||| and the cards that lift that restriction say so in words ("You may
+  ||| choose the same mode more than once", six lines) rather than by
+  ||| printing the mode twice. Structural, and conservative with it
+  ||| (`effEq`): what it catches is the degenerate repetition
+  ||| (`badDuplicateModes`), not every semantic twin.
+  public export
+  anyEffEq : {0 bs : Bindings} -> Effect bs -> List (Effect bs) -> Bool
+  anyEffEq e [] = False
+  anyEffEq e (f :: fs) = effEq e f || anyEffEq e fs
+
+  public export
+  distinctModes : {0 bs : Bindings} -> List (Effect bs) -> Bool
+  distinctModes [] = True
+  distinctModes (e :: es) = not (anyEffEq e es) && distinctModes es
 
   ||| A clause sequence as a TELESCOPE, not a list of independent
   ||| clauses: each element is typed in the bindings its predecessors
@@ -4329,11 +4720,26 @@ mutual
   effIntro (Composite _ e) = effIntro e
   effIntro (Does s v (Move what to)) = moveIntro (Just v) what (zoneSort to)
   effIntro (Does s v e) = effIntro e
-  effIntro (May d body did notd) = mayIntro body did
-  -- the else arm contributes nothing: only one arm ever runs, and the
-  -- one that REPLACES the main line is a hole (`mayIntro`'s cut, one
-  -- construction over).
-  effIntro (If e c oth) = condDelta c ++ effIntro e
+  effIntro (May d body did notd) = mayIntro body did notd
+  -- NEITHER arm contributes: only one of them ever runs. The else arm
+  -- was always a hole (it REPLACES the main line, `mayIntro`'s cut one
+  -- construction over) and the conditioned clause is now one too, for
+  -- the identical reason read the other way — the condition may have
+  -- been FALSE, and then the clause never happened and its phrase named
+  -- nothing (`badConditionalArmAntecedent`). Chapter twenty-one's
+  -- finding: this row used to export `effIntro e`, which made a
+  -- conditionally created token an unconditional `It` for every
+  -- sentence after it. What survives the branch is the discourse that
+  -- entered it, plus the condition's own contribution (nothing, on
+  -- every row — written in terms of `condDelta` rather than assumed).
+  -- The COST is named rather than hidden: a target announced inside the
+  -- conditioned clause is announced whatever the condition's truth
+  -- ([CR#601.2c]), so Overload's second sentence really does read the
+  -- first sentence's "that artifact" across an `If`. That is the same
+  -- target-announcement channel `condDelta` already ledgers, now owed
+  -- from two sites instead of one, and it wants a determiner-sensitive
+  -- export this row cannot spell (ledger).
+  effIntro (If e c oth) = condDelta c ++ bs
   effIntro (Sequentially es) = effsIntro es
   -- a modal names NOBODY the sentences after it can read: the modes are
   -- chosen at cast ([CR#700.2a]) and an unchosen one's targets are never
@@ -4343,9 +4749,63 @@ mutual
   effIntro (Modal q modes) = bs
   effIntro (Delayed ev e) = bs               -- a future clause mentions nothing NOW
 
+  ||| What a clause has ANNOUNCED by the time its own trailing condition
+  ||| is read — the pre-resolution twin of `effIntro`, and the whole of
+  ||| chapter twenty-one's answer to the divergence `If` has carried in
+  ||| its comment since chapter eighteen: the condition is WRITTEN after
+  ||| the clause and EVALUATED before it, so typing it in the clause's
+  ||| post-state let it ask about a world the clause had not made yet.
+  ||| "Destroy target creature if it's in a graveyard" typechecked
+  ||| exactly because the destroy had already retagged its target
+  ||| (`badTrailingPostStateZone`).
+  |||
+  ||| Two kinds of row differ from `effIntro`, and both are the same
+  ||| distinction: what a clause's PHRASES name is announced as the
+  ||| clause is written ([CR#601.2c] for targets, and the choice and
+  ||| recipient phrases with them), so it is readable; what the clause
+  ||| DOES is not. So the three zone-writing rows announce their object
+  ||| without the retag or the verb stamp, `Create` announces no token
+  ||| ([CR#111.1] — a token is put onto the battlefield by an EFFECT, so
+  ||| the resolution the condition gates is what makes it), and the two event-outcome rows leave no outcome behind
+  ||| (nothing has been dealt or gained yet, so "that much" reads
+  ||| nothing). Every other row is its `effIntro` answer verbatim,
+  ||| written out rather than delegated so that a new clause has to
+  ||| declare its own pre-state.
+  public export
+  preIntro : {bs : Bindings} -> Effect bs -> Bindings
+  preIntro (DealDamage src amt to) = nomIntro to
+  preIntro (Fights a b) = nomIntro b
+  preIntro (Tap n) = nomIntro n
+  preIntro (Choose n) = nomIntro n
+  preIntro (Move what to) = nomIntro what
+  preIntro (ChangeLife who (Up a)) = lifeIntro (Up a)
+  preIntro (ChangeLife who (Down a)) = lifeIntro (Down a)
+  preIntro (Draw who amt) = amtIntro amt
+  preIntro (Continuously se _) = staticIntro se
+  preIntro (Create agent count tok riders) = amtIntro count
+  preIntro (PutCounters amt kind on) = nomIntro on
+  preIntro (RemoveCounters amt kind from) = nomIntro from
+  preIntro (Composite v (Move what to)) = nomIntro what
+  preIntro (Composite _ e) = preIntro e
+  preIntro (Does s v (Move what to)) = nomIntro what
+  preIntro (Does s v e) = preIntro e
+  preIntro (May d body did notd) = mayIntro body did notd
+  preIntro (If e c oth) = condDelta c ++ bs
+  preIntro (Sequentially es) = preIntros es
+  preIntro (Modal q modes) = bs
+  preIntro (Delayed ev e) = bs
+
+  ||| A sequence's pre-state is its LAST clause's: every earlier clause
+  ||| has resolved by the time the trailing condition is read.
+  public export
+  preIntros : {bs : Bindings} -> {0 n : Nat} -> Effects n bs -> Bindings
+  preIntros [] = bs
+  preIntros (e :: []) = preIntro e
+  preIntros (e :: es) = preIntros es
+
   ||| What a may-clause leaves behind: the MAIN LINE's discourse — the
-  ||| body's, or the if-you-do arm's when there is one, since that arm
-  ||| continues the body rather than replacing it.
+  ||| body's, or the if-you-do arm's when that arm is the only branch,
+  ||| since it continues the body rather than replacing it.
   |||
   ||| The if-you-DON'T arm contributes nothing, and the principle is the
   ||| one English marks: the arm that continues the main line flows out,
@@ -4355,12 +4815,26 @@ mutual
   ||| the may can read back — `predDelta (Or _) = []` one layer up. The
   ||| body's own mentions flow out even though the may may be declined,
   ||| which is the ruling this clause has carried since it was minted:
-  ||| a declined may skips at runtime, not in scope.
+  ||| a declined may skips at runtime, not in scope, and Through the
+  ||| Breach reads the body's creature in its very next sentence.
+  |||
+  ||| BOTH arms at once is the fourth row, and chapter twenty-one's: the
+  ||| taken arm flows out only when there is no declined arm beside it.
+  ||| Crovax the Cursed writes the pair — "you may sacrifice a creature.
+  ||| If you do, put a +1/+1 counter on Crovax. If you don't, remove a
+  ||| +1/+1 counter from Crovax." — and [CR#118.12] is why the join is
+  ||| the BODY and not either arm: the branch records whether the player
+  ||| chose to pay, "regardless of what events actually occurred", so
+  ||| exactly one arm ran and the sentences after the may cannot know
+  ||| which. Selecting the if-you-do arm's mentions there was reading one
+  ||| branch as if it were both (`badBothArmsAntecedent`).
   public export
   mayIntro : {bs : Bindings} -> (body : Effect bs) ->
-             Maybe (Effect (effIntro body)) -> Bindings
-  mayIntro body Nothing = effIntro body
-  mayIntro body (Just did) = effIntro did
+             Maybe (Effect (effIntro body)) -> Maybe (Effect bs) -> Bindings
+  mayIntro body Nothing Nothing = effIntro body
+  mayIntro body (Just did) Nothing = effIntro did
+  mayIntro body Nothing (Just notd) = effIntro body
+  mayIntro body (Just did) (Just notd) = effIntro body
 
   ||| What a whole sequence contributes: its last clause's discourse,
   ||| the telescope having threaded every predecessor's through.

@@ -620,6 +620,23 @@ darettisMinusOne =
 -- same object, but the source enters no discourse (ledger), so the
 -- read has nothing to resolve against and the meaning is carried by
 -- the phrase the pronoun abbreviates.
+-- "You may sacrifice a creature. If you do, put a +1/+1 counter on
+-- Crovax. If you don't, remove a +1/+1 counter from Crovax." (Crovax the
+-- Cursed's upkeep trigger, whole but for the trigger header; its
+-- enters-with line and its flying activation are other abilities) —
+-- BOTH arms on one card, which is the shape chapter twenty-one needed to
+-- settle what a two-armed may exports. The two arms are typed
+-- differently and the export is neither: the body's discourse is all
+-- that survives, because [CR#118.12] has the branch record whether the
+-- offer was taken and nothing after the may can know which arm ran
+-- (`badBothArmsAntecedent`). The card itself reads neither arm
+-- afterward, and names its subject rather than pronouncing it.
+crovaxTheCursed : Effect []
+crovaxTheCursed =
+  mayThenElse You (sacrifice You (a creature))
+                  (PutCounters (Lit 1) PlusOnePlusOne thisCreature)
+                  (RemoveCounters (Lit 1) PlusOnePlusOne thisCreature)
+
 yawgmothDemon : Effect []
 yawgmothDemon =
   mayElse You (sacrifice You (a artifact))
@@ -676,42 +693,34 @@ fireNavyTrebuchet =
              [KeywordAbility Flying] (Just "Ballistic Boulder"))
 
 -- "If you don't control an Army creature, create a 0/0 black Zombie Army
--- creature token." — amass's first SENTENCE, whole, and the rule's own
--- words rather than a card's reminder text: [CR#701.47a] defines "amass
--- [subtype] N" as "If you don't control an Army creature, create a 0/0
--- black [subtype] Army creature token. Choose an Army creature you
--- control. Put N +1/+1 counters on that creature. If it isn't a
--- [subtype], it becomes a [subtype] in addition to its other types."
--- Angrath, Captain of Chaos writes "Amass Zombies 2"; this is the
--- sentence that makes its token. Nothing is elided any more — the
--- negated condition chapter nineteen had to drop is written here, which
--- is R3's retro-open of that ledger entry — and the MULTI-SUBTYPE line is
--- what the leg contributes on its own: two subtypes over one card type.
-amassZombiesToken : Effect []
-amassZombiesToken =
-  If (create (Lit 1) (creatureTok 0 0 [Black] [Zombie, Army]))
-     (notSo (Exists (And [HasSubtype Army, creature, ControlledBy You])))
-     Nothing
-
--- "Choose an Army creature you control. Put two +1/+1 counters on that
--- creature. If it isn't a Zombie, it becomes a Zombie in addition to its
--- other types." — amass Zombies 2's last THREE sentences, whole
--- ([CR#701.47a]), and the choose-then-refer glue end to end: the choice
--- clause introduces the referent, the counter clause reads it with the
--- sorted demonstrative, and the type addition reads it again with the
--- pronoun under its own negated condition. Both of chapter nineteen's
--- elisions are gone.
--- It is still written apart from the sentence above, and the reason is
--- now EXACT rather than general: written as one term, the token that
--- sentence conditionally creates and the Army this one chooses are two
--- creature mentions, so "that creature" has two candidates and the
--- uniqueness discipline refuses it (`badAmassOneTerm`) — the whole gap,
--- one anaphor wide. The rule's own two mentions denote one object in
--- either branch, which is a fact about the game and not about the
--- sentences, and no mention channel here can see it (ledger).
-amassZombiesArmy : Effect []
-amassZombiesArmy =
-  Sequentially [Choose (a (And [HasSubtype Army, creature, ControlledBy You])),
+-- creature token. Choose an Army creature you control. Put two +1/+1
+-- counters on that creature. If it isn't a Zombie, it becomes a Zombie
+-- in addition to its other types." — AMASS ZOMBIES 2, whole and as ONE
+-- term, in the rule's own words rather than a card's reminder text:
+-- [CR#701.47a] defines "amass [subtype] N" as those four sentences, and
+-- Angrath, Captain of Chaos writes "Amass Zombies 2" for them.
+-- This was the gap chapters nineteen and twenty could only write in two
+-- halves, and chapter twenty-one's branch-arm rule closes it: the token
+-- the first sentence conditionally creates is arm-local, so by the time
+-- "that creature" is written the Army the second sentence CHOSE is the
+-- only creature mention in scope and the sorted demonstrative resolves
+-- without guessing.
+-- The rule agrees twice over. [CR#701.47c] says the phrases "the Army
+-- you amassed" and "the amassed Army" refer to "the creature you
+-- chose" — the choice is the binder, not the creation. And a channel
+-- merging the two mentions into one referent would have been FALSE, not
+-- merely unspellable: Doubling Season reads "If an effect would create
+-- one or more tokens under your control, it creates twice that many of
+-- those tokens instead", which [CR#614.1a] makes a replacement effect,
+-- so amass can create TWO Armies and then choose either one. Core's own
+-- macro has the same shape — conditional create, then a choose binder,
+-- then the counters on what was chosen.
+amassZombiesTwo : Effect []
+amassZombiesTwo =
+  Sequentially [If (create (Lit 1) (creatureTok 0 0 [Black] [Zombie, Army]))
+                   (notSo (Exists (And [HasSubtype Army, creature, ControlledBy You])))
+                   Nothing,
+                Choose (a (And [HasSubtype Army, creature, ControlledBy You])),
                 PutCounters (Lit 2) PlusOnePlusOne (That (TypeW Creature)),
                 If (becomes It (subtypesOnly [Zombie]) Nothing)
                    (itIsntA (HasSubtype Zombie))
@@ -904,6 +913,20 @@ rainOfThorns : Effect []
 rainOfThorns = chooseOneOrMore [destroy (target artifact),
                                 destroy (target enchantment),
                                 destroy (target land)]
+
+-- "Whenever Rankle deals combat damage to a player, choose any number —
+-- • Each player discards a card. • Each player sacrifices a creature of
+-- their choice." (Rankle, Master of Pranks; the trigger header elided as
+-- every trigger header is, and the MIDDLE mode with it — "Each player
+-- loses 1 life and draws a card" is one subject under two verbs, a
+-- verb-phrase coordination this grammar does not spell) — the unbounded
+-- head, whose floor is genuinely zero: [CR#107.1c] lets a player told to
+-- choose "any number" choose "any positive number or zero", so declining
+-- every mode is a legal reading of the instruction and the head says so.
+rankleMasterOfPranks : Effect []
+rankleMasterOfPranks =
+  chooseAnyNumber [discardsACard (Each AnyPlayer),
+                   sacrifice (Each AnyPlayer) (aTheirChoice creature)]
 
 -- "Choose an opponent. That player sacrifices a creature of their
 -- choice." (Myrkul's Edict, the 1—9 face of its d20 roll; the roll is a
@@ -1993,6 +2016,48 @@ failing "Bindingless"
   badMatchesTargetSubject : Condition []
   badMatchesTargetSubject = Matches (target creature) artifact
 
+-- A description that says NOTHING tests nothing. The copular frame does
+-- not demand a HEAD — "if it's attacking" and "if it's tapped" are real
+-- oracle and head nothing — so the empty conjunction slipped past the
+-- gate the existential uses (`Headed`) and had to be refused by the
+-- weaker one instead (`predSays`). Every corpus line writes at least one
+-- word after the copula.
+failing "PredSays"
+  badMatchesNothing : Effect []
+  badMatchesNothing =
+    Sequentially [Tap (target creature),
+                  If (gainsLife You (Lit 1)) (Matches It (And [])) Nothing]
+
+-- A condition negates a POSITIVE description. "If it isn't a
+-- non-artifact" is a negation of a negation, which the predicate layer
+-- already refuses of itself (`negatable (Not _) = False`,
+-- `badDoubleNegation`) and which the condition frame could launder by
+-- taking its "not" of an already-negative phrase. Corpus writes the
+-- single negation everywhere ([CR#701.47a]'s "If it isn't a [subtype]",
+-- `amassZombiesTwo`) and the doubled one nowhere.
+failing "CondNegatable"
+  badNegatedNegativeMatch : Effect []
+  badNegatedNegativeMatch =
+    Sequentially [Tap (target creature),
+                  If (gainsLife You (Lit 1))
+                     (notSo (Matches It (Not artifact)))
+                     Nothing]
+
+-- A trailing condition is EVALUATED before the clause it modifies and
+-- WRITTEN after it, and reading it in the clause's post-state let it ask
+-- about a world the clause had not made: "Destroy target creature if
+-- it's in a graveyard" typechecked because the destroy had already
+-- retagged its own target. Chapter twenty-one types the condition in
+-- `preIntro` — what the clause's phrases ANNOUNCED, with the announced
+-- zone — so the subject here is on the battlefield, and `ZoneFits`
+-- refuses the description that puts it elsewhere ([CR#109.2a]). Overload
+-- is unaffected: mana value belongs to every object [CR#202.3] and is
+-- read zone-free.
+failing "ZoneFits"
+  badTrailingPostStateZone : Effect []
+  badTrailingPostStateZone =
+    If (destroy (target creature)) (Matches It (InZone graveyardZ)) Nothing
+
 -- A written comparison measures a READ against a written value, and a
 -- numeral is not a read: "if 3 is 4 or greater" states an arithmetic
 -- fact, not a fact about the game. The subject table is `writtenBound`'s
@@ -2108,6 +2173,47 @@ failing "OnBattlefield"
   badRemoveCountersDead = Sequentially [destroy (target creature),
                                         RemoveCounters (Lit 1) PlusOnePlusOne It]
 
+-- A token's stated characteristics ARE its text ([CR#111.3]), so the
+-- bundle is a surface phrase and not a set of facts about an object: a
+-- color written twice is a word written twice, and no corpus line writes
+-- one. The order is likewise the phrase's: measured over supported
+-- oracle, "artifact creature" runs five hundred ninety-four lines to
+-- "creature artifact"'s none, and the four type words this vocabulary
+-- has fall into one total order (`typeRank`). Colors take the
+-- duplicate demand and NOT the ordering one, because Additive Evolution
+-- writes "a 0/0 green and blue Fractal creature token" and the mana
+-- order would have spelled it the other way round.
+failing "TokenCanonical"
+  badTokenTypeOrder : Effect []
+  badTokenTypeOrder =
+    create (Lit 1) (MkToken (Just (1, 1)) [] (MkTypeLine [] [Creature, Artifact])
+                            [] Nothing)
+
+failing "TokenCanonical"
+  badTokenDuplicateColor : Effect []
+  badTokenDuplicateColor = create (Lit 1) (creatureTok 1 1 [White, White] [Soldier])
+
+-- A written action count is at least one. [CR#121.1] makes a draw the
+-- movement of a card, [CR#111.1] a token a marker put onto the
+-- battlefield, [CR#122.1] a counter a marker placed on something, and a
+-- zero of any of them instructs nothing — which is why no corpus line
+-- spells one, as a numeral or as a determiner, in any scope. What stays
+-- writable is the count that EVALUATES to zero: X is announced zero
+-- (its controller's to choose and announce, [CR#107.3a]) and a for-each
+-- domain can be empty, so only the literal
+-- spelling is refused (`writtenCount`).
+failing "WrittenCount"
+  badDrawZero : Effect []
+  badDrawZero = drawCards 0
+
+failing "WrittenCount"
+  badCreateZero : Effect []
+  badCreateZero = create (Lit 0) (creatureTok 1 1 [White] [Soldier])
+
+failing "WrittenCount"
+  badPutZeroCounters : Effect []
+  badPutZeroCounters = PutCounters (Lit 0) PlusOnePlusOne (target creature)
+
 -- ===== What a type addition may add, and for how long =====
 
 -- A creature subtype has nowhere to sit on a land ([CR#205.1a] — a
@@ -2168,6 +2274,36 @@ failing "SpanOk TypeAddition"
 failing "ContradictionFree"
   badZombieNoncreature : Predicate [] Object
   badZombieNoncreature = And [HasSubtype Zombie, Not creature]
+
+-- "In addition to its other types" RETAINS what the object had and
+-- states what it gains ([CR#205.1b]), so a clause that states only what
+-- its subject already is states nothing at all. Tezzeret's adds creature
+-- to an ARTIFACT and Neurok Transmuter's adds artifact to a CREATURE;
+-- no line adds a type to a subject that already heads it. Subtypes are
+-- never provably redundant here — no mention carries its subtypes — and
+-- [CR#701.47a] guards that case in the text instead, with a condition
+-- ("If it isn't a [subtype], …") rather than a grammar rule.
+failing "AddsSomething"
+  badBecomesOwnType : Effect []
+  badBecomesOwnType = becomes (target creature) (typesOnly [Creature]) Nothing
+
+-- No line writes a NAKED type addition across turns. Chapter nineteen
+-- opened the cell on one apparent witness and flagged it for
+-- re-measurement; the re-measurement is chapter twenty-one's and closes
+-- it. Two hundred sixty-four supported lines write "in addition to
+-- its/their/his/her other types" and exactly three carry "until your
+-- next turn": Rootwise Survivor's duration belongs to the separate haste
+-- grant in the next sentence, Absorbing Man's clause is a copy
+-- construction, and Tezzeret, Cruel Machinist's "becomes a 5/5 creature
+-- in addition to its other types" fuses a base power/toughness setting
+-- onto the addition — the compound construction this vocabulary has no
+-- word for, and which waits on the ledger.
+failing "SpanOk"
+  badTypeAdditionAcrossTurns : Effect []
+  badTypeAdditionAcrossTurns =
+    becomes (target (And [artifact, ControlledBy You]))
+            (typesOnly [Creature])
+            (Just untilYourNextTurn)
 
 -- ===== What an else arm may read =====
 
@@ -2259,25 +2395,79 @@ failing "countWord"
   badDrawnCardRemention : Effect []
   badDrawnCardRemention = Sequentially [drawACard, exile (That CardW)]
 
--- Amass Zombies 2 as ONE term, which [CR#701.47a] writes as one
--- definition and this grammar cannot: with the conditional token creation
--- in front of it, "Put N +1/+1 counters on that creature" has TWO
--- creature mentions to choose between — the token that sentence may have
--- made, and the Army this one chose — and the no-recency discipline
--- (finding 26) refuses the bare demonstrative rather than guess. The
--- rule's two mentions denote ONE object in either branch (the token, when
--- there is one, is the only Army creature there is to choose), which is a
--- fact about the game that no mention channel here records. The nearest
--- honest forms are `amassZombiesToken` and `amassZombiesArmy`, whole
--- sentences both, and this pin is the seam between them.
-failing "countWord"
-  badAmassOneTerm : Effect []
-  badAmassOneTerm =
-    Sequentially [If (create (Lit 1) (creatureTok 0 0 [Black] [Zombie, Army]))
-                     (notSo (Exists (And [HasSubtype Army, creature, ControlledBy You])))
+-- The modal headcount vocabulary is CLOSED over what oracle writes, not
+-- over what the range algebra permits. "Choose up to two —" and "Choose
+-- up to three —" are written zero times in any scope, where "Choose up
+-- to one —" heads five lines, so the "up to" head is capped at one and
+-- the range that would spell the others is refused (`modalHead`). The
+-- fixed counts stop at three (Mishra, Eminent One) and the two open tops
+-- take their maximum from the list, which is what "or both" and "or
+-- more" say.
+failing "ModalHead"
+  badModalUpToTwo : Effect []
+  badModalUpToTwo = Modal (upTo 2) [destroy (target artifact),
+                                    destroy (target enchantment),
+                                    drawACard]
+
+-- Two identical modes are one mode written twice, and the choice between
+-- them decides nothing — [CR#700.2] wants "instructions for a player to
+-- choose a number of those options", and [CR#700.2d] has a player
+-- normally unable to "choose the same mode more than once", the cards
+-- that lift it saying so in words rather than by printing the bullet
+-- twice. The check is structural and conservative (`effEq`, `predEq`'s
+-- discipline one layer up): it catches the degenerate repetition, not
+-- every semantic twin.
+failing "distinctModes"
+  badDuplicateModes : Effect []
+  badDuplicateModes = chooseOne [drawACard, drawACard]
+
+-- ===== What a choice clause may select =====
+
+-- A choice BINDS a new referent out of a described set, so the phrase
+-- has to describe one. Corpus writes "choose a/an …", "choose target …",
+-- "choose two …", "choose up to …", "choose any number of …", "choose
+-- another …" — selections, every one — and writes "choose you", "choose
+-- it", and "choose them" zero times each. Choosing an already definite
+-- participant selects among nothing and would announce a mention the
+-- clause did not bind, which is chapter twenty's introduction discipline
+-- asked of the choice clause (`choosable`). "Choose a player" and
+-- "Choose an opponent" are unaffected — the gate is about the
+-- determiner, not the kind (`myrkulsEdict`).
+failing "Choosable"
+  badChooseYou : Effect []
+  badChooseYou = Choose You
+
+-- ===== What a branch arm leaves behind =====
+
+-- A conditioned clause is a HOLE: the condition may be false, and then
+-- the clause never ran and its phrase named nothing. So the token
+-- "create a 1/1 white Soldier creature token if you control a creature"
+-- may make cannot be the "it" of the sentence after the conditional —
+-- which is the else arm's rule (`badOtherwiseReadsIfArm`) and the
+-- declined may's (`badIfNotReadsMayBody`) read from outside instead of
+-- from inside. Oracle writes the re-binding rather than the anaphor
+-- where it means to reach the object: amass's second sentence chooses an
+-- Army rather than saying "it" of the token its first sentence may have
+-- created ([CR#701.47a], `amassZombiesTwo`).
+failing "countOnes"
+  badConditionalArmAntecedent : Effect []
+  badConditionalArmAntecedent =
+    Sequentially [If (create (Lit 1) (creatureTok 1 1 [White] [Soldier]))
+                     (Exists creatureYouControl)
                      Nothing,
-                  Choose (a (And [HasSubtype Army, creature, ControlledBy You])),
-                  PutCounters (Lit 2) PlusOnePlusOne (That (TypeW Creature)),
-                  If (becomes It (subtypesOnly [Zombie]) Nothing)
-                     (itIsntA (HasSubtype Zombie))
-                     Nothing]
+                  PutCounters (Lit 1) PlusOnePlusOne It]
+
+-- With BOTH arms written, the may exports its BODY and neither arm.
+-- [CR#118.12] says why: the branch checks "whether the player chose to
+-- pay an optional cost … regardless of what events actually occurred",
+-- so exactly one arm ran and the sentences after the may cannot know
+-- which — reading the if-you-do arm's token here is reading one branch
+-- as though it were both. Crovax the Cursed is the positive that writes
+-- the pair (`crovaxTheCursed`), and it reads neither arm afterward.
+failing "countOnes"
+  badBothArmsAntecedent : Effect []
+  badBothArmsAntecedent =
+    Sequentially [May You (gainsLife You (Lit 1))
+                       (Just (create (Lit 1) (creatureTok 1 1 [White] [Soldier])))
+                       (Just (create (Lit 2) (creatureTok 1 1 [White] [Soldier]))),
+                  PutCounters (Lit 1) PlusOnePlusOne It]
