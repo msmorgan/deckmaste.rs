@@ -656,6 +656,15 @@ failing "countVerbed"
                                               sacrifice You (a creature)])
                                (Move (TheVerbed Sacrifice CardW) BattlefieldZ)
 
+-- No participle reads a player, and the word is what says so: it
+-- fixes the phrase's KIND exactly as it does for the demonstrative
+-- (`kindOfW`), so "the discarded player" is not an object phrase a
+-- move could take at all — the refusal lands at the kind rather than
+-- waiting for the stamp scan to come back empty (finding 27).
+failing "kindOfW PlayerW"
+  badVerbedPlayerWord : Effect []
+  badVerbedPlayerWord = Move (TheVerbed Discard PlayerW) BattlefieldZ
+
 -- Voyager Staff's shape with the bare demonstrative: two card
 -- mentions (the sacrificed self, the exiled target) make "that card"
 -- ambiguous — the participle is what real text switches to here.

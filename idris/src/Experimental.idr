@@ -307,7 +307,10 @@
 |||    exactly as finding 12 predicted (`badBareCardRead`). Provenance
 |||    follows the TAG channel: the dying retag stamps nothing
 |||    ([CR#700.4] is an event, not a keyword action), matching the
-|||    corpus absence of "the destroyed …" reads.
+|||    corpus absence of "the destroyed …" reads. Provenance is its
+|||    own query (`stampedBy`) and the word its own check
+|||    (`verbedWordOk`); `stampWordOk` is their conjunction, and the
+|||    read's uniqueness (`countVerbed`) is counted over it.
 ||| 27. **The participle noun keeps the word axes apart.** Ruling:
 |||    card types/subtypes/supertypes are intrinsic to NEITHER core
 |||    nor semantics — each is a macro-DECLARED catalog word carrying
@@ -317,7 +320,19 @@
 |||    artifact" — Bosh: a graveyard card NOW, an artifact under the
 |||    verb), the intrinsic CARD word checks current zone fold-state
 |||    ("the exiled card" — Voyager Staff); both attested, uniqueness
-|||    supplied by the verb filter.
+|||    supplied by the verb filter. The word now fixes the phrase's
+|||    KIND as it does for the demonstrative (`kindOfW`), rather than
+|||    the read assuming `Object` over a word that may name a player.
+|||    The axes separate as QUERIES and not as constructors: a
+|||    word-free provenance read ("the sacrificed") is not English and
+|||    can answer no projection at all, because WHICH anchor to read
+|||    is the word's own business — the at-verb frame for a type word,
+|||    the current zone for the card word — so every participle scan
+|||    is keyed on the pair and has nothing to say about a verb alone.
+|||    Probed: a word-free row leaves eight noun functions
+|||    non-covering (`nounZone`, `nounTy`, `nounPlur`, `nounDelta`,
+|||    `nounEqRef`, `nounAnyTargetFree`, `nounIsAnyTarget`,
+|||    `moveIntro`).
 ||| 28. **The demonstrative shares the split word vocabulary.**
 |||    `That`/`Those` take the same `NounWord`, anchored to the
 |||    CURRENT state where the participle anchors to the verb event
@@ -1329,7 +1344,8 @@
 ||| bare demonstrative, and the determiner-nominal carrier itself)
 ||| are all CARRIERS — a slot for a word — where this file names the
 ||| RELATION the word carries, so the sweep MAPPED rather than built.
-||| The closed determiners go across one for one: "a"/"an" is `A`,
+||| The closed determiners go across one for one: "a"/"an" is
+||| `Indefinite` (its choice mode the adverbial, not the article),
 ||| "each" is `Each`, "all" is `AllOf`, "another" is the `Other`
 ||| conjunct on a determined head, "this"/"that"/"those" are
 ||| `This`/`AsType`/`That`/`Those`, and "any" is `AnyTarget` in the
@@ -2050,17 +2066,38 @@ kindOfW (TypeW _) = Object
 kindOfW CardW = Object
 kindOfW PlayerW = Player
 
-||| The word check against a STAMPED object mention, under the verb's
-||| frame: a TYPE word demands the referent stood on the battlefield
-||| AT the verb (a bare type word denotes a permanent [CR#109.2] —
+||| The PROVENANCE half of the participle read: is this mention the
+||| one the named verb event stamped? That is the whole of what the
+||| participle contributes as a determiner — "the sacrificed …" picks
+||| out the referent of the LAST sacrifice (finding 26), and it says
+||| nothing about which word may then describe it. Core keeps the same
+||| axis to itself: `Reference::Bound`/`Linked` name a mention by the
+||| role or the remembered link, where `Reference::That(Sort)` names
+||| one by its sort (`reference.rs`).
+public export
+stampedBy : VerbName -> Stamp -> Bool
+stampedBy v (MkStamp v' _) = sameVerb v v'
+
+||| The WORD half, over that same stamped mention: a TYPE word demands
+||| the referent stood on the battlefield AT the verb (the stamp's
+||| `wasField` — a bare type word denotes a permanent [CR#109.2], so
 ||| "the discarded creature" is unwritten; hands lose cards, not
-||| creatures) plus its projected type; the CARD word checks the
-||| current zone; no participle reads a player.
+||| creatures) plus its projected type; the intrinsic CARD word checks
+||| the CURRENT zone; no participle reads a player. Each row reads the
+||| word's own anchor and nothing about the verb, which is the axis
+||| separation: the same three words serve the demonstrative anchored
+||| to the current state instead (`wordNow`, finding 28).
+public export
+verbedWordOk : NounWord -> Stamp -> Maybe CardType -> Maybe Zone -> Bool
+verbedWordOk (TypeW t) (MkStamp _ wasF) ty zn = wasF && tyIs t ty
+verbedWordOk CardW st ty zn = isCardZone zn
+verbedWordOk PlayerW st ty zn = False
+
+||| The participle's two halves as the one check the scans want: the
+||| provenance picks the mention, the word describes it.
 public export
 stampWordOk : VerbName -> NounWord -> Stamp -> Maybe CardType -> Maybe Zone -> Bool
-stampWordOk v (TypeW t) (MkStamp v' wasF) ty zn = sameVerb v v' && wasF && tyIs t ty
-stampWordOk v CardW (MkStamp v' _) ty zn = sameVerb v v' && isCardZone zn
-stampWordOk v PlayerW st ty zn = False
+stampWordOk v w st ty zn = stampedBy v st && verbedWordOk w st ty zn
 
 ||| Does "the [verbed] [noun]" reach this binding? Singular, stamped,
 ||| noun word compatible (`stampWordOk`).
@@ -3593,12 +3630,18 @@ mutual
     -- artifact"): the definite participle read — exactly one mention
     -- stamped by that verb tag and reached by the noun word may
     -- precede. The disambiguator real text switches to where a bare
-    -- demonstrative would be ambiguous (finding 26).
+    -- demonstrative would be ambiguous (finding 26). Two axes kept
+    -- apart as queries: the PROVENANCE picks the mention
+    -- (`stampedBy`) and the WORD describes it (`verbedWordOk`), the
+    -- pair being what the read's uniqueness counts. The word fixes
+    -- the phrase's kind exactly as it does for `That`/`Those`; the
+    -- player word yields a player phrase no participle can reach
+    -- (finding 27).
     -- spelling: ["the <Param(0)> <Param(1)>"] (Param(0) = VerbName's lemma,
     -- rendered as its past participle by auto-inflection; Param(1) =
     -- NounWord's own word), kind: Nominal
     TheVerbed : (v : VerbName) -> (w : NounWord) ->
-                {auto 0 ok : countVerbed v w bs = 1} -> Noun bs Object
+                {auto 0 ok : countVerbed v w bs = 1} -> Noun bs (kindOfW w)
     -- "[object]'s controller" / "its owner": relational nouns — a NEW
     -- player referent derived from a SINGULAR object mention
     -- ([CR#108.3,109.4]; a group's owners need the plural relational,
