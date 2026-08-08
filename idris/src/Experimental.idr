@@ -191,15 +191,45 @@
 |||    (`vraskasStoneglare`; `phthisis` threads "power plus toughness"
 |||    as amount arithmetic); which VALUES those reads see is runtime —
 |||    the ability layer's story.
-||| 20. **`Fights` is confirmed primitive.** No operative oracle text
-|||    spells the mutual-damage expansion (reminder text only), and the
-|||    sequential family (`karplusanYeti`) is not equivalent — it deals
-|||    two ORDERED damage events where [CR#701.14a] deals both
+||| 20. **`Fights` is confirmed primitive, and the granularity round
+|||    found out WHY.** No operative oracle text spells the
+|||    mutual-damage expansion (reminder text only), and the sequential
+|||    family (`karplusanYeti`) is not equivalent — it deals two
+|||    ORDERED damage events where [CR#701.14a] deals both
 |||    SIMULTANEOUSLY (event granularity is observer-dependent,
 |||    [CR#700.1]); the order is observable to triggers and
 |||    replacements, while state-based actions see neither
 |||    mid-resolution ([CR#704.3,704.4] — the audit's correction of
-|||    this finding's original rationale).
+|||    this finding's original rationale). The round then tried to make
+|||    it a macro anyway, core's own expansion being exactly that (a
+|||    guarded `Simultaneously` pair of `DealDamage` clauses,
+|||    `plugins/builtin/macros/effect/Fight.ron` — whose existence
+|||    contradicts `OneShotEffect::Simultaneously`'s own doc comment
+|||    upstream, a flag for trunk). It cannot be written here, and the
+|||    obstacle is not the missing batch constructor. A damage clause
+|||    types its recipient in the context its SOURCE's mentions built,
+|||    so a reciprocal pair wants each participant in both roles —
+|||    each participant in two contexts at once. Telescoped
+|||    (`b` after `a`), the SECOND clause is refused: `nounDelta a ++
+|||    bs` against `nounDelta b ++ nomIntro a`. With both participants
+|||    in one context — exactly what a non-threading simultaneous batch
+|||    demands of its elements — the FIRST clause is refused instead:
+|||    `bs` against `nounDelta a ++ bs`. Both were put to the compiler
+|||    rather than argued. What would dissolve this is weakening a noun
+|||    into a larger context, and that must not exist: `It` is gated on
+|||    there being exactly ONE antecedent (`countOnes Object bs = 1`),
+|||    a gate a larger context breaks, so weakening is unsound wherever
+|||    it is not vacuous. English dodges it the way English always
+|||    does, with anaphora — the reminder text is one clause, "(Each
+|||    deals damage equal to its power to the other.)": a distributive
+|||    subject over the pair, and the group COMPLEMENT in the second
+|||    slot, so each participant is mentioned once and read back. That
+|||    complement is the missing PRIMITIVE the definite sweep ledgered
+|||    (a binding records plurality and determiner, never how many), so
+|||    the macro waits on it and not on a batch constructor —
+|||    `Simultaneously` is not minted here, because it would arrive
+|||    with no writable body, and this file deletes vocabulary that has
+|||    none rather than accreting it.
 |||
 ||| Chapter six, group reference and qualities (evidence: Fulgent
 ||| Distraction, Continue?, Sudden Demise, Kindred Dominance; the
@@ -1206,7 +1236,10 @@
 ||| PRIMITIVE rather than a missing word: a binding records a
 ||| mention's `Plurality` and its `Determiner`, neither of which
 ||| carries how MANY, so nothing here can presuppose a two-membered
-||| antecedent or subtract one mention from another; set-exception
+||| antecedent or subtract one mention from another — and the fight
+||| macro is the second construction now waiting on it, its own
+||| expansion being "(Each deals damage equal to its power to the
+||| other.)" (finding 20); set-exception
 ||| noun phrases
 ||| ("choose a card type other than creature", Arachne, Psionic
 ||| Weaver) — a complement
