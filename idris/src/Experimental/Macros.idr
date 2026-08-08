@@ -64,6 +64,25 @@ public export
 oneOrBoth : Quantity
 oneOrBoth = Range (Just 1) (Just 2)
 
+-- "one or [n] target [pred]s" / "one, two, or [n] target [pred]s" — the
+-- ENUMERATED range from one, and the DIVISION's own way of writing a
+-- target count ([CR#601.2d] has the caster announce the division, and
+-- the phrase spells the choice of how many to divide among). The corpus
+-- writes exactly two widths: "one or two targets" (twelve lines, Forked
+-- Bolt and Chandra's Pyrohelix) and "one, two, or three targets" (nine,
+-- Arc Lightning), plus their creature-restricted twins ("among one or
+-- two target creatures", ten; "among one, two, or three target …",
+-- twenty-six). It is the same range `oneOrBoth` spells at two, under the
+-- word the target count uses rather than the word a two-item mode list
+-- uses — which is why they are two macros over one primitive and not one
+-- macro with two names.
+-- spelling: ["one, … or <Param(0)>"] (core's `Between(1, n)`; the
+-- enumeration is the renderer's, "or both" being the modal list's word
+-- and "one or two" the target count's)
+public export
+oneThrough : Nat -> Quantity
+oneThrough n = Range (Just 1) (Just n)
+
 -- "target [pred]" — the singular counted mention. One constructor
 -- serves every quantity ([CR#601.2c] announces them all alike); at
 -- exactly one the numeral is what rendering leaves unwritten ("target
@@ -410,6 +429,48 @@ discards agent n = Does agent Discard (Move n graveyardZ) {tb = DiscardB {d = dk
 public export
 discardsACard : (agent : Noun bs Player) -> Effect bs
 discardsACard agent = discards agent (a (InZone handZ))
+
+-- The two divided surfaces, over the one `Distribute` primitive
+-- ([CR#601.2d,115.7f] — "divide or distribute" is one mechanic and the
+-- rules quote both words for it). One macro per verb, because English
+-- gives each its own idiom and no third exists.
+
+-- "[src] deals [amt] damage divided as you choose among [group]" (Arc
+-- Lightning, Forked Bolt, Boulderfall) — sixty-nine corpus lines, the
+-- adverbial riding the amount and the recipient taking "among" where an
+-- undivided damage clause takes "to".
+-- spelling: ["<Param(0)> deals <Param(1)> damage divided as you choose
+-- among <Param(2)>"], kind: Sentence (the DividedDamage row of
+-- Distribute -- see DividedVerb)
+public export
+dealsDivided : {k : Kind} -> (src : Noun bs Object) -> (amt : Amount (nomIntro src)) ->
+               (among : Noun (amtIntro amt) k) ->
+               {auto 0 ds : DamageSource src} ->
+               {auto 0 wc : WrittenCount amt} ->
+               {auto 0 pl : nounPlur among = ManyOf} ->
+               {auto 0 gm : GroupMention among} ->
+               {auto 0 rk : DamageRecipient among} -> Effect bs
+dealsDivided src amt among =
+  Distribute (DividedDamage src {ds}) amt among {wc} {pl} {gm}
+             {tk = DamageDivided {rk}}
+
+-- "Distribute [amt] [kind] counters among [group]" (Armament Corps,
+-- Case of the Trampled Garden) — forty-six corpus lines, and the verb
+-- itself is what marks the division here. Agent-silent, as `PutCounters`
+-- is and for its reason.
+-- spelling: ["distribute <Param(0)> <Param(1)> counters among
+-- <Param(2)>"], kind: Sentence (the DistributedCounters row of
+-- Distribute -- see DividedVerb)
+public export
+distributeCounters : (amt : Amount bs) -> (kind : CounterKind) ->
+                     (among : Noun (amtIntro amt) Object) ->
+                     {auto 0 wc : WrittenCount amt} ->
+                     {auto 0 pl : nounPlur among = ManyOf} ->
+                     {auto 0 gm : GroupMention among} ->
+                     {auto 0 zn : OnBattlefield (nounZone among)} -> Effect bs
+distributeCounters amt kind among =
+  Distribute (DistributedCounters kind) amt among {wc} {pl} {gm}
+             {tk = CountersDistributed {zn}}
 
 -- The duration adverbials, one macro per phrase the corpus writes, over
 -- the decomposed endpoint. The structure carries the axes (boundary,

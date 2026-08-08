@@ -2441,6 +2441,232 @@ Negative, Tahngarth Talruum Hero, Master Thief by way of
    the form is real and its own axis. Seven lines write the
    exchange. Ledgered, with the reason rather than the count.
 
+## Chapter Twenty-Three — Plurality and Distribution
+
+Chapter twenty-three, where number stops being a per-phrase fact
+(evidence: Grismold, the Dreadsower, Sparkmage's Gambit, Ajani,
+Adversary of Tyrants, Fall of the Titans, Nature's Panoply, Arc
+Lightning, Forked Bolt, Boulderfall, Armament Corps; and, for
+what the round measured rather than built, Elephant Resurgence,
+Oversimplify, Rendmaw, Creaking Nest, Additive Evolution, Rowan,
+Fearless Sparkmage, Crackle with Power, Sorrow's Path, Prey Upon).
+
+122. **The plurality of a created group is the CLAUSE's, and the
+   count was only half of it.** `Create` read its output number
+   off the count alone, which is exact for the imperative and
+   wrong the moment the AGENT distributes: "Each player creates a
+   green Elephant creature token. Those creatures have …"
+   (Elephant Resurgence) writes a count of one and reads back a
+   plural, because one token per player over many players is many
+   tokens. The fix is a two-argument table in the machinery that
+   already computed the number (`outputPlur`, re-keying
+   `effIntro`'s `Create` row) rather than a second plurality path
+   beside it: many agents or a plural count make a plural mention,
+   and the singular survives only when both halves are singular —
+   which is Additive Evolution's "create a 0/0 … Fractal creature
+   token. Put three +1/+1 counters on it." unchanged. The refusal
+   is the sharp half and it is the same two sentences with one
+   determiner moved: after a distributed creation the singular
+   pronoun resolves to nothing (`badDistributedCreationIt`).
+   Eighteen corpus lines write "each player creates", eight "each
+   opponent creates", one "each other player creates"; Grismold,
+   the Dreadsower is the bench positive, and Elephant Resurgence's
+   own second sentence is NOT, for two reasons found by trying to
+   write it. It grants a quoted ability, which is unbuilt; and its
+   token writes no P/T, which `tokenPtOk` refuses. That refusal's
+   ledger claim — that every corpus creature-token line writes its
+   two numbers — is FALSE, and the exception is systematic rather
+   than stray: ten lines create a creature token with no printed
+   P/T, and every one of them supplies the numbers with a
+   characteristic-defining ability in the same breath ("Create a
+   white Avatar creature token. It has 'This token's power and
+   toughness are each equal to your life total.'"). The gate is
+   still right — a creature token's numbers come from SOMEWHERE
+   [CR#111.3] — and its stated reason is not; the CDA is the other
+   source, and it arrives with the quoted-ability vocabulary.
+   One boundary the pin does not claim: Oversimplify writes "Each
+   player creates a 0/0 green and blue Fractal creature token and
+   puts a number of +1/+1 counters on IT", where the singular is
+   correct because the second verb is INSIDE the distributive
+   scope. That is a coordinated verb phrase under one subject, a
+   construction this grammar does not have (`Sequentially` is the
+   sentence-level stand-in and the pin is a sentence-level claim),
+   and it is what the fronted iteration clause would spell.
+123. **"Each of" is a determiner over a MENTION, where "each" is a
+   determiner over a description.** That one sentence is the whole
+   of `EachOf`, and it is why the constructor sits beside `Each`
+   rather than inside it. `Each` distributes over whatever answers
+   a phrase, so it announces the phrase; "each of up to two target
+   creatures" distributes over the members of a mention already
+   made, so it announces NOTHING — the targets were announced when
+   the group was written [CR#601.2c], and the word "each" adds no
+   referent (`nounDelta` passes its complement's delta through
+   unchanged). Two consequences follow and both are corpus facts.
+   The phrase stays PLURAL, so the next sentence reads it as one
+   group: "Sparkmage's Gambit deals 1 damage to each of up to two
+   target creatures. Those creatures can't block this turn." is
+   the whole card and the bench's witness, and Rowan, Fearless
+   Sparkmage writes the same two sentences. And the complement is
+   exactly the group forms the corpus writes after the word,
+   measured rather than assumed: a counted target mention ("each
+   of up to two target creatures", twenty-nine lines; "each of up
+   to X target creatures", nine; "each of up to three targets",
+   four; "each of two target creatures", three; "each of any
+   number of target creatures", three) or a plural read ("each of
+   them", thirty-seven; "each of those creatures", twenty-four;
+   "each of those cards", four; "each of those tokens", three).
+   Nothing else — not a second distributive, not the universal,
+   not another "each of" (`badEachOfDistributive`, `badEachOfAll`,
+   `badNestedEachOf`) — and the determiner needs a plural
+   complement to reach into at all (`badEachOfSingular`). That
+   closed list is `GroupMention`, and naming it is worth more than
+   the gate it discharges: it is the first time this grammar has a
+   word for "a phrase whose members the sentence may reach", which
+   is what a division needs too and what the pair complement is
+   still missing (finding 127). The determiner is general and not
+   a recipient's: real oracle writes it as a subject ("Each of
+   them gets +X/+X and gains vigilance until end of turn",
+   Sigardian Zealot; "Each of them searches their library …") and
+   over a move ("return each of them to the battlefield under ITS
+   owner's control"), where the singular possessive inside the
+   clause is the per-member reading made visible.
+124. **A per-member amount asks its recipient a question, and
+   English answers it with a word rather than leaving it to
+   arithmetic.** The damage and counter clauses write ONE
+   magnitude and one recipient phrase, and between them the two
+   have to say whether the magnitude is each member's or the
+   group's. A singular recipient asks nothing; the two
+   distributive determiners answer outright — `Each` over a
+   description (Bellowing Aegisaur's "put a +1/+1 counter on each
+   other creature you control") and `EachOf` over a group mention
+   (Ajani, Adversary of Tyrants' "on each of up to two target
+   creatures"). A BARE plural recipient answers neither, and the
+   corpus never writes one. "Put a … counter on" reaches a counted
+   group through "each of" and no other way: zero lines at two, at
+   three, or at four, against twenty-nine at "each of up to two
+   target creatures" — while "up to ONE target creature",
+   twenty-eight lines, is singular and passes on its own number.
+   The damage verb reads identically. The plural READS tell the
+   same story from the other side: "counters on them" is
+   thirty-six relative clauses ("cards with intel counters on
+   them") and no recipient, "damage to them" is the singular
+   epicene player every one of its twenty-five times, and "damage
+   to those …" is written zero times. So is the universal —
+   "damage to all creatures" and "counter on all creatures" are
+   zero lines each, the sweep being written distributively
+   ("damage to each creature", two hundred thirty-five). That is
+   `PerMember`, shaped after `damageSrcOk` because it is that
+   gate's mirror at the other end of the verb: two named rows and
+   a number catch-all (`badBarePluralCounterRecipient`,
+   `badBarePluralDamageRecipient`, `badThemCounterRecipient`,
+   `badAllOfDamageRecipient`).
+125. **The class word's plural ban was written as a maximum and
+   should have been a minimum.** `AnyTargetAtCount` admitted "any
+   target" at exactly one and under "up to", and refused the exact
+   group from two up AND the unbounded "any number of" — the
+   second on the ground that its structure was unbuilt. The
+   structures landed, and the corpus then says something sharper
+   than the old gate did. Every plural spelling [CR#115.4] names
+   runs from one and leaves the count to the caster: "up to two
+   targets" (Fall of the Titans), "up to three targets" (Jaya's
+   Immolating Inferno), "one or two targets" (Forked Bolt, twelve
+   lines), "one, two, or three targets" (Arc Lightning, nine),
+   "any number of targets" (Boulderfall, eighteen under "among").
+   What it never writes is a FIXED plural count — "two targets" is
+   zero lines and "among two targets" is zero lines — because
+   those spellings belong to structures that let the caster choose
+   how many things to hit, which [CR#601.2c] announces as a
+   variable target count and [CR#601.2d] pairs with an announced
+   division. So the gate asks for a minimum of one or none at all,
+   `badAnyNumberAnyTarget` retires against Boulderfall, and one
+   refusal is left (`badGroupAnyTarget`). What used to ride on the
+   quantity — that a plural class-word mention may not stand as a
+   bare recipient — moved to `PerMember`, where the clause that
+   writes the amount is the one asking.
+126. **The division is ONE mechanic with two idioms, and core's
+   free body is wider than English.** [CR#601.2d] and [CR#115.7f]
+   both name "divide or distribute" as a single thing over a
+   single pair of examples ("such as damage or counters"), and
+   core reads that as one primitive with a free body and a
+   `Count::Allotment` anaphor for the share. English writes it
+   with two idioms and no third: the damage verb takes an
+   adverbial and swaps its preposition ("Arc Lightning deals 3
+   damage DIVIDED AS YOU CHOOSE among one, two, or three targets",
+   sixty-nine lines), and the counter verb changes its own word
+   ("DISTRIBUTE two +1/+1 counters among one or two target
+   creatures you control", Armament Corps, forty-six lines). The
+   spellings never cross — "counters divided as you choose" is
+   zero lines, "distribute … damage" is zero lines — and no other
+   verb divides anything. So `Distribute` lands with a CLOSED
+   two-row verb table (`DividedVerb`) rather than a free body: a
+   recorded narrowing of core, and the honest English claim, since
+   a free body would spell instructions the language does not
+   have. The share stays implicit for the same reason — the words
+   "divided as you choose" ARE the allotment, and no line names a
+   member's share twice. The recipient is a plural `GroupMention`
+   and the division's own demand rather than a borrowed one
+   (`badDivideAmongSingular`, `badDivideAmongDescription`), and
+   each row keeps the obligation its undivided twin carries, which
+   is what lets the class word stand under "among"
+   (`badDistributeCountersGraveyard`). Two rules were read against
+   the structure and both belong outside it. [CR#601.2d]'s floor —
+   each target "must receive at least one of whatever is being
+   divided" — is a legality question about the announced numbers
+   and not an ungrammatical sentence, so it goes to the legality
+   layer beside [CR#701.14b] and [CR#701.12a]. And [CR#608.2d]
+   runs the identical split at RESOLUTION for untargeted
+   recipients ("distribute that many +1/+1 counters among any
+   number of creatures you control"); it is the same structure
+   read at a different time, and the group mention is the only
+   thing that differs, so it needs no row of its own. What
+   [CR#115.7f] adds is the argument that a division is a structure
+   at all: the original division survives a later change of
+   targets, which is a fact about a division as an object rather
+   than about the sentence that announced it.
+127. **The pair the reminder text reads is a pair the sentence
+   never announces, and that is the fight's real blocker.**
+   Finding 120 left the two-target fight expansion unwritable and
+   called the wall the pair complement. The wall is one step
+   further back. "Target creature you control fights target
+   creature you don't control" uses the word "target" twice, and
+   [CR#601.2c] announces each instance separately — the same
+   object may even be chosen for both — so the sentence puts TWO
+   mentions in the discourse and never a two-membered group. The
+   reminder text's "each deals damage equal to its power to the
+   OTHER" reads a pair that the operative text did not build, and
+   no complement can subtract from a group that was never
+   assembled. That is why the expansion fails, and it is a reason
+   to keep `Fights` primitive rather than an absence of machinery.
+   The pair complement itself is real English and this round can
+   now say exactly what it needs. Sorrow's Path is the
+   operative-text witness — "Choose two target blocking creatures
+   controlled by the same opponent. If each of those creatures
+   could block all creatures that the other is blocking, remove
+   both of them from combat." — and it shows the three parts
+   arriving together: a group mention that IS a pair (one "choose"
+   over an exact count of two), an each-of reach into it, and "the
+   other" inside the per-member scope. Two of the three are now
+   built. What is missing is the ELEMENT-scoped context, which is
+   the fronted iteration clause "For each of [group], …"
+   (thirty-seven corpus lines, core's `OneShotEffect::Each`, and
+   deliberately not what `EachOf` is — a determiner binds no
+   element), and a complement whose domain is a group mention
+   rather than a description, which is finding 111's
+   subtract-a-subset half unchanged. The "both" family measures
+   the same shape from the other side and is where the sweep's
+   nineteen-line count resolves: thirteen "both creatures" lines,
+   eleven of them soulbond statics whose pair comes from the
+   pairing and two whose pair comes from a blocking EVENT
+   ("Whenever equipped creature blocks or becomes blocked by a
+   creature, destroy both creatures", Dead-Iron Sledge), plus
+   three "both of them" and one "both players". Every one of them
+   reads a pair some earlier structure assembled — a soulbond
+   pairing, a combat event, a two-target choice — and none
+   assembles one out of two announcements. `Fights` stays
+   primitive, nothing was deleted, and the settled Fight-as-macro
+   design and the two-target exchange stay recorded rather than
+   cashed.
+
 ## Engine-Boundary Deferrals
 
 Engine-boundary deferrals (deliberate, and to stay so): the
@@ -2594,51 +2820,50 @@ are the `TheVerbed` cousin and the largest family, and more
 sorts wait with them: mana produced, Sakiko; card counts,
 Asmodeus; and condition-supplied scalars — Tellah, Great Sage's
 mana SPENT is not a clause outcome at all, so it arrives with the
-conditions axis); "any number of" / "X" target groups
-(corpus-frequent; the QUANTITY spells the unbounded form now, while
-the variable one waits on bounds that admit a variable — core's
-range is over a `Count`, whose `X` row this one's `Nat` has no
-answer to — and both wait on verified whole cards for a positive),
-and
-with them the PLURAL damage-class forms — [CR#115.4] names
-"another target," "two targets," and similar expressly alongside
-"any target", and the corpus writes them either as a division
-("deals 2 damage divided as you choose among one or two targets",
-Chandra's Pyrohelix) or as an each-of recipient ("Fall of the
-Titans deals X damage to each of up to two targets"); the fifth
-duck wave adds two witnesses to the same axis, both refused as
-fix-round patches and parked here instead. The COUNTER clause
-takes the each-of recipient too — "Put a +1/+1 counter on each of
-up to two target creatures" (Ajani, Adversary of Tyrants) — so the
-distributed recipient is not damage's alone, and what the counter
-verb accepts today (a bare up-to group) is one distributive word
-short of what the card writes. And a distributed AGENT makes a
-distributed group: "Each player creates a green Elephant creature
-token. Those creatures have …" (Elephant Resurgence) makes one
-token per player and reads them back as a plural, where the create
-clause reads its output plurality off the COUNT alone and so calls
-them one. Both want output plurality derived from agent
-distributivity as well as per-agent amount, which is the plurality
-axis itself rather than a gate on either clause. The bare
-up-to noun already spells (`TargetGroup (upTo n) AnyTarget`), as
-does the unbounded quantity itself (`anyNumber`), while the
-division and each-of RECIPIENT structures and a verified whole-card
-positive wait with this axis, and the exact-count mention admits
-the class word only at ONE — the singular form itself — refusing it
-from two up, and from the unbounded quantity, until they land
-(`AnyTargetAtCount`);
+conditions axis); [LANDED, findings 122–126 — the whole plurality
+and distribution axis. The "any number of" target group has its
+verified whole-card positive (Boulderfall), the PLURAL
+damage-class forms [CR#115.4] names have both their structures
+(`Distribute` for the division, `EachOf` for the each-of
+recipient), the counter clause takes the each-of recipient beside
+damage (Ajani, Adversary of Tyrants), and output plurality is
+derived from agent distributivity as well as per-agent amount
+(`outputPlur`). `AnyTargetAtCount` re-keyed from a maximum to a
+MINIMUM in the process: the class word's plural spellings all
+leave the count to the caster, so the one refusal left is the
+fixed plural count. What is still shut is the VARIABLE bound —
+"each of up to X target creatures" (nine lines) and "deals five
+times X damage to each of up to X targets" (Crackle with Power)
+want a range whose endpoint is an `Amount` rather than a `Nat`,
+which is core's `Count`-valued range and this file's `Nat` one,
+and no gate stands in the way of it: it is a widening of
+`Quantity` and belongs with the other variable-magnitude work.
+Elephant Resurgence's own second sentence is likewise still shut,
+and doubly — it grants a quoted characteristic-defining ability,
+and its token writes no P/T because that ability supplies one
+(see finding 122)];
 counted UNTARGETED groups ("four lands you control" — Burning of
 Xinye's subject-destroy positive waits on them); the
 reciprocal fight frame ("those creatures fight each other" — one
 exactly-two-membered plural subject, ten corpus lines, a distinct
-construction from binary `Fights`; the blocker is NARROWED rather
-than removed by chapter twenty-two — the batch constructor exists
-now and the anchored complement with it, and neither reaches this.
-The frame wants the PAIR complement, a two-membered antecedent
-subtracted from one member at a time, which is finding 111's
-subtract-a-subset half and the dependent iteration the frontier
-names, both still open; the same wall stops the binary fight's own
-expansion for two-target frames, finding 120); union-read plural possessors
+construction from binary `Fights`; the blocker is NARROWED again
+by chapter twenty-three and stated as two named halves rather than
+one wall. The group MENTION now exists as a first-class thing —
+`GroupMention` is the phrase a sentence may reach into, and
+`EachOf` reaches into one — so what the pair complement is missing
+is no longer "a group to subtract from" but (a) an ELEMENT-scoped
+context, which is the fronted iteration clause "For each of
+[group], …" (thirty-seven corpus lines, core's
+`OneShotEffect::Each`) and which `EachOf` deliberately does not
+provide, being a determiner that binds no element, and (b) a
+complement whose domain is that group mention rather than a
+description, which is finding 111's subtract-a-subset half
+unchanged. Sorrow's Path is the operative-text witness that both
+halves are real English and that they arrive together — "Choose
+two target blocking creatures controlled by the same opponent. If
+each of those creatures could block all creatures that THE OTHER
+is blocking, remove both of them from combat." The binary fight
+does NOT reach this even so, and finding 127 is why); union-read plural possessors
 ("creatures your opponents control", corpus-attested — waits with
 the player groups); [LANDED, finding 113 — the
 self-exclusion "other" anchor. The diagnosis here was right and

@@ -196,6 +196,21 @@ isOne : Plurality -> Bool
 isOne OneOf = True
 isOne ManyOf = False
 
+||| The number a DISTRIBUTED output takes: one thing per agent, over many
+||| agents, is many things. A clause whose agent is the distributive
+||| determiner runs once per member, so what the sentence AFTER it can
+||| read back is the union of every agent's output — "Each player creates
+||| a green Elephant creature token. THOSE CREATURES have …" (Elephant
+||| Resurgence). The per-agent amount is one, and the discourse mention
+||| is still plural. Both arguments are written out rather than folded
+||| through `isOne`, so a new number is a totality error on the pair.
+public export
+outputPlur : (agent : Plurality) -> (perAgent : Plurality) -> Plurality
+outputPlur OneOf OneOf = OneOf
+outputPlur OneOf ManyOf = ManyOf
+outputPlur ManyOf OneOf = ManyOf
+outputPlur ManyOf ManyOf = ManyOf
+
 ||| How many objects a counted mention takes — core's `Quantity`
 ||| (`deckmaste_core/src/quantity.rs`): ONE primitive, a range with
 ||| both bounds optional (`Nothing` = unbounded that side, so "any
@@ -1001,7 +1016,7 @@ public export
 -- Army"), as a bare noun head ("an Army you control"), or after "becomes a"
 -- in a type-addition clause; never spelled alone)
 data Subtype = Zombie | Army | Soldier | Thopter | Construct | Fractal
-             | Coward | Demon
+             | Coward | Demon | Plant
 
 ||| Subtype equality, per-row catch-alls — `sameVerb`'s discipline.
 public export
@@ -1022,6 +1037,8 @@ sameSub Coward Coward = True
 sameSub Coward _ = False
 sameSub Demon Demon = True
 sameSub Demon _ = False
+sameSub Plant Plant = True
+sameSub Plant _ = False
 
 ||| Which card type a subtype's set belongs to — [CR#205.1a] names the
 ||| sets themselves (creature types, land types, artifact types,
@@ -1043,6 +1060,7 @@ subtypeType Construct = Creature
 subtypeType Fractal = Creature
 subtypeType Coward = Creature
 subtypeType Demon = Creature
+subtypeType Plant = Creature
 
 ||| Counter kinds ([CR#122.1] — "a marker placed on an object or player
 ||| that modifies its characteristics and/or interacts with a rule,
@@ -2954,20 +2972,33 @@ mutual
     MkAnyTargetFree : {auto 0 ok : anyTargetFree p = True} -> AnyTargetFree p
 
   ||| May a counted target mention spell the class word? The answer is
-  ||| the QUANTITY's, not the determiner's. At exactly one the phrase
-  ||| IS the singular damage-class form [CR#115.4] defines — "Lightning
-  ||| Bolt deals 3 damage to any target" — so the class word is exactly
-  ||| what belongs there, and an up-to mention takes it at any bound
-  ||| because the corpus writes that outright ("Fall of the Titans
-  ||| deals X damage to each of up to two targets"). What is refused is
-  ||| the EXACT group from two up and the unbounded "any number of":
-  ||| [CR#115.4] names those plural forms in the same breath, but the
-  ||| corpus writes them with structures the bare group mention does
-  ||| not spell — a division ("divided as you choose among one or two
-  ||| targets") or an each-of recipient — so the ban stands with that
-  ||| ledgered axis (`badGroupAnyTarget`, `badAnyNumberAnyTarget`).
-  ||| What the two permitting quantities license is the class word as
-  ||| the phrase's HEAD, never the class word wherever it turns up: a
+  ||| the QUANTITY's, not the determiner's, and the line it draws is a
+  ||| MINIMUM rather than a maximum. [CR#115.4] names "any target,"
+  ||| "another target," "two targets," "or similar" as one family, and
+  ||| the corpus writes every plural member of it with a range that
+  ||| starts at one and leaves the count to the caster: "up to two
+  ||| targets" and "up to three targets" (Fall of the Titans, Jaya's
+  ||| Immolating Inferno), "one or two targets" (Forked Bolt, twelve
+  ||| lines), "one, two, or three targets" (Arc Lightning, nine), "any
+  ||| number of targets" (Boulderfall, eighteen under "among"). What it
+  ||| never writes is a FIXED plural count — "two targets" as a phrase
+  ||| of its own is zero lines, and so is "among two targets" — because
+  ||| the class word's plural forms all belong to a structure that lets
+  ||| the caster pick how many things to hit ([CR#601.2c] has a
+  ||| variable target count announced before the targets;
+  ||| [CR#601.2d] has the division announced with it). So the gate asks
+  ||| for a minimum of one or none at all, and the one refusal left is
+  ||| the exact group from two up (`badGroupAnyTarget`).
+  |||
+  ||| The unbounded quantity used to be refused beside it, on the
+  ||| ground that its structure was unbuilt; the division built it, and
+  ||| Boulderfall's "deals 5 damage divided as you choose among any
+  ||| number of targets" is the positive that retired the ban. What
+  ||| stops a plural class-word mention from standing as a BARE
+  ||| recipient is no longer this gate but `PerMember`, which asks the
+  ||| question where it belongs — of the clause that writes the amount.
+  ||| What a permitting quantity licenses is the class word as the
+  ||| phrase's HEAD, never the class word wherever it turns up: a
   ||| possessor buried in a relative clause spells "any target" under a
   ||| counted mention exactly as loudly as under "a"
   ||| (`badEmbeddedAnyTargetExact1`), so the embedded scan runs beneath
@@ -2977,10 +3008,9 @@ mutual
   public export
   anyTargetOkAt : {0 bs : Bindings} -> {0 k : Kind} ->
                   Quantity -> Predicate bs k -> Bool
-  anyTargetOkAt (Range (Just (S Z)) (Just (S Z))) p = headIsAnyTarget p ||
-                                                      anyTargetFree p
-  anyTargetOkAt (Range Nothing (Just _)) p = headIsAnyTarget p || anyTargetFree p
-  anyTargetOkAt (Range _ _) p = anyTargetFree p
+  anyTargetOkAt (Range Nothing _) p = headIsAnyTarget p || anyTargetFree p
+  anyTargetOkAt (Range (Just (S Z)) _) p = headIsAnyTarget p || anyTargetFree p
+  anyTargetOkAt (Range (Just _) _) p = anyTargetFree p
 
   public export
   data AnyTargetAtCount : Quantity -> Predicate bs k -> Type where
@@ -3102,6 +3132,31 @@ mutual
     AllOf : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
             {auto 0 hd : Headed p} ->
             {auto 0 af : AnyTargetFree p} -> Noun bs k
+    -- "each of [group]": the distributive determiner over a GROUP
+    -- MENTION rather than over a description — "Put a +1/+1 counter on
+    -- each of up to two target creatures" (Ajani, Adversary of
+    -- Tyrants), "Put a +1/+1 counter on each of them" (Nature's
+    -- Panoply). `Each` distributes over whatever answers a phrase; this
+    -- distributes over the members of one mention already made, so it
+    -- announces nothing of its own and contributes its complement's
+    -- binding unchanged. The complement is exactly the group forms the
+    -- corpus writes after the word (`GroupMention`): a counted target
+    -- mention ("each of up to two target creatures", "each of two
+    -- target creatures", "each of any number of target creatures") or a
+    -- plural read ("each of them", "each of those creatures"). It is
+    -- NOT a second distributive ("each of each creature") and not the
+    -- universal ("each of all creatures"), neither of which is written.
+    -- The phrase stays PLURAL — its mention is the group's, and the
+    -- next sentence reads it as one ("… deals 1 damage to each of up to
+    -- two target creatures. Those creatures can't block this turn." —
+    -- Sparkmage's Gambit). What the determiner buys is the per-member
+    -- reading of the clause's own amount: the sentence writes "a
+    -- counter" and every member gets one, which is what `PerMember`
+    -- demands of a recipient and what a bare plural mention cannot say.
+    -- spelling: ["each of <Param(0)>"], kind: Nominal
+    EachOf : (grp : Noun bs k) ->
+             {auto 0 pl : nounPlur grp = ManyOf} ->
+             {auto 0 gm : GroupMention grp} -> Noun bs k
     -- "it" / "its": the wildcard pronoun — exactly one singular Object
     -- mention may precede. Zero = unbound, two = ambiguous; both
     -- unspellable.
@@ -3173,6 +3228,7 @@ mutual
   nounEqRef (Indefinite _ _) _ = False
   nounEqRef (TargetGroup _ _) _ = False
   nounEqRef (AllOf _) _ = False
+  nounEqRef (EachOf _) _ = False
   nounEqRef It It = True
   nounEqRef It _ = False
   nounEqRef They They = True
@@ -3198,6 +3254,7 @@ mutual
   nounAnyTargetFree (Indefinite m p) = anyTargetFree p
   nounAnyTargetFree (TargetGroup _ p) = anyTargetFree p
   nounAnyTargetFree (AllOf p) = anyTargetFree p
+  nounAnyTargetFree (EachOf grp) = nounAnyTargetFree grp
   nounAnyTargetFree It = True
   nounAnyTargetFree They = True
   nounAnyTargetFree Them = True
@@ -3240,6 +3297,11 @@ mutual
   nounDelta (Indefinite m p {ph}) = bindFor AD OneOf ph p :: predDelta p
   nounDelta (TargetGroup q p {tk}) = bindFor TargetD (quantPlur q) (targetablePhrasal tk) p :: predDelta p
   nounDelta (AllOf p {ph}) = bindFor AllD ManyOf ph p :: predDelta p
+  -- the determiner announces NOTHING of its own: "each of them" and
+  -- "each of up to two target creatures" contribute the complement's
+  -- binding and no second one ([CR#601.2c] announced the targets when
+  -- the group was written; the word "each" adds no mention).
+  nounDelta (EachOf grp) = nounDelta grp
   nounDelta It = []
   nounDelta They = []
   nounDelta Them = []
@@ -3579,6 +3641,7 @@ mutual
   choosable (Indefinite _ _) = True
   choosable (TargetGroup _ _) = True
   choosable (AllOf _) = False
+  choosable (EachOf _) = False
   choosable It = False
   choosable They = False
   choosable Them = False
@@ -3591,6 +3654,96 @@ mutual
   public export
   data Choosable : Noun bs k -> Type where
     MkChoosable : {auto 0 ok : choosable n = True} -> Choosable n
+
+  ||| Which phrases name a GROUP the sentence can then reach INTO — the
+  ||| complement "each of" takes and the complement a division is spread
+  ||| "among". Measured rather than guessed: of the words the corpus
+  ||| writes after "each of", the object-denoting ones are a counted
+  ||| target mention ("each of up to two target creatures", twenty-nine
+  ||| lines; "each of up to X target creatures", nine; "each of up to
+  ||| three targets", four; "each of two target creatures", three; "each
+  ||| of any number of target creatures", three) and a plural read
+  ||| ("each of them", thirty-seven; "each of those creatures",
+  ||| twenty-four; "each of those cards", four; "each of those tokens",
+  ||| three). Nothing else: no "each of each …", no "each of all …", no
+  ||| "each of a …" (`badEachOfDistributive`, `badEachOfAll`,
+  ||| `badEachOfIndefinite`). The rest of the corpus's "each of" lines
+  ||| are the temporal and quality phrases this vocabulary does not
+  ||| reach ("each of your turns", "each of its colors").
+  |||
+  ||| The reason is what the determiner does: it distributes over
+  ||| MEMBERS, so it needs a phrase whose members the sentence has
+  ||| already fixed. A description has none until it resolves, which is
+  ||| what the plain distributive `Each` is for; a definite singular has
+  ||| one, which is no group at all. Full rows, so a new noun form
+  ||| declares whether it names a group.
+  public export
+  groupMention : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+  groupMention (TargetGroup _ _) = True
+  groupMention Them = True
+  groupMention (Those _) = True
+  groupMention This = False
+  groupMention (AsType _ _) = False
+  groupMention You = False
+  groupMention (Each _) = False
+  groupMention (Indefinite _ _) = False
+  groupMention (AllOf _) = False
+  groupMention (EachOf _) = False
+  groupMention It = False
+  groupMention They = False
+  groupMention (That _) = False
+  groupMention (TheVerbed _ _) = False
+  groupMention (ControllerOf _) = False
+  groupMention (OwnerOf _) = False
+
+  public export
+  data GroupMention : Noun bs k -> Type where
+    MkGroupMention : {auto 0 ok : groupMention n = True} -> GroupMention n
+
+  ||| May a clause whose amount is PER MEMBER take this recipient? The
+  ||| damage and counter clauses write ONE magnitude and one recipient
+  ||| phrase, and the phrase has to say whether that magnitude is each
+  ||| member's or the group's between them. A SINGULAR recipient asks
+  ||| nothing; the two distributive determiners answer "each member's"
+  ||| outright — `Each` over a description ("put a +1/+1 counter on each
+  ||| other creature you control", Bellowing Aegisaur; "deals 1 damage
+  ||| to each creature you don't control", Barrage of Boulders) and
+  ||| `EachOf` over a group mention ("on each of up to two target
+  ||| creatures", Ajani, Adversary of Tyrants). A BARE plural recipient
+  ||| answers neither, and the corpus never writes one: "put a … counter
+  ||| on" reaches a counted group only through "each of" (zero lines at
+  ||| two, three, or four; twenty-eight at "up to ONE target creature",
+  ||| which is singular and already passes), and "deals … damage to"
+  ||| likewise (`badBarePluralCounterRecipient`,
+  ||| `badBarePluralDamageRecipient`). The plural READS are the same
+  ||| story from the other side — "counters on them" is thirty-six
+  ||| relative clauses ("cards with intel counters on them") and no
+  ||| recipient, "damage to them" is the singular epicene player every
+  ||| one of its twenty-five times ("At the beginning of each player's
+  ||| upkeep, this enchantment deals 1 damage to them"), which is `They`
+  ||| and singular already, and "damage to those …" is written zero
+  ||| times (`badThemCounterRecipient`). And the universal
+  ||| is out with them: "damage to all creatures" and "counter on all
+  ||| creatures" are each zero lines, the corpus writing the sweep
+  ||| distributively (`badAllOfDamageRecipient`).
+  |||
+  ||| The DIVISION is the other answer to the same question and is not
+  ||| here: it says the magnitude is the group's, to be split
+  ||| ([CR#601.2d]), and it writes its own clause (`Distribute`).
+  ||| Shaped after `damageSrcOk` — two named rows and a number
+  ||| catch-all — because it is that gate's mirror at the other end of
+  ||| the verb.
+  public export
+  perMemberOk : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bool
+  perMemberOk (Each _) = True
+  perMemberOk (EachOf _) = True
+  perMemberOk n = isOne (nounPlur n)
+
+  ||| The per-member recipient gate's witness form (a distinctive search
+  ||| name, like `DamageSource` and `Headed`).
+  public export
+  data PerMember : Noun bs k -> Type where
+    MkPerMember : {auto 0 ok : perMemberOk n = True} -> PerMember n
 
   ||| A truth-valued test a clause can be conditioned on — core's
   ||| `Condition` (`deckmaste_core/src/condition.rs`), and named after
@@ -4058,6 +4211,69 @@ mutual
   staticIntro (BecomesAlso n _) = nomIntro n
   staticIntro (GainsControl who what) = nomIntro what
 
+  ||| Which clause a DIVISION writes. [CR#601.2d] and [CR#115.7f] both
+  ||| name "divide or distribute" as one mechanic over one pair of
+  ||| examples — "such as damage or counters" — and English writes that
+  ||| one mechanic with two idioms and no third: the damage verb takes
+  ||| an adverbial ("Arc Lightning deals 3 damage DIVIDED AS YOU CHOOSE
+  ||| among one, two, or three targets", sixty-nine lines) and the
+  ||| counter verb changes its own word ("DISTRIBUTE two +1/+1 counters
+  ||| among one or two target creatures you control", Armament Corps,
+  ||| forty-six lines). Nothing else is divided: "divided as you choose"
+  ||| pairs with no other verb, and the two spellings never cross
+  ||| ("counters divided as you choose" is zero lines, and so is
+  ||| "distribute … damage"). So the table is closed at two, and a third
+  ||| divided verb would be a row rather than a construction.
+  |||
+  ||| A recorded NARROWING of core, which takes a free `body` and reads
+  ||| the share back through a `Count::Allotment` anaphor
+  ||| (`deckmaste_core/src/effect.rs`, `count.rs`). That generality is
+  ||| right for an engine and wrong for this grammar: no oracle line
+  ||| writes a divided clause whose body is anything but one of these
+  ||| two, and a free body would spell instructions English does not
+  ||| have. The share stays implicit here for the same reason — the
+  ||| words "divided as you choose" ARE the allotment, and no corpus
+  ||| line mentions a member's share a second time.
+  public export
+  data DividedVerb : Bindings -> Type where
+    -- "[src] deals [amt] damage divided as you choose among [group]"
+    DividedDamage : (src : Noun bs Object) ->
+                    {auto 0 ds : DamageSource src} -> DividedVerb bs
+    -- "Distribute [amt] [kind] counters among [group]" — agent-silent,
+    -- exactly as `PutCounters` is.
+    DistributedCounters : (kind : CounterKind) -> DividedVerb bs
+
+  ||| What a divided verb has already announced when its amount is
+  ||| written — the source phrase for damage, nothing for counters.
+  public export
+  divIntro : {bs : Bindings} -> DividedVerb bs -> Bindings
+  divIntro (DividedDamage src) = nomIntro src
+  divIntro (DistributedCounters _) = bs
+
+  ||| The divided verb as a tag, so the recipient obligation can be
+  ||| stated per row without carrying the row's own arguments.
+  public export
+  data DivTag = DivDamage | DivCounters
+
+  public export
+  divTag : {0 bs : Bindings} -> DividedVerb bs -> DivTag
+  divTag (DividedDamage _) = DivDamage
+  divTag (DistributedCounters _) = DivCounters
+
+  ||| What each divided verb demands of the group it divides among —
+  ||| the SAME demand the undivided clause makes of its recipient, since
+  ||| dividing changes how much each member gets and not what a member
+  ||| may be. Damage reuses `DamageRecipient` whole (which is what lets
+  ||| the class word stand here: "among any number of targets"); the
+  ||| counter verb demands the battlefield `PutCounters` demands, and
+  ||| its `k = Object` is what stops a division of counters among
+  ||| players.
+  public export
+  data DividedTakes : DivTag -> Noun bs k -> Type where
+    DamageDivided : {auto 0 rk : DamageRecipient n} -> DividedTakes DivDamage n
+    CountersDistributed : {auto 0 zn : OnBattlefield (nounZone n)} ->
+                          DividedTakes DivCounters {k = Object} n
+
   ||| Clauses. Constructor argument order IS textual order, and each
   ||| argument is typed in the context its predecessors built — the
   ||| telescope is the whole term, not a special clause-list feature.
@@ -4078,6 +4294,7 @@ mutual
     DealDamage : {k : Kind} -> (src : Noun bs Object) -> (amt : Amount (nomIntro src)) ->
                  (to : Noun (amtIntro amt) k) ->
                  {auto 0 ds : DamageSource src} ->
+                 {auto 0 pm : PerMember to} ->
                  {auto 0 rk : DamageRecipient to} -> Effect bs
     -- "[a] fights [b]" ([CR#701.14a] — only battlefield creatures
     -- fight [CR#701.14b]; `badFightGraveyard`, `badFightLand`).
@@ -4251,7 +4468,46 @@ mutual
     PutCounters : (amt : Amount bs) -> (kind : CounterKind) ->
                   (on : Noun (amtIntro amt) Object) ->
                   {auto 0 wc : WrittenCount amt} ->
+                  {auto 0 pm : PerMember on} ->
                   {auto 0 zn : OnBattlefield (nounZone on)} -> Effect bs
+    -- The DIVISION ([CR#601.2d]) — one written amount split over the
+    -- members of one group mention, the split announced as the spell is
+    -- cast rather than chosen on resolution. That announcement is the
+    -- whole reason the division is a structure and not an adverb: the
+    -- targets and their shares are fixed together at [CR#601.2d], and
+    -- [CR#115.7f] then holds the shares still even when the targets
+    -- themselves are changed later ("the original division can't be
+    -- changed"), which is a fact about a division as an object. The
+    -- companion rule [CR#608.2d] runs the same split at RESOLUTION for
+    -- untargeted recipients ("distribute that many +1/+1 counters among
+    -- any number of creatures you control") and is the same structure
+    -- read at a different time; the group mention is what differs, so
+    -- no second row is needed here.
+    -- The floor [CR#601.2d] states — "each of these targets must
+    -- receive at least one of whatever is being divided" — is NOT typed
+    -- here. It is a legality question about the announced numbers
+    -- (a division of two among three targets is an illegal
+    -- announcement, not an ungrammatical sentence), and it goes to the
+    -- legality layer beside [CR#701.14b]'s both-or-neither fight guard
+    -- and [CR#701.12a]'s all-or-nothing exchange rule.
+    -- The recipient is a GROUP MENTION and PLURAL, which is the
+    -- division's own demand rather than a borrowed one: splitting needs
+    -- members to split among, and every corpus line writes a counted
+    -- target group or a plural read after "among"
+    -- (`badDivideAmongSingular`, `badDivideAmongDescription`).
+    -- spelling: [(text: "<Param(0).src> deals <Param(1)> damage divided as
+    -- you choose among <Param(2)>", when: [(0, "DividedDamage")]),
+    -- (text: "distribute <Param(1)> <Param(0).kind> counters among
+    -- <Param(2)>", when: [(0, "DistributedCounters")])], kind: Sentence
+    -- (core's `OneShotEffect::Distribute` narrowed to its two attested
+    -- bodies -- see DividedVerb)
+    Distribute : {k : Kind} -> (v : DividedVerb bs) ->
+                 (amt : Amount (divIntro v)) ->
+                 (among : Noun (amtIntro amt) k) ->
+                 {auto 0 wc : WrittenCount amt} ->
+                 {auto 0 pl : nounPlur among = ManyOf} ->
+                 {auto 0 gm : GroupMention among} ->
+                 {auto 0 tk : DividedTakes (divTag v) among} -> Effect bs
     -- "Remove [amt] [kind] counter(s) from [n]" — the twin, and core's
     -- `RemoveCounters` beside `PutCounters` for the same reason: removal
     -- is not a negative put (it is cost-eligible where a put is not, and
@@ -4602,6 +4858,7 @@ mutual
   public export
   effEq : {0 bs : Bindings} -> Effect bs -> Effect bs -> Bool
   effEq (DealDamage _ _ _) _ = False
+  effEq (Distribute _ _ _) _ = False
   effEq (Fights _ _) _ = False
   effEq (Tap a) (Tap b) = nounEqRef a b
   effEq (Tap _) _ = False
@@ -4725,6 +4982,7 @@ mutual
   nounIsAnyTarget (Each _) = False
   nounIsAnyTarget (Indefinite _ _) = False
   nounIsAnyTarget (AllOf _) = False
+  nounIsAnyTarget (EachOf grp) = nounIsAnyTarget grp
   nounIsAnyTarget It = False
   nounIsAnyTarget They = False
   nounIsAnyTarget Them = False
@@ -4908,6 +5166,13 @@ mutual
   moveIntro p nn@(Indefinite m pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(TargetGroup q pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(AllOf pr) z = setZoneHead p z (nomIntro nn)
+  -- a move of "each of [group]" retags the group, since a move of every
+  -- member is a move of all of them; the determiner changes only what
+  -- the clause's PER-MEMBER material may say ("return each of them to
+  -- the battlefield under ITS owner's control"), never the retag. It
+  -- delegates rather than repeating the four introducer branches,
+  -- because the complement is a group mention either way.
+  moveIntro p (EachOf grp) z = moveIntro p grp z
   moveIntro p It z = setZoneIt p z bs
   moveIntro p Them z = setZoneThem p z bs
   moveIntro p (That w) z = setZoneThat p w z bs
@@ -4950,6 +5215,7 @@ mutual
   nounZone (TargetGroup q p) =
     if headIsAnyTarget p then Nothing else Just (zoneOr Battlefield (seedZone p))
   nounZone (AllOf p) = Just (zoneOr Battlefield (seedZone p))
+  nounZone (EachOf grp) = nounZone grp
   nounZone It = zoneOfIt bs
   nounZone They = Nothing
   nounZone Them = zoneOfThem bs
@@ -4972,6 +5238,7 @@ mutual
   nounTy (Indefinite m p) = seedTy p
   nounTy (TargetGroup q p) = seedTy p
   nounTy (AllOf p) = seedTy p
+  nounTy (EachOf grp) = nounTy grp
   nounTy It = tyOfIt bs
   nounTy They = Nothing
   nounTy Them = tyOfThem bs
@@ -4993,6 +5260,7 @@ mutual
   nounPlur (Indefinite m p) = OneOf
   nounPlur (TargetGroup q p) = quantPlur q
   nounPlur (AllOf p) = ManyOf
+  nounPlur (EachOf grp) = ManyOf
   nounPlur It = OneOf
   nounPlur They = OneOf
   nounPlur Them = ManyOf
@@ -5022,13 +5290,25 @@ mutual
   -- the created token enters the discourse as the indefinite mention its
   -- phrase is ("a … token"), on the battlefield ([CR#111.1] — tokens are
   -- put there), under the head its type line writes, and with the number
-  -- its count writes. Additive Evolution reads it in the next breath:
-  -- "create a 0/0 green and blue Fractal creature token. Put three +1/+1
-  -- counters on it."
+  -- the CLAUSE writes — which is the count and the AGENT together, not
+  -- the count alone. Additive Evolution reads the undistributed singular
+  -- in the next breath ("create a 0/0 green and blue Fractal creature
+  -- token. Put three +1/+1 counters on it."); Elephant Resurgence reads
+  -- the distributed one ("Each player creates a green Elephant creature
+  -- token. Those creatures have …"), where the count is still one and
+  -- the mention is plural because the agent is (`outputPlur`).
   effIntro (Create agent count tok riders) =
-    MkBinding AD Object (amtPlur count) (ObjectP (tokenHeadTy tok) (Just Battlefield) Nothing)
+    MkBinding AD Object (outputPlur (nounPlur agent) (amtPlur count))
+              (ObjectP (tokenHeadTy tok) (Just Battlefield) Nothing)
       :: amtIntro count
   effIntro (PutCounters amt kind on) = nomIntro on
+  -- the division contributes its GROUP, which is what the sentence
+  -- after it reads ("Distribute two +1/+1 counters among up to two
+  -- target creatures. They gain trample until end of turn."), and the
+  -- damage row contributes the damage outcome beside it exactly as the
+  -- undivided verb does.
+  effIntro (Distribute (DividedDamage _) amt among) = outcomeB DamageDealt :: nomIntro among
+  effIntro (Distribute (DistributedCounters _) amt among) = nomIntro among
   effIntro (RemoveCounters amt kind from) = nomIntro from
   effIntro (Composite v (Move what to)) = moveIntro (Just v) what (zoneSort to)
   effIntro (Composite _ e) = effIntro e
@@ -5092,6 +5372,7 @@ mutual
   public export
   preIntro : {bs : Bindings} -> Effect bs -> Bindings
   preIntro (DealDamage src amt to) = nomIntro to
+  preIntro (Distribute v amt among) = nomIntro among
   preIntro (Fights a b) = nomIntro b
   preIntro (Tap n) = nomIntro n
   preIntro (Choose n) = nomIntro n

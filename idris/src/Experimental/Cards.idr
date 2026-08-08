@@ -1042,6 +1042,90 @@ phyrexianInfiltrator =
     [gainsControl (ControllerOf (target creature)) thisCreature Nothing,
      gainsControl (ControllerOf thisCreature) (That (TypeW Creature)) Nothing]
 
+-- "At the beginning of your end step, each player creates a 1/1 green
+-- Plant creature token." (Grismold, the Dreadsower; the trigger header
+-- and the card's other lines elided) — the DISTRIBUTED creation, one
+-- token per player from a count of one. Eighteen lines write "each
+-- player creates", eight "each opponent creates". The count says
+-- singular and the clause exports a PLURAL mention, because the agent
+-- distributes (`outputPlur`); the reading it enables is Elephant
+-- Resurgence's "Those creatures", whose own sentence waits elsewhere
+-- (ledger).
+grismold : Effect []
+grismold = Create (Each AnyPlayer) (Lit 1) (creatureTok 1 1 [Green] [Plant]) []
+
+-- "Sparkmage's Gambit deals 1 damage to each of up to two target
+-- creatures. Those creatures can't block this turn." (Sparkmage's
+-- Gambit, whole) — the EACH-OF recipient and the plural read it leaves
+-- behind, in one card. The amount is per member ("1 damage", and each
+-- of the two takes one), the mention is the group's and stays plural,
+-- and the next sentence reads it with the sorted plural demonstrative.
+sparkmagesGambit : Effect []
+sparkmagesGambit =
+  Sequentially [DealDamage This (Lit 1) (EachOf (TargetGroup (upTo 2) creature)),
+                cantBlock (Those (TypeW Creature)) (Just thisTurn)]
+
+-- "[+1]: Put a +1/+1 counter on each of up to two target creatures."
+-- (Ajani, Adversary of Tyrants; the loyalty cost and the card's other
+-- abilities elided) — the same recipient under the counter verb, which
+-- is what settles that the distributed recipient is not damage's alone.
+-- Twenty-nine corpus lines write "each of up to two target creatures".
+ajaniAdversaryOfTyrants : Effect []
+ajaniAdversaryOfTyrants =
+  PutCounters (Lit 1) PlusOnePlusOne (EachOf (TargetGroup (upTo 2) creature))
+
+-- "Fall of the Titans deals X damage to each of up to two targets."
+-- (Fall of the Titans; its surge cost line elided) — the each-of
+-- recipient over the damage CLASS word, which is the phrase [CR#115.4]
+-- names and the corpus writes only under this determiner or under a
+-- division.
+fallOfTheTitans : Effect []
+fallOfTheTitans = DealDamage This XVal (EachOf (TargetGroup (upTo 2) AnyTarget))
+
+-- "Choose any number of target creatures. Put a +1/+1 counter on each of
+-- them." (Nature's Panoply; its strive cost line elided — an
+-- additional-cost-per-target rider the cost algebra will spell) — the
+-- each-of determiner over a plural READ rather than over a fresh
+-- mention. Thirty-seven corpus lines write "each of them".
+naturesPanoply : Effect []
+naturesPanoply =
+  Sequentially [Choose (TargetGroup anyNumber creature),
+                PutCounters (Lit 1) PlusOnePlusOne (EachOf Them)]
+
+-- "Arc Lightning deals 3 damage divided as you choose among one, two, or
+-- three targets." (Arc Lightning, whole) — the DIVISION: one written
+-- amount split over a group, the split announced as the spell is cast
+-- ([CR#601.2d]) and held fixed against any later change of targets
+-- ([CR#115.7f]). The enumerated range is how the phrase spells the
+-- caster's choice of how many.
+arcLightning : Effect []
+arcLightning = dealsDivided This (Lit 3) (TargetGroup (oneThrough 3) AnyTarget)
+
+-- "Forked Bolt deals 2 damage divided as you choose among one or two
+-- targets." (Forked Bolt, whole) — the same structure at the narrower
+-- range, which twelve corpus lines write.
+forkedBolt : Effect []
+forkedBolt = dealsDivided This (Lit 2) (TargetGroup (oneThrough 2) AnyTarget)
+
+-- "Boulderfall deals 5 damage divided as you choose among any number of
+-- targets." (Boulderfall, whole) — the UNBOUNDED division, and the
+-- positive that retired the class word's ban at that quantity: eighteen
+-- corpus lines write "among any number of targets", and the structure
+-- they needed is this one.
+boulderfall : Effect []
+boulderfall = dealsDivided This (Lit 5) (TargetGroup anyNumber AnyTarget)
+
+-- "When this creature enters, distribute two +1/+1 counters among one or
+-- two target creatures you control." (Armament Corps; the trigger header
+-- elided) — the division's OTHER verb. [CR#601.2d] and [CR#115.7f] name
+-- "divide or distribute" as one mechanic over one pair of examples
+-- ("damage or counters"), and this is the counter half: the same
+-- structure, a different word, forty-six corpus lines.
+armamentCorps : Effect []
+armamentCorps =
+  distributeCounters (Lit 2) PlusOnePlusOne
+                     (TargetGroup (oneThrough 2) creatureYouControl)
+
 
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
@@ -1524,24 +1608,17 @@ failing "AnyTargetFree"
   badAnyTargetUnderA : Noun [] Object
   badAnyTargetUnderA = a AnyTarget
 
--- …and the targeting determiner admits it only at the quantities that
--- spell it: "any target" is the singular damage-class form [CR#115.4]
--- defines, so `target AnyTarget` is the whole of the exact case (bolt,
--- Arc Trail, Pyromancy), joined by the up-to mention the corpus writes
--- outright ("each of up to two targets", Fall of the Titans). The
--- plural damage-class forms [CR#115.4] names alongside it carry
--- structures the bare exact-group mention does not spell — a division,
--- an each-of recipient (ledger) — so "two any targets" stays closed.
+-- …and the targeting determiner admits it only where the count is the
+-- CASTER's to make: "any target" is the singular damage-class form
+-- [CR#115.4] defines (bolt, Arc Trail, Pyromancy), and every plural
+-- spelling the corpus writes runs from one — "up to two targets" (Fall
+-- of the Titans), "one, two, or three targets" (Arc Lightning), "any
+-- number of targets" (Boulderfall). A FIXED plural count is the one
+-- thing it never writes: "two targets" as a phrase is zero lines and
+-- "among two targets" is zero lines, so "two any targets" stays closed.
 failing "AnyTargetAtCount"
   badGroupAnyTarget : Noun [] Object
   badGroupAnyTarget = TargetGroup (exactly 2) AnyTarget
-
--- …and the unbounded quantity with it: "any number of any targets"
--- names no attested structure either, and the ban has to see the
--- quantity's SHAPE rather than a numeral to refuse it.
-failing "AnyTargetAtCount"
-  badAnyNumberAnyTarget : Noun [] Object
-  badAnyNumberAnyTarget = TargetGroup anyNumber AnyTarget
 
 -- A type-worded self-reference denotes the PERMANENT ([CR#109.2]), and
 -- discarding moves a card from a HAND ([CR#701.9a]): "discard this
@@ -2715,3 +2792,105 @@ failing "SpanOk"
   badTypeAdditionForAsLongAs =
     becomes (target creature) (typesOnly [Artifact])
             (Just (ForAsLongAs (Matches thisCreature (ControlledBy You))))
+
+-- A distributed creation exports a PLURAL mention, so the singular
+-- pronoun has nothing to resolve to: "Each player creates a 1/1 green
+-- Plant creature token. Put a +1/+1 counter on IT" is unwritable, and it
+-- is the same clause that reads back fine undistributed (Additive
+-- Evolution's "create a 0/0 … Fractal creature token. Put three +1/+1
+-- counters on it."). The count is one in both.
+failing "countOnes"
+  badDistributedCreationIt : Effect []
+  badDistributedCreationIt =
+    Sequentially [Create (Each AnyPlayer) (Lit 1) (creatureTok 1 1 [Green] [Plant]) [],
+                  PutCounters (Lit 1) PlusOnePlusOne It]
+
+-- "Each of" distributes over MEMBERS, so its complement is plural:
+-- "each of target creature" names one thing and has nothing to reach
+-- into.
+failing "ManyOf"
+  badEachOfSingular : Noun [] Object
+  badEachOfSingular = EachOf (target creature)
+
+-- …and it is a group MENTION and not a description: "each of each
+-- creature" is written zero times, the plain distributive being what a
+-- description takes.
+failing "GroupMention"
+  badEachOfDistributive : Noun [] Object
+  badEachOfDistributive = EachOf (Each creature)
+
+-- …nor the universal, for the same reason and with the same count:
+-- "each of all creatures" is written zero times.
+failing "GroupMention"
+  badEachOfAll : Noun [] Object
+  badEachOfAll = EachOf (AllOf creature)
+
+-- …and it does not stack: one determiner fills the position, and "each
+-- of each of them" spells nothing twice.
+failing "GroupMention"
+  badNestedEachOf : Noun [] Object
+  badNestedEachOf = EachOf (EachOf (TargetGroup (upTo 2) creature))
+
+-- A clause writing ONE per-member amount refuses a bare plural
+-- recipient: "put a +1/+1 counter on up to two target creatures" is the
+-- sentence the corpus never writes, and "each of" is exactly the word it
+-- writes instead (zero lines at two, three, or four against
+-- twenty-nine at "each of up to two target creatures").
+failing "PerMember"
+  badBarePluralCounterRecipient : Effect []
+  badBarePluralCounterRecipient =
+    PutCounters (Lit 1) PlusOnePlusOne (TargetGroup (upTo 2) creature)
+
+-- …and the damage verb reads the same way: "deals 1 damage to up to two
+-- target creatures" is unwritten, while "to up to ONE target creature"
+-- is twenty-eight lines and singular already.
+failing "PerMember"
+  badBarePluralDamageRecipient : Effect []
+  badBarePluralDamageRecipient =
+    DealDamage This (Lit 1) (TargetGroup (upTo 2) creature)
+
+-- …and a plural READ is no better than a plural mention: the corpus's
+-- "counters on them" lines are all relative clauses ("cards with intel
+-- counters on them"), never a recipient.
+failing "PerMember"
+  badThemCounterRecipient : Effect []
+  badThemCounterRecipient =
+    Sequentially [Choose (TargetGroup anyNumber creature),
+                  PutCounters (Lit 1) PlusOnePlusOne Them]
+
+-- …and the universal determiner with them: "deals 2 damage to all
+-- creatures" is zero lines, the sweep being written distributively
+-- ("damage to each creature", two hundred thirty-five).
+failing "PerMember"
+  badAllOfDamageRecipient : Effect []
+  badAllOfDamageRecipient = DealDamage This (Lit 1) (AllOf creature)
+
+-- A division needs members to divide among: "deals 2 damage divided as
+-- you choose among target creature" names one recipient and divides
+-- nothing.
+failing "ManyOf"
+  badDivideAmongSingular : Effect []
+  badDivideAmongSingular = dealsDivided This (Lit 2) (target creature)
+
+-- …and the members must be a MENTION and not a description, since
+-- [CR#601.2d] has the caster announce the division over the targets they
+-- announced: "divided as you choose among each creature" is unwritten,
+-- and every corpus line writes a counted target group or a plural read.
+failing "GroupMention"
+  badDivideAmongDescription : Effect []
+  badDivideAmongDescription = dealsDivided This (Lit 2) (Each creature)
+
+-- …and a division of nothing instructs nothing, which is the written-count
+-- discipline reaching the new clause.
+failing "WrittenCount"
+  badDivideZero : Effect []
+  badDivideZero = dealsDivided This (Lit 0) (TargetGroup (oneThrough 2) AnyTarget)
+
+-- …and the counter half keeps the battlefield demand its undivided twin
+-- carries: no corpus line distributes counters onto cards in a
+-- graveyard.
+failing "OnBattlefield"
+  badDistributeCountersGraveyard : Effect []
+  badDistributeCountersGraveyard =
+    distributeCounters (Lit 2) PlusOnePlusOne
+                       (TargetGroup (oneThrough 2) (And [creature, InZone (graveyardOf You)]))
