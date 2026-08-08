@@ -260,7 +260,12 @@ Karplusan Yeti):
    the macro waits on it and not on a batch constructor —
    `Simultaneously` is not minted here, because it would arrive
    with no writable body, and this file deletes vocabulary that has
-   none rather than accreting it.
+   none rather than accreting it. Chapter twenty-two minted the
+   batch on the exchange family's witnesses and put both halves of
+   this finding to the compiler (finding 120): the expansion is
+   writable when one participant is the SOURCE and refused for the
+   two-target frame, so the obstacle really was the pair
+   complement, and `Fights` stays primitive.
 
 ## Chapter Six — Group Reference and Qualities
 
@@ -2187,6 +2192,255 @@ recorded as refused below.
    so a sibling's phrase may have named nobody at all. No code
    changed.
 
+## Chapter Twenty-Two — The Anchored Complement
+
+Chapter twenty-two, the complement and the batch (evidence:
+Nibelheim Aflame, War Screecher, Bellowing Aegisaur, Carnifex
+Demon, Syphon Mind, Brash Taunter, Ulvenwald Tracker, Act of
+Treason, Mind Flayer, Phyrexian Infiltrator; and, for what the
+round measured rather than built, Prey Upon, Nightfall Predator,
+Polukranos Unchained, Switcheroo, Vedalken Plotter, Mister
+Negative, Tahngarth Talruum Hero, Master Thief by way of
+[CR#611.2b]'s own example).
+
+111. **The group complement is TWO subtractions, and the definite
+   sweep filed them as one.** The sweep's entry named "the rest",
+   "the other", and "both" a single family and called it the one
+   deferral that named a missing PRIMITIVE — a binding records a
+   mention's plurality and its determiner, neither of which
+   carries how MANY, so nothing could presuppose a two-membered
+   antecedent or subtract one mention from another. That is exact
+   for those three words and wrong for the family beside them.
+   "Each other creature", "other creatures you control", and "each
+   other player" subtract a REFERENT from a DESCRIPTION, and a
+   description has no cardinality to consult: the domain is
+   whatever answers the phrase, minus one named thing. So the
+   anchored half lands with no counting at all, and the
+   subset-of-a-group half ("the rest", six hundred and forty-eight
+   lines; "the other", a hundred and ten; "both", nineteen) keeps
+   the blocker the sweep found, now stated as its own — and its
+   carriers are elsewhere-blocked besides, every "the rest" line
+   being a library partition after a look or a reveal (the
+   information cluster and the ordered library, both ledgered).
+112. **One word, two relations, two rows.** `Other` is the
+   TARGETING distinctness a slot announces against the slots
+   before it: [CR#115.4]'s "another target", whose anchor is every
+   earlier target of the kind and whose presupposition the
+   discourse answers. `OtherThan` is the anchored complement,
+   which carries the referent it subtracts. They are not the same
+   relation wearing two determiners — a phrase can be written with
+   either and mean something different by it — so they are two
+   constructors sharing one namespace and one English word, the
+   shape `Compare`/`CompareAmt` and `Not`/`NotCond` already have.
+   Ulvenwald Tracker and Brash Taunter are the pair that proves
+   it: "Target creature you control fights another target
+   creature" excludes the OTHER TARGET, "This creature fights
+   another target creature" excludes the SOURCE, and the two
+   sentences differ in no word.
+113. **The anchor is a read, and the source is what the corpus
+   anchors to.** The complement takes a `Bindingless` noun, the
+   discipline `Matches` makes of its subject and for the same
+   reason: "each other creature" announces one phrase, so an
+   anchor written "a creature" or "target creature" would announce
+   a second the sentence never spelled
+   (`badComplementAnchorAnnounces`, `badComplementAnchorTargets`).
+   That is what unblocks the ledger's self-exclusion entry, which
+   had the diagnosis right and the remedy pointed the wrong way:
+   it waited for `This` to ENTER the discourse, and what was
+   needed instead was a phrase that does not search the discourse
+   at all. Of the hundred and thirty-five "each other creature"
+   lines, fifteen have a Choose-or-target clause before them on
+   the same line and the rest are the source's; the plural "other
+   creatures you control" (a hundred and thirty-seven) is the
+   source's throughout.
+114. **The complement re-keys the gates it shares rather than
+   growing new ones.** Both spellings fill ONE selector slot — the
+   guide gives other/another a single position — so the phrase-level
+   cap counts them together (`badDoubleComplement`,
+   `badOtherAndComplement`), neither is an alternative inside a
+   coordination (`badComplementInOr`), and neither is negatable
+   ("non-other" stays unwritten, `badNegatedComplement`). The one
+   NEW obligation is the anchor's own head type, and it is
+   `anchorFound`'s question asked of a noun instead of a mention:
+   an anchor the phrase could not have described subtracts nothing,
+   and no corpus line pairs "other" with a cross-head anchor
+   (`badComplementCrossHead`). An anchor with no projected type at
+   all — bare `This`, `You` — fits any head, which is `anchorTyOk`
+   unchanged. The gate is written as an `if` over the cap rather
+   than a third conjunct, because the cap makes the two branches
+   exclusive and a `x && True` neutral is what leaves an abstract
+   anchor stuck.
+115. **`Simultaneously` threads ANNOUNCEMENTS, and that is the
+   whole contrast with `Sequentially`.** The settled
+   defer-until-first-witness design cashed in here, and the shape
+   it arrived with is one line of difference from the sequence
+   beside it: `Effects` threads `effIntro` — each clause reads what
+   its predecessors DID — and `SimEffects` threads `preIntro`, so
+   each element reads what its predecessors ANNOUNCED and nothing
+   any of them did. That is what "one pre-state" means precisely.
+   Every element reads ONE game state, which is [CR#608.2f]'s
+   general "each such action is processed simultaneously" for one
+   instruction spread over several objects — its own example being
+   a control grant, Blatant Thievery gaining control of every
+   target at once — and is the property an exchange DEPENDS on ([CR#701.12b] has each player
+   gain control of the permanent that "was controlled by the other
+   player" — both halves read the controllers as they stood before
+   either applied); but the DISCOURSE still accumulates, because
+   [CR#601.2c] announced every target as the text was written,
+   long before any of it resolved. An element reading a sibling's
+   zone retag or a sibling's damage outcome is refused
+   (`badSimultaneousReadsRetag`, `badSimultaneousReadsOutcome`) —
+   and the retag pin is the sharp one, since the same two clauses
+   in a `Sequentially` typecheck. Chapter twenty-one built
+   `preIntro` for a trailing conditional; it turns out to be what
+   a simultaneous batch is made of.
+116. **Outward the batch contributes its whole discourse, and the
+   corpus is what settled it.** A hole would have been the
+   conservative guess and it is wrong: Volatile Stormdrake reads
+   its exchanged target in the next breath ("exchange control of
+   this creature and target creature an opponent controls. If you
+   do, … sacrifice that creature …"), and Sudden Substitution does
+   the same ("Then the spell's controller may choose new targets
+   for it"). The answer is written as the LAST element's own
+   `effIntro` over the announcement telescope, which is the union
+   for every row the container reaches today — a control grant
+   introduces its phrase and retags nothing. A batch whose earlier
+   element MOVED an object would lose that retag and force the
+   union to be built rather than read off the end; no corpus line
+   writes one, and the zone-exchange family [CR#701.12d] names is
+   the ledger's. Hygiene mirrors the sequence's: two elements at
+   least, no batch inside a batch (`badNestedSimultaneous`), and
+   no SEQUENCE inside one either (`badSequenceInsideSimultaneous`
+   — an ordered list inside an unordered one contradicts its
+   container, and its own announcements would reach the next
+   element from its last clause only). The all-or-nothing rule
+   [CR#701.12a] states is a resolution fact about failed halves,
+   not a typing one, and stays with the legality layer.
+117. **The control verb is ONE row, and core splits it in two.**
+   Core keeps a one-shot `Action::GainControl` for the exchange
+   family beside a layer-2 `Modification::SetController` for the
+   duration-bounded grants, and says so in the first constructor's
+   own doc. English writes one verb with one optional trailing
+   adverbial, and the adverbial is already the `Continuously`
+   envelope's slot, so the split would spell one construction
+   twice: `GainsControl` is a static row like `Gets` and `Gains`,
+   and the unwritten span is [CR#611.2a]'s end-of-game default
+   exactly as it is for them — which is what Phyrexian
+   Infiltrator's reminder text says out loud, "(This effect lasts
+   indefinitely.)". The subject is a slot for the reason
+   `ChangeLife` and `Draw` have one, both spellings being ordinary
+   oracle: the imperative's unpronounced `You` (two hundred and
+   forty-six lines), the written subject (seventy-three), and the
+   distributive one (ten), so no grammatical number is demanded of
+   it. The patient is a permanent — [CR#110.2] gives every
+   permanent a controller and [CR#109.4] gives an object neither
+   on the stack nor on the battlefield none — so the battlefield
+   demand tap and destroy already carry applies
+   (`badGainControlGraveyard`); the STACK half of [CR#109.4] is
+   real English ("exchange control of target noncreature spell and
+   target creature") and waits with the spell carrier.
+118. **The for-as-long-as duration landed, and it made `Duration`
+   a context.** Chapter eighteen measured this row and ledgered it
+   on a missing clause rather than a missing shape; the clause is
+   `GainsControl` and forty-two of the two hundred and ten corpus
+   lines are its. [CR#611.2b] gives the row its meaning and prints
+   a control grant as its own example (Master Thief's "gain
+   control of target artifact for as long as you control this
+   creature"). The cost is that a condition is typed in bindings,
+   so every duration now is: `Duration : Bindings -> Type`, and the
+   `Continuously` envelope threads its static effect's own
+   announcements into the adverbial (`Duration (staticIntro se)`),
+   which is what Old Man of the Sea needs — "for as long as … that
+   creature's power remains less than or equal to this creature's
+   power" reads the grant's own target. The type moved into the
+   mutual block to get there, which is the whole of the structural
+   change: `DurationEnd`, `SpanUse`, and both span tables never
+   mention a binding and stayed where they were.
+119. **A fifth construction renamed the span classes where a
+   fourth had split them.** Chapter nineteen divided `BothGrants`
+   when the type addition wrote one current-turn endpoint and not
+   the other; the control grant writes BOTH, so it joins two
+   classes rather than dividing them, and `BothGrants` and
+   `GrantsAndTypes` stopped being true of themselves the way
+   `EveryStatic` had — they are `GrantsAndControl` and
+   `GrantsTypesAndControl` now. What it did divide is `Unclaimed`:
+   "until the end of your next turn" was eighty-three lines of
+   play permissions and control grants with no construction to
+   claim it, four of them naked control grants, so the cell is
+   `ControlGrantOnly` and the class is one construction's alone
+   (`badKeywordGrantEndOfNextTurn`). The ninth class is the new
+   adverbial's, everything but the type addition
+   (`GrantsRestrictionsAndControl`): "for as long as" takes the
+   control grant forty-two times, the restriction ten, the stat
+   delta six, the keyword grant four, and the type ADDITION not
+   once — the thirteen "becomes … for as long as" lines are type
+   SETTINGS and copies, and the three that do write an addition
+   under the adverbial write it with the copula ("That land IS an
+   Island in addition to its other types for as long as it has a
+   flood counter on it"), which is the layer words' construction
+   (`badTypeAdditionForAsLongAs`). Two cells stayed shut on
+   measurements rather than assumptions: the control grant never
+   writes "this turn" (the four lines pairing the words are event
+   clauses — "that attacked you this turn" — not adverbials,
+   `badGainControlThisTurn`), and never an end step (the one line
+   pairing them writes a DELAYED clause, "An opponent gains
+   control of this land at the beginning of the next end step").
+120. **The batch constructor arrived and the fight primitive
+   survived it, which is finding 20 proved rather than
+   restated.** That finding parked the fight macro on the group
+   complement and said the obstacle was not the missing batch
+   constructor. Both halves are now testable and both hold. The
+   expansion is writable exactly when one participant is the
+   SOURCE: `Simultaneously [this deals its power to the target,
+   the target deals its power to this]` typechecks, because `This`
+   introduces no binding and so leaves the target the unique
+   mention the second element reads back. It is NOT writable for
+   the frame the corpus actually writes — "Target creature you
+   control fights target creature you don't control" (Prey Upon)
+   puts two creature mentions in the second element's context, and
+   `That creature` counts two. So the wall is the PAIR complement
+   after all, exactly as the reminder text says it is ("Each deals
+   damage equal to its power to the other."), and it is the
+   subtract-a-subset half of finding 111 rather than the anchored
+   half that landed. `Fights` stays primitive; nothing was
+   deleted, and no second spelling of a fight was minted. What the
+   complement DID unblock is the fight family's self-exclusion:
+   "This creature fights another target creature" (Brash Taunter)
+   and "Polukranos fights another target creature" are the same
+   shape and neither could be written before, the bare `Other`'s
+   anchor search reading bindings where the source leaves none.
+   The self-fight reading was re-verified against the rule and
+   stands: [CR#701.14c] says a creature that fights itself "deals
+   damage to itself equal to twice its power", which is the
+   same-source-same-target pair coalescing into one doubled event
+   rather than two events of its power each — so the unconditional
+   pair needs no distinctness gate. [CR#701.14b] is the
+   both-or-neither guard and it is deliberately OUTSIDE the body:
+   it asks whether each participant is still a creature on the
+   battlefield when the ability resolves, which is legality and
+   not grammar, and it will live with the trigger and legality
+   layer beside [CR#701.12a]'s all-or-nothing rule. Neither is
+   built here.
+121. **An exchange of life totals is not a pair of transfers, and
+   the rules say so.** The control exchange decomposes cleanly —
+   [CR#701.12b] has each player "simultaneously" gain control of
+   the permanent the other controlled, which is two one-way grants
+   in one batch and is exactly what the bench writes. The life
+   exchange does not: [CR#701.12c] has each player "gain or lose
+   the amount of life necessary to equal the other player's
+   previous life total", which is a SET realized as whichever of a
+   gain or a loss gets there, with the direction depending on
+   which total was larger. There is no symmetric pair to write,
+   and forcing one would spell a rule that does not exist —
+   [CR#119.7,119.8] confirm the asymmetry from the other side, a
+   player who can't gain life being blocked from an exchange that
+   would raise their total specifically. What it wants is a
+   life-total READ (the player attribute the comparatives split
+   already ledgered) and a set-to form; the corpus writes a
+   set-to elsewhere ("life total becomes", twenty-nine lines), so
+   the form is real and its own axis. Seven lines write the
+   exchange. Ledgered, with the reason rather than the count.
+
 ## Engine-Boundary Deferrals
 
 Engine-boundary deferrals (deliberate, and to stay so): the
@@ -2376,31 +2630,41 @@ from two up, and from the unbounded quantity, until they land
 counted UNTARGETED groups ("four lands you control" — Burning of
 Xinye's subject-destroy positive waits on them); the
 reciprocal fight frame ("those creatures fight each other" — one
-exactly-two-membered plural subject, corpus-attested, a distinct
-construction from binary `Fights`); union-read plural possessors
+exactly-two-membered plural subject, ten corpus lines, a distinct
+construction from binary `Fights`; the blocker is NARROWED rather
+than removed by chapter twenty-two — the batch constructor exists
+now and the anchored complement with it, and neither reaches this.
+The frame wants the PAIR complement, a two-membered antecedent
+subtracted from one member at a time, which is finding 111's
+subtract-a-subset half and the dependent iteration the frontier
+names, both still open; the same wall stops the binary fight's own
+expansion for two-target frames, finding 120); union-read plural possessors
 ("creatures your opponents control", corpus-attested — waits with
-the player groups); the self-exclusion "other" anchor (Olivia
-Voldaren, Red Hulk — "another"/"any other" excluding the SOURCE;
-the sorted self-reference is typed and battlefield-projected
-already (finding 41), so what this waits on is the source ENTERING
-the discourse: `This` and its ascriptions introduce no binding, and the anchor
-search reads bindings);
+the player groups); [LANDED, finding 113 — the
+self-exclusion "other" anchor. The diagnosis here was right and
+the remedy pointed the wrong way: what was needed was not for the
+source to ENTER the discourse but a phrase that does not search
+the discourse at all, and `OtherThan` carries its anchor as a
+`Bindingless` noun. Brash Taunter and Polukranos, Unchained are
+the fight family's witnesses; War Screecher is the plural one];
 static "as long as" conditions ([CR#611.3], Kitesail Corsair —
 the card has no "for"; the rest of eleven hundred thirty-five
 "as long as" lines once the two hundred ten "for as long as" are
 taken out, and a static-ability container rather than a duration)
-and effect-created "for as long as" durations ([CR#611.2b] —
-finding 75 measured it: core's `Duration::ForAsLongAs(Condition)`
-is a row that EXTENDS chapter seventeen's `Duration` and the
-condition half now exists, so what it waits on is a clause.
-Forty-two of the two hundred ten lines are control grants, four
-are keyword grants and all four grant "indestructible", four are
-stat deltas and all four end "for as long as this artifact remains
-tapped", nine are restrictions and eight coordinate deeds or name
-a deed with no clause here; the one single-deed line, There and
-Back Again's "Up to one target creature can't block for as long
-as you control this Saga", needs a type word `CardType` does not
-have); the EVENT-ended endpoint ("Exile another target
+and [LANDED, finding 118 — effect-created "for as long as"
+durations ([CR#611.2b]). Finding 75's measurement was right in
+every part: the row EXTENDS chapter seventeen's `Duration`, the
+condition half already existed, and what it waited on was a
+clause. The clause is `GainsControl`, and the forty-two control
+grants are what opened it — Mind Flayer is the bench witness and
+[CR#611.2b]'s own example (Master Thief) is the same sentence.
+The cost was indexing `Duration` by the discourse and moving it
+into the mutual block. What is still shut behind other vocabulary
+is the rest of the two hundred and ten: There and Back Again's
+single-deed line still needs a type word `CardType` does not
+have, the four keyword grants all grant "indestructible", and the
+stat deltas all end "for as long as this artifact remains tapped"
+— a per-object status word the object-status axis owes]; the EVENT-ended endpoint ("Exile another target
 creature until this creature leaves the battlefield", the O-Ring
 family, ninety-one lines — an endpoint named by an event rather
 than a turn boundary, which is why chapter seventeen's
@@ -2555,6 +2819,50 @@ to the sacrificed creature's power" against "draw two cards" — the
 bare plural before the phrase, one more linearization side
 condition).
 
+Chapter twenty-two's own deferrals, each measured: the TWO-TARGET
+exchange ("Exchange control of two target creatures", Switcheroo;
+"Exchange control of two target lands", Vedalken Plotter — of the
+thirty-five "exchange control of" lines, the ones naming both
+participants with the word "target" rather than pairing the SOURCE
+with one target), which the batch constructor does not reach for
+the reason the two-target fight does not: the second element has
+to read BOTH participants back, and two creature mentions in one
+context are two, so `That creature` counts two and refuses. This
+is the pair complement above wearing a different verb, and it is
+the same measurement finding 120 made for the fight — which also
+means the exchange has no GENERAL macro, only the source-paired
+shape the bench writes out (Phyrexian Infiltrator); the
+LIFE-TOTAL exchange (seven lines), which is not a pair of transfers
+at all — [CR#701.12c] has each player "gain or lose the amount of
+life necessary to equal the other player's previous life total",
+a SET realized as whichever direction reaches it, so it wants the
+life-total READ the comparatives split already ledgers plus a
+set-to form ("life total becomes", twenty-nine lines elsewhere)
+and would be a fabricated symmetry if forced into the batch
+(finding 121); the ZONE exchange ([CR#701.12d] — "exchange cards
+in one zone with cards in a different zone", and aura swap's
+"exchange this permanent with an Aura card in your hand"
+[CR#702.65a]), which wants the same pair machinery over zones and
+arrives with the information cluster; the NUMERIC-value exchange
+([CR#701.12g]) and its near neighbour that the rule expressly
+excludes ("Switch this creature's power and toughness", eight
+lines — [CR#701.12g] says the exchange rule "does not apply" to
+it), both of which want the layer words; the TEXT-BOX exchange
+([CR#701.12h,612.5], Exchange of Words — one card, and the
+text-changing layer's); the STACK-object control carrier
+("Exchange control of target noncreature spell and target
+creature" — [CR#109.4] gives stack objects a controller and `Zone`
+has no stack row, so the control clause's battlefield demand is
+exact for what this vocabulary can describe and this line is not
+describable at all); "lose control of" (ten lines, every one of
+them a trigger condition — "When you lose control of this
+creature, …" — so it is the event axis's word and not a clause
+verb); and the batch's OUTWARD contribution where an element moves
+an object, which is written today as the last element's own
+`effIntro` and would have to be a built union instead (finding
+116); no corpus line writes a batch over zone-changing clauses,
+so the cell is measured-empty rather than guessed.
+
 The context-as-phrase-telescope collapse (bindings storing
 the mention terms themselves, every projection computed) stays open as
 a possible later simplification — less pressing since the payload
@@ -2617,9 +2925,11 @@ controller argument the move primitive does not carry, since
 [CR#110.2a] gives the instructed player by default and only an
 explicit "under [player]'s control" overrides it. Leaf
 vocabulary: Transform ([CR#701.27a]);
-life-total Set ([CR#119.5]); the non-additive continuous family
-(gain control, "becomes", lose abilities, set base P/T — the
-layer words).
+life-total Set ([CR#119.5], and what the life-total exchange turns
+out to need, finding 121); the non-additive continuous family —
+"becomes", lose abilities, set base P/T, the layer words — of
+which GAIN CONTROL landed in chapter twenty-two ([CR#613.1b] layer
+2; `GainsControl`, finding 117) and the rest still wait.
 
 ## The English-AST Frontier
 
@@ -2660,21 +2970,33 @@ the event queries above rather than as a clause shape of its own;
 exception riders ("except it's legendary", "except it's not
 legendary") — one characteristic of what the clause just made,
 overridden after the fact, so they want the copy/token vocabulary
-and the layer words together; the group COMPLEMENT, one family
-under three words — "the rest" ("Put one of them into your hand
-and the rest on the bottom of your library in any order", six
-hundred and fifty-two lines), "the other" ("Exile one of them and
-put the other into your hand", a hundred and ten bare uses), and
-"both" above (nineteen) — selection from an established group and
-the leftover it defines, twin of the pile partitions below, and
-the one deferral the definite sweep found that names a missing
-PRIMITIVE rather than a missing word: a binding records a
-mention's `Plurality` and its `Determiner`, neither of which
-carries how MANY, so nothing here can presuppose a two-membered
-antecedent or subtract one mention from another — and the fight
-macro is the second construction now waiting on it, its own
-expansion being "(Each deals damage equal to its power to the
-other.)" (finding 20); set-exception
+and the layer words together; the group COMPLEMENT, which SPLIT in chapter twenty-two and
+whose two halves are two different subtractions (finding 111).
+What LANDED is the ANCHORED complement — "each other creature"
+(a hundred and thirty-five lines), "other creatures you control"
+(a hundred and thirty-seven), "each other player" (fifty-three) —
+which takes a REFERENT out of a DESCRIPTION and so needs no
+cardinality at all; it is a predicate row (`OtherThan`) carrying
+its anchor as a read, and the sweep's own diagnosis is what hid
+it, a description having nothing to count. What STAYS is the
+subtract-a-SUBSET half, and it keeps the sweep's blocker exactly:
+"the rest" ("Put one of them into your hand and the rest on the
+bottom of your library in any order", six hundred and fifty-two
+lines), "the other" ("Exile one of them and put the other into
+your hand", a hundred and ten bare uses), and "both" above
+(nineteen) each select from an established group and name the
+leftover it defines, where a binding records a mention's
+`Plurality` and its `Determiner` and neither carries how MANY — so
+nothing here can presuppose a two-membered antecedent or subtract
+one mention from another. It is the twin of the pile partitions
+below, the reciprocal fight frame is still waiting on it, and the
+BINARY fight's own expansion joined the queue in chapter
+twenty-two now that the batch constructor exists and does not
+help ("(Each deals damage equal to its power to the other.)",
+findings 20 and 120). "The rest" is doubly shut besides: every one
+of its lines is a library partition after a look or a reveal, so
+its carriers are the information cluster's and the ordered
+library's as much as this primitive's; set-exception
 noun phrases
 ("choose a card type other than creature", Arachne, Psionic
 Weaver) — a complement

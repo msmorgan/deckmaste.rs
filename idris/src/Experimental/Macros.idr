@@ -254,6 +254,43 @@ public export
 anyOtherTarget : {auto 0 ok : anyTargeted Object bs = True} -> Predicate bs Object
 anyOtherTarget = And [AnyTarget, Other]
 
+-- The ANCHORED complement's surfaces — one word, "other", over the
+-- referent the clause names, and one macro per attested head. Each
+-- threads the anchor's own obligation (a read, never a mention) to its
+-- caller. The determiner decides what the complement DOES: under `Each`
+-- or `AllOf` it is the group complement ("each other creature", "other
+-- creatures you control"), under a counted target it is the singular
+-- selector spelled "another" ("this creature fights another target
+-- creature", Brash Taunter).
+
+-- "other creature [than n]" — the anchor unpronounced.
+-- spelling: ["other creature"] (register variant "another creature"),
+-- kind: Nominal (And [creature, OtherThan n] -- see Predicate.OtherThan)
+public export
+otherCreature : (n : Noun bs Object) -> {auto 0 bl : Bindingless n} ->
+                {auto 0 ty : anchorTyFits [Creature] (nounTy n) = True} ->
+                Predicate bs Object
+otherCreature n = And [creature, OtherThan n {bl}]
+
+-- "other creature(s) you control [than n]" — the corpus's commonest
+-- complement phrase (a hundred and thirty-seven plural lines, seventy-five
+-- of the distributive "each other creature you control").
+-- spelling: ["other creature you control"], kind: Nominal
+public export
+otherCreatureYouControl : (n : Noun bs Object) -> {auto 0 bl : Bindingless n} ->
+                          {auto 0 ty : anchorTyFits [Creature] (nounTy n) = True} ->
+                          Predicate bs Object
+otherCreatureYouControl n = And [creature, ControlledBy You, OtherThan n {bl}]
+
+-- "other player" — the player-kind complement, anchored to `You`
+-- ([CR#102.1] makes "player" the universal word, so the exclusion is
+-- what makes it an opponent-or-teammate read). Fifty-three corpus
+-- lines write "each other player".
+-- spelling: ["other player"], kind: Nominal (And [AnyPlayer, OtherThan You])
+public export
+otherPlayer : Predicate bs Player
+otherPlayer = And [AnyPlayer, OtherThan You]
+
 -- The stat reads, macros over the one `StatOf` primitive as core's are
 -- over `Count::StatOf(Reference, Stat)` (`count.rs`): one axis, one
 -- constructor, and the three phrases English writes for it. Each keeps
@@ -383,7 +420,7 @@ discardsACard agent = discards agent (a (InZone handZ))
 -- "this turn" — the restrictions' current-turn adverbial.
 -- spelling: (construction-owned -- pass-through to Duration.ThisTurn)
 public export
-thisTurn : Duration
+thisTurn : Duration bs
 thisTurn = ThisTurn
 
 -- "until end of turn" — the grants' current-turn adverbial; bare, no
@@ -391,27 +428,27 @@ thisTurn = ThisTurn
 -- spelling: (construction-owned -- the bare end-of-turn endpoint, see
 -- DurationEnd for why the boundary word and the article are its own)
 public export
-untilEndOfTurn : Duration
+untilEndOfTurn : Duration bs
 untilEndOfTurn = Until (EndOf Turn Nothing)
 
 -- "until your next turn" — the cross-turn span, the one every
 -- construction writes (the detain family's included).
 -- spelling: (construction-owned -- the possessed start-of-turn endpoint)
 public export
-untilYourNextTurn : Duration
+untilYourNextTurn : Duration bs
 untilYourNextTurn = Until (StartOf Turn (Just Yours))
 
 -- "until end of combat" ([CR#511.2]) — Glyph of Destruction.
 -- spelling: (construction-owned -- the bare end-of-combat endpoint)
 public export
-untilEndOfCombat : Duration
+untilEndOfCombat : Duration bs
 untilEndOfCombat = Until (EndOf Combat Nothing)
 
 -- "until your next upkeep" ([CR#503]) — Gabriel Angelfire; the one
 -- endpoint the keyword grant writes alone.
 -- spelling: (construction-owned -- the possessed start-of-upkeep endpoint)
 public export
-untilYourNextUpkeep : Duration
+untilYourNextUpkeep : Duration bs
 untilYourNextUpkeep = Until (StartOf Upkeep (Just Yours))
 
 -- "[n] gets [+p/+t] [duration]" — the stat change and its adverbial,
@@ -423,7 +460,8 @@ untilYourNextUpkeep = Until (StartOf Upkeep (Just Yours))
 -- StaticEffect.Gets)
 public export
 gets : (n : Noun bs Object) -> (pow : Integer) -> (tou : Integer) ->
-       (d : Maybe Duration) -> {auto 0 ok : OnBattlefield (nounZone n)} ->
+       (d : Maybe (Duration (nomIntro n))) ->
+       {auto 0 ok : OnBattlefield (nounZone n)} ->
        {auto 0 sp : SpanOk PtDelta d} -> Effect bs
 gets n pow tou d = Continuously (Gets n pow tou) d
 
@@ -431,7 +469,7 @@ gets n pow tou d = Continuously (Gets n pow tou) d
 -- spelling: ["<Param(0)> gains <Param(1)>"] (optional trailing duration),
 -- kind: Sentence (Continuously (Gains …) d -- see StaticEffect.Gains)
 public export
-gains : (n : Noun bs Object) -> (a : Ability) -> (d : Maybe Duration) ->
+gains : (n : Noun bs Object) -> (a : Ability) -> (d : Maybe (Duration (nomIntro n))) ->
         {auto 0 ok : OnBattlefield (nounZone n)} ->
         {auto 0 sp : SpanOk KeywordGrant d} -> Effect bs
 gains n a d = Continuously (Gains n a) d
@@ -441,7 +479,7 @@ gains n a d = Continuously (Gains n a) d
 -- Sentence (gains n (KeywordAbility Haste) d -- see Keyword,
 -- StaticEffect.Gains)
 public export
-gainsHaste : (n : Noun bs Object) -> (d : Maybe Duration) ->
+gainsHaste : (n : Noun bs Object) -> (d : Maybe (Duration (nomIntro n))) ->
              {auto 0 ok : OnBattlefield (nounZone n)} ->
              {auto 0 sp : SpanOk KeywordGrant d} -> Effect bs
 gainsHaste n d = gains n (KeywordAbility Haste) d
@@ -461,7 +499,7 @@ gainsHaste n d = gains n (KeywordAbility Haste) d
 -- "[n] can't attack [duration]" ([CR#508.1c]) — Change of Heart.
 -- spelling: ["<Param(0)> can't attack <Param(1)>"], kind: Sentence
 public export
-cantAttack : (n : Noun bs Object) -> (span : Maybe Duration) ->
+cantAttack : (n : Noun bs Object) -> (span : Maybe (Duration (nomIntro n))) ->
              {auto 0 zn : OnBattlefield (nounZone n)} ->
              {auto 0 dp : DeedParticipant Attack Agent (nounTy n)} ->
              {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
@@ -471,7 +509,7 @@ cantAttack n span = Continuously (Cant n Attack Agent {zn} {dp}) span {sp}
 -- Flare.
 -- spelling: ["<Param(0)> can't block <Param(1)>"], kind: Sentence
 public export
-cantBlock : (n : Noun bs Object) -> (span : Maybe Duration) ->
+cantBlock : (n : Noun bs Object) -> (span : Maybe (Duration (nomIntro n))) ->
             {auto 0 zn : OnBattlefield (nounZone n)} ->
             {auto 0 dp : DeedParticipant Block Agent (nounTy n)} ->
             {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
@@ -481,11 +519,39 @@ cantBlock n span = Continuously (Cant n Block Agent {zn} {dp}) span {sp}
 -- passive of the same deed, the subject standing in core's `on` slot.
 -- spelling: ["<Param(0)> can't be blocked <Param(1)>"], kind: Sentence
 public export
-cantBeBlocked : (n : Noun bs Object) -> (span : Maybe Duration) ->
+cantBeBlocked : (n : Noun bs Object) -> (span : Maybe (Duration (nomIntro n))) ->
                 {auto 0 zn : OnBattlefield (nounZone n)} ->
                 {auto 0 dp : DeedParticipant Block Patient (nounTy n)} ->
                 {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
 cantBeBlocked n span = Continuously (Cant n Block Patient {zn} {dp}) span {sp}
+
+-- The control grant and its adverbial, the envelope's two halves under
+-- one name — `gets`/`gains` for the layer-2 verb. Two macros for the
+-- two subject spellings oracle writes: the imperative with its
+-- unpronounced `You` (two hundred and forty-six lines) and the written
+-- subject (seventy-three).
+
+-- "gain control of [n] [duration]" ([CR#613.1b]) — Act of Treason,
+-- Mind Flayer.
+-- spelling: ["gain control of <Param(0)>"] (optional trailing duration),
+-- kind: Sentence (Continuously (GainsControl You n) d -- see
+-- StaticEffect.GainsControl)
+public export
+gainControl : (n : Noun bs Object) -> (d : Maybe (Duration (nomIntro n))) ->
+              {auto 0 zn : OnBattlefield (nounZone n)} ->
+              {auto 0 sp : SpanOk ControlGrant d} -> Effect bs
+gainControl n d = Continuously (GainsControl You n {zn}) d {sp}
+
+-- "[who] gains control of [what] [duration]" — the written-subject
+-- form, and what the exchange's halves are built from.
+-- spelling: ["<Param(0)> gains control of <Param(1)>"] (optional trailing
+-- duration), kind: Sentence
+public export
+gainsControl : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
+               (d : Maybe (Duration (nomIntro what))) ->
+               {auto 0 zn : OnBattlefield (nounZone what)} ->
+               {auto 0 sp : SpanOk ControlGrant d} -> Effect bs
+gainsControl who what d = Continuously (GainsControl who what {zn}) d {sp}
 
 -- "[who] loses [amt] life"
 -- spelling: ["<Param(0)> loses <Param(1)> life"], kind: Sentence
@@ -612,7 +678,8 @@ createTappedAttacking count tok =
 -- (optional trailing duration), kind: Sentence (Continuously (BecomesAlso …) d
 -- -- see StaticEffect.BecomesAlso)
 public export
-becomes : (n : Noun bs Object) -> (added : TypeLine) -> (d : Maybe Duration) ->
+becomes : (n : Noun bs Object) -> (added : TypeLine) ->
+          (d : Maybe (Duration (nomIntro n))) ->
           {auto 0 zn : OnBattlefield (nounZone n)} ->
           {auto 0 ne : LineNonEmpty added} ->
           {auto 0 nw : AddsSomething (nounTy n) added} ->

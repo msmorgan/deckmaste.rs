@@ -939,6 +939,110 @@ myrkulsEdict = Sequentially [Choose (a Opponent),
                              sacrifice (That PlayerW) (aTheirChoice creature)]
 
 
+-- ===== The group complement, the control verb, and the batch =====
+
+-- "Choose target creature you control. It deals damage equal to its
+-- power to each other creature." (Nibelheim Aflame; the flashback line
+-- and the graveyard-cast rider elided) — the anchored complement over a
+-- BOUND mention: the domain is every creature, and the anchor is the one
+-- the first sentence announced, read back exactly as "it" reads it.
+nibelheimAflame : Effect []
+nibelheimAflame =
+  Sequentially [Choose (target creatureYouControl),
+                DealDamage It (powerOf It) (Each (otherCreature It))]
+
+-- "{5}{W}, {T}: Other creatures you control get +1/+1 until end of
+-- turn." (War Screecher; the activation cost elided as every cost line
+-- is) — the PLURAL complement, and the corpus's commonest anchor: the
+-- SOURCE. `This` introduces no binding and needs none here, the anchor
+-- being carried by the phrase rather than searched for in the
+-- discourse, which is what the ledgered self-exclusion entry was
+-- waiting on.
+warScreecher : Effect []
+warScreecher =
+  gets (AllOf (otherCreatureYouControl thisCreature)) 1 1 (Just untilEndOfTurn)
+
+-- "Enrage — Whenever this creature is dealt damage, put a +1/+1 counter
+-- on each other creature you control." (Bellowing Aegisaur; the trigger
+-- header elided as every trigger header is) — the DISTRIBUTIVE
+-- complement, source-anchored.
+bellowingAegisaur : Effect []
+bellowingAegisaur =
+  PutCounters (Lit 1) PlusOnePlusOne (Each (otherCreatureYouControl thisCreature))
+
+-- "{B}, Remove a -1/-1 counter from this creature: Put a -1/-1 counter
+-- on each other creature." (Carnifex Demon; the cost line elided) — the
+-- unrestricted complement, and the sweep that would hit the source
+-- without it.
+carnifexDemon : Effect []
+carnifexDemon =
+  PutCounters (Lit 1) MinusOneMinusOne (Each (otherCreature thisCreature))
+
+-- "Each other player discards a card." (Syphon Mind's first sentence;
+-- the second, "You draw a card for each card discarded this way", waits
+-- on the participant-subset read) — the complement at the PLAYER kind,
+-- anchored to `You`: the kind index makes the anchor a player without a
+-- gate, and [CR#102.1] makes "player" the word the exclusion applies to.
+syphonMind : Effect []
+syphonMind = discardsACard (Each otherPlayer)
+
+-- "{2}{R}, {T}: This creature fights another target creature." (Brash
+-- Taunter; the cost line elided) — the SINGULAR complement, spelled
+-- "another": one word, one row, and the determiner deciding whether it
+-- selects one or subtracts from a group. The self-exclusion the fight
+-- family writes twenty-four times ("Polukranos fights another target
+-- creature" is the same shape under a card name) and that the bare
+-- `Other` could not reach, its anchor search reading bindings where the
+-- source leaves none.
+brashTaunter : Effect []
+brashTaunter = Fights thisCreature (target (otherCreature thisCreature))
+
+-- "{1}{G}, {T}: Target creature you control fights another target
+-- creature." (Ulvenwald Tracker; the cost line elided) — the CONTRAST
+-- positive, and the reason the two rows stay apart: this "another" is
+-- the bare `Other`, whose anchor is the target announced before it
+-- (the word [CR#115.4] names, and [CR#601.2c] is why it is needed at
+-- all: two instances of "target" may otherwise be given the same
+-- object), where Brash Taunter's is a referent the clause names. Same
+-- word, same slot, different relation.
+ulvenwaldTracker : Effect []
+ulvenwaldTracker = Fights (target creatureYouControl) (target (And [creature, Other]))
+
+-- "Gain control of target creature until end of turn." (Act of
+-- Treason's first sentence; "Untap that creature. It gains haste until
+-- end of turn." elided — the untap verb is the parked object-status
+-- axis) — the control verb under the ordinary current-turn grant
+-- adverbial, a hundred and eleven corpus lines.
+actOfTreason : Effect []
+actOfTreason = gainControl (target creature) (Just untilEndOfTurn)
+
+-- "Dominate Monster — When this creature enters, gain control of target
+-- creature for as long as you control this creature." (Mind Flayer; the
+-- trigger header elided) — the FOR-AS-LONG-AS duration, opened on the
+-- clause chapter eighteen ledgered it waiting for. [CR#611.2b]'s own
+-- example is this shape (Master Thief's "gain control of target artifact
+-- for as long as you control this creature"), and the condition is the
+-- reference frame chapter eighteen already built.
+mindFlayer : Effect []
+mindFlayer =
+  gainControl (target creature) (Just (ForAsLongAs (Matches thisCreature (ControlledBy You))))
+
+-- "{2}{U}{U}: Exchange control of this creature and target creature.
+-- (This effect lasts indefinitely.)" (Phyrexian Infiltrator; the cost
+-- line elided, the reminder text being [CR#611.2a]'s end-of-game default
+-- printed out loud) — the SIMULTANEOUS batch, written out because
+-- English writes the exchange as one verb and this file has no primitive
+-- for it. Both halves read ONE pre-state ([CR#701.12b]: each player
+-- gains control of the permanent that "was controlled by the other
+-- player"), and the second half reads the first half's ANNOUNCEMENT, not
+-- its effect — which is what the batch's telescope threads.
+phyrexianInfiltrator : Effect []
+phyrexianInfiltrator =
+  Simultaneously
+    [gainsControl (ControllerOf (target creature)) thisCreature Nothing,
+     gainsControl (ControllerOf thisCreature) (That (TypeW Creature)) Nothing]
+
+
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
 -- "other" with no target before it: the presupposition has no witness.
@@ -2471,3 +2575,143 @@ failing "countOnes"
                        (Just (create (Lit 1) (creatureTok 1 1 [White] [Soldier])))
                        (Just (create (Lit 2) (creatureTok 1 1 [White] [Soldier]))),
                   PutCounters (Lit 1) PlusOnePlusOne It]
+
+
+
+-- ===== What a complement may exclude, and what a batch may read =====
+
+-- The complement's anchor is a READ and never a mention: "each other
+-- creature" announces ONE phrase, and an anchor written with a
+-- determiner would announce a second one the sentence never spelled.
+failing "Bindingless"
+  badComplementAnchorAnnounces : Predicate [] Object
+  badComplementAnchorAnnounces = OtherThan (a creature)
+
+-- Nor may it announce a TARGET, which is the same refusal with the
+-- determiner that also makes a legality demand.
+failing "Bindingless"
+  badComplementAnchorTargets : Predicate [] Object
+  badComplementAnchorTargets = OtherThan (target creature)
+
+-- The anchor has to be something the phrase could have described:
+-- "each other creature" anchored to a LAND subtracts nothing, and no
+-- corpus line pairs "other" with a cross-head anchor — the same
+-- evidence `anyTargetedTy` reads for the bare word.
+failing "OtherAnchored"
+  badComplementCrossHead : Effect []
+  badComplementCrossHead =
+    DealDamage This (Lit 1) (Each (And [creature, OtherThan thisLand]))
+
+-- One selector slot per phrase, whichever spelling fills it: two
+-- complements are two "other"s, and the guide gives the word one
+-- position.
+failing "OtherAnchored"
+  badDoubleComplement : Effect []
+  badDoubleComplement =
+    DealDamage This (Lit 1)
+               (Each (And [creature, OtherThan thisCreature, OtherThan thisCreature]))
+
+-- And the two spellings share that slot: a phrase cannot write the bare
+-- "other" and an anchored one at once.
+failing "OtherAnchored"
+  badOtherAndComplement : Effect []
+  badOtherAndComplement =
+    Sequentially [Tap (target creature),
+                  DealDamage This (Lit 1)
+                             (Each (And [creature, Other, OtherThan thisCreature]))]
+
+-- A word that fills one phrase-level slot is not an ALTERNATIVE, which
+-- is `badOtherInOr`'s refusal reaching the second spelling too.
+failing "CoordinableDisjuncts"
+  badComplementInOr : Predicate [] Object
+  badComplementInOr = Or [And [creature, OtherThan thisCreature], land]
+
+-- "Non-other" is unwritten, as "non-other" always was.
+failing "Negatable"
+  badNegatedComplement : Predicate [] Object
+  badNegatedComplement = Not (OtherThan thisCreature)
+
+-- A batch is at least TWO parts, the arity demand `Sequentially` makes
+-- and for its reasons: nothing at all, and a second spelling of one
+-- clause.
+failing "AtLeastTwo"
+  badEmptySimultaneous : Effect []
+  badEmptySimultaneous = Simultaneously []
+
+failing "AtLeastTwo"
+  badSingletonSimultaneous : Effect []
+  badSingletonSimultaneous = Simultaneously [destroy (target creature)]
+
+-- Its elements are clauses and not batches — the re-minted tree
+-- `NotSeq` refuses one construction over.
+failing "NotSim"
+  badNestedSimultaneous : Effect []
+  badNestedSimultaneous =
+    Simultaneously [Simultaneously [destroy (target creature), destroy (target artifact)],
+                    destroy (target land)]
+
+-- Nor SEQUENCES: an ordered list inside an unordered one contradicts the
+-- container it sits in, and its announcements would reach the next
+-- element only from its last clause besides.
+failing "NotSeq"
+  badSequenceInsideSimultaneous : Effect []
+  badSequenceInsideSimultaneous =
+    Simultaneously [Sequentially [destroy (target creature), destroy (target artifact)],
+                    destroy (target land)]
+
+-- What a batch's elements share is ONE pre-state — [CR#608.2f]'s rule
+-- for one instruction spread over several objects, whose own example is
+-- a control grant (Blatant Thievery gains control of every target
+-- "simultaneously") — so an element may read what a sibling ANNOUNCED
+-- and nothing a sibling DID.
+-- The zone retag is the sharp case: after an exile the card word
+-- reaches the referent, and inside the batch it does not, because
+-- nothing has been exiled yet.
+failing "countWord"
+  badSimultaneousReadsRetag : Effect []
+  badSimultaneousReadsRetag =
+    Simultaneously [exile (target creature), destroy (That CardW)]
+
+-- The event OUTCOME is the same fact for magnitudes: no damage has been
+-- dealt when a sibling is typed, so "that much" reads nothing.
+failing "countOnes"
+  badSimultaneousReadsOutcome : Effect []
+  badSimultaneousReadsOutcome =
+    Simultaneously [DealDamage This (Lit 2) (target creature),
+                    gainsLife You ThatMuch]
+
+-- Control is a PERMANENT's ([CR#110.2] gives every permanent a
+-- controller; [CR#109.4] gives an object that is neither on the stack
+-- nor on the battlefield none), so the grant takes a battlefield
+-- referent like every other continuous clause.
+failing "OnBattlefield"
+  badGainControlGraveyard : Effect []
+  badGainControlGraveyard =
+    gainControl (target (And [creature, InZone graveyardZ])) Nothing
+
+-- The control grant writes the GRANTS' current-turn word and never the
+-- restrictions': "gain control of target creature this turn" is written
+-- zero times, and the four corpus lines pairing the two words are event
+-- clauses ("that attacked you this turn") rather than adverbials.
+failing "SpanOk"
+  badGainControlThisTurn : Effect []
+  badGainControlThisTurn = gainControl (target creature) (Just thisTurn)
+
+-- "Until the end of your next turn" is the control grant's ALONE — the
+-- cell chapter seventeen left `Unclaimed` and this chapter claimed. The
+-- keyword grant does not write it (the eighty-three lines beside the
+-- four control ones are play permissions, another construction's).
+failing "SpanOk"
+  badKeywordGrantEndOfNextTurn : Effect []
+  badKeywordGrantEndOfNextTurn =
+    gainsHaste (target creature) (Just (Until (EndOf Turn (Just Yours))))
+
+-- And "for as long as" is written by every construction but the type
+-- ADDITION: the thirteen "becomes … for as long as" corpus lines are
+-- type SETTINGS and copies, and the addition's own phrase pairs with
+-- the adverbial zero times.
+failing "SpanOk"
+  badTypeAdditionForAsLongAs : Effect []
+  badTypeAdditionForAsLongAs =
+    becomes (target creature) (typesOnly [Artifact])
+            (Just (ForAsLongAs (Matches thisCreature (ControlledBy You))))

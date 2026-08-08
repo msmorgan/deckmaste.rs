@@ -1424,43 +1424,6 @@ public export
 data DurationEnd = StartOf TurnPart (Maybe Whose)
                  | EndOf TurnPart (Maybe Whose)
 
-||| Durations, as the trailing adverbial writes them ([CR#611.2a] — a
-||| resolution-generated continuous effect "lasts as long as stated";
-||| with no stated duration it lasts until end of game, which is the
-||| explicit `Nothing` spelling per the no-defaults convention).
-||| "For as long as" durations ([CR#611.2b]) are the row this type will
-||| grow next and cannot grow yet, which the conditions chapter
-||| measured rather than assumed: core spells it
-||| `Duration::ForAsLongAs(Condition)` (`continuous.rs`), the condition
-||| type it needs now exists here, and the row would EXTEND this one
-||| (a third alternative beside `ThisTurn` and `Until`) rather than
-||| parallel it. What is missing is a clause to attach it to. Two
-||| hundred and ten corpus lines write the adverbial; of those, forty-two
-||| are control grants and the rest reach for vocabulary this grammar
-||| lacks — four keyword grants, all of "indestructible"; four stat
-||| deltas, all ending "for as long as this artifact remains tapped";
-||| nine restrictions, eight of them coordinated deeds or deeds with no
-||| clause here. The single line that is one deed under one condition
-||| ("Up to one target creature can't block for as long as you control
-||| this Saga", There and Back Again) needs a type word `CardType` does
-||| not have. So the row waits on its clauses, not on its shape, and
-||| `spanUse` would have to be answered for a whole family rather than
-||| a cell when it lands. The event-ended family ("until [this
-||| creature] leaves the battlefield", the O-Ring shape) waits on the
-||| events axis in the same way (ledger).
-|||
-||| "This turn" is its own row rather than an `Until` form because it is
-||| not one: it names the current turn as a whole, without a boundary
-||| word, and it is the adverbial the one-shot restrictions write where
-||| the grants write "until end of turn" — the same span, a different
-||| construction's word (`spanUse`).
-public export
--- spelling: ["this turn", "until <Param(0)>"] (row order: ThisTurn/Until;
--- Until's own word is the bare "until" and the endpoint supplies the rest --
--- see DurationEnd), kind: TODO(reason: trailing-adverbial fragment -- not
--- one of Nominal/Sentence/Cost/KeywordLine/Ability)
-data Duration = ThisTurn | Until DurationEnd
-
 ||| WHICH constructions write a given duration adverbial — the fact the
 ||| corpus assigns and no rule derives. The guide lists the wordings and
 ||| assigns neither ("Use `until end of turn` for the ordinary
@@ -1480,80 +1443,30 @@ data Duration = ThisTurn | Until DurationEnd
 ||| Chapter nineteen SPLIT one of these rows rather than joining it. The
 ||| type-addition clause writes "until end of turn" and never "until end
 ||| of combat", so a class that named both endpoints at once could not
-||| hold a fourth construction's answer, and `GrantsAndTypes` is the
-||| finer partition the fourth construction forced: the two current-turn
-||| GRANT endpoints, which three constructions could not tell apart, are
-||| two classes as soon as a fourth writes one of them and not the other.
-||| `BothGrants` keeps its name and its meaning and now classifies the
-||| combat endpoint alone.
+||| hold a fourth construction's answer: the two current-turn GRANT
+||| endpoints, which three constructions could not tell apart, are two
+||| classes as soon as a fourth writes one of them and not the other.
+|||
+||| Chapter twenty-two is the same event a second time, and it renamed
+||| where chapter nineteen split. The CONTROL grant writes both
+||| current-turn endpoints, so it joins two existing classes rather than
+||| dividing them — `BothGrants` and `GrantsAndTypes` stopped being true
+||| of themselves the way `EveryStatic` had, and are `GrantsAndControl`
+||| and `GrantsTypesAndControl` now. What it did divide is `Unclaimed`:
+||| "until the end of your next turn" was eighty-three lines of play
+||| permissions and control grants with no construction to claim it, and
+||| four of those lines are naked control grants, so the cell is
+||| `ControlGrantOnly` and the class is the control grant's alone. The
+||| ninth row is the new adverbial's own (`GrantsRestrictionsAndControl`
+||| — everything but the type addition), and the end-step cells stay
+||| `Unclaimed` on a measurement rather than an assumption: the one
+||| corpus line pairing control with an end step writes it as a DELAYED
+||| clause ("An opponent gains control of this land at the beginning of
+||| the next end step"), which is not a duration adverbial at all.
 public export
-data SpanUse = Unattested | Unclaimed | BothGrants | GrantsAndTypes
+data SpanUse = Unattested | Unclaimed | GrantsAndControl | GrantsTypesAndControl
              | KeywordGrantOnly | RestrictionsOnly | GrantsAndRestrictions
-
-||| The attestation table: every duration this vocabulary can spell,
-||| against the constructions that write it. FULL ROWS over (boundary x
-||| part x possession) plus the bare current-turn adverbial — thirty-one
-||| cells — so a new `TurnPart`, a new `Whose`, or a new boundary is a
-||| totality error that must be answered with evidence before anything
-||| can be written with it.
-|||
-||| The counts behind the open cells (oracle corpus, joint patterns —
-||| the adverbial has to belong to THAT clause, not merely share a line
-||| with it): "until end of turn" writes one thousand five hundred
-||| fifty-nine stat changes and one thousand three hundred ninety-one
-||| keyword grants and NOT ONE single-deed restriction; "this turn"
-||| inverts it exactly, two hundred ninety-six restrictions and neither
-||| grant; "until your next turn" is written by all three (thirteen,
-||| thirteen, twenty-four), the one span that is nobody's alone; "until
-||| end of combat" takes the two grants only (Glyph of Destruction's
-||| "+10/+0", one banding line); "until your next upkeep" takes the
-||| keyword grant alone (Gabriel Angelfire, and one forestwalk line) and
-||| no stat change at all.
-|||
-||| The `Unclaimed` cells are where the frontier is: "until the end of
-||| your next turn" is eighty-three lines of play permissions and
-||| control grants, "until end of combat on your next turn" is Brazen
-||| Cannonade's play permission, "until the end of your next upkeep" is
-||| Halfdane's base-P/T setting, and the three end-step endpoints are
-||| play permissions and a copy effect. Every one of them waits on a
-||| construction, not on a duration.
-public export
-spanUse : Duration -> SpanUse
-spanUse ThisTurn = RestrictionsOnly
--- "until [poss] next [part]" — the start boundary writes no boundary
--- word, and takes possession or the definite article, never nothing.
-spanUse (Until (StartOf Turn Nothing)) = Unattested
-spanUse (Until (StartOf Turn (Just Yours))) = GrantsAndRestrictions
-spanUse (Until (StartOf Turn (Just ThatPlayers))) = Unclaimed
-spanUse (Until (StartOf Upkeep Nothing)) = Unattested
-spanUse (Until (StartOf Upkeep (Just Yours))) = KeywordGrantOnly
-spanUse (Until (StartOf Upkeep (Just ThatPlayers))) = Unattested
-spanUse (Until (StartOf EndStep Nothing)) = Unclaimed
-spanUse (Until (StartOf EndStep (Just Yours))) = Unclaimed
-spanUse (Until (StartOf EndStep (Just ThatPlayers))) = Unclaimed
-spanUse (Until (StartOf Combat Nothing)) = Unattested
-spanUse (Until (StartOf Combat (Just Yours))) = Unattested
-spanUse (Until (StartOf Combat (Just ThatPlayers))) = Unattested
-spanUse (Until (StartOf UntapStep Nothing)) = Unattested
-spanUse (Until (StartOf UntapStep (Just Yours))) = Unattested
-spanUse (Until (StartOf UntapStep (Just ThatPlayers))) = Unattested
--- "until (the) end of [part]" — the end boundary is the one that
--- writes bare, and the bare forms are where the grants live.
-spanUse (Until (EndOf Turn Nothing)) = GrantsAndTypes
-spanUse (Until (EndOf Turn (Just Yours))) = Unclaimed
-spanUse (Until (EndOf Turn (Just ThatPlayers))) = Unattested
-spanUse (Until (EndOf Upkeep Nothing)) = Unattested
-spanUse (Until (EndOf Upkeep (Just Yours))) = Unclaimed
-spanUse (Until (EndOf Upkeep (Just ThatPlayers))) = Unattested
-spanUse (Until (EndOf EndStep Nothing)) = Unattested
-spanUse (Until (EndOf EndStep (Just Yours))) = Unattested
-spanUse (Until (EndOf EndStep (Just ThatPlayers))) = Unattested
-spanUse (Until (EndOf Combat Nothing)) = BothGrants
-spanUse (Until (EndOf Combat (Just Yours))) = Unclaimed
-spanUse (Until (EndOf Combat (Just ThatPlayers))) = Unattested
-spanUse (Until (EndOf UntapStep Nothing)) = Unattested
-spanUse (Until (EndOf UntapStep (Just Yours))) = Unattested
-spanUse (Until (EndOf UntapStep (Just ThatPlayers))) = Unattested
+             | ControlGrantOnly | GrantsRestrictionsAndControl
 
 -- ===== Deontic restrictions (the one-shot "can't" vocabulary) =====
 
@@ -1648,6 +1561,7 @@ data DeedParticipant : Deed -> Role -> Maybe CardType -> Type where
 ||| which durations it writes before it can be written at all.
 public export
 data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition
+                | ControlGrant
 
 ||| The attestation table's other half: which classes of adverbial each
 ||| construction writes. Full rows in both directions. The shape of it
@@ -1687,36 +1601,70 @@ data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition
 ||| addition. No line writes a NAKED type addition across turns, so the
 ||| honest value is `False` (`badTypeAdditionAcrossTurns`) and Tezzeret
 ||| waits on the compound base-P/T-setting construction (ledger).
+||| The CONTROL-grant row is chapter twenty-two's, and it is the widest
+||| of the five: control is the construction that writes every current-
+||| turn grant endpoint AND the cross-turn one AND the new for-as-long-as
+||| adverbial, and it is the only construction that writes "until the end
+||| of your next turn" at all. Counts, joint patterns as everywhere in
+||| this table: "until end of turn" a hundred and eleven ("Gain control
+||| of target creature until end of turn", Act of Treason), "for as long
+||| as" forty-two, "until the end of your next turn" four, "until end of
+||| combat" one (Tahngarth, Talruum Hero's "you may have that opponent
+||| gain control of Tahngarth until end of combat" — a single line, the
+||| same weight chapter seventeen gave Glyph of Destruction). Written
+||| ZERO times: "this turn" (the four lines matching are event clauses —
+||| "that entered this turn", "that attacked you this turn" — not
+||| adverbials), "until your next turn", "until your next upkeep", and
+||| every end-step and that-player endpoint. So the restriction's own
+||| current-turn word stays the restriction's alone, which is chapter
+||| seventeen's division holding under a fifth construction.
 public export
 admitsSpan : StaticKind -> SpanUse -> Bool
 admitsSpan PtDelta Unattested = False
 admitsSpan PtDelta Unclaimed = False
-admitsSpan PtDelta BothGrants = True
-admitsSpan PtDelta GrantsAndTypes = True
+admitsSpan PtDelta GrantsAndControl = True
+admitsSpan PtDelta GrantsTypesAndControl = True
 admitsSpan PtDelta KeywordGrantOnly = False
 admitsSpan PtDelta RestrictionsOnly = False
 admitsSpan PtDelta GrantsAndRestrictions = True
+admitsSpan PtDelta ControlGrantOnly = False
+admitsSpan PtDelta GrantsRestrictionsAndControl = True
 admitsSpan KeywordGrant Unattested = False
 admitsSpan KeywordGrant Unclaimed = False
-admitsSpan KeywordGrant BothGrants = True
-admitsSpan KeywordGrant GrantsAndTypes = True
+admitsSpan KeywordGrant GrantsAndControl = True
+admitsSpan KeywordGrant GrantsTypesAndControl = True
 admitsSpan KeywordGrant KeywordGrantOnly = True
 admitsSpan KeywordGrant RestrictionsOnly = False
 admitsSpan KeywordGrant GrantsAndRestrictions = True
+admitsSpan KeywordGrant ControlGrantOnly = False
+admitsSpan KeywordGrant GrantsRestrictionsAndControl = True
 admitsSpan DeedRestriction Unattested = False
 admitsSpan DeedRestriction Unclaimed = False
-admitsSpan DeedRestriction BothGrants = False
-admitsSpan DeedRestriction GrantsAndTypes = False
+admitsSpan DeedRestriction GrantsAndControl = False
+admitsSpan DeedRestriction GrantsTypesAndControl = False
 admitsSpan DeedRestriction KeywordGrantOnly = False
 admitsSpan DeedRestriction RestrictionsOnly = True
 admitsSpan DeedRestriction GrantsAndRestrictions = True
+admitsSpan DeedRestriction ControlGrantOnly = False
+admitsSpan DeedRestriction GrantsRestrictionsAndControl = True
 admitsSpan TypeAddition Unattested = False
 admitsSpan TypeAddition Unclaimed = False
-admitsSpan TypeAddition BothGrants = False
-admitsSpan TypeAddition GrantsAndTypes = True
+admitsSpan TypeAddition GrantsAndControl = False
+admitsSpan TypeAddition GrantsTypesAndControl = True
 admitsSpan TypeAddition KeywordGrantOnly = False
 admitsSpan TypeAddition RestrictionsOnly = False
 admitsSpan TypeAddition GrantsAndRestrictions = False
+admitsSpan TypeAddition ControlGrantOnly = False
+admitsSpan TypeAddition GrantsRestrictionsAndControl = False
+admitsSpan ControlGrant Unattested = False
+admitsSpan ControlGrant Unclaimed = False
+admitsSpan ControlGrant GrantsAndControl = True
+admitsSpan ControlGrant GrantsTypesAndControl = True
+admitsSpan ControlGrant KeywordGrantOnly = False
+admitsSpan ControlGrant RestrictionsOnly = False
+admitsSpan ControlGrant GrantsAndRestrictions = False
+admitsSpan ControlGrant ControlGrantOnly = True
+admitsSpan ControlGrant GrantsRestrictionsAndControl = True
 
 ||| Whether a construction can write NO duration at all. A grant can:
 ||| the unwritten span is [CR#611.2a]'s end-of-game default, which the
@@ -1733,20 +1681,18 @@ admitsSpan TypeAddition GrantsAndRestrictions = False
 ||| duration, and Memnarch prints the reason in reminder text — "(This
 ||| effect lasts indefinitely.)" — which is [CR#611.2a]'s end-of-game
 ||| default said out loud on the card.
+||| The control grant's answer is `True` on the same evidence and the
+||| same reminder text: "Gain control of target creature." states no
+||| duration at all (Beguiler of Wills, Dominate, Blue Sun's Twilight),
+||| and Phyrexian Infiltrator prints the gloss — "(This effect lasts
+||| indefinitely.)" — beside its own exchange.
 public export
 absentOk : StaticKind -> Bool
 absentOk PtDelta = True
 absentOk KeywordGrant = True
 absentOk DeedRestriction = False
 absentOk TypeAddition = True
-
-||| The `Continuously` clause's duration slot as a witness, reading both
-||| tables: the stated absence against `absentOk`, a written adverbial
-||| against the construction's own row in `spanUse`.
-public export
-data SpanOk : StaticKind -> Maybe Duration -> Type where
-  SpanUnstated : {auto 0 ok : absentOk k = True} -> SpanOk k Nothing
-  SpanStated : {auto 0 ok : admitsSpan k (spanUse d) = True} -> SpanOk k (Just d)
+absentOk ControlGrant = True
 
 ||| How an indefinite phrase MARKS its choice method — the axis three
 ||| constructors used to spell three times. Choice method is surface
@@ -1974,6 +1920,36 @@ mutual
     -- spelling: ["other"] (register variant "another"), kind: TODO(reason:
     -- non-head modifier per hasHead)
     Other : {auto 0 ok : anyTargeted k bs = True} -> Predicate bs k
+    -- the ANCHORED COMPLEMENT — "other" over a named referent: the
+    -- described domain MINUS the anchor. "Each other creature you
+    -- control", "other creatures you control get +1/+1", "each other
+    -- player": one modifier word, and a different relation from `Other`
+    -- above, which is why it is a second row and not a widening (the
+    -- `Compare`/`CompareAmt` and `Not`/`NotCond` shape — one namespace,
+    -- two frames, and the argument in the name). `Other` is the
+    -- TARGETING distinctness a slot announces against the slots before
+    -- it ([CR#115.4]'s "another target"), so its anchor is every earlier
+    -- target and the discourse supplies it; this one subtracts ONE
+    -- referent the clause names, and carries it.
+    -- The anchor is a READ and never a mention (`Bindingless`, the
+    -- discipline `Matches` makes of its subject): "each other creature"
+    -- announces one phrase, not two, so an anchor written as "a
+    -- creature" or "target creature" would announce a referent the
+    -- sentence never spelled (`badComplementAnchorAnnounces`). Its
+    -- KIND is the phrase's own, by the index — "each other player"
+    -- excludes a player and cannot exclude a creature.
+    -- What it does NOT need is a count, and that is the finding: the
+    -- definite sweep filed this family with "the rest" under one
+    -- heading and they come apart. Subtracting a REFERENT from a
+    -- DESCRIPTION needs no cardinality at all, so it lands now;
+    -- subtracting a SUBSET from a GROUP ("the rest", "the other",
+    -- "both") still needs a binding to record how many, and stays
+    -- ledgered.
+    -- spelling: ["other"] (register variant "another"; the ANCHOR is
+    -- unpronounced -- English leaves it to salience, and the source-anchored
+    -- reading is the corpus's mass), kind: TODO(reason: non-head modifier
+    -- per hasHead)
+    OtherThan : (n : Noun bs k) -> {auto 0 bl : Bindingless n} -> Predicate bs k
     -- "any target" ([CR#115.4]: creature, player, planeswalker, or
     -- battle). NOT yet de-macroable: needs `Or` and the object/player
     -- kind join; primitive only until a chapter grows those.
@@ -2210,6 +2186,7 @@ mutual
   hasHead (Or ps) = hasHeadAll ps
   hasHead (Not _) = False
   hasHead Other = False
+  hasHead (OtherThan _) = False
   hasHead AnyTarget = True
 
   public export
@@ -2354,6 +2331,10 @@ mutual
   predEq (Not _) _ = False
   predEq Other Other = True
   predEq Other _ = False
+  -- two complements are the same modifier when they exclude the same
+  -- referent, which `nounEqRef` answers with its usual conservatism.
+  predEq (OtherThan a) (OtherThan b) = nounEqRef a b
+  predEq (OtherThan _) _ = False
   predEq AnyTarget AnyTarget = True
   predEq AnyTarget _ = False
 
@@ -2440,6 +2421,9 @@ mutual
   public export
   hasOther : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   hasOther Other = True
+  -- the anchored complement fills the SAME selector slot — one "other"
+  -- per phrase however it is anchored — so the slot scan sees both.
+  hasOther (OtherThan _) = True
   hasOther (And ps) = hasOtherAny ps
   -- no reach into a disjunction is needed, and none would be honest:
   -- the modifier fills one slot for the WHOLE coordinated phrase
@@ -2460,15 +2444,60 @@ mutual
   ||| The modifier also has ONE slot per phrase — the style guide's
   ||| selector order gives other/another a single position and no
   ||| corpus line doubles it — so a second "other" is unwritable
-  ||| (`badDoubleOther`). The cap is written FIRST so the conjunction
-  ||| reduces for a phrase whose CONTEXT is abstract — `anyOtherTarget`
-  ||| carries its anchor presupposition as a hypothesis, and `x && True`
-  ||| would stay stuck on the neutral `x`.
+  ||| (`badDoubleOther`). The cap is written FIRST and the CONTEXT-reading
+  ||| conjunct last, so the conjunction reduces for a phrase whose context
+  ||| is abstract — `anyOtherTarget` carries its anchor presupposition as
+  ||| a hypothesis, and `x && True` would stay stuck on the neutral `x`.
+  ||| The two branches are exclusive by the cap above them, which is why
+  ||| they are an `if` and not a third conjunct: the cap counts BOTH
+  ||| spellings of the word, so a phrase that has the bare one has no
+  ||| anchored complement to check, and each branch reduces to a single
+  ||| stuck term instead of to a `x && True` that never does.
   public export
   otherAnchorOk : {bs : Bindings} -> (k : Kind) -> List CardType ->
                   List (Predicate bs k) -> Bool
-  otherAnchorOk k ts ps = atMostOne (countOthers (flattenPs ps)) &&
-                          (if hasOtherAny ps then anchorFound k ts bs else True)
+  otherAnchorOk k ts ps =
+    if atMostOne (countOthers (flattenPs ps))
+      then (if hasBareOtherAny ps
+              then anchorFound k ts bs
+              else complementAnchorsOk ts (flattenPs ps))
+      else False
+
+  ||| Does an anchor's own head type fit the phrase it is subtracted
+  ||| from? The same question `anchorFound` asks of a discourse mention,
+  ||| asked of the noun the complement carries — and the empty head list
+  ||| reads the same way it does there, as the genuinely untyped head
+  ||| (the player kind, whose kind agreement is the whole obligation)
+  ||| rather than as an exhausted search.
+  public export
+  anchorTyFitsSome : List CardType -> Maybe CardType -> Bool
+  anchorTyFitsSome [] t = False
+  anchorTyFitsSome (u :: us) t = anchorTyOk u t || anchorTyFitsSome us t
+
+  public export
+  anchorTyFits : List CardType -> Maybe CardType -> Bool
+  anchorTyFits [] t = True
+  anchorTyFits (u :: us) t = anchorTyFitsSome (u :: us) t
+
+  ||| Every anchored complement in a modifier list excludes something
+  ||| the phrase could have described. "Each other creature" anchored to
+  ||| a LAND subtracts nothing and is written by no corpus line
+  ||| (`badComplementCrossHead`) — the same evidence `anyTargetedTy`
+  ||| reads for the bare word, that oracle pairs "other" only with
+  ||| overlapping heads. An anchor that projects no head type at all
+  ||| (bare `This`, "you") fits any head, exactly as an untyped mention
+  ||| does there.
+  public export
+  complementAnchorsOk : {bs : Bindings} -> {k : Kind} -> List CardType ->
+                        List (Predicate bs k) -> Bool
+  complementAnchorsOk ts [] = True
+  -- the recursion is written FIRST so a list whose complement is its
+  -- last member reduces to the bare anchor test — the `x && True`
+  -- neutral is what leaves an abstract anchor stuck, and the macros
+  -- carrying one thread it to their callers.
+  complementAnchorsOk ts (OtherThan n :: ps) =
+    complementAnchorsOk ts ps && anchorTyFits ts (nounTy n)
+  complementAnchorsOk ts (_ :: ps) = complementAnchorsOk ts ps
 
   ||| The head-typed "other" presupposition as a witness ([CR#115.4];
   ||| the guide reserves "another" for excluding the source or first
@@ -2490,7 +2519,24 @@ mutual
   public export
   isOther : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   isOther Other = True
+  isOther (OtherThan _) = True
   isOther _ = False
+
+  ||| The BARE "other" alone — the one whose anchor the discourse has to
+  ||| supply. `hasOther` above scans for the selector SLOT (both
+  ||| spellings of the word fill it), this scans for the phrases that
+  ||| make a presupposition of the CONTEXT; the anchored complement
+  ||| carries its own referent and asks the discourse for nothing.
+  public export
+  hasBareOther : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+  hasBareOther Other = True
+  hasBareOther (And ps) = hasBareOtherAny ps
+  hasBareOther _ = False
+
+  public export
+  hasBareOtherAny : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
+  hasBareOtherAny [] = False
+  hasBareOtherAny (p :: ps) = hasBareOther p || hasBareOtherAny ps
 
   public export
   anyIsAnyTarget : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
@@ -2779,6 +2825,7 @@ mutual
   negatable (Or _) = False
   negatable (Not _) = False
   negatable Other = False
+  negatable (OtherThan _) = False
   negatable AnyTarget = False
 
   public export
@@ -2810,6 +2857,7 @@ mutual
   predSays (Or _) = True
   predSays (Not p) = predSays p
   predSays Other = True
+  predSays (OtherThan _) = True
   predSays AnyTarget = True
 
   public export
@@ -2848,6 +2896,7 @@ mutual
   predNegFree (Or ps) = predNegFreeAll ps
   predNegFree (Not _) = False
   predNegFree Other = True
+  predNegFree (OtherThan _) = True
   predNegFree AnyTarget = True
 
   public export
@@ -2890,6 +2939,9 @@ mutual
   anyTargetFree (Or ps) = anyTargetFreeAll ps
   anyTargetFree (Not p) = anyTargetFree p
   anyTargetFree Other = True
+  -- the anchor is a noun, and a noun can bury the class word in a
+  -- possessor exactly as a relative clause does.
+  anyTargetFree (OtherThan n) = nounAnyTargetFree n
   anyTargetFree AnyTarget = False
 
   public export
@@ -3724,6 +3776,137 @@ mutual
   condDelta (NotCond c) = []
 
 
+  ||| Durations, as the trailing adverbial writes them ([CR#611.2a] — a
+  ||| resolution-generated continuous effect "lasts as long as stated";
+  ||| with no stated duration it lasts until end of game, which is the
+  ||| explicit `Nothing` spelling per the no-defaults convention).
+  ||| "FOR AS LONG AS" durations ([CR#611.2b]) are the third row, opened
+  ||| here on the clause chapter eighteen said they waited for. The rule
+  ||| gives the row its shape and its own example is a control grant:
+  ||| "Some continuous effects generated by the resolution of a spell or
+  ||| ability have durations worded 'for as long as . . . .'", and Master
+  ||| Thief's "gain control of target artifact for as long as you control
+  ||| this creature" is the text [CR#611.2b] prints beside it. Core spells
+  ||| it `Duration::ForAsLongAs(Condition)` (`continuous.rs`) and this row
+  ||| is that, which is why the type is now INDEXED by the discourse: a
+  ||| condition is typed in bindings, so every duration is. The condition
+  ||| reads what the clause it trails has ANNOUNCED — chapter
+  ||| twenty-one's `preIntro` distinction, here supplied by the
+  ||| `Continuously` envelope's own telescope (`staticIntro se`) — which
+  ||| is what Old Man of the Sea needs ("for as long as ... that
+  ||| creature's power remains less than or equal to this creature's
+  ||| power" reads the grant's own target).
+  ||| The blocker chapter eighteen recorded was the missing clause and it
+  ||| has fallen: forty-two of the two hundred and ten corpus lines are
+  ||| control grants, and `GainsControl` is now a static row. The rest of
+  ||| the count is unchanged — six stat deltas, four keyword grants (all
+  ||| of "indestructible"), ten restrictions, and thirteen "becomes"
+  ||| lines that are type SETTINGS and copies rather than the "in
+  ||| addition to its other types" ADDITION this vocabulary spells (the
+  ||| addition's own "for as long as" is written zero times with the
+  ||| "becomes" verb; the three copular "is an Island in addition to its
+  ||| other types for as long as it has a flood counter on it" lines are
+  ||| the layer words' construction, not this one).
+  ||| The event-ended family ("until [this creature] leaves the
+  ||| battlefield", the O-Ring shape) waits on the events axis, which is
+  ||| a shape question rather than a clause one (ledger).
+  |||
+  ||| "This turn" is its own row rather than an `Until` form because it is
+  ||| not one: it names the current turn as a whole, without a boundary
+  ||| word, and it is the adverbial the one-shot restrictions write where
+  ||| the grants write "until end of turn" — the same span, a different
+  ||| construction's word (`spanUse`).
+  public export
+  -- spelling: ["this turn", "until <Param(0)>", "for as long as <Param(0)>"]
+  -- (row order: ThisTurn/Until/ForAsLongAs; Until's own word is the bare
+  -- "until" and the endpoint supplies the rest -- see DurationEnd; the
+  -- for-as-long-as row's parameter is a condition, which spells its own
+  -- frame -- see Condition), kind: TODO(reason: trailing-adverbial fragment --
+  -- not one of Nominal/Sentence/Cost/KeywordLine/Ability)
+  data Duration : Bindings -> Type where
+    ThisTurn : Duration bs
+    Until : DurationEnd -> Duration bs
+    ForAsLongAs : Condition bs -> Duration bs
+
+  ||| The attestation table: every duration this vocabulary can spell,
+  ||| against the constructions that write it. FULL ROWS over (boundary x
+  ||| part x possession) plus the bare current-turn adverbial — thirty-one
+  ||| cells — so a new `TurnPart`, a new `Whose`, or a new boundary is a
+  ||| totality error that must be answered with evidence before anything
+  ||| can be written with it.
+  |||
+  ||| The counts behind the open cells (oracle corpus, joint patterns —
+  ||| the adverbial has to belong to THAT clause, not merely share a line
+  ||| with it): "until end of turn" writes one thousand five hundred
+  ||| fifty-nine stat changes and one thousand three hundred ninety-one
+  ||| keyword grants and NOT ONE single-deed restriction; "this turn"
+  ||| inverts it exactly, two hundred ninety-six restrictions and neither
+  ||| grant; "until your next turn" is written by all three (thirteen,
+  ||| thirteen, twenty-four), the one span that is nobody's alone; "until
+  ||| end of combat" takes the two grants only (Glyph of Destruction's
+  ||| "+10/+0", one banding line); "until your next upkeep" takes the
+  ||| keyword grant alone (Gabriel Angelfire, and one forestwalk line) and
+  ||| no stat change at all.
+  |||
+  ||| The `Unclaimed` cells are where the frontier is: "until the end of
+  ||| your next turn" is eighty-three lines of play permissions and
+  ||| control grants, "until end of combat on your next turn" is Brazen
+  ||| Cannonade's play permission, "until the end of your next upkeep" is
+  ||| Halfdane's base-P/T setting, and the three end-step endpoints are
+  ||| play permissions and a copy effect. Every one of them waits on a
+  ||| construction, not on a duration.
+  public export
+  spanUse : {0 bs : Bindings} -> Duration bs -> SpanUse
+  spanUse ThisTurn = RestrictionsOnly
+  -- "until [poss] next [part]" — the start boundary writes no boundary
+  -- word, and takes possession or the definite article, never nothing.
+  spanUse (Until (StartOf Turn Nothing)) = Unattested
+  spanUse (Until (StartOf Turn (Just Yours))) = GrantsAndRestrictions
+  spanUse (Until (StartOf Turn (Just ThatPlayers))) = Unclaimed
+  spanUse (Until (StartOf Upkeep Nothing)) = Unattested
+  spanUse (Until (StartOf Upkeep (Just Yours))) = KeywordGrantOnly
+  spanUse (Until (StartOf Upkeep (Just ThatPlayers))) = Unattested
+  spanUse (Until (StartOf EndStep Nothing)) = Unclaimed
+  spanUse (Until (StartOf EndStep (Just Yours))) = Unclaimed
+  spanUse (Until (StartOf EndStep (Just ThatPlayers))) = Unclaimed
+  spanUse (Until (StartOf Combat Nothing)) = Unattested
+  spanUse (Until (StartOf Combat (Just Yours))) = Unattested
+  spanUse (Until (StartOf Combat (Just ThatPlayers))) = Unattested
+  spanUse (Until (StartOf UntapStep Nothing)) = Unattested
+  spanUse (Until (StartOf UntapStep (Just Yours))) = Unattested
+  spanUse (Until (StartOf UntapStep (Just ThatPlayers))) = Unattested
+  -- "until (the) end of [part]" — the end boundary is the one that
+  -- writes bare, and the bare forms are where the grants live.
+  spanUse (Until (EndOf Turn Nothing)) = GrantsTypesAndControl
+  spanUse (Until (EndOf Turn (Just Yours))) = ControlGrantOnly
+  spanUse (Until (EndOf Turn (Just ThatPlayers))) = Unattested
+  spanUse (Until (EndOf Upkeep Nothing)) = Unattested
+  spanUse (Until (EndOf Upkeep (Just Yours))) = Unclaimed
+  spanUse (Until (EndOf Upkeep (Just ThatPlayers))) = Unattested
+  spanUse (Until (EndOf EndStep Nothing)) = Unattested
+  spanUse (Until (EndOf EndStep (Just Yours))) = Unattested
+  spanUse (Until (EndOf EndStep (Just ThatPlayers))) = Unattested
+  spanUse (Until (EndOf Combat Nothing)) = GrantsAndControl
+  spanUse (Until (EndOf Combat (Just Yours))) = Unclaimed
+  spanUse (Until (EndOf Combat (Just ThatPlayers))) = Unattested
+  spanUse (Until (EndOf UntapStep Nothing)) = Unattested
+  spanUse (Until (EndOf UntapStep (Just Yours))) = Unattested
+  spanUse (Until (EndOf UntapStep (Just ThatPlayers))) = Unattested
+  -- "for as long as [condition]" — the one adverbial with no turn
+  -- boundary in it at all ([CR#611.2b]), and the widest class in the
+  -- table: the control grant writes it forty-two times, the stat delta
+  -- six, the keyword grant four, the restriction ten, and the type
+  -- ADDITION not once.
+  spanUse (ForAsLongAs _) = GrantsRestrictionsAndControl
+
+  ||| The `Continuously` clause's duration slot as a witness, reading both
+  ||| tables: the stated absence against `absentOk`, a written adverbial
+  ||| against the construction's own row in `spanUse`.
+  public export
+  data SpanOk : StaticKind -> Maybe (Duration bs) -> Type where
+    SpanUnstated : {auto 0 ok : absentOk k = True} -> SpanOk k Nothing
+    SpanStated : {auto 0 ok : admitsSpan k (spanUse d) = True} -> SpanOk k (Just d)
+
   ||| The continuous effects a resolving clause can establish
   ||| ([CR#611.2]) — the PART of the sentence that survives its
   ||| resolution, with the duration adverbial factored out onto the
@@ -3822,6 +4005,39 @@ mutual
                   {auto 0 ne : LineNonEmpty added} ->
                   {auto 0 nw : AddsSomething (nounTy n) added} ->
                   {auto 0 af : AddedFits (nounTy n) added} -> StaticEffect bs
+    -- "[who] gain(s) control of [what]" — the control-changing
+    -- continuous effect ([CR#613.1b] layer 2; core's
+    -- `Modification::SetController(Reference)`). ONE row for the whole
+    -- English verb, span or none, which is a recorded DIVERGENCE from
+    -- core: core keeps a one-shot `Action::GainControl` for the
+    -- exchange family beside the layer-2 modification for the
+    -- duration-bounded grants ("gain control until end of turn"), two
+    -- constructors for what English writes with one verb and one
+    -- optional trailing adverbial. Here the adverbial is already the
+    -- `Continuously` envelope's slot, and the unwritten span is
+    -- [CR#611.2a]'s end-of-game default the same way it is for every
+    -- other static — which is what Phyrexian Infiltrator's reminder text
+    -- says out loud, "(This effect lasts indefinitely.)" — so the split
+    -- would spell one construction twice.
+    -- The SUBJECT is a slot for the reason `ChangeLife` and `Draw` have
+    -- one: both spellings are ordinary oracle. "Gain control of target
+    -- creature" is the imperative with its unpronounced `You` (two
+    -- hundred and forty-six lines), "[player] gains control of …" is
+    -- written out (seventy-three), and the distributive subject is real
+    -- too ("each player gains control of …", ten), so no grammatical
+    -- number is demanded of it.
+    -- The patient is a PERMANENT: [CR#110.2] gives every permanent a
+    -- controller and [CR#109.4] gives objects that are neither on the
+    -- stack nor on the battlefield none at all, so the battlefield
+    -- demand tap, destroy, and "gets" already carry applies here too
+    -- (`badGainControlGraveyard`). The stack half of [CR#109.4] is real
+    -- English — "exchange control of target noncreature spell and target
+    -- creature" — and waits with the spell carrier (ledger).
+    -- spelling: ["<Param(0)> gain(s) control of <Param(1)>"] (the imperative
+    -- leaves the agent unpronounced; the trailing duration adverbial belongs
+    -- to the Continuously envelope, not here), kind: Sentence
+    GainsControl : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
+                   {auto 0 zn : OnBattlefield (nounZone what)} -> StaticEffect bs
 
   ||| Which row a static effect is, for the span tables.
   public export
@@ -3830,6 +4046,7 @@ mutual
   staticKind (Gains _ _) = KeywordGrant
   staticKind (Cant _ _ _) = DeedRestriction
   staticKind (BecomesAlso _ _) = TypeAddition
+  staticKind (GainsControl _ _) = ControlGrant
 
   ||| What a continuous clause contributes to the discourse: its
   ||| subject, exactly as the one-shot clauses contribute theirs.
@@ -3839,6 +4056,7 @@ mutual
   staticIntro (Gains n _) = nomIntro n
   staticIntro (Cant n _ _) = nomIntro n
   staticIntro (BecomesAlso n _) = nomIntro n
+  staticIntro (GainsControl who what) = nomIntro what
 
   ||| Clauses. Constructor argument order IS textual order, and each
   ||| argument is typed in the context its predecessors built — the
@@ -3968,7 +4186,7 @@ mutual
     -- static effect's own clause, Param(1) = the trailing duration
     -- adverbial, omitted entirely when Nothing; mirrors core's
     -- Continuously struct field-for-field)
-    Continuously : (se : StaticEffect bs) -> (span : Maybe Duration) ->
+    Continuously : (se : StaticEffect bs) -> (span : Maybe (Duration (staticIntro se))) ->
                    {auto 0 sp : SpanOk (staticKind se) span} -> Effect bs
     -- "[agent] create(s) [count] [characteristics] token(s) [arrival]"
     -- ([CR#111.1] — a token represents a permanent no card represents;
@@ -4219,6 +4437,71 @@ mutual
     -- Sentence)
     Sequentially : {0 n : Nat} -> Effects n bs ->
                    {auto 0 ok : AtLeastTwo n} -> Effect bs
+    -- the SIMULTANEOUS batch — one instruction whose parts happen at
+    -- once, mirroring core's `OneShotEffect::Simultaneously`. Two senses
+    -- of the word keep getting conflated and this container is only the
+    -- first: ONE effect whose events happen simultaneously is this node,
+    -- an instruction the card writes as a single verb ("exchange control
+    -- of A and B") whose parts have no order between them. Separate
+    -- effects that merely happen to resolve together is the OTHER sense
+    -- — two clauses of one spell, or two spells resolving in a turn —
+    -- and that is `Sequentially` and the stack, not this.
+    -- The SHAPE is the semantic contrast with `Sequentially` beside it,
+    -- and it is one word: the sequence threads `effIntro` left to right,
+    -- so each clause reads what its predecessors DID; this threads
+    -- `preIntro`, so each element reads only what its predecessors
+    -- ANNOUNCED and nothing any of them did. That is chapter
+    -- twenty-one's own distinction ([CR#601.2c] announces a phrase as
+    -- the text is written, whatever resolution later makes of it), and
+    -- it is what "one pre-state" means precisely: every element reads
+    -- ONE game state — [CR#608.2f] is the general rule, "each such action
+    -- is processed simultaneously" for one instruction spread over
+    -- several objects, and its own example is a control grant (Blatant
+    -- Thievery gains control of every target at once) — while the
+    -- DISCOURSE still accumulates, because
+    -- the announcements were all made before any of it resolved. An
+    -- element reading a sibling's retag, its created token, or its
+    -- damage outcome is refused (`badSimultaneousReadsRetag`,
+    -- `badSimultaneousReadsOutcome`), which is exactly the pre-state
+    -- reading an exchange depends on ([CR#701.12b] has each player gain
+    -- control of what "was controlled by the other player" — both halves
+    -- read the controllers as they stood BEFORE either half applied).
+    -- OUTWARD it contributes the batch's whole discourse, and that is
+    -- measured rather than assumed: Volatile Stormdrake reads its
+    -- exchanged target in the very next breath ("exchange control of
+    -- this creature and target creature an opponent controls. If you do,
+    -- … sacrifice that creature …"), and Sudden Substitution does the
+    -- same ("Then the spell's controller may choose new targets for
+    -- it."), so a hole would be wrong. The answer is written as the last
+    -- element's own `effIntro` over the announcement telescope, which
+    -- IS the union for every row this container reaches today — the
+    -- control grant introduces its phrase and retags nothing. A batch
+    -- whose EARLIER element moved an object would lose that retag and
+    -- force the union to be built rather than read off the end; no
+    -- corpus line writes one (the zone-exchange family [CR#701.12d]
+    -- names is the ledger's, not this row's).
+    -- Hygiene mirrors the sequence's, and the arity demand is the same
+    -- word: at least TWO elements, an empty batch being no instruction
+    -- and a one-element batch a second spelling of that element
+    -- (`badEmptySimultaneous`, `badSingletonSimultaneous`). Its elements
+    -- are neither batches (`NotSim`, `badNestedSimultaneous` — the
+    -- re-minted tree `NotSeq` refuses one construction over) nor
+    -- SEQUENCES (`NotSeq`, `badSequenceInsideSimultaneous`): an ordered
+    -- list inside an unordered one contradicts the container it sits in,
+    -- and its `preIntro` would export only its last clause's
+    -- announcements besides. No corpus line writes either.
+    -- ALL-OR-NOTHING is [CR#701.12a]'s ("if the entire exchange can't be
+    -- completed, no part of the exchange occurs") and core's doc says so
+    -- too; it is a resolution fact about failed halves, not a typing
+    -- one, so it lives with the legality layer the fight guard waits in.
+    -- spelling: (construction-owned -- the batch has no connective word of
+    -- its own: English writes it as ONE verb, and which verb is the macro's
+    -- ("exchange control of <a> and <b>", "<a> fights <b>"). Mirrors core's
+    -- n-ary `OneShotEffect::Simultaneously`), kind: TODO(reason: a
+    -- multi-clause body isn't one of the five FragmentKinds -- each element
+    -- is its own Sentence, and no element is a sentence the card prints)
+    Simultaneously : {0 n : Nat} -> SimEffects n bs ->
+                     {auto 0 ok : AtLeastTwo n} -> Effect bs
     -- "Choose [q] — • [mode] • [mode] …" — the MODAL clause
     -- ([CR#700.2]: a spell or ability is modal when it has "two or more
     -- options in a bulleted list preceded by instructions for a player to
@@ -4338,6 +4621,7 @@ mutual
   effEq (May _ _ _ _) _ = False
   effEq (If _ _ _) _ = False
   effEq (Sequentially _) _ = False
+  effEq (Simultaneously _) _ = False
   effEq (Modal _ _) _ = False
   effEq (Delayed _ _) _ = False
 
@@ -4397,6 +4681,36 @@ mutual
   public export
   data NotSeq : Effect bs -> Type where
     MkNotSeq : {auto 0 ok : isSeq e = False} -> NotSeq e
+
+  ||| A simultaneous batch as an ANNOUNCEMENT telescope: each element is
+  ||| typed in the bindings its predecessors ANNOUNCED (`preIntro`) and
+  ||| not in what they did (`effIntro`, which is `Effects` beside it).
+  ||| One line of difference between the two types, and it is the whole
+  ||| semantic contrast between the two containers.
+  ||| Length-indexed, which is all `Simultaneously` needs to demand two.
+  ||| Written with list syntax, so a batch reads as its macro writes it.
+  -- spelling: (construction-owned -- list syntax for the Simultaneously
+  -- telescope; Nil/(::) are Idris list sugar, not English words. See
+  -- Simultaneously)
+  namespace Sim
+    public export
+    data SimEffects : Nat -> Bindings -> Type where
+      Nil : SimEffects Z bs
+      (::) : (e : Effect bs) -> {auto 0 ns : NotSim e} -> {auto 0 nq : NotSeq e} ->
+             SimEffects n (preIntro e) -> SimEffects (S n) bs
+
+  ||| Is this clause itself a simultaneous batch?
+  public export
+  isSim : {0 bs : Bindings} -> Effect bs -> Bool
+  isSim (Simultaneously _) = True
+  isSim _ = False
+
+  ||| A batch's ELEMENTS are clauses, not batches — `NotSeq`'s twin, and
+  ||| refused for its reason: `Simultaneously [Simultaneously [a, b], c]`
+  ||| spells a three-part instruction a second way (`badNestedSimultaneous`).
+  public export
+  data NotSim : Effect bs -> Type where
+    MkNotSim : {auto 0 ok : isSim e = False} -> NotSim e
 
   ||| Does this noun phrase spell "any target"? Only a counted target
   ||| mention can — every other determiner demands an any-target-free
@@ -4741,6 +5055,10 @@ mutual
   -- export this row cannot spell (ledger).
   effIntro (If e c oth) = condDelta c ++ bs
   effIntro (Sequentially es) = effsIntro es
+  -- the batch has RESOLVED by the time the next sentence reads it, so
+  -- its discourse is its last element's — which over the announcement
+  -- telescope carries every earlier element's phrases with it.
+  effIntro (Simultaneously es) = simIntro es
   -- a modal names NOBODY the sentences after it can read: the modes are
   -- chosen at cast ([CR#700.2a]) and an unchosen one's targets are never
   -- announced ([CR#700.2c]), so no mode's phrase is guaranteed to have
@@ -4792,6 +5110,7 @@ mutual
   preIntro (May d body did notd) = mayIntro body did notd
   preIntro (If e c oth) = condDelta c ++ bs
   preIntro (Sequentially es) = preIntros es
+  preIntro (Simultaneously es) = simPres es
   preIntro (Modal q modes) = bs
   preIntro (Delayed ev e) = bs
 
@@ -4842,6 +5161,25 @@ mutual
   effsIntro : {bs : Bindings} -> {0 n : Nat} -> Effects n bs -> Bindings
   effsIntro [] = bs
   effsIntro (e :: es) = effsIntro es
+
+  ||| What a whole BATCH contributes: its last element's discourse, the
+  ||| announcement telescope having threaded every predecessor's phrases
+  ||| through. The empty and singleton cases are unreachable through
+  ||| `Simultaneously` (`AtLeastTwo`) and are written for totality.
+  public export
+  simIntro : {bs : Bindings} -> {0 n : Nat} -> SimEffects n bs -> Bindings
+  simIntro [] = bs
+  simIntro (e :: []) = effIntro e
+  simIntro (e :: es) = simIntro es
+
+  ||| A batch's PRE-state: what its elements have announced and nothing
+  ||| they did — the last element's own `preIntro` over the same
+  ||| telescope, which is `preIntros` one container over.
+  public export
+  simPres : {bs : Bindings} -> {0 n : Nat} -> SimEffects n bs -> Bindings
+  simPres [] = bs
+  simPres (e :: []) = preIntro e
+  simPres (e :: es) = simPres es
 
 -- ===== The activated-ability juncture =====
 
