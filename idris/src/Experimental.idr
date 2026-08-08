@@ -772,6 +772,89 @@
 ||| life-total Set ([CR#119.5]); the non-additive continuous family
 ||| (gain control, "becomes", lose abilities, set base P/T — the
 ||| layer words).
+|||
+||| The English-AST frontier — §8's other half, the parser's own
+||| construction inventory read against this file rather than the gaps
+||| the chapters walked into. Deferred deliberately, each waiting on
+||| an axis already named above: the general prepositional, adverbial,
+||| and subordinating OPERATORS — particular relations are ledgered
+||| one at a time (the "if" and "as long as" conditions, the "when"
+||| events), but the operator carrying any of them is not, and the
+||| counterfactual "as though" has no ledger entry at all ("This
+||| creature can attack this turn as though it didn't have
+||| defender"); the bounded and
+||| alternative quantity WORDINGS — `Quantity` is already a range with
+||| both bounds optional, so "at least three", "three or more", and
+||| "more than two" are ONE bound pair under three words (a count
+||| against a literal, not the comparative family's value
+||| comparisons), which puts the gap on the spelling rather than the
+||| structure: the semantics is right to collapse them and the
+||| renderer has to undo the collapse; the two that are not bounds are
+||| "one or two" (a disjunction of exact counts, waiting with the
+||| divided damage above) and "both" ("both creatures have
+||| deathtouch" — a definite plural presupposing a two-membered
+||| antecedent); activation restrictions and frequency riders
+||| ("Activate only as a sorcery", "Activate only during your turn and
+||| only once each turn") — a legality rider with a turn-scoped count,
+||| the ability layer's rather than any clause's; nonfinite and
+||| elliptical clauses — infinitive, gerund, and ellipsis have nothing
+||| to lower to while every effect here is a saturated clause; the
+||| passive and its reduced-recipient forms ("Whenever this creature
+||| is dealt damage, it deals that much damage to the chosen player",
+||| Stuffy Doll) — recipient fronted and agent dropped, arriving with
+||| the event queries above rather than as a clause shape of its own;
+||| exception riders ("except it's legendary", "except it's not
+||| legendary") — one characteristic of what the clause just made,
+||| overridden after the fact, so they want the copy/token vocabulary
+||| and the layer words together; partitives ("Put one of them into
+||| your hand and the rest on the bottom of your library in any
+||| order") — selection from an established group, twin of "the rest"
+||| above and of the pile partitions below; set-exception noun phrases
+||| ("choose a card type other than creature", Arachne) — a complement
+||| over a QUALITY domain, which `Other`'s object distinctness is not,
+||| waiting with the chosen-quality bindings; arithmetic and rounding
+||| ("Target opponent loses half their life, rounded up") — `Plus` is
+||| the only composition, and subtraction, halving, and a rounding
+||| mode have no constructor; quoted abilities (Master of the Hunt's
+||| token has "bands with other creatures named Wolves of the
+||| Hunt.") — an ability as a VALUE and a verb that installs it, the
+||| layer words' carrier question in a new place; the causative ("You
+||| may have it become a 3/3 Elemental creature with haste and menace
+||| until end of turn") — `have` over a bare-infinitive complement,
+||| and only its narrowest "may have [player] deal" reading is `May`
+||| today; coin flips and their result clauses ("You
+||| and target opponent each flip a coin", Mana Clash) — a random
+||| outcome to bind and a side predicate to read it back; the
+||| rules-defined bundles, which SPLIT — historic ([CR#700.6]),
+||| modified, party, and outlaw name sets the CR fixes, landing with
+||| the predicate vocabulary, while devotion is a measured value
+||| taking a mandatory "to [color]" ([CR#700.5]; "each opponent
+||| loses X life, where X is your devotion to black", Gray Merchant
+||| of Asphodel), landing with the amounts; and the striated ability
+||| frames — class levels (Monk Class's "{W}{U}: Level 2"), saga
+||| chapters (History of Benalia's "I, II —"), level bands (Kargan
+||| Dragonlord's "LEVEL 4-7"), station thresholds (The Eternity
+||| Elevator's "20+ |"), and die-roll rows — one shape under five
+||| names: a keyed band of the CARD granting an ability set, sometimes
+||| with a P/T box, once a counter, level, or roll reaches its key, so
+||| the counters are the frontier's per-holder state while the frame
+||| itself sits above every clause.
+|||
+||| One gap is the AUTHORING side rather than the semantic one: a
+||| fragment is authorable at Nominal, Sentence, Cost, KeywordLine, or
+||| Ability and at no other category, so an `Amount`, a `Duration`, or
+||| an `EventQuery` has no category to be authored AT — which is why
+||| the spelling pass marked those constructors construction-owned or
+||| TODO instead of giving them a fragment of their own.
+|||
+||| Four families stay unmapped deliberately, being the next CHAPTERS
+||| rather than deferrals: general coordination and disjunction
+||| ("Destroy target artifact or enchantment", Disenchant), the
+||| deontic auxiliaries ("Enchanted creature can't attack or block",
+||| Pacifism — the parser's auxiliary slot is general, twelve of them
+||| stacking, so the deontic reading is one slice of that chapter),
+||| comparatives, and the generic definite and possessive noun phrases
+||| (which "both" above waits on).
 module Experimental
 
 %default total
