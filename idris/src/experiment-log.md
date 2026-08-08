@@ -1391,6 +1391,299 @@ algebra by rule, one third measured and left):
    arrived first, not the type's owner — which is why the type's
    doc comment says so and why none of the gates mention clauses.
 
+## Chapter Nineteen — Creation and Counters
+
+Chapter nineteen, objects made and markers moved (evidence: Raise
+the Alarm, Additive Evolution, Aviation Pioneer, Fire Navy
+Trebuchet, Battlegrowth, Chainbreaker, Kaito Bane of Nightmares,
+Ashnod's Transmogrant, Neurok Transmuter, Coward // Killer,
+Unholy Annex, and amass itself by way of [CR#701.47a]; and, for
+what the chapter refused, Memnarch, Clavileño First of the
+Blessed, Olivia Voldaren, Brood Birthing, Blood Lust. The round
+where a fourth construction split a table three constructions had
+agreed on):
+
+77. **The five colors are a PORT, and they are the one vocabulary
+   in this file that does not answer to a card.** Every other
+   catalog here — `CardType`, `Deed`, `Keyword`, `TurnPart` —
+   grew a row at a time behind a bench positive, and `Color` did
+   not: it is `deckmaste_core/src/color.rs` row for row and in
+   core's order, by explicit ruling, and the reason the ruling is
+   right is that a color is a rules-fixed set ([CR#105.1] names
+   all five in one sentence) rather than a construction English
+   might or might not write. A missing row would be a hole in the
+   rules, not an unattested phrase. Two things did NOT come with
+   the port. Colorless is not a sixth row, because [CR#105.2c]
+   makes it the absence of colors and core says the same with an
+   empty `color_indicator` — so the token's color slot is a
+   `List Color` and `[]` is exactly where English writes the word
+   "colorless" (three hundred ninety-one corpus lines write it of
+   a token). And core's sibling `ColorOrColorless` did not come
+   across at all: its whole job is the mana-symbol channel — its
+   `from_code` reads the symbol letter "C" — so it belongs to the
+   symbols round the ruling deferred, and porting it here would
+   have put a type in the file with nothing to spell. That second
+   call is the chapter's one deliberate narrowing of an explicit
+   instruction, recorded here so it can be reversed in a line.
+   The name needed a namespace: the color `Color` and the quality
+   sort `Color` ("Choose a color") are different words, which is
+   the split `Verb` already makes for the tag `Exile` against the
+   zone, and Idris resolves the two by the type each stands in.
+78. **A subtype is a catalog atom like a card type, and the
+   catalog PORT is the alternative that was measured and left.**
+   Core declares subtypes as open plugin data — `Subtype { name,
+   types, confers }` resolved through a generated registry of
+   hundreds — and a bench cannot witness hundreds of rows, so the
+   default held: eight rows, each with a card behind it (Zombie
+   and Army from [CR#701.47a], Soldier from Raise the Alarm,
+   Thopter from Aviation Pioneer, Construct from Fire Navy
+   Trebuchet, Fractal from Additive Evolution, Coward from
+   Coward // Killer, Demon from Unholy Annex), and all eight are
+   on [CR#205.3m]'s creature-type list. The port alternative is
+   ledgered rather than dismissed: it is the same open-registry
+   shape core gives counter kinds and token names, and the day
+   the workbench stops being a bench is the day it wants all
+   three. What the eight rows buy immediately is a CLOSED TABLE:
+   `subtypeType` says which card type's set each subtype comes
+   from ([CR#205.1a] names the six sets), every row answers
+   Creature today, and that is not a boring table but a forced
+   one — an artifact type like Equipment or an enchantment type
+   like Aura is a totality error until someone declares its
+   answer. The table is what refuses a "Zombie artifact token"
+   (`badZombieArtifactToken`): a subtype has to sit on a card
+   type the same line names.
+79. **The subtype word PRESUPPOSES its card type and PROJECTS
+   none, and the asymmetry is load-bearing rather than a
+   hedge.** The obvious reading is that "an Army" projects
+   Creature onto its referent, and it was wrong for a reason the
+   negation scan makes visible: `negTypesOf` reads a negated
+   member's PROJECTED head, so a Creature projection on
+   `HasSubtype` would make "that isn't a Demon" mean
+   "noncreature" and refuse a phrase oracle writes plainly —
+   Clavileño, First of the Blessed's "target attacking Vampire
+   that isn't a Demon" (`clavilenoPhrase`, transcribed at a
+   widened head). So `seedTy` stays silent and `seedType`
+   carries the answer, which is exactly the split chapter
+   thirteen drew for the status words: "attacking" presupposes a
+   creature without being one. The presupposition still bites
+   where it should — "an Army that isn't a creature" is refused
+   by the coherence gate that was already there
+   (`badZombieNoncreature`) — and nothing new was needed to make
+   it.
+80. **"Create" is the ONLY surface, measured rather than
+   assumed.** The old wording is worth a sentence because the
+   temptation was to carry both: "put a … token onto the
+   battlefield" was the phrase for a decade and a half, and it
+   survives on ZERO current oracle lines. Three thousand five
+   hundred twenty-eight lines write "create … token"; the two
+   lines that match the old pattern are a "nontoken permanent"
+   restriction and a Lander token's own quoted land-search
+   ability, neither of them a token creation. So `Create` is one
+   constructor and the ledger gets no second spelling.
+81. **The token's characteristics are a BUNDLE in a fixed
+   adjective order, and one card fixes the order nothing shorter
+   could.** Power and toughness, colors, subtypes, card types,
+   the noun "token", the with-clause, the name, the arrival
+   clause. Most cards write three or four of the slots; Fire Navy
+   Trebuchet writes six in one phrase — "a 2/1 colorless
+   Construct artifact creature token with flying named Ballistic
+   Boulder that's tapped and attacking" — which is what settles
+   that the with-clause precedes the name rather than the other
+   way round, and that the arrival clause follows both. The
+   record is `TokenChars`, core's `Token` field for field minus
+   what no line here needs (supertypes, forty-six "legendary …
+   token" lines, ledgered; abilities beyond bare keywords). Two
+   demands earn their place beyond the subtype table: the line
+   names at least one card type, because a token IS a permanent
+   ([CR#111.1]) and the type-less spelling is the PREDEFINED name
+   ("create a Treasure token", [CR#111.10], six hundred
+   thirty-seven lines) that core gives a separate `TokenSpec` row
+   and this file ledgers; and a creature token writes a power and
+   toughness, because a token has only the characteristics its
+   creating effect defines ([CR#111.3]) and no card prints them
+   for it. That second demand is ONE-DIRECTIONAL on purpose — a
+   Vehicle token carries a P/T with no creature type ([CR#301.7])
+   — so the noncreature slot is left free rather than forced
+   empty.
+82. **A created token is a DISCOURSE MENTION, which is what makes
+   creation a binding construction rather than a verb.** Additive
+   Evolution reads it in the next breath: "create a 0/0 green and
+   blue Fractal creature token. Put three +1/+1 counters on it."
+   So `Create` prepends a binding — indefinite determiner, object
+   kind, battlefield zone ([CR#111.1] puts tokens there), the
+   head its type line writes — and the number of that mention
+   reads off the COUNT, which is the ordinary amount vocabulary
+   and no parallel number path (`amtPlur`, `quantPlur`'s twin one
+   vocabulary over). "Create two 1/1 white Soldier creature
+   tokens" is a `Lit`, "create a … token for each Elf you
+   control" is the for-each amount, and core's own slot is its
+   `Count` likewise. The head projection needed a rule of its own
+   and got the honest one: a type LINE is written in a fixed
+   order where a modifier list is not, so the head is the LAST
+   type word ("artifact creature token" heads on "creature", and
+   [CR#205.1b]'s own example spells the compound the same way
+   round, "artifact land creatures") rather than `seedTyAll`'s
+   first member. No bench read tests it — no corpus line yet
+   found rements a compound-typed token by a type word — so it is
+   the chapter's thinnest projection and is flagged as such.
+83. **The arrival riders are an ENUMERATION, not a product, and
+   the rules say why.** Sixty-six lines create a token "tapped
+   and attacking"; a hundred fifty-nine write the prenominal "a
+   tapped … token"; ATTACKING WITHOUT TAPPED is written zero
+   times. That is not an accident of style: [CR#508.4] gives the
+   attacking designation to a creature put onto the battlefield
+   attacking and taps nothing, because the tap belongs to the
+   declare-attackers turn-based action ([CR#508.1f]) that such a
+   creature never went through — so a writer who wants both has
+   to say both, and every writer does. `ridersOk` lists the three
+   attested shapes rather than checking a pair of flags
+   (`badAttackingUntapped`), which is the same
+   whole-attested-surface discipline `ChoiceMode` and the deontic
+   macros take. The enters-tapped REPLACEMENT ("This land enters
+   tapped", a hundred thirty-two lines) is a different
+   construction and the replacement axis's; these ride the create
+   instruction, where core files them too.
+84. **Counters are TWO verbs, agent-silent, and object-only —
+   and each of those three is the corpus's answer rather than
+   core's.** Put and remove are separate rows in core and here,
+   and not because removal is a negative put: removal is
+   cost-eligible where a put is not, and it can fail for want of
+   counters. Agent-silent because no corpus line writes "[player]
+   puts a +1/+1 counter on" — the verb is the effect's own
+   imperative, and core's `PutCounters` is on its
+   agent-carrying-none list for the same reason. Object-only
+   because although [CR#122.1] places counters on players as
+   readily as on objects, ENGLISH does not put them there with
+   this verb: "put a … counter on [a player]" is written zero
+   times and the player form takes a different verb entirely
+   ("target player gets a poison counter", forty-eight lines), so
+   the player-borne counters wait on that verb rather than on a
+   kind index. The battlefield demand is the one destroy, tap,
+   and "gets" already carry, and it is exact: no corpus line puts
+   a counter on a card in a graveyard or in exile with this
+   clause (`badPutCountersGraveyard`, `badRemoveCountersDead`).
+85. **A counter KIND earns a row where a one-shot line writes
+   it, and the two stat counters lead by an order of
+   magnitude.** "Put a +1/+1 counter on" runs to one thousand
+   four hundred ninety-three lines and "put N +1/+1 counters on"
+   to four hundred thirty-one, against eighty-eight and twenty
+   for -1/-1; each carries its own rule ([CR#122.1a]), so both
+   are first-class. Of the named kinds the corpus is thick with —
+   charge sixty-six, stun fifty-six, age thirty-seven, quest
+   twenty-seven, loyalty twenty, oil sixteen, level sixteen —
+   only STUN has a line that is a one-shot put of the sort this
+   grammar writes: Kaito, Bane of Nightmares' "Tap target
+   creature. Put two stun counters on it." The rest appear as
+   activation costs, upkeep triggers, and enters-with riders,
+   which are three other axes, so they wait there. Core's shape
+   is the open registry again (`CounterRef` into a plugin
+   catalog), and the same answer serves: witnessed rows now, the
+   registry ledgered with the subtypes and the token names.
+86. **The type addition is ONE construction over two of core's
+   ops, and [CR#205.1b] names the phrase outright.** That rule is
+   the whole warrant for treating "in addition to its other
+   types" as its own thing rather than a flavour of type-setting:
+   it says the phrase in those words and states that the object
+   retains ALL its prior types, where [CR#205.1a]'s bare setting
+   replaces them. Core spells the change as two layer-4
+   collection ops, `Modification::CardTypes(Add …)` and
+   `Subtypes(Add …)` ([CR#613.1d]); English writes them together
+   in one type line ("becomes a Spirit artifact creature in
+   addition to its other types"), so `TypeLine` is those two
+   lists under one name and it is the SAME record the token
+   bundle carries — the two clauses differ in what surrounds the
+   line, not in the line. The subtype check comes back with one
+   more place to look than the token's: an added subtype may sit
+   on a card type the same clause adds, or on one the SUBJECT
+   already has, which is exactly what amass needs ("it becomes a
+   Zombie" said of an Army creature) and exactly what refuses
+   "target land becomes a Zombie" (`badBecomesZombieLand`). A
+   subject that projects no head type answers for nothing, the
+   honest reading of silence finding 50 established.
+87. **A FOURTH static construction split a span class that three
+   constructions had agreed on.** This is the chapter's structural
+   finding and it is what the closed full-row tables are for.
+   Chapter seventeen classified "until end of turn" and "until end
+   of combat" into one class, `BothGrants`, because the stat delta
+   and the keyword grant both wrote both and no restriction wrote
+   either — three constructions could not tell the two endpoints
+   apart. The type addition can: eighteen corpus lines end the
+   phrase itself at "until end of turn" and NOT ONE ends one at
+   end of combat. So the class split — `GrantsAndTypes` for the
+   turn endpoint, `BothGrants` keeping its name, its meaning, and
+   the combat endpoint alone — and the lesson is that a
+   `SpanUse` row is a partition of the corpus by construction,
+   which a new construction may refine and never silently join.
+   The current-turn division came with a card that writes both
+   halves in one sentence: Coward // Killer's "Target creature
+   can't block this turn and becomes a Coward in addition to its
+   other types until end of turn" gives the restriction "this
+   turn" and the type addition "until end of turn" in one breath,
+   which is chapter seventeen's count-derived split stated by a
+   writer instead. `absentOk TypeAddition` is `True` and this is
+   the row where the unwritten span is the NORM: most of the two
+   hundred twenty "in addition" lines state no duration at all,
+   and Memnarch prints the reason in reminder text — "(This
+   effect lasts indefinitely.)", which is [CR#611.2a]'s
+   end-of-game default said out loud on a card. One cell is
+   thin and is flagged rather than hidden: the cross-turn span
+   (`EveryStatic`) is opened on a SINGLE line, "Until your next
+   turn, target artifact you control becomes a 5/5 creature in
+   addition to its other types", whose clause fuses a base-P/T
+   setting this vocabulary has no word for onto the type
+   addition. Answering it `False` would have made the name
+   `EveryStatic` a lie, and the line really does write the
+   adverbial over a type addition, so the cell is open and
+   marked for re-measurement.
+88. **The "Otherwise" arm is `May`'s declined arm one
+   construction over — and it opened on the card, not on the
+   design.** Chapter eighteen wrote the design and could not fill
+   it: the else arm is a third slot on `If` rather than a
+   `Sequentially` element, because an else arm has no meaning
+   without the "if" that governs it where a sequence's elements
+   are independent clauses. What it waited on was a card whose
+   BOTH arms this grammar could write, and the counters and
+   tokens brought one: Unholy Annex's "If you control a Demon,
+   each opponent loses 2 life and you gain 2 life. Otherwise, you
+   lose 2 life." The typing is finding 73's, unchanged and
+   unargued: the arm runs when the condition was FALSE, so the
+   main clause never happened and its phrase never named
+   anything, which makes the arm typed in the discourse BEFORE
+   the conditional and unable to read what the clause introduced
+   (`badOtherwiseReadsIfArm`); and it contributes nothing outward,
+   the arm that REPLACES the main line being a hole exactly as
+   `mayIntro` has it. One linearization side condition comes with
+   it and is recorded rather than checked: "Otherwise" needs its
+   "if" in front of it, so only the LEADING order spells an else
+   arm. The measurement behind the wait was worth doing over:
+   of the hundred seventy-five "Otherwise" lines, the great bulk
+   are library reveals ("If it's a creature card, put it into
+   your hand. Otherwise, …"), static "as long as" Auras, event
+   histories, and turn conditions; Blood Lust is still refused by
+   finding 71; and the briefing premise that a draw verb already
+   existed was false — there is no `Draw` in this file, and the
+   two else-arm cards that would otherwise have fit (Tribute to
+   the World Tree, Primal Empathy) put the draw in the arm the
+   grammar would have to write.
+89. **Amass's legs land, and the authority is the CR's own words
+   rather than a card's reminder text.** [CR#701.47a] defines
+   "amass [subtype] N" in a single quoted sentence — create a 0/0
+   black [subtype] Army creature token if you control no Army,
+   choose an Army creature you control, put N +1/+1 counters on
+   it, and if it isn't a [subtype] it becomes one in addition to
+   its other types — and that matters here beyond convenience:
+   the phrase this chapter builds against appears on cards ONLY
+   as reminder text, and finding 20's ruling refuses reminder
+   text as the operative spelling. The rule is not reminder text.
+   All three legs are written (`amassZombiesToken`,
+   `amassZombiesArmy`), and only the two negated conditions are
+   elided, both already ledgered. They are written as TWO terms
+   rather than one for a reason worth stating: the rule's branch
+   makes the created token and the chosen Army the same object,
+   and this grammar has no way to say so, so a single term would
+   have put two mentions where the rule has one. R3 adds the
+   modal frame and the branch; the legs are here.
+
 ## Engine-Boundary Deferrals
 
 Engine-boundary deferrals (deliberate, and to stay so): the
@@ -1469,11 +1762,11 @@ declined arm reads only what preceded the may]; the MANDATORY
 hundred and forty-two lines write no "may" anywhere), which
 [CR#118.12] governs jointly with the offered form and calls a
 cost check rather than an event read, so it waits with the cost
-algebra that has to spell an unoffered payment; the ELSE sentence "Otherwise, …" (a hundred and
-seventy-five lines), which is a third slot on `If` and not a
-`Sequentially` element, waiting on the vocabulary its arms use —
-counters, draw, mana, tokens, the library — and on finding 71 for
-the one near-fit (Blood Lust); the LEADING conditional that
+algebra that has to spell an unoffered payment; [LANDED, finding 88 — the ELSE sentence
+"Otherwise, …" is `If`'s third slot, a `Maybe` field typed in the
+discourse BEFORE the conditional and contributing nothing outward,
+opened on Unholy Annex once tokens and counters made both of a
+card's arms writable; only the leading linearization spells it]; the LEADING conditional that
 announces a target its consequent reads ("If target creature has
 toughness 5 or greater, it gets +4/-4 until end of turn", Blood
 Lust; Hidetsugu's Second Rite; Meddle — ten "if target" lines,
@@ -1651,6 +1944,48 @@ deontic polarities (core keeps `May`, `Must`, and `Gate` beside
 bare GENERIC PLURAL subject ("Creatures without flying can't block
 this turn.", Falter), which is not the "all" determiner `AllOf`
 spells and has no noun of its own.
+Chapter nineteen's own deferrals, each measured: token COPIES
+("a token that's a copy of …", three hundred five lines; four
+hundred twenty-one token lines mention a copy at all), which is
+core's `TokenSpec::Copy` over a whole `CopySpec` and an axis of its
+own — the exception riders ("except it's not legendary") and the
+becomes-a-copy static ride it too; PREDEFINED token names ("create
+a Treasure token", six hundred thirty-seven lines, [CR#111.10]),
+core's `TokenSpec::Named` resolving through a registry, which is
+the same open-catalog shape the subtype and counter-kind ports
+below have and wants a token whose defined abilities this
+vocabulary cannot spell; the SUBTYPE and COUNTER-KIND catalog PORTS
+themselves (core declares both as open plugin data —
+`Subtype { name, types, confers }`, `CounterRef` into a counter
+registry — where this file grows witnessed rows, and the two
+choices are the same choice made twice); token SUPERTYPES
+("create Boo, a legendary 1/1 red Hamster creature token", forty-six
+lines), a third list on the type line neither reader witnesses;
+the X/X token BODY (forty-seven of the sixty X/X token lines say
+"where X is …"), which is an effect-DEFINED X rather than the
+announced cost variable [CR#107.3a] `XVal` carries, so it waits on
+a where-clause construction; the TOKEN carrier word ("Sacrifice
+that token", Fire Navy Trebuchet's second sentence), which is a
+`NounWord` row and waits with the permanent word; counter
+MOVEMENT and the kind-blind quantifiers (five hundred forty-four
+lines write a move-counters phrase; "remove all … counters", fifty;
+proliferate, seventy-seven), which core keeps as its own
+`MoveCounters` action over a `CounterSpec` whose `AllKinds` row
+quantifies over the kinds PRESENT — a quantity over kinds the
+written amount vocabulary has no term for; the enters-with riders
+("enters with … counters", four hundred fourteen lines; "enters
+tapped", a hundred thirty-two), which are the replacement axis's
+and not the create instruction's; the type-SETTING sibling of
+finding 86 ([CR#205.1a] — the bare "becomes a 3/3 Elemental
+creature", which REPLACES the prior types where the "in addition"
+phrase keeps them) together with the base-P/T setting so often
+fused to it ("becomes a 5/5 creature"), which are the layer words
+and which the one thin `EveryStatic` cell rests on; and the
+subtype-headed DAMAGE recipient, refused today because
+`HasSubtype` projects no card type for `DamageableTy` to read
+(finding 79) — conservative rather than measured, and the first
+thing to check if a "deals N damage to target [subtype]" line
+turns up.
 The context-as-phrase-telescope collapse (bindings storing
 the mention terms themselves, every projection computed) stays open as
 a possible later simplification — less pressing since the payload
@@ -1694,9 +2029,13 @@ provides); aggregation and extremal selection (Crackling Doom's
 Hailfire's "repeat this process X times"); turn-schedule
 insertion (Relentless Assault, [CR#500.8]); standing triggered
 abilities ([CR#603.1] — the ability SHAPE beyond delayed
-queries); counters as per-HOLDER state — objects AND players
-([CR#122.1]; poison and rad ride the player), with put/remove
-verbs and count reads; mana production and payment
+queries); counters as per-HOLDER state [LANDED in part, chapter
+nineteen — the object-borne put and remove verbs over a witnessed
+`CounterKind`; what is still frontier here is the PLAYER holder,
+which English reaches with a different verb ("target player gets a
+poison counter", forty-eight lines), the counter COUNT read ("the
+number of +1/+1 counters on it"), and the kind-blind quantifiers
+below]; mana production and payment
 ([CR#106.4]); DESIGNATIONS, which ride all three holders the way
 the counters above ride two — a player's ("the monarch",
 [CR#725.1]; "the initiative", [CR#726.1]), a permanent's (the

@@ -506,6 +506,75 @@ mayElse : (decider : Noun bs Player) -> (body : Effect (nomIntro decider)) ->
           Effect (nomIntro decider) -> Effect bs
 mayElse d body notd = May d body Nothing (Just notd)
 
+-- The token characteristics, as the two shapes the corpus writes them in:
+-- the plain creature token, which is the overwhelming majority, and the
+-- record itself for everything that adds a slot (a compound type line, a
+-- with-clause, a name). `TokenChars` is the primitive; these carry the
+-- words.
+
+-- "[p]/[t] [colors] [subtypes] creature token" — the common bundle
+-- ([CR#111.3]). The empty color list is the word "colorless"; the
+-- abilities and name slots are the ones this shape leaves unwritten.
+-- spelling: (construction-owned -- the adjective run in oracle's fixed
+-- order, see TokenChars), kind: Nominal
+public export
+creatureTok : (pow : Nat) -> (tou : Nat) -> List Color -> List Subtype -> TokenChars
+creatureTok pow tou cs ss = MkToken (Just (pow, tou)) cs (MkTypeLine ss [Creature]) [] Nothing
+
+-- "[subtypes]" — the type line a subtype-only addition writes ("becomes a
+-- Zombie in addition to its other types", [CR#701.47a]).
+-- spelling: (construction-owned -- see TypeLine)
+public export
+subtypesOnly : List Subtype -> TypeLine
+subtypesOnly ss = MkTypeLine ss []
+
+-- "[types]" — the type line a card-type-only addition writes ("becomes an
+-- artifact in addition to its other types", Neurok Transmuter).
+-- spelling: (construction-owned -- see TypeLine)
+public export
+typesOnly : List CardType -> TypeLine
+typesOnly ts = MkTypeLine [] ts
+
+-- "Create [count] [chars] token(s)" — the imperative, whose unpronounced
+-- subject is `You` spelled explicitly (the `sacrifice`/`discards` pattern),
+-- and with no arrival rider. The token's own demands travel to the caller
+-- as hypotheses, since an abstract bundle cannot discharge them here.
+-- spelling: ["create <Param(0)> <Param(1)> token(s)"], kind: Sentence
+public export
+create : (count : Amount bs) -> (tok : TokenChars) ->
+         {auto 0 tt : TokenTyped tok} ->
+         {auto 0 tp : TokenPt tok} ->
+         {auto 0 sf : SubtypesFit tok} -> Effect bs
+create count tok = Create You count tok [] {tt} {tp} {sf} {rr = MkRidersOk}
+
+-- "Create [count] [chars] token(s) that's tapped and attacking"
+-- ([CR#508.4]) — the arrival pair, which is the only shape the corpus
+-- writes attacking in (sixty-six create-token lines; attacking without
+-- tapped, none).
+-- spelling: ["create <Param(0)> <Param(1)> token(s) that's tapped and
+-- attacking"], kind: Sentence
+public export
+createTappedAttacking : (count : Amount bs) -> (tok : TokenChars) ->
+                        {auto 0 tt : TokenTyped tok} ->
+                        {auto 0 tp : TokenPt tok} ->
+                        {auto 0 sf : SubtypesFit tok} -> Effect bs
+createTappedAttacking count tok =
+  Create You count tok [EntersTapped, EntersAttacking] {tt} {tp} {sf} {rr = MkRidersOk}
+
+-- "[n] becomes [type line] in addition to its other types [duration]"
+-- ([CR#205.1b]) — the static effect and its adverbial under one name, the
+-- `gets`/`gains` shape for the type change.
+-- spelling: ["<Param(0)> becomes <Param(1)> in addition to its other types"]
+-- (optional trailing duration), kind: Sentence (Continuously (BecomesAlso …) d
+-- -- see StaticEffect.BecomesAlso)
+public export
+becomes : (n : Noun bs Object) -> (added : TypeLine) -> (d : Maybe Duration) ->
+          {auto 0 zn : OnBattlefield (nounZone n)} ->
+          {auto 0 ne : LineNonEmpty added} ->
+          {auto 0 af : AddedFits (nounTy n) added} ->
+          {auto 0 sp : SpanOk TypeAddition d} -> Effect bs
+becomes n added d = Continuously (BecomesAlso n added {zn} {ne} {af}) d {sp}
+
 -- "it's [pred]" — the reference-matches condition over the singular
 -- object read, which is the subject every corpus line writes it with
 -- ("if it's a creature card", "if it's attacking").

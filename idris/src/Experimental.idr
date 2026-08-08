@@ -846,6 +846,327 @@ public export
 -- KeywordAbility's Keyword argument's own, see Keyword)
 data Ability = KeywordAbility Keyword
 
+-- ===== Colors, subtypes, counters, and token characteristics =====
+
+||| The five colors ([CR#105.1]; colorless is not one of them, which is
+||| why the token's color slot spells its absence as an empty list rather
+||| than growing a sixth row). Ported from core ALMOST VERBATIM by
+||| explicit ruling — `deckmaste_core/src/color.rs` opens with exactly
+||| these five rows in this order — and this is the one closed vocabulary
+||| the workbench does NOT whittle to witnessed rows: a color is a
+||| rules-fixed catalog, not a construction, so a missing row would be a
+||| hole in the rules rather than an unattested phrase. Core's sibling
+||| `ColorOrColorless` is not ported: its whole job is the mana-symbol
+||| channel (`from_code` reads the symbol letter "C"), which is a later
+||| round, and the token's empty color list is where English writes
+||| "colorless" here.
+|||
+||| Its own namespace, the `Verb` split's reason: the color `Color` and
+||| the quality sort `Color` ("Choose a color", `QualitySort`) are
+||| distinct words, and Idris resolves the two by the type each stands in.
+namespace Chroma
+  public export
+  -- spelling: ["white", "blue", "black", "red", "green"] (row order:
+  -- White/Blue/Black/Red/Green -- each row is the color's own word, written
+  -- inside a token's characteristics and coordinated with "and" from two up
+  -- ("a 2/2 red and green Satyr creature token", Xenagos the Reveler);
+  -- never spelled alone)
+  data Color = White | Blue | Black | Red | Green
+
+||| Color equality, per-row — `sameZone`'s discipline, so a new color is a
+||| totality error rather than a silent `False`.
+public export
+sameColor : Color -> Color -> Bool
+sameColor White White = True
+sameColor White _ = False
+sameColor Blue Blue = True
+sameColor Blue _ = False
+sameColor Black Black = True
+sameColor Black _ = False
+sameColor Red Red = True
+sameColor Red _ = False
+sameColor Green Green = True
+sameColor Green _ = False
+
+||| Subtypes, as catalog atoms ([CR#205.3m] — creatures and kindreds
+||| share one open list of creature types). Witnessed rows, and
+||| DELIBERATELY not a port of core's shape: core declares subtypes as
+||| open plugin data (`Subtype { name, types, confers }`,
+||| `deckmaste_core/src/type.rs`) resolved through a generated catalog of
+||| hundreds, and a bench cannot witness hundreds of rows. So a subtype
+||| grows a row here exactly as `CardType` does, one card at a time; the
+||| port-the-catalog alternative is ledgered rather than taken.
+public export
+-- spelling: (construction-owned catalog -- each row is the subtype's own
+-- word, capitalised, written inside a token's characteristics ("Zombie
+-- Army"), as a bare noun head ("an Army you control"), or after "becomes a"
+-- in a type-addition clause; never spelled alone)
+data Subtype = Zombie | Army | Soldier | Thopter | Construct | Fractal
+             | Coward | Demon
+
+||| Subtype equality, per-row catch-alls — `sameVerb`'s discipline.
+public export
+sameSub : Subtype -> Subtype -> Bool
+sameSub Zombie Zombie = True
+sameSub Zombie _ = False
+sameSub Army Army = True
+sameSub Army _ = False
+sameSub Soldier Soldier = True
+sameSub Soldier _ = False
+sameSub Thopter Thopter = True
+sameSub Thopter _ = False
+sameSub Construct Construct = True
+sameSub Construct _ = False
+sameSub Fractal Fractal = True
+sameSub Fractal _ = False
+sameSub Coward Coward = True
+sameSub Coward _ = False
+sameSub Demon Demon = True
+sameSub Demon _ = False
+
+||| Which card type a subtype's set belongs to — [CR#205.1a] names the
+||| sets themselves (creature types, land types, artifact types,
+||| enchantment types, planeswalker types, spell types) and [CR#205.3m]
+||| lists the creature types, which is every row here. Single-valued
+||| because [CR#205.3m]'s set is shared by creature and kindred alone and
+||| this vocabulary has no kindred row, so the creature answer is exact
+||| for what English spells here.
+||| Full rows: a subtype from another set (an artifact type like
+||| Equipment, an enchantment type like Aura) is a totality error that
+||| must declare its card type before anything can be written with it.
+public export
+subtypeType : Subtype -> CardType
+subtypeType Zombie = Creature
+subtypeType Army = Creature
+subtypeType Soldier = Creature
+subtypeType Thopter = Creature
+subtypeType Construct = Creature
+subtypeType Fractal = Creature
+subtypeType Coward = Creature
+subtypeType Demon = Creature
+
+||| Counter kinds ([CR#122.1] — "a marker placed on an object or player
+||| that modifies its characteristics and/or interacts with a rule,
+||| ability, or effect"). Core spells the kind as an open bare-identifier
+||| reference into a plugin registry (`CounterRef`,
+||| `deckmaste_core/src/counter.rs`), which is the same open-catalog shape
+||| its subtypes take and the same one this file answers with witnessed
+||| rows. The two stat counters are first-class because they lead the
+||| corpus by an order of magnitude — "put a +1/+1 counter on" runs to
+||| one thousand four hundred ninety-three lines and "put N +1/+1
+||| counters on" to four hundred thirty-one, against eighty-eight and
+||| twenty for -1/-1 — and each carries its own rule ([CR#122.1a]). A
+||| NAMED counter earns a row only where a corpus line writes it as a
+||| one-shot put or remove, which is why `Stun` is here (fifty-six lines;
+||| Kaito, Bane of Nightmares' "Tap target creature. Put two stun counters
+||| on it.", its replacement identity being [CR#122.1d]'s) and charge,
+||| age, quest, loyalty, oil, level and the rest are not — their lines are
+||| costs, upkeep triggers, and enters-with riders, which are other axes.
+public export
+-- spelling: ["+1/+1", "-1/-1", "stun"] (row order: PlusOnePlusOne/
+-- MinusOneMinusOne/Stun -- the kind's own word, written between the count and
+-- the noun "counter(s)"; never spelled alone)
+data CounterKind = PlusOnePlusOne | MinusOneMinusOne | Stun
+
+||| Counter-kind equality, per-row catch-alls.
+public export
+sameCounter : CounterKind -> CounterKind -> Bool
+sameCounter PlusOnePlusOne PlusOnePlusOne = True
+sameCounter PlusOnePlusOne _ = False
+sameCounter MinusOneMinusOne MinusOneMinusOne = True
+sameCounter MinusOneMinusOne _ = False
+sameCounter Stun Stun = True
+sameCounter Stun _ = False
+
+||| The TYPE LINE a token defines and a type-addition clause adds
+||| ([CR#205.1] — the line carries the card types and the subtypes).
+||| ONE record for both readers, because English writes one phrase in one
+||| order for both: "0/0 black Zombie Army creature token" and "becomes a
+||| Spirit artifact creature in addition to its other types" put the
+||| subtypes before the types alike, and the two clauses differ in what
+||| surrounds the line, not in the line. Core keeps the halves apart at
+||| both sites (`Token`'s `types`/`subtypes` fields, `Modification`'s
+||| `CardTypes`/`Subtypes` ops) and this record is those two lists under
+||| one name. Supertypes are a third list neither reader witnesses here
+||| (ledger).
+public export
+record TypeLine where
+  constructor MkTypeLine
+  subs : List Subtype
+  tys : List CardType
+
+||| Is a card type among a line's types?
+public export
+lineHasType : CardType -> List CardType -> Bool
+lineHasType t [] = False
+lineHasType t (u :: us) = sameCT t u || lineHasType t us
+
+||| A type line says SOMETHING — the demand a type-addition clause makes
+||| ("becomes a … in addition to its other types" names at least one
+||| word; `badBecomesNothing`). A token makes the stronger demand
+||| (`tokenTyped`).
+public export
+lineNonEmpty : TypeLine -> Bool
+lineNonEmpty (MkTypeLine [] []) = False
+lineNonEmpty (MkTypeLine _ _) = True
+
+||| Every subtype in a line sits on a card type the same line names — the
+||| [CR#205.1a] set-membership fact as a check on the phrase: "Zombie Army
+||| creature token" writes the creature type its two subtypes belong to,
+||| and a "Zombie artifact token" would name a subtype the object's types
+||| cannot carry (`badZombieArtifactToken`).
+public export
+subsFitLine : List Subtype -> List CardType -> Bool
+subsFitLine [] tys = True
+subsFitLine (s :: ss) tys = lineHasType (subtypeType s) tys && subsFitLine ss tys
+
+||| A token's defined characteristics ([CR#111.3] — "the spell or ability
+||| that creates a token may define the values of any number of
+||| characteristics for the token … A token doesn't have any
+||| characteristics not defined by the spell or ability that created
+||| it"), in the fixed adjective order oracle writes them: power and
+||| toughness, colors, the type line, then the noun "token", then the
+||| with-clause, then the name. Fire Navy Trebuchet spells the whole
+||| order in one phrase — "a 2/1 colorless Construct artifact creature
+||| token with flying named Ballistic Boulder" — which is what fixes the
+||| with-before-named half nothing shorter could.
+|||
+||| Core's `Token` (`deckmaste_core/src/token.rs`) field for field, minus
+||| what no corpus line here needs: supertypes (ledger) and the abilities
+||| beyond bare keywords. Color rides a LIST, exactly as core's
+||| `color_indicator` does, and the empty list is where English writes the
+||| word "colorless" ([CR#105.2c] — a colorless object has no color).
+||| The name is a `Maybe`: [CR#111.4] synthesizes an unnamed token's name
+||| from its subtypes, so the slot is written only when the creating
+||| effect states one ("named Kobolds of Kher Keep").
+public export
+record TokenChars where
+  constructor MkToken
+  pt : Maybe (Nat, Nat)
+  colors : List Color
+  line : TypeLine
+  abilities : List Ability
+  name : Maybe String
+
+||| A token is a PERMANENT ([CR#111.1] — "a marker used to represent any
+||| permanent that isn't represented by a card"), so its line names at
+||| least one card type. The corpus agrees for every inline definition;
+||| the type-less spelling is the PREDEFINED name ("create a Treasure
+||| token", [CR#111.10]), which core gives its own `TokenSpec::Named` row
+||| and which waits here with the predefined catalog (ledger).
+public export
+tokenTyped : TokenChars -> Bool
+tokenTyped t = lineNonEmpty (MkTypeLine [] t.line.tys)
+
+||| A CREATURE token writes power and toughness — the creature's own two
+||| numbers ([CR#208.1]), which a token's creating effect has to define
+||| because no card prints them for it ([CR#111.3]), and which every
+||| corpus creature-token line does in fact write. The
+||| converse is NOT demanded: a Vehicle token carries a P/T without the
+||| creature type ("a 3/2 colorless Vehicle artifact token with crew 1",
+||| [CR#301.7]), so a noncreature token's slot is left free rather than
+||| forced empty — a one-directional table, and the direction is the one
+||| the corpus fixes (`badCreatureTokenNoPt`).
+public export
+tokenPtOk : TokenChars -> Bool
+tokenPtOk t = case (lineHasType Creature t.line.tys, t.pt) of
+  (True, Nothing) => False
+  _ => True
+
+||| The three token demands as witnesses, named apart so a pin says which
+||| one refused (the `Headed`/`FightParticipant` discipline).
+public export
+data TokenTyped : TokenChars -> Type where
+  MkTokenTyped : {auto 0 ok : tokenTyped t = True} -> TokenTyped t
+
+public export
+data TokenPt : TokenChars -> Type where
+  MkTokenPt : {auto 0 ok : tokenPtOk t = True} -> TokenPt t
+
+public export
+data SubtypesFit : TokenChars -> Type where
+  MkSubtypesFit : {auto 0 ok : subsFitLine t.line.subs t.line.tys = True} ->
+                  SubtypesFit t
+
+||| The type-addition clause's own subtype check, which is the token's
+||| with one more place to look: a subtype the clause adds may sit on a
+||| card type the SAME clause adds ("becomes a Spirit artifact creature")
+||| or on one the subject already has (amass's "it becomes a Zombie",
+||| [CR#701.47a], said of an Army creature). A subject that projects no
+||| head type answers for nothing, so only the added types can carry the
+||| subtype there — the honest reading of silence the disjunctive head
+||| taught (finding 50).
+public export
+addedFits : Maybe CardType -> TypeLine -> Bool
+addedFits subj (MkTypeLine [] tys) = True
+addedFits subj (MkTypeLine (s :: ss) tys) =
+  (lineHasType (subtypeType s) tys ||
+   (case subj of
+      Nothing => False
+      Just t => sameCT (subtypeType s) t)) &&
+  addedFits subj (MkTypeLine ss tys)
+
+public export
+data AddedFits : Maybe CardType -> TypeLine -> Type where
+  MkAddedFits : {auto 0 ok : addedFits subj tl = True} -> AddedFits subj tl
+
+public export
+data LineNonEmpty : TypeLine -> Type where
+  MkLineNonEmpty : {auto 0 ok : lineNonEmpty tl = True} -> LineNonEmpty tl
+
+||| The arrival state a created token can be given ([CR#508.4] for the
+||| attacking designation; core files both as `EnterRider`s on its
+||| `Create` action rather than as replacement effects, and so does this).
+||| Two rows, and the corpus fixes their combination as much as their
+||| existence: a token is created "tapped" alone (a hundred fifty-nine
+||| lines — "target opponent creates a tapped Treasure token") or "tapped
+||| and attacking" (sixty-six), and ATTACKING WITHOUT TAPPED
+||| is written zero times, so the pair is not a free product
+||| (`ridersOk`, `badAttackingUntapped`). The enters-tapped REPLACEMENT
+||| ("This land enters tapped") is a different construction and the
+||| replacement axis's; these ride the create instruction.
+public export
+-- spelling: (construction-owned -- the arrival phrase after the noun "token",
+-- as a relative clause: "that's tapped", "that's tapped and attacking"
+-- (plural "that are tapped and attacking"), or as the prenominal adjective
+-- "a tapped Treasure token". Never spelled alone)
+data TokenRider = EntersTapped | EntersAttacking
+
+||| The attested rider combinations, enumerated rather than checked
+||| pairwise: nothing, tapped, tapped-and-attacking. Written as a closed
+||| list of shapes because that is exactly what the corpus offers, and
+||| because the ORDER is fixed too — no line writes "attacking and
+||| tapped".
+public export
+ridersOk : List TokenRider -> Bool
+ridersOk [] = True
+ridersOk [EntersTapped] = True
+ridersOk [EntersTapped, EntersAttacking] = True
+ridersOk _ = False
+
+public export
+data RidersOk : List TokenRider -> Type where
+  MkRidersOk : {auto 0 ok : ridersOk rs = True} -> RidersOk rs
+
+||| The head type a created token's mention projects — the LAST card type
+||| its line names, which is the head noun of the compound English writes
+||| ("artifact creature token" heads on "creature", and [CR#205.1b]'s own
+||| example spells the compound the same way round, "artifact land
+||| creatures"). Distinct from `seedTyAll`'s first-member rule for a
+||| conjunction, and it has to be: a modifier list has no fixed order
+||| where a type line does. A line with no types projects nothing —
+||| unreachable through `Create` (`TokenTyped`), and written out for
+||| totality.
+public export
+lastType : List CardType -> Maybe CardType
+lastType [] = Nothing
+lastType [t] = Just t
+lastType (_ :: ts) = lastType ts
+
+public export
+tokenHeadTy : TokenChars -> Maybe CardType
+tokenHeadTy t = lastType t.line.tys
+
 ||| The parts of the turn a duration can name its endpoint by — the
 ||| turn itself and the steps and phases inside it. Deliberately NOT a
 ||| mirror of core's `PhaseStep` (`deckmaste_core/src/event.rs`, whose
@@ -962,9 +1283,19 @@ data Duration = ThisTurn | Until DurationEnd
 ||| The rest name the observed splits, and they are strikingly clean:
 ||| the current-turn adverbials divide the grants from the restrictions
 ||| exactly, and only the cross-turn span is written by everything.
+|||
+||| Chapter nineteen SPLIT one of these rows rather than joining it. The
+||| type-addition clause writes "until end of turn" and never "until end
+||| of combat", so a class that named both endpoints at once could not
+||| hold a fourth construction's answer, and `GrantsAndTypes` is the
+||| finer partition the fourth construction forced: the two current-turn
+||| GRANT endpoints, which three constructions could not tell apart, are
+||| two classes as soon as a fourth writes one of them and not the other.
+||| `BothGrants` keeps its name and its meaning and now classifies the
+||| combat endpoint alone.
 public export
-data SpanUse = Unattested | Unclaimed | BothGrants | KeywordGrantOnly
-             | RestrictionsOnly | EveryStatic
+data SpanUse = Unattested | Unclaimed | BothGrants | GrantsAndTypes
+             | KeywordGrantOnly | RestrictionsOnly | EveryStatic
 
 ||| The attestation table: every duration this vocabulary can spell,
 ||| against the constructions that write it. FULL ROWS over (boundary x
@@ -1015,7 +1346,7 @@ spanUse (Until (StartOf UntapStep (Just Yours))) = Unattested
 spanUse (Until (StartOf UntapStep (Just ThatPlayers))) = Unattested
 -- "until (the) end of [part]" — the end boundary is the one that
 -- writes bare, and the bare forms are where the grants live.
-spanUse (Until (EndOf Turn Nothing)) = BothGrants
+spanUse (Until (EndOf Turn Nothing)) = GrantsAndTypes
 spanUse (Until (EndOf Turn (Just Yours))) = Unclaimed
 spanUse (Until (EndOf Turn (Just ThatPlayers))) = Unattested
 spanUse (Until (EndOf Upkeep Nothing)) = Unattested
@@ -1123,7 +1454,7 @@ data DeedParticipant : Deed -> Role -> Maybe CardType -> Type where
 ||| new static row is a totality error on both tables and must declare
 ||| which durations it writes before it can be written at all.
 public export
-data StaticKind = PtDelta | KeywordGrant | DeedRestriction
+data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition
 
 ||| The attestation table's other half: which classes of adverbial each
 ||| construction writes. Full rows in both directions. The shape of it
@@ -1133,26 +1464,55 @@ data StaticKind = PtDelta | KeywordGrant | DeedRestriction
 ||| cross-turn span ("Up to one target creature can't attack or block
 ||| until your next turn") is the one place a restriction and a grant
 ||| write the same words.
+||| The type-addition row is chapter nineteen's, and it is what split
+||| `BothGrants`. Two hundred and twenty corpus lines write "in addition
+||| to its other types"; the great majority state no span at all (the
+||| permanent change Memnarch glosses outright, "(This effect lasts
+||| indefinitely.)"), eighteen end the clause at "until end of turn"
+||| ("{U}: Target creature becomes an artifact in addition to its other
+||| types until end of turn", Neurok Transmuter), and NOT ONE ends one at
+||| end of combat. Coward // Killer settles the current-turn split from
+||| inside a single sentence: "Target creature can't block this turn and
+||| becomes a Coward in addition to its other types until end of turn"
+||| gives the restriction "this turn" and the type addition "until end of
+||| turn" in one breath, which is chapter seventeen's division confirmed
+||| by a card that writes both halves at once. The cross-turn span is the
+||| thin cell: one line writes it ("Until your next turn, target artifact
+||| you control becomes a 5/5 creature in addition to its other types"),
+||| and its clause fuses a base-P/T setting this vocabulary has no word
+||| for onto the type addition, so the cell is opened on a single fused
+||| line and flagged here for re-measurement rather than resting on
+||| silence.
 public export
 admitsSpan : StaticKind -> SpanUse -> Bool
 admitsSpan PtDelta Unattested = False
 admitsSpan PtDelta Unclaimed = False
 admitsSpan PtDelta BothGrants = True
+admitsSpan PtDelta GrantsAndTypes = True
 admitsSpan PtDelta KeywordGrantOnly = False
 admitsSpan PtDelta RestrictionsOnly = False
 admitsSpan PtDelta EveryStatic = True
 admitsSpan KeywordGrant Unattested = False
 admitsSpan KeywordGrant Unclaimed = False
 admitsSpan KeywordGrant BothGrants = True
+admitsSpan KeywordGrant GrantsAndTypes = True
 admitsSpan KeywordGrant KeywordGrantOnly = True
 admitsSpan KeywordGrant RestrictionsOnly = False
 admitsSpan KeywordGrant EveryStatic = True
 admitsSpan DeedRestriction Unattested = False
 admitsSpan DeedRestriction Unclaimed = False
 admitsSpan DeedRestriction BothGrants = False
+admitsSpan DeedRestriction GrantsAndTypes = False
 admitsSpan DeedRestriction KeywordGrantOnly = False
 admitsSpan DeedRestriction RestrictionsOnly = True
 admitsSpan DeedRestriction EveryStatic = True
+admitsSpan TypeAddition Unattested = False
+admitsSpan TypeAddition Unclaimed = False
+admitsSpan TypeAddition BothGrants = False
+admitsSpan TypeAddition GrantsAndTypes = True
+admitsSpan TypeAddition KeywordGrantOnly = False
+admitsSpan TypeAddition RestrictionsOnly = False
+admitsSpan TypeAddition EveryStatic = True
 
 ||| Whether a construction can write NO duration at all. A grant can:
 ||| the unwritten span is [CR#611.2a]'s end-of-game default, which the
@@ -1163,11 +1523,18 @@ admitsSpan DeedRestriction EveryStatic = True
 ||| construction and the parked ability layer's, so the whole clause is
 ||| unwritable here rather than the span being optional
 ||| (`badStaticCant`).
+||| The type addition's answer is `True`, and it is the row where the
+||| unwritten span is the NORM rather than the exception: most of the two
+||| hundred and twenty "in addition to its other types" lines state no
+||| duration, and Memnarch prints the reason in reminder text — "(This
+||| effect lasts indefinitely.)" — which is [CR#611.2a]'s end-of-game
+||| default said out loud on the card.
 public export
 absentOk : StaticKind -> Bool
 absentOk PtDelta = True
 absentOk KeywordGrant = True
 absentOk DeedRestriction = False
+absentOk TypeAddition = True
 
 ||| The `Continuously` clause's duration slot as a witness, reading both
 ||| tables: the stated absence against `absentOk`, a written adverbial
@@ -1284,6 +1651,20 @@ mutual
     -- spelling: ["<Param(0)>"] (Param(0) = CardType's own word -- see
     -- CardType), kind: Nominal (hasHead = True)
     HasType : CardType -> Predicate bs Object            -- head noun "creature"/…
+    -- the SUBTYPE word as a head noun ("an Army you control",
+    -- [CR#701.47a]; "a Demon"): a different axis from the card-type word
+    -- and kept apart from it in both projections. It PRESUPPOSES the card
+    -- type whose set the subtype belongs to ([CR#205.1a], `subtypeType`) —
+    -- an Army is a creature — and it PROJECTS no card type at all, which
+    -- is not a hedge but the difference between the axes: `negTypesOf`
+    -- reads a negated member's projected head, so projecting Creature here
+    -- would make "that isn't a Demon" mean "noncreature" and refuse
+    -- "target attacking Vampire that isn't a Demon" (Clavileño), which is
+    -- ordinary oracle. The presupposition still bites where it should
+    -- (`badZombieNoncreature`).
+    -- spelling: ["<Param(0)>"] (Param(0) = Subtype's own word -- see Subtype),
+    -- kind: Nominal (hasHead = True)
+    HasSubtype : Subtype -> Predicate bs Object
     -- spelling: ["player"], kind: Nominal (hasHead = True)
     AnyPlayer : Predicate bs Player                      -- head noun "player" (any player, [CR#102.1])
     -- spelling: ["opponent"], kind: Nominal (hasHead = True)
@@ -1559,6 +1940,13 @@ mutual
   -- graveyard to the battlefield" is ordinary oracle and no zone seed
   -- may refuse it.
   seedType (Compare c _ _) = comparedType c
+  -- a subtype word presupposes the card type whose closed set it comes
+  -- from ([CR#205.1a]; [CR#205.3m] makes every row here a creature type),
+  -- which is the status word's shape with a table in place of a fixed
+  -- answer. It presupposes no ZONE: a Zombie card in a graveyard is
+  -- still a Zombie, so the word places nothing and the phrase's own
+  -- default speaks.
+  seedType (HasSubtype s) = Just (subtypeType s)
   seedType (And ps) = seedTypeAll ps
   seedType (Or ps) = seedTypeJoin ps
   seedType _ = Nothing
@@ -1598,6 +1986,7 @@ mutual
   public export
   hasHead : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   hasHead (HasType _) = True
+  hasHead (HasSubtype _) = True
   hasHead AnyPlayer = True
   hasHead Opponent = True
   hasHead (QualityNoun _) = True
@@ -1718,6 +2107,8 @@ mutual
   predEq : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Predicate bs k -> Bool
   predEq (HasType a) (HasType b) = sameCT a b
   predEq (HasType _) _ = False
+  predEq (HasSubtype a) (HasSubtype b) = sameSub a b
+  predEq (HasSubtype _) _ = False
   predEq AnyPlayer AnyPlayer = True
   predEq AnyPlayer _ = False
   predEq Opponent Opponent = True
@@ -2168,6 +2559,9 @@ mutual
   public export
   negatable : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   negatable (HasType _) = True
+  -- "target attacking Vampire that isn't a Demon" (Clavileño, First of
+  -- the Blessed): the subtype word negates as freely as the type word.
+  negatable (HasSubtype _) = True
   negatable AnyPlayer = False
   negatable Opponent = True
   negatable (QualityNoun _) = True
@@ -2200,6 +2594,7 @@ mutual
   public export
   anyTargetFree : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   anyTargetFree (HasType _) = True
+  anyTargetFree (HasSubtype _) = True
   anyTargetFree AnyPlayer = True
   anyTargetFree Opponent = True
   anyTargetFree (QualityNoun _) = True
@@ -2650,6 +3045,24 @@ mutual
   amtIntro XVal = bs
   amtIntro (Plus a b) = amtIntro b
 
+  ||| The grammatical number a COUNTED creation writes, read off its
+  ||| amount — `quantPlur`'s twin one vocabulary over. Exactly one is
+  ||| singular ("Create a 1/1 green Wolf creature token … put a +1/+1
+  ||| counter on IT"); every other written amount is a group, the plural
+  ||| noun the corpus writes with it ("Create two … tokens", "create that
+  ||| many … tokens"), whatever it evaluates to at resolution. Full rows,
+  ||| so a new amount declares its number.
+  public export
+  amtPlur : {0 bs : Bindings} -> Amount bs -> Plurality
+  amtPlur (Lit (S Z)) = OneOf
+  amtPlur (Lit _) = ManyOf
+  amtPlur (StatOf _ _) = ManyOf
+  amtPlur (CountOf _) = ManyOf
+  amtPlur (Times _ _) = ManyOf
+  amtPlur ThatMuch = ManyOf
+  amtPlur XVal = ManyOf
+  amtPlur (Plus _ _) = ManyOf
+
   ||| May this amount stand as a comparison's BOUND? Only the two that
   ||| are WRITTEN as a value: the numeral, and the X announced with the
   ||| cost ([CR#107.3a]) — three hundred and more corpus lines for the
@@ -2970,6 +3383,32 @@ mutual
     Cant : (n : Noun bs Object) -> (deed : Deed) -> (role : Role) ->
            {auto 0 zn : OnBattlefield (nounZone n)} ->
            {auto 0 dp : DeedParticipant deed role (nounTy n)} -> StaticEffect bs
+    -- "[n] becomes [type line] in addition to its other types" — the
+    -- ADDING type change, and [CR#205.1b] is the whole of why it is one
+    -- construction rather than the type-SETTING one: that rule names the
+    -- phrase outright ("effects that use phrases such as 'in addition to
+    -- its other types'") and says the object retains all its prior types,
+    -- where [CR#205.1a]'s bare setting replaces them. Core spells the
+    -- change as layer-4 collection ops, `Modification::CardTypes(Add …)`
+    -- and `Subtypes(Add …)` ([CR#613.1d]; `continuous.rs`), and the two
+    -- lists here are those two ops under the one English phrase that
+    -- writes them together ("becomes a Spirit artifact creature in
+    -- addition to its other types"). Two hundred and twenty corpus lines.
+    -- Three demands: the subject stands on the battlefield (a type change
+    -- is a continuous effect on a permanent; `badBecomesInGraveyard`), the
+    -- line says something (`badBecomesNothing`), and every subtype it adds
+    -- sits on a card type the clause adds or the subject already has
+    -- (`AddedFits`; `badBecomesZombieLand`). What the row does NOT spell
+    -- is the type-SETTING sibling and the base-P/T setting that so often
+    -- rides with it ("becomes a 5/5 creature") — the layer words, ledger.
+    -- spelling: ["<Param(0)> becomes <Param(1)> in addition to its other
+    -- types"] (Param(1) = the type line, subtypes before types, articles and
+    -- pluralisation the renderer's; the trailing duration adverbial belongs
+    -- to the Continuously envelope, not here), kind: Sentence
+    BecomesAlso : (n : Noun bs Object) -> (added : TypeLine) ->
+                  {auto 0 zn : OnBattlefield (nounZone n)} ->
+                  {auto 0 ne : LineNonEmpty added} ->
+                  {auto 0 af : AddedFits (nounTy n) added} -> StaticEffect bs
 
   ||| Which row a static effect is, for the span tables.
   public export
@@ -2977,6 +3416,7 @@ mutual
   staticKind (Gets _ _ _) = PtDelta
   staticKind (Gains _ _) = KeywordGrant
   staticKind (Cant _ _ _) = DeedRestriction
+  staticKind (BecomesAlso _ _) = TypeAddition
 
   ||| What a continuous clause contributes to the discourse: its
   ||| subject, exactly as the one-shot clauses contribute theirs.
@@ -2985,6 +3425,7 @@ mutual
   staticIntro (Gets n _ _) = nomIntro n
   staticIntro (Gains n _) = nomIntro n
   staticIntro (Cant n _ _) = nomIntro n
+  staticIntro (BecomesAlso n _) = nomIntro n
 
   ||| Clauses. Constructor argument order IS textual order, and each
   ||| argument is typed in the context its predecessors built — the
@@ -3082,6 +3523,84 @@ mutual
     -- Continuously struct field-for-field)
     Continuously : (se : StaticEffect bs) -> (span : Maybe Duration) ->
                    {auto 0 sp : SpanOk (staticKind se) span} -> Effect bs
+    -- "[agent] create(s) [count] [characteristics] token(s) [arrival]"
+    -- ([CR#111.1] — a token represents a permanent no card represents;
+    -- [CR#111.3] — the creating effect defines its characteristics).
+    -- Core's `Create { agent, count, token, riders }` field for field
+    -- (`deckmaste_core/src/action.rs`), and the agent is an explicit slot
+    -- there for a reason this grammar shares: "Its controller creates a
+    -- 2/2 green Boar creature token" and "target opponent creates a
+    -- tapped Treasure token" are real lines, so the creator is
+    -- information, not always the imperative's unpronounced `You`.
+    -- The COUNT is the ordinary magnitude vocabulary and no parallel
+    -- number path: "Create two 1/1 white Soldier creature tokens" (Raise
+    -- the Alarm) is a `Lit`, "Create a 1/1 green Elf Warrior creature
+    -- token for each Elf you control" (Elven Ambush) is the for-each
+    -- amount, and core's slot is its own `Count` likewise. That count is
+    -- also where the mention's grammatical number comes from
+    -- (`amtPlur`).
+    -- VERIFIED rather than assumed: the create WORDING is the only one
+    -- current oracle uses. Three thousand five hundred twenty-eight lines
+    -- write "create … token"; the older "put a … token onto the
+    -- battlefield" survives on ZERO of them (the two lines matching that
+    -- pattern are a "nontoken permanent" restriction and a Lander token's
+    -- own quoted land-search ability).
+    -- Token COPIES ("a token that's a copy of …", core's
+    -- `TokenSpec::Copy`) and the PREDEFINED names ("create a Treasure
+    -- token", [CR#111.10], core's `TokenSpec::Named`) are the two other
+    -- token positions and neither is here: copy machinery is its own axis
+    -- and the predefined catalog its own registry (ledger).
+    -- spelling: ["<Param(0)> create(s) <Param(1)> <Param(2)> token(s)
+    -- <Param(3)>"], kind: Sentence (Param(2) = the characteristics in the
+    -- fixed adjective order, see TokenChars; Param(3) = the arrival relative
+    -- clause, omitted when empty, see TokenRider; the imperative leaves the
+    -- agent unpronounced. Mirrors core's Create struct field for field)
+    Create : (agent : Noun bs Player) -> (count : Amount (nomIntro agent)) ->
+             (tok : TokenChars) -> (riders : List TokenRider) ->
+             {auto 0 tt : TokenTyped tok} ->
+             {auto 0 tp : TokenPt tok} ->
+             {auto 0 sf : SubtypesFit tok} ->
+             {auto 0 rr : RidersOk riders} -> Effect bs
+    -- "Put [amt] [kind] counter(s) on [n]" ([CR#122.1]) — core's
+    -- `PutCounters(Reference, CounterRef, Count)`, with the arguments in
+    -- TEXTUAL order as every clause here has them (core writes the
+    -- reference first; the axes are the same three). AGENT-SILENT, and
+    -- core says so in the same words: `PutCounters` is on its
+    -- agent-carrying-none list, and the corpus agrees — no line writes
+    -- "[player] puts a +1/+1 counter on", the verb being the effect's own
+    -- imperative.
+    -- The recipient is an OBJECT on the battlefield. [CR#122.1] puts
+    -- counters on players too, but English does not put them there with
+    -- this verb: "put a … counter on [a player]" is written zero times
+    -- and the player form takes a different verb entirely ("target player
+    -- gets a poison counter", forty-seven lines), so it waits on that
+    -- verb (ledger). The battlefield demand is the one destroy, tap, and
+    -- "gets" already carry (`badPutCountersGraveyard`); no corpus line
+    -- puts a counter on a card in a graveyard or in exile with this
+    -- clause.
+    -- spelling: ["put <Param(0)> <Param(1)> counter(s) on <Param(2)>"],
+    -- kind: Sentence (Param(1) = CounterKind's own word; the noun "counter"
+    -- pluralises with the count, and at one the numeral is the article "a")
+    PutCounters : (amt : Amount bs) -> (kind : CounterKind) ->
+                  (on : Noun (amtIntro amt) Object) ->
+                  {auto 0 zn : OnBattlefield (nounZone on)} -> Effect bs
+    -- "Remove [amt] [kind] counter(s) from [n]" — the twin, and core's
+    -- `RemoveCounters` beside `PutCounters` for the same reason: removal
+    -- is not a negative put (it is cost-eligible where a put is not, and
+    -- it can fail for want of counters), so the two are separate verbs
+    -- there and separate rows here. Four hundred five corpus lines
+    -- remove counters; the flagship is Chainbreaker's "{3}, {T}: Remove a
+    -- -1/-1 counter from target creature."
+    -- What this row does NOT spell is the quantifier "all" ("Remove all
+    -- counters from target creature") and the kind-blind "a counter",
+    -- which are core's own `CounterSpec::AllKinds` and a bare-count
+    -- reading; both want a quantity over KINDS that the written amount
+    -- vocabulary has no term for (ledger).
+    -- spelling: ["remove <Param(0)> <Param(1)> counter(s) from <Param(2)>"],
+    -- kind: Sentence (as PutCounters, with the preposition "from")
+    RemoveCounters : (amt : Amount bs) -> (kind : CounterKind) ->
+                     (from : Noun (amtIntro amt) Object) ->
+                     {auto 0 zn : OnBattlefield (nounZone from)} -> Effect bs
     -- the keyword-action tag ([CR#701]): the named verb deontics and
     -- replacements key on, wrapping its expansion body ([CR#701.8b] —
     -- only a Destroy-tagged move IS a destruction). The tag and body
@@ -3198,16 +3717,34 @@ mutual
     -- check when one lands.
     -- The condition contributes nothing (`condDelta`), so the clause's
     -- own contribution is unchanged by conditioning it — written in
-    -- terms of `condDelta` rather than assuming it. The ELSE arm
-    -- ("Otherwise, …", a hundred and seventy-five lines) is a third
-    -- slot this node will take and does not have yet: every corpus
-    -- else-arm read this pass needs vocabulary this grammar lacks
-    -- (ledger).
-    -- spelling: ["<Param(0)> if <Param(1)>", "If <Param(1)>, <Param(0)>"]
-    -- (the leading order is available only when the condition reads nothing
-    -- the clause introduced -- a linearization side condition, unchecked
-    -- here, like the leading/trailing choice on Delayed), kind: Sentence
-    If : (e : Effect bs) -> (c : Condition (effIntro e)) -> Effect bs
+    -- terms of `condDelta` rather than assuming it.
+    -- The ELSE arm ("Otherwise, …", a hundred and seventy-five lines) is
+    -- the third slot chapter eighteen designed and could not fill, opened
+    -- here now that a card's both arms are writable: Unholy Annex's "If
+    -- you control a Demon, each opponent loses 2 life and you gain 2
+    -- life. Otherwise, you lose 2 life." A `Maybe` field on this node
+    -- rather than a `Sequentially` element, because an else-arm has no
+    -- meaning without the "if" that governs it where a sequence's
+    -- elements are independent clauses — and it is `May`'s `ifNot`
+    -- exactly, typed the same way and for finding 73's reason: the arm
+    -- runs when the condition was FALSE, so the main clause never
+    -- happened and its phrase never named anything. The arm is therefore
+    -- typed in `bs`, the discourse BEFORE the conditional, and reads none
+    -- of what `e` introduced (`badOtherwiseReadsIfArm`). It contributes
+    -- nothing outward either (`effIntro`), the arm that REPLACES the main
+    -- line being a hole exactly as `mayIntro` has it.
+    -- Only the LEADING linearization spells it: "Otherwise" needs its
+    -- "if" in front of it, so a trailing conditional with an else arm has
+    -- no word order — one more linearization side condition this node
+    -- does not check.
+    -- spelling: ["<Param(0)> if <Param(1)>", "If <Param(1)>, <Param(0)>",
+    -- "If <Param(1)>, <Param(0)>. Otherwise, <Param(2)>."] (the leading
+    -- order is available only when the condition reads nothing the clause
+    -- introduced -- a linearization side condition, unchecked here, like the
+    -- leading/trailing choice on Delayed -- and the else arm is available
+    -- only in the leading order), kind: Sentence
+    If : (e : Effect bs) -> (c : Condition (effIntro e)) ->
+         (otherwise : Maybe (Effect bs)) -> Effect bs
     -- the clause SEQUENCE — a card's sentence list and its "…, then
     -- …" alike ([CR#608.2c] orders sub-effects), mirroring core's
     -- `OneShotEffect::Sequentially`: n-ary, because a card writes n
@@ -3574,12 +4111,26 @@ mutual
   effIntro (ChangeLife who (Up a)) = outcomeB LifeGained :: lifeIntro (Up a)
   effIntro (ChangeLife who (Down a)) = outcomeB LifeLost :: lifeIntro (Down a)
   effIntro (Continuously se _) = staticIntro se
+  -- the created token enters the discourse as the indefinite mention its
+  -- phrase is ("a … token"), on the battlefield ([CR#111.1] — tokens are
+  -- put there), under the head its type line writes, and with the number
+  -- its count writes. Additive Evolution reads it in the next breath:
+  -- "create a 0/0 green and blue Fractal creature token. Put three +1/+1
+  -- counters on it."
+  effIntro (Create agent count tok riders) =
+    MkBinding AD Object (amtPlur count) (ObjectP (tokenHeadTy tok) (Just Battlefield) Nothing)
+      :: amtIntro count
+  effIntro (PutCounters amt kind on) = nomIntro on
+  effIntro (RemoveCounters amt kind from) = nomIntro from
   effIntro (Composite v (Move what to)) = moveIntro (Just v) what (zoneSort to)
   effIntro (Composite _ e) = effIntro e
   effIntro (Does s v (Move what to)) = moveIntro (Just v) what (zoneSort to)
   effIntro (Does s v e) = effIntro e
   effIntro (May d body did notd) = mayIntro body did
-  effIntro (If e c) = condDelta c ++ effIntro e
+  -- the else arm contributes nothing: only one arm ever runs, and the
+  -- one that REPLACES the main line is a hole (`mayIntro`'s cut, one
+  -- construction over).
+  effIntro (If e c oth) = condDelta c ++ effIntro e
   effIntro (Sequentially es) = effsIntro es
   effIntro (Delayed ev e) = bs               -- a future clause mentions nothing NOW
 

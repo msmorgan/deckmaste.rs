@@ -553,6 +553,7 @@ luckyOffering =
 overload : Effect []
 overload = If (destroy (target artifact))
               (CompareAmt (manaValueOf It) OrLess (Lit 2))
+              Nothing
 
 -- "Target attacking creature gets +3/+3 until end of turn. If it's an
 -- artifact creature, it gains trample until end of turn." (Built to
@@ -566,7 +567,8 @@ builtToSmash : Effect []
 builtToSmash =
   Sequentially [gets (target (And [creature, Attacking])) 3 3 (Just untilEndOfTurn),
                 If (gains It (KeywordAbility Trample) (Just untilEndOfTurn))
-                   (itsA (And [artifact, creature]))]
+                   (itsA (And [artifact, creature]))
+                   Nothing]
 
 -- "Flames of the Raze-Boar deals 4 damage to target creature an
 -- opponent controls. Then Flames of the Raze-Boar deals 2 damage to
@@ -584,7 +586,8 @@ flamesOfTheRazeBoar =
                 If (DealDamage This (Lit 2)
                                (Each (And [creature, Other, ControlledBy (That PlayerW)])))
                    (Exists (And [creature, ControlledBy You,
-                                 Compare Power OrGreater (Lit 4)]))]
+                                 Compare Power OrGreater (Lit 4)]))
+                   Nothing]
 
 -- "You may sacrifice a creature. If you do, each opponent discards a
 -- card." (Braids's Frightful Return, chapter I; the Saga's read-ahead
@@ -621,6 +624,170 @@ yawgmothDemon : Effect []
 yawgmothDemon =
   mayElse You (sacrifice You (a artifact))
               (Sequentially [Tap thisCreature, DealDamage This (Lit 2) You])
+
+-- ===== Objects made and counters moved: the creation chapter =====
+
+-- "Create two 1/1 white Soldier creature tokens." (Raise the Alarm; its
+-- Flash line elided, a keyword rider) — the flagship, and the whole card.
+-- Every slot the bundle has in one phrase at its simplest: a written
+-- count, a power and toughness, one color, one subtype, one card type.
+-- The count is the ordinary amount vocabulary and the plural noun reads
+-- off it (`amtPlur`).
+raiseTheAlarm : Effect []
+raiseTheAlarm = create (Lit 2) (creatureTok 1 1 [White] [Soldier])
+
+-- "When this enchantment enters, create a 0/0 green and blue Fractal
+-- creature token. Put three +1/+1 counters on it." (Additive Evolution's
+-- enters trigger; the trigger header elided as Case of the Gateway
+-- Express's is, and the card's second ability with it) — the token as a
+-- DISCOURSE MENTION, which is what makes creation a binding construction
+-- and not just a verb: the created token is the "it" the counter clause
+-- reads, on the battlefield ([CR#111.1]) under the head its type line
+-- writes. Also the two-color bundle ([CR#105.2b] -- a multicolored
+-- object is two or more of the five colors) and the 0/0 body a counter
+-- clause exists to fix.
+additiveEvolution : Effect []
+additiveEvolution = Sequentially [create (Lit 1) (creatureTok 0 0 [Green, Blue] [Fractal]),
+                                  PutCounters (Lit 3) PlusOnePlusOne It]
+
+-- "When this creature enters, create a 1/1 colorless Thopter artifact
+-- creature token with flying." (Aviation Pioneer; the trigger header
+-- elided) — the COLORLESS bundle, where the empty color list is the word
+-- ([CR#105.2c]); the COMPOUND type line, whose head noun is the last word
+-- ("artifact creature"); and the with-clause over chapter seventeen's
+-- keyword vocabulary unchanged.
+aviationPioneer : Effect []
+aviationPioneer =
+  create (Lit 1) (MkToken (Just (1, 1)) [] (MkTypeLine [Thopter] [Artifact, Creature])
+                          [KeywordAbility Flying] Nothing)
+
+-- "Whenever you attack, create a 2/1 colorless Construct artifact
+-- creature token with flying named Ballistic Boulder that's tapped and
+-- attacking." (Fire Navy Trebuchet; the trigger header and the card's
+-- delayed sacrifice sentence elided — "that token" is a token carrier
+-- word `NounWord` does not have) — the whole adjective run in one
+-- phrase, and the line that fixes the ORDER of the two trailing slots:
+-- the with-clause precedes the name, and the arrival relative clause
+-- follows both.
+fireNavyTrebuchet : Effect []
+fireNavyTrebuchet =
+  createTappedAttacking (Lit 1)
+    (MkToken (Just (2, 1)) [] (MkTypeLine [Construct] [Artifact, Creature])
+             [KeywordAbility Flying] (Just "Ballistic Boulder"))
+
+-- "create a 0/0 black Zombie Army creature token" — amass's first leg,
+-- and the rule's own words rather than a card's reminder text:
+-- [CR#701.47a] defines "amass [subtype] N" as "If you don't control an
+-- Army creature, create a 0/0 black [subtype] Army creature token.
+-- Choose an Army creature you control. Put N +1/+1 counters on that
+-- creature. If it isn't a [subtype], it becomes a [subtype] in addition
+-- to its other types." Angrath, Captain of Chaos writes "Amass Zombies
+-- 2"; this is the token it makes. The negated-condition wrapper is the
+-- elision (`Not(Condition)` is ledgered), and the MULTI-SUBTYPE line is
+-- what the leg contributes on its own: two subtypes over one card type.
+amassZombiesToken : Effect []
+amassZombiesToken = create (Lit 1) (creatureTok 0 0 [Black] [Zombie, Army])
+
+-- "Choose an Army creature you control. Put two +1/+1 counters on that
+-- creature. It becomes a Zombie in addition to its other types."
+-- (amass Zombies 2's remaining legs, [CR#701.47a]; the last sentence's
+-- "if it isn't a Zombie" wrapper elided with the negated condition, and
+-- the leg is written apart from the token above because the rule's
+-- branch makes them the SAME object and this grammar has no way to say
+-- so — written as one term the two mentions would be two) — the subtype
+-- word as a head noun, the counter clause over an anaphoric subject, and
+-- the durationless type addition that is amass's whole point.
+amassZombiesArmy : Effect []
+amassZombiesArmy =
+  Sequentially [Choose (a (And [HasSubtype Army, creature, ControlledBy You])),
+                PutCounters (Lit 2) PlusOnePlusOne (That (TypeW Creature)),
+                becomes (That (TypeW Creature)) (subtypesOnly [Zombie]) Nothing]
+
+-- "Put a +1/+1 counter on target creature." (Battlegrowth) — the
+-- counter flagship, and the whole card. Agent-silent ([CR#122.1]; core's
+-- `PutCounters` carries no actor slot either) and battlefield-bound like
+-- every other verb that touches a permanent.
+battlegrowth : Effect []
+battlegrowth = PutCounters (Lit 1) PlusOnePlusOne (target creature)
+
+-- "{3}, {T}: Remove a -1/-1 counter from target creature."
+-- (Chainbreaker; its mana and {T} cost elided as Icy Manipulator's are,
+-- and its enters-with line with them — a replacement) — the removal
+-- twin, and the other stat counter, so the two first-class kinds are
+-- spelled end to end by real cards.
+chainbreaker : Effect []
+chainbreaker = RemoveCounters (Lit 1) MinusOneMinusOne (target creature)
+
+-- "[−2]: Tap target creature. Put two stun counters on it." (Kaito, Bane
+-- of Nightmares; the loyalty cost is the ability layer's, as Daretti's
+-- is, and the reminder gloss of [CR#122.1d] with it) — the NAMED counter
+-- kind's positive: a kind earns its row where a corpus line writes it as
+-- a one-shot put, which stun is and charge, age, and quest are not.
+kaitoBaneOfNightmares : Effect []
+kaitoBaneOfNightmares = Sequentially [Tap (target creature),
+                                      PutCounters (Lit 2) Stun It]
+
+-- "{T}, Sacrifice this artifact: Put a +1/+1 counter on target
+-- nonartifact creature. That creature becomes an artifact in addition to
+-- its other types." (Ashnod's Transmogrant; the {T} component elided) —
+-- the type addition's flagship, durationless ([CR#205.1b] keeps every
+-- prior type; the unwritten span is [CR#611.2a]'s end-of-game default,
+-- which is what "in addition" clauses mostly write). The negated type
+-- word in the subject is chapter thirteen's vocabulary unchanged, and the
+-- demonstrative reaches past the sacrificed self because that one sits in
+-- a graveyard.
+ashnodsTransmogrant : Activated []
+ashnodsTransmogrant =
+  MkActivated (sacrifice You thisArtifact)
+              (Sequentially [PutCounters (Lit 1) PlusOnePlusOne
+                                         (target (And [creature, Not artifact])),
+                             becomes (That (TypeW Creature)) (typesOnly [Artifact]) Nothing])
+
+-- "{U}: Target creature becomes an artifact in addition to its other
+-- types until end of turn." (Neurok Transmuter, first ability; its mana
+-- cost and second ability elided) — the same clause with the adverbial
+-- the construction does write, which is the cell that split `BothGrants`:
+-- eighteen corpus lines end a bare type addition at end of turn and not
+-- one ends one at end of combat.
+neurokTransmuter : Effect []
+neurokTransmuter = becomes (target creature) (typesOnly [Artifact]) (Just untilEndOfTurn)
+
+-- "Target creature can't block this turn and becomes a Coward in
+-- addition to its other types until end of turn." (Coward // Killer's
+-- Coward half; its "Time travel." line elided, a keyword rider, and the
+-- coordination transcribed as a two-clause sequence — the Arc Trail
+-- stand-in) — the card that settles the current-turn split from inside
+-- ONE sentence: the restriction takes "this turn" and the type addition
+-- takes "until end of turn", the two adverbials chapter seventeen
+-- measured apart, written here by one writer in one breath.
+cowardKiller : Effect []
+cowardKiller = Sequentially [cantBlock (target creature) (Just thisTurn),
+                             becomes (That (TypeW Creature)) (subtypesOnly [Coward])
+                                     (Just untilEndOfTurn)]
+
+-- "Target attacking creature that isn't a Demon" — the negated subtype
+-- word, widened from Clavileño, First of the Blessed's "target attacking
+-- Vampire that isn't a Demon" (a named stand-in: Vampire has no row, and
+-- the point is the NEGATION, not the head). This is why the subtype word
+-- projects no card type: `negTypesOf` reads a negated member's projected
+-- head, so a Creature projection here would read "that isn't a Demon" as
+-- "noncreature" and refuse a phrase oracle writes.
+clavilenoPhrase : Predicate [] Object
+clavilenoPhrase = And [creature, Attacking, Not (HasSubtype Demon)]
+
+-- "If you control a Demon, each opponent loses 2 life and you gain 2
+-- life. Otherwise, you lose 2 life." (Unholy Annex's end-step trigger;
+-- the trigger header and the sentence before it — "draw a card", no draw
+-- vocabulary — elided as Blindblast's is) — chapter eighteen's ELSE arm,
+-- opened with the card that finally writes both arms in vocabulary this
+-- grammar has. The consequent is a two-clause sequence in a body slot,
+-- which is where a sequence may still stand; the arm is a `Maybe` field
+-- and reads only what preceded the conditional.
+unholyAnnex : Effect []
+unholyAnnex = If (Sequentially [losesLife (Each Opponent) (Lit 2),
+                                gainsLife You (Lit 2)])
+                 (Exists (And [HasSubtype Demon, ControlledBy You]))
+                 (Just (losesLife You (Lit 2)))
 
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
@@ -1683,7 +1850,7 @@ failing "AnyTargetFree"
 -- referent.
 failing "AnyTargetFree"
   badMatchesAnyTarget : Effect []
-  badMatchesAnyTarget = If (destroy (target artifact)) (itsA AnyTarget)
+  badMatchesAnyTarget = If (destroy (target artifact)) (itsA AnyTarget) Nothing
 
 -- The condition's SUBJECT is a read and never a mention. This is the
 -- refusal that keeps `condDelta`'s opacity honest instead of merely
@@ -1737,7 +1904,7 @@ failing "WrittenBound"
 failing "countOnes"
   badConditionAntecedent : Effect []
   badConditionAntecedent =
-    Sequentially [If (gainsLife You (Lit 2)) (Exists creatureYouControl),
+    Sequentially [If (gainsLife You (Lit 2)) (Exists creatureYouControl) Nothing,
                   Tap It]
 
 -- The two branches of a may are not two spellings of one arm. The
@@ -1750,3 +1917,141 @@ failing "countOnes"
 failing "countOnes"
   badIfNotReadsMayBody : Effect []
   badIfNotReadsMayBody = mayElse You (sacrifice You (a creature)) (exile It)
+
+-- ===== What a token may be, and what a counter may sit on =====
+
+-- A subtype sits on one card type's own set ([CR#205.1a] names the six
+-- sets; [CR#205.3m] makes every subtype here a creature type), so a
+-- token whose line names
+-- a subtype its types cannot carry describes nothing: a "Zombie artifact
+-- token" writes a creature type onto an object with no creature type.
+failing "SubtypesFit"
+  badZombieArtifactToken : Effect []
+  badZombieArtifactToken =
+    create (Lit 1) (MkToken (Just (1, 1)) [Black] (MkTypeLine [Zombie] [Artifact])
+                            [] Nothing)
+
+-- A token has only the characteristics its creating effect defines
+-- ([CR#111.3]), so a creature token's power and toughness ([CR#208.1])
+-- have to be written — and every corpus creature-token line writes them.
+-- (The converse is deliberately NOT demanded: a Vehicle token carries a
+-- P/T with no creature type, [CR#301.7].)
+failing "TokenPt"
+  badCreatureTokenNoPt : Effect []
+  badCreatureTokenNoPt =
+    create (Lit 1) (MkToken Nothing [White] (MkTypeLine [Soldier] [Creature]) [] Nothing)
+
+-- A token is a PERMANENT ([CR#111.1]), so its line names at least one
+-- card type. The type-less spelling is the predefined name ("create a
+-- Treasure token", [CR#111.10]) — core's own separate `TokenSpec::Named`
+-- row — and it waits with that catalog. (Probed with no subtype either,
+-- so the refusal is the missing type and not a subtype with nowhere to
+-- sit.)
+failing "TokenTyped"
+  badTypelessToken : Effect []
+  badTypelessToken =
+    create (Lit 1) (MkToken (Just (1, 1)) [White] (MkTypeLine [] []) [] Nothing)
+
+-- The arrival riders are not a free product: sixty-six corpus lines
+-- create a token "tapped and attacking" and a hundred fifty-nine write
+-- the prenominal "a tapped … token", while ATTACKING WITHOUT TAPPED is
+-- written zero times. The rules are why the pair is written out rather
+-- than derived: [CR#508.4] gives the attacking designation to a creature
+-- put onto the battlefield attacking and taps nothing — the tap belongs
+-- to the declare-attackers turn-based action ([CR#508.1f]), which such a
+-- creature never went through — so a writer who wants both has to say
+-- both, and every writer does.
+failing "RidersOk"
+  badAttackingUntapped : Effect []
+  badAttackingUntapped =
+    Create You (Lit 1) (creatureTok 1 1 [Red] [Soldier]) [EntersAttacking]
+
+-- Counters are put on permanents: no corpus line puts one on a card in a
+-- graveyard, and the battlefield demand is the one destroy, tap, and
+-- "gets" already carry.
+failing "OnBattlefield"
+  badPutCountersGraveyard : Effect []
+  badPutCountersGraveyard =
+    PutCounters (Lit 1) PlusOnePlusOne (target (And [creature, InZone (graveyardOf You)]))
+
+-- …and the removal twin reads the same fold-state: a destroyed referent
+-- has no counters to take off.
+failing "OnBattlefield"
+  badRemoveCountersDead : Effect []
+  badRemoveCountersDead = Sequentially [destroy (target creature),
+                                        RemoveCounters (Lit 1) PlusOnePlusOne It]
+
+-- ===== What a type addition may add, and for how long =====
+
+-- A creature subtype has nowhere to sit on a land ([CR#205.1a] — a
+-- subtype correlated with a card type the object doesn't have is not one
+-- of its subtypes), so the added line has to name the card type itself,
+-- as "becomes a Spirit artifact creature" does, or find it on the
+-- subject, as amass's "it becomes a Zombie" does of an Army creature
+-- ([CR#701.47a]).
+failing "AddedFits"
+  badBecomesZombieLand : Effect []
+  badBecomesZombieLand = becomes (target land) (subtypesOnly [Zombie]) Nothing
+
+-- "Becomes in addition to its other types" has to say WHAT: an empty
+-- type line adds nothing and spells no phrase.
+failing "LineNonEmpty"
+  badBecomesNothing : Effect []
+  badBecomesNothing = becomes (target creature) (MkTypeLine [] []) Nothing
+
+-- A type change is a continuous effect on a permanent: a graveyard card
+-- has no types for the clause to add to on the battlefield.
+failing "OnBattlefield"
+  badBecomesInGraveyard : Effect []
+  badBecomesInGraveyard =
+    becomes (target (And [creature, InZone (graveyardOf You)])) (typesOnly [Artifact]) Nothing
+
+-- The combat endpoint stays the GRANTS' alone. Chapter seventeen could
+-- not tell "until end of turn" and "until end of combat" apart, both
+-- being written by the stat delta and the keyword grant and by neither
+-- restriction; the type addition tells them apart, writing eighteen
+-- end-of-turn lines and no end-of-combat line at all — which is why
+-- `BothGrants` split and `GrantsAndTypes` exists.
+failing "SpanOk TypeAddition"
+  badBecomesUntilEndOfCombat : Effect []
+  badBecomesUntilEndOfCombat =
+    becomes (target creature) (typesOnly [Artifact]) (Just untilEndOfCombat)
+
+-- …and the restriction's current-turn word is not the type addition's
+-- either. Coward // Killer writes both adverbials in one sentence and
+-- gives "this turn" to the "can't block" half, which is the division
+-- stated by a card rather than by a count.
+failing "SpanOk TypeAddition"
+  badBecomesThisTurn : Effect []
+  badBecomesThisTurn = becomes (target creature) (typesOnly [Artifact]) (Just thisTurn)
+
+-- …and the upkeep endpoint stays the keyword grant's alone, as it was
+-- against the stat delta (`badGetsUntilYourNextUpkeep`): two corpus
+-- lines write "until your next upkeep" and both grant an ability.
+failing "SpanOk TypeAddition"
+  badBecomesUntilYourNextUpkeep : Effect []
+  badBecomesUntilYourNextUpkeep =
+    becomes (target creature) (typesOnly [Artifact]) (Just untilYourNextUpkeep)
+
+-- A subtype word PRESUPPOSES its set's card type ([CR#205.1a]), so "an
+-- Army that isn't a creature" describes nothing — the finding-43 shape
+-- again, the presupposition riding the word and the existing coherence
+-- gate supplying the refusal. What it does NOT do is project that type,
+-- which is what keeps `clavilenoPhrase` writable.
+failing "ContradictionFree"
+  badZombieNoncreature : Predicate [] Object
+  badZombieNoncreature = And [HasSubtype Zombie, Not creature]
+
+-- ===== What an else arm may read =====
+
+-- The "Otherwise" arm runs exactly when the condition was false, so the
+-- clause it replaces never happened and its phrase never named anything:
+-- an arm that reads the if-arm's token is unwritable, which is `May`'s
+-- declined-arm asymmetry (`badIfNotReadsMayBody`) one construction over.
+-- The corpus writes no such line either — every else arm read this pass
+-- reaches the sentences before the conditional or nothing at all.
+failing "countOnes"
+  badOtherwiseReadsIfArm : Effect []
+  badOtherwiseReadsIfArm = If (create (Lit 1) (creatureTok 1 1 [Black] [Zombie]))
+                              (Exists creatureYouControl)
+                              (Just (Tap It))
