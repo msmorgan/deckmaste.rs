@@ -346,15 +346,77 @@ public export
 discardsACard : (agent : Noun bs Player) -> Effect bs
 discardsACard agent = discards agent (a (InZone handZ))
 
--- "[n] gains haste [duration]" — the duration slot is the grant's own
--- adverbial, so the macro carries `GrantSpan` through to its caller.
+-- The duration adverbials, one macro per phrase the corpus writes, over
+-- the decomposed endpoint. The structure carries the axes (boundary,
+-- part, possession); these names carry the WORDS, and which of them a
+-- construction may write is the span tables' answer (`spanUse`), not
+-- the caller's.
+
+-- "this turn" — the restrictions' current-turn adverbial.
+-- spelling: (construction-owned -- pass-through to Duration.ThisTurn)
+public export
+thisTurn : Duration
+thisTurn = ThisTurn
+
+-- "until end of turn" — the grants' current-turn adverbial; bare, no
+-- article ([CR#514.2] sweeps it in cleanup).
+-- spelling: (construction-owned -- the bare end-of-turn endpoint, see
+-- DurationEnd for why the boundary word and the article are its own)
+public export
+untilEndOfTurn : Duration
+untilEndOfTurn = Until (EndOf Turn Nothing)
+
+-- "until your next turn" — the cross-turn span, the one every
+-- construction writes (the detain family's included).
+-- spelling: (construction-owned -- the possessed start-of-turn endpoint)
+public export
+untilYourNextTurn : Duration
+untilYourNextTurn = Until (StartOf Turn (Just Yours))
+
+-- "until end of combat" ([CR#511.2]) — Glyph of Destruction.
+-- spelling: (construction-owned -- the bare end-of-combat endpoint)
+public export
+untilEndOfCombat : Duration
+untilEndOfCombat = Until (EndOf Combat Nothing)
+
+-- "until your next upkeep" ([CR#503]) — Gabriel Angelfire; the one
+-- endpoint the keyword grant writes alone.
+-- spelling: (construction-owned -- the possessed start-of-upkeep endpoint)
+public export
+untilYourNextUpkeep : Duration
+untilYourNextUpkeep = Until (StartOf Upkeep (Just Yours))
+
+-- "[n] gets [+p/+t] [duration]" — the stat change and its adverbial,
+-- the envelope's two halves under one name. Each grant macro threads
+-- the clause's demands to its caller: a battlefield subject, and a span
+-- its own construction writes.
+-- spelling: ["<Param(0)> gets <Param(1)>/<Param(2)>"] (optional trailing
+-- duration), kind: Sentence (Continuously (Gets …) d -- see
+-- StaticEffect.Gets)
+public export
+gets : (n : Noun bs Object) -> (pow : Integer) -> (tou : Integer) ->
+       (d : Maybe Duration) -> {auto 0 ok : OnBattlefield (nounZone n)} ->
+       {auto 0 sp : SpanOk PtDelta d} -> Effect bs
+gets n pow tou d = Continuously (Gets n pow tou) d
+
+-- "[n] gains [ability] [duration]"
+-- spelling: ["<Param(0)> gains <Param(1)>"] (optional trailing duration),
+-- kind: Sentence (Continuously (Gains …) d -- see StaticEffect.Gains)
+public export
+gains : (n : Noun bs Object) -> (a : Ability) -> (d : Maybe Duration) ->
+        {auto 0 ok : OnBattlefield (nounZone n)} ->
+        {auto 0 sp : SpanOk KeywordGrant d} -> Effect bs
+gains n a d = Continuously (Gains n a) d
+
+-- "[n] gains haste [duration]"
 -- spelling: ["<Param(0)> gains haste"] (optional trailing duration), kind:
--- Sentence (Gain n (KeywordAbility Haste) d -- see Keyword, Effect.Gain)
+-- Sentence (gains n (KeywordAbility Haste) d -- see Keyword,
+-- StaticEffect.Gains)
 public export
 gainsHaste : (n : Noun bs Object) -> (d : Maybe Duration) ->
              {auto 0 ok : OnBattlefield (nounZone n)} ->
-             {auto 0 sp : GrantSpan d} -> Effect bs
-gainsHaste n d = Gain n (KeywordAbility Haste) d
+             {auto 0 sp : SpanOk KeywordGrant d} -> Effect bs
+gainsHaste n d = gains n (KeywordAbility Haste) d
 
 -- The one-shot restrictions, one macro per verb phrase English
 -- writes: the deed word inflected by the voice its subject's part
@@ -363,36 +425,39 @@ gainsHaste n d = Gain n (KeywordAbility Haste) d
 -- is the `Role` argument, and these three names are the whole attested
 -- surface. Each threads the clause's demands — battlefield subject,
 -- the deed's grant in that voice, the restriction's own adverbial — to
--- its caller.
+-- its caller. The span slot is `Maybe` like the grants', so that the
+-- durationless "can't" is REFUSED for its reason rather than by its
+-- shape: `absentOk DeedRestriction = False` says a "can't" with no
+-- adverbial is the static ability line (`badStaticCant`).
 
 -- "[n] can't attack [duration]" ([CR#508.1c]) — Change of Heart.
 -- spelling: ["<Param(0)> can't attack <Param(1)>"], kind: Sentence
 public export
-cantAttack : (n : Noun bs Object) -> (span : Duration) ->
+cantAttack : (n : Noun bs Object) -> (span : Maybe Duration) ->
              {auto 0 zn : OnBattlefield (nounZone n)} ->
              {auto 0 dp : DeedParticipant Attack Agent (nounTy n)} ->
-             {auto 0 sp : RestrictionSpan span} -> Effect bs
-cantAttack n span = Cant n Attack Agent span {zn} {dp} {sp}
+             {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
+cantAttack n span = Continuously (Cant n Attack Agent {zn} {dp}) span {sp}
 
 -- "[n] can't block [duration]" ([CR#509.1b]) — Blindblast, Blinding
 -- Flare.
 -- spelling: ["<Param(0)> can't block <Param(1)>"], kind: Sentence
 public export
-cantBlock : (n : Noun bs Object) -> (span : Duration) ->
+cantBlock : (n : Noun bs Object) -> (span : Maybe Duration) ->
             {auto 0 zn : OnBattlefield (nounZone n)} ->
             {auto 0 dp : DeedParticipant Block Agent (nounTy n)} ->
-            {auto 0 sp : RestrictionSpan span} -> Effect bs
-cantBlock n span = Cant n Block Agent span {zn} {dp} {sp}
+            {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
+cantBlock n span = Continuously (Cant n Block Agent {zn} {dp}) span {sp}
 
 -- "[n] can't be blocked [duration]" ([CR#509.1b]) — Infiltrate; the
 -- passive of the same deed, the subject standing in core's `on` slot.
 -- spelling: ["<Param(0)> can't be blocked <Param(1)>"], kind: Sentence
 public export
-cantBeBlocked : (n : Noun bs Object) -> (span : Duration) ->
+cantBeBlocked : (n : Noun bs Object) -> (span : Maybe Duration) ->
                 {auto 0 zn : OnBattlefield (nounZone n)} ->
                 {auto 0 dp : DeedParticipant Block Patient (nounTy n)} ->
-                {auto 0 sp : RestrictionSpan span} -> Effect bs
-cantBeBlocked n span = Cant n Block Patient span {zn} {dp} {sp}
+                {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
+cantBeBlocked n span = Continuously (Cant n Block Patient {zn} {dp}) span {sp}
 
 -- "[who] loses [amt] life"
 -- spelling: ["<Param(0)> loses <Param(1)> life"], kind: Sentence

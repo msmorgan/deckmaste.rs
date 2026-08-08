@@ -168,13 +168,39 @@ turnToMist = Sequentially [exile (target creature),
                            Delayed NextEndStep (Move (That CardW) battlefieldZ)]
 
 -- "Target creature gains flying until end of turn." (Jump) — the
--- duration as trailing-adverbial data ([CR#611.2a]).
+-- duration as trailing-adverbial data ([CR#611.2a]), and the clause
+-- under the envelope that carries it: the grant is the static effect,
+-- "until end of turn" the span it lasts.
 jump : Effect []
-jump = Gain (target creature) (KeywordAbility Flying) (Just UntilEndOfTurn)
+jump = gains (target creature) (KeywordAbility Flying) (Just untilEndOfTurn)
 
 -- "Target creature gets +3/+3 until end of turn." (Giant Growth)
 giantGrowth : Effect []
-giantGrowth = Gets (target creature) 3 3 (Just UntilEndOfTurn)
+giantGrowth = gets (target creature) 3 3 (Just untilEndOfTurn)
+
+-- "Target blocking Wall you control gets +10/+0 until end of combat."
+-- (Glyph of Destruction; its damage-prevention and delayed-destruction
+-- lines elided, and the "Wall" subtype with them — a creature type the
+-- vocabulary cannot spell, so the transcription WIDENS the subject to
+-- any blocking creature you control, a named stand-in) — the second
+-- endpoint the decomposition opened: combat ends at its own boundary
+-- ([CR#511.2]), not the turn's, and the stat change is one of the two
+-- constructions that write it.
+glyphOfDestruction : Effect []
+glyphOfDestruction =
+  gets (target (And [Blocking, creature, ControlledBy You])) 10 0 (Just untilEndOfCombat)
+
+-- "Gabriel Angelfire gains that ability until your next upkeep."
+-- (Gabriel Angelfire; its upkeep trigger header elided as Case of the
+-- Gateway Express's enters trigger is, and with it the choice the
+-- header makes — "choose flying, first strike, trample, or rampage 3"
+-- — so "that ability" is transcribed as one of the four written
+-- choices; the chosen-ABILITY anaphor waits with the ability layer) —
+-- the endpoint the KEYWORD grant writes alone, and the reason the
+-- decomposition had to reach a step inside the turn at all.
+gabrielAngelfire : Effect []
+gabrielAngelfire =
+  gains thisCreature (KeywordAbility Flying) (Just untilYourNextUpkeep)
 
 -- "Return target creature card from your graveyard to the
 -- battlefield. It gains haste until your next turn." (Bond of
@@ -182,7 +208,7 @@ giantGrowth = Gets (target creature) 3 3 (Just UntilEndOfTurn)
 -- return is just a Move, and "it" reads the retagged referent.
 bondOfRevival : Effect []
 bondOfRevival = Sequentially [Move (target (And [creature, InZone (graveyardOf You)])) battlefieldZ,
-                              gainsHaste It (Just UntilYourNextTurn)]
+                              gainsHaste It (Just untilYourNextTurn)]
 
 -- "When target creature dies this turn, return that card to the
 -- battlefield under its owner's control." (Graceful Reprieve; "under
@@ -444,14 +470,14 @@ anotherDisjunctPhrase = And [Or [creature, land], Other]
 -- creature being blocked, core's `on` slot, where "can't block" would
 -- put it in `by`.
 infiltrate : Effect []
-infiltrate = cantBeBlocked (target creature) ThisTurn
+infiltrate = cantBeBlocked (target creature) (Just thisTurn)
 
 -- "Target creature can't attack this turn." (Change of Heart; its
 -- Buyback line elided — a keyword rider, as with Cascade and Splice)
 -- — the active voice of the same clause, checked at declare attackers
 -- instead ([CR#508.1c]).
 changeOfHeart : Effect []
-changeOfHeart = cantAttack (target creature) ThisTurn
+changeOfHeart = cantAttack (target creature) (Just thisTurn)
 
 -- "Blindblast deals 1 damage to target creature. That creature can't
 -- block this turn." (Blindblast; "Draw a card." elided — no draw
@@ -460,7 +486,7 @@ changeOfHeart = cantAttack (target creature) ThisTurn
 -- clause introduced, and the deontic needs nothing of its own for it.
 blindblast : Effect []
 blindblast = Sequentially [DealDamage This (Lit 1) (target creature),
-                           cantBlock (That (TypeW Creature)) ThisTurn]
+                           cantBlock (That (TypeW Creature)) (Just thisTurn)]
 
 -- "Any number of target creatures can't block this turn." (Blinding
 -- Flare; its Strive cost-modification line elided) — the subject is
@@ -468,7 +494,7 @@ blindblast = Sequentially [DealDamage This (Lit 1) (target creature),
 -- ranges over whatever its subject phrase describes, one creature or a
 -- group announced at once.
 blindingFlare : Effect []
-blindingFlare = cantBlock (TargetGroup anyNumber creature) ThisTurn
+blindingFlare = cantBlock (TargetGroup anyNumber creature) (Just thisTurn)
 
 -- ===== A bound on a characteristic: the comparatives chapter =====
 
@@ -762,7 +788,7 @@ failing "Targetable"
 failing "OnBattlefield"
   badGetsGraveyard : Effect []
   badGetsGraveyard = Sequentially [destroy (target creature),
-                                   Gets It 3 3 (Just UntilEndOfTurn)]
+                                   gets It 3 3 (Just untilEndOfTurn)]
 
 -- A card never enters another player's hand [CR#400.3]: owned
 -- destinations are owner-routed, so this is unwritable.
@@ -1359,7 +1385,7 @@ failing "NotSeq"
 -- ([CR#701.14d]), `deedType` the combat grants themselves.
 failing "DeedParticipant"
   badCantAttackLand : Effect []
-  badCantAttackLand = cantAttack (target land) ThisTurn
+  badCantAttackLand = cantAttack (target land) (Just thisTurn)
 
 -- A coordinated head fixes no type (finding 50), and an untyped head
 -- cannot prove participation: "target creature or land" would have to
@@ -1367,7 +1393,7 @@ failing "DeedParticipant"
 -- is not permission — `DamageableTy` learned the same lesson.
 failing "DeedParticipant"
   badCantDisjunctSubject : Effect []
-  badCantDisjunctSubject = cantBlock (target (Or [creature, land])) ThisTurn
+  badCantDisjunctSubject = cantBlock (target (Or [creature, land])) (Just thisTurn)
 
 -- Splitting the voice off the deed word made "can't be attacked"
 -- WRITABLE as a term for the first time, so the table has to say why
@@ -1379,7 +1405,7 @@ failing "DeedParticipant"
 -- voice gets no macro of its own.
 failing "DeedParticipant"
   badCantBeAttacked : Effect []
-  badCantBeAttacked = Cant (target creature) Attack Patient ThisTurn
+  badCantBeAttacked = Continuously (Cant (target creature) Attack Patient) (Just thisTurn)
 
 -- Combat is fought on the battlefield: a permanent that leaves it is
 -- removed from combat ([CR#506.4]), so a graveyard card has no deed to
@@ -1388,7 +1414,7 @@ failing "DeedParticipant"
 failing "OnBattlefield"
   badCantInGraveyard : Effect []
   badCantInGraveyard =
-    cantBlock (target (And [creature, InZone graveyardZ])) ThisTurn
+    cantBlock (target (And [creature, InZone graveyardZ])) (Just thisTurn)
 
 -- The class word names [CR#115.4]'s damage class, describes no object,
 -- and so places none — and the restriction needed no rule of its own to
@@ -1396,36 +1422,80 @@ failing "OnBattlefield"
 -- exactly as for destroy and tap (`badDestroyAnyTarget`).
 failing "OnBattlefield"
   badCantAnyTarget : Effect []
-  badCantAnyTarget = cantBlock (target AnyTarget) ThisTurn
+  badCantAnyTarget = cantBlock (target AnyTarget) (Just thisTurn)
 
 -- The same span, the wrong word. Two hundred ninety-six corpus lines
 -- write a one-shot restriction and every one of them says "this turn";
 -- "until end of turn" belongs to the grants, which invert the count
--- (`badGainsThisTurn`).
-failing "RestrictionSpan"
+-- (`badGainsThisTurn`). Under the envelope the refusal is one table
+-- read: `spanUse` calls the bare end-of-turn endpoint `BothGrants`, and
+-- `admitsSpan` gives the restriction row no share of it.
+failing "SpanOk DeedRestriction"
   badCantUntilEndOfTurn : Effect []
-  badCantUntilEndOfTurn = cantBlock (target creature) UntilEndOfTurn
+  badCantUntilEndOfTurn = cantBlock (target creature) (Just untilEndOfTurn)
 
 -- …and the inverse, which is what keeps the new word from opening a
 -- hole: no corpus line grants an ability "this turn".
-failing "GrantSpan"
+failing "SpanOk KeywordGrant"
   badGainsThisTurn : Effect []
-  badGainsThisTurn = Gain (target creature) (KeywordAbility Flying) (Just ThisTurn)
+  badGainsThisTurn = gains (target creature) (KeywordAbility Flying) (Just thisTurn)
 
 -- The stat change writes the grant's adverbial too — "Target creature
 -- gets +3/+3 until end of turn", never "this turn".
-failing "GrantSpan"
+failing "SpanOk PtDelta"
   badGetsThisTurn : Effect []
-  badGetsThisTurn = Gets (target creature) 3 3 (Just ThisTurn)
+  badGetsThisTurn = gets (target creature) 3 3 (Just thisTurn)
 
 -- A durationless "can't" is the STATIC ability line ("Enchanted
 -- creature can't attack", Pacifism), which is a different construction
--- and the parked ability layer's — so the refusal here is the ABSENT
--- SLOT rather than a gate, the span not being optional. Pinned on the
--- slot's own name, which is why it carries one.
-failing "span : Duration"
+-- and the parked ability layer's. The slot is now optional for everyone
+-- — the grants need it, since the unwritten span is [CR#611.2a]'s
+-- end-of-game default — so the refusal moved from the ABSENT SLOT to
+-- the reason for it: `absentOk DeedRestriction = False`, the one row of
+-- that table that says no.
+failing "SpanOk DeedRestriction"
   badStaticCant : Effect []
-  badStaticCant = cantBlock (target creature)
+  badStaticCant = cantBlock (target creature) Nothing
+
+-- The upkeep endpoint belongs to the KEYWORD grant alone. Two corpus
+-- lines write "until your next upkeep" and both grant an ability
+-- (Gabriel Angelfire, and one forestwalk line); not one stat change
+-- takes it. The decomposition is what made the cell writable at all —
+-- and the table is what keeps the two grants from sharing it just
+-- because they share the other three.
+failing "SpanOk PtDelta"
+  badGetsUntilYourNextUpkeep : Effect []
+  badGetsUntilYourNextUpkeep = gets (target creature) 3 3 (Just untilYourNextUpkeep)
+
+-- Real oracle English, no clause of ours: "until the end of your next
+-- turn" runs to eighty-three lines, and every one of them is a play
+-- permission, a control grant, or a can't-cast — never a keyword grant.
+-- The `Unclaimed` row exists to say exactly this, and to keep it apart
+-- from the endpoints nothing writes at all (`badGainsUntilUntapStep`).
+failing "SpanOk KeywordGrant"
+  badGainsUntilEndOfYourNextTurn : Effect []
+  badGainsUntilEndOfYourNextTurn =
+    gains (target creature) (KeywordAbility Flying) (Just (Until (EndOf Turn (Just Yours))))
+
+-- The combat endpoint is the grants' too — Glyph of Destruction's
+-- "+10/+0" and one banding line — and no corpus line ends a single-deed
+-- restriction there. The restriction's two words stay "this turn" and
+-- "until your next turn".
+failing "SpanOk DeedRestriction"
+  badCantUntilEndOfCombat : Effect []
+  badCantUntilEndOfCombat = cantBlock (target creature) (Just untilEndOfCombat)
+
+-- And the unattested end of the table: no corpus line ends a duration
+-- at an untap step in words this vocabulary has. The one line that ends
+-- one there possesses it with a NOUN — "until its controller's next
+-- untap step" — which is neither of `Whose`'s two words, and its clause
+-- (a base-type setting) is a layer word with no construction here
+-- either, so the row waits on both.
+failing "SpanOk KeywordGrant"
+  badGainsUntilUntapStep : Effect []
+  badGainsUntilUntapStep =
+    gains (target creature) (KeywordAbility Flying)
+          (Just (Until (StartOf UntapStep (Just Yours))))
 
 -- ===== What carries a bound, and how it is written =====
 

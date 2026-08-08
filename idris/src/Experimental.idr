@@ -846,46 +846,175 @@ public export
 -- KeywordAbility's Keyword argument's own, see Keyword)
 data Ability = KeywordAbility Keyword
 
+||| The parts of the turn a duration can name its endpoint by — the
+||| turn itself and the steps and phases inside it. Deliberately NOT a
+||| mirror of core's `PhaseStep` (`deckmaste_core/src/event.rs`, whose
+||| `Beginning`/`Combat`/`Ending` trees enumerate all thirteen): these
+||| are the parts an ENDPOINT is written against, and the corpus writes
+||| a duration-class adverbial against only these. The draw step and
+||| the two main phases carry none at all (ledger), so they have no row
+||| here to answer for. This is the SHARED vocabulary — the trigger
+||| headers the later chapter must spell ("at the beginning of your
+||| upkeep") name the same parts, and a second enum would drift from
+||| this one — so a new row is a totality error on `spanUse` and on
+||| every table the triggers chapter adds.
+public export
+-- spelling: ["turn", "upkeep", "end step", "combat", "untap step"] (row
+-- order: Turn/Upkeep/EndStep/Combat/UntapStep; the bare part word --
+-- DurationEnd's boundary and possession supply everything around it),
+-- kind: TODO(reason: adverbial fragment -- not one of Nominal/Sentence/
+-- Cost/KeywordLine/Ability)
+data TurnPart = Turn | Upkeep | EndStep | Combat | UntapStep
+
+||| Whose part a possessed endpoint names. CLOSED and pronominal: the
+||| corpus possesses a duration endpoint with a possessive DETERMINER
+||| and nothing else — "your next turn", "that player's next end step" —
+||| so this is a two-word vocabulary, not a noun slot. A noun-valued
+||| possessor would make `Duration` bindings-indexed (every consumer
+||| re-indexed) to buy a form no construction here writes; the one line
+||| that needs one — "Target land becomes a Swamp until its controller's
+||| next untap step" — is a base-type SETTING clause, a layer word this
+||| grammar has no construction for, so its possessor waits with it
+||| (ledger). `ThatPlayers` is the anaphoric row: it presupposes a
+||| unique player antecedent the way `They` does, an obligation no
+||| current table's cell opens (`spanUse`), so the demand itself waits
+||| for the cell that needs it.
+public export
+-- spelling: ["your", "that player's"] (row order: Yours/ThatPlayers; the
+-- possessive determiner alone, always followed by "next" -- see
+-- DurationEnd), kind: TODO(reason: adverbial fragment)
+data Whose = Yours | ThatPlayers
+
+||| The endpoint an "until" adverbial names: a boundary of a turn part,
+||| optionally possessed. Two axes, because the corpus writes both
+||| independently — "until end of turn" against "until your next turn"
+||| is the SAME part at opposite boundaries, and each boundary takes
+||| possession or not.
+|||
+||| "Next" is DERIVABLE, not a parameter: a possessed endpoint is
+||| always the next one ("your next turn" — there is no "your previous
+||| upkeep" to distinguish it from), and a bare endpoint is always the
+||| current turn's. The article goes with the possession the same way
+||| ("until end of turn" has none; "until the end of your next turn"
+||| keeps it), and the possessive can even land outside the part it
+||| possesses — Brazen Cannonade writes "until end of combat on your
+||| next turn", not a possessed combat. All of that is construction-
+||| assigned surface for the spelling layer, which is why none of it is
+||| structure here.
+public export
+-- spelling: (construction-owned -- the boundary word and the article are
+-- assigned by the pair: StartOf writes no boundary word at all ("until your
+-- next turn", "until the next end step"), EndOf writes "end of" bare and
+-- "the end of" possessed, and the possessed combat form extraposes its
+-- possessive onto the turn ("until end of combat on your next turn",
+-- Brazen Cannonade). Spelled only through Duration.)
+data DurationEnd = StartOf TurnPart (Maybe Whose)
+                 | EndOf TurnPart (Maybe Whose)
+
 ||| Durations, as the trailing adverbial writes them ([CR#611.2a] — a
 ||| resolution-generated continuous effect "lasts as long as stated";
 ||| with no stated duration it lasts until end of game, which is the
 ||| explicit `Nothing` spelling per the no-defaults convention).
-||| "for as long as" durations ([CR#611.2b]) are a later chapter.
-||| Two of these name the SAME span in different words, and which word
-||| a clause writes is its construction's, not its author's — see
-||| `grantSpan` and `restrictionSpan`.
+||| "for as long as" durations ([CR#611.2b]) are a later chapter, and so
+||| is the event-ended family ("until [this creature] leaves the
+||| battlefield", the O-Ring shape) — an endpoint named by an EVENT
+||| rather than a turn boundary, which waits on the events axis
+||| (ledger), not on this type's shape.
+|||
+||| "This turn" is its own row rather than an `Until` form because it is
+||| not one: it names the current turn as a whole, without a boundary
+||| word, and it is the adverbial the one-shot restrictions write where
+||| the grants write "until end of turn" — the same span, a different
+||| construction's word (`spanUse`).
 public export
--- spelling: ["until end of turn", "until your next turn", "this turn"] (row
--- order: UntilEndOfTurn/UntilYourNextTurn/ThisTurn), kind: TODO(reason:
--- trailing-adverbial fragment -- not one of Nominal/Sentence/Cost/
--- KeywordLine/Ability)
-data Duration = UntilEndOfTurn | UntilYourNextTurn | ThisTurn
+-- spelling: ["this turn", "until <Param(0)>"] (row order: ThisTurn/Until;
+-- Until's own word is the bare "until" and the endpoint supplies the rest --
+-- see DurationEnd), kind: TODO(reason: trailing-adverbial fragment -- not
+-- one of Nominal/Sentence/Cost/KeywordLine/Ability)
+data Duration = ThisTurn | Until DurationEnd
 
-||| Which duration a GRANT or a stat change writes. The two current-turn
-||| adverbials are not interchangeable: "until end of turn" runs to two
-||| hundred sixty-six corpus lines on "gets +1/+1" and one hundred
-||| ninety-seven on "gains haste", and "this turn" to none of either,
-||| while the one-shot restrictions invert the split exactly
-||| (`restrictionSpan`). The guide lists both wordings and
-||| assigns neither — "Use `until end of turn` for the ordinary
+||| WHICH constructions write a given duration adverbial — the fact the
+||| corpus assigns and no rule derives. The guide lists the wordings and
+||| assigns neither ("Use `until end of turn` for the ordinary
 ||| current-turn duration" sits a section away from "Use `this turn` for
-||| the current turn" — so the corpus is what assigns them. Full rows: a
-||| new duration declares its answer on both tables.
+||| the current turn"), so the counts are the whole evidence.
+|||
+||| Two kinds of `False` are worth telling apart, so they are separate
+||| rows: `Unattested` means no corpus line writes the phrase at all,
+||| while `Unclaimed` means the phrase is real oracle English that this
+||| grammar's constructions do not write — the endpoint exists, its
+||| clause is somewhere else (a play permission, a base-P/T setting).
+||| The rest name the observed splits, and they are strikingly clean:
+||| the current-turn adverbials divide the grants from the restrictions
+||| exactly, and only the cross-turn span is written by everything.
 public export
-grantSpan : Duration -> Bool
-grantSpan UntilEndOfTurn = True
-grantSpan UntilYourNextTurn = True
-grantSpan ThisTurn = False
+data SpanUse = Unattested | Unclaimed | BothGrants | KeywordGrantOnly
+             | RestrictionsOnly | EveryStatic
 
-||| The grant's duration slot as a witness. `Nothing` is the stated
-||| absence — no duration written, so the effect lasts until end of game
-||| ([CR#611.2a]), which the guide permits where the effect is
-||| "intentionally indefinite under the rules" (Through the Breach's
-||| bare "It gains haste.").
+||| The attestation table: every duration this vocabulary can spell,
+||| against the constructions that write it. FULL ROWS over (boundary x
+||| part x possession) plus the bare current-turn adverbial — thirty-one
+||| cells — so a new `TurnPart`, a new `Whose`, or a new boundary is a
+||| totality error that must be answered with evidence before anything
+||| can be written with it.
+|||
+||| The counts behind the open cells (oracle corpus, joint patterns —
+||| the adverbial has to belong to THAT clause, not merely share a line
+||| with it): "until end of turn" writes one thousand five hundred
+||| fifty-nine stat changes and one thousand three hundred ninety-one
+||| keyword grants and NOT ONE single-deed restriction; "this turn"
+||| inverts it exactly, two hundred ninety-six restrictions and neither
+||| grant; "until your next turn" is written by all three (thirteen,
+||| thirteen, twenty-four), the one span that is nobody's alone; "until
+||| end of combat" takes the two grants only (Glyph of Destruction's
+||| "+10/+0", one banding line); "until your next upkeep" takes the
+||| keyword grant alone (Gabriel Angelfire, and one forestwalk line) and
+||| no stat change at all.
+|||
+||| The `Unclaimed` cells are where the frontier is: "until the end of
+||| your next turn" is eighty-three lines of play permissions and
+||| control grants, "until end of combat on your next turn" is Brazen
+||| Cannonade's play permission, "until the end of your next upkeep" is
+||| Halfdane's base-P/T setting, and the three end-step endpoints are
+||| play permissions and a copy effect. Every one of them waits on a
+||| construction, not on a duration.
 public export
-data GrantSpan : Maybe Duration -> Type where
-  Unstated : GrantSpan Nothing
-  Stated : {auto 0 ok : grantSpan d = True} -> GrantSpan (Just d)
+spanUse : Duration -> SpanUse
+spanUse ThisTurn = RestrictionsOnly
+-- "until [poss] next [part]" — the start boundary writes no boundary
+-- word, and takes possession or the definite article, never nothing.
+spanUse (Until (StartOf Turn Nothing)) = Unattested
+spanUse (Until (StartOf Turn (Just Yours))) = EveryStatic
+spanUse (Until (StartOf Turn (Just ThatPlayers))) = Unclaimed
+spanUse (Until (StartOf Upkeep Nothing)) = Unattested
+spanUse (Until (StartOf Upkeep (Just Yours))) = KeywordGrantOnly
+spanUse (Until (StartOf Upkeep (Just ThatPlayers))) = Unattested
+spanUse (Until (StartOf EndStep Nothing)) = Unclaimed
+spanUse (Until (StartOf EndStep (Just Yours))) = Unclaimed
+spanUse (Until (StartOf EndStep (Just ThatPlayers))) = Unclaimed
+spanUse (Until (StartOf Combat Nothing)) = Unattested
+spanUse (Until (StartOf Combat (Just Yours))) = Unattested
+spanUse (Until (StartOf Combat (Just ThatPlayers))) = Unattested
+spanUse (Until (StartOf UntapStep Nothing)) = Unattested
+spanUse (Until (StartOf UntapStep (Just Yours))) = Unattested
+spanUse (Until (StartOf UntapStep (Just ThatPlayers))) = Unattested
+-- "until (the) end of [part]" — the end boundary is the one that
+-- writes bare, and the bare forms are where the grants live.
+spanUse (Until (EndOf Turn Nothing)) = BothGrants
+spanUse (Until (EndOf Turn (Just Yours))) = Unclaimed
+spanUse (Until (EndOf Turn (Just ThatPlayers))) = Unattested
+spanUse (Until (EndOf Upkeep Nothing)) = Unattested
+spanUse (Until (EndOf Upkeep (Just Yours))) = Unclaimed
+spanUse (Until (EndOf Upkeep (Just ThatPlayers))) = Unattested
+spanUse (Until (EndOf EndStep Nothing)) = Unattested
+spanUse (Until (EndOf EndStep (Just Yours))) = Unattested
+spanUse (Until (EndOf EndStep (Just ThatPlayers))) = Unattested
+spanUse (Until (EndOf Combat Nothing)) = BothGrants
+spanUse (Until (EndOf Combat (Just Yours))) = Unclaimed
+spanUse (Until (EndOf Combat (Just ThatPlayers))) = Unattested
+spanUse (Until (EndOf UntapStep Nothing)) = Unattested
+spanUse (Until (EndOf UntapStep (Just Yours))) = Unattested
+spanUse (Until (EndOf UntapStep (Just ThatPlayers))) = Unattested
 
 -- ===== Deontic restrictions (the one-shot "can't" vocabulary) =====
 
@@ -973,26 +1102,65 @@ public export
 data DeedParticipant : Deed -> Role -> Maybe CardType -> Type where
   Participant : {auto 0 ok : deedType d r t = True} -> DeedParticipant d r (Just t)
 
-||| Which duration a RESTRICTION writes — `grantSpan`'s complement, and
-||| complementary is what the corpus makes it. Every one-shot
-||| single-deed restriction says "this turn" (two hundred ninety-six
-||| lines across the three deeds) and not one says "until end of turn".
-||| The cross-turn span is written too, in the detain family ("Up to one
-||| target creature can't attack or block until your next turn"), where
-||| what this vocabulary is missing is the deed coordination (ledger),
-||| not the adverbial. Full rows, as on the grant side.
+||| Which static effect a `Continuously` clause establishes, as the
+||| span tables' key — the axis `spanUse` classifies its adverbials
+||| against. One row per `StaticEffect` constructor (`staticKind`), so a
+||| new static row is a totality error on both tables and must declare
+||| which durations it writes before it can be written at all.
 public export
-restrictionSpan : Duration -> Bool
-restrictionSpan ThisTurn = True
-restrictionSpan UntilYourNextTurn = True
-restrictionSpan UntilEndOfTurn = False
+data StaticKind = PtDelta | KeywordGrant | DeedRestriction
 
-||| The restriction's duration slot as a witness. There is no absent
-||| row: a durationless "can't" is the STATIC ability line, a different
-||| construction (see `Cant`).
+||| The attestation table's other half: which classes of adverbial each
+||| construction writes. Full rows in both directions. The shape of it
+||| is the finding — `EveryStatic` is the only class every row admits,
+||| and the two current-turn words divide the grants from the
+||| restrictions with nothing shared, which is why the detain family's
+||| cross-turn span ("Up to one target creature can't attack or block
+||| until your next turn") is the one place a restriction and a grant
+||| write the same words.
 public export
-data RestrictionSpan : Duration -> Type where
-  Spanned : {auto 0 ok : restrictionSpan d = True} -> RestrictionSpan d
+admitsSpan : StaticKind -> SpanUse -> Bool
+admitsSpan PtDelta Unattested = False
+admitsSpan PtDelta Unclaimed = False
+admitsSpan PtDelta BothGrants = True
+admitsSpan PtDelta KeywordGrantOnly = False
+admitsSpan PtDelta RestrictionsOnly = False
+admitsSpan PtDelta EveryStatic = True
+admitsSpan KeywordGrant Unattested = False
+admitsSpan KeywordGrant Unclaimed = False
+admitsSpan KeywordGrant BothGrants = True
+admitsSpan KeywordGrant KeywordGrantOnly = True
+admitsSpan KeywordGrant RestrictionsOnly = False
+admitsSpan KeywordGrant EveryStatic = True
+admitsSpan DeedRestriction Unattested = False
+admitsSpan DeedRestriction Unclaimed = False
+admitsSpan DeedRestriction BothGrants = False
+admitsSpan DeedRestriction KeywordGrantOnly = False
+admitsSpan DeedRestriction RestrictionsOnly = True
+admitsSpan DeedRestriction EveryStatic = True
+
+||| Whether a construction can write NO duration at all. A grant can:
+||| the unwritten span is [CR#611.2a]'s end-of-game default, which the
+||| guide permits where the effect is "intentionally indefinite under
+||| the rules" (Through the Breach's bare "It gains haste."). A
+||| restriction cannot — a durationless "can't" is the STATIC ability
+||| line ("Enchanted creature can't attack", Pacifism), a different
+||| construction and the parked ability layer's, so the whole clause is
+||| unwritable here rather than the span being optional
+||| (`badStaticCant`).
+public export
+absentOk : StaticKind -> Bool
+absentOk PtDelta = True
+absentOk KeywordGrant = True
+absentOk DeedRestriction = False
+
+||| The `Continuously` clause's duration slot as a witness, reading both
+||| tables: the stated absence against `absentOk`, a written adverbial
+||| against the construction's own row in `spanUse`.
+public export
+data SpanOk : StaticKind -> Maybe Duration -> Type where
+  SpanUnstated : {auto 0 ok : absentOk k = True} -> SpanOk k Nothing
+  SpanStated : {auto 0 ok : admitsSpan k (spanUse d) = True} -> SpanOk k (Just d)
 
 ||| How an indefinite phrase MARKS its choice method — the axis three
 ||| constructors used to spell three times. Choice method is surface
@@ -2545,6 +2713,93 @@ mutual
   delayedCtx NextEndStep = settleTargets bs
   delayedCtx (DiesThisTurn n) = settleTargets (moveIntro Nothing n Graveyard)
 
+  ||| The continuous effects a resolving clause can establish
+  ||| ([CR#611.2]) — the PART of the sentence that survives its
+  ||| resolution, with the duration adverbial factored out onto the
+  ||| envelope that carries it (`Continuously`). Core makes the same
+  ||| cut: `Continuously { effect: StaticEffect, duration: Duration }`
+  ||| (`deckmaste_core/src/effect.rs`, `continuous.rs`) puts every
+  ||| lasting change behind one duration-bearing node, whether the
+  ||| change is a characteristic modification (`StaticEffect::Modify`)
+  ||| or a prohibition (`StaticEffect::Deontic`), and English agrees
+  ||| with it: the adverbial is one slot, written once at the end of the
+  ||| clause, and the three constructions below differ only in what
+  ||| precedes it.
+  |||
+  ||| A SMALL slice deliberately: the stat delta, the keyword grant, and
+  ||| the deed restriction are the rows this vocabulary has clauses for.
+  ||| Core's other static rows — becoming a copy, losing abilities,
+  ||| setting base power and toughness, conditional statics — arrive
+  ||| with the ability layer, and each is a new `StaticKind` row that
+  ||| the span tables will force to declare its adverbials.
+  public export
+  data StaticEffect : Bindings -> Type where
+    -- "[n] gets [+p/+t]" — the stat-modifying continuous effect
+    -- ([CR#613.4c] layer 7c, core's `Modification::PowerAndToughness…`).
+    -- The one-shot form modifies a battlefield object
+    -- (`badGetsGraveyard`); graveyard-reaching changes are static
+    -- abilities, a later chapter.
+    -- spelling: ["<Param(0)> gets <Param(1)>/<Param(2)>"] (signed pow/tou
+    -- pair, e.g. "+1/+1"; the trailing duration adverbial belongs to the
+    -- Continuously envelope, not here), kind: Sentence
+    Gets : (n : Noun bs Object) -> (pow : Integer) -> (tou : Integer) ->
+           {auto 0 ok : OnBattlefield (nounZone n)} -> StaticEffect bs
+    -- "[n] gains [ability]" — the keyword grant, same battlefield
+    -- discipline.
+    -- spelling: ["<Param(0)> gains <Param(1)>"] (the trailing duration
+    -- adverbial belongs to the Continuously envelope, not here),
+    -- kind: Sentence
+    Gains : (n : Noun bs Object) -> Ability ->
+            {auto 0 ok : OnBattlefield (nounZone n)} -> StaticEffect bs
+    -- "[n] can't [deed, in a voice]" — the DEONTIC: a continuous effect
+    -- denying its subject a deed, which is core's
+    -- `Deontic(Cant(…))` under the same envelope
+    -- (`deckmaste_core/src/deontic.rs`) with the two halves English
+    -- writes. Verb and voice are separate arguments for core's own
+    -- reason: core tells the readings apart by which SLOT carries the
+    -- reference (`Block { by, on }`), so the deed and the part the
+    -- subject plays in it are two facts, and fusing them into one word
+    -- would spell "block"'s two voices as unrelated vocabulary. The
+    -- deed is the restriction the declare steps check ([CR#508.1c] for
+    -- attacking, [CR#509.1b] for blocking and for being blocked), and
+    -- it beats any permission it meets ([CR#101.2]). Two demands, each
+    -- a shape this grammar makes elsewhere: the subject stands on the
+    -- battlefield (combat is fought there — [CR#506.4] takes a
+    -- permanent that leaves out of combat; `badCantInGraveyard`) and
+    -- carries the deed's grant IN THAT VOICE ([CR#506.3];
+    -- `badCantAttackLand`, `badCantDisjunctSubject`, `badCantBeAttacked`).
+    -- The third demand — that the span be the RESTRICTION's adverbial
+    -- and not the grant's, and that it be written at all — is the
+    -- envelope's (`SpanOk DeedRestriction`; `badCantUntilEndOfTurn`,
+    -- `badStaticCant`). The subject may be plural — "Other creatures
+    -- can't attack this turn." (Intimidation Bolt) is one sentence of
+    -- many — so no grammatical number is demanded. The surface phrases
+    -- are the macros' (`cantAttack`, `cantBlock`, `cantBeBlocked`).
+    -- spelling: ["<Param(0)> can't <Param(1)+Param(2)>"], kind: Sentence
+    -- (Params 1 and 2 spell ONE verb phrase, the deed word inflected by its
+    -- voice -- Attack/Agent "attack", Block/Agent "block", Block/Patient
+    -- "be blocked"; the duration adverbial is the Continuously envelope's.
+    -- Mirrors core's Continuously-over-Cant pair -- no single RON
+    -- constructor entry confirmed for the fused clause this pass)
+    Cant : (n : Noun bs Object) -> (deed : Deed) -> (role : Role) ->
+           {auto 0 zn : OnBattlefield (nounZone n)} ->
+           {auto 0 dp : DeedParticipant deed role (nounTy n)} -> StaticEffect bs
+
+  ||| Which row a static effect is, for the span tables.
+  public export
+  staticKind : {0 bs : Bindings} -> StaticEffect bs -> StaticKind
+  staticKind (Gets _ _ _) = PtDelta
+  staticKind (Gains _ _) = KeywordGrant
+  staticKind (Cant _ _ _) = DeedRestriction
+
+  ||| What a continuous clause contributes to the discourse: its
+  ||| subject, exactly as the one-shot clauses contribute theirs.
+  public export
+  staticIntro : {bs : Bindings} -> StaticEffect bs -> Bindings
+  staticIntro (Gets n _ _) = nomIntro n
+  staticIntro (Gains n _) = nomIntro n
+  staticIntro (Cant n _ _) = nomIntro n
+
   ||| Clauses. Constructor argument order IS textual order, and each
   ||| argument is typed in the context its predecessors built — the
   ||| telescope is the whole term, not a special clause-list feature.
@@ -2622,64 +2877,25 @@ mutual
     -- constructors.ron's `GainLife` entry / the merged ChangeLife family),
     -- kind: Sentence
     ChangeLife : (who : Noun bs Player) -> (op : LifeOp (nomIntro who)) -> Effect bs
-    -- "[n] gains [ability] [duration]" — establishes a continuous
-    -- effect for the stated duration ([CR#611.2a]); the one-shot form
-    -- modifies a battlefield object (graveyard-reaching grants are
-    -- static abilities, a later chapter). The duration is the GRANT's
-    -- adverbial, never the restriction's (`GrantSpan`;
-    -- `badGainsThisTurn`).
-    -- spelling: ["<Param(0)> gains <Param(1)>"] (optional trailing duration
-    -- adverbial, see Duration), kind: Sentence
-    Gain : (n : Noun bs Object) -> Ability -> (span : Maybe Duration) ->
-           {auto 0 ok : OnBattlefield (nounZone n)} ->
-           {auto 0 sp : GrantSpan span} -> Effect bs
-    -- "[n] gets [+p/+t] [duration]" — the stat-modifying continuous
-    -- effect, same duration and battlefield discipline
-    -- (`badGetsGraveyard`, `badGetsThisTurn`).
-    -- spelling: ["<Param(0)> gets <Param(1)>/<Param(2)>"] (signed pow/tou
-    -- pair, e.g. "+1/+1"; optional trailing duration), kind: Sentence
-    Gets : (n : Noun bs Object) -> (pow : Integer) -> (tou : Integer) ->
-           (span : Maybe Duration) -> {auto 0 ok : OnBattlefield (nounZone n)} ->
-           {auto 0 sp : GrantSpan span} -> Effect bs
-    -- "[n] can't [deed, in a voice] [duration]" — the one-shot
-    -- DEONTIC: a clause whose resolution creates a continuous effect
-    -- denying its subject a deed for the stated span ([CR#611.2a]),
-    -- which is core's
-    -- `Continuously { effect: Deontic(Cant(…)), duration }`
-    -- (`deckmaste_core/src/effect.rs`, `deontic.rs`) with the two
-    -- halves English writes. Verb and voice are separate arguments for
-    -- core's own reason: core tells the readings apart by which SLOT
-    -- carries the reference (`Block { by, on }`), so the deed and the
-    -- part the subject plays in it are two facts, and fusing them into
-    -- one word would spell "block"'s two voices as unrelated
-    -- vocabulary. The deed is the restriction the declare steps check
-    -- ([CR#508.1c] for attacking, [CR#509.1b] for blocking and for
-    -- being blocked), and it beats any permission it meets
-    -- ([CR#101.2]). Three demands, each already a shape this grammar
-    -- makes elsewhere: the subject stands on the battlefield (combat is
-    -- fought there — [CR#506.4] takes a permanent that leaves out of
-    -- combat; `badCantInGraveyard`), carries the deed's grant IN THAT
-    -- VOICE ([CR#506.3]; `badCantAttackLand`, `badCantDisjunctSubject`,
-    -- `badCantBeAttacked`), and the span is the RESTRICTION's
-    -- adverbial, not the grant's (`badCantUntilEndOfTurn`). A
-    -- durationless "can't" is the STATIC ability line ("Enchanted
-    -- creature can't attack", Pacifism) — a different construction, and
-    -- unwritable here because the slot is not optional. The subject may
-    -- be plural — "Other creatures can't attack this turn."
-    -- (Intimidation Bolt) is one sentence of many — so no grammatical
-    -- number is demanded. The surface phrases are the macros'
-    -- (`cantAttack`, `cantBlock`, `cantBeBlocked`).
-    -- spelling: ["<Param(0)> can't <Param(1)+Param(2)> <Param(3)>"],
-    -- kind: Sentence (Params 1 and 2 spell ONE verb phrase, the deed word
-    -- inflected by its voice -- Attack/Agent "attack", Block/Agent
-    -- "block", Block/Patient "be blocked"; Param(3) = Duration's own
-    -- adverbial; mirrors core's Continuously-over-Cant pair -- no single
-    -- RON constructor entry confirmed for the fused clause this pass)
-    Cant : (n : Noun bs Object) -> (deed : Deed) -> (role : Role) ->
-           (span : Duration) ->
-           {auto 0 zn : OnBattlefield (nounZone n)} ->
-           {auto 0 dp : DeedParticipant deed role (nounTy n)} ->
-           {auto 0 sp : RestrictionSpan span} -> Effect bs
+    -- "[static effect] [duration]" — the clause whose resolution
+    -- establishes a continuous effect for the span it states
+    -- ([CR#611.2a] — it "lasts as long as stated"), which is core's
+    -- `Continuously { effect, duration }` exactly
+    -- (`deckmaste_core/src/effect.rs`). One envelope for all three
+    -- constructions, because the adverbial is one slot: what varies is
+    -- which static effect precedes it, and WHICH adverbials that
+    -- construction writes is the corpus's answer, not the writer's
+    -- (`SpanOk`, over `spanUse` and `absentOk`; `badGainsThisTurn`,
+    -- `badCantUntilEndOfTurn`, `badGetsThisTurn`, `badStaticCant`).
+    -- The unwritten span is the [CR#611.2a] end-of-game default, spelled
+    -- as an explicit `Nothing` per the no-defaults convention and legal
+    -- only where its construction has an answer for it.
+    -- spelling: ["<Param(0)> <Param(1)>"], kind: Sentence (Param(0) = the
+    -- static effect's own clause, Param(1) = the trailing duration
+    -- adverbial, omitted entirely when Nothing; mirrors core's
+    -- Continuously struct field-for-field)
+    Continuously : (se : StaticEffect bs) -> (span : Maybe Duration) ->
+                   {auto 0 sp : SpanOk (staticKind se) span} -> Effect bs
     -- the keyword-action tag ([CR#701]): the named verb deontics and
     -- replacements key on, wrapping its expansion body ([CR#701.8b] —
     -- only a Destroy-tagged move IS a destruction). The tag and body
@@ -3093,9 +3309,7 @@ mutual
   effIntro (Move what to) = moveIntro Nothing what (zoneSort to)
   effIntro (ChangeLife who (Up a)) = outcomeB LifeGained :: lifeIntro (Up a)
   effIntro (ChangeLife who (Down a)) = outcomeB LifeLost :: lifeIntro (Down a)
-  effIntro (Gain n _ _) = nomIntro n
-  effIntro (Gets n _ _ _) = nomIntro n
-  effIntro (Cant n _ _ _) = nomIntro n
+  effIntro (Continuously se _) = staticIntro se
   effIntro (Composite v (Move what to)) = moveIntro (Just v) what (zoneSort to)
   effIntro (Composite _ e) = effIntro e
   effIntro (Does s v (Move what to)) = moveIntro (Just v) what (zoneSort to)

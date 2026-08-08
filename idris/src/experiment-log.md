@@ -202,12 +202,15 @@ Chapter five, temporal grammar (evidence: Jump, Giant Growth, Bond
 of Revival, Graceful Reprieve, Vraska's Stoneglare, Phthisis,
 Karplusan Yeti):
 
-17. **Duration is trailing-adverbial data.** `Gain`/`Gets` carry
-   the stated duration ([CR#611.2a]); the unstated form is an
-   explicit `Nothing` (lasts until end of game) per the
-   written-Nothing convention — no defaults. WHICH duration a
-   clause may state is not free, though: it is the construction's
-   own word (finding 55).
+17. **Duration is trailing-adverbial data.** The clause carries the
+   stated duration ([CR#611.2a]); the unstated form is an explicit
+   `Nothing` (lasts until end of game) per the written-Nothing
+   convention — no defaults. WHICH duration a clause may state is
+   not free, though: it is the construction's own word (finding
+   55). The slot moved onto the `Continuously` envelope in chapter
+   seventeen, which is where the adverbial belonged all along —
+   one slot for every continuous clause, not one per construction
+   (finding 65).
 18. **An event query transforms the delayed context.** `Delayed`
    names what it waits for; a time query settles only, and "when
    [target] dies this turn" both announces its watched referent and
@@ -821,10 +824,14 @@ the chapter's sharpest single fact):
    being blocked), and it beats any permission it meets
    ([CR#101.2]). The static line — "Enchanted creature can't
    attack", Pacifism — is durationless, continuous, and the parked
-   ability layer's; here it is unwritable because the span slot is
-   not optional, so the refusal is the ABSENT SLOT rather than a
-   gate (`badStaticCant`). That is the whole scope line, and it is
-   the smallest bite that spells a real card end to end.
+   ability layer's; here it is unwritable (`badStaticCant`). That
+   is the whole scope line, and it is the smallest bite that
+   spells a real card end to end. The refusal was first the ABSENT
+   SLOT — the restriction simply had no optional span — and
+   chapter seventeen re-seated it on the reason instead, since the
+   envelope's slot has to be optional for the grants that need it:
+   `absentOk DeedRestriction = False` is the one row of that table
+   that says no, and it says why.
 55. **The duration adverbial is the CONSTRUCTION's word, not the
    writer's.** "This turn" and "until end of turn" name the same
    span, and the corpus does not let a clause choose between them:
@@ -834,8 +841,11 @@ the chapter's sharpest single fact):
    haste" lines say "until end of turn" and not one says "this
    turn". The guide prints both wordings a section apart and
    assigns neither, so the corpus is what assigns them, and the
-   workbench carries the assignment as two complementary tables
-   (`restrictionSpan`, `grantSpan`). The cross-turn span is the one
+   workbench carries the assignment as a table — two complementary
+   ones at first (`restrictionSpan`, `grantSpan`), a single
+   attestation table over the decomposed endpoints from chapter
+   seventeen (`spanUse` and `admitsSpan`, findings 66 and 67). The
+   cross-turn span is the one
    word both constructions write — detain's "can't attack or block
    until your next turn" against Bond of Revival's "It gains haste
    until your next turn" — which is what keeps the tables from
@@ -1008,6 +1018,142 @@ single fact):
    mana value 3 or less") and an "other" with a real anchor, both
    audited.
 
+## Chapter Seventeen — The Continuous Envelope
+
+Chapter seventeen, the continuous envelope and the decomposed
+duration (evidence: Jump, Giant Growth, Bond of Revival, Glyph of
+Destruction, Gabriel Angelfire, Brazen Cannonade, Halfdane,
+Infiltrate, Change of Heart; the granularity round's biggest seam,
+and the one that moved every grant and restriction at once):
+
+64. **A duration endpoint is a BOUNDARY of a PART, optionally
+   POSSESSED — three axes, not a list of phrases.** The three
+   words the workbench had were three constructors, and reading
+   them as structure is what showed how little of the space they
+   covered: "until end of turn" is the END boundary of the TURN,
+   unpossessed; "until your next turn" is the START boundary of
+   the same part, possessed; "until your next upkeep" is the same
+   boundary of a different part. Decomposed, the phrases the
+   corpus actually writes fall out of the axes instead of being
+   enumerated — and so do the ones it doesn't, which is the point
+   of finding 66. Two things stay OUT of the structure because
+   they are the spelling layer's: "next" is derivable (a possessed
+   endpoint is always the next one — there is no "your previous
+   upkeep" for it to contrast with), and so is the article, which
+   the bare form drops and the possessed form keeps ("until end of
+   turn" against "until the end of your next turn"). Brazen
+   Cannonade settles that they are surface and not structure by
+   writing the possessive somewhere else entirely — "until end of
+   combat on your next turn", a possessed combat endpoint spelled
+   as a turn possessive. UPSTREAM: core cannot spell this space.
+   `TurnMarker` (`deckmaste_core/src/temporal.rs`) has three flat
+   rows — `EndOfTurn`, `EndOfCombat`, `YourNextTurn` — with no
+   boundary axis on the possessed row and no possessor beyond
+   "your", so "until the end of your next turn" and "until your
+   next upkeep" have no spelling there at all. Its own doc says it
+   "grows by card demand"; this decomposition is what it grows
+   into.
+65. **The adverbial is ONE slot, so the clause it modifies is one
+   node.** `Gain`, `Gets`, and `Cant` each carried a duration
+   argument and each carried its own span gate, which spelled one
+   English fact — a trailing adverbial on a continuous clause — as
+   three. Core had already made the cut: `Continuously { effect,
+   duration }` (`deckmaste_core/src/effect.rs`) puts every lasting
+   change behind one duration-bearing node, whether the change is
+   a characteristic modification (`StaticEffect::Modify`) or a
+   prohibition (`StaticEffect::Deontic`), and `Until(duration,
+   [parts])` extends the same shape to a list. So the three
+   constructors became three rows of a small `StaticEffect` — the
+   stat delta ([CR#613.4c], layer 7c), the keyword grant, the deed
+   restriction — under one `Continuously` envelope, and every
+   demand re-keyed onto the payload rather than being restated:
+   the battlefield subject rides its static row, the deed's grant
+   table rides the restriction row, and the span gate reads the
+   row's own name (`staticKind`). The macros own the surface
+   exactly as they do elsewhere (`gets`, `gains`, `gainsHaste`,
+   `cantAttack`, `cantBlock`, `cantBeBlocked`), so every positive
+   respelled without a single clause changing meaning. What the
+   envelope buys beyond tidiness is the next chapter's shape: core's
+   remaining static rows — becoming a copy, losing abilities,
+   setting base power and toughness, the conditional static — are
+   rows to add here, and each will have to declare its adverbials
+   before it can be written.
+66. **Attestation closure belongs in a TABLE, and it has to tell
+   two silences apart.** Decomposing multiplied the writable
+   endpoints from three to thirty-one, and most of them are not
+   English. Putting that in the constructors would have meant a
+   constructor per phrase again, so the closure went where this
+   workbench keeps closure — a full-rows table, `spanUse`, over
+   (boundary x part x possession) plus the bare current-turn
+   adverbial, so a new `TurnPart`, a new `Whose`, or a new
+   boundary is a totality error that must be answered with
+   evidence before anything can be written with it. The table's
+   value type is where the round learned something: a Boolean
+   would have collapsed two very different silences. `Unattested`
+   means no corpus line writes the phrase at all — nothing ends a
+   duration at an untap step in words this vocabulary has, nothing
+   writes a bare "until upkeep". `Unclaimed` means the phrase is
+   real oracle English and no construction HERE writes it: "until
+   the end of your next turn" is eighty-three lines of play
+   permissions and control grants, "until end of combat on your
+   next turn" is Brazen Cannonade's play permission, "until the
+   end of your next upkeep" is Halfdane's base-power-and-toughness
+   setting, and the three end-step endpoints are play permissions
+   and a copy effect. Every `Unclaimed` cell names a construction
+   the grammar is missing, which makes the table a frontier map as
+   well as a gate (`badGainsUntilEndOfYourNextTurn` against
+   `badGainsUntilUntapStep` — the two silences, pinned separately).
+67. **The construction's word, re-measured on the decomposed
+   space, gets sharper rather than softer.** Finding 55's
+   complementarity survived the reshape intact and gained two
+   cells. Measured jointly — the adverbial has to belong to THAT
+   clause, not merely share a line with it — "until end of turn"
+   writes one thousand five hundred fifty-nine stat changes and
+   one thousand three hundred ninety-one keyword grants and NOT
+   ONE single-deed restriction, while "this turn" inverts it
+   exactly at two hundred ninety-six restrictions and neither
+   grant. [CR#514.2] is the rule that makes the split pure
+   convention rather than semantics: cleanup ends "all 'until end
+   of turn' and 'this turn' effects" together, in one turn-based
+   action, so the two phrases name the same instant and only the
+   construction chooses between them. The new cells: "until end of
+   combat" ([CR#511.2] — it expires at the combat phase's end,
+   not the turn's) takes the two GRANTS and no restriction (Glyph
+   of Destruction's "+10/+0", one banding line), and "until your
+   next upkeep" takes the KEYWORD GRANT ALONE — Gabriel Angelfire
+   and one forestwalk line, with no stat change anywhere in the
+   corpus taking it (`badGetsUntilYourNextUpkeep`). That last cell
+   is why the two grants could not be one row of the answer table:
+   they agree on three endpoints out of four and part on the
+   fourth. `admitsSpan` carries the answers, full rows in both
+   directions, and `absentOk` carries the fourth column — whether
+   the construction may write NO adverbial at all, which the
+   grants may ([CR#611.2a]'s end-of-game default, Through the
+   Breach) and the restriction may not, that being the static
+   ability line (finding 54).
+68. **The possessor stayed a WORD, and the refusal is the
+   finding.** A possessed endpoint could have taken a noun — core
+   spells whose-turn relations as their own enum
+   (`WhoseTurn::Your`/`EachPlayers`/`AnOpponents`,
+   `deckmaste_core/src/event.rs`), but a grammar with binding
+   already has richer player nouns lying around, and "its
+   controller's next untap step" is a real corpus line that wants
+   one. Taking it would have made `Duration` bindings-indexed —
+   every consumer re-indexed, every span table carrying a context
+   — to buy a form no construction here writes: that line's clause
+   is "Target land becomes a Swamp", a base-TYPE setting, a layer
+   word this grammar has no construction for. So the possessor is
+   a closed two-word vocabulary, "your" and "that player's", which
+   is everything the corpus possesses a duration endpoint with;
+   the nominal possessor waits with the clause that needs it, and
+   the anaphoric row's own obligation — "that player's"
+   presupposes a unique player antecedent, `They`'s demand — waits
+   with the first cell that opens for it, since no current
+   construction writes one. Two axes deliberately left with no row
+   at all, on the same reasoning: the draw step and the two main
+   phases carry no duration-class adverbial anywhere in the
+   corpus, so they are not parts this type names yet.
+
 ## Engine-Boundary Deferrals
 
 Engine-boundary deferrals (deliberate, and to stay so): the
@@ -1148,7 +1294,23 @@ the discourse: `This` and its ascriptions introduce no binding, and the anchor
 search reads bindings);
 static "as long as" conditions ([CR#611.3], Kitesail Corsair —
 the card has no "for") and effect-created "for as long as"
-durations ([CR#611.2b]); last-known VALUES (reads ignore zone — finding
+durations ([CR#611.2b]); the EVENT-ended endpoint ("Exile another target
+creature until this creature leaves the battlefield", the O-Ring
+family, ninety-one lines — an endpoint named by an event rather
+than a turn boundary, which is why chapter seventeen's
+`DurationEnd` has no row for it: core spells it
+`Duration::UntilEvent(EventFilter)` and the events axis does not
+exist here, so the row waits on the axis and not on the shape);
+the DURING-scope adverbial ("During target player's next turn",
+Gideon and Mindslaver), which is not an endpoint at all but a
+window the clause holds inside, and which pairs with the
+player-subject restriction below ("Each opponent can't cast
+spells during that player's next turn"); the NOMINAL duration
+possessor ("until its controller's next untap step" — the one
+corpus line whose endpoint is possessed by a noun instead of one
+of `Whose`'s two words, and whose clause is a base-type setting,
+so it waits on the layer word as much as on the possessor,
+finding 68); last-known VALUES (reads ignore zone — finding
 19 — but [CR#109.4] gives off-battlefield objects no controller,
 so the value story belongs to the ability layer); Token / Spell
 / stack-object / Amount carriers ("that much"; bare `This` stays
@@ -1188,8 +1350,11 @@ turn"), which want the cast deed and a player-subject clause, the
 kind index making them structurally unwritable today; the deeds
 with no clause yet — "can't be regenerated" (one hundred forty-two
 lines, and usually with NO stated duration, so it wants
-[CR#611.2a]'s end-of-game default in a span slot that currently
-refuses to be empty), "can't be countered" (thirty-three), and
+[CR#611.2a]'s end-of-game default in a span slot the restriction
+row is answered `False` for — `absentOk` would have to say yes for
+that deed and no for these, which is a per-DEED answer the table
+does not have an axis for yet), "can't be countered"
+(thirty-three), and
 "doesn't untap" (one hundred twenty-two, Ty Lee above) — each
 needing its own `deedType` row and the last two a subject this
 vocabulary cannot describe; the EXCEPT rider ("can't be blocked
