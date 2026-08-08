@@ -14,16 +14,24 @@ import public Experimental
 -- wait on a corpus line that needs them.
 
 -- "[n] target [pred]s" — the exact count
+-- spelling: (construction-owned -- quantity wording; verified real family:
+-- crates/deckmaste_english/src/constructions/quantity.rs's "quantity_exact"
+-- combinator (name+semantics match: exact count, singular iff n=1))
 public export
 exactly : Nat -> Quantity
 exactly n = Range (Just n) (Just n)
 
 -- "up to [n] target [pred]s"
+-- spelling: (construction-owned -- quantity wording; matches
+-- "quantity_up_to" in constructions/quantity.rs, verified by exact name)
 public export
 upTo : Nat -> Quantity
 upTo n = Range Nothing (Just n)
 
 -- "any number of target [pred]s"
+-- spelling: (construction-owned -- quantity wording; TODO(reason: no
+-- confirmed combinator name for the unbounded "any number of" form among
+-- quantity.rs's registered names within this pass's scope))
 public export
 anyNumber : Quantity
 anyNumber = Range Nothing Nothing
@@ -32,33 +40,45 @@ anyNumber = Range Nothing Nothing
 -- serves every quantity ([CR#601.2c] announces them all alike); at
 -- exactly one the numeral is what rendering leaves unwritten ("target
 -- creature", never "one target creature").
+-- spelling: [(text: "target <Param(0)>", when: [(quantity, "Exactly(1)")])],
+-- kind: Nominal (this macro IS the Exactly(1) branch of constructors.ron's
+-- own `Target` entry -- verified line-for-line against that file)
 public export
 target : (p : Predicate bs k) -> {auto tk : Targetable k} ->
          {auto 0 hd : Headed p} -> Noun bs k
 target p = TargetGroup (exactly 1) p {tk} {hd}
 
 -- "creature"
+-- spelling: ["creature"], kind: Nominal (hasHead = True; HasType Creature)
 public export
 creature : Predicate bs Object
 creature = HasType Creature
 
 -- "creature you control"
+-- spelling: ["creature you control"], kind: TODO(reason: head noun +
+-- non-head modifier conjunction, per hasHead/And -- see Predicate)
 public export
 creatureYouControl : Predicate bs Object
 creatureYouControl = And [creature, ControlledBy You]
 
 -- "creature you don't control"
+-- spelling: ["creature you don't control"], kind: TODO(reason: see
+-- creatureYouControl; "don't" is Not's construction-owned transform)
 public export
 creatureYouDontControl : Predicate bs Object
 creatureYouDontControl = And [creature, Not (ControlledBy You)]
 
 -- "an opponent"
+-- spelling: ["an opponent"], kind: Nominal (A Opponent; "a" auto-inflects
+-- to "an" before a vowel)
 public export
 anOpponent : Noun bs Player
 anOpponent = A Opponent
 
 -- "any other target" — the macro CARRIES its phrase's presupposition
 -- (an earlier target) in its type.
+-- spelling: ["any other target"], kind: Nominal (And [AnyTarget, Other] --
+-- the sole corpus companion Arc Trail spells, finding 40)
 public export
 anyOtherTarget : {auto 0 ok : anyTargeted Object bs = True} -> Predicate bs Object
 anyOtherTarget = And [AnyTarget, Other]
@@ -66,11 +86,18 @@ anyOtherTarget = And [AnyTarget, Other]
 -- "destroy [n]" — mirrors plugins/builtin/macros/action/Destroy.ron:
 -- the Destroy tag over the battlefield→graveyard move [CR#701.8a];
 -- only a battlefield permanent is destroyable (`badDestroyGraveyard`).
+-- spelling: ["destroy <Param(0)>"], kind: Sentence (verified line-for-line
+-- against action/Destroy.ron: template "destroy ${0}", params: [Reference],
+-- body Composite(name: Destroy, body: Move(Param(0), Graveyard)) -- this
+-- macro IS that def)
 public export
 destroy : (n : Noun bs Object) -> {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
 destroy n = Composite Destroy (Move n GraveyardZ) {ok = DestroyB {z = ok}}
 
 -- "exile [n]" ([CR#701.13a]) — speculative pending its real macro.
+-- spelling: ["exile <Param(0)>"], kind: Sentence (speculative -- no
+-- action/Exile.ron artifact studied this pass; drafted by direct analogy
+-- to Destroy.ron's shape)
 public export
 exile : Noun bs Object -> Effect bs
 exile n = Composite Exile (Move n ExileZ) {ok = ExileB}
@@ -83,6 +110,9 @@ exile n = Composite Exile (Move n ExileZ) {ok = ExileB}
 -- implicit restriction is demanded (`OnBattlefield`); the controller
 -- half needs fold-state the context does not carry (not-settled).
 -- Core's `Sacrifice` variant is the whittling candidate this expands.
+-- spelling: ["<Param(0)> sacrifice(s) <Param(1)>"], kind: Sentence (core
+-- whittling candidate, no real macro studied this pass; construction
+-- mirrors Does's subject+tag+Move shape)
 public export
 sacrifice : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
             {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
@@ -95,6 +125,9 @@ sacrifice agent n = Does agent Sacrifice (Move n GraveyardZ) {tb = SacrificeB {z
 -- choice marking: the plain indefinite is the affected player's
 -- choice by default [CR#701.9b], "at random" the markedly chooserless
 -- variant (`AAtRandom` — Pyromancy).
+-- spelling: ["<Param(0)> discard(s) <Param(1)>"], kind: Sentence (no real
+-- action/Discard.ron artifact studied this pass; mirrors Does's
+-- subject+tag+Move shape, same as sacrifice)
 public export
 discards : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
            {auto 0 dk : DiscardOk n} -> Effect bs
@@ -103,22 +136,32 @@ discards agent n = Does agent Discard (Move n GraveyardZ) {tb = DiscardB {d = dk
 -- "[agent] discard(s) a card" — the common phrase, spelled sort-only
 -- (an owned-hand expansion needs a subject-read noun the vocabulary
 -- lacks — not-settled).
+-- spelling: ["<Param(0)> discard(s) a card"], kind: Sentence (sort-only
+-- expansion of `discards` at A (InZone HandZ); not an independent frame)
 public export
 discardsACard : (agent : Noun bs Player) -> Effect bs
 discardsACard agent = discards agent (A (InZone HandZ))
 
 -- "[n] gains haste [duration]"
+-- spelling: ["<Param(0)> gains haste"] (optional trailing duration), kind:
+-- Sentence (Gain n (KeywordAbility Haste) d -- see Keyword, Effect.Gain)
 public export
 gainsHaste : (n : Noun bs Object) -> Maybe Duration ->
              {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
 gainsHaste n d = Gain n (KeywordAbility Haste) d
 
 -- "[who] loses [amt] life"
+-- spelling: ["<Param(0)> loses <Param(1)> life"], kind: Sentence
+-- (ChangeLife who (Down amt) -- the `LosesLife`/Down sibling of
+-- constructors.ron's `GainLife` entry)
 public export
 losesLife : (who : Noun bs Player) -> Amount (nomIntro who) -> Effect bs
 losesLife who amt = ChangeLife who (Down amt)
 
 -- "[who] gains [amt] life"
+-- spelling: ["<Param(0)> gains <Param(1)> life"], kind: Sentence
+-- (ChangeLife who (Up amt) -- verified line-for-line against
+-- constructors.ron's `GainLife` entry exactly)
 public export
 gainsLife : (who : Noun bs Player) -> Amount (nomIntro who) -> Effect bs
 gainsLife who amt = ChangeLife who (Up amt)

@@ -761,6 +761,10 @@ module Experimental
 ||| this enum is the workbench's stand-in for reading those
 ||| declarations, like the keyword and verb macro names.
 public export
+-- spelling: (construction-owned catalog -- Creature="creature", Artifact=
+-- "artifact", Land="land", Enchantment="enchantment"; each row is a TypeDef
+-- macro's own word (see cardtype/Creature.ron), consumed by HasType/ThisOf,
+-- never spelled alone)
 data CardType = Creature | Artifact | Land | Enchantment
 
 ||| Fight participation, per type — the stand-in for reading a
@@ -785,6 +789,8 @@ data FightParticipant : Maybe CardType -> Type where
 ||| Quality sorts — the choosable characteristics ([CR#105.1,302.3];
 ||| only what the chapters need).
 public export
+-- spelling: (construction-owned catalog -- Color="color", CreatureType=
+-- "creature type"; consumed by QualityNoun/OfChosen, never spelled alone)
 data QualitySort = Color | CreatureType
 
 public export
@@ -854,6 +860,12 @@ isOne ManyOf = False
 ||| `Between` spell over the same primitive when a corpus line wants
 ||| them). A magnitude is not a quantity — that is `Amount`.
 public export
+-- spelling: (construction-owned -- the primitive itself has no word; its
+-- macros do (Experimental.Macros: exactly/upTo/anyNumber). Verified real
+-- family: crates/deckmaste_english/src/constructions/quantity.rs's combinators
+-- "quantity_exact" (exactly n) and "quantity_up_to" (upTo n) -- name+semantics
+-- match. "any number of" (anyNumber): TODO(reason: no matching combinator
+-- confirmed among that file's registered names within this pass's scope))
 data Quantity : Type where
   Range : Maybe Nat -> Maybe Nat -> Quantity
 
@@ -901,6 +913,12 @@ data AtLeastTwo : Nat -> Type where
 ||| and no consumer ever told the two apart — the emptiness lives in
 ||| the quantity, as it does in core's single announce form.
 public export
+-- spelling: (construction-owned -- TargetD/AD/EachD/AllD/TheD mark WHICH Noun
+-- constructor built a binding; the words live on Noun's own TargetGroup/A/
+-- Each/AllOf/TheVerbed rows, not here. The english crate has its own
+-- `Determiner` hole (constructions/coordination.rs's shared_determiner_nominal)
+-- confirming the concept; TODO(reason: no single owning family name verified
+-- for the per-word constructions within this pass's scope))
 data Determiner = TargetD | AD | EachD | AllD | TheD
 
 ||| Zone sorts, minimally ([CR#400.1] family) — the fold-state tag a
@@ -929,6 +947,12 @@ sameZone Hand _ = False
 ||| namespace: the tag `Exile` and the zone `Exile` are distinct words.)
 namespace Verb
   public export
+  -- spelling: (construction-owned catalog -- each row is a keyword-action tag
+  -- consumed by Composite/Does, spelled through its own macro: Destroy =
+  -- action/Destroy.ron's "destroy <Param(0)>" (verified against that file);
+  -- Sacrifice = core whittling candidate, spelled by the `sacrifice` macro;
+  -- Exile = speculative, spelled by `exile`; Discard = spelled by `discards`/
+  -- `discardsACard`. Never spelled alone -- see Experimental.Macros)
   data VerbName = Destroy | Sacrifice | Exile | Discard
 
 ||| Verb-tag equality, per-row: each row ends in its own catch-all, so
@@ -1156,6 +1180,9 @@ zoneOfThem (b :: bs) = zoneOfThem bs
 ||| the participle against the verb event's frame (`verbedMatch`).
 ||| Token, spell, and stack-object words are later chapters.
 public export
+-- spelling: (construction-owned catalog -- TypeW t = t's own CardType word,
+-- CardW = "card", PlayerW = "player"; consumed by That/Those/TheVerbed, e.g.
+-- That (TypeW Creature) = "that creature". Never spelled alone)
 data NounWord = TypeW CardType | CardW | PlayerW
 
 public export
@@ -1398,9 +1425,14 @@ targetablePhrasal PlayerTgt = PhPlayer
 ||| their parameters explicitly (e.g. a from-quality as `Maybe`, written
 ||| `Nothing` in the plain form), never as defaults.
 public export
+-- spelling: ["haste", "flying", "trample"] (row order: Haste/Flying/Trample),
+-- kind: KeywordLine (bare keyword-ability line, no params/cost -- contrast
+-- Madness.ron's parameterized "madness <Param(0)>")
 data Keyword = Haste | Flying | Trample
 
 public export
+-- spelling: (construction-owned -- pass-through; the word is entirely
+-- KeywordAbility's Keyword argument's own, see Keyword)
 data Ability = KeywordAbility Keyword
 
 ||| Durations, as the trailing adverbial writes them ([CR#611.2a] — a
@@ -1409,6 +1441,9 @@ data Ability = KeywordAbility Keyword
 ||| explicit `Nothing` spelling per the no-defaults convention).
 ||| "for as long as" durations ([CR#611.2b]) are a later chapter.
 public export
+-- spelling: ["until end of turn", "until your next turn"] (row order:
+-- UntilEndOfTurn/UntilYourNextTurn), kind: TODO(reason: trailing-adverbial
+-- fragment -- not one of Nominal/Sentence/Cost/KeywordLine/Ability)
 data Duration = UntilEndOfTurn | UntilYourNextTurn
 
 -- ===== The grammar (mutual: types thread contexts through VALUES) =====
@@ -1425,14 +1460,22 @@ mutual
   ||| enter the discourse (no current positive writes one).
   public export
   data ZoneExpr : Bindings -> Type where
+    -- spelling: ["the battlefield"], kind: Nominal
     BattlefieldZ : ZoneExpr bs
+    -- spelling: ["exile"], kind: Nominal
     ExileZ : ZoneExpr bs
+    -- spelling: ["hand"], kind: Nominal (bare sort-only form -- macro
+    -- expansions whose English wrote no owner; see the constructor comment)
     HandZ : ZoneExpr bs
+    -- spelling: ["graveyard"], kind: Nominal (bare sort-only form, see HandZ)
     GraveyardZ : ZoneExpr bs
     -- owned zones are per-player ([CR#400.1]): the possessor is
     -- singular — the plural surface is the plural relational
     -- ("their owners' hands", ledger).
+    -- spelling: ["<Param(0)>'s hand"], kind: Nominal (e.g. "your hand",
+    -- "its owner's hand" -- the owned-zone possessive form)
     HandOf : (n : Noun bs Player) -> {auto 0 one : nounPlur n = OneOf} -> ZoneExpr bs
+    -- spelling: ["<Param(0)>'s graveyard"], kind: Nominal (see HandOf)
     GraveyardOf : (n : Noun bs Player) -> {auto 0 one : nounPlur n = OneOf} -> ZoneExpr bs
 
   ||| The sort a zone expression names — what fold-state records.
@@ -1450,24 +1493,39 @@ mutual
   ||| referent, exactly as parsed (no rearrangement to figure out).
   public export
   data Predicate : Bindings -> Kind -> Type where
+    -- spelling: ["<Param(0)>"] (Param(0) = CardType's own word -- see
+    -- CardType), kind: Nominal (hasHead = True)
     HasType : CardType -> Predicate bs Object            -- head noun "creature"/…
+    -- spelling: ["player"], kind: Nominal (hasHead = True)
     AnyPlayer : Predicate bs Player                      -- head noun "player" (any player, [CR#102.1])
+    -- spelling: ["opponent"], kind: Nominal (hasHead = True)
     Opponent : Predicate bs Player                       -- head noun "opponent" (of You — team form [CR#102.3] deferred)
     -- head noun "color" / "creature type" — the choosable quality
     -- ([CR#105.1,302.3]).
+    -- spelling: ["<Param(0)>"] (Param(0) = QualitySort's own word -- see
+    -- QualitySort), kind: Nominal (hasHead = True)
     QualityNoun : (q : QualitySort) -> Predicate bs (Quality q)
     -- "of the chosen [quality]": reads the unique chosen quality (the
     -- guide's stored-quality naming; choice made at resolution
     -- [CR#608.2d]). The chosen-OBJECT twin ("the chosen creatures")
     -- waits with the definite reads.
+    -- spelling: ["of the chosen <Param(0)>"], kind: TODO(reason: non-head
+    -- modifier per hasHead -- not a complete Nominal alone)
     OfChosen : (q : QualitySort) -> {auto 0 ok : countQuality q bs = 1} -> Predicate bs Object
     -- zero relative "[player] controls": the possessor is singular
     -- ([CR#109.4] — one controller; the union read "creatures your
     -- opponents control" is the player-groups vocabulary, ledger).
+    -- spelling: ["<Param(0)> control"] (auto-inflection covers "controls"),
+    -- kind: TODO(reason: non-head relative-clause modifier per hasHead)
     ControlledBy : (n : Noun bs Player) -> {auto 0 one : nounPlur n = OneOf} -> Predicate bs Object
     -- the attacking-designation modifier ([CR#508.1a]) — a
     -- battlefield state word, not a type.
+    -- spelling: ["attacking"], kind: TODO(reason: non-head status modifier
+    -- per hasHead)
     Attacking : Predicate bs Object
+    -- spelling: ["in <Param(0)>"] (also "from <Param(0)>", see comment),
+    -- kind: Nominal (hasHead = True; implicit head is the zone's carrier,
+    -- e.g. "a card in your hand")
     InZone : ZoneExpr bs -> Predicate bs Object          -- zone clause "in/from [zone]" ([CR#109.2a])
     -- sibling modifiers, one referent. The conjunction is where the
     -- phrase-level obligations live, and they are listed here in
@@ -1478,18 +1536,28 @@ mutual
     -- and fills its one slot at most once (`OtherAnchored`), and the
     -- class word "any target" takes no modifiers but "other" and is
     -- itself written exactly once (`AnyTargetLone`).
+    -- spelling: (construction-owned -- flat modifier-list juxtaposition, not
+    -- itself a word; kind follows whether a member hasHead)
     And : (ps : List (Predicate bs k)) -> {auto 0 zc : ZoneCoherent ps} ->
           {auto 0 cf : ContradictionFree ps} -> {auto 0 oa : OtherAnchored ps} ->
           {auto 0 at : AnyTargetLone ps} -> Predicate bs k
     -- "don't"/"non-" on a modifier — over a negatable one only
     -- (`Negatable`: not the class word, not "other", not a negation).
+    -- spelling: (construction-owned -- negates its inner predicate's own
+    -- frame: "non-<Param(0)>" for a type word, "isn't <Param(0)>"/"doesn't
+    -- <Param(0)>" for a clause; the transform depends on the negated
+    -- predicate's own shape), kind: TODO(reason: non-head per hasHead)
     Not : (p : Predicate bs k) -> {auto 0 ng : Negatable p} -> Predicate bs k
     -- the modifier "other"/"another" ([CR#115.4]): distinct from every
     -- earlier target of this kind; presupposes one exists.
+    -- spelling: ["other"] (register variant "another"), kind: TODO(reason:
+    -- non-head modifier per hasHead)
     Other : {auto 0 ok : anyTargeted k bs = True} -> Predicate bs k
     -- "any target" ([CR#115.4]: creature, player, planeswalker, or
     -- battle). NOT yet de-macroable: needs `Or` and the object/player
     -- kind join; primitive only until a chapter grows those.
+    -- spelling: ["any target"], kind: Nominal (hasHead = True; matches
+    -- constructors.ron's own `AnyTarget` entry, announcement: true)
     AnyTarget : Predicate bs Object
 
   ||| The head type a predicate projects onto its referent — what "that
@@ -1960,6 +2028,8 @@ mutual
   ||| discourse.
   public export
   data Noun : Bindings -> Kind -> Type where
+    -- spelling: ["~"], kind: Nominal (matches constructors.ron's `This`
+    -- entry exactly -- nullary self-reference sigil)
     This : Noun bs Object       -- the source, by self-name or "this spell" [CR#113.7]
     -- the sorted self-reference "this artifact"/"this land"/"this
     -- creature": the source under its type noun. Unmoved it introduces
@@ -1967,14 +2037,21 @@ mutual
     -- makes it a new object [CR#400.7], which is why cost-position
     -- "Sacrifice this artifact" leaves a referent the effect's "It" can
     -- read ([CR#400.7j] is the exception letting the effect find it).
+    -- spelling: ["this <Param(0)>"], kind: Nominal (Param(0) = CardType's
+    -- word; the sorted self-reference, [CR#109.2])
     ThisOf : CardType -> Noun bs Object
+    -- spelling: ["you"], kind: Nominal (matches constructors.ron's `You`
+    -- entry exactly)
     You : Noun bs Player        -- "you" [CR#109.5]
     -- the NON-targeting determiners each demand an `AnyTargetFree`
     -- phrase: "any target" is itself the targeting form, so "a any
     -- target" / "each any target" are unwritable ([CR#115.4]).
+    -- spelling: ["each <Param(0)>"], kind: Nominal
     Each : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
            {auto 0 hd : Headed p} ->
            {auto 0 af : AnyTargetFree p} -> Noun bs k    -- "each …": a group, resolution-time [CR#608.2]
+    -- spelling: ["a <Param(0)>"], kind: Nominal (auto-inflects to "an"
+    -- before a vowel sound)
     A : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
         {auto 0 hd : Headed p} ->
         {auto 0 af : AnyTargetFree p} -> Noun bs k       -- "a …": indefinite choice/product [CR#608.2d,400.7]
@@ -1985,10 +2062,12 @@ mutual
     -- slot and its absence in the at-random variant. "Their" is a
     -- possessive pronoun: it demands exactly one player antecedent —
     -- a subject or one distributive group (`badUnboundTheirChoice`).
+    -- spelling: ["a <Param(0)> of their choice"], kind: Nominal
     ATheirChoice : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
                    {auto 0 ch : countChoosers bs = 1} ->
                    {auto 0 hd : Headed p} ->
                    {auto 0 af : AnyTargetFree p} -> Noun bs k
+    -- spelling: ["a <Param(0)> at random"], kind: Nominal
     AAtRandom : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
                 {auto 0 hd : Headed p} ->
                 {auto 0 af : AnyTargetFree p} -> Noun bs k
@@ -2004,6 +2083,11 @@ mutual
     -- the singular "target [noun]" — the `target` macro, whose numeral
     -- rendering leaves unwritten. Distinctness stays announce business
     -- ([CR#601.2c]); the quantity never encodes it.
+    -- spelling: [(text: "target <Param(1)>", when: [(0, "Exactly(1)")])],
+    -- kind: Nominal (mirrors constructors.ron's `Target` entry exactly:
+    -- params ["Quantity","Predicate"], the same Exactly(1) guard; wider
+    -- quantities spell their own numeral via Quantity's macros, e.g.
+    -- "<Param(0)> target <Param(1)>")
     TargetGroup : (q : Quantity) -> (p : Predicate bs k) ->
                   {auto tk : Targetable k} -> {auto 0 nz : NonZeroQ q} ->
                   {auto 0 hd : Headed p} ->
@@ -2011,38 +2095,51 @@ mutual
     -- "all [pred]s": the set-level group — a surface determiner the
     -- guide keeps distinct from distributive "each" (the CR fixes both
     -- sets at resolution and separates them no further).
+    -- spelling: ["all <Param(0)>"], kind: Nominal (auto-inflects plural)
     AllOf : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
             {auto 0 hd : Headed p} ->
             {auto 0 af : AnyTargetFree p} -> Noun bs k
     -- "it" / "its": the wildcard pronoun — exactly one singular Object
     -- mention may precede. Zero = unbound, two = ambiguous; both
     -- unspellable.
+    -- spelling: ["it"] (possessive "its"), kind: Nominal
     It : {auto 0 ok : countOnes Object bs = 1} -> Noun bs Object
     -- "they" for a player (singular; player groups are a later chapter).
+    -- spelling: ["they"], kind: Nominal (singular epicene)
     They : {auto 0 ok : countOnes Player bs = 1} -> Noun bs Player
     -- "them": the plural wildcard — exactly one group mention of the
     -- kind may precede (the ManyOf twin of `It`).
+    -- spelling: ["them"], kind: Nominal
     Them : {auto 0 ok : countManys Object bs = 1} -> Noun bs Object
     -- "those [noun word]s": the sorted plural demonstrative — exactly
     -- one group mention its word currently reaches.
+    -- spelling: ["those <Param(0)>"], kind: Nominal (Param(0) = NounWord's
+    -- own word -- see NounWord)
     Those : (w : NounWord) -> {auto 0 ok : countManyWord w bs = 1} -> Noun bs (kindOfW w)
     -- "that [noun word]": the sorted demonstrative — exactly one
     -- mention its word currently reaches may precede (`wordNow` — the
     -- current-state anchoring; the participle read anchors the same
     -- words to the verb event instead).
+    -- spelling: ["that <Param(0)>"], kind: Nominal (Param(0) = NounWord's
+    -- own word -- see NounWord)
     That : (w : NounWord) -> {auto 0 ok : countWord w bs = 1} -> Noun bs (kindOfW w)
     -- "the [verbed] [noun]" ("the exiled card", "the sacrificed
     -- artifact"): the definite participle read — exactly one mention
     -- stamped by that verb tag and reached by the noun word may
     -- precede. The disambiguator real text switches to where a bare
     -- demonstrative would be ambiguous (finding 26).
+    -- spelling: ["the <Param(0)> <Param(1)>"] (Param(0) = VerbName's lemma,
+    -- rendered as its past participle by auto-inflection; Param(1) =
+    -- NounWord's own word), kind: Nominal
     TheVerbed : (v : VerbName) -> (w : NounWord) ->
                 {auto 0 ok : countVerbed v w bs = 1} -> Noun bs Object
     -- "[object]'s controller" / "its owner": relational nouns — a NEW
     -- player referent derived from a SINGULAR object mention
     -- ([CR#108.3,109.4]; a group's owners need the plural relational,
     -- "their owners' hands" — future vocabulary, `badGroupOwner`).
+    -- spelling: ["<Param(0)>'s controller"], kind: Nominal
     ControllerOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Noun bs Player
+    -- spelling: ["<Param(0)>'s owner"], kind: Nominal
     OwnerOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Noun bs Player
 
   ||| Referent equality between two possessor nouns — deliberately the
@@ -2185,14 +2282,22 @@ mutual
   ||| threads like everything else.
   public export
   data Amount : Bindings -> Type where
+    -- spelling: ["<Param(0)>"] (bare numeral), kind: TODO(reason: amount
+    -- fragment -- not one of Nominal/Sentence/Cost/KeywordLine/Ability)
     Lit : Nat -> Amount bs
     -- "[its/…] power" / "toughness" / "mana value"
     -- ([CR#208.1,202.3]): one object's own numbers, so the argument
     -- is singular — a group's aggregate is written explicitly ("the
     -- total power of the sacrificed creatures", Soulblast) and is
     -- future vocabulary (`badGroupPower`).
+    -- spelling: ["<Param(0)>'s power"], kind: TODO(reason: amount fragment,
+    -- see Lit)
     PowerOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Amount bs
+    -- spelling: ["<Param(0)>'s toughness"], kind: TODO(reason: amount
+    -- fragment, see Lit)
     ToughnessOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Amount bs
+    -- spelling: ["<Param(0)>'s mana value"], kind: TODO(reason: amount
+    -- fragment, see Lit)
     ManaValueOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Amount bs
     -- "[per] [unit] for each [pred]" — the counted-set amount
     -- ("loses 1 life for each attacking creature you control");
@@ -2202,6 +2307,9 @@ mutual
     -- per-unit is a written numeral, so it is at least one
     -- (`AtLeastOne`; the comparisons that legitimately carry zero read
     -- a count rather than write one, and `Lit` stays ungated).
+    -- spelling: ["<Param(0)> for each <Param(1)>"], kind: TODO(reason:
+    -- amount fragment, see Lit; the surrounding unit word, e.g. "life",
+    -- comes from the embedding verb, not from ForEach itself)
     ForEach : {k : Kind} -> (per : Nat) -> (p : Predicate bs k) ->
               {auto 0 hd : Headed p} -> {auto 0 nz : AtLeastOne per} ->
               {auto 0 af : AnyTargetFree p} -> Amount bs
@@ -2209,11 +2317,15 @@ mutual
     -- magnitude of what an earlier clause DID. Sort-blind (the
     -- corpus reads cross damage→life, count→life, damage→mana);
     -- the value is runtime, never stored (the §3 ruling).
+    -- spelling: ["that much"], kind: TODO(reason: amount fragment, see Lit)
     ThatMuch : {auto 0 ok : countOnes Outcome bs = 1} -> Amount bs
     -- "X" — announced with the cost ([CR#107.3a,107.3i]): a fixed
     -- value by resolution, not a discourse referent.
+    -- spelling: ["X"], kind: TODO(reason: amount fragment, see Lit)
     XVal : Amount bs
     -- "[a] plus [b]" — the second operand reads after the first.
+    -- spelling: ["<Param(0)> plus <Param(1)>"], kind: TODO(reason: amount
+    -- fragment, see Lit)
     Plus : (a : Amount bs) -> Amount (amtIntro a) -> Amount bs
 
   public export
@@ -2230,7 +2342,12 @@ mutual
   ||| Life-total change operands ([CR#119.3]; `Set` is a later chapter).
   public export
   data LifeOp : Bindings -> Type where
+    -- spelling: (construction-owned -- selects ChangeLife's verb "gains",
+    -- not independently spelled; mirrors constructors.ron's `GainLife`
+    -- entry, body ChangeLife(Param(0), Up(Param(1))))
     Up : Amount bs -> LifeOp bs     -- "gains [amt] life"
+    -- spelling: (construction-owned -- selects ChangeLife's verb "loses";
+    -- the `LosesLife`/Down counterpart per the GainLife comment above)
     Down : Amount bs -> LifeOp bs   -- "loses [amt] life"
 
   public export
@@ -2244,10 +2361,14 @@ mutual
   ||| where that target is announced).
   public export
   data EventQuery : Bindings -> Type where
+    -- spelling: ["at the beginning of the next end step"], kind: TODO(reason:
+    -- temporal-adverbial fragment -- not one of the five FragmentKinds)
     NextEndStep : EventQuery bs                     -- "at the beginning of the next end step"
     -- "when [n] dies this turn" ([CR#700.4] — dying IS the
     -- battlefield-to-graveyard transition, so the watched referent
     -- stands on the battlefield; `badDiesInGraveyard`).
+    -- spelling: ["when <Param(0)> dies this turn"], kind: TODO(reason:
+    -- temporal-adverbial fragment, see NextEndStep)
     DiesThisTurn : (n : Noun bs Object) ->
                    {auto 0 ok : OnBattlefield (nounZone n)} ->
                    {auto 0 one : nounPlur n = OneOf} -> EventQuery bs
@@ -2272,6 +2393,9 @@ mutual
     -- `badDamageGraveyardCard`, `badDamageToColor`,
     -- `badDamageArtifact`), and the SOURCE is singular or
     -- distributive (`DamageSource`; `badGroupDamageSource`).
+    -- spelling: ["<Param(0)> deals <Param(1)> damage to <Param(2)>"],
+    -- kind: Sentence (matches constructors.ron's `DealDamage` entry exactly
+    -- -- Reference/Count/Reference)
     DealDamage : {k : Kind} -> (src : Noun bs Object) -> (amt : Amount (nomIntro src)) ->
                  (to : Noun (amtIntro amt) k) ->
                  {auto 0 ds : DamageSource src} ->
@@ -2288,6 +2412,11 @@ mutual
     -- reciprocal frame "those creatures fight each other" (ledger)
     -- — and participation reads the `combatant` grant, not a type
     -- name.
+    -- spelling: ["<Param(0)> fights <Param(1)>"], kind: Sentence (the
+    -- two-slot ACTION form; filter/Fight.ron studied for this pass only
+    -- carries the bare-verb EventFilter twin "<Param(0)> fights", for
+    -- "whenever ... fights" event matching -- no action-frame RON confirmed
+    -- here, so this string is a draft, not verified against a real macro)
     Fights : (a : Noun bs Object) ->
              {auto 0 za : OnBattlefield (nounZone a)} ->
              {auto 0 ta : FightParticipant (nounTy a)} ->
@@ -2298,12 +2427,14 @@ mutual
              {auto 0 pb : nounPlur b = OneOf} -> Effect bs
     -- "tap [n]" ([CR#701.26a] — tapping takes a battlefield object;
     -- `badTapGraveyard`) — core basis.
+    -- spelling: ["tap <Param(0)>"], kind: Sentence
     Tap : (n : Noun bs Object) -> {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
     -- "Choose [n]." — the choice clause as surface for the mention it
     -- announces ([CR#601.2c] for targets; [CR#608.2d] otherwise). A
     -- recorded DIVERGENCE from core, whose choose binders are
     -- resolution-time and nontarget ([CR#115.1] keeps the words
     -- apart): here the fronted sentence scopes everything after it.
+    -- spelling: ["choose <Param(0)>"], kind: Sentence
     Choose : {k : Kind} -> Noun bs k -> Effect bs
     -- "[move] [n] [to zone]" — the zone-change primitive every keyword
     -- action's body bottoms out in ([CR#701.8a] shape). Destination
@@ -2313,19 +2444,31 @@ mutual
     -- `badMoveToTargetsHand`), so only the bare forms are writable
     -- until an owner-destination positive lands (Unsummon's "its
     -- owner's hand" waits with the owned-zone work).
+    -- spelling: (construction-owned -- the bare zone-change primitive; no
+    -- English word of its own. Spelled only through its wrapping verb tag:
+    -- Composite Destroy/Sacrifice/Exile or Does _ Discard, e.g. Destroy's
+    -- own "destroy <Param(0)>" per action/Destroy.ron)
     Move : (what : Noun bs Object) -> (to : ZoneExpr (nomIntro what)) ->
            {auto 0 ok : DestOk to} -> Effect bs
     -- "[who] gains/loses [amt] life" ([CR#119.3]) — core basis (merged).
+    -- spelling: ["<Param(0)> gains <Param(1)> life", "<Param(0)> loses
+    -- <Param(1)> life"] (selects on the embedded LifeOp, Up/Down; mirrors
+    -- constructors.ron's `GainLife` entry / the merged ChangeLife family),
+    -- kind: Sentence
     ChangeLife : (who : Noun bs Player) -> (op : LifeOp (nomIntro who)) -> Effect bs
     -- "[n] gains [ability] [duration]" — establishes a continuous
     -- effect for the stated duration ([CR#611.2a]); the one-shot form
     -- modifies a battlefield object (graveyard-reaching grants are
     -- static abilities, a later chapter).
+    -- spelling: ["<Param(0)> gains <Param(1)>"] (optional trailing duration
+    -- adverbial, see Duration), kind: Sentence
     Gain : (n : Noun bs Object) -> Ability -> Maybe Duration ->
            {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
     -- "[n] gets [+p/+t] [duration]" — the stat-modifying continuous
     -- effect, same duration and battlefield discipline
     -- (`badGetsGraveyard`).
+    -- spelling: ["<Param(0)> gets <Param(1)>/<Param(2)>"] (signed pow/tou
+    -- pair, e.g. "+1/+1"; optional trailing duration), kind: Sentence
     Gets : (n : Noun bs Object) -> (pow : Integer) -> (tou : Integer) ->
            Maybe Duration -> {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
     -- the keyword-action tag ([CR#701]): the named verb deontics and
@@ -2335,6 +2478,9 @@ mutual
     -- wrong verb [CR#702.12b]; `badDestroyTaggedExile`), and a tagged
     -- move also stamps its referent's provenance — the participle
     -- read's filter (finding 26).
+    -- spelling: (construction-owned -- the keyword-action tag wrapper;
+    -- spelled by its VerbName tag's own frame, e.g. Composite Destroy _
+    -- = "destroy <Param(0)>" per action/Destroy.ron exactly), kind: Sentence
     Composite : (v : VerbName) -> (e : Effect bs) ->
                 {auto 0 ok : TagBody v e} -> {auto 0 na : NonAgentive v} -> Effect bs
     -- "[subject] [verb phrase]" — the declarative clause: the verb's
@@ -2358,6 +2504,11 @@ mutual
     -- Overgeneration accepted: a subject with no choice of its own
     -- ("You destroy target creature") is spellable, though oracle
     -- style writes the bare imperative there.
+    -- spelling: (construction-owned -- subject + verb-tag clause, e.g.
+    -- "<Param(0)> sacrifices <Param(2)>"/"<Param(0)> discards <Param(2)>";
+    -- the verb's own lemma is VerbName's, conjugation is auto-inflection --
+    -- see the sacrifice/discards macros in Experimental.Macros), kind:
+    -- Sentence
     Does : (subj : Noun bs Player) -> (v : VerbName) ->
            (e : Effect (nomIntro subj)) ->
            {auto 0 tb : TagBody v e} -> Effect bs
@@ -2366,6 +2517,7 @@ mutual
     -- performer can differ ("[player] may have [source] deal … to
     -- them"), so the body is any clause, not the decider's own verb
     -- phrase; if-you-do/if-not branches are later growth.
+    -- spelling: ["<Param(0)> may <Param(1)>"], kind: Sentence
     May : (decider : Noun bs Player) -> Effect (nomIntro decider) -> Effect bs
     -- the clause SEQUENCE — a card's sentence list and its "…, then
     -- …" alike ([CR#608.2c] orders sub-effects), mirroring core's
@@ -2377,12 +2529,21 @@ mutual
     -- spelling English, does not; `badEmptySequence`), and a
     -- one-clause sequence is a second spelling of that one clause
     -- (`badSingletonSequence`).
+    -- spelling: (construction-owned -- the clause-SEQUENCE list sugar over
+    -- `Effects`; no connective word of its own ("X. Y." vs "X, then Y." is
+    -- the renderer's choice); mirrors core's n-ary
+    -- `OneShotEffect::Sequentially`), kind: TODO(reason: a multi-sentence
+    -- body isn't one of the five FragmentKinds -- each element is its own
+    -- Sentence)
     Sequentially : {0 n : Nat} -> Effects n bs ->
                    {auto 0 ok : AtLeastTwo n} -> Effect bs
     -- "[e] [when/at event-query]" — the temporal adverbial stays on
     -- its clause (leading vs trailing position is linearization); the
     -- body reads the discourse as settled particulars transformed by
     -- the event (`delayedCtx`, [CR#603.7c,603.3d]).
+    -- spelling: ["<Param(1)> <Param(0)>"] (trailing adverbial position;
+    -- leading position swaps the order, linearization's choice -- see
+    -- EventQuery), kind: Sentence
     Delayed : (ev : EventQuery bs) -> Effect (delayedCtx ev) -> Effect bs
 
   ||| A clause sequence as a TELESCOPE, not a list of independent
@@ -2393,6 +2554,9 @@ mutual
   ||| Written with list syntax, so a card's sentences read as the card
   ||| writes them.
   public export
+  -- spelling: (construction-owned -- list syntax for the Sequentially
+  -- telescope; Nil/(::) are Idris list sugar, not English words. See
+  -- Sequentially)
   data Effects : Nat -> Bindings -> Type where
     Nil : Effects Z bs
     (::) : (e : Effect bs) -> Effects n (effIntro e) -> Effects (S n) bs
@@ -2660,5 +2824,8 @@ mutual
 ||| {T}, and activation instructions are elided the way positives elide
 ||| rider lines; the full ability layer stays parked.
 public export
+-- spelling: ["<Param(0)>: <Param(1)>"], kind: Ability (the activated-ability
+-- line shape; TODO(reason: not directly confirmed against a real
+-- Activated-shaped catalog entry among the artifacts studied this pass))
 data Activated : Bindings -> Type where
   MkActivated : (cost : Effect bs) -> Effect (publicOnly (effIntro cost)) -> Activated bs
