@@ -451,7 +451,12 @@
 |||    targeting form, so the non-targeting determiners and the
 |||    for-each domain demand an any-target-free phrase — "a any
 |||    target" and "each any target" are unwritable (`AnyTargetFree`,
-|||    `badAnyTargetUnderA`).
+|||    `badAnyTargetUnderA`). What is stated here is the SINGULAR
+|||    form's rule: [CR#115.4] names "another target," "two targets,"
+|||    and similar plural damage-class forms in the same breath, and
+|||    those carry their own structures (a division, an each-of
+|||    recipient — ledger), so "lone class word" constrains "any
+|||    target" itself, not the family it belongs to.
 ||| 41. **The sorted self-reference stands on the battlefield.** "This
 |||    creature" / "this enchantment" is a description including a
 |||    card type, so [CR#109.2] denotes the PERMANENT: `ThisOf`
@@ -595,7 +600,17 @@
 ||| Asmodeus; and condition-supplied scalars — Tellah, Great Sage's
 ||| mana SPENT is not a clause outcome at all, so it arrives with the
 ||| conditions axis); "any number of" / "X" target groups
-||| (corpus-frequent; constructors wait on verified whole cards);
+||| (corpus-frequent; constructors wait on verified whole cards), and
+||| with them the PLURAL damage-class forms — [CR#115.4] names
+||| "another target," "two targets," and similar expressly alongside
+||| "any target", and the corpus writes them either as a division
+||| ("deals 2 damage divided as you choose among one or two targets",
+||| Chandra's Pyrohelix) or as an each-of recipient ("Fall of the
+||| Titans deals X damage to each of up to two targets"); the bare
+||| up-to noun already spells (`TargetUpTo n AnyTarget`), while the
+||| division and each-of RECIPIENT structures wait with this axis and
+||| `TargetGroup`'s exact-group `AnyTargetFree` ban stands until they
+||| land;
 ||| counted UNTARGETED groups ("four lands you control" — Burning of
 ||| Xinye's subject-destroy positive waits on them); the
 ||| reciprocal fight frame ("those creatures fight each other" — one
@@ -1385,11 +1400,14 @@ mutual
     Attacking : Predicate bs Object
     InZone : ZoneExpr bs -> Predicate bs Object          -- zone clause "in/from [zone]" ([CR#109.2a])
     -- sibling modifiers, one referent. The conjunction is where the
-    -- phrase-level obligations live: explicit zones must agree and may
-    -- not contradict the phrase's own default (`ZoneCoherent`), no
-    -- member may negate a sibling (`ContradictionFree`), an "other"
-    -- needs a head-compatible anchor (`OtherAnchored`), and the class
-    -- word "any target" takes no modifiers but "other" (`AnyTargetLone`).
+    -- phrase-level obligations live, and they are listed here in
+    -- DECLARATION order: explicit zones must agree and may not
+    -- contradict the phrase's own default (`ZoneCoherent`), no member
+    -- may negate a sibling or a type a sibling presupposes
+    -- (`ContradictionFree`), an "other" needs a head-compatible anchor
+    -- and fills its one slot at most once (`OtherAnchored`), and the
+    -- class word "any target" takes no modifiers but "other" and is
+    -- itself written exactly once (`AnyTargetLone`).
     And : (ps : List (Predicate bs k)) -> {auto 0 zc : ZoneCoherent ps} ->
           {auto 0 cf : ContradictionFree ps} -> {auto 0 oa : OtherAnchored ps} ->
           {auto 0 at : AnyTargetLone ps} -> Predicate bs k
