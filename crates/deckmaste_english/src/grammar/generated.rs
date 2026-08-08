@@ -318,7 +318,97 @@ pub(super) enum GeneratedAssemblyError {
         construction: &'static str,
         source: EvidenceSourceData,
     },
+    /// A reserved contextual output has no exact closed adapter for its
+    /// declaration group and source category.
+    UnsupportedContextAdapter {
+        group: &'static str,
+        category: &'static str,
+        output: &'static str,
+    },
+    /// A contextual adapter names a field role that none of the declarations
+    /// producing that output expose.
+    MissingContextFieldRole {
+        group: &'static str,
+        category: &'static str,
+        output: &'static str,
+        role: &'static str,
+    },
+    /// A contextual role exists but its exact subtree/identity type does not
+    /// satisfy the adapter contract.
+    InvalidContextFieldRole {
+        group: &'static str,
+        category: &'static str,
+        output: &'static str,
+        role: &'static str,
+    },
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ContextFieldSource {
+    Subtree(&'static str),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ContextFieldSubstitution {
+    role: &'static str,
+    source: ContextFieldSource,
+    replacement: Expected<Nonterminal, EnglishLexicalSlot>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ContextAdapter {
+    group: &'static str,
+    source_category: &'static str,
+    target_output: &'static str,
+    context: GeneratedRuleContext,
+    target_category: Nonterminal,
+    substitutions: &'static [ContextFieldSubstitution],
+}
+
+const OBJECT_GAP_CONTEXT_FIELDS: &[ContextFieldSubstitution] = &[ContextFieldSubstitution {
+    role: "predicate",
+    source: ContextFieldSource::Subtree("VerbPhrase"),
+    replacement: Expected::Nonterminal(Nonterminal::ObjectGapVerbPhrase),
+}];
+
+const OBJECT_GAP_CONTEXT_ADAPTER: ContextAdapter = ContextAdapter {
+    group: "predicate",
+    source_category: "VerbPhrase",
+    target_output: "object_gap",
+    context: GeneratedRuleContext::ObjectGap,
+    target_category: Nonterminal::ObjectGapVerbPhrase,
+    substitutions: OBJECT_GAP_CONTEXT_FIELDS,
+};
+
+const REDUCED_PASSIVE_CONTEXT_FIELDS: &[ContextFieldSubstitution] = &[
+    ContextFieldSubstitution {
+        role: "predicate",
+        source: ContextFieldSource::Subtree("VerbPhrase"),
+        replacement: Expected::Nonterminal(Nonterminal::ReducedRecipientPassive),
+    },
+    ContextFieldSubstitution {
+        role: "head",
+        source: ContextFieldSource::Subtree("Verb"),
+        replacement: Expected::Lexical(EnglishLexicalSlot::ReducedRecipientPassiveParticiple),
+    },
+    ContextFieldSubstitution {
+        role: "object",
+        source: ContextFieldSource::Subtree("NounPhrase"),
+        replacement: Expected::Nonterminal(Nonterminal::ReducedRecipientPassiveTheme),
+    },
+];
+
+const REDUCED_PASSIVE_CONTEXT_ADAPTER: ContextAdapter = ContextAdapter {
+    group: "predicate",
+    source_category: "VerbPhrase",
+    target_output: "reduced_passive",
+    context: GeneratedRuleContext::ReducedRecipientPassive,
+    target_category: Nonterminal::ReducedRecipientPassive,
+    substitutions: REDUCED_PASSIVE_CONTEXT_FIELDS,
+};
+
+const CONTEXT_ADAPTERS: &[ContextAdapter] =
+    &[OBJECT_GAP_CONTEXT_ADAPTER, REDUCED_PASSIVE_CONTEXT_ADAPTER];
 
 /// Deterministic internal-category ids: the sorted set of `internal`
 /// constructions' category names across the active groups, in order. Shared
@@ -376,6 +466,10 @@ fn engine_category(name: &str) -> Option<Nonterminal> {
 /// chart adapter to one nominal declaration address. The outer option says
 /// whether this group owns the requested output; the inner option is the
 /// callback's semantic admission result.
+#[allow(
+    clippy::option_option,
+    reason = "the outer option is adapter ownership and the inner option is semantic admission"
+)]
 pub(super) fn typed_feature_projection(
     group: &GroupData,
     construction: usize,
@@ -414,6 +508,9 @@ pub(super) fn typed_feature_projection(
                 fields,
             ),
         ),
+        ("predicate", "precedence") => {
+            Some(crate::constructions::predicate::reduce_predicate_precedence(construction, fields))
+        }
         _ => None,
     }
 }
@@ -684,6 +781,153 @@ fn validate_evidence_sources(groups: &[&'static GroupData]) -> Result<(), Genera
     Ok(())
 }
 
+fn is_reserved_context_output(output: &str) -> bool {
+    CONTEXT_ADAPTERS
+        .iter()
+        .any(|adapter| adapter.target_output == output)
+}
+
+fn construction_has_output(construction: &ConstructionData, output: &str) -> bool {
+    construction
+        .feature_combinators
+        .iter()
+        .any(|feature| feature.target == output)
+}
+
+fn context_field_matches(kind: FieldKindData, source: ContextFieldSource) -> bool {
+    matches!(
+        (kind, source),
+        (
+            FieldKindData::Subtree { category, .. },
+            ContextFieldSource::Subtree(expected),
+        ) if category == expected
+    )
+}
+
+fn validate_context_adapters(
+    groups: &[&'static GroupData],
+    adapters: &[ContextAdapter],
+) -> Result<(), GeneratedAssemblyError> {
+    for group in groups {
+        for (construction_index, construction) in group.constructions.iter().enumerate() {
+            for output in construction
+                .feature_combinators
+                .iter()
+                .map(|feature| feature.target)
+                .filter(|output| is_reserved_context_output(output))
+            {
+                if !adapters.iter().any(|adapter| {
+                    adapter.group == group.name
+                        && adapter.source_category == construction.category
+                        && adapter.target_output == output
+                }) || typed_feature_projection(
+                    group,
+                    construction_index,
+                    output,
+                    &vec![None; construction.fields.len()],
+                )
+                .is_none()
+                {
+                    return Err(GeneratedAssemblyError::UnsupportedContextAdapter {
+                        group: group.name,
+                        category: construction.category,
+                        output,
+                    });
+                }
+            }
+        }
+    }
+
+    for adapter in adapters {
+        let Some(group) = groups
+            .iter()
+            .copied()
+            .find(|group| group.name == adapter.group)
+        else {
+            continue;
+        };
+        let constructions = group
+            .constructions
+            .iter()
+            .filter(|construction| {
+                construction.category == adapter.source_category
+                    && construction_has_output(construction, adapter.target_output)
+            })
+            .collect::<Vec<_>>();
+        if constructions.is_empty() {
+            continue;
+        }
+        for substitution in adapter.substitutions {
+            let mut matched = false;
+            for field in constructions
+                .iter()
+                .flat_map(|construction| construction.fields.iter())
+                .filter(|field| field.name == substitution.role)
+            {
+                matched = true;
+                if !context_field_matches(field.kind, substitution.source) {
+                    return Err(GeneratedAssemblyError::InvalidContextFieldRole {
+                        group: adapter.group,
+                        category: adapter.source_category,
+                        output: adapter.target_output,
+                        role: substitution.role,
+                    });
+                }
+            }
+            if !matched {
+                return Err(GeneratedAssemblyError::MissingContextFieldRole {
+                    group: adapter.group,
+                    category: adapter.source_category,
+                    output: adapter.target_output,
+                    role: substitution.role,
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
+fn contextual_rhs(
+    adapter: ContextAdapter,
+    construction: &ConstructionData,
+    form: &deckmaste_construction_compiler::runtime::FormData,
+    present: u64,
+    rhs: &[Expected<Nonterminal, EnglishLexicalSlot>],
+) -> Vec<Expected<Nonterminal, EnglishLexicalSlot>> {
+    let mut rhs = rhs.iter().copied();
+    let mut contextual = Vec::with_capacity(rhs.len());
+    for (atom_index, atom) in form.atoms.iter().enumerate() {
+        let path = match atom {
+            AtomData::Hole(path) | AtomData::Lexeme(path) | AtomData::Identity(path) => Some(*path),
+            AtomData::Literal(_) => None,
+        };
+        if path.is_some_and(|path| {
+            construction.fields.iter().any(|field| {
+                field.name == path
+                    && matches!(field.kind, FieldKindData::Sequence { .. })
+                    && present & (1_u64 << atom_index) == 0
+            })
+        }) {
+            continue;
+        }
+        let expected = rhs
+            .next()
+            .expect("the ordinary RHS was assembled from these same present atoms");
+        contextual.push(
+            path.and_then(|path| {
+                adapter
+                    .substitutions
+                    .iter()
+                    .find(|substitution| substitution.role == path)
+                    .map(|substitution| substitution.replacement)
+            })
+            .unwrap_or(expected),
+        );
+    }
+    debug_assert!(rhs.next().is_none());
+    contextual
+}
+
 fn atom_expected(
     cats: &BTreeMap<&'static str, u16>,
     aux: &AuxCategories,
@@ -838,14 +1082,23 @@ fn field_expected(
 
 /// Registers every form of every construction of every active group, in
 /// declaration order, with EXPLICIT ordinals from the declaration data.
-#[allow(
-    clippy::too_many_lines,
-    reason = "registration follows the declaration's group, construction, form, and sequence nesting"
-)]
 pub(super) fn register_generated(
     builder: &mut RuleBuilder,
     groups: &[&'static GroupData],
     cats: &BTreeMap<&'static str, u16>,
+) -> Result<(), GeneratedAssemblyError> {
+    register_generated_with_context_adapters(builder, groups, cats, CONTEXT_ADAPTERS)
+}
+
+#[allow(
+    clippy::too_many_lines,
+    reason = "registration follows the declaration's group, construction, form, and sequence nesting"
+)]
+fn register_generated_with_context_adapters(
+    builder: &mut RuleBuilder,
+    groups: &[&'static GroupData],
+    cats: &BTreeMap<&'static str, u16>,
+    context_adapters: &[ContextAdapter],
 ) -> Result<(), GeneratedAssemblyError> {
     for group in groups {
         if let Some(element) = group.element_data.iter().find(|element| {
@@ -868,6 +1121,7 @@ pub(super) fn register_generated(
     }
     validate_field_adapters(groups)?;
     validate_evidence_sources(groups)?;
+    validate_context_adapters(groups, context_adapters)?;
     let aux = auxiliary_categories(groups, cats.len());
     if groups.iter().any(|group| {
         group.element_data.iter().any(|element| {
@@ -984,64 +1238,26 @@ pub(super) fn register_generated(
                         rhs.clone(),
                         generated_cost(construction),
                     );
-                    for (target, context, alternate_lhs) in [
-                        (
-                            "object_gap",
-                            GeneratedRuleContext::ObjectGap,
-                            Nonterminal::ObjectGapVerbPhrase,
-                        ),
-                        (
-                            "reduced_passive",
-                            GeneratedRuleContext::ReducedRecipientPassive,
-                            Nonterminal::ReducedRecipientPassive,
-                        ),
-                    ] {
-                        if !construction
-                            .feature_combinators
-                            .iter()
-                            .any(|feature| feature.target == target)
-                        {
-                            continue;
-                        }
-                        let alternate_rhs = rhs
-                            .iter()
-                            .map(|expected| match (context, *expected) {
-                                (
-                                    GeneratedRuleContext::ObjectGap,
-                                    Expected::Nonterminal(Nonterminal::VerbPhrase),
-                                ) => Expected::Nonterminal(Nonterminal::ObjectGapVerbPhrase),
-                                (
-                                    GeneratedRuleContext::ReducedRecipientPassive,
-                                    Expected::Nonterminal(Nonterminal::VerbPhrase),
-                                ) => Expected::Nonterminal(Nonterminal::ReducedRecipientPassive),
-                                (
-                                    GeneratedRuleContext::ReducedRecipientPassive,
-                                    Expected::Nonterminal(Nonterminal::NounPhrase),
-                                ) if construction.id == "verb_phrase_direct_object" => {
-                                    Expected::Nonterminal(Nonterminal::ReducedRecipientPassiveTheme)
-                                }
-                                (
-                                    GeneratedRuleContext::ReducedRecipientPassive,
-                                    Expected::Lexical(EnglishLexicalSlot::AnyVerb),
-                                ) => Expected::Lexical(
-                                    EnglishLexicalSlot::ReducedRecipientPassiveParticiple,
-                                ),
-                                _ => *expected,
-                            })
-                            .collect::<Vec<_>>();
+                    for adapter in context_adapters.iter().copied().filter(|adapter| {
+                        adapter.group == group.name
+                            && adapter.source_category == construction.category
+                            && construction_has_output(construction, adapter.target_output)
+                    }) {
+                        let alternate_rhs =
+                            contextual_rhs(adapter, construction, form, present, &rhs);
                         builder.add_generated_with_cost(
                             RuleImpl::Generated(GeneratedRuleRef {
                                 group,
                                 construction: construction_index,
                                 form: form_index,
                                 sequence_atoms: present,
-                                context,
+                                context: adapter.context,
                             }),
                             ProductionId {
                                 construction: ConstructionId::new(construction.id),
                                 ordinal: form.ordinal,
                             },
-                            alternate_lhs,
+                            adapter.target_category,
                             alternate_rhs,
                             generated_cost(construction),
                         );
@@ -1117,6 +1333,7 @@ fn generated_cost(construction: &ConstructionData) -> super::ParseCost {
     for output in construction.feature_combinators {
         match output.target {
             "base_precedence" => cost.precedence = cost.precedence.saturating_add(1),
+            "base_precedence_2" => cost.precedence = cost.precedence.saturating_add(2),
             "base_attachment_count" => {
                 cost.attachment_count = cost.attachment_count.saturating_add(1);
             }
@@ -1371,8 +1588,11 @@ mod tests {
     use super::super::rules::RuleBuilder;
     use super::GeneratedAssemblyError;
     use super::GeneratedFeatureCombinator;
+    use super::OBJECT_GAP_CONTEXT_ADAPTER;
+    use super::generated_cost;
     use super::internal_categories;
     use super::register_generated;
+    use super::register_generated_with_context_adapters;
     use crate::surface::Punctuation;
 
     const fn construction(
@@ -1462,6 +1682,287 @@ mod tests {
         );
         assert_eq!(combinator.first_member_field_index(&construction), Some(0));
         assert_eq!(combinator.rest_field_index(&construction), Some(1));
+    }
+
+    #[test]
+    fn predicate_static_attachment_costs_match_the_handwritten_family() {
+        // Mutation caught: collapse the adjective dispreference from two
+        // precedence points to the PP's single point. Equalizing those costs
+        // makes adjective-vs-PP selection registration-order-sensitive.
+        let construction = |id| {
+            crate::constructions::predicate::PREDICATE_DECLARATION
+                .constructions
+                .iter()
+                .find(|construction| construction.id == id)
+                .expect("the Task 2 census contains the costed declaration")
+        };
+        assert_eq!(
+            generated_cost(construction("verb_phrase_adjective")).precedence,
+            2
+        );
+        assert_eq!(
+            generated_cost(construction("verb_phrase_prepositional")).precedence,
+            1
+        );
+    }
+
+    #[test]
+    fn predicate_temporal_attachment_cost_is_a_typed_conditional_output() {
+        // Mutation caught: omit the handwritten +1 precedence cost when the
+        // direct-object surface slot is actually an active temporal adjunct.
+        use crate::grammar::Features;
+        use crate::grammar::NounPhraseCoordinationState;
+        use crate::grammar::PredicateAttachmentPhase;
+        use crate::grammar::PredicateForm;
+        use crate::grammar::PredicateObjectState;
+        use crate::grammar::SetExceptionState;
+        use crate::word::BareNominalAdjunct;
+        use crate::word::PredicateFrame;
+
+        let construction = crate::constructions::predicate::PREDICATE_DECLARATION
+            .constructions
+            .iter()
+            .position(|construction| construction.id == "verb_phrase_direct_object")
+            .expect("the Task 2 census contains the direct-object declaration");
+        let active = Features::VerbPhrase {
+            form: PredicateForm::Imperative,
+            passive: false,
+            object: PredicateObjectState::Direct,
+            indirect_object: false,
+            selected_preposition: false,
+            phase: PredicateAttachmentPhase::Object,
+            frame: PredicateFrame::OPEN,
+            bare: true,
+            head_is_copular: false,
+            object_gap_requires_rules_object: false,
+            subjunctive: false,
+        };
+        let temporal = Features::NounPhrase {
+            agreement: None,
+            coordination_domain: None,
+            pronoun_case: None,
+            adjunct: Some(BareNominalAdjunct::Temporal),
+            set_exception: SetExceptionState::Ineligible,
+            coordination: NounPhraseCoordinationState::None,
+            recipient_passive_theme: false,
+            rules_object_followup: false,
+        };
+        assert!(matches!(
+            super::typed_feature_projection(
+                &crate::constructions::predicate::PREDICATE_DECLARATION,
+                construction,
+                "precedence",
+                &[Some(&active), Some(&temporal)],
+            ),
+            Some(Some(_))
+        ));
+        let mut passive = active.clone();
+        let Features::VerbPhrase {
+            passive: passive_state,
+            ..
+        } = &mut passive
+        else {
+            unreachable!()
+        };
+        *passive_state = true;
+        assert_eq!(
+            super::typed_feature_projection(
+                &crate::constructions::predicate::PREDICATE_DECLARATION,
+                construction,
+                "precedence",
+                &[Some(&passive), Some(&temporal)],
+            ),
+            Some(None)
+        );
+    }
+
+    const CONTEXT_OUTPUT: &[FeatureCombinatorData] = &[FeatureCombinatorData {
+        target: "object_gap",
+        combinator: "synthetic_object_gap",
+        args: &["predicate"],
+    }];
+    const PREDICATE_FIELD: FieldData = FieldData {
+        name: "predicate",
+        kind: FieldKindData::Subtree {
+            category: "VerbPhrase",
+            boxed: false,
+        },
+    };
+    const OTHER_PREDICATE_FIELD: FieldData = FieldData {
+        name: "other",
+        kind: FieldKindData::Subtree {
+            category: "VerbPhrase",
+            boxed: false,
+        },
+    };
+
+    fn contextual_construction(
+        category: &'static str,
+        fields: &'static [FieldData],
+        atoms: &'static [AtomData],
+    ) -> ConstructionData {
+        let forms = Box::leak(
+            vec![FormData {
+                name: "only",
+                ordinal: 0,
+                guarded: false,
+                erased_recognizer: None,
+                atoms,
+            }]
+            .into_boxed_slice(),
+        );
+        ConstructionData {
+            feature_combinators: CONTEXT_OUTPUT,
+            ..construction("contextual", category, false, fields, forms)
+        }
+    }
+
+    #[allow(
+        clippy::large_types_passed_by_value,
+        reason = "the synthetic runtime declaration is moved into deliberately leaked test metadata"
+    )]
+    fn contextual_group(name: &'static str, construction: ConstructionData) -> &'static GroupData {
+        let constructions = Box::leak(vec![construction].into_boxed_slice());
+        Box::leak(Box::new(GroupData {
+            name,
+            elements: &[],
+            element_data: &[],
+            lenses: &[],
+            constructions,
+        }))
+    }
+
+    #[test]
+    fn contextual_output_is_rejected_on_the_wrong_group() {
+        // Mutation caught: trigger a contextual adapter globally from the
+        // bare `object_gap` target string, regardless of declaration group.
+        let group = contextual_group(
+            "not_predicate",
+            contextual_construction(
+                "VerbPhrase",
+                &[PREDICATE_FIELD],
+                &[AtomData::Hole("predicate")],
+            ),
+        );
+        let cats = internal_categories(&[group]);
+        assert!(register_generated(&mut RuleBuilder::default(), &[group], &cats).is_err());
+    }
+
+    #[test]
+    fn contextual_output_is_rejected_on_the_wrong_source_category() {
+        // Mutation caught: accept the predicate context target on a source
+        // category other than the declared VerbPhrase adapter domain.
+        let group = contextual_group(
+            "predicate",
+            contextual_construction(
+                "NounPhrase",
+                &[PREDICATE_FIELD],
+                &[AtomData::Hole("predicate")],
+            ),
+        );
+        let cats = internal_categories(&[group]);
+        assert!(register_generated(&mut RuleBuilder::default(), &[group], &cats).is_err());
+    }
+
+    #[test]
+    fn contextual_output_is_rejected_when_the_adapter_names_the_wrong_output() {
+        // Mutation caught: let an adapter silently bind a target output other
+        // than the declaration's authored contextual feature.
+        let group = contextual_group(
+            "predicate",
+            contextual_construction(
+                "VerbPhrase",
+                &[PREDICATE_FIELD],
+                &[AtomData::Hole("predicate")],
+            ),
+        );
+        let cats = internal_categories(&[group]);
+        let wrong_output = super::ContextAdapter {
+            target_output: "not_object_gap",
+            ..OBJECT_GAP_CONTEXT_ADAPTER
+        };
+        assert!(
+            register_generated_with_context_adapters(
+                &mut RuleBuilder::default(),
+                &[group],
+                &cats,
+                &[wrong_output],
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn contextual_output_is_rejected_when_the_declared_role_is_absent() {
+        // Mutation caught: replace any VerbPhrase-shaped field even when the
+        // declaration did not assign it the contextual `predicate` role.
+        const OUTPUT: &[FeatureCombinatorData] = &[FeatureCombinatorData {
+            target: "object_gap",
+            combinator: "synthetic_object_gap",
+            args: &["other"],
+        }];
+        let mut construction = contextual_construction(
+            "VerbPhrase",
+            &[OTHER_PREDICATE_FIELD],
+            &[AtomData::Hole("other")],
+        );
+        construction.feature_combinators = OUTPUT;
+        let group = contextual_group("predicate", construction);
+        let cats = internal_categories(&[group]);
+        assert!(register_generated(&mut RuleBuilder::default(), &[group], &cats).is_err());
+    }
+
+    #[test]
+    fn contextual_output_is_rejected_when_the_role_has_the_wrong_field_category() {
+        // Mutation caught: accept the right role name with a source field
+        // category that does not satisfy the adapter's typed contract.
+        const WRONG_PREDICATE_FIELD: FieldData = FieldData {
+            name: "predicate",
+            kind: FieldKindData::Subtree {
+                category: "NounPhrase",
+                boxed: false,
+            },
+        };
+        let group = contextual_group(
+            "predicate",
+            contextual_construction(
+                "VerbPhrase",
+                &[WRONG_PREDICATE_FIELD],
+                &[AtomData::Hole("predicate")],
+            ),
+        );
+        let cats = internal_categories(&[group]);
+        assert!(register_generated(&mut RuleBuilder::default(), &[group], &cats).is_err());
+    }
+
+    #[test]
+    fn contextual_output_substitutes_only_the_declared_field_role() {
+        // Mutation caught: rewrite every recursive VerbPhrase RHS member
+        // instead of only the explicitly adapted `predicate` field.
+        let group = contextual_group(
+            "predicate",
+            contextual_construction(
+                "VerbPhrase",
+                &[PREDICATE_FIELD, OTHER_PREDICATE_FIELD],
+                &[AtomData::Hole("predicate"), AtomData::Hole("other")],
+            ),
+        );
+        let cats = internal_categories(&[group]);
+        let mut builder = RuleBuilder::default();
+        register_generated(&mut builder, &[group], &cats).expect("the adapter shape is valid");
+        let book = builder.finish(RegistrationOrder::Normal);
+        let contextual = book
+            .rules
+            .iter()
+            .find(|rule| rule.lhs == super::super::Nonterminal::ObjectGapVerbPhrase)
+            .expect("the object-gap output registers one contextual rule");
+        assert_eq!(
+            contextual.rhs,
+            [
+                Expected::Nonterminal(super::super::Nonterminal::ObjectGapVerbPhrase),
+                Expected::Nonterminal(super::super::Nonterminal::VerbPhrase),
+            ]
+        );
     }
 
     #[test]

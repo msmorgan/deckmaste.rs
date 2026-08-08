@@ -363,7 +363,7 @@ pub(super) fn select_registry(
 }
 
 #[cfg(test)]
-fn parse_nonterminal_with_registration_order(
+pub(super) fn parse_nonterminal_with_registration_order(
     source: &str,
     catalogs: &Catalogs,
     nonterminal: Nonterminal,
@@ -371,6 +371,25 @@ fn parse_nonterminal_with_registration_order(
     activation: super::generated::GeneratedActivation,
 ) -> Result<ParsedNonterminal, ParseNonterminalError> {
     let self_reference = SelfReference::default();
+    parse_nonterminal_with_self_reference_and_registration_order(
+        source,
+        catalogs,
+        nonterminal,
+        &self_reference,
+        registration_order,
+        activation,
+    )
+}
+
+#[cfg(test)]
+pub(super) fn parse_nonterminal_with_self_reference_and_registration_order(
+    source: &str,
+    catalogs: &Catalogs,
+    nonterminal: Nonterminal,
+    self_reference: &SelfReference,
+    registration_order: RegistrationOrder,
+    activation: super::generated::GeneratedActivation,
+) -> Result<ParsedNonterminal, ParseNonterminalError> {
     let surface = lex(source);
     let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
     parse_nonterminal_with_mode_and_registration_order(
@@ -379,7 +398,7 @@ fn parse_nonterminal_with_registration_order(
         nonterminal,
         &tokens,
         OpacityMode::Exact,
-        &self_reference,
+        self_reference,
         registration_order,
         activation,
     )

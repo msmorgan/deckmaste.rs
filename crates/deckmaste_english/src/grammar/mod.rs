@@ -3,6 +3,8 @@ mod clause;
 pub(crate) use clause::PredicateAttachment;
 pub(crate) use clause::auxiliary_form;
 pub(crate) use clause::extend_predicate_features;
+#[cfg(test)]
+pub(crate) use clause::fixture_catalogs;
 pub(crate) use clause::fold_auxiliary_passive;
 pub(crate) use clause::lowered_nominal_adjunct_kind;
 pub(crate) mod construction;
@@ -168,6 +170,27 @@ use crate::word::Vocab;
 use crate::word::Vocabulary;
 use crate::word::WordMatch;
 use crate::word::surface_initial_sound;
+
+#[cfg(test)]
+pub(crate) fn parse_nonterminal_with_activation_in_both_orders(
+    source: &str,
+    catalogs: &Catalogs,
+    nonterminal: Nonterminal,
+    self_reference: &SelfReference,
+    activation: GeneratedActivation,
+) -> [ParsedNonterminal; 2] {
+    [RegistrationOrder::Normal, RegistrationOrder::Reversed].map(|order| {
+        parse_support::parse_nonterminal_with_self_reference_and_registration_order(
+            source,
+            catalogs,
+            nonterminal,
+            self_reference,
+            order,
+            activation,
+        )
+        .unwrap_or_else(|error| panic!("failed to parse {source:?} under {order:?}: {error:?}"))
+    })
+}
 
 pub(crate) fn predicate_features_are_argument_complete(features: &Features) -> bool {
     matches!(

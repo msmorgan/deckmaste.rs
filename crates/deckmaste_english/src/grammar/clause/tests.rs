@@ -5317,7 +5317,7 @@ fn parse_self(source: &str) -> ParsedNonterminal {
     .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"))
 }
 
-fn fixture_catalogs() -> Catalogs {
+pub(crate) fn fixture_catalogs() -> Catalogs {
     Catalogs::default()
         .with_catalog(
             CatalogKind::KeywordAbility,

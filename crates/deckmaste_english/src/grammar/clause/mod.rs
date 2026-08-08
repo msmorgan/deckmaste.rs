@@ -52,8 +52,7 @@ pub(crate) use reduction::fold_auxiliary_passive;
 pub(in crate::grammar) use reduction::predicate_arguments_complete;
 
 #[cfg(test)]
-mod tests;
-
+pub(crate) mod tests;
 pub(super) use lowering::coordinated_modifier_as_adjectives;
 pub(super) use lowering::finish_infinitive;
 pub(super) use lowering::finish_reduced_recipient_passive;
@@ -65,3 +64,5 @@ pub(super) use reduction::reduce_clause;
 pub(crate) use reduction::reduce_generated_recipient_passive_nominal_adjunct_features;
 pub(super) use reduction::reduction_cost;
 pub(super) use rules::add_rules;
+#[cfg(test)]
+pub(crate) use tests::fixture_catalogs;

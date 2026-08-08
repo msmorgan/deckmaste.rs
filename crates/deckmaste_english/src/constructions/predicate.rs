@@ -211,6 +211,24 @@ fn reduce_verb_phrase_direct_object_features(
     extend_predicate_features(predicate, attachment)
 }
 
+fn disprefer_active_temporal_attachment(
+    predicate: &Features,
+    object: &Features,
+) -> Option<Features> {
+    matches!(predicate, Features::VerbPhrase { passive: false, .. })
+        .then_some(())
+        .and_then(|()| {
+            matches!(
+                object,
+                Features::NounPhrase {
+                    adjunct: Some(crate::word::BareNominalAdjunct::Temporal),
+                    ..
+                }
+            )
+            .then(|| predicate.clone())
+        })
+}
+
 fn reduce_verb_phrase_indirect_object_features(
     predicate: &Features,
     object: &Features,
@@ -506,11 +524,11 @@ fn into_direct_object_lens_parts(
         return (dependents, None, Vec::new(), shell);
     };
     let after = dependents.split_off(index + 1);
-    let dependent = match dependents.remove(index) {
-        VerbDependent::DirectObject(dependent)
-        | VerbDependent::Temporal(dependent)
-        | VerbDependent::Manner(dependent) => dependent,
-        _ => unreachable!("the direct-object lens index pins its variants"),
+    let (VerbDependent::DirectObject(dependent)
+    | VerbDependent::Temporal(dependent)
+    | VerbDependent::Manner(dependent)) = dependents.remove(index)
+    else {
+        unreachable!("the direct-object lens index pins its variants")
     };
     (dependents, Some(dependent), after, shell)
 }
@@ -518,9 +536,12 @@ fn into_direct_object_lens_parts(
 fn is_verb_phrase_direct_object(value: &VerbPhrase) -> bool {
     matches!(
         value.declaration_last_dependent_parts(),
-        Some((_, VerbDependent::DirectObject(ref dependent)))
-            | Some((_, VerbDependent::Temporal(ref dependent)))
-            | Some((_, VerbDependent::Manner(ref dependent)))
+        Some((
+            _,
+            VerbDependent::DirectObject(ref dependent)
+                | VerbDependent::Temporal(ref dependent)
+                | VerbDependent::Manner(ref dependent)
+        ))
             if noun_phrase_value_is_object_case(dependent)
     ) && value.declaration_core_features().is_some()
 }
@@ -650,7 +671,8 @@ fn is_verb_phrase_prepositional(value: &VerbPhrase) -> bool {
         Some((
             _,
             VerbDependent::PredicateComplement(Phrase::PrepositionalPhrase(_))
-        )) | Some((_, VerbDependent::Prepositional(_)))
+                | VerbDependent::Prepositional(_)
+        ))
     ) && value.declaration_core_features().is_some()
 }
 
@@ -748,6 +770,7 @@ deckmaste_constructions_macro::constructions! {
         derive features: Features = reduce_verb_phrase_direct_object_features(predicate, object);
         derive argument_complete: Features = complete_direct_object(predicate, object);
         derive reduced_passive: Features = reduce_reduced_passive_direct(predicate, object);
+        derive precedence: Features = disprefer_active_temporal_attachment(predicate, object);
         form only @ 0 inverse check(is_verb_phrase_direct_object) = predicate object;
         selection unique;
     }
@@ -778,7 +801,7 @@ deckmaste_constructions_macro::constructions! {
         derive features: Features = reduce_verb_phrase_adjective_features(predicate, adjective);
         derive argument_complete: Features = complete_adjective(predicate, adjective);
         derive object_gap: Features = reduce_object_gap_adjective(predicate, adjective);
-        derive base_precedence: Features = reduce_verb_phrase_adjective_features(predicate, adjective);
+        derive base_precedence_2: Features = reduce_verb_phrase_adjective_features(predicate, adjective);
         form only @ 0 inverse check(is_verb_phrase_adjective) = predicate adjective;
         selection unique;
     }
@@ -1069,6 +1092,10 @@ mod tests {
     }
 
     #[test]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the single mutation matrix keeps the frame and valency cases auditable together"
+    )]
     fn core_valency_builders_round_trip_and_reject_the_negative_matrix() {
         // Mutations caught: accept missing/surplus direct or indirect objects,
         // accept a direct object under the wrong lexical frame, admit the
@@ -1264,6 +1291,159 @@ mod tests {
     }
 
     #[test]
+    fn every_valency_destructurer_rebuilds_and_preserves_dependent_order() {
+        // Mutations caught: swap a lens prefix/suffix, drop a dependent while
+        // projecting the checked owner, or wire a generated parts function to
+        // a sibling construction's field order. These assertions add missing
+        // inverse coverage; the reviewed implementation already satisfies
+        // them, so they are regression evidence rather than a historical RED.
+        let auxiliary = full_auxiliary(
+            Auxiliary::Be,
+            AuxiliaryInflection::Present {
+                person: Person::Third,
+                number: Number::Singular,
+            },
+        );
+        let progressive_body = build_verb_phrase_base(
+            build_verb(lexical_head(Vocab::Attack, VerbSlot::PresentParticiple, 0)).unwrap(),
+        )
+        .unwrap();
+        let progressive = build_verb_phrase_auxiliary(auxiliary, progressive_body.clone()).unwrap();
+        let (recovered_auxiliary, recovered_body) = parts_verb_phrase_auxiliary(&progressive);
+        assert_eq!(recovered_auxiliary, auxiliary);
+        assert_eq!(recovered_body, progressive_body);
+        assert_eq!(
+            build_verb_phrase_auxiliary(recovered_auxiliary, recovered_body).unwrap(),
+            progressive
+        );
+
+        let ditransitive_base = build_verb_phrase_base(
+            build_verb(lexical_head(Vocab::Ask, VerbSlot::Imperative, 1)).unwrap(),
+        )
+        .unwrap();
+        let indirect =
+            build_verb_phrase_indirect_object(ditransitive_base.clone(), this_card()).unwrap();
+        let Some((recovered_base, recovered_indirect)) =
+            parts_verb_phrase_indirect_object(&indirect)
+        else {
+            panic!("the indirect-object lens must expose its focus")
+        };
+        assert_eq!(recovered_base, ditransitive_base);
+        assert_eq!(recovered_indirect, this_card());
+        assert_eq!(
+            build_verb_phrase_indirect_object(recovered_base, recovered_indirect).unwrap(),
+            indirect
+        );
+
+        let adjective = AdjectivePhrase {
+            degree: None,
+            head: crate::word::Adjective::Color(crate::word::ColorWord::Red),
+            complements: Vec::new(),
+        };
+        let copular_base = build_verb_phrase_base(
+            build_verb(lexical_head(Vocab::Be, VerbSlot::Infinitive, 0)).unwrap(),
+        )
+        .unwrap();
+        let copular = build_verb_phrase_adjective(copular_base.clone(), adjective.clone()).unwrap();
+        let Some((recovered_base, recovered_adjective)) = parts_verb_phrase_adjective(&copular)
+        else {
+            panic!("the adjective lens must expose its focus")
+        };
+        assert_eq!(recovered_base, copular_base);
+        assert_eq!(recovered_adjective, adjective);
+        assert_eq!(
+            build_verb_phrase_adjective(recovered_base, recovered_adjective).unwrap(),
+            copular
+        );
+
+        let selected_pp = PrepositionalPhrase::simple(
+            crate::syntax::Preposition::At,
+            Phrase::NounPhrase(Box::new(this_card())),
+        );
+        let look = build_verb_phrase_base(
+            build_verb(lexical_head(Vocab::Look, VerbSlot::Imperative, 1)).unwrap(),
+        )
+        .unwrap();
+        let prepositional =
+            build_verb_phrase_prepositional(look.clone(), selected_pp.clone()).unwrap();
+        let Some((recovered_base, recovered_preposition)) =
+            parts_verb_phrase_prepositional(&prepositional)
+        else {
+            panic!("the prepositional lens must expose its focus")
+        };
+        assert_eq!(recovered_base, look);
+        assert_eq!(recovered_preposition, selected_pp);
+        assert_eq!(
+            build_verb_phrase_prepositional(recovered_base, recovered_preposition).unwrap(),
+            prepositional
+        );
+
+        let infinitive = InfinitiveClause::declaration_to(
+            build_verb_phrase_base(
+                build_verb(lexical_head(Vocab::Attack, VerbSlot::Infinitive, 0)).unwrap(),
+            )
+            .unwrap(),
+        );
+        let begin = build_verb_phrase_base(
+            build_verb(lexical_head(Vocab::Begin, VerbSlot::Imperative, 0)).unwrap(),
+        )
+        .unwrap();
+        let infinitival = build_verb_phrase_infinitive(begin.clone(), infinitive.clone()).unwrap();
+        let Some((recovered_base, recovered_infinitive)) =
+            parts_verb_phrase_infinitive(&infinitival)
+        else {
+            panic!("the infinitive lens must expose its focus")
+        };
+        assert_eq!(recovered_base, begin);
+        assert_eq!(recovered_infinitive, infinitive);
+        assert_eq!(
+            build_verb_phrase_infinitive(recovered_base, recovered_infinitive).unwrap(),
+            infinitival
+        );
+
+        let with_indirect =
+            build_verb_phrase_indirect_object(ditransitive_base.clone(), this_card()).unwrap();
+        let with_direct =
+            build_verb_phrase_direct_object(with_indirect.clone(), this_card()).unwrap();
+        let trailing_pp = PrepositionalPhrase::simple(
+            crate::syntax::Preposition::During,
+            Phrase::NounPhrase(Box::new(this_card())),
+        );
+        let ordered =
+            build_verb_phrase_prepositional(with_direct.clone(), trailing_pp.clone()).unwrap();
+        let Some((before_pp, recovered_pp)) = parts_verb_phrase_prepositional(&ordered) else {
+            panic!("the last PP must remain the outer focus")
+        };
+        assert_eq!(before_pp, with_direct);
+        assert_eq!(recovered_pp, trailing_pp);
+        let Some((before_direct, recovered_direct)) = parts_verb_phrase_direct_object(&before_pp)
+        else {
+            panic!("the direct object must follow the indirect object")
+        };
+        assert_eq!(before_direct, with_indirect);
+        assert_eq!(recovered_direct, this_card());
+        let Some((before_indirect, recovered_indirect)) =
+            parts_verb_phrase_indirect_object(&before_direct)
+        else {
+            panic!("the indirect object must remain nearest the base")
+        };
+        assert_eq!(before_indirect, ditransitive_base);
+        assert_eq!(recovered_indirect, this_card());
+        assert_eq!(
+            build_verb_phrase_prepositional(
+                build_verb_phrase_direct_object(
+                    build_verb_phrase_indirect_object(before_indirect, recovered_indirect).unwrap(),
+                    recovered_direct,
+                )
+                .unwrap(),
+                recovered_pp,
+            )
+            .unwrap(),
+            ordered
+        );
+    }
+
+    #[test]
     fn generated_contexts_cover_agreement_object_gap_and_reduced_recipient_passive() {
         // Mutations caught: bypass finite subject agreement, fail to project
         // the declaration family into the object-gap category, retain an
@@ -1328,5 +1508,65 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn inactive_generated_adjective_pp_selection_matches_in_both_orders() {
+        // Mutations caught: charge adjective like PP instead of +2 versus +1,
+        // or let that defect make equal-cost alternatives depend on
+        // registration order. The conditional active-temporal cost has its
+        // own exact projection test in `grammar::generated`.
+        let source = "Nissa's power is equal to the number of lands you control.";
+        let self_reference = crate::identity::SelfReference::new("Nissa Revane", true);
+        let catalogs = crate::grammar::fixture_catalogs();
+        let handwritten = crate::grammar::parse_nonterminal_with_activation_in_both_orders(
+            source,
+            &catalogs,
+            Nonterminal::Sentence,
+            &self_reference,
+            GeneratedActivation::Production,
+        );
+        let generated = crate::grammar::parse_nonterminal_with_activation_in_both_orders(
+            source,
+            &catalogs,
+            Nonterminal::Sentence,
+            &self_reference,
+            GeneratedActivation::Groups(all_groups_with_predicate()),
+        );
+        let handwritten_shape = format!(
+            "{:#?}",
+            handwritten[0]
+                .sentence()
+                .expect("the handwritten parse lowers a sentence")
+        );
+        let generated_shape = format!(
+            "{:#?}",
+            generated[0]
+                .sentence()
+                .expect("the generated parse lowers a sentence")
+        );
+        assert_eq!(
+            format!(
+                "{:#?}",
+                handwritten[1]
+                    .sentence()
+                    .expect("the reversed handwritten parse lowers a sentence")
+            ),
+            handwritten_shape,
+            "handwritten selection changed under reversal for {source:?}"
+        );
+        assert_eq!(
+            format!(
+                "{:#?}",
+                generated[1]
+                    .sentence()
+                    .expect("the reversed generated parse lowers a sentence")
+            ),
+            generated_shape,
+            "generated selection changed under reversal for {source:?}"
+        );
+        assert_eq!(generated_shape, handwritten_shape, "{source:?}");
+        assert_eq!(generated[0].cost(), handwritten[0].cost(), "{source:?}");
+        assert_eq!(generated[1].cost(), handwritten[1].cost(), "{source:?}");
     }
 }
