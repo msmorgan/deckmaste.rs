@@ -270,6 +270,44 @@ gainsHaste : (n : Noun bs Object) -> (d : Maybe Duration) ->
              {auto 0 sp : GrantSpan d} -> Effect bs
 gainsHaste n d = Gain n (KeywordAbility Haste) d
 
+-- The one-shot restrictions, one macro per verb phrase English
+-- writes: the deed word inflected by the voice its subject's part
+-- calls for. Core marks the same distinction by which slot carries the
+-- reference (`DeonticAction::Block { by, on }`, `deontic.rs`); here it
+-- is the `Role` argument, and these three names are the whole attested
+-- surface. Each threads the clause's demands — battlefield subject,
+-- the deed's grant in that voice, the restriction's own adverbial — to
+-- its caller.
+
+-- "[n] can't attack [duration]" ([CR#508.1c]) — Change of Heart.
+-- spelling: ["<Param(0)> can't attack <Param(1)>"], kind: Sentence
+public export
+cantAttack : (n : Noun bs Object) -> (span : Duration) ->
+             {auto 0 zn : OnBattlefield (nounZone n)} ->
+             {auto 0 dp : DeedParticipant Attack Agent (nounTy n)} ->
+             {auto 0 sp : RestrictionSpan span} -> Effect bs
+cantAttack n span = Cant n Attack Agent span {zn} {dp} {sp}
+
+-- "[n] can't block [duration]" ([CR#509.1b]) — Blindblast, Blinding
+-- Flare.
+-- spelling: ["<Param(0)> can't block <Param(1)>"], kind: Sentence
+public export
+cantBlock : (n : Noun bs Object) -> (span : Duration) ->
+            {auto 0 zn : OnBattlefield (nounZone n)} ->
+            {auto 0 dp : DeedParticipant Block Agent (nounTy n)} ->
+            {auto 0 sp : RestrictionSpan span} -> Effect bs
+cantBlock n span = Cant n Block Agent span {zn} {dp} {sp}
+
+-- "[n] can't be blocked [duration]" ([CR#509.1b]) — Infiltrate; the
+-- passive of the same deed, the subject standing in core's `on` slot.
+-- spelling: ["<Param(0)> can't be blocked <Param(1)>"], kind: Sentence
+public export
+cantBeBlocked : (n : Noun bs Object) -> (span : Duration) ->
+                {auto 0 zn : OnBattlefield (nounZone n)} ->
+                {auto 0 dp : DeedParticipant Block Patient (nounTy n)} ->
+                {auto 0 sp : RestrictionSpan span} -> Effect bs
+cantBeBlocked n span = Cant n Block Patient span {zn} {dp} {sp}
+
 -- "[who] loses [amt] life"
 -- spelling: ["<Param(0)> loses <Param(1)> life"], kind: Sentence
 -- (ChangeLife who (Down amt) -- the `LosesLife`/Down sibling of

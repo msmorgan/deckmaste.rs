@@ -443,14 +443,14 @@ anotherDisjunctPhrase = And [Or [creature, land], Other]
 -- creature being blocked, core's `on` slot, where "can't block" would
 -- put it in `by`.
 infiltrate : Effect []
-infiltrate = Cant (target creature) BeBlocked ThisTurn
+infiltrate = cantBeBlocked (target creature) ThisTurn
 
 -- "Target creature can't attack this turn." (Change of Heart; its
 -- Buyback line elided — a keyword rider, as with Cascade and Splice)
 -- — the active voice of the same clause, checked at declare attackers
 -- instead ([CR#508.1c]).
 changeOfHeart : Effect []
-changeOfHeart = Cant (target creature) Attack ThisTurn
+changeOfHeart = cantAttack (target creature) ThisTurn
 
 -- "Blindblast deals 1 damage to target creature. That creature can't
 -- block this turn." (Blindblast; "Draw a card." elided — no draw
@@ -459,7 +459,7 @@ changeOfHeart = Cant (target creature) Attack ThisTurn
 -- clause introduced, and the deontic needs nothing of its own for it.
 blindblast : Effect []
 blindblast = Sequentially [DealDamage This (Lit 1) (target creature),
-                           Cant (That (TypeW Creature)) Block ThisTurn]
+                           cantBlock (That (TypeW Creature)) ThisTurn]
 
 -- "Any number of target creatures can't block this turn." (Blinding
 -- Flare; its Strive cost-modification line elided) — the subject is
@@ -467,7 +467,7 @@ blindblast = Sequentially [DealDamage This (Lit 1) (target creature),
 -- ranges over whatever its subject phrase describes, one creature or a
 -- group announced at once.
 blindingFlare : Effect []
-blindingFlare = Cant (TargetGroup anyNumber creature) Block ThisTurn
+blindingFlare = cantBlock (TargetGroup anyNumber creature) ThisTurn
 
 -- ===== A bound on a characteristic: the comparatives chapter =====
 
@@ -1341,7 +1341,7 @@ failing "NotSeq"
 -- ([CR#701.14d]), `deedType` the combat grants themselves.
 failing "DeedParticipant"
   badCantAttackLand : Effect []
-  badCantAttackLand = Cant (target land) Attack ThisTurn
+  badCantAttackLand = cantAttack (target land) ThisTurn
 
 -- A coordinated head fixes no type (finding 50), and an untyped head
 -- cannot prove participation: "target creature or land" would have to
@@ -1349,7 +1349,19 @@ failing "DeedParticipant"
 -- is not permission — `DamageableTy` learned the same lesson.
 failing "DeedParticipant"
   badCantDisjunctSubject : Effect []
-  badCantDisjunctSubject = Cant (target (Or [creature, land])) Block ThisTurn
+  badCantDisjunctSubject = cantBlock (target (Or [creature, land])) ThisTurn
+
+-- Splitting the voice off the deed word made "can't be attacked"
+-- WRITABLE as a term for the first time, so the table has to say why
+-- it is not writable of a creature: only a player, a planeswalker, or
+-- a battle can be attacked ([CR#506.3]). The phrase itself is real
+-- oracle ("The Aetherspark can't be attacked"; "until your next turn,
+-- you can't be attacked except by creatures with flying") and waits on
+-- those types and on the ledgered player subject — which is why this
+-- voice gets no macro of its own.
+failing "DeedParticipant"
+  badCantBeAttacked : Effect []
+  badCantBeAttacked = Cant (target creature) Attack Patient ThisTurn
 
 -- Combat is fought on the battlefield: a permanent that leaves it is
 -- removed from combat ([CR#506.4]), so a graveyard card has no deed to
@@ -1358,7 +1370,7 @@ failing "DeedParticipant"
 failing "OnBattlefield"
   badCantInGraveyard : Effect []
   badCantInGraveyard =
-    Cant (target (And [creature, InZone GraveyardZ])) Block ThisTurn
+    cantBlock (target (And [creature, InZone GraveyardZ])) ThisTurn
 
 -- The class word names [CR#115.4]'s damage class, describes no object,
 -- and so places none — and the restriction needed no rule of its own to
@@ -1366,7 +1378,7 @@ failing "OnBattlefield"
 -- exactly as for destroy and tap (`badDestroyAnyTarget`).
 failing "OnBattlefield"
   badCantAnyTarget : Effect []
-  badCantAnyTarget = Cant (target AnyTarget) Block ThisTurn
+  badCantAnyTarget = cantBlock (target AnyTarget) ThisTurn
 
 -- The same span, the wrong word. Two hundred ninety-six corpus lines
 -- write a one-shot restriction and every one of them says "this turn";
@@ -1374,7 +1386,7 @@ failing "OnBattlefield"
 -- (`badGainsThisTurn`).
 failing "RestrictionSpan"
   badCantUntilEndOfTurn : Effect []
-  badCantUntilEndOfTurn = Cant (target creature) Block UntilEndOfTurn
+  badCantUntilEndOfTurn = cantBlock (target creature) UntilEndOfTurn
 
 -- …and the inverse, which is what keeps the new word from opening a
 -- hole: no corpus line grants an ability "this turn".
@@ -1395,7 +1407,7 @@ failing "GrantSpan"
 -- slot's own name, which is why it carries one.
 failing "span : Duration"
   badStaticCant : Effect []
-  badStaticCant = Cant (target creature) Block
+  badStaticCant = cantBlock (target creature)
 
 -- ===== What carries a bound, and how it is written =====
 

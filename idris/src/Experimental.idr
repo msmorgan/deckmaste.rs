@@ -751,32 +751,47 @@
 |||    side was gated in the same edit rather than after the fact
 |||    (`badGainsThisTurn`, `badGetsThisTurn`) — wave five's coupling
 |||    rule, applied before the hole existed.
-||| 56. **The role rides the word, because the clause has one subject.**
+||| 56. **The role is an axis, because the clause has one subject.**
 |||    Core tells "can't block" from "can't be blocked" by which SLOT
 |||    carries the reference (`DeonticAction::Block { by, on }`), and
 |||    the predecessor grammar does the same (`Enact Block <agent>
 |||    <patient>`, `Semantics.idr`). A clause has ONE subject and no
 |||    second slot to put the distinction in, so English marks it in
-|||    the VOICE, and the deed word carries it here: `Attack`, `Block`,
-|||    `BeBlocked` are literally the verb phrase after "can't". The
-|||    vocabulary is CLOSED and every table over it is written out, so
-|||    a new deed is a totality error that has to declare which types
-|||    carry its grant before it can be written — the `combatant`
-|||    precedent, one chapter on.
-||| 57. **The deed's grant table is not the fight table.** [CR#506.3]
-|||    — "Only a creature can attack or block" — answers all three
-|||    rows, the passive included, because what a blocker blocks is an
-|||    attacking creature ([CR#509.1a]). That is the same verdict
-|||    `combatant` gives and a DIFFERENT question: the fight chapter
-|||    minted that table precisely because fight keys on type
-|||    membership and deals non-combat damage ([CR#701.14b,701.14d]),
-|||    where these deeds are combat proper and read the grants
-|||    Creature.ron actually confers. So a second table, `deedType`,
-|||    written out in both directions like `sameKind`. It has no
-|||    untyped row: a coordinated subject fixes no type (finding 50)
-|||    and therefore cannot prove participation
-|||    (`badCantDisjunctSubject`) — silence read as permission, refused
-|||    a third time.
+|||    the VOICE — and the granularity round gave the voice its own
+|||    argument (`Role`, `Agent`/`Patient`, core's two slot names)
+|||    rather than a third deed word. The chapter's first shape spelled
+|||    `BeBlocked` as vocabulary, which said that the passive of block
+|||    was a verb unrelated to block; the pair says what core says. The
+|||    verb phrase after "can't" is then the DEED under its VOICE, and
+|||    the macros own it (`cantAttack`, `cantBlock`, `cantBeBlocked`).
+|||    Both vocabularies stay CLOSED and every table over them is
+|||    written out, so a new deed is a totality error that has to
+|||    declare which types carry its grant, in which voice, before it
+|||    can be written — the `combatant` precedent, one chapter on.
+||| 57. **The deed's grant table is not the fight table, and it reads
+|||    the voice.** [CR#506.3]'s first sentence — "Only a creature can
+|||    attack or block" — answers the active rows, and the passive of
+|||    BLOCK too, because what a blocker blocks is an attacking
+|||    creature ([CR#509.1a]). That is the same verdict `combatant`
+|||    gives and a DIFFERENT question: the fight chapter minted that
+|||    table precisely because fight keys on type membership and deals
+|||    non-combat damage ([CR#701.14b,701.14d]), where these deeds are
+|||    combat proper and read the grants Creature.ron actually confers.
+|||    So a second table, `deedType`, written out in every direction
+|||    like `sameKind`. It has no untyped row: a coordinated subject
+|||    fixes no type (finding 50) and therefore cannot prove
+|||    participation (`badCantDisjunctSubject`) — silence read as
+|||    permission, refused a third time. Splitting the voice off the
+|||    deed word then made one more term WRITABLE and the table had to
+|||    answer for it: "can't be attacked" is refused of every card type
+|||    this grammar spells, by the SECOND sentence of the same rule —
+|||    only a player, a planeswalker, or a battle can be attacked
+|||    (`badCantBeAttacked`). The phrase is real oracle ("The
+|||    Aetherspark can't be attacked"; "you can't be attacked except by
+|||    creatures with flying"), so the row is waiting on the
+|||    planeswalker and battle types and on the ledgered player
+|||    subject, not on a corpus witness — a deferral the table now
+|||    states instead of a vocabulary gap that hid it.
 ||| 58. **Everything else the restriction needed was already there.**
 |||    The class word places nothing, so the battlefield demand refuses
 |||    it with no rule of its own (`badCantAnyTarget`), exactly as it
@@ -2228,61 +2243,89 @@ data GrantSpan : Maybe Duration -> Type where
 
 -- ===== Deontic restrictions (the one-shot "can't" vocabulary) =====
 
-||| The deed a restriction denies, with the ROLE its subject plays in
-||| it. Core and the predecessor grammar both mark that role by which
+||| The deed a restriction denies — the verb alone. Core and the
+||| predecessor grammar both mark WHICH PART the subject plays by which
 ||| SLOT carries the reference — `DeonticAction::Block { by, on }`
 ||| (`deckmaste_core/src/deontic.rs`), `Enact Block <agent> <patient>`
 ||| (`Semantics.idr`) — but a clause with ONE subject has no second slot
-||| to put it in, so English marks it in the VOICE and the deed word
-||| carries it here: "can't block" against "can't be blocked". Closed
-||| and row-enumerated, and every table over it is written out, so a new
+||| to put it in, so English marks it in the VOICE: "can't block"
+||| against "can't be blocked". That is an axis of its own (`Role`),
+||| not a second deed word, so this enum stops at the verbs. Closed and
+||| row-enumerated, and every table over it is written out, so a new
 ||| deed is a totality error that must declare which types carry its
-||| grant before it can be written at all. These three lead the one-shot
-||| restrictions in the corpus — "can't be blocked this turn" one hundred
-||| seventy-three lines, "can't block this turn" one hundred fifteen,
-||| "can't attack this turn" eight — and the rest of the deontic surface
-||| is either the parked ability layer or a deed with no clause of its
-||| own yet.
+||| grant, in which voice, before it can be written at all. These lead
+||| the one-shot restrictions in the corpus — "can't be blocked this
+||| turn" one hundred seventy-three lines, "can't block this turn" one
+||| hundred fifteen, "can't attack this turn" eight — and the rest of
+||| the deontic surface is either the parked ability layer or a deed
+||| with no clause of its own yet.
 public export
--- spelling: ["attack", "block", "be blocked"] (row order: Attack/Block/
--- BeBlocked -- the verb phrase after "can't"; two active infinitives and
--- one passive, consumed by Effect.Cant, never spelled alone)
-data Deed = Attack | Block | BeBlocked
+-- spelling: ["attack", "block"] (the bare verb; `Role` inflects it into
+-- the verb phrase after "can't" -- "block" against "be blocked" -- and the
+-- PAIR is what Effect.Cant spells, never this enum alone)
+data Deed = Attack | Block
 
-||| Which card types carry a deed's grant — the stand-in for reading
-||| `May(Attack)`/`May(Block)` off the TypeDef declaration
-||| (`plugins/builtin/macros/cardtype/Creature.ron`), and a DIFFERENT
-||| table from `combatant`, which the fight chapter minted precisely
-||| because fight keys on type membership and deals non-combat damage
-||| ([CR#701.14b,701.14d]) where these deeds are combat proper.
-||| [CR#506.3] — "Only a creature can attack or block" — answers all
-||| three rows, the passive included: what a blocker blocks is an
-||| attacking creature ([CR#509.1a]). Written out in BOTH directions,
-||| `sameKind`-style, so a new deed and a new card type are each a
-||| totality error rather than a silent `False`.
+||| Which part the restriction's SUBJECT plays in the deed: core's two
+||| slots as one axis, since a one-subject clause has only its voice to
+||| say it with. `Agent` is the active reading and core's `by` slot
+||| ("can't block"), `Patient` the passive and core's `on` ("can't be
+||| blocked"). The words are the predecessor grammar's own
+||| (`Enact Block <agent> <patient>`, `Semantics.idr`).
 public export
-deedType : Deed -> CardType -> Bool
-deedType Attack Creature = True
-deedType Attack Artifact = False
-deedType Attack Land = False
-deedType Attack Enchantment = False
-deedType Block Creature = True
-deedType Block Artifact = False
-deedType Block Land = False
-deedType Block Enchantment = False
-deedType BeBlocked Creature = True
-deedType BeBlocked Artifact = False
-deedType BeBlocked Land = False
-deedType BeBlocked Enchantment = False
+-- spelling: (construction-owned -- the VOICE of Deed's verb: Agent leaves
+-- it bare, Patient makes it passive ("be blocked"). Consumed by
+-- Effect.Cant, never spelled alone)
+data Role = Agent | Patient
+
+||| Which card types carry a deed's grant IN A GIVEN VOICE — the
+||| stand-in for reading `May(Attack)`/`May(Block)` off the TypeDef
+||| declaration (`plugins/builtin/macros/cardtype/Creature.ron`), and a
+||| DIFFERENT table from `combatant`, which the fight chapter minted
+||| precisely because fight keys on type membership and deals
+||| non-combat damage ([CR#701.14b,701.14d]) where these deeds are
+||| combat proper. [CR#506.3] — "Only a creature can attack or block" —
+||| answers the active rows, and the passive of BLOCK too, because what
+||| a blocker blocks is an attacking creature ([CR#509.1a]). The
+||| passive of ATTACK is answered by the SECOND sentence of that same
+||| rule: only a player, a planeswalker, or a battle can be attacked,
+||| and not one of those is a card type this grammar spells. So that
+||| whole row is False — and False for a reason worth
+||| writing down, because the PHRASE is real oracle: "The Aetherspark
+||| can't be attacked" writes it of a planeswalker, and "until your
+||| next turn, you can't be attacked except by creatures with flying"
+||| writes it of a player. The row waits on the planeswalker and battle
+||| card types and on the ledgered player-subject restriction, not on a
+||| corpus witness. Written out in every direction, `sameKind`-style,
+||| so a new deed, a new voice, and a new card type are each a totality
+||| error rather than a silent `False`.
+public export
+deedType : Deed -> Role -> CardType -> Bool
+deedType Attack Agent Creature = True
+deedType Attack Agent Artifact = False
+deedType Attack Agent Land = False
+deedType Attack Agent Enchantment = False
+deedType Attack Patient Creature = False
+deedType Attack Patient Artifact = False
+deedType Attack Patient Land = False
+deedType Attack Patient Enchantment = False
+deedType Block Agent Creature = True
+deedType Block Agent Artifact = False
+deedType Block Agent Land = False
+deedType Block Agent Enchantment = False
+deedType Block Patient Creature = True
+deedType Block Patient Artifact = False
+deedType Block Patient Land = False
+deedType Block Patient Enchantment = False
 
 ||| The deed's demand on its subject's projected head, as a witness —
-||| `FightParticipant`'s shape for the combat grants. There is no
-||| `Nothing` row: an UNTYPED head cannot prove participation, so a
-||| disjunctive subject, which honestly fixes no type (finding 50), is
-||| refused rather than waved through on its silence.
+||| `FightParticipant`'s shape for the combat grants, reading the voice
+||| along with the verb. There is no `Nothing` row: an UNTYPED head
+||| cannot prove participation, so a disjunctive subject, which
+||| honestly fixes no type (finding 50), is refused rather than waved
+||| through on its silence.
 public export
-data DeedParticipant : Deed -> Maybe CardType -> Type where
-  Participant : {auto 0 ok : deedType d t = True} -> DeedParticipant d (Just t)
+data DeedParticipant : Deed -> Role -> Maybe CardType -> Type where
+  Participant : {auto 0 ok : deedType d r t = True} -> DeedParticipant d r (Just t)
 
 ||| Which duration a RESTRICTION writes — `grantSpan`'s complement, and
 ||| complementary is what the corpus makes it. Every one-shot
@@ -3904,33 +3947,44 @@ mutual
     Gets : (n : Noun bs Object) -> (pow : Integer) -> (tou : Integer) ->
            (span : Maybe Duration) -> {auto 0 ok : OnBattlefield (nounZone n)} ->
            {auto 0 sp : GrantSpan span} -> Effect bs
-    -- "[n] can't [deed] [duration]" — the one-shot DEONTIC: a clause
-    -- whose resolution creates a continuous effect denying its subject
-    -- a deed for the stated span ([CR#611.2a]), which is core's
+    -- "[n] can't [deed, in a voice] [duration]" — the one-shot
+    -- DEONTIC: a clause whose resolution creates a continuous effect
+    -- denying its subject a deed for the stated span ([CR#611.2a]),
+    -- which is core's
     -- `Continuously { effect: Deontic(Cant(…)), duration }`
     -- (`deckmaste_core/src/effect.rs`, `deontic.rs`) with the two
-    -- halves English writes. The deed is the restriction the declare
-    -- steps check ([CR#508.1c] for attacking, [CR#509.1b] for blocking
-    -- and for being blocked), and it beats any permission it meets
+    -- halves English writes. Verb and voice are separate arguments for
+    -- core's own reason: core tells the readings apart by which SLOT
+    -- carries the reference (`Block { by, on }`), so the deed and the
+    -- part the subject plays in it are two facts, and fusing them into
+    -- one word would spell "block"'s two voices as unrelated
+    -- vocabulary. The deed is the restriction the declare steps check
+    -- ([CR#508.1c] for attacking, [CR#509.1b] for blocking and for
+    -- being blocked), and it beats any permission it meets
     -- ([CR#101.2]). Three demands, each already a shape this grammar
     -- makes elsewhere: the subject stands on the battlefield (combat is
     -- fought there — [CR#506.4] takes a permanent that leaves out of
-    -- combat; `badCantInGraveyard`), carries the deed's grant
-    -- ([CR#506.3]; `badCantAttackLand`, `badCantDisjunctSubject`), and
-    -- the span is the RESTRICTION's adverbial, not the grant's
-    -- (`badCantUntilEndOfTurn`). A durationless "can't" is the STATIC
-    -- ability line ("Enchanted creature can't attack", Pacifism) — a
-    -- different construction, and unwritable here because the slot is
-    -- not optional. The subject may be plural — "Other creatures can't
-    -- attack this turn." (Intimidation Bolt) is one sentence of many —
-    -- so no grammatical number is demanded.
-    -- spelling: ["<Param(0)> can't <Param(1)> <Param(2)>"], kind: Sentence
-    -- (Param(1) = Deed's own verb phrase, Param(2) = Duration's own
+    -- combat; `badCantInGraveyard`), carries the deed's grant IN THAT
+    -- VOICE ([CR#506.3]; `badCantAttackLand`, `badCantDisjunctSubject`,
+    -- `badCantBeAttacked`), and the span is the RESTRICTION's
+    -- adverbial, not the grant's (`badCantUntilEndOfTurn`). A
+    -- durationless "can't" is the STATIC ability line ("Enchanted
+    -- creature can't attack", Pacifism) — a different construction, and
+    -- unwritable here because the slot is not optional. The subject may
+    -- be plural — "Other creatures can't attack this turn."
+    -- (Intimidation Bolt) is one sentence of many — so no grammatical
+    -- number is demanded. The surface phrases are the macros'
+    -- (`cantAttack`, `cantBlock`, `cantBeBlocked`).
+    -- spelling: ["<Param(0)> can't <Param(1)+Param(2)> <Param(3)>"],
+    -- kind: Sentence (Params 1 and 2 spell ONE verb phrase, the deed word
+    -- inflected by its voice -- Attack/Agent "attack", Block/Agent
+    -- "block", Block/Patient "be blocked"; Param(3) = Duration's own
     -- adverbial; mirrors core's Continuously-over-Cant pair -- no single
     -- RON constructor entry confirmed for the fused clause this pass)
-    Cant : (n : Noun bs Object) -> (deed : Deed) -> (span : Duration) ->
+    Cant : (n : Noun bs Object) -> (deed : Deed) -> (role : Role) ->
+           (span : Duration) ->
            {auto 0 zn : OnBattlefield (nounZone n)} ->
-           {auto 0 dp : DeedParticipant deed (nounTy n)} ->
+           {auto 0 dp : DeedParticipant deed role (nounTy n)} ->
            {auto 0 sp : RestrictionSpan span} -> Effect bs
     -- the keyword-action tag ([CR#701]): the named verb deontics and
     -- replacements key on, wrapping its expansion body ([CR#701.8b] —
@@ -4357,7 +4411,7 @@ mutual
   effIntro (ChangeLife who (Down a)) = outcomeB LifeLost :: lifeIntro (Down a)
   effIntro (Gain n _ _) = nomIntro n
   effIntro (Gets n _ _ _) = nomIntro n
-  effIntro (Cant n _ _) = nomIntro n
+  effIntro (Cant n _ _ _) = nomIntro n
   effIntro (Composite v (Move what to)) = moveIntro (Just v) what (zoneSort to)
   effIntro (Composite _ e) = effIntro e
   effIntro (Does s v (Move what to)) = moveIntro (Just v) what (zoneSort to)
