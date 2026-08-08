@@ -585,7 +585,13 @@
 |||    (`AtLeastOne`, `badForEachZero`): the same surface-numeral
 |||    discipline finding 36 gives counted groups. The comparisons
 |||    that legitimately carry zero READ a count rather than write
-|||    one, so `Lit` stays ungated.
+|||    one, so `Lit` stays ungated. The two demands answer two
+|||    different questions, and the granularity round put each on the
+|||    operation it belongs to: the head demand on the count read
+|||    (`CountOf`), the numeral demand on the scaling (`Times`), which
+|||    is core's own split (`Count::CountOf` against `Count::Times`)
+|||    and leaves "for each" as what it is — an adverbial spelling of
+|||    a product, owned by `forEach`/`nForEach`.
 ||| 46. **Damage subjects distribute; they do not collect.** A group
 |||    source is legal exactly when the group is distributive: "Each
 |||    creature you control deals 1 damage to that creature." (Case of
@@ -3637,20 +3643,44 @@ mutual
     -- amount fragment, see Lit)
     StatOf : (c : Characteristic) -> (n : Noun bs Object) ->
              {auto 0 one : nounPlur n = OneOf} -> Amount bs
-    -- "[per] [unit] for each [pred]" — the counted-set amount
-    -- ("loses 1 life for each attacking creature you control");
-    -- mentions inside the predicate fold as everywhere. The domain is
-    -- a real noun phrase: every corpus for-each domain is noun-HEADED
-    -- (`Headed` — "for each you control" heads nothing), and the
-    -- per-unit is a written numeral, so it is at least one
-    -- (`AtLeastOne`; the comparisons that legitimately carry zero read
-    -- a count rather than write one, and `Lit` stays ungated).
-    -- spelling: ["<Param(0)> for each <Param(1)>"], kind: TODO(reason:
-    -- amount fragment, see Lit; the surrounding unit word, e.g. "life",
-    -- comes from the embedding verb, not from ForEach itself)
-    ForEach : {k : Kind} -> (per : Nat) -> (p : Predicate bs k) ->
-              {auto 0 hd : Headed p} -> {auto 0 nz : AtLeastOne per} ->
+    -- the CARDINALITY of a set the phrase describes — "the number of
+    -- cards in your hand", and the domain half of every for-each
+    -- amount; mentions inside the predicate fold as everywhere. Core
+    -- keeps this orthogonal to multiplication (`Count::CountOf`
+    -- against `Count::Times`, `count.rs`) and so does this: counting
+    -- the set and scaling the result are two operations, not one
+    -- constructor's two arguments. The domain is a real noun phrase:
+    -- every corpus for-each domain is noun-HEADED (`Headed` — "for
+    -- each you control" heads nothing).
+    -- spelling: ["the number of <Param(0)>"] (the bare nominal read;
+    -- the for-each adverbial is the `forEach`/`nForEach` macros' own
+    -- surface over the same amount), kind: TODO(reason: amount
+    -- fragment, see Lit)
+    CountOf : {k : Kind} -> (p : Predicate bs k) ->
+              {auto 0 hd : Headed p} ->
               {auto 0 af : AnyTargetFree p} -> Amount bs
+    -- "[per] times [amt]" — the scaling half, whose left factor is a
+    -- WRITTEN numeral. Core's multiplication is count-by-count
+    -- (`Count::Times(Count, Count)`; no CR rule licenses a product,
+    -- the rules only fixing that every number is an integer, so the
+    -- shape answers to the corpus alone); every corpus
+    -- multiplication writes a numeral against a phrase instead —
+    -- "twice the number of cards in your hand", "three times the
+    -- number of creatures tapped this way" (Burn at the Stake), and
+    -- the per-unit of a for-each line ("loses 1 life for each
+    -- attacking creature you control") — with no phrase-by-phrase
+    -- product written anywhere, so the numeral is the factor's type
+    -- and generalizing it waits on a line that needs it. A written
+    -- numeral is at least one (`AtLeastOne`, `badForEachZero`), which
+    -- is finding 45's discipline unmoved: the comparisons that
+    -- legitimately carry zero READ a count rather than write one, and
+    -- `Lit` stays ungated.
+    -- spelling: ["<Param(0)> times <Param(1)>"] (and "twice" for the
+    -- factor two — the numeral's own word; the for-each line spells the
+    -- same term with the count's adverbial instead, see `nForEach`),
+    -- kind: TODO(reason: amount fragment, see Lit)
+    Times : (per : Nat) -> (a : Amount bs) ->
+            {auto 0 nz : AtLeastOne per} -> Amount bs
     -- "that much": reads the unique event outcome in scope — the
     -- magnitude of what an earlier clause DID. Sort-blind (the
     -- corpus reads cross damage→life, count→life, damage→mana);
@@ -3670,7 +3700,8 @@ mutual
   amtIntro : {bs : Bindings} -> Amount bs -> Bindings
   amtIntro (Lit n) = bs
   amtIntro (StatOf c nom) = nomIntro nom
-  amtIntro (ForEach per p) = predDelta p ++ bs
+  amtIntro (CountOf p) = predDelta p ++ bs
+  amtIntro (Times per a) = amtIntro a
   amtIntro ThatMuch = bs
   amtIntro XVal = bs
   amtIntro (Plus a b) = amtIntro b
@@ -3691,7 +3722,8 @@ mutual
   writtenBound : {0 bs : Bindings} -> Amount bs -> Bool
   writtenBound (Lit _) = True
   writtenBound (StatOf _ _) = False
-  writtenBound (ForEach _ _) = False
+  writtenBound (CountOf _) = False
+  writtenBound (Times _ _) = False
   writtenBound ThatMuch = False
   writtenBound XVal = True
   writtenBound (Plus _ _) = False

@@ -314,7 +314,7 @@ pyromancy = MkActivated (discards You (AAtRandom (InZone HandZ)))
 -- attacking modifier is a battlefield state word ([CR#508.1a]).
 foulTongueShriek : Effect []
 foulTongueShriek = Sequentially [losesLife (target Opponent)
-                                           (ForEach 1 (And [Attacking, creature, ControlledBy You])),
+                                           (forEach (And [Attacking, creature, ControlledBy You])),
                                  gainsLife You ThatMuch]
 
 -- "Return target creature to its owner's hand." (Unsummon) — the
@@ -905,14 +905,14 @@ failing "OtherAnchored"
 -- already carry (finding 39), now on the counted-set amount.
 failing "Headed"
   badForEachHeadless : Amount []
-  badForEachHeadless = ForEach 1 (ControlledBy You)
+  badForEachHeadless = forEach (ControlledBy You)
 
 -- A written numeral is at least one — "1 life for each 0 creatures" is
 -- unwritten English. (The comparisons that legitimately carry zero read
 -- a count rather than write one; `Lit` stays ungated.)
 failing "AtLeastOne"
   badForEachZero : Amount []
-  badForEachZero = ForEach 0 creature
+  badForEachZero = nForEach 0 creature
 
 -- Zone negation itself is REAL oracle — "Each Vampire creature card
 -- you own that isn't on the battlefield has madness." (Falkenrath

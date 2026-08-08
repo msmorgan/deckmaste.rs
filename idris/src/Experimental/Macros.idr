@@ -138,6 +138,39 @@ public export
 manaValueOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Amount bs
 manaValueOf n = StatOf ManaValue n {one}
 
+-- The for-each amount, as the two operations core keeps apart: count
+-- the described set, then scale it by the written per-unit
+-- (`Count::CountOf` and `Count::Times`, `count.rs`). The adverbial
+-- surface is the macro's; the demands are the primitives' — a
+-- noun-headed domain (`Headed`) and an any-target-free one
+-- (`AnyTargetFree`) from the count, a written per-unit of at least one
+-- (`AtLeastOne`) from the scaling — and each travels to the call site
+-- as a hypothesis, since an abstract predicate cannot discharge it
+-- here (the `target` pattern).
+
+-- "[n] [unit] for each [pred]" — the counted-set amount with its
+-- per-unit numeral written ("loses 1 life for each attacking creature
+-- you control", Foul-Tongue Shriek). The unit word itself ("life",
+-- "card") comes from the embedding verb, not from here.
+-- spelling: ["<Param(0)> for each <Param(1)>"], kind: TODO(reason:
+-- amount fragment, see powerOf)
+public export
+nForEach : {k : Kind} -> (n : Nat) -> (p : Predicate bs k) ->
+           {auto 0 hd : Headed p} -> {auto 0 nz : AtLeastOne n} ->
+           {auto 0 af : AnyTargetFree p} -> Amount bs
+nForEach n p = Times n (CountOf p {hd} {af}) {nz}
+
+-- "[a/one] [unit] for each [pred]" — the common per-unit, one.
+-- spelling: ["<Param(0)> for each <Param(1)>"] (at one the numeral is
+-- what an article may spell instead -- "draw a card for each opponent
+-- who lost life this turn"), kind: TODO(reason: amount fragment, see
+-- powerOf)
+public export
+forEach : {k : Kind} -> (p : Predicate bs k) ->
+          {auto 0 hd : Headed p} ->
+          {auto 0 af : AnyTargetFree p} -> Amount bs
+forEach p = nForEach 1 p {hd} {af}
+
 -- "destroy [n]" — mirrors plugins/builtin/macros/action/Destroy.ron:
 -- the Destroy tag over the battlefield→graveyard move [CR#701.8a];
 -- only a battlefield permanent is destroyable (`badDestroyGraveyard`).
