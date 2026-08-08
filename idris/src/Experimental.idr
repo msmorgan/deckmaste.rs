@@ -128,12 +128,17 @@
 |||    [CR#608.2c]) over an arbitrary clause — "[player] may have
 |||    [source] deal …" separates decider from performer, killing the
 |||    auxiliary-subject reading (`throughTheBreach`'s "You may put").
-||| 11. **Choice method is surface data.** "of their choice" / "at
-|||    random" are marked indefinites (`ATheirChoice`, `AAtRandom`)
-|||    mirroring the real macros' explicit chooser slot and its absence
-|||    in the random variant ([CR#701.9b]); no CR rule derives a
-|||    chooser, and the corpus has no bare "Target player sacrifices a
-|||    creature" (`diabolicEdict`, `innocentBlood`).
+||| 11. **Choice method is surface data, and its own axis.** "of their
+|||    choice" / "at random" MARK one indefinite determiner
+|||    (`Indefinite` over `ChoiceMode`; `a`/`aTheirChoice`/`aAtRandom`
+|||    spell the three), mirroring the real macros' explicit chooser
+|||    slot and its absence in the random variant ([CR#701.9b]); no CR
+|||    rule derives a chooser, and the corpus has no bare "Target
+|||    player sacrifices a creature" (`diabolicEdict`,
+|||    `innocentBlood`). Core marks it the same way round — one
+|||    `ChooseOne` with a `by` slot, not a second article
+|||    (`binder.rs`) — and the pronoun's obligation rides the marked
+|||    mode, where the possessive is what needs an antecedent.
 ||| 12. **The colon is a public-zone filter.** An activated effect reads
 |||    its cost's mentions through `publicOnly` ([CR#400.2], current
 |||    zone): a tapped cost-mention survives unmoved, the moved sorted
@@ -2271,7 +2276,7 @@ grantSpan ThisTurn = False
 ||| bare "It gains haste.").
 public export
 data GrantSpan : Maybe Duration -> Type where
-  Indefinite : GrantSpan Nothing
+  Unstated : GrantSpan Nothing
   Stated : {auto 0 ok : grantSpan d = True} -> GrantSpan (Just d)
 
 -- ===== Deontic restrictions (the one-shot "can't" vocabulary) =====
@@ -2380,6 +2385,39 @@ restrictionSpan UntilEndOfTurn = False
 public export
 data RestrictionSpan : Duration -> Type where
   Spanned : {auto 0 ok : restrictionSpan d = True} -> RestrictionSpan d
+
+||| How an indefinite phrase MARKS its choice method — the axis three
+||| constructors used to spell three times. Choice method is surface
+||| data (finding 11): no CR rule derives a chooser, so what the
+||| grammar records is what the text writes, and the phrase itself is
+||| one determiner throughout ("a …", article and all).
+|||
+||| Core keeps the same axis off the choice itself: `Binder::ChooseOne`
+||| carries the filter and a separate `by` slot naming who chooses,
+||| defaulting to the controller and OVERRIDDEN for the foreign chooser
+||| ("that player sacrifices a creature of their choice",
+||| [CR#608.2d,701.21a]) — `binder.rs` says so in those words — while
+||| the chooserless form is a different constructor entirely
+||| (`Selection::Random`, `selection.rs`). `Unmarked` is core's elided
+||| `by`, `TheirChoice` its override, `AtRandom` its random sibling.
+|||
+||| `TheirChoice` carries the pronoun's own obligation: "their" is a
+||| POSSESSIVE, so it needs exactly one player antecedent — a singular
+||| subject or one distributive group (`countChoosers`,
+||| `badUnboundTheirChoice`). A NOMINAL chooser slot mirroring core's
+||| `by: Reference` ("of that player's choice") waits on the plural
+||| player read the distributive antecedent would need; the possessive
+||| pronoun is the whole attested marking here (ledger).
+public export
+-- spelling: (construction-owned catalog -- each row is the ADVERBIAL an
+-- indefinite phrase writes after its noun, and each is spelled through
+-- its own macro: Unmarked = `a` (no adverbial), TheirChoice =
+-- `aTheirChoice`'s "of their choice", AtRandom = `aAtRandom`'s "at
+-- random". Never spelled alone -- see Experimental.Macros)
+data ChoiceMode : Bindings -> Type where
+  Unmarked : ChoiceMode bs
+  TheirChoice : {auto 0 ch : countChoosers bs = 1} -> ChoiceMode bs
+  AtRandom : ChoiceMode bs
 
 -- ===== The grammar (mutual: types thread contexts through VALUES) =====
 
@@ -3480,27 +3518,23 @@ mutual
     Each : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
            {auto 0 hd : Headed p} ->
            {auto 0 af : AnyTargetFree p} -> Noun bs k    -- "each …": a group, resolution-time [CR#608.2]
-    -- spelling: ["a <Param(0)>"], kind: Nominal (auto-inflects to "an"
-    -- before a vowel sound)
-    A : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-        {auto 0 hd : Headed p} ->
-        {auto 0 af : AnyTargetFree p} -> Noun bs k       -- "a …": indefinite choice/product [CR#608.2d,400.7]
-    -- "a … of their choice" / "a … at random": the indefinite with its
-    -- choice method marked in the text — chooser and method are surface
-    -- facts (the guide's chooser marking; a random discard has no
-    -- chooser [CR#701.9b]), mirroring the real macros' explicit `by`
-    -- slot and its absence in the at-random variant. "Their" is a
-    -- possessive pronoun: it demands exactly one player antecedent —
-    -- a subject or one distributive group (`badUnboundTheirChoice`).
-    -- spelling: ["a <Param(0)> of their choice"], kind: Nominal
-    ATheirChoice : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-                   {auto 0 ch : countChoosers bs = 1} ->
-                   {auto 0 hd : Headed p} ->
-                   {auto 0 af : AnyTargetFree p} -> Noun bs k
-    -- spelling: ["a <Param(0)> at random"], kind: Nominal
-    AAtRandom : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-                {auto 0 hd : Headed p} ->
-                {auto 0 af : AnyTargetFree p} -> Noun bs k
+    -- "a …": the indefinite — one determiner ([CR#608.2d,400.7]),
+    -- whose CHOICE METHOD is a separate axis the text marks or leaves
+    -- unmarked (`ChoiceMode`; chooser and method are surface facts,
+    -- the guide's chooser marking, and a random discard has no chooser
+    -- [CR#701.9b]). Three constructors spelled that one determiner
+    -- three times; core spells it once and hangs the chooser off a
+    -- slot (`Binder::ChooseOne`'s `by`, `binder.rs`). The mode's own
+    -- obligations ride the mode, not this row — "of their choice"
+    -- needs its unique player antecedent (`badUnboundTheirChoice`),
+    -- "at random" needs nothing.
+    -- spelling: (construction-owned -- the indefinite article over its
+    -- phrase, followed by whatever adverbial its mode writes; the macros
+    -- own the surfaces: a/aTheirChoice/aAtRandom), kind: Nominal
+    Indefinite : (m : ChoiceMode bs) -> (p : Predicate bs k) ->
+                 {auto ph : Phrasal k} ->
+                 {auto 0 hd : Headed p} ->
+                 {auto 0 af : AnyTargetFree p} -> Noun bs k
     -- "[quantity] target [pred]": the counted target mention — one
     -- binding, announced [CR#601.2c], and only objects and players are
     -- targetable ([CR#115.1] — `badTargetColor`). ONE constructor
@@ -3593,9 +3627,7 @@ mutual
   nounEqRef You You = True
   nounEqRef You _ = False
   nounEqRef (Each _) _ = False
-  nounEqRef (A _) _ = False
-  nounEqRef (ATheirChoice _) _ = False
-  nounEqRef (AAtRandom _) _ = False
+  nounEqRef (Indefinite _ _) _ = False
   nounEqRef (TargetGroup _ _) _ = False
   nounEqRef (AllOf _) _ = False
   nounEqRef It It = True
@@ -3620,9 +3652,7 @@ mutual
   nounAnyTargetFree (AsType t n) = nounAnyTargetFree n
   nounAnyTargetFree You = True
   nounAnyTargetFree (Each p) = anyTargetFree p
-  nounAnyTargetFree (A p) = anyTargetFree p
-  nounAnyTargetFree (ATheirChoice p) = anyTargetFree p
-  nounAnyTargetFree (AAtRandom p) = anyTargetFree p
+  nounAnyTargetFree (Indefinite m p) = anyTargetFree p
   nounAnyTargetFree (TargetGroup _ p) = anyTargetFree p
   nounAnyTargetFree (AllOf p) = anyTargetFree p
   nounAnyTargetFree It = True
@@ -3668,9 +3698,7 @@ mutual
   nounDelta (AsType t n) = nounDelta n
   nounDelta You = []
   nounDelta (Each p {ph}) = bindFor EachD ManyOf ph p :: predDelta p
-  nounDelta (A p {ph}) = bindFor AD OneOf ph p :: predDelta p
-  nounDelta (ATheirChoice p {ph}) = bindFor AD OneOf ph p :: predDelta p
-  nounDelta (AAtRandom p {ph}) = bindFor AD OneOf ph p :: predDelta p
+  nounDelta (Indefinite m p {ph}) = bindFor AD OneOf ph p :: predDelta p
   nounDelta (TargetGroup q p {tk}) = bindFor TargetD (quantPlur q) (targetablePhrasal tk) p :: predDelta p
   nounDelta (AllOf p {ph}) = bindFor AllD ManyOf ph p :: predDelta p
   nounDelta It = []
@@ -4143,9 +4171,7 @@ mutual
   nounIsAnyTarget (AsType t n) = nounIsAnyTarget n
   nounIsAnyTarget You = False
   nounIsAnyTarget (Each _) = False
-  nounIsAnyTarget (A _) = False
-  nounIsAnyTarget (ATheirChoice _) = False
-  nounIsAnyTarget (AAtRandom _) = False
+  nounIsAnyTarget (Indefinite _ _) = False
   nounIsAnyTarget (AllOf _) = False
   nounIsAnyTarget It = False
   nounIsAnyTarget They = False
@@ -4327,9 +4353,7 @@ mutual
   public export
   moveIntro : {bs : Bindings} -> {k : Kind} -> Maybe VerbName -> Noun bs k -> Zone -> Bindings
   moveIntro p nn@(Each pr) z = setZoneHead p z (nomIntro nn)
-  moveIntro p nn@(A pr) z = setZoneHead p z (nomIntro nn)
-  moveIntro p nn@(ATheirChoice pr) z = setZoneHead p z (nomIntro nn)
-  moveIntro p nn@(AAtRandom pr) z = setZoneHead p z (nomIntro nn)
+  moveIntro p nn@(Indefinite m pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(TargetGroup q pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(AllOf pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p It z = setZoneIt p z bs
@@ -4370,9 +4394,7 @@ mutual
   nounZone (AsType t n) = Just Battlefield
   nounZone You = Nothing
   nounZone (Each p) = Just (zoneOr Battlefield (seedZone p))
-  nounZone (A p) = Just (zoneOr Battlefield (seedZone p))
-  nounZone (ATheirChoice p) = Just (zoneOr Battlefield (seedZone p))
-  nounZone (AAtRandom p) = Just (zoneOr Battlefield (seedZone p))
+  nounZone (Indefinite m p) = Just (zoneOr Battlefield (seedZone p))
   nounZone (TargetGroup q p) =
     if headIsAnyTarget p then Nothing else Just (zoneOr Battlefield (seedZone p))
   nounZone (AllOf p) = Just (zoneOr Battlefield (seedZone p))
@@ -4395,9 +4417,7 @@ mutual
   nounTy (AsType t n) = Just t
   nounTy You = Nothing
   nounTy (Each p) = seedTy p
-  nounTy (A p) = seedTy p
-  nounTy (ATheirChoice p) = seedTy p
-  nounTy (AAtRandom p) = seedTy p
+  nounTy (Indefinite m p) = seedTy p
   nounTy (TargetGroup q p) = seedTy p
   nounTy (AllOf p) = seedTy p
   nounTy It = tyOfIt bs
@@ -4418,9 +4438,7 @@ mutual
   nounPlur (AsType t n) = nounPlur n
   nounPlur You = OneOf
   nounPlur (Each p) = ManyOf
-  nounPlur (A p) = OneOf
-  nounPlur (ATheirChoice p) = OneOf
-  nounPlur (AAtRandom p) = OneOf
+  nounPlur (Indefinite m p) = OneOf
   nounPlur (TargetGroup q p) = quantPlur q
   nounPlur (AllOf p) = ManyOf
   nounPlur It = OneOf

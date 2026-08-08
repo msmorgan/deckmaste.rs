@@ -74,7 +74,7 @@ cloudshift = Sequentially [exile (target creatureYouControl),
 -- referent survives the delay [CR#603.7c], and the trailing adverbial
 -- is the `Delayed` mark on its clause.
 throughTheBreach : Effect []
-throughTheBreach = Sequentially [May You (Move (A (And [creature, InZone (HandOf You)])) BattlefieldZ),
+throughTheBreach = Sequentially [May You (Move (a (And [creature, InZone (HandOf You)])) BattlefieldZ),
                                  gainsHaste (That (TypeW Creature)) Nothing,
                                  Delayed NextEndStep (sacrifice You (That (TypeW Creature)))]
 
@@ -120,12 +120,12 @@ pyriteSpellbomb = MkActivated (sacrifice You thisArtifact)
 -- own-choice method on the indefinite (the corpus has no bare "Target
 -- player sacrifices a creature").
 diabolicEdict : Effect []
-diabolicEdict = sacrifice (target AnyPlayer) (ATheirChoice creature)
+diabolicEdict = sacrifice (target AnyPlayer) (aTheirChoice creature)
 
 -- "Each player sacrifices a creature of their choice." (Innocent
 -- Blood) — a group subject: the same clause shape over "each player".
 innocentBlood : Effect []
-innocentBlood = sacrifice (Each AnyPlayer) (ATheirChoice creature)
+innocentBlood = sacrifice (Each AnyPlayer) (aTheirChoice creature)
 
 -- "Target player discards a card." (Cry of Contrition, first line; its
 -- Haunt lines elided) — the declarative discard whose imperative twin
@@ -249,14 +249,14 @@ continueSpell = Sequentially [Choose (TargetGroup (upTo 4) (And [creature, InZon
 -- predicate-internal read demands it uniquely; X is the announced
 -- cost variable ([CR#107.3a]).
 suddenDemise : Effect []
-suddenDemise = Sequentially [Choose (A (QualityNoun Color)),
+suddenDemise = Sequentially [Choose (a (QualityNoun Color)),
                              DealDamage This XVal (Each (And [creature, OfChosen Color]))]
 
 -- "Choose a creature type. Destroy all creatures that aren't of the
 -- chosen type." (Kindred Dominance) — the set-level "all" determiner
 -- over a negated quality read.
 kindredDominance : Effect []
-kindredDominance = Sequentially [Choose (A (QualityNoun CreatureType)),
+kindredDominance = Sequentially [Choose (a (QualityNoun CreatureType)),
                                  destroy (AllOf (And [creature, Not (OfChosen CreatureType)]))]
 
 -- "{2}, Sacrifice this artifact: Exile target creature. Return the
@@ -283,7 +283,7 @@ voyagerStaff = MkActivated (sacrifice You thisArtifact)
 -- time-stable projected head type, the axis a declared type word
 -- lives on (finding 27).
 boshIronGolem : Activated []
-boshIronGolem = MkActivated (sacrifice You (A (HasType Artifact)))
+boshIronGolem = MkActivated (sacrifice You (a (HasType Artifact)))
                             (DealDamage This
                                         (manaValueOf (TheVerbed Sacrifice (TypeW Artifact)))
                                         (target AnyTarget))
@@ -301,7 +301,7 @@ boshIronGolem = MkActivated (sacrifice You (A (HasType Artifact)))
 -- type, so [CR#109.2] denotes the permanent (bare `This` was standing
 -- in for the missing `Enchantment` row).
 pyromancy : Activated []
-pyromancy = MkActivated (discards You (AAtRandom (InZone HandZ)))
+pyromancy = MkActivated (discards You (aAtRandom (InZone HandZ)))
                         (DealDamage thisEnchantment
                                     (manaValueOf (TheVerbed Discard CardW))
                                     (target AnyTarget))
@@ -573,7 +573,7 @@ failing "countWord"
 -- Soratami Cloudskater-family costs write no such read back).
 failing "publicOnly"
   badHiddenCost : Activated []
-  badHiddenCost = MkActivated (Move (A creature) HandZ) (Tap It)
+  badHiddenCost = MkActivated (Move (a creature) HandZ) (Tap It)
 
 -- Two cost moves leave two candidate antecedents ("Discard a card,
 -- Sacrifice a creature: …" — Falkenrath Pit Fighter-family): a bare
@@ -584,7 +584,7 @@ failing "publicOnly"
 failing "countOnes"
   badTwoCostMentions : Activated []
   badTwoCostMentions = MkActivated (Sequentially [discardsACard You,
-                                                  sacrifice You (A creature)])
+                                                  sacrifice You (a creature)])
                                    (exile It)
 
 -- The zone half of sacrifice's implicit restriction as a type error:
@@ -644,7 +644,7 @@ failing "countVerbed"
 -- so "the sacrificed creature" has no referent.
 failing "countVerbed"
   badVerbedWrongNoun : Activated []
-  badVerbedWrongNoun = MkActivated (sacrifice You (A (HasType Artifact)))
+  badVerbedWrongNoun = MkActivated (sacrifice You (a (HasType Artifact)))
                                    (Move (TheVerbed Sacrifice (TypeW Creature)) BattlefieldZ)
 
 -- Two same-verb stamps leave the participle ambiguous — the same
@@ -652,8 +652,8 @@ failing "countVerbed"
 -- distinct verbs, which is what the filter buys).
 failing "countVerbed"
   badVerbedAmbig : Activated []
-  badVerbedAmbig = MkActivated (Sequentially [sacrifice You (A creature),
-                                              sacrifice You (A creature)])
+  badVerbedAmbig = MkActivated (Sequentially [sacrifice You (a creature),
+                                              sacrifice You (a creature)])
                                (Move (TheVerbed Sacrifice CardW) BattlefieldZ)
 
 -- Voyager Staff's shape with the bare demonstrative: two card
@@ -703,7 +703,7 @@ failing "DamageRecipient"
 -- A quality cannot take damage [CR#120.1].
 failing "DamageRecipient"
   badDamageToColor : Effect []
-  badDamageToColor = DealDamage This (Lit 1) (A (QualityNoun Color))
+  badDamageToColor = DealDamage This (Lit 1) (a (QualityNoun Color))
 
 -- Damage goes to battles, creatures, planeswalkers, or players
 -- [CR#120.1a]: a noncreature artifact takes none.
@@ -715,7 +715,7 @@ failing "DamageRecipient"
 -- noncolor" heads nothing — Not is a modifier, never a head.
 failing "Headed"
   badNegatedQualityHead : Effect []
-  badNegatedQualityHead = Choose (A (Not (QualityNoun Color)))
+  badNegatedQualityHead = Choose (a (Not (QualityNoun Color)))
 
 -- "Target non-player" is refused EARLIER than headlessness now: the
 -- universal player word names one of the people in the game
@@ -769,7 +769,7 @@ failing "OnBattlefield"
 -- creature is not discardable.
 failing "DiscardOk"
   badDiscardBattlefield : Effect []
-  badDiscardBattlefield = discards You (A creature)
+  badDiscardBattlefield = discards You (a creature)
 
 -- The tag and its body agree: a Destroy-tagged exile would let
 -- indestructible cant an exile [CR#701.8b,702.12b].
@@ -788,14 +788,14 @@ failing "OnBattlefield"
 -- Composite spelling of sacrifice is refused outright.
 failing "NonAgentive"
   badAgentlessSacrifice : Effect []
-  badAgentlessSacrifice = Composite Sacrifice (Move (A creature) GraveyardZ) {ok = SacrificeB}
+  badAgentlessSacrifice = Composite Sacrifice (Move (a creature) GraveyardZ) {ok = SacrificeB}
 
 -- Discarding moves a hand card [CR#701.9a]: the demand rides the tag
 -- relation, so a battlefield "discard" is unspellable under Does too
 -- — and with it the forged stamp `TheVerbed Discard` would read.
 failing "DiscardOk"
   badDoesDiscardBattlefield : Effect []
-  badDoesDiscardBattlefield = Does You Discard (Move (A creature) GraveyardZ) {tb = DiscardB}
+  badDoesDiscardBattlefield = Does You Discard (Move (a creature) GraveyardZ) {tb = DiscardB}
 
 -- Two creatures have no single power [CR#208.1] — the aggregate is
 -- written explicitly ("the total power of the sacrificed creatures",
@@ -857,7 +857,7 @@ failing "OneOf"
 failing "countVerbed"
   badDiscardedCreatureWord : Activated []
   badDiscardedCreatureWord =
-    MkActivated (discards You (AAtRandom (And [creature, InZone HandZ])))
+    MkActivated (discards You (aAtRandom (And [creature, InZone HandZ])))
                 (DealDamage This
                             (manaValueOf (TheVerbed Discard (TypeW Creature)))
                             (target AnyTarget))
@@ -867,7 +867,7 @@ failing "countVerbed"
 -- bare "Destroy a creature of their choice" is unwritten.
 failing "countOnes Player"
   badUnboundTheirChoice : Effect []
-  badUnboundTheirChoice = destroy (ATheirChoice creature)
+  badUnboundTheirChoice = destroy (aTheirChoice creature)
 
 -- "That much" with nothing done yet: no outcome to read.
 failing "countOnes Outcome"
@@ -974,7 +974,7 @@ failing "AnyTargetLone"
 -- unwritable.
 failing "AnyTargetFree"
   badAnyTargetUnderA : Noun [] Object
-  badAnyTargetUnderA = A AnyTarget
+  badAnyTargetUnderA = a AnyTarget
 
 -- …and the targeting determiner admits it only at the quantities that
 -- spell it: "any target" is the singular damage-class form [CR#115.4]
@@ -1061,7 +1061,7 @@ failing "OtherAnchored"
 -- under the non-targeting determiner that forbids it.
 failing "AnyTargetFree"
   badAnyTargetEmbedded : Noun [] Object
-  badAnyTargetEmbedded = A (And [creature, ControlledBy (ControllerOf (target AnyTarget))])
+  badAnyTargetEmbedded = a (And [creature, ControlledBy (ControllerOf (target AnyTarget))])
 
 -- The untracked exception belongs to the bare self-reference alone —
 -- it is not a free pass for every unplaced referent. A READ whose

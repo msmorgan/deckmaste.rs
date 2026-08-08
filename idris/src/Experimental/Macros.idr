@@ -125,12 +125,49 @@ public export
 creatureYouDontControl : Predicate bs Object
 creatureYouDontControl = And [creature, Not (ControlledBy You)]
 
+-- The indefinite, one macro per choice-mode marking the corpus writes:
+-- the article is the same determiner throughout (`Indefinite`), and
+-- what differs is the adverbial after the noun. Core keeps the axes
+-- apart the same way — `Binder::ChooseOne`'s `by` slot names the
+-- chooser over one filter, and the chooserless form is
+-- `Selection::Random` (`binder.rs`, `selection.rs`).
+
+-- "a [pred]" — the unmarked indefinite: the rules supply the chooser
+-- the text does not name ([CR#608.2d,400.7]).
+-- spelling: ["a <Param(0)>"], kind: Nominal (auto-inflects to "an" before
+-- a vowel sound)
+public export
+a : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
+    {auto 0 hd : Headed p} ->
+    {auto 0 af : AnyTargetFree p} -> Noun bs k
+a p = Indefinite Unmarked p {ph} {hd} {af}
+
+-- "a [pred] of their choice" — the chooser marked by the possessive
+-- pronoun, which is why the macro carries the antecedent obligation to
+-- its caller (`badUnboundTheirChoice`).
+-- spelling: ["a <Param(0)> of their choice"], kind: Nominal
+public export
+aTheirChoice : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
+               {auto 0 ch : countChoosers bs = 1} ->
+               {auto 0 hd : Headed p} ->
+               {auto 0 af : AnyTargetFree p} -> Noun bs k
+aTheirChoice p = Indefinite (TheirChoice {ch}) p {ph} {hd} {af}
+
+-- "a [pred] at random" — the markedly chooserless variant
+-- ([CR#701.9b]; Pyromancy).
+-- spelling: ["a <Param(0)> at random"], kind: Nominal
+public export
+aAtRandom : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
+            {auto 0 hd : Headed p} ->
+            {auto 0 af : AnyTargetFree p} -> Noun bs k
+aAtRandom p = Indefinite AtRandom p {ph} {hd} {af}
+
 -- "an opponent"
--- spelling: ["an opponent"], kind: Nominal (A Opponent; "a" auto-inflects
--- to "an" before a vowel)
+-- spelling: ["an opponent"], kind: Nominal (the unmarked indefinite over
+-- Opponent; "a" auto-inflects to "an" before a vowel)
 public export
 anOpponent : Noun bs Player
-anOpponent = A Opponent
+anOpponent = a Opponent
 
 -- "any other target" — the macro CARRIES its phrase's presupposition
 -- (an earlier target) in its type.
@@ -224,7 +261,7 @@ exile n = Composite Exile (Move n ExileZ) {ok = ExileB}
 -- imperative spells `You` explicitly, inflection is the frame's. The
 -- performer is the sacrificed permanent's controller [CR#701.21a]; no
 -- CR rule names a sacrifice chooser, so "of their choice" is surface
--- marking (`ATheirChoice`), not derivation. The zone half of the
+-- marking (`aTheirChoice`'s mode), not derivation. The zone half of the
 -- implicit restriction is demanded (`OnBattlefield`); the controller
 -- half needs fold-state the context does not carry (not-settled).
 -- Core's `Sacrifice` variant is the whittling candidate this expands.
@@ -242,7 +279,7 @@ sacrifice agent n = Does agent Sacrifice (Move n GraveyardZ) {tb = SacrificeB {z
 -- makes with its agent-param hand filter. The noun carries its own
 -- choice marking: the plain indefinite is the affected player's
 -- choice by default [CR#701.9b], "at random" the markedly chooserless
--- variant (`AAtRandom` — Pyromancy).
+-- variant (`aAtRandom` — Pyromancy).
 -- spelling: ["<Param(0)> discard(s) <Param(1)>"], kind: Sentence (no real
 -- action/Discard.ron artifact studied this pass; mirrors Does's
 -- subject+tag+Move shape, same as sacrifice)
@@ -255,10 +292,10 @@ discards agent n = Does agent Discard (Move n GraveyardZ) {tb = DiscardB {d = dk
 -- (an owned-hand expansion needs a subject-read noun the vocabulary
 -- lacks — not-settled).
 -- spelling: ["<Param(0)> discard(s) a card"], kind: Sentence (sort-only
--- expansion of `discards` at A (InZone HandZ); not an independent frame)
+-- expansion of `discards` at `a (InZone HandZ)`; not an independent frame)
 public export
 discardsACard : (agent : Noun bs Player) -> Effect bs
-discardsACard agent = discards agent (A (InZone HandZ))
+discardsACard agent = discards agent (a (InZone HandZ))
 
 -- "[n] gains haste [duration]" — the duration slot is the grant's own
 -- adverbial, so the macro carries `GrantSpan` through to its caller.
