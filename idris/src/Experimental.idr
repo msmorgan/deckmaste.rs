@@ -545,7 +545,14 @@
 ||| never).
 |||
 ||| Not settled yet: the kind union ("any target" spans objects and
-||| players [CR#115.4,115.1] — elided to `Object`);
+||| players [CR#115.4,115.1] — elided to `Object`; the elision leaks:
+||| any-target phrases ride the [CR#109.2] battlefield default, so
+||| battlefield-demanding verbs accept them — "Destroy any target" is
+||| corpus-absent but typechecks — and severing the default breaks the
+||| damage positives, because `DamageRecipient`'s object row demands
+||| the battlefield too. The refusal wants `DamageRecipient` re-keyed
+||| to see the NOUN — a naive zone-free row would over-admit bare
+||| `This` — which is this union item's design work, not a gate patch);
 ||| owned-zone PREDICATE mentions beyond `You` ("a card in an
 ||| opponent's graveyard" — [CR#400.3] makes the possessive an owner
 ||| FILTER, finding 34; the inner noun does not fold yet); controller
