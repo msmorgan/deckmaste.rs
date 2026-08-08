@@ -5,6 +5,7 @@ modules = Semantics
         , Cards
         , Spec
         , Experimental
+        , Experimental.Macros
         , Experimental.Cards
         , EmitTables
 

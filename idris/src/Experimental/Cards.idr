@@ -6,6 +6,7 @@
 module Experimental.Cards
 
 import Experimental
+import Experimental.Macros
 
 %default total
 
