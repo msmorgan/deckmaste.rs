@@ -1444,6 +1444,17 @@ mutual
     Just z => Just z
     Nothing => seedZoneAll ps
 
+  ||| The card type a modifier PRESUPPOSES of its referent — the type
+  ||| twin of `seedZone`, and a different question from `seedTy`, which
+  ||| projects the phrase's own HEAD. Only a creature can attack or
+  ||| block ([CR#506.3]), so the status word presupposes the type
+  ||| exactly as it presupposes the battlefield. No `And` row is needed:
+  ||| the only consumer scans `flattenPs`.
+  public export
+  seedType : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Maybe CardType
+  seedType Attacking = Just Creature
+  seedType _ = Nothing
+
   ||| A phrase names a positive HEAD: a type word, a player word, a
   ||| quality word, "any target", or a zone clause (whose implicit
   ||| head is the zone's carrier — "a card in your hand"). Modifiers
@@ -1536,11 +1547,13 @@ mutual
     MkZoneCoherent : {auto 0 ok : zonesOk ps = True} -> ZoneCoherent ps
 
   ||| Syntactic predicate equality — enough to spot a member that
-  ||| contradicts a sibling. Deliberately CONSERVATIVE on the rows
-  ||| carrying a noun (their equality wants noun equality, which the
-  ||| grammar does not decide): `False` reads "not provably the same",
-  ||| so the gate under-refuses rather than over-refuses. Per-row
-  ||| catch-alls, so a new predicate form is a totality error.
+  ||| contradicts a sibling. Still CONSERVATIVE on the rows carrying a
+  ||| noun, but no longer VACUOUSLY so: `ControlledBy` compares its
+  ||| possessor with `nounEqRef`, so the syntactically identical
+  ||| contradiction stops laundering through it. `False` reads "not
+  ||| provably the SAME referent", so the gate under-refuses rather
+  ||| than over-refuses. Per-row catch-alls, so a new predicate form is
+  ||| a totality error.
   public export
   predEq : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Predicate bs k -> Bool
   predEq (HasType a) (HasType b) = sameCT a b
@@ -1554,6 +1567,7 @@ mutual
   predEq (QualityNoun _) _ = False
   predEq (OfChosen a) (OfChosen b) = sameQ a b
   predEq (OfChosen _) _ = False
+  predEq (ControlledBy a) (ControlledBy b) = nounEqRef a b
   predEq (ControlledBy _) _ = False
   predEq Attacking Attacking = True
   predEq Attacking _ = False
@@ -1585,12 +1599,53 @@ mutual
   noNegatedPair [] = True
   noNegatedPair (p :: ps) = not (anyNegates p ps) && noNegatedPair ps
 
-  ||| No member is the syntactic negation of a sibling: "of the chosen
-  ||| color and not of the chosen color" describes nothing, and the
-  ||| flattened scan catches the nested spelling too.
+  ||| The card types a member rules OUT: "non-creature" negates the type
+  ||| word's own head. A negated STATUS word rules out no type — the
+  ||| presupposition projects THROUGH the negation, which is why
+  ||| "nonattacking creature" is plentiful oracle (`rawNonattacking`).
+  public export
+  negTypesOf : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> List CardType
+  negTypesOf (Not p) = case seedTy p of
+    Just t => [t]
+    Nothing => []
+  negTypesOf _ = []
+
+  public export
+  negTypes : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> List CardType
+  negTypes [] = []
+  negTypes (p :: ps) = negTypesOf p ++ negTypes ps
+
+  ||| The types the members presuppose, positively.
+  public export
+  seedTypes : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> List CardType
+  seedTypes [] = []
+  seedTypes (p :: ps) = case seedType p of
+    Just t => t :: seedTypes ps
+    Nothing => seedTypes ps
+
+  public export
+  typeMember : CardType -> List CardType -> Bool
+  typeMember t [] = False
+  typeMember t (u :: us) = sameCT t u || typeMember t us
+
+  public export
+  anyTypeClash : List CardType -> List CardType -> Bool
+  anyTypeClash [] seeds = False
+  anyTypeClash (t :: ts) seeds = typeMember t seeds || anyTypeClash ts seeds
+
+  ||| No member is the syntactic negation of a sibling ("of the chosen
+  ||| color and not of the chosen color" describes nothing), and no
+  ||| member negates a TYPE another member presupposes: only a creature
+  ||| can attack ([CR#506.3]), so "attacking noncreature" describes
+  ||| nothing either. Positive types do NOT clash with each other —
+  ||| they stack, an attacking artifact being an artifact creature — so
+  ||| only the negation raises. The flattened scan catches the nested
+  ||| spelling of both.
   public export
   contradictionFree : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
-  contradictionFree ps = noNegatedPair (flattenPs ps)
+  contradictionFree ps = noNegatedPair (flattenPs ps) &&
+                         not (anyTypeClash (negTypes (flattenPs ps))
+                                           (seedTypes (flattenPs ps)))
 
   public export
   data ContradictionFree : List (Predicate bs k) -> Type where
@@ -1612,10 +1667,18 @@ mutual
   ||| The anchor obligation at the phrase level: `Other`'s own gate
   ||| demands a same-KIND target mention, and the conjunction it sits
   ||| in supplies the head type that mention must be compatible with.
+  ||| The modifier also has ONE slot per phrase — the style guide's
+  ||| selector order gives other/another a single position and no
+  ||| corpus line doubles it — so a second "other" is unwritable
+  ||| (`badDoubleOther`). The cap is written FIRST so the conjunction
+  ||| reduces for a phrase whose CONTEXT is abstract — `anyOtherTarget`
+  ||| carries its anchor presupposition as a hypothesis, and `x && True`
+  ||| would stay stuck on the neutral `x`.
   public export
   otherAnchorOk : {bs : Bindings} -> (k : Kind) -> Maybe CardType ->
                   List (Predicate bs k) -> Bool
-  otherAnchorOk k t ps = if hasOtherAny ps then anchorFound k t bs else True
+  otherAnchorOk k t ps = atMostOne (countOthers (flattenPs ps)) &&
+                         (if hasOtherAny ps then anchorFound k t bs else True)
 
   ||| The head-typed "other" presupposition as a witness ([CR#115.4];
   ||| the guide reserves "another" for excluding the source or first
@@ -1647,36 +1710,73 @@ mutual
   allLoneOk [] = True
   allLoneOk (p :: ps) = (isAnyTarget p || isOther p) && allLoneOk ps
 
+  public export
+  countAnyTargets : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Nat
+  countAnyTargets [] = Z
+  countAnyTargets (p :: ps) =
+    if isAnyTarget p then S (countAnyTargets ps) else countAnyTargets ps
+
+  public export
+  countOthers : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Nat
+  countOthers [] = Z
+  countOthers (p :: ps) = if isOther p then S (countOthers ps) else countOthers ps
+
+  ||| The multiplicity caps a single modifier slot writes.
+  public export
+  atMostOne : Nat -> Bool
+  atMostOne Z = True
+  atMostOne (S Z) = True
+  atMostOne (S (S _)) = False
+
+  public export
+  exactlyOne : Nat -> Bool
+  exactlyOne Z = False
+  exactlyOne (S Z) = True
+  exactlyOne (S (S _)) = False
+
   ||| "Any target" is a lone CLASS word: the guide reserves it for the
   ||| rules-defined damage target class ([CR#115.4]) and forbids it as
   ||| a synonym for "any object", so it takes no modifiers — the sole
   ||| corpus companion is "other" (Arc Trail's "any other target").
+  ||| Both words are also written ONCE: oracle never repeats the class
+  ||| word inside one phrase, nor the modifier (`badDoubleAnyTarget`,
+  ||| `badDoubleOther`).
   public export
   anyTargetLone : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
   anyTargetLone ps = if anyIsAnyTarget (flattenPs ps)
-                       then allLoneOk (flattenPs ps)
+                       then allLoneOk (flattenPs ps) &&
+                            exactlyOne (countAnyTargets (flattenPs ps)) &&
+                            atMostOne (countOthers (flattenPs ps))
                        else True
 
   public export
   data AnyTargetLone : List (Predicate bs k) -> Type where
     MkAnyTargetLone : {auto 0 ok : anyTargetLone ps = True} -> AnyTargetLone ps
 
-  ||| Which modifiers a phrase can negate. "Any target" and "other"
-  ||| are not among them — the class word is never negated ([CR#115.4]
-  ||| defines it positively) and "non-other" is unwritten — and
-  ||| neither is a negation itself: oracle spells no double negative.
+  ||| Which modifiers a phrase can negate — ATOMIC rows only. Oracle's
+  ||| negation words (non-, isn't, doesn't) attach to ONE modifier, so a
+  ||| conjunction is negated per-member in English and De Morgan is the
+  ||| writer's job, not the grammar's: `Not (And …)` is unwritable
+  ||| (`badNegatedConjunction`), which also stops a singleton `And`
+  ||| laundering every ban below. "Any target" and "other" are not
+  ||| negatable — the class word is never negated ([CR#115.4] defines it
+  ||| positively) and "non-other" is unwritten — and neither is the
+  ||| universal player word, which names one of the people in the game
+  ||| ([CR#102.1]) and so has no complement class inside the kind, the
+  ||| same argument the class word's row makes. Nor is a negation itself
+  ||| negated: oracle spells no double negative.
   ||| Full rows: a new predicate form declares its answer.
   public export
   negatable : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   negatable (HasType _) = True
-  negatable AnyPlayer = True
+  negatable AnyPlayer = False
   negatable Opponent = True
   negatable (QualityNoun _) = True
   negatable (OfChosen _) = True
   negatable (ControlledBy _) = True
   negatable Attacking = True
   negatable (InZone _) = True
-  negatable (And _) = True
+  negatable (And _) = False
   negatable (Not _) = False
   negatable Other = False
   negatable AnyTarget = False
@@ -1817,6 +1917,43 @@ mutual
     -- "their owners' hands" — future vocabulary, `badGroupOwner`).
     ControllerOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Noun bs Player
     OwnerOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Noun bs Player
+
+  ||| Referent equality between two possessor nouns — deliberately the
+  ||| SMALLEST honest relation, and the reason `predEq`'s `ControlledBy`
+  ||| row is no longer vacuous. True only for the atomic words whose
+  ||| referent the binding context already fixes ("you" is you, "it" is
+  ||| the unique singular object), so two occurrences inside ONE phrase
+  ||| denote the same thing. Everything else is False, INCLUDING
+  ||| `Target`/`Target`: [CR#601.2c] chooses each "target" instance
+  ||| separately, so two of them may denote different objects and must
+  ||| never be equated. Per-row catch-alls, so a new noun form is a
+  ||| totality error. (Declared after `Noun` because a function's TYPE
+  ||| is elaborated in source order even inside `mutual`.)
+  public export
+  nounEqRef : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Noun bs k -> Bool
+  nounEqRef This This = True
+  nounEqRef This _ = False
+  nounEqRef (ThisOf _) _ = False
+  nounEqRef You You = True
+  nounEqRef You _ = False
+  nounEqRef (Target _) _ = False
+  nounEqRef (Each _) _ = False
+  nounEqRef (A _) _ = False
+  nounEqRef (ATheirChoice _) _ = False
+  nounEqRef (AAtRandom _) _ = False
+  nounEqRef (TargetGroup _ _) _ = False
+  nounEqRef (TargetUpTo _ _) _ = False
+  nounEqRef (AllOf _) _ = False
+  nounEqRef It It = True
+  nounEqRef It _ = False
+  nounEqRef They They = True
+  nounEqRef They _ = False
+  nounEqRef Them _ = False
+  nounEqRef (Those _) _ = False
+  nounEqRef (That _) _ = False
+  nounEqRef (TheVerbed _ _) _ = False
+  nounEqRef (ControllerOf _) _ = False
+  nounEqRef (OwnerOf _) _ = False
 
   ||| Destination legality for the move primitive ([CR#400.3] — cards
   ||| enter only their owner's hand/library/graveyard, so an owned

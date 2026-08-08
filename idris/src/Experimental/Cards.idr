@@ -558,15 +558,21 @@ failing "DamageRecipient"
   badDamageArtifact = DealDamage This (Lit 1) (Target (HasType Artifact))
 
 -- A phrase needs a positive head ([CR#105.1,608.2d]): "choose a
--- noncolor" and "target non-player" head nothing — Not is a
--- modifier, never a head.
+-- noncolor" heads nothing — Not is a modifier, never a head.
 failing "Headed"
   badNegatedQualityHead : Effect []
   badNegatedQualityHead = Choose (A (Not (QualityNoun Color)))
 
-failing "Headed"
-  badNegatedPlayerHead : Effect []
-  badNegatedPlayerHead = Choose (Target (Not AnyPlayer))
+-- "Target non-player" is refused EARLIER than headlessness now: the
+-- universal player word names one of the people in the game
+-- ([CR#102.1]), so there is no complement class for "non-" to take —
+-- the same argument the class word's row makes, and the negation is
+-- unwritable before the phrase ever reaches the head gate. Probed at
+-- the bare predicate: nested inside `Target`'s auto search this
+-- failure misreports as the outer `Headed` one.
+failing "Negatable"
+  badNegatedPlayerHead : Predicate [] Player
+  badNegatedPlayerHead = Not AnyPlayer
 
 -- Negation binds nothing: "a creature an opponent DOESN'T control"
 -- names no opponent for "that player" to read.
@@ -825,3 +831,46 @@ failing "AnyTargetFree"
 failing "InHandZone"
   badDiscardThisCreature : Effect []
   badDiscardThisCreature = discards You (ThisOf Creature)
+
+-- ===== Chapter fourteen negatives: the fourth wave =====
+
+-- Negation is ATOMIC: oracle's non-/isn't/doesn't attaches to one
+-- modifier, and a conjunction is negated per-member (De Morgan is the
+-- writer's job). A singleton `And` would otherwise launder every
+-- Negatable ban — `predEq (And _) _ = False` makes the wrapper
+-- invisible to the contradiction scan as well.
+failing "Negatable"
+  badNegatedConjunction : Predicate [] Object
+  badNegatedConjunction = Not (And [creature])
+
+-- The syntactically identical contradiction, no longer laundered by a
+-- vacuous member equality: "you" denotes the same player at both
+-- mentions, so the phrase asserts and denies one fact of one referent.
+-- `nounEqRef You You` is exactly the case the conservative relation
+-- can prove — two `Target`s would not be, and are not.
+failing "ContradictionFree"
+  badControlContradiction : Predicate [] Object
+  badControlContradiction = And [ControlledBy You, Not (ControlledBy You)]
+
+-- Only a creature can attack ([CR#506.3]), so the status word
+-- presupposes the type as well as the zone and "attacking noncreature"
+-- describes nothing — the finding-43 shape again: a projection made
+-- honest, the refusal falling out of the existing coherence gate.
+failing "ContradictionFree"
+  badAttackingNoncreature : Predicate [] Object
+  badAttackingNoncreature = And [Attacking, Not creature]
+
+-- The class word is written ONCE: no corpus line repeats it inside one
+-- phrase, and "any target and any target" names one referent twice.
+failing "AnyTargetLone"
+  badDoubleAnyTarget : Predicate [] Object
+  badDoubleAnyTarget = And [AnyTarget, AnyTarget]
+
+-- …and so is the modifier: the guide's selector order gives
+-- other/another a single slot. (Posed in a creature-target context so
+-- the anchor presupposition itself is satisfied — what refuses is the
+-- doubling, not the witness search.)
+failing "OtherAnchored"
+  badDoubleOther : Predicate [MkBinding TargetD Object OneOf
+                                        (ObjectP (Just Creature) (Just Battlefield) Nothing)] Object
+  badDoubleOther = And [creature, Other, Other]
