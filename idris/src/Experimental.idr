@@ -1430,6 +1430,14 @@ mutual
   seedZone : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Maybe Zone
   seedZone (InZone z) = Just (zoneSort z)
   seedZone Attacking = Just Battlefield
+  -- a controller relation says the same thing: only objects on the
+  -- stack or on the battlefield have a controller, and everything else
+  -- "isn't controlled by any player" ([CR#109.4]), so "a creature you
+  -- control in your graveyard" describes nothing
+  -- (`badControlledInGraveyard`). The stack is the caveat — [CR#109.4]
+  -- grants stack objects a controller too, and `Zone` has no stack row
+  -- today, so the battlefield seed is exact; revisit when one lands.
+  seedZone (ControlledBy _) = Just Battlefield
   seedZone (And ps) = seedZoneAll ps
   seedZone _ = Nothing
 
@@ -1504,16 +1512,20 @@ mutual
       Nothing => zonesAgree (Just z) ps
       Just w => sameZone w z && zonesAgree (Just w) ps
 
-  ||| The zones a member rules OUT. Zone negation is real oracle —
-  ||| "Each Vampire creature card you own that isn't on the
-  ||| battlefield has madness." (Falkenrath Gorger) — so `Not (InZone
-  ||| …)` stays writable; what it cannot do is contradict the zone the
-  ||| phrase actually places its referent in.
+  ||| The zones a member rules OUT — EXPLICIT zone clauses only. Zone
+  ||| negation is real oracle — "Each Vampire creature card you own
+  ||| that isn't on the battlefield has madness." (Falkenrath Gorger) —
+  ||| so `Not (InZone …)` stays writable; what it cannot do is
+  ||| contradict the zone the phrase actually places its referent in.
+  ||| A negated modifier that merely PRESUPPOSES a zone rules out
+  ||| nothing: presupposition projects through negation, so
+  ||| "nonattacking creature" still stands on the battlefield — real
+  ||| and plentiful oracle ("Target nonattacking, nonblocking creature
+  ||| gets +0/+2 until end of turn."; `rawNonattacking`) that reading
+  ||| the seed through `Not` would have refused.
   public export
   negZonesOf : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> List Zone
-  negZonesOf (Not p) = case seedZone p of
-    Just z => [z]
-    Nothing => []
+  negZonesOf (Not (InZone z)) = [zoneSort z]
   negZonesOf _ = []
 
   public export

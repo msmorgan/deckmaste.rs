@@ -354,6 +354,17 @@ caseOfTheGatewayExpress = AndThen (Choose (Target creatureYouDontControl))
 cyclingCost : Effect []
 cyclingCost = discards You This
 
+-- "Target nonattacking, nonblocking creature gets +0/+2 until end of
+-- turn." (the blocking half waits on its status word) — a presupposed
+-- zone projects THROUGH negation: negating the status does not negate
+-- the battlefield, so the phrase keeps the [CR#109.2] default and
+-- stays coherent. The nonattacking family is plentiful oracle ("Untap
+-- target nonattacking creature.", "Target nonattacking creature gains
+-- reach and deathtouch until end of turn."), which is what makes
+-- reading the seed through `Not` an over-refusal rather than a nicety.
+rawNonattacking : Predicate [] Object
+rawNonattacking = And [creature, Not Attacking]
+
 -- "Exile target creature." spelled raw — the tag-ALIGNED twin of
 -- `badDestroyTaggedExile`: same body, agreeing tag. The `TagBody`
 -- witness travels explicitly because its auto search is flaky even
@@ -899,3 +910,13 @@ failing "DiscardOk"
 failing "DiscardOk"
   badDiscardAnyTarget : Effect []
   badDiscardAnyTarget = discards You (Target AnyTarget)
+
+-- A controller relation presupposes the battlefield: objects that are
+-- neither on the stack nor on the battlefield "aren't controlled by any
+-- player" ([CR#109.4]), so "a creature you control in your graveyard"
+-- places its referent in two zones at once — the finding-43 shape once
+-- more, a projection made honest and the existing coherence gate
+-- supplying the refusal.
+failing "ZoneCoherent"
+  badControlledInGraveyard : Predicate [] Object
+  badControlledInGraveyard = And [creature, ControlledBy You, InZone GraveyardZ]
