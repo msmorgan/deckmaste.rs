@@ -6,6 +6,15 @@ import public Experimental
 
 %default total
 
+-- "target [pred]" — the singular counted mention. One constructor
+-- serves every count ([CR#601.2c] announces them all alike); at one
+-- the numeral is what rendering leaves unwritten ("target creature",
+-- never "one target creature").
+public export
+target : (p : Predicate bs k) -> {auto tk : Targetable k} ->
+         {auto 0 hd : Headed p} -> Noun bs k
+target p = TargetGroup 1 p {tk} {hd}
+
 -- "creature"
 public export
 creature : Predicate bs Object
