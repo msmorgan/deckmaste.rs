@@ -74,7 +74,7 @@ cloudshift = Sequentially [exile (target creatureYouControl),
 -- referent survives the delay [CR#603.7c], and the trailing adverbial
 -- is the `Delayed` mark on its clause.
 throughTheBreach : Effect []
-throughTheBreach = Sequentially [May You (Move (a (And [creature, InZone (handOf You)])) battlefieldZ),
+throughTheBreach = Sequentially [may You (Move (a (And [creature, InZone (handOf You)])) battlefieldZ),
                                  gainsHaste (That (TypeW Creature)) Nothing,
                                  Delayed NextEndStep (sacrifice You (That (TypeW Creature)))]
 
@@ -538,6 +538,89 @@ luckyOffering =
   Sequentially [destroy (target (And [artifact,
                                       Compare ManaValue OrLess (Lit 3)])),
                 gainsLife You (Lit 3)]
+
+-- ===== What a clause can be conditioned on: the conditions chapter =====
+
+-- "Destroy target artifact if its mana value is 2 or less." (Overload;
+-- the kicker line and its "if this spell was kicked … instead" rider
+-- elided — an additional cost and a replacement, two later axes) — the
+-- flagship trailing conditional, and the one that fixes the argument
+-- order: "its" is the artifact the MAIN clause targeted, so the
+-- condition has to be typed after the clause it modifies. The
+-- comparison is chapter sixteen's vocabulary unchanged — one
+-- `Comparator`, one `StatOf` read, one written bound — in the
+-- predicative frame instead of the postnominal one.
+overload : Effect []
+overload = If (destroy (target artifact))
+              (CompareAmt (manaValueOf It) OrLess (Lit 2))
+
+-- "Target attacking creature gets +3/+3 until end of turn. If it's an
+-- artifact creature, it gains trample until end of turn." (Built to
+-- Smash; the whole card) — the LEADING linearization of the same node:
+-- the condition reads only what the first sentence introduced, so
+-- nothing the second clause announces is inside it and the "If …, …"
+-- order is available. Also the reference-matches row's positive, whose
+-- predicate is two positive types stacked — the phrase "artifact
+-- creature" a noun phrase would spell the same way.
+builtToSmash : Effect []
+builtToSmash =
+  Sequentially [gets (target (And [creature, Attacking])) 3 3 (Just untilEndOfTurn),
+                If (gains It (KeywordAbility Trample) (Just untilEndOfTurn))
+                   (itsA (And [artifact, creature]))]
+
+-- "Flames of the Raze-Boar deals 4 damage to target creature an
+-- opponent controls. Then Flames of the Raze-Boar deals 2 damage to
+-- each other creature that player controls if you control a creature
+-- with power 4 or greater." (the whole card; the ability word
+-- "Ferocious —" is a name for the condition, not a second clause) —
+-- the existence row's positive, and it earns its place twice over: the
+-- conditioned clause is the SECOND of a sequence, so the condition is
+-- typed in a discourse two mentions deep, and the phrase it quantifies
+-- over is a bound one, which is the comparison chapter's qualifier
+-- inside the conditions chapter's quantifier.
+flamesOfTheRazeBoar : Effect []
+flamesOfTheRazeBoar =
+  Sequentially [DealDamage This (Lit 4) (target (And [creature, ControlledBy anOpponent])),
+                If (DealDamage This (Lit 2)
+                               (Each (And [creature, Other, ControlledBy (That PlayerW)])))
+                   (Exists (And [creature, ControlledBy You,
+                                 Compare Power OrGreater (Lit 4)]))]
+
+-- "You may sacrifice a creature. If you do, each opponent discards a
+-- card." (Braids's Frightful Return, chapter I; the Saga's read-ahead
+-- reminder and its other two chapters are separate abilities) — the
+-- if-you-do branch. Two sentences on the page, ONE clause here: the
+-- anaphor conditions on whether the offer was taken, which is not a
+-- fact about the board, so it rides the may rather than the condition
+-- type.
+braidsFrightfulReturn : Effect []
+braidsFrightfulReturn =
+  mayThen You (sacrifice You (a creature)) (discardsACard (Each Opponent))
+
+-- "You may sacrifice an artifact. If you do, destroy target artifact or
+-- creature." (Daretti, Ingenious Iconoclast's [−1]; the loyalty cost is
+-- the ability layer's) — the taken branch reading FORWARD: the arm
+-- announces its own target, which the branchless may could not have
+-- carried on the same sentence.
+darettisMinusOne : Effect []
+darettisMinusOne =
+  mayThen You (sacrifice You (a artifact))
+              (destroy (target (Or [artifact, creature])))
+
+-- "You may sacrifice an artifact. If you don't, tap this creature and
+-- it deals 2 damage to you." (Yawgmoth Demon; the upkeep trigger
+-- elided) — the DECLINED branch, and the asymmetry that makes the two
+-- arms different types: this arm runs exactly when the sacrifice did
+-- not, so the artifact it would have taken never existed and the arm
+-- cannot mention it (`badIfNotReadsMayBody`). The card's "it deals" is
+-- written here as the source itself: the pronoun and `This` name the
+-- same object, but the source enters no discourse (ledger), so the
+-- read has nothing to resolve against and the meaning is carried by
+-- the phrase the pronoun abbreviates.
+yawgmothDemon : Effect []
+yawgmothDemon =
+  mayElse You (sacrifice You (a artifact))
+              (Sequentially [Tap thisCreature, DealDamage This (Lit 2) You])
 
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
@@ -1575,3 +1658,95 @@ failing "ParallelDisjuncts"
 failing "AnyTargetLone"
   badAnyTargetComparison : Predicate [] Object
   badAnyTargetComparison = And [AnyTarget, Compare Power OrLess (Lit 2)]
+
+-- ===== What may be tested, and what a test leaves behind =====
+
+-- A condition quantifies over a DESCRIPTION, so the phrase inside it
+-- has to name something: "if you control attacking" heads nothing, the
+-- same refusal the indefinite article and the for-each domain already
+-- make. The existence row needed no rule of its own — it re-keys onto
+-- the head projection the noun layer computes.
+failing "Headed"
+  badExistsUnheaded : Condition []
+  badExistsUnheaded = Exists Attacking
+
+-- The class word NAMES [CR#115.4]'s damage class and describes no
+-- object, so there is nothing for an existential to be true of. Third
+-- consumer of the same gate (the article and the for-each domain being
+-- the first two), and it cost one hypothesis rather than a rule.
+failing "AnyTargetFree"
+  badExistsAnyTarget : Condition []
+  badExistsAnyTarget = Exists AnyTarget
+
+-- Nor inside the reference-matches frame: "if it's any target" would
+-- test a phrase that fixes the class by rule rather than describing the
+-- referent.
+failing "AnyTargetFree"
+  badMatchesAnyTarget : Effect []
+  badMatchesAnyTarget = If (destroy (target artifact)) (itsA AnyTarget)
+
+-- The condition's SUBJECT is a read and never a mention. This is the
+-- refusal that keeps `condDelta`'s opacity honest instead of merely
+-- convenient: "If target creature has toughness 5 or greater, it gets
+-- +4/-4 until end of turn" (Blood Lust) announces a target inside the
+-- if-clause that the consequent then reads, which [CR#601.2c] makes
+-- legitimate — targets are announced as the spell is cast, whatever
+-- clause spells them — and which this grammar cannot represent without
+-- letting conditions bind. Ten corpus lines write "if target …"; the
+-- family is refused whole rather than mis-bound, and waits on the
+-- ledger.
+failing "Bindingless"
+  badMatchesTargetSubject : Condition []
+  badMatchesTargetSubject = Matches (target creature) artifact
+
+-- A written comparison measures a READ against a written value, and a
+-- numeral is not a read: "if 3 is 4 or greater" states an arithmetic
+-- fact, not a fact about the game. The subject table is `writtenBound`'s
+-- exact complement, and this is the cell where they differ most
+-- visibly.
+failing "ReadAmount"
+  badCompareLiteralSubject : Condition []
+  badCompareLiteralSubject = CompareAmt (Lit 3) OrGreater (Lit 4)
+
+-- The announced X is a written value too ([CR#107.3a]) — the OTHER
+-- amount `writtenBound` says yes to — so it is a bound and never a
+-- subject. No corpus line compares a bare X against a numeral; where X
+-- is tested at all, what is measured is the phrase X was defined from.
+failing "ReadAmount"
+  badCompareXSubject : Condition []
+  badCompareXSubject = CompareAmt XVal OrGreater (Lit 4)
+
+-- And the bound stays written on this side of the frame as well. The
+-- phrasal standard ("less than or equal to the number of Islands you
+-- control") is real oracle English and a real comparison, and it is
+-- still the other frame's — with its own word order and its own
+-- comparator words — so the condition frame refuses it exactly as the
+-- postnominal qualifier does (`badPhrasalBound`, chapter sixteen).
+failing "WrittenBound"
+  badConditionPhrasalBound : Condition []
+  badConditionPhrasalBound =
+    CompareAmt (CountOf creatureYouControl) OrGreater (powerOf This)
+
+-- A condition introduces nothing. The mention written inside one is
+-- reachable while the condition is being written — that is the
+-- telescope — but the clause that follows the conditional cannot read
+-- it, because the condition may have been false and then there was no
+-- such creature to speak of. `predDelta (Or _) = []` at clause level,
+-- and refused by the pronoun's own uniqueness gate rather than by a
+-- rule about conditions.
+failing "countOnes"
+  badConditionAntecedent : Effect []
+  badConditionAntecedent =
+    Sequentially [If (gainsLife You (Lit 2)) (Exists creatureYouControl),
+                  Tap It]
+
+-- The two branches of a may are not two spellings of one arm. The
+-- if-you-DON'T arm runs exactly when the body did not, so the body's
+-- phrase never named anything: "You may sacrifice a creature. If you
+-- don't, exile it." is unwritable, and the corpus writes no such line —
+-- every declined arm read this pass reaches the decider or the
+-- sentences before the may. The taken arm has the opposite type and
+-- reads the body in full (`darettisMinusOne`).
+failing "countOnes"
+  badIfNotReadsMayBody : Effect []
+  badIfNotReadsMayBody = mayElse You (sacrifice You (a creature)) (exile It)

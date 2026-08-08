@@ -1154,6 +1154,243 @@ and the one that moved every grant and restriction at once):
    phases carry no duration-class adverbial anywhere in the
    corpus, so they are not parts this type names yet.
 
+## Chapter Eighteen — The Conditions Axis
+
+Chapter eighteen, the conditions axis (evidence: Overload, Built
+to Smash, Flames of the Raze-Boar, Braids's Frightful Return,
+Daretti Ingenious Iconoclast, Yawgmoth Demon; and, for what the
+chapter refused, Blood Lust, Hidetsugu's Second Rite, Meddle,
+There and Back Again, Cosmos Elixir. The round the corpus split
+into thirds — one third built, one third handed to the cost
+algebra by rule, one third measured and left):
+
+69. **`Condition` is core's `Condition`, and its first three rows
+   are the three questions English can ask with the vocabulary
+   this grammar already has.** Core's enum
+   (`deckmaste_core/src/condition.rs`) opens with
+   `Exists(Predicate)`, `Matches(Reference, Predicate)`, and
+   `Compare(Count, Cmp, Count)`, and those three are exactly what
+   the workbench can spell today, because each takes one thing it
+   already owns and asks whether it holds: a description, a
+   reference against a description, an amount against a bound.
+   Every other core row reaches past that — attachment,
+   event history, cost tags, saga crossings, turn and phase — and
+   each arrives with the axis it names, so the agreement is not
+   imitation but a shared floor. The counts back the three: "if
+   you control …" with an article runs to three hundred
+   thirty-eight lines against seven for the existential-there,
+   which is why `Exists` writes the fronted-subject spelling as
+   its primary surface and the existential-there as its second;
+   "if it's a/an …" runs to two hundred sixty-five, of which
+   "creature" alone is a hundred sixteen; and the written numeric
+   comparison ("is [n] or greater/less/more/fewer") runs to
+   eighty-three. What did NOT become a row is the negation. Core
+   has `Not(Condition)` and English writes "if you control no
+   creatures" (twenty-four lines with "no", six of them
+   creatures), but every carrier of those lines is a triggered
+   ability's intervening-"if" or an activation restriction — R7
+   both — so the row has no clause here to sit on and waits with
+   them.
+70. **A written comparison is ONE relation in two word orders, and
+   the amount vocabulary divides by which SIDE it can stand on.**
+   The temptation was a second comparison type: the postnominal
+   qualifier "with power 4 or greater" (chapter sixteen) and the
+   predicative "if its power is 4 or greater" look like different
+   machinery. They are not — the comparator is the same two
+   words, the characteristic read is the same `StatOf`, the bound
+   is the same numeral-or-X — so `CompareAmt` reuses `Comparator`
+   and `WrittenBound` unchanged and adds exactly one thing: a
+   table saying which amounts can be MEASURED. `readAmount` turns
+   out to be `writtenBound`'s exact complement. The two readers
+   are the object's own number and a set's cardinality; the two
+   writables are the numeral and the announced X; and the scaled
+   product, the sum, and the event-outcome read are neither,
+   appearing on no side of a written comparison anywhere. So one
+   `Amount` vocabulary serves both halves of the frame with
+   disjoint answers, and a new amount now has two tables to face
+   rather than one. What the frame does NOT get is the strict
+   comparators. The condition frame writes them where the
+   postnominal frame cannot — "if your life total is less than 7"
+   — and admitting them would turn `Comparator` from a closed
+   two-row vocabulary into a per-frame attestation table, which
+   is a chapter's worth of evidence and not a row. The counts say
+   wait: fifty-one "is less than" lines and eighteen "is greater
+   than", but almost all of them take a PHRASAL standard ("less
+   than or equal to the number of Islands you control"), which is
+   the frame chapter sixteen already ledgered, and the life total
+   they mostly measure is not a `Characteristic` this grammar
+   reads at all.
+71. **A condition introduces nothing — and the one exception is a
+   TARGET, which is named rather than smoothed over.** `condDelta`
+   answers `[]` on every row, which is `predDelta (Or _) = []` one
+   layer up and for the identical reason: a condition may be
+   false, so a mention written inside one names nobody the
+   sentences after it can read back. Corpus is not unanimous, and
+   the counterexample is precise rather than vague. Ten lines
+   write "if target …"; four of them lead their sentence with it,
+   and three of those four read the announced target in the
+   consequent — "If target creature has toughness 5 or greater,
+   it gets +4/-4 until end of turn" (Blood Lust), Hidetsugu's
+   Second Rite, Meddle. Those are not sloppy templating: targets
+   are announced as the spell is cast whatever clause spells them
+   ([CR#601.2c]), so the condition's truth never gated the
+   announcement and the referent really is there. The workbench
+   cannot represent a delta that carries only the target half of
+   what a phrase introduces, so the family is refused WHOLE at the
+   subject slot rather than admitted with a lie about its
+   bindings: `Matches` demands a `Bindingless` subject, re-keyed
+   onto `nounDelta` rather than mirroring the noun constructors,
+   and Blood Lust is a pin (`badMatchesTargetSubject`). This is
+   the chapter's one open user-level fork, recorded here so it is
+   not decided by accretion.
+72. **Argument order is textual order, so the TRAILING conditional
+   fixes the node's shape — and buys a divergence worth stating.**
+   Oracle writes both linearizations and they are not equally
+   easy: six hundred ninety lines put the condition after the
+   clause, four hundred eighty-six put it first. The trailing form
+   is where the binding flow is forced — "Destroy target artifact
+   if its mana value is 2 or less" (Overload) reads "its" off the
+   artifact the MAIN clause targeted — so the condition is typed
+   in the clause's post-context, like every other trailing
+   argument in this grammar, and the leading form is the same node
+   whenever the condition uses nothing the clause introduced,
+   which is the ordinary case (Built to Smash writes
+   "If it's an artifact creature, it gains trample until end of
+   turn" and its condition reaches back only to the sentence
+   before). The DIVERGENCE the shape buys: a trailing condition is
+   evaluated before the clause it modifies takes effect but
+   written after it, so the telescope types it against a discourse
+   the clause has already updated — Overload's artifact is
+   retagged to the graveyard by the destroy before "its mana
+   value" is read. Nothing in this vocabulary notices, because
+   mana value belongs to every object ([CR#202.3]) and is read
+   zone-free; a zone-sensitive read in a trailing condition would,
+   and that is the first thing to check when one lands. The ELSE
+   sentence belongs to this node and is not built: "Otherwise, …"
+   runs to a hundred and seventy-five lines and is plainly a third
+   slot on `If` rather than a `Sequentially` element — an
+   else-arm has no meaning without the "if" that governs it, where
+   a sequence's elements are independent clauses — but every
+   corpus else-arm read this pass needs vocabulary this grammar
+   lacks (counters, draw, mana, tokens, the library), and the one
+   that nearly fits is Blood Lust, refused by finding 71.
+73. **"If you do" is not a condition. It is a BRANCH on the may,
+   and its two arms have different types.** This was the round's
+   hardest design and the corpus decided it twice over. The
+   anaphor has no referent of its own to condition on: it asks
+   whether the immediately preceding OPTIONAL ACTION was taken,
+   which is not a fact about the board and not a mention in the
+   discourse, so making it a `Condition` row would mean minting a
+   channel that records what the last clause offered. Core reached
+   the same place from the other direction — `May { who, effect,
+   if_did, if_not }` (`deckmaste_core/src/effect.rs`), one node
+   whether or not the branches are present — and the ledger had
+   already filed these as May's branches. So `May` grew two
+   `Maybe` slots and three macros own the surfaces (`may`,
+   `mayThen`, `mayElse`), the anaphor's pronoun being the
+   DECIDER's own ("if you do" against Risk Factor's "if they
+   don't"). The finding is the ASYMMETRY between the arms. The
+   taken arm runs only when the body ran, so it reads everything
+   the body introduced and may announce more of its own
+   (Daretti's "If you do, destroy target artifact or creature").
+   The declined arm runs only when the body did NOT, so the body's
+   phrase never named anything and the arm reads only what
+   preceded the may — Yawgmoth Demon's "If you don't, tap this
+   creature and it deals 2 damage to you", Braids's "If they
+   don't, they lose 2 life" reaching the decider, Chandra's "If
+   you don't, …" reaching the sentence before. "You may sacrifice
+   a creature. If you don't, exile it." is unwritable
+   (`badIfNotReadsMayBody`) and the corpus writes no such line.
+   `mayIntro` carries the same cut outward: the arm that continues
+   the main line flows out of the clause, the arm that REPLACES it
+   is a hole. And the rules say what the branch reads, which is
+   sharper than the corpus alone could: [CR#118.12] makes the
+   offered action a COST paid on resolution and has the "if [a
+   player] does" clause check "whether the player chose to pay an
+   optional cost or started to pay a mandatory cost, regardless of
+   what events actually occurred". The branch is therefore not an
+   event read at all — no outcome channel would have served it —
+   and the arm asymmetry follows directly: a payment never started
+   introduced no phrase to mention. The MANDATORY twin ("[Do
+   something]. If you do, …", no "may") is the same rule's first
+   shape rather than a different reader, a hundred and forty-two of
+   the thirteen hundred ten "if you do" lines writing no "may"
+   anywhere on the line; it waits with the cost algebra that has to
+   spell an unoffered payment.
+74. **"Unless" divides by whether what follows it is an ACTION or a
+   STATE, and the rules make the division rather than the
+   grammar.** [CR#118.12a] rewrites the action form outright:
+   "[Do something] unless [a player does something else]" means
+   the same thing as "[A player may do something else]. If [that
+   player doesn't], [do something]." That is finding 73's node
+   exactly, which means the action-unless family needs no new
+   structure at all — it is `May` with an `ifNot` arm, and what it
+   waits on is the vocabulary in the may body. That vocabulary is
+   cost: of six hundred ninety-six "unless" lines, a hundred
+   forty-five write "unless you pay" and a hundred eighty-six
+   "unless [someone] pays", and the one-shot family is
+   overwhelmingly the counter-unless-pays punisher. Another
+   seventy-one pay a non-mana cost ("unless you sacrifice /
+   discard / exile / tap"), still [CR#118.12] payments. So the
+   action half is R7's, ledgered with its counts and nothing
+   built. The STATE half is not [CR#118.12a] at all — "unless you
+   control a legendary creature" tests the board, so it is a
+   negated `Condition` — and its sixty-two lines have no one-shot
+   carrier either: they are entering-tapped replacements (R6) and
+   durationless static deontics ("Bast can't attack or block
+   unless you control three or more creatures"; a hundred nine
+   "can't … unless" lines), which is the parked ability layer.
+   When the conditioned deontic does land it should re-use this
+   chapter's `Condition` inside `Cant`'s shape rather than grow a
+   restriction-local test — core does exactly that with
+   `StaticEffect::Conditionally(Condition, StaticEffect)`
+   (`continuous.rs`).
+75. **"For as long as" is a row waiting on its CLAUSES, not on its
+   shape.** Core spells it `Duration::ForAsLongAs(Condition)`
+   (`continuous.rs`), the condition type it needs now exists here,
+   and the row would EXTEND chapter seventeen's decomposed
+   `Duration` — a third alternative beside `ThisTurn` and `Until`
+   — rather than parallel it. What is missing is a clause to hang
+   it on, and the measurement is unusually clean. Two hundred and
+   ten corpus lines write the adverbial. Forty-two are control
+   grants, a verb this grammar has no row for. Four are keyword
+   grants and all four grant "indestructible", which `Keyword`
+   does not carry. Four are stat deltas and all four end "for as
+   long as this artifact remains tapped", which needs the
+   object-status axis the representability frontier already names.
+   Nine are restrictions and eight of those coordinate two deeds
+   or name a deed with no clause here ("doesn't untap", "can't
+   phase in", "can't have counters put on it"). The single line
+   that is one deed under one condition — "Up to one target
+   creature can't block for as long as you control this Saga"
+   (There and Back Again) — needs a type word `CardType` does not
+   have. So nothing was opened: an unwitnessed row is a row
+   without a positive, and the honest form of "real English, no
+   construction here" is a ledger entry, which is the same
+   `Unclaimed` distinction chapter seventeen's span table makes
+   one level down. Its sibling stays apart from it and is
+   larger: the bare "as long as" conditioning a static ability
+   ([CR#611.3]) accounts for the rest of eleven hundred
+   thirty-five "as long as" lines, and that is a static-ability
+   container, not a duration.
+76. **Nothing in this chapter is one-shot-only, and the seam is
+   deliberate.** [CR#603.4]'s own parenthetical is what licenses
+   the ordinary conditional here — "the word 'if' has only its
+   normal English meaning anywhere else in the text of a card" —
+   and it is also what marks the boundary: the intervening-"if" of
+   a triggered ability is an "if" immediately following a trigger
+   condition, and it is checked twice, at the trigger event
+   ([CR#603.4]) and again on resolution ([CR#608.2a]). That is a
+   CARRIER distinction and not a condition one. The three rows
+   here ask about the board, the bindings they are typed in are
+   whatever their carrier supplies, and `condDelta`'s opacity
+   holds for any of them, so the trigger layer reuses `Condition`
+   verbatim for its intervening-"if" clause and for the "Activate
+   only if" restriction (two hundred thirty-seven lines) without
+   re-deriving anything. The one-shot `If` node is the reader that
+   arrived first, not the type's owner — which is why the type's
+   doc comment says so and why none of the gates mention clauses.
+
 ## Engine-Boundary Deferrals
 
 Engine-boundary deferrals (deliberate, and to stay so): the
@@ -1225,8 +1462,43 @@ memory, same cluster); the up-to-one singular
 remention positive (Ty Lee, Chi Blocker — its second sentence is
 the UNTAP deed under a "for as long as" duration ([CR#611.2b]), so
 it waits on both, chapter fifteen's restriction clause having
-landed with neither); `May`'s if-you-do / if-not branches (the Risk
-Factor / Rakdos, Patron of Chaos else-clauses); the chosen-OBJECT
+landed with neither); [LANDED, finding 73 — `May`'s if-you-do /
+if-not branches are two `Maybe` slots on the clause, and the
+declined arm reads only what preceded the may]; the MANDATORY
+"if you do" ("[Do something]. If you do, …" with no offer — a
+hundred and forty-two lines write no "may" anywhere), which
+[CR#118.12] governs jointly with the offered form and calls a
+cost check rather than an event read, so it waits with the cost
+algebra that has to spell an unoffered payment; the ELSE sentence "Otherwise, …" (a hundred and
+seventy-five lines), which is a third slot on `If` and not a
+`Sequentially` element, waiting on the vocabulary its arms use —
+counters, draw, mana, tokens, the library — and on finding 71 for
+the one near-fit (Blood Lust); the LEADING conditional that
+announces a target its consequent reads ("If target creature has
+toughness 5 or greater, it gets +4/-4 until end of turn", Blood
+Lust; Hidetsugu's Second Rite; Meddle — ten "if target" lines,
+four sentence-initial), which is legitimate by [CR#601.2c] and
+needs a delta carrying only a phrase's target half; the STRICT
+comparators in the condition frame ("if your life total is less
+than 7"; fifty-one "is less than" lines, eighteen "is greater
+than", almost all against a phrasal standard) together with the
+life-total reader they mostly measure, which `Characteristic`
+does not carry and which would make `Comparator` a per-frame
+table; the CONDITION negation (core's `Not(Condition)`; "if you
+control no …", twenty-four lines, every carrier a trigger's
+intervening-"if" or an activation restriction); "unless" whole
+— the action form is [CR#118.12a]'s own rewrite into finding 73's
+node and waits on the cost algebra (a hundred forty-five "unless
+you pay", a hundred eighty-six "unless [someone] pays",
+seventy-one non-mana payments), the state form is a negated
+condition whose carriers are entering-tapped replacements and
+durationless static deontics (sixty-two "unless you control", a
+hundred nine "can't … unless"), and the conditioned deontic
+should re-use `Condition` inside `Cant`'s shape as core does with
+`StaticEffect::Conditionally`; "if able" (two hundred fifty-one
+lines, fifty-eight of them "attacks each combat if able"), which
+is the deontic-obligation polarity core keeps beside `Cant` and
+not a condition at all; the chosen-OBJECT
 definites ("the chosen creatures" — V.A.T.S./Victimize wait on
 "any number of" groups and if-you-do); plural participle reads
 ("the exiled cards", Hide on the Ceiling — group twins of
@@ -1293,8 +1565,21 @@ already (finding 41), so what this waits on is the source ENTERING
 the discourse: `This` and its ascriptions introduce no binding, and the anchor
 search reads bindings);
 static "as long as" conditions ([CR#611.3], Kitesail Corsair —
-the card has no "for") and effect-created "for as long as"
-durations ([CR#611.2b]); the EVENT-ended endpoint ("Exile another target
+the card has no "for"; the rest of eleven hundred thirty-five
+"as long as" lines once the two hundred ten "for as long as" are
+taken out, and a static-ability container rather than a duration)
+and effect-created "for as long as" durations ([CR#611.2b] —
+finding 75 measured it: core's `Duration::ForAsLongAs(Condition)`
+is a row that EXTENDS chapter seventeen's `Duration` and the
+condition half now exists, so what it waits on is a clause.
+Forty-two of the two hundred ten lines are control grants, four
+are keyword grants and all four grant "indestructible", four are
+stat deltas and all four end "for as long as this artifact remains
+tapped", nine are restrictions and eight coordinate deeds or name
+a deed with no clause here; the one single-deed line, There and
+Back Again's "Up to one target creature can't block for as long
+as you control this Saga", needs a type word `CardType` does not
+have); the EVENT-ended endpoint ("Exile another target
 creature until this creature leaves the battlefield", the O-Ring
 family, ninety-one lines — an endpoint named by an event rather
 than a turn boundary, which is why chapter seventeen's
@@ -1393,9 +1678,12 @@ pile be empty, while [CR#700.3c] only keeps the piles in the zone
 they came from; labels, choice, and complement are the card's own
 instructions); modal clauses ("Choose one —",
 [CR#700.2,115.8] — effect-row alternatives with branch-local
-targets); truth-valued conditions and branching (Galvanic Blast's
-"instead if"; [CR#603.4] separates intervening-if from English
-"if"); linked-ability memory (Cold Storage, [CR#607.2a] —
+targets); truth-valued conditions and branching [LANDED in part,
+chapter eighteen — `Condition` and the `If` clause; what is still
+frontier here is the BRANCH, Galvanic Blast's "instead if" being a
+replacement (R6) rather than an else-arm, and [CR#603.4]'s
+separation of intervening-if from English "if" being the seam
+finding 76 leaves for the trigger layer]; linked-ability memory (Cold Storage, [CR#607.2a] —
 source-keyed exile notes across abilities, beyond any one
 discourse); divided amounts (Chandra's Pyrohelix,
 [CR#601.2d,115.7f] — an allocation announced and locked);

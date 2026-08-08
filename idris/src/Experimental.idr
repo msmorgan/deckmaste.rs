@@ -915,11 +915,26 @@ data DurationEnd = StartOf TurnPart (Maybe Whose)
 ||| resolution-generated continuous effect "lasts as long as stated";
 ||| with no stated duration it lasts until end of game, which is the
 ||| explicit `Nothing` spelling per the no-defaults convention).
-||| "for as long as" durations ([CR#611.2b]) are a later chapter, and so
-||| is the event-ended family ("until [this creature] leaves the
-||| battlefield", the O-Ring shape) — an endpoint named by an EVENT
-||| rather than a turn boundary, which waits on the events axis
-||| (ledger), not on this type's shape.
+||| "For as long as" durations ([CR#611.2b]) are the row this type will
+||| grow next and cannot grow yet, which the conditions chapter
+||| measured rather than assumed: core spells it
+||| `Duration::ForAsLongAs(Condition)` (`continuous.rs`), the condition
+||| type it needs now exists here, and the row would EXTEND this one
+||| (a third alternative beside `ThisTurn` and `Until`) rather than
+||| parallel it. What is missing is a clause to attach it to. Two
+||| hundred and ten corpus lines write the adverbial; of those, forty-two
+||| are control grants and the rest reach for vocabulary this grammar
+||| lacks — four keyword grants, all of "indestructible"; four stat
+||| deltas, all ending "for as long as this artifact remains tapped";
+||| nine restrictions, eight of them coordinated deeds or deeds with no
+||| clause here. The single line that is one deed under one condition
+||| ("Up to one target creature can't block for as long as you control
+||| this Saga", There and Back Again) needs a type word `CardType` does
+||| not have. So the row waits on its clauses, not on its shape, and
+||| `spanUse` would have to be answered for a whole family rather than
+||| a cell when it lands. The event-ended family ("until [this
+||| creature] leaves the battlefield", the O-Ring shape) waits on the
+||| events axis in the same way (ledger).
 |||
 ||| "This turn" is its own row rather than an `Until` form because it is
 ||| not one: it names the current turn as a whole, without a boundary
@@ -2713,6 +2728,177 @@ mutual
   delayedCtx NextEndStep = settleTargets bs
   delayedCtx (DiesThisTurn n) = settleTargets (moveIntro Nothing n Graveyard)
 
+  ||| May this amount stand as a comparison's SUBJECT — the thing
+  ||| measured, on the left of "is"? The exact complement of
+  ||| `writtenBound`, and for the same reason: a comparison in English
+  ||| puts a READ of the game state against a WRITTEN value ("if its
+  ||| mana value is 2 or less", "if there are four or more creature
+  ||| cards in your graveyard"), and the two halves draw on disjoint
+  ||| parts of the one `Amount` vocabulary. The two readers are the
+  ||| object's own number and a set's cardinality; the two writables
+  ||| are the numeral and the announced X, and neither is ever
+  ||| measured — "if 3 is 4 or greater" is not a sentence, and no
+  ||| corpus line compares a bare X either. What is neither is neither:
+  ||| the scaled product, the sum, and the event-outcome read appear on
+  ||| no side of a written comparison at all (`badCompareLiteral`,
+  ||| `badCompareThatMuch`). Full rows, so a new amount declares which
+  ||| side of a comparison it can stand on — both tables ask, and a new
+  ||| row that answers `True` to both would be the first amount English
+  ||| both writes and reads.
+  public export
+  readAmount : {0 bs : Bindings} -> Amount bs -> Bool
+  readAmount (Lit _) = False
+  readAmount (StatOf _ _) = True
+  readAmount (CountOf _) = True
+  readAmount (Times _ _) = False
+  readAmount ThatMuch = False
+  readAmount XVal = False
+  readAmount (Plus _ _) = False
+
+  public export
+  data ReadAmount : Amount bs -> Type where
+    MkReadAmount : {auto 0 ok : readAmount a = True} -> ReadAmount a
+
+  ||| A noun phrase that contributes NOTHING to the discourse — every
+  ||| read, and the bare source; never a determined mention. Re-keyed
+  ||| onto `nounDelta` rather than mirroring the constructor list, so
+  ||| the question asked is the one that matters ("does this phrase
+  ||| bind?") and a new noun answers it by the delta it already has to
+  ||| write.
+  |||
+  ||| What consumes it is the condition subject (`Matches`): a
+  ||| condition introduces nothing (`condDelta`), so a phrase that
+  ||| WOULD have introduced something can only be written there by
+  ||| losing it silently. Refusing the phrase is the honest form of
+  ||| that — and it is what makes the target-announcing conditional
+  ||| ("If target creature has toughness 5 or greater, it gets +4/-4
+  ||| until end of turn", Blood Lust) unwritable rather than
+  ||| mis-written (`badMatchesTargetSubject`; ledger).
+  public export
+  data Bindingless : Noun bs k -> Type where
+    MkBindingless : {auto 0 ok : nounDelta n = []} -> Bindingless n
+
+  ||| A truth-valued test a clause can be conditioned on — core's
+  ||| `Condition` (`deckmaste_core/src/condition.rs`), and named after
+  ||| it. The three rows here are core's first three exactly
+  ||| (`Exists(Predicate)`, `Matches(Reference, Predicate)`,
+  ||| `Compare(Count, Cmp, Count)`), which is not a coincidence: they
+  ||| are the three questions English asks of the board without any
+  ||| vocabulary beyond the phrase, the reference, and the amount this
+  ||| grammar already has. Core's other rows all reach past that —
+  ||| attachment, event history, cost tags, turn and phase — and each
+  ||| arrives with the axis it names.
+  |||
+  ||| The word "if" here has "only its normal English meaning"
+  ||| ([CR#603.4]'s own parenthetical): this is the ORDINARY
+  ||| conditional, not the intervening-"if" of a triggered ability,
+  ||| which that rule reserves for an "if" immediately following a
+  ||| trigger condition and checks twice — once at the trigger event
+  ||| ([CR#603.4]) and again on resolution ([CR#608.2a]). That
+  ||| distinction is a CARRIER distinction and not a condition one, and
+  ||| the seam is deliberate: the trigger layer reuses this type
+  ||| verbatim for its intervening-"if" clause, so nothing here may
+  ||| assume a one-shot reader. Nothing does — the rows ask about the
+  ||| board, the bindings they are typed in are whatever their carrier
+  ||| supplies, and `condDelta`'s opacity holds for any of them.
+  public export
+  data Condition : Bindings -> Type where
+    -- "you control a creature with power 4 or greater" / "there is a
+    -- …": at least one object answers the description ([CR#603.4]'s
+    -- ordinary-English "if"). Core's `Exists(Predicate)` in one
+    -- argument, and the same demands `CountOf` makes of a domain,
+    -- because it is the same kind of slot: the phrase must be
+    -- noun-HEADED ("if you control attacking" heads nothing —
+    -- `badExistsUnheaded`) and must not spell the damage class, which
+    -- names a target and describes no object (`badExistsAnyTarget`).
+    -- No article of its own: the existential quantifier IS the
+    -- indefinite English writes, and the count comparison below spells
+    -- the other form ("one or more" — two corpus lines against three
+    -- hundred and thirty-eight for the article, which is why both are
+    -- rows and neither is sugar for the other; core keeps them apart
+    -- likewise).
+    -- spelling: ["there is <Param(0)>", "there are <Param(0)>"] (and the
+    -- FRONTED-SUBJECT spelling "you control <Param(0)>" when the phrase
+    -- carries a controller clause -- the relative "creature you control"
+    -- becoming the finite "you control a creature", which is the form the
+    -- corpus writes 338 times against 7 for the existential-there),
+    -- kind: TODO(reason: condition fragment -- not one of
+    -- Nominal/Sentence/Cost/KeywordLine/Ability)
+    Exists : {k : Kind} -> (p : Predicate bs k) ->
+             {auto 0 hd : Headed p} ->
+             {auto 0 af : AnyTargetFree p} -> Condition bs
+    -- "it's an artifact creature" — a REFERENCE answers a description:
+    -- core's `Matches(Reference, Predicate)` with the kind index this
+    -- grammar carries and core does not. (Core cites [CR#603.4] on this
+    -- row; the rule licenses the ordinary-English "if" and says nothing
+    -- about references answering descriptions, so the cite is not
+    -- propagated here — the type's own comment carries the "if" point
+    -- once.) The subject
+    -- is a read and never a mention (`Bindingless`): the condition
+    -- introduces nothing, so a determined phrase written here would be
+    -- announced and then dropped. The predicate need not be headed —
+    -- "if it's attacking" (five lines) and "if it's tapped" (two) are
+    -- as real as "if it's a creature card" (two hundred sixty-five) —
+    -- but the class word is refused as it is everywhere.
+    -- spelling: ["<Param(0)> is <Param(1)>"] (auto-inflection supplies the
+    -- copula and its contraction, "it's"/"they're"; the same predicate
+    -- spelled postnominally in a noun phrase is spelled predicatively
+    -- here), kind: TODO(reason: condition fragment, see Exists)
+    Matches : {k : Kind} -> (n : Noun bs k) -> (p : Predicate bs k) ->
+              {auto 0 bl : Bindingless n} ->
+              {auto 0 af : AnyTargetFree p} -> Condition bs
+    -- "its mana value is 2 or less" — a measured amount against a
+    -- written bound, which is core's `Compare(Count, Cmp, Count)` with
+    -- the ONE comparator axis chapter sixteen already opened
+    -- (`Comparator`) and the ONE amount vocabulary chapter sixteen
+    -- already reads through (`StatOf`, `CountOf`). No parallel
+    -- machinery: the postnominal qualifier "with power 4 or greater"
+    -- and the predicative "if its power is 4 or greater" are two
+    -- FRAMES over the same relation, and what differs between them is
+    -- word order, not vocabulary. The two gates are the frame's two
+    -- halves — a reader on the left (`ReadAmount`), a written value on
+    -- the right (`WrittenBound`, the same witness `Compare` consumes).
+    -- The STRICT comparators the condition frame also writes ("if your
+    -- life total is less than 7") are a real gap and stay one: they
+    -- would make `Comparator` a per-frame table, which is a chapter's
+    -- worth of attestation and not a row (ledger).
+    -- spelling: ["<Param(0)> is <Param(2)> <Param(1)>"] (the comparator
+    -- supplies its own trailing word, and which word depends on what is
+    -- measured: a stat takes "or greater"/"or less", a count takes "or
+    -- more"/"or fewer" -- one relation, two registers. The count subject
+    -- also spells existentially, "there are <Param(2)> or more <domain>",
+    -- which is the form the corpus writes 173 times), kind: TODO(reason:
+    -- condition fragment, see Exists)
+    CompareAmt : (subj : Amount bs) -> (r : Comparator) -> (bound : Amount bs) ->
+                 {auto 0 rd : ReadAmount subj} ->
+                 {auto 0 wb : WrittenBound bound} -> Condition bs
+
+  ||| What a condition contributes to the discourse: NOTHING, on every
+  ||| row. This is the disjunction hole (`predDelta (Or _) = []`) at
+  ||| clause level and for the same reason — a condition may be false,
+  ||| so a mention written inside one names nobody the sentences after
+  ||| it can read back (`badConditionAntecedent`). It is a full-row
+  ||| table rather than a constant so that a new condition has to
+  ||| declare its answer, and so that `If`'s own contribution stays
+  ||| written in terms of it rather than assuming it.
+  |||
+  ||| Corpus is not unanimous, and the exception is named rather than
+  ||| smoothed over: a conditional whose if-clause announces a TARGET
+  ||| does leave a referent behind, because [CR#601.2c] announces
+  ||| targets as the spell is cast whatever clause spells them, so the
+  ||| condition's truth never gated the announcement. Ten corpus lines
+  ||| write "if target …", three of them read it back ("If target
+  ||| creature has toughness 5 or greater, it gets +4/-4 until end of
+  ||| turn", Blood Lust; Hidetsugu's Second Rite; Meddle). That family
+  ||| is refused at the subject slot (`Bindingless`) rather than
+  ||| admitted with a lie about its bindings, and it waits on the
+  ||| ledger with the leading-"if" linearization it belongs to.
+  public export
+  condDelta : {bs : Bindings} -> Condition bs -> List Binding
+  condDelta (Exists p) = []
+  condDelta (Matches n p) = []
+  condDelta (CompareAmt subj r bound) = []
+
   ||| The continuous effects a resolving clause can establish
   ||| ([CR#611.2]) — the PART of the sentence that survives its
   ||| resolution, with the duration adverbial factored out onto the
@@ -2941,9 +3127,87 @@ mutual
     -- resolving default is the controller [CR#608.2c]). Decider and
     -- performer can differ ("[player] may have [source] deal … to
     -- them"), so the body is any clause, not the decider's own verb
-    -- phrase; if-you-do/if-not branches are later growth.
-    -- spelling: ["<Param(0)> may <Param(1)>"], kind: Sentence
-    May : (decider : Noun bs Player) -> Effect (nomIntro decider) -> Effect bs
+    -- phrase.
+    -- The two BRANCHES are the anaphoric conditionals "if you do" and
+    -- "if you don't" — a thousand and sixty-two corpus lines write the
+    -- first after a "may", eighty-three the second — and they are
+    -- fields on this node rather than `Condition` rows, which is
+    -- core's shape exactly (`May { who, effect, if_did, if_not }`,
+    -- `deckmaste_core/src/effect.rs`; a branchless may is the same node
+    -- with both `None`). The reason is that the anaphor has no
+    -- referent of its own to condition ON: "if you do" asks whether the
+    -- immediately preceding OPTIONAL ACTION was taken, which is not a
+    -- fact about the board and not a mention in the discourse, so
+    -- making it a condition would need a channel recording what the
+    -- last clause offered. The branch reads it structurally instead.
+    -- The two arms are typed differently, and that asymmetry is the
+    -- finding: `ifDid` runs only when the body ran, so it reads
+    -- everything the body introduced ("You may sacrifice a creature.
+    -- If you do, each opponent discards a card." — Braids's Frightful
+    -- Return); `ifNot` runs only when the body did NOT, so the body's
+    -- mentions never existed and it reads only what preceded the may
+    -- (`badIfNotReadsMayBody`). Corpus agrees: every if-not arm read
+    -- this pass reaches the DECIDER ("If they don't, they lose 2
+    -- life") or the sentences before the may (Chandra's "that card"),
+    -- never the may body's own phrase.
+    -- What the branch actually reads is settled by rule and is worth
+    -- stating exactly: [CR#118.12] makes the offered action a COST paid
+    -- on resolution, and has the "if [a player] does" clause check
+    -- "whether the player chose to pay an optional cost or started to
+    -- pay a mandatory cost, regardless of what events actually
+    -- occurred". So the branch is not an event read at all — which is
+    -- why the declined arm has nothing to mention, the payment having
+    -- never been started, and why no channel recording outcomes would
+    -- have served. The MANDATORY twin ("[Do something]. If you do, …",
+    -- with no "may") is the same rule's first shape, a hundred and
+    -- forty-two lines writing no "may" anywhere; it waits with the cost
+    -- algebra that has to spell an unoffered payment. So does the ELSE
+    -- sentence "Otherwise, …", which is `If`'s branch and not this
+    -- one's.
+    -- spelling: ["<Param(0)> may <Param(1)>", "<Param(0)> may <Param(1)>.
+    -- If <Param(0)> do, <Param(2)>.", "<Param(0)> may <Param(1)>. If
+    -- <Param(0)> don't, <Param(3)>."] (the anaphor's pronoun and its verb
+    -- agreement are the DECIDER's own -- "if you do" against Risk Factor's
+    -- "if they don't" -- so auto-inflection supplies both from Param(0);
+    -- mirrors core's May struct field-for-field), kind: Sentence
+    May : (decider : Noun bs Player) -> (body : Effect (nomIntro decider)) ->
+          (ifDid : Maybe (Effect (effIntro body))) ->
+          (ifNot : Maybe (Effect (nomIntro decider))) -> Effect bs
+    -- "[clause] if [condition]" — the ordinary conditional, whose "if"
+    -- has "only its normal English meaning" ([CR#603.4]).
+    -- Argument order is TEXTUAL order and the binding flow is why:
+    -- oracle writes the trailing conditional six hundred and ninety
+    -- times, and its condition reads the clause's own mentions
+    -- ("Destroy target artifact if its mana value is 2 or less" —
+    -- Overload; "its" is the artifact the main clause targeted), so
+    -- the condition is typed in the clause's post-context like every
+    -- other trailing argument in this grammar. The LEADING
+    -- linearization ("If you control a creature, …", four hundred
+    -- eighty-six lines) is this same node whenever the condition uses
+    -- nothing the clause introduced, which is the ordinary case; the
+    -- leading form that DOES read back is the target-announcing family
+    -- and is refused (`condDelta`, `badMatchesTargetSubject`).
+    -- A DIVERGENCE worth stating: the condition is evaluated before
+    -- the clause it modifies takes effect, but it is WRITTEN after it,
+    -- so the telescope types it against a discourse the clause has
+    -- already updated — Overload's artifact is retagged to the
+    -- graveyard by the destroy before "its mana value" is read here.
+    -- Nothing in this vocabulary notices (mana value belongs to every
+    -- object, [CR#202.3], and is read zone-free), but a zone-sensitive
+    -- read in a trailing condition would, and it is the first thing to
+    -- check when one lands.
+    -- The condition contributes nothing (`condDelta`), so the clause's
+    -- own contribution is unchanged by conditioning it — written in
+    -- terms of `condDelta` rather than assuming it. The ELSE arm
+    -- ("Otherwise, …", a hundred and seventy-five lines) is a third
+    -- slot this node will take and does not have yet: every corpus
+    -- else-arm read this pass needs vocabulary this grammar lacks
+    -- (ledger).
+    -- spelling: ["<Param(0)> if <Param(1)>", "If <Param(1)>, <Param(0)>"]
+    -- (the leading order is available only when the condition reads nothing
+    -- the clause introduced -- a linearization side condition, unchecked
+    -- here, like the leading/trailing choice on Delayed), kind: Sentence
+    If : (e : Effect bs) -> (c : Condition (effIntro e)) -> Effect bs
     -- the clause SEQUENCE — a card's sentence list and its "…, then
     -- …" alike ([CR#608.2c] orders sub-effects), mirroring core's
     -- `OneShotEffect::Sequentially`: n-ary, because a card writes n
@@ -3314,9 +3578,29 @@ mutual
   effIntro (Composite _ e) = effIntro e
   effIntro (Does s v (Move what to)) = moveIntro (Just v) what (zoneSort to)
   effIntro (Does s v e) = effIntro e
-  effIntro (May d e) = effIntro e            -- a declined May skips at runtime, not in scope
+  effIntro (May d body did notd) = mayIntro body did
+  effIntro (If e c) = condDelta c ++ effIntro e
   effIntro (Sequentially es) = effsIntro es
   effIntro (Delayed ev e) = bs               -- a future clause mentions nothing NOW
+
+  ||| What a may-clause leaves behind: the MAIN LINE's discourse — the
+  ||| body's, or the if-you-do arm's when there is one, since that arm
+  ||| continues the body rather than replacing it.
+  |||
+  ||| The if-you-DON'T arm contributes nothing, and the principle is the
+  ||| one English marks: the arm that continues the main line flows out,
+  ||| the arm that REPLACES it is a hole. "If you don't" is written
+  ||| precisely to mark the departure, and only one of the two ever
+  ||| happens, so a mention inside it names nobody the sentences after
+  ||| the may can read back — `predDelta (Or _) = []` one layer up. The
+  ||| body's own mentions flow out even though the may may be declined,
+  ||| which is the ruling this clause has carried since it was minted:
+  ||| a declined may skips at runtime, not in scope.
+  public export
+  mayIntro : {bs : Bindings} -> (body : Effect bs) ->
+             Maybe (Effect (effIntro body)) -> Bindings
+  mayIntro body Nothing = effIntro body
+  mayIntro body (Just did) = effIntro did
 
   ||| What a whole sequence contributes: its last clause's discourse,
   ||| the telescope having threaded every predecessor's through.

@@ -474,3 +474,44 @@ losesLife who amt = ChangeLife who (Down amt)
 public export
 gainsLife : (who : Noun bs Player) -> Amount (nomIntro who) -> Effect bs
 gainsLife who amt = ChangeLife who (Up amt)
+
+-- The three may-clause surfaces, macros over the one `May` primitive
+-- exactly as core's branchless and branching mays are one node
+-- (`deckmaste_core/src/effect.rs`). What varies is which anaphoric
+-- sentence follows, and the branch fields are where it goes; the
+-- pronoun and its agreement are the decider's own.
+
+-- "[decider] may [effect]" — the branchless offer.
+-- spelling: ["<Param(0)> may <Param(1)>"], kind: Sentence
+public export
+may : (decider : Noun bs Player) -> Effect (nomIntro decider) -> Effect bs
+may d body = May d body Nothing Nothing
+
+-- "[decider] may [effect]. If [decider] do, [effect]." — the taken
+-- branch, which reads everything the body introduced.
+-- spelling: ["<Param(0)> may <Param(1)>. If <Param(0)> do, <Param(2)>."],
+-- kind: Sentence (the anaphor's pronoun is Param(0)'s -- "if you do",
+-- "if they do")
+public export
+mayThen : (decider : Noun bs Player) -> (body : Effect (nomIntro decider)) ->
+          Effect (effIntro body) -> Effect bs
+mayThen d body did = May d body (Just did) Nothing
+
+-- "[decider] may [effect]. If [decider] don't, [effect]." — the
+-- declined branch, which reads only what preceded the may.
+-- spelling: ["<Param(0)> may <Param(1)>. If <Param(0)> don't,
+-- <Param(2)>."], kind: Sentence (see mayThen)
+public export
+mayElse : (decider : Noun bs Player) -> (body : Effect (nomIntro decider)) ->
+          Effect (nomIntro decider) -> Effect bs
+mayElse d body notd = May d body Nothing (Just notd)
+
+-- "it's [pred]" — the reference-matches condition over the singular
+-- object read, which is the subject every corpus line writes it with
+-- ("if it's a creature card", "if it's attacking").
+-- spelling: ["it's <Param(0)>"], kind: TODO(reason: condition fragment --
+-- not one of Nominal/Sentence/Cost/KeywordLine/Ability)
+public export
+itsA : (p : Predicate bs Object) -> {auto 0 ok : countOnes Object bs = 1} ->
+       {auto 0 af : AnyTargetFree p} -> Condition bs
+itsA p = Matches (It {ok}) p {af}
