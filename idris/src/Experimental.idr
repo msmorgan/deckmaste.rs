@@ -1299,7 +1299,8 @@
 ||| The possessives divide by RELATION, which is how this file spells
 ||| them: "its owner's hand" and "an opponent's graveyard" are
 ||| `HandOf`/`GraveyardOf`, "its controller"/"its owner" are
-||| `ControllerOf`/`OwnerOf`, "that creature's power" is `PowerOf`,
+||| `ControllerOf`/`OwnerOf`, "that creature's power" is `powerOf`
+||| (`StatOf Power`, the stat read under its characteristic),
 ||| and the adjective-premodified possessor is benched already ("the
 ||| sacrificed artifact's mana value"). The possessor is gated on
 ||| being SINGULAR and never on being definite, which the corpus
@@ -1396,20 +1397,29 @@ public export
 data FightParticipant : Maybe CardType -> Type where
   Fighter : {auto 0 ok : combatant t = True} -> FightParticipant (Just t)
 
-||| The numeric characteristics a phrase can put a BOUND on. Core's
-||| `Stat` carries five (`deckmaste_core/src/count.rs`: power and
-||| toughness [CR#208.1], mana value [CR#202.3], loyalty [CR#209.1],
-||| defense [CR#210.1]); the two missing here are the two the bounded
-||| frame never takes — "loyalty N or less" and "defense N or greater"
-||| appear zero times each on the corpus — so the shorter enum is a
-||| measured fact rather than a shortcut. Full rows everywhere below,
-||| so a fourth characteristic has to declare which heads carry it
-||| before it can be written.
+||| The numeric characteristics a phrase can NAME — one axis serving
+||| both readers this grammar has: the bound a phrase compares against
+||| (`Compare`) and the value an amount reads off an object (`StatOf`).
+||| Core does the same with one `Stat` (`deckmaste_core/src/count.rs`),
+||| and it carries five: power and toughness [CR#208.1], mana value
+||| [CR#202.3], loyalty [CR#209.1], defense [CR#210.1]. The two missing
+||| here are missing in BOTH frames, measured rather than assumed.
+||| Bounded: "loyalty N or less" and "defense N or greater" appear zero
+||| times each. Read: "defense" is never read off an object at all, and
+||| loyalty is read once in the whole corpus — Drain Life's cap clause
+||| ("but not more life than … the planeswalker's loyalty …"), which is
+||| the phrasal-standard frame this grammar does not write either way
+||| (see `Comparator`), while every "loyalty" line the corpus does write
+||| counts COUNTERS ("the number of loyalty counters on him"), a
+||| different reader. Full rows everywhere below, so a fourth
+||| characteristic has to declare which heads carry it — and which
+||| frames read it — before it can be written.
 public export
 -- spelling: (construction-owned catalog -- Power="power", Toughness=
 -- "toughness", ManaValue="mana value"; each row is the characteristic's own
--- word inside Compare's frame, never spelled alone. Same three names core's
--- `Stat` gives its own first three rows (count.rs))
+-- word, inside Compare's frame or after StatOf's possessive, never spelled
+-- alone. Same three names core's `Stat` gives its own first three rows
+-- (count.rs))
 data Characteristic = Power | Toughness | ManaValue
 
 ||| Characteristic equality, per-row — `sameZone`'s discipline.
@@ -3613,16 +3623,20 @@ mutual
     -- ([CR#208.1,202.3]): one object's own numbers, so the argument
     -- is singular — a group's aggregate is written explicitly ("the
     -- total power of the sacrificed creatures", Soulblast) and is
-    -- future vocabulary (`badGroupPower`).
-    -- spelling: ["<Param(0)>'s power"], kind: TODO(reason: amount fragment,
-    -- see Lit)
-    PowerOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Amount bs
-    -- spelling: ["<Param(0)>'s toughness"], kind: TODO(reason: amount
-    -- fragment, see Lit)
-    ToughnessOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Amount bs
-    -- spelling: ["<Param(0)>'s mana value"], kind: TODO(reason: amount
-    -- fragment, see Lit)
-    ManaValueOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Amount bs
+    -- future vocabulary (`badGroupPower`). WHICH number is read is the
+    -- comparison chapter's `Characteristic`, not a row of its own:
+    -- core reads every stat through one `Count::StatOf(Reference,
+    -- Stat)` (`count.rs`), and three constructors here spelled one
+    -- axis three times. The characteristic leads the arguments as it
+    -- does in `Compare`, the workbench's other characteristic reader
+    -- (core orders the pair the other way; the axis is the same).
+    -- The surface phrases are the macros' (`powerOf`, `toughnessOf`,
+    -- `manaValueOf`).
+    -- spelling: ["<Param(1)>'s <Param(0)>"] (Param(0) = Characteristic's
+    -- own word, its construction-owned catalog entry), kind: TODO(reason:
+    -- amount fragment, see Lit)
+    StatOf : (c : Characteristic) -> (n : Noun bs Object) ->
+             {auto 0 one : nounPlur n = OneOf} -> Amount bs
     -- "[per] [unit] for each [pred]" — the counted-set amount
     -- ("loses 1 life for each attacking creature you control");
     -- mentions inside the predicate fold as everywhere. The domain is
@@ -3655,9 +3669,7 @@ mutual
   public export
   amtIntro : {bs : Bindings} -> Amount bs -> Bindings
   amtIntro (Lit n) = bs
-  amtIntro (PowerOf nom) = nomIntro nom
-  amtIntro (ToughnessOf nom) = nomIntro nom
-  amtIntro (ManaValueOf nom) = nomIntro nom
+  amtIntro (StatOf c nom) = nomIntro nom
   amtIntro (ForEach per p) = predDelta p ++ bs
   amtIntro ThatMuch = bs
   amtIntro XVal = bs
@@ -3678,9 +3690,7 @@ mutual
   public export
   writtenBound : {0 bs : Bindings} -> Amount bs -> Bool
   writtenBound (Lit _) = True
-  writtenBound (PowerOf _) = False
-  writtenBound (ToughnessOf _) = False
-  writtenBound (ManaValueOf _) = False
+  writtenBound (StatOf _ _) = False
   writtenBound (ForEach _ _) = False
   writtenBound ThatMuch = False
   writtenBound XVal = True

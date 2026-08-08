@@ -110,6 +110,34 @@ public export
 anyOtherTarget : {auto 0 ok : anyTargeted Object bs = True} -> Predicate bs Object
 anyOtherTarget = And [AnyTarget, Other]
 
+-- The stat reads, macros over the one `StatOf` primitive as core's are
+-- over `Count::StatOf(Reference, Stat)` (`count.rs`): one axis, one
+-- constructor, and the three phrases English writes for it. Each keeps
+-- the singular agreement its constructor demands — one object's own
+-- numbers ([CR#208.1,202.3]; `badGroupPower`) — by threading the proof
+-- through to the caller.
+
+-- "[its/…] power" ([CR#208.1])
+-- spelling: ["<Param(0)>'s power"], kind: TODO(reason: amount fragment --
+-- not one of Nominal/Sentence/Cost/KeywordLine/Ability; see Amount.Lit)
+public export
+powerOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Amount bs
+powerOf n = StatOf Power n {one}
+
+-- "[its/…] toughness" ([CR#208.1])
+-- spelling: ["<Param(0)>'s toughness"], kind: TODO(reason: amount
+-- fragment, see powerOf)
+public export
+toughnessOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Amount bs
+toughnessOf n = StatOf Toughness n {one}
+
+-- "[its/…] mana value" ([CR#202.3])
+-- spelling: ["<Param(0)>'s mana value"], kind: TODO(reason: amount
+-- fragment, see powerOf)
+public export
+manaValueOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Amount bs
+manaValueOf n = StatOf ManaValue n {one}
+
 -- "destroy [n]" — mirrors plugins/builtin/macros/action/Destroy.ron:
 -- the Destroy tag over the battlefield→graveyard move [CR#701.8a];
 -- only a battlefield permanent is destroyable (`badDestroyGraveyard`).

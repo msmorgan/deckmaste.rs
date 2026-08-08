@@ -29,7 +29,7 @@ barrageOfBoulders = DealDamage This (Lit 1) (Each creatureYouDontControl)
 -- doesn't exist yet. Hoisted, this exact card needed positional reads.
 rabidBite : Effect []
 rabidBite = DealDamage (target creatureYouControl)
-                       (PowerOf It)
+                       (powerOf It)
                        (target creatureYouDontControl)
 
 -- "Target creature you control fights target creature you don't
@@ -92,7 +92,7 @@ bitterDownfall = Sequentially [destroy (target creature),
 -- the same `Other` modifier "any other target" uses.
 deadshot : Effect []
 deadshot = Sequentially [Tap (target creature),
-                         DealDamage It (PowerOf It) (target (And [creature, Other]))]
+                         DealDamage It (powerOf It) (target (And [creature, Other]))]
 
 -- "Sacrifice this land: It deals 3 damage to target player. That
 -- player discards a card." (Immersturm Skullcairn; its mana and {T}
@@ -203,7 +203,7 @@ gracefulReprieve = Delayed (DiesThisTurn (target creature))
 -- story).
 vraskasStoneglare : Effect []
 vraskasStoneglare = Sequentially [destroy (target creature),
-                                  gainsLife You (ToughnessOf It)]
+                                  gainsLife You (toughnessOf It)]
 
 -- "Destroy target creature. Its controller loses life equal to its
 -- power plus its toughness." (Phthisis; its Suspend line elided) —
@@ -211,7 +211,7 @@ vraskasStoneglare = Sequentially [destroy (target creature),
 -- threading left to right.
 phthisis : Effect []
 phthisis = Sequentially [destroy (target creature),
-                         losesLife (ControllerOf It) (Plus (PowerOf It) (ToughnessOf It))]
+                         losesLife (ControllerOf It) (Plus (powerOf It) (toughnessOf It))]
 
 -- "This creature deals damage equal to its power to target creature.
 -- That creature deals damage equal to its power to this creature."
@@ -222,8 +222,8 @@ phthisis = Sequentially [destroy (target creature),
 -- simultaneously (state-based actions see neither mid-resolution,
 -- [CR#704.4]), which is why `Fights` stays primitive.
 karplusanYeti : Effect []
-karplusanYeti = Sequentially [DealDamage (ThisOf Creature) (PowerOf (ThisOf Creature)) (target creature),
-                              DealDamage (That (TypeW Creature)) (PowerOf It) (ThisOf Creature)]
+karplusanYeti = Sequentially [DealDamage (ThisOf Creature) (powerOf (ThisOf Creature)) (target creature),
+                              DealDamage (That (TypeW Creature)) (powerOf It) (ThisOf Creature)]
 
 -- "Choose two target creatures. Tap those creatures, then unattach
 -- all Equipment from them." (Fulgent Distraction; the unattach clause
@@ -285,7 +285,7 @@ voyagerStaff = MkActivated (sacrifice You (ThisOf Artifact))
 boshIronGolem : Activated []
 boshIronGolem = MkActivated (sacrifice You (A (HasType Artifact)))
                             (DealDamage This
-                                        (ManaValueOf (TheVerbed Sacrifice (TypeW Artifact)))
+                                        (manaValueOf (TheVerbed Sacrifice (TypeW Artifact)))
                                         (target AnyTarget))
 
 -- "{3}, Discard a card at random: This enchantment deals damage to
@@ -303,7 +303,7 @@ boshIronGolem = MkActivated (sacrifice You (A (HasType Artifact)))
 pyromancy : Activated []
 pyromancy = MkActivated (discards You (AAtRandom (InZone HandZ)))
                         (DealDamage (ThisOf Enchantment)
-                                    (ManaValueOf (TheVerbed Discard CardW))
+                                    (manaValueOf (TheVerbed Discard CardW))
                                     (target AnyTarget))
 
 -- "Target opponent loses 1 life for each attacking creature you
@@ -803,7 +803,7 @@ failing "DiscardOk"
 failing "OneOf"
   badGroupPower : Effect []
   badGroupPower = Sequentially [Choose (TargetGroup (exactly 2) creature),
-                                gainsLife You (PowerOf Them)]
+                                gainsLife You (powerOf Them)]
 
 -- Two cards need not share an owner [CR#108.3] — oracle writes the
 -- plural relational ("their owners' hands", Aether Burst), future
@@ -859,7 +859,7 @@ failing "countVerbed"
   badDiscardedCreatureWord =
     MkActivated (discards You (AAtRandom (And [creature, InZone HandZ])))
                 (DealDamage This
-                            (ManaValueOf (TheVerbed Discard (TypeW Creature)))
+                            (manaValueOf (TheVerbed Discard (TypeW Creature)))
                             (target AnyTarget))
 
 -- "Of their choice" is a possessive pronoun: it demands a player
@@ -1437,7 +1437,7 @@ failing "LoneComparison"
 -- the comparison-to-a-phrase family waits on the ledger.
 failing "WrittenBound"
   badPhrasalBound : Predicate [] Object
-  badPhrasalBound = Compare Power OrLess (PowerOf This)
+  badPhrasalBound = Compare Power OrLess (powerOf This)
 
 -- An alternative repeated word for word is no alternative, and a bound
 -- is compared by all three of its written parts to see it — the row
