@@ -874,3 +874,11 @@ failing "OtherAnchored"
   badDoubleOther : Predicate [MkBinding TargetD Object OneOf
                                         (ObjectP (Just Creature) (Just Battlefield) Nothing)] Object
   badDoubleOther = And [creature, Other, Other]
+
+-- The class word hides just as poorly inside an EMBEDDED noun: a
+-- relative clause's possessor is a phrase like any other, so "a
+-- creature the controller of any target controls" spells "any target"
+-- under the non-targeting determiner that forbids it.
+failing "AnyTargetFree"
+  badAnyTargetEmbedded : Noun [] Object
+  badAnyTargetEmbedded = A (And [creature, ControlledBy (ControllerOf (Target AnyTarget))])

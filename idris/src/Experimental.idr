@@ -1787,8 +1787,14 @@ mutual
 
   ||| Does no part of this phrase spell "any target"? The class word is
   ||| ITSELF the targeting form — "a any target" and "each any target"
-  ||| are unwritable — so only the targeting determiners admit it.
-  ||| Full rows, like every other predicate scan.
+  ||| are unwritable — so only the targeting determiners admit it. The
+  ||| scan reaches through EMBEDDED nouns, not just sibling predicates:
+  ||| a relative clause's possessor ("a creature the controller of any
+  ||| target controls") and an owned zone's possessor spell the class
+  ||| word just as loudly under a non-targeting determiner
+  ||| (`badAnyTargetEmbedded`). Full rows, like every other predicate
+  ||| scan; the Pred → Noun → Pred descent is structural, so it
+  ||| terminates.
   public export
   anyTargetFree : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   anyTargetFree (HasType _) = True
@@ -1796,9 +1802,9 @@ mutual
   anyTargetFree Opponent = True
   anyTargetFree (QualityNoun _) = True
   anyTargetFree (OfChosen _) = True
-  anyTargetFree (ControlledBy _) = True
+  anyTargetFree (ControlledBy n) = nounAnyTargetFree n
   anyTargetFree Attacking = True
-  anyTargetFree (InZone _) = True
+  anyTargetFree (InZone z) = zoneAnyTargetFree z
   anyTargetFree (And ps) = anyTargetFreeAll ps
   anyTargetFree (Not p) = anyTargetFree p
   anyTargetFree Other = True
@@ -1954,6 +1960,44 @@ mutual
   nounEqRef (TheVerbed _ _) _ = False
   nounEqRef (ControllerOf _) _ = False
   nounEqRef (OwnerOf _) _ = False
+
+  ||| The noun side of the "any target" scan: does no phrase embedded
+  ||| in this noun spell the class word? Determined mentions carry a
+  ||| predicate to check; the atomic words and the reads carry none —
+  ||| a read's antecedent already passed the scan where it was written.
+  ||| Full rows, so a new noun form declares its answer.
+  public export
+  nounAnyTargetFree : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+  nounAnyTargetFree This = True
+  nounAnyTargetFree (ThisOf _) = True
+  nounAnyTargetFree You = True
+  nounAnyTargetFree (Target p) = anyTargetFree p
+  nounAnyTargetFree (Each p) = anyTargetFree p
+  nounAnyTargetFree (A p) = anyTargetFree p
+  nounAnyTargetFree (ATheirChoice p) = anyTargetFree p
+  nounAnyTargetFree (AAtRandom p) = anyTargetFree p
+  nounAnyTargetFree (TargetGroup _ p) = anyTargetFree p
+  nounAnyTargetFree (TargetUpTo _ p) = anyTargetFree p
+  nounAnyTargetFree (AllOf p) = anyTargetFree p
+  nounAnyTargetFree It = True
+  nounAnyTargetFree They = True
+  nounAnyTargetFree Them = True
+  nounAnyTargetFree (Those _) = True
+  nounAnyTargetFree (That _) = True
+  nounAnyTargetFree (TheVerbed _ _) = True
+  nounAnyTargetFree (ControllerOf n) = nounAnyTargetFree n
+  nounAnyTargetFree (OwnerOf n) = nounAnyTargetFree n
+
+  ||| …and the zone side: an owned zone's possessor is a noun like any
+  ||| other ("a card in the hand of the controller of any target").
+  public export
+  zoneAnyTargetFree : {0 bs : Bindings} -> ZoneExpr bs -> Bool
+  zoneAnyTargetFree BattlefieldZ = True
+  zoneAnyTargetFree ExileZ = True
+  zoneAnyTargetFree HandZ = True
+  zoneAnyTargetFree GraveyardZ = True
+  zoneAnyTargetFree (HandOf n) = nounAnyTargetFree n
+  zoneAnyTargetFree (GraveyardOf n) = nounAnyTargetFree n
 
   ||| Destination legality for the move primitive ([CR#400.3] — cards
   ||| enter only their owner's hand/library/graveyard, so an owned
