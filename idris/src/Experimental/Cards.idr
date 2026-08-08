@@ -1595,6 +1595,64 @@ brazenCannonadePermission =
   Sequentially [exile topCard,
                 Continuously (MayPlay You It) (Just (Until (EndOf Combat (Just Yours))))]
 
+-- ===== The reflexive trigger: what "you do" stands for =====
+
+-- "When this creature enters, you may sacrifice an artifact. When you
+-- do, this creature deals 3 damage to any target." (Cornered Crook, the
+-- whole card) — the flagship, and the family's dominant enclosure: an
+-- OFFER, which is [CR#603.12]'s "allow" half. Three sentences on the
+-- page and one ability here, the third of them a SECOND ability that
+-- this one creates as it resolves.
+corneredCrook : Ability
+corneredCrook =
+  Triggered When (Enters This)
+    (mayWhen You (sacrifice You (a artifact))
+                 (DealDamage This (Lit 3) (target AnyTarget)))
+
+-- "Mill four cards. When you do, return target creature card from your
+-- graveyard to your hand." (The Last Ronin, chapter II; the Saga's
+-- reminder line and its other two chapters are separate abilities) — the
+-- INSTRUCTION enclosure, [CR#603.12]'s "instruct" half and ninety-one of
+-- the family's two hundred ninety-one lines. No offer, so no wrapper:
+-- the construction takes the bare clause, and the anaphor takes its
+-- pronoun from that clause's own agent exactly as `doThen`'s does.
+-- Nothing here is optional and the trigger can still fail to fire — a
+-- mandatory action that could not be taken is [CR#118.12]'s own
+-- Standstill example — which is why this is a trigger rather than a
+-- second sentence.
+theLastRoninII : Effect []
+theLastRoninII =
+  Reflexively (millCards 4)
+              (Move (target (And [creature, InZone (graveyardOf You)])) handZ)
+
+-- "Whenever this creature attacks, you may pay {2}{W}. When you do, tap
+-- target creature." (Thousand Moons Crackshot, the whole card) — the
+-- PAYMENT enclosure, sixty-six lines, and the cell where this
+-- construction and `mayThen` sit closest: [CR#118.12] makes the offered
+-- action a cost either way. What separates them is not the offer but
+-- the consequence's container, and [CR#603.12] puts this one on the
+-- stack as its own object.
+thousandMoonsCrackshot : Ability
+thousandMoonsCrackshot =
+  Triggered Whenever (Attacks This)
+    (mayWhen You (Pay You (Mana [generic 2, pip White]))
+                 (Tap (target creature)))
+
+-- "Whenever a creature attacks, you may pay {3}. When you do, put a
+-- +1/+1 counter on that creature." (Anointer of Valor; its Flying line
+-- is a keyword) — the trigger body reading past the enclosure into the
+-- HEADER's discourse. Three contexts in one sentence: the event names
+-- the attacker, the offer names a payment that mentions nobody, and the
+-- reflexive body reaches back over both to "that creature". This is the
+-- whole reason the construction is typed in `effIntro body` rather than
+-- at the empty context — a trigger row typed at `bs` would have made
+-- the attacker unreachable.
+anointerOfValor : Ability
+anointerOfValor =
+  Triggered Whenever (Attacks (a creature))
+    (mayWhen You (Pay You (Mana [generic 3]))
+                 (PutCounters (Lit 1) PlusOnePlusOne (That (TypeW Creature))))
+
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
 -- "other" with no target before it: the presupposition has no witness.
@@ -4162,3 +4220,121 @@ failing "SpanOk"
   badUntilBeginningOfUpkeep : Effect []
   badUntilBeginningOfUpkeep =
     gets (target creature) 3 3 (Just (UntilEvent (BeginningOf Upkeep (Just Yours))))
+
+-- ===== What "you do" may stand for, and what it cannot reach =====
+
+-- The anaphor is a PRO-VERB and its subject is a player, so the clause
+-- it abbreviates has to have one. [CR#120.1] gives a damage clause an
+-- OBJECT as its agent — "an object that deals damage is the source of
+-- that damage" — and "this creature deals 3 damage to any target. When
+-- you do, …" is written zero times. The one corpus line that looks like
+-- the counterexample writes the causative instead and proves the point:
+-- Elektra, Femme Fatale's "you may HAVE her deal 2 damage to you. When
+-- you do, she deals 4 damage to target creature", where the having is
+-- yours and the dealing is hers.
+failing "ReflexEnclosure"
+  badReflexiveOnSourceDeed : Effect []
+  badReflexiveOnSourceDeed =
+    Reflexively (DealDamage This (Lit 3) (target AnyTarget)) drawACard
+
+-- The same demand at the row where a rule rather than a count settles
+-- it: [CR#119.9] rewrites the life-gain trigger as "whenever a source
+-- causes [a player] to gain life", which makes the player the PATIENT of
+-- a life change and leaves "do" nobody to inflect for. English writes
+-- the payment instead — "you may pay 2 life. When you do, …" — and
+-- paying IS an action a player takes, which is why one life change is
+-- an enclosure in the cost frame and none is in the sentence frame.
+failing "ReflexEnclosure"
+  badReflexiveOnLifeGain : Effect []
+  badReflexiveOnLifeGain =
+    Reflexively (gainsLife You (Lit 2)) drawACard
+
+-- One verb phrase, because "do" abbreviates one. A sequence has no
+-- single action for it to stand for, and the corpus writes no reflexive
+-- over one: every one of the two hundred ninety-one enclosures is a
+-- single clause, and a card with two sentences before the anaphor hangs
+-- it on the LAST of them (Hypothesizzle's "Draw two cards. Then you may
+-- discard a nonland card. When you do, …").
+failing "ReflexEnclosure"
+  badReflexiveOnSequence : Effect []
+  badReflexiveOnSequence =
+    Reflexively (Sequentially [drawACard, sacrifice You (a creature)]) drawACard
+
+-- A clause that SCHEDULES its action has not taken it. [CR#603.12]
+-- triggers the reflexive on whether the event "occurred earlier during
+-- the resolution of the spell or ability that created them", and a
+-- delayed trigger's clause happens at some later time by construction —
+-- so "sacrifice it at the beginning of the next end step. When you do,
+-- …" names an action that has not happened yet. Zero corpus lines.
+failing "ReflexEnclosure"
+  badReflexiveOnDelayed : Effect []
+  badReflexiveOnDelayed =
+    Reflexively (Delayed (BeginningOf EndStep (Just Yours)) drawACard) drawACard
+
+-- One offer, one reader. [CR#118.12]'s "if you do" and [CR#603.12]'s
+-- "when you do" ask the same question of the same choice — the first
+-- inside the resolution, the second as a new ability — and no corpus
+-- line writes both over one offer. Heart-Piercer Manticore's own ruling
+-- states the difference the card has to choose between: with the
+-- reflexive, "players may cast spells and activate abilities before a
+-- creature is sacrificed and then again after the creature is
+-- sacrificed but before damage is dealt".
+failing "ReflexEnclosure"
+  badReflexiveOnBranchedMay : Effect []
+  badReflexiveOnBranchedMay =
+    Reflexively (mayThen You (sacrifice You (a creature)) drawACard) drawACard
+
+-- …and the declined arm is refused by the same row, which is the
+-- untaken path this construction has no arm for at all. [CR#603.12]
+-- words the family as triggering "when [a player] [does or doesn't]"
+-- take the action, so the rule licenses a negative reflexive; English
+-- writes it zero times ("When you don't" is one corpus line and it is a
+-- quoted STATE trigger, Olivia's "When you don't control a legendary
+-- Vampire, exile this creature"). The declined branch stays `May`'s
+-- `ifNot`, where eighty-three lines are.
+failing "ReflexEnclosure"
+  badReflexiveOnDeclinedMay : Effect []
+  badReflexiveOnDeclinedMay =
+    Reflexively (mayElse You (sacrifice You (a creature)) drawACard) drawACard
+
+-- The `EncUnclaimed` cell as a pin. "Target opponent gains control of
+-- Yes Man. When they do, …" is real oracle and a reflexive trigger by
+-- ruling rather than by inference (Yes Man, Personal Securitron,
+-- 2024-03-08: "that effect is part of a reflexive triggered ability that
+-- triggers only if the target opponent gains control of Yes Man"), and
+-- it is the family's only line whose enclosure establishes a continuous
+-- effect instead of naming an action. One card, and its trigger body
+-- wants a quest counter `CounterKind` does not carry, so the cell is
+-- ledgered rather than opened — the same distinction chapter
+-- twenty-eight's `PartUnclaimed` cells make one level down.
+failing "ReflexEnclosure"
+  badReflexiveOnGainsControl : Effect []
+  badReflexiveOnGainsControl =
+    Reflexively (gainsControl (target Opponent) This Nothing) drawACard
+
+-- What the construction contributes OUTWARD is the enclosure's discourse
+-- and none of the trigger's. [CR#603.3] puts a triggered ability on the
+-- stack "the next time a player would receive priority", so the rest of
+-- this resolution finishes before the reflexive resolves and cannot
+-- mention what it will do: "Mill four cards. When you do, create a
+-- token. Tap that creature." names no creature at the third sentence.
+-- `Delayed`'s hole with a clause in front of it that DID run.
+failing "countWord"
+  badAfterReflexiveReadsTrigger : Effect []
+  badAfterReflexiveReadsTrigger =
+    Sequentially [Reflexively (millCards 4)
+                              (create (Lit 1) (MkToken (Just (1, 1)) [White]
+                                                       (MkTypeLine [Soldier] [Creature])
+                                                       [] Nothing)),
+                  Tap (That (TypeW Creature))]
+
+-- …and INWARD it is the enclosure's post-state, not its announcement,
+-- which is the whole difference from `InsteadOf` beside it: that node's
+-- replaced event never happened ([CR#614.6]) where this one fires
+-- because the action DID. So the sacrificed creature is in its graveyard
+-- when the trigger body reads it, and tapping it is
+-- `badTriggerTapsDeadCreature`'s refusal at a second construction.
+failing "OnBattlefield"
+  badReflexiveTapsSacrificed : Effect []
+  badReflexiveTapsSacrificed =
+    Reflexively (sacrifice You (a creature)) (Tap It)

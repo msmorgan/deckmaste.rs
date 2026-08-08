@@ -7012,6 +7012,70 @@ mutual
     HeldUntil : (e : Effect bs) -> (ev : GameEvent (annIntro e)) ->
                 {auto 0 ok : HeldClause e} ->
                 {auto 0 hd : Holdable ev} -> Effect bs
+    -- "[clause]. When [the clause's agent] do, [trigger]" — the
+    -- REFLEXIVE triggered ability ([CR#603.12]: "a resolving spell or
+    -- ability may allow or instruct a player to take an action and
+    -- create a triggered ability that triggers 'when [a player] [does or
+    -- doesn't]' take that action").
+    -- It is a CONSTRUCTION over the enclosing clause and NOT a
+    -- `GameEvent` row, which is exactly what chapter twenty-eight
+    -- deferred it for. "You do" is a PRO-VERB: it abbreviates the
+    -- clause before it rather than describing a happening, so the
+    -- trigger's event slot reads a CLAUSE where all ten event rows read
+    -- the board. Core reaches the opposite place and the divergence is
+    -- worth recording: `ability.rs` says "delayed ([CR#603.7]) and
+    -- reflexive ([CR#603.12]) triggers are the same value", and then
+    -- `EventFilter`'s thirty-odd rows have nothing to put in the
+    -- `event` field that value demands. This node keeps the clause.
+    -- The ENCLOSURE is what varies and the rule's own "allow OR
+    -- instruct" is the corpus's split: two hundred ninety-one lines
+    -- write "When you do", of which two hundred are a may (a hundred
+    -- thirty-four a verb phrase, sixty-six a payment) and ninety-one a
+    -- bare instruction. `reflexEncloseUse` is the table and it is where
+    -- the round's measuring went; it looks THROUGH the offer, because
+    -- one action under two markings is what the rule describes.
+    -- The TRIGGER BODY reads the enclosure's post-state, which is the
+    -- difference from `InsteadOf` beside it and from `mayIntro`'s cut:
+    -- the reflexive fires precisely BECAUSE the action was taken, so
+    -- what the action did is there to read — a hundred and one bodies
+    -- write "it"/"its", thirty-eight write "that [creature/card/…]" and
+    -- ten "that many"/"that much" ("you may sacrifice another creature.
+    -- When you do, this creature deals damage equal to that creature's
+    -- power to any target"). Targets are SETTLED on the way in
+    -- (`reflexCtx`), for `delayedCtx`'s reason at a second site: the
+    -- reflexive is its own object on the stack ([CR#603.3]) and chooses
+    -- its own targets there ([CR#603.3d]), so the enclosing spell's
+    -- "target creature" is a particular by the time this body reads it.
+    -- Outward the node contributes the ENCLOSURE's discourse and none of
+    -- the trigger's, and [CR#603.3] is why in as many words: the ability
+    -- goes on the stack "the next time a player would receive priority",
+    -- so the rest of the resolving effect finishes before it resolves
+    -- and cannot mention what it will do
+    -- (`badAfterReflexiveReadsTrigger`).
+    -- Three slots the family does NOT get, each measured. The trigger
+    -- WORD is not a slot: two hundred ninety-one "When", zero
+    -- "Whenever", zero "At", which makes this the one trigger in the
+    -- file whose opening word finding 172 does not have to leave open —
+    -- and no `admitsTrigger` row is forced either, there being no event
+    -- to key one on. The SPAN is not a slot: [CR#603.7b] gives a delayed
+    -- trigger "this turn" and [CR#603.12a] replaces that rule outright
+    -- for this one ("if the trigger event or events occur multiple times
+    -- during the resolution … the reflexive triggered ability will
+    -- trigger once for each of those times"), so the count is the
+    -- event's multiplicity and not a stated duration; zero lines write
+    -- one. The intervening "if" IS licensed — [CR#603.4] applies to any
+    -- triggered ability and three bodies open with one ("When you do, if
+    -- you control a red permanent other than Ajani, …") — and is
+    -- ledgered at that count rather than built.
+    -- spelling: ["<Param(0)>. When <agent of Param(0)> do, <Param(1)>."]
+    -- (the anaphor's pronoun and its verb agreement are the enclosure's
+    -- own, exactly as `May`'s branches take theirs -- "when you do" for
+    -- an imperative or a "you may", Yes Man's "when they do" for a named
+    -- decider -- so no decider slot is needed here; the header word is
+    -- fixed at "When"), kind: TODO(reason: a two-sentence body isn't one
+    -- of the five FragmentKinds -- each half is its own Sentence)
+    Reflexively : (body : Effect bs) -> (trig : Effect (reflexCtx body)) ->
+                  {auto 0 en : ReflexEnclosure body} -> Effect bs
 
   ||| Which clause may carry a [CR#610.3] "until [event]" rider. Full
   ||| rows, so a new clause declares whether the corpus hangs one on it.
@@ -7053,6 +7117,135 @@ mutual
   heldUntilOk (Delayed _ _) = False
   heldUntilOk (InsteadOf _ _) = False
   heldUntilOk (HeldUntil _ _) = False
+  heldUntilOk (Reflexively _ _) = False
+
+  ||| WHY a clause is or is not a reflexive trigger's enclosure
+  ||| ([CR#603.12]). Chapter twenty-eight's `PartUse` shape, and for its
+  ||| reason: the Falses have four different grounds and a Bool would
+  ||| have hidden which one each row was standing on.
+  public export
+  data EncloseUse
+    = ||| No PLAYER takes the action, so "you do" has no subject to
+      ||| inflect for. [CR#603.12] wants a resolving effect that "allow(s)
+      ||| or instruct(s) A PLAYER to take an action".
+      EncAgentless
+    | ||| No single taken action for the pro-verb to abbreviate — a
+      ||| sequence, a batch, a modal, a conditional, or a clause exactly
+      ||| one of whose halves ran.
+      EncNotOneAction
+    | ||| The clause schedules its action rather than taking it, so
+      ||| nothing "occurred earlier during the resolution"
+      ||| ([CR#603.12]'s own check).
+      EncNotYetTaken
+    | ||| A player's own single action, and the corpus hangs no reflexive
+      ||| on it.
+      EncUnattested
+    | ||| Real oracle enclosure this vocabulary cannot finish (ledger).
+      EncUnclaimed
+    | ||| Attested and built.
+      EncReflexive
+
+  ||| Which clause may be the enclosure a "When [you] do" reads. Full
+  ||| rows, so a new clause declares whether English writes the anaphor
+  ||| over it — and the Trues are counted from the two hundred ninety-one
+  ||| corpus lines rather than reasoned to.
+  |||
+  ||| It looks THROUGH the offer, which is the rule's own wording read
+  ||| literally: [CR#603.12] has a resolving effect "allow OR INSTRUCT a
+  ||| player to take AN ACTION", one action under two markings, so a
+  ||| branchless `May` asks its body's question rather than a question of
+  ||| its own. That is what keeps the counts per row honest — the
+  ||| payment is sixty-eight lines and every one of them is offered, the
+  ||| sacrifice is seventy-one offered and seventeen instructed — and it
+  ||| is why the may/imperative split is nowhere in this table. Two
+  ||| lines the look-through does NOT reach are worth their own note: a
+  ||| disjunctive offer ("you may sacrifice a Food or pay {2}{W}") names
+  ||| two actions under one may, and this vocabulary has no clause
+  ||| disjunction to ask the question of.
+  |||
+  ||| The AGENTLESS rows are the sharp ones, because they are a rule and
+  ||| not a count. [CR#120.1] makes "an object that deals damage … the
+  ||| source of that damage", so a damage clause's agent is the source
+  ||| and not a player; [CR#701.14a] has a fight instruct "a creature to
+  ||| fight another creature"; and [CR#119.9] rewrites the life-gain
+  ||| trigger as "whenever a source causes [a player] to gain life",
+  ||| which makes the player the PATIENT of a life change and gives "do"
+  ||| nobody to stand for. The corpus agrees at zero lines each, and the
+  ||| one line that looks like a counterexample proves the rule: Elektra,
+  ||| Femme Fatale writes "you may HAVE her deal 2 damage to you. When
+  ||| you do, …", where the having is yours and the dealing is hers — a
+  ||| `Does` causative, which is a True row. The same asymmetry runs
+  ||| through the life change twice over: "you may pay 2 life. When you
+  ||| do" is three lines and a `Pay`, paying being an action a player
+  ||| takes where gaining life is not.
+  ||| `Continuously` is agentless for the same reason and carries the
+  ||| round's one `EncUnclaimed` cell as a nested row: the CONTROL grant
+  ||| is attested exactly once and by ruling rather than by inference —
+  ||| Yes Man, Personal Securitron's "{T}: Target opponent gains control
+  ||| of Yes Man. When they do, …", whose 2024-03-08 ruling names the
+  ||| construction outright ("that effect is part of a reflexive
+  ||| triggered ability that triggers only if the target opponent gains
+  ||| control of Yes Man"). One card, and its second sentence wants a
+  ||| quest counter `CounterKind` does not carry, so the cell records the
+  ||| line it cannot write.
+  public export
+  reflexEncloseUse : {0 bs : Bindings} -> Effect bs -> EncloseUse
+  reflexEncloseUse (DealDamage _ _ _) = EncAgentless
+  reflexEncloseUse (Distribute _ _ _) = EncAgentless
+  reflexEncloseUse (Fights _ _) = EncAgentless
+  reflexEncloseUse (ChangeLife _ _) = EncAgentless
+  reflexEncloseUse (Continuously (GainsControl _ _) _) = EncUnclaimed
+  reflexEncloseUse (Continuously _ _) = EncAgentless
+  -- 115: the sacrifice at seventy-one, the discard at forty, and four
+  -- have-causatives, which is where the agentless rows' one apparent
+  -- counterexample lives.
+  reflexEncloseUse (Does _ _ _) = EncReflexive
+  reflexEncloseUse (Pay _ _) = EncReflexive        -- 66, all of them offered
+  reflexEncloseUse (Composite _ _) = EncReflexive  -- 51, every one an exile
+  reflexEncloseUse (Tap _) = EncReflexive          -- 13
+  reflexEncloseUse (Create _ _ _ _) = EncReflexive -- 8
+  reflexEncloseUse (PutCounters _ _ _) = EncReflexive    -- 8
+  reflexEncloseUse (RemoveCounters _ _ _) = EncReflexive -- 7
+  reflexEncloseUse (Mill _ _) = EncReflexive       -- 5
+  reflexEncloseUse (Move _ _) = EncReflexive       -- 3
+  reflexEncloseUse (Expose _ _ _) = EncReflexive   -- 2
+  reflexEncloseUse (Draw _ _) = EncReflexive       -- 1 ([CR#121.1]: a PLAYER draws)
+  reflexEncloseUse (Choose _) = EncReflexive       -- 1
+  reflexEncloseUse (Search _ _ _) = EncUnattested
+  reflexEncloseUse (Shuffle _) = EncUnattested
+  -- the OFFER, [CR#603.12]'s "allow" half at two hundred of the two
+  -- hundred ninety-one lines, asking its body's question. Branchless,
+  -- because a branched may has already read the same taken-ness by
+  -- [CR#118.12]'s clause and no line writes both readers over one offer.
+  reflexEncloseUse (May _ body Nothing Nothing) = reflexEncloseUse body
+  reflexEncloseUse (May _ _ _ _) = EncNotOneAction
+  reflexEncloseUse (If _ _ _) = EncNotOneAction
+  reflexEncloseUse (Sequentially _) = EncNotOneAction
+  reflexEncloseUse (Simultaneously _) = EncNotOneAction
+  reflexEncloseUse (Modal _ _) = EncNotOneAction
+  reflexEncloseUse (InsteadOf _ _) = EncNotOneAction
+  reflexEncloseUse (Reflexively _ _) = EncNotOneAction
+  reflexEncloseUse (Delayed _ _) = EncNotYetTaken
+  reflexEncloseUse (HeldUntil _ _) = EncNotYetTaken
+
+  ||| Only the attested cell opens. `EncUnclaimed` answers `False` with
+  ||| the rest, which is the whole point of keeping it a separate row.
+  public export
+  admitsReflexEnclosure : EncloseUse -> Bool
+  admitsReflexEnclosure EncAgentless = False
+  admitsReflexEnclosure EncNotOneAction = False
+  admitsReflexEnclosure EncNotYetTaken = False
+  admitsReflexEnclosure EncUnattested = False
+  admitsReflexEnclosure EncUnclaimed = False
+  admitsReflexEnclosure EncReflexive = True
+
+  ||| The enclosure demand as a witness, so a pin says which question
+  ||| refused (`CostAction`'s discipline).
+  public export
+  data ReflexEnclosure : Effect bs -> Type where
+    MkReflexEnclosure :
+      {auto 0 ok : admitsReflexEnclosure (reflexEncloseUse e) = True} ->
+      ReflexEnclosure e
 
   ||| May this cost stand as the complement of the VERB "pay"? A cost is
   ||| the whole thing an ability charges; "pay" is one English verb, and
@@ -7139,6 +7332,7 @@ mutual
   costActionOk (Delayed _ _) = False
   costActionOk (InsteadOf _ _) = False
   costActionOk (HeldUntil _ _) = False
+  costActionOk (Reflexively _ _) = False
 
   ||| The payability demand as a witness, so a pin says which question
   ||| refused (`Headed`'s discipline).
@@ -7218,6 +7412,7 @@ mutual
   effEq (Delayed _ _) _ = False
   effEq (InsteadOf _ _) _ = False
   effEq (HeldUntil _ _) _ = False
+  effEq (Reflexively _ _) _ = False
 
   ||| No mode repeats another. [CR#700.2] calls a spell modal when its
   ||| bulleted options are "preceded by instructions for a player to
@@ -7756,6 +7951,13 @@ mutual
   -- clause's phrases announced ([CR#601.2c] announces them whatever
   -- resolution makes of the event, and [CR#614.6] is what makes the
   -- outcome unavailable: the replaced event never happened).
+  -- the enclosure's discourse and NONE of the trigger's: the reflexive
+  -- ability goes on the stack "the next time a player would receive
+  -- priority" ([CR#603.3]), so the rest of this resolution finishes
+  -- before it resolves and cannot mention what it will do
+  -- (`badAfterReflexiveReadsTrigger`). `Delayed`'s "a future clause
+  -- mentions nothing NOW" with a clause in front of it that DID run.
+  effIntro (Reflexively body trig) = effIntro body
   effIntro (InsteadOf replaced repl) = annIntro replaced
   -- the undo is scheduled on an event that has not happened, so what
   -- this clause leaves behind is not settled yet: the exiled object may
@@ -7844,6 +8046,7 @@ mutual
   -- may have announced phrases of its own, but only one of the two ran
   -- and the one that certainly did not is the replaced clause's EVENT,
   -- not its phrases ([CR#614.6] against [CR#601.2c]).
+  preIntro (Reflexively body trig) = preIntro body
   preIntro (InsteadOf replaced repl) = annIntro replaced
   preIntro (HeldUntil e ev) = annIntro e
 
@@ -7923,6 +8126,7 @@ mutual
   annIntro (Simultaneously es) = annSims es
   annIntro (Modal q modes) = bs
   annIntro (Delayed ev e) = bs
+  annIntro (Reflexively body trig) = annIntro body
   annIntro (InsteadOf replaced repl) = annIntro replaced
   annIntro (HeldUntil e ev) = annIntro e
 
@@ -8003,6 +8207,7 @@ mutual
   deedDelta (Simultaneously es) = []
   deedDelta (Modal q modes) = []
   deedDelta (Delayed ev e) = []
+  deedDelta (Reflexively body trig) = deedDelta body
   deedDelta (InsteadOf replaced repl) = []
   deedDelta (HeldUntil e ev) = []
 
@@ -8058,6 +8263,31 @@ mutual
   mayIntro body (Just did) Nothing = effIntro did
   mayIntro body Nothing (Just notd) = effIntro body
   mayIntro body (Just did) (Just notd) = effIntro body
+
+  ||| What a REFLEXIVE trigger's body reads ([CR#603.12]): the enclosure's
+  ||| whole post-state, with its targets settled. Both halves are the
+  ||| construction's content.
+  |||
+  ||| The POST-state, where `InsteadOf` beside it takes only the
+  ||| announcement: [CR#614.6] makes a replaced event never happen, so
+  ||| that node's replacement has no outcome to read, and this one fires
+  ||| precisely BECAUSE the action was taken — [CR#603.12] triggers it
+  ||| "based on whether the trigger event or events occurred earlier
+  ||| during the resolution". So the sacrificed creature is in its
+  ||| graveyard when the body reads it, which is the same retag
+  ||| `eventAfter` performs one construction over
+  ||| (`badReflexiveTapsSacrificed`), and "that much" finds the outcome
+  ||| `badInsteadReadsReplacedOutcome` refuses.
+  |||
+  ||| SETTLED, for `delayedCtx`'s reason at a second site: this is its own
+  ||| object on the stack ([CR#603.3]) choosing its own targets there
+  ||| ([CR#603.3d]), so a target the enclosing spell announced is a
+  ||| particular by the time this body speaks of it — "exile target
+  ||| creature card from a graveyard. When you do, put X +1/+1 counters
+  ||| on target Symbiote, where X is THE EXILED CARD's toughness".
+  public export
+  reflexCtx : {bs : Bindings} -> Effect bs -> Bindings
+  reflexCtx body = settleTargets (effIntro body)
 
   ||| What a whole sequence contributes: its last clause's discourse,
   ||| the telescope having threaded every predecessor's through.

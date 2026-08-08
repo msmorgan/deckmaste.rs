@@ -1218,3 +1218,24 @@ doThen body did = May Nothing body (Just did) Nothing
 public export
 doElse : (body : Effect bs) -> Effect bs -> Effect bs
 doElse body notd = May Nothing body Nothing (Just notd)
+
+-- "[decider] may [body]. When [decider] do, [trigger]." — the REFLEXIVE
+-- trigger over an OFFER ([CR#603.12]'s "allow" half, two hundred lines of
+-- the family's two hundred ninety-one). The offer is `May`'s own
+-- branchless node, so this macro mints no second decider slot and the
+-- taken-ness the branches read is the taken-ness the trigger reads; what
+-- differs is that this one is an ABILITY and waits on the stack
+-- ([CR#603.3]) where `mayThen`'s arm runs inside the same resolution.
+-- The bare-instruction enclosure ([CR#603.12]'s "instruct" half, ninety-
+-- one lines) is `Reflexively` itself with no wrapper, which is `doThen`'s
+-- relation to `mayThen` one construction over.
+-- spelling: ["<Param(0)> may <Param(1)>. When <Param(0)> do, <Param(2)>."],
+-- kind: Sentence (the anaphor's pronoun and agreement are Param(0)'s, as
+-- on every arm of the may -- "when you do", Yes Man's "when they do")
+public export
+mayWhen : (decider : Noun bs Player) -> (body : Effect (nomIntro decider)) ->
+          Effect (settleTargets (effIntro body)) ->
+          {auto 0 ok : admitsReflexEnclosure (reflexEncloseUse body) = True} ->
+          Effect bs
+mayWhen d body trig =
+  Reflexively (May (Just d) body Nothing Nothing) trig {en = MkReflexEnclosure {ok}}

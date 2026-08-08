@@ -4009,6 +4009,173 @@ Manticore):
    and a static ability by quoting them exactly as it grants an activated
    one (`badGainsTriggered`, `badGainsStatic`).
 
+## Chapter Twenty-Nine — The Clause Anaphor
+
+Chapter twenty-nine, one construction (evidence: Cornered Crook,
+The Last Ronin, Thousand Moons Crackshot, Anointer of Valor; and,
+for what the round measured rather than built, Heart-Piercer
+Manticore, Yes Man Personal Securitron, Elektra Femme Fatale,
+Olivia Crimson Bride, Hawkeye Master Marksman). The mini-round
+chapter twenty-eight sent the reflexive trigger to, with the
+blocker it named turning out to be the design:
+
+183. **The reflexive trigger is a CONSTRUCTION over the enclosing
+   clause, and "you do" is a PRO-VERB.** [CR#603.12] describes a
+   resolving spell or ability that "may allow or instruct a player to
+   take an action and create a triggered ability that triggers 'when
+   [a player] [does or doesn't]' take that action", and the corpus
+   writes "When you do" two hundred ninety-one times. Chapter
+   twenty-eight deferred it on the observation that `GameEvent` has no
+   row reading a clause rather than describing a happening, and the
+   observation was right in a stronger way than it looked: "do" is not
+   an event word at all. It is the pro-verb English uses to abbreviate
+   a verb phrase already on the page, so the trigger's event slot is
+   filled by the SENTENCE BEFORE IT, and no event row could have held
+   that. `Reflexively` therefore takes the enclosing clause itself and
+   the trigger body, and mints nothing else — no event, no decider
+   slot, no header word. Core reaches the opposite place and the
+   divergence is worth recording rather than smoothing: `ability.rs`
+   says in as many words that "delayed ([CR#603.7]) and reflexive
+   ([CR#603.12]) triggers are the same value", and then `EventFilter`'s
+   thirty-odd rows have nothing to put in the `event` field that value
+   demands. Both readings can be right about the ENGINE — a reflexive
+   really is a triggered ability on the stack — and only one of them
+   is a sentence. The rule itself files the family the same way this
+   node does, by container: reflexive triggers "follow the rules for
+   delayed triggered abilities … except that they're checked
+   immediately after being created", so `Delayed` beside it is the
+   sibling and the difference is which of the two knows what it is
+   waiting for.
+184. **The enclosure table looks THROUGH the offer, because the rule
+   does — and its refusals have four different grounds.**
+   [CR#603.12] writes "allow OR INSTRUCT", one action under two
+   markings, and the corpus divides exactly there: two hundred of the
+   two hundred ninety-one lines are a may (a hundred thirty-four a
+   verb phrase, sixty-six a payment) and ninety-one a bare
+   instruction, which is [CR#118.12]'s mandatory twin arriving at a
+   second construction with the same reasoning finding 177 used. So
+   `reflexEncloseUse` asks a branchless `May` its BODY's question and
+   the may/imperative split appears nowhere in the table, which is
+   what keeps the per-row counts honest: the payment is sixty-six
+   lines and every one of them is offered, the sacrifice is
+   seventy-one offered and seventeen instructed. The Trues are
+   `Does` at a hundred fifteen, `Pay` at sixty-six, the exile at
+   fifty-one, the tap at thirteen, the create and the counter-put at
+   eight each, the counter-removal at seven, the mill at five, the
+   return at three, the reveal at two, and the draw and the choice at
+   one apiece. What makes this a table and not a predicate is that the
+   Falses disagree about WHY, so a Bool would have hidden which ground
+   each row stood on. The AGENTLESS rows are a rule rather than a
+   count: [CR#120.1] makes "an object that deals damage … the source of
+   that damage", [CR#701.14a] has a fight instruct "a creature to fight
+   another creature", and [CR#119.9] rewrites the life-gain trigger as
+   "whenever a source causes [a player] to gain life" — three clauses
+   whose agent is not a player, and zero corpus lines each. The one
+   apparent counterexample proves it: Elektra, Femme Fatale writes "you
+   may HAVE her deal 2 damage to you. When you do, …", where the having
+   is yours and the dealing is hers, and a causative is a True row
+   (`badReflexiveOnSourceDeed`, `badReflexiveOnLifeGain`). The same
+   rule reads the life change twice with opposite answers, which is
+   finding 180's shape again: "you may pay 2 life" IS an enclosure,
+   paying being an action a player takes where gaining life is
+   something done to one. The other three grounds are that no single
+   action is there to abbreviate (a sequence, a batch, a modal, a
+   conditional, a branched may — `badReflexiveOnSequence`,
+   `badReflexiveOnBranchedMay`), that the action is SCHEDULED rather
+   than taken and so did not occur "earlier during the resolution"
+   ([CR#603.12]'s own check — `badReflexiveOnDelayed`), and plain
+   silence, which the search and the shuffle hold.
+185. **The body reads the enclosure's POST-state with its targets
+   settled; what follows the construction reads none of the trigger.**
+   Both halves are the construction's content and each has its rule.
+   INWARD, the reflexive fires precisely BECAUSE the action was taken,
+   so what the action did is there to read — a hundred and one bodies
+   write "it"/"its", thirty-eight write "that [creature/card/…]", ten
+   write "that many"/"that much" — and that is the exact opposite of
+   `InsteadOf` beside it, whose replaced event never happened
+   ([CR#614.6]) and whose replacement therefore reads announcements
+   only. Targets are SETTLED on the way in, for `delayedCtx`'s reason
+   at a second site: the reflexive is its own object on the stack
+   ([CR#603.3]) choosing its own targets there ([CR#603.3d]), so a
+   target the enclosing spell announced is a particular by the time
+   this body speaks of it, and English agrees — "exile target creature
+   card from a graveyard. When you do, put X +1/+1 counters on target
+   Symbiote, where X is THE EXILED CARD's toughness". OUTWARD the node
+   contributes the enclosure's discourse and nothing of the trigger's,
+   and [CR#603.3] says why in one clause: the ability goes on the stack
+   "the next time a player would receive priority", so the rest of the
+   resolving effect finishes before it resolves and cannot mention what
+   it will do (`badAfterReflexiveReadsTrigger`). That is `Delayed`'s
+   "a future clause mentions nothing NOW" with a clause in front of it
+   that DID run. Anointer of Valor is the card that forced the inward
+   typing: "Whenever a creature attacks, you may pay {3}. When you do,
+   put a +1/+1 counter on that creature" reaches back over a payment
+   that mentions nobody to the trigger header's attacker, which a
+   trigger row typed at the empty context could not have found.
+186. **Three slots the family does not get, and one refusal that is
+   the rule's rather than English's.** The trigger WORD is not a slot:
+   two hundred ninety-one "When", zero "Whenever", zero "At", which
+   makes this the one trigger in the file whose opening word finding
+   172 does not have to leave open — and no `admitsTrigger` row is
+   forced either, there being no event to key one on. The SPAN is not a
+   slot: [CR#603.7b] gives a delayed trigger "this turn" and
+   [CR#603.12a] replaces that rule outright for this one, the reflexive
+   triggering "once for each of those times" the event occurred rather
+   than once unless told otherwise, so the count is the event's
+   multiplicity; zero lines write a duration, and the rule's own
+   exception has exactly one card (Hawkeye's "you may pay {1} up to
+   three times. When you do, …", which [CR#603.12a] fires once). The
+   intervening "if" IS licensed — [CR#603.4] applies to any triggered
+   ability and three bodies open with one — and is ledgered at that
+   count. The DECLINED reflexive is the interesting silence: the rule
+   words the family as triggering "when [a player] [does or doesn't]"
+   take the action, so a negative reflexive is licensed outright, and
+   English writes it zero times. The single "When you don't" line in the
+   corpus is a quoted STATE trigger (Olivia, Crimson Bride's "When you
+   don't control a legendary Vampire, exile this creature"), and the
+   declined branch stays where its eighty-three lines are, on `May`'s
+   `ifNot` (`badReflexiveOnDeclinedMay`). One offer, one reader: no line
+   writes both "if you do" and "when you do" over one choice, and
+   Heart-Piercer Manticore's own ruling says what the card would have to
+   choose between — with the reflexive, "players may cast spells and
+   activate abilities before a creature is sacrificed and then again
+   after the creature is sacrificed but before damage is dealt"
+   (`badReflexiveOnBranchedMay`).
+187. **What the round claimed, and where the two remaining cards are
+   blocked.** Claimed from chapter twenty-eight's ledger: the reflexive
+   itself, deferred there with its blocker named, now four bench
+   positives across the enclosure shapes it opens — the offer (Cornered
+   Crook, the whole card), the instruction (The Last Ronin's chapter
+   II), the payment (Thousand Moons Crackshot, the whole card) and the
+   read-back (Anointer of Valor). Relocated rather than claimed, each
+   with its blocker moved somewhere smaller: Yes Man, Personal
+   Securitron's reflexive shell exists now, and what stops the card is a
+   quest counter `CounterKind` does not carry — its enclosure is the
+   family's one line whose action is a CONTROL GRANT, attested by
+   ruling rather than by inference (2024-03-08: "that effect is part of
+   a reflexive triggered ability that triggers only if the target
+   opponent gains control of Yes Man"), so the cell is `EncUnclaimed`
+   with the card written on it (`badReflexiveOnGainsControl`). And
+   [CR#603.12]'s OWN worked example is the one this construction cannot
+   write: Heart-Piercer Manticore's "when you do, this creature deals
+   damage equal to that creature's power" reads the sacrificed creature
+   as a CREATURE while it sits in a graveyard, which is
+   [CR#608.2h]'s last-known information ("if it's no longer in that
+   zone … the effect uses the object's last known information", and the
+   card's 2017-04-18 ruling says outright that "the sacrificed
+   creature's last known existence on the battlefield is checked to
+   determine its power"). The workbench's carrier rule is right to
+   refuse it — an object "stops being a permanent as it's moved to
+   another zone" [CR#110.1], so the type word stops reaching it, which is
+   `badReflexiveTapsSacrificed`'s own refusal one word over — so the
+   family that needs a last-known read is ledgered whole rather than
+   smuggled in under a demonstrative. The "this way" participle
+   [CR#603.12] shares its sentence with is untouched and still ledgered
+   at a thousand and fifteen lines. Below those, the vocabulary the
+   ninety-one instructions asked for and did not get, measured: the
+   keyword actions (amass, earthbend, surveil), the die roll, the mana
+   addition, and the attach.
+
 ## Engine-Boundary Deferrals
 
 Engine-boundary deferrals (deliberate, and to stay so): the
@@ -4663,13 +4830,15 @@ here (twenty-odd are "Transform this creature"; the rest want an
 indestructible counter, a counted untargeted group, or a cast-from-exile
 permission), with Solphim, Mayhem Dominus named as the real spelling.
 
-Chapter twenty-eight's own deferrals, each measured: the REFLEXIVE
-trigger ([CR#603.12] — "When you do," two hundred ninety lines, "When
-they do," two), sanctioned as its own mini-round and blocked on the
-trigger EVENT rather than on the offer: "you do" is an anaphor to the
-enclosing may's body and `GameEvent` has no row that reads a clause
-instead of describing a happening, which is the same kind of gap as the
-"this way" participle the rule names in the same breath; the CAST event
+Chapter twenty-eight's own deferrals, each measured. The REFLEXIVE
+trigger is TAKEN, finding 183: the mini-round found that "you do" is a
+pro-verb rather than an event word, so the construction reads the
+enclosing clause and no `GameEvent` row was needed — what remains from
+that entry is the "this way" participle the rule names in the same
+breath, a thousand and fifteen lines and still ledgered, plus two cards
+whose blockers moved somewhere smaller (Yes Man, Personal Securitron on
+a quest `CounterKind`; Heart-Piercer Manticore on [CR#608.2h]'s
+last-known information). Still open: the CAST event
 (nine hundred forty-nine headers, "whenever [someone] casts …"), whose
 complement is a SPELL and which therefore waits on the stack carrier the
 exchange chapter ledgered ([CR#109.4] gives stack objects a controller
