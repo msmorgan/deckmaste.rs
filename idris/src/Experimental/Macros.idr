@@ -54,6 +54,27 @@ public export
 creature : Predicate bs Object
 creature = HasType Creature
 
+-- "artifact" — `creature`'s siblings, one per type word the
+-- coordinated phrases spell ("artifact or enchantment", "artifact,
+-- creature, or land").
+-- spelling: ["artifact"], kind: Nominal (hasHead = True; HasType Artifact)
+public export
+artifact : Predicate bs Object
+artifact = HasType Artifact
+
+-- "enchantment"
+-- spelling: ["enchantment"], kind: Nominal (hasHead = True;
+-- HasType Enchantment)
+public export
+enchantment : Predicate bs Object
+enchantment = HasType Enchantment
+
+-- "land"
+-- spelling: ["land"], kind: Nominal (hasHead = True; HasType Land)
+public export
+land : Predicate bs Object
+land = HasType Land
+
 -- "creature you control"
 -- spelling: ["creature you control"], kind: TODO(reason: head noun +
 -- non-head modifier conjunction, per hasHead/And -- see Predicate)

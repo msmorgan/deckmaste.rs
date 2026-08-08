@@ -570,6 +570,94 @@
 |||    which is why the bench positive reads its recipient back as a
 |||    demonstrative instead.
 |||
+||| Chapter fourteen, disjunction (evidence: Disenchant, Icy
+||| Manipulator, Rats of Rath, Arrows of Justice; the corpus counts and
+||| the bracketed parses are this chapter's whole argument):
+||| 47. **A disjunction is a PREDICATE, not a second noun.** Disenchant
+|||    writes "target" once — "Destroy target artifact or enchantment."
+|||    — so the phrase announces ONE target ([CR#601.2c], whose own
+|||    example turns on a spell using the word in two places), and the
+|||    parse agrees about where the coordination sits:
+|||    `<<target> <<artifact> <or <enchantment>>>>`, inside the
+|||    determined phrase rather than beside it. That places "or" among
+|||    the descriptions, where the kind index already forces the
+|||    alternatives to describe the same sort of thing and no gate has
+|||    to say so. `Or` carries a member LIST for the reason `And` does,
+|||    and core's `Predicate::Or` does (`filter.rs`, a slice beside
+|||    `And`'s): Icy Manipulator's third alternative then costs no
+|||    machinery, only the guide's serial comma. Two-alternative
+|||    "target X or Y" runs to about a thousand corpus lines and the
+|||    Oxford form to eighty-eight, so this is a first-rank
+|||    construction, not a curiosity.
+||| 48. **Modifier scope falls out of the nesting.** "Destroy target
+|||    artifact, creature, or land you control." (Rats of Rath) is
+|||    `And [Or […], ControlledBy You]` — the relative clause a SIBLING
+|||    of the coordination, which is exactly how the parse brackets it
+|||    (`<<target> <<artifact><, creature><, or land>> <<you>
+|||    <control>>>`). One hundred sixty-six corpus lines write the
+|||    shared trailing modifier and it needed nothing new; the other
+|||    reading, the clause repeated per alternative, is what the guide
+|||    reserves for "alternatives with different domains or modifiers".
+||| 49. **The member scans must not flatten through "or".**
+|||    `flattenPs` flattens conjunctions only. Splicing alternatives
+|||    into the surrounding conjunction would read Arrows of Justice's
+|||    "attacking or blocking creature" as "attacking AND blocking" and
+|||    refuse ninety-five corpus lines, so the coherence gates see a
+|||    disjunction through its PROJECTIONS instead — and those project
+|||    what the alternatives AGREE on. Both status words stand on the
+|||    battlefield and both presuppose a creature ([CR#506.3] names
+|||    them in one breath), so the disjunction does too, and the
+|||    nonsense around it is refused by the gates that were already
+|||    there (`badAttackingOrBlockingInGraveyard`,
+|||    `badNoncreatureAttackingOrBlocking`) — finding 43's shape a
+|||    second time.
+||| 50. **A disjunctive head is untyped, and the untyped row had to
+|||    go.** "Artifact or enchantment" fixes no card type, so `seedTy`
+|||    projects none — the honest silence. `DamageableTy` used to read
+|||    a missing type word as no evidence of an illegal one, which was
+|||    defensible only while nothing projected `Nothing` deliberately;
+|||    a disjunction does, and the row would have made every
+|||    disjunction damageable, including the very types [CR#120.1a]
+|||    says damage cannot reach (`badDamageDisjunctHead`). Deleted, and
+|||    `DamageableTy` is now the single creature row. Reading a
+|||    phrase's silence as permission is the recurring bug; the last
+|||    chapter found the same one in [CR#109.2]'s zone default.
+||| 51. **Alternatives are parallel, and three words are not
+|||    alternatives at all.** Parallel in RANK — a head noun and a bare
+|||    status word cannot stand in each other's place, which the guide
+|||    says outright ("Repeat the carrier when the alternatives have
+|||    different domains or modifiers") — and parallel in PLACE, since
+|||    the phrase places its referent once. The three words that cannot
+|||    be alternatives share one reason: each is written once for the
+|||    whole coordination. "Any target" IS the union [CR#115.4] fixes
+|||    by disjunction ("creatures, players, planeswalkers, or
+|||    battles"), so coordinating it re-opens a closed class; "other"
+|||    fills its one selector slot for the coordination entire ("Another
+|||    target Wolf or Werewolf you control"); and an `Or` inside an `Or`
+|||    is the flat coordination written with brackets oracle cannot
+|||    print — core reaches the same shape by flattening associatively
+|||    in `normalize`, where the workbench refuses the second spelling.
+|||    Each alternative is read through `flattenPs`, so a singleton
+|||    conjunction launders none of the three
+|||    (`badAnyTargetInOrLaundered`) — the lesson finding 42's negation
+|||    row learned, applied to a new list-carrying constructor before
+|||    it could be exploited.
+||| 52. **Negation does not reach a coordination.** The corpus spells
+|||    "non-(A or B)" zero times, while the De Morgan the writer does
+|||    instead is plentiful and comma-chained: "noncreature, nonland
+|||    card", "Target nonattacking, nonblocking creature". `Not (Or …)`
+|||    is unwritable on that evidence (`badNegatedDisjunction`), and
+|||    the second half of `rawNonattacking`'s card now spells, chained
+|||    exactly as the writer chains it.
+||| 53. **A disjunction is a binding HOLE.** Exactly one alternative is
+|||    realized and the phrase never says which, so a possessor written
+|||    inside one names nobody the next sentence can read
+|||    (`badDisjunctAntecedent`) — negation's rule (finding 39's
+|||    `predDelta`) for a neighbouring reason. What is unaffected is
+|||    the phrase's OWN binding: the determiner mints that at the noun
+|||    layer, which is why "Destroy target artifact or enchantment"
+|||    still leaves an "it" behind.
+|||
 ||| Engine-boundary deferrals (deliberate, and to stay so): the
 ||| workbench spells the ENGLISH; committed event structure is
 ||| core's. The per-combatant fight fact is the type case — core
@@ -609,7 +697,15 @@
 ||| discipline (uniqueness counted per kind). So the union wants `Or`
 ||| at the predicate level and a kind join the reads can project
 ||| through, not the deletion of kinds — which is what the `AnyTarget`
-||| constructor has claimed since it was minted;
+||| constructor has claimed since it was minted. Half of that has
+||| arrived: chapter fourteen built `Or`, and settled that the class
+||| word is expressly NOT one of its alternatives, [CR#115.4]'s union
+||| being closed already (`badAnyTargetInOr`). What is still missing
+||| is the JOIN: `Or`'s alternatives share one `Kind` index by
+||| construction, so "target player or planeswalker" (Chandra Nalaar)
+||| cannot be written as a disjunction of a player description and an
+||| object one, and the reads have no joined kind to project through
+||| — the union proper, now stated as the one thing it needs;
 ||| owned-zone PREDICATE mentions beyond `You` ("a card in an
 ||| opponent's graveyard" — [CR#400.3] makes the possessive an owner
 ||| FILTER, finding 34; the inner noun does not fold yet); controller
@@ -830,7 +926,43 @@
 ||| the predicate vocabulary, while devotion is a measured value
 ||| taking a mandatory "to [color]" ([CR#700.5]; "each opponent
 ||| loses X life, where X is your devotion to black", Gray Merchant
-||| of Asphodel), landing with the amounts; and the striated ability
+||| of Asphodel), landing with the amounts;
+||| the COORDINATION families chapter fourteen did not take, each
+||| waiting on a constituent this file has no term for: CLAUSE
+||| coordination in its six spellings (`ClauseCoordination`, its comma
+||| and asyndetic variants, and the three copular-noun-prepositional
+||| ones) waits on no new structure — `Sequentially` composes clauses
+||| already — but on the DISTINCTION the guide draws between
+||| coordinated and sequenced results ("and" for results with no
+||| emphasized ordering, "then" when the order matters), which the
+||| clause list currently collapses, the Arc Trail entry above being
+||| the same collapse seen from one card; QUOTED-ability coordination
+||| (`VerbPhraseQuotedAbilityCoordination`,
+||| `VerbPhraseAbilityQuotedCoordination`) waits on the quoted ability
+||| as a VALUE, above; the coordinated-MODIFIER trio
+||| (`CoordinatedModifierConjoined`, `CoordinatedModifierOxford`,
+||| `NominalCoordinatedModifier`), the coordinated-ADJECTIVE trio
+||| (`VerbPhraseCoordinatedAdjective`,
+||| `CopularRemainderCoordinatedAdjective`,
+||| `RelativeContractedCopularCoordinatedAdjective`), and the
+||| postpositive-adjective spellings
+||| (`nominal_postpositive_adjective_conjoined` with its Oxford and
+||| prepositional twins) all wait on the same missing constituent, an
+||| ADJECTIVE phrase: the status words here are predicates, and
+||| nothing in this file is adjective-shaped; and
+||| `PrepositionalPhraseSiblingCoordinated` waits on the general
+||| prepositional operator named at the top of this list. Two
+||| disjunctions are likewise named rather than built — the
+||| CROSS-ZONE one, which the single-valued zone projection refuses
+||| outright rather than mis-place ("an Equipment card from your hand
+||| or graveyard", seventeen corpus lines under a shared preposition;
+||| `badCrossZoneDisjunction`), and the KIND-crossing one, which is
+||| the kind-union entry above wearing a coordinator. And `and/or` is
+||| a THIRD coordinator, not a spelling of this one: the parser keeps
+||| `Conjunction::AndOr` beside `And` and `Or` in its coordination
+||| constructions, and the guide gives it its own rule — either
+||| category alone or both together qualify, "instant and/or sorcery
+||| cards"; and the striated ability
 ||| frames — class levels (Monk Class's "{W}{U}: Level 2"), saga
 ||| chapters (History of Benalia's "I, II —"), level bands (Kargan
 ||| Dragonlord's "LEVEL 4-7"), station thresholds (The Eternity
@@ -847,14 +979,17 @@
 ||| the spelling pass marked those constructors construction-owned or
 ||| TODO instead of giving them a fragment of their own.
 |||
-||| Four families stay unmapped deliberately, being the next CHAPTERS
-||| rather than deferrals: general coordination and disjunction
-||| ("Destroy target artifact or enchantment", Disenchant), the
-||| deontic auxiliaries ("Enchanted creature can't attack or block",
-||| Pacifism — the parser's auxiliary slot is general, twelve of them
-||| stacking, so the deontic reading is one slice of that chapter),
-||| comparatives, and the generic definite and possessive noun phrases
-||| (which "both" above waits on).
+||| Three families stay unmapped deliberately, being the next CHAPTERS
+||| rather than deferrals: the deontic auxiliaries ("Enchanted
+||| creature can't attack or block", Pacifism — the parser's auxiliary
+||| slot is general, twelve of them stacking, so the deontic reading
+||| is one slice of that chapter), comparatives, and the generic
+||| definite and possessive noun phrases (which "both" above waits
+||| on). Coordination was the fourth and has SPLIT: chapter fourteen
+||| took its noun-phrase half — `noun_phrase_coordination` and
+||| `shared_determiner_nominal`, which is Disenchant's alternatives
+||| and Rats of Rath's shared modifier — and the rest is deferred by
+||| axis rather than unmapped, in the frontier entry above.
 module Experimental
 
 %default total
@@ -1493,17 +1628,22 @@ data Targetable : Kind -> Type where
   PlayerTgt : Targetable Player
 
 ||| Damageable head types ([CR#120.1a] — damage can't be dealt to an
-||| object that's not a battle, a creature, or a planeswalker): the
-||| creature row, plus the head a read leaves untyped — a fold-state
-||| that records no type word is not evidence of an illegal one, so
-||| the demand is on what the phrase SAYS. The class word "any target"
-||| no longer arrives here: it names the [CR#115.4] class itself and
-||| has its own recipient row. New rows arrive with their types'
-||| declarations.
+||| object that's not a battle, a creature, or a planeswalker): one
+||| row, for the one damageable type this vocabulary has a word for.
+||| The class word "any target" does not arrive here — it names the
+||| [CR#115.4] class itself and has its own recipient row — and the
+||| untyped head no longer arrives EITHER. That row read a missing
+||| type word as "no evidence of an illegal one", which was defensible
+||| while nothing could project `Nothing` deliberately; a disjunctive
+||| head does exactly that, and honestly ("artifact or enchantment"
+||| fixes no type), so keeping the row would have made every
+||| disjunction damageable — including the two types [CR#120.1a] names
+||| as the ones damage can't reach (`badDamageDisjunctHead`). Reading
+||| the phrase's silence as permission is what had to go. New rows
+||| arrive with their types' declarations.
 public export
 data DamageableTy : Maybe CardType -> Type where
   DamCreature : DamageableTy (Just Creature)
-  DamUntyped : DamageableTy Nothing
 
 ||| The kinds a noun PHRASE can describe — objects, players, chosen
 ||| qualities. Outcomes are clause-introduced only: no determiner
@@ -1624,6 +1764,12 @@ mutual
     -- spelling: ["attacking"], kind: TODO(reason: non-head status modifier
     -- per hasHead)
     Attacking : Predicate bs Object
+    -- the blocking-designation modifier ([CR#509.1a]) — the defending
+    -- player's twin of `Attacking`, and the word the corpus coordinates
+    -- with it ("target attacking or blocking creature").
+    -- spelling: ["blocking"], kind: TODO(reason: non-head status modifier
+    -- per hasHead)
+    Blocking : Predicate bs Object
     -- spelling: ["in <Param(0)>"] (also "from <Param(0)>", see comment),
     -- kind: Nominal (hasHead = True; implicit head is the zone's carrier,
     -- e.g. "a card in your hand")
@@ -1642,6 +1788,27 @@ mutual
     And : (ps : List (Predicate bs k)) -> {auto 0 zc : ZoneCoherent ps} ->
           {auto 0 cf : ContradictionFree ps} -> {auto 0 oa : OtherAnchored ps} ->
           {auto 0 at : AnyTargetLone ps} -> Predicate bs k
+    -- sibling ALTERNATIVES, still one referent. Where a conjunction's
+    -- members all describe the same object at once, a disjunction's
+    -- describe it in place of one another: "Destroy target artifact or
+    -- enchantment." (Disenchant) writes the word "target" ONCE, so it
+    -- announces ONE target ([CR#601.2c]), and the determiner scopes
+    -- over the whole coordination — the parse brackets it
+    -- `<<target> <<artifact> <or <enchantment>>>>`. The kind index
+    -- forces the alternatives to describe the same sort of thing
+    -- without a gate. The obligations are listed in DECLARATION
+    -- order: a coordination needs two alternatives (`TwoDisjuncts`),
+    -- they are PARALLEL — the same grammatical rank, placed in the
+    -- same zone (`ParallelDisjuncts`) — a word that fills one
+    -- phrase-level slot is not an alternative (`CoordinableDisjuncts`),
+    -- and no alternative repeats another (`DistinctDisjuncts`).
+    -- spelling: (construction-owned -- serial-comma coordination with a
+    -- final "or", mirroring core's `Predicate::Or`; the guide puts the
+    -- Oxford comma before the coordinator from three items up)
+    Or : (ps : List (Predicate bs k)) -> {auto 0 tw : TwoDisjuncts ps} ->
+         {auto 0 pd : ParallelDisjuncts ps} ->
+         {auto 0 cd : CoordinableDisjuncts ps} ->
+         {auto 0 dd : DistinctDisjuncts ps} -> Predicate bs k
     -- "don't"/"non-" on a modifier — over a negatable one only
     -- (`Negatable`: not the class word, not "other", not a negation).
     -- spelling: (construction-owned -- negates its inner predicate's own
@@ -1667,6 +1834,11 @@ mutual
   seedTy : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Maybe CardType
   seedTy (HasType t) = Just t
   seedTy (And ps) = seedTyAll ps
+  -- alternatives project only what they AGREE on: "artifact or
+  -- enchantment" names a referent whose type the phrase declines to
+  -- fix, so it projects none — the honest silence, not a guess at the
+  -- first alternative.
+  seedTy (Or ps) = seedTyJoin ps
   seedTy _ = Nothing
 
   public export
@@ -1675,6 +1847,23 @@ mutual
   seedTyAll (p :: ps) = case seedTy p of
     Just t => Just t
     Nothing => seedTyAll ps
+
+  ||| A conjunction takes the FIRST head its members write; a
+  ||| disjunction takes the one every alternative writes, or none.
+  public export
+  seedTyJoin : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Maybe CardType
+  seedTyJoin [] = Nothing
+  seedTyJoin (p :: ps) = case seedTy p of
+    Nothing => Nothing
+    Just t => if allSeedTy t ps then Just t else Nothing
+
+  public export
+  allSeedTy : {0 bs : Bindings} -> {0 k : Kind} ->
+              CardType -> List (Predicate bs k) -> Bool
+  allSeedTy t [] = True
+  allSeedTy t (p :: ps) = case seedTy p of
+    Nothing => False
+    Just u => sameCT t u && allSeedTy t ps
 
   ||| The zone a predicate places its referent in — a bare description
   ||| means the battlefield ([CR#109.2]); a zone clause says otherwise,
@@ -1687,6 +1876,12 @@ mutual
   seedZone : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Maybe Zone
   seedZone (InZone z) = Just (zoneSort z)
   seedZone Attacking = Just Battlefield
+  -- blockers are chosen from creatures the defending player controls
+  -- ([CR#509.1a]) and a creature removed from combat "stops being an
+  -- attacking, blocking, blocked, and/or unblocked creature"
+  -- ([CR#506.4]), so the defending word seeds its zone exactly as the
+  -- attacking one does.
+  seedZone Blocking = Just Battlefield
   -- a controller relation says the same thing: only objects on the
   -- stack or on the battlefield have a controller, and everything else
   -- "isn't controlled by any player" ([CR#109.4]), so "a creature you
@@ -1696,6 +1891,11 @@ mutual
   -- today, so the battlefield seed is exact; revisit when one lands.
   seedZone (ControlledBy _) = Just Battlefield
   seedZone (And ps) = seedZoneAll ps
+  -- the same agreement rule the head projection uses: "attacking or
+  -- blocking" places its referent on the battlefield because BOTH
+  -- alternatives do, while "artifact or enchantment" places it
+  -- nowhere of its own and leaves the phrase's default to speak.
+  seedZone (Or ps) = seedZoneJoin ps
   seedZone _ = Nothing
 
   public export
@@ -1705,16 +1905,53 @@ mutual
     Just z => Just z
     Nothing => seedZoneAll ps
 
+  public export
+  seedZoneJoin : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Maybe Zone
+  seedZoneJoin [] = Nothing
+  seedZoneJoin (p :: ps) = case seedZone p of
+    Nothing => Nothing
+    Just z => if allSeedZone z ps then Just z else Nothing
+
+  public export
+  allSeedZone : {0 bs : Bindings} -> {0 k : Kind} ->
+                Zone -> List (Predicate bs k) -> Bool
+  allSeedZone z [] = True
+  allSeedZone z (p :: ps) = case seedZone p of
+    Nothing => False
+    Just w => sameZone z w && allSeedZone z ps
+
   ||| The card type a modifier PRESUPPOSES of its referent — the type
   ||| twin of `seedZone`, and a different question from `seedTy`, which
   ||| projects the phrase's own HEAD. Only a creature can attack or
   ||| block ([CR#506.3]), so the status word presupposes the type
   ||| exactly as it presupposes the battlefield. No `And` row is needed:
-  ||| the only consumer scans `flattenPs`.
+  ||| the only consumer scans `flattenPs`. A disjunction DOES need one,
+  ||| because `flattenPs` leaves it whole: it presupposes what every
+  ||| alternative presupposes, which is how "attacking or blocking"
+  ||| keeps demanding a creature ([CR#506.3] names both words in one
+  ||| breath) though neither word survives alone.
   public export
   seedType : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Maybe CardType
   seedType Attacking = Just Creature
+  seedType Blocking = Just Creature
+  seedType (Or ps) = seedTypeJoin ps
   seedType _ = Nothing
+
+  public export
+  seedTypeJoin : {0 bs : Bindings} -> {0 k : Kind} ->
+                 List (Predicate bs k) -> Maybe CardType
+  seedTypeJoin [] = Nothing
+  seedTypeJoin (p :: ps) = case seedType p of
+    Nothing => Nothing
+    Just t => if allSeedType t ps then Just t else Nothing
+
+  public export
+  allSeedType : {0 bs : Bindings} -> {0 k : Kind} ->
+                CardType -> List (Predicate bs k) -> Bool
+  allSeedType t [] = True
+  allSeedType t (p :: ps) = case seedType p of
+    Nothing => False
+    Just u => sameCT t u && allSeedType t ps
 
   ||| A phrase names a positive HEAD: a type word, a player word, a
   ||| quality word, "any target", or a zone clause (whose implicit
@@ -1731,8 +1968,16 @@ mutual
   hasHead (OfChosen _) = False
   hasHead (ControlledBy _) = False
   hasHead Attacking = False
+  hasHead Blocking = False
   hasHead (InZone _) = True
   hasHead (And ps) = hasHeadAny ps
+  -- ANY member heads a conjunction — one head plus its modifiers —
+  -- but EVERY alternative has to head a disjunction, because each
+  -- one stands where the phrase's head would: "artifact or
+  -- enchantment" heads, "attacking or blocking" does not, and
+  -- `ParallelDisjuncts` is what stops the two mixing, so this reads
+  -- the answer they share.
+  hasHead (Or ps) = hasHeadAll ps
   hasHead (Not _) = False
   hasHead Other = False
   hasHead AnyTarget = True
@@ -1742,6 +1987,11 @@ mutual
   hasHeadAny [] = False
   hasHeadAny (p :: ps) = hasHead p || hasHeadAny ps
 
+  public export
+  hasHeadAll : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
+  hasHeadAll [] = True
+  hasHeadAll (p :: ps) = hasHead p && hasHeadAll ps
+
   ||| The determiner gate's witness form (a distinctive search name).
   public export
   data Headed : Predicate bs k -> Type where
@@ -1749,7 +1999,12 @@ mutual
 
   ||| Every member of a conjunction, nested conjunctions flattened —
   ||| the member scan the coherence gates share, so a clash one level
-  ||| down is refused exactly as a sibling clash is.
+  ||| down is refused exactly as a sibling clash is. It flattens
+  ||| conjunctions ONLY: a disjunction's alternatives are not siblings
+  ||| of the conjunction around it (splicing them in would make
+  ||| "attacking or blocking" read as "attacking and blocking"), so an
+  ||| `Or` passes through whole and the gates see it through its
+  ||| projections instead.
   public export
   flattenPs : {0 bs : Bindings} -> {0 k : Kind} ->
               List (Predicate bs k) -> List (Predicate bs k)
@@ -1836,9 +2091,18 @@ mutual
   predEq (ControlledBy _) _ = False
   predEq Attacking Attacking = True
   predEq Attacking _ = False
+  predEq Blocking Blocking = True
+  predEq Blocking _ = False
   predEq (InZone z) (InZone w) = sameZone (zoneSort z) (zoneSort w)
   predEq (InZone _) _ = False
   predEq (And _) _ = False
+  -- as conservative as the conjunction's row, and safe for the same
+  -- reason: `Not` reaches neither combinator, so no negation pair can
+  -- launder through the `False`. What it costs is only the repeated
+  -- ALTERNATIVE spelled two ways ("artifact or artifact" is caught,
+  -- "(A or B) written twice" is not — nothing may nest an `Or` in an
+  -- `Or` anyway).
+  predEq (Or _) _ = False
   predEq (Not a) (Not b) = predEq a b
   predEq (Not _) _ = False
   predEq Other Other = True
@@ -1922,6 +2186,12 @@ mutual
   hasOther : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   hasOther Other = True
   hasOther (And ps) = hasOtherAny ps
+  -- no reach into a disjunction is needed, and none would be honest:
+  -- the modifier fills one slot for the WHOLE coordinated phrase
+  -- ("Another target Wolf or Werewolf you control"), so
+  -- `CoordinableDisjuncts` refuses it as an alternative and there is
+  -- nothing inside an `Or` for the cap to miss.
+  hasOther (Or _) = False
   hasOther _ = False
 
   public export
@@ -2030,12 +2300,145 @@ mutual
   data AnyTargetLone : List (Predicate bs k) -> Type where
     MkAnyTargetLone : {auto 0 ok : anyTargetLone ps = True} -> AnyTargetLone ps
 
+  ||| A coordination offers two alternatives or more. At one it offers
+  ||| none and spells exactly what the bare alternative spells
+  ||| (`badSingletonOr`), at zero it spells nothing at all
+  ||| (`badEmptyOr`) — the arity discipline `Sequentially` writes with
+  ||| its own `AtLeastTwo`, in the member-scan form the sibling gates
+  ||| here use (the shared witness would put a `Predicate` list under
+  ||| an external family and cost the type its strict positivity).
+  public export
+  atLeastTwoPs : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
+  atLeastTwoPs [] = False
+  atLeastTwoPs (_ :: []) = False
+  atLeastTwoPs (_ :: _ :: _) = True
+
+  public export
+  data TwoDisjuncts : List (Predicate bs k) -> Type where
+    MkTwoDisjuncts : {auto 0 ok : atLeastTwoPs ps = True} -> TwoDisjuncts ps
+
+  ||| The zone an ALTERNATIVE commits its referent to, the phrase-level
+  ||| default included: alternatives are compared the way whole phrases
+  ||| would be, so a bare description is the battlefield ([CR#109.2])
+  ||| here exactly as it is anywhere else.
+  public export
+  disjunctZone : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Zone
+  disjunctZone p = zoneOr Battlefield (seedZone p)
+
+  public export
+  headsUniform : {0 bs : Bindings} -> {0 k : Kind} ->
+                 Bool -> List (Predicate bs k) -> Bool
+  headsUniform b [] = True
+  headsUniform b (p :: ps) = (if hasHead p then b else not b) && headsUniform b ps
+
+  public export
+  zonesUniform : {0 bs : Bindings} -> {0 k : Kind} ->
+                 Zone -> List (Predicate bs k) -> Bool
+  zonesUniform z [] = True
+  zonesUniform z (p :: ps) = sameZone z (disjunctZone p) && zonesUniform z ps
+
+  ||| Alternatives are PARALLEL: each one has to be able to stand where
+  ||| the others stand. Two ways a phrase can fail that, and the guide
+  ||| names the first outright — "Repeat the carrier when the
+  ||| alternatives have different domains or modifiers". A head noun
+  ||| and a bare modifier are not interchangeable ("artifact or
+  ||| attacking" is unwritable, `badHeadlessDisjunct`), and neither are
+  ||| a hand card and a battlefield permanent, because the phrase
+  ||| places its referent ONCE: the corpus writes cross-zone
+  ||| alternatives ("an Equipment card from your hand or graveyard",
+  ||| seventeen lines) under a shared preposition, which is a zone
+  ||| disjunction the single-valued projection cannot carry, so it is
+  ||| refused here and ledgered rather than mis-projected
+  ||| (`badCrossZoneDisjunction`).
+  public export
+  parallelDisjuncts : {0 bs : Bindings} -> {0 k : Kind} ->
+                      List (Predicate bs k) -> Bool
+  parallelDisjuncts [] = True
+  parallelDisjuncts (p :: ps) = headsUniform (hasHead p) ps &&
+                                zonesUniform (disjunctZone p) ps
+
+  public export
+  data ParallelDisjuncts : List (Predicate bs k) -> Type where
+    MkParallelDisjuncts : {auto 0 ok : parallelDisjuncts ps = True} ->
+                          ParallelDisjuncts ps
+
+  public export
+  isOr : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+  isOr (Or _) = True
+  isOr _ = False
+
+  public export
+  anyIsOr : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
+  anyIsOr [] = False
+  anyIsOr (p :: ps) = isOr p || anyIsOr ps
+
+  ||| May this predicate stand as ONE alternative? Three words cannot,
+  ||| and for one reason between them: each is written once for the
+  ||| whole phrase, so putting it on one side of an "or" spells
+  ||| something the phrase already said. "Any target" is ITSELF the
+  ||| class [CR#115.4] defines by disjunction — "creatures, players,
+  ||| planeswalkers, or battles" — so coordinating it with an
+  ||| alternative re-opens a closed union (`badAnyTargetInOr`); "other"
+  ||| fills its one selector slot for the coordination entire
+  ||| ("Another target Wolf or Werewolf you control", `badOtherInOr`);
+  ||| and a disjunction inside a disjunction is the flat coordination
+  ||| written with brackets oracle has no way to print
+  ||| (`badNestedOr`) — core reaches the same shape by flattening
+  ||| associatively in `normalize`, where the workbench refuses the
+  ||| second spelling outright. The scan reads each alternative through
+  ||| `flattenPs`, so a singleton conjunction wrapped around any of the
+  ||| three launders none of them.
+  public export
+  coordinable : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+  coordinable p = not (headIsAnyTarget p) &&
+                  not (hasOther p) &&
+                  not (anyIsOr (flattenPs [p]))
+
+  public export
+  coordinableAll : {0 bs : Bindings} -> {0 k : Kind} ->
+                   List (Predicate bs k) -> Bool
+  coordinableAll [] = True
+  coordinableAll (p :: ps) = coordinable p && coordinableAll ps
+
+  public export
+  data CoordinableDisjuncts : List (Predicate bs k) -> Type where
+    MkCoordinableDisjuncts : {auto 0 ok : coordinableAll ps = True} ->
+                             CoordinableDisjuncts ps
+
+  public export
+  anyPredEq : {0 bs : Bindings} -> {0 k : Kind} ->
+              Predicate bs k -> List (Predicate bs k) -> Bool
+  anyPredEq p [] = False
+  anyPredEq p (q :: qs) = predEq p q || anyPredEq p qs
+
+  ||| No alternative repeats another: "artifact or artifact" offers no
+  ||| alternative at all and spells what the bare word spells, which is
+  ||| the refusal the arity gate already makes at one member
+  ||| (`badSingletonOr`, `badRepeatedDisjunct`) — one meaning, one
+  ||| spelling. Conservative exactly where `predEq` is.
+  public export
+  noRepeatedPair : {0 bs : Bindings} -> {0 k : Kind} ->
+                   List (Predicate bs k) -> Bool
+  noRepeatedPair [] = True
+  noRepeatedPair (p :: ps) = not (anyPredEq p ps) && noRepeatedPair ps
+
+  public export
+  data DistinctDisjuncts : List (Predicate bs k) -> Type where
+    MkDistinctDisjuncts : {auto 0 ok : noRepeatedPair ps = True} ->
+                          DistinctDisjuncts ps
+
   ||| Which modifiers a phrase can negate — ATOMIC rows only. Oracle's
   ||| negation words (non-, isn't, doesn't) attach to ONE modifier, so a
   ||| conjunction is negated per-member in English and De Morgan is the
   ||| writer's job, not the grammar's: `Not (And …)` is unwritable
   ||| (`badNegatedConjunction`), which also stops a singleton `And`
-  ||| laundering every ban below. "Any target" and "other" are not
+  ||| laundering every ban below. A DISJUNCTION is refused on the same
+  ||| evidence and more sharply: no corpus line spells "non-(A or B)"
+  ||| at all, while the De Morgan the writer does instead is plentiful
+  ||| and comma-chained ("noncreature, nonland card"; "Target
+  ||| nonattacking, nonblocking creature"), so `Not (Or …)` is
+  ||| unwritable (`badNegatedDisjunction`) and the two-member `Or`
+  ||| launders nothing either. "Any target" and "other" are not
   ||| negatable — the class word is never negated ([CR#115.4] defines it
   ||| positively) and "non-other" is unwritten — and neither is the
   ||| universal player word, which names one of the people in the game
@@ -2052,8 +2455,10 @@ mutual
   negatable (OfChosen _) = True
   negatable (ControlledBy _) = True
   negatable Attacking = True
+  negatable Blocking = True
   negatable (InZone _) = True
   negatable (And _) = False
+  negatable (Or _) = False
   negatable (Not _) = False
   negatable Other = False
   negatable AnyTarget = False
@@ -2081,8 +2486,13 @@ mutual
   anyTargetFree (OfChosen _) = True
   anyTargetFree (ControlledBy n) = nounAnyTargetFree n
   anyTargetFree Attacking = True
+  anyTargetFree Blocking = True
   anyTargetFree (InZone z) = zoneAnyTargetFree z
   anyTargetFree (And ps) = anyTargetFreeAll ps
+  -- the alternatives are scanned exactly as conjuncts are: the class
+  -- word may not be an alternative at all (`CoordinableDisjuncts`),
+  -- but a possessor buried inside one still spells it out loud.
+  anyTargetFree (Or ps) = anyTargetFreeAll ps
   anyTargetFree (Not p) = anyTargetFree p
   anyTargetFree Other = True
   anyTargetFree AnyTarget = False
@@ -2382,6 +2792,14 @@ mutual
   -- the one controller ([CR#109.4]); its negation selects nobody, so
   -- nothing inside `Not` folds out (`badNegatedAntecedent`).
   predDelta (Not p) = []
+  -- a disjunction is a hole for the neighbouring reason: only ONE
+  -- alternative is realized, and the phrase does not say which, so a
+  -- possessor written inside one of them names nobody the discourse
+  -- can read back (`badDisjunctAntecedent`). The phrase's OWN binding
+  -- is unaffected — the determiner makes it at the noun layer, which
+  -- is why "Destroy target artifact or enchantment" still leaves an
+  -- "it" behind.
+  predDelta (Or ps) = []
   predDelta _ = []
 
   public export

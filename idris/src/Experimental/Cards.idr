@@ -357,15 +357,18 @@ cyclingCost : Effect []
 cyclingCost = discards You This
 
 -- "Target nonattacking, nonblocking creature gets +0/+2 until end of
--- turn." (the blocking half waits on its status word) — a presupposed
--- zone projects THROUGH negation: negating the status does not negate
--- the battlefield, so the phrase keeps the [CR#109.2] default and
--- stays coherent. The nonattacking family is plentiful oracle ("Untap
--- target nonattacking creature.", "Target nonattacking creature gains
--- reach and deathtouch until end of turn."), which is what makes
--- reading the seed through `Not` an over-refusal rather than a nicety.
+-- turn." — a presupposed zone projects THROUGH negation: negating the
+-- status does not negate the battlefield, so the phrase keeps the
+-- [CR#109.2] default and stays coherent. The nonattacking family is
+-- plentiful oracle ("Untap target nonattacking creature.", "Target
+-- nonattacking creature gains reach and deathtouch until end of
+-- turn."), which is what makes reading the seed through `Not` an
+-- over-refusal rather than a nicety. The card's second negation now
+-- spells too, and comma-chained exactly as the writer chains it —
+-- which is the same fact `badNegatedDisjunction` states from the
+-- other side.
 rawNonattacking : Predicate [] Object
-rawNonattacking = And [creature, Not Attacking]
+rawNonattacking = And [creature, Not Attacking, Not Blocking]
 
 -- "Exile target creature." spelled raw — the tag-ALIGNED twin of
 -- `badDestroyTaggedExile`: same body, agreeing tag. The `TagBody`
@@ -374,6 +377,59 @@ rawNonattacking = And [creature, Not Attacking]
 -- `exile` macro passes `{ok = ExileB}`.
 rawExile : Effect []
 rawExile = Composite Exile (Move (target creature) ExileZ) {ok = ExileB}
+
+-- ===== Alternatives under one determiner: the disjunction chapter =====
+
+-- "Destroy target artifact or enchantment." (Disenchant) — the
+-- flagship. The card writes "target" ONCE, so it announces one target
+-- ([CR#601.2c]) and the determiner scopes over the whole coordination:
+-- the parser brackets it `<<target> <<artifact> <or <enchantment>>>>`,
+-- with the alternatives inside the determined phrase rather than
+-- beside it. That is why disjunction is a PREDICATE, not a second
+-- noun.
+disenchant : Effect []
+disenchant = destroy (target (Or [artifact, enchantment]))
+
+-- "Tap target artifact, creature, or land." (Icy Manipulator; its mana
+-- and {T} cost elided) — a third alternative costs no machinery, and
+-- the guide puts the serial comma before the coordinator from three
+-- items up. This is the argument for a member LIST over a binary
+-- connective, and it is core's shape too (`Predicate::Or` takes a
+-- slice).
+icyManipulator : Effect []
+icyManipulator = Tap (target (Or [artifact, creature, land]))
+
+-- "Destroy target artifact, creature, or land you control." (Rats of
+-- Rath; its mana cost elided) — the shared trailing modifier, and it
+-- needs nothing new either. The relative clause is a SIBLING of the
+-- coordination within the conjunction, which is where the parse puts
+-- it (`<<target> <<artifact><, creature><, or land>> <<you>
+-- <control>>>`), so modifier scope falls out of the nesting rather
+-- than wanting a rule. The other reading — the clause repeated per
+-- alternative — is what the guide reserves for alternatives with
+-- different domains.
+ratsOfRath : Effect []
+ratsOfRath = destroy (target (And [Or [artifact, creature, land], ControlledBy You]))
+
+-- "Arrows of Justice deals 4 damage to target attacking or blocking
+-- creature." — alternatives that CONTRAST: no creature is both, and
+-- the phrase is none the worse for it. This is what the coherence
+-- scans must not do to a disjunction, because splicing its members
+-- into the surrounding conjunction would read the card as "attacking
+-- and blocking" and refuse a phrase ninety-five corpus lines write.
+arrowsOfJustice : Effect []
+arrowsOfJustice = DealDamage This (Lit 4)
+                             (target (And [creature, Or [Attacking, Blocking]]))
+
+-- "another target creature or land" — the selector reaches over the
+-- whole coordination, as the corpus writes it ("Another target Wolf or
+-- Werewolf you control"), and the anchor it then demands is the
+-- UNTYPED one: a disjunctive head fixes no type, so any same-kind
+-- target mention satisfies it (finding 44). Posed in a target context,
+-- the presupposition being the point rather than the test.
+anotherDisjunctPhrase : Predicate [MkBinding TargetD Object OneOf
+                                             (ObjectP Nothing (Just Battlefield) Nothing)] Object
+anotherDisjunctPhrase = And [Or [creature, land], Other]
 
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
@@ -999,3 +1055,116 @@ failing "OnBattlefield"
 failing "DamageRecipient"
   badDamageThis : Effect []
   badDamageThis = DealDamage This (Lit 1) This
+
+-- ===== The disjunction chapter: what is not an alternative =====
+
+-- A coordination offers alternatives, so it needs two. At one it
+-- offers none and spells exactly what the bare alternative spells; at
+-- zero it spells nothing at all — the arity discipline `Sequentially`
+-- already carries, one construction over.
+failing "TwoDisjuncts"
+  badEmptyOr : Predicate [] Object
+  badEmptyOr = Or []
+
+failing "TwoDisjuncts"
+  badSingletonOr : Predicate [] Object
+  badSingletonOr = Or [creature]
+
+-- …and the same argument once more at two: "artifact or artifact"
+-- offers a choice between a thing and itself.
+failing "DistinctDisjuncts"
+  badRepeatedDisjunct : Predicate [] Object
+  badRepeatedDisjunct = Or [artifact, artifact]
+
+-- Alternatives are PARALLEL — each one has to be able to stand where
+-- the others stand. A head noun and a bare status word cannot:
+-- "artifact or attacking" leaves the second alternative nothing to be,
+-- and the guide says as much outright ("Repeat the carrier when the
+-- alternatives have different domains or modifiers").
+failing "ParallelDisjuncts"
+  badHeadlessDisjunct : Predicate [] Object
+  badHeadlessDisjunct = Or [artifact, Attacking]
+
+-- The same demand about PLACE. Oracle does write cross-zone
+-- alternatives — "an Equipment card from your hand or graveyard",
+-- seventeen corpus lines — but under a shared preposition and with a
+-- zone that can name two. This projection names one, so the phrase is
+-- refused rather than quietly placed on the battlefield by default
+-- (the axis is ledgered).
+failing "ParallelDisjuncts"
+  badCrossZoneDisjunction : Predicate [] Object
+  badCrossZoneDisjunction = Or [InZone HandZ, InZone GraveyardZ]
+
+-- "Any target" is ALREADY the union [CR#115.4] fixes — creatures,
+-- players, planeswalkers, or battles — so coordinating it with an
+-- alternative re-opens a closed class.
+failing "CoordinableDisjuncts"
+  badAnyTargetInOr : Predicate [] Object
+  badAnyTargetInOr = Or [AnyTarget, creature]
+
+-- …and a singleton conjunction wrapped around it launders nothing:
+-- every alternative is read through `flattenPs`, which is the lesson
+-- the negation row learned when `And [x]` could still hide anything.
+failing "CoordinableDisjuncts"
+  badAnyTargetInOrLaundered : Predicate [] Object
+  badAnyTargetInOrLaundered = Or [And [AnyTarget], creature]
+
+-- "Other" fills one selector slot for the whole coordinated phrase
+-- ("Another target Wolf or Werewolf you control"), so it is not an
+-- alternative either — and the corpus puts it outside the coordination
+-- every time it appears with one.
+failing "CoordinableDisjuncts"
+  badOtherInOr : Predicate [MkBinding TargetD Object OneOf
+                                      (ObjectP (Just Creature) (Just Battlefield) Nothing)] Object
+  badOtherInOr = Or [And [creature, Other], land]
+
+-- Nesting is the flat coordination written with brackets oracle has no
+-- way to print. Core reaches the same place by flattening the two
+-- spellings together in `normalize`; the workbench refuses the second
+-- one instead.
+failing "CoordinableDisjuncts"
+  badNestedOr : Predicate [] Object
+  badNestedOr = Or [Or [creature, land], artifact]
+
+-- Negation attaches to one modifier at a time. The writer spells
+-- "noncreature, nonland card" — comma-chained atoms, plentiful — and
+-- never "non-(creature or land)", which the corpus does not write once.
+failing "Negatable"
+  badNegatedDisjunction : Predicate [] Object
+  badNegatedDisjunction = Not (Or [creature, land])
+
+-- Damage can't be dealt to an object that isn't a battle, a creature,
+-- or a planeswalker ([CR#120.1a]), and a disjunctive head fixes no
+-- type at all — so the phrase that declines to say WHICH type it names
+-- cannot become a damage recipient on the strength of that silence.
+-- (The refusal surfaces at the recipient gate, as `badDamageThis`
+-- does; what closed underneath it is `DamageableTy`'s untyped row.)
+failing "DamageRecipient"
+  badDamageDisjunctHead : Effect []
+  badDamageDisjunctHead = DealDamage This (Lit 2) (target (Or [artifact, enchantment]))
+
+-- The contrast positive's mirror: alternatives that AGREE on a zone
+-- still project it, so an attacking-or-blocking creature stands on the
+-- battlefield and cannot also be in a graveyard.
+failing "ZoneCoherent"
+  badAttackingOrBlockingInGraveyard : Predicate [] Object
+  badAttackingOrBlockingInGraveyard =
+    And [creature, Or [Attacking, Blocking], InZone GraveyardZ]
+
+-- …and they project the TYPE they agree on the same way: only a
+-- creature can attack or block ([CR#506.3]), a presupposition the
+-- disjunction inherits from both alternatives at once.
+failing "ContradictionFree"
+  badNoncreatureAttackingOrBlocking : Predicate [] Object
+  badNoncreatureAttackingOrBlocking = And [Not creature, Or [Attacking, Blocking]]
+
+-- A disjunction is a binding HOLE, for the reason negation is one:
+-- exactly one alternative is realized and the phrase never says which,
+-- so a possessor written inside one of them names nobody the next
+-- sentence can read.
+failing "countWord"
+  badDisjunctAntecedent : Effect []
+  badDisjunctAntecedent =
+    Sequentially [Tap (target (Or [And [creature, ControlledBy anOpponent],
+                                   And [land, ControlledBy You]])),
+                  losesLife (That PlayerW) (Lit 1)]
