@@ -759,6 +759,55 @@ kaitoBaneOfNightmares : Effect []
 kaitoBaneOfNightmares = Sequentially [Tap (target creature),
                                       PutCounters (Lit 2) Stun It]
 
+-- "{2}, Exile a nonland card from your hand: Put four time counters on
+-- the exiled card." (Jhoira of the Ghitu; the second sentence "If it
+-- doesn't have suspend, it gains suspend" elided — the suspend keyword,
+-- whose reminder-text machinery this round builds components for and
+-- does not spell) — the COUNTER IN EXILE, and it needed no new clause:
+-- the cost's exile is public ([CR#400.7j]), so the participle read
+-- reaches it after the colon exactly as a sacrifice's does, and the only
+-- thing that had to change is the verb's zone table.
+jhoiraOfTheGhitu : Ability
+jhoiraOfTheGhitu =
+  Activated (Compound [Mana [generic 2],
+                       Do (exile (a (And [Not land, InZone (handOf You)])))])
+            (PutCounters (Lit 4) Time (TheVerbed Exile CardW))
+
+-- "…Then remove a time counter from each other card you own in exile."
+-- (Alaundo the Seer's last sentence; "other" and the ownership relation
+-- elided, both ledgered, and the three sentences before it want a
+-- mana-value amount and a granted triggered ability) — the REMOVAL twin
+-- in the second zone, and the phrase places its own referent there
+-- rather than inheriting a mention's fold-state.
+alaundoTheSeer : Effect []
+alaundoTheSeer = RemoveCounters (Lit 1) Time (Each (InZone exileZ))
+
+-- "Arc Blade deals 2 damage to any target. Exile Arc Blade with three
+-- time counters on it." (Arc Blade, both sentences; its suspend line is
+-- the keyword this round builds components for and does not spell) — the
+-- EXILE-WITH-COUNTERS rider, the delay family's own frame, and the card
+-- exiles ITSELF, which is why the second sentence names no new phrase.
+arcBlade : Effect []
+arcBlade = Sequentially [DealDamage This (Lit 2) (target AnyTarget),
+                         exileWithCounters This (Lit 3) Time]
+
+-- "Exile target creature you control, then return that card to the
+-- battlefield under its owner's control with a +1/+1 counter on it."
+-- (Daydream, whole; its flashback line is a keyword `Keyword` has no row
+-- for) — the SAME rider on the other destination, worn beside a
+-- controller override, which is what settles that the rider belongs to
+-- the placement rather than to the exile verb. Cloudshift with a counter
+-- on the return trip, and the demonstrative flips carrier for chapter
+-- one's reason ([CR#110.1]).
+daydream : Card
+daydream =
+  card "Daydream" (Just [pip White]) [] (MkTypeLine [] [Sorcery])
+       [Spell (Sequentially [exile (target creatureYouControl),
+                             returnToBattlefieldWithCounters
+                               (That CardW) (OwnerOf (That CardW))
+                               (Lit 1) PlusOnePlusOne])]
+       Nothing
+
 -- "{T}, Sacrifice this artifact: Put a +1/+1 counter on target
 -- nonartifact creature. That creature becomes an artifact in addition to
 -- its other types." (Ashnod's Transmogrant; the {T} component elided) —
@@ -1859,6 +1908,67 @@ hymnOfRebirthCard : Card
 hymnOfRebirthCard =
   card "Hymn of Rebirth" (Just [generic 3, pip Green, pip White]) []
        (MkTypeLine [] [Sorcery]) [Spell hymnOfRebirth] Nothing
+
+-- "{2}{B}: Put a creature card exiled with Sisters of Stone Death onto
+-- the battlefield under your control." (Sisters of Stone Death's third
+-- ability; the two before it want the blocking RELATION a parallel study
+-- owns) — the LINKAGE read's flagship, and it is the CR's own worked
+-- example: [CR#607.5]'s Quicksilver Elemental walkthrough names this
+-- card and this ability to show that the phrase reaches the exiles of
+-- ONE ability and not the exile zone. The source is written as the
+-- printed name here and as "this creature" in modern templating; finding
+-- 188 keeps the name unread, so the self-word is the phrase.
+sistersOfStoneDeathRecall : Ability
+sistersOfStoneDeathRecall =
+  Activated (Mana [generic 2, pip Black])
+            (putOntoBattlefieldUnderYourControl
+               (a (And [creature, ExiledWith thisCreature])))
+
+-- Synod Sanctum {1}, Artifact, "{2}, {T}: Exile target permanent you
+-- control." / "{2}, Sacrifice this artifact: Return all cards exiled
+-- with this artifact to the battlefield under your control." (the second
+-- ability; the first wants the PERMANENT word `Predicate` has no row
+-- for) — the LIFETIME witness, and the card puts the question the sharp
+-- way round: the source is sacrificed IN THE COST, so it is in a
+-- graveyard by the time the effect after the colon reads its group, and
+-- the group is still there. That is what makes the linkage a
+-- source-keyed NOTE rather than a property of a live object — [CR#607.1]
+-- links two abilities printed on an object and says nothing about where
+-- the object is, and [CR#406.5] has the exiled cards kept in their own
+-- pile "due to … the abilities of the cards that exiled them".
+synodSanctumReturn : Ability
+synodSanctumReturn =
+  Activated (Compound [Mana [generic 2], Do (sacrifice You thisArtifact)])
+            (putOntoBattlefieldUnderYourControl (AllOf exiledWithThisArtifact))
+
+-- Cold Storage {4}, Artifact, "{3}: Exile target creature you control."
+-- / "Sacrifice this artifact: Return each creature card exiled with this
+-- artifact to the battlefield under your control." The LINKAGE's whole
+-- card, and the one the ledger has named since chapter fourteen as the
+-- linked-ability entry's example. Nothing elided: two abilities, the
+-- first exiling and the second reading what it exiled, which is
+-- [CR#406.6]'s pair written as shortly as English writes it.
+coldStorage : Card
+coldStorage =
+  card "Cold Storage" (Just [generic 4]) [] (MkTypeLine [] [Artifact])
+       [Activated (Mana [generic 3]) (exile (target creatureYouControl)),
+        Activated (Do (sacrifice You thisArtifact))
+                  (putOntoBattlefieldUnderYourControl
+                     (Each (And [creature, exiledWithThisArtifact])))]
+       Nothing
+
+-- "{1}: Choose a card exiled with this artifact. You may play that card
+-- this turn." (Muse Vessel's second ability; its first wants a hand-zone
+-- possessive read of a targeted player) — the linkage read under the
+-- other determiner, and the sentence AFTER it reads the choice back with
+-- an ordinary demonstrative. Two anaphoric channels in one line and they
+-- do not touch: the linkage names the group across abilities, "that
+-- card" names the choice across sentences.
+museVesselPlay : Ability
+museVesselPlay =
+  Activated (Mana [generic 1])
+            (Sequentially [Choose (a exiledWithThisArtifact),
+                           Continuously (MayPlay You (That CardW)) (Just thisTurn)])
 
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
@@ -3082,17 +3192,21 @@ failing "RidersOk"
   badAttackingUntapped =
     Create You (Lit 1) (creatureTok 1 1 [Red] [Soldier]) [EntersAttacking]
 
--- Counters are put on permanents: no corpus line puts one on a card in a
--- graveyard, and the battlefield demand is the one destroy, tap, and
--- "gets" already carry.
-failing "OnBattlefield"
+-- The GRAVEYARD is the counter table's measured silence and stays shut
+-- with the zone gate widened: all seventeen lines writing "counter" and
+-- "in a graveyard" together put the counter on a battlefield object and
+-- read the graveyard for a count, or return the card to the battlefield
+-- first ("Return this card from your graveyard to the battlefield with a
+-- finality counter on it").
+failing "CounterHolder"
   badPutCountersGraveyard : Effect []
   badPutCountersGraveyard =
     PutCounters (Lit 1) PlusOnePlusOne (target (And [creature, InZone (graveyardOf You)]))
 
 -- …and the removal twin reads the same fold-state: a destroyed referent
--- has no counters to take off.
-failing "OnBattlefield"
+-- has no counters to take off. The destination is what decides — the
+-- same clause with an EXILE in front of it is Jhoira of the Ghitu.
+failing "CounterHolder"
   badRemoveCountersDead : Effect []
   badRemoveCountersDead = Sequentially [destroy (target creature),
                                         RemoveCounters (Lit 1) PlusOnePlusOne It]
@@ -4032,6 +4146,17 @@ failing "Holdable"
   badHeldUntilDies =
     HeldUntil (exile (target creature)) (Dies thisCreature)
 
+-- …and the exile the rider takes is the UNRIDDEN one. The two
+-- constructions say opposite things about the same card: [CR#610.3]
+-- schedules a return that no ability has to ask for, where counters sit
+-- in exile waiting for an ability to read them, and no corpus line asks
+-- for both — "exile … with … counters on it until …" is zero lines.
+failing "HeldClause"
+  badHeldUntilWithCounters : Effect []
+  badHeldUntilWithCounters =
+    HeldUntil (exileWithCounters (target creature) (Lit 3) Time)
+              (Leaves thisCreature)
+
 -- The held object's ZONE is not settled by the clause: the undo is
 -- scheduled on an event that has not happened, so the exiled creature
 -- may be in exile or back on the battlefield when a later sentence
@@ -4598,6 +4723,89 @@ failing "CtrlSingular"
   badMoveRidersPluralController =
     Move (target creature) battlefieldZ
          {riders = MkMoveRiders [] (Just (AllOf otherPlayer))}
+
+-- The COUNTER rider does not answer the battlefield question the other
+-- two answer, and this is the pin that says the halves are gated apart:
+-- a graveyard placement takes no counters ([CR#122.1a]'s zone-other-than
+-- clause is real, but zero corpus lines write counters onto a card
+-- entering a graveyard) and it is `counterZone` that refuses it, not
+-- `sameZone … Battlefield`.
+failing "RidersFit"
+  badMoveCountersToGraveyard : Effect []
+  badMoveCountersToGraveyard =
+    Move (target creature) graveyardZ
+         {riders = MkMoveRiders [] Nothing
+                                {counters = Just (MkCounterRider (Lit 1) PlusOnePlusOne)}}
+
+-- …and the leak the other way is refused by the same table's other half:
+-- an exile writes the counter rider and nothing else, "exile it tapped"
+-- being zero lines because [CR#110.5b]'s untapped default and
+-- [CR#110.5]'s status words are the battlefield's alone. One gate, two
+-- questions, and each rider half asks only its own.
+failing "RidersFit"
+  badExileTapped : Effect []
+  badExileTapped =
+    Composite Exile (Move (target creature) exileZ
+                          {riders = MkMoveRiders [EntersTapped] Nothing})
+
+-- The rider's count is a WRITTEN magnitude like every other, so the
+-- unwritable zero is unwritable here too (`badPutZeroCounters` at a
+-- second site).
+failing "WrittenCount"
+  badExileZeroCounters : Effect []
+  badExileZeroCounters = exileWithCounters (target creature) (Lit 0) Time
+
+-- ===== What a linkage may name, and where its cards are =====
+
+-- A linkage read names the exiles of the ability's OWN object and no
+-- other. [CR#607.1] builds the relation out of two abilities "printed on
+-- it", [CR#406.6] repeats it for this family by name, and [CR#607.5]'s
+-- worked example turns on exactly this: a creature that has gained two
+-- different exiling abilities can return only what the LINKED one
+-- exiled. "Cards exiled with target creature" is unwritten and
+-- unwritable.
+failing "LinkSource"
+  badExiledWithOtherSource : Predicate [] Object
+  badExiledWithOtherSource = ExiledWith (target creature)
+
+-- …and a DESCRIBED source is refused by the same gate, which is the
+-- sharper half of the same fact: the linkage is not a relation between a
+-- card and whatever exiled it ("a card exiled with an artifact" is
+-- unwritten), it is one object's note about its own exiles. English has
+-- one phrase for the other reading and it is a different construction —
+-- the passive "exiled by", which the corpus writes ONCE against a
+-- hundred seventy-five "exiled with".
+failing "LinkSource"
+  badExiledWithDescribedSource : Predicate [] Object
+  badExiledWithDescribedSource = ExiledWith (a artifact)
+
+-- The linked cards are IN EXILE, which [CR#607.2a] says in as many words
+-- — the second ability "refers only to cards in the exile zone that were
+-- put there" by the first — so the phrase cannot also say its referent
+-- is controlled by somebody: [CR#109.4] gives an object that is neither
+-- on the stack nor on the battlefield no controller at all. Zero corpus
+-- lines write "a card you control exiled with …".
+failing "ZoneCoherent"
+  badExiledWithControlled : Predicate [] Object
+  badExiledWithControlled = And [ControlledBy You, exiledWithThisArtifact]
+
+-- …and the battlefield type word is refused by the same table, which is
+-- what keeps "a creature card exiled with this creature" (real, and
+-- Sisters of Stone Death's own phrase) apart from "an attacking creature
+-- exiled with this creature" (not): the card word travels with the
+-- linkage, the status word does not.
+failing "ZoneCoherent"
+  badExiledWithAttacking : Predicate [] Object
+  badExiledWithAttacking = And [Attacking, exiledWithThisArtifact]
+
+-- The linkage read does not NEGATE. "Not exiled with" is zero corpus
+-- lines against a hundred seventy-five positive ones, and the reason is
+-- what the phrase is for: a source-keyed group is named to be acted on,
+-- and the cards outside it are described by another zone or another
+-- phrase rather than by this one turned inside out.
+failing "Negatable"
+  badNegatedExiledWith : Predicate [] Object
+  badNegatedExiledWith = Not exiledWithThisArtifact
 
 -- ===== What a card may be made of, what a spell carrier may hold, and
 -- ===== what a participle may be marked with

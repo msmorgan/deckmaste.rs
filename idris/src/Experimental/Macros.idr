@@ -224,6 +224,15 @@ public export
 thisLand : Noun bs Object
 thisLand = AsType Land This
 
+-- "exiled with this artifact" — the LINKAGE read at its commonest
+-- source word ([CR#406.6,607.2a]); the creature and enchantment sources
+-- are the same predicate under `thisCreature`/`thisEnchantment`.
+-- spelling: ["exiled with this artifact"], kind: Nominal (hasHead = True;
+-- ExiledWith thisArtifact -- see Predicate.ExiledWith)
+public export
+exiledWithThisArtifact : Predicate bs Object
+exiledWithThisArtifact = ExiledWith thisArtifact
+
 -- "creature"
 -- spelling: ["creature"], kind: Nominal (hasHead = True; HasType Creature)
 public export
@@ -433,6 +442,45 @@ destroy n = Composite Destroy (Move n graveyardZ) {ok = DestroyB {z = ok}}
 public export
 exile : Noun bs Object -> Effect bs
 exile n = Composite Exile (Move n exileZ) {ok = ExileB}
+
+-- "exile [n] with [amt] [kind] counter(s) on it" — a hundred and two
+-- lines, forty-seven of them the suspend family's keyword reminder line
+-- and fifty-five real ability lines, of which the self-exiling delay
+-- family ("Exile Arc Blade with three time counters on it") is the
+-- biggest block. The rider rides the PLACEMENT,
+-- so this is `exile` with a bundle rather than a second verb.
+-- spelling: ["exile <Param(0)> with <Param(1)> <Param(2)> counter(s) on
+-- it"], kind: Sentence (Composite Exile over Move with a CounterRider --
+-- see MoveRiders)
+public export
+exileWithCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
+                    (kind : CounterKind) ->
+                    {auto 0 wc : WrittenCount amt} -> Effect bs
+exileWithCounters n amt kind =
+  Composite Exile
+            (Move n exileZ
+                  {riders = MkMoveRiders [] Nothing
+                                         {counters = Just (MkCounterRider amt kind {wc})}})
+            {ok = ExileWithCountersB}
+
+-- "return [n] to the battlefield under its owner's control with [amt]
+-- [kind] counter(s) on it" — the counter rider's OTHER destination,
+-- eighty-three lines, and the shape that shows the rider is the
+-- placement's and not the exile verb's.
+-- spelling: ["return <Param(0)> to the battlefield under <Param(1)>'s
+-- control with <Param(2)> <Param(3)> counter(s) on it"], kind: Sentence
+public export
+returnToBattlefieldWithCounters :
+  (n : Noun bs Object) -> (who : Noun (nomIntro n) Player) ->
+  (amt : Amount (nomIntro n)) -> (kind : CounterKind) ->
+  {auto 0 one : nounPlur who = OneOf} ->
+  {auto 0 wc : WrittenCount amt} ->
+  {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
+  Effect bs
+returnToBattlefieldWithCounters n who amt kind =
+  Move n battlefieldZ
+       {riders = MkMoveRiders [] (Just who) {one = OneController {one}}
+                              {counters = Just (MkCounterRider amt kind {wc})}}
 
 -- "put [n] onto the battlefield" — the placement with no adverbial after
 -- it, which is what `Move … battlefieldZ` has always spelled; named so

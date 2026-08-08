@@ -1248,6 +1248,63 @@ public export
 data OnBattlefield : Maybe Zone -> Type where
   OnField : OnBattlefield (Just Battlefield)
 
+||| WHERE a counter may be put and taken off — the closed full-row table
+||| the battlefield demand above was standing in for, and the one gate in
+||| this file that opens a SECOND zone. Chapter nineteen answered the
+||| whole question `OnBattlefield` and said so in its own words ("no
+||| corpus line puts a counter on a card in a graveyard or in exile"),
+||| which was right about the graveyard and wrong about exile: the rules
+||| put counters outside the battlefield in as many words ([CR#122.1a]
+||| gives a +X/+Y counter its meaning "on a creature card in a zone other
+||| than the battlefield", [CR#122.1b] the same for a keyword counter),
+||| and English writes them there. A hundred and two lines exile a card
+||| WITH counters on it (forty-seven the suspend family's keyword reminder
+||| line, fifty-five real ability lines), and the ordinary put and remove
+||| verbs reach the same card afterwards — Jhoira of the Ghitu's "Put four
+||| time counters on the exiled card", Alaundo the Seer's "remove a time
+||| counter from each other card you own in exile", Kianne's study
+||| counters, Cosima's voyage counter, Mari's hit counters.
+|||
+||| The other four zones are measured silences and stay shut. Not one
+||| corpus line puts a counter on a card in a GRAVEYARD: all seventeen
+||| lines that write "counter" and "in a graveyard" together put the
+||| counter on a battlefield object and read the graveyard for a COUNT
+||| ("a +1/+1 counter on this creature for each creature card in your
+||| graveyard") or return the card to the battlefield first
+||| (`badPutCountersGraveyard`, `badRemoveCountersDead`). The hand and
+||| the library are the same silence — every "counter" line naming them
+||| counts cards there ("a +1/+1 counter on it for each card in your
+||| hand"). The STACK writes none either ("put a counter on target spell"
+||| is zero lines), which the rules explain rather than merely record:
+||| [CR#122.6] reads a bare counter instruction as the battlefield's
+||| unless something says otherwise, so a zone gets a row here only when
+||| oracle NAMES it, and exile is the one zone oracle names.
+|||
+||| Which KIND is not an axis of this table, and the corpus is why:
+||| twenty-one kinds ride an exile — aegis, blood, brain, collection,
+||| croak, delay, discovery, dream, egg, hatching, hit, ice, kick, memory,
+||| scream, silver, stash, study, takeover, time and void — and more
+||| arrive by the put verb afterwards (page, refine, voyage). The zone is
+||| open to counters, not to a counter.
+public export
+counterZone : Maybe Zone -> Bool
+counterZone Nothing = False
+counterZone (Just Battlefield) = True
+counterZone (Just Graveyard) = False
+counterZone (Just Exile) = True
+counterZone (Just Hand) = False
+counterZone (Just Library) = False
+counterZone (Just Stack) = False
+
+||| The counter clause's zone demand as a witness, named apart from
+||| `OnBattlefield` so a pin says which question refused — and kept a
+||| separate type rather than a widened `OnBattlefield` because the other
+||| eleven battlefield-demanding slots (destroy, sacrifice, tap, fight,
+||| the copular reads, the stat deltas) did NOT widen.
+public export
+data CounterHolder : Maybe Zone -> Type where
+  MkCounterHolder : {auto 0 ok : counterZone z = True} -> CounterHolder z
+
 ||| A reference's OWN zone against the zone its description reads —
 ||| `zonesAgree`'s agreement rule pointed at the one place the subject
 ||| is external to the phrase. A noun phrase places its referent itself,
@@ -1528,11 +1585,22 @@ subtypeType Dragon = Creature
 ||| on it.", its replacement identity being [CR#122.1d]'s) and charge,
 ||| age, quest, loyalty, oil, level and the rest are not — their lines are
 ||| costs, upkeep triggers, and enters-with riders, which are other axes.
+||| `Time` is the fourth row and the one the exile zone brought: a
+||| hundred fifty-nine lines write the words "time counter", and unlike
+||| the named kinds above it they are one-shot puts and removes of
+||| exactly the sort this grammar writes — Arc Blade's "Exile Arc Blade
+||| with three time counters on it", Jhoira of the Ghitu's "Put four time
+||| counters on the exiled card", Alaundo the Seer's "remove a time
+||| counter from each other card you own in exile". It has no rule of its
+||| own in [CR#122.1]'s list, which is the point: a time counter does
+||| nothing by itself and the abilities that read it supply the meaning
+||| ([CR#702.62a] is the biggest reader and is the keyword this file does
+||| not build).
 public export
--- spelling: ["+1/+1", "-1/-1", "stun"] (row order: PlusOnePlusOne/
--- MinusOneMinusOne/Stun -- the kind's own word, written between the count and
--- the noun "counter(s)"; never spelled alone)
-data CounterKind = PlusOnePlusOne | MinusOneMinusOne | Stun
+-- spelling: ["+1/+1", "-1/-1", "stun", "time"] (row order: PlusOnePlusOne/
+-- MinusOneMinusOne/Stun/Time -- the kind's own word, written between the count
+-- and the noun "counter(s)"; never spelled alone)
+data CounterKind = PlusOnePlusOne | MinusOneMinusOne | Stun | Time
 
 ||| Counter-kind equality, per-row catch-alls.
 public export
@@ -1543,6 +1611,8 @@ sameCounter MinusOneMinusOne MinusOneMinusOne = True
 sameCounter MinusOneMinusOne _ = False
 sameCounter Stun Stun = True
 sameCounter Stun _ = False
+sameCounter Time Time = True
+sameCounter Time _ = False
 
 ||| The TYPE LINE a token defines and a type-addition clause adds
 ||| ([CR#205.1] — the line carries the card types and the subtypes).
@@ -3217,6 +3287,42 @@ mutual
     -- kind: Nominal (hasHead = True; implicit head is the zone's carrier,
     -- e.g. "a card in your hand")
     InZone : ZoneExpr bs -> Predicate bs Object          -- zone clause "in/from [zone]" ([CR#109.2a])
+    -- "exiled with [this object]" — the LINKAGE read, and the first
+    -- phrase in this file that reaches a group no sentence in its own
+    -- ability assembled. [CR#406.6] states it in the exile chapter and
+    -- [CR#607.2a] again in the linked-abilities one: an object with an
+    -- ability that exiles cards and an ability that refers to cards
+    -- "exiled with [this object]" has the two LINKED, and the second
+    -- "refers only to cards that have been exiled due to the first". So
+    -- the group is source-keyed rather than discourse-keyed, which is
+    -- what `TheVerbed` could never have been — a stamp lives in the
+    -- bindings one clause hands the next, and this survives the sentence,
+    -- the ability, and the turn.
+    --
+    -- A HEAD-bearing zone modifier, exactly as `InZone` is and for the
+    -- same reason: the phrase carries the carrier noun "card" and places
+    -- its referent in exile, so "all cards exiled with this artifact" is
+    -- a determiner over this predicate and needs no card-headed word of
+    -- its own ([CR#406.2]: "an exiled card is a card that's been put into
+    -- the exile zone"). That is what makes the whole family cheap —
+    -- seventy-eight lines write "cards exiled with", twenty-six "a card
+    -- exiled with", nineteen "all cards exiled with", twenty-one "from
+    -- among cards exiled with", nine "each card exiled with", and every
+    -- one of them is an ordinary determiner over an ordinary modifier.
+    --
+    -- The SOURCE is the object whose abilities are linked and nothing
+    -- else, which is [CR#607.1]'s "printed on it" read as a gate
+    -- (`LinkSource`; `badExiledWithOtherSource`). Oracle writes it as the
+    -- self-word ("this artifact", "this creature", "it") or, on older
+    -- cards, as the printed name ("exiled with Karn", "exiled with
+    -- Sisters of Stone Death") — one referent under three spellings, and
+    -- finding 188 already settled that the name is not read back.
+    -- spelling: ["exiled with <Param(0)>"] (Param(0) = the source noun,
+    -- written "this <permanent word>" in modern templating and as the
+    -- card's own name on older printings), kind: Nominal (hasHead = True;
+    -- implicit head is the exile zone's carrier "card", as InZone)
+    ExiledWith : (src : Noun bs Object) ->
+                 {auto 0 ls : LinkSource src} -> Predicate bs Object
     -- sibling modifiers, one referent. The conjunction is where the
     -- phrase-level obligations live, and they are listed here in
     -- DECLARATION order: explicit zones must agree and may not
@@ -3413,6 +3519,12 @@ mutual
   -- controls", two "you don't control", and every one of them is copy
   -- machinery (`badControlledSpell`; ledger).
   seedZone (ControlledBy _) = Just Battlefield
+  -- the linkage read places its referent as flatly as the zone clause
+  -- does: [CR#607.2a] says the phrase "refers only to cards IN THE EXILE
+  -- ZONE that were put there" by the linked ability, so a card that has
+  -- since left is out of the group and "a creature exiled with this
+  -- creature" describes nothing (`badExiledWithOnBattlefield`).
+  seedZone (ExiledWith _) = Just Exile
   seedZone (And ps) = seedZoneAll ps
   -- the same agreement rule the head projection uses: "attacking or
   -- blocking" places its referent on the battlefield because BOTH
@@ -3536,6 +3648,10 @@ mutual
   hasHead Blocking = False
   hasHead (Compare _ _ _) = False
   hasHead (InZone _) = True
+  -- the linkage read heads its phrase for `InZone`'s reason exactly:
+  -- the exile zone's carrier noun is "card" ([CR#406.2]), so "a card
+  -- exiled with this artifact" needs no head word beside it.
+  hasHead (ExiledWith _) = True
   hasHead (And ps) = hasHeadAny ps
   -- ANY member heads a conjunction — one head plus its modifiers —
   -- but EVERY alternative has to head a disjunction, because each
@@ -3661,6 +3777,10 @@ mutual
   predEq (OfChosen _) _ = False
   predEq (ControlledBy a) (ControlledBy b) = nounEqRef a b
   predEq (ControlledBy _) _ = False
+  -- two linkage reads name the same group whenever their sources are
+  -- the same object, which `LinkSource` has already made certain.
+  predEq (ExiledWith a) (ExiledWith b) = nounEqRef a b
+  predEq (ExiledWith _) _ = False
   predEq Attacking Attacking = True
   predEq Attacking _ = False
   predEq Blocking Blocking = True
@@ -4177,6 +4297,13 @@ mutual
   negatable (QualityNoun _) = True
   negatable (OfChosen _) = True
   negatable (ControlledBy _) = True
+  -- the linkage read does NOT negate, and the measurement is total:
+  -- "not exiled with" is zero corpus lines against a hundred
+  -- seventy-five positive ones. A card outside the group is not
+  -- described by the group's own phrase -- the family's complements are
+  -- written as other zones or other descriptions instead
+  -- (`badNegatedExiledWith`).
+  negatable (ExiledWith _) = False
   negatable Attacking = True
   negatable Blocking = True
   negatable (Compare _ _ _) = False
@@ -4209,6 +4336,7 @@ mutual
   predSays (QualityNoun _) = True
   predSays (OfChosen _) = True
   predSays (ControlledBy _) = True
+  predSays (ExiledWith _) = True
   predSays Attacking = True
   predSays Blocking = True
   predSays (Compare _ _ _) = True
@@ -4248,6 +4376,7 @@ mutual
   predNegFree (QualityNoun _) = True
   predNegFree (OfChosen _) = True
   predNegFree (ControlledBy _) = True
+  predNegFree (ExiledWith _) = True
   predNegFree Attacking = True
   predNegFree Blocking = True
   predNegFree (Compare _ _ _) = True
@@ -4284,6 +4413,7 @@ mutual
   anyTargetFree (QualityNoun _) = True
   anyTargetFree (OfChosen _) = True
   anyTargetFree (ControlledBy n) = nounAnyTargetFree n
+  anyTargetFree (ExiledWith n) = nounAnyTargetFree n
   anyTargetFree Attacking = True
   anyTargetFree Blocking = True
   -- the bound is a numeral or the announced X (`WrittenBound`), and
@@ -5173,6 +5303,36 @@ mutual
     MkComplementAnchor : {auto 0 sh : anchorPhrase n = True} ->
                          {auto 0 one : nounPlur n = OneOf} ->
                          ComplementAnchor n
+
+  ||| Whose exiles a linkage read may name — and the answer is one
+  ||| object, the one the reading ability is printed on. [CR#607.1] builds
+  ||| the whole relation out of "two abilities printed on IT", [CR#406.6]
+  ||| repeats it for this family by name, and [CR#607.5] shows what the
+  ||| restriction is worth with a worked example: a Quicksilver Elemental
+  ||| that has gained both Arc-Slogger's exile and Sisters of Stone
+  ||| Death's pair can return only what it exiled with the SECOND, because
+  ||| the phrase names that ability's object and not the exile zone.
+  ||| So the source slot takes the self-word and nothing else
+  ||| (`badExiledWithOtherSource`, `badExiledWithTargetSource`): a phrase
+  ||| that names another object has named another card's linkage, which no
+  ||| ability can read.
+  |||
+  ||| One SPELLING is left out and it is a whole other rule rather than a
+  ||| gap here: [CR#607.2n] links "cards exiled with cards named [this
+  ||| object's name]" to a before-the-game static ability, which is the
+  ||| companion-style family whose source is a NAME and not an object
+  ||| (one corpus line, Volatile Chimera). It wants the printed name read
+  ||| back, which finding 188 keeps unread (ledger).
+  ||| Both self-words qualify, which is the same split chapter thirty
+  ||| drew between "this card" and "this creature": modern templating
+  ||| writes the SORTED self-reference ("cards exiled with this artifact",
+  ||| thirty-six of the hundred forty-one "card(s) exiled with" lines) and
+  ||| the bare one stands where no permanent word does.
+  public export
+  data LinkSource : Noun bs k -> Type where
+    SelfLinked : LinkSource This
+    SortedSelfLinked : {0 t : CardType} -> {0 asc : Ascribable This} ->
+                       LinkSource (AsType t This {asc})
 
   ||| Which phrases a choice clause can SELECT — the introduction
   ||| discipline chapter twenty gave the indefinite article, asked of
@@ -6566,9 +6726,12 @@ mutual
   ||| dividing changes how much each member gets and not what a member
   ||| may be. Damage reuses `DamageRecipient` whole (which is what lets
   ||| the class word stand here: "among any number of targets"); the
-  ||| counter verb demands the battlefield `PutCounters` demands, and
-  ||| its `k = Object` is what stops a division of counters among
-  ||| players.
+  ||| counter verb demands the BATTLEFIELD and not `PutCounters`' two
+  ||| zones, and that is measured rather than inherited: every
+  ||| "distribute … counters among" line divides among creatures on the
+  ||| battlefield, and no line divides counters among cards in exile —
+  ||| the exile family writes one card at a time. Its `k = Object` is
+  ||| what stops a division of counters among players.
   public export
   data DividedTakes : DivTag -> Noun bs k -> Type where
     DamageDivided : {auto 0 rk : DamageRecipient n} -> DividedTakes DivDamage n
@@ -6634,16 +6797,53 @@ mutual
   ||| battlefield, so the unwritten slot is the rule's default and the
   ||| hundred thirty-five written ones are departures from it. One
   ||| controller, [CR#109.4]'s own singular (`CtrlSingular`).
+  ||| The WITH-COUNTERS rider — "exile it with three time counters on
+  ||| it", "return that card to the battlefield under its owner's control
+  ||| with a +1/+1 counter on it". It is the third rider on the bundle
+  ||| and NOT a structure of its own, and the reason is that the corpus
+  ||| puts it in the same slot as the other two: it trails the
+  ||| destination phrase, it combines with the controller override
+  ||| (Daydream writes both in one placement), and no line writes it on
+  ||| anything but a placement. A hundred and two lines exile a card with
+  ||| counters on it (forty-seven the suspend family's keyword reminder
+  ||| line, fifty-five real ability lines); eighty-three return a card to
+  ||| the battlefield with counters on it.
+  |||
+  ||| Finding 192 said an `Amount bs` "was never going to fit" a rider
+  ||| slot at any price, and that was true of `TokenRider` for a reason
+  ||| that does NOT hold here: `TokenRider` is shared with the unindexed
+  ||| `TokenChars`, where `MoveRiders` has carried a `Noun bs Player`
+  ||| since chapter thirty and is indexed already. So the amount is typed
+  ||| in the patient's own announcement, which is what "with a number of
+  ||| time counters on it equal to ITS mana value" needs (eighteen lines
+  ||| write "a number of … counters on it", whose amount reads the card
+  ||| the same placement is moving).
+  |||
+  ||| "On it" is NOT optional and the measurement is total: every one of
+  ||| the hundred and two lines ends "on it" and none stops at
+  ||| "counters". The pronoun is the patient of the same
+  ||| placement, so it is part of this construction's own spelling rather
+  ||| than a slot.
+  public export
+  data CounterRider : Bindings -> Type where
+    -- spelling: ["with <Param(0)> <Param(1)> counter(s) on it"] (the count
+    -- and the kind as PutCounters writes them, at one the article "a"; the
+    -- trailing "on it" is fixed -- see above)
+    MkCounterRider : (amt : Amount bs) -> (kind : CounterKind) ->
+                     {auto 0 wc : WrittenCount amt} -> CounterRider bs
+
   public export
   data MoveRiders : Bindings -> Type where
     -- spelling: (construction-owned -- the adverbials trailing the
-    -- destination phrase, entry riders first and the controller last:
-    -- "onto the battlefield tapped and attacking under your control".
+    -- destination phrase, entry riders first, then the controller, then
+    -- the counters: "onto the battlefield tapped and attacking under your
+    -- control with a +1/+1 counter on it".
     -- Each entry rider is TokenRider's own word; the controller writes
-    -- "under <Param(1)>'s control" with the possessive. An empty bundle
-    -- writes nothing at all.)
+    -- "under <Param(1)>'s control" with the possessive; the counter rider
+    -- writes its own phrase. An empty bundle writes nothing at all.)
     MkMoveRiders : (entry : List TokenRider) ->
                    (ctrl : Maybe (Noun bs Player)) ->
+                   {default Nothing counters : Maybe (CounterRider bs)} ->
                    {auto 0 ro : RidersOk entry} ->
                    {auto 0 one : CtrlSingular ctrl} -> MoveRiders bs
 
@@ -6656,29 +6856,54 @@ mutual
     OneController : {0 n : Noun bs Player} ->
                     {auto 0 one : nounPlur n = OneOf} -> CtrlSingular (Just n)
 
+  ||| The bundle's BATTLEFIELD half — the two entry participles and the
+  ||| controller, which are what chapter thirty gated as one.
+  public export
+  fieldRidersWritten : {0 bs : Bindings} -> MoveRiders bs -> Bool
+  fieldRidersWritten (MkMoveRiders [] Nothing) = False
+  fieldRidersWritten _ = True
+
+  ||| …and its second half, asked apart because it answers a different
+  ||| zone question.
+  public export
+  counterRiderWritten : {0 bs : Bindings} -> MoveRiders bs -> Bool
+  counterRiderWritten (MkMoveRiders _ _ {counters = Nothing}) = False
+  counterRiderWritten (MkMoveRiders _ _ {counters = Just _}) = True
+
   ||| Does the bundle write anything? The empty bundle is the placement
-  ||| with no adverbial after it, which is what every `Move` before this
-  ||| round wrote.
+  ||| with no adverbial after it, which is what every `Move` before
+  ||| chapter thirty wrote.
   public export
   ridersWritten : {0 bs : Bindings} -> MoveRiders bs -> Bool
-  ridersWritten (MkMoveRiders [] Nothing) = False
-  ridersWritten _ = True
+  ridersWritten r = fieldRidersWritten r || counterRiderWritten r
 
-  ||| Arrival riders are BATTLEFIELD-only, and the reason is that there
-  ||| is nothing for one to say anywhere else: both entry riders are
-  ||| battlefield ARRIVALS ([CR#110.5b] — permanents "enter the
-  ||| battlefield untapped … unless a spell or ability says otherwise",
-  ||| which is the tapped rider's own rule; [CR#506.3a] words the second
-  ||| one as an effect that "would put a … permanent onto the
-  ||| battlefield attacking"), and [CR#109.4] gives an
-  ||| object off the stack and off the battlefield no controller to
-  ||| override. Zero corpus lines write a rider on any other
-  ||| destination (`badMoveRidersToGraveyard`, `badMoveRidersToHand`).
+  ||| The bundle's zone admissibility is PER HALF, and this round is what
+  ||| split it. The entry participles and the controller are
+  ||| BATTLEFIELD-only, and the reason is that there is nothing for one to
+  ||| say anywhere else: both entry riders are battlefield ARRIVALS
+  ||| ([CR#110.5b] — permanents "enter the battlefield untapped … unless a
+  ||| spell or ability says otherwise", which is the tapped rider's own
+  ||| rule; [CR#506.3a] words the second one as an effect that "would put
+  ||| a … permanent onto the battlefield attacking"), and [CR#109.4] gives
+  ||| an object off the stack and off the battlefield no controller to
+  ||| override. Zero corpus lines write one on any other destination
+  ||| (`badMoveRidersToGraveyard`, `badMoveRidersToHand`).
+  |||
+  ||| The COUNTER rider answers `counterZone` instead — the same
+  ||| two-zone table the put and remove verbs answer, and the same table
+  ||| rather than a second one because it is the same fact about where a
+  ||| counter may sit. That is what keeps the two halves from leaking
+  ||| into each other: a tapped rider cannot ride an exile
+  ||| (`badExileTapped`) and a counter rider cannot ride a move into a
+  ||| graveyard or a hand (`badMoveCountersToGraveyard`), while the
+  ||| battlefield takes both at once and exile takes only the second.
   public export
   ridersFitZone : {0 bs : Bindings} -> MoveRiders bs -> Zone -> Bool
-  ridersFitZone r z = not (ridersWritten r) || sameZone z Battlefield
+  ridersFitZone r z =
+    (not (fieldRidersWritten r) || sameZone z Battlefield) &&
+    (not (counterRiderWritten r) || counterZone (Just z))
 
-  ||| The battlefield demand as a witness, named apart so a pin says
+  ||| The bundle's zone demand as a witness, named apart so a pin says
   ||| which question refused.
   public export
   data RidersFit : {0 bs : Bindings} -> MoveRiders bs -> Zone -> Type where
@@ -7121,10 +7346,12 @@ mutual
     -- this verb: "put a … counter on [a player]" is written zero times
     -- and the player form takes a different verb entirely ("target player
     -- gets a poison counter", forty-seven lines), so it waits on that
-    -- verb (ledger). The battlefield demand is the one destroy, tap, and
-    -- "gets" already carry (`badPutCountersGraveyard`); no corpus line
-    -- puts a counter on a card in a graveyard or in exile with this
-    -- clause.
+    -- verb (ledger). The ZONE demand is `CounterHolder`'s two-zone table
+    -- and not the blanket battlefield one the other verbs carry: chapter
+    -- nineteen wrote "no corpus line puts a counter on a card in a
+    -- graveyard or in exile with this clause" and half of that was
+    -- false — the graveyard is a real silence
+    -- (`badPutCountersGraveyard`), exile is not (Jhoira of the Ghitu).
     -- spelling: ["put <Param(0)> <Param(1)> counter(s) on <Param(2)>"],
     -- kind: Sentence (Param(1) = CounterKind's own word; the noun "counter"
     -- pluralises with the count, and at one the numeral is the article "a")
@@ -7132,7 +7359,7 @@ mutual
                   (on : Noun (amtIntro amt) Object) ->
                   {auto 0 wc : WrittenCount amt} ->
                   {auto 0 pm : PerMember on} ->
-                  {auto 0 zn : OnBattlefield (nounZone on)} -> Effect bs
+                  {auto 0 zn : CounterHolder (nounZone on)} -> Effect bs
     -- The DIVISION ([CR#601.2d]) — one written amount split over the
     -- members of one group mention, the split announced as the spell is
     -- cast rather than chosen on resolution. That announcement is the
@@ -7183,12 +7410,17 @@ mutual
     -- which are core's own `CounterSpec::AllKinds` and a bare-count
     -- reading; both want a quantity over KINDS that the written amount
     -- vocabulary has no term for (ledger).
+    -- The zone demand is `PutCounters`' widened one, and it is the same
+    -- table rather than a looser twin: [CR#702.62a]'s own second ability
+    -- takes a counter OFF a card in exile, and the corpus writes it as
+    -- main text too (Alaundo the Seer, Mari, the Killing Quill's granted
+    -- ability, All Hallow's Eve).
     -- spelling: ["remove <Param(0)> <Param(1)> counter(s) from <Param(2)>"],
     -- kind: Sentence (as PutCounters, with the preposition "from")
     RemoveCounters : (amt : Amount bs) -> (kind : CounterKind) ->
                      (from : Noun (amtIntro amt) Object) ->
                      {auto 0 wc : WrittenCount amt} ->
-                     {auto 0 zn : OnBattlefield (nounZone from)} -> Effect bs
+                     {auto 0 zn : CounterHolder (nounZone from)} -> Effect bs
     -- the keyword-action tag ([CR#701]): the named verb deontics and
     -- replacements key on, wrapping its expansion body ([CR#701.8b] —
     -- only a Destroy-tagged move IS a destruction). The tag and body
@@ -7724,7 +7956,18 @@ mutual
   heldUntilOk (Create _ _ _ _) = False
   heldUntilOk (PutCounters _ _ _) = False
   heldUntilOk (RemoveCounters _ _ _) = False
-  heldUntilOk (Composite Exile (Move _ _)) = True
+  -- the UNRIDDEN exile, and the bundle is part of the answer now that a
+  -- rider exists to write there: zero corpus lines carry counters into a
+  -- held exile ("exile … with … counters on it until …" is unwritten),
+  -- and the two constructions are answering different questions about
+  -- the same card — [CR#610.3] schedules the return where the counters
+  -- wait for an ability to read them (`badHeldUntilWithCounters`).
+  heldUntilOk (Composite Exile (Move _ _ {riders = MkMoveRiders [] Nothing
+                                                    {counters = Nothing}})) = True
+  heldUntilOk (Composite Exile (Move _ _ {riders = MkMoveRiders _ _
+                                                    {counters = Just _}})) = False
+  heldUntilOk (Composite Exile (Move _ _ {riders = MkMoveRiders (_ :: _) _})) = False
+  heldUntilOk (Composite Exile (Move _ _ {riders = MkMoveRiders _ (Just _)})) = False
   heldUntilOk (Composite _ _) = False
   heldUntilOk (Does _ _ _) = False
   heldUntilOk (Pay _ _) = False
@@ -8226,12 +8469,33 @@ mutual
   ||| writing one (`badCompositeDestroyGraveyard`,
   ||| `badDoesDiscardBattlefield`).
   public export
+  -- The bundle is part of the INDEX, so a tagged placement declares
+  -- which adverbials its verb writes. Three rows fix the empty bundle,
+  -- which is what a destroy, a sacrifice and a discard write and all the
+  -- corpus gives them; the exile has a second row because it writes one
+  -- rider and exactly one. Leaving the bundle a free variable was the
+  -- other design and it is not free: `Move` carries a `RidersFit` proof
+  -- over the bundle, so abstracting the bundle drags an unsolved proof
+  -- into every index.
   data TagBody : VerbName -> Effect bs -> Type where
     DestroyB : {auto 0 z : OnBattlefield (nounZone n)} ->
                TagBody Destroy (Move n (ZoneAt Graveyard Bare))
     SacrificeB : {auto 0 z : OnBattlefield (nounZone n)} ->
                  TagBody Sacrifice (Move n (ZoneAt Graveyard Bare))
     ExileB : TagBody Exile (Move n (ZoneAt Exile Bare))
+    -- "exile [n] with [amt] [kind] counter(s) on it" — the one ridden
+    -- placement a keyword-action tag writes. The entry participles and
+    -- the controller are absent from the shape rather than refused by a
+    -- gate, and the corpus is why: "exile it tapped" and "exile it under
+    -- your control" are zero lines apiece, [CR#110.5b] and [CR#109.4]
+    -- having nothing to say about a card in exile (`badExileTapped`).
+    ExileWithCountersB : {0 amt : Amount (nomIntro n)} ->
+                         {0 kind : CounterKind} ->
+                         {0 wc : WrittenCount amt} ->
+                         TagBody Exile
+                                 (Move n (ZoneAt Exile Bare)
+                                       {riders = MkMoveRiders [] Nothing
+                                          {counters = Just (MkCounterRider amt kind {wc})}})
     DiscardB : {auto 0 d : DiscardOk n} ->
                TagBody Discard (Move n (ZoneAt Graveyard Bare))
 

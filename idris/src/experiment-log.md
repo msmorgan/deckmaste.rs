@@ -4482,6 +4482,308 @@ fragments became cards:
    "other lands", or a game-state condition — so the marking word lands
    on the deed restriction alone.
 
+## Chapter Thirty-One — The Second Zone
+
+Chapter thirty-one, where the exile zone stops being a destination and
+becomes a place things happen (evidence: Jhoira of the Ghitu, Alaundo the
+Seer, Arc Blade, Daydream, Cold Storage, Sisters of Stone Death, Synod
+Sanctum, Muse Vessel; and, for what the round measured rather than built,
+Karn Liberated, All Hallow's Eve, Delay, Mari the Killing Quill, Kianne
+Dean of Substance, Volatile Chimera, Mechtitan Core. The round a gate
+that three chapters had answered "the battlefield" turned out to have
+two rows):
+
+198. **The counter verbs' battlefield demand was half a measurement, and
+   the half that was wrong is the one the rules state outright.** Chapter
+   nineteen wrote finding 84's gate in its own words — "no corpus line
+   puts a counter on a card in a graveyard or in exile with this clause"
+   — and the graveyard half holds while the exile half does not.
+   [CR#122.1a] gives a +X/+Y counter its meaning "on a creature card in a
+   zone other than the battlefield" and [CR#122.1b] does the same for a
+   keyword counter, so counters outside the battlefield are not an
+   oversight in the rules but a named case; and English writes them.
+   Jhoira of the Ghitu's "{2}, Exile a nonland card from your hand: Put
+   four time counters on the exiled card" is the ordinary put verb with
+   the ordinary participle read of a card the COST just exiled — public
+   zone, [CR#400.7j], so nothing new was needed to reach it — and Alaundo
+   the Seer's "remove a time counter from each other card you own in
+   exile" is the removal twin over a phrase that places its own referent
+   there. So `OnBattlefield` is replaced at those two slots by
+   `CounterHolder`, a closed full-row table over the seven zone answers,
+   and the other eleven battlefield-demanding slots did NOT widen with
+   them: destroy, sacrifice, tap, fight, the stat deltas and the copular
+   reads keep the old type, which is why the widening is a second witness
+   type rather than a loosened first one.
+199. **The four shut rows are silences of three different kinds, and the
+   stack's has a rule behind it.** The GRAVEYARD is a counted silence:
+   all seventeen lines that write "counter" and a graveyard in one
+   sentence put the counter on a battlefield object and read the
+   graveyard for a number ("a +1/+1 counter on this creature for each
+   creature card in your graveyard") or return the card to the
+   battlefield first ("Return this card from your graveyard to the
+   battlefield with a finality counter on it"), so the graveyard is where
+   counters are counted FROM and never put ON
+   (`badPutCountersGraveyard`, `badRemoveCountersDead`, both re-keyed
+   onto the new payload and both still refusing). The HAND and the
+   LIBRARY are the same silence with the same shape — every "counter"
+   line naming them counts cards there. The STACK is the one with a rule:
+   "put a counter on target spell" is zero lines, and [CR#122.6] says why
+   in one sentence — a bare counter instruction "refers to putting
+   counters on that object while it's on the battlefield and also to an
+   object that's given counters as it enters the battlefield" — which
+   makes the battlefield the DEFAULT reading and a second zone something
+   a line has to name. Exile is the one zone oracle names.
+200. **The zone is open to counters, not to a counter, and the kind
+   catalog gains exactly one row.** `CounterKind` does not index the
+   table, and the corpus is why: twenty-one kinds ride an exile in main
+   text — aegis, blood, brain, collection, croak, delay, discovery,
+   dream, egg, hatching, hit, ice, kick, memory, scream, silver, stash,
+   study, takeover, time and void — and more arrive by the put verb
+   afterwards (page, refine, voyage), so a kind-indexed zone table would
+   have been twenty-odd rows saying the same thing. What earns a `CounterKind` row is finding 85's test
+   unchanged, a one-shot put or remove of the sort this grammar writes,
+   and `Time` passes it three times over: a hundred fifty-nine lines
+   write the words, Arc Blade puts three on in an exile rider, Jhoira
+   puts four on with the put verb, Alaundo takes one off with the remove
+   verb. It is the first row in the catalog with no rule of its own in
+   [CR#122.1]'s list, and that is the point rather than a gap — a time
+   counter does nothing by itself and the abilities that read it supply
+   the meaning, [CR#702.62a] being the biggest reader and the keyword
+   this round deliberately does not spell. The other twenty stay
+   unwritten for finding 85's reason, and the ledger's counter-kind
+   catalog entry keeps them.
+201. **The exile-with-counters rider is the MOVE's, not the exile
+   verb's, and one card proves it in a sentence.** "Exile Arc Blade with
+   three time counters on it" and "return that card to the battlefield
+   under its owner's control with a +1/+1 counter on it" are the same
+   adverbial in the same slot after two different destinations, and
+   Daydream writes the second one beside a controller override in one
+   placement — so the rider goes on `MoveRiders` beside the entry
+   participles and the controller, and there is no exile-rider structure
+   at all. A hundred and two lines write it on an exile (forty-seven of
+   them the suspend family's keyword reminder line, fifty-five real
+   ability lines) and eighty-three on a return to the battlefield. Finding
+   192 said an `Amount bs` "was never going to fit" a rider slot at any
+   price, and that was true of the container it was about: `TokenRider` is
+   shared with the unindexed `TokenChars`, where `MoveRiders` has carried
+   a `Noun bs Player` since chapter thirty and is indexed already. So the
+   count is typed in the patient's own announcement, which is what "with
+   a number of time counters on it equal to ITS mana value" needs. The
+   frame is attested down to its last word: "on it" is written by all
+   hundred and two and omitted by none, so it is spelling and not a slot;
+   the
+   plural "on them" is written once and by a separate put clause rather
+   than a rider; and the count obeys `WrittenCount` like every other
+   (`badExileZeroCounters`).
+202. **The rider bundle's zone admissibility is PER HALF now, and that
+   is what keeps the two halves from leaking.** Chapter thirty's
+   `ridersFitZone` was one question — is anything written, and is the
+   destination the battlefield — and it could not stay one, because the
+   counter rider rides two destinations where the other two ride one. So
+   the entry participles and the controller keep their battlefield
+   demand and their rules ([CR#110.5b]'s untapped default, [CR#506.3a]'s
+   attacking placement, [CR#109.4] giving an off-battlefield object no
+   controller to override), and the counter rider answers `counterZone`
+   instead — the SAME table the put and remove verbs answer, because it
+   is the same fact about where a counter may sit. Both leaks are pinned
+   and both are measured: "exile it tapped" is zero lines and is refused
+   (`badExileTapped`), "exile it under your control" is zero lines too
+   (the two corpus hits are returns FROM exile), and a counter rider on a
+   move into a graveyard is refused by the counter table rather than by
+   the battlefield one (`badMoveCountersToGraveyard`). The keyword-action
+   tag learned the same distinction: `TagBody` indexes the bundle now, so
+   the exile tag has two rows — the bare placement and the one ridden
+   shape oracle writes — and a destroy or a sacrifice keeps the empty
+   bundle it always had.
+203. **The linkage is a SOURCE-KEYED note, and the rules give it its own
+   sentence in two different chapters.** [CR#406.6] states it in the
+   exile chapter — an object with an ability that exiles cards and an
+   ability referring to "the exiled cards" or to cards "exiled with [this
+   object]" has the two LINKED, the second referring "only to cards that
+   have been exiled due to the first" — and [CR#607.2a] states it again
+   in the linked-abilities chapter, adding that the reference reaches
+   "cards in the exile zone that were put there" by that ability.
+   [CR#406.5] even gives it a physical form: exiled cards that matter
+   "due to … the abilities of the cards that exiled them" are kept in
+   their own pile. So the group is keyed to a SOURCE and not to a
+   discourse, which is what `TheVerbed` could never have been — a stamp
+   lives in the bindings one clause hands the next, and this outlives the
+   sentence, the ability and the turn. `ExiledWith` is therefore a
+   PREDICATE and not a noun row, and that one choice is what makes the
+   whole family cheap: it is head-bearing and zone-projecting exactly as
+   `InZone` is ([CR#406.2] — "an exiled card is a card that's been put
+   into the exile zone" — so the carrier noun comes with the phrase), and
+   every determiner already in the file then spells a frame. A hundred
+   seventy-five lines write "exiled with"; a hundred forty-one of them
+   head on "card(s)"; nineteen write "all cards exiled with", twenty-six
+   "a card exiled with", twenty-one "from among cards exiled with", nine
+   "each card exiled with" — and `AllOf`, `Indefinite`, `SomeOf` and
+   `Each` write those four with no new vocabulary at all.
+204. **The linkage OUTLIVES its source, and the corpus states it in the
+   sharpest possible frame — the source is destroyed in the COST.** Cold
+   Storage is the whole card and it is the card the ledger has named for
+   this entry since chapter fourteen: "{3}: Exile target creature you
+   control." and "Sacrifice this artifact: Return each creature card
+   exiled with this artifact to the battlefield under your control." The
+   sacrifice is paid before the effect after the colon runs, so the
+   source is in a graveyard when its own group is read, and the group is
+   still there; Synod Sanctum writes the same shape over `AllOf`. Nothing
+   in [CR#607] makes the relation a property of a live object — it links
+   two abilities PRINTED on one, and [CR#608.2h] lets the ability use
+   last-known information for a source that has moved — so the honest
+   reading is that the note survives anything that happens to the object
+   that made it, which is also why a restart of the game would leave it
+   standing. The SOURCE SLOT is where the rules bite instead:
+   [CR#607.1]'s "printed on it" makes the phrase name the reading
+   ability's own object and no other, and [CR#607.5]'s worked example
+   turns on exactly that — a Quicksilver Elemental holding two different
+   exiling abilities can return only what the LINKED one exiled. So the
+   slot takes the self-word under either of its two spellings, the bare
+   one and the sorted one ("cards exiled with this artifact", thirty-six
+   lines), and refuses a target, a described object, and by extension
+   every foreign source (`badExiledWithOtherSource`,
+   `badExiledWithDescribedSource`). English has ONE phrase for the other
+   reading and it is a different construction: the passive "exiled by",
+   written once against a hundred seventy-five.
+205. **The linked cards are IN EXILE and the phrase says so, which is
+   what settles two refusals nobody had to argue about.** [CR#607.2a]'s
+   own words put the group in the exile zone, so `seedZone` answers
+   `Just Exile` and the phrase behaves like any other zone clause: "a
+   creature card exiled with this creature" is Sisters of Stone Death's
+   real phrase and lands, while "a card you control exiled with this
+   artifact" and "an attacking creature exiled with this artifact" are
+   refused by `ZoneCoherent` — [CR#109.4] gives an exiled card no
+   controller, and the attacking designation is declared over creatures
+   their controller controls ([CR#508.1a])
+   (`badExiledWithControlled`, `badExiledWithAttacking`). And the phrase
+   does not NEGATE: "not exiled with" is zero lines against a hundred
+   seventy-five positive, because a source-keyed group is named to be
+   acted on and the cards outside it are described by another zone or
+   another phrase rather than by this one turned inside out
+   (`badNegatedExiledWith`).
+206. **"The exiled card" is TWO constructions wearing one surface, and
+   the disambiguator is the ability boundary — which is the first thing
+   in this file that boundary has ever decided.** Finding 195 made "the
+   exiled card" and "the card exiled this way" two spellings of
+   `TheVerbed`, a read of a stamp the same discourse laid down. [CR#607.3]
+   says the same words are ALSO the linkage's: "if, within a pair of
+   linked abilities, one ability refers to a single object as 'the exiled
+   card,' 'a card exiled with [this object],' or a similar phrase" — so
+   the surface is ambiguous and what tells the two apart is whether the
+   exile happened in THIS ability. The corpus writes both freely (a
+   hundred seventy-eight lines write "the exiled card"; some are Jhoira's
+   same-clause read and some are a later ability's, "you may play the
+   exiled card without paying its mana cost" said three sentences and one
+   colon away from the exile that made it). This file spells only the
+   first, and the reason is a gap with a name rather than a decision:
+   there is no definite determiner over a DESCRIPTION here — `TheVerbed`
+   is a read of a binding, and "the card exiled with this artifact" would
+   want "the" over `ExiledWith`, which no row provides. Ledgered with its
+   count. What the boundary DOES decide today is that `Ability` stays
+   unindexed and correct in staying so: the linkage carries no discourse
+   across the boundary — no binding, no anaphor, nothing a later sentence
+   reads back — only a group that a phrase DESCRIBES, which is exactly
+   why a predicate was the right shape and an indexed ability line would
+   have been the wrong one.
+207. **`HeldUntil` and the counters rider are opposite answers about the
+   same card, and the corpus never asks for both.** Chapter
+   twenty-five's rider is [CR#610.3]'s one-shot pair: the clause exiles
+   and schedules its own undo, so nothing has to ask for the card back.
+   The counters rider does the reverse — it leaves a card in exile with a
+   number on it and waits for an ABILITY to read that number, which is
+   the whole of what [CR#702.62a] builds out of these components. So they
+   are reconciled by measurement rather than by argument: "exile … with …
+   counters on it until …" is zero lines, and `heldUntilOk` now reads the
+   bundle and takes the unridden exile only (`badHeldUntilWithCounters`).
+   The other reconciliation the round was sent to make needed no code at
+   all: `HeldUntil`'s implicit single-object recall is the RULE's, not a
+   phrase's — [CR#610.3c] returns the object "under its owner's control
+   unless otherwise specified" and the sentence writes no recall — where
+   the linkage exists precisely because a later ability has to name
+   something the rules will not hand back on their own. One family says
+   "and then undo this", the other says "and remember what I did".
+208. **Karn's minus reaches its linkage and stops at five other things,
+   each named.** "[−14]: Restart the game, leaving in exile all non-Aura
+   permanent cards exiled with Karn. Then put those cards onto the
+   battlefield under your control." The LINKAGE lands — "cards exiled
+   with Karn" is `ExiledWith` under `AllOf`, the same phrase Synod
+   Sanctum writes — and the sentence still wants: the RESTART event,
+   which is the game-as-object family and which [CR#727.1] introduces
+   with the words "One card (Karn Liberated) restarts the game" (one
+   corpus line, and a family of one is not a family); the "leaving in
+   exile" EXEMPTION, [CR#727.5]'s "effects may exempt certain cards from
+   the procedure", a participial adverbial with no second instance; the
+   negated SUBTYPE "non-Aura", which would force `subtypeType`'s first
+   non-creature answer and a subtype vocabulary this file grows one
+   witnessed row at a time; the PERMANENT word as a head noun, which the
+   ledger has carried since chapter fourteen; and the whole planeswalker
+   container — no `CardType` row, no loyalty cost symbols — which chapter
+   thirty ledgered whole. So the restart is NOT minted, on the round's
+   own instruction and on the honest count, and the linkage is designed
+   to survive one: finding 204's lifetime argument is what makes that
+   claim cheap, since a note that outlives its source being sacrificed
+   outlives its source being shuffled into a new library, and [CR#727.2]
+   keeps every card involved in the game that restarted.
+209. **What the round retro-opened, and what it did not.** Claimed: the
+   LINKED-ABILITY MEMORY entry, which the ledger has carried since
+   chapter fourteen with Cold Storage named — that card is now a whole
+   card on the bench, both abilities, nothing elided (findings 203, 204).
+   Claimed: the counter-kind catalog's `Time` row and the counter verbs'
+   ZONE, which the "counters as per-holder state" frontier entry called
+   half-landed and which is now landed on both zones English writes
+   (findings 198, 200). Claimed: the enters-with-counters family's
+   ONE-SHOT twin at its second destination — finding 192 opened the
+   static "enters with counters" line and this round opens the exile and
+   battlefield PLACEMENTS that write the same phrase as an adverbial
+   (finding 201). Partly claimed, narrowed: the SUSPEND-adjacent entries,
+   which now have every component the keyword's rules text names —
+   [CR#702.62a] wants "exile it with N time counters on it" (finding
+   201), "remove a time counter from it" while it is exiled (finding
+   198), and a trigger on the last counter's removal (which is a
+   `GameEvent` row over the counter verbs, unminted and ledgered with its
+   counts — nine lines write "time counter is removed", five "the last
+   [kind] counter is removed"). The keyword itself stays
+   out on instruction, and the components were built for it rather than
+   from it. Re-checked and still shut: the PLAYER-borne counters, which
+   take a different verb entirely ("target player gets a poison counter",
+   forty-eight lines) and which this round's zone widening does not
+   touch; the kind-blind quantifiers and counter MOVEMENT, which want a
+   quantity over kinds; and the DIVISION of counters, whose `DividedTakes`
+   row keeps the battlefield because all forty-six "distribute … counters
+   among" lines divide among creatures on the battlefield and the exile
+   family writes one card at a time.
+210. **What the round measured and returned.** The card-level LINKAGE
+   CREATION check is returned, and the reason is a boundary rather than a
+   cost. [CR#406.6] and [CR#607.1] require the recalling ability and the
+   exiling one to be printed on the SAME object, which is a fact about a
+   card's ability LIST and not about any sentence; the workbench could
+   ask it, `Card` having carried `text : List Ability` since chapter
+   thirty, but only through two deep traversals — one for "does any
+   ability here exile", one for "does any ability here recall" — over
+   `Effect`, `Noun`, `Predicate`, `Amount` and `Cost`, some hundred and
+   ten rows of new table and a totality tax on five more functions for
+   every future round. Against that, [CR#607.5a] is the nearest thing the
+   rules say about an unlinked reference and it does not call one
+   illegal: an undefined linked reference means "that part of the ability
+   won't do anything". A gate that refused it would over-refuse, which is
+   the one direction this file's gates are not allowed to err in. So it
+   is ledgered with its price, and what IS pinned is the part that is a
+   fact about the phrase: whose exiles it may name (finding 204) and
+   where those cards are (finding 205). Also measured and left: the
+   NAMED-source linkage, [CR#607.2n]'s "cards exiled with cards named
+   [this object's name]", which is a second linkage rule over a
+   before-the-game static ability and wants the printed name read back
+   that finding 188 keeps unread (three corpus lines — Volatile Chimera,
+   Arcane Savant, Caller of the Untamed); the
+   OWNERSHIP relation on an object ("a card you own in exile", which
+   Alaundo and Mari both write and which the bench elides), a possessor
+   axis distinct from `ControlledBy` and one this zone makes necessary —
+   [CR#109.4] leaves an exiled card no controller to be named by, so
+   ownership is the only possessor the phrase has left ([CR#108.3]); and
+   the plural OWNERS' destination that Mechtitan Core's recall needs ("to
+   the battlefield tapped under their owners' control"), which is
+   `CtrlSingular`'s standing refusal at a second site.
+
 ## Engine-Boundary Deferrals
 
 Engine-boundary deferrals (deliberate, and to stay so): the
@@ -5181,9 +5483,14 @@ slot — with its count corrected there: of the two hundred ninety-three
 and eighty-five are ability lines, and the hundred eighteen "from exile"
 divide a hundred thirteen to five. The enters-with COUNTERS rider is
 TAKEN, finding 192, leaving the counter-KIND catalog beyond
-`CounterKind`'s three rows (time, oil, fade, charge, indestructible,
-finality, shield, divinity and their neighbours, eight lines apiece and
-fewer). The "unless" MARKING is TAKEN, finding 196, on the deed
+`CounterKind`'s rows. TIME came off that tail in chapter thirty-one,
+finding 200 — a hundred fifty-nine lines and one-shot puts and removes
+at three sites — leaving oil, fade, charge, indestructible, finality,
+shield, divinity and their neighbours at eight lines apiece and fewer,
+plus the twenty other kinds the exile rider writes (scream, hit, delay,
+study, memory, void, silver, brain, hatching, egg, ice, blood,
+collection, stash, croak, takeover, discovery, dream, kick), each one or
+two lines and none of them a second construction. The "unless" MARKING is TAKEN, finding 196, on the deed
 restriction alone: the hundred eleven "can't … unless" lines are
 writable and the thirty-nine "enters tapped unless" ones each want a
 basic land TYPE ([CR#305.6]'s five, a subtype vocabulary this file has no
@@ -5282,9 +5589,20 @@ recipient ("deals 4 damage instead"), a complement ELLIPSIS inheriting
 the replaced clause's patient, which is a new ledger entry beside the
 coordination and extraposition gaps. What is still frontier here is
 [CR#603.4]'s separation of intervening-if from English "if", the seam
-finding 76 leaves for the trigger layer]; linked-ability memory (Cold Storage, [CR#607.2a] —
-source-keyed exile notes across abilities, beyond any one
-discourse); divided amounts (Chandra's Pyrohelix,
+finding 76 leaves for the trigger layer]; linked-ability memory [LANDED, chapter thirty-one, findings 203-205 —
+`ExiledWith`, a source-keyed exile group named by a PREDICATE and not by
+a discourse read, its head and zone `InZone`'s ([CR#406.2,406.6,607.2a])
+and its source slot the self-word ([CR#607.1]). Cold Storage, the card
+this entry named, is a whole card on the bench with both abilities. What
+survives the entry is smaller and named in finding 210: the CARD-LEVEL
+creation check ([CR#406.6]'s "printed on it" is a fact about an ability
+LIST, and [CR#607.5a] makes an unlinked reference do nothing rather than
+be illegal, so a gate would over-refuse — its price is two deep
+traversals over `Effect`/`Noun`/`Predicate`/`Amount`/`Cost`); the
+NAMED-source linkage ([CR#607.2n], three lines, wanting the printed name
+read back); and the definite determiner over a DESCRIPTION, which is what
+"the card exiled with this artifact" would need and what makes finding
+206's second surface unwritable]; divided amounts (Chandra's Pyrohelix,
 [CR#601.2d,115.7f] — an allocation announced and locked);
 dependent iteration (Killing Wave's "for each creature, its
 controller…" — a per-member singular frame no plural noun
@@ -5295,18 +5613,38 @@ insertion (Relentless Assault, [CR#500.8]); standing triggered
 abilities ([CR#603.1] — the ability SHAPE beyond delayed
 queries); counters as per-HOLDER state [LANDED in part, chapter
 nineteen — the object-borne put and remove verbs over a witnessed
-`CounterKind`; what is still frontier here is the PLAYER holder,
-which English reaches with a different verb ("target player gets a
-poison counter", forty-eight lines), the counter COUNT read ("the
-number of +1/+1 counters on it"), and the kind-blind quantifiers
-below]; mana production and payment
+`CounterKind` — and their ZONE landed in chapter thirty-one, findings
+198-199: the gate is `CounterHolder`'s closed full-row table over the
+seven zones, open on the battlefield and on EXILE ([CR#122.1a,122.1b]
+name counters outside the battlefield and oracle writes them there,
+Jhoira of the Ghitu and Alaundo the Seer) and shut on the other four,
+the stack's silence being [CR#122.6]'s own default. What is still
+frontier here is the PLAYER holder, which English reaches with a
+different verb ("target player gets a poison counter", forty-eight
+lines), the counter COUNT read ("the number of +1/+1 counters on it"),
+and the kind-blind quantifiers below]; mana production and payment
 ([CR#106.4]); DESIGNATIONS, which ride all three holders the way
 the counters above ride two — a player's ("the monarch",
 [CR#725.1]; "the initiative", [CR#726.1]), a permanent's (the
 Ring-bearer, [CR#701.54b]), and the GAME's own (day and night,
 [CR#731.1]) — each a definite noun phrase naming a role rather
 than an object, which is why the definite sweep below surfaced
-them and had nowhere to put them; and control ASSIGNMENT on a
+them and had nowhere to put them; the GAME as an object of a verb,
+which chapter thirty-one measured and returned (finding 208): RESTARTING
+is [CR#727]'s whole chapter and [CR#727.1] opens it with "One card (Karn
+Liberated) restarts the game", one corpus line, and the sentence around
+it wants [CR#727.5]'s "leaving in exile" exemption besides — a family of
+one, ledgered rather than minted, with the linkage designed to survive
+one ([CR#727.2] keeps every card involved); object OWNERSHIP as a relation ("a card you own in exile", Alaundo the
+Seer and Mari the Killing Quill; the bench elides it), which is a
+possessor axis distinct from `ControlledBy` and one the exile zone makes
+necessary — [CR#109.4] leaves an exiled card no controller to be named
+by, so [CR#108.3]'s owner is the only possessor the phrase has left; the
+trigger on a counter's LAST removal ("When the last time counter is
+removed from this card", three lines; "time counter is removed", nine;
+"the last [kind] counter is removed", five), a `GameEvent` row over the
+counter verbs and the third component [CR#702.62a] names, unminted with
+findings 198 and 201 built beside it; and control ASSIGNMENT on a
 battlefield move — a
 controller argument the move primitive does not carry, since
 [CR#110.2a] gives the instructed player by default and only an
