@@ -177,7 +177,9 @@
 ||| 17. **Duration is trailing-adverbial data.** `Gain`/`Gets` carry
 |||    the stated duration ([CR#611.2a]); the unstated form is an
 |||    explicit `Nothing` (lasts until end of game) per the
-|||    written-Nothing convention — no defaults.
+|||    written-Nothing convention — no defaults. WHICH duration a
+|||    clause may state is not free, though: it is the construction's
+|||    own word (finding 55).
 ||| 18. **An event query transforms the delayed context.** `Delayed`
 |||    names what it waits for; a time query settles only, and "when
 |||    [target] dies this turn" both announces its watched referent and
@@ -698,6 +700,88 @@
 |||    layer, which is why "Destroy target artifact or enchantment"
 |||    still leaves an "it" behind.
 |||
+||| Chapter fifteen, the one-shot deontic (evidence: Infiltrate, Change
+||| of Heart, Blindblast, Blinding Flare; the duration corpus split is
+||| the chapter's sharpest single fact):
+||| 54. **A "can't" with a duration is a CLAUSE; a "can't" without one
+|||    is an ability.** "Target creature can't block this turn."
+|||    resolves and creates a continuous effect for the span it states
+|||    ([CR#611.2a]) — core's `Continuously { effect:
+|||    Deontic(Cant(…)), duration }` (`deckmaste_core/src/effect.rs`,
+|||    `deontic.rs`) with exactly the two halves English writes. What
+|||    the effect creates is a restriction the declare steps check
+|||    ([CR#508.1c] for attacking, [CR#509.1b] for blocking and for
+|||    being blocked), and it beats any permission it meets
+|||    ([CR#101.2]). The static line — "Enchanted creature can't
+|||    attack", Pacifism — is durationless, continuous, and the parked
+|||    ability layer's; here it is unwritable because the span slot is
+|||    not optional, so the refusal is the ABSENT SLOT rather than a
+|||    gate (`badStaticCant`). That is the whole scope line, and it is
+|||    the smallest bite that spells a real card end to end.
+||| 55. **The duration adverbial is the CONSTRUCTION's word, not the
+|||    writer's.** "This turn" and "until end of turn" name the same
+|||    span, and the corpus does not let a clause choose between them:
+|||    two hundred ninety-six one-shot restriction lines say "this
+|||    turn" and not one says "until end of turn", while two hundred
+|||    sixty-six "gets +1/+1" lines and one hundred ninety-seven "gains
+|||    haste" lines say "until end of turn" and not one says "this
+|||    turn". The guide prints both wordings a section apart and
+|||    assigns neither, so the corpus is what assigns them, and the
+|||    workbench carries the assignment as two complementary tables
+|||    (`restrictionSpan`, `grantSpan`). The cross-turn span is the one
+|||    word both constructions write — detain's "can't attack or block
+|||    until your next turn" against Bond of Revival's "It gains haste
+|||    until your next turn" — which is what keeps the tables from
+|||    being a single flipped bit. Minting the row was also this
+|||    chapter's one chance to open a hole, a new duration being
+|||    available to every construction that takes one, so the grant
+|||    side was gated in the same edit rather than after the fact
+|||    (`badGainsThisTurn`, `badGetsThisTurn`) — wave five's coupling
+|||    rule, applied before the hole existed.
+||| 56. **The role rides the word, because the clause has one subject.**
+|||    Core tells "can't block" from "can't be blocked" by which SLOT
+|||    carries the reference (`DeonticAction::Block { by, on }`), and
+|||    the predecessor grammar does the same (`Enact Block <agent>
+|||    <patient>`, `Semantics.idr`). A clause has ONE subject and no
+|||    second slot to put the distinction in, so English marks it in
+|||    the VOICE, and the deed word carries it here: `Attack`, `Block`,
+|||    `BeBlocked` are literally the verb phrase after "can't". The
+|||    vocabulary is CLOSED and every table over it is written out, so
+|||    a new deed is a totality error that has to declare which types
+|||    carry its grant before it can be written — the `combatant`
+|||    precedent, one chapter on.
+||| 57. **The deed's grant table is not the fight table.** [CR#506.3]
+|||    — "Only a creature can attack or block" — answers all three
+|||    rows, the passive included, because what a blocker blocks is an
+|||    attacking creature ([CR#509.1a]). That is the same verdict
+|||    `combatant` gives and a DIFFERENT question: the fight chapter
+|||    minted that table precisely because fight keys on type
+|||    membership and deals non-combat damage ([CR#701.14b,701.14d]),
+|||    where these deeds are combat proper and read the grants
+|||    Creature.ron actually confers. So a second table, `deedType`,
+|||    written out in both directions like `sameKind`. It has no
+|||    untyped row: a coordinated subject fixes no type (finding 50)
+|||    and therefore cannot prove participation
+|||    (`badCantDisjunctSubject`) — silence read as permission, refused
+|||    a third time.
+||| 58. **Everything else the restriction needed was already there.**
+|||    The class word places nothing, so the battlefield demand refuses
+|||    it with no rule of its own (`badCantAnyTarget`), exactly as it
+|||    refuses destroy and tap; a graveyard card is refused by the same
+|||    gate ([CR#506.4] removes a permanent that leaves the
+|||    battlefield from combat; `badCantInGraveyard`). Grammatical
+|||    number is NOT demanded, and the corpus is why: "Any number of
+|||    target creatures can't block this turn." (Blinding Flare) and
+|||    "Other creatures can't attack this turn." (Intimidation Bolt)
+|||    restrict groups, so a plurality gate would have been invention.
+|||    The subject enters the discourse as any clause's
+|||    does, an anaphoric subject reads back into it (Blindblast's
+|||    "That creature"), and the clause nests under `May`, `Delayed`,
+|||    `Sequentially`, and a colon without a gate misfiring — audited,
+|||    with nothing to fix. A chapter that adds one constructor and
+|||    four gates and finds the rest already standing is the shape the
+|||    projections were built for.
+|||
 ||| Engine-boundary deferrals (deliberate, and to stay so): the
 ||| workbench spells the ENGLISH; committed event structure is
 ||| core's. The per-combatant fight fact is the type case — core
@@ -762,8 +846,10 @@
 ||| draw cluster); miracle's reveal condition ("the first card you've
 ||| drawn this turn" [CR#702.94a] — a turn-scoped draw-ordinal
 ||| memory, same cluster); the up-to-one singular
-||| remention positive (Ty Lee, Chi Blocker — waits on can't/untap
-||| vocabulary); `May`'s if-you-do / if-not branches (the Risk
+||| remention positive (Ty Lee, Chi Blocker — its second sentence is
+||| the UNTAP deed under a "for as long as" duration ([CR#611.2b]), so
+||| it waits on both, chapter fifteen's restriction clause having
+||| landed with neither); `May`'s if-you-do / if-not branches (the Risk
 ||| Factor / Rakdos, Patron of Chaos else-clauses); the chosen-OBJECT
 ||| definites ("the chosen creatures" — V.A.T.S./Victimize wait on
 ||| "any number of" groups and if-you-do); plural participle reads
@@ -858,7 +944,33 @@
 ||| derivable default, while "under its owner's control" is an OVERRIDE
 ||| the vocabulary cannot spell — four positives elide it, each named
 ||| meaning-carrying in its comment: Turn to Mist, Flickering Spirit,
-||| Graceful Reprieve, Voyager Staff).
+||| Graceful Reprieve, Voyager Staff); and the rest of the DEONTIC
+||| surface, chapter fifteen having taken the one-shot restriction
+||| clause and nothing else. The STATIC form is the largest piece:
+||| "Enchanted creature can't attack" (Pacifism) is durationless and
+||| continuous, so it belongs to the ability layer with the other
+||| static abilities rather than to any clause. Beside it: deed
+||| COORDINATION, one "can't" over two deeds ("Target creature can't
+||| attack or block this turn.", six lines, and the detain family's
+||| cross-turn form — `Or` coordinates PREDICATES, and a deed is not
+||| one); PLAYER subjects ("Target player can't cast spells this
+||| turn"), which want the cast deed and a player-subject clause, the
+||| kind index making them structurally unwritable today; the deeds
+||| with no clause yet — "can't be regenerated" (one hundred forty-two
+||| lines, and usually with NO stated duration, so it wants
+||| [CR#611.2a]'s end-of-game default in a span slot that currently
+||| refuses to be empty), "can't be countered" (thirty-three), and
+||| "doesn't untap" (one hundred twenty-two, Ty Lee above) — each
+||| needing its own `deedType` row and the last two a subject this
+||| vocabulary cannot describe; the EXCEPT rider ("can't be blocked
+||| except by Walls", one hundred ninety-one lines), a restriction
+||| carrying an exception clause rather than a plain one; the other
+||| deontic polarities (core keeps `May`, `Must`, and `Gate` beside
+||| `Cant` — requirements are the "attacks if able" family
+||| [CR#508.1d,509.1c], arbitrated rather than subtracted); and the
+||| bare GENERIC PLURAL subject ("Creatures without flying can't block
+||| this turn.", Falter), which is not the "all" determiner `AllOf`
+||| spells and has no noun of its own.
 ||| The context-as-phrase-telescope collapse (bindings storing
 ||| the mention terms themselves, every projection computed) stays open as
 ||| a possible later simplification — less pressing since the payload
@@ -1020,13 +1132,16 @@
 ||| the spelling pass marked those constructors construction-owned or
 ||| TODO instead of giving them a fragment of their own.
 |||
-||| Three families stay unmapped deliberately, being the next CHAPTERS
-||| rather than deferrals: the deontic auxiliaries ("Enchanted
-||| creature can't attack or block", Pacifism — the parser's auxiliary
-||| slot is general, twelve of them stacking, so the deontic reading
-||| is one slice of that chapter), comparatives, and the generic
-||| definite and possessive noun phrases (which "both" above waits
-||| on). Coordination was the fourth and has SPLIT: chapter fourteen
+||| Two families stay unmapped deliberately, being the next CHAPTERS
+||| rather than deferrals: comparatives, and the generic definite and
+||| possessive noun phrases (which "both" above waits on). The deontic
+||| auxiliaries were a third and have SPLIT the way coordination did:
+||| chapter fifteen took the one-shot restriction clause, and what is
+||| left is the STATIC reading ("Enchanted creature can't attack or
+||| block", Pacifism) with the ability layer, plus the rest of the
+||| auxiliary slot itself — the parser's slot is general, twelve of
+||| them stacking, and the deontic reading was only ever one slice of
+||| it. Coordination was the fourth and has SPLIT: chapter fourteen
 ||| took its noun-phrase half — `noun_phrase_coordination` and
 ||| `shared_determiner_nominal`, which is Disenchant's alternatives
 ||| and Rats of Rath's shared modifier — and the rest is deferred by
@@ -1767,11 +1882,120 @@ data Ability = KeywordAbility Keyword
 ||| with no stated duration it lasts until end of game, which is the
 ||| explicit `Nothing` spelling per the no-defaults convention).
 ||| "for as long as" durations ([CR#611.2b]) are a later chapter.
+||| Two of these name the SAME span in different words, and which word
+||| a clause writes is its construction's, not its author's — see
+||| `grantSpan` and `restrictionSpan`.
 public export
--- spelling: ["until end of turn", "until your next turn"] (row order:
--- UntilEndOfTurn/UntilYourNextTurn), kind: TODO(reason: trailing-adverbial
--- fragment -- not one of Nominal/Sentence/Cost/KeywordLine/Ability)
-data Duration = UntilEndOfTurn | UntilYourNextTurn
+-- spelling: ["until end of turn", "until your next turn", "this turn"] (row
+-- order: UntilEndOfTurn/UntilYourNextTurn/ThisTurn), kind: TODO(reason:
+-- trailing-adverbial fragment -- not one of Nominal/Sentence/Cost/
+-- KeywordLine/Ability)
+data Duration = UntilEndOfTurn | UntilYourNextTurn | ThisTurn
+
+||| Which duration a GRANT or a stat change writes. The two current-turn
+||| adverbials are not interchangeable: "until end of turn" runs to two
+||| hundred sixty-six corpus lines on "gets +1/+1" and one hundred
+||| ninety-seven on "gains haste", and "this turn" to none of either,
+||| while the one-shot restrictions invert the split exactly
+||| (`restrictionSpan`). The guide lists both wordings and
+||| assigns neither — "Use `until end of turn` for the ordinary
+||| current-turn duration" sits a section away from "Use `this turn` for
+||| the current turn" — so the corpus is what assigns them. Full rows: a
+||| new duration declares its answer on both tables.
+public export
+grantSpan : Duration -> Bool
+grantSpan UntilEndOfTurn = True
+grantSpan UntilYourNextTurn = True
+grantSpan ThisTurn = False
+
+||| The grant's duration slot as a witness. `Nothing` is the stated
+||| absence — no duration written, so the effect lasts until end of game
+||| ([CR#611.2a]), which the guide permits where the effect is
+||| "intentionally indefinite under the rules" (Through the Breach's
+||| bare "It gains haste.").
+public export
+data GrantSpan : Maybe Duration -> Type where
+  Indefinite : GrantSpan Nothing
+  Stated : {auto 0 ok : grantSpan d = True} -> GrantSpan (Just d)
+
+-- ===== Deontic restrictions (the one-shot "can't" vocabulary) =====
+
+||| The deed a restriction denies, with the ROLE its subject plays in
+||| it. Core and the predecessor grammar both mark that role by which
+||| SLOT carries the reference — `DeonticAction::Block { by, on }`
+||| (`deckmaste_core/src/deontic.rs`), `Enact Block <agent> <patient>`
+||| (`Semantics.idr`) — but a clause with ONE subject has no second slot
+||| to put it in, so English marks it in the VOICE and the deed word
+||| carries it here: "can't block" against "can't be blocked". Closed
+||| and row-enumerated, and every table over it is written out, so a new
+||| deed is a totality error that must declare which types carry its
+||| grant before it can be written at all. These three lead the one-shot
+||| restrictions in the corpus — "can't be blocked this turn" one hundred
+||| seventy-three lines, "can't block this turn" one hundred fifteen,
+||| "can't attack this turn" eight — and the rest of the deontic surface
+||| is either the parked ability layer or a deed with no clause of its
+||| own yet.
+public export
+-- spelling: ["attack", "block", "be blocked"] (row order: Attack/Block/
+-- BeBlocked -- the verb phrase after "can't"; two active infinitives and
+-- one passive, consumed by Effect.Cant, never spelled alone)
+data Deed = Attack | Block | BeBlocked
+
+||| Which card types carry a deed's grant — the stand-in for reading
+||| `May(Attack)`/`May(Block)` off the TypeDef declaration
+||| (`plugins/builtin/macros/cardtype/Creature.ron`), and a DIFFERENT
+||| table from `combatant`, which the fight chapter minted precisely
+||| because fight keys on type membership and deals non-combat damage
+||| ([CR#701.14b,701.14d]) where these deeds are combat proper.
+||| [CR#506.3] — "Only a creature can attack or block" — answers all
+||| three rows, the passive included: what a blocker blocks is an
+||| attacking creature ([CR#509.1a]). Written out in BOTH directions,
+||| `sameKind`-style, so a new deed and a new card type are each a
+||| totality error rather than a silent `False`.
+public export
+deedType : Deed -> CardType -> Bool
+deedType Attack Creature = True
+deedType Attack Artifact = False
+deedType Attack Land = False
+deedType Attack Enchantment = False
+deedType Block Creature = True
+deedType Block Artifact = False
+deedType Block Land = False
+deedType Block Enchantment = False
+deedType BeBlocked Creature = True
+deedType BeBlocked Artifact = False
+deedType BeBlocked Land = False
+deedType BeBlocked Enchantment = False
+
+||| The deed's demand on its subject's projected head, as a witness —
+||| `FightParticipant`'s shape for the combat grants. There is no
+||| `Nothing` row: an UNTYPED head cannot prove participation, so a
+||| disjunctive subject, which honestly fixes no type (finding 50), is
+||| refused rather than waved through on its silence.
+public export
+data DeedParticipant : Deed -> Maybe CardType -> Type where
+  Participant : {auto 0 ok : deedType d t = True} -> DeedParticipant d (Just t)
+
+||| Which duration a RESTRICTION writes — `grantSpan`'s complement, and
+||| complementary is what the corpus makes it. Every one-shot
+||| single-deed restriction says "this turn" (two hundred ninety-six
+||| lines across the three deeds) and not one says "until end of turn".
+||| The cross-turn span is written too, in the detain family ("Up to one
+||| target creature can't attack or block until your next turn"), where
+||| what this vocabulary is missing is the deed coordination (ledger),
+||| not the adverbial. Full rows, as on the grant side.
+public export
+restrictionSpan : Duration -> Bool
+restrictionSpan ThisTurn = True
+restrictionSpan UntilYourNextTurn = True
+restrictionSpan UntilEndOfTurn = False
+
+||| The restriction's duration slot as a witness. There is no absent
+||| row: a durationless "can't" is the STATIC ability line, a different
+||| construction (see `Cant`).
+public export
+data RestrictionSpan : Duration -> Type where
+  Spanned : {auto 0 ok : restrictionSpan d = True} -> RestrictionSpan d
 
 -- ===== The grammar (mutual: types thread contexts through VALUES) =====
 
@@ -3193,18 +3417,50 @@ mutual
     -- "[n] gains [ability] [duration]" — establishes a continuous
     -- effect for the stated duration ([CR#611.2a]); the one-shot form
     -- modifies a battlefield object (graveyard-reaching grants are
-    -- static abilities, a later chapter).
+    -- static abilities, a later chapter). The duration is the GRANT's
+    -- adverbial, never the restriction's (`GrantSpan`;
+    -- `badGainsThisTurn`).
     -- spelling: ["<Param(0)> gains <Param(1)>"] (optional trailing duration
     -- adverbial, see Duration), kind: Sentence
-    Gain : (n : Noun bs Object) -> Ability -> Maybe Duration ->
-           {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
+    Gain : (n : Noun bs Object) -> Ability -> (span : Maybe Duration) ->
+           {auto 0 ok : OnBattlefield (nounZone n)} ->
+           {auto 0 sp : GrantSpan span} -> Effect bs
     -- "[n] gets [+p/+t] [duration]" — the stat-modifying continuous
     -- effect, same duration and battlefield discipline
-    -- (`badGetsGraveyard`).
+    -- (`badGetsGraveyard`, `badGetsThisTurn`).
     -- spelling: ["<Param(0)> gets <Param(1)>/<Param(2)>"] (signed pow/tou
     -- pair, e.g. "+1/+1"; optional trailing duration), kind: Sentence
     Gets : (n : Noun bs Object) -> (pow : Integer) -> (tou : Integer) ->
-           Maybe Duration -> {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
+           (span : Maybe Duration) -> {auto 0 ok : OnBattlefield (nounZone n)} ->
+           {auto 0 sp : GrantSpan span} -> Effect bs
+    -- "[n] can't [deed] [duration]" — the one-shot DEONTIC: a clause
+    -- whose resolution creates a continuous effect denying its subject
+    -- a deed for the stated span ([CR#611.2a]), which is core's
+    -- `Continuously { effect: Deontic(Cant(…)), duration }`
+    -- (`deckmaste_core/src/effect.rs`, `deontic.rs`) with the two
+    -- halves English writes. The deed is the restriction the declare
+    -- steps check ([CR#508.1c] for attacking, [CR#509.1b] for blocking
+    -- and for being blocked), and it beats any permission it meets
+    -- ([CR#101.2]). Three demands, each already a shape this grammar
+    -- makes elsewhere: the subject stands on the battlefield (combat is
+    -- fought there — [CR#506.4] takes a permanent that leaves out of
+    -- combat; `badCantInGraveyard`), carries the deed's grant
+    -- ([CR#506.3]; `badCantAttackLand`, `badCantDisjunctSubject`), and
+    -- the span is the RESTRICTION's adverbial, not the grant's
+    -- (`badCantUntilEndOfTurn`). A durationless "can't" is the STATIC
+    -- ability line ("Enchanted creature can't attack", Pacifism) — a
+    -- different construction, and unwritable here because the slot is
+    -- not optional. The subject may be plural — "Other creatures can't
+    -- attack this turn." (Intimidation Bolt) is one sentence of many —
+    -- so no grammatical number is demanded.
+    -- spelling: ["<Param(0)> can't <Param(1)> <Param(2)>"], kind: Sentence
+    -- (Param(1) = Deed's own verb phrase, Param(2) = Duration's own
+    -- adverbial; mirrors core's Continuously-over-Cant pair -- no single
+    -- RON constructor entry confirmed for the fused clause this pass)
+    Cant : (n : Noun bs Object) -> (deed : Deed) -> (span : Duration) ->
+           {auto 0 zn : OnBattlefield (nounZone n)} ->
+           {auto 0 dp : DeedParticipant deed (nounTy n)} ->
+           {auto 0 sp : RestrictionSpan span} -> Effect bs
     -- the keyword-action tag ([CR#701]): the named verb deontics and
     -- replacements key on, wrapping its expansion body ([CR#701.8b] —
     -- only a Destroy-tagged move IS a destruction). The tag and body
@@ -3613,6 +3869,7 @@ mutual
   effIntro (ChangeLife who (Down a)) = outcomeB LifeLost :: lifeIntro (Down a)
   effIntro (Gain n _ _) = nomIntro n
   effIntro (Gets n _ _ _) = nomIntro n
+  effIntro (Cant n _ _) = nomIntro n
   effIntro (Composite v (Move what to)) = moveIntro (Just v) what (zoneSort to)
   effIntro (Composite _ e) = effIntro e
   effIntro (Does s v (Move what to)) = moveIntro (Just v) what (zoneSort to)

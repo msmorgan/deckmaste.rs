@@ -433,6 +433,42 @@ anotherDisjunctPhrase : Predicate [MkBinding TargetD Object OneOf
                                              (ObjectP Nothing (Just Battlefield) Nothing)] Object
 anotherDisjunctPhrase = And [Or [creature, land], Other]
 
+-- ===== What a clause forbids: the deontics chapter =====
+
+-- "Target creature can't be blocked this turn." (Infiltrate) — the
+-- flagship, and the whole card. The clause creates a continuous effect
+-- for a stated span ([CR#611.2a]) denying its subject a deed, which is
+-- what the declare-blockers step then checks ([CR#509.1b]). The deed
+-- word carries the ROLE: the subject of "can't be blocked" is the
+-- creature being blocked, core's `on` slot, where "can't block" would
+-- put it in `by`.
+infiltrate : Effect []
+infiltrate = Cant (target creature) BeBlocked ThisTurn
+
+-- "Target creature can't attack this turn." (Change of Heart; its
+-- Buyback line elided — a keyword rider, as with Cascade and Splice)
+-- — the active voice of the same clause, checked at declare attackers
+-- instead ([CR#508.1c]).
+changeOfHeart : Effect []
+changeOfHeart = Cant (target creature) Attack ThisTurn
+
+-- "Blindblast deals 1 damage to target creature. That creature can't
+-- block this turn." (Blindblast; "Draw a card." elided — no draw
+-- vocabulary, ledgered) — the restriction takes an ANAPHORIC subject
+-- like any other clause: the demonstrative reads the mention the damage
+-- clause introduced, and the deontic needs nothing of its own for it.
+blindblast : Effect []
+blindblast = Sequentially [DealDamage This (Lit 1) (target creature),
+                           Cant (That (TypeW Creature)) Block ThisTurn]
+
+-- "Any number of target creatures can't block this turn." (Blinding
+-- Flare; its Strive cost-modification line elided) — the subject is
+-- PLURAL, and the clause demands no grammatical number: a restriction
+-- ranges over whatever its subject phrase describes, one creature or a
+-- group announced at once.
+blindingFlare : Effect []
+blindingFlare = Cant (TargetGroup anyNumber creature) Block ThisTurn
+
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
 -- "other" with no target before it: the presupposition has no witness.
@@ -1244,3 +1280,67 @@ failing "NotSeq"
   badNestedSequence =
     Sequentially [Sequentially [destroy (target creature), exile (target creature)],
                   destroy (target land)]
+
+-- ===== What a restriction may forbid, of whom, and for how long =====
+
+-- Only a creature can attack or block ([CR#506.3]), so a land has no
+-- grant for the deed to remove. The demand is the fight slots' shape
+-- over a DIFFERENT table: `combatant` answers a non-combat damage deed
+-- ([CR#701.14d]), `deedType` the combat grants themselves.
+failing "DeedParticipant"
+  badCantAttackLand : Effect []
+  badCantAttackLand = Cant (target land) Attack ThisTurn
+
+-- A coordinated head fixes no type (finding 50), and an untyped head
+-- cannot prove participation: "target creature or land" would have to
+-- carry the attack grant on an alternative that has none. The silence
+-- is not permission — `DamageableTy` learned the same lesson.
+failing "DeedParticipant"
+  badCantDisjunctSubject : Effect []
+  badCantDisjunctSubject = Cant (target (Or [creature, land])) Block ThisTurn
+
+-- Combat is fought on the battlefield: a permanent that leaves it is
+-- removed from combat ([CR#506.4]), so a graveyard card has no deed to
+-- be denied. The gate is the one destroy, tap, and "gets" already
+-- carry.
+failing "OnBattlefield"
+  badCantInGraveyard : Effect []
+  badCantInGraveyard =
+    Cant (target (And [creature, InZone GraveyardZ])) Block ThisTurn
+
+-- The class word names [CR#115.4]'s damage class, describes no object,
+-- and so places none — and the restriction needed no rule of its own to
+-- refuse it, the projection doing it through the battlefield demand
+-- exactly as for destroy and tap (`badDestroyAnyTarget`).
+failing "OnBattlefield"
+  badCantAnyTarget : Effect []
+  badCantAnyTarget = Cant (target AnyTarget) Block ThisTurn
+
+-- The same span, the wrong word. Two hundred ninety-six corpus lines
+-- write a one-shot restriction and every one of them says "this turn";
+-- "until end of turn" belongs to the grants, which invert the count
+-- (`badGainsThisTurn`).
+failing "RestrictionSpan"
+  badCantUntilEndOfTurn : Effect []
+  badCantUntilEndOfTurn = Cant (target creature) Block UntilEndOfTurn
+
+-- …and the inverse, which is what keeps the new word from opening a
+-- hole: no corpus line grants an ability "this turn".
+failing "GrantSpan"
+  badGainsThisTurn : Effect []
+  badGainsThisTurn = Gain (target creature) (KeywordAbility Flying) (Just ThisTurn)
+
+-- The stat change writes the grant's adverbial too — "Target creature
+-- gets +3/+3 until end of turn", never "this turn".
+failing "GrantSpan"
+  badGetsThisTurn : Effect []
+  badGetsThisTurn = Gets (target creature) 3 3 (Just ThisTurn)
+
+-- A durationless "can't" is the STATIC ability line ("Enchanted
+-- creature can't attack", Pacifism), which is a different construction
+-- and the parked ability layer's — so the refusal here is the ABSENT
+-- SLOT rather than a gate, the span not being optional. Pinned on the
+-- slot's own name, which is why it carries one.
+failing "span : Duration"
+  badStaticCant : Effect []
+  badStaticCant = Cant (target creature) Block

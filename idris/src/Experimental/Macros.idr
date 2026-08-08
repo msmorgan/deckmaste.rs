@@ -169,12 +169,14 @@ public export
 discardsACard : (agent : Noun bs Player) -> Effect bs
 discardsACard agent = discards agent (A (InZone HandZ))
 
--- "[n] gains haste [duration]"
+-- "[n] gains haste [duration]" — the duration slot is the grant's own
+-- adverbial, so the macro carries `GrantSpan` through to its caller.
 -- spelling: ["<Param(0)> gains haste"] (optional trailing duration), kind:
 -- Sentence (Gain n (KeywordAbility Haste) d -- see Keyword, Effect.Gain)
 public export
-gainsHaste : (n : Noun bs Object) -> Maybe Duration ->
-             {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
+gainsHaste : (n : Noun bs Object) -> (d : Maybe Duration) ->
+             {auto 0 ok : OnBattlefield (nounZone n)} ->
+             {auto 0 sp : GrantSpan d} -> Effect bs
 gainsHaste n d = Gain n (KeywordAbility Haste) d
 
 -- "[who] loses [amt] life"
