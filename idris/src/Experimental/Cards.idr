@@ -347,7 +347,7 @@ caseOfTheGatewayExpress = AndThen (Choose (Target creatureYouDontControl))
 
 -- "Cycling {2}" — "{2}, Discard this card: Draw a card." ([CR#702.29a];
 -- the {2} and the draw elided, the draw verb being unminted) — the
--- standing justification for `InHandZone`'s untracked row: bare `This`
+-- standing justification for `DiscardOk`'s bare-`This` row: bare `This`
 -- is the source as an OBJECT ("this card"), so it projects no zone,
 -- while the SORTED self-reference now denotes the permanent
 -- ([CR#109.2]) and cannot be discarded (`badDiscardThisCreature`).
@@ -613,7 +613,7 @@ failing "OnBattlefield"
 
 -- Discarding moves a card from a HAND [CR#701.9a]: a battlefield
 -- creature is not discardable.
-failing "InHandZone"
+failing "DiscardOk"
   badDiscardBattlefield : Effect []
   badDiscardBattlefield = discards You (A creature)
 
@@ -639,7 +639,7 @@ failing "NonAgentive"
 -- Discarding moves a hand card [CR#701.9a]: the demand rides the tag
 -- relation, so a battlefield "discard" is unspellable under Does too
 -- — and with it the forged stamp `TheVerbed Discard` would read.
-failing "InHandZone"
+failing "DiscardOk"
   badDoesDiscardBattlefield : Effect []
   badDoesDiscardBattlefield = Does You Discard (Move (A creature) GraveyardZ) {tb = DiscardB}
 
@@ -828,7 +828,7 @@ failing "AnyTargetFree"
 -- discarding moves a card from a HAND ([CR#701.9a]): "discard this
 -- creature" is unwritable — cycling's cost says "this card"
 -- (`cyclingCost`).
-failing "InHandZone"
+failing "DiscardOk"
   badDiscardThisCreature : Effect []
   badDiscardThisCreature = discards You (ThisOf Creature)
 
@@ -882,3 +882,20 @@ failing "OtherAnchored"
 failing "AnyTargetFree"
   badAnyTargetEmbedded : Noun [] Object
   badAnyTargetEmbedded = A (And [creature, ControlledBy (ControllerOf (Target AnyTarget))])
+
+-- The untracked exception belongs to the bare self-reference alone —
+-- it is not a free pass for every unplaced referent. A READ whose
+-- antecedent records no zone is not thereby a hand card ([CR#701.9a]
+-- moves one FROM a hand), which is precisely what the old zone-level
+-- gate could not distinguish. (Posed at a zoneless binding — the shape
+-- a singular object mention takes before anything places it.)
+failing "DiscardOk"
+  badDiscardIt : Effect [MkBinding AD Object OneOf (ObjectP Nothing Nothing Nothing)]
+  badDiscardIt = discards You It
+
+-- …and the class word is no hand card either: "any target" heads no
+-- zone clause, so the phrase carries the battlefield default
+-- ([CR#109.2]) and discard refuses it.
+failing "DiscardOk"
+  badDiscardAnyTarget : Effect []
+  badDiscardAnyTarget = discards You (Target AnyTarget)

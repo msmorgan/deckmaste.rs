@@ -459,8 +459,11 @@
 |||    object ("this spell", cycling's "Discard this card") — projects
 |||    nothing. Discarding the sorted form is thereby unwritable
 |||    ([CR#701.9a] moves a HAND card; `badDiscardThisCreature`), and
-|||    the cost that justifies the untracked hand row is cycling's own
-|||    ([CR#702.29a]; `cyclingCost`). The audit then closed the
+|||    the cost that justifies discard's bare-`This` row is cycling's
+|||    own ([CR#702.29a]; `cyclingCost`) — the row now sits on the NOUN
+|||    (`DiscardOk`), so it exempts that one word rather than every
+|||    referent whose zone happens to be untracked (`badDiscardIt`).
+|||    The audit then closed the
 |||    opposite permissive row for good: `OnBattlefield`'s untracked
 |||    constructor existed ONLY for the sorted self-reference, so
 |||    deleting it left the whole bench standing — every
@@ -1248,13 +1251,6 @@ tyOfVerbed v w (b :: bs) =
 public export
 countChoosers : Bindings -> Nat
 countChoosers bs = countOnes Player bs + countManys Player bs
-
-||| The hand half of discard's implicit restriction ([CR#701.9a] —
-||| a discard moves a card from a HAND): tracked-hand or untracked.
-public export
-data InHandZone : Maybe Zone -> Type where
-  UntrackedHand : InHandZone Nothing
-  FromHand : InHandZone (Just Hand)
 
 ||| The zone half of sacrifice's implicit restriction ([CR#701.21a] —
 ||| only a permanent can be sacrificed), and of every other
@@ -2260,6 +2256,21 @@ mutual
     -- the event (`delayedCtx`, [CR#603.7c,603.3d]).
     Delayed : (ev : EventQuery bs) -> Effect (delayedCtx ev) -> Effect bs
 
+  ||| The hand half of discard's implicit restriction, asked of the
+  ||| NOUN rather than of a zone ([CR#701.9a] — a discard moves a card
+  ||| from a hand). Two rows, and only two: the bare self-reference,
+  ||| which is the source as an OBJECT ("Discard this card") and so
+  ||| projects no zone at all — cycling's own cost is the whole
+  ||| justification for it ([CR#702.29a]; `cyclingCost`) — and any noun
+  ||| whose fold-state actually stands in a hand. An untracked zone no
+  ||| longer passes on its own strength: a READ that reaches an
+  ||| unplaced referent is not thereby a hand card (`badDiscardIt`),
+  ||| which is what the old zone-level spelling could not say.
+  public export
+  data DiscardOk : Noun bs Object -> Type where
+    DiscardThis : DiscardOk This
+    DiscardTracked : {auto 0 z : nounZone n = Just Hand} -> DiscardOk n
+
   ||| A keyword tag's legal expansion body ([CR#701.8a] family): the
   ||| tag and its move agree, so no term can pair a verb's deontic
   ||| identity with another verb's motion — and each tag demands its
@@ -2277,7 +2288,7 @@ mutual
     SacrificeB : {auto 0 z : OnBattlefield (nounZone n)} ->
                  TagBody Sacrifice (Move n GraveyardZ)
     ExileB : TagBody Exile (Move n ExileZ)
-    DiscardB : {auto 0 z : InHandZone (nounZone n)} ->
+    DiscardB : {auto 0 d : DiscardOk n} ->
                TagBody Discard (Move n GraveyardZ)
 
   ||| Verb agentivity, one table read by the rows it LACKS: an actor
@@ -2574,8 +2585,8 @@ sacrifice agent n = Does agent Sacrifice (Move n GraveyardZ) {tb = SacrificeB {z
 -- variant (`AAtRandom` — Pyromancy).
 public export
 discards : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
-           {auto 0 hz : InHandZone (nounZone n)} -> Effect bs
-discards agent n = Does agent Discard (Move n GraveyardZ) {tb = DiscardB {z = hz}}
+           {auto 0 dk : DiscardOk n} -> Effect bs
+discards agent n = Does agent Discard (Move n GraveyardZ) {tb = DiscardB {d = dk}}
 
 -- "[agent] discard(s) a card" — the common phrase, spelled sort-only
 -- (an owned-hand expansion needs a subject-read noun the vocabulary
