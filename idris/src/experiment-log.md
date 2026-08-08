@@ -2667,6 +2667,256 @@ Fearless Sparkmage, Crackle with Power, Sorrow's Path, Prey Upon).
    design and the two-target exchange stay recorded rather than
    cashed.
 
+## Chapter Twenty-Four — The Ordered Library
+
+Chapter twenty-four, where the hidden zone gets a grammar and the
+complement finally has something to subtract from (evidence: Impulse,
+Anticipate, Peek, Sylvan Scrying, Glimpse the Unthinkable, Grenzo,
+Dungeon Warden; and, for what the round measured rather than built,
+Ral's Outburst, Dark Bargain, Telling Time, Index, Ponder, Lay of the
+Land, Diabolic Tutor, Thought Scour).
+
+128. **The library's ORDER is the zone's and the position is the
+   placement's, and English writes them in two different phrases.** The
+   library lands as a fifth `Zone` row and nothing about its order lives
+   there: [CR#401.2] makes it "a single face-down pile" whose order
+   players may neither inspect nor change, and where a card sits in that
+   pile is what a PLACEMENT says, not what a zone sort records. So
+   `ZoneAt Library` is the zone whole — what a search looks through and
+   a shuffle randomizes — and `LibraryAt pos ord Bare` is a place in it,
+   and the bare zone is refused as a destination outright
+   (`badMoveToBareLibrary`): "put it into your library" names nowhere to
+   put it and oracle never writes it. That refusal is core's, arrived at
+   independently and stated in core's own words — `Destination` carries
+   `exclude(Library, Stack)` and its doc calls the exclusion "the Idris
+   `DestinationOk` gate", the anchored form being "the single canonical
+   spelling". The two words are the whole attested position vocabulary,
+   and they divide the labour asymmetrically: the TOP is the source word
+   (twelve hundred thirty-eight lines write "the top card/cards of your
+   library", seventy-one more another player's) and the BOTTOM is the
+   destination word (four hundred eighteen placements against ONE
+   source, Grenzo, Dungeon Warden's "the bottom card of your library").
+   Both rows exist because both are attested somewhere, and the count is
+   recorded so the one-line row is not mistaken for a measured family.
+129. **The order RIDER restates a rule in one form and overrides it in
+   the other, and it needs a plural because the rule does.**
+   [CR#401.4] answers the arrangement question before any card does: if
+   an effect puts "two or more cards in a specific position in a library
+   at the same time, the owner of those cards may arrange them in any
+   order". So "in any order" (two hundred thirty-seven lines) says what
+   would happen anyway and "in a random order" (three hundred
+   thirty-two) is the only rider that changes anything — which is why
+   the absent rider and the any-order rider mean the same thing and both
+   are written. The rule's own "two or more" is the gate: a singular
+   placement has no order to state, and English agrees exactly, "put it
+   on the bottom of your library in any order" being zero lines
+   (`badSingularOrderRider`). Two rows, and core has four — `SameOrder`
+   and a `ChosenOrder(Reference)` are real structures with zero English
+   lines behind them ("in the same order", "in an order of their
+   choice", both zero) — so `Arrangement` is a recorded NARROWING of
+   core in finding 126's sense, the second time a corpus measurement has
+   made this file's table smaller than the taxonomy's. The rider rides
+   the DESTINATION rather than the verb, because that is where English
+   writes it; what the verb owns is the agreement between the rider and
+   its patient's number. Core splits the same fact into a second verb
+   (`MoveGroup`) because its group term is a different sort; here
+   plurality is a property of the one patient slot, so no second row was
+   minted.
+130. **The slice describes a PLACE and not a card, and that silence is
+   the whole of this round's hidden-zone honesty.** `LibrarySlice`
+   projects no head type, and it is not a hedge: the cards are in a
+   hidden zone ([CR#400.2]) whose order and contents no player may
+   inspect ([CR#401.2]), so a phrase that picks them out by position has
+   said nothing about what they are. Every consequence follows from that
+   one answer with no gate of its own — the battlefield-demanding verbs
+   refuse the slice through the zone demand they already carried
+   (`badTapLibraryTop`), and a typed demonstrative has nothing to reach
+   afterwards (`badSliceTypeRead`, the sharp one: "Look at the top four
+   cards of your library" leaves no "those creatures" behind however
+   many creatures are up there). What DOES reach it is "those cards",
+   because a library is a card zone ([CR#108.2], `isCardZone`) — which
+   is Telling Time's own spelling ("Put one of those cards into your
+   hand", fifty-two lines) and the reason the type-blind word is the
+   only one. The grammar encodes what the sentence says about the pile,
+   and the sentence says where.
+131. **LOOK and REVEAL are one operation with two audiences, and the
+   audience is not a slot.** [CR#701.20a] has revealing "show that card
+   to all players"; [CR#701.20e] has looking follow "the same rules as
+   revealing a card, except that the card is shown only to the specified
+   player" — one operation, two audiences, and the specified player is
+   the clause's own subject. So the axis is a verb TAG and not an
+   audience slot: an audience slot would let the grammar write "reveal
+   it to target opponent", which oracle does not, while the verb carries
+   no second player at all. Core draws the line in the same place from
+   the other side, one `Reveal { what, to }` whose optional `to` its doc
+   says "names a player instead = 'look at'". Exposing MOVES nothing
+   ([CR#701.20b]), which is why the clause has no retag and why the
+   following placement has somewhere to move the cards FROM. The
+   complement is two things and measured: a card group (four hundred
+   forty-nine "look at the top N cards of your library" lines, two
+   hundred twenty at one card, ninety-five and ninety-nine for the
+   reveal) and a whole HAND, which is a ZONE rather than a group —
+   "reveals their hand" is a hundred twenty-eight lines and "reveal all
+   cards in your hand" is zero, so the zone phrase is the construction
+   and not an abbreviation of one. The hand exposure contributes
+   NOTHING outward, and that is measured too: every corpus line that
+   reads a revealed hand back reads it as a zone ("that player exiles a
+   card from IT", "you choose a card … from it"), which is a zone
+   anaphor this grammar has no word for, so the clause introduces its
+   possessor and refuses to invent a card group oracle never names.
+   Only the hand is exposable — a graveyard and the battlefield are
+   public already ([CR#400.2]) and a library is exposed by SLICE, never
+   whole (`badRevealWholeLibrary`, `badRevealGraveyard`).
+132. **The partition landed, and what unblocked it was the GROUP rather
+   than any counting.** Finding 111 split the complement family in two
+   and left the subtract-a-subset half blocked on a missing primitive: a
+   binding records plurality and determiner, neither of which carries
+   how many, so nothing could subtract one mention from another. That
+   diagnosis was right about MENTIONS and wrong about what "the rest"
+   needs. The chain that writes Impulse has three links and none of them
+   counts anything: a slice phrase ASSEMBLES one group, a partitive
+   TAKES members out of that group, and the complement is what the group
+   has left. So the gate asks for exactly that pair — one group mention,
+   and at least one part taken from it — and both halves earn a pin
+   (`badRestWithoutGroup`: nothing to be the rest of;
+   `badRestWithoutPart`: with nothing taken, "the rest" IS the group and
+   the sentence would have written "them"). The partitive needed a
+   determiner tag of its own (`PartD`) for one reason, and it is the
+   reason the gate could not have been written over `countManys`: "four
+   of them" is plural too, so a context after a counted partitive holds
+   two plural object mentions and only one of them is a group. What
+   chapter twenty-two refused STAYS refused, and it has its own pin
+   (`badRestOverTwoAnnouncements`): two separately announced targets are
+   two mentions and never a pair ([CR#601.2c], finding 127), so no
+   complement can subtract inside them and the binary fight's expansion
+   is no closer than it was. Impulse and Anticipate are the bench
+   witnesses, the reveal half is written beside them, and the counted
+   partitive has its own ("Exile four of them at random, then put the
+   rest on top of your library in any order").
+133. **The complement's own count was three families wearing one word,
+   and finding 111 had counted all three.** Six hundred forty-eight
+   corpus lines write "the rest", and they are not one thing. Nineteen
+   are the TEMPORAL idiom — "You have no maximum hand size for the rest
+   of the game", "goaded for the rest of the game" — which is not a
+   group complement at all and belongs to the duration vocabulary if
+   anywhere. Of the six hundred twenty-nine that remain, five hundred
+   ninety-nine name a LIBRARY, five hundred sixty of them writing the
+   assembling verb outright (a look at the top, a reveal of the top, an
+   exile from the top), and those are what this round opened. Of the
+   thirty that name no library, twenty-seven subtract from a set a
+   CHOICE or a pile separation fixed ("Each player chooses three
+   permanents they control, then sacrifices the rest"; "Target player
+   chooses a card in their hand and discards the rest"), which needs the
+   counted untargeted group and the agentful choice clause, both
+   ledgered; the last three subtract from another assembled group — the
+   cards exiled with a Saga among them — and each waits on the structure
+   that assembled it. So
+   finding 111's parenthetical claim that every "the rest" line is "a
+   library partition after a look or a reveal" is FALSE as stated and
+   right about the bulk: the correction is recorded here rather than
+   edited there, and the round opened five hundred ninety-nine lines'
+   worth of frame rather than six hundred forty-eight.
+134. **"The other" is the same complement with a singular remainder, and
+   THAT is what finding 111's counting blocker actually blocks.** Ral's
+   Outburst writes "Look at the top two cards of your library. Put one
+   of them into your hand and the other into your graveyard" and Dark
+   Bargain writes "Look at the top three cards of your library. Put two
+   of them into your hand and the other into your graveyard" — the same
+   three-link chain as Impulse, with the group one member larger than
+   what was taken. So the word is not a different relation; it is the
+   complement's SPELLING, chosen by the remainder's grammatical number,
+   which is the group's size minus the part's. That subtraction is the
+   arithmetic finding 111 said a binding cannot do, and locating it here
+   is the sharpening: the counting blocker does not block the complement
+   at all, it blocks the complement's WORD CHOICE. Of the hundred
+   sixty-one "the other" lines (word-bounded; the definite sweep's
+   hundred and ten counted a narrower pattern), sixty-six sit inside
+   parenthetical
+   reminder text (the fight gloss above all), and the group-internal
+   complements are about sixty-nine — sixty writing "the other into
+   [zone]" and nine "the other on [position]". Ledgered with the count
+   and with the one thing it needs, which is cardinality in the payload.
+135. **A mill introduces its group where a draw does not, and the RULES
+   say why rather than the corpus.** `Draw` was measured silent — no
+   corpus line reads a drawn card back — and the reason looked like an
+   accident of what cards happen to say. It is not. [CR#701.17c] lets an
+   effect that refers to a milled card "find that card in the zone it
+   moved to from the library, as long as that zone is a public zone",
+   which a graveyard is and a hand is not ([CR#400.2]); [CR#400.7j] says
+   the same thing generally. So the very rule that licenses the mill
+   read denies the draw one, and the corpus agrees exactly: sixty-one
+   lines read a milled group back and zero read a drawn card. `Mill` is
+   `Draw`'s twin in every other respect — its own row rather than a
+   `Composite` tag, because a mill moves a slice the sentence never
+   names and there is no patient phrase to wrap; the subject a slot for
+   the same reason ("Target player mills ten cards", a hundred eighteen
+   lines; "Each player mills", thirty-four). Its group carries no head
+   type, the same silence the slice keeps and for the same reason. What
+   is missing is not the mention but its READERS: the corpus reads it
+   with the among-restriction ("from among them", eighteen) and the
+   "this way" participle ("milled this way", forty-three), neither of
+   which this vocabulary spells, so the bench reads it with the plural
+   demonstrative instead. Glimpse the Unthinkable is the whole-card
+   witness.
+136. **A shuffle DESTROYS discourse, and it is the one visibility rule
+   the corpus forces into the machinery.** [CR#701.24a] randomizes a
+   library "so that no player knows their order" and [CR#701.20d] makes
+   any revealed card that gets reordered "stop being revealed and become
+   a new object". A mention still lying in the shuffled library is
+   therefore not there to be named, and `effIntro` drops exactly those
+   (`badReadAfterShuffle`). Mentions that LEFT the library first are
+   untouched — which is both what [CR#701.24b] says of the found cards
+   ("the found cards aren't included in the shuffle") and what every
+   search sentence in the corpus relies on, writing its placement before
+   its shuffle without exception. This is the visibility stance in its
+   entirety, and it is deliberately small: no information-set model, no
+   per-player knowledge, no exposure flag on the payload. What the
+   grammar encodes is what the SENTENCE does — a look, a reveal, a
+   public destination, a shuffle — and the one place a visibility
+   distinction changes what later text may honestly reference is where
+   it gets a mechanism.
+137. **The search's zone is on the VERB, so its description carries
+   none.** [CR#701.23a] gives the clause its three parts — "look at all
+   cards in that zone (even if it's a hidden zone) and find a card that
+   matches the given description" — and the row is those three: who
+   searches, which zone, what description. The description is a
+   PREDICATE rather than a noun phrase, and that is forced: written as a
+   noun, "a creature card" would seed the battlefield ([CR#109.2]) and
+   the clause would have to overwrite its own argument's projection, so
+   the clause mints the found mention itself and places it in the zone
+   it was found in. A description carrying its own zone answers the
+   question twice and is refused (`badSearchZonedDescription`,
+   `ZoneFree`). Which zones are searchable is measured and is exactly
+   the rule's own subject matter: the library (eight hundred twenty-five
+   lines), the graveyard (ninety-five), the hand (twenty-one), and
+   nothing public — "search the battlefield" is zero lines, because
+   there is nothing to find in a zone everyone can already read
+   (`badSearchBattlefield`). The REVEAL is a separate clause and not a
+   rider because [CR#701.23e] says so outright: "if the effect that
+   contains the search instruction doesn't also contain instructions to
+   reveal the found card(s), then they're not revealed" — the exposure
+   is written or it does not happen. Sylvan Scrying writes all four
+   clauses and is the bench's whole-card witness; the destination split
+   has its own positive. Two rules were read against the structure and
+   both belong outside it: [CR#701.23b]'s permission not to find in a
+   hidden zone and [CR#701.23d]'s obligation to find a bare quantity are
+   legality questions about a resolution choice, not ungrammatical
+   sentences, so they go to the legality layer beside [CR#601.2d]'s
+   division floor and [CR#701.14b]'s fight guard. The grammar encodes
+   the sentence; the fail-to-find rule encodes what a player may do with
+   it.
+138. **The set-to leaves no outcome behind, and finding 121 is the
+   reason.** `LifeOp` grows its third row — "life total becomes",
+   twenty-nine corpus lines, chapter twenty-two's ledgered
+   player-attribute set — and the interesting half is what it does NOT
+   contribute. The two deltas each leave an outcome mention ("that
+   much" reads a magnitude a clause produced), and a set-to leaves
+   none, because [CR#701.12c] is right that a set is realized as
+   "whichever of a gain or a loss gets there" and the direction depends
+   on where the total stood. The sentence does not say which, so the
+   clause records neither rather than guessing one — finding 121's
+   asymmetry, structural rather than argued.
+
 ## Engine-Boundary Deferrals
 
 Engine-boundary deferrals (deliberate, and to stay so): the
@@ -2728,13 +2978,23 @@ graveyard-introduced object, but [CR#109.4] gives off-battlefield
 objects no controller, and last-known information preserves only
 what existed ([CR#608.2h] is zone-general, not battlefield-only —
 the audit's correction), so the read wants zone/provenance
-evidence); the
-library zone and its ORDERED positions ("into its owner's library
-second from the top", "on the bottom of its owner's library" — a
-sequence structure no current zone carries, arriving with the
-draw cluster); miracle's reveal condition ("the first card you've
+evidence); [LANDED, findings 128–129 — the
+library zone and its ORDERED positions. The order turned out to be no
+part of the zone SORT at all: [CR#401.2] makes the pile ordered and
+[CR#401.4] makes a placement's arrangement a property of the placement,
+so `ZoneAt Library` is the zone whole and `LibraryAt pos ord Bare` is a
+place in it, with the bare library refused as a destination exactly as
+core's `exclude(Library)` refuses it. What is STILL shut is the ORDINAL
+offset — "into its owner's library second from the top" (ten lines) and
+"third from the top" (fourteen), [CR#401.7]'s own subject — which is a
+different PHRASE rather than a third position word, and wants an ordinal
+numeral vocabulary this file does not have; core spells all three with
+one indexed row (`Anchor = FromTop(Count) | FromBottom(Count)`)];
+miracle's reveal condition ("the first card you've
 drawn this turn" [CR#702.94a] — a turn-scoped draw-ordinal
-memory, same cluster); the up-to-one singular
+memory, and now shut on THAT rather than on the library, whose
+vocabulary chapter twenty-four supplied; the keyword wrapper is the
+other half); the up-to-one singular
 remention positive (Ty Lee, Chi Blocker — its second sentence is
 the UNTAP deed under a "for as long as" duration ([CR#611.2b]), so
 it waits on both, chapter fifteen's restriction clause having
@@ -2812,7 +3072,12 @@ retag); the player pronoun "they"
 (corpus-attested only inside trigger and unless clauses — Havoc,
 Tergrid's Lantern — so `They`'s positive waits on those
 constructions), player groups ("each opponent … they"
-distributives), and "the rest"; event-outcome residues (chapter
+distributives); [LANDED, findings 132–133 — "the rest", the
+subtract-a-subset half of finding 111. What unblocked it was the GROUP
+and not any counting: a slice phrase assembles one, a partitive takes
+members out of it, and the complement is what is left. Five hundred
+ninety-nine of the six hundred forty-eight lines are that frame; the
+other families are measured and stay shut]; event-outcome residues (chapter
 ten built the scalar "that much" read; "that many" count reads
 wait on their consumers — draw, tokens, counters are the
 corpus's big three — "this way" participant-subset participles
@@ -3087,6 +3352,50 @@ an object, which is written today as the last element's own
 `effIntro` and would have to be a built union instead (finding
 116); no corpus line writes a batch over zone-changing clauses,
 so the cell is measured-empty rather than guessed.
+
+Chapter twenty-four's own deferrals, each measured: the ORDINAL library
+offset (above, with the ordered positions); "THE OTHER" as the
+complement's singular spelling (about sixty-nine group-internal lines of
+a hundred sixty-one, sixty-six of the rest being parenthetical reminder
+text), which is the same relation as "the rest" under a remainder of one
+and wants the cardinality a binding does not carry — finding 111's
+counting blocker, now located precisely (finding 134); the
+AMONG-restriction ("You may reveal a creature card from among them and
+put it into your hand", three hundred six lines), which is a domain
+restriction on a description rather than a determiner over a group —
+core keeps it as `Selection::AmongNoted` over a recorded key expressly so
+that a "this way" anaphor does not re-evaluate a filter — and which is
+the OTHER route into a partition, the one three hundred and more "the
+rest" lines take; the "THIS WAY" participles ("revealed this way", a
+hundred twenty-three; "milled this way", forty-three), the `TheVerbed`
+cousin the ledger already calls the largest family, now with two more
+verbs wanting rows and with [CR#701.20a] and [CR#701.17c] supplying the
+reason they are legitimate reads where a drawn card's would not be;
+FACE-DOWN exile ("exile the top card of your library face down",
+ninety-three lines), a per-object status the move vocabulary has no rider
+for and which pairs with the object-status axis the stat deltas already
+owe; COUNTED search finds ("search your library for up to two basic land
+cards", a hundred six lines) and the type-free "search your library for a
+card" (ninety), waiting on counted untargeted groups and a card-headed
+predicate respectively; the AGENTFUL choice ("an opponent chooses two of
+them", and the thirty-two "chooses N …, then sacrifices the rest" lines
+with it), which is `Choose` with a subject slot it does not have
+(`badChooseSomeOf`); HAND-zone anaphora ("Target player reveals their
+hand, then you choose a card … from it", Lobotomy), a zone read with no
+word here, which is why the hand exposure contributes nothing outward;
+the arrangement rows core has and English does not (`SameOrder`,
+`ChosenOrder` — zero lines each, measured-empty rather than guessed); and
+the keyword MECHANICS whose definitions are library operations but whose
+packaging is the macro layer's. Scry is the sharp case and worth its
+count: [CR#701.22a] defines it as "look at the top N cards of your
+library, then put any number of them on the bottom of your library in
+any order and THE REST on top of your library in any order" — which is
+this chapter's vocabulary word for word, the unbounded partitive
+included. The expansion was compiled during this round to check that
+claim rather than assert it, and then removed: what is missing is the
+keyword WRAPPER and the reminder-text relation, not a single piece of
+library grammar. Surveil, discover, and miracle's reveal condition stand
+behind the same boundary.
 
 The context-as-phrase-telescope collapse (bindings storing
 the mention terms themselves, every projection computed) stays open as

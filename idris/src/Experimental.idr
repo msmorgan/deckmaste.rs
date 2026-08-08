@@ -381,13 +381,18 @@ public export
 -- `Determiner` hole (constructions/coordination.rs's shared_determiner_nominal)
 -- confirming the concept; TODO(reason: no single owning family name verified
 -- for the per-word constructions within this pass's scope))
-data Determiner = TargetD | AD | EachD | AllD | TheD
+data Determiner = TargetD | AD | EachD | AllD | TheD | PartD
 
 ||| Zone sorts, minimally ([CR#400.1] family) — the fold-state tag a
 ||| binding carries. Ownership is not stored here; it lives in the
-||| surface `ZoneExpr` where English writes it.
+||| surface `ZoneExpr` where English writes it. The library is the one
+||| ORDERED zone ([CR#401.2] — "a single face-down pile", whose order
+||| players may neither inspect nor change), and the order is no part of
+||| the SORT: it lives where English writes it, on the position phrase
+||| (`LibraryAt`), exactly as ownership does. Core makes the same split
+||| (`Zone::Library` beside `Destination::Library(Anchor)`).
 public export
-data Zone = Battlefield | Graveyard | Exile | Hand
+data Zone = Battlefield | Graveyard | Exile | Hand | Library
 
 ||| Zone equality, per-row: a new zone is a totality error on its
 ||| missing row, never a silent False.
@@ -401,6 +406,47 @@ sameZone Exile Exile = True
 sameZone Exile _ = False
 sameZone Hand Hand = True
 sameZone Hand _ = False
+sameZone Library Library = True
+sameZone Library _ = False
+
+||| A position IN the ordered library ([CR#401.2]) — the two words
+||| English writes bare, and the whole of the attested position
+||| vocabulary at offset zero: "on top of your library" (a hundred
+||| twenty-seven destination lines, "the top card/cards of" twelve
+||| hundred and more on the noun side) and "on the bottom of your
+||| library" (four hundred eighteen). Core spells the axis once, with an
+||| offset (`Anchor = FromTop(Count) | FromBottom(Count)`); English
+||| writes the offset with a DIFFERENT phrase — the ordinal "second from
+||| the top" (ten lines) and "third from the top" (fourteen), [CR#401.7]'s
+||| own subject — so it is not this table's third row but an ordinal
+||| vocabulary this file does not have (ledger).
+public export
+-- spelling: (construction-owned catalog -- each row is the position phrase
+-- LibraryAt writes over its zone word: OnTop = "on top of <scope> library",
+-- OnBottom = "on the bottom of <scope> library". Noun-side the same words
+-- lead the slice ("the top <n> cards of <scope> library"). Never spelled
+-- alone -- see LibraryAt and LibrarySlice)
+data LibPos = OnTop | OnBottom
+
+||| How a GROUP landing at a library position is arranged ([CR#401.4]):
+||| the two riders English writes, "in any order" (two hundred
+||| thirty-seven) and "in a random order" (three hundred thirty-two).
+||| Core carries four (`Arrangement`, adding `SameOrder` and a
+||| `ChosenOrder(Reference)`); English writes neither — "in the same
+||| order" and "in an order of their choice" are zero lines each — so
+||| this is a recorded NARROWING of core, `DividedVerb`'s discipline
+||| (finding 126) applied to the order rider.
+|||
+||| The rider is not a default made explicit. [CR#401.4] already gives
+||| the cards' owner the arrangement ("may arrange them in any order"),
+||| so "in any order" RESTATES the rule and only "in a random order"
+||| overrides it — which is why the absent rider and the any-order rider
+||| mean the same thing and both are written.
+public export
+-- spelling: (construction-owned catalog -- each row is the trailing adverbial
+-- on a library placement: AnyOrder = "in any order", RandomOrder = "in a
+-- random order". Never spelled alone -- see LibraryAt)
+data Arrangement = AnyOrder | RandomOrder
 
 ||| Keyword-action tags ([CR#701]) — core's `Composite` verb names.
 ||| `Destroy` and `Discard` mirror `plugins/builtin/macros/action/`;
@@ -537,6 +583,54 @@ countManys k (MkBinding _ k' ManyOf _ :: bs) =
   if sameKind k k' then S (countManys k bs) else countManys k bs
 countManys k (_ :: bs) = countManys k bs
 
+||| GROUP mentions of objects, counted — `countManys` minus the parts.
+||| A partitive ("two of them") is plural and is NOT a group the
+||| sentence may subtract from: it is what was subtracted. The
+||| complement's presupposition counts the groups only, which is why it
+||| cannot be `countManys` and why the partitive needed a determiner tag
+||| of its own.
+public export
+countGroups : Bindings -> Nat
+countGroups [] = Z
+countGroups (MkBinding PartD _ _ _ :: bs) = countGroups bs
+countGroups (MkBinding _ Object ManyOf _ :: bs) = S (countGroups bs)
+countGroups (_ :: bs) = countGroups bs
+
+||| Parts TAKEN from a group, counted — object mentions the partitive
+||| determiner announced.
+public export
+countParts : Bindings -> Nat
+countParts [] = Z
+countParts (MkBinding PartD Object _ _ :: bs) = S (countParts bs)
+countParts (_ :: bs) = countParts bs
+
+||| What "the rest" presupposes: one assembled group, and at least one
+||| part taken out of it. Both halves are the phrase's own meaning —
+||| with no group there is nothing to be the rest OF, and with nothing
+||| taken "the rest" is the whole group and the sentence would have
+||| written "them".
+public export
+theRestOk : Bindings -> Bool
+theRestOk bs = eqNat (countGroups bs) 1 && not (eqNat (countParts bs) Z)
+
+||| The zone of the unique group mention — what a complement read
+||| inherits, the group's own place ([CR#701.20b]: exposing a card does
+||| not move it, so a looked-at library slice is still in the library).
+public export
+zoneOfGroup : Bindings -> Maybe Zone
+zoneOfGroup [] = Nothing
+zoneOfGroup (MkBinding PartD _ _ _ :: bs) = zoneOfGroup bs
+zoneOfGroup (MkBinding _ Object ManyOf (ObjectP _ zn _) :: bs) = zn
+zoneOfGroup (_ :: bs) = zoneOfGroup bs
+
+||| …and its projected head type, by the same walk.
+public export
+tyOfGroup : Bindings -> Maybe CardType
+tyOfGroup [] = Nothing
+tyOfGroup (MkBinding PartD _ _ _ :: bs) = tyOfGroup bs
+tyOfGroup (MkBinding _ Object ManyOf (ObjectP ty _ _) :: bs) = ty
+tyOfGroup (_ :: bs) = tyOfGroup bs
+
 ||| Is any target-determined mention of this kind in scope? — the
 ||| presupposition of the modifier "other" ([CR#115.4]), stated entirely
 ||| in target vocabulary.
@@ -612,6 +706,66 @@ publicZone Battlefield = True
 publicZone Graveyard = True
 publicZone Exile = True
 publicZone Hand = False
+publicZone Library = False
+
+||| WHICH way an exposure clause shows a card, and it is the whole of
+||| the axis: [CR#701.20a] has revealing "show that card to all
+||| players", and [CR#701.20e] has looking follow "the same rules as
+||| revealing a card, except that the card is shown only to the
+||| specified player". So one operation, two audiences, and the
+||| specified player is the clause's own subject — which is why the
+||| audience is not a slot: "look at" says the looker sees it and
+||| "reveal" says everyone does, and no card writes a third answer.
+|||
+||| Core draws the line in the same place from the other side, with one
+||| `Reveal { what, to }` whose optional `to` "names a player instead =
+||| 'look at'" (`deckmaste_core/src/action.rs`). A tag here rather than
+||| an optional player, because English chooses a VERB and the verb
+||| carries no second player: an audience slot would let the grammar
+||| write "reveal it to target opponent", which oracle does not.
+public export
+-- spelling: (construction-owned catalog -- each row is the exposure clause's
+-- own verb: LookAt = "<subject> look(s) at <what>", Reveal = "<subject>
+-- reveal(s) <what>". Never spelled alone -- see Expose)
+data ExposeVerb = LookAt | Reveal
+
+||| Which zones English EXPOSES whole. Only the hand: a graveyard, the
+||| battlefield, and exile are public already ([CR#400.2]), so revealing
+||| one says nothing and no line does it; a library is hidden but too
+||| big to show, and "reveal your library" is zero lines — what oracle
+||| exposes of a library is a positioned SLICE, which is the card
+||| complement and not this row. Full rows, so a new zone declares
+||| whether it can be shown whole.
+public export
+exposableZone : Zone -> Bool
+exposableZone Hand = True
+exposableZone Battlefield = False
+exposableZone Graveyard = False
+exposableZone Exile = False
+exposableZone Library = False
+
+public export
+data ExposableZone : Zone -> Type where
+  MkExposableZone : {auto 0 ok : exposableZone z = True} -> ExposableZone z
+
+||| Which zones English SEARCHES. [CR#701.23a] defines the action over
+||| any zone and says the hidden ones expressly ("even if it's a hidden
+||| zone"), and the corpus writes three: the library (eight hundred
+||| twenty-five lines), the graveyard (ninety-five), and the hand
+||| (twenty-one) — two of them hidden, which is the case the rule calls
+||| out, and one public. The battlefield and exile are zero lines each — there is nothing
+||| to search for in a zone everyone can already read. Full rows.
+public export
+searchableZone : Zone -> Bool
+searchableZone Library = True
+searchableZone Graveyard = True
+searchableZone Hand = True
+searchableZone Battlefield = False
+searchableZone Exile = False
+
+public export
+data SearchableZone : Zone -> Type where
+  MkSearchableZone : {auto 0 ok : searchableZone z = True} -> SearchableZone z
 
 ||| Colon-readability of one mention: tracked objects by zone
 ||| visibility; players, qualities, and untracked objects pass —
@@ -633,6 +787,29 @@ public export
 publicOnly : Bindings -> Bindings
 publicOnly [] = []
 publicOnly (b :: bs) = if pubB b then b :: publicOnly bs else publicOnly bs
+
+||| A shuffle's filter: a mention still lying in the shuffled library is
+||| gone from the discourse. [CR#701.24a] leaves the order known to no
+||| player and [CR#701.20d] makes any revealed card that was reordered
+||| "stop being revealed and become a new object" — so what the sentence
+||| could name a moment ago is not there to be named. Mentions that
+||| LEFT the library first are untouched, which is both what [CR#701.24b]
+||| says of the found cards and what every search sentence relies on.
+||| The filter keys on the CURRENT zone, `publicOnly`'s discipline
+||| applied to a different question.
+public export
+notInLibrary : Binding -> Bool
+notInLibrary (MkBinding _ _ _ (ObjectP _ (Just z) _)) = not (sameZone z Library)
+notInLibrary (MkBinding _ _ _ (ObjectP _ Nothing _)) = True
+notInLibrary (MkBinding _ _ _ PlayerP) = True
+notInLibrary (MkBinding _ _ _ QualityP) = True
+notInLibrary (MkBinding _ _ _ (OutcomeP _)) = True
+
+public export
+shuffledAway : Bindings -> Bindings
+shuffledAway [] = []
+shuffledAway (b :: bs) =
+  if notInLibrary b then b :: shuffledAway bs else shuffledAway bs
 
 ||| The current zone of the wildcard pronoun's referent — the unique
 ||| singular object mention (uniqueness is `It`'s own gate).
@@ -676,6 +853,7 @@ isCardZone (Just Battlefield) = False
 isCardZone (Just Graveyard) = True
 isCardZone (Just Exile) = True
 isCardZone (Just Hand) = True
+isCardZone (Just Library) = True
 
 ||| Currently on the battlefield, strictly — the typed noun's
 ||| demonstrative demand ([CR#110.1]); untracked does not qualify.
@@ -686,6 +864,7 @@ onFieldZone (Just Battlefield) = True
 onFieldZone (Just Graveyard) = False
 onFieldZone (Just Exile) = False
 onFieldZone (Just Hand) = False
+onFieldZone (Just Library) = False
 
 ||| Build the stamp a retag writes: the moving verb's tag (if any)
 ||| plus whether the referent stood on the battlefield BEFORE the
@@ -1753,13 +1932,15 @@ data ChoiceMode : Bindings -> Type where
 ||| zones are shared by all players." So "your hand" and "an
 ||| opponent's graveyard" are phrases and "your battlefield" is not,
 ||| and the reason is a fact about the ZONE rather than about the
-||| phrase that names it. The library will take its row when the
-||| library lands; the shared zones can never take one, and a new
-||| shared zone declares its absence by having no row to write.
+||| phrase that names it. The library takes the row the rule names it in
+||| ("your library", eight hundred twenty-five search lines alone); the
+||| shared zones can never take one, and a new shared zone declares its
+||| absence by having no row to write.
 public export
 data Possessable : Zone -> Type where
   HandIsOwned : Possessable Hand
   GraveyardIsOwned : Possessable Graveyard
+  LibraryIsOwned : Possessable Library
 
 mutual
   ||| Whether a zone phrase writes a possessor, and who: the two axes
@@ -1803,13 +1984,40 @@ mutual
     -- possessive its scope writes; the macros own the six surfaces --
     -- see Experimental.Macros), kind: Nominal
     ZoneAt : (z : Zone) -> ZoneScope bs z -> ZoneExpr bs
+    -- the library AT a position ([CR#401.2] — the one ordered zone), with
+    -- the order rider a plural arrival takes ([CR#401.4]). A separate row
+    -- rather than a `Maybe LibPos` on `ZoneAt`, and for core's own reason:
+    -- a bare library is not a destination at all (`DestOk` has no row for
+    -- `ZoneAt Library _`, which is core's `exclude(Library)` on
+    -- `Destination` exactly), so the positioned form is the SINGLE
+    -- canonical spelling and the two could never denote the same thing.
+    -- `ZoneAt Library` remains the zone as a WHOLE — what a search looks
+    -- through and a shuffle randomizes — and that is a different phrase,
+    -- not a second spelling of a destination.
+    -- spelling: (construction-owned -- "on top of <scope> library" /
+    -- "on the bottom of <scope> library", plus the order rider when
+    -- present: "… in any order" / "… in a random order"; the macros own
+    -- the surfaces -- see Experimental.Macros), kind: Nominal
+    LibraryAt : (pos : LibPos) -> (ord : Maybe Arrangement) ->
+                ZoneScope bs Library -> ZoneExpr bs
 
   ||| The sort a zone expression names — what fold-state records. The
   ||| scope is no part of it: whose hand a card is in does not change
-  ||| that it is in a hand.
+  ||| that it is in a hand. Nor is the POSITION: a card put on the bottom
+  ||| of a library is in a library.
   public export
   zoneSort : ZoneExpr bs -> Zone
   zoneSort (ZoneAt z _) = z
+  zoneSort (LibraryAt _ _ _) = Library
+
+  ||| The order rider a zone phrase writes, if it can carry one — the
+  ||| ordered library's alone ([CR#401.4] speaks of a POSITION in a
+  ||| library and nothing else). What `Move` consults to ask its patient
+  ||| for a plural.
+  public export
+  zoneArrangement : ZoneExpr bs -> Maybe Arrangement
+  zoneArrangement (ZoneAt _ _) = Nothing
+  zoneArrangement (LibraryAt _ ord _) = ord
 
   ||| An object/player criteria set — the noun phrase's modifier list,
   ||| FLAT: head noun and relative clauses are sibling constraints on one
@@ -2971,6 +3179,15 @@ mutual
   data AnyTargetFree : Predicate bs k -> Type where
     MkAnyTargetFree : {auto 0 ok : anyTargetFree p = True} -> AnyTargetFree p
 
+  ||| A description that names no ZONE of its own — what a clause
+  ||| supplying the place demands of the phrase it places. The search is
+  ||| the one such clause today ([CR#701.23a] puts the zone on the verb),
+  ||| and a description carrying its own would answer the question twice
+  ||| (`badSearchZonedDescription`).
+  public export
+  data ZoneFree : Predicate bs k -> Type where
+    MkZoneFree : {auto 0 ok : seedZone p = Nothing} -> ZoneFree p
+
   ||| May a counted target mention spell the class word? The answer is
   ||| the QUANTITY's, not the determiner's, and the line it draws is a
   ||| MINIMUM rather than a maximum. [CR#115.4] names "any target,"
@@ -3157,6 +3374,73 @@ mutual
     EachOf : (grp : Noun bs k) ->
              {auto 0 pl : nounPlur grp = ManyOf} ->
              {auto 0 gm : GroupMention grp} -> Noun bs k
+    -- "the top [n] card(s) of [whose] library" — the POSITIONED SLICE, a
+    -- definite description whose members are fixed by where they lie
+    -- rather than by what they are ([CR#401.2]: a library is a single
+    -- face-down pile, so a position picks out cards and says nothing
+    -- about them). Twelve hundred and more corpus lines write the top
+    -- slice ("the top card of your library", five hundred thirty-nine;
+    -- "the top <n> cards of your library", six hundred ninety-nine;
+    -- seventy-one more over another player's), against ONE for the
+    -- bottom (Grenzo, Dungeon Warden's "the bottom card of your
+    -- library") — an asymmetry worth stating, because the bottom is the
+    -- dominant DESTINATION (four hundred eighteen lines) and almost
+    -- never a source.
+    -- It projects NO card type, and that is the honesty this row exists
+    -- to keep: the cards are in a hidden zone ([CR#400.2]) whose order
+    -- and contents no player may inspect ([CR#401.2]), so the phrase
+    -- describes a place and the grammar may not pretend to know what is
+    -- there. Every type-demanding verb refuses it for free as a result,
+    -- and the zone demand refuses it twice over (`badTapLibraryTop`).
+    -- The count is the ordinary magnitude vocabulary: "the top card" is
+    -- `Lit 1`, "the top four cards" a `Lit`, "the top X cards of your
+    -- library" (eighty-three lines) is `XVal`.
+    -- spelling: ["the <Param(0)> <Param(1)> card(s) of <Param(2)>'s library"]
+    -- (Param(0) = LibPos's own word "top"/"bottom"; the noun "card"
+    -- pluralises with the count, and at one the numeral is unwritten --
+    -- "the top card", never "the top one card"), kind: Nominal
+    LibrarySlice : (pos : LibPos) -> (amt : Amount bs) ->
+                   (whose : Noun bs Player) ->
+                   {auto 0 one : nounPlur whose = OneOf} ->
+                   {auto 0 wc : WrittenCount amt} -> Noun bs Object
+    -- "[q] of [group]" — the PARTITIVE determiner: a selection of some
+    -- members out of a group mention already made ("Put one of them into
+    -- your hand", sixty-one lines; "one of them" a hundred thirty-five,
+    -- "two of them" twenty-five, "up to one of them" three). It is
+    -- `EachOf`'s sibling and its opposite in the one way that matters:
+    -- the distributive reaches every member and announces nothing, this
+    -- one PICKS members and so announces the mention it picked — which
+    -- is what makes the complement beside it ("the rest") a subtraction
+    -- with something to subtract.
+    -- It inherits the group's head type and zone, because a part of a
+    -- group is in the group's place and answers the group's description;
+    -- what it does not inherit is the group's number, which is its own
+    -- quantity's (`quantPlur`).
+    -- spelling: ["<Param(0)> of <Param(1)>"] (Param(0) = the Quantity's own
+    -- numeral or bound, e.g. "one", "two", "up to one"), kind: Nominal
+    SomeOf : (q : Quantity) -> (grp : Noun bs Object) ->
+             {auto 0 gm : GroupMention grp} ->
+             {auto 0 nz : NonZeroQ q} ->
+             {auto 0 wf : WellFormedQ q} -> Noun bs Object
+    -- "the rest": the group COMPLEMENT — the members of an assembled
+    -- group that the preceding instruction did not take. Six hundred
+    -- twenty-nine corpus lines write it as a complement (a further
+    -- nineteen write the unrelated temporal idiom "for the rest of the
+    -- game"), and five hundred ninety-nine of those subtract from a
+    -- library slice a look or a reveal or an exile-from-the-top
+    -- assembled.
+    -- This is finding 111's subtract-a-subset half, and what unblocks it
+    -- is not new counting machinery but the GROUP: chapter twenty-two
+    -- could not subtract one announced target from another because two
+    -- "target" instances are two mentions and never a pair
+    -- ([CR#601.2c], finding 127), while a slice phrase names one group
+    -- whose members a partitive then divides. So the gate asks for
+    -- exactly that pair — one group mention, and at least one part taken
+    -- from it (`theRestOk`; `badRestWithoutGroup`, `badRestWithoutPart`).
+    -- The pair complement over never-assembled mentions stays refused,
+    -- and the fight expansion with it.
+    -- spelling: ["the rest"], kind: Nominal
+    TheRest : {auto 0 ok : theRestOk bs = True} -> Noun bs Object
     -- "it" / "its": the wildcard pronoun — exactly one singular Object
     -- mention may precede. Zero = unbound, two = ambiguous; both
     -- unspellable.
@@ -3229,6 +3513,9 @@ mutual
   nounEqRef (TargetGroup _ _) _ = False
   nounEqRef (AllOf _) _ = False
   nounEqRef (EachOf _) _ = False
+  nounEqRef (LibrarySlice _ _ _) _ = False
+  nounEqRef (SomeOf _ _) _ = False
+  nounEqRef TheRest _ = False
   nounEqRef It It = True
   nounEqRef It _ = False
   nounEqRef They They = True
@@ -3255,6 +3542,9 @@ mutual
   nounAnyTargetFree (TargetGroup _ p) = anyTargetFree p
   nounAnyTargetFree (AllOf p) = anyTargetFree p
   nounAnyTargetFree (EachOf grp) = nounAnyTargetFree grp
+  nounAnyTargetFree (LibrarySlice _ _ whose) = nounAnyTargetFree whose
+  nounAnyTargetFree (SomeOf _ grp) = nounAnyTargetFree grp
+  nounAnyTargetFree TheRest = True
   nounAnyTargetFree It = True
   nounAnyTargetFree They = True
   nounAnyTargetFree Them = True
@@ -3270,18 +3560,54 @@ mutual
   zoneAnyTargetFree : {0 bs : Bindings} -> ZoneExpr bs -> Bool
   zoneAnyTargetFree (ZoneAt z Bare) = True
   zoneAnyTargetFree (ZoneAt z (OwnedBy n)) = nounAnyTargetFree n
+  zoneAnyTargetFree (LibraryAt _ _ Bare) = True
+  zoneAnyTargetFree (LibraryAt _ _ (OwnedBy n)) = nounAnyTargetFree n
 
   ||| Destination legality for the move primitive ([CR#400.3] — cards
   ||| enter only their owner's hand/library/graveyard, so an owned
   ||| destination naming an arbitrary player is unwritable, and the
   ||| bare zone IS the owner-rooted destination; the possessive is
   ||| rendering's business, finding 34).
+  |||
+  ||| The LIBRARY row is the position phrase and never the bare zone: a
+  ||| library is ordered ([CR#401.2]), so "put it into your library"
+  ||| names no place to put it and oracle never writes it — every one of
+  ||| the corpus's library placements spells a position ("on top of your
+  ||| library", a hundred twenty-seven; "on the bottom of your library",
+  ||| four hundred eighteen; the ordinal "third from the top", the
+  ||| ledger's). `ZoneAt Library _` therefore has no row at all
+  ||| (`badMoveToBareLibrary`), which is core's `exclude(Library)` on
+  ||| `Destination` and, in core's own words, "the Idris `DestinationOk`
+  ||| gate". The position takes the bare scope like every other
+  ||| destination, [CR#400.3] routing the card to its owner's library
+  ||| whatever the sentence's possessive says (finding 34).
   public export
   data DestOk : ZoneExpr bs -> Type where
     BattlefieldOk : DestOk (ZoneAt Battlefield Bare)
     ExileOk : DestOk (ZoneAt Exile Bare)
     HandOkBare : DestOk (ZoneAt Hand Bare)
     GraveyardOkBare : DestOk (ZoneAt Graveyard Bare)
+    LibraryPosOk : DestOk (LibraryAt pos arrg Bare)
+
+  ||| May THIS patient take THIS destination's order rider? [CR#401.4]
+  ||| asks the question and answers it: an arrangement exists only when
+  ||| an effect "puts TWO OR MORE cards in a specific position in a
+  ||| library at the same time", so a singular placement has no order to
+  ||| state. English agrees exactly — "in any order" and "in a random
+  ||| order" appear after a plural patient every time they appear, and
+  ||| after a singular one ("put it on the bottom of your library in any
+  ||| order") zero times (`badSingularOrderRider`). The absent rider is
+  ||| legal at either number: it is [CR#401.4]'s own default for a group
+  ||| and vacuous for a single card.
+  public export
+  orderOk : {0 bs : Bindings} -> Plurality -> ZoneExpr bs -> Bool
+  orderOk pl z = case zoneArrangement z of
+                   Nothing => True
+                   Just _ => not (isOne pl)
+
+  public export
+  data ArrangementOk : {0 bs : Bindings} -> Plurality -> ZoneExpr bs -> Type where
+    MkArrangementOk : {auto 0 ok : orderOk pl z = True} -> ArrangementOk pl z
 
   ||| The bindings a noun phrase prepends to the discourse — its own
   ||| head first (determined mentions bind, reads don't), then the
@@ -3302,6 +3628,20 @@ mutual
   -- binding and no second one ([CR#601.2c] announced the targets when
   -- the group was written; the word "each" adds no mention).
   nounDelta (EachOf grp) = nounDelta grp
+  -- the slice is a DEFINITE description that binds: it names cards the
+  -- following sentence reads back ("Look at the top four cards of your
+  -- library. Put one of them …"), and the possessor folds out with it as
+  -- every relative clause's does. The payload carries the library and NO
+  -- head type -- see the constructor.
+  nounDelta (LibrarySlice pos amt whose {wc}) =
+    MkBinding TheD Object (amtPlur amt) (ObjectP Nothing (Just Library) Nothing)
+      :: nounDelta whose
+  -- the partitive announces the part it picked, inheriting the group's
+  -- place and description and taking its number from its own quantity.
+  nounDelta (SomeOf q grp) =
+    MkBinding PartD Object (quantPlur q) (ObjectP (nounTy grp) (nounZone grp) Nothing)
+      :: nounDelta grp
+  nounDelta TheRest = []
   nounDelta It = []
   nounDelta They = []
   nounDelta Them = []
@@ -3340,6 +3680,8 @@ mutual
   zoneDelta : {bs : Bindings} -> ZoneExpr bs -> List Binding
   zoneDelta (ZoneAt z (OwnedBy n)) = nounDelta n
   zoneDelta (ZoneAt z Bare) = []
+  zoneDelta (LibraryAt _ _ (OwnedBy n)) = nounDelta n
+  zoneDelta (LibraryAt _ _ Bare) = []
 
   ||| What a noun contributes to the discourse that follows it.
   public export
@@ -3522,7 +3864,22 @@ mutual
   boundEq XVal XVal = True
   boundEq _ _ = False
 
-  ||| Life-total change operands ([CR#119.3]; `Set` is a later chapter).
+  ||| Life-total change operands ([CR#119.3]), and the SET-TO beside the
+  ||| two deltas. The third row is chapter twenty-two's ledgered
+  ||| player-attribute set arriving: twenty-nine corpus lines write "life
+  ||| total becomes" ("Your life total becomes 10", "Target player's life
+  ||| total becomes 1", "Each player's life total becomes 7"), and it is
+  ||| the operand the life EXCHANGE would need — [CR#701.12c] has each
+  ||| player "gain or lose the amount of life necessary to equal the
+  ||| other player's previous life total", which is a set realized as
+  ||| whichever direction reaches it (finding 121).
+  |||
+  ||| That is also why the set contributes no OUTCOME mention where the
+  ||| deltas each contribute one: "that much" reads a magnitude a clause
+  ||| produced, and a set-to produces a gain for one player and a loss
+  ||| for another depending on where their total stood. The sort is not
+  ||| knowable from the sentence, so the clause writes none rather than
+  ||| guessing — finding 121's asymmetry, structural.
   public export
   data LifeOp : Bindings -> Type where
     -- spelling: (construction-owned -- selects ChangeLife's verb "gains",
@@ -3532,11 +3889,16 @@ mutual
     -- spelling: (construction-owned -- selects ChangeLife's verb "loses";
     -- the `LosesLife`/Down counterpart per the GainLife comment above)
     Down : Amount bs -> LifeOp bs   -- "loses [amt] life"
+    -- spelling: (construction-owned -- selects ChangeLife's copula frame,
+    -- "<Param(0)>'s life total becomes <Param(1)>"; core keeps the set
+    -- beside the deltas likewise)
+    Set : Amount bs -> LifeOp bs    -- "[whose] life total becomes [amt]"
 
   public export
   lifeIntro : {bs : Bindings} -> LifeOp bs -> Bindings
   lifeIntro (Up a) = amtIntro a
   lifeIntro (Down a) = amtIntro a
+  lifeIntro (Set a) = amtIntro a
 
   ||| What a delayed clause waits for — time queries introduce nothing;
   ||| an object-event query names its watched referent ("when target
@@ -3642,6 +4004,14 @@ mutual
   choosable (TargetGroup _ _) = True
   choosable (AllOf _) = False
   choosable (EachOf _) = False
+  choosable (LibrarySlice _ _ _) = False
+  -- a partitive IS a selection out of a set, and the corpus writes it as
+  -- one -- but always with the chooser named ("an opponent chooses two of
+  -- them"), and `Choose` has no agent slot to name one. Admitting it here
+  -- would spell an agentless "Choose two of them" the corpus does not
+  -- write (`badChooseSomeOf`); the agentful choice clause is ledgered.
+  choosable (SomeOf _ _) = False
+  choosable TheRest = False
   choosable It = False
   choosable They = False
   choosable Them = False
@@ -3689,6 +4059,14 @@ mutual
   groupMention (Indefinite _ _) = False
   groupMention (AllOf _) = False
   groupMention (EachOf _) = False
+  -- the slice is THE assembled group this chapter is about: a look or a
+  -- reveal over it is what lets the next sentence reach its members.
+  groupMention (LibrarySlice _ _ _) = True
+  -- a part is not a group to reach into: "each of two of them" and "the
+  -- rest of two of them" are zero lines each.
+  groupMention (SomeOf _ _) = False
+  -- nor is the complement: "each of the rest" is zero lines.
+  groupMention TheRest = False
   groupMention It = False
   groupMention They = False
   groupMention (That _) = False
@@ -4274,6 +4652,42 @@ mutual
     CountersDistributed : {auto 0 zn : OnBattlefield (nounZone n)} ->
                           DividedTakes DivCounters {k = Object} n
 
+  ||| WHAT an exposure clause exposes — the two complements English
+  ||| writes after "look at" and "reveal", measured rather than guessed.
+  ||| A card GROUP is the dominant one and the one this chapter is built
+  ||| around ("look at the top card of your library", two hundred twenty;
+  ||| "look at the top <n> cards of your library", four hundred
+  ||| forty-nine; "reveal the top card", ninety-nine; "reveal the top
+  ||| <n> cards", ninety-five). A whole HAND is the other, and it is a
+  ||| zone rather than a group of cards: "reveals their hand" (a hundred
+  ||| twenty-eight), "look at target player's hand" and its opponent
+  ||| twin (twelve and eleven),
+  ||| "reveal your hand" (seven). Oracle never spells that one out as a
+  ||| group — "reveal all cards in your hand" is zero lines — so the
+  ||| zone phrase is the construction and not an abbreviation of one.
+  public export
+  data Exposed : Bindings -> Type where
+    -- spelling: ["<Param(0)>"] (the card phrase itself, e.g. "the top four
+    -- cards of your library"), kind: Nominal
+    ExposedCards : (n : Noun bs Object) -> Exposed bs
+    -- spelling: ["<Param(0)>"] (the zone phrase under its possessive, e.g.
+    -- "their hand", "target player's hand"), kind: Nominal
+    ExposedZone : (z : ZoneExpr bs) ->
+                  {auto 0 ok : ExposableZone (zoneSort z)} -> Exposed bs
+
+  ||| What an exposure contributes to the discourse. The card group is a
+  ||| mention like any other and the whole point of the clause. The
+  ||| HAND is a hole, and measured: every corpus line that reads a
+  ||| revealed hand back reads it as a ZONE ("that player exiles a card
+  ||| from IT", "you choose a card … from it"), which is a zone anaphor
+  ||| this grammar has no word for — so the clause contributes its
+  ||| possessor and nothing else, rather than inventing a card group
+  ||| oracle never names (ledger).
+  public export
+  exposedIntro : {bs : Bindings} -> Exposed bs -> Bindings
+  exposedIntro (ExposedCards n) = nomIntro n
+  exposedIntro (ExposedZone z) = zoneDelta z ++ bs
+
   ||| Clauses. Constructor argument order IS textual order, and each
   ||| argument is typed in the context its predecessors built — the
   ||| telescope is the whole term, not a special clause-list feature.
@@ -4345,8 +4759,18 @@ mutual
     -- English word of its own. Spelled only through its wrapping verb tag:
     -- Composite Destroy/Sacrifice/Exile or Does _ Discard, e.g. Destroy's
     -- own "destroy <Param(0)>" per action/Destroy.ron)
+    -- The ORDER rider rides the destination and not this verb, because
+    -- English writes it there ("on the bottom of your library in a random
+    -- order" is one adverbial phrase after another on the same
+    -- placement); what the verb owns is the agreement between the rider
+    -- and its patient's number (`ArrangementOk`, [CR#401.4]). Core splits
+    -- the same fact into a second verb (`MoveGroup { group, arrangement,
+    -- to }`) because its group term is a different sort; here plurality
+    -- is a property of the one patient slot, so no second row is needed
+    -- and none is minted.
     Move : (what : Noun bs Object) -> (to : ZoneExpr (nomIntro what)) ->
-           {auto 0 ok : DestOk to} -> Effect bs
+           {auto 0 ok : DestOk to} ->
+           {auto 0 arr : ArrangementOk (nounPlur what) to} -> Effect bs
     -- "[who] gains/loses [amt] life" ([CR#119.3]) — core basis (merged).
     -- spelling: ["<Param(0)> gains <Param(1)> life", "<Param(0)> loses
     -- <Param(1)> life"] (selects on the embedded LifeOp, Up/Down; mirrors
@@ -4386,6 +4810,111 @@ mutual
     -- which is a linearization choice, unchecked here)
     Draw : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) ->
            {auto 0 wc : WrittenCount amt} -> Effect bs
+    -- "[who] look(s) at / reveal(s) [what]" — the EXPOSURE clause
+    -- ([CR#701.20a,701.20e]). One clause for both verbs because they are
+    -- one operation with two audiences (see `ExposeVerb`), and its
+    -- subject is a slot for the reason `Draw`'s is: both spellings are
+    -- ordinary oracle ("Look at the top four cards of your library" with
+    -- the imperative's unpronounced `You`; "Target opponent reveals their
+    -- hand", seventy-four lines; "Each player reveals the top card of
+    -- their library", seventeen).
+    -- Exposing MOVES nothing ([CR#701.20b]) — the looked-at cards are
+    -- still in the library, which is why the clause's own retag is
+    -- absent and why the next sentence's placement has somewhere to move
+    -- them FROM.
+    -- What it contributes is the point of the whole chapter: a look or a
+    -- reveal over a positioned slice ASSEMBLES a group the following
+    -- sentences may reach into, and that is the structural difference
+    -- between "the rest" and every complement chapter twenty-two refused
+    -- (finding 127 — two announcements are two mentions and never a
+    -- pair; one slice phrase is one group).
+    -- spelling: ["<Param(1)> look(s) at <Param(2)>", "<Param(1)>
+    -- reveal(s) <Param(2)>"] (selects on Param(0), the ExposeVerb; the
+    -- imperative leaves the agent unpronounced), kind: Sentence
+    Expose : (v : ExposeVerb) -> (who : Noun bs Player) ->
+             (what : Exposed (nomIntro who)) -> Effect bs
+    -- "[who] mill(s) [amt] card(s)" — [CR#701.17a]: "that player puts
+    -- that many cards from the top of their library into their
+    -- graveyard". A row of its own beside `Draw` and for the same
+    -- reasons: [CR#701] names it a keyword action but `VerbName`'s tags
+    -- are the ones `Composite` spells over a `Move` body, and a mill is a
+    -- move of a SLICE the sentence never names, so there is no patient
+    -- phrase to wrap. It carries its subject like `Draw` ("Target player
+    -- mills ten cards", a hundred eighteen lines; "Each player mills",
+    -- thirty-four; the bare imperative, the rest of four hundred
+    -- seventy-six).
+    -- Unlike `Draw` it INTRODUCES its group, and the contrast is the
+    -- rules' own rather than a corpus accident: [CR#701.17c] lets an
+    -- effect that refers to a milled card find it "as long as that zone
+    -- is a public zone", which a graveyard is ([CR#400.2]), while a draw
+    -- puts its card in a hand, which is not — so the same [CR#400.7j]
+    -- that licenses the mill read denies the draw one, and the corpus
+    -- agrees exactly (sixty-one lines read a milled group back, zero read
+    -- a drawn card). The READ FORMS are the among-restriction ("from
+    -- among them", eighteen) and the "this way" participle ("milled this
+    -- way", forty-three), neither of which this vocabulary spells yet
+    -- (ledger); the mention is honest before its readers arrive.
+    -- spelling: ["<Param(0)> mill(s) <Param(1)> card(s)"], kind: Sentence
+    -- (the imperative leaves the agent unpronounced; "card" pluralises
+    -- with the count and at one the numeral is the article "a")
+    Mill : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) ->
+           {auto 0 wc : WrittenCount amt} -> Effect bs
+    -- "search [zone] for [description]" ([CR#701.23a] — "look at all
+    -- cards in that zone (even if it's a hidden zone) and find a card
+    -- that matches the given description"). The rule gives the clause its
+    -- three parts and this row is those three: who searches, which zone,
+    -- and the description found.
+    -- The description is a PREDICATE and not a noun phrase, because the
+    -- zone is on the verb rather than in the phrase: written as a noun,
+    -- "a creature card" would seed the battlefield ([CR#109.2]) and the
+    -- clause would have to overwrite it. The found object's mention is
+    -- the clause's own, placed in the zone it was found in — which is
+    -- what the following "it"/"that card" reads ("Search your library for
+    -- a land card, reveal it, put it into your hand, then shuffle",
+    -- Sylvan Scrying).
+    -- [CR#701.23e] is why the reveal is a separate clause and not a rider
+    -- here: "if the effect that contains the search instruction doesn't
+    -- also contain instructions to reveal the found card(s), then they're
+    -- not revealed" — the exposure is written or it does not happen, so
+    -- the grammar writes it as its own clause (three hundred eighty-eight
+    -- search lines carry a reveal somewhere, ", reveal it," being two
+    -- hundred eighty-two of them; the rest write none).
+    -- COUNTED finds ("search your library for up to two basic land
+    -- cards", a hundred six lines) and the type-free "a card" (ninety) wait
+    -- on counted untargeted groups and a card-headed predicate
+    -- respectively (ledger).
+    -- spelling: ["<Param(0)> search(es) <Param(1)> for <Param(2)>"] (the
+    -- imperative leaves the agent unpronounced; the description takes the
+    -- indefinite article and the zone's own "card" word), kind: Sentence
+    Search : (who : Noun bs Player) -> (z : ZoneExpr (nomIntro who)) ->
+             (p : Predicate (nomIntro who) Object) ->
+             {auto 0 sz : SearchableZone (zoneSort z)} ->
+             {auto 0 hd : Headed p} ->
+             {auto 0 af : AnyTargetFree p} ->
+             {auto 0 zf : ZoneFree p} -> Effect bs
+    -- "[whose] shuffle(s) [their] library" ([CR#701.24a] — "randomize the
+    -- cards within it so that no player knows their order"). The patient
+    -- is a library and the slot names WHOSE, which is core's Law-3
+    -- reading of the same rule (`Shuffle(Selection)` over
+    -- `LibraryOf(Reference)`, "the collection patient, not an agent").
+    -- English elides the object almost always — "Then shuffle." is seven
+    -- hundred ninety-four lines against seventeen for "shuffle your
+    -- library" and four for "shuffles their library" — which is
+    -- linearization's business, the searched library being the only one
+    -- in scope.
+    -- It DESTROYS discourse, and that is the row's one interesting fact:
+    -- [CR#701.20d] says revealed cards that are reordered "stop being
+    -- revealed and become new objects", and [CR#701.24a] leaves no player
+    -- knowing the order, so a mention still sitting in the shuffled
+    -- library cannot be referred to afterwards. `effIntro` drops exactly
+    -- those (`badReadAfterShuffle`); a card the sentence already moved
+    -- OUT is untouched, which is why every search writes its placement
+    -- before its shuffle ([CR#701.24b] keeps the found cards out of the
+    -- shuffle for the same reason).
+    -- spelling: ["<Param(0)> shuffle(s) <Param(0)>'s library"] (the
+    -- imperative leaves both the agent and the object unpronounced --
+    -- "shuffle"), kind: Sentence
+    Shuffle : (whose : Noun bs Player) -> Effect bs
     -- "[static effect] [duration]" — the clause whose resolution
     -- establishes a continuous effect for the span it states
     -- ([CR#611.2a] — it "lasts as long as stated"), which is core's
@@ -4868,6 +5397,10 @@ mutual
   effEq (ChangeLife _ _) _ = False
   effEq (Draw You a) (Draw You b) = boundEq a b
   effEq (Draw _ _) _ = False
+  effEq (Expose _ _ _) _ = False
+  effEq (Mill _ _) _ = False
+  effEq (Search _ _ _) _ = False
+  effEq (Shuffle _) _ = False
   effEq (Continuously _ _) _ = False
   effEq (Create _ _ _ _) _ = False
   effEq (PutCounters _ _ _) _ = False
@@ -4983,6 +5516,9 @@ mutual
   nounIsAnyTarget (Indefinite _ _) = False
   nounIsAnyTarget (AllOf _) = False
   nounIsAnyTarget (EachOf grp) = nounIsAnyTarget grp
+  nounIsAnyTarget (LibrarySlice _ _ _) = False
+  nounIsAnyTarget (SomeOf _ grp) = nounIsAnyTarget grp
+  nounIsAnyTarget TheRest = False
   nounIsAnyTarget It = False
   nounIsAnyTarget They = False
   nounIsAnyTarget Them = False
@@ -5173,6 +5709,14 @@ mutual
   -- delegates rather than repeating the four introducer branches,
   -- because the complement is a group mention either way.
   moveIntro p (EachOf grp) z = moveIntro p grp z
+  moveIntro p nn@(LibrarySlice _ _ _) z = setZoneHead p z (nomIntro nn)
+  moveIntro p nn@(SomeOf _ _) z = setZoneHead p z (nomIntro nn)
+  -- moving THE REST retags nothing, and the reason is the shape of the
+  -- payload rather than a hedge: the binding it reads is the whole
+  -- group's, part of which went somewhere else, and one zone field
+  -- cannot hold two answers. No corpus line reads the group back after
+  -- its complement moves, so the hole costs nothing that is written.
+  moveIntro p TheRest z = bs
   moveIntro p It z = setZoneIt p z bs
   moveIntro p Them z = setZoneThem p z bs
   moveIntro p (That w) z = setZoneThat p w z bs
@@ -5216,6 +5760,9 @@ mutual
     if headIsAnyTarget p then Nothing else Just (zoneOr Battlefield (seedZone p))
   nounZone (AllOf p) = Just (zoneOr Battlefield (seedZone p))
   nounZone (EachOf grp) = nounZone grp
+  nounZone (LibrarySlice _ _ _) = Just Library
+  nounZone (SomeOf _ grp) = nounZone grp
+  nounZone TheRest = zoneOfGroup bs
   nounZone It = zoneOfIt bs
   nounZone They = Nothing
   nounZone Them = zoneOfThem bs
@@ -5239,6 +5786,10 @@ mutual
   nounTy (TargetGroup q p) = seedTy p
   nounTy (AllOf p) = seedTy p
   nounTy (EachOf grp) = nounTy grp
+  -- a position describes no card ([CR#401.2]) -- see the constructor.
+  nounTy (LibrarySlice _ _ _) = Nothing
+  nounTy (SomeOf _ grp) = nounTy grp
+  nounTy TheRest = tyOfGroup bs
   nounTy It = tyOfIt bs
   nounTy They = Nothing
   nounTy Them = tyOfThem bs
@@ -5261,6 +5812,14 @@ mutual
   nounPlur (TargetGroup q p) = quantPlur q
   nounPlur (AllOf p) = ManyOf
   nounPlur (EachOf grp) = ManyOf
+  nounPlur (LibrarySlice _ amt _) = amtPlur amt
+  nounPlur (SomeOf q _) = quantPlur q
+  -- the complement is plural by its word: a group with one member left
+  -- writes "the other" instead, which is the same relation under a
+  -- different number and is shut for the reason finding 111 gave (a
+  -- binding carries no cardinality, so the remainder's number cannot be
+  -- computed). Ledgered with its count.
+  nounPlur TheRest = ManyOf
   nounPlur It = OneOf
   nounPlur They = OneOf
   nounPlur Them = ManyOf
@@ -5280,12 +5839,32 @@ mutual
   effIntro (Move what to) = moveIntro Nothing what (zoneSort to)
   effIntro (ChangeLife who (Up a)) = outcomeB LifeGained :: lifeIntro (Up a)
   effIntro (ChangeLife who (Down a)) = outcomeB LifeLost :: lifeIntro (Down a)
+  -- no outcome mention: which direction a set-to went is not a fact the
+  -- sentence states (see `LifeOp`).
+  effIntro (ChangeLife who (Set a)) = lifeIntro (Set a)
   -- the subject and whatever its count read, and nothing else: the drawn
   -- card is not a mention (see `Draw`), and no OUTCOME binding either —
   -- `ThatMuch` reads a magnitude an earlier clause produced, and no
   -- corpus line reads a draw's ("draw that many cards" reads a count
   -- from somewhere else, never from a draw).
   effIntro (Draw who amt) = amtIntro amt
+  -- exposing moves nothing ([CR#701.20b]), so the group is contributed
+  -- exactly as the phrase wrote it -- still in the library, which is what
+  -- the following placement moves it out of.
+  effIntro (Expose v who what) = exposedIntro what
+  -- the milled group, in the graveyard it was put into ([CR#701.17a]);
+  -- public, so [CR#701.17c] lets later text find it. No head type: a mill
+  -- takes cards off the top of a hidden pile and says nothing about them,
+  -- the same silence `LibrarySlice` keeps.
+  effIntro (Mill who amt) =
+    MkBinding TheD Object (amtPlur amt) (ObjectP Nothing (Just Graveyard) Nothing)
+      :: amtIntro amt
+  -- the found object, in the zone it was found in ([CR#701.23a]) -- the
+  -- "it"/"that card" every search sentence goes on to place.
+  effIntro (Search who z p) =
+    MkBinding AD Object OneOf (ObjectP (seedTy p) (Just (zoneSort z)) Nothing)
+      :: (predDelta p ++ nomIntro who)
+  effIntro (Shuffle whose) = shuffledAway (nomIntro whose)
   effIntro (Continuously se _) = staticIntro se
   -- the created token enters the discourse as the indefinite mention its
   -- phrase is ("a … token"), on the battlefield ([CR#111.1] — tokens are
@@ -5379,7 +5958,17 @@ mutual
   preIntro (Move what to) = nomIntro what
   preIntro (ChangeLife who (Up a)) = lifeIntro (Up a)
   preIntro (ChangeLife who (Down a)) = lifeIntro (Down a)
+  preIntro (ChangeLife who (Set a)) = lifeIntro (Set a)
   preIntro (Draw who amt) = amtIntro amt
+  -- an exposure ANNOUNCES its complement's phrase like any other clause;
+  -- the group it names is the phrase's own, not something the clause did.
+  preIntro (Expose v who what) = exposedIntro what
+  -- the milled group is what the clause DID (it exists only once cards
+  -- have moved), so the pre-state has only the count's reads.
+  preIntro (Mill who amt) = amtIntro amt
+  -- likewise the found object: nothing is found until the search runs.
+  preIntro (Search who z p) = predDelta p ++ nomIntro who
+  preIntro (Shuffle whose) = nomIntro whose
   preIntro (Continuously se _) = staticIntro se
   preIntro (Create agent count tok riders) = amtIntro count
   preIntro (PutCounters amt kind on) = nomIntro on

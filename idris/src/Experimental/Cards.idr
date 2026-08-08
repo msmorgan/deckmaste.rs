@@ -1127,6 +1127,122 @@ armamentCorps =
                      (TargetGroup (oneThrough 2) creatureYouControl)
 
 
+-- ===== The ordered library, the exposure clause, and the partition =====
+
+-- "Look at target player's hand." / "Draw a card." (Peek) — the peek,
+-- and the hand is a ZONE rather than a group of cards: oracle never
+-- writes "look at all cards in target player's hand". Two printed
+-- lines, one term.
+peek : Effect []
+peek = Sequentially [lookAtHandOf (target AnyPlayer), drawACard]
+
+-- "Look at the top four cards of your library. Put one of them into
+-- your hand and the rest on the bottom of your library in any order."
+-- (Impulse) — THE partition. The look assembles a group ([CR#701.20e]
+-- exposes it without moving it, [CR#701.20b]), the partitive takes a
+-- member out of that group, and "the rest" is the complement of what
+-- was taken WITHIN it. The second sentence is one verb over two
+-- complements, transcribed as the named two-clause stand-in the ledger
+-- already parks Arc Trail's beside.
+impulse : Effect []
+impulse = Sequentially [ lookAt (topCards 4)
+                       , Move (oneOf Them) handZ
+                       , Move TheRest (onBottomIn AnyOrder)
+                       ]
+
+-- "Look at the top three cards of your library. Put one of them into
+-- your hand and the rest on the bottom of your library in any order."
+-- (Anticipate) — the same frame at a different count, which is what
+-- makes it a frame.
+anticipate : Effect []
+anticipate = Sequentially [ lookAt (topCards 3)
+                          , Move (oneOf Them) handZ
+                          , Move TheRest (onBottomIn AnyOrder)
+                          ]
+
+-- "Reveal the top four cards of your library. … Put the rest into your
+-- graveyard." — the REVEAL half of the same shape ([CR#701.20a]: shown
+-- to every player, not just the looker), with the partitive spelled
+-- over the demonstrative the corpus also writes ("one of those cards",
+-- fifty-two lines). The middle sentence of the printed card uses the
+-- among-restriction and is elided; the frame under test is the
+-- assemble-then-partition one.
+revealFourPartition : Effect []
+revealFourPartition = Sequentially [ revealCards (topCards 4)
+                                   , Move (oneOf (Those CardW)) handZ
+                                   , Move TheRest graveyardZ
+                                   ]
+
+-- "{R}, {T}: Look at the top eight cards of your library. Exile four of
+-- them …, then put the rest on top of your library in any order." — the
+-- COUNTED partitive and the top placement, showing that neither the
+-- part nor the remainder has to be one card. (The "at random" rider on
+-- the exile is elided — `ChoiceMode`'s marking belongs to the
+-- indefinite phrase, not to a partitive, and no partitive carries one
+-- in this vocabulary yet.)
+exileFourOfThem : Effect []
+exileFourOfThem = Sequentially [ lookAt (topCards 8)
+                               , exile (someOf 4 Them)
+                               , Move TheRest (onTopIn AnyOrder)
+                               ]
+
+-- "{2}: Put the bottom card of your library into your graveyard." — the
+-- bottom slice's ONE corpus witness (Grenzo, Dungeon Warden; the
+-- conditional second sentence needs the power comparison and a
+-- battlefield placement, elided). It is also the clean case for the
+-- retag: a library card put into a public zone is readable afterwards
+-- ([CR#400.7j]), which the graveyard destination makes true here.
+grenzoBottomCard : Effect []
+grenzoBottomCard = Move bottomCard graveyardZ
+
+-- "Search your library for a land card, reveal it, put it into your
+-- hand, then shuffle." (Sylvan Scrying) — the search frame whole: the
+-- found object is the clause's own mention, the reveal is a SEPARATE
+-- instruction because [CR#701.23e] says an unwritten reveal does not
+-- happen, the placement moves it out of the library, and the shuffle is
+-- the sequence tail. Note the order: the card leaves before the
+-- library is randomized, which is [CR#701.24b]'s own arrangement.
+sylvanScrying : Effect []
+sylvanScrying = Sequentially [ searchLibraryFor land
+                             , revealCards It
+                             , Move It handZ
+                             , shuffle
+                             ]
+
+-- "Search your library for a creature card, put that card onto the
+-- battlefield, then shuffle." — the destination split: the same frame
+-- with the found card placed on the battlefield and no reveal, which is
+-- [CR#701.23e]'s default and a hundred seven corpus lines.
+searchToBattlefield : Effect []
+searchToBattlefield = Sequentially [ searchLibraryFor creature
+                                   , Move It battlefieldZ
+                                   , shuffle
+                                   ]
+
+-- "Target player mills ten cards." (Glimpse the Unthinkable) — the mill
+-- clause whole, subject and all ([CR#701.17a]).
+glimpseTheUnthinkable : Effect []
+glimpseTheUnthinkable = millsCards (target AnyPlayer) 10
+
+-- "Mill three cards." — the imperative mill, and the clause whose
+-- milled group is a real mention: the graveyard is public, so
+-- [CR#701.17c] lets later text find what was milled where a drawn card
+-- (hand, hidden) could never be found. Here the read is the plural
+-- demonstrative; the corpus's own reads are the among-restriction and
+-- the "this way" participle, both ledgered.
+millThenReadGroup : Effect []
+millThenReadGroup = Sequentially [millCards 3, exile (Those CardW)]
+
+-- "Look at the top card of your library. You may put that card into
+-- your graveyard." — the singular slice with the offer, which is what
+-- keeps the count vocabulary honest: at one the numeral is unwritten
+-- and the mention is singular, so the read is "that card" and not
+-- "them".
+lookAtTopThenBin : Effect []
+lookAtTopThenBin =
+  Sequentially [lookAt topCard, may You (Move (That CardW) graveyardZ)]
+
+
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
 -- "other" with no target before it: the presupposition has no witness.
@@ -2894,3 +3010,153 @@ failing "OnBattlefield"
   badDistributeCountersGraveyard =
     distributeCounters (Lit 2) PlusOnePlusOne
                        (TargetGroup (oneThrough 2) (And [creature, InZone (graveyardOf You)]))
+
+-- "[-10]: Target player's life total becomes 1." — the set-to, chapter
+-- twenty-two's ledgered player-attribute set. It leaves no outcome
+-- mention behind, which is finding 121 made structural: a set is
+-- realized as a gain or a loss depending on where the total stood, and
+-- the sentence does not say which.
+lifeTotalBecomesOne : Effect []
+lifeTotalBecomesOne = lifeTotalBecomes (target AnyPlayer) (Lit 1)
+
+
+
+-- ===== The ordered library, what may be exposed, and what may be subtracted =====
+
+-- A library is ORDERED ([CR#401.2]), so "into your library" names no
+-- place to put a card and oracle never writes it: every corpus
+-- placement spells a position. `DestOk` has no row for the bare zone,
+-- which is core's `exclude(Library)` on `Destination` exactly.
+failing "DestOk"
+  badMoveToBareLibrary : Effect []
+  badMoveToBareLibrary = Move (target creature) (ZoneAt Library Bare)
+
+-- The order rider needs two or more cards to order — [CR#401.4]'s own
+-- condition, and English's: "put it on the bottom of your library in
+-- any order" is zero lines.
+failing "ArrangementOk"
+  badSingularOrderRider : Effect []
+  badSingularOrderRider =
+    Sequentially [lookAt topCard, Move (That CardW) (onBottomIn AnyOrder)]
+
+-- "The rest" of WHAT: with no group in the discourse the complement has
+-- nothing to be the rest of.
+failing "countGroups"
+  badRestWithoutGroup : Effect []
+  badRestWithoutGroup = Move TheRest graveyardZ
+
+-- …and with a group but nothing taken out of it, "the rest" IS the
+-- group and the sentence would have written "them".
+failing "countParts"
+  badRestWithoutPart : Effect []
+  badRestWithoutPart = Sequentially [lookAt (topCards 4), Move TheRest onBottomZ]
+
+-- The direction chapter twenty-two refused, and it stays refused: two
+-- separately announced targets are two mentions and never a pair
+-- ([CR#601.2c], finding 127), so no complement can subtract inside
+-- them. What changed is that a group ASSEMBLED by one phrase now
+-- exists — not that announcements can be added up.
+failing "countGroups"
+  badRestOverTwoAnnouncements : Effect []
+  badRestOverTwoAnnouncements =
+    Sequentially [ Fights (target creatureYouControl) (target creatureYouDontControl)
+                 , Move TheRest graveyardZ
+                 ]
+
+-- A partitive is a selection, but the corpus names its chooser every
+-- time ("an opponent chooses two of them") and `Choose` has no agent
+-- slot; an agentless "Choose one of them" is unwritten English.
+failing "Choosable"
+  badChooseSomeOf : Effect []
+  badChooseSomeOf = Sequentially [lookAt (topCards 4), Choose (oneOf Them)]
+
+-- A shuffle randomizes the library and destroys what the discourse
+-- knew about it ([CR#701.24a]; [CR#701.20d] makes a reordered revealed
+-- card a NEW object), so a card still in the library cannot be read
+-- back afterwards. Every search sentence places its find first for
+-- exactly this reason.
+failing "countOnes"
+  badReadAfterShuffle : Effect []
+  badReadAfterShuffle =
+    Sequentially [searchLibraryFor land, shuffle, Move It handZ]
+
+-- The slice is in a library, so every battlefield-demanding verb
+-- refuses it through the demand it already carried.
+failing "OnBattlefield"
+  badTapLibraryTop : Effect []
+  badTapLibraryTop = Tap topCard
+
+-- …and it describes no card, which is the hidden zone's honesty made
+-- structural ([CR#400.2,401.2]): the phrase names a place, so a typed
+-- demonstrative has nothing to reach.
+failing "countManyWord"
+  badSliceTypeRead : Effect []
+  badSliceTypeRead =
+    Sequentially [lookAt (topCards 4), Move (Those (TypeW Creature)) handZ]
+
+-- A library is not shown whole: "reveal your library" is zero lines,
+-- and what oracle exposes of a library is a positioned slice.
+failing "ExposableZone"
+  badRevealWholeLibrary : Effect []
+  badRevealWholeLibrary = Expose Reveal You (ExposedZone yourLibrary)
+
+-- Nor is a public zone: a graveyard is already visible to everyone
+-- ([CR#400.2]), so revealing one says nothing and no line does it.
+failing "ExposableZone"
+  badRevealGraveyard : Effect []
+  badRevealGraveyard = Expose Reveal You (ExposedZone graveyardZ)
+
+-- Nor is the battlefield searched: [CR#701.23a] is about finding a card
+-- among cards you cannot otherwise read.
+failing "SearchableZone"
+  badSearchBattlefield : Effect []
+  badSearchBattlefield = Search You battlefieldZ creature
+
+-- The search's description is the zone's, not another zone's: the
+-- clause supplies the place, so a phrase carrying its own is two
+-- answers to one question.
+failing "ZoneFree"
+  badSearchZonedDescription : Effect []
+  badSearchZonedDescription =
+    searchLibraryFor (And [creature, InZone graveyardZ])
+
+-- Whose library is one player's ([CR#400.1]) — the possessor demand
+-- `handOf` and `graveyardOf` already carry, asked of the slice.
+failing "OneOf"
+  badSliceOfPluralPossessor : Effect []
+  badSliceOfPluralPossessor =
+    lookAt (LibrarySlice OnTop (Lit 1) (Each AnyPlayer))
+
+-- A zero slice and a zero mill instruct nothing, which is
+-- `WrittenCount`'s discipline reaching two more counts.
+failing "WrittenCount"
+  badZeroSlice : Effect []
+  badZeroSlice = lookAt (topCards 0)
+
+failing "WrittenCount"
+  badMillZero : Effect []
+  badMillZero = millCards 0
+
+-- A partitive reaches into a GROUP, not into a description: "one of a
+-- creature you control" is not English, and the determiner has no
+-- members to pick from until some phrase has fixed them.
+failing "GroupMention"
+  badPartitiveOfDescription : Effect []
+  badPartitiveOfDescription = exile (SomeOf (exactly 1) (a creature))
+
+-- …nor into another partitive: a part is what was taken, not a group to
+-- take from ("two of one of them" is zero lines).
+failing "GroupMention"
+  badPartitiveOfPartitive : Effect []
+  badPartitiveOfPartitive =
+    Sequentially [lookAt (topCards 4), exile (oneOf (oneOf Them))]
+
+-- …nor into the complement: "each of the rest" is zero lines, the
+-- remainder being named rather than reached into.
+failing "GroupMention"
+  badEachOfTheRest : Effect []
+  badEachOfTheRest =
+    Sequentially [ lookAt (topCards 4)
+                 , Move (oneOf Them) handZ
+                 , exile (EachOf TheRest)
+                 ]

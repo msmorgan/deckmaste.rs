@@ -875,3 +875,159 @@ itIsntA : (p : Predicate bs Object) -> {auto 0 ok : countOnes Object bs = 1} ->
           {auto 0 af : AnyTargetFree p} ->
           {auto 0 nf : predNegFree p = True} -> Condition bs
 itIsntA p = NotCond (itsA p {ok} {sy} {zc} {af}) {ng = MkCondNegatable {ok = nf}}
+
+-- The LIBRARY surfaces, over `ZoneAt Library` (the zone whole) and
+-- `LibraryAt` (a position in it). The split is core's `Zone::Library`
+-- against `Destination::Library(Anchor)` and it is English's too: a
+-- search looks through the zone, a placement names a place in it.
+
+-- "[player]'s library" — the zone whole, what a search reads and a
+-- shuffle randomizes ([CR#401.2]).
+-- spelling: ["<Param(0)>'s library"], kind: Nominal (see handOf)
+public export
+libraryOf : (n : Noun bs Player) -> {auto 0 one : nounPlur n = OneOf} -> ZoneExpr bs
+libraryOf n = ZoneAt Library (OwnedBy n {ps = LibraryIsOwned} {one})
+
+-- "your library" — eight hundred twenty-five search lines' own phrase.
+-- spelling: ["your library"], kind: Nominal
+public export
+yourLibrary : ZoneExpr bs
+yourLibrary = libraryOf You
+
+-- "on top of your library" — the placement with no order stated (a
+-- hundred twenty-seven lines).
+-- spelling: ["on top of your library"], kind: Nominal
+public export
+onTopZ : ZoneExpr bs
+onTopZ = LibraryAt OnTop Nothing Bare
+
+-- "on the bottom of your library" — four hundred eighteen lines, the
+-- dominant library placement.
+-- spelling: ["on the bottom of your library"], kind: Nominal
+public export
+onBottomZ : ZoneExpr bs
+onBottomZ = LibraryAt OnBottom Nothing Bare
+
+-- "on top of your library in [any/a random] order" — the plural
+-- placement with its [CR#401.4] rider (fifty-three lines at "in any
+-- order").
+-- spelling: ["on top of your library <Param(0)>"], kind: Nominal
+public export
+onTopIn : Arrangement -> ZoneExpr bs
+onTopIn a = LibraryAt OnTop (Just a) Bare
+
+-- "on the bottom of your library in [any/a random] order" — a hundred
+-- four lines at "in any order", two hundred sixty-six at "in a random
+-- order".
+-- spelling: ["on the bottom of your library <Param(0)>"], kind: Nominal
+public export
+onBottomIn : Arrangement -> ZoneExpr bs
+onBottomIn a = LibraryAt OnBottom (Just a) Bare
+
+-- "the top [n] cards of your library" — the assembled slice (four
+-- hundred forty-nine "look at" lines, ninety-five "reveal" ones).
+-- spelling: ["the top <Param(0)> cards of your library"], kind: Nominal
+public export
+topCards : (n : Nat) -> {auto 0 wc : WrittenCount {bs} (Lit n)} -> Noun bs Object
+topCards n = LibrarySlice OnTop (Lit n) You {wc}
+
+-- "the top card of your library" — five hundred thirty-nine lines.
+-- spelling: ["the top card of your library"], kind: Nominal
+public export
+topCard : Noun bs Object
+topCard = topCards 1
+
+-- "the bottom card of your library" — ONE line (Grenzo, Dungeon
+-- Warden), and the whole of the bottom slice's attestation.
+-- spelling: ["the bottom card of your library"], kind: Nominal
+public export
+bottomCard : Noun bs Object
+bottomCard = LibrarySlice OnBottom (Lit 1) You
+
+-- "[q] of [group]" — the partitive over a group mention.
+-- spelling: ["one of <Param(0)>"], kind: Nominal
+public export
+oneOf : (grp : Noun bs Object) -> {auto 0 gm : GroupMention grp} -> Noun bs Object
+oneOf grp = SomeOf (exactly 1) grp {gm}
+
+-- "[n] of [group]" — the counted partitive ("two of them",
+-- twenty-five lines).
+-- spelling: ["<Param(0)> of <Param(1)>"], kind: Nominal
+public export
+someOf : (n : Nat) -> (grp : Noun bs Object) -> {auto 0 gm : GroupMention grp} ->
+         {auto 0 nz : NonZeroQ (exactly n)} ->
+         {auto 0 wf : WellFormedQ (exactly n)} -> Noun bs Object
+someOf n grp = SomeOf (exactly n) grp {gm} {nz} {wf}
+
+-- The EXPOSURE surfaces, over the one `Expose` primitive
+-- ([CR#701.20a,701.20e]). The imperative's unpronounced subject is
+-- `You` spelled explicitly, as the draw macros do.
+
+-- "Look at [cards]." — the one-player exposure.
+-- spelling: ["look at <Param(0)>"], kind: Sentence
+public export
+lookAt : (n : Noun bs Object) -> Effect bs
+lookAt n = Expose LookAt You (ExposedCards n)
+
+-- "Reveal [cards]." — the all-players exposure.
+-- spelling: ["reveal <Param(0)>"], kind: Sentence
+public export
+revealCards : (n : Noun bs Object) -> Effect bs
+revealCards n = Expose Reveal You (ExposedCards n)
+
+-- "Look at [player]'s hand." — the peek (twelve lines naming a
+-- player, eleven an opponent).
+-- spelling: ["look at <Param(0)>'s hand"], kind: Sentence
+public export
+lookAtHandOf : (n : Noun bs Player) -> {auto 0 one : nounPlur n = OneOf} -> Effect bs
+lookAtHandOf n = Expose LookAt You (ExposedZone (handOf n {one}))
+
+-- "[who] reveals their hand." — a hundred twenty-eight lines; the
+-- possessive reads the subject the clause just named.
+-- spelling: ["<Param(0)> reveals their hand"], kind: Sentence
+public export
+revealsTheirHand : (who : Noun bs Player) ->
+                   {auto 0 ok : countOnes Player (nomIntro who) = 1} -> Effect bs
+revealsTheirHand who = Expose Reveal who (ExposedZone (handOf (They {ok})))
+
+-- The MILL surfaces, over the one `Mill` primitive ([CR#701.17a]).
+
+-- "Mill [n] cards." — the imperative (twenty-six lines at the sentence
+-- head; four hundred seventy-six writing the verb at all).
+-- spelling: ["mill <Param(0)> cards"], kind: Sentence
+public export
+millCards : (n : Nat) -> {auto 0 wc : WrittenCount {bs} (Lit n)} -> Effect bs
+millCards n = Mill You (Lit n) {wc}
+
+-- "[who] mills [n] cards." — the subjected form ("Target player mills
+-- ten cards", Glimpse the Unthinkable).
+-- spelling: ["<Param(0)> mills <Param(1)> cards"], kind: Sentence
+public export
+millsCards : (who : Noun bs Player) -> (n : Nat) ->
+             {auto 0 wc : WrittenCount {bs = nomIntro who} (Lit n)} -> Effect bs
+millsCards who n = Mill who (Lit n) {wc}
+
+-- The SEARCH and SHUFFLE surfaces ([CR#701.23a,701.24a]).
+
+-- "Search your library for [description]." — eight hundred twenty-five
+-- lines' own frame.
+-- spelling: ["search your library for <Param(0)>"], kind: Sentence
+public export
+searchLibraryFor : (p : Predicate bs Object) ->
+                   {auto 0 hd : Headed p} ->
+                   {auto 0 af : AnyTargetFree p} ->
+                   {auto 0 zf : ZoneFree p} -> Effect bs
+searchLibraryFor p = Search You yourLibrary p {hd} {af} {zf}
+
+-- "Then shuffle." — seven hundred ninety-four lines, the object elided.
+-- spelling: ["shuffle"], kind: Sentence
+public export
+shuffle : Effect bs
+shuffle = Shuffle You
+
+-- "[whose] life total becomes [n]" — the set-to (twenty-nine corpus
+-- lines; the rules it answers to are on `LifeOp`).
+-- spelling: ["<Param(0)>'s life total becomes <Param(1)>"], kind: Sentence
+public export
+lifeTotalBecomes : (who : Noun bs Player) -> Amount (nomIntro who) -> Effect bs
+lifeTotalBecomes who a = ChangeLife who (Set a)
