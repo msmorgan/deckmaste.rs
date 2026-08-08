@@ -54,7 +54,7 @@ this ticket there is exactly one emission path.
 
 - `idris2 --build mtg.ipkg` + `idris2 --exec emitTables` (in `idris/`);
   `git`-visible diff of `data/grammar-tables/` empty on a second run
-  (check via `./scripts/jj st`).
+  (check via `jj st`).
 - `cargo test -p deckmaste_plugin` and `cargo test --workspace` green.
 - `rg 'Ron.idr' idris/ crates/` — empty.
 - `cargo xtask fidelity` green; `cargo xtask cite check` — 0 stale,
