@@ -1,5 +1,5 @@
 ---
-needs: [ci-idris-gate, ci-noncanon-gate, comment-reviewer-hotspots, engine-verb-ident-table, readme-reviewer-path, todo-harness-ci]
+needs: [ci-idris-gate, ci-noncanon-gate, comment-reviewer-hotspots, engine-verb-ident-table, readme-oracle-text-primer, readme-reviewer-path, todo-harness-ci]
 ---
 **Epic: the presentation capstone.** Close the reviewer-facing credibility
 gaps from the 2026-08-03 external review, then verify the result as one cold
