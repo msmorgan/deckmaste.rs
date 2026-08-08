@@ -1031,3 +1031,90 @@ shuffle = Shuffle You
 public export
 lifeTotalBecomes : (who : Noun bs Player) -> Amount (nomIntro who) -> Effect bs
 lifeTotalBecomes who a = ChangeLife who (Set a)
+
+-- The REPLACEMENT and PREVENTION surfaces, macros over the two new
+-- `StaticEffect` rows under the envelope every continuous clause
+-- already shares. Each threads its construction's own span demand to
+-- the caller, exactly as the grant macros do: the span tables answer
+-- which adverbial a shield may write, and the caller never does.
+
+-- "if [event], [replacement] instead [duration]" — the repeated
+-- interception ([CR#614.1a]), the word English uses where the event can
+-- happen only once.
+-- spelling: ["if <Param(0)>, <Param(1)> instead"] (optional trailing
+-- duration), kind: Sentence (Continuously (Intercepts … Repeatedly) d --
+-- see StaticEffect.Intercepts)
+public export
+ifWouldInstead : (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
+                 (d : Maybe (Duration (eventIntro ev))) ->
+                 {auto 0 ok : Interceptable ev} ->
+                 {auto 0 uo : ReplUseOk ev Repeatedly} ->
+                 {auto 0 sp : SpanOk Replacement d} -> Effect bs
+ifWouldInstead ev repl d = Continuously (Intercepts ev repl Repeatedly {ok} {uo}) d {sp}
+
+-- "the next time [event], [replacement] instead [duration]" — the
+-- single-use shield ([CR#614.3]'s "used up" ending), the word English
+-- uses where the event repeats.
+-- spelling: ["the next time <Param(0)>, <Param(1)> instead"] (optional
+-- trailing duration), kind: Sentence (Continuously (Intercepts …
+-- NextTimeOnly) d)
+public export
+nextTimeWouldInstead : (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
+                       (d : Maybe (Duration (eventIntro ev))) ->
+                       {auto 0 ok : Interceptable ev} ->
+                       {auto 0 uo : ReplUseOk ev NextTimeOnly} ->
+                       {auto 0 sp : SpanOk Replacement d} -> Effect bs
+nextTimeWouldInstead ev repl d =
+  Continuously (Intercepts ev repl NextTimeOnly {ok} {uo}) d {sp}
+
+-- "prevent all [kind] damage that would be dealt [scope] [duration]"
+-- ([CR#615.1a]) — Fog at `Everywhere`, Indestructible Aura at a target.
+-- spelling: ["prevent all <Param(0)> damage that would be dealt
+-- <Param(1)>"] (optional trailing duration), kind: Sentence
+-- (Continuously (Prevents … AllOfIt …) d -- see StaticEffect.Prevents)
+public export
+preventAll : (kind : DamageKind) -> (scope : DamageScope bs) ->
+             (d : Maybe (Duration (scopeIntro scope))) ->
+             {auto 0 sp : SpanOk Prevention d} -> Effect bs
+preventAll kind scope d = Continuously (Prevents kind AllOfIt scope) d {sp}
+
+-- "prevent the next [n] [kind] damage that would be dealt [scope]
+-- [duration]" ([CR#615.7]'s numbered shield) — Healing Salve.
+-- spelling: ["prevent the next <Param(1)> <Param(0)> damage that would be
+-- dealt <Param(2)>"] (optional trailing duration), kind: Sentence
+public export
+preventNext : (kind : DamageKind) -> (amt : Amount bs) ->
+              (scope : DamageScope (amtIntro amt)) ->
+              (d : Maybe (Duration (scopeIntro scope))) ->
+              {auto 0 wc : WrittenCount amt} ->
+              {auto 0 sp : SpanOk Prevention d} -> Effect bs
+preventNext kind amt scope d = Continuously (Prevents kind (TheNext amt {wc}) scope) d {sp}
+
+-- "to [n]" — the shield's recipient phrase, reading the damage clause's
+-- own recipient table.
+-- spelling: ["to <Param(0)>"], kind: TODO(reason: prepositional-phrase
+-- fragment -- not one of the five FragmentKinds)
+public export
+shieldingIt : {k : Kind} -> (n : Noun bs k) ->
+              {auto 0 rk : DamageRecipient n} -> DamageScope bs
+shieldingIt n = ToRecipient n {rk}
+
+-- "exile [n] until [event]" — the [CR#610.3] rider on the one clause
+-- the corpus hangs it on (Banisher Priest, Banishing Light).
+-- spelling: ["exile <Param(0)> until <Param(1)>"], kind: Sentence
+-- (HeldUntil (exile n) ev -- see Effect.HeldUntil)
+public export
+exileUntil : (n : Noun bs Object) -> (ev : GameEvent (preIntro (exile n))) ->
+             {auto 0 hd : Holdable ev} -> Effect bs
+exileUntil n ev = HeldUntil (exile n) ev {ok = MkHeldClause} {hd}
+
+-- "[replaced]. [replacement] instead." — the self-replacement
+-- ([CR#614.15]); the replacement reads what the replaced clause
+-- ANNOUNCED and nothing it did.
+-- spelling: ["<Param(0)>. <Param(1)> instead."], kind: TODO(reason:
+-- two-sentence body -- see Effect.InsteadOf)
+public export
+insteadOf : (replaced : Effect bs) -> (repl : Effect (preIntro replaced)) ->
+            {auto 0 na : NotInstead replaced} ->
+            {auto 0 nb : NotInstead repl} -> Effect bs
+insteadOf replaced repl = InsteadOf replaced repl {na} {nb}

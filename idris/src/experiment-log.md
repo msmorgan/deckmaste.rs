@@ -2917,6 +2917,253 @@ Land, Diabolic Tutor, Thought Scour).
    clause records neither rather than guessing one — finding 121's
    asymmetry, structural rather than argued.
 
+## Chapter Twenty-Five — The Intercepted Event
+
+Chapter twenty-five, where the grammar learns to write a sentence
+about an event that has not happened (evidence: Bot Bashing Time,
+Words of War, Words of Worship, Fog, Indestructible Aura,
+Shieldmate's Blessing, Banisher Priest, Tezzeret Artifice Master,
+Zimone Quandrix Prodigy; and, for what the round measured rather
+than built, Overload, Fatal Push, Anoint with Affliction, Ana
+Sanctuary, Galvanic Blast, Banishing Light, Adaptive Shimmerer,
+Scarwood Treefolk, Doubling Season, and regeneration by way of
+[CR#614.8]).
+
+139. **A replacement effect is a CONTINUOUS effect, so the envelope
+   was already there.** [CR#614.1] opens the replacement chapter with
+   the sentence that decided this round's shape — "Some continuous
+   effects are replacement effects" — and [CR#615.1] opens the
+   prevention chapter with its twin. So the would/instead clause is
+   not a new kind of sentence at all: it is a `StaticEffect` row under
+   the `Continuously` envelope chapter seventeen built, its duration
+   adverbial the same one slot, and its span answered by the same two
+   tables. Core had already filed it there
+   (`StaticEffect::Replacement`, `StaticEffect::Prevention`,
+   `deckmaste_core/src/continuous.rs`), which is corroboration and not
+   the reason; the reason is that the adverbial behaves exactly as
+   chapter seventeen said an adverbial behaves. What the two new rows
+   part from the older five on is that they modify no OBJECT.
+   [CR#611.2c] cuts continuous effects in two — those that "modify the
+   characteristics or change the controller of any objects", whose
+   affected set is fixed when the effect begins, and those that do
+   neither and so "modify the rules of the game" — and the rule's own
+   worked example is a prevention effect. So `Intercepts` and
+   `Prevents` carry no subject noun where `Gets`, `Gains`, `Cant`,
+   `BecomesAlso` and `GainsControl` all do, and what they contribute
+   to the discourse is what their PHRASES announced rather than what
+   they will do to anybody.
+140. **What the workbench encodes is the SENTENCE, and the
+   layered machinery is expressly not here.** [CR#614] is mostly a
+   chapter about APPLICATION — [CR#614.5] gives an effect one
+   opportunity per event, [CR#614.6] says a replaced event never
+   happens, [CR#616.1] orders competing effects through a five-step
+   choice in APNAP order, [CR#616.2] lets one replacement make another
+   applicable. None of that is written on a card and none of it is
+   here. What IS written on a card is a sentence with two halves — the
+   event intercepted and the substitute — and that is the whole of
+   what this round encodes. The rules that DO reach the sentence reach
+   it as gates: [CR#614.6] is why the replaced clause's outcome is
+   unreadable, [CR#614.7] is why the replacement contributes nothing
+   outward, [CR#614.5] is why an `InsteadOf` does not nest, and
+   [CR#614.3]'s two ways for a shield to end is why the multiplicity
+   word is a slot. The application layer is the engine's, filed with
+   the damage pipeline the deferrals section already parks there.
+141. **The event patterns are ONE vocabulary two constructions read
+   in two moods.** "Would die" and "leaves the battlefield" are the
+   same happening written twice: the interception names it to watch
+   for it and puts "would" in front, the [CR#610.3] rider names it to
+   wait for it and writes it finite. So `GameEvent` carries the
+   pattern and the reading construction supplies the mood, which is
+   the same cut the grammar already makes between a predicate and the
+   frame that spells it. Which events each construction may read is a
+   table and not the type's business, and the table tells the two
+   silences apart the way `spanUse` does: `EventUnattested` for a
+   happening no clause anywhere is written over, `EventUnclaimed` for
+   one that is real oracle English with no construction here. Two rows
+   are claimed and two are not, and the unclaimed pair is worth its
+   reasons. `IsDestroyed` is thirty-one lines and twenty-five of them
+   are regeneration's own reminder text, whose replacement is
+   [CR#614.8]'s four-part instruction — tap it, remove it from combat,
+   heal the damage on it — not one part of which this vocabulary
+   writes. `IsDealtDamage` is three hundred eighty-five lines and its
+   replacement is the redirection family [CR#614.9] names, which wants
+   a damage clause whose amount is the intercepted event's own. Below
+   those, the events measured and NOT minted, each with its count: the
+   put-into-a-graveyard event (fifty-seven), the enter event
+   (fourteen), the token-creation event (thirteen, Doubling Season's
+   own), and the life-change pair (eight and one).
+142. **The multiplicity word belongs to the EVENT, and the corpus
+   assigns it without exception.** [CR#614.3] gives a replacement
+   effect two ways to end — "until they're used up or their duration
+   has expired" — and English marks the difference with the clause's
+   opening word: "if [subject] would …" for the shield that fires
+   whenever the event happens, "the next time [subject] would …" for
+   the shield that fires once. The measurement is total and it is not
+   free variation. "The next time [subject] would die" is written ZERO
+   times against fifty-seven "if … would die this turn"; "if you would
+   draw a card this turn" is written ZERO times against nine "the next
+   time you would draw"; regeneration's reminder text writes "the next
+   time [permanent] would be destroyed this turn" twenty-five times
+   and the conditional never. The reason is the event's own
+   repeatability: a creature dies once, so an unlimited shield and a
+   single-use one are the same shield and English takes the shorter
+   word; a draw repeats, so the two are different effects and the
+   writer must say which. That makes the word a gate rather than a
+   spelling note (`replUseOk`, `badNextTimeWouldDie`,
+   `badIfWouldDraw`) — a rare case where a closed table over two words
+   records a semantic fact rather than a convention.
+143. **The shield's span is one word, and it splits the
+   restriction's.** Two hundred fifty-five prevention clauses carry
+   "this turn"; "prevent … until end of turn", "prevent … until end of
+   combat", and "prevent … for as long as" are written zero times
+   each, all scopes. So `Prevention` writes exactly one adverbial and
+   the current-turn word that chapter seventeen found belonged to the
+   deed restriction alone belongs to three constructions now
+   (`RestrictionsAndShields`). The interception is wider and by two
+   cells rather than by argument: besides "this turn" it writes the
+   fronted cross-clause endpoints, "Until end of turn, if one or more
+   tokens would be created under your control, twice that many of
+   those tokens are created instead" (seven lines) and "Until your
+   next turn, if that creature would deal combat damage to one of your
+   opponents, it deals triple that damage to that player instead"
+   (two). Both cells were named for the constructions that already
+   wrote them and are renamed rather than split, which is chapter
+   twenty-two's move a second time. And both shields answer `absentOk`
+   with `False` for the deed restriction's reason exactly: a
+   durationless interception or shield is the STATIC ABILITY line
+   ([CR#611.3] — a continuous effect from a static ability states no
+   duration because it lasts while the ability functions), which the
+   corpus confirms from both sides. Every one-shot shield states a
+   span; the forty-nine durationless "Prevent all …" lines are static
+   abilities to a line ("Prevent all combat damage that would be dealt
+   to enchanted creature"), and so are the standing interceptions ("If
+   a creature an opponent controls would die, exile it instead").
+   `badStaticCant` a third and fourth time (`badStandingIntercept`,
+   `badStandingPrevention`).
+144. **The event-ended "until" is TWO constructions wearing one
+   phrase, and the ledger's ninety-one lines are ninety-one lines of
+   the wrong one.** The entry the ledger has carried since chapter
+   seventeen said the O-Ring endpoint waited on an events axis, and
+   the axis arriving is what showed the entry was mis-filed. [CR#610.3]
+   files "exile [object] until [event]" under ONE-SHOT effects, not
+   continuous ones: the clause resolves once, and "a second one-shot
+   effect is created immediately after the specified event" returns
+   the object to its previous zone. [CR#610.4] says the same of the
+   phase-out twin. Measured, the ninety-one lines are eighty-six
+   exiles, three phasings, and three genuine [CR#611.2a] continuous
+   effects — two base-TYPE settings ("Target land becomes a Forest
+   until this creature leaves the battlefield") and one becomes-a-copy,
+   every one of them a construction this grammar lacks. So the
+   `Duration` row exists and its answer is `Unclaimed`
+   (`badGetsUntilLeavesBattlefield`), and the writable half of the
+   family is a RIDER on the clause instead (`HeldUntil`), gated to the
+   one clause the corpus hangs it on. Core makes the opposite cut and
+   says why in its own comment: `Duration::UntilEvent` there is one row
+   for both, cited to [CR#610.3] with the note that "the engine pairs
+   the undo one-shot". That is right for a runtime, which must schedule
+   the undo either way, and wrong for a grammar, where the two phrases
+   sit in different slots of different clauses. Two more things the
+   rider does not need: [CR#610.3c] returns the object "under its
+   owner's control unless otherwise specified", so there is no
+   controller slot, and the object's ZONE afterwards is not settled by
+   the sentence at all — the undo hangs on an event that has not
+   happened — so the clause contributes its announcement and not the
+   exile's retag (`badHeldUntilExileRetag`).
+145. **The self-replacement is the OTHER "instead", and the corpus
+   divides the two on one word.** Six hundred twenty-nine of the
+   thousand and thirty-nine "instead" lines pair the word with "would"
+   and are the interception; four hundred and ten write no "would"
+   anywhere and are [CR#614.15]'s self-replacement — "an effect of a
+   resolving spell or ability that replace part or all of that spell or
+   ability's own effect(s)", with the rule adding that the text
+   creating one "is usually part of the ability whose effect is being
+   replaced", which is exactly why English writes it as the NEXT
+   SENTENCE. So `InsteadOf` pairs a clause with the clause it replaces,
+   and the pairing is the node: "instead" means nothing without the
+   instruction it stands in for, the way "Otherwise" means nothing
+   without its "if" (finding 88). The condition that almost always
+   governs it is the replacement clause's own `If` and not a slot here
+   — "Draw a card. If you control three or more artifacts, draw two
+   cards instead" is a conditional clause wearing an "instead", not an
+   "instead" wearing a condition — which is what lets the ordinary
+   conditional machinery carry it unchanged (`tezzeretDrawTwo`,
+   `zimoneDrawTwo`).
+146. **The announcement channel is what makes "that artifact" work,
+   and it was one equation.** Chapter twenty-one closed a leak by
+   making a conditional clause a HOLE — the condition may have been
+   false, so the clause never ran and its phrase named nobody — and
+   named the cost in the same breath: Overload's second sentence reads
+   the first sentence's announced target across an `If`, and the
+   workbench could not spell it. The fix is that the cost was charged
+   to the wrong function. `effIntro` is what a clause DID and stays a
+   hole; `preIntro` is what its phrases ANNOUNCED, and [CR#601.2c]
+   chooses targets as the spell is cast, whatever clause spells them
+   and whatever any condition later says. So `preIntro (If e c oth)`
+   exports `preIntro e` now, and the two functions differ on this row
+   the way chapter twenty-one's own distinction says they should. The
+   consumer is the node this round minted: `InsteadOf` types its
+   replacement in `preIntro replaced`, which is [CR#614.6] and
+   [CR#601.2c] read together — the replaced EVENT never happened, so
+   its outcome is unreadable (`badInsteadReadsReplacedOutcome`), while
+   its TARGET was announced and is there to say "that artifact" of.
+   What the channel does NOT yet buy is a whole card, and the reason is
+   worth recording precisely: every corpus line that exercises the
+   pairing needs a condition from another axis — Overload and Prohibit
+   want kicker, Fatal Push wants revolt, Anoint with Affliction wants
+   poison counters, Welcome to the Fold wants madness, Ana Sanctuary
+   wants a permanent-word conjunction. The channel is open, its
+   consumer is built, and its witnesses are ledgered by name.
+147. **The entry riders are STATIC ABILITIES, which is the third
+   time this round the answer was "the container is missing".**
+   [CR#603.6d] is explicit — text reading "[This permanent] enters with
+   …", "As [this permanent] enters …", "[This permanent] enters as …",
+   or "[This permanent] enters tapped" is "a static ability — not a
+   triggered ability — whose effect occurs as part of the event that
+   puts the permanent onto the battlefield" — and the replacement
+   chapter files the same text as a replacement effect, the "enters
+   with" and "enters as" wordings at [CR#614.1c] and the bare "enters
+   tapped" at [CR#614.1d]. So chapter nineteen was right to
+   send them to the replacement axis and this axis has to send them
+   back to the abilities layer: the SENTENCE is a static ability line,
+   the same refusal `badStaticCant` makes and the same one both shields
+   make. Measured before ledgering, because the counts are what a later
+   round will need: "enters with … counters on it" three hundred
+   eighty-six lines of the four hundred fourteen "enters with";
+   "enters tapped" a hundred thirty-two, and only three of those are a
+   bare one-sentence ability, the rest carrying an "unless" clause, a
+   counter rider, or a second conjunct. What IS writable today is the
+   ONE-SHOT twin, and it is a rider on a move rather than a replacement
+   at all: "put [card] onto the battlefield tapped" (three hundred
+   fifteen lines), "tapped and attacking" (nineteen — chapter
+   nineteen's own `ridersOk` trio at a second site), and the control
+   assignment "onto the battlefield under [whose] control" (a hundred
+   thirty-two), which is the ledger's existing control-override entry
+   and not this round's. Those three are one field on `Move` and
+   forty-three call sites, so they are ledgered with their counts
+   rather than taken here. And "enters under [whose] control" is
+   attested but tiny and elsewhere-blocked: nine lines, four of them
+   "under the control of an opponent of your choice", two the bare
+   "under your control", one the replacement "it enters under your
+   control instead" that wants the enter event this round measured and
+   did not mint.
+148. **The branch frontier's own card is answered in SHAPE and
+   still not writable, and saying which is the point.** The
+   representability frontier has carried Galvanic Blast's "instead if"
+   since chapter eighteen as the open question of whether the branch is
+   a replacement or an else-arm. It is a replacement, and `InsteadOf`
+   is its node: "Galvanic Blast deals 2 damage to any target. Metalcraft
+   — Galvanic Blast deals 4 damage instead if you control three or more
+   artifacts" is [CR#614.15]'s self-replacement with the ordinary
+   trailing condition, and that condition is the one `tezzeretDrawTwo`
+   already writes. What still blocks the CARD is neither the branch nor
+   the condition: the replacement clause writes no recipient at all
+   ("deals 4 damage instead"), an ellipsis that inherits the replaced
+   clause's complement, and this grammar has no way to write a damage
+   clause with an unstated patient. The ability word is the smaller
+   half ([CR#207.2c] gives it no rules meaning), and the ellipsis is the
+   real one — a new entry rather than an old one, and a cousin of the
+   coordination and extraposition gaps the ledger already keeps.
+
 ## Engine-Boundary Deferrals
 
 Engine-boundary deferrals (deliberate, and to stay so): the
@@ -3014,7 +3261,17 @@ announces a target its consequent reads ("If target creature has
 toughness 5 or greater, it gets +4/-4 until end of turn", Blood
 Lust; Hidetsugu's Second Rite; Meddle — ten "if target" lines,
 four sentence-initial), which is legitimate by [CR#601.2c] and
-needs a delta carrying only a phrase's target half; the STRICT
+needs a delta carrying only a phrase's target half. This is the
+target-announcement channel's REMAINING half: chapter twenty-five
+opened the other one (finding 146 — `preIntro` of a conditional now
+exports what its clause announced, which is what `InsteadOf`'s
+replacement reads), and what is still shut is the delta INSIDE a
+condition's own subject phrase, which is a different demand;
+the whole-card witnesses of the opened half are ledgered by their
+blockers rather than by the channel — Overload and Prohibit want
+kicker, Fatal Push revolt, Anoint with Affliction poison counters,
+Welcome to the Fold madness, Ana Sanctuary a permanent-word
+conjunction; the STRICT
 comparators in the condition frame ("if your life total is less
 than 7"; fifty-one "is less than" lines, eighteen "is greater
 than", almost all against a phrasal standard) together with the
@@ -3154,13 +3411,17 @@ is the rest of the two hundred and ten: There and Back Again's
 single-deed line still needs a type word `CardType` does not
 have, the four keyword grants all grant "indestructible", and the
 stat deltas all end "for as long as this artifact remains tapped"
-— a per-object status word the object-status axis owes]; the EVENT-ended endpoint ("Exile another target
-creature until this creature leaves the battlefield", the O-Ring
-family, ninety-one lines — an endpoint named by an event rather
-than a turn boundary, which is why chapter seventeen's
-`DurationEnd` has no row for it: core spells it
-`Duration::UntilEvent(EventFilter)` and the events axis does not
-exist here, so the row waits on the axis and not on the shape);
+— a per-object status word the object-status axis owes]; [LANDED, finding 144 — the EVENT-ended
+endpoint, and the entry was mis-filed. The ninety-one lines are two
+constructions wearing one phrase: eighty-six are [CR#610.3] one-shot
+zone changes that schedule their own undo and three are the [CR#610.4]
+phasing twin, neither a continuous effect at all, so the writable half
+is a clause RIDER (`HeldUntil`) and not a duration. The three that ARE
+[CR#611.2a] continuous effects — two base-TYPE settings and one
+becomes-a-copy — have no clause here, so `Duration`'s `UntilEvent` row
+is minted and answered `Unclaimed` (`badGetsUntilLeavesBattlefield`).
+Core's single `Duration::UntilEvent` is the runtime's cut and is
+recorded as a divergence rather than followed];
 the DURING-scope adverbial ("During target player's next turn",
 Gideon and Mindslaver), which is not an endpoint at all but a
 window the clause holds inside, and which pairs with the
@@ -3254,10 +3515,27 @@ lines write a move-counters phrase; "remove all … counters", fifty;
 proliferate, seventy-seven), which core keeps as its own
 `MoveCounters` action over a `CounterSpec` whose `AllKinds` row
 quantifies over the kinds PRESENT — a quantity over kinds the
-written amount vocabulary has no term for; the enters-with riders
-("enters with … counters", four hundred fourteen lines; "enters
-tapped", a hundred thirty-two), which are the replacement axis's
-and not the create instruction's; the type-SETTING sibling of
+written amount vocabulary has no term for; [MEASURED and RETURNED, finding 147 — the
+enters-with riders ("enters with … counters", four hundred fourteen
+lines, three hundred eighty-six of them "counters on it"; "enters
+tapped", a hundred thirty-two, only three of them a bare
+one-sentence ability). Chapter nineteen sent them to the replacement
+axis and the replacement axis sends them to the ABILITIES layer:
+[CR#603.6d] calls the text a static ability in as many words and
+[CR#614.1c,614.1d] file it as a replacement effect, so the sentence
+is the static ability line `badStaticCant` refuses. What is writable
+without an ability container is the ONE-SHOT twin, a rider on the
+move rather than a replacement — "onto the battlefield tapped" three
+hundred fifteen lines, "tapped and attacking" nineteen (chapter
+nineteen's own `ridersOk` trio at a second site), and "onto the
+battlefield under [whose] control" a hundred thirty-two, which is
+the control-override entry above. One field on `Move` and forty-three
+call sites, so it is measured and named here rather than taken.
+"Enters under [whose] control" is attested and tiny: nine lines,
+four "under the control of an opponent of your choice", two the bare
+"under your control", one the replacement "it enters under your
+control instead" that wants the enter event finding 141 measured and
+did not mint]; the type-SETTING sibling of
 finding 86 ([CR#205.1a] — the bare "becomes a 3/3 Elemental
 creature", which REPLACES the prior types where the "in addition"
 phrase keeps them) together with the base-P/T setting so often
@@ -3288,8 +3566,13 @@ mode chosen beyond the first"), the per-mode additional cost
 once" instruction ([CR#700.2d], six lines); the CONDITIONAL
 HEADCOUNT UPGRADE ("Choose one. If this spell was kicked, you may
 choose both instead", twenty-six cards, which is why twenty-two
-lines write the header with a period instead of the em dash), a
-replacement of the modal's own quantity and so R6's; "Choose up to
+lines write the header with a period instead of the em dash), whose
+NODE arrived with chapter twenty-five — it is `InsteadOf` over a
+modal, [CR#614.15]'s self-replacement of the headcount — and whose
+blocker is now only the conditions, none of the twenty-six being
+writable: kicker and the other cost words, the commander and monarch
+reads, "as you cast this spell", an exact life total, and a
+conjunction `Condition` has no frame for; "Choose up to
 one —" (seven cards, every one over exactly two modes), which the
 quantity vocabulary already spells (`upTo 1`) and which has no
 macro or positive because not one of those seven has both modes
@@ -3397,6 +3680,55 @@ keyword WRAPPER and the reminder-text relation, not a single piece of
 library grammar. Surveil, discover, and miracle's reveal condition stand
 behind the same boundary.
 
+Chapter twenty-five's own deferrals, each measured: REDIRECTION
+([CR#614.9]), the replacement whose substitute is the SAME damage event
+aimed elsewhere or scaled — "that damage is dealt to [other] instead"
+(nine lines), "it deals double/twice/triple that damage … instead"
+(thirty-three) — which wants a damage clause whose amount is the
+intercepted event's own and whose recipient may be the intercepted
+event's own, two reads no `Amount` row and no noun provides; the
+prevention SOURCE restriction ("Prevent all combat damage that would be
+dealt this turn by attacking creatures", thirty-seven lines matching the
+common source phrasings, plus the twenty-eight "the next time a source of
+your choice would deal damage" shields and the eight bare "by a source of
+your choice"), which [CR#609.7] gives its own machinery and [CR#615.9]
+its own recheck rule, and which is a rider on the damage NOUN rather than
+a slot on the clause; prevention's ADDITIONAL effect ([CR#615.5] — "the
+prevention takes place at the time the original event would have
+happened; the rest of the effect takes place immediately afterward";
+twenty lines read "damage prevented this way"), which is the "this way"
+participle family the ledger already calls the largest, wearing a
+prevention verb; the DIVIDED shield ("Prevent the next 3 damage that
+would be dealt this turn to any number of targets, divided as you
+choose", five lines), which is chapter twenty-three's division over a
+shield rather than a verb and wants `DividedVerb` to grow a third row
+it has no other carrier for; "damage can't be prevented" ([CR#615.12] —
+twenty-seven "can't be prevented" lines, twenty-four of them the damage
+phrase), NOTED and not built: it is a deontic over an EVENT CLASS rather
+than over a deed, so it belongs with the rest of the deontic surface and
+not with the shield it names; the SKIP family ([CR#614.1b,614.10] — "Skip
+[something]" is expressly "Instead of doing [something], do nothing", so
+the rules make it a replacement and English gives it a verb of its own;
+twenty-three lines), which wants a turn-structure noun this vocabulary
+does not have; the put-into-a-graveyard interception (a hundred lines
+across possessors, fifty-seven of them the bare "a graveyard" and
+thirty-two of those "from anywhere"), whose subject is a description
+spanning every zone at once and whose home is a static ability besides —
+the container question finding 147 files, now owed from three sites
+(the standing interception, the standing shield, and the entry rider);
+the complement ELLIPSIS (Galvanic Blast's "deals 4 damage instead", the
+replacement clause that inherits the replaced clause's patient rather
+than restating it), a new entry beside Arc Trail's coordination and
+Pyromancy's extraposition and the same kind of thing — a linearization
+the sentence grammar has no slot for; and the EVENT-VOCABULARY MERGE:
+`EventQuery`'s `DiesThisTurn` and `GameEvent`'s `WouldDie` are the same
+happening in two moods, and core keeps one `EventFilter` for triggers,
+replacements, durations, and condition lookbacks alike
+(`deckmaste_core/src/event.rs`). Merging them here waits on the TRIGGER
+container, which is what would make the third reader real and what would
+decide whether the "this turn" on the delayed query is part of the event
+or part of its frame.
+
 The context-as-phrase-telescope collapse (bindings storing
 the mention terms themselves, every projection computed) stays open as
 a possible later simplification — less pressing since the payload
@@ -3425,10 +3757,15 @@ they came from; labels, choice, and complement are the card's own
 instructions); modal clauses ("Choose one —",
 [CR#700.2,115.8] — effect-row alternatives with branch-local
 targets); truth-valued conditions and branching [LANDED in part,
-chapter eighteen — `Condition` and the `If` clause; what is still
-frontier here is the BRANCH, Galvanic Blast's "instead if" being a
-replacement (R6) rather than an else-arm, and [CR#603.4]'s
-separation of intervening-if from English "if" being the seam
+chapter eighteen — `Condition` and the `If` clause; the BRANCH is
+ANSWERED, finding 148 — it is a replacement and not an else-arm,
+[CR#614.15]'s self-replacement, and `InsteadOf` is its node with the
+ordinary trailing condition. Galvanic Blast itself is still not
+writable and the blocker moved: its replacement clause writes no
+recipient ("deals 4 damage instead"), a complement ELLIPSIS inheriting
+the replaced clause's patient, which is a new ledger entry beside the
+coordination and extraposition gaps. What is still frontier here is
+[CR#603.4]'s separation of intervening-if from English "if", the seam
 finding 76 leaves for the trigger layer]; linked-ability memory (Cold Storage, [CR#607.2a] —
 source-keyed exile notes across abilities, beyond any one
 discourse); divided amounts (Chandra's Pyrohelix,

@@ -1243,6 +1243,101 @@ lookAtTopThenBin =
   Sequentially [lookAt topCard, may You (Move (That CardW) graveyardZ)]
 
 
+-- ===== Replacement, prevention, and the event-ended rider =====
+
+-- "Bot Bashing Time deals 6 damage to target creature. If that creature
+-- would die this turn, exile it instead." — the would/instead clause
+-- whole, and the frame twenty-four corpus lines write word for word.
+-- The interception's subject is the FIRST sentence's announced target,
+-- read back as a demonstrative; its replacement says "it" of the same
+-- creature, which is what typing the replacement in the event's own
+-- announcement buys ([CR#601.2c]). The duration is the shield's
+-- ([CR#614.3] — a replacement effect lasts until used up or until its
+-- duration expires), and "this turn" is the word this construction
+-- writes.
+botBashingTime : Effect []
+botBashingTime =
+  Sequentially [ DealDamage This (Lit 6) (target creature)
+               , ifWouldInstead (WouldDie (That (TypeW Creature))) (exile It) (Just thisTurn)
+               ]
+
+-- "{1}: The next time you would draw a card this turn, this enchantment
+-- deals 2 damage to any target instead." (Words of War; the activation
+-- cost is the cost round's) — the OTHER multiplicity word, and the
+-- event that forces it: a draw repeats, so an unlimited shield and a
+-- single-use one are different effects and the writer has to say which
+-- ([CR#614.11] gives draw replacement its own paragraph).
+wordsOfWar : Effect []
+wordsOfWar = nextTimeWouldInstead (WouldDraw You)
+                                  (DealDamage This (Lit 2) (target AnyTarget))
+                                  (Just thisTurn)
+
+-- "{1}: The next time you would draw a card this turn, you gain 5 life
+-- instead." (Words of Worship) — the same shield with a replacement
+-- that touches no object at all, which is what [CR#611.2c]'s
+-- rules-modifying half looks like from the clause side.
+wordsOfWorship : Effect []
+wordsOfWorship = nextTimeWouldInstead (WouldDraw You)
+                                      (gainsLife You (Lit 5))
+                                      (Just thisTurn)
+
+-- "Prevent all combat damage that would be dealt this turn." (Fog, Holy
+-- Day, Darkness, Root Snare — five lines, one sentence) — the shield
+-- with no recipient at all, [CR#611.2c]'s own example of an effect that
+-- modifies the rules of the game rather than any object.
+fog : Effect []
+fog = preventAll CombatOnly Everywhere (Just thisTurn)
+
+-- "Prevent all damage that would be dealt to target creature this
+-- turn." (Indestructible Aura, Shielded Passage) — the same shield with
+-- a recipient, and the recipient is the damage clause's own row rather
+-- than a second one.
+indestructibleAura : Effect []
+indestructibleAura = preventAll AnyDamage (shieldingIt (target creature)) (Just thisTurn)
+
+-- "Prevent the next 3 damage that would be dealt to any target this
+-- turn." (Shieldmate's Blessing) — [CR#615.7]'s numbered shield, the
+-- one that is used up a damage at a time, over the damage class word.
+shieldmatesBlessing : Effect []
+shieldmatesBlessing =
+  preventNext AnyDamage (Lit 3) (shieldingIt (target AnyTarget)) (Just thisTurn)
+
+-- "Exile target creature an opponent controls until this creature
+-- leaves the battlefield." (Banisher Priest's triggered body; the
+-- trigger wrapper is the abilities layer's) — the O-Ring family's
+-- eighty-six lines, and NOT a duration: [CR#610.3] makes this a
+-- one-shot zone change that pairs with a second one-shot effect
+-- returning the object, which is why the rider sits on the clause and
+-- the `Duration` row over the same event stays unclaimed.
+banisherPriest : Effect []
+banisherPriest = exileUntil (target (And [creature, ControlledBy anOpponent]))
+                            (WouldLeave thisCreature)
+
+-- "[0]: Draw a card. If you control three or more artifacts, draw two
+-- cards instead." (Tezzeret, Artifice Master) — the SELF-replacement
+-- ([CR#614.15]), the "instead" with no "would" in front of it. The
+-- replacement is a conditional clause and the node pairs it with what
+-- it replaces, which is what makes "instead" mean anything at all.
+tezzeretDrawTwo : Effect []
+tezzeretDrawTwo =
+  insteadOf drawACard
+            (If (drawCards 2)
+                (CompareAmt (CountOf (And [artifact, ControlledBy You]))
+                            OrGreater (Lit 3))
+                Nothing)
+
+-- "{4}, {T}: Draw a card. If you control eight or more lands, draw two
+-- cards instead." (Zimone, Quandrix Prodigy) — the same frame at a
+-- different domain and count, which is what makes it a frame.
+zimoneDrawTwo : Effect []
+zimoneDrawTwo =
+  insteadOf drawACard
+            (If (drawCards 2)
+                (CompareAmt (CountOf (And [land, ControlledBy You]))
+                            OrGreater (Lit 8))
+                Nothing)
+
+
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
 -- "other" with no target before it: the presupposition has no witness.
@@ -3160,3 +3255,156 @@ failing "GroupMention"
                  , Move (oneOf Them) handZ
                  , exile (EachOf TheRest)
                  ]
+
+
+-- ===== What may be intercepted, prevented, and held =====
+
+-- A durationless interception is the STATIC ABILITY line, not a clause.
+-- "If a creature an opponent controls would die, exile it instead" is a
+-- permanent's own ability ([CR#611.3] — a continuous effect from a
+-- static ability lasts while the ability functions and states no
+-- duration), and the corpus divides cleanly: every ONE-SHOT
+-- interception writes a span. So `absentOk Replacement` is `False` and
+-- the whole clause is unwritable here, which is `badStaticCant`'s
+-- refusal a third time.
+failing "SpanOk Replacement"
+  badStandingIntercept : Effect []
+  badStandingIntercept =
+    ifWouldInstead (WouldDie (target creature)) (exile It) Nothing
+
+-- The same refusal on the shield: forty-nine "Prevent all …" lines
+-- state no duration and every one of them is a static ability
+-- ("Prevent all combat damage that would be dealt to this creature").
+failing "SpanOk Prevention"
+  badStandingPrevention : Effect []
+  badStandingPrevention = preventAll AnyDamage Everywhere Nothing
+
+-- Prevention writes ONE adverbial. Two hundred fifty-five prevention
+-- lines carry "this turn"; "prevent … until end of turn" is written
+-- zero times, all scopes. The shield and the grants do not share a
+-- current-turn word any more than the restriction and the grants do.
+failing "SpanOk Prevention"
+  badPreventUntilEndOfTurn : Effect []
+  badPreventUntilEndOfTurn =
+    preventAll CombatOnly Everywhere (Just untilEndOfTurn)
+
+-- Nor a for-as-long-as one: no corpus line conditions a shield on a
+-- tracked predicate ([CR#611.2b]'s adverbial), which is what keeps the
+-- widest class in the table from swallowing the two new rows.
+failing "SpanOk Replacement"
+  badInterceptForAsLongAs : Effect []
+  badInterceptForAsLongAs =
+    ifWouldInstead (WouldDie (target creature)) (exile It)
+                   (Just (ForAsLongAs (Exists creatureYouControl)))
+
+-- Real oracle English, no clause of ours: thirty-one lines write "would
+-- be destroyed" and twenty-five of them are regeneration's own reminder
+-- text, whose replacement is [CR#614.8]'s four-part instruction — tap
+-- it, remove it from combat, heal the damage on it — not one part of
+-- which this vocabulary writes. `EventUnclaimed` says exactly that, and
+-- keeps it apart from the events nothing writes at all.
+failing "Interceptable"
+  badInterceptDestruction : Effect []
+  badInterceptDestruction =
+    ifWouldInstead (WouldBeDestroyed (target creature)) (exile It) (Just thisTurn)
+
+-- The multiplicity word is the event's to choose. "The next time
+-- [subject] would die" is written zero times against fifty-seven
+-- conditional lines, because a creature dies once and the two shields
+-- would be the same shield ([CR#614.3]).
+failing "ReplUseOk"
+  badNextTimeWouldDie : Effect []
+  badNextTimeWouldDie =
+    nextTimeWouldInstead (WouldDie (target creature)) (exile It) (Just thisTurn)
+
+-- And the inverse, measured the same way: "if you would draw a card
+-- this turn" is written zero times against nine "the next time you
+-- would draw". A draw repeats, so the conditional would be an unlimited
+-- shield and the corpus never writes one.
+failing "ReplUseOk"
+  badIfWouldDraw : Effect []
+  badIfWouldDraw =
+    ifWouldInstead (WouldDraw You) (gainsLife You (Lit 5)) (Just thisTurn)
+
+-- Dying is the battlefield-to-graveyard transition ([CR#700.4]), so the
+-- watched object stands on the battlefield — `EventQuery`'s own demand
+-- asked by the other reader of the same event.
+failing "OnBattlefield"
+  badWouldDieInGraveyard : Effect []
+  badWouldDieInGraveyard =
+    ifWouldInstead (WouldDie (target (And [creature, InZone (graveyardOf You)])))
+                   (exile It) (Just thisTurn)
+
+-- The replacement is a HOLE outward. [CR#614.7] says a replacement
+-- effect whose intercepted event never happens "simply doesn't do
+-- anything", so a token the replacement would have made is not there
+-- for the next sentence to read — which is the conditional arm's
+-- refusal (finding 100) at a second site.
+failing "countOnes Object"
+  badInterceptReplacementAntecedent : Effect []
+  badInterceptReplacementAntecedent =
+    Sequentially [ nextTimeWouldInstead (WouldDraw You)
+                                        (create (Lit 1) (creatureTok 1 1 [Green] [Soldier]))
+                                        (Just thisTurn)
+                 , sacrifice You It
+                 ]
+
+-- No corpus line ends a CONTINUOUS effect at a leaves-the-battlefield
+-- event with a clause this grammar writes. Of the ninety-one lines that
+-- write the phrase, eighty-six are [CR#610.3] zone changes and three
+-- are [CR#610.4] phasings — neither a continuous effect — and the three
+-- that are one set a base type or make a copy. `Unclaimed` is the cell,
+-- and it names the constructions the grammar is missing rather than
+-- claiming the phrase.
+failing "SpanOk PtDelta"
+  badGetsUntilLeavesBattlefield : Effect []
+  badGetsUntilLeavesBattlefield =
+    gets (target creature) 2 2 (Just (UntilEvent (WouldLeave thisCreature)))
+
+-- The rider goes on a zone change to EXILE and on nothing else: nothing
+-- returns from a graveyard "until", and the corpus writes the rider
+-- with the exile verb every time.
+failing "HeldClause"
+  badHeldUntilDestroy : Effect []
+  badHeldUntilDestroy =
+    HeldUntil (destroy (target creature)) (WouldLeave thisCreature)
+
+-- And the event half of the same gate: the rider waits for a
+-- leaves-the-battlefield event and for no other. Not one line writes
+-- "exile [object] until [something] dies".
+failing "Holdable"
+  badHeldUntilDies : Effect []
+  badHeldUntilDies =
+    HeldUntil (exile (target creature)) (WouldDie thisCreature)
+
+-- The held object's ZONE is not settled by the clause: the undo is
+-- scheduled on an event that has not happened, so the exiled creature
+-- may be in exile or back on the battlefield when a later sentence
+-- reads it. The clause contributes its announcement and not the exile's
+-- retag, so a graveyard-demanding read of the exiled card finds nothing
+-- there to move.
+failing "countWord CardW"
+  badHeldUntilExileRetag : Effect []
+  badHeldUntilExileRetag =
+    Sequentially [ exileUntil (target creature) (WouldLeave thisCreature)
+                 , Move (That CardW) handZ
+                 ]
+
+-- A replacement effect gets "only one opportunity to affect an event or
+-- any modified events that may replace that event" ([CR#614.5]), so a
+-- replacement of a replacement is not a sentence English writes.
+failing "NotInstead"
+  badNestedInstead : Effect []
+  badNestedInstead =
+    insteadOf (insteadOf drawACard (drawCards 2)) (drawCards 3)
+
+-- [CR#614.6]: a replaced event "never happens". So the replaced
+-- clause's OUTCOME is not there to read — "that much" after a damage
+-- clause that was replaced measures nothing — even though the same
+-- clause's announced target is ([CR#601.2c]). The two halves of
+-- `preIntro` divide exactly here.
+failing "countOnes Outcome"
+  badInsteadReadsReplacedOutcome : Effect []
+  badInsteadReadsReplacedOutcome =
+    insteadOf (DealDamage This (Lit 3) (target AnyTarget))
+              (gainsLife You ThatMuch)
