@@ -1605,6 +1605,71 @@ mod registration_order_tests {
     use crate::forest::SelectionReason;
     use crate::grammar::rules::RegistrationOrder;
 
+    #[test]
+    fn comparison_standard_ambiguity_is_registration_order_neutral() {
+        let parses = crate::grammar::parse_nonterminal_with_activation_in_both_orders(
+            "than target",
+            &Catalogs::default(),
+            Nonterminal::ComparisonComplement,
+            &crate::identity::SelfReference::default(),
+            GeneratedActivation::Groups(crate::constructions::adjective::GROUPS),
+        );
+        assert_eq!(
+            format!("{:#?}", parses[0].syntax),
+            format!("{:#?}", parses[1].syntax),
+            "the selected typed standard must not depend on registration order",
+        );
+        let Lowered::ComparisonComplement(selected) = &parses[0].syntax else {
+            panic!(
+                "the generated marker did not lower: {:#?}",
+                parses[0].syntax
+            )
+        };
+        assert_eq!(selected.marker, crate::syntax::ComparisonMarker::Than);
+        assert!(matches!(
+            selected.standard.as_ref(),
+            crate::syntax::Phrase::AdjectivePhrase(_)
+        ));
+
+        let mut signatures = Vec::new();
+        for parsed in &parses {
+            let decision = parsed
+                .construction_decisions()
+                .iter()
+                .find(|decision| {
+                    decision.selected().as_str() == "comparison_standard"
+                        && decision.alternatives().len() > 1
+                })
+                .unwrap_or_else(|| {
+                    panic!(
+                        "the adjective/clause standard ambiguity was not packed: {:#?}",
+                        parsed.construction_decisions(),
+                    )
+                });
+            assert_eq!(decision.reason(), SelectionReason::StableIdentity);
+            let candidates = decision
+                .alternatives()
+                .iter()
+                .map(|alternative| {
+                    (
+                        alternative.id().as_str(),
+                        alternative.production_ordinal(),
+                        alternative.is_dominated(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                candidates,
+                [
+                    ("comparison_standard", 1, false),
+                    ("comparison_standard", 2, false),
+                ],
+            );
+            signatures.push(candidates);
+        }
+        assert_eq!(signatures[0], signatures[1]);
+    }
+
     const ORDER_INVARIANT_FIXTURES: &[(Nonterminal, &str)] = &[
         (
             Nonterminal::Sentence,

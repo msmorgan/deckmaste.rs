@@ -422,6 +422,14 @@ fn project_generated_category(
         let value = value.downcast::<AdjectivePhrase>().ok()?;
         return Some(Lowered::AdjectivePhrase(*value));
     }
+    if construction.category == "ComparisonStandard" {
+        let value = value.downcast::<Phrase>().ok()?;
+        return Some(Lowered::Phrase(*value));
+    }
+    if construction.category == "ComparisonComplement" {
+        let value = value.downcast::<ComparisonComplement>().ok()?;
+        return Some(Lowered::ComparisonComplement(*value));
+    }
     if construction.category == "Quantity" {
         let value = value.downcast::<Quantity>().ok()?;
         return Some(Lowered::Quantity(*value));
@@ -643,6 +651,15 @@ fn erased_field(
             // Predicate declarations extend the internal verb-phrase grammar,
             // so their infinitive field deliberately precedes clause finalization.
             let Lowered::InfinitiveClause(value) = value else {
+                return None;
+            };
+            if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
+        }
+        K::Subtree {
+            category: "ComparisonStandard",
+            boxed,
+        } if group == "adjective" => {
+            let Lowered::Phrase(value) = value else {
                 return None;
             };
             if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
@@ -918,8 +935,14 @@ fn erased_optional(
                 };
                 Some(Box::new(Some(value.clone())))
             }
-            "AdjectivePhrase" => {
+            "AdjectivePhrase" | "ComparisonAdjectivePhrase" => {
                 let Lowered::AdjectivePhrase(value) = value else {
+                    return None;
+                };
+                Some(Box::new(Some(value.clone())))
+            }
+            "Clause" => {
+                let Lowered::Clause(value) = value else {
                     return None;
                 };
                 Some(Box::new(Some(value.clone())))
@@ -970,9 +993,13 @@ fn erased_optional_absent(
             boxed: false,
         } => Some(Box::new(None::<crate::syntax::NounPhrase>)),
         K::Subtree {
-            category: "AdjectivePhrase",
+            category: "AdjectivePhrase" | "ComparisonAdjectivePhrase",
             boxed: false,
         } => Some(Box::new(None::<crate::syntax::AdjectivePhrase>)),
+        K::Subtree {
+            category: "Clause",
+            boxed: false,
+        } => Some(Box::new(None::<crate::syntax::Clause>)),
         K::Subtree {
             category: "RulesObjectNominal",
             boxed: false,

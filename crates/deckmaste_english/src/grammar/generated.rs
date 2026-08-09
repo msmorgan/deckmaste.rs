@@ -439,7 +439,7 @@ fn engine_category(name: &str) -> Option<Nonterminal> {
         "NounPhrase" => Nonterminal::NounPhrase,
         "NominalPhrase" => Nonterminal::Nominal,
         "Determiner" => Nonterminal::Determiner,
-        "AdjectivePhrase" => Nonterminal::AdjectivePhrase,
+        "AdjectivePhrase" | "ComparisonAdjectivePhrase" => Nonterminal::AdjectivePhrase,
         "CoordinatedAdjectivePhrase" => Nonterminal::CoordinatedModifier,
         "PrepositionalPhrase" => Nonterminal::PrepositionalPhrase,
         "InfinitiveClause" => Nonterminal::InfinitiveClause,
