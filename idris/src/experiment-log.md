@@ -5152,6 +5152,165 @@ the five basic lands, and Snow-Covered Forest.
    single adversarial pass, six expected and six observed, and the build is
    clean.
 
+## Chapter Thirty-Four — Object Nouns and Status
+
+Chapter thirty-four gives the grammar the object words that are not card
+types — "permanent" and "token" as heads and readback words, with the
+token's provenance becoming mention state — and the [CR#110.5] status
+product with its description word, the untap effect, and the standing
+untap-step lock. Witnesses: Aerial Assault, Asphyxiate, Aphetto
+Alchemist, Time Vault, and Vindicate for the permanent head; the token
+head lands pin-backed, no bare-head line being attested (ledger L3). The
+source family was measured
+and deliberately NOT minted (finding 239). The round's recon also
+re-merged the curated gnarly aliases at forty-four cards against the
+stated forty-three, an inventory discrepancy held open rather than
+silently resolved (ledger).
+
+234. **"Permanent" is one predicate row; the zone picks the carrier.**
+   `Permanent` is the [CR#110.4a,110.4b] type-set as a noun head: bare, it
+   defaults to the battlefield ([CR#109.2]) and names [CR#110.1]'s
+   permanent ("target permanent", three hundred forty-six lines); under a
+   card-zone clause it is the "permanent card" Eureka moves (two hundred
+   seventy-three lines); under the stack, the "permanent spell"
+   (sixty-one). It projects no single type and seeds no zone of its own —
+   which is what lets Aether Helix write both senses side by side in one
+   vocabulary — and the type-set is `permanentType`, the table the
+   placement gate has read since chapter thirty, now given its noun
+   surface. Not a seventh `CardType`, and not a zone synonym: four
+   hundred thirty "permanents you control" lines modify it freely.
+   Battle and planeswalker sit outside the six-row catalog, so the
+   writable set is four types of [CR#110.4a]'s six (ledger, by name).
+235. **The permanent head extends the contradiction scan.**
+   `contradictionFree` now also refuses a phrase that couples the
+   permanent word with a projected non-permanent head type: [CR#110.4]
+   rules instants and sorceries out in as many words, so "permanent
+   instant card" describes nothing (`badPermanentInstant`). Read off
+   `seedTy` through `permanentType` — no new table, one new reader.
+236. **`PermanentW` reads current state on the battlefield and events
+   through the stamp.** The word's `wordNow` is `onFieldZone` and nothing
+   else ([CR#110.1] gives and takes the word with the zone —
+   `badThatPermanentDeparted`); its participial row asks only that the
+   referent stood on the battlefield at the stamped event, the `TypeW`
+   row minus its type demand (Broadside Bombardiers reads "the
+   sacrificed permanent" through a possessive). "That permanent" as a
+   current-state demonstrative was not measured this round and rides
+   along as tolerated over-generation, noted not gated.
+237. **Token provenance is mention state, written once.** `ObjectP`
+   carries a fourth field, `Maybe Origin`, and `Origin` is ONE row:
+   `TokenOrigin`, written only by the create clause's introduction
+   ([CR#111.1]) and preserved by the zone retags. The card-born
+   complement has no reader — "nontoken" is a description-side negation,
+   never a readback word — so no row is minted for it. `TokenW` demands
+   the battlefield AND the origin ([CR#111.7]; `badThatTokenOfCard`),
+   which is Fire Navy Trebuchet's "Sacrifice that token" chain in
+   vocabulary, though that card's own header is unwritable (its subject
+   is "this Vehicle", a subtype ascription `AsType` does not spell). A
+   DESCRIBED token mention ("target token … that token") does not yet
+   seed the field — the description-to-origin projection is ledgered
+   with its measurement, not guessed.
+238. **"Token" heads; "nontoken" negates; creation keeps its compound.**
+   `IsToken` is a head ("a token", four hundred one lines; "target
+   token", fourteen), seeds the battlefield ([CR#111.7]), and negates as
+   the two-hundred-twenty-two-line "nontoken" family (Lich). The
+   creation-side compound stays `TokenChars` ("creature token"), and the
+   ordering zeroes are the closed fact: token-before-type is written
+   zero times, so no second spelling is minted.
+239. **Source is a role with no landing site, so no row was minted.**
+   The recon's counts are real — sixty-three "source of your choice"
+   lines, fifty "source you control", thirty-seven "source would deal",
+   eighteen "that source", ZERO "target source" — and [CR#109.2c,120.7]
+   make sourcehood relational and cross-zone: eligibility comes from the
+   enclosing damage, ability, or mana relation, not from a zone test
+   either carrier check could answer. Every measured consumer lives in
+   constructions this grammar has deliberately ledgered — the
+   prevention by-source rider ([CR#609.7], the `Prevents` row's own
+   ledger note) and the damage redirection family — so a source head or
+   readback word today would be vocabulary with no consuming
+   construction, exactly what the primitives-first ruling deletes. The
+   family is recorded PARTIAL: the by-source rider is the named landing
+   site, and the noun row lands with it.
+240. **The status product is closed by rule, and the surface is a
+   measured table.** `StatusCat`/`StatusVal` spell [CR#110.5]'s four
+   categories of two values with the category as the index — one value
+   per category is a fact of the representation, a new category is a
+   totality event, and status is not a characteristic ([CR#110.5a]) nor
+   anything an off-battlefield card has ([CR#110.5d]). The product is
+   persistent mention state because [CR#110.5c] retains status until a
+   spell, ability, or turn-based action changes it. `statusWordOk` is
+   the description surface's attestation: tapped/untapped and face
+   up/face down write; "unflipped" and "phased-in" are zero everywhere,
+   and the lone "flipped" line and twenty-two participial "phased out"
+   lines are unclassified frames — four refusing cells that refuse
+   nothing anyone measured, held for a classifying recon (ledger). The
+   entry defaults ([CR#110.5b]) stay the entry riders' and the engine's.
+241. **The status word is a non-head, type-neutral, battlefield-seeding
+   modifier.** `HasStatus` joins the predicate tables the way `Attacking`
+   did, minus the type presupposition — [CR#110.5] holds of every
+   permanent, and the corpus writes tapped artifacts, lands, permanents,
+   and tokens beside its hundred eighteen tapped creatures. It seeds the
+   battlefield ([CR#110.5d]; `badTappedGraveyard`), heads nothing
+   (`badBareTappedHead`), does not negate — the paired values are each
+   their own word (`badNonTapped`) — and same-category values contradict
+   through the new `statusClash` scan while cross-category values stack
+   (`badTappedUntapped`; a tapped face-down morph is writable). The
+   chapter-eighteen condition row's comment had already counted "if
+   it's tapped" (two lines): `Matches` composes it now with nothing
+   further minted.
+242. **Untap is tap's paired effect row; legality stays the engine's.**
+   `Untap` mirrors `Tap`'s zonal demand ([CR#701.26b];
+   `badUntapGraveyard`) over a hundred fifty "untap target" lines,
+   Aphetto Alchemist's "{T}: Untap target artifact or creature." the
+   witness — the {T} cost and the untap effect in one line, two surfaces
+   of one tapped axis kept apart as `Cost` and `Effect`
+   ([CR#107.5,107.6]). That tapping takes an untapped permanent and untapping a
+   tapped one ([CR#701.26a..701.26b]) is the resolving engine's fact:
+   the sentence is well-formed either way, so the grammar's demand stays
+   zonal, the answer to the recon's enforcement-layer question.
+243. **The untap-step lock is a statement, not a deed denial.**
+   `DoesntUntap` spells the hundred-twenty-one-line "doesn't untap
+   during … untap step" frame ("does not untap": zero). The untap-step
+   untap is a turn-based action in which the active player determines
+   which permanents they control will untap and untaps them all
+   simultaneously ([CR#502.3,703.4c]), so the lock restricts a step's
+   transition rather than denying a deed a type grants — no `Deed` row,
+   no [CR#506.3] grant gate. It files under `DeedRestriction`, the
+   `EntersWithCounters` precedent: one class of statement per every
+   kind-keyed reader — standing line yes (Time Vault), durationless
+   clause no (`badUntapLockClause`), and the restriction spans, "for as
+   long as" being the measured one (Ty Lee's trailing adverbial). The
+   step's possessor is agreement, not a slot: a permanent untaps only
+   during its controller's untap step, so the spelling writes "your" for
+   the self subject and "its controller's" otherwise. Ledgered, with
+   counts: the one-shot "next untap step" variant, the single
+   non-"during" line, and the seven-line "can't untap" active spelling,
+   none of which this row claims. Totality also gives `Untap` the
+   Tap-shaped `heldUntilOk`, `costActionOk`, equality, introduction,
+   announcement, and deed-delta rows; `reflexEncloseUse` is
+   `EncUnattested`, and `DoesntUntap` needs no rows beyond the three
+   designed static tables because `notConditional` already catches it.
+244. **Measured and deliberately deferred.** Three families this round's
+   recon measured stay unminted, each for a stated reason. The
+   becomes-status EVENT ("becomes tapped" a hundred lines, "becomes
+   untapped" thirty-three, every other value zero) has a designed shape —
+   an `EventName` row with `TriggeredOnly` use and a per-value
+   attestation gate, `BeginningOf`'s pattern — but the recon's only
+   quoted line (Agent Maria Hill) carries a "to pay a … cost" rider this
+   grammar cannot write, so the row waits for a clean witness rather
+   than landing unexercised. The face/flip/phase one-shot transitions
+   ("turn … face up" two hundred twenty, "phases out" thirty-five
+   finite) entangle morph's [CR#708] permission machinery and an
+   intransitive verb frame the effect layer has no precedent for; the
+   phasing tail ("as though it doesn't exist", fifteen reminder lines,
+   [CR#702.26]) is expressly out of scope. And "enters untapped" (six
+   lines) is a real override of [CR#110.5b]'s default with no quoted
+   witness line, so `TokenRider` keeps its two rows. Census recorded,
+   structure withheld — chapter thirty-three's rule applied before the
+   fact instead of after it. The bench stands at two hundred four
+   positives and three hundred sixty-one pins; the thirteen pins this
+   round adds each fail for their own reason under a single adversarial
+   pass, thirteen expected and thirteen observed, and the build is clean.
+
 ## Engine-Boundary Deferrals
 
 Engine-boundary deferrals (deliberate, and to stay so): the
@@ -5935,6 +6094,57 @@ no word for. And Escape to the Wilds' second line, "You may play an
 additional land this turn", the play COUNT — a permission over how many
 times an action may be taken rather than over what may be played.
 
+L1 **Source noun family (PARTIAL).** Head/readback vocabulary waits on
+its landing site: the [CR#609.7] prevention by-source rider (the
+`Prevents` row's existing ledger note) and the damage-redirection
+interception. Counts held: 63 choice, 50 controlled, 37 would-deal, 18
+"that source", 0 "target source". Last-known-information source
+identity ([CR#120.7]) is engine work beyond the noun surface.
+
+L2 **Permanent-card eligibility gap, by name:** planeswalker and battle
+are [CR#110.4a] members outside the six-row `CardType`; a permanent-card
+line naming either is unwritable until the catalog decision. (The bare
+head itself is witnessed — Vindicate, "Destroy target permanent.")
+
+L3 **Described-token readback.** A described mention ("target token …
+that token") does not seed `Origin`; only creation does. The
+description-to-origin projection (a `seedTy`-shaped scan) waits for a
+measured spanning line. Participial token reads ("the sacrificed
+token") are unmeasured and `verbedWordOk TokenW` is closed at False.
+**No positive witness lands for the token head:** the corpus writes no
+bare token-head line. Its three nearest attestations are each blocked by
+machinery this grammar has not minted — a modal-spell mode
+("• Destroy target token."), a cost ("Sacrifice a token:"), and an ETB
+trigger with a controller rider ("destroy target token an opponent
+controls"). The head is pin-backed until one of those three
+constructions lands, and it is the modal mode that is nearest.
+
+L4 **"Nonpermanent."** Unmeasured this round; `negatable Permanent`
+closed at False pending a count.
+
+L5 **Status frames not yet classified:** the lone "flipped" line, the
+twenty-two participial "phased out" lines, and off-battlefield face
+orientation (face-down exile, library piles, draft — expressly not
+status under [CR#110.5d]); morph/[CR#708] characteristics and
+turn-face-up permission; phasing's [CR#702.26] semantic tail.
+
+L6 **Untap-lock variants:** the one-shot "during its controller's next
+untap step" family, the single "doesn't untap" line without "during",
+and the seven "can't untap" lines — the 121/1/7 split of the family
+this round's standing row does not claim.
+
+L7 **Becomes-status trigger event:** designed (EventName row,
+`TriggeredOnly`, per-value attestation), blocked on a clean witness
+line; "becomes tapped" 100, "becomes untapped" 33, all other values 0;
+"remains tapped" (40) unclassified.
+
+L8 **"Enters untapped"** (6 lines): a measured [CR#110.5b]-default
+override with no quoted witness; `TokenRider` unchanged.
+
+L9 **Gnarly inventory discrepancy:** the recoverable object-class alias
+union is 44 cards against the stated 43, with no recorded exclusion;
+both numbers held until adjudicated.
+
 The context-as-phrase-telescope collapse (bindings storing
 the mention terms themselves, every projection computed) stays open as
 a possible later simplification — less pressing since the payload
@@ -5952,9 +6162,12 @@ statically restricts an Aura's legal target and host ([CR#702.5a]
 — a deontic grant over the attach basis, not edge structure),
 while Equip is the activated ability that does the attaching
 ([CR#702.6a]);
-object status — tapped/flipped/face-down/phased as a per-object
-state dimension ([CR#110.5]; no Untap verb, no Tapped predicate:
-"destroy target tapped creature" is unspellable); pile partitions
+object status — newly representable: status words in ordinary
+descriptions and conditions; the permanent head across its three
+carriers; the token head, "nontoken", and the created-token readback;
+the untap effect; and the standing untap-step lock. Still out: source
+phrases, becomes-status triggers, face/flip/phase transitions, and
+one-shot untap-step locks; pile partitions
 (Death or Glory partitions the GRAVEYARD, so this is not the
 library gap — [CR#700.3a] puts each object in exactly one pile
 "unless the effect specifies otherwise" and [CR#700.3d] lets a

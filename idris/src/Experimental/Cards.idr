@@ -466,7 +466,7 @@ arrowsOfJustice = DealDamage This (Lit 4)
 -- presupposition being the point rather than the test; the cross-head
 -- refusal is `badDisjunctiveOtherCrossHead`'s.
 anotherDisjunctPhrase : Predicate [MkBinding TargetD Object OneOf
-                                             (ObjectP Nothing (Just Battlefield) Nothing)] Object
+                                             (ObjectP Nothing (Just Battlefield) Nothing Nothing)] Object
 anotherDisjunctPhrase = And [Or [creature, land], Other]
 
 -- ===== What a clause forbids: the deontics chapter =====
@@ -1633,6 +1633,38 @@ jorKadeen =
 abandonedOutpost : Ability
 abandonedOutpost = Static (entersTapped (AsType Land This))
 
+-- "Destroy target tapped creature." (Aerial Assault; per the round's
+-- recon) — the status word inside an ordinary target phrase, seeding the
+-- battlefield the way the combat designations do but presupposing no
+-- type of its own.
+aerialAssault : Effect []
+aerialAssault = destroy (target (And [creature, tapped]))
+
+-- "Destroy target untapped creature." (Asphyxiate) — the paired value,
+-- its own word and not a negation of the first.
+asphyxiate : Effect []
+asphyxiate = destroy (target (And [creature, untapped]))
+
+-- "{T}: Untap target artifact or creature." (Aphetto Alchemist) — the
+-- untap effect under the tap-symbol cost: the two surfaces of the same
+-- tapped axis, kept apart as cost and effect.
+aphettoAlchemist : Ability
+aphettoAlchemist = Activated TapSymbol
+                             (Untap (target (Or [artifact, creature])))
+
+-- "This artifact doesn't untap during your untap step." (Time Vault,
+-- second line; its first line is the enters-tapped family's and its
+-- third is unwritable machinery) — the standing untap-step lock as a
+-- bare ability line, `abandonedOutpost`'s shape with the new statement.
+timeVaultLock : Ability
+timeVaultLock = Static (DoesntUntap (AsType Artifact This))
+
+-- "Destroy target permanent." (Vindicate) — the permanent head as an
+-- ordinary target phrase: no projected type, battlefield by default
+-- ([CR#109.2,110.1]).
+vindicate : Effect []
+vindicate = destroy (target Permanent)
+
 -- "{T}: Exile the top card of your library. Until your next end step,
 -- you may play it." (Yasmin Khan's first ability) — the play PERMISSION,
 -- the May-side deontic the surface has lacked since chapter fifteen. It
@@ -2250,7 +2282,7 @@ failing "countWord"
 -- same refusal the surface grammar makes at `InZone`'s kind.
 failing "Payload Player"
   badPlayerInHand : Binding
-  badPlayerInHand = MkBinding AD Player OneOf (ObjectP Nothing (Just Hand) Nothing)
+  badPlayerInHand = MkBinding AD Player OneOf (ObjectP Nothing (Just Hand) Nothing Nothing)
 
 -- The participle's verb filter has no witness: the cost discarded,
 -- nothing was sacrificed.
@@ -2300,6 +2332,91 @@ failing "countWord"
 failing "OnBattlefield"
   badTapGraveyard : Effect []
   badTapGraveyard = Tap (target (And [creature, InZone (graveyardOf You)]))
+
+-- a bare status word heads nothing: "choose a tapped" / "destroy target
+-- tapped" are unwritable — the modifier needs a head beside it.
+failing "Headed"
+  badBareTappedHead : Effect []
+  badBareTappedHead = destroy (target tapped)
+
+-- status is only a battlefield permanent's ([CR#110.5d]): a "tapped
+-- creature card in your graveyard" places its referent in two zones at
+-- once and describes nothing.
+failing "ZoneCoherent"
+  badTappedGraveyard : Effect []
+  badTappedGraveyard = destroy (target (And [creature, tapped,
+                                             InZone (graveyardOf You)]))
+
+-- one value per category ([CR#110.5]): "tapped untapped creature"
+-- describes nothing, and the refusal is the category clash, not a
+-- negation pair — neither word is spelled as the other's "non-".
+failing "ContradictionFree"
+  badTappedUntapped : Effect []
+  badTappedUntapped = destroy (target (And [creature, tapped, untapped]))
+
+-- the pair is two WORDS: "nontapped" is written zero times, so the
+-- status word does not negate — the opposite value is its own row.
+failing "Negatable"
+  badNonTapped : Predicate [] Object
+  badNonTapped = Not tapped
+
+-- "phased-in" is written zero times as a description; the value exists
+-- in the closed product ([CR#110.5]) and its surface cell refuses.
+failing "StatusWord"
+  badPhasedInWord : Predicate [] Object
+  badPhasedInWord = HasStatus PhasedIn
+
+-- untap takes a battlefield object, the tap row's own demand mirrored
+-- ([CR#701.26b]; `badTapGraveyard`'s twin).
+failing "OnBattlefield"
+  badUntapGraveyard : Effect []
+  badUntapGraveyard = Untap (target (And [creature, InZone (graveyardOf You)]))
+
+-- "permanent" beside a projected instant head describes nothing
+-- ([CR#110.4] — "instant and sorcery cards can't enter the battlefield
+-- and thus can't be permanents").
+failing "ContradictionFree"
+  badPermanentInstant : Effect []
+  badPermanentInstant = destroy (target (And [Permanent, HasType Instant]))
+
+-- "that permanent" after its referent left: destruction retags to the
+-- graveyard, [CR#110.1] takes the word away with the zone, and the
+-- current-state read reaches nothing.
+failing "countWord"
+  badThatPermanentDeparted : Effect []
+  badThatPermanentDeparted = Sequentially [destroy (target Permanent),
+                                           Tap (That PermanentW)]
+
+-- a token off the battlefield has ceased to exist ([CR#111.7]): "token
+-- card in your graveyard" describes nothing.
+failing "ZoneCoherent"
+  badTokenGraveyard : Effect []
+  badTokenGraveyard = destroy (target (And [IsToken, InZone (graveyardOf You)]))
+
+-- "nontoken token" is the negation pair the scan already refuses.
+failing "ContradictionFree"
+  badNontokenToken : Effect []
+  badNontokenToken = destroy (target (And [IsToken, nontoken]))
+
+-- a referent nothing minted as a token is never "that token": the
+-- origin field is written only by the create clause ([CR#111.1]).
+failing "countWord"
+  badThatTokenOfCard : Effect []
+  badThatTokenOfCard = Sequentially [Tap (target creature),
+                                     Untap (That TokenW)]
+
+-- the lock's subject stands on the battlefield, `badCantInGraveyard`'s
+-- twin.
+failing "ZoneFits"
+  badUntapLockGraveyard : Ability
+  badUntapLockGraveyard =
+    Static (DoesntUntap (a (And [creature, InZone (graveyardOf You)])))
+
+-- a durationless "doesn't untap" CLAUSE is the static ability line and
+-- not a clause at all — `badStaticCant`'s shape with the new statement.
+failing "SpanOk"
+  badUntapLockClause : Effect []
+  badUntapLockClause = Continuously (DoesntUntap (AsType Artifact This)) Nothing
 
 -- Only battlefield creatures fight [CR#701.14b]: a graveyard card
 -- cannot.
@@ -2688,7 +2805,7 @@ failing "AnyTargetLone"
 -- doubling, not the witness search.)
 failing "OtherAnchored"
   badDoubleOther : Predicate [MkBinding TargetD Object OneOf
-                                        (ObjectP (Just Creature) (Just Battlefield) Nothing)] Object
+                                        (ObjectP (Just Creature) (Just Battlefield) Nothing Nothing)] Object
   badDoubleOther = And [creature, Other, Other]
 
 -- The class word hides just as poorly inside an EMBEDDED noun: a
@@ -2706,7 +2823,7 @@ failing "AnyTargetFree"
 -- gate could not distinguish. (Posed at a zoneless binding — the shape
 -- a singular object mention takes before anything places it.)
 failing "DiscardOk"
-  badDiscardIt : Effect [MkBinding AD Object OneOf (ObjectP Nothing Nothing Nothing)]
+  badDiscardIt : Effect [MkBinding AD Object OneOf (ObjectP Nothing Nothing Nothing Nothing)]
   badDiscardIt = discards You It
 
 -- …and the class word is no hand card either: it heads no zone clause
@@ -2866,7 +2983,7 @@ failing "CoordinableDisjuncts"
 -- every time it appears with one.
 failing "CoordinableDisjuncts"
   badOtherInOr : Predicate [MkBinding TargetD Object OneOf
-                                      (ObjectP (Just Creature) (Just Battlefield) Nothing)] Object
+                                      (ObjectP (Just Creature) (Just Battlefield) Nothing Nothing)] Object
   badOtherInOr = Or [And [creature, Other], land]
 
 -- Nesting is the flat coordination written with brackets oracle has no
@@ -2973,7 +3090,7 @@ failing "WellFormedQ"
 -- Posed at a land target, the anchor being the point.
 failing "OtherAnchored"
   badDisjunctiveOtherCrossHead : Predicate [MkBinding TargetD Object OneOf
-                                                      (ObjectP (Just Land) (Just Battlefield) Nothing)] Object
+                                                      (ObjectP (Just Land) (Just Battlefield) Nothing Nothing)] Object
   badDisjunctiveOtherCrossHead = And [Or [artifact, enchantment], Other]
 
 -- "Artifact or artifact" is caught by comparing the two words; the

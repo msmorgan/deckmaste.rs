@@ -276,6 +276,21 @@ public export
 creatureYouDontControl : Predicate bs Object
 creatureYouDontControl = And [creature, Not (ControlledBy You)]
 
+||| "tapped" — [CR#110.5]'s tap value as the ordinary prenominal word.
+public export
+tapped : Predicate bs Object
+tapped = HasStatus Tapped
+
+||| "untapped" — the paired value's own word, not a negation.
+public export
+untapped : Predicate bs Object
+untapped = HasStatus Untapped
+
+||| "nontoken" — the description-side negation of the token head.
+public export
+nontoken : Predicate bs Object
+nontoken = Not IsToken
+
 -- The indefinite, one macro per choice-mode marking the corpus writes:
 -- the article is the same determiner throughout (`Indefinite`), and
 -- what differs is the adverbial after the noun. Core keeps the axes

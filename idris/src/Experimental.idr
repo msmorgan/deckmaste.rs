@@ -536,17 +536,32 @@ record Stamp where
   verb : VerbName
   wasField : Bool
 
+||| The representation provenance a mention can record: the referent was
+||| minted by a token-creation clause ([CR#111.1] — a token is a marker
+||| representing a permanent that isn't represented by a card). ONE row:
+||| the card-born complement has no reader — "nontoken" is a
+||| description-side negation (`Not IsToken`) and never a readback word —
+||| so no row is minted for it (census, not structure).
+public export
+data Origin = TokenOrigin
+
+public export
+isTokenOrigin : Maybe Origin -> Bool
+isTokenOrigin (Just TokenOrigin) = True
+isTokenOrigin Nothing = False
+
 ||| Per-kind mention data, kind-indexed so a binding can only record
 ||| what its kind can have: an object carries the projected head type
 ||| and its current zone (the ONE piece of fold-state — `Move` updates
-||| it; everything else is a projection of the phrase); players and
+||| it; everything else is a projection of the phrase), and its
+||| representation provenance where a creation clause fixed it; players and
 ||| qualities carry nothing. An ill-sorted binding ("a player in your
 ||| hand") is thereby unrepresentable — the refusal the surface grammar
 ||| makes (`InZone` is Object-kinded), extended to the representation.
 public export
 data Payload : Kind -> Type where
   ObjectP : (ty : Maybe CardType) -> (zone : Maybe Zone) ->
-            (prov : Maybe Stamp) -> Payload Object
+            (prov : Maybe Stamp) -> (orig : Maybe Origin) -> Payload Object
   PlayerP : Payload Player
   QualityP : Payload (Quality q)
   OutcomeP : (sort : OutcomeSort) -> Payload Outcome
@@ -570,7 +585,7 @@ Bindings = List Binding
 ||| qualities have none, structurally.
 public export
 bindingZone : Binding -> Maybe Zone
-bindingZone (MkBinding _ _ _ (ObjectP _ zn _)) = zn
+bindingZone (MkBinding _ _ _ (ObjectP _ zn _ _)) = zn
 bindingZone (MkBinding _ _ _ PlayerP) = Nothing
 bindingZone (MkBinding _ _ _ QualityP) = Nothing
 bindingZone (MkBinding _ _ _ (OutcomeP _)) = Nothing
@@ -578,7 +593,7 @@ bindingZone (MkBinding _ _ _ (OutcomeP _)) = Nothing
 ||| The projected head type a binding carries, if its kind can.
 public export
 bindingTy : Binding -> Maybe CardType
-bindingTy (MkBinding _ _ _ (ObjectP ty _ _)) = ty
+bindingTy (MkBinding _ _ _ (ObjectP ty _ _ _)) = ty
 bindingTy (MkBinding _ _ _ PlayerP) = Nothing
 bindingTy (MkBinding _ _ _ QualityP) = Nothing
 bindingTy (MkBinding _ _ _ (OutcomeP _)) = Nothing
@@ -697,7 +712,7 @@ public export
 zoneOfGroup : Bindings -> Maybe Zone
 zoneOfGroup [] = Nothing
 zoneOfGroup (MkBinding PartD _ _ _ :: bs) = zoneOfGroup bs
-zoneOfGroup (MkBinding _ Object ManyOf (ObjectP _ zn _) :: bs) = zn
+zoneOfGroup (MkBinding _ Object ManyOf (ObjectP _ zn _ _) :: bs) = zn
 zoneOfGroup (_ :: bs) = zoneOfGroup bs
 
 ||| …and its projected head type, by the same walk.
@@ -705,7 +720,7 @@ public export
 tyOfGroup : Bindings -> Maybe CardType
 tyOfGroup [] = Nothing
 tyOfGroup (MkBinding PartD _ _ _ :: bs) = tyOfGroup bs
-tyOfGroup (MkBinding _ Object ManyOf (ObjectP ty _ _) :: bs) = ty
+tyOfGroup (MkBinding _ Object ManyOf (ObjectP ty _ _ _) :: bs) = ty
 tyOfGroup (_ :: bs) = tyOfGroup bs
 
 ||| Is any target-determined mention of this kind in scope? — the
@@ -864,8 +879,8 @@ data SearchableZone : Zone -> Type where
 ||| structurally, since only `ObjectP` has a zone at all.
 public export
 pubB : Binding -> Bool
-pubB (MkBinding _ _ _ (ObjectP _ (Just z) _)) = publicZone z
-pubB (MkBinding _ _ _ (ObjectP _ Nothing _)) = True
+pubB (MkBinding _ _ _ (ObjectP _ (Just z) _ _)) = publicZone z
+pubB (MkBinding _ _ _ (ObjectP _ Nothing _ _)) = True
 pubB (MkBinding _ _ _ PlayerP) = True
 pubB (MkBinding _ _ _ QualityP) = True
 pubB (MkBinding _ _ _ (OutcomeP _)) = True  -- what happened is a public fact
@@ -891,8 +906,8 @@ publicOnly (b :: bs) = if pubB b then b :: publicOnly bs else publicOnly bs
 ||| applied to a different question.
 public export
 notInLibrary : Binding -> Bool
-notInLibrary (MkBinding _ _ _ (ObjectP _ (Just z) _)) = not (sameZone z Library)
-notInLibrary (MkBinding _ _ _ (ObjectP _ Nothing _)) = True
+notInLibrary (MkBinding _ _ _ (ObjectP _ (Just z) _ _)) = not (sameZone z Library)
+notInLibrary (MkBinding _ _ _ (ObjectP _ Nothing _ _)) = True
 notInLibrary (MkBinding _ _ _ PlayerP) = True
 notInLibrary (MkBinding _ _ _ QualityP) = True
 notInLibrary (MkBinding _ _ _ (OutcomeP _)) = True
@@ -908,14 +923,14 @@ shuffledAway (b :: bs) =
 public export
 zoneOfIt : Bindings -> Maybe Zone
 zoneOfIt [] = Nothing
-zoneOfIt (MkBinding det Object OneOf (ObjectP ty zn _) :: bs) = zn
+zoneOfIt (MkBinding det Object OneOf (ObjectP ty zn _ _) :: bs) = zn
 zoneOfIt (b :: bs) = zoneOfIt bs
 
 ||| The current zone of the plural wildcard's group referent.
 public export
 zoneOfThem : Bindings -> Maybe Zone
 zoneOfThem [] = Nothing
-zoneOfThem (MkBinding det Object ManyOf (ObjectP ty zn _) :: bs) = zn
+zoneOfThem (MkBinding det Object ManyOf (ObjectP ty zn _ _) :: bs) = zn
 zoneOfThem (b :: bs) = zoneOfThem bs
 
 ||| The noun-word vocabulary — ONE set of words for the sorted reads,
@@ -927,10 +942,12 @@ zoneOfThem (b :: bs) = zoneOfThem bs
 ||| Token, spell, and stack-object words are later chapters.
 public export
 -- spelling: (construction-owned catalog -- TypeW t = t's own CardType word,
--- CardW = "card", SpellW = "spell", PlayerW = "player"; consumed by
+-- CardW = "card", SpellW = "spell", PlayerW = "player"; PermanentW =
+-- "permanent", TokenW = "token"; consumed by
 -- That/Those/TheVerbed, e.g. That (TypeW Creature) = "that creature",
 -- That SpellW = "that spell". Never spelled alone)
 data NounWord = TypeW CardType | CardW | SpellW | PlayerW
+              | PermanentW | TokenW
 
 ||| The two SURFACES of the participle read, and the round's answer to
 ||| what "this way" is. The attributive premodifier ("the exiled card")
@@ -1045,11 +1062,11 @@ mkStamp (Just v) oldZn = Just (MkStamp v (onFieldZone oldZn))
 ||| to no noun word.
 public export
 wordNow : NounWord -> Binding -> Bool
-wordNow (TypeW t) (MkBinding _ _ _ (ObjectP ty zn _)) = onFieldZone zn && tyIs t ty
+wordNow (TypeW t) (MkBinding _ _ _ (ObjectP ty zn _ _)) = onFieldZone zn && tyIs t ty
 wordNow (TypeW t) (MkBinding _ _ _ PlayerP) = False
 wordNow (TypeW t) (MkBinding _ _ _ QualityP) = False
 wordNow (TypeW t) (MkBinding _ _ _ (OutcomeP _)) = False
-wordNow CardW (MkBinding _ _ _ (ObjectP _ zn _)) = isCardZone zn
+wordNow CardW (MkBinding _ _ _ (ObjectP _ zn _ _)) = isCardZone zn
 wordNow CardW (MkBinding _ _ _ PlayerP) = False
 wordNow CardW (MkBinding _ _ _ QualityP) = False
 wordNow CardW (MkBinding _ _ _ (OutcomeP _)) = False
@@ -1058,14 +1075,30 @@ wordNow CardW (MkBinding _ _ _ (OutcomeP _)) = False
 -- on the stack", so the same object answers to "card" nowhere the stack
 -- is and to "spell" only there. The corpus reads it back thirty-one
 -- times ("Counter target spell. … where X is THAT SPELL's mana value").
-wordNow SpellW (MkBinding _ _ _ (ObjectP _ zn _)) = onStackZone zn
+wordNow SpellW (MkBinding _ _ _ (ObjectP _ zn _ _)) = onStackZone zn
 wordNow SpellW (MkBinding _ _ _ PlayerP) = False
 wordNow SpellW (MkBinding _ _ _ QualityP) = False
 wordNow SpellW (MkBinding _ _ _ (OutcomeP _)) = False
-wordNow PlayerW (MkBinding _ _ _ (ObjectP _ _ _)) = False
+wordNow PlayerW (MkBinding _ _ _ (ObjectP _ _ _ _)) = False
 wordNow PlayerW (MkBinding _ _ _ PlayerP) = True
 wordNow PlayerW (MkBinding _ _ _ QualityP) = False
 wordNow PlayerW (MkBinding _ _ _ (OutcomeP _)) = False
+-- the battlefield IS the word's whole test ([CR#110.1] — "a permanent is
+-- a card or token on the battlefield", and it stops being one when it
+-- moves away): no type, no provenance, no other zone.
+wordNow PermanentW (MkBinding _ _ _ (ObjectP _ zn _ _)) = onFieldZone zn
+wordNow PermanentW (MkBinding _ _ _ PlayerP) = False
+wordNow PermanentW (MkBinding _ _ _ QualityP) = False
+wordNow PermanentW (MkBinding _ _ _ (OutcomeP _)) = False
+-- battlefield AND minted-as-token: a token that has left the battlefield
+-- has ceased to exist ([CR#111.7]), so the current-state word reaches
+-- nothing there; a card-born referent is never "that token" however it
+-- stands ([CR#111.1]).
+wordNow TokenW (MkBinding _ _ _ (ObjectP _ zn _ og)) =
+  onFieldZone zn && isTokenOrigin og
+wordNow TokenW (MkBinding _ _ _ PlayerP) = False
+wordNow TokenW (MkBinding _ _ _ QualityP) = False
+wordNow TokenW (MkBinding _ _ _ (OutcomeP _)) = False
 
 public export
 kindOfW : NounWord -> Kind
@@ -1073,6 +1106,8 @@ kindOfW (TypeW _) = Object
 kindOfW CardW = Object
 kindOfW SpellW = Object
 kindOfW PlayerW = Player
+kindOfW PermanentW = Object
+kindOfW TokenW = Object
 
 ||| The PROVENANCE half of the participle read: is this mention the
 ||| one the named verb event stamped? That is the whole of what the
@@ -1105,6 +1140,15 @@ verbedWordOk CardW st ty zn = isCardZone zn
 -- and "countered this way" thirty-one.
 verbedWordOk SpellW st ty zn = onStackZone zn
 verbedWordOk PlayerW st ty zn = False
+-- the participial read asks only that the referent stood on the
+-- battlefield at the stamped event — "the sacrificed permanent" projects
+-- no type (Broadside Bombardiers reads it through a possessive), which
+-- is the TypeW row minus its type demand.
+verbedWordOk PermanentW (MkStamp _ wasF) ty zn = wasF
+-- no participial token read is measured ("the sacrificed token" was not
+-- counted by the recon), and the signature carries no origin to check;
+-- closed at False and ledgered rather than widened on no line.
+verbedWordOk TokenW st ty zn = False
 
 ||| The participle's two halves as the one check the scans want: the
 ||| provenance picks the mention, the word describes it.
@@ -1116,9 +1160,9 @@ stampWordOk v w st ty zn = stampedBy v st && verbedWordOk w st ty zn
 ||| noun word compatible (`stampWordOk`).
 public export
 verbedMatch : VerbName -> NounWord -> Binding -> Bool
-verbedMatch v w (MkBinding _ _ OneOf (ObjectP ty zn (Just st))) = stampWordOk v w st ty zn
-verbedMatch v w (MkBinding _ _ OneOf (ObjectP _ _ Nothing)) = False
-verbedMatch v w (MkBinding _ _ ManyOf (ObjectP _ _ _)) = False
+verbedMatch v w (MkBinding _ _ OneOf (ObjectP ty zn (Just st) _)) = stampWordOk v w st ty zn
+verbedMatch v w (MkBinding _ _ OneOf (ObjectP _ _ Nothing _)) = False
+verbedMatch v w (MkBinding _ _ ManyOf (ObjectP _ _ _ _)) = False
 verbedMatch v w (MkBinding _ _ _ PlayerP) = False
 verbedMatch v w (MkBinding _ _ _ QualityP) = False
 verbedMatch v w (MkBinding _ _ _ (OutcomeP _)) = False
@@ -1134,9 +1178,9 @@ verbedMatch v w (MkBinding _ _ _ (OutcomeP _)) = False
 ||| construction reads back are group actions.
 public export
 verbedMatchMany : VerbName -> NounWord -> Binding -> Bool
-verbedMatchMany v w (MkBinding _ _ ManyOf (ObjectP ty zn (Just st))) = stampWordOk v w st ty zn
-verbedMatchMany v w (MkBinding _ _ ManyOf (ObjectP _ _ Nothing)) = False
-verbedMatchMany v w (MkBinding _ _ OneOf (ObjectP _ _ _)) = False
+verbedMatchMany v w (MkBinding _ _ ManyOf (ObjectP ty zn (Just st) _)) = stampWordOk v w st ty zn
+verbedMatchMany v w (MkBinding _ _ ManyOf (ObjectP _ _ Nothing _)) = False
+verbedMatchMany v w (MkBinding _ _ OneOf (ObjectP _ _ _ _)) = False
 verbedMatchMany v w (MkBinding _ _ _ PlayerP) = False
 verbedMatchMany v w (MkBinding _ _ _ QualityP) = False
 verbedMatchMany v w (MkBinding _ _ _ (OutcomeP _)) = False
@@ -1221,13 +1265,13 @@ zoneOfThose w (b :: bs) =
 public export
 tyOfIt : Bindings -> Maybe CardType
 tyOfIt [] = Nothing
-tyOfIt (MkBinding det Object OneOf (ObjectP ty zn pv) :: bs) = ty
+tyOfIt (MkBinding det Object OneOf (ObjectP ty zn pv _) :: bs) = ty
 tyOfIt (b :: bs) = tyOfIt bs
 
 public export
 tyOfThem : Bindings -> Maybe CardType
 tyOfThem [] = Nothing
-tyOfThem (MkBinding det Object ManyOf (ObjectP ty zn pv) :: bs) = ty
+tyOfThem (MkBinding det Object ManyOf (ObjectP ty zn pv _) :: bs) = ty
 tyOfThem (b :: bs) = tyOfThem bs
 
 public export
@@ -2011,6 +2055,106 @@ destTypeOk ty Stack = True
 public export
 data Placeable : Maybe CardType -> Zone -> Type where
   MkPlaceable : {auto 0 ok : destTypeOk ty z = True} -> Placeable ty z
+
+||| [CR#110.5]'s status axes, closed by rule: four status categories, each
+||| with exactly two values, and every permanent has one value in each.
+||| The CATEGORY is the type's index, so "one value per category" is a
+||| fact of the representation and a new category is a totality event on
+||| every table below. Status is not a characteristic ([CR#110.5a]), and
+||| persists until changed ([CR#110.5c]); only a permanent on the
+||| battlefield has any ([CR#110.5d]) — which is why the description
+||| predicate seeds the battlefield and no zone word may argue with it. The
+||| entry defaults ([CR#110.5b] — untapped, unflipped, face up, phased in)
+||| are the entry riders' and the engine's fact, not a projection of any
+||| phrase here.
+public export
+data StatusCat = TapC | FlipC | FaceC | PhaseC
+
+public export
+-- spelling: (the value's own word, prenominal or predicative: "tapped",
+-- "untapped", "flipped", "unflipped", "face up", "face down", "phased in",
+-- "phased out"; the face pair hyphenates prenominally -- "face-down
+-- creature". Which values the DESCRIPTION surface writes at all is
+-- statusWordOk's answer; the paired values are each their own word, so
+-- none is spelled as the other's negation)
+data StatusVal : StatusCat -> Type where
+  Tapped    : StatusVal TapC
+  Untapped  : StatusVal TapC
+  Flipped   : StatusVal FlipC
+  Unflipped : StatusVal FlipC
+  FaceUp    : StatusVal FaceC
+  FaceDown  : StatusVal FaceC
+  PhasedIn  : StatusVal PhaseC
+  PhasedOut : StatusVal PhaseC
+
+||| Heterogeneous value equality, per-row catch-alls (`sameVerb`'s
+||| discipline).
+public export
+sameStatusVal : {0 c, c' : StatusCat} -> StatusVal c -> StatusVal c' -> Bool
+sameStatusVal Tapped Tapped = True
+sameStatusVal Tapped _ = False
+sameStatusVal Untapped Untapped = True
+sameStatusVal Untapped _ = False
+sameStatusVal Flipped Flipped = True
+sameStatusVal Flipped _ = False
+sameStatusVal Unflipped Unflipped = True
+sameStatusVal Unflipped _ = False
+sameStatusVal FaceUp FaceUp = True
+sameStatusVal FaceUp _ = False
+sameStatusVal FaceDown FaceDown = True
+sameStatusVal FaceDown _ = False
+sameStatusVal PhasedIn PhasedIn = True
+sameStatusVal PhasedIn _ = False
+sameStatusVal PhasedOut PhasedOut = True
+sameStatusVal PhasedOut _ = False
+
+||| Same category, opposite value — the pair [CR#110.5] forbids one
+||| permanent from holding at once. Values of DIFFERENT categories stack:
+||| a morph turned sideways is tapped AND face down, and the scan below
+||| must let it be.
+public export
+statusClash : {0 c, c' : StatusCat} -> StatusVal c -> StatusVal c' -> Bool
+statusClash Tapped Untapped = True
+statusClash Tapped _ = False
+statusClash Untapped Tapped = True
+statusClash Untapped _ = False
+statusClash Flipped Unflipped = True
+statusClash Flipped _ = False
+statusClash Unflipped Flipped = True
+statusClash Unflipped _ = False
+statusClash FaceUp FaceDown = True
+statusClash FaceUp _ = False
+statusClash FaceDown FaceUp = True
+statusClash FaceDown _ = False
+statusClash PhasedIn PhasedOut = True
+statusClash PhasedIn _ = False
+statusClash PhasedOut PhasedIn = True
+statusClash PhasedOut _ = False
+
+||| Which status values the ordinary DESCRIPTION surface writes. Full
+||| rows, each a measurement: "tapped creature" is a hundred eighteen
+||| exact lines and "untapped creature" a hundred ten, with artifact,
+||| land, permanent, and token heads beside them; "face-down creature" is
+||| thirty-two and "face-up" is written once prenominally. "Unflipped"
+||| and "phased-in" are written ZERO times anywhere; "flipped" occurs once
+||| in the whole corpus and participial "phased out" twenty-two times, in
+||| frames this round's recon did not classify — so those four cells
+||| refuse, and the single flipped line is the ledger's to reclaim with a
+||| classified frame, not this table's to guess at.
+public export
+statusWordOk : {0 c : StatusCat} -> StatusVal c -> Bool
+statusWordOk Tapped = True
+statusWordOk Untapped = True
+statusWordOk Flipped = False
+statusWordOk Unflipped = False
+statusWordOk FaceUp = True
+statusWordOk FaceDown = True
+statusWordOk PhasedIn = False
+statusWordOk PhasedOut = False
+
+public export
+data StatusWord : StatusVal c -> Type where
+  MkStatusWord : {auto 0 ok : statusWordOk v = True} -> StatusWord v
 
 ||| Colors are duplicate-free but NOT ordered, and the corpus is why:
 ||| Additive Evolution writes "a 0/0 green and blue Fractal creature
@@ -3528,6 +3672,58 @@ mutual
     -- spelling: ["blocking"], kind: TODO(reason: non-head status modifier
     -- per hasHead)
     Blocking : Predicate bs Object
+    -- "permanent" / "permanent card" / "permanent spell" — ONE row for
+    -- the [CR#110.4a,110.4b] type-set, and the phrase's own zone story
+    -- picks the carrier exactly as it does for a type word: bare, the
+    -- description defaults to the battlefield ([CR#109.2]) and names
+    -- [CR#110.1]'s permanent; under a card-zone clause it is the
+    -- "permanent card" Eureka moves ("put a permanent card from their
+    -- hand onto the battlefield", two hundred seventy-three lines); under
+    -- the stack it is the "permanent spell" (sixty-one lines). It
+    -- projects NO single type (`seedTy` stays silent — [CR#110.4] gives
+    -- six permanent types and the word fixes none) and no zone of its
+    -- own, which is what keeps Aether Helix's two sentences one
+    -- vocabulary. The type-set itself is `permanentType`, the table the
+    -- placement gate has read since chapter thirty ([CR#110.4a]); this
+    -- row gives it the noun surface, and the contradiction scan reads it
+    -- (`badPermanentInstant`). Battle and planeswalker are outside the
+    -- six-row CardType and therefore outside the writable set (ledger,
+    -- by name).
+    -- spelling: ["permanent"] (battlefield), ["permanent card"] (card
+    -- zones), ["permanent spell"] (stack) -- the carrier composition
+    -- HasType already makes
+    Permanent : Predicate bs Object
+    -- "token" as a HEAD ("a token" four hundred one lines, "target
+    -- token" fourteen, "tokens you control" a hundred forty-one) and
+    -- "nontoken" as its negation (two hundred twenty-two lines across
+    -- creature/permanent/artifact heads — Lich's "sacrifice that many
+    -- nontoken permanents"). Seeds the battlefield: a token elsewhere
+    -- has ceased to exist ([CR#111.7]). The CREATION compound stays
+    -- `TokenChars`' surface ("create a 0/0 green and blue Fractal
+    -- creature token"), and the ordering zeroes are the closed fact:
+    -- type-before-token is two thousand five hundred seventy-eight
+    -- lines, token-before-type ("token creature") is written zero times.
+    -- spelling: ["token"]; negated, prenominal ["nontoken"]
+    IsToken : Predicate bs Object
+    -- "tapped"/"untapped"/"face-down" … — the status word, [CR#110.5]'s
+    -- value in an ordinary description. Non-head (a bare "choose a
+    -- tapped" is unwritable), type-neutral ([CR#110.5] holds of every
+    -- permanent — "untapped artifact" thirty-four lines, "tapped
+    -- permanent" two, "tapped token" eight, beside the hundred eighteen
+    -- creatures), and battlefield-seeding ([CR#110.5d] — a card in a
+    -- graveyard is neither tapped nor untapped, `badTappedGraveyard`).
+    -- Which values the surface writes at all is `statusWordOk`'s
+    -- measured answer. Same-category values contradict and
+    -- cross-category values stack (`statusClash`,
+    -- `badTappedUntapped`). The paired values are words, not negations
+    -- ("untapped" is never spelled "nontapped"), so the row is not
+    -- negatable. The condition frame's own comment has waited for this
+    -- row since chapter eighteen: "if it's tapped" (two lines) now
+    -- composes through `Matches` with nothing further minted.
+    -- spelling: (the value's word -- see StatusVal; prenominal in a noun
+    -- phrase, predicative after the copula in Matches)
+    HasStatus : {c : StatusCat} -> (v : StatusVal c) ->
+                {auto 0 at : StatusWord v} -> Predicate bs Object
     -- "with [characteristic] [n] or less/greater" — a numeric BOUND on
     -- one of the object's own numbers ([CR#208.1] power and toughness,
     -- [CR#202.3] mana value), and core's
@@ -3766,6 +3962,13 @@ mutual
   -- ([CR#506.4]), so the defending word seeds its zone exactly as the
   -- attacking one does.
   seedZone Blocking = Just Battlefield
+  -- a token lives only on the battlefield ([CR#111.7]), and status is
+  -- only a battlefield permanent's ([CR#110.5d]) — both words seed their
+  -- zone exactly as the combat designations above do. The permanent HEAD
+  -- deliberately seeds nothing: its zone story is the phrase's, which is
+  -- what "permanent card from their hand" requires ([CR#110.4a]).
+  seedZone IsToken = Just Battlefield
+  seedZone (HasStatus _) = Just Battlefield
   -- a controller relation says the same thing: only objects on the
   -- stack or on the battlefield have a controller, and everything else
   -- "isn't controlled by any player" ([CR#109.4]), so "a creature you
@@ -3910,6 +4113,9 @@ mutual
   hasHead (ControlledBy _) = False
   hasHead Attacking = False
   hasHead Blocking = False
+  hasHead Permanent = True
+  hasHead IsToken = True
+  hasHead (HasStatus _) = False
   hasHead (Compare _ _ _) = False
   hasHead (InZone _) = True
   -- the linkage read heads its phrase for `InZone`'s reason exactly:
@@ -4051,6 +4257,12 @@ mutual
   predEq Attacking _ = False
   predEq Blocking Blocking = True
   predEq Blocking _ = False
+  predEq Permanent Permanent = True
+  predEq Permanent _ = False
+  predEq IsToken IsToken = True
+  predEq IsToken _ = False
+  predEq (HasStatus v) (HasStatus w) = sameStatusVal v w
+  predEq (HasStatus _) _ = False
   -- all three parts, since all three are written words: the same
   -- characteristic, the same comparator, and the same bound. `boundEq`
   -- is conservative where the rest of this function is.
@@ -4110,6 +4322,55 @@ mutual
   noNegatedPair [] = True
   noNegatedPair (p :: ps) = not (anyNegates p ps) && noNegatedPair ps
 
+  ||| Two members claim the SAME status category with OPPOSITE values —
+  ||| "tapped untapped creature" describes nothing ([CR#110.5] gives a
+  ||| permanent exactly one value per category) — while values of
+  ||| different categories stack ("tapped face-down permanent" is a
+  ||| morph turned sideways).
+  public export
+  statusClashOf : {0 bs : Bindings} -> {0 k : Kind} ->
+                  Predicate bs k -> Predicate bs k -> Bool
+  statusClashOf (HasStatus v) (HasStatus w) = statusClash v w
+  statusClashOf _ _ = False
+
+  public export
+  anyStatusClash : {0 bs : Bindings} -> {0 k : Kind} ->
+                   Predicate bs k -> List (Predicate bs k) -> Bool
+  anyStatusClash p [] = False
+  anyStatusClash p (q :: qs) = statusClashOf p q || anyStatusClash p qs
+
+  public export
+  noStatusClash : {0 bs : Bindings} -> {0 k : Kind} ->
+                  List (Predicate bs k) -> Bool
+  noStatusClash [] = True
+  noStatusClash (p :: ps) = not (anyStatusClash p ps) && noStatusClash ps
+
+  ||| Does a member spell the permanent head?
+  public export
+  isPermanentHead : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+  isPermanentHead Permanent = True
+  isPermanentHead _ = False
+
+  public export
+  anyPermanentHead : {0 bs : Bindings} -> {0 k : Kind} ->
+                     List (Predicate bs k) -> Bool
+  anyPermanentHead [] = False
+  anyPermanentHead (p :: ps) = isPermanentHead p || anyPermanentHead ps
+
+  ||| Does any member PROJECT a non-permanent head type beside the
+  ||| permanent word? [CR#110.4] rules instants and sorceries out of the
+  ||| permanent types in as many words, so "permanent" beside a projected
+  ||| instant head describes nothing (`badPermanentInstant`). Read off
+  ||| `seedTy` — the projection the phrase itself fixes — through the
+  ||| `permanentType` table the placement gate already owns.
+  public export
+  anyNonPermanentTy : {0 bs : Bindings} -> {0 k : Kind} ->
+                      List (Predicate bs k) -> Bool
+  anyNonPermanentTy [] = False
+  anyNonPermanentTy (p :: ps) = case seedTy p of
+    Just t => not (permanentType t) || anyNonPermanentTy ps
+    Nothing => anyNonPermanentTy ps
+
   ||| The card types a member rules OUT: "non-creature" negates the type
   ||| word's own head. A negated STATUS word rules out no type — the
   ||| presupposition projects THROUGH the negation, which is why
@@ -4148,7 +4409,9 @@ mutual
   ||| color and not of the chosen color" describes nothing), and no
   ||| member negates a TYPE another member presupposes: only a creature
   ||| can attack ([CR#506.3]), so "attacking noncreature" describes
-  ||| nothing either. Positive types do NOT clash with each other —
+  ||| nothing either. Status-category clashes ([CR#110.5]) and a
+  ||| permanent paired with a non-permanent projected type ([CR#110.4])
+  ||| describe nothing too. Positive types do NOT clash with each other —
   ||| they stack, an attacking artifact being an artifact creature — so
   ||| only the negation raises. The flattened scan catches the nested
   ||| spelling of both.
@@ -4156,7 +4419,10 @@ mutual
   contradictionFree : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
   contradictionFree ps = noNegatedPair (flattenPs ps) &&
                          not (anyTypeClash (negTypes (flattenPs ps))
-                                           (seedTypes (flattenPs ps)))
+                                           (seedTypes (flattenPs ps))) &&
+                         noStatusClash (flattenPs ps) &&
+                         not (anyPermanentHead (flattenPs ps) &&
+                              anyNonPermanentTy (flattenPs ps))
 
   public export
   data ContradictionFree : List (Predicate bs k) -> Type where
@@ -4573,6 +4839,13 @@ mutual
   negatable (ExiledWith _) = False
   negatable Attacking = True
   negatable Blocking = True
+  -- "nonpermanent" was not measured by this round's recon, and the
+  -- status pairs are each two words, never a "non-" of each other
+  -- ([CR#110.5] names both values) — so only the token row negates
+  -- ("nontoken", two hundred twenty-two lines).
+  negatable Permanent = False
+  negatable IsToken = True
+  negatable (HasStatus _) = False
   negatable (Compare _ _ _) = False
   negatable (InZone _) = True
   negatable (And _) = False
@@ -4607,6 +4880,9 @@ mutual
   predSays (ExiledWith _) = True
   predSays Attacking = True
   predSays Blocking = True
+  predSays Permanent = True
+  predSays IsToken = True
+  predSays (HasStatus _) = True
   predSays (Compare _ _ _) = True
   predSays (InZone _) = True
   predSays (And ps) = predSaysAny ps
@@ -4648,6 +4924,9 @@ mutual
   predNegFree (ExiledWith _) = True
   predNegFree Attacking = True
   predNegFree Blocking = True
+  predNegFree Permanent = True
+  predNegFree IsToken = True
+  predNegFree (HasStatus _) = True
   predNegFree (Compare _ _ _) = True
   predNegFree (InZone _) = True
   predNegFree (And ps) = predNegFreeAll ps
@@ -4686,6 +4965,9 @@ mutual
   anyTargetFree (ExiledWith n) = nounAnyTargetFree n
   anyTargetFree Attacking = True
   anyTargetFree Blocking = True
+  anyTargetFree Permanent = True
+  anyTargetFree IsToken = True
+  anyTargetFree (HasStatus _) = True
   -- the bound is a numeral or the announced X (`WrittenBound`), and
   -- neither carries a noun for the class word to hide in. That is the
   -- row's whole warrant, so `writtenBound` is where a widened bound
@@ -4788,7 +5070,7 @@ mutual
                        (if headIsAnyTarget p
                           then Nothing
                           else Just (zoneOr Battlefield (seedZone p)))
-                       Nothing)
+                       Nothing Nothing)
   bindFor det plur PhPlayer p = MkBinding det Player plur PlayerP
   bindFor det plur {k = Quality q} PhQuality p = MkBinding det (Quality q) plur QualityP
 
@@ -5189,12 +5471,12 @@ mutual
   -- every relative clause's does. The payload carries the library and NO
   -- head type -- see the constructor.
   nounDelta (LibrarySlice pos amt whose {wc}) =
-    MkBinding TheD Object (amtPlur amt) (ObjectP Nothing (Just Library) Nothing)
+    MkBinding TheD Object (amtPlur amt) (ObjectP Nothing (Just Library) Nothing Nothing)
       :: nounDelta whose
   -- the partitive announces the part it picked, inheriting the group's
   -- place and description and taking its number from its own quantity.
   nounDelta (SomeOf q grp) =
-    MkBinding PartD Object (quantPlur q) (ObjectP (nounTy grp) (nounZone grp) Nothing)
+    MkBinding PartD Object (quantPlur q) (ObjectP (nounTy grp) (nounZone grp) Nothing Nothing)
       :: nounDelta grp
   nounDelta TheRest = []
   nounDelta It = []
@@ -6569,6 +6851,34 @@ mutual
     Cant : (n : Noun bs Object) -> (deed : Deed) -> (role : Role) ->
            {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
            {auto 0 dp : DeedParticipant deed role (nounTy n)} -> StaticEffect bs
+    -- "[n] doesn't untap during [its controller's] untap step" — the
+    -- untap-step lock, a hundred twenty-one of the hundred twenty-two
+    -- "doesn't untap" lines writing exactly this "during" frame and
+    -- "does not untap" written zero times. The untap-step untap is a
+    -- turn-based action in which the active player DETERMINES which
+    -- permanents they control will untap and untaps them all
+    -- simultaneously ([CR#502.3,703.4c]), so the lock restricts a
+    -- step's transition rather than denying a deed a type grants —
+    -- which is why it is its own row and no `Deed` row: `Cant`'s grant
+    -- gate ([CR#506.3]) has nothing to say about untapping, which every
+    -- permanent does. It files under `DeedRestriction` all the same,
+    -- the `EntersWithCounters` precedent: one class of statement per
+    -- every kind-keyed reader — the standing ability line (Time Vault's
+    -- "This artifact doesn't untap during your untap step."), no
+    -- durationless clause, and the restriction spans, of which "for as
+    -- long as" is the measured one (Ty Lee). The step's POSSESSOR is
+    -- not a slot: a permanent untaps only during its controller's untap
+    -- step, so the possessive AGREES with the subject — "your" for the
+    -- self subject, "its controller's" for a third-party one — and the
+    -- spelling owns it. The one-shot "during its controller's NEXT
+    -- untap step" family and the single non-"during" line are
+    -- unmeasured splits of the family and are ledgered, not spelled.
+    -- spelling: ["<Param(0)> doesn't untap during your untap step"
+    -- (self subject), "<Param(0)> doesn't untap during its controller's
+    -- untap step" (otherwise)], kind: Sentence
+    DoesntUntap : (n : Noun bs Object) ->
+                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                  StaticEffect bs
     -- "[n] becomes [type line] in addition to its other types" — the
     -- ADDING type change, and [CR#205.1b] is the whole of why it is one
     -- construction rather than the type-SETTING one: that rule names the
@@ -6925,6 +7235,7 @@ mutual
   staticKind (Gets _ _ _) = PtDelta
   staticKind (Gains _ _) = KeywordGrant
   staticKind (Cant _ _ _) = DeedRestriction
+  staticKind (DoesntUntap _) = DeedRestriction
   staticKind (BecomesAlso _ _) = TypeAddition
   staticKind (GainsControl _ _) = ControlGrant
   staticKind (Intercepts _ _ _) = Replacement
@@ -6957,6 +7268,7 @@ mutual
   staticLineOk se@(Gets _ _ _) = staticAsAbility (staticKind se)
   staticLineOk se@(Gains _ _) = staticAsAbility (staticKind se)
   staticLineOk se@(Cant _ _ _) = staticAsAbility (staticKind se)
+  staticLineOk se@(DoesntUntap _) = staticAsAbility (staticKind se)
   staticLineOk se@(BecomesAlso _ _) = staticAsAbility (staticKind se)
   staticLineOk se@(GainsControl _ _) = staticAsAbility (staticKind se)
   staticLineOk se@(Intercepts _ _ _) = staticAsAbility (staticKind se)
@@ -6976,6 +7288,7 @@ mutual
   staticIntro (Gets n _ _) = nomIntro n
   staticIntro (Gains n _) = nomIntro n
   staticIntro (Cant n _ _) = nomIntro n
+  staticIntro (DoesntUntap n) = nomIntro n
   staticIntro (BecomesAlso n _) = nomIntro n
   staticIntro (GainsControl who what) = nomIntro what
   staticIntro (Intercepts ev repl use) = eventIntro ev
@@ -7373,6 +7686,19 @@ mutual
     -- `badTapGraveyard`) — core basis.
     -- spelling: ["tap <Param(0)>"], kind: Sentence
     Tap : (n : Noun bs Object) -> {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
+    -- "untap [n]" ([CR#701.26b] — untapping, the tap row's paired
+    -- inverse; a hundred fifty "untap target" lines and two hundred
+    -- eleven sentence-initial ones, Aphetto Alchemist's "{T}: Untap
+    -- target artifact or creature." the bench witness). The zonal demand
+    -- is the tap row's own (`badUntapGraveyard`); that only a TAPPED
+    -- permanent untaps ([CR#701.26a..701.26b]) is the resolving engine's
+    -- fact, exactly as tap's own no-op case is — the sentence is
+    -- well-formed either way, so the grammar's demand stays zonal. The
+    -- {T} and {Q} COST symbols are a different surface with an implicit
+    -- self patient ([CR#107.5,107.6]) and stay their own `Cost` rows.
+    -- spelling: ["untap <Param(0)>"], kind: Sentence
+    Untap : (n : Noun bs Object) ->
+            {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
     -- "Choose [n]." — the choice clause as surface for the mention it
     -- announces ([CR#601.2c] for targets; [CR#608.2d] otherwise). A
     -- recorded DIVERGENCE from core, whose choose binders are
@@ -8279,6 +8605,7 @@ mutual
   heldUntilOk (Distribute _ _ _) = False
   heldUntilOk (Fights _ _) = False
   heldUntilOk (Tap _) = False
+  heldUntilOk (Untap _) = False
   heldUntilOk (CounterSpell _) = False
   heldUntilOk (Choose _) = False
   heldUntilOk (Move _ _) = False
@@ -8401,6 +8728,7 @@ mutual
   reflexEncloseUse (Pay _ _) = EncReflexive        -- 66, all of them offered
   reflexEncloseUse (Composite _ _) = EncReflexive  -- 51, every one an exile
   reflexEncloseUse (Tap _) = EncReflexive          -- 13
+  reflexEncloseUse (Untap _) = EncUnattested
   -- No line writes "counter target spell. When you do, …": the
   -- countering is mandatory wherever it appears, so there is no offer
   -- for the pro-verb to abbreviate.
@@ -8576,6 +8904,7 @@ mutual
   costActionOk (Distribute _ _ _) = False
   costActionOk (Fights _ _) = False
   costActionOk (Tap n) = costNounOk n
+  costActionOk (Untap n) = costNounOk n
   -- Zero cost components counter a spell: [CR#602.1a] makes a cost what
   -- the ACTIVATOR pays, and cancelling somebody else's spell is not a
   -- payment (`badCounterAsCost`).
@@ -8663,6 +8992,8 @@ mutual
   effEq (Fights _ _) _ = False
   effEq (Tap a) (Tap b) = nounEqRef a b
   effEq (Tap _) _ = False
+  effEq (Untap a) (Untap b) = nounEqRef a b
+  effEq (Untap _) _ = False
   effEq (CounterSpell a) (CounterSpell b) = nounEqRef a b
   effEq (CounterSpell _) _ = False
   effEq (Choose _) _ = False
@@ -9042,8 +9373,8 @@ mutual
   ||| (`Move` is Object-kinded), kept explicit for totality.
   public export
   setZone : Maybe VerbName -> Maybe Zone -> Binding -> Binding
-  setZone p z (MkBinding det Object plur (ObjectP ty oldZn _)) =
-    MkBinding det Object plur (ObjectP ty z (mkStamp p oldZn))
+  setZone p z (MkBinding det Object plur (ObjectP ty oldZn _ og)) =
+    MkBinding det Object plur (ObjectP ty z (mkStamp p oldZn) og)
   setZone p z (MkBinding det Player plur PlayerP) = MkBinding det Player plur PlayerP
   setZone p z (MkBinding det (Quality q) plur QualityP) =
     MkBinding det (Quality q) plur QualityP
@@ -9058,15 +9389,15 @@ mutual
   public export
   setZoneIt : Maybe VerbName -> Maybe Zone -> Bindings -> Bindings
   setZoneIt p z [] = []
-  setZoneIt p z (MkBinding det Object OneOf (ObjectP ty zn _) :: bs) =
-    MkBinding det Object OneOf (ObjectP ty z (mkStamp p zn)) :: bs
+  setZoneIt p z (MkBinding det Object OneOf (ObjectP ty zn _ og) :: bs) =
+    MkBinding det Object OneOf (ObjectP ty z (mkStamp p zn) og) :: bs
   setZoneIt p z (b :: bs) = b :: setZoneIt p z bs
 
   public export
   setZoneThem : Maybe VerbName -> Maybe Zone -> Bindings -> Bindings
   setZoneThem p z [] = []
-  setZoneThem p z (MkBinding det Object ManyOf (ObjectP ty zn _) :: bs) =
-    MkBinding det Object ManyOf (ObjectP ty z (mkStamp p zn)) :: bs
+  setZoneThem p z (MkBinding det Object ManyOf (ObjectP ty zn _ og) :: bs) =
+    MkBinding det Object ManyOf (ObjectP ty z (mkStamp p zn) og) :: bs
   setZoneThem p z (b :: bs) = b :: setZoneThem p z bs
 
   public export
@@ -9134,7 +9465,7 @@ mutual
   -- frame stays conservatively False — an ascribed-self cost participle TYPE
   -- word waits on a corpus witness, so the pre-move zone is passed as
   -- untracked here rather than read off `nounZone`.
-  moveIntro p (AsType t n) z = MkBinding TheD Object OneOf (ObjectP (Just t) z (mkStamp p Nothing)) :: bs
+  moveIntro p (AsType t n) z = MkBinding TheD Object OneOf (ObjectP (Just t) z (mkStamp p Nothing) Nothing) :: bs
   moveIntro p You z = bs
   moveIntro p They z = bs
   moveIntro p (ControllerOf n) z = nomIntro (ControllerOf n)
@@ -9244,6 +9575,7 @@ mutual
   effIntro (DealDamage src amt to) = outcomeB DamageDealt :: nomIntro to
   effIntro (Fights a b) = nomIntro b
   effIntro (Tap n) = nomIntro n
+  effIntro (Untap n) = nomIntro n
   -- The countering announces its patient and nothing else: [CR#701.6a]
   -- puts the countered spell into a graveyard, but the sentence never
   -- writes that move, so there is no retag for this clause to record.
@@ -9281,12 +9613,12 @@ mutual
   -- refused now (`badDistributedMillSingular`).
   effIntro (Mill who amt) =
     MkBinding TheD Object (outputPlur (nounPlur who) (amtPlur amt))
-              (ObjectP Nothing (Just Graveyard) Nothing)
+              (ObjectP Nothing (Just Graveyard) Nothing Nothing)
       :: amtIntro amt
   -- the found object, in the zone it was found in ([CR#701.23a]) -- the
   -- "it"/"that card" every search sentence goes on to place.
   effIntro (Search who z p) =
-    MkBinding AD Object OneOf (ObjectP (seedTy p) (Just (zoneSort z)) Nothing)
+    MkBinding AD Object OneOf (ObjectP (seedTy p) (Just (zoneSort z)) Nothing Nothing)
       :: (predDelta p ++ nomIntro who)
   effIntro (Shuffle whose) = shuffledAway (nomIntro whose)
   effIntro (Continuously se _) = staticIntro se
@@ -9302,7 +9634,7 @@ mutual
   -- the mention is plural because the agent is (`outputPlur`).
   effIntro (Create agent count tok riders) =
     MkBinding AD Object (outputPlur (nounPlur agent) (amtPlur count))
-              (ObjectP (tokenHeadTy tok) (Just Battlefield) Nothing)
+              (ObjectP (tokenHeadTy tok) (Just Battlefield) Nothing (Just TokenOrigin))
       :: amtIntro count
   effIntro (PutCounters amt kind on) = nomIntro on
   -- the division contributes its GROUP, which is what the sentence
@@ -9401,6 +9733,7 @@ mutual
   preIntro (Distribute v amt among) = nomIntro among
   preIntro (Fights a b) = nomIntro b
   preIntro (Tap n) = nomIntro n
+  preIntro (Untap n) = nomIntro n
   preIntro (CounterSpell what) = nomIntro what
   preIntro (Choose n) = nomIntro n
   preIntro (Move what to) = nomIntro what
@@ -9502,6 +9835,7 @@ mutual
   annIntro (Distribute v amt among) = nomIntro among
   annIntro (Fights a b) = nomIntro b
   annIntro (Tap n) = nomIntro n
+  annIntro (Untap n) = nomIntro n
   annIntro (CounterSpell what) = nomIntro what
   annIntro (Choose n) = nomIntro n
   annIntro (Move what to) = nomIntro what
@@ -9587,6 +9921,7 @@ mutual
   deedDelta (Distribute (DistributedCounters _) amt among) = []
   deedDelta (Fights a b) = []
   deedDelta (Tap n) = []
+  deedDelta (Untap n) = []
   deedDelta (CounterSpell _) = []
   deedDelta (Choose n) = []
   deedDelta (Move what to) = []
@@ -9597,14 +9932,14 @@ mutual
   deedDelta (Expose v who what) = []
   deedDelta (Mill who amt) =
     [MkBinding TheD Object (outputPlur (nounPlur who) (amtPlur amt))
-               (ObjectP Nothing (Just Graveyard) Nothing)]
+               (ObjectP Nothing (Just Graveyard) Nothing Nothing)]
   deedDelta (Search who z p) =
-    [MkBinding AD Object OneOf (ObjectP (seedTy p) (Just (zoneSort z)) Nothing)]
+    [MkBinding AD Object OneOf (ObjectP (seedTy p) (Just (zoneSort z)) Nothing Nothing)]
   deedDelta (Shuffle whose) = []
   deedDelta (Continuously se _) = []
   deedDelta (Create agent count tok riders) =
     [MkBinding AD Object (outputPlur (nounPlur agent) (amtPlur count))
-               (ObjectP (tokenHeadTy tok) (Just Battlefield) Nothing)]
+               (ObjectP (tokenHeadTy tok) (Just Battlefield) Nothing (Just TokenOrigin))]
   deedDelta (PutCounters amt kind on) = []
   deedDelta (RemoveCounters amt kind from) = []
   deedDelta (Composite v (Move what to)) = []
