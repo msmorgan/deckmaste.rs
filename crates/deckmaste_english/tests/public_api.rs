@@ -320,8 +320,7 @@ fn public_adjective_facade_builds_projects_rebuilds_and_renders_every_shape() {
 
         let phrase = adjective_api::build_adjective_phrase_comparison(greater(), comparison)
             .expect("a matching pending comparative accepts its standard");
-        let (owner, comparison) = adjective_api::parts_adjective_phrase_comparison(&phrase)
-            .expect("the generated inverse detaches the comparison");
+        let (owner, comparison) = adjective_api::parts_adjective_phrase_comparison(&phrase);
         assert_eq!(
             adjective_api::build_adjective_phrase_comparison(owner, comparison).unwrap(),
             phrase,

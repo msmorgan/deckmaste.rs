@@ -3983,11 +3983,10 @@ mod tests {
             pronoun: crate::word::Pronoun::It(crate::word::Gender::Neuter),
             case: crate::features::PronounCase::Object,
         };
-        let adjective = AdjectivePhrase {
-            degree: None,
-            head: crate::word::Adjective::Color(crate::word::ColorWord::Red),
-            complements: Vec::new(),
-        };
+        let adjective = crate::adjective::build_adjective_phrase(crate::word::Adjective::Color(
+            crate::word::ColorWord::Red,
+        ))
+        .unwrap();
         let progressive = build_verb_phrase_auxiliary(
             full_auxiliary(
                 Auxiliary::Be,
@@ -5668,11 +5667,10 @@ mod tests {
         };
         assert!(build_verb_phrase_direct_object(required_object.clone(), subject_pronoun).is_err());
 
-        let adjective = AdjectivePhrase {
-            degree: None,
-            head: crate::word::Adjective::Color(crate::word::ColorWord::Red),
-            complements: Vec::new(),
-        };
+        let adjective = crate::adjective::build_adjective_phrase(crate::word::Adjective::Color(
+            crate::word::ColorWord::Red,
+        ))
+        .unwrap();
         let copular = build_verb_phrase_adjective(
             build_verb_phrase_base(
                 build_verb(lexical_head(Vocab::Be, VerbSlot::Infinitive, 0)).unwrap(),
@@ -5842,11 +5840,10 @@ mod tests {
             indirect
         );
 
-        let adjective = AdjectivePhrase {
-            degree: None,
-            head: crate::word::Adjective::Color(crate::word::ColorWord::Red),
-            complements: Vec::new(),
-        };
+        let adjective = crate::adjective::build_adjective_phrase(crate::word::Adjective::Color(
+            crate::word::ColorWord::Red,
+        ))
+        .unwrap();
         let copular_base = build_verb_phrase_base(
             build_verb(lexical_head(Vocab::Be, VerbSlot::Infinitive, 0)).unwrap(),
         )

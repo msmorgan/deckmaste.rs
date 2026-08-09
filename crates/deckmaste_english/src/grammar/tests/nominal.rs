@@ -10,7 +10,6 @@ mod tests {
     use crate::syntax::Ability;
     use crate::syntax::AbilityKind;
     use crate::syntax::AdjectiveComplement;
-    use crate::syntax::AdjectivePhrase;
     use crate::syntax::ComparisonMarker;
     use crate::syntax::Determiner;
     use crate::syntax::IndependentClause;
@@ -1202,11 +1201,9 @@ mod tests {
             coordinated.first.as_ref(),
             NominalModifier::Adjective {
                 polarity: Polarity::Positive,
-                phrase: AdjectivePhrase {
-                    head: Adjective::Color(ColorWord::White),
-                    ..
-                },
+                phrase,
             }
+                if matches!(phrase.head(), Adjective::Color(ColorWord::White))
         ));
         let [member] = coordinated.rest.as_slice() else {
             panic!("expected one continuation");
@@ -1219,11 +1216,9 @@ mod tests {
             &member.modifier,
             NominalModifier::Adjective {
                 polarity: Polarity::Positive,
-                phrase: AdjectivePhrase {
-                    head: Adjective::Color(ColorWord::Blue),
-                    ..
-                },
+                phrase,
             }
+                if matches!(phrase.head(), Adjective::Color(ColorWord::Blue))
         ));
         // The serial comma is derived from `conjunction`/`rest.len()`, not
         // stored (see `ModifierCoordination`); this round-trip is what pins
@@ -1303,7 +1298,7 @@ mod tests {
         assert!(matches!(
             modified.modifiers().first(),
             Some(NominalModifier::Adjective { phrase, .. })
-                if matches!(&phrase.head, Adjective::Catalog(atom) if atom.is_rules_bundle())
+                if matches!(phrase.head(), Adjective::Catalog(atom) if atom.is_rules_bundle())
         ));
 
         let outlaw_parse = parse("an outlaw");
@@ -1325,11 +1320,8 @@ mod tests {
         // (`non-Human`).
         let solid_modifier = NominalModifier::Adjective {
             polarity: Polarity::Negative,
-            phrase: AdjectivePhrase {
-                degree: None,
-                head: Adjective::Color(ColorWord::Black),
-                complements: vec![],
-            },
+            phrase: crate::adjective::build_adjective_phrase(Adjective::Color(ColorWord::Black))
+                .unwrap(),
         };
         let solid_phrase = NounPhrase::Nominal(NominalPhrase::test_from_projection_parts(
             None,
@@ -1666,24 +1658,19 @@ mod tests {
             let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
                 panic!("expected a nominal phrase for {source:?}");
             };
-            let [
-                NominalComplement::Adjective(AdjectivePhrase {
-                    head,
-                    complements,
-                    degree: None,
-                }),
-            ] = nominal.complements()
-            else {
+            let [NominalComplement::Adjective(phrase)] = nominal.complements() else {
                 panic!("expected one postpositive adjective for {source:?}: {nominal:#?}");
             };
-            assert_eq!(head, &Adjective::Word(expected_head), "{source}");
+            assert!(phrase.degree().is_none(), "{source}");
+            assert_eq!(phrase.head(), &Adjective::Word(expected_head), "{source}");
             assert!(
                 matches!(
-                    complements.as_slice(),
+                    phrase.complements(),
                     [AdjectiveComplement::Comparison(comparison)]
-                        if comparison.marker == expected_marker
+                        if comparison.marker() == expected_marker
                 ),
-                "{source}: {complements:#?}"
+                "{source}: {:#?}",
+                phrase.complements(),
             );
         }
     }
@@ -1883,7 +1870,7 @@ mod tests {
         };
         assert!(
             matches!(
-                &phrase.head,
+                phrase.head(),
                 Adjective::Participle(Tense::Past, Verb::Word(vocab)) if vocab.spelling() == "sacrifice"
             ),
             "{phrase:#?}"
@@ -1928,7 +1915,7 @@ mod tests {
                 NominalModifier::Adjective {
                     polarity: Polarity::Positive,
                     phrase,
-                } => match &phrase.head {
+                } => match phrase.head() {
                     Adjective::Word(vocab) | Adjective::Participle(_, Verb::Word(vocab)) => {
                         vocab.spelling()
                     }
@@ -2259,13 +2246,8 @@ mod tests {
         assert_eq!(nominal.determiner(), Some(&Determiner::Each));
         assert!(matches!(
             nominal.modifiers(),
-            [NominalModifier::Adjective {
-                phrase: AdjectivePhrase {
-                    head: Adjective::Word(Vocab::Other),
-                    ..
-                },
-                ..
-            }]
+            [NominalModifier::Adjective { phrase, .. }]
+                if matches!(phrase.head(), Adjective::Word(Vocab::Other))
         ));
     }
 
@@ -2278,18 +2260,13 @@ mod tests {
         assert!(matches!(
             nominal.modifiers(),
             [
-                NominalModifier::Adjective {
-                    phrase: AdjectivePhrase {
-                        head: Adjective::Catalog(legendary),
-                        ..
-                    },
-                    ..
-                },
+                NominalModifier::Adjective { phrase, .. },
                 NominalModifier::Noun {
                     noun,
                     ..
                 },
-            ] if legendary.kind == CatalogKind::Supertype
+            ] if matches!(phrase.head(), Adjective::Catalog(legendary)
+                if legendary.kind == CatalogKind::Supertype)
                 && matches!(
                     noun.kind(),
                     NounInstanceKind::Singular(Noun::Catalog(goblin))
@@ -2721,11 +2698,9 @@ mod tests {
                 coordinated.first.as_ref(),
                 NominalModifier::Adjective {
                     polarity: Polarity::Positive,
-                    phrase: AdjectivePhrase {
-                        head: Adjective::Ordinal(1),
-                        ..
-                    },
+                    phrase,
                 }
+                    if matches!(phrase.head(), Adjective::Ordinal(1))
             ),
             "expected first conjunct Ordinal(1), got {:#?}",
             coordinated.first
@@ -2738,11 +2713,9 @@ mod tests {
             &second.modifier,
             NominalModifier::Adjective {
                 polarity: Polarity::Positive,
-                phrase: AdjectivePhrase {
-                    head: Adjective::Ordinal(2),
-                    ..
-                },
+                phrase,
             }
+                if matches!(phrase.head(), Adjective::Ordinal(2))
         ));
         assert_eq!(
             third.conjunction,
@@ -2752,11 +2725,9 @@ mod tests {
             &third.modifier,
             NominalModifier::Adjective {
                 polarity: Polarity::Positive,
-                phrase: AdjectivePhrase {
-                    head: Adjective::Ordinal(3),
-                    ..
-                },
+                phrase,
             }
+                if matches!(phrase.head(), Adjective::Ordinal(3))
         ));
         assert_eq!(
             nominal.head(),
@@ -2812,13 +2783,8 @@ mod tests {
         };
         assert!(matches!(
             coordinated.first.as_ref(),
-            NominalModifier::Adjective {
-                phrase: AdjectivePhrase {
-                    head: Adjective::Ordinal(1),
-                    ..
-                },
-                ..
-            }
+            NominalModifier::Adjective { phrase, .. }
+                if matches!(phrase.head(), Adjective::Ordinal(1))
         ));
         let [only] = coordinated.rest.as_slice() else {
             panic!("expected one continuation, got {:#?}", coordinated.rest);
@@ -2829,13 +2795,8 @@ mod tests {
         );
         assert!(matches!(
             &only.modifier,
-            NominalModifier::Adjective {
-                phrase: AdjectivePhrase {
-                    head: Adjective::Ordinal(2),
-                    ..
-                },
-                ..
-            }
+            NominalModifier::Adjective { phrase, .. }
+                if matches!(phrase.head(), Adjective::Ordinal(2))
         ));
         assert_eq!(
             nominal.head(),
@@ -2864,7 +2825,7 @@ mod tests {
                 nominal.modifiers()
             );
         };
-        assert_eq!(phrase.head, Adjective::Ordinal(1));
+        assert_eq!(phrase.head(), &Adjective::Ordinal(1));
         assert_eq!(
             nominal.head(),
             &NounInstance::Singular(Noun::Word(Vocab::Turn))
@@ -2953,13 +2914,8 @@ mod tests {
         assert!(
             nominal.modifiers().iter().all(|modifier| !matches!(
                 modifier,
-                NominalModifier::Adjective {
-                    phrase: AdjectivePhrase {
-                        head: Adjective::Ordinal(_),
-                        ..
-                    },
-                    ..
-                }
+                NominalModifier::Adjective { phrase, .. }
+                    if matches!(phrase.head(), Adjective::Ordinal(_))
             )),
             "no ordinal adjective modifier should appear: {:#?}",
             nominal.modifiers()

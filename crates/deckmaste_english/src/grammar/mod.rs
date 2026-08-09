@@ -115,7 +115,6 @@ use crate::surface::lex;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::Clause;
 use crate::syntax::ComparisonComplement;
-use crate::syntax::ComparisonMarker;
 use crate::syntax::CopularComplement;
 use crate::syntax::Demonstrative;
 use crate::syntax::Determiner;
@@ -157,7 +156,6 @@ use crate::word::Auxiliary;
 use crate::word::AuxiliaryInflection;
 use crate::word::AuxiliaryInstance;
 use crate::word::BareNominalAdjunct;
-use crate::word::CardOrientation;
 use crate::word::LexicalSlot;
 use crate::word::Noun;
 use crate::word::NounInstance;
@@ -1995,7 +1993,8 @@ impl NegatedModifierKey {
         match &self.base {
             NegatedBase::Adjective(adjective) => NominalModifier::Adjective {
                 polarity,
-                phrase: AdjectivePhrase::from_projection_parts(None, adjective.clone(), Vec::new()),
+                phrase: crate::constructions::adjective::build_adjective_phrase(adjective.clone())
+                    .expect("negated adjective keys carry a lexical adjective"),
             },
             NegatedBase::Noun(noun) => NominalModifier::Noun {
                 polarity,

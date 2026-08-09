@@ -1625,9 +1625,9 @@ mod registration_order_tests {
                 parses[0].syntax
             )
         };
-        assert_eq!(selected.marker, crate::syntax::ComparisonMarker::Than);
+        assert_eq!(selected.marker(), crate::syntax::ComparisonMarker::Than);
         assert!(matches!(
-            selected.standard.as_ref(),
+            selected.standard(),
             crate::syntax::Phrase::AdjectivePhrase(_)
         ));
 

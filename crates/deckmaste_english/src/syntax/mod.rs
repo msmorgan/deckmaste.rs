@@ -1132,16 +1132,17 @@ mod tests {
 
     #[test]
     fn recovery_walker_descends_through_a_checked_comparison_standard() {
-        let nested = AdjectivePhrase::from_projection_parts(
-            None,
-            crate::word::Adjective::Word(Vocab::Target),
-            vec![AdjectiveComplement::Prepositional(
-                PrepositionalPhrase::simple(
-                    Preposition::With,
-                    Phrase::Recovered(recovered("standard")),
-                ),
-            )],
-        );
+        let nested =
+            AdjectivePhrase::try_from_lexical_head(crate::word::Adjective::Word(Vocab::Target))
+                .and_then(|phrase| {
+                    phrase.try_attach_compatibility_complement(AdjectiveComplement::Prepositional(
+                        PrepositionalPhrase::simple(
+                            Preposition::With,
+                            Phrase::Recovered(recovered("standard")),
+                        ),
+                    ))
+                })
+                .expect("the compatibility seam admits a lexical adjective plus PP");
         let standard = crate::adjective::build_comparison_standard(None, Some(nested), None)
             .expect("an adjective phrase is a typed comparison standard");
         let comparison = crate::adjective::build_comparison_than(standard)
