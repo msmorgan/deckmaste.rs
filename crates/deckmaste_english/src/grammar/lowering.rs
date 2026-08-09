@@ -414,6 +414,14 @@ fn project_generated_category(
         let value = value.downcast::<NounInstance>().ok()?;
         return Some(Lowered::Noun(*value));
     }
+    if construction.category == "Adjective" {
+        let value = value.downcast::<Adjective>().ok()?;
+        return Some(Lowered::Adjective(*value));
+    }
+    if construction.category == "AdjectivePhrase" {
+        let value = value.downcast::<AdjectivePhrase>().ok()?;
+        return Some(Lowered::AdjectivePhrase(*value));
+    }
     if construction.category == "Quantity" {
         let value = value.downcast::<Quantity>().ok()?;
         return Some(Lowered::Quantity(*value));
@@ -564,6 +572,15 @@ fn erased_field(
             ..
         } => {
             let Lowered::Noun(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Identity {
+            value_type: "Adjective",
+            provider: "Adjective",
+        } => {
+            let Lowered::Adjective(value) = value else {
                 return None;
             };
             Some(Box::new(value))
@@ -735,6 +752,7 @@ fn erased_subtree(
         "Verb" => typed!(Verb, value),
         "VerbPhrase" => typed!(VerbPhrase, value),
         "NounInstance" => typed!(Noun, value),
+        "Adjective" => typed!(Adjective, value),
         "NounPhrase" => typed!(NounPhrase, value),
         "ReducedRecipientPassiveTheme" => {
             let Lowered::NounPhrase(value) = value else {

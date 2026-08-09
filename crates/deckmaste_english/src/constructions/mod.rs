@@ -1,5 +1,6 @@
 //! Construction-group declarations and test-only compiler scaffolding.
 
+pub(crate) mod adjective;
 pub(crate) mod coordination;
 #[cfg(test)]
 pub(crate) mod law;
