@@ -1295,10 +1295,13 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
         value: &T,
     ) -> Result<(), Self::Error> {
         match codec {
-            "Numeral" => {
+            "DegreeMeasureNumeral" => {
                 let number = (value as &dyn std::any::Any)
                     .downcast_ref::<NumberLiteral>()
                     .expect("the degree scalar preserves NumberLiteral");
+                if !crate::syntax::is_valid_degree_measure_number(*number) {
+                    return Err(RenderError::InvalidAdjectiveConstruction);
+                }
                 self.push(&number.numeral.format(number.value));
             }
             other => panic!("unexpected adjective scalar codec `{other}`"),
@@ -4573,6 +4576,7 @@ fn join_words(parts: Vec<String>) -> String {
 
 #[cfg(test)]
 mod tests {
+    use super::GeneratedAdjectiveRenderer;
     use super::Renderer;
     use super::render_nominal_conjunction;
     use crate::Numeral;
@@ -4612,6 +4616,55 @@ mod tests {
         person: Person::Third,
         number: Number::Plural,
     };
+
+    fn render_degree_measure_scalar(number: NumberLiteral) -> Result<String, RenderError> {
+        let renderer = Renderer::new("Test Card", false);
+        let mut visitor = GeneratedAdjectiveRenderer::new(&renderer);
+        deckmaste_construction_compiler::runtime::LinearizationVisitor::scalar(
+            &mut visitor,
+            "DegreeMeasureNumeral",
+            &number,
+        )?;
+        Ok(visitor.rendered)
+    }
+
+    #[test]
+    fn degree_measure_scalar_sink_rejects_non_degree_notations() {
+        assert_eq!(
+            render_degree_measure_scalar(NumberLiteral {
+                value: 2,
+                numeral: Numeral::Cardinal,
+            }),
+            Ok("two".to_owned()),
+        );
+        assert_eq!(
+            render_degree_measure_scalar(NumberLiteral {
+                value: 2,
+                numeral: Numeral::Arabic(false),
+            }),
+            Ok("2".to_owned()),
+        );
+        for measure in [
+            NumberLiteral {
+                value: 2,
+                numeral: Numeral::Ordinal,
+            },
+            NumberLiteral {
+                value: 10,
+                numeral: Numeral::Roman,
+            },
+            NumberLiteral {
+                value: 2_000,
+                numeral: Numeral::Arabic(true),
+            },
+        ] {
+            assert_eq!(
+                render_degree_measure_scalar(measure),
+                Err(RenderError::InvalidAdjectiveConstruction),
+                "non-degree notation reached the scalar sink: {measure:?}",
+            );
+        }
+    }
 
     #[derive(Debug)]
     struct VerbPhrase {

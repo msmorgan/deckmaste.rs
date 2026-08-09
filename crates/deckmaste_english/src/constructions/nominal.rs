@@ -356,8 +356,8 @@ fn make_nominal_adjective(
 
 fn attributive_adjective_is_admitted(adjective: &AdjectivePhrase) -> bool {
     nominal_attributive_adjective_is_admitted(
-        matches!(adjective.head, Adjective::CardOrientation(_)),
-        adjective.degree.is_some(),
+        matches!(adjective.head(), Adjective::CardOrientation(_)),
+        adjective.degree().is_some(),
     )
 }
 
@@ -2553,11 +2553,8 @@ mod tests {
     }
 
     fn red_adjective() -> AdjectivePhrase {
-        AdjectivePhrase {
-            degree: None,
-            head: Adjective::Color(ColorWord::Red),
-            complements: Vec::new(),
-        }
+        crate::adjective::build_adjective_phrase(Adjective::Color(ColorWord::Red))
+            .expect("red is a lexical adjective")
     }
 
     fn parsed_nominal(source: &str) -> NominalPhrase {
@@ -3113,15 +3110,13 @@ mod tests {
             linearize_nominal_postpositive_adjective_form_with
         );
 
-        let blue_adjective = || AdjectivePhrase {
-            degree: None,
-            head: Adjective::Color(ColorWord::Blue),
-            complements: Vec::new(),
+        let blue_adjective = || {
+            crate::adjective::build_adjective_phrase(Adjective::Color(ColorWord::Blue))
+                .expect("blue is a lexical adjective")
         };
-        let green_adjective = || AdjectivePhrase {
-            degree: None,
-            head: Adjective::Color(ColorWord::Green),
-            complements: Vec::new(),
+        let green_adjective = || {
+            crate::adjective::build_adjective_phrase(Adjective::Color(ColorWord::Green))
+                .expect("green is a lexical adjective")
         };
         let prepositional_base =
             build_nominal_postpositive_adjective(card_nominal(), red_adjective()).unwrap();
@@ -3203,19 +3198,18 @@ mod tests {
             linearize_nominal_postpositive_adjective_oxford_form_with
         );
 
-        let comparison = ComparisonComplement {
-            marker: crate::syntax::ComparisonMarker::Than,
-            standard: Box::new(Phrase::NounPhrase(Box::new(NounPhrase::Nominal(
-                card_nominal(),
-            )))),
-        };
+        let comparison = crate::adjective::build_comparison_than(
+            crate::adjective::build_comparison_standard(
+                Some(NounPhrase::Nominal(card_nominal())),
+                None,
+                None,
+            )
+            .unwrap(),
+        )
+        .unwrap();
         let nominal_comparison = build_nominal_comparison(
             build_nominal_adjective(
-                AdjectivePhrase {
-                    degree: None,
-                    head: Adjective::Word(Vocab::Greater),
-                    complements: Vec::new(),
-                },
+                crate::adjective::build_adjective_phrase(Adjective::Word(Vocab::Greater)).unwrap(),
                 card_nominal(),
             )
             .unwrap(),
@@ -3304,11 +3298,7 @@ mod tests {
         // Mutations caught: let a broad vector lens overlap a typed modifier,
         // omit adapted M01 rows from mixed inverse dispatch, or select a form
         // before checking its complete-value recognition predicate.
-        let adjective = AdjectivePhrase {
-            degree: None,
-            head: Adjective::Color(ColorWord::Red),
-            complements: Vec::new(),
-        };
+        let adjective = red_adjective();
         let adjective_nominal = build_nominal_adjective(adjective, card_nominal()).unwrap();
         assert_eq!(
             selected_nominal_construction(&adjective_nominal),
@@ -3454,12 +3444,17 @@ mod tests {
     }
 
     fn than_a_card() -> ComparisonComplement {
-        ComparisonComplement {
-            marker: crate::syntax::ComparisonMarker::Than,
-            standard: Box::new(Phrase::NounPhrase(Box::new(NounPhrase::Nominal(
-                build_nominal_determiner(Determiner::Indefinite, card_nominal()).unwrap(),
-            )))),
-        }
+        crate::adjective::build_comparison_than(
+            crate::adjective::build_comparison_standard(
+                Some(NounPhrase::Nominal(
+                    build_nominal_determiner(Determiner::Indefinite, card_nominal()).unwrap(),
+                )),
+                None,
+                None,
+            )
+            .unwrap(),
+        )
+        .unwrap()
     }
 
     #[test]
@@ -3475,11 +3470,11 @@ mod tests {
     fn comparison_builder_rejects_an_already_completed_adjective() {
         // Mutation caught: append a second completion after a comparative
         // adjective already carries its ordinary comparison complement.
-        let completed = AdjectivePhrase {
-            degree: None,
-            head: Adjective::Word(Vocab::Greater),
-            complements: vec![AdjectiveComplement::Comparison(than_a_card())],
-        };
+        let completed = crate::adjective::build_adjective_phrase_comparison(
+            crate::adjective::build_adjective_phrase(Adjective::Word(Vocab::Greater)).unwrap(),
+            than_a_card(),
+        )
+        .unwrap();
         let nominal = build_nominal_adjective(completed, card_nominal()).unwrap();
         assert!(build_nominal_comparison(nominal, than_a_card()).is_err());
     }
@@ -3489,11 +3484,8 @@ mod tests {
         // Mutation caught: reject the actual comparison-pending vocabulary
         // class, lose the comparison during parts projection, or render the
         // stored postnominal completion in prefix position.
-        let pending = AdjectivePhrase {
-            degree: None,
-            head: Adjective::Word(Vocab::Greater),
-            complements: Vec::new(),
-        };
+        let pending =
+            crate::adjective::build_adjective_phrase(Adjective::Word(Vocab::Greater)).unwrap();
         let value = build_nominal_comparison(
             build_nominal_adjective(pending, card_nominal()).unwrap(),
             than_a_card(),
@@ -3518,11 +3510,7 @@ mod tests {
 
     #[test]
     fn attributive_card_orientation_crosses_only_the_partial_chart_door() {
-        let orientation = AdjectivePhrase {
-            degree: None,
-            head: Adjective::CardOrientation(crate::word::CardOrientation::FaceDown),
-            complements: Vec::new(),
-        };
+        let orientation = crate::adjective::build_adjective_phrase_face_down().unwrap();
         assert!(build_nominal_adjective(orientation.clone(), card_nominal()).is_err());
 
         let declaration = NOMINAL_DECLARATION
@@ -3554,14 +3542,14 @@ mod tests {
 
     #[test]
     fn measured_adjective_crosses_only_the_partial_chart_door() {
-        let measured = AdjectivePhrase {
-            degree: Some(crate::syntax::NumberLiteral {
+        let measured = crate::adjective::build_adjective_phrase_degree_measure(
+            crate::syntax::NumberLiteral {
                 value: 2,
                 numeral: crate::Numeral::Cardinal,
-            }),
-            head: Adjective::Word(Vocab::Greater),
-            complements: Vec::new(),
-        };
+            },
+            Adjective::Word(Vocab::Greater),
+        )
+        .unwrap();
         assert!(build_nominal_adjective(measured.clone(), card_nominal()).is_err());
 
         let declaration = NOMINAL_DECLARATION
@@ -3588,11 +3576,8 @@ mod tests {
             .is_err()
         );
 
-        let pending = AdjectivePhrase {
-            degree: None,
-            head: Adjective::Word(Vocab::Greater),
-            complements: Vec::new(),
-        };
+        let pending =
+            crate::adjective::build_adjective_phrase(Adjective::Word(Vocab::Greater)).unwrap();
         assert!(build_nominal_adjective(pending, card_nominal()).is_ok());
     }
 
@@ -3644,11 +3629,11 @@ mod tests {
     }
 
     fn participle(tense: crate::word::Tense, verb: Vocab) -> AdjectivePhrase {
-        AdjectivePhrase {
-            degree: None,
-            head: Adjective::Participle(tense, crate::word::Verb::Word(verb)),
-            complements: Vec::new(),
-        }
+        crate::adjective::build_adjective_phrase(Adjective::Participle(
+            tense,
+            crate::word::Verb::Word(verb),
+        ))
+        .expect("the participle is a lexical adjective")
     }
 
     fn preposition_with_card(preposition: Preposition) -> PrepositionalPhrase {
@@ -3795,12 +3780,13 @@ mod tests {
                     first: Box::new(participle(crate::word::Tense::Present, Vocab::Block)),
                     rest: vec![AdjectivePhraseCoordination {
                         conjunction: Some(Conjunction::Or),
-                        phrase: AdjectivePhrase {
-                            complements: vec![AdjectiveComplement::Prepositional(
-                                preposition_with_card(Preposition::By),
-                            )],
-                            ..red_adjective()
-                        },
+                        phrase: red_adjective()
+                            .try_attach_compatibility_complement(
+                                AdjectiveComplement::Prepositional(preposition_with_card(
+                                    Preposition::By,
+                                )),
+                            )
+                            .unwrap(),
                     }],
                 },
             )],

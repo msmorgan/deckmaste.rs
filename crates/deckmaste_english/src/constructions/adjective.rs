@@ -338,6 +338,12 @@ fn make_degree_measure(
     measure: NumberLiteral,
     adjective: Adjective,
 ) -> Result<AdjectivePhrase, DeclarationViolation> {
+    if !crate::syntax::is_valid_degree_measure_number(measure) {
+        return Err(violation(
+            "adjective_phrase_degree_measure",
+            "the measure uses cardinal or ungrouped Arabic notation",
+        ));
+    }
     let Some(features) = adjective_features(
         &adjective,
         matches!(adjective, Adjective::CardOrientation(_)),
@@ -372,13 +378,15 @@ fn make_degree_measure(
 }
 
 fn degree_measure_parts(value: &AdjectivePhrase) -> (NumberLiteral, Adjective) {
-    (
-        value
-            .degree()
-            .copied()
-            .expect("the degree-measure dispatcher admits only measured phrases"),
-        value.head().clone(),
-    )
+    let measure = value
+        .degree()
+        .copied()
+        .expect("the degree-measure dispatcher admits only measured phrases");
+    assert!(
+        crate::syntax::is_valid_degree_measure_number(measure),
+        "the degree-measure dispatcher admits only cardinal or ungrouped Arabic notation",
+    );
+    (measure, value.head().clone())
 }
 
 fn is_adjective_phrase_degree_measure(value: &AdjectivePhrase) -> bool {
@@ -485,7 +493,7 @@ deckmaste_constructions_macro::constructions! {
 
     construction adjective_phrase_degree_measure: AdjectivePhrase {
         bind AdjectivePhrase via make_degree_measure, degree_measure_parts {
-            measure: lex NumberLiteral via Numeral,
+            measure: lex NumberLiteral via DegreeMeasureNumeral,
             adjective: hole Adjective,
         }
         derive features: Features = reduce_degree_measure_features(measure, adjective);
@@ -810,6 +818,92 @@ mod tests {
             build_adjective_phrase_face_down().unwrap(),
             orientation_phrase(CardOrientation::FaceDown)
         );
+    }
+
+    #[test]
+    fn degree_measure_builder_rejects_non_degree_notations() {
+        for measure in [
+            NumberLiteral {
+                value: 2,
+                numeral: Numeral::Ordinal,
+            },
+            NumberLiteral {
+                value: 10,
+                numeral: Numeral::Roman,
+            },
+            NumberLiteral {
+                value: 2_000,
+                numeral: Numeral::Arabic(true),
+            },
+        ] {
+            assert!(
+                build_adjective_phrase_degree_measure(measure, Adjective::Word(Vocab::Greater))
+                    .is_err(),
+                "non-degree notation reached the checked builder: {measure:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn degree_measure_owner_rejects_non_degree_notations() {
+        for measure in [
+            NumberLiteral {
+                value: 2,
+                numeral: Numeral::Ordinal,
+            },
+            NumberLiteral {
+                value: 10,
+                numeral: Numeral::Roman,
+            },
+            NumberLiteral {
+                value: 2_000,
+                numeral: Numeral::Arabic(true),
+            },
+        ] {
+            assert!(
+                AdjectivePhrase::try_from_degree_measure(measure, Adjective::Word(Vocab::Greater),)
+                    .is_none(),
+                "non-degree notation reached owner storage: {measure:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn degree_measure_parser_rejects_non_degree_notations() {
+        for source in ["second greater", "X greater", "2,000 greater"] {
+            assert!(
+                crate::grammar::parse_nonterminal_with_activation(
+                    source,
+                    &Catalogs::default(),
+                    crate::grammar::Nonterminal::AdjectivePhrase,
+                    crate::grammar::GeneratedActivation::Groups(GROUPS),
+                )
+                .is_err(),
+                "non-degree notation parsed as a degree measure: {source:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn ungrouped_arabic_degree_measure_has_one_semantic_alternative() {
+        let expected = AdjectivePhrase::try_from_degree_measure(
+            NumberLiteral {
+                value: 2,
+                numeral: Numeral::Arabic(false),
+            },
+            Adjective::Word(Vocab::Greater),
+        )
+        .unwrap();
+        let orders = crate::grammar::exact::parse_groups_as_adjective_phrase_values_in_both_orders(
+            "2 greater",
+            &Catalogs::default(),
+            10_000,
+            GROUPS,
+        )
+        .unwrap();
+        for alternatives in orders {
+            assert_eq!(alternatives.as_slice(), std::slice::from_ref(&expected));
+        }
     }
 
     #[test]

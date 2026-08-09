@@ -814,7 +814,6 @@ pub(crate) enum Nonterminal {
     Determiner,
     Adjective,
     AdjectivePhrase,
-    ComparisonStandard,
     ComparisonComplement,
     Noun,
     Nominal,
@@ -946,6 +945,9 @@ pub(crate) enum EnglishLexicalSlot {
     Number(Numeral),
     /// All supported numeral notations behind one generated scalar codec.
     QuantityNumber,
+    /// Cardinal words and ungrouped Arabic digits used by adjective degree
+    /// measures.
+    DegreeMeasureNumber,
     /// The closed four-word comparative vocabulary used by quantity bounds.
     ComparativeWord,
     /// A declaration-owned fixed word or word sequence.
@@ -1043,10 +1045,7 @@ pub(crate) enum EnglishLexicalSlot {
     Determiner,
     Demonstrative,
     DeterminerTarget,
-    Than,
-    OrEqualTo,
     RelativeMarker,
-    Face,
     Up,
     Down,
     Not,
@@ -1118,10 +1117,7 @@ impl EnglishLexicalSlot {
             Self::CoinResult(crate::syntax::CoinSide::Tails) => &["up", "tails"],
             Self::FromWord => &["from"],
             Self::DeterminerTarget => &["target"],
-            Self::Than => &["than"],
-            Self::OrEqualTo => &["or", "equal", "to"],
             Self::RelativeMarker => &["who", "that"],
-            Self::Face => &["face"],
             Self::Up => &["up"],
             Self::Down => &["down"],
             Self::Not => &["not"],
@@ -1142,6 +1138,7 @@ impl EnglishLexicalSlot {
 
             Self::Number(_)
             | Self::QuantityNumber
+            | Self::DegreeMeasureNumber
             | Self::ComparativeWord
             | Self::GeneratedLiteral(_)
             | Self::Noun(_)
@@ -1199,10 +1196,7 @@ impl EnglishLexicalSlot {
         Self::CoinResult(crate::syntax::CoinSide::Tails),
         Self::FromWord,
         Self::DeterminerTarget,
-        Self::Than,
-        Self::OrEqualTo,
         Self::RelativeMarker,
-        Self::Face,
         Self::Up,
         Self::Down,
         Self::Not,
@@ -1226,16 +1220,13 @@ impl EnglishLexicalSlot {
     /// opacity known-word invariant. Indexing avoids a second spelling table.
     const fn reserves_literal_for_opacity(self, surface_index: usize) -> bool {
         match self {
-            Self::Plus
-            | Self::Except
-            | Self::Not
-            | Self::Up
-            | Self::Than
-            | Self::Down
-            | Self::Minus => true,
+            Self::Plus | Self::Except | Self::Not | Self::Up | Self::Down | Self::Minus => true,
             // Reserve `who` but not determiner-known `that`, and measured
             // `there` but not the still-unaudited contraction `there's`.
             Self::RelativeMarker | Self::Existential => surface_index == 0,
+            // `than` remains known through the live `rather than` subordinator
+            // slot; `rather` itself stays the measured opacity opt-out.
+            Self::RatherThan => surface_index == 1,
             // `it's` and `that's` are measured. The other contractions remain
             // opacity-visible until their second-order retain effects are audited.
             Self::SubjectAuxiliary => matches!(surface_index, 4 | 5),
@@ -1245,6 +1236,7 @@ impl EnglishLexicalSlot {
             // opt-outs, not accidental omissions.
             Self::Number(_)
             | Self::QuantityNumber
+            | Self::DegreeMeasureNumber
             | Self::ComparativeWord
             | Self::GeneratedLiteral(_)
             | Self::Noun(_)
@@ -1280,8 +1272,6 @@ impl EnglishLexicalSlot {
             | Self::Determiner
             | Self::Demonstrative
             | Self::DeterminerTarget
-            | Self::OrEqualTo
-            | Self::Face
             | Self::To
             | Self::Of
             | Self::ForWord
@@ -1298,7 +1288,6 @@ impl EnglishLexicalSlot {
             | Self::PowerToughness
             | Self::Punctuation(_)
             | Self::Subordinator
-            | Self::RatherThan
             | Self::Conjunction
             | Self::NounPhraseConjunction
             | Self::Half
@@ -1912,14 +1901,11 @@ mod quantity_value_tests {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum LiteralKey {
-    Face,
     Up,
     Down,
     Not,
     To,
     Target,
-    Than,
-    OrEqualTo,
     Plus,
     Minus,
     Half,
@@ -2807,6 +2793,19 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 }
                 matches
             }
+            EnglishLexicalSlot::DegreeMeasureNumber => self
+                .recognized_numerals(tokens, start)
+                .into_iter()
+                .filter(|(_, number)| crate::syntax::is_valid_degree_measure_number(*number))
+                .map(|(end, number)| LexicalMatch {
+                    end,
+                    features: Features::Number {
+                        is_one: number.value == 1,
+                    },
+                    meaning: MeaningKey::Number(number),
+                    local_cost: ParseCost::default(),
+                })
+                .collect(),
             EnglishLexicalSlot::ComparativeWord => self
                 .token_text(tokens, start)
                 .and_then(crate::word::comparative_word)
@@ -3177,16 +3176,6 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 })
                 .into_iter()
                 .collect(),
-            slot @ EnglishLexicalSlot::Than => self
-                .literal_token_match(tokens, start, slot)
-                .map(|end| literal_match(end, LiteralKey::Than))
-                .into_iter()
-                .collect(),
-            slot @ EnglishLexicalSlot::OrEqualTo => self
-                .literal_words_match(tokens, start, slot)
-                .map(|end| literal_match(end, LiteralKey::OrEqualTo))
-                .into_iter()
-                .collect(),
             slot @ EnglishLexicalSlot::RelativeMarker => slot
                 .literal_surfaces()
                 .iter()
@@ -3201,11 +3190,6 @@ impl Grammar for EnglishGrammar<'_, '_> {
                             local_cost: ParseCost::default(),
                         })
                 })
-                .collect(),
-            slot @ EnglishLexicalSlot::Face => self
-                .literal_token_match(tokens, start, slot)
-                .map(|end| literal_match(end, LiteralKey::Face))
-                .into_iter()
                 .collect(),
             slot @ EnglishLexicalSlot::Up => self
                 .literal_token_match(tokens, start, slot)
@@ -3494,6 +3478,20 @@ pub(crate) fn keyword_atom_carries_preposition(atom: &CatalogAtom) -> bool {
 mod surface_witness_tests {
     use super::*;
 
+    fn degree_measure_numbers(source: &str) -> Vec<NumberLiteral> {
+        let catalogs = Catalogs::default();
+        let grammar = EnglishGrammar::new(source, &catalogs, Nonterminal::AdjectivePhrase);
+        let tokens = lex(source).tokens;
+        grammar
+            .scan(EnglishLexicalSlot::DegreeMeasureNumber, &tokens, 0)
+            .into_iter()
+            .map(|lexical_match| match lexical_match.meaning {
+                MeaningKey::Number(number) => number,
+                meaning => panic!("degree-measure slot returned {meaning:?}"),
+            })
+            .collect()
+    }
+
     fn witness_for(
         source: &str,
         slot: EnglishLexicalSlot,
@@ -3544,6 +3542,39 @@ mod surface_witness_tests {
                 },
             },
         })
+    }
+
+    #[test]
+    fn degree_measure_slot_admits_exactly_cardinal_and_ungrouped_arabic() {
+        assert_eq!(
+            degree_measure_numbers("two"),
+            [NumberLiteral {
+                value: 2,
+                numeral: Numeral::Cardinal,
+            }],
+        );
+        assert_eq!(
+            degree_measure_numbers("2"),
+            [NumberLiteral {
+                value: 2,
+                numeral: Numeral::Arabic(false),
+            }],
+        );
+        for source in ["second", "X"] {
+            assert_eq!(
+                degree_measure_numbers(source),
+                [],
+                "non-degree notation reached the degree-measure slot: {source:?}",
+            );
+        }
+        assert_eq!(
+            degree_measure_numbers("2,000"),
+            [NumberLiteral {
+                value: 2,
+                numeral: Numeral::Arabic(false),
+            }],
+            "grouped Arabic must not produce a grouped-notation match",
+        );
     }
 
     #[test]

@@ -607,6 +607,7 @@ fn lhs_category_nonterminal(
 fn codec_slot(codec: &'static str) -> Option<EnglishLexicalSlot> {
     match codec {
         "Numeral" => Some(EnglishLexicalSlot::QuantityNumber),
+        "DegreeMeasureNumeral" => Some(EnglishLexicalSlot::DegreeMeasureNumber),
         "ComparativeWord" => Some(EnglishLexicalSlot::ComparativeWord),
         "Conjunction" => Some(EnglishLexicalSlot::Conjunction),
         "NounPhraseConjunction" => Some(EnglishLexicalSlot::NounPhraseConjunction),
@@ -636,6 +637,7 @@ fn typed_scalar_slot(
     }
     match (value_type, codec) {
         ("NumberLiteral" | "QuantityValue", "Numeral") => Ok(EnglishLexicalSlot::QuantityNumber),
+        ("NumberLiteral", "DegreeMeasureNumeral") => Ok(EnglishLexicalSlot::DegreeMeasureNumber),
         ("PowerToughness", "PowerToughness") => Ok(EnglishLexicalSlot::PowerToughness),
         _ => Err(GeneratedAssemblyError::UnsupportedTypedScalar {
             owner,
@@ -1779,7 +1781,7 @@ mod tests {
             degree.fields[0].kind,
             FieldKindData::TypedScalar {
                 value_type: "NumberLiteral",
-                codec: "Numeral",
+                codec: "DegreeMeasureNumeral",
             }
         );
         assert_eq!(
@@ -1787,10 +1789,10 @@ mod tests {
                 degree.id,
                 degree.fields[0].name,
                 "NumberLiteral",
-                "Numeral",
+                "DegreeMeasureNumeral",
                 false,
             ),
-            Ok(EnglishLexicalSlot::QuantityNumber)
+            Ok(EnglishLexicalSlot::DegreeMeasureNumber)
         );
 
         let cats = internal_categories(&[declaration]);

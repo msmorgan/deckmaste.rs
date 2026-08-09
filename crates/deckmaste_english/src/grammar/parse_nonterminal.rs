@@ -1607,67 +1607,97 @@ mod registration_order_tests {
 
     #[test]
     fn comparison_standard_ambiguity_is_registration_order_neutral() {
-        let parses = crate::grammar::parse_nonterminal_with_activation_in_both_orders(
-            "than target",
-            &Catalogs::default(),
-            Nonterminal::ComparisonComplement,
-            &crate::identity::SelfReference::default(),
-            GeneratedActivation::Groups(crate::constructions::adjective::GROUPS),
-        );
-        assert_eq!(
-            format!("{:#?}", parses[0].syntax),
-            format!("{:#?}", parses[1].syntax),
-            "the selected typed standard must not depend on registration order",
-        );
-        let Lowered::ComparisonComplement(selected) = &parses[0].syntax else {
-            panic!(
-                "the generated marker did not lower: {:#?}",
-                parses[0].syntax
-            )
-        };
-        assert_eq!(selected.marker(), crate::syntax::ComparisonMarker::Than);
-        assert!(matches!(
-            selected.standard(),
-            crate::syntax::Phrase::AdjectivePhrase(_)
-        ));
-
-        let mut signatures = Vec::new();
-        for parsed in &parses {
-            let decision = parsed
-                .construction_decisions()
-                .iter()
-                .find(|decision| {
-                    decision.selected().as_str() == "comparison_standard"
-                        && decision.alternatives().len() > 1
-                })
-                .unwrap_or_else(|| {
-                    panic!(
-                        "the adjective/clause standard ambiguity was not packed: {:#?}",
-                        parsed.construction_decisions(),
-                    )
-                });
-            assert_eq!(decision.reason(), SelectionReason::StableIdentity);
-            let candidates = decision
-                .alternatives()
-                .iter()
-                .map(|alternative| {
-                    (
-                        alternative.id().as_str(),
-                        alternative.production_ordinal(),
-                        alternative.is_dominated(),
-                    )
-                })
-                .collect::<Vec<_>>();
-            assert_eq!(
-                candidates,
-                [
-                    ("comparison_standard", 1, false),
-                    ("comparison_standard", 2, false),
-                ],
+        for (source, selected_form, viable_forms) in [
+            ("than target", 1, &[1, 2][..]),
+            ("than target player", 0, &[0, 2][..]),
+        ] {
+            let activation = if selected_form == 0 {
+                GeneratedActivation::Production
+            } else {
+                GeneratedActivation::Groups(crate::constructions::adjective::GROUPS)
+            };
+            let parses = crate::grammar::parse_nonterminal_with_activation_in_both_orders(
+                source,
+                &Catalogs::default(),
+                Nonterminal::ComparisonComplement,
+                &crate::identity::SelfReference::default(),
+                activation,
             );
-            signatures.push(candidates);
+            assert_eq!(
+                format!("{:#?}", parses[0].syntax),
+                format!("{:#?}", parses[1].syntax),
+                "the selected typed standard must not depend on registration order: {source:?}",
+            );
+            assert_eq!(
+                parses[0].root_tied_alternatives(),
+                parses[1].root_tied_alternatives(),
+                "root ties changed with registration order: {source:?}",
+            );
+            let Lowered::ComparisonComplement(selected) = &parses[0].syntax else {
+                panic!(
+                    "the generated marker did not lower: {:#?}",
+                    parses[0].syntax
+                )
+            };
+            assert_eq!(selected.marker(), crate::syntax::ComparisonMarker::Than);
+            assert!(
+                matches!(
+                    (selected_form, selected.standard()),
+                    (0, crate::syntax::Phrase::NounPhrase(_))
+                        | (1, crate::syntax::Phrase::AdjectivePhrase(_))
+                ),
+                "unexpected selected standard for {source:?}: {selected:#?}",
+            );
+
+            let mut signatures = Vec::new();
+            for parsed in &parses {
+                let decision = parsed
+                    .construction_decisions()
+                    .iter()
+                    .find(|decision| {
+                        decision.selected().as_str() == "comparison_standard"
+                            && decision.alternatives().len() > 1
+                    })
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "the typed standard ambiguity was not packed for {source:?}: {:#?}",
+                            parsed.construction_decisions(),
+                        )
+                    });
+                assert_eq!(decision.reason(), SelectionReason::StableIdentity);
+                assert_eq!(decision.selected_production_ordinal(), selected_form);
+                let candidates = decision
+                    .alternatives()
+                    .iter()
+                    .map(|alternative| {
+                        (
+                            alternative.id().as_str(),
+                            alternative.production_ordinal(),
+                            alternative.is_dominated(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                assert!(
+                    candidates
+                        .iter()
+                        .all(|(id, _, dominated)| *id == "comparison_standard" && !dominated),
+                    "every packed standard must remain undominated for {source:?}: {candidates:?}",
+                );
+                assert_eq!(
+                    candidates
+                        .iter()
+                        .map(|(_, ordinal, _)| *ordinal)
+                        .collect::<std::collections::BTreeSet<_>>(),
+                    viable_forms
+                        .iter()
+                        .copied()
+                        .collect::<std::collections::BTreeSet<_>>(),
+                    "every viable standard must remain undominated for {source:?}",
+                );
+                signatures.push((decision.selected_production_ordinal(), candidates));
+            }
+            assert_eq!(signatures[0], signatures[1]);
         }
-        assert_eq!(signatures[0], signatures[1]);
     }
 
     const ORDER_INVARIANT_FIXTURES: &[(Nonterminal, &str)] = &[
