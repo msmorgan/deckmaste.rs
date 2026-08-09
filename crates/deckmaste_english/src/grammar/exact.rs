@@ -58,6 +58,13 @@ pub(crate) struct GeneratedNominalParse {
     pub(crate) form_ordinal: u16,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct GeneratedDeterminerParse {
+    pub(crate) value: crate::syntax::Determiner,
+    pub(crate) construction: &'static str,
+    pub(crate) form_ordinal: u16,
+}
+
 /// The generated root attribution of an exact derivation, independent of the
 /// root category's Rust payload type. Unlike [`GeneratedParse`], this does not
 /// require every handwritten subtree below the generated root to itself be a
@@ -625,6 +632,108 @@ pub(crate) fn parse_groups_as_declared_category_in_both_orders(
 }
 
 #[cfg(test)]
+fn parse_determiner_with_identity_and_registration_order(
+    source: &str,
+    catalogs: &Catalogs,
+    self_reference: SelfReference,
+    budget: usize,
+    order: RegistrationOrder,
+    groups: &'static [&'static deckmaste_construction_compiler::runtime::GroupData],
+) -> Result<Vec<ExactParse<GeneratedDeterminerParse, EnglishSurfaceWitness>>, ExactParseError> {
+    let surface = lex(source);
+    let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
+    let grammar = EnglishGrammar::with_opacity_mode_and_registration_order(
+        source,
+        catalogs,
+        Nonterminal::Determiner,
+        OpacityMode::Exact,
+        self_reference,
+        order,
+        GeneratedActivation::Groups(groups),
+    );
+    let chart = parse_chart(&grammar, &tokens).map_err(ExactParseError::Grammar)?;
+    let mut remaining = budget;
+    let mut results = Vec::new();
+    for &root in &chart.roots {
+        let selections = chart
+            .forest
+            .enumerate_selections(root, &mut remaining)
+            .map_err(|error| match error {
+                SelectionEnumerationError::Cycle(_) => ExactParseError::Cycle,
+                SelectionEnumerationError::BudgetExhausted => {
+                    ExactParseError::TooManyAlternatives { budget }
+                }
+            })?;
+        for selection in selections {
+            let forest_node = chart.forest.node(root);
+            let Some(alternative_index) = selection.alternative(root) else {
+                continue;
+            };
+            let Some(alternative) = forest_node.alternatives.get(alternative_index) else {
+                continue;
+            };
+            let Some(rule) = alternative.rule else { continue };
+            let Some(RuleImpl::Generated(generated)) = grammar.impls.get(rule.index()).copied()
+            else {
+                continue;
+            };
+            let Some(construction) = generated.group.constructions.get(generated.construction)
+            else {
+                continue;
+            };
+            let Some(form) = construction.forms.get(generated.form) else {
+                continue;
+            };
+            let Some(Lowered::Determiner(value)) = lower(&grammar, &chart.forest, root, &selection)
+            else {
+                continue;
+            };
+            let ast = GeneratedDeterminerParse {
+                value,
+                construction: construction.id,
+                form_ordinal: form.ordinal,
+            };
+            let Some(exact) = chart.forest.exact_result(root, alternative_index, ast) else {
+                continue;
+            };
+            if !results.contains(&exact) {
+                results.push(exact);
+            }
+        }
+    }
+    Ok(results)
+}
+
+#[cfg(test)]
+fn parse_determiner_with_identity_in_both_orders(
+    source: &str,
+    catalogs: &Catalogs,
+    self_reference: SelfReference,
+    budget: usize,
+    groups: &'static [&'static deckmaste_construction_compiler::runtime::GroupData],
+) -> Result<[Vec<ExactParse<GeneratedDeterminerParse, EnglishSurfaceWitness>>; 2], ExactParseError>
+{
+    Ok([
+        parse_determiner_with_identity_and_registration_order(
+            source,
+            catalogs,
+            self_reference.clone(),
+            budget,
+            RegistrationOrder::Normal,
+            groups,
+        )?,
+        parse_determiner_with_identity_and_registration_order(
+            source,
+            catalogs,
+            self_reference,
+            budget,
+            RegistrationOrder::Reversed,
+            groups,
+        )?,
+    ])
+}
+
+#[cfg(test)]
 fn parse_adjective_phrase_values_with_registration_order(
     source: &str,
     catalogs: &Catalogs,
@@ -1028,6 +1137,52 @@ mod tests {
                     .unwrap_or_else(|| {
                         panic!("missing exact {expected_id} for {source:?}: {parses:#?}")
                     });
+                assert_eq!(parse.ast().form_ordinal, 0, "{source:?}");
+                assert_eq!(*parse.surface(), EnglishSurfaceWitness::None, "{source:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn determiner_self_reference_exact_laws_preserve_identity_and_serialized_bytes() {
+        use crate::determiner as determiner_api;
+        use crate::syntax::ThisCardForm;
+
+        let self_reference = SelfReference::new("Nissa Revane", true);
+        let fixtures = [
+            ("Nissa Revane's", ThisCardForm::FullName),
+            ("Nissa's", ThisCardForm::AbbreviatedName),
+        ];
+
+        for (source, form) in fixtures {
+            let expected = determiner_api::build_determiner_possessive_this_card(form).unwrap();
+            let expected_bytes = ron::to_string(&expected).unwrap().into_bytes();
+            let orders = parse_determiner_with_identity_in_both_orders(
+                source,
+                &fixture_catalogs(),
+                self_reference.clone(),
+                100_000,
+                crate::constructions::GROUPS,
+            )
+            .unwrap_or_else(|error| {
+                panic!("exact self-reference parse failed for {source:?}: {error:?}")
+            });
+
+            assert_eq!(
+                orders[0], orders[1],
+                "registration order changed {source:?}"
+            );
+            for parses in orders {
+                let parse = parses
+                    .iter()
+                    .find(|parse| parse.ast().construction == "determiner_possessive_this_card")
+                    .unwrap_or_else(|| panic!("missing self-reference parse: {parses:#?}"));
+                assert_eq!(parse.ast().value, expected, "{source:?}");
+                assert_eq!(
+                    ron::to_string(&parse.ast().value).unwrap().as_bytes(),
+                    expected_bytes,
+                    "{source:?}",
+                );
                 assert_eq!(parse.ast().form_ordinal, 0, "{source:?}");
                 assert_eq!(*parse.surface(), EnglishSurfaceWitness::None, "{source:?}");
             }
