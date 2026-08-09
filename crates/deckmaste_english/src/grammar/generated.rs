@@ -434,6 +434,7 @@ fn engine_category(name: &str) -> Option<Nonterminal> {
     Some(match name {
         "Verb" => Nonterminal::Verb,
         "VerbPhrase" => Nonterminal::VerbPhrase,
+        "Adjective" => Nonterminal::Adjective,
         "Noun" | "NounInstance" => Nonterminal::Noun,
         "NounPhrase" => Nonterminal::NounPhrase,
         "NominalPhrase" => Nonterminal::Nominal,
@@ -527,6 +528,9 @@ pub(super) fn typed_feature_projection(
                 construction,
                 fields,
             ),
+        ),
+        ("adjective", "features") => Some(
+            crate::constructions::adjective::reduce_adjective_features(construction, fields),
         ),
         _ => None,
     }
@@ -659,6 +663,7 @@ fn identity_slot(
     }
     match (value_type, provider) {
         ("VerbAnalysis", "LexicalVerb") => Ok(EnglishLexicalSlot::AnyVerb),
+        ("Adjective", "Adjective") => Ok(EnglishLexicalSlot::Adjective),
         ("AuxiliaryInstance", "Auxiliary") => Ok(EnglishLexicalSlot::Auxiliary),
         ("Vocab", "Adverb") => Ok(EnglishLexicalSlot::Adverb),
         ("PreverbModifier", "PreverbAdverb") => Ok(EnglishLexicalSlot::PreverbAdverb),
@@ -1668,6 +1673,81 @@ mod tests {
         erased_recognizer: None,
         atoms: &[AtomData::Lexeme("word")],
     }];
+
+    #[test]
+    fn adjective_category_adapters_are_independent_of_construction_ids() {
+        const ADJECTIVE_FIELDS: &[FieldData] = &[FieldData {
+            name: "identity",
+            kind: FieldKindData::Identity {
+                value_type: "Adjective",
+                provider: "Adjective",
+            },
+        }];
+        const ADJECTIVE_FORM: &[FormData] = &[FormData {
+            name: "only",
+            ordinal: 0,
+            guarded: false,
+            erased_recognizer: None,
+            atoms: &[AtomData::Identity("identity")],
+        }];
+        const PHRASE_FIELDS: &[FieldData] = &[FieldData {
+            name: "head",
+            kind: FieldKindData::Subtree {
+                category: "Adjective",
+                boxed: false,
+            },
+        }];
+        const PHRASE_FORM: &[FormData] = &[FormData {
+            name: "only",
+            ordinal: 0,
+            guarded: false,
+            erased_recognizer: None,
+            atoms: &[AtomData::Hole("head")],
+        }];
+        const CONSTRUCTIONS: &[ConstructionData] = &[
+            construction(
+                "descriptive_word_alias",
+                "Adjective",
+                false,
+                ADJECTIVE_FIELDS,
+                ADJECTIVE_FORM,
+            ),
+            construction(
+                "descriptive_phrase_alias",
+                "AdjectivePhrase",
+                false,
+                PHRASE_FIELDS,
+                PHRASE_FORM,
+            ),
+        ];
+        const GROUP: GroupData = GroupData {
+            name: "adjective_adapter_fixture",
+            elements: &[],
+            element_data: &[],
+            lenses: &[],
+            constructions: CONSTRUCTIONS,
+        };
+
+        let cats = internal_categories(&[&GROUP]);
+        let mut builder = RuleBuilder::default();
+        register_generated(&mut builder, &[&GROUP], &cats)
+            .expect("category-owned adjective adapters assemble aliases");
+        let book = builder.finish(RegistrationOrder::Normal);
+
+        assert_eq!(book.rules[0].lhs, super::super::Nonterminal::Adjective);
+        assert_eq!(
+            book.rules[0].rhs,
+            [Expected::Lexical(EnglishLexicalSlot::Adjective)]
+        );
+        assert_eq!(
+            book.rules[1].lhs,
+            super::super::Nonterminal::AdjectivePhrase
+        );
+        assert_eq!(
+            book.rules[1].rhs,
+            [Expected::Nonterminal(super::super::Nonterminal::Adjective)]
+        );
+    }
 
     #[test]
     fn engine_combinator_discovery_preserves_legacy_targets_among_typed_outputs() {

@@ -398,6 +398,17 @@ fn lowered_matches_expected(
     use crate::constructions::nominal::RulesObjectNominal;
 
     match category {
+        "Adjective" => matches!(
+            (lowered, expected.downcast_ref::<crate::word::Adjective>()),
+            (Lowered::Adjective(actual), Some(expected)) if actual == expected
+        ),
+        "AdjectivePhrase" => matches!(
+            (
+                lowered,
+                expected.downcast_ref::<crate::syntax::AdjectivePhrase>(),
+            ),
+            (Lowered::AdjectivePhrase(actual), Some(expected)) if actual == expected
+        ),
         "NominalPhrase" => matches!(
             (lowered, expected.downcast_ref::<crate::syntax::NominalPhrase>()),
             (Lowered::Nominal(actual), Some(expected)) if actual == expected

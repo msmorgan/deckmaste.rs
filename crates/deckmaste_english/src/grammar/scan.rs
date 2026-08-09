@@ -860,26 +860,11 @@ pub(super) fn lexical_word_matches(
             })
             .collect(),
         WordMatch::Adjective(adjective) => {
-            let Some(initial_sound) = adjective_initial_sound(&adjective) else {
+            let Some(features) = adjective_features(&adjective, false) else {
                 return Vec::new();
             };
             let target_modifier = matches!(&adjective, Adjective::Word(Vocab::Target));
-            let mut matches = single(
-                Features::Adjective {
-                    initial_sound,
-                    comparison: adjective_comparison_state(&adjective),
-                    card_orientation: false,
-                    past_participle: matches!(
-                        &adjective,
-                        Adjective::Participle(crate::word::Tense::Past, _)
-                    ),
-                    demonstrative_shared_determiner: !matches!(
-                        adjective,
-                        Adjective::Participle(_, Verb::Word(Vocab::Equip | Vocab::Enchant),)
-                    ),
-                },
-                MeaningKey::Adjective(adjective),
-            );
+            let mut matches = single(features, MeaningKey::Adjective(adjective));
             if target_modifier {
                 // Keep the adjective reading for `the target creature`, where
                 // the leading article rules out a second determiner, but let
@@ -1181,6 +1166,25 @@ pub(crate) fn adjective_comparison_state(adjective: &Adjective) -> AdjectiveComp
             }),
         _ => AdjectiveComparisonState::NotComparative,
     }
+}
+
+pub(crate) fn adjective_features(
+    adjective: &Adjective,
+    card_orientation: bool,
+) -> Option<Features> {
+    Some(Features::Adjective {
+        initial_sound: adjective_initial_sound(adjective)?,
+        comparison: adjective_comparison_state(adjective),
+        card_orientation,
+        past_participle: matches!(
+            adjective,
+            Adjective::Participle(crate::word::Tense::Past, _)
+        ),
+        demonstrative_shared_determiner: !matches!(
+            adjective,
+            Adjective::Participle(_, Verb::Word(Vocab::Equip | Vocab::Enchant),)
+        ),
+    })
 }
 
 pub(super) fn parse_power_toughness(surface: &str) -> Option<PowerToughness> {

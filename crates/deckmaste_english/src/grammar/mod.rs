@@ -53,6 +53,7 @@ use rules::RuleImpl;
 use scan::accepts_possessive_modifier_prefix;
 use scan::accepts_set_exception_prefix;
 pub(crate) use scan::adjective_comparison_state;
+pub(crate) use scan::adjective_features;
 use scan::copula_agreement;
 use scan::lexical_word_matches;
 use scan::literal_match;
