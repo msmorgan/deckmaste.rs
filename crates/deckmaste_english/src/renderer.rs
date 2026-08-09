@@ -148,6 +148,8 @@ pub enum RenderError {
     InvalidNominalConstruction,
     #[error("adjective AST does not match exactly one generated construction")]
     InvalidAdjectiveConstruction,
+    #[error("determiner AST does not match exactly one generated construction")]
+    InvalidDeterminerConstruction,
     #[error(
         "predicate AST does not match exactly one generated construction: {problem} in {owner}, {first:?}/{second:?}, forms {first_form:?}/{second_form:?}"
     )]
@@ -482,28 +484,24 @@ impl Determiner {
     /// A noun-phrase possessor containing a self reference requires the
     /// [`OracleText::render`] identity arguments and is rejected here.
     pub fn render(&self) -> Result<String, RenderError> {
-        if let Some(spelling) = self.closed_spelling() {
-            return Ok(spelling.to_owned());
+        if matches!(
+            self.kind(),
+            crate::syntax::DeterminerKind::Possessive(possessor)
+                if matches!(
+                    possessor.kind(),
+                    crate::syntax::PossessorKind::NounPhrase(NounPhrase::ThisCard(_))
+                )
+        ) {
+            return Err(RenderError::CardIdentityRequired);
         }
-        match self {
-            Self::Possessive(Possessor::NounPhrase(_)) => Err(RenderError::CardIdentityRequired),
-            Self::Target(None) => Ok("target".to_owned()),
-            Self::Target(Some(quantity)) => Ok(format!("{} target", render_quantity(*quantity))),
-            Self::Quantity(quantity) => Ok(render_quantity(*quantity)),
-            Self::Indefinite => unreachable!(
+        if matches!(self.kind(), crate::syntax::DeterminerKind::Indefinite) {
+            unreachable!(
                 "indefinite article needs the following material's initial sound, which this \
                  determiner-only method has no access to; NominalPhrase/CoordinatedNominalPhrase \
                  derive it themselves before ever calling this"
-            ),
-            Self::The
-            | Self::Each
-            | Self::Another
-            | Self::Demonstrative(_)
-            | Self::Possessive(Possessor::Pronoun(_))
-            | Self::All
-            | Self::Any
-            | Self::No => unreachable!("closed forms returned above"),
+            );
         }
+        Renderer::new("", false).generated_determiner(self)
     }
 }
 
@@ -546,6 +544,12 @@ struct GeneratedAdjectiveRenderer<'renderer, 'identity> {
     renderer: &'renderer Renderer<'identity>,
     rendered: String,
     forms: Vec<(&'static str, u16)>,
+}
+
+struct GeneratedDeterminerRenderer<'renderer, 'identity> {
+    renderer: &'renderer Renderer<'identity>,
+    rendered: String,
+    pending_determiner: Option<Determiner>,
 }
 
 pub(crate) struct GeneratedNominalRenderer<'renderer, 'identity> {
@@ -1202,6 +1206,175 @@ impl<'renderer, 'identity> GeneratedAdjectiveRenderer<'renderer, 'identity> {
     }
 }
 
+impl<'renderer, 'identity> GeneratedDeterminerRenderer<'renderer, 'identity> {
+    fn new(renderer: &'renderer Renderer<'identity>) -> Self {
+        Self {
+            renderer,
+            rendered: String::new(),
+            pending_determiner: None,
+        }
+    }
+
+    fn push(&mut self, part: &str) {
+        if !part.is_empty() {
+            if !self.rendered.is_empty() {
+                self.rendered.push(' ');
+            }
+            self.rendered.push_str(part);
+        }
+    }
+
+    fn accept_generated(
+        result: Result<
+            (),
+            deckmaste_construction_compiler::runtime::LinearizationError<RenderError>,
+        >,
+    ) -> Result<(), RenderError> {
+        result.map_err(|error| match error {
+            deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error) => error,
+            _ => RenderError::InvalidDeterminerConstruction,
+        })
+    }
+
+    fn finish(self) -> String {
+        debug_assert!(self.pending_determiner.is_none());
+        self.rendered
+    }
+}
+
+impl deckmaste_construction_compiler::runtime::LinearizationVisitor
+    for GeneratedDeterminerRenderer<'_, '_>
+{
+    type Error = RenderError;
+
+    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
+        self.push(literal);
+        Ok(())
+    }
+
+    fn subtree<T: std::any::Any>(
+        &mut self,
+        category: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        let rendered = match category {
+            "Quantity" => render_quantity(
+                *value
+                    .downcast_ref::<Quantity>()
+                    .expect("the determiner quantity hole preserves Quantity"),
+            ),
+            "Determiner" => {
+                self.pending_determiner = Some(
+                    value
+                        .downcast_ref::<Determiner>()
+                        .expect("the possessive determiner hole preserves Determiner")
+                        .clone(),
+                );
+                return Ok(());
+            }
+            "PossessiveNominal" => {
+                let nominal = value
+                    .downcast_ref::<NominalPhrase>()
+                    .expect("the possessive nominal hole preserves NominalPhrase");
+                if let Some(determiner) = self.pending_determiner.take() {
+                    let determiner =
+                        if matches!(determiner.kind(), crate::syntax::DeterminerKind::Indefinite) {
+                            indefinite_article_for(self.renderer.nominal_initial_sound(nominal)?)
+                                .to_owned()
+                        } else {
+                            self.renderer.generated_determiner(&determiner)?
+                        };
+                    self.push(&determiner);
+                }
+                let mut visitor = GeneratedDeterminerRenderer::new(self.renderer);
+                Self::accept_generated(
+                    crate::constructions::determiner::linearize_determiner_possessive_nominal_with(
+                        nominal,
+                        &mut visitor,
+                    ),
+                )?;
+                visitor.finish()
+            }
+            "AdjectivePhrase" => self.renderer.adjective_phrase(
+                value
+                    .downcast_ref::<AdjectivePhrase>()
+                    .expect("the possessive adjective hole preserves AdjectivePhrase"),
+            )?,
+            other => panic!("unexpected determiner subtree category `{other}`"),
+        };
+        self.push(&rendered);
+        Ok(())
+    }
+
+    fn scalar<T: std::any::Any>(
+        &mut self,
+        codec: &'static str,
+        _value: &T,
+    ) -> Result<(), Self::Error> {
+        panic!("determiner declarations contain no `{codec}` scalar")
+    }
+
+    fn identity<T: std::any::Any>(
+        &mut self,
+        provider: &'static str,
+        value_type: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        let rendered = match (value_type, provider) {
+            ("ClosedDeterminer", "Determiner") => match *value
+                .downcast_ref::<crate::syntax::ClosedDeterminer>()
+                .expect("the closed determiner identity preserves its Rust type")
+            {
+                crate::syntax::ClosedDeterminer::The => "the".to_owned(),
+                crate::syntax::ClosedDeterminer::Each => "each".to_owned(),
+                crate::syntax::ClosedDeterminer::Another => "another".to_owned(),
+                crate::syntax::ClosedDeterminer::Indefinite => {
+                    unreachable!("indefinite spelling is derived by its enclosing nominal")
+                }
+                crate::syntax::ClosedDeterminer::Demonstrative(value) => {
+                    value.spelling().to_owned()
+                }
+                crate::syntax::ClosedDeterminer::PossessivePronoun(value) => self
+                    .renderer
+                    .vocabulary
+                    .render_possessive_pronoun(value)
+                    .map(str::to_owned)
+                    .ok_or(RenderError::MissingLexicalForm("possessive pronoun"))?,
+                crate::syntax::ClosedDeterminer::All => "all".to_owned(),
+                crate::syntax::ClosedDeterminer::Any => "any".to_owned(),
+                crate::syntax::ClosedDeterminer::No => "no".to_owned(),
+            },
+            ("NounInstance", "PossessiveNoun") => {
+                let noun = value
+                    .downcast_ref::<NounInstance>()
+                    .expect("the possessive noun identity preserves NounInstance");
+                let mut rendered = self
+                    .renderer
+                    .vocabulary
+                    .render_noun(noun)
+                    .ok_or(RenderError::MissingLexicalForm("noun"))?;
+                rendered.push_str(match noun.kind() {
+                    crate::word::NounInstanceKind::Plural(_) => "'",
+                    crate::word::NounInstanceKind::Singular(_)
+                    | crate::word::NounInstanceKind::Mass(_) => "'s",
+                });
+                rendered
+            }
+            ("ThisCardForm", "PossessiveThisCard") => {
+                let form = *value
+                    .downcast_ref::<ThisCardForm>()
+                    .expect("the self-reference identity preserves ThisCardForm");
+                format!("{}'s", self.renderer.this_card(form)?)
+            }
+            other => panic!("unexpected determiner identity {other:?}"),
+        };
+        self.push(&rendered);
+        Ok(())
+    }
+}
+
 impl deckmaste_construction_compiler::runtime::LinearizationVisitor
     for GeneratedAdjectiveRenderer<'_, '_>
 {
@@ -1403,12 +1576,13 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                     .downcast_ref::<NominalPhrase>()
                     .expect("the recursive nominal hole preserves NominalPhrase");
                 if let Some(determiner) = self.pending_determiner.take() {
-                    let determiner = if determiner == Determiner::Indefinite {
-                        indefinite_article_for(self.renderer.nominal_initial_sound(nominal)?)
-                            .to_owned()
-                    } else {
-                        self.renderer.determiner(&determiner)?
-                    };
+                    let determiner =
+                        if matches!(determiner.kind(), crate::syntax::DeterminerKind::Indefinite) {
+                            indefinite_article_for(self.renderer.nominal_initial_sound(nominal)?)
+                                .to_owned()
+                        } else {
+                            self.renderer.determiner(&determiner)?
+                        };
                     self.push(&determiner);
                 }
                 self.renderer.nominal_phrase(nominal)?
@@ -1667,12 +1841,13 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                     .downcast_ref::<NominalPhrase>()
                     .expect("the declaration's NominalPhrase hole preserves its Rust type");
                 if let Some(determiner) = self.pending_determiner.take() {
-                    let determiner = if determiner == Determiner::Indefinite {
-                        indefinite_article_for(self.renderer.nominal_initial_sound(nominal)?)
-                            .to_owned()
-                    } else {
-                        self.renderer.determiner(&determiner)?
-                    };
+                    let determiner =
+                        if matches!(determiner.kind(), crate::syntax::DeterminerKind::Indefinite) {
+                            indefinite_article_for(self.renderer.nominal_initial_sound(nominal)?)
+                                .to_owned()
+                        } else {
+                            self.renderer.determiner(&determiner)?
+                        };
                     self.push(&determiner);
                 }
                 self.push(&self.renderer.nominal_phrase(nominal)?);
@@ -3187,9 +3362,7 @@ impl<'identity> Renderer<'identity> {
                 })
                 .map(str::to_owned)
                 .ok_or(RenderError::MissingLexicalForm("pronoun")),
-            NounPhrase::Possessive(possessor) => {
-                self.determiner(&Determiner::Possessive(possessor.clone()))
-            }
+            NounPhrase::Possessive(possessor) => self.possessor(possessor),
             NounPhrase::Demonstrative(demonstrative) => Ok(demonstrative.spelling().to_owned()),
             NounPhrase::Quantity(quantity) => Ok(render_quantity(*quantity)),
             NounPhrase::ThisCard(form) => self.this_card(*form),
@@ -3461,19 +3634,36 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn determiner(&self, determiner: &Determiner) -> Result<String, RenderError> {
-        match determiner {
-            Determiner::Possessive(Possessor::Pronoun(pronoun)) => self
-                .vocabulary
-                .render_possessive_pronoun(*pronoun)
-                .map(str::to_owned)
-                .ok_or(RenderError::MissingLexicalForm("possessive pronoun")),
-            Determiner::Possessive(Possessor::NounPhrase(possessor)) => Ok(format!(
-                "{}{}",
-                self.noun_phrase(possessor)?,
-                possessive_marker(possessor)
-            )),
-            _ => determiner.render(),
-        }
+        self.generated_determiner(determiner)
+    }
+
+    fn generated_determiner(&self, determiner: &Determiner) -> Result<String, RenderError> {
+        let mut visitor = GeneratedDeterminerRenderer::new(self);
+        GeneratedDeterminerRenderer::accept_generated(
+            crate::constructions::determiner::linearize_determiner_determiner_with(
+                determiner,
+                &mut visitor,
+            ),
+        )?;
+        Ok(visitor.finish())
+    }
+
+    fn possessor(&self, possessor: &Possessor) -> Result<String, RenderError> {
+        let determiner = match possessor.kind() {
+            crate::syntax::PossessorKind::Pronoun(pronoun) => {
+                crate::determiner::possessive_pronoun(pronoun)
+            }
+            crate::syntax::PossessorKind::NounPhrase(NounPhrase::ThisCard(form)) => {
+                crate::determiner::possessive_this_card(*form)
+            }
+            crate::syntax::PossessorKind::NounPhrase(NounPhrase::Nominal(nominal)) => {
+                crate::determiner::possessive_nominal(nominal.clone())
+            }
+            crate::syntax::PossessorKind::NounPhrase(_) => {
+                return Err(RenderError::InvalidDeterminerConstruction);
+            }
+        };
+        self.generated_determiner(&determiner)
     }
 
     fn adjective_phrase(&self, phrase: &AdjectivePhrase) -> Result<String, RenderError> {
@@ -3743,22 +3933,6 @@ impl<'identity> Renderer<'identity> {
         } else {
             Ok(rendered.to_owned())
         }
-    }
-}
-
-/// The genitive marker for a noun-phrase possessor: a plural head takes the
-/// bare apostrophe (`owners'`), everything else takes `'s` (`owner's`). Read
-/// from the head's number rather than the rendered spelling so a singular
-/// noun that happens to end in `s` still renders `'s`.
-fn possessive_marker(possessor: &NounPhrase) -> &'static str {
-    match possessor {
-        NounPhrase::Nominal(nominal) => match nominal.head().kind() {
-            crate::word::NounInstanceKind::Plural(_) => "'",
-            crate::word::NounInstanceKind::Singular(_) | crate::word::NounInstanceKind::Mass(_) => {
-                "'s"
-            }
-        },
-        _ => "'s",
     }
 }
 
@@ -4229,10 +4403,10 @@ fn phrase_terminal_quote(phrase: &Phrase) -> Option<&QuotedAbility> {
 }
 
 /// The indefinite article's surface word for a given initial sound. See
-/// `Determiner::Indefinite`: the AST never stores which word was written, so
-/// every render site derives it here from the following material's initial
-/// sound, reusing `IndefiniteArticle::spelling()` rather than inlining the
-/// literal words.
+/// `crate::determiner::indefinite()`: the AST never stores which word was
+/// written, so every render site derives it here from the following material's
+/// initial sound, reusing `IndefiniteArticle::spelling()` rather than inlining
+/// the literal words.
 fn indefinite_article_for(sound: InitialSound) -> &'static str {
     match sound {
         InitialSound::Consonant => IndefiniteArticle::A.spelling(),
@@ -5024,9 +5198,8 @@ mod tests {
 
     #[test]
     fn premodified_possessors_round_trip_both_genitive_markers() {
-        // Whole-AST inverse for round `opqposs`: proves the existing generic
-        // renderer inverse (determiner -> noun_phrase -> possessive_marker)
-        // is total for a premodified possessor, singular and plural.
+        // Whole-AST inverse for round `opqposs`: proves the generated D01
+        // inverse is total for a premodified possessor, singular and plural.
         let singular = "This creature deals damage equal to the sacrificed creature's power.";
         let ast = crate::parse_with_catalogs(singular, &fixture_catalogs()).into_ast();
         assert_eq!(source_free(&ast, "Test Card", false), singular);
@@ -5129,7 +5302,7 @@ mod tests {
                 Vocab::Draw,
                 VerbSlot::Imperative,
                 vec![VerbDependent::DirectObject(nominal(
-                    Some(Determiner::Indefinite),
+                    Some(crate::determiner::indefinite()),
                     vec![],
                     NounInstance::Singular(Noun::Word(Vocab::Card)),
                     vec![],
@@ -5168,7 +5341,7 @@ mod tests {
 
         let hour = paragraph_ability(simple_with_auxiliaries(
             Some(Subject(nominal(
-                Some(Determiner::Indefinite),
+                Some(crate::determiner::indefinite()),
                 vec![],
                 NounInstance::Singular(Noun::Word(Vocab::Hour)),
                 vec![],
@@ -5189,7 +5362,7 @@ mod tests {
         );
 
         let opponents = nominal(
-            Some(Determiner::Possessive(Possessor::Pronoun(Pronoun::You))),
+            Some(crate::determiner::possessive_pronoun(Pronoun::You)),
             vec![],
             NounInstance::Plural(Noun::Word(Vocab::Opponent)),
             vec![],
@@ -5217,7 +5390,7 @@ mod tests {
             "Your opponents can't cast spells."
         );
         assert_eq!(
-            Determiner::Possessive(Possessor::Pronoun(Pronoun::You))
+            crate::determiner::possessive_pronoun(Pronoun::You)
                 .render()
                 .unwrap(),
             "your"
@@ -5297,13 +5470,13 @@ mod tests {
     #[test]
     fn ditransitive_and_prepositional_sentences_render_structurally() {
         let target_player = nominal(
-            Some(Determiner::Target(None)),
+            Some(crate::determiner::target(None)),
             vec![],
             NounInstance::Singular(Noun::Word(Vocab::Player)),
             vec![],
         );
         let target_source = nominal(
-            Some(Determiner::Target(None)),
+            Some(crate::determiner::target(None)),
             vec![],
             NounInstance::Singular(Noun::Word(Vocab::Source)),
             vec![],
@@ -5319,7 +5492,7 @@ mod tests {
                 vec![
                     VerbDependent::IndirectObject(target_player.clone()),
                     VerbDependent::DirectObject(nominal(
-                        Some(Determiner::Indefinite),
+                        Some(crate::determiner::indefinite()),
                         vec![],
                         NounInstance::Singular(Noun::Word(Vocab::Number)),
                         vec![],
@@ -5341,7 +5514,7 @@ mod tests {
                 VerbSlot::Imperative,
                 vec![
                     VerbDependent::DirectObject(nominal(
-                        Some(Determiner::All),
+                        Some(crate::determiner::all()),
                         vec![],
                         NounInstance::Mass(Noun::Word(Vocab::Damage)),
                         vec![],
@@ -5392,7 +5565,7 @@ mod tests {
                         Vocab::Draw,
                         VerbSlot::Imperative,
                         vec![VerbDependent::DirectObject(nominal(
-                            Some(Determiner::Indefinite),
+                            Some(crate::determiner::indefinite()),
                             vec![],
                             NounInstance::Singular(Noun::Word(Vocab::Card)),
                             vec![],
@@ -5434,7 +5607,7 @@ mod tests {
                 PrepositionalPhrase::simple(
                     Preposition::In,
                     Phrase::NounPhrase(Box::new(nominal(
-                        Some(Determiner::Possessive(Possessor::Pronoun(Pronoun::You))),
+                        Some(crate::determiner::possessive_pronoun(Pronoun::You)),
                         vec![],
                         NounInstance::Singular(Noun::Word(Vocab::Hand)),
                         vec![],
@@ -5443,7 +5616,7 @@ mod tests {
             )],
         );
         let number = nominal(
-            Some(Determiner::The),
+            Some(crate::determiner::the()),
             vec![],
             NounInstance::Singular(Noun::Word(Vocab::Number)),
             vec![NominalComplement::Prepositional(
@@ -5452,9 +5625,9 @@ mod tests {
         );
         let full_name = paragraph_ability(simple(
             Some(Subject(nominal(
-                Some(Determiner::Possessive(Possessor::NounPhrase(Box::new(
-                    NounPhrase::ThisCard(ThisCardForm::FullName),
-                )))),
+                Some(crate::determiner::possessive_this_card(
+                    ThisCardForm::FullName,
+                )),
                 vec![],
                 NounInstance::Mass(Noun::Word(Vocab::Power)),
                 vec![],
@@ -5744,7 +5917,7 @@ mod tests {
     fn predicate_carrier_rejects_nominal_only_conjunction_without_unwinding() {
         let card = || {
             nominal(
-                Some(Determiner::Indefinite),
+                Some(crate::determiner::indefinite()),
                 vec![],
                 NounInstance::Singular(Noun::Word(Vocab::Card)),
                 vec![],
@@ -5975,7 +6148,7 @@ mod tests {
             panic!("relative object-gap fixture must be intransitive before filling its gap");
         };
         nominal(
-            (!plural).then_some(Determiner::Target(None)),
+            (!plural).then_some(crate::determiner::target(None)),
             vec![],
             catalog_noun(catalogs, surface, plural),
             vec![NominalComplement::Relative(RelativeClause {
@@ -6091,7 +6264,7 @@ mod tests {
 
     fn power_toughness_nominal(power: ScalarValue) -> NominalPhrase {
         NominalPhrase::test_from_projection_parts(
-            Some(Determiner::Indefinite),
+            Some(crate::determiner::indefinite()),
             vec![NominalModifier::PowerToughness(PowerToughness {
                 power: SignedScalar {
                     sign: ScalarSign::None,
@@ -6109,7 +6282,7 @@ mod tests {
 
     #[test]
     fn indefinite_article_derives_from_the_power_toughness_onset() {
-        // `Determiner::Indefinite` carries no word (see its doc comment): the
+        // `crate::determiner::indefinite()` carries no word (see its doc comment): the
         // renderer always derives `a`/`an` from what follows, in both
         // directions, rather than trusting (and risking a mismatched) stored
         // article.

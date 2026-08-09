@@ -11,22 +11,22 @@ row; production declarations and Rust types remain authoritative.
 The chart census comes from the merged production registry in
 `grammar/construction.rs`. Its handwritten side maps each remaining `RuleTag`
 to one fan-out-one row; its generated side contributes the ten Q01 quantity
-rows, the nine J01 adjective rows, the 37 M01 nominal rows, S01 `sentence`, N01
-`noun`/`noun_opaque`, the two generated coordination rows, and all 34 V01
-predicate rows. The ability census
+rows, the nine D01 determiner/possession rows, the nine J01 adjective rows, the
+37 M01 nominal rows, S01 `sentence`, N01 `noun`/`noun_opaque`, the two generated
+coordination rows, and all 34 V01 predicate rows. The ability census
 comes from the three non-chart entry points documented and dispatched by
 `FragmentKind`: `Cost`, `KeywordLine`, and `Ability`.
 
 | source | handwritten / ungenerated | already generated | accounted total |
 |---|---:|---:|---:|
-| chart construction registry | 97 | 95 | 192 |
+| chart construction registry | 88 | 104 | 192 |
 | handwritten ability layer | 3 | 0 | 3 |
-| migration inventory | 100 | 95 | 195 |
+| migration inventory | 91 | 104 | 195 |
 
-Every one of the 192 chart IDs occurs once in the ledger below: 97 remain
-handwritten, while Q01, J01, M01, V01, S01, N01, and the two coordination rows
-are generated. The three ability IDs occur once in A01. Thus the remaining work
-is 100 rows, with no `later` row. No raw corpus query was needed for this
+Every one of the 192 chart IDs occurs once in the ledger below: 88 remain
+handwritten, while Q01, D01, J01, M01, V01, S01, N01, and the two coordination
+rows are generated. The three ability IDs occur once in A01. Thus the remaining
+work is 91 rows, with no `later` row. No raw corpus query was needed for this
 accounting; the census is grounded in the registry and the current
 `FragmentKind` dispatch. Future corpus evidence must use supported faces, and
 normalized-template questions must use the existing English instruments.
@@ -90,7 +90,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 | unit | rows | class | migration ticket | actual capability needs |
 |---|---:|---|---|---|
 | Q01 quantity | 10 | C2 scalar | `english-derived-quantity-family` | generated |
-| D01 determiner and possession | 9 | C3 | `english-derived-determiner-possession-family` | scalar, identity, lens |
+| D01 determiner and possession | 9 | C3 | `english-derived-determiner-possession-family` | generated |
 | J01 adjective and comparison | 9 | C3 | `english-derived-adjective-comparison-family` | scalar, identity, lens |
 | N01 noun identity and opacity | 2 | C2 identity | `english-derived-noun-lexeme-family` | generated |
 | M01 nominal spine | 37 | C2 lens | `english-derived-nominal-family` | generated |
@@ -136,15 +136,20 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 
 ## D01 — determiner and possession
 
+**Status:** generated.
+
 **Stable IDs (9):** `determiner_closed`, `determiner_target`,
 `determiner_quantified_target`, `determiner_quantity`,
 `determiner_possessive_this_card`, `possessive_noun_base`,
 `possessive_noun_determined`, `determiner_possessive_noun`,
 `possessive_noun_adjective`.
 
-- **Owners and AST:** NR → `Determiner`, `Possessor`,
-  `PossessiveNounPhrase`, `Demonstrative`, and embedded `Quantity`; REN owns
-  determiner/possessor spelling; SYN-P owns raw ingress.
+- **Owners and AST:** the D01 declaration and its generated chart, feature,
+  lowering, and inverse adapters are the single construction authority for
+  sealed `Determiner` and `Possessor`, the checked possessive projection over
+  `NominalPhrase`, `Demonstrative`, and embedded `Quantity`. Public callers use
+  checked builders and read-only semantic projections; serde keeps the legacy
+  determiner/possessor view shape without reopening raw ingress.
 - **Holes and constraints:** Quantity and possessive-NP subtrees, scalar and
   identity values, and a lens over the possessor phrase. Article/onset,
   cardinality, already-determined, and demonstrative agreement are required

@@ -33,15 +33,6 @@ pub(super) fn reduce(
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> Option<Reduction<Features>> {
     let features = match tag {
-        RuleTag::DeterminerClosed
-        | RuleTag::DeterminerTarget
-        | RuleTag::DeterminerQuantifiedTarget
-        | RuleTag::DeterminerQuantity
-        | RuleTag::DeterminerPossessiveThisCard => reduce_quantity_or_determiner(tag, children)?,
-        RuleTag::PossessiveNounBase
-        | RuleTag::PossessiveNounDetermined
-        | RuleTag::DeterminerPossessiveNoun
-        | RuleTag::PossessiveNounAdjective => reduce_possessive_noun_phrase(tag, children)?,
         RuleTag::NominalPowerToughnessComplement
         | RuleTag::ModifierConjunctAdjective
         | RuleTag::ModifierConjunctNoun
@@ -142,162 +133,7 @@ pub(super) fn reduce(
     })
 }
 
-pub(super) fn reduce_possessive_noun_phrase(
-    tag: RuleTag,
-    children: &[Child<'_, EnglishGrammar<'_, '_>>],
-) -> Option<Reduced> {
-    match tag {
-        RuleTag::PossessiveNounBase => {
-            let Features::Noun {
-                form,
-                initial_sound,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            Some(Features::PossessiveNounPhrase {
-                form: *form,
-                initial_sound: *initial_sound,
-                determined: false,
-            })
-        }
-        RuleTag::PossessiveNounDetermined => {
-            let Features::Determiner {
-                cardinality,
-                article,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            let Features::PossessiveNounPhrase {
-                form,
-                initial_sound,
-                determined,
-            } = children.get(1)?.features
-            else {
-                return None;
-            };
-            if *determined
-                || !cardinality_accepts(*cardinality, *form)
-                || !article_accepts(*article, *initial_sound)
-            {
-                return None;
-            }
-            Some(Features::PossessiveNounPhrase {
-                form: *form,
-                initial_sound: *initial_sound,
-                determined: true,
-            })
-        }
-        RuleTag::DeterminerPossessiveNoun => Some(Features::Determiner {
-            cardinality: NounCardinality::Unconstrained,
-            article: None,
-            demonstrative_this: false,
-            set_exception_host: false,
-        }),
-        RuleTag::PossessiveNounAdjective => {
-            let Features::Adjective {
-                initial_sound,
-                comparison:
-                    AdjectiveComparisonState::NotComparative
-                    | AdjectiveComparisonState::Pending(_)
-                    | AdjectiveComparisonState::Complete,
-                card_orientation: false,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            let Features::PossessiveNounPhrase {
-                form,
-                determined: false,
-                ..
-            } = children.get(1)?.features
-            else {
-                return None;
-            };
-            Some(Features::PossessiveNounPhrase {
-                form: *form,
-                initial_sound: *initial_sound,
-                determined: false,
-            })
-        }
-        _ => None,
-    }
-}
-
 pub(super) type Reduced = Features;
-
-pub(super) fn reduce_quantity_or_determiner(
-    tag: RuleTag,
-    children: &[Child<'_, EnglishGrammar<'_, '_>>],
-) -> Option<Reduced> {
-    match tag {
-        RuleTag::DeterminerClosed => {
-            let Features::Determiner {
-                cardinality,
-                article,
-                demonstrative_this,
-                set_exception_host,
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            Some(Features::Determiner {
-                cardinality: *cardinality,
-                article: *article,
-                demonstrative_this: *demonstrative_this,
-                set_exception_host: *set_exception_host,
-            })
-        }
-        RuleTag::DeterminerTarget => Some(Features::Determiner {
-            cardinality: NounCardinality::SingularCount,
-            article: None,
-            demonstrative_this: false,
-            set_exception_host: false,
-        }),
-        RuleTag::DeterminerQuantifiedTarget => {
-            let Features::Quantity(QuantityFeatures { cardinality, .. }) =
-                children.first()?.features
-            else {
-                return None;
-            };
-            Some(Features::Determiner {
-                cardinality: target_cardinality(*cardinality),
-                article: None,
-                demonstrative_this: false,
-                set_exception_host: false,
-            })
-        }
-        RuleTag::DeterminerQuantity => {
-            let Features::Quantity(QuantityFeatures { cardinality, .. }) =
-                children.first()?.features
-            else {
-                return None;
-            };
-            Some(Features::Determiner {
-                cardinality: *cardinality,
-                article: None,
-                demonstrative_this: false,
-                set_exception_host: false,
-            })
-        }
-        RuleTag::DeterminerPossessiveThisCard => {
-            let Features::PossessiveThisCard { .. } = children.first()?.features else {
-                return None;
-            };
-            Some(Features::Determiner {
-                cardinality: NounCardinality::Unconstrained,
-                article: None,
-                demonstrative_this: false,
-                set_exception_host: false,
-            })
-        }
-        _ => None,
-    }
-}
 
 /// Features for an arithmetic value expression: a third-person singular numeric
 /// value with no pronoun case or bare-nominal adjunct.
@@ -314,14 +150,6 @@ pub(super) const fn arithmetic_value_features() -> Features {
         coordination: NounPhraseCoordinationState::None,
         recipient_passive_theme: false,
         rules_object_followup: false,
-    }
-}
-
-pub(super) const fn target_cardinality(cardinality: NounCardinality) -> NounCardinality {
-    match cardinality {
-        NounCardinality::SingularOrMass => NounCardinality::SingularCount,
-        NounCardinality::PluralOrMass => NounCardinality::PluralCount,
-        other => other,
     }
 }
 

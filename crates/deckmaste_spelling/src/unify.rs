@@ -327,7 +327,7 @@ pub(crate) fn recovered_guard_holds(
 ///   deals 3 damage …"). This is what the `~` sigil compiles to.
 /// - the **demonstrative nominal** — "this permanent", "this creature": a
 ///   determinerful `NominalPhrase` whose determiner is
-///   `Determiner::Demonstrative(This)` and which carries no modifiers or
+///   `DeterminerKind::Demonstrative(This)` and which carries no modifiers or
 ///   complements of its own. This is the form 99.2% of the corpus's cost lines
 ///   use, and the one the pilot's G5 report records as having no *authoring*
 ///   story yet — but it is a self-reference on the page whether or not a frame

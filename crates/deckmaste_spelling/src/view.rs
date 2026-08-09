@@ -728,6 +728,7 @@ mod tests {
     use deckmaste_english::word::Adjective;
     use deckmaste_english::word::Noun;
     use deckmaste_english::word::NounInstance;
+    use deckmaste_english::word::Pronoun;
     use deckmaste_english::word::PronounInstance;
     use deckmaste_english::word::Vocab;
 
@@ -833,6 +834,55 @@ mod tests {
         assert_eq!(fields[0].0, "x");
         assert_eq!(fields[1].1, View::Absent);
         assert_ne!(of(&E::A), of(&E::B(0)));
+    }
+
+    #[test]
+    fn generated_determiner_facade_preserves_legacy_semantic_view_shape() {
+        use deckmaste_english::determiner as determiner_api;
+
+        assert_eq!(
+            of(&determiner_api::the()),
+            View::Unit {
+                name: "Determiner",
+                variant: Some("The"),
+            },
+        );
+
+        let possessive = of(&determiner_api::possessive_pronoun(Pronoun::You));
+        let View::Newtype {
+            name: "Determiner",
+            variant: Some("Possessive"),
+            inner,
+        } = possessive
+        else {
+            panic!("possessive determiner lost its legacy outer shape: {possessive:#?}")
+        };
+        let View::Newtype {
+            name: "Possessor",
+            variant: Some("Pronoun"),
+            inner,
+        } = *inner
+        else {
+            panic!("possessor identity lost its legacy wrapper")
+        };
+        assert!(has_variant(&inner, "You"), "{inner:#?}");
+
+        let target = of(&determiner_api::target(Some(
+            Quantity::try_exact(NumberLiteral {
+                value: 2,
+                numeral: Numeral::Cardinal,
+            })
+            .unwrap(),
+        )));
+        let View::Newtype {
+            name: "Determiner",
+            variant: Some("Target"),
+            inner,
+        } = target
+        else {
+            panic!("quantified target lost its legacy wrapper: {target:#?}")
+        };
+        assert!(has_variant(&inner, "Exact"), "{inner:#?}");
     }
 
     #[test]

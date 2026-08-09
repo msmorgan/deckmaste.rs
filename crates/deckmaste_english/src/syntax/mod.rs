@@ -669,17 +669,18 @@ impl<'syntax> RecoveryWalker<'syntax> {
         match phrase {
             NounPhrase::Nominal(nominal) => self.nominal_phrase(nominal, context),
             NounPhrase::Pronoun { .. }
-            | NounPhrase::Possessive(Possessor::Pronoun(_))
             | NounPhrase::Demonstrative(_)
             | NounPhrase::Quantity(_)
             | NounPhrase::ThisCard(_) => {}
-            NounPhrase::Possessive(Possessor::NounPhrase(possessor)) => {
-                self.noun_phrase(possessor, context);
+            NounPhrase::Possessive(possessor) => {
+                if let PossessorKind::NounPhrase(possessor) = possessor.kind() {
+                    self.noun_phrase(possessor, context);
+                }
             }
             NounPhrase::Partitive(partitive) => self.noun_phrase(&partitive.whole, context),
             NounPhrase::CoordinatedNominal(coordinated) => {
-                if let Determiner::Possessive(Possessor::NounPhrase(possessor)) =
-                    coordinated.determiner()
+                if let DeterminerKind::Possessive(possessor) = coordinated.determiner().kind()
+                    && let PossessorKind::NounPhrase(possessor) = possessor.kind()
                 {
                     self.noun_phrase(possessor, context);
                 }
@@ -712,7 +713,9 @@ impl<'syntax> RecoveryWalker<'syntax> {
     }
 
     fn nominal_phrase(&mut self, nominal: &'syntax NominalPhrase, context: Option<RecoveryRole>) {
-        if let Some(Determiner::Possessive(Possessor::NounPhrase(possessor))) = nominal.determiner()
+        if let Some(determiner) = nominal.determiner()
+            && let DeterminerKind::Possessive(possessor) = determiner.kind()
+            && let PossessorKind::NounPhrase(possessor) = possessor.kind()
         {
             self.noun_phrase(possessor, context);
         }
@@ -921,54 +924,56 @@ mod tests {
         };
 
         assert_eq!(
-            Determiner::Indefinite.noun_cardinality(),
+            crate::determiner::indefinite().noun_cardinality(),
             NounCardinality::SingularCount
         );
         assert_eq!(
-            Determiner::Demonstrative(Demonstrative::Those).noun_cardinality(),
+            crate::determiner::demonstrative(Demonstrative::Those).noun_cardinality(),
             NounCardinality::PluralCount
         );
         assert_eq!(
-            Determiner::Demonstrative(Demonstrative::That).noun_cardinality(),
+            crate::determiner::demonstrative(Demonstrative::That).noun_cardinality(),
             NounCardinality::SingularOrMass
         );
         assert_eq!(
-            Determiner::Demonstrative(Demonstrative::This).noun_cardinality(),
+            crate::determiner::demonstrative(Demonstrative::This).noun_cardinality(),
             NounCardinality::SingularOrMass
         );
         assert_eq!(
-            Determiner::Target(Some(Quantity::UpTo(QuantityValue::Literal(one))))
+            crate::determiner::target(Some(Quantity::UpTo(QuantityValue::Literal(one))))
                 .noun_cardinality(),
             NounCardinality::SingularCount
         );
         assert_eq!(
-            Determiner::Target(Some(Quantity::UpTo(QuantityValue::Literal(three))))
+            crate::determiner::target(Some(Quantity::UpTo(QuantityValue::Literal(three))))
                 .noun_cardinality(),
             NounCardinality::PluralCount
         );
         assert_eq!(
-            Determiner::Quantity(Quantity::ThatMuch).noun_cardinality(),
+            crate::determiner::quantity(Quantity::ThatMuch).noun_cardinality(),
             NounCardinality::Mass
         );
         assert_eq!(
-            Determiner::Possessive(Possessor::Pronoun(Pronoun::You)).noun_cardinality(),
+            crate::determiner::possessive_pronoun(Pronoun::You).noun_cardinality(),
             NounCardinality::Unconstrained
         );
         assert_eq!(
-            Determiner::Quantity(Quantity::AtLeast(QuantityValue::Literal(one))).noun_cardinality(),
+            crate::determiner::quantity(Quantity::AtLeast(QuantityValue::Literal(one)))
+                .noun_cardinality(),
             NounCardinality::SingularOrMass
         );
         assert_eq!(
-            Determiner::Quantity(Quantity::AtLeast(QuantityValue::Literal(three)))
+            crate::determiner::quantity(Quantity::AtLeast(QuantityValue::Literal(three)))
                 .noun_cardinality(),
             NounCardinality::PluralOrMass
         );
         assert_eq!(
-            Determiner::Quantity(Quantity::Exact(three)).noun_cardinality(),
+            crate::determiner::quantity(Quantity::Exact(three)).noun_cardinality(),
             NounCardinality::PluralOrMass
         );
         assert_eq!(
-            Determiner::Target(Some(Quantity::UpTo(QuantityValue::Variable))).noun_cardinality(),
+            crate::determiner::target(Some(Quantity::UpTo(QuantityValue::Variable)))
+                .noun_cardinality(),
             NounCardinality::PluralCount
         );
         assert_eq!(
@@ -989,11 +994,11 @@ mod tests {
             NounCardinality::PluralOrMass
         );
         assert_eq!(
-            Determiner::Any.noun_cardinality(),
+            crate::determiner::any().noun_cardinality(),
             NounCardinality::Unconstrained
         );
         assert_eq!(
-            Determiner::No.noun_cardinality(),
+            crate::determiner::no().noun_cardinality(),
             NounCardinality::Unconstrained
         );
     }
@@ -1222,7 +1227,7 @@ mod tests {
         ));
         let subject = NounPhrase::CoordinatedNominal(
             CoordinatedNominalPhrase::try_new(
-                Determiner::Any,
+                crate::determiner::any(),
                 Box::new(known_nominal(Vocab::Card)),
                 vec![NominalPhraseCoordination {
                     conjunction: Some(NounPhraseConjunction::Or),

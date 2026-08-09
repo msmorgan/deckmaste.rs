@@ -570,8 +570,13 @@ impl Quantity {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-pub enum Determiner {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Determiner {
+    repr: DeterminerRepr,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum DeterminerRepr {
     The,
     Each,
     Another,
@@ -594,6 +599,72 @@ pub enum Determiner {
     No,
 }
 
+/// A closed lexical determiner identity accepted by D01's generated builder.
+///
+/// These values contain no independently writable construction state. Target,
+/// quantity, and noun-phrase possessive shapes use their own checked builders.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ClosedDeterminer {
+    The,
+    Each,
+    Another,
+    Indefinite,
+    Demonstrative(Demonstrative),
+    PossessivePronoun(Pronoun),
+    All,
+    Any,
+    No,
+}
+
+/// Read-only semantic projection of a validated [`Determiner`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeterminerKind<'a> {
+    The,
+    Each,
+    Another,
+    Indefinite,
+    Demonstrative(Demonstrative),
+    Target(Option<Quantity>),
+    Quantity(Quantity),
+    Possessive(&'a Possessor),
+    All,
+    Any,
+    No,
+}
+
+impl serde::Serialize for Determiner {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match &self.repr {
+            DeterminerRepr::The => serializer.serialize_unit_variant("Determiner", 0, "The"),
+            DeterminerRepr::Each => serializer.serialize_unit_variant("Determiner", 1, "Each"),
+            DeterminerRepr::Another => {
+                serializer.serialize_unit_variant("Determiner", 2, "Another")
+            }
+            DeterminerRepr::Indefinite => {
+                serializer.serialize_unit_variant("Determiner", 3, "Indefinite")
+            }
+            DeterminerRepr::Demonstrative(value) => {
+                serializer.serialize_newtype_variant("Determiner", 4, "Demonstrative", value)
+            }
+            DeterminerRepr::Target(value) => {
+                serializer.serialize_newtype_variant("Determiner", 5, "Target", value)
+            }
+            DeterminerRepr::Quantity(value) => {
+                serializer.serialize_newtype_variant("Determiner", 6, "Quantity", value)
+            }
+            DeterminerRepr::Possessive(value) => {
+                serializer.serialize_newtype_variant("Determiner", 7, "Possessive", value)
+            }
+            DeterminerRepr::All => serializer.serialize_unit_variant("Determiner", 8, "All"),
+            DeterminerRepr::Any => serializer.serialize_unit_variant("Determiner", 9, "Any"),
+            DeterminerRepr::No => serializer.serialize_unit_variant("Determiner", 10, "No"),
+        }
+    }
+}
+
 // Grammar lexical meanings are hash-consed. Most determiners are closed,
 // nonrecursive syntax values and hash structurally; noun-phrase possessors are
 // built during lowering rather than scanned, so a shared tag is sufficient for
@@ -601,102 +672,105 @@ pub enum Determiner {
 // still necessarily produce equal hashes.
 impl Hash for Determiner {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        std::mem::discriminant(self).hash(state);
-        match self {
-            Self::Demonstrative(demonstrative) => demonstrative.hash(state),
-            Self::Target(quantity) => quantity.hash(state),
-            Self::Quantity(quantity) => quantity.hash(state),
-            Self::Possessive(Possessor::Pronoun(pronoun)) => {
+        std::mem::discriminant(&self.repr).hash(state);
+        match &self.repr {
+            DeterminerRepr::Demonstrative(demonstrative) => demonstrative.hash(state),
+            DeterminerRepr::Target(quantity) => quantity.hash(state),
+            DeterminerRepr::Quantity(quantity) => quantity.hash(state),
+            DeterminerRepr::Possessive(Possessor {
+                repr: PossessorRepr::Pronoun(pronoun),
+            }) => {
                 0_u8.hash(state);
                 pronoun.hash(state);
             }
-            Self::Possessive(Possessor::NounPhrase(_)) => 1_u8.hash(state),
-            Self::Indefinite
-            | Self::The
-            | Self::Each
-            | Self::Another
-            | Self::All
-            | Self::Any
-            | Self::No => {}
+            DeterminerRepr::Possessive(Possessor {
+                repr: PossessorRepr::NounPhrase(_),
+            }) => 1_u8.hash(state),
+            DeterminerRepr::Indefinite
+            | DeterminerRepr::The
+            | DeterminerRepr::Each
+            | DeterminerRepr::Another
+            | DeterminerRepr::All
+            | DeterminerRepr::Any
+            | DeterminerRepr::No => {}
         }
     }
 }
 
 impl Determiner {
-    const SIMPLE_FORMS: &'static [(Self, &'static str)] = &[
-        (Self::The, "the"),
-        (Self::Each, "each"),
-        (Self::Another, "another"),
-        (Self::All, "all"),
-        (Self::Any, "any"),
-        (Self::No, "no"),
+    const SIMPLE_FORMS: &'static [(ClosedDeterminer, &'static str)] = &[
+        (ClosedDeterminer::The, "the"),
+        (ClosedDeterminer::Each, "each"),
+        (ClosedDeterminer::Another, "another"),
+        (ClosedDeterminer::All, "all"),
+        (ClosedDeterminer::Any, "any"),
+        (ClosedDeterminer::No, "no"),
     ];
 
     pub(crate) fn from_spelling(surface: &str) -> Option<Self> {
         Self::SIMPLE_FORMS
             .iter()
-            .find_map(|(determiner, spelling)| {
-                surface
-                    .eq_ignore_ascii_case(spelling)
-                    .then(|| determiner.clone())
+            .find_map(|(identity, spelling)| {
+                surface.eq_ignore_ascii_case(spelling).then_some(*identity)
             })
-            .or_else(|| IndefiniteArticle::from_spelling(surface).map(|_| Self::Indefinite))
-            .or_else(|| Demonstrative::from_spelling(surface).map(Self::Demonstrative))
             .or_else(|| {
-                Pronoun::from_possessive_spelling(surface)
-                    .map(|pronoun| Self::Possessive(Possessor::Pronoun(pronoun)))
+                IndefiniteArticle::from_spelling(surface).map(|_| ClosedDeterminer::Indefinite)
+            })
+            .or_else(|| Demonstrative::from_spelling(surface).map(ClosedDeterminer::Demonstrative))
+            .or_else(|| {
+                Pronoun::from_possessive_spelling(surface).map(ClosedDeterminer::PossessivePronoun)
+            })
+            .and_then(|identity| {
+                crate::constructions::determiner::build_determiner_closed(identity).ok()
             })
     }
 
-    pub(crate) fn closed_spelling(&self) -> Option<&'static str> {
-        Self::SIMPLE_FORMS
-            .iter()
-            .find_map(|(determiner, spelling)| (determiner == self).then_some(*spelling))
-            .or_else(|| match self {
-                Self::Demonstrative(demonstrative) => Some(demonstrative.spelling()),
-                Self::Possessive(Possessor::Pronoun(pronoun)) => pronoun.possessive_spelling(),
-                // Indefinite has no fixed spelling: which word it renders as
-                // depends on the initial sound of the material that follows
-                // it, which this determiner-only method has no access to. The
-                // two callers that can hold one (`NominalPhrase`,
-                // `CoordinatedNominalPhrase`) derive it themselves before
-                // ever reaching the generic determiner renderer.
-                Self::Indefinite
-                | Self::Possessive(Possessor::NounPhrase(_))
-                | Self::Target(_)
-                | Self::Quantity(_) => None,
-                Self::The | Self::Each | Self::Another | Self::All | Self::Any | Self::No => {
-                    unreachable!("simple forms returned above")
-                }
-            })
+    /// Returns the semantic shape without exposing writable representation.
+    #[must_use]
+    pub const fn kind(&self) -> DeterminerKind<'_> {
+        match &self.repr {
+            DeterminerRepr::The => DeterminerKind::The,
+            DeterminerRepr::Each => DeterminerKind::Each,
+            DeterminerRepr::Another => DeterminerKind::Another,
+            DeterminerRepr::Indefinite => DeterminerKind::Indefinite,
+            DeterminerRepr::Demonstrative(value) => DeterminerKind::Demonstrative(*value),
+            DeterminerRepr::Target(value) => DeterminerKind::Target(*value),
+            DeterminerRepr::Quantity(value) => DeterminerKind::Quantity(*value),
+            DeterminerRepr::Possessive(value) => DeterminerKind::Possessive(value),
+            DeterminerRepr::All => DeterminerKind::All,
+            DeterminerRepr::Any => DeterminerKind::Any,
+            DeterminerRepr::No => DeterminerKind::No,
+        }
     }
 
     #[must_use]
     pub fn noun_cardinality(&self) -> NounCardinality {
-        match self {
-            Self::Each | Self::Another | Self::Indefinite | Self::Target(None) => {
-                NounCardinality::SingularCount
-            }
+        match self.kind() {
+            DeterminerKind::Each
+            | DeterminerKind::Another
+            | DeterminerKind::Indefinite
+            | DeterminerKind::Target(None) => NounCardinality::SingularCount,
             // The singular demonstratives determine a singular count noun (`that
             // creature`) or a mass one (`that damage`); only `these`/`those` are
             // barred from mass. This is also the parser's cardinality table;
             // grammar features are keyed directly on this syntax value.
-            Self::Demonstrative(Demonstrative::This | Demonstrative::That) => {
+            DeterminerKind::Demonstrative(Demonstrative::This | Demonstrative::That) => {
                 NounCardinality::SingularOrMass
             }
-            Self::Demonstrative(Demonstrative::These | Demonstrative::Those) => {
+            DeterminerKind::Demonstrative(Demonstrative::These | Demonstrative::Those) => {
                 NounCardinality::PluralCount
             }
-            Self::Target(Some(quantity)) => match quantity.noun_cardinality() {
+            DeterminerKind::Target(Some(quantity)) => match quantity.noun_cardinality() {
                 NounCardinality::SingularOrMass => NounCardinality::SingularCount,
                 NounCardinality::PluralOrMass => NounCardinality::PluralCount,
                 cardinality => cardinality,
             },
-            Self::Quantity(quantity) => quantity.noun_cardinality(),
-            Self::All => NounCardinality::PluralOrMass,
-            Self::The | Self::Possessive(_) | Self::Any | Self::No => {
-                NounCardinality::Unconstrained
-            }
+            DeterminerKind::Quantity(quantity) => quantity.noun_cardinality(),
+            DeterminerKind::All => NounCardinality::PluralOrMass,
+            DeterminerKind::The
+            | DeterminerKind::Possessive(_)
+            | DeterminerKind::Any
+            | DeterminerKind::No => NounCardinality::Unconstrained,
         }
     }
 }
@@ -763,10 +837,49 @@ impl Demonstrative {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-pub enum Possessor {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Possessor {
+    repr: PossessorRepr,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum PossessorRepr {
     Pronoun(Pronoun),
     NounPhrase(Box<NounPhrase>),
+}
+
+/// Read-only semantic projection of a validated [`Possessor`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PossessorKind<'a> {
+    Pronoun(Pronoun),
+    NounPhrase(&'a NounPhrase),
+}
+
+impl Possessor {
+    /// Returns the semantic shape without exposing writable representation.
+    #[must_use]
+    pub const fn kind(&self) -> PossessorKind<'_> {
+        match &self.repr {
+            PossessorRepr::Pronoun(value) => PossessorKind::Pronoun(*value),
+            PossessorRepr::NounPhrase(value) => PossessorKind::NounPhrase(value),
+        }
+    }
+}
+
+impl serde::Serialize for Possessor {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match &self.repr {
+            PossessorRepr::Pronoun(value) => {
+                serializer.serialize_newtype_variant("Possessor", 0, "Pronoun", value)
+            }
+            PossessorRepr::NounPhrase(value) => {
+                serializer.serialize_newtype_variant("Possessor", 1, "NounPhrase", value)
+            }
+        }
+    }
 }
 
 /// Compatibility name for the inherent-realization noun-cardinality feature.
@@ -1011,6 +1124,11 @@ impl NominalPhrase {
 // siblings.
 #[path = "../constructions/nominal.rs"]
 pub(crate) mod nominal_constructions;
+
+// The determiner declaration owns checked projections over the same private
+// nominal storage as the nominal declaration.
+#[path = "../constructions/determiner.rs"]
+pub(crate) mod determiner_constructions;
 
 /// The productive `non-` polarity of a nominal modifier. `land card` and
 /// `nonland card` are the *same* outer modifier node — an attributive

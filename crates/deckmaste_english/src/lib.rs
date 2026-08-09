@@ -13,6 +13,7 @@
 
 pub mod adjective;
 pub mod catalog;
+pub mod determiner;
 pub use deckmaste_features as features;
 mod chart;
 mod construction;

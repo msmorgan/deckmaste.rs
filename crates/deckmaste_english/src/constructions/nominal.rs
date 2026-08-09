@@ -2769,7 +2769,7 @@ mod tests {
         );
 
         let nominal_determiner =
-            build_nominal_determiner(Determiner::Indefinite, card_nominal()).unwrap();
+            build_nominal_determiner(crate::determiner::indefinite(), card_nominal()).unwrap();
         let (determiner, nominal) = parts_nominal_determiner(&nominal_determiner)
             .expect("determiner lens projects a determined nominal");
         records!(
@@ -2860,7 +2860,7 @@ mod tests {
             Preposition::From,
             None,
             Some(NounPhrase::Nominal(
-                build_nominal_determiner(Determiner::Indefinite, card_nominal()).unwrap(),
+                build_nominal_determiner(crate::determiner::indefinite(), card_nominal()).unwrap(),
             )),
         )
         .unwrap();
@@ -2936,7 +2936,7 @@ mod tests {
             None,
             None,
             Some(NounPhrase::Nominal(
-                build_nominal_determiner(Determiner::Indefinite, card_nominal()).unwrap(),
+                build_nominal_determiner(crate::determiner::indefinite(), card_nominal()).unwrap(),
             )),
         )
         .unwrap();
@@ -3315,8 +3315,9 @@ mod tests {
             "nominal_negated_modifier"
         );
 
-        let determined = build_nominal_determiner(Determiner::Indefinite, adjective_nominal)
-            .expect("an undetermined generated nominal admits one determiner");
+        let determined =
+            build_nominal_determiner(crate::determiner::indefinite(), adjective_nominal)
+                .expect("an undetermined generated nominal admits one determiner");
         assert_eq!(
             selected_nominal_construction(&determined),
             "nominal_determiner"
@@ -3328,7 +3329,7 @@ mod tests {
         })
         .unwrap();
         let quantified_times = build_nominal_determiner(
-            Determiner::Quantity(three),
+            crate::determiner::quantity(three),
             build_nominal_times_clause(
                 NounInstance::Plural(Noun::Word(Vocab::Time)),
                 Box::new(parsed_independent("You draw a card.")),
@@ -3364,7 +3365,7 @@ mod tests {
         // manufacture a value whose outermost declared inverse is the
         // determiner rather than that prefix construction.
         let determined = || {
-            build_nominal_determiner(Determiner::Indefinite, card_nominal())
+            build_nominal_determiner(crate::determiner::indefinite(), card_nominal())
                 .expect("control: a bare singular card admits an indefinite determiner")
         };
         let negative = || NominalModifier::Noun {
@@ -3447,7 +3448,8 @@ mod tests {
         crate::adjective::build_comparison_than(
             crate::adjective::build_comparison_standard(
                 Some(NounPhrase::Nominal(
-                    build_nominal_determiner(Determiner::Indefinite, card_nominal()).unwrap(),
+                    build_nominal_determiner(crate::determiner::indefinite(), card_nominal())
+                        .unwrap(),
                 )),
                 None,
                 None,
@@ -3712,7 +3714,8 @@ mod tests {
         let (predicate, adjunct) = reduced_predicate_and_adjunct();
         let predicate =
             build_reduced_recipient_passive_nominal_adjunct(predicate, adjunct).unwrap();
-        let base = build_nominal_determiner(Determiner::Indefinite, card_nominal()).unwrap();
+        let base =
+            build_nominal_determiner(crate::determiner::indefinite(), card_nominal()).unwrap();
         let value = build_nominal_reduced_recipient_passive(base, predicate).unwrap();
         assert_eq!(
             selected_nominal_construction(&value),
@@ -3834,19 +3837,20 @@ mod tests {
         // determiner after the PP phase, or ignore determiner/head
         // cardinality. The control performs the same two legal operations in
         // their declared order.
-        let determined = build_nominal_determiner(Determiner::Indefinite, card_nominal()).unwrap();
-        assert!(build_nominal_determiner(Determiner::The, determined).is_err());
+        let determined =
+            build_nominal_determiner(crate::determiner::indefinite(), card_nominal()).unwrap();
+        assert!(build_nominal_determiner(crate::determiner::the(), determined).is_err());
 
         let attached =
             build_nominal_prepositional(card_nominal(), preposition_with_card(Preposition::In))
                 .unwrap();
-        assert!(build_nominal_determiner(Determiner::The, attached).is_err());
+        assert!(build_nominal_determiner(crate::determiner::the(), attached).is_err());
 
         let plural = build_nominal_noun(NounInstance::Plural(Noun::Word(Vocab::Card))).unwrap();
-        assert!(build_nominal_determiner(Determiner::Each, plural).is_err());
+        assert!(build_nominal_determiner(crate::determiner::each(), plural).is_err());
 
         let legal = build_nominal_prepositional(
-            build_nominal_determiner(Determiner::The, card_nominal()).unwrap(),
+            build_nominal_determiner(crate::determiner::the(), card_nominal()).unwrap(),
             preposition_with_card(Preposition::In),
         );
         assert!(legal.is_ok());
@@ -3939,7 +3943,7 @@ mod tests {
         // attachment-phase, reduced-passive, and specialized-head gates.
         let plural_cards = NounInstance::Plural(Noun::Word(Vocab::Card));
         assert_nominal_inverse_rejects(&NominalPhrase::from_projection_parts(
-            Some(Determiner::Each),
+            Some(crate::determiner::each()),
             Vec::new(),
             plural_cards.clone(),
             Vec::new(),
@@ -4012,7 +4016,7 @@ mod tests {
         assert_nominal_inverse_rejects(times);
 
         let invalid_determined_times = NominalPhrase::from_projection_parts(
-            Some(Determiner::All),
+            Some(crate::determiner::all()),
             Vec::new(),
             NounInstance::Plural(Noun::Word(Vocab::Card)),
             vec![NominalComplement::EventClause(Box::new(

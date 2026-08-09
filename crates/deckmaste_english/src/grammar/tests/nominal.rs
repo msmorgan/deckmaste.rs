@@ -11,7 +11,6 @@ mod tests {
     use crate::syntax::AbilityKind;
     use crate::syntax::AdjectiveComplement;
     use crate::syntax::ComparisonMarker;
-    use crate::syntax::Determiner;
     use crate::syntax::IndependentClause;
     use crate::syntax::NominalComplement;
     use crate::syntax::NominalModifier;
@@ -20,7 +19,6 @@ mod tests {
     use crate::syntax::OracleText;
     use crate::syntax::Paragraph;
     use crate::syntax::Polarity;
-    use crate::syntax::Possessor;
     use crate::syntax::Predicate;
     use crate::syntax::PredicateHead;
     use crate::syntax::PredicateObject;
@@ -368,7 +366,7 @@ mod tests {
                 parsed.noun_phrase()
             );
         };
-        assert_eq!(*coordinated.determiner(), Determiner::Target(None));
+        assert_eq!(*coordinated.determiner(), crate::determiner::target(None));
         assert!(coordinated.first().determiner().is_none());
         let [land] = coordinated.rest().as_slice() else {
             panic!("expected one coordinated head: {coordinated:#?}");
@@ -394,7 +392,7 @@ mod tests {
                 parsed.noun_phrase()
             );
         };
-        assert_eq!(*coordinated.determiner(), Determiner::Target(None));
+        assert_eq!(*coordinated.determiner(), crate::determiner::target(None));
         assert_eq!(coordinated.rest().len(), 1);
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
@@ -469,10 +467,13 @@ mod tests {
     #[test]
     fn general_determiners_scope_over_modified_nominals() {
         for (source, expected_determiner) in [
-            ("another target creature or artifact", Determiner::Another),
+            (
+                "another target creature or artifact",
+                crate::determiner::another(),
+            ),
             (
                 "up to one other target creature or spell",
-                Determiner::Quantity(crate::syntax::Quantity::UpTo(
+                crate::determiner::quantity(crate::syntax::Quantity::UpTo(
                     crate::syntax::QuantityValue::Literal(crate::syntax::NumberLiteral {
                         value: 1,
                         numeral: crate::numeral::Numeral::Cardinal,
@@ -510,7 +511,7 @@ mod tests {
                 parsed.noun_phrase()
             );
         };
-        assert_eq!(*coordinated.determiner(), Determiner::Another);
+        assert_eq!(*coordinated.determiner(), crate::determiner::another());
         assert!(coordinated.first().complements().is_empty());
         assert!(
             coordinated
@@ -558,13 +559,16 @@ mod tests {
         for (source, determiner) in [
             (
                 "target spell, activated ability, or triggered ability",
-                Determiner::Target(None),
+                crate::determiner::target(None),
             ),
             (
                 "target instant spell, sorcery spell, or triggered ability",
-                Determiner::Target(None),
+                crate::determiner::target(None),
             ),
-            ("each supertype, card type, and subtype", Determiner::Each),
+            (
+                "each supertype, card type, and subtype",
+                crate::determiner::each(),
+            ),
         ] {
             let parsed = parse(source);
             let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
@@ -607,7 +611,7 @@ mod tests {
         let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
             panic!("expected one definite group: {:#?}", parsed.noun_phrase());
         };
-        assert_eq!(*coordinated.determiner(), Determiner::The);
+        assert_eq!(*coordinated.determiner(), crate::determiner::the());
         assert!(matches!(
             coordinated.rest().as_slice(),
             [crate::syntax::NominalPhraseCoordination { phrase, .. }]
@@ -650,7 +654,7 @@ mod tests {
                 parsed.noun_phrase()
             );
         };
-        assert_eq!(*coordinated.determiner(), Determiner::Target(None));
+        assert_eq!(*coordinated.determiner(), crate::determiner::target(None));
         assert!(coordinated.first().determiner().is_none());
         assert_eq!(coordinated.rest().len(), 6);
         assert!(
@@ -672,7 +676,7 @@ mod tests {
                 parsed.noun_phrase()
             );
         };
-        assert_eq!(*coordinated.determiner(), Determiner::Indefinite);
+        assert_eq!(*coordinated.determiner(), crate::determiner::indefinite());
         let [orc, equipment] = coordinated.rest().as_slice() else {
             panic!("expected three coordinated nominals: {coordinated:#?}");
         };
@@ -710,7 +714,7 @@ mod tests {
         let NounPhrase::CoordinatedNominal(left) = outer.first().as_ref() else {
             panic!("expected the Oxford group on the left: {outer:#?}");
         };
-        assert_eq!(*left.determiner(), Determiner::Target(None));
+        assert_eq!(*left.determiner(), crate::determiner::target(None));
         assert_eq!(left.rest().len(), 2);
         let [right] = outer.rest().as_slice() else {
             panic!("expected exactly one outer conjunct: {outer:#?}");
@@ -722,7 +726,7 @@ mod tests {
         let NounPhrase::CoordinatedNominal(right) = &right.phrase else {
             panic!("the repeated determiner must begin a second group: {right:#?}");
         };
-        assert_eq!(*right.determiner(), Determiner::Target(None));
+        assert_eq!(*right.determiner(), crate::determiner::target(None));
         assert_eq!(right.rest().len(), 1);
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
@@ -778,8 +782,12 @@ mod tests {
         assert!(
             matches!(
                 recipient.determiner(),
-                Determiner::Target(Some(quantity))
-                    if matches!(quantity.kind(), crate::syntax::QuantityKind::UpTo(_))
+                determiner
+                    if matches!(
+                        determiner.kind(),
+                        crate::syntax::DeterminerKind::Target(Some(quantity))
+                            if matches!(quantity.kind(), crate::syntax::QuantityKind::UpTo(_))
+                    )
             ),
             "expected the quantity and target marker on the shared group: {recipient:#?}"
         );
@@ -802,7 +810,7 @@ mod tests {
         let NounPhrase::CoordinatedNominal(group) = &group.phrase else {
             panic!("expected a nested shared-determiner group: {group:#?}");
         };
-        assert_eq!(*group.determiner(), Determiner::Another);
+        assert_eq!(*group.determiner(), crate::determiner::another());
         assert_eq!(group.rest().len(), 1);
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
@@ -826,7 +834,7 @@ mod tests {
         let NounPhrase::CoordinatedNominal(recipient) = recipient.as_ref() else {
             panic!("expected shared Oxford recipient heads: {recipient:#?}");
         };
-        assert_eq!(*recipient.determiner(), Determiner::Each);
+        assert_eq!(*recipient.determiner(), crate::determiner::each());
         assert_eq!(recipient.rest().len(), 2);
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
@@ -883,7 +891,7 @@ mod tests {
         assert!(matches!(
             coordinated.first().as_ref(),
             NounPhrase::Nominal(first)
-                if first.determiner() == Some(&Determiner::Target(None))
+                if first.determiner() == Some(&crate::determiner::target(None))
         ));
         assert!(matches!(
             coordinated.rest().as_slice(),
@@ -891,7 +899,7 @@ mod tests {
                 conjunction: Some(crate::syntax::NounPhraseConjunction::And),
                 phrase: NounPhrase::Nominal(next),
                 ..
-            }] if next.determiner() == Some(&Determiner::Target(None))
+            }] if next.determiner() == Some(&crate::determiner::target(None))
         ));
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
@@ -903,7 +911,7 @@ mod tests {
         let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
             panic!("expected one card nominal: {:#?}", parsed.noun_phrase());
         };
-        assert_eq!(nominal.determiner(), Some(&Determiner::Target(None)));
+        assert_eq!(nominal.determiner(), Some(&crate::determiner::target(None)));
         assert!(matches!(
             nominal.modifiers(),
             [NominalModifier::Coordinated(_)]
@@ -990,7 +998,7 @@ mod tests {
         let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
             panic!("expected one creature nominal: {:#?}", parsed.noun_phrase());
         };
-        assert_eq!(nominal.determiner(), Some(&Determiner::Target(None)));
+        assert_eq!(nominal.determiner(), Some(&crate::determiner::target(None)));
         assert!(matches!(
             nominal.modifiers(),
             [NominalModifier::Coordinated(_)]
@@ -1012,7 +1020,7 @@ mod tests {
                 parsed.noun_phrase()
             );
         };
-        assert_eq!(*coordinated.determiner(), Determiner::Target(None));
+        assert_eq!(*coordinated.determiner(), crate::determiner::target(None));
         assert!(matches!(
             coordinated.first().head().kind(),
             NounInstanceKind::Singular(Noun::Agentive(_))
@@ -1049,7 +1057,7 @@ mod tests {
         assert!(matches!(
             options.as_ref(),
             NounPhrase::CoordinatedNominal(coordinated)
-                if *coordinated.determiner() == Determiner::The
+                if *coordinated.determiner() == crate::determiner::the()
         ));
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
@@ -1064,7 +1072,7 @@ mod tests {
                 parsed.noun_phrase()
             );
         };
-        assert_eq!(power.determiner(), Some(&Determiner::The));
+        assert_eq!(power.determiner(), Some(&crate::determiner::the()));
         let [NominalComplement::Prepositional(recipient)] = power.complements() else {
             panic!("power must retain its recipient PP: {power:#?}");
         };
@@ -1075,7 +1083,7 @@ mod tests {
         let NounPhrase::CoordinatedNominal(recipient) = recipient.as_ref() else {
             panic!("target must scope over the recipient coordination: {recipient:#?}");
         };
-        assert_eq!(*recipient.determiner(), Determiner::Target(None));
+        assert_eq!(*recipient.determiner(), crate::determiner::target(None));
         assert_eq!(recipient.rest().len(), 1);
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
@@ -1166,7 +1174,7 @@ mod tests {
                 parsed.noun_phrase()
             );
         };
-        assert_eq!(*coordinated.determiner(), Determiner::Target(None));
+        assert_eq!(*coordinated.determiner(), crate::determiner::target(None));
         let [interior, final_member] = coordinated.rest().as_slice() else {
             panic!("expected two continuations, got {:#?}", coordinated.rest());
         };
@@ -1688,9 +1696,13 @@ mod tests {
         };
         assert!(
             matches!(
-                &nominal.determiner(),
-                Some(Determiner::Possessive(Possessor::NounPhrase(possessor)))
-                    if matches!(possessor.as_ref(), NounPhrase::ThisCard(_))
+                nominal.determiner(),
+                Some(determiner)
+                    if matches!(
+                        determiner.kind(),
+                        crate::syntax::DeterminerKind::Possessive(possessor)
+                            if matches!(possessor.kind(), crate::syntax::PossessorKind::NounPhrase(NounPhrase::ThisCard(_)))
+                    )
             ),
             "{nominal:#?}"
         );
@@ -1698,6 +1710,54 @@ mod tests {
             render_fragment_as(parsed.noun_phrase().unwrap(), "Nissa Revane", true),
             "Nissa's power"
         );
+    }
+
+    #[test]
+    fn derived_determiner_family_preserves_meaning_and_rejects_invalid_agreement() {
+        for source in [
+            "the creature",
+            "target creature",
+            "up to two target creatures",
+            "two creatures",
+            "your creature",
+            "creature's power",
+            "the creature's power",
+            "exiled creature's power",
+        ] {
+            let parsed = parse(source);
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            let noun_phrase = parsed.noun_phrase().expect("noun-phrase root");
+            assert_eq!(render_fragment(noun_phrase), source, "{source}");
+            let NounPhrase::Nominal(nominal) = noun_phrase else {
+                panic!("expected a nominal phrase for {source:?}: {noun_phrase:#?}");
+            };
+            assert!(nominal.determiner().is_some(), "{source}: {nominal:#?}");
+        }
+
+        for source in ["Nissa Revane's power", "Nissa's power"] {
+            let parsed = parse_self(source);
+            let noun_phrase = parsed.noun_phrase().expect("self-reference nominal root");
+            assert_eq!(
+                render_fragment_as(noun_phrase, "Nissa Revane", true),
+                source,
+                "{source}",
+            );
+        }
+
+        for source in [
+            "a artifact",
+            "an creature",
+            "each creatures",
+            "these creature",
+            "this creatures",
+            "the the creature",
+            "exiled the creature's power",
+        ] {
+            assert!(
+                parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase).is_err(),
+                "invalid D01 agreement/state unexpectedly parsed: {source:?}",
+            );
+        }
     }
 
     #[test]
@@ -1718,20 +1778,30 @@ mod tests {
             ),
             "{nominal:#?}"
         );
-        let Some(Determiner::Possessive(Possessor::NounPhrase(possessor))) = &nominal.determiner()
-        else {
+        let Some(determiner) = nominal.determiner() else {
             panic!(
                 "expected a possessive determiner: {:#?}",
                 nominal.determiner()
             );
         };
-        let NounPhrase::Nominal(possessor_nominal) = possessor.as_ref() else {
+        let crate::syntax::DeterminerKind::Possessive(possessor) = determiner.kind() else {
+            panic!("expected a possessive determiner: {determiner:#?}");
+        };
+        let crate::syntax::PossessorKind::NounPhrase(possessor) = possessor.kind() else {
+            panic!("expected a noun-phrase possessor: {possessor:#?}");
+        };
+        let NounPhrase::Nominal(possessor_nominal) = possessor else {
             panic!("expected a nominal possessor: {possessor:#?}");
         };
         assert!(
             matches!(
-                &possessor_nominal.determiner(),
-                Some(Determiner::Possessive(Possessor::Pronoun(Pronoun::They)))
+                possessor_nominal.determiner(),
+                Some(determiner)
+                    if matches!(
+                        determiner.kind(),
+                        crate::syntax::DeterminerKind::Possessive(possessor)
+                            if matches!(possessor.kind(), crate::syntax::PossessorKind::Pronoun(Pronoun::They))
+                    )
             ),
             "{possessor_nominal:#?}"
         );
@@ -1762,11 +1832,17 @@ mod tests {
 
     fn contains_noun_phrase_possessive(noun_phrase: &NounPhrase) -> bool {
         match noun_phrase {
-            NounPhrase::Nominal(nominal) => matches!(
-                &nominal.determiner(),
-                Some(Determiner::Possessive(Possessor::NounPhrase(_)))
+            NounPhrase::Nominal(nominal) => nominal.determiner().is_some_and(|determiner| {
+                matches!(
+                    determiner.kind(),
+                    crate::syntax::DeterminerKind::Possessive(possessor)
+                        if matches!(possessor.kind(), crate::syntax::PossessorKind::NounPhrase(_))
+                )
+            }),
+            NounPhrase::Possessive(possessor) => matches!(
+                possessor.kind(),
+                crate::syntax::PossessorKind::NounPhrase(_)
             ),
-            NounPhrase::Possessive(Possessor::NounPhrase(_)) => true,
             _ => false,
         }
     }
@@ -1845,18 +1921,23 @@ mod tests {
             "{outer:#?}"
         );
         assert!(outer.modifiers().is_empty(), "{outer:#?}");
-        let Some(Determiner::Possessive(Possessor::NounPhrase(possessor))) = &outer.determiner()
-        else {
+        let Some(determiner) = outer.determiner() else {
             panic!(
                 "expected a possessive determiner: {:#?}",
                 outer.determiner()
             );
         };
-        let NounPhrase::Nominal(possessor) = possessor.as_ref() else {
+        let crate::syntax::DeterminerKind::Possessive(possessor) = determiner.kind() else {
+            panic!("expected a possessive determiner: {determiner:#?}");
+        };
+        let crate::syntax::PossessorKind::NounPhrase(possessor) = possessor.kind() else {
+            panic!("expected a noun-phrase possessor: {possessor:#?}");
+        };
+        let NounPhrase::Nominal(possessor) = possessor else {
             panic!("expected a nominal possessor: {possessor:#?}");
         };
         assert!(
-            matches!(&possessor.determiner(), Some(Determiner::The)),
+            possessor.determiner() == Some(&crate::determiner::the()),
             "{possessor:#?}"
         );
         let [
@@ -1899,15 +1980,19 @@ mod tests {
                 panic!("expected a nominal phrase for {source:?}");
             };
             assert!(outer.modifiers().is_empty(), "{source}: {outer:#?}");
-            let Some(Determiner::Possessive(Possessor::NounPhrase(possessor))) =
-                &outer.determiner()
-            else {
+            let Some(determiner) = outer.determiner() else {
                 panic!(
                     "{source}: expected a possessive determiner: {:#?}",
                     outer.determiner()
                 );
             };
-            let NounPhrase::Nominal(possessor) = possessor.as_ref() else {
+            let crate::syntax::DeterminerKind::Possessive(possessor) = determiner.kind() else {
+                panic!("{source}: expected a possessive determiner: {determiner:#?}");
+            };
+            let crate::syntax::PossessorKind::NounPhrase(possessor) = possessor.kind() else {
+                panic!("{source}: expected a noun-phrase possessor: {possessor:#?}");
+            };
+            let NounPhrase::Nominal(possessor) = possessor else {
                 panic!("{source}: expected a nominal possessor: {possessor:#?}");
             };
             assert_eq!(possessor.modifiers().len(), 1, "{source}: {possessor:#?}");
@@ -1959,14 +2044,19 @@ mod tests {
         let Some(NounPhrase::Nominal(outer)) = parsed.noun_phrase() else {
             panic!("expected a nominal phrase for {source:?}");
         };
-        let Some(Determiner::Possessive(Possessor::NounPhrase(possessor))) = &outer.determiner()
-        else {
+        let Some(determiner) = outer.determiner() else {
             panic!(
                 "expected a possessive determiner: {:#?}",
                 outer.determiner()
             );
         };
-        let NounPhrase::Nominal(possessor) = possessor.as_ref() else {
+        let crate::syntax::DeterminerKind::Possessive(possessor) = determiner.kind() else {
+            panic!("expected a possessive determiner: {determiner:#?}");
+        };
+        let crate::syntax::PossessorKind::NounPhrase(possessor) = possessor.kind() else {
+            panic!("expected a noun-phrase possessor: {possessor:#?}");
+        };
+        let NounPhrase::Nominal(possessor) = possessor else {
             panic!("expected a nominal possessor: {possessor:#?}");
         };
         assert!(
@@ -2001,8 +2091,8 @@ mod tests {
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         assert!(matches!(
             parsed.noun_phrase(),
-            Some(NounPhrase::Possessive(Possessor::NounPhrase(possessor)))
-                if matches!(possessor.as_ref(), NounPhrase::ThisCard(_))
+            Some(NounPhrase::Possessive(possessor))
+                if matches!(possessor.kind(), crate::syntax::PossessorKind::NounPhrase(NounPhrase::ThisCard(_)))
         ));
         assert_eq!(
             render_fragment_as(parsed.noun_phrase().unwrap(), "Nissa Revane", true),
@@ -2045,12 +2135,16 @@ mod tests {
         };
         assert!(matches!(
             target.determiner(),
-            Some(Determiner::Target(Some(quantity)))
+            Some(determiner)
                 if matches!(
-                    quantity.kind(),
-                    crate::syntax::QuantityKind::UpTo(
-                        crate::syntax::QuantityValue::Literal(number)
-                    ) if number.value == 3
+                    determiner.kind(),
+                    crate::syntax::DeterminerKind::Target(Some(quantity))
+                        if matches!(
+                            quantity.kind(),
+                            crate::syntax::QuantityKind::UpTo(
+                                crate::syntax::QuantityValue::Literal(number)
+                            ) if number.value == 3
+                        )
                 )
         ));
         assert!(matches!(target.head().kind(), NounInstanceKind::Plural(_)));
@@ -2061,13 +2155,17 @@ mod tests {
         };
         assert!(matches!(
             at_least.determiner(),
-            Some(Determiner::Quantity(quantity))
+            Some(determiner)
                 if matches!(
-                    quantity.kind(),
-                    crate::syntax::QuantityKind::OrComparison(
-                        crate::syntax::QuantityValue::Literal(number),
-                        crate::syntax::ComparativeWord::More
-                    ) if number.value == 1
+                    determiner.kind(),
+                    crate::syntax::DeterminerKind::Quantity(quantity)
+                        if matches!(
+                            quantity.kind(),
+                            crate::syntax::QuantityKind::OrComparison(
+                                crate::syntax::QuantityValue::Literal(number),
+                                crate::syntax::ComparativeWord::More
+                            ) if number.value == 1
+                        )
                 )
         ));
         assert!(matches!(
@@ -2081,11 +2179,15 @@ mod tests {
         };
         assert!(matches!(
             either.determiner(),
-            Some(Determiner::Target(Some(quantity)))
+            Some(determiner)
                 if matches!(
-                    quantity.kind(),
-                    crate::syntax::QuantityKind::Or(one, two)
-                        if one.value == 1 && two.value == 2
+                    determiner.kind(),
+                    crate::syntax::DeterminerKind::Target(Some(quantity))
+                        if matches!(
+                            quantity.kind(),
+                            crate::syntax::QuantityKind::Or(one, two)
+                                if one.value == 1 && two.value == 2
+                        )
                 )
         ));
         assert!(matches!(either.head().kind(), NounInstanceKind::Plural(_)));
@@ -2112,7 +2214,12 @@ mod tests {
         assert!(
             matches!(
                 variable_quantity.determiner(),
-                Some(Determiner::Quantity(crate::syntax::Quantity::X))
+                Some(determiner)
+                    if matches!(
+                        determiner.kind(),
+                        crate::syntax::DeterminerKind::Quantity(quantity)
+                            if matches!(quantity.kind(), crate::syntax::QuantityKind::X)
+                    )
             ),
             "{variable_quantity:#?}"
         );
@@ -2151,7 +2258,7 @@ mod tests {
         let Some(NounPhrase::Nominal(any)) = any.noun_phrase() else {
             panic!("expected an any-determined nominal");
         };
-        assert_eq!(any.determiner(), Some(&Determiner::Any));
+        assert_eq!(any.determiner(), Some(&crate::determiner::any()));
         assert!(matches!(
             any.head().kind(),
             NounInstanceKind::Singular(Noun::Word(Vocab::Target))
@@ -2161,7 +2268,7 @@ mod tests {
         let Some(NounPhrase::Nominal(no)) = no.noun_phrase() else {
             panic!("expected a no-determined nominal");
         };
-        assert_eq!(no.determiner(), Some(&Determiner::No));
+        assert_eq!(no.determiner(), Some(&crate::determiner::no()));
         assert!(matches!(no.head().kind(), NounInstanceKind::Plural(_)));
 
         let much = parse("that much damage");
@@ -2170,7 +2277,12 @@ mod tests {
         };
         assert!(matches!(
             much.determiner(),
-            Some(Determiner::Quantity(crate::syntax::Quantity::ThatMuch))
+            Some(determiner)
+                if matches!(
+                    determiner.kind(),
+                    crate::syntax::DeterminerKind::Quantity(quantity)
+                        if matches!(quantity.kind(), crate::syntax::QuantityKind::ThatMuch)
+                )
         ));
         assert!(matches!(
             much.head().kind(),
@@ -2197,21 +2309,21 @@ mod tests {
             };
             assert!(
                 matches!(
-                    &nominal.determiner(),
-                    Some(Determiner::Quantity(quantity))
-                        if more
-                            && matches!(
-                                quantity.kind(),
-                                crate::syntax::QuantityKind::MoreThan(_)
-                            )
+                    nominal.determiner(),
+                    Some(determiner)
+                        if more && matches!(
+                            determiner.kind(),
+                            crate::syntax::DeterminerKind::Quantity(quantity)
+                                if matches!(quantity.kind(), crate::syntax::QuantityKind::MoreThan(_))
+                        )
                 ) || matches!(
-                    &nominal.determiner(),
-                    Some(Determiner::Quantity(quantity))
-                        if !more
-                            && matches!(
-                                quantity.kind(),
-                                crate::syntax::QuantityKind::FewerThan(_)
-                            )
+                    nominal.determiner(),
+                    Some(determiner)
+                        if !more && matches!(
+                            determiner.kind(),
+                            crate::syntax::DeterminerKind::Quantity(quantity)
+                                if matches!(quantity.kind(), crate::syntax::QuantityKind::FewerThan(_))
+                        )
                 ),
                 "{source}: {nominal:#?}"
             );
@@ -2243,7 +2355,7 @@ mod tests {
         let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
             panic!("full phrase should select a nominal");
         };
-        assert_eq!(nominal.determiner(), Some(&Determiner::Each));
+        assert_eq!(nominal.determiner(), Some(&crate::determiner::each()));
         assert!(matches!(
             nominal.modifiers(),
             [NominalModifier::Adjective { phrase, .. }]
@@ -2298,7 +2410,7 @@ mod tests {
         };
         assert_eq!(
             object.determiner(),
-            Some(&Determiner::Possessive(Possessor::Pronoun(Pronoun::You)))
+            Some(&crate::determiner::possessive_pronoun(Pronoun::You))
         );
     }
 
@@ -2510,14 +2622,18 @@ mod tests {
             };
             assert!(
                 matches!(
-                    &nominal.determiner(),
-                    Some(Determiner::Quantity(quantity))
+                    nominal.determiner(),
+                    Some(determiner)
                         if matches!(
-                            quantity.kind(),
-                            crate::syntax::QuantityKind::OrComparison(
-                                crate::syntax::QuantityValue::Literal(number),
-                                seen
-                            ) if number.value == value && seen == word
+                            determiner.kind(),
+                            crate::syntax::DeterminerKind::Quantity(quantity)
+                                if matches!(
+                                    quantity.kind(),
+                                    crate::syntax::QuantityKind::OrComparison(
+                                        crate::syntax::QuantityValue::Literal(number),
+                                        seen
+                                    ) if number.value == value && seen == word
+                                )
                         )
                 ),
                 "{source}: {nominal:#?}"
@@ -2564,7 +2680,7 @@ mod tests {
             };
             assert_eq!(
                 nominal.determiner(),
-                Some(&Determiner::Target(Some(expected))),
+                Some(&crate::determiner::target(Some(expected))),
                 "{source}: {nominal:#?}"
             );
         }
@@ -2642,11 +2758,15 @@ mod tests {
         assert!(
             matches!(
                 either.determiner(),
-                Some(Determiner::Target(Some(quantity)))
+                Some(determiner)
                     if matches!(
-                        quantity.kind(),
-                        crate::syntax::QuantityKind::Or(one, two)
-                            if one.value == 1 && two.value == 2
+                        determiner.kind(),
+                        crate::syntax::DeterminerKind::Target(Some(quantity))
+                            if matches!(
+                                quantity.kind(),
+                                crate::syntax::QuantityKind::Or(one, two)
+                                    if one.value == 1 && two.value == 2
+                            )
                     )
             ),
             "{either:#?}"
@@ -2685,7 +2805,7 @@ mod tests {
         };
         assert_eq!(
             nominal.determiner(),
-            Some(&Determiner::Possessive(Possessor::Pronoun(Pronoun::You)))
+            Some(&crate::determiner::possessive_pronoun(Pronoun::You))
         );
         let [NominalModifier::Coordinated(coordinated)] = nominal.modifiers() else {
             panic!(
@@ -2902,10 +3022,11 @@ mod tests {
         assert!(
             matches!(
                 nominal.determiner(),
-                Some(Determiner::Quantity(quantity))
+                Some(determiner)
                     if matches!(
-                        quantity.kind(),
-                        crate::syntax::QuantityKind::Exact(number) if number.value == 2
+                        determiner.kind(),
+                        crate::syntax::DeterminerKind::Quantity(quantity)
+                            if matches!(quantity.kind(), crate::syntax::QuantityKind::Exact(number) if number.value == 2)
                     )
             ),
             "expected an Exact(2) quantity determiner, got {:?}",
@@ -3004,7 +3125,7 @@ mod tests {
                 panic!("{source}: expected a Nominal noun phrase, got {noun_phrase:?}");
             };
             assert!(
-                matches!(nominal.determiner(), Some(Determiner::Indefinite)),
+                nominal.determiner() == Some(&crate::determiner::indefinite()),
                 "{source}: expected an indefinite determiner, got {:?}",
                 nominal.determiner()
             );
@@ -3074,8 +3195,15 @@ mod tests {
         assert!(matches!(
             &second.phrase,
             NounPhrase::Nominal(nominal)
-                if matches!(nominal.determiner(), Some(Determiner::Quantity(quantity))
-                    if matches!(quantity.kind(), crate::syntax::QuantityKind::UpTo(_)))
+                if matches!(
+                    nominal.determiner(),
+                    Some(determiner)
+                        if matches!(
+                            determiner.kind(),
+                            crate::syntax::DeterminerKind::Quantity(quantity)
+                                if matches!(quantity.kind(), crate::syntax::QuantityKind::UpTo(_))
+                        )
+                )
         ));
         assert!(
             parsed.chart_stats().unique_items() < 50_000,

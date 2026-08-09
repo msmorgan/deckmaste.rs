@@ -377,6 +377,197 @@ fn public_adjective_facade_builds_projects_rebuilds_and_renders_every_shape() {
 }
 
 #[test]
+fn public_determiner_facade_builds_projects_and_rebuilds_every_d01_shape() {
+    use deckmaste_english::adjective as adjective_api;
+    use deckmaste_english::determiner as determiner_api;
+
+    let closed = [
+        ClosedDeterminer::The,
+        ClosedDeterminer::Each,
+        ClosedDeterminer::Another,
+        ClosedDeterminer::Indefinite,
+        ClosedDeterminer::Demonstrative(Demonstrative::This),
+        ClosedDeterminer::Demonstrative(Demonstrative::That),
+        ClosedDeterminer::Demonstrative(Demonstrative::These),
+        ClosedDeterminer::Demonstrative(Demonstrative::Those),
+        ClosedDeterminer::PossessivePronoun(Pronoun::You),
+        ClosedDeterminer::PossessivePronoun(Pronoun::They),
+        ClosedDeterminer::All,
+        ClosedDeterminer::Any,
+        ClosedDeterminer::No,
+    ];
+    for identity in closed {
+        let determiner = determiner_api::build_determiner_closed(identity).unwrap();
+        assert_eq!(
+            determiner_api::parts_determiner_closed(&determiner),
+            identity
+        );
+        assert_eq!(
+            determiner_api::build_determiner_closed(determiner_api::parts_determiner_closed(
+                &determiner
+            ),)
+            .unwrap(),
+            determiner,
+        );
+    }
+
+    let target = determiner_api::build_determiner_target().unwrap();
+    determiner_api::parts_determiner_target(&target);
+    assert_eq!(determiner_api::build_determiner_target().unwrap(), target);
+
+    let two = Quantity::try_exact(NumberLiteral {
+        value: 2,
+        numeral: Numeral::Cardinal,
+    })
+    .unwrap();
+    for (determiner, parts, rebuild) in [
+        (
+            determiner_api::build_determiner_quantified_target(two).unwrap(),
+            determiner_api::parts_determiner_quantified_target as fn(&Determiner) -> Quantity,
+            determiner_api::build_determiner_quantified_target as fn(Quantity) -> Result<_, _>,
+        ),
+        (
+            determiner_api::build_determiner_quantity(two).unwrap(),
+            determiner_api::parts_determiner_quantity,
+            determiner_api::build_determiner_quantity,
+        ),
+    ] {
+        assert_eq!(rebuild(parts(&determiner)).unwrap(), determiner);
+    }
+
+    for form in [ThisCardForm::FullName, ThisCardForm::AbbreviatedName] {
+        let determiner = determiner_api::build_determiner_possessive_this_card(form).unwrap();
+        assert_eq!(
+            determiner_api::parts_determiner_possessive_this_card(&determiner),
+            form,
+        );
+        assert_eq!(
+            determiner_api::build_determiner_possessive_this_card(form).unwrap(),
+            determiner,
+        );
+    }
+
+    let creature = Noun::Word(Vocab::Card);
+    for head in [
+        NounInstance::try_singular(creature.clone()).unwrap(),
+        NounInstance::try_plural(creature).unwrap(),
+    ] {
+        let possessor = determiner_api::build_possessive_noun_base(head.clone()).unwrap();
+        assert_eq!(determiner_api::parts_possessive_noun_base(&possessor), head);
+        assert_eq!(
+            determiner_api::build_possessive_noun_base(determiner_api::parts_possessive_noun_base(
+                &possessor
+            ),)
+            .unwrap(),
+            possessor,
+        );
+    }
+
+    let base = determiner_api::build_possessive_noun_base(
+        NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
+    )
+    .unwrap();
+    let the = determiner_api::build_determiner_closed(ClosedDeterminer::The).unwrap();
+    let determined =
+        determiner_api::build_possessive_noun_determined(the.clone(), base.clone()).unwrap();
+    let (projected_determiner, projected_base) =
+        determiner_api::parts_possessive_noun_determined(&determined);
+    assert_eq!(projected_determiner, the);
+    assert_eq!(projected_base, base);
+    assert_eq!(
+        determiner_api::build_possessive_noun_determined(projected_determiner, projected_base)
+            .unwrap(),
+        determined,
+    );
+
+    let possessive = determiner_api::build_determiner_possessive_noun(determined.clone()).unwrap();
+    let projected = determiner_api::parts_determiner_possessive_noun(&possessive);
+    assert_eq!(projected, determined);
+    assert_eq!(
+        determiner_api::build_determiner_possessive_noun(projected).unwrap(),
+        possessive,
+    );
+    let DeterminerKind::Possessive(possessor) = possessive.kind() else {
+        panic!("noun possessor remains a semantic possessive determiner")
+    };
+    assert!(matches!(possessor.kind(), PossessorKind::NounPhrase(_)));
+
+    let base = determiner_api::build_possessive_noun_base(
+        NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
+    )
+    .unwrap();
+    let adjective = adjective_api::build_adjective_phrase(Adjective::Word(Vocab::Target)).unwrap();
+    let modified =
+        determiner_api::build_possessive_noun_adjective(adjective.clone(), base.clone()).unwrap();
+    let (projected_adjective, projected_base) =
+        determiner_api::parts_possessive_noun_adjective(&modified);
+    assert_eq!(projected_adjective, adjective);
+    assert_eq!(projected_base, base);
+    assert_eq!(
+        determiner_api::build_possessive_noun_adjective(projected_adjective, projected_base)
+            .unwrap(),
+        modified,
+    );
+
+    assert!(
+        determiner_api::build_possessive_noun_determined(
+            determiner_api::build_determiner_closed(ClosedDeterminer::Each).unwrap(),
+            determiner_api::build_possessive_noun_base(
+                NounInstance::try_plural(Noun::Word(Vocab::Card)).unwrap(),
+            )
+            .unwrap(),
+        )
+        .is_err(),
+    );
+    assert!(determiner_api::build_possessive_noun_determined(the, determined.clone()).is_err(),);
+    assert!(determiner_api::build_possessive_noun_adjective(adjective, determined).is_err(),);
+}
+
+#[test]
+fn public_determiner_provenance_exposes_the_complete_stable_d01_id_order() {
+    const D01_IDS: &[&str] = &[
+        "determiner_closed",
+        "determiner_target",
+        "determiner_quantified_target",
+        "determiner_quantity",
+        "determiner_possessive_this_card",
+        "possessive_noun_base",
+        "possessive_noun_determined",
+        "determiner_possessive_noun",
+        "possessive_noun_adjective",
+    ];
+    let catalogs = Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"]);
+    let fixtures = [
+        ("Draw the card.", D01_IDS[0]),
+        ("Destroy target creature.", D01_IDS[1]),
+        ("Destroy up to two target creatures.", D01_IDS[2]),
+        ("Draw two cards.", D01_IDS[3]),
+        ("Nissa's power is 2.", D01_IDS[4]),
+        ("A creature's power is 2.", D01_IDS[5]),
+        ("The creature's power is 2.", D01_IDS[6]),
+        ("The creature's power is 2.", D01_IDS[7]),
+        ("An exiled card's owner draws a card.", D01_IDS[8]),
+    ];
+    let actual = fixtures
+        .into_iter()
+        .map(|(source, expected)| {
+            let report = parse_with_identity(source, &catalogs, "Nissa Revane", true);
+            let decision = report
+                .provenance()
+                .selections()
+                .iter()
+                .flat_map(ParseSelection::constructions)
+                .find(|decision| decision.selected().as_str() == expected)
+                .unwrap_or_else(|| panic!("missing public D01 owner {expected}: {report:#?}"));
+            assert_eq!(decision.owner(), ConstructionOwner::Generated, "{source}");
+            assert_eq!(decision.selected_production_ordinal(), 0, "{source}");
+            decision.selected().as_str().to_owned()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(actual, D01_IDS);
+}
+
+#[test]
 fn public_predicate_facade_constructs_transitive_and_roundtrips_exact() {
     use deckmaste_english::nominal as nominal_api;
     use deckmaste_english::predicate as predicate_api;
@@ -385,7 +576,9 @@ fn public_predicate_facade_constructs_transitive_and_roundtrips_exact() {
         NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
     )
     .unwrap();
-    let card = nominal_api::build_nominal_determiner(Determiner::Indefinite, card).unwrap();
+    let card =
+        nominal_api::build_nominal_determiner(deckmaste_english::determiner::indefinite(), card)
+            .unwrap();
     let transitive = predicate_api::build_predicate_verb(
         VerbInstance {
             verb: Verb::Word(Vocab::Draw),
@@ -569,7 +762,9 @@ fn public_predicate_facade_rejects_invalid_valency_form_voice_and_order() {
         NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
     )
     .unwrap();
-    let card = nominal_api::build_nominal_determiner(Determiner::Indefinite, card).unwrap();
+    let card =
+        nominal_api::build_nominal_determiner(deckmaste_english::determiner::indefinite(), card)
+            .unwrap();
 
     let illegal_object = predicate_api::build_predicate_verb(
         VerbInstance {
@@ -1973,27 +2168,27 @@ impl<'syntax> SyntaxInventory<'syntax> {
     }
 
     fn possessor(&mut self, possessor: &'syntax Possessor) {
-        match possessor {
-            Possessor::Pronoun(pronoun) => self.pronouns.push(*pronoun),
-            Possessor::NounPhrase(noun) => self.noun_phrase(noun),
+        match possessor.kind() {
+            PossessorKind::Pronoun(pronoun) => self.pronouns.push(pronoun),
+            PossessorKind::NounPhrase(noun) => self.noun_phrase(noun),
         }
     }
 
     fn determiner(&mut self, determiner: &'syntax Determiner) {
-        match determiner {
-            Determiner::Target(Some(quantity)) | Determiner::Quantity(quantity) => {
-                self.quantities.push(*quantity);
+        match determiner.kind() {
+            DeterminerKind::Target(Some(quantity)) | DeterminerKind::Quantity(quantity) => {
+                self.quantities.push(quantity);
             }
-            Determiner::Possessive(possessor) => self.possessor(possessor),
-            Determiner::The
-            | Determiner::Each
-            | Determiner::Another
-            | Determiner::Indefinite
-            | Determiner::Demonstrative(_)
-            | Determiner::Target(None)
-            | Determiner::All
-            | Determiner::Any
-            | Determiner::No => {}
+            DeterminerKind::Possessive(possessor) => self.possessor(possessor),
+            DeterminerKind::The
+            | DeterminerKind::Each
+            | DeterminerKind::Another
+            | DeterminerKind::Indefinite
+            | DeterminerKind::Demonstrative(_)
+            | DeterminerKind::Target(None)
+            | DeterminerKind::All
+            | DeterminerKind::Any
+            | DeterminerKind::No => {}
         }
     }
 
@@ -2383,7 +2578,7 @@ fn is_any_number_of(phrase: &NounPhrase) -> bool {
     let NounPhrase::Nominal(nominal) = phrase else {
         return false;
     };
-    if !matches!(nominal.determiner(), Some(Determiner::Any)) {
+    if nominal.determiner() != Some(&deckmaste_english::determiner::any()) {
         return false;
     }
     matches!(
@@ -3143,10 +3338,11 @@ fn cost_noun_phrases_coordinate_with_and_or() {
     assert!(
         matches!(
             coordinated.determiner(),
-            Determiner::Quantity(quantity)
+            determiner
                 if matches!(
-                    quantity.kind(),
-                    QuantityKind::Exact(NumberLiteral { value: 2, .. })
+                    determiner.kind(),
+                    DeterminerKind::Quantity(quantity)
+                        if matches!(quantity.kind(), QuantityKind::Exact(NumberLiteral { value: 2, .. }))
                 )
         ) && matches!(
             coordinated.rest().as_slice(),
@@ -3722,10 +3918,11 @@ fn number_literal_one_still_wins_over_the_noun_reading() {
     assert!(
         inventory.nominals.iter().any(|nominal| matches!(
             nominal.determiner(),
-            Some(Determiner::Target(Some(quantity)))
+            Some(determiner)
                 if matches!(
-                    quantity.kind(),
-                    QuantityKind::UpTo(QuantityValue::Literal(NumberLiteral { value: 1, .. }))
+                    determiner.kind(),
+                    DeterminerKind::Target(Some(quantity))
+                        if matches!(quantity.kind(), QuantityKind::UpTo(QuantityValue::Literal(NumberLiteral { value: 1, .. })))
                 )
         )),
         "expected `one` as a number literal\nAST:\n{ast}"
@@ -4404,7 +4601,8 @@ fn qfloat_core_up_to_n_each_gain_haste() {
 #[test]
 fn qfloat_core_one_or_two_each_gets_lowers_as_coordinated_np() {
     // Stage 1 (`Two`/`One` cardinal case-insensitivity) is dropped this round,
-    // so the subject is NOT `Determiner::Target(Some(Quantity::Or(1, 2)))` — it
+    // so the subject is NOT
+    // `deckmaste_english::determiner::target(Some(Quantity::Or(1, 2)))` — it
     // lowers as the pre-existing coordinated fused-head tree, the same
     // analysis the grammar test-locks for `One or more target creatures`
     // (`one_is_a_dispreferenced_fused_head_noun`). Assert the float and the
@@ -4435,8 +4633,12 @@ fn qfloat_core_one_or_two_each_gets_lowers_as_coordinated_np() {
             Some(NounPhrase::Nominal(nominal))
                 if matches!(
                     nominal.determiner(),
-                    Some(Determiner::Target(Some(quantity)))
-                        if matches!(quantity.kind(), QuantityKind::Or(_, _))
+                    Some(determiner)
+                        if matches!(
+                            determiner.kind(),
+                            DeterminerKind::Target(Some(quantity))
+                                if matches!(quantity.kind(), QuantityKind::Or(_, _))
+                        )
                 )
         ),
         "Stage 1 is dropped this round; the subject must not become a single \
@@ -4790,13 +4992,17 @@ fn anof_cardinal_two_target_players_exchange_life_totals() {
             .any(|nominal| {
                 matches!(
                     nominal.determiner(),
-                    Some(Determiner::Target(Some(quantity)))
+                    Some(determiner)
                         if matches!(
-                            quantity.kind(),
-                            QuantityKind::Exact(NumberLiteral {
-                                value: 2,
-                                numeral: Numeral::Cardinal,
-                            })
+                            determiner.kind(),
+                            DeterminerKind::Target(Some(quantity))
+                                if matches!(
+                                    quantity.kind(),
+                                    QuantityKind::Exact(NumberLiteral {
+                                        value: 2,
+                                        numeral: Numeral::Cardinal,
+                                    })
+                                )
                         )
                 ) && matches!(
                     nominal.head().kind(),
@@ -4834,13 +5040,17 @@ fn multiword_cardinal_plural_lowers_as_one_quantity() {
     assert!(
         matches!(
             nominal.determiner(),
-            Some(Determiner::Quantity(quantity))
+            Some(determiner)
                 if matches!(
-                    quantity.kind(),
-                    QuantityKind::Exact(NumberLiteral {
-                        value: 100,
-                        numeral: Numeral::Cardinal,
-                    })
+                    determiner.kind(),
+                    DeterminerKind::Quantity(quantity)
+                        if matches!(
+                            quantity.kind(),
+                            QuantityKind::Exact(NumberLiteral {
+                                value: 100,
+                                numeral: Numeral::Cardinal,
+                            })
+                        )
                 )
         ),
         "the complete numeral span must lower as 100: {plural:#?}"
@@ -4886,15 +5096,17 @@ fn quantified_target_cardinality_matches_the_public_quantity_contract() {
         })
     };
     assert_eq!(
-        Determiner::Target(Some(Quantity::try_at_least(literal(1)).unwrap())).noun_cardinality(),
+        deckmaste_english::determiner::target(Some(Quantity::try_at_least(literal(1)).unwrap()))
+            .noun_cardinality(),
         NounCardinality::SingularCount
     );
     assert_eq!(
-        Determiner::Target(Some(Quantity::try_at_least(literal(3)).unwrap())).noun_cardinality(),
+        deckmaste_english::determiner::target(Some(Quantity::try_at_least(literal(3)).unwrap()))
+            .noun_cardinality(),
         NounCardinality::PluralCount
     );
     assert_eq!(
-        Determiner::Target(Some(
+        deckmaste_english::determiner::target(Some(
             Quantity::try_at_least(QuantityValue::Variable).unwrap(),
         ))
         .noun_cardinality(),
@@ -4992,10 +5204,11 @@ fn anof_cardinal_number_literal_one_still_wins_gate_stays_green() {
     assert!(
         inventory.nominals.iter().any(|nominal| matches!(
             nominal.determiner(),
-            Some(Determiner::Target(Some(quantity)))
+            Some(determiner)
                 if matches!(
-                    quantity.kind(),
-                    QuantityKind::UpTo(QuantityValue::Literal(NumberLiteral { value: 1, .. }))
+                    determiner.kind(),
+                    DeterminerKind::Target(Some(quantity))
+                        if matches!(quantity.kind(), QuantityKind::UpTo(QuantityValue::Literal(NumberLiteral { value: 1, .. })))
                 )
         )),
         "expected `one` as a number literal\nAST:\n{ast}"

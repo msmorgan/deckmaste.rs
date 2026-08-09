@@ -215,7 +215,7 @@ pub enum Normalization {
     /// A plural head noun was reset to singular.
     NounNumber { from: Number },
     /// A hole-bearing `NominalModifier::Quantity` was moved into the empty
-    /// `determiner` slot as `Determiner::Quantity`.
+    /// `determiner` slot as `DeterminerKind::Quantity`.
     ///
     /// Not cosmetic: English puts a count *modifier* before a singular head
     /// (`41 card`) but a count *determiner* before a plural one (`41 cards`),
@@ -890,7 +890,7 @@ fn hoist(tree: &View, marker: &TreePath, witness: &Witness) -> TreePath {
 ///
 /// "Non-empty" is [`View::is_vacuous`]: a `None` determiner and an empty
 /// modifier list are not frame material, so a hole grows through them, while
-/// a `Determiner::Target` — which is what `target <Param(0)>` contributes —
+/// a `DeterminerKind::Target` — which is what `target <Param(0)>` contributes —
 /// stops it. That single distinction is what separates a
 /// [`HoleClass::Subtree`] hole from a [`HoleClass::FieldSlice`] one without
 /// any per-category table.
@@ -1292,7 +1292,7 @@ const fn number_variant(number: Number) -> &'static str {
 
 /// Takes the sole hole-bearing `NominalModifier::Quantity` out of a nominal's
 /// `modifiers`, if its `determiner` is empty, and returns it re-wrapped as a
-/// `Determiner::Quantity`, with the index it came from.
+/// `DeterminerKind::Quantity`, with the index it came from.
 ///
 /// On [`Side::Card`] there is no hole to key off — a card's tree is holeless
 /// by construction — so the modifier is identified by being a quantity at

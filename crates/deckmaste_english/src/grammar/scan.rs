@@ -579,7 +579,7 @@ impl EnglishGrammar<'_, '_> {
         // the lowercase `the` determiner leading an opaque noun; that reading
         // lowercases the name's first word. Dispreference it so the nickname,
         // which reproduces the capitalized `The`, wins.
-        let local_cost = if determiner == Determiner::The
+        let local_cost = if matches!(determiner.kind(), crate::syntax::DeterminerKind::The)
             && self.nickname_lowercasing_collision(tokens, start)
         {
             ParseCost {
@@ -594,13 +594,20 @@ impl EnglishGrammar<'_, '_> {
             features: Features::Determiner {
                 cardinality: determiner.noun_cardinality(),
                 // The scanned word itself, not `determiner` (which no longer
-                // carries it — see `Determiner::Indefinite`): this feature
+                // carries it — see `DeterminerKind::Indefinite`): this feature
                 // exists only to gate the parse against the following
                 // material's initial sound in `article_accepts`.
                 article: IndefiniteArticle::from_spelling(surface),
-                demonstrative_this: determiner
-                    == Determiner::Demonstrative(crate::syntax::Demonstrative::This),
-                set_exception_host: determiner == Determiner::All || determiner == Determiner::Each,
+                demonstrative_this: matches!(
+                    determiner.kind(),
+                    crate::syntax::DeterminerKind::Demonstrative(
+                        crate::syntax::Demonstrative::This
+                    )
+                ),
+                set_exception_host: matches!(
+                    determiner.kind(),
+                    crate::syntax::DeterminerKind::All | crate::syntax::DeterminerKind::Each
+                ),
             },
             meaning: MeaningKey::Determiner(determiner),
             local_cost,
@@ -633,7 +640,12 @@ impl EnglishGrammar<'_, '_> {
                 recipient_passive_theme: false,
                 rules_object_followup: false,
             },
-            meaning: MeaningKey::Determiner(Determiner::Demonstrative(demonstrative)),
+            meaning: MeaningKey::Determiner(
+                crate::constructions::determiner::build_determiner_closed(
+                    crate::syntax::ClosedDeterminer::Demonstrative(demonstrative),
+                )
+                .expect("every demonstrative is a closed determiner identity"),
+            ),
             local_cost: ParseCost::default(),
         }]
     }
@@ -1215,34 +1227,6 @@ pub(super) fn parse_signed_scalar(surface: &str) -> Option<crate::syntax::Signed
         _ => ScalarValue::Integer(body.parse().ok()?),
     };
     Some(crate::syntax::SignedScalar { sign, value })
-}
-
-/// Dot-1 gate for `PossessiveNounAdjective`: the completed child-0 adjective
-/// phrase must be a plain, comparative-pending, or complete adjective, never
-/// a measured or card-orientation one. These are categorical facts available
-/// from child 0, so they are checked here rather than only in `reduce`,
-/// which would otherwise launch avoidable predictions after an inadmissible
-/// prefix. The `determined` gate needs child 1 and stays in `reduce`. Every
-/// other tag/dot is unconstrained here and remains governed by
-/// `clause::accepts_predicate_prefix`.
-pub(super) fn accepts_possessive_modifier_prefix(
-    tag: RuleTag,
-    completed_children: usize,
-    latest_child: &Features,
-) -> bool {
-    if tag != RuleTag::PossessiveNounAdjective || completed_children != 1 {
-        return true;
-    }
-    matches!(
-        latest_child,
-        Features::Adjective {
-            comparison: AdjectiveComparisonState::NotComparative
-                | AdjectiveComparisonState::Pending(_)
-                | AdjectiveComparisonState::Complete,
-            card_orientation: false,
-            ..
-        }
-    )
 }
 
 pub(super) fn noun_phrase_accepts_set_exception(features: &Features) -> bool {

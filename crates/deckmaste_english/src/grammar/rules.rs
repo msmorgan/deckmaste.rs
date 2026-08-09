@@ -213,40 +213,6 @@ impl RuleBuilder {
         use Expected::Nonterminal as n;
         use Nonterminal as N;
 
-        self.add(RuleTag::DeterminerClosed, N::Determiner, [l(L::Determiner)]);
-        self.add(
-            RuleTag::DeterminerTarget,
-            N::Determiner,
-            [l(L::DeterminerTarget)],
-        );
-        self.add(
-            RuleTag::DeterminerQuantifiedTarget,
-            N::Determiner,
-            [n(N::Quantity), l(L::DeterminerTarget)],
-        );
-        self.add(RuleTag::DeterminerQuantity, N::Determiner, [n(N::Quantity)]);
-        self.add(
-            RuleTag::DeterminerPossessiveThisCard,
-            N::Determiner,
-            [l(L::PossessiveThisCard)],
-        );
-        self.add(
-            RuleTag::DeterminerPossessiveNoun,
-            N::Determiner,
-            [n(N::PossessiveNounPhrase)],
-        );
-
-        self.add(
-            RuleTag::PossessiveNounBase,
-            N::PossessiveNounPhrase,
-            [l(L::PossessiveNoun)],
-        );
-        self.add(
-            RuleTag::PossessiveNounDetermined,
-            N::PossessiveNounPhrase,
-            [n(N::Determiner), n(N::PossessiveNounPhrase)],
-        );
-
         self.add(RuleTag::NounPhraseNominal, N::NounPhrase, [n(N::Nominal)]);
         self.add(
             RuleTag::NounPhraseSubjectPronoun,
@@ -690,24 +656,6 @@ impl RuleBuilder {
         );
     }
 
-    /// A premodified possessor: `[AdjP] [PossessiveNounPhrase]`, e.g. `the
-    /// sacrificed creature's`. It has the same cost as `NominalAdjective`;
-    /// stable production identity resolves any surviving incomparable tie.
-    pub(super) fn add_possessive_modifier_rules(&mut self) {
-        use Expected::Nonterminal as n;
-        use Nonterminal as N;
-
-        self.add_with_cost(
-            RuleTag::PossessiveNounAdjective,
-            N::PossessiveNounPhrase,
-            [n(N::AdjectivePhrase), n(N::PossessiveNounPhrase)],
-            ParseCost {
-                precedence: 1,
-                ..ParseCost::default()
-            },
-        );
-    }
-
     /// Registers the fronted `While <gerund clause>, <clause>.` production
     /// [CR#701.38d] after every other rule, including the coin-result
     /// predicate. The dot-1 gate in `accepts_predicate_prefix` requires
@@ -818,17 +766,17 @@ mod tests {
     fn interleaved_builder() -> RuleBuilder {
         let mut builder = RuleBuilder::default();
         builder.add(
-            RuleTag::DeterminerClosed,
+            RuleTag::NounPhraseNominal,
             Nonterminal::Determiner,
             [Expected::Lexical(EnglishLexicalSlot::Determiner)],
         );
         builder.add(
-            RuleTag::DeterminerClosed,
+            RuleTag::NounPhraseNominal,
             Nonterminal::Determiner,
             [Expected::Lexical(EnglishLexicalSlot::Determiner)],
         );
         builder.add(
-            RuleTag::DeterminerTarget,
+            RuleTag::NounPhraseThisCard,
             Nonterminal::Determiner,
             [Expected::Lexical(EnglishLexicalSlot::DeterminerTarget)],
         );

@@ -1241,6 +1241,77 @@ mod root_lowering_tests {
     }
 
     #[test]
+    fn generated_determiner_rows_lower_with_their_stable_generated_owners() {
+        let fixtures: &[(&str, &[&str])] = &[
+            ("the creature", &["determiner_closed"]),
+            ("target creature", &["determiner_target"]),
+            (
+                "up to two target creatures",
+                &["determiner_quantified_target"],
+            ),
+            ("two creatures", &["determiner_quantity"]),
+            ("your creature", &["determiner_closed"]),
+            (
+                "creature's power",
+                &["possessive_noun_base", "determiner_possessive_noun"],
+            ),
+            (
+                "the creature's power",
+                &[
+                    "possessive_noun_base",
+                    "possessive_noun_determined",
+                    "determiner_possessive_noun",
+                ],
+            ),
+            (
+                "exiled creature's power",
+                &[
+                    "possessive_noun_base",
+                    "possessive_noun_adjective",
+                    "determiner_possessive_noun",
+                ],
+            ),
+        ];
+        for (source, expected) in fixtures {
+            let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase)
+                .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+            for id in *expected {
+                let decision = parsed
+                    .construction_decisions()
+                    .iter()
+                    .find(|decision| decision.selected().as_str() == *id)
+                    .unwrap_or_else(|| {
+                        panic!("missing D01 selection {id} for {source:?}: {parsed:#?}")
+                    });
+                assert_eq!(
+                    decision.owner(),
+                    ConstructionOwner::Generated,
+                    "{source:?}/{id}"
+                );
+                assert_eq!(decision.selected_production_ordinal(), 0, "{source:?}/{id}");
+            }
+        }
+
+        let self_reference = SelfReference::new("Nissa Revane", true);
+        for source in ["Nissa Revane's power", "Nissa's power"] {
+            let parsed = parse_nonterminal_with_self_reference(
+                source,
+                &fixture_catalogs(),
+                Nonterminal::NounPhrase,
+                &self_reference,
+            )
+            .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+            let decision = parsed
+                .construction_decisions()
+                .iter()
+                .find(|decision| decision.selected().as_str() == "determiner_possessive_this_card")
+                .unwrap_or_else(|| panic!("missing self-reference D01 row: {parsed:#?}"));
+            assert_eq!(decision.owner(), ConstructionOwner::Generated, "{source:?}");
+            assert_eq!(decision.selected_production_ordinal(), 0, "{source:?}");
+        }
+    }
+
+    #[test]
     fn generated_quantity_family_parses_every_shape_notation_and_comparative() {
         let number = |value, numeral| super::super::NumberLiteral { value, numeral };
         let literal = |number| QuantityValue::Literal(number);
@@ -2180,6 +2251,7 @@ mod generated_adapter_tests {
 
     static COORDINATION_GROUPS: &[&deckmaste_construction_compiler::runtime::GroupData] = &[
         noun::GROUPS[0],
+        crate::constructions::determiner::GROUPS[0],
         crate::constructions::nominal::GROUPS[0],
         coordination::GROUPS[0],
     ];
@@ -2278,10 +2350,7 @@ mod generated_adapter_tests {
                 parsed.construction_decisions(),
             );
         };
-        assert_eq!(
-            coordination.determiner(),
-            &crate::syntax::Determiner::Target(None)
-        );
+        assert_eq!(coordination.determiner(), &crate::determiner::target(None));
         assert_eq!(coordination.rest().len(), 1);
     }
 
