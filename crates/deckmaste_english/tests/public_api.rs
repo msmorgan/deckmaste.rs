@@ -489,6 +489,112 @@ fn public_predicate_facade_rejects_invalid_valency_form_voice_and_order() {
 }
 
 #[test]
+fn public_predicate_facade_preserves_prepositional_adjunct_role() {
+    use deckmaste_english::nominal as nominal_api;
+    use deckmaste_english::predicate as predicate_api;
+
+    let card = nominal_api::build_nominal_noun(
+        NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
+    )
+    .unwrap();
+    let phrase = PrepositionalPhrase::simple(
+        Preposition::During,
+        Phrase::NounPhrase(Box::new(NounPhrase::Nominal(card))),
+    );
+    let base = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Attack),
+            slot: VerbSlot::Imperative,
+        },
+        predicate_api::PredicateFrameChoice::Intransitive,
+    )
+    .unwrap();
+
+    let matched = predicate_api::build_predicate_element(
+        base.clone(),
+        PredicateElement::Adjunct(PredicateAdjunct::Prepositional(phrase.clone())),
+    )
+    .and_then(predicate_api::finish_predicate)
+    .expect("the frame licenses the caller-requested adjunct role");
+    let Predicate::Intransitive(matched) = &matched else {
+        panic!("adjunct-only attack remains intransitive")
+    };
+    assert!(matches!(
+        matched.elements(),
+        [PredicateElement::Adjunct(PredicateAdjunct::Prepositional(
+            _
+        ))]
+    ));
+    let parts = predicate_api::parts_predicate(&Predicate::Intransitive(matched.clone())).unwrap();
+    assert_eq!(
+        predicate_api::rebuild_predicate(parts).unwrap(),
+        Predicate::Intransitive(matched.clone()),
+    );
+
+    let mismatched = predicate_api::build_predicate_element(
+        base,
+        PredicateElement::Complement(PredicateComplement::Prepositional(phrase)),
+    );
+    assert!(
+        mismatched.is_err(),
+        "an adjunct-only frame cannot reclassify a requested complement"
+    );
+}
+
+#[test]
+fn public_predicate_facade_preserves_selected_prepositional_complement_role() {
+    use deckmaste_english::nominal as nominal_api;
+    use deckmaste_english::predicate as predicate_api;
+
+    let base = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Look),
+            slot: VerbSlot::Imperative,
+        },
+        predicate_api::PredicateFrameChoice::SelectedPrepositional(Preposition::At),
+    )
+    .expect("the typed frame choice selects Look's selected-at frame");
+    let card = nominal_api::build_nominal_noun(
+        NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
+    )
+    .unwrap();
+    let phrase = PrepositionalPhrase::simple(
+        Preposition::At,
+        Phrase::NounPhrase(Box::new(NounPhrase::Nominal(card))),
+    );
+
+    let matched = predicate_api::build_predicate_element(
+        base.clone(),
+        PredicateElement::Complement(PredicateComplement::Prepositional(phrase.clone())),
+    )
+    .and_then(predicate_api::finish_predicate)
+    .expect("the selected frame licenses the caller-requested complement role");
+    let Predicate::Intransitive(matched) = &matched else {
+        panic!("selected-PP look remains intransitive")
+    };
+    assert!(matches!(
+        matched.elements(),
+        [PredicateElement::Complement(
+            PredicateComplement::Prepositional(_)
+        )]
+    ));
+    let parts = predicate_api::parts_predicate(&Predicate::Intransitive(matched.clone())).unwrap();
+    assert_eq!(
+        predicate_api::rebuild_predicate(parts).unwrap(),
+        Predicate::Intransitive(matched.clone()),
+    );
+
+    let mismatched = predicate_api::build_predicate_element(
+        base,
+        PredicateElement::Adjunct(PredicateAdjunct::Prepositional(phrase)),
+    );
+    assert!(
+        mismatched.is_err(),
+        "a selected-complement frame cannot reclassify a requested adjunct"
+    );
+}
+
+#[test]
 fn public_nominal_phrase_has_a_complete_read_only_projection() {
     let head =
         NounInstance::try_singular(Noun::Word(Vocab::Card)).expect("card is a singular count noun");

@@ -12,6 +12,7 @@ use deckmaste_construction_compiler::runtime::GroupData;
 
 use crate::catalog::CatalogAtom;
 use crate::features::Comma;
+use crate::features::ComplementRole;
 use crate::features::Conjunction;
 use crate::features::Contraction;
 use crate::grammar::Features;
@@ -44,6 +45,7 @@ use crate::syntax::PredicateElement;
 use crate::syntax::PredicateHead;
 use crate::syntax::PredicateObject;
 use crate::syntax::PredicateObjectCoordination;
+use crate::syntax::Preposition;
 use crate::syntax::PrepositionalPhrase;
 use crate::syntax::PreverbModifier;
 use crate::syntax::ProPredicate;
@@ -73,6 +75,7 @@ pub enum PredicateFrameChoice {
     Ditransitive,
     RecipientPassive,
     Causative,
+    SelectedPrepositional(Preposition),
 }
 
 /// An opaque, declaration-validated predicate construction in progress.
@@ -147,9 +150,11 @@ pub fn build_predicate_element(
         PredicateElement::Complement(PredicateComplement::Adjective(value)) => {
             build_verb_phrase_adjective(predicate.phrase, value)?
         }
-        PredicateElement::Complement(PredicateComplement::Prepositional(value))
-        | PredicateElement::Adjunct(PredicateAdjunct::Prepositional(value)) => {
-            build_verb_phrase_prepositional(predicate.phrase, value)?
+        PredicateElement::Complement(PredicateComplement::Prepositional(value)) => {
+            build_public_prepositional(predicate.phrase, value, ComplementRole::SelectedComplement)?
+        }
+        PredicateElement::Adjunct(PredicateAdjunct::Prepositional(value)) => {
+            build_public_prepositional(predicate.phrase, value, ComplementRole::Adjunct)?
         }
         PredicateElement::Complement(PredicateComplement::Infinitive(value)) => {
             let infinitive = InfinitiveClause::from_finished_parts(
@@ -185,6 +190,24 @@ pub fn build_predicate_element(
         }
     };
     Ok(PredicateBuilder { phrase })
+}
+
+fn build_public_prepositional(
+    predicate: VerbPhrase,
+    preposition: PrepositionalPhrase,
+    requested_role: ComplementRole,
+) -> Result<VerbPhrase, DeclarationViolation> {
+    if predicate
+        .declaration_frame()
+        .prepositional_role(preposition.head().preposition)
+        != Some(requested_role)
+    {
+        return Err(violation(
+            "verb_phrase_prepositional",
+            "the lexical frame preserves the caller-requested prepositional role",
+        ));
+    }
+    build_verb_phrase_prepositional(predicate, preposition)
 }
 
 /// Finishes a checked builder into the sealed public predicate projection.
@@ -259,6 +282,10 @@ fn select_public_frame(
                 }
                 PredicateFrameChoice::RecipientPassive => frame.is_recipient_passive(),
                 PredicateFrameChoice::Causative => frame.causative_complement(),
+                PredicateFrameChoice::SelectedPrepositional(preposition) => {
+                    frame.prepositional_role(preposition)
+                        == Some(crate::features::ComplementRole::SelectedComplement)
+                }
             });
     let frame = candidates.next().ok_or_else(|| {
         violation(
