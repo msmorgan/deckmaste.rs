@@ -158,8 +158,10 @@ spell = InZone stackZ
 -- layout; see Card)
 public export
 card : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) ->
-       (line : TypeLine) -> (text : List Ability) -> (stats : Maybe (Nat, Nat)) ->
+       (line : TypeLine) -> (text : List Ability) ->
+       (stats : Maybe (Integer, Integer)) ->
        {auto 0 ln : CardLine line} ->
+       {auto 0 sp : CardSupers supers} ->
        {auto 0 tx : CardText line text} ->
        {auto 0 pts : CardPt line stats} ->
        {auto 0 mc : CardCost line cost} ->
@@ -171,7 +173,7 @@ card name cost supers line text stats = MkCard name cost supers line text stats
 -- Effect.CounterSpell)
 public export
 counterSpell : (n : Noun bs Object) ->
-               {auto 0 zn : ZoneFits (nounZone n) (Just Stack)} -> Effect bs
+               {auto 0 zn : OnStack (nounZone n)} -> Effect bs
 counterSpell n = CounterSpell n {zn}
 
 -- "graveyard" — the sort-only form, as `handZ`.
@@ -432,16 +434,17 @@ forEach p = nForEach 1 p {hd} {af}
 -- body Composite(name: Destroy, body: Move(Param(0), Graveyard)) -- this
 -- macro IS that def)
 public export
-destroy : (n : Noun bs Object) -> {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
-destroy n = Composite Destroy (Move n graveyardZ) {ok = DestroyB {z = ok}}
+destroy : (n : Noun bs Object) -> {auto 0 ok : OnBattlefield (nounZone n)} ->
+          {auto 0 na : NotAnyTarget n} -> Effect bs
+destroy n = Composite Destroy (Move n graveyardZ {na}) {ok = DestroyB {z = ok} {na}}
 
 -- "exile [n]" ([CR#701.13a]) — speculative pending its real macro.
 -- spelling: ["exile <Param(0)>"], kind: Sentence (speculative -- no
 -- action/Exile.ron artifact studied this pass; drafted by direct analogy
 -- to Destroy.ron's shape)
 public export
-exile : Noun bs Object -> Effect bs
-exile n = Composite Exile (Move n exileZ) {ok = ExileB}
+exile : (n : Noun bs Object) -> {auto 0 na : NotAnyTarget n} -> Effect bs
+exile n = Composite Exile (Move n exileZ {na}) {ok = ExileB {na}}
 
 -- "exile [n] with [amt] [kind] counter(s) on it" — a hundred and two
 -- lines, forty-seven of them the suspend family's keyword reminder line
@@ -455,7 +458,8 @@ exile n = Composite Exile (Move n exileZ) {ok = ExileB}
 public export
 exileWithCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
                     (kind : CounterKind) ->
-                    {auto 0 wc : WrittenCount amt} -> Effect bs
+                    {auto 0 wc : WrittenCount amt} ->
+                    {auto 0 na : NotAnyTarget n} -> Effect bs
 exileWithCounters n amt kind =
   Composite Exile
             (Move n exileZ
@@ -476,9 +480,11 @@ returnToBattlefieldWithCounters :
   {auto 0 one : nounPlur who = OneOf} ->
   {auto 0 wc : WrittenCount amt} ->
   {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
+  {auto 0 pl : Placeable (nounTy n) Battlefield} ->
+  {auto 0 na : NotAnyTarget n} ->
   Effect bs
 returnToBattlefieldWithCounters n who amt kind =
-  Move n battlefieldZ
+  Move n battlefieldZ {pl} {na}
        {riders = MkMoveRiders [] (Just who) {one = OneController {one}}
                               {counters = Just (MkCounterRider amt kind {wc})}}
 
@@ -490,8 +496,10 @@ returnToBattlefieldWithCounters n who amt kind =
 public export
 putOntoBattlefield : (n : Noun bs Object) ->
                      {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
+                     {auto 0 pl : Placeable (nounTy n) Battlefield} ->
+                     {auto 0 na : NotAnyTarget n} ->
                      Effect bs
-putOntoBattlefield n = Move n battlefieldZ
+putOntoBattlefield n = Move n battlefieldZ {pl} {na}
 
 -- "put [n] onto the battlefield tapped" — three hundred fifteen lines,
 -- the rider family's centre ([CR#110.5b] is the rule it overrides).
@@ -499,9 +507,11 @@ putOntoBattlefield n = Move n battlefieldZ
 public export
 putOntoBattlefieldTapped : (n : Noun bs Object) ->
                            {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
+                           {auto 0 pl : Placeable (nounTy n) Battlefield} ->
+                           {auto 0 na : NotAnyTarget n} ->
                            Effect bs
 putOntoBattlefieldTapped n =
-  Move n battlefieldZ {riders = MkMoveRiders [EntersTapped] Nothing}
+  Move n battlefieldZ {pl} {na} {riders = MkMoveRiders [EntersTapped] Nothing}
 
 -- "put [n] onto the battlefield tapped and attacking" — nineteen lines
 -- ([CR#506.3a]); the token twin is `createTappedAttacking`, and both
@@ -512,9 +522,11 @@ public export
 putOntoBattlefieldTappedAttacking :
   (n : Noun bs Object) ->
   {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
+  {auto 0 pl : Placeable (nounTy n) Battlefield} ->
+  {auto 0 na : NotAnyTarget n} ->
   Effect bs
 putOntoBattlefieldTappedAttacking n =
-  Move n battlefieldZ {riders = MkMoveRiders [EntersTapped, EntersAttacking] Nothing}
+  Move n battlefieldZ {pl} {na} {riders = MkMoveRiders [EntersTapped, EntersAttacking] Nothing}
 
 -- "put [n] onto the battlefield under your control" — a hundred
 -- twenty-seven of the hundred thirty-five control lines, the override of
@@ -525,9 +537,11 @@ public export
 putOntoBattlefieldUnderYourControl :
   (n : Noun bs Object) ->
   {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
+  {auto 0 pl : Placeable (nounTy n) Battlefield} ->
+  {auto 0 na : NotAnyTarget n} ->
   Effect bs
 putOntoBattlefieldUnderYourControl n =
-  Move n battlefieldZ {riders = MkMoveRiders [] (Just You)}
+  Move n battlefieldZ {pl} {na} {riders = MkMoveRiders [] (Just You)}
 
 -- "[agent] sacrifice(s) [n]" ([CR#701.21a]) — one macro per lemma: the
 -- imperative spells `You` explicitly, inflection is the frame's. The
@@ -542,8 +556,10 @@ putOntoBattlefieldUnderYourControl n =
 -- mirrors Does's subject+tag+Move shape)
 public export
 sacrifice : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
-            {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
-sacrifice agent n = Does agent Sacrifice (Move n graveyardZ) {tb = SacrificeB {z = ok}}
+            {auto 0 ok : OnBattlefield (nounZone n)} ->
+            {auto 0 na : NotAnyTarget n} -> Effect bs
+sacrifice agent n =
+  Does agent Sacrifice (Move n graveyardZ {na}) {tb = SacrificeB {z = ok} {na}}
 
 -- "[agent] discard(s) [n]" — the hand→graveyard move [CR#701.9a] with
 -- the subject in clause position. The CR routes by the card's OWNER;
@@ -557,8 +573,10 @@ sacrifice agent n = Does agent Sacrifice (Move n graveyardZ) {tb = SacrificeB {z
 -- subject+tag+Move shape, same as sacrifice)
 public export
 discards : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
-           {auto 0 dk : DiscardOk n} -> Effect bs
-discards agent n = Does agent Discard (Move n graveyardZ) {tb = DiscardB {d = dk}}
+           {auto 0 dk : DiscardOk n} ->
+           {auto 0 na : NotAnyTarget n} -> Effect bs
+discards agent n =
+  Does agent Discard (Move n graveyardZ {na}) {tb = DiscardB {d = dk} {na}}
 
 -- "[agent] discard(s) a card" — the common phrase, spelled sort-only
 -- (an owned-hand expansion needs a subject-read noun the vocabulary
@@ -1296,7 +1314,8 @@ shieldingIt n = ToRecipient n {rk}
 -- spelling: ["exile <Param(0)> until <Param(1)>"], kind: Sentence
 -- (HeldUntil (exile n) ev -- see Effect.HeldUntil)
 public export
-exileUntil : (n : Noun bs Object) -> (ev : GameEvent (preIntro (exile n))) ->
+exileUntil : (n : Noun bs Object) -> {auto 0 na : NotAnyTarget n} ->
+             (ev : GameEvent (preIntro (exile n))) ->
              {auto 0 hd : Holdable ev} -> Effect bs
 exileUntil n ev = HeldUntil (exile n) ev {ok = MkHeldClause} {hd}
 
@@ -1337,8 +1356,9 @@ colorlessPip = Simple (Specific Colorless)
 -- "{W/U}" — the two-color hybrid ([CR#107.4e]).
 -- spelling: ["{<Param(0) code>/<Param(1) code>}"], kind: Cost
 public export
-hybridPip : Color -> Color -> ManaSymbol
-hybridPip a b = Hybrid (Specific (OfColor a)) b
+hybridPip : (a : Color) -> (b : Color) ->
+            {auto 0 ds : HalvesDistinct (Specific (OfColor a)) b} -> ManaSymbol
+hybridPip a b = Hybrid (Specific (OfColor a)) b {ds}
 
 -- "{2/B}" — the monocolored hybrid, whose left half is a generic amount
 -- ([CR#107.4e]).
@@ -1361,6 +1381,10 @@ phyrexianPip c = Phyrexian c Nothing
 -- ChangeLife's Down; the sentence frame writes "<Param(0)> loses
 -- <Param(1)> life" for the same clause)
 public export
+-- No payer demand here: [CR#602.1a] charges the ACTIVATOR, but this
+-- component also stands under the `Pay` clause, where the sentence names
+-- its own payer ("unless that player pays 3 life"). The activation
+-- position asks the question instead (`CostPaidByYou`).
 payLife : (who : Noun bs Player) -> (n : Nat) -> Cost bs
 payLife who n = Do (ChangeLife who (Down (Lit n)))
 

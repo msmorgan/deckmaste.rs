@@ -1524,7 +1524,7 @@ securityDetail =
 -- single commonest shape, two thousand four hundred seventy-three lines
 -- of "When this [permanent] enters".
 cloudkinSeer : Ability
-cloudkinSeer = Triggered When (Enters This) drawACard
+cloudkinSeer = Triggered When (Enters thisCreature) drawACard
 
 -- "Whenever a creature dies, you gain 1 life." (Moonlit Wake, whole) —
 -- the same event under a DESCRIPTION, which is what moves the header
@@ -1552,7 +1552,7 @@ staffOfNin = Triggered At (BeginningOf Upkeep (Just Yours)) drawACard
 -- word tracking the EVENT's repeatability rather than the subject's
 -- fixity: a creature attacks many times.
 libraryLarcenist : Ability
-libraryLarcenist = Triggered Whenever (Attacks This) drawACard
+libraryLarcenist = Triggered Whenever (Attacks thisCreature) drawACard
 
 -- "Whenever this creature blocks, it deals 1 damage to target attacking
 -- creature." (Elite Javelineer, whole) — the block event, and a trigger
@@ -1560,7 +1560,7 @@ libraryLarcenist = Triggered Whenever (Attacks This) drawACard
 -- write.
 eliteJavelineer : Ability
 eliteJavelineer =
-  Triggered Whenever (Blocks This)
+  Triggered Whenever (Blocks thisCreature)
             (DealDamage This (Lit 1) (target (And [creature, Attacking])))
 
 -- "Whenever this creature deals combat damage to a player, draw a
@@ -1569,7 +1569,7 @@ eliteJavelineer =
 -- table for the third time.
 jhessianThief : Ability
 jhessianThief =
-  Triggered Whenever (DealsCombatDamage This (a AnyPlayer)) drawACard
+  Triggered Whenever (DealsCombatDamage thisCreature (a AnyPlayer)) drawACard
 
 -- "When this creature enters, if you control an artifact, draw a card."
 -- (Scholar of Stars, whole) — the INTERVENING "if" ([CR#603.4]), which
@@ -1579,7 +1579,7 @@ jhessianThief =
 -- checked twice, once as the event occurs and again on resolution.
 scholarOfStars : Ability
 scholarOfStars =
-  Triggered When (Enters This) drawACard
+  Triggered When (Enters thisCreature) drawACard
             {intervening = Just (Exists (And [artifact, ControlledBy You]))}
 
 -- "Creatures you control can't attack." (Glacial Chasm's third line) —
@@ -1602,6 +1602,19 @@ miserysShadow : Ability
 miserysShadow =
   Static (Intercepts (Dies (a (And [creature, ControlledBy (a Opponent)])))
                      (exile It) Repeatedly)
+
+-- "If you would draw a card, draw two cards instead." (Thought
+-- Reflection, the whole card) — the standing DRAW replacement, and the
+-- line that moved the multiplicity table off the wrong axis. The cell
+-- refusing it was measured on "if you would draw a card THIS TURN"
+-- (zero, correctly): a duration-bounded form, which says nothing about
+-- the durationless line twenty-one cards print. What picks the opening
+-- word is the CARRIER — a static line writes "if", a one-shot spun up by
+-- a cost or a trigger writes "the next time" — and that dimension is
+-- ledgered.
+thoughtReflection : Ability
+thoughtReflection =
+  Static (Intercepts (Draws You) (Draw You (Lit 2)) Repeatedly)
 
 -- "Metalcraft — Creatures you control get +3/+0 as long as you control
 -- three or more artifacts." (Jor Kadeen, the Prevailer's second line;
@@ -1654,7 +1667,7 @@ brazenCannonadePermission =
 -- this one creates as it resolves.
 corneredCrook : Ability
 corneredCrook =
-  Triggered When (Enters This)
+  Triggered When (Enters thisCreature)
     (mayWhen You (sacrifice You (a artifact))
                  (DealDamage This (Lit 3) (target AnyTarget)))
 
@@ -1683,7 +1696,7 @@ theLastRoninII =
 -- stack as its own object.
 thousandMoonsCrackshot : Ability
 thousandMoonsCrackshot =
-  Triggered Whenever (Attacks This)
+  Triggered Whenever (Attacks thisCreature)
     (mayWhen You (Pay You (Mana [generic 2, pip White]))
                  (Tap (target creature)))
 
@@ -1725,7 +1738,7 @@ zimoneQuandrixProdigy =
 -- battlefield attacking".
 preeminentCaptain : Ability
 preeminentCaptain =
-  Triggered Whenever (Attacks This)
+  Triggered Whenever (Attacks thisCreature)
     (may You (putOntoBattlefieldTappedAttacking
                 (a (And [HasSubtype Soldier, creature, InZone (handOf You)]))))
 
@@ -1908,6 +1921,35 @@ hymnOfRebirthCard : Card
 hymnOfRebirthCard =
   card "Hymn of Rebirth" (Just [generic 3, pip Green, pip White]) []
        (MkTypeLine [] [Sorcery]) [Spell hymnOfRebirth] Nothing
+
+-- Chandra's Pyrohelix {1}{R}, Instant, "Chandra's Pyrohelix deals 2
+-- damage divided as you choose among one or two targets." — the card the
+-- divided-amounts ledger entry NAMED, whole and nothing elided. Its line
+-- is Forked Bolt's word for word, so the same term spells both cards and
+-- the sharing is the witness: "one or two targets" is the enumerated
+-- range `oneThrough 2`, which the bench has written since chapter
+-- twenty-three. A later audit recorded this card as one count word short
+-- of writable; the count word was already here.
+chandrasPyrohelixCard : Card
+chandrasPyrohelixCard =
+  card "Chandra's Pyrohelix" (Just [generic 1, pip Red]) []
+       (MkTypeLine [] [Instant]) [Spell forkedBolt] Nothing
+
+-- Char-Rumbler {2}{R}{R}, Creature — Elemental, -1/3, "Double strike"
+-- and "{R}: This creature gets +1/+0 until end of turn." (the double
+-- strike line elided, that keyword having no row here; the Elemental
+-- subtype elided with the catalog it is not in) — the SIGNED printed
+-- power, and the card that showed the container misrepresenting its
+-- input instead of refusing it: [CR#107.1b] lets a creature's power be
+-- "less than zero", Idris saturates a negative `Nat` literal, so the
+-- printed -1 was stored as 0 and no gate could have caught it. Fixing a
+-- representation is what a container is for.
+charRumbler : Card
+charRumbler =
+  card "Char-Rumbler" (Just [generic 2, pip Red, pip Red]) []
+       (MkTypeLine [] [Creature])
+       [Activated (Mana [pip Red]) (gets thisCreature 1 0 (Just untilEndOfTurn))]
+       (Just (-1, 3))
 
 -- "{2}{B}: Put a creature card exiled with Sisters of Stone Death onto
 -- the battlefield under your control." (Sisters of Stone Death's third
@@ -2611,6 +2653,31 @@ failing "OnBattlefield"
   badDestroyAnyTargetRemention : Effect []
   badDestroyAnyTargetRemention = Sequentially [DealDamage This (Lit 3) (target AnyTarget),
                                                destroy It]
+
+-- The PLACEMENT is where the silence had to be refused by name rather
+-- than by a zone gate, this verb having none: a move SETS the zone, so
+-- there was nothing for the projection to contradict and "exile any
+-- target" went through. [CR#115.4] rules it out at the phrase — the
+-- class spans players, and no placement takes one.
+failing "NotAnyTarget"
+  badExileAnyTarget : Effect []
+  badExileAnyTarget = exile (target AnyTarget)
+
+-- And the COUNTERING for the other half of the same rule: [CR#115.4]
+-- says a spell "can't be chosen this way", and [CR#112.1] makes a spell
+-- a card on the stack, so the demand is evidence of that zone and not a
+-- `zoneFits` silence. Fifty-two lines write "Counter target spell." and
+-- none writes the class word.
+failing "OnStack"
+  badCounterAnyTarget : Effect []
+  badCounterAnyTarget = counterSpell (target AnyTarget)
+
+-- The cast event's complement is the same phrase in the same zone, so
+-- it takes the same strict demand: a thousand and sixty-nine headers
+-- write "casts a … spell" and not one names the damage class.
+failing "OnStack"
+  badCastsAnyTarget : Ability
+  badCastsAnyTarget = Triggered Whenever (Casts You (target AnyTarget)) drawACard
 
 -- The recipient gate reads the NOUN, and that is what keeps the class
 -- word's own row from becoming a zone-free hole: bare `This` is the
@@ -4086,14 +4153,14 @@ failing "ReplUseOk"
   badNextTimeWouldDie =
     nextTimeWouldInstead (Dies (target creature)) (exile It) (Just thisTurn)
 
--- And the inverse, measured the same way: "if you would draw a card
--- this turn" is written zero times against nine "the next time you
--- would draw". A draw repeats, so the conditional would be an unlimited
--- shield and the corpus never writes one.
-failing "ReplUseOk"
-  badIfWouldDraw : Effect []
-  badIfWouldDraw =
-    ifWouldInstead (Draws You) (gainsLife You (Lit 5)) (Just thisTurn)
+-- (The inverse pin `badIfWouldDraw` stood here and is RETIRED, its cell
+-- having been measured on the wrong axis: "if you would draw a card this
+-- turn" is written zero times, which was read as a fact about the draw
+-- event when it is a fact about the CARRIER. Twenty-one cards print the
+-- durationless "If you would draw a card, … instead" as a static line —
+-- `thoughtReflection` is the positive that replaced this refusal — and
+-- the duration-bounded conditional the pin wrote is refused by nothing
+-- the two-dimensional table can say. The carrier dimension is ledgered.)
 
 -- Dying is the battlefield-to-graveyard transition ([CR#700.4]), so the
 -- watched object stands on the battlefield — `EventQuery`'s own demand
@@ -4245,6 +4312,46 @@ failing "CostAction"
   badGainLifeCost : Ability
   badGainLifeCost = Activated (Do (gainsLife You (Lit 2))) drawACard
 
+-- A cost component may not read a SIBLING component's deed. The
+-- telescope threads the stamp because the ability BODY reads it (Bosh,
+-- Iron Golem), but [CR#601.2h] pays the components in two tiers and each
+-- of them "in any order", so no component may presuppose that a SIBLING
+-- has already been paid — and no corpus line writes one that does.
+failing "CostAction"
+  badCostReadsSiblingDeed : Ability
+  badCostReadsSiblingDeed =
+    Activated (Compound [Do (sacrifice You (a creature)),
+                         Do (exile (TheVerbed Sacrifice CardW))])
+              drawACard
+
+-- Nor may one carry a TARGET. [CR#601.2c] announces targets while the
+-- ability is still being proposed and [CR#601.2h] pays the costs at the
+-- END of that same procedure, so the determiner belongs past the colon
+-- and never before it.
+failing "CostAction"
+  badTargetedCost : Ability
+  badTargetedCost = Activated (Do (sacrifice You (target creature))) drawACard
+
+-- And the payer is the ACTIVATOR: [CR#602.1a] says the activation cost
+-- "must be paid by the player who is activating it", so a component that
+-- names its payer names "you" (Erebos, God of the Dead's "Pay 2 life")
+-- and no line charges an opponent. The demand is the POSITION's and not
+-- the clause's — the same life component under the `Pay` clause names
+-- whoever the sentence names, which is the hundred seventy-seven
+-- "unless its controller / that player / any player pays" lines
+-- `badUnlessAnaphoricPayer` is measured against.
+failing "CostPaidByYou"
+  badForeignPayerCost : Ability
+  badForeignPayerCost = Activated (payLife anOpponent 2) drawACard
+
+-- …and the subjected cost verbs the same way: "an opponent sacrifices a
+-- creature" is real English as a resolving clause and is no payment of
+-- YOURS before a colon.
+failing "CostPaidByYou"
+  badForeignSacrificeCost : Ability
+  badForeignSacrificeCost =
+    Activated (Do (sacrifice anOpponent (a creature))) drawACard
+
 -- "Pay" is one English VERB and a cost is the whole thing an ability
 -- charges. A sacrifice is a payment ([CR#118.1] — a cost is "an action
 -- or payment") and is not payABLE:
@@ -4253,6 +4360,16 @@ failing "CostAction"
 failing "Payable"
   badPayBySacrificing : Effect []
   badPayBySacrificing = Pay You (Do (sacrifice You (a creature)))
+
+-- The pay clause spells its subject ONCE, so the component under the
+-- verb names the same player: "you pay 1 life" (Carnophage) is one payer
+-- written once, and "you pay [an opponent pays 1 life]" is a sentence
+-- with two. Conservative in the direction the telescope allows — the
+-- imperative's component must name you, a named subject's is left to the
+-- anaphoric-payer family `badUnlessAnaphoricPayer` measures.
+failing "PayAgrees"
+  badMismatchedPayer : Effect []
+  badMismatchedPayer = mayElse You (Pay You (payLife anOpponent 1)) drawACard
 
 -- The tap symbol still more sharply: it is a cost that exists only
 -- before a colon ([CR#107.5] gives it its meaning there), and no
@@ -4302,6 +4419,40 @@ failing "AtLeastTwo"
   badSingletonCompound : Ability
   badSingletonCompound = Activated (Compound [Mana [generic 1]]) drawACard
 
+-- One self-tap per cost. [CR#107.5] says it in as many words — "a
+-- permanent that's already tapped can't be tapped again to pay the
+-- cost" — and [CR#118.3] refuses a payment the payer has not got the
+-- resources for, so a second "{T}" charges a state the permanent has
+-- once. No corpus line writes "{T}, {T}:" and none writes the untap
+-- symbol beside it either, the two spending the same state.
+failing "CostTapOnce"
+  badDoubleTapCost : Ability
+  badDoubleTapCost = Activated (Compound [TapSymbol, TapSymbol]) drawACard
+
+-- A cost component's symbol RUN is written. The empty list is a real
+-- value on a CARD — [CR#202.1b]'s "no mana cost", the unpayable absence
+-- a land prints — but before a colon the run is the component's whole
+-- spelling, so an empty one spells an activation line opening on a bare
+-- colon. The payment of nothing is "{0}" ([CR#118.5]), one symbol.
+failing "ManaRun"
+  badEmptyManaCost : Ability
+  badEmptyManaCost = Activated (Mana []) drawACard
+
+-- A hybrid Phyrexian symbol names two DIFFERENT colors, and [CR#107.4f]
+-- says so by counting: five ordinary Phyrexian symbols and "ten hybrid
+-- Phyrexian mana symbols", ten being the unordered pairs of five
+-- distinct colors. There is no "{W/W/P}" to write.
+failing "PhyrexianDistinct"
+  badSameColorPhyrexian : ManaSymbol
+  badSameColorPhyrexian = Phyrexian White (Just White)
+
+-- …and the ordinary hybrid the same way: [CR#107.4e] makes the symbol "a
+-- cost that can be paid in one of two ways", and two ways spelled the
+-- same word is one way.
+failing "HalvesDistinct"
+  badSameColorHybrid : ManaSymbol
+  badSameColorHybrid = hybridPip Blue Blue
+
 -- The arm asymmetry carries to the MANDATORY twin unchanged, which is
 -- the check that the two shapes really are one node: the declined arm
 -- runs only when the payment was never started ([CR#118.12] — "started
@@ -4335,7 +4486,40 @@ failing "countOnes"
 -- every one of them names a turn part. No object event takes the word.
 failing "TriggerWordOk"
   badAtEnters : Ability
-  badAtEnters = Triggered At (Enters This) drawACard
+  badAtEnters = Triggered At (Enters thisCreature) drawACard
+
+-- The trigger WORD table is right and the SUBJECT was not: "When this
+-- enters" and "Whenever this enters" are written zero times apiece,
+-- against eighteen hundred eighteen "When this creature enters" and
+-- seventy-four "Whenever this creature enters", and every other
+-- object-subject event measures the same way (dies three hundred
+-- eighty-one, attacks five hundred sixty-eight, blocks sixty-nine,
+-- deals combat damage two hundred thirty-one — all against zero bare
+-- ones). The type word is what places the referent ([CR#109.2]); bare
+-- `This` is the source as an object and stands nowhere.
+failing "SelfSorted"
+  badEntersBareThis : Ability
+  badEntersBareThis = Triggered When (Enters This) drawACard
+
+-- An ordinary trigger's header announces no TARGET. [CR#115.1d] chooses
+-- a triggered ability's targets "as the ability is put on the stack",
+-- which is after the event that put it there, so the header is not where
+-- one can be announced — the ability targets one clause later
+-- (`eliteJavelineer`). The delayed carrier is the exception the corpus
+-- writes and it still builds (`gracefulReprieve`).
+failing "HeaderNontarget"
+  badTargetedDeathHeader : Ability
+  badTargetedDeathHeader = Triggered Whenever (Dies (target creature)) drawACard
+
+-- The cast event's complement is ONE spell. [CR#601.2a] moves a single
+-- proposed card to the stack as the first step of casting it, so the
+-- event watches one spell at a time — Beast Whisperer writes "Whenever
+-- you cast a creature spell", singular and nontarget, and no header
+-- writes a group.
+failing "ManyOf = OneOf"
+  badCastsPluralComplement : Ability
+  badCastsPluralComplement =
+    Triggered Whenever (Casts You (AllOf spell)) drawACard
 
 -- …and the inverse, which is the half that makes the table a table: the
 -- turn-part beginning takes neither English word, "When the beginning of
@@ -4387,6 +4571,15 @@ failing "OnBattlefield"
   badTriggerTapsDeadCreature : Ability
   badTriggerTapsDeadCreature = Triggered Whenever (Dies (a creature)) (Tap It)
 
+-- …and the DEPARTURE is the same refusal where the destination is not
+-- stated. [CR#603.6c] has a leaves-the-battlefield ability check for the
+-- object "only in the first zone that it went to", and the sentence
+-- never names that zone, so an unknown destination is not still the
+-- battlefield: the binding survives the event and its zone does not.
+failing "OnBattlefield"
+  badLeavesThenTap : Ability
+  badLeavesThenTap = Triggered Whenever (Leaves (a creature)) (Tap It)
+
 -- A static ability does not TARGET. [CR#115.1a..115.1e] enumerate what
 -- can — an instant or sorcery spell, an activated ability, a triggered
 -- ability, and the keyword abilities that represent those — and
@@ -4407,6 +4600,16 @@ failing "Untargeting"
 failing "StaticLine"
   badStaticGainsControl : Ability
   badStaticGainsControl = Static (GainsControl You (AllOf creatureYouControl))
+
+-- …and the "as long as" wrapper does not launder it. The mood is the
+-- statement's and not the qualifier's: [CR#604.1] has a static ability
+-- "written as a statement" that is "simply true", so qualifying an
+-- unstatable one leaves it unstatable — Control Magic writes "You
+-- control enchanted creature" whether or not a condition rides on it.
+failing "StaticLine"
+  badConditionalGainControl : Ability
+  badConditionalGainControl =
+    Static (asLongAs (Exists artifact) (GainsControl You (a creature)))
 
 -- "As long as" is not a duration adverbial and its statement is not a
 -- resolving clause: the conditional static is an ability line and
@@ -4496,7 +4699,7 @@ failing "PlaySource"
 failing "Grantable"
   badGainsTriggered : Effect []
   badGainsTriggered =
-    gains (target creature) (Triggered When (Enters This) drawACard)
+    gains (target creature) (Triggered When (Enters thisCreature) drawACard)
           (Just untilEndOfTurn)
 
 -- …and a static ability the same way ("as long as enchanted permanent is
@@ -4842,6 +5045,20 @@ failing "CardText"
     card "" (Just [pip Red]) [] (MkTypeLine [] [Instant])
          [KeywordAbility Flying] Nothing
 
+-- The ACTIVATED row is open on a spell card — cycling is one, printed on
+-- sorceries — but not for every cost: [CR#113.6j] lets an activated
+-- ability function off the battlefield exactly when its cost can be paid
+-- there, and [CR#110.4] never puts an instant or sorcery card on the
+-- battlefield. "{T}" means "Tap this permanent" [CR#107.5], so the line
+-- is one no sorcery could ever activate, and zero Instant or Sorcery
+-- cards print one. (`cycling`, whose cost is a symbol run and a discard,
+-- is the shape that passes.)
+failing "CardText"
+  badTapSorcery : Card
+  badTapSorcery =
+    card "Impossible Tap Sorcery" (Just [pip Blue]) [] (MkTypeLine [] [Sorcery])
+         [Activated TapSymbol drawACard] Nothing
+
 -- A creature card writes its two numbers ([CR#208.1] — "a creature card
 -- has two numbers separated by a slash printed in its lower right
 -- corner"), which is `tokenPtOk`'s demand at the printed card.
@@ -4857,6 +5074,29 @@ failing "CardCost"
   badLandWithManaCost : Card
   badLandWithManaCost =
     card "" (Just [generic 1]) [] (MkTypeLine [] [Land]) [] Nothing
+
+-- The SUPERTYPE field carried no witness at all, so a word could be
+-- printed twice. [CR#205.4b] makes a supertype a property an object HAS
+-- or LACKS — one that "gains or loses a supertype … retains any OTHER
+-- supertypes it had" — so "Legendary Legendary Creature" is one fact
+-- written twice, the colors' refusal at the catalog list beside it.
+failing "CardSupers"
+  badDuplicateSupertype : Card
+  badDuplicateSupertype =
+    card "" (Just [pip Blue]) [Legendary, Legendary] (MkTypeLine [] [Creature])
+         [] (Just (1, 1))
+
+-- A permanent type and a spell type do not share a line. [CR#110.4]
+-- says "instant and sorcery cards can't enter the battlefield and thus
+-- can't be permanents" and [CR#110.4a] lists the six that can, so this
+-- line names a card that would have to be a permanent and not be one.
+-- The ORDER check could not catch it, and that is the point: the ranks
+-- put the spell types last, so [Land, Creature, Instant] ascends
+-- perfectly and combination legality is a second question.
+failing "CardLine"
+  badMixedPermanentSpellLine : Card
+  badMixedPermanentSpellLine =
+    card "" Nothing [] (MkTypeLine [] [Land, Creature, Instant]) [] (Just (1, 1))
 
 -- A card's type line says SOMETHING — [CR#205.1] has it contain "the
 -- card's card type(s)" without qualification, where the subtypes and
@@ -4888,7 +5128,7 @@ failing "Grantable"
 -- The countering's complement is a SPELL, and the zone is what says so
 -- ([CR#112.1] — "a spell is a card on the stack"). A battlefield
 -- permanent has already resolved and there is nothing left to cancel.
-failing "ZoneFits"
+failing "OnStack"
   badCounterPermanent : Effect []
   badCounterPermanent = counterSpell (target creature)
 
@@ -4938,6 +5178,32 @@ failing "PlaySource"
 failing "DestOk"
   badMoveToStack : Effect []
   badMoveToStack = Move (target creature) stackZ
+
+-- The battlefield destination asks about its PATIENT and not only about
+-- its own phrase: [CR#110.4] says "instant and sorcery cards can't enter
+-- the battlefield and thus can't be permanents" and [CR#110.4a] lists
+-- the six types that can, so a graveyard instant has no placement.
+-- (`Placeable` reads the PROJECTED head type, so the untyped phrase
+-- still places — Oblivion Ring's "return the exiled card to the
+-- battlefield" writes no type word, and over-refusal is the one
+-- direction these gates may not err in.)
+failing "Placeable"
+  badInstantOntoBattlefield : Effect []
+  badInstantOntoBattlefield =
+    putOntoBattlefieldTapped (target (And [HasType Instant, InZone graveyardZ]))
+
+-- …and no cost component places anything on the battlefield. Every
+-- zone-change verb the corpus writes before a colon REMOVES or
+-- DOWNGRADES — sacrifice three hundred forty-one components, discard
+-- sixty-eight, exile twenty-eight, "Return … to its owner's hand" nine,
+-- and the six "Put …" costs name a graveyard, the top of a library or a
+-- counter — against zero battlefield entries. [CR#601.2h] pays the cost
+-- to activate; a placement is what the ability buys.
+failing "CostAction"
+  badMoveOntoBattlefieldAsCost : Ability
+  badMoveOntoBattlefieldAsCost =
+    Activated (Do (putOntoBattlefield (a (And [creature, InZone (graveyardOf You)]))))
+              drawACard
 
 -- "Unless" IS the negation, so it takes a negated condition and spells
 -- the positive underneath. A positive condition under the word would be

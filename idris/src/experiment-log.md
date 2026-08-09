@@ -2650,7 +2650,10 @@ Fearless Sparkmage, Crackle with Power, Sorrow's Path, Prey Upon).
    other" inside the per-member scope. Two of the three are now
    built. What is missing is the ELEMENT-scoped context, which is
    the fronted iteration clause "For each of [group], …"
-   (thirty-seven corpus lines, core's `OneShotEffect::Each`, and
+   (thirty-seven corpus lines as counted then; REMEASURED in chapter
+   thirty-two at twenty-five supported fronted — fifty-one in any
+   position, and fronted is the count this entry wants — core's
+   `OneShotEffect::Each`, and
    deliberately not what `EachOf` is — a determiner binds no
    element), and a complement whose domain is a group mention
    rather than a description, which is finding 111's
@@ -3569,7 +3572,13 @@ stopped accepting anything):
    their neighbours, ninety-six), and those land: Molting Harpy,
    Carnophage and Solitary Confinement are the three frames. A
    hundred twenty-five write "unless its/their controller pays",
-   forty-three "unless that player pays" and nine "unless any player
+   forty-three "unless that player pays" — SPLIT in chapter thirty-two
+   into ten whose payer is the main clause's own subject ("Whenever a
+   player casts a spell, counter it unless that player pays {3}") and
+   thirty-three reached by a RELATION, thirty of those being the ward
+   frame's controller-of-the-countered-spell, so it is the relational
+   thirty-three and not the whole forty-three that this wall holds — and
+   nine "unless any player
    pays", and those do NOT, for a reason the node makes visible: the
    rules' rewrite is not linearization-preserving. It puts the may
    first, so the payer phrase is typed before the clause that
@@ -4784,6 +4793,247 @@ two rows):
    the battlefield tapped under their owners' control"), which is
    `CtrlSingular`'s standing refusal at a second site.
 
+## Chapter Thirty-Two — The Position of a Gate
+
+Chapter thirty-two, where an outside audit's findings were re-grounded
+one at a time and the surviving ones turned out to share a shape
+(evidence: Bosh Iron Golem, Erebos God of the Dead, Oblivion Ring,
+Thought Reflection, Control Magic, Cloudkin Seer, Beast Whisperer,
+Char-Rumbler, Aladdin's Ring, Tamiyo Compleated Sage, Chandra's
+Pyrohelix; and, for what the round refused rather than fixed, Rorix
+Bladewing, Hymn of Rebirth, Geode Golem, Karador Ghost Chieftain, Demon
+of Dark Schemes, Soul of Windgrace. The round that learned a gate has a
+POSITION, and that asking the right question in the wrong place is its
+own kind of wrong):
+
+211. **A cost announces and never reads, and the demand belongs to the
+   POSITION rather than the clause.** The telescope threads each
+   component's announcement into the next one's context, which is what
+   lets an ability BODY read what its cost did — Bosh, Iron Golem's
+   "damage equal to the sacrificed artifact's mana value" is that read
+   and has been a positive since chapter twenty-seven. What the threading
+   also did was let a SIBLING component read it, and [CR#601.2h] is why
+   that is wrong: the player pays in two tiers and each of them "in any
+   order", so no component may presuppose another has been paid. The
+   obvious repair — strip the deed stamps out of the thread — breaks
+   Bosh, because the body reads through the same channel. So the demand
+   went on the component's own noun instead (`badCostReadsSiblingDeed`),
+   and the same position carries two more: a cost noun may not be
+   TARGET-marked, since [CR#601.2c] announces targets while the ability
+   is still being proposed and [CR#601.2h] pays at the end of that
+   procedure (`badTargetedCost`), and a cost component names its payer
+   "you", [CR#602.1a] making the activation cost the activator's to pay
+   (`badForeignPayerCost`, `badForeignSacrificeCost`).
+212. **The payer demand had to be rescoped, and the count is what
+   rescoped it.** Written on the life component itself, the payer rule
+   refuses a hundred seventy-seven attested lines — the "unless its
+   controller pays" family and its neighbours — because `Pay`'s clause
+   accepts exactly the component the activation position does, and that
+   clause's whole purpose is to name a payer the sentence chose. So
+   `CostPaidByYou` rides the ACTIVATION and the `Pay` clause gets a
+   one-directional agreement gate of its own (`badMismatchedPayer`),
+   which closes the mismatch between an offer's decider and its
+   payment's grammatical subject without touching the named-subject
+   family. It is the round's clearest case of a true rule in a false
+   place: [CR#602.1a] is about activation costs, and the file had been
+   about to apply it to every cost.
+213. **A placement onto the battlefield asks what the card IS, and a cost
+   never makes one.** `DestOk` had always gated the destination PHRASE
+   and never the patient, so a written instruction could put an instant
+   card onto the battlefield; [CR#110.4] says instant and sorcery cards
+   "can't enter the battlefield and thus can't be permanents" and
+   [CR#110.4a] lists the six that can (`badInstantOntoBattlefield`). The
+   gate is one-directional on purpose — an untyped patient still passes,
+   because Oblivion Ring's "return the exiled card to the battlefield"
+   writes the card word and no type, and refusing that would be the one
+   direction these gates may not err in. The COST half is a separate
+   count: every zone-change verb that opens a cost removes or downgrades
+   — sacrifice three hundred forty-one, discard sixty-eight, exile
+   twenty-eight, return nine and all nine to a hand, put six and none of
+   them to the battlefield — against zero battlefield entries, so that
+   destination alone leaves the cost position (`badMoveOntoBattlefieldAsCost`).
+214. **Departure clears its evidence.** `eventAfter (Leaves n)` was the
+   one zone-change event that did not retag, so the referent kept the
+   battlefield tag it was introduced with and a trigger body could tap a
+   permanent that had left. [CR#603.6c] settles it: an ability that
+   attempts something to the card that left "checks for it only in the
+   first zone that it went to", and the sentence does not say which zone
+   that is. So the binding survives and its zone does not
+   (`badLeavesThenTap`), which is the honest shape — the referent is
+   still nameable, and every battlefield-demanding verb now refuses it
+   through the demand it already carried.
+215. **Zone silence was being read as evidence, and the class word is
+   where it leaked.** `AnyTarget` projects no zone by construction —
+   that is finding 147's own settlement, the phrase naming [CR#115.4]'s
+   damage class rather than describing an object — and `zoneFits`
+   treats silence as no evidence and passes. Where a verb's demand IS
+   the zone, silence therefore passed as proof: "exile any target" and
+   "counter any target" both went through. [CR#115.4] refuses them at
+   the phrase, its own last sentence saying other game objects "can't be
+   chosen" that way, and [CR#112.1] makes a spell a card on the stack,
+   so the counter verb and the cast event ask for the stack STRICTLY now
+   rather than through silence (`badExileAnyTarget`,
+   `badCounterAnyTarget`, `badCastsAnyTarget`). The determiner half of
+   the same verb is measured and left: "Counter target" is a hundred
+   ninety-nine lines and "Counter a" is zero, but "Counter all other
+   spells" is real, so the row that would refuse the indefinite has to
+   keep the universal and that is a determiner table this round did not
+   buy.
+216. **The multiplicity word tracks the CARRIER, and the table that says
+   otherwise was measured on the wrong axis.** Chapter twenty-five keyed
+   "if" against "the next time" by EVENT, and the measurement it used
+   for the draw row was "if you would draw a card this turn" — zero
+   lines. That is a fact about a duration-bounded shield, and it was read
+   as a fact about drawing. Twenty-one supported cards print the
+   durationless "If you would draw a card, … instead" as a standing
+   static line, Thought Reflection among them, and the pattern generalises
+   past the draw: "the next time X would Y this turn" occurs nowhere as a
+   standing ability — all nine draw instances are the payoff of an
+   activated cost or a delayed trigger, and all twenty-five destruction
+   instances are regeneration's own reminder. So the cell is flipped
+   ([CR#614.1a] making the "instead" clause a replacement effect either
+   way), `thoughtReflection` is the positive that replaced the refusal,
+   and the pin that asserted the inverse is RETIRED with its reasoning
+   left in place. What the two-dimensional table still cannot say is the
+   carrier itself, and that is ledgered below.
+217. **A conditional wrapper was hiding its payload's mood.**
+   `staticKind` answered `Conditional` for the wrapper without looking
+   inside, so a control grant that `StaticLine` refuses bare passed the
+   moment it was wrapped in "as long as". [CR#604.1] has static abilities
+   "written as statements, and they're simply true", and Control Magic's
+   statement is "You control enchanted creature" and never "you gain
+   control" — the inchoative is the thing being refused, and a qualifier
+   in front of it does not change what mood the clause is in
+   (`badConditionalGainControl`).
+218. **The trigger header's subject is TYPE-ASCRIBED, and the corpus says
+   so exhaustively rather than by sample.** Every word following "this"
+   in every top-level When/Whenever line was enumerated: creature three
+   thousand seven hundred thirty-five, enchantment two hundred forty,
+   artifact a hundred thirty-four, Aura a hundred twenty-four, Vehicle
+   ninety-two, land seventy-one — and not one bare verb. "When this
+   enters" is zero lines and so is "Whenever this enters"; the attested
+   spellings are "When this creature enters" at eighteen hundred eighteen
+   and its Whenever twin at seventy-four. So the self-subject of an event
+   takes the sorted word (`badEntersBareThis`), and the eight bench
+   positives that had been writing the bare form were MIS-SPELLING their
+   own cards — Cloudkin Seer's line is "When this creature enters, draw a
+   card" and the bench said "when this enters". Two more demands ride the
+   same header: an ordinary card trigger announces no target, the
+   attested targeted form being the delayed carrier Graceful Reprieve
+   writes ([CR#115.1d]; `badTargetedDeathHeader`), and the cast event's
+   complement is ONE spell, [CR#601.2a] moving a single proposed card to
+   the stack (`badCastsPluralComplement`).
+219. **A spell card's activated ability is classified by its COST, and
+   the keyword cell stopped guessing.** The card cell had been open to
+   every activated line on the strength of cycling, which is real; what
+   it admitted besides was a tap-symbol ability on a sorcery. [CR#107.5]
+   gives "{T}" the fixed meaning "Tap this permanent" and [CR#113.6j]
+   says an activated ability "functions from any zone in which its cost
+   can be paid" — which for a sorcery card and a tap symbol is no zone at
+   all, since [CR#110.4] never makes one a permanent. Zero instant or
+   sorcery cards carry a top-level tap ability, and the cell asks the
+   cost now (`badTapSorcery`). Beside it, the keyword cell's wildcard is
+   gone: `keywordCardOk` spells all six cells explicitly, so a future
+   keyword row is a totality error rather than a silent inheritance —
+   which is this file's own stated rule applied to the one table that had
+   been breaking it. No keyword was added and no spell keyword was built.
+220. **The mana run is nonempty and its hybrid halves differ.** A cost
+   component may not be an empty symbol run: that spells an activation
+   line opening with a bare colon, which the corpus never writes, and the
+   CARD-level distinction stays exactly where it was — `[]` is
+   [CR#202.1b]'s "no mana cost", the unpayable absence, and "{0}" is
+   [CR#118.5]'s payment of nothing, one symbol (`badEmptyManaCost`).
+   [CR#107.4f] lists ten hybrid Phyrexian symbols, which is the count of
+   unordered pairs of five DISTINCT colors, so the two halves cannot
+   agree (`badSameColorPhyrexian`), and [CR#107.4e]'s ordinary hybrid
+   "represents a cost that can be paid in one of two ways" — which a
+   same-colored symbol does not (`badSameColorHybrid`). One self-tap per
+   cost, besides: [CR#107.5] says a permanent already tapped "can't be
+   tapped again to pay the cost" and [CR#118.3] refuses a payment the
+   payer has not got (`badDoubleTapCost`). That demand sits on the
+   ACTIVATION and not on the compound, and for a mechanical reason worth
+   recording — an auto-implicit on the constructor is solved before its
+   own component list's errors surface, so every malformed component
+   started reporting the tap question instead of its own.
+221. **The card container gained the two witnesses it never had.**
+   Printed power and toughness are SIGNED now: Char-Rumbler prints -1/3,
+   `Nat`'s negative literal saturates, and the container had been storing
+   0/3 and calling it the card — misrepresenting silently where it should
+   have refused. [CR#107.1b] says outright that "it's possible for a game
+   value, such as a creature's power, to be less than zero", and
+   [CR#208.1] describes the two numbers in the corner; tokens keep their
+   unsigned pair, a token's printed values being defined by the spell
+   that made it ([CR#111.3]) and never negative. The supertype field had
+   carried no witness at all, so a word could be printed twice
+   (`badDuplicateSupertype`), and the type line's only cross-check had
+   been ORDER, which let a permanent type and a spell type share a line
+   because the ranks happened to ascend ([CR#110.4,110.4a];
+   `badMixedPermanentSpellLine`).
+222. **What the round REFUSED, and on what evidence.** Five audit claims
+   did not survive re-grounding, and none of them failed for being
+   careless. The COMMAND zone: its absence is a measured decision this
+   file already recorded — "zero corpus lines here need it" — and Geode
+   Golem's permission wants the commander designation besides, so a zone
+   row would have been a hole rather than a fix. Rorix Bladewing's
+   "Flying, haste" stored as two abilities: a keyword IS the name of an
+   ability ([CR#702.1] — the object "lists only the name of the ability as
+   a keyword"), so two names are two abilities, and the bench comment has
+   said so since chapter thirty. Hymn of Rebirth "eliding" the card word:
+   the phrase says `InZone graveyardZ`, and which zones make an object
+   answer to "card" is `isCardZone`, a table this file has carried since
+   chapter eleven and one of three carrier-word questions it asks of a
+   zone — so the word is ENTAILED by the phrase rather than dropped from
+   it, and the elision is in the reader and not the term. A compound
+   `Exile` tag blind to its body: `TagBody` has gated it all along, and a
+   damage clause under an exile tag is refused. And [CR#707.12]
+   contradicting [CR#701.5b] on what casting reaches: the two have
+   different subjects — the second defines what casting a CARD means, the
+   first extends the casting rules to a copy — and a carve-out is not a
+   contradiction.
+223. **What the round LEDGERED, with prices.** The CAST permission's
+   carrier-relative classifier: "you may cast a creature spell from your
+   graveyard" is real (Karador, Haakon) and the spell word forces the
+   stack, so the complement's surface classifier and its source have to
+   be carrier-relative rather than current-zone-only. The natural
+   spelling is writable today — a creature card in your graveyard — so
+   what is missing is the prospective WORD and not the family, which is
+   why it is a ledger entry and not a leak. The replacement CARRIER
+   dimension (finding 216's residue): the table is event-by-word and
+   wants a third axis, standing against duration-bounded. The ORDERED
+   linearizations: `MoveRiders` spells the entry participles before the
+   controller and the three activation restrictions have a fixed slot
+   order, and both lose a real alternative — though the measurement
+   reverses the audit's emphasis, "tapped under your control" leading
+   "under your control tapped" thirteen to eight and its owner's twin
+   twenty to two, so a fixed order keeps the majority and loses ten
+   lines rather than contradicting the family. The BARE GENERIC PLURAL,
+   which `AllOf` cannot spell: three hundred sixteen supported lines open
+   with "[Noun] you control" as a bare subject against exactly one that
+   writes "All", so the determiner is wrong for very nearly the whole
+   family rather than for Anthem of Champions alone. Making `Card`
+   ABSTRACT so `MkCard` cannot bypass the four witnesses: the smart
+   constructor carries them, the record does not, and closing it is an
+   Idris export question rather than a grammar one. And the entry
+   event's Whenever cell, which pure-ETB measurement suggests is empty
+   for artifact, enchantment and land — the seventy-four creature hits
+   were sampled rather than enumerated, and a sampled count is not
+   enough to move a table this file measured before.
+224. **What the round measured and returned.** Chandra's Pyrohelix is a
+   whole card on the bench now, and it went there to settle a
+   disagreement rather than to add a witness: an audit had recorded it as
+   one count word short of writable, and its line is Forked Bolt's word
+   for word — the enumerated range `oneThrough 2` has spelled "one or two
+   targets" since chapter twenty-three, so the same term spells both
+   cards. The bench is a hundred eighty-seven positives and three hundred
+   forty-two pins, and one pin LEFT it: the inverse draw-replacement
+   refusal, retired with its reasoning kept in place, which is the first
+   time a pin has been withdrawn rather than re-keyed. Also measured and
+   left: the `Expose Reveal` and `Mill` cost rows carry a player slot and
+   are not payer-gated, wanting the count finding 212 did for the life
+   component; and the counter verb's determiner table, whose numbers are
+   in finding 215 and whose universal row is what makes it more than a
+   one-line refusal.
+
 ## Engine-Boundary Deferrals
 
 Engine-boundary deferrals (deliberate, and to stay so): the
@@ -5602,8 +5852,13 @@ traversals over `Effect`/`Noun`/`Predicate`/`Amount`/`Cost`); the
 NAMED-source linkage ([CR#607.2n], three lines, wanting the printed name
 read back); and the definite determiner over a DESCRIPTION, which is what
 "the card exiled with this artifact" would need and what makes finding
-206's second surface unwritable]; divided amounts (Chandra's Pyrohelix,
-[CR#601.2d,115.7f] — an allocation announced and locked);
+206's second surface unwritable]; divided amounts [LANDED, chapter
+twenty-three — `DividedDamage` and its counter twin `Distribute`, the
+allocation announced as the spell is cast ([CR#601.2d]) and held against
+a later change of targets ([CR#115.7f]); Arc Lightning, Forked Bolt and
+Boulderfall are the three ranges. The card this entry NAMED is writable
+too and is now on the bench whole — finding 224, Chandra's Pyrohelix
+writing Forked Bolt's line word for word];
 dependent iteration (Killing Wave's "for each creature, its
 controller…" — a per-member singular frame no plural noun
 provides); aggregation and extremal selection (Crackling Doom's
@@ -5645,16 +5900,73 @@ removed from this card", three lines; "time counter is removed", nine;
 "the last [kind] counter is removed", five), a `GameEvent` row over the
 counter verbs and the third component [CR#702.62a] names, unminted with
 findings 198 and 201 built beside it; and control ASSIGNMENT on a
-battlefield move — a
-controller argument the move primitive does not carry, since
-[CR#110.2a] gives the instructed player by default and only an
-explicit "under [player]'s control" overrides it. Leaf
+battlefield move [LANDED, chapter thirty — `MoveRiders`' `ctrl` slot,
+held to one controller by `CtrlSingular`; [CR#110.2a] gives the
+instructed player by default, which is why the slot is a `Maybe` and the
+phrase restates the default at a hundred twenty-seven of the hundred
+thirty-five control lines. Hymn of Rebirth, Sisters of Stone Death,
+Synod Sanctum and Cold Storage all write it. What the slot does not
+carry is ORDER, and finding 223 prices that]; and the GAME OUTCOME as an
+effect, which this ledger had never named at all — "you win the game"
+thirty-seven lines, "you lose the game" twenty-three, and the whole
+family a hundred fifteen lines over a hundred seventeen supported cards.
+[CR#104.2b] and [CR#104.3e] are what make it something a sentence can
+say, an effect that "may state that a player wins/loses the game"
+standing beside the state-based ways ([CR#104.3b,104.3c,104.3d]), and it
+has four shapes and a boilerplate: the bare instruction (Door to
+Nothingness), the conditioned one (Near-Death Experience's "if you have
+exactly 1 life"), the recurring upkeep check (Immortal Coil), and the
+PROHIBITION — "You can't lose the game", nine lines, which is the
+deontic over an outcome rather than an outcome — with poison's reminder
+text as the boilerplate. It wants an `Effect` row and a `GameEvent` row
+at once, and the prohibition wants the deontic coverage the sweep below
+names. Leaf
 vocabulary: Transform ([CR#701.27a]);
-life-total Set ([CR#119.5], and what the life-total exchange turns
-out to need, finding 121); the non-additive continuous family —
+life-total Set [LANDED — `LifeOp`'s `Set` row ([CR#119.5]), the thing
+finding 121 said the life-total exchange would need; "target player's
+life total becomes 1" is the witness]; the non-additive continuous family —
 "becomes", lose abilities, set base P/T, the layer words — of
 which GAIN CONTROL landed in chapter twenty-two ([CR#613.1b] layer
 2; `GainsControl`, finding 117) and the rest still wait.
+
+The frontier above is this file's own walk, gap by gap as the chapters
+met them. Read against it, the vintage-gauntlet primitive inventory
+(2026-08-08; two hundred forty-nine cards and a hundred thirteen
+canonical primitives after the user rulings, with the draft protocol
+filed beside the engine-boundary deferrals) sorts the same ground four
+ways, and the SHAPE of that sort is the part worth keeping here.
+VOCABULARY ROWS, each an enum row or a table cell and nothing more: the
+object-class nouns — permanent, spell, card, source — which is the
+biggest single catalog win at forty-three cards; the counter-kind tail;
+the turn-part catalog, which is what the activation WINDOW above waits
+on; the participle verb tags beyond the four; supertypes; land types;
+and the characteristic predicates. NEW AXES, by demand: object STATUS
+(tapped, flipped, face-down, phased — forty-four cards, the largest
+single axis), ability-as-a-value (thirty-three, and its one blocker is
+`grantableAb`'s four False rows), the fronted for-each binder
+(twenty-eight, remeasured above), the repeat-process loop (twenty-eight,
+five termination shapes), the counterfactual "as though" (twenty-six),
+ability borrowing (twenty-five), the deontic beyond `Cant` (twenty), and
+then extremal selection, the layer words, event-history reads, turn
+order, and the game outcome added above. PROTOCOL BUNDLES, which have to
+be designed whole and are misleading costed row by row: the draft, the
+secret-choice and voting pair, pile partitions, bidding, and
+end-the-turn. SPELLING RESIDUES, where the semantics exist and only a
+surface is missing: clause ellipsis, effect disjunction, and the bare
+generic plural finding 223 measures.
+
+Two of those entries carry a DECISION rather than a measurement.
+KEYWORDS are a capability bar and not an authoring list: what the
+completion proof wants is the vocabulary rows, the possession predicate,
+the half-dozen truly intrinsic keywords whose effects are non-composite,
+and a composite carrier for all the rest — which is the
+ability-as-a-value axis under another name — while per-keyword authoring
+stays out of scope, and the intrinsic set is read off core's own setup
+rather than off any paraphrase. The GAME RESTART is MINT QUEUED:
+chapter thirty-one measured it and declined on the honest count
+([CR#727.1]'s one corpus line, and a family of one is not a family), and
+that decline is overridden — it is a small late round, and finding 208's
+own lifetime argument is what makes the linkage survive it.
 
 ## The English-AST Frontier
 
@@ -5682,10 +5994,14 @@ divided damage above) and "both" ("both creatures have
 deathtouch"), which is not a quantity word at all but the group
 COMPLEMENT below, a definite plural presupposing a two-membered
 antecedent no binding records; activation restrictions and
-frequency riders
-("Activate only as a sorcery", "Activate only during your turn and
-only once each turn") — a legality rider with a turn-scoped count,
-the ability layer's rather than any clause's; nonfinite and
+frequency riders [LANDED, chapter twenty-eight, finding 164 — the
+`Activated` line's three slots, the window ([CR#602.5d]'s sorcery
+timing), the use limit and the state guard; Security Detail carries two
+of the three on the bench and Basking Rootwalla, Bonder's Enclave and
+Savage-born Hydra the others. This summary line is the half that never
+caught up with its own chapter. What genuinely remains is the WINDOW's
+vocabulary, which is `Timing`'s two rows against the turn-part catalog,
+and the ORDER of the three, which finding 223 prices]; nonfinite and
 elliptical clauses — infinitive, gerund, and ellipsis have nothing
 to lower to while every effect here is a saturated clause; the
 passive and its reduced-recipient forms ("Whenever this creature

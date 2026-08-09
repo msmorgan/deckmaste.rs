@@ -1248,6 +1248,19 @@ public export
 data OnBattlefield : Maybe Zone -> Type where
   OnField : OnBattlefield (Just Battlefield)
 
+||| The same demand at the STACK, and a separate type for `OnBattlefield`'s
+||| reason: the carrier that reaches a spell has to say the phrase names
+||| one ([CR#112.1] — "a spell is a card on the stack"), where a
+||| `zoneFits` silence would let an untracked phrase through on saying
+||| nothing. The class word is exactly that phrase — "any target" names
+||| [CR#115.4]'s damage class and places its referent nowhere — and
+||| [CR#115.4] rules it out of this position in as many words: the class
+||| spans creature, player, planeswalker and battle, and a spell "can't be
+||| chosen this way" (`badCounterAnyTarget`, `badCastsAnyTarget`).
+public export
+data OnStack : Maybe Zone -> Type where
+  OnTheStack : OnStack (Just Stack)
+
 ||| WHERE a counter may be put and taken off — the closed full-row table
 ||| the battlefield demand above was standing in for, and the one gate in
 ||| this file that opens a SECOND zone. Chapter nineteen answered the
@@ -1461,6 +1474,36 @@ public export
 -- one-letter code "{W}"/"{C}"; the halves of a hybrid are joined by "/")
 data SimpleManaSymbol = Generic Nat | Specific ColorOrColorless
 
+||| A hybrid's two halves are DIFFERENT mana. [CR#107.4e] makes a hybrid
+||| symbol "represent a cost that can be paid in one of two ways", and two
+||| ways spelled the same word is one way: the printed set has no "{W/W}",
+||| and the generic and colorless halves clash with nothing.
+public export
+halvesDistinct : SimpleManaSymbol -> Color -> Bool
+halvesDistinct (Generic _) d = True
+halvesDistinct (Specific Colorless) d = True
+halvesDistinct (Specific (OfColor c)) d = not (sameColor c d)
+
+||| The hybrid's distinctness demand as a witness.
+public export
+data HalvesDistinct : SimpleManaSymbol -> Color -> Type where
+  MkHalvesDistinct : {auto 0 ok : halvesDistinct l r = True} -> HalvesDistinct l r
+
+||| A hybrid Phyrexian symbol names two DIFFERENT colors, and [CR#107.4f]
+||| says so by counting: it lists "ten hybrid Phyrexian mana symbols",
+||| which is the number of unordered pairs of five distinct colors. The
+||| plain five take no second color at all, so the silence passes.
+public export
+phyrexianDistinct : Color -> Maybe Color -> Bool
+phyrexianDistinct c Nothing = True
+phyrexianDistinct c (Just d) = not (sameColor c d)
+
+||| The Phyrexian symbol's distinctness demand as a witness.
+public export
+data PhyrexianDistinct : Color -> Maybe Color -> Type where
+  MkPhyrexianDistinct : {auto 0 ok : phyrexianDistinct c d = True} ->
+                        PhyrexianDistinct c d
+
 ||| A printed mana symbol ([CR#107.4] lists the closed set). The five
 ||| colored, the colorless, and the numerals ride `Simple`; the hybrid
 ||| families are ONE compositional row, so `{W/U}` is `Hybrid (Specific
@@ -1485,11 +1528,14 @@ public export
 -- Simple (Specific c) = "{W}".."{G}"/"{C}", Hybrid l r = "{l/r}" on the two
 -- halves' own codes, Phyrexian c Nothing = "{W/P}", Phyrexian c (Just d) =
 -- "{W/U/P}", Variable = "{X}", SnowMana = "{S}")
-data ManaSymbol = Simple SimpleManaSymbol
-                | Hybrid SimpleManaSymbol Color
-                | Phyrexian Color (Maybe Color)
-                | Variable
-                | SnowMana
+data ManaSymbol : Type where
+  Simple : SimpleManaSymbol -> ManaSymbol
+  Hybrid : (l : SimpleManaSymbol) -> (r : Color) ->
+           {auto 0 ds : HalvesDistinct l r} -> ManaSymbol
+  Phyrexian : (c : Color) -> (d : Maybe Color) ->
+              {auto 0 ds : PhyrexianDistinct c d} -> ManaSymbol
+  Variable : ManaSymbol
+  SnowMana : ManaSymbol
 
 ||| A printed mana cost: the symbol sequence, in the order the card writes
 ||| it ([CR#202.1] — "a card's mana cost is indicated by mana symbols";
@@ -1504,6 +1550,22 @@ data ManaSymbol = Simple SimpleManaSymbol
 public export
 ManaCost : Type
 ManaCost = List ManaSymbol
+
+||| A cost COMPONENT's symbol run is written — the one place the empty
+||| list is not the [CR#202.1b] "no mana cost" it is on a card. Before a
+||| colon the run IS the component's whole spelling, so an empty one
+||| spells an activation line opening on a bare colon, which no corpus
+||| line writes; the payment of nothing is "{0}" ([CR#118.5]), a symbol,
+||| and the run holding it is one element long (`badEmptyManaCost`).
+public export
+manaRunWritten : ManaCost -> Bool
+manaRunWritten [] = False
+manaRunWritten (_ :: _) = True
+
+||| The written-run demand as a witness.
+public export
+data ManaRun : ManaCost -> Type where
+  MkManaRun : {auto 0 ok : manaRunWritten c = True} -> ManaRun c
 
 ||| Subtypes, as catalog atoms ([CR#205.3m] — creatures and kindreds
 ||| share one open list of creature types). Witnessed rows, and
@@ -1777,6 +1839,57 @@ typesOrdered [] = True
 typesOrdered (t :: []) = True
 typesOrdered (t :: u :: ts) = ltNat (typeRank t) (typeRank u) &&
                               typesOrdered (u :: ts)
+
+||| Is this card type a PERMANENT type? [CR#110.4] gives the list —
+||| "there are six permanent types: artifact, battle, creature,
+||| enchantment, land, and planeswalker" — and names the exclusion in the
+||| next breath: "instant and sorcery cards can't enter the battlefield
+||| and thus can't be permanents", which is exactly the pair this file
+||| added for the container. Full rows, so a new card type declares which
+||| side of the gates that read it stands on. It stands HERE, with the
+||| type-line vocabulary, because two constructions read it: the card
+||| container's class and the placement clause's destination.
+public export
+permanentType : CardType -> Bool
+permanentType Creature = True
+permanentType Artifact = True
+permanentType Land = True
+permanentType Enchantment = True
+permanentType Instant = False
+permanentType Sorcery = False
+
+||| May a phrase under this projected head type be PLACED on the
+||| battlefield? [CR#110.4a] lists the permanent card types and
+||| [CR#110.4] rules the other two out in as many words: "instant and
+||| sorcery cards can't enter the battlefield and thus can't be
+||| permanents". Asked of a `Maybe`, and the silence PASSES for
+||| `zoneFits`' reason — a phrase that writes no type word asserts
+||| nothing to contradict, and Oblivion Ring's "return the exiled card to
+||| the battlefield" is exactly that phrase.
+public export
+placeableTy : Maybe CardType -> Bool
+placeableTy Nothing = True
+placeableTy (Just t) = permanentType t
+
+||| The destination's demand on its patient, per destination zone. Only
+||| the battlefield asks: [CR#400.1] lets any object be in any of the
+||| other five, and the corpus moves instants and sorceries between them
+||| freely ("return target instant or sorcery card from your graveyard to
+||| your hand"). Full rows, so a new zone declares its answer.
+public export
+destTypeOk : Maybe CardType -> Zone -> Bool
+destTypeOk ty Battlefield = placeableTy ty
+destTypeOk ty Graveyard = True
+destTypeOk ty Exile = True
+destTypeOk ty Hand = True
+destTypeOk ty Library = True
+destTypeOk ty Stack = True
+
+||| The placement's type demand as a witness, so a pin says which
+||| question refused.
+public export
+data Placeable : Maybe CardType -> Zone -> Type where
+  MkPlaceable : {auto 0 ok : destTypeOk ty z = True} -> Placeable ty z
 
 ||| Colors are duplicate-free but NOT ordered, and the corpus is why:
 ||| Additive Evolution writes "a 0/0 green and blue Fractal creature
@@ -2290,18 +2403,30 @@ eventSpan PartBeginning = Unclaimed
 ||| and English marks the difference with the clause's own opening
 ||| word.
 |||
-||| The corpus assigns the word by EVENT and the split is total.
-||| "The next time [subject] would die" is written zero times against
-||| fifty-seven "if … would die this turn"; "if you would draw a card
-||| this turn" is written zero times against nine "the next time you
-||| would draw"; regeneration's own reminder text is "the next time
-||| [permanent] would be destroyed this turn" ([CR#614.8]) twenty-five
-||| times and never the conditional. The reason is the event's own
-||| repeatability: a creature dies once, so an unlimited shield and a
-||| single-use one are the same shield and English writes the shorter
-||| word; a draw repeats, so the two differ and the writer must say
-||| which. That makes this a gate rather than a spelling note
-||| (`badNextTimeWouldDie`, `badIfWouldDraw`).
+||| The word tracks the CARRIER, and the table is indexed by the event,
+||| which is the one axis it has. Measured exhaustively: "the next time
+||| [someone] would [event] this turn" NEVER occurs as a standing ability
+||| anywhere in the supported corpus — all nine draw ones and all
+||| twenty-five destruction ones (the latter being regeneration and
+||| nothing else, [CR#614.8]) are one-shots spun up by an activation cost
+||| or a trigger. The conditional is what a standing line writes: twenty-
+||| one cards print "If you would draw a card, … instead" with no
+||| duration word at all (Thought Reflection, Alhammarret's Archive,
+||| Underrealm Lich, Laboratory Maniac and seventeen more), forty-three
+||| write the standing "would die … instead", a hundred and one the
+||| standing "would be put into … graveyard … instead", four the standing
+||| "would be destroyed … instead".
+|||
+||| So a two-dimensional table cannot say what the corpus says. The
+||| carrier dimension — a standing static line against a duration-bounded
+||| one-shot — is LEDGERED, and what stays here is the event dimension
+||| with the standing form open wherever a standing line writes one. The
+||| cell that reached past its own measurement was the draw's
+||| `Repeatedly`, justified by counting "if you would draw a card THIS
+||| TURN" (zero, correctly) — a duration-bounded form, which says nothing
+||| about the durationless line twenty-one cards print (`thoughtReflection`).
+||| What the table still refuses is the one-shot word where no carrier
+||| writes it (`badNextTimeWouldDie`).
 public export
 -- spelling: (construction-owned -- the clause's opening word: Repeatedly
 -- writes "if <event>", NextTimeOnly writes "the next time <event>".
@@ -2314,11 +2439,22 @@ replUseOk Death Repeatedly = True
 replUseOk Death NextTimeOnly = False
 replUseOk Departure Repeatedly = True
 replUseOk Departure NextTimeOnly = False
-replUseOk Destruction Repeatedly = False
+-- Both words, and the carrier is what picks between them: regeneration
+-- writes the one-shot ([CR#614.8], twenty-five reminder lines) from a
+-- cost prefix, and four supported cards print the standing "would be
+-- destroyed, … instead" as a line. Neither cell is reachable through
+-- this vocabulary — `Interceptable` shuts the event at `Unclaimed`,
+-- [CR#614.8]'s four-part replacement being unwritable here — so the row
+-- states what is measured rather than what one carrier happens to use.
+replUseOk Destruction Repeatedly = True
 replUseOk Destruction NextTimeOnly = True
 replUseOk DamageTaken Repeatedly = True
 replUseOk DamageTaken NextTimeOnly = True
-replUseOk CardDrawn Repeatedly = False
+-- The standing draw replacement is twenty-one printed cards — "If you
+-- would draw a card, draw two cards instead" (Thought Reflection) and
+-- its family — and not one of them writes a duration. The nine "the
+-- next time you would draw a card this turn" lines are all one-shots.
+replUseOk CardDrawn Repeatedly = True
 replUseOk CardDrawn NextTimeOnly = True
 -- The five trigger-only events answer NEITHER, and the table says so
 -- rather than the interception's own gate saying it twice: an event no
@@ -5800,17 +5936,20 @@ mutual
     -- transition, so the watched object is one the battlefield can hold;
     -- `badWouldDieInGraveyard`).
     Dies : (n : Noun bs Object) ->
-           {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
+           {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+           {auto 0 ss : SelfSorted n} -> GameEvent bs
     -- "[n] leaves the battlefield" ([CR#603.6c] names the transition —
     -- from the battlefield to another zone) — the O-Ring endpoint.
     Leaves : (n : Noun bs Object) ->
-             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
+             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+             {auto 0 ss : SelfSorted n} -> GameEvent bs
     -- "[n] would be destroyed" ([CR#701.8a] — destruction moves a
     -- permanent from the battlefield to its owner's graveyard;
     -- [CR#701.8c] names regeneration as the effect that replaces the
     -- destruction event, which is this row's whole corpus).
     IsDestroyed : (n : Noun bs Object) ->
-                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
+                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                  {auto 0 ss : SelfSorted n} -> GameEvent bs
     -- "damage would be dealt to [n]" ([CR#120.1] — damage is dealt to a
     -- player or a battlefield permanent), the event prevention watches
     -- and redirection replaces. Reads the same recipient row the damage
@@ -5831,8 +5970,14 @@ mutual
     -- two thousand eight hundred ninety-one bare "enters" headers, so
     -- the row spells the short form and the long one is history rather
     -- than a variant.
+    -- The SUBJECT is type-ascribed when it is the source, and the
+    -- ascription is what places it: [CR#109.2] reads a description
+    -- including a card type onto the battlefield, which is the evidence
+    -- this event's own zone demand asks for, and bare `This` offers
+    -- none (`SelfSorted`, `badEntersBareThis`).
     Enters : (n : Noun bs Object) ->
-             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
+             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+             {auto 0 ss : SelfSorted n} -> GameEvent bs
     -- "[n] attacks" ([CR#508.1] declares attackers; the event is the
     -- declaration). It does NOT carry `Cant`'s deed gate, and the reason
     -- is the same rule read the other way. [CR#506.3] says "only a
@@ -5845,11 +5990,13 @@ mutual
     -- event demands nothing of the type, which is the one place these
     -- two constructions part over one rule.
     Attacks : (n : Noun bs Object) ->
-              {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
+              {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+              {auto 0 ss : SelfSorted n} -> GameEvent bs
     -- "[n] blocks" ([CR#509.1] declares blockers), the same shape a
     -- second time.
     Blocks : (n : Noun bs Object) ->
-             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
+             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+             {auto 0 ss : SelfSorted n} -> GameEvent bs
     -- "[n] deals combat damage to [to]" ([CR#510.2] — combat damage is
     -- what the combat damage step deals, the adjective `DamageKind`
     -- already carries). TWO noun slots because the corpus writes both
@@ -5860,6 +6007,7 @@ mutual
     DealsCombatDamage : {k : Kind} -> (n : Noun bs Object) ->
                         (to : Noun (nomIntro n) k) ->
                         {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                        {auto 0 ss : SelfSorted n} ->
                         {auto 0 rk : DamageRecipient to} -> GameEvent bs
     -- "the beginning of [whose] [part]" ([CR#603.2b] — "when a phase or
     -- step begins, all abilities that trigger 'at the beginning of' that
@@ -5893,7 +6041,9 @@ mutual
     -- zone whose carrier noun is the word itself [CR#112.1], the same
     -- elision "card" makes for the four hidden zones)
     Casts : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-            {auto 0 zn : ZoneFits (nounZone what) (Just Stack)} -> GameEvent bs
+            {auto 0 zn : OnStack (nounZone what)} ->
+            {auto 0 one : nounPlur what = OneOf} ->
+            {auto 0 nt : Nontarget what} -> GameEvent bs
 
   ||| Which row an event pattern is, for the event tables.
   public export
@@ -5940,24 +6090,27 @@ mutual
   ||| card in a graveyard where "If a creature would die, exile it
   ||| instead" finds a permanent on the battlefield, and it is one
   ||| function each way rather than a flag.
-  ||| Only the two ZONE-CHANGE events retag ([CR#603.6] calls them
-  ||| zone-change triggers and names these two as the common pair): dying
-  ||| moves the object to its owner's graveyard ([CR#700.4]) and entering
-  ||| places it on the battlefield ([CR#603.6a]). The departure is the
-  ||| row that does NOT retag, and the reason is that its destination is
-  ||| not stated — [CR#603.6c] says a leaves-the-battlefield ability
-  ||| "checks for it only in the first zone that it went to" and the
-  ||| sentence never says which zone that is, so the phrase keeps the
-  ||| zone it was announced with and the retag it cannot compute is a
-  ||| silence rather than a guess.
+  ||| Three ZONE-CHANGE events retag ([CR#603.6] calls them zone-change
+  ||| triggers): dying moves the object to its owner's graveyard
+  ||| ([CR#700.4]), entering places it on the battlefield ([CR#603.6a]),
+  ||| and the departure retags to NO zone at all. That third one is the
+  ||| silence written as a retag rather than as an omission: [CR#603.6c]
+  ||| says a leaves-the-battlefield ability "checks for it only in the
+  ||| first zone that it went to" and the sentence never says which zone
+  ||| that is, so what the clause after the comma knows is that the
+  ||| object is no longer where it was. Keeping the battlefield tag would
+  ||| have been a claim the event contradicts, and it let a
+  ||| battlefield-demanding verb read a departed object
+  ||| (`badLeavesThenTap`); the BINDING survives, so "it" still resolves
+  ||| and the zone-blind verbs still take it.
   public export
   eventAfter : {bs : Bindings} -> GameEvent bs -> Bindings
-  eventAfter (Dies n) = moveIntro Nothing n Graveyard
-  eventAfter (Leaves n) = nomIntro n
-  eventAfter (IsDestroyed n) = moveIntro Nothing n Graveyard
+  eventAfter (Dies n) = moveIntro Nothing n (Just Graveyard)
+  eventAfter (Leaves n) = moveIntro Nothing n Nothing
+  eventAfter (IsDestroyed n) = moveIntro Nothing n (Just Graveyard)
   eventAfter (IsDealtDamage to) = nomIntro to
   eventAfter (Draws who) = nomIntro who
-  eventAfter (Enters n) = moveIntro Nothing n Battlefield
+  eventAfter (Enters n) = moveIntro Nothing n (Just Battlefield)
   eventAfter (Attacks n) = nomIntro n
   eventAfter (Blocks n) = nomIntro n
   eventAfter (DealsCombatDamage n to) = nomIntro to
@@ -6650,6 +6803,34 @@ mutual
   staticKind (EntersRider _ _) = EntryRider
   staticKind (EntersWithCounters _ _ _) = EntryRider
 
+  ||| May this statement stand as a bare ability LINE? `staticAsAbility`
+  ||| asked of the kind, plus the one thing a kind cannot say: the
+  ||| conditional is a WRAPPER, and [CR#604.1] has a static ability
+  ||| "written as a statement" that is "simply true", so an "as long as"
+  ||| clause is a line exactly when the statement it qualifies is one.
+  ||| The wrapper's own cell said yes unconditionally, which let the
+  ||| control grant — whose stative form is a different verb, "You control
+  ||| enchanted creature" and never "you gain control of" — reach the line
+  ||| through it (`badConditionalGainControl`). It recurses on the
+  ||| PAYLOAD only, the condition being a truth test and not a statement.
+  ||| The kind stays what it was: `absentOk` and `SpanOk` read the
+  ||| wrapper's own cell, a durationless conditional CLAUSE being refused
+  ||| for its own reason (`badConditionalClause`). Full rows.
+  public export
+  staticLineOk : {0 bs : Bindings} -> StaticEffect bs -> Bool
+  staticLineOk (Conditionally _ se) =
+    staticAsAbility Conditional && staticLineOk se
+  staticLineOk se@(Gets _ _ _) = staticAsAbility (staticKind se)
+  staticLineOk se@(Gains _ _) = staticAsAbility (staticKind se)
+  staticLineOk se@(Cant _ _ _) = staticAsAbility (staticKind se)
+  staticLineOk se@(BecomesAlso _ _) = staticAsAbility (staticKind se)
+  staticLineOk se@(GainsControl _ _) = staticAsAbility (staticKind se)
+  staticLineOk se@(Intercepts _ _ _) = staticAsAbility (staticKind se)
+  staticLineOk se@(Prevents _ _ _) = staticAsAbility (staticKind se)
+  staticLineOk se@(MayPlay _ _) = staticAsAbility (staticKind se)
+  staticLineOk se@(EntersRider _ _) = staticAsAbility (staticKind se)
+  staticLineOk se@(EntersWithCounters _ _ _) = staticAsAbility (staticKind se)
+
   ||| What a continuous clause contributes to the discourse: its
   ||| subject, exactly as the one-shot clauses contribute theirs.
   ||| The two SHIELD rows have no subject and contribute what their
@@ -6944,7 +7125,7 @@ mutual
     -- spelling is the symbols run together.
     -- spelling: ["<Param(0)>"] (the symbol list, no separator: "{1}{R}",
     -- "{X}{X}{G}" -- see ManaSymbol for the per-symbol rendering)
-    Mana : ManaCost -> Cost bs
+    Mana : (c : ManaCost) -> {auto 0 wr : ManaRun c} -> Cost bs
     -- "{T}" ([CR#107.5]) — the symbol, whose patient is the permanent
     -- with the ability and is never written.
     -- spelling: ["{T}"], kind: Cost
@@ -7093,10 +7274,25 @@ mutual
     -- with no adverbial after its destination and costs no call site a
     -- word. Gated to the battlefield (`RidersFit`), and the whole
     -- vocabulary is `MoveRiders`.
+    -- The destination also asks about the PATIENT and not only about its
+    -- own phrase: a battlefield placement takes a permanent card
+    -- ([CR#110.4,110.4a]), so "put target instant card from a graveyard
+    -- onto the battlefield" is unwritable (`Placeable`,
+    -- `badInstantOntoBattlefield`). It reads the projected head type, so
+    -- a phrase that writes no type word still places — Oblivion Ring's
+    -- "return the exiled card to the battlefield" names a card and not a
+    -- type.
+    -- And the patient is an OBJECT and not [CR#115.4]'s damage class:
+    -- "any target" spans players, so nothing places it anywhere
+    -- (`NotAnyTarget`, `badExileAnyTarget`). The zone demand cannot make
+    -- that refusal here, this verb having none — the placement is what
+    -- SETS the zone.
     Move : (what : Noun bs Object) -> (to : ZoneExpr (nomIntro what)) ->
            {default (MkMoveRiders [] Nothing) riders : MoveRiders (nomIntro what)} ->
            {auto 0 ok : DestOk to} ->
            {auto 0 arr : ArrangementOk (nounPlur what) to} ->
+           {auto 0 na : NotAnyTarget what} ->
+           {auto 0 pl : Placeable (nounTy what) (zoneSort to)} ->
            {auto 0 rf : RidersFit riders (zoneSort to)} -> Effect bs
     -- "counter [what]" ([CR#701.6a] — "to counter a spell or ability
     -- means to cancel it, removing it from the stack. It doesn't resolve
@@ -7119,8 +7315,13 @@ mutual
     -- clause reaching only what [CR#112.1] calls a spell.
     -- spelling: ["counter <Param(0)>"], kind: Sentence (the imperative
     -- leaves the agent unpronounced, as destroy and exile do)
+    -- The demand is STRICT and not a `zoneFits` silence, which is the
+    -- one place this verb parts from the file's other zone gates: what a
+    -- countering needs is EVIDENCE that the phrase names a spell, and a
+    -- phrase that projects no zone offers none ([CR#112.1]; `OnStack`,
+    -- `badCounterAnyTarget`).
     CounterSpell : (what : Noun bs Object) ->
-                   {auto 0 zn : ZoneFits (nounZone what) (Just Stack)} -> Effect bs
+                   {auto 0 zn : OnStack (nounZone what)} -> Effect bs
     -- "[who] gains/loses [amt] life" ([CR#119.3]) — core basis (merged).
     -- spelling: ["<Param(0)> gains <Param(1)> life", "<Param(0)> loses
     -- <Param(1)> life"] (selects on the embedded LifeOp, Up/Down; mirrors
@@ -7482,7 +7683,8 @@ mutual
     -- pays {3}"; a life component under this verb writes "3 life", the
     -- shared verb swallowing the component's own "Pay")
     Pay : (who : Noun bs Player) -> (c : Cost (nomIntro who)) ->
-          {auto 0 pb : Payable c} -> Effect bs
+          {auto 0 pb : Payable c} ->
+          {auto 0 ag : PayAgrees who c} -> Effect bs
     -- "[decider] may [effect]" — the decider slot ([CR#608.2d]; the
     -- resolving default is the controller [CR#608.2c]). Decider and
     -- performer can differ ("[player] may have [source] deal … to
@@ -8141,6 +8343,66 @@ mutual
   data Payable : Cost bs -> Type where
     MkPayable : {auto 0 ok : payableOk c = True} -> Payable c
 
+  ||| May this phrase stand as a cost component's PATIENT? Two refusals,
+  ||| both about the position rather than the verb. A participle read
+  ||| ("the sacrificed artifact") names a sibling component's deed, and
+  ||| [CR#601.2h] has the player pay the components "in any order", so no
+  ||| component may presuppose another has been paid — the corpus writes
+  ||| none, which is what the `Cost` doc already states in words. And a
+  ||| TARGET is announced as the ability is activated ([CR#601.2c]),
+  ||| before any cost is paid at all, so a cost clause never carries the
+  ||| determiner. Shallow: the ascription and the two group determiners
+  ||| pass their complement through, and nothing looks inside a
+  ||| predicate. Full rows, so a new noun declares its answer.
+  public export
+  costNounOk : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+  costNounOk This = True
+  costNounOk (AsType t n) = costNounOk n
+  costNounOk You = True
+  costNounOk (Each _) = True
+  costNounOk (Indefinite _ _) = True
+  costNounOk (TargetGroup _ _) = False
+  costNounOk (AllOf _) = True
+  costNounOk (EachOf grp) = costNounOk grp
+  costNounOk (LibrarySlice _ _ _) = True
+  costNounOk (SomeOf _ grp) = costNounOk grp
+  costNounOk TheRest = True
+  costNounOk It = True
+  costNounOk They = True
+  costNounOk Them = True
+  costNounOk (Those _) = True
+  costNounOk (That _) = True
+  costNounOk (TheVerbed _ _) = False
+  costNounOk (ThoseVerbed _ _) = False
+  costNounOk (ControllerOf _) = True
+  costNounOk (OwnerOf _) = True
+
+  ||| Is this phrase the activator? [CR#602.1a] says the activation cost
+  ||| "must be paid by the player who is activating it", so a component
+  ||| that names its payer names "you" and nobody else. Full rows.
+  public export
+  nounIsYou : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+  nounIsYou You = True
+  nounIsYou This = False
+  nounIsYou (AsType _ _) = False
+  nounIsYou (Each _) = False
+  nounIsYou (Indefinite _ _) = False
+  nounIsYou (TargetGroup _ _) = False
+  nounIsYou (AllOf _) = False
+  nounIsYou (EachOf _) = False
+  nounIsYou (LibrarySlice _ _ _) = False
+  nounIsYou (SomeOf _ _) = False
+  nounIsYou TheRest = False
+  nounIsYou It = False
+  nounIsYou They = False
+  nounIsYou Them = False
+  nounIsYou (Those _) = False
+  nounIsYou (That _) = False
+  nounIsYou (TheVerbed _ _) = False
+  nounIsYou (ThoseVerbed _ _) = False
+  nounIsYou (ControllerOf _) = False
+  nounIsYou (OwnerOf _) = False
+
   ||| May this clause stand as a payment? [CR#602.1a] makes a cost what
   ||| the ACTIVATOR pays, so the table is not "is this a legal sentence"
   ||| but "does oracle write this before a colon" — and the corpus answers
@@ -8164,18 +8426,29 @@ mutual
   ||| involves having that player gain life" — but the cards that print
   ||| one (Invigorate) spell it as an ALTERNATIVE cost ([CR#118.9]), a
   ||| base swap, never before a colon. The divergence is the frame's.
+  |||
+  ||| Two demands ride ON TOP of the verb table, and both are about the
+  ||| POSITION rather than the verb. The patient goes through `costNounOk`
+  ||| ([CR#601.2h] order-freedom, [CR#601.2c] announcement). And the
+  ||| placement row is narrowed by DESTINATION: every zone-change
+  ||| verb the corpus writes before a colon removes or downgrades —
+  ||| sacrifice three hundred forty-one, discard sixty-eight, exile
+  ||| twenty-eight, "Return … to its owner's hand" nine, put six (to a
+  ||| graveyard, to the top of a library, or as a counter) — and a bare
+  ||| battlefield entry as a cost component is written zero times.
   public export
   costActionOk : {0 bs : Bindings} -> Effect bs -> Bool
   costActionOk (DealDamage _ _ _) = False
   costActionOk (Distribute _ _ _) = False
   costActionOk (Fights _ _) = False
-  costActionOk (Tap _) = True
+  costActionOk (Tap n) = costNounOk n
   -- Zero cost components counter a spell: [CR#602.1a] makes a cost what
   -- the ACTIVATOR pays, and cancelling somebody else's spell is not a
   -- payment (`badCounterAsCost`).
   costActionOk (CounterSpell _) = False
   costActionOk (Choose _) = False
-  costActionOk (Move _ _) = True
+  costActionOk (Move what to) =
+    costNounOk what && not (sameZone (zoneSort to) Battlefield)
   costActionOk (ChangeLife _ (Down _)) = True
   costActionOk (ChangeLife _ _) = False
   costActionOk (Draw _ _) = False
@@ -8186,12 +8459,12 @@ mutual
   costActionOk (Shuffle _) = False
   costActionOk (Continuously _ _) = False
   costActionOk (Create _ _ _ _) = False
-  costActionOk (PutCounters _ _ _) = True
-  costActionOk (RemoveCounters _ _ _) = True
-  costActionOk (Composite Exile _) = True
+  costActionOk (PutCounters _ _ on) = costNounOk on
+  costActionOk (RemoveCounters _ _ from) = costNounOk from
+  costActionOk (Composite Exile e) = costActionOk e
   costActionOk (Composite _ _) = False
-  costActionOk (Does _ Sacrifice _) = True
-  costActionOk (Does _ Discard _) = True
+  costActionOk (Does _ Sacrifice e) = costActionOk e
+  costActionOk (Does _ Discard e) = costActionOk e
   costActionOk (Does _ _ _) = False
   costActionOk (Pay _ _) = False
   costActionOk (May _ _ _ _) = False
@@ -8403,6 +8676,93 @@ mutual
   nounIsAnyTarget (ControllerOf _) = False
   nounIsAnyTarget (OwnerOf _) = False
 
+  ||| The class word refused, as a witness — [CR#115.4] confines "any
+  ||| target" to a creature, a player, a planeswalker or a battle, so
+  ||| every carrier that is not the damage recipient's has to say no to
+  ||| it. The zone projection cannot say it alone: the phrase places its
+  ||| referent nowhere, and a silence passes a `zoneFits` demand
+  ||| (`badExileAnyTarget`).
+  public export
+  data NotAnyTarget : Noun bs k -> Type where
+    MkNotAnyTarget : {auto 0 ok : nounIsAnyTarget n = False} -> NotAnyTarget n
+
+  ||| Does this phrase carry the TARGET determiner? The noun-level twin
+  ||| of `anyTargetedAt`, for the slots that ask about one phrase rather
+  ||| than about everything in scope. The ascription and the two group
+  ||| determiners pass their complement through; nothing looks inside a
+  ||| predicate, a target mention inside a relative clause being the
+  ||| anchor construction and not this phrase's marking. Full rows.
+  public export
+  nounTargeted : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+  nounTargeted (TargetGroup _ _) = True
+  nounTargeted This = False
+  nounTargeted (AsType _ n) = nounTargeted n
+  nounTargeted You = False
+  nounTargeted (Each _) = False
+  nounTargeted (Indefinite _ _) = False
+  nounTargeted (AllOf _) = False
+  nounTargeted (EachOf grp) = nounTargeted grp
+  nounTargeted (LibrarySlice _ _ _) = False
+  nounTargeted (SomeOf _ grp) = nounTargeted grp
+  nounTargeted TheRest = False
+  nounTargeted It = False
+  nounTargeted They = False
+  nounTargeted Them = False
+  nounTargeted (Those _) = False
+  nounTargeted (That _) = False
+  nounTargeted (TheVerbed _ _) = False
+  nounTargeted (ThoseVerbed _ _) = False
+  nounTargeted (ControllerOf _) = False
+  nounTargeted (OwnerOf _) = False
+
+  ||| The nontarget demand as a witness, so a pin says which question
+  ||| refused.
+  public export
+  data Nontarget : Noun bs k -> Type where
+    MkNontarget : {auto 0 ok : nounTargeted n = False} -> Nontarget n
+
+  ||| Is this phrase writable as an EVENT's subject? One refusal: the
+  ||| bare self-reference. [CR#603.6a] quotes the template as "When [this
+  ||| object] enters" and the corpus spells that object with its type
+  ||| word without exception — "When this creature enters" eighteen
+  ||| hundred eighteen lines against zero for "When this enters", and the
+  ||| same zero-against-hundreds for dies (three hundred eighty-one),
+  ||| attacks (five hundred sixty-eight), blocks (sixty-nine) and deals
+  ||| combat damage (two hundred thirty-one). The ascription is not
+  ||| decoration: [CR#109.2] places a description that includes a card
+  ||| type on the battlefield, which is exactly the evidence these events
+  ||| demand, where bare `This` is the source as an object ("this spell")
+  ||| and stands nowhere the grammar tracks (`badEntersBareThis`). Full
+  ||| rows.
+  public export
+  selfSortedOk : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+  selfSortedOk This = False
+  selfSortedOk (AsType _ _) = True
+  selfSortedOk You = True
+  selfSortedOk (Each _) = True
+  selfSortedOk (Indefinite _ _) = True
+  selfSortedOk (TargetGroup _ _) = True
+  selfSortedOk (AllOf _) = True
+  selfSortedOk (EachOf _) = True
+  selfSortedOk (LibrarySlice _ _ _) = True
+  selfSortedOk (SomeOf _ _) = True
+  selfSortedOk TheRest = True
+  selfSortedOk It = True
+  selfSortedOk They = True
+  selfSortedOk Them = True
+  selfSortedOk (Those _) = True
+  selfSortedOk (That _) = True
+  selfSortedOk (TheVerbed _ _) = True
+  selfSortedOk (ThoseVerbed _ _) = True
+  selfSortedOk (ControllerOf _) = True
+  selfSortedOk (OwnerOf _) = True
+
+  ||| The event subject's demand as a witness, so a pin says which
+  ||| question refused.
+  public export
+  data SelfSorted : Noun bs k -> Type where
+    MkSelfSorted : {auto 0 ok : selfSortedOk n = True} -> SelfSorted n
+
   ||| Who can take damage ([CR#120.1,120.1a] — battles, creatures,
   ||| planeswalkers, players; never a quality, never an off-battlefield
   ||| card, never a noncreature artifact or land) — asked of the NOUN,
@@ -8479,10 +8839,13 @@ mutual
   -- into every index.
   data TagBody : VerbName -> Effect bs -> Type where
     DestroyB : {auto 0 z : OnBattlefield (nounZone n)} ->
-               TagBody Destroy (Move n (ZoneAt Graveyard Bare))
+               {auto 0 na : NotAnyTarget n} ->
+               TagBody Destroy (Move n (ZoneAt Graveyard Bare) {na})
     SacrificeB : {auto 0 z : OnBattlefield (nounZone n)} ->
-                 TagBody Sacrifice (Move n (ZoneAt Graveyard Bare))
-    ExileB : TagBody Exile (Move n (ZoneAt Exile Bare))
+                 {auto 0 na : NotAnyTarget n} ->
+                 TagBody Sacrifice (Move n (ZoneAt Graveyard Bare) {na})
+    ExileB : {auto 0 na : NotAnyTarget n} ->
+             TagBody Exile (Move n (ZoneAt Exile Bare) {na})
     -- "exile [n] with [amt] [kind] counter(s) on it" — the one ridden
     -- placement a keyword-action tag writes. The entry participles and
     -- the controller are absent from the shape rather than refused by a
@@ -8492,12 +8855,14 @@ mutual
     ExileWithCountersB : {0 amt : Amount (nomIntro n)} ->
                          {0 kind : CounterKind} ->
                          {0 wc : WrittenCount amt} ->
+                         {auto 0 na : NotAnyTarget n} ->
                          TagBody Exile
-                                 (Move n (ZoneAt Exile Bare)
+                                 (Move n (ZoneAt Exile Bare) {na}
                                        {riders = MkMoveRiders [] Nothing
                                           {counters = Just (MkCounterRider amt kind {wc})}})
     DiscardB : {auto 0 d : DiscardOk n} ->
-               TagBody Discard (Move n (ZoneAt Graveyard Bare))
+               {auto 0 na : NotAnyTarget n} ->
+               TagBody Discard (Move n (ZoneAt Graveyard Bare) {na})
 
   ||| Verb agentivity, one table read by the rows it LACKS: an actor
   ||| is required exactly where there is no row here. The CR gives
@@ -8542,9 +8907,9 @@ mutual
   ||| and quality clauses are identity — unreachable from card terms
   ||| (`Move` is Object-kinded), kept explicit for totality.
   public export
-  setZone : Maybe VerbName -> Zone -> Binding -> Binding
+  setZone : Maybe VerbName -> Maybe Zone -> Binding -> Binding
   setZone p z (MkBinding det Object plur (ObjectP ty oldZn _)) =
-    MkBinding det Object plur (ObjectP ty (Just z) (mkStamp p oldZn))
+    MkBinding det Object plur (ObjectP ty z (mkStamp p oldZn))
   setZone p z (MkBinding det Player plur PlayerP) = MkBinding det Player plur PlayerP
   setZone p z (MkBinding det (Quality q) plur QualityP) =
     MkBinding det (Quality q) plur QualityP
@@ -8552,26 +8917,26 @@ mutual
     MkBinding det Outcome plur (OutcomeP s)
 
   public export
-  setZoneHead : Maybe VerbName -> Zone -> Bindings -> Bindings
+  setZoneHead : Maybe VerbName -> Maybe Zone -> Bindings -> Bindings
   setZoneHead p z [] = []
   setZoneHead p z (b :: bs) = setZone p z b :: bs
 
   public export
-  setZoneIt : Maybe VerbName -> Zone -> Bindings -> Bindings
+  setZoneIt : Maybe VerbName -> Maybe Zone -> Bindings -> Bindings
   setZoneIt p z [] = []
   setZoneIt p z (MkBinding det Object OneOf (ObjectP ty zn _) :: bs) =
-    MkBinding det Object OneOf (ObjectP ty (Just z) (mkStamp p zn)) :: bs
+    MkBinding det Object OneOf (ObjectP ty z (mkStamp p zn)) :: bs
   setZoneIt p z (b :: bs) = b :: setZoneIt p z bs
 
   public export
-  setZoneThem : Maybe VerbName -> Zone -> Bindings -> Bindings
+  setZoneThem : Maybe VerbName -> Maybe Zone -> Bindings -> Bindings
   setZoneThem p z [] = []
   setZoneThem p z (MkBinding det Object ManyOf (ObjectP ty zn _) :: bs) =
-    MkBinding det Object ManyOf (ObjectP ty (Just z) (mkStamp p zn)) :: bs
+    MkBinding det Object ManyOf (ObjectP ty z (mkStamp p zn)) :: bs
   setZoneThem p z (b :: bs) = b :: setZoneThem p z bs
 
   public export
-  setZoneThose : Maybe VerbName -> NounWord -> Zone -> Bindings -> Bindings
+  setZoneThose : Maybe VerbName -> NounWord -> Maybe Zone -> Bindings -> Bindings
   setZoneThose p w z [] = []
   setZoneThose p w z (b :: bs) =
     case (b.plur, wordNow w b) of
@@ -8579,7 +8944,7 @@ mutual
       _ => b :: setZoneThose p w z bs
 
   public export
-  setZoneThat : Maybe VerbName -> NounWord -> Zone -> Bindings -> Bindings
+  setZoneThat : Maybe VerbName -> NounWord -> Maybe Zone -> Bindings -> Bindings
   setZoneThat p w z [] = []
   setZoneThat p w z (b :: bs) =
     case (b.plur, wordNow w b) of
@@ -8587,20 +8952,20 @@ mutual
       _ => b :: setZoneThat p w z bs
 
   public export
-  setZoneVerbed : Maybe VerbName -> VerbName -> NounWord -> Zone -> Bindings -> Bindings
+  setZoneVerbed : Maybe VerbName -> VerbName -> NounWord -> Maybe Zone -> Bindings -> Bindings
   setZoneVerbed p v w z [] = []
   setZoneVerbed p v w z (b :: bs) =
     if verbedMatch v w b then setZone p z b :: bs else b :: setZoneVerbed p v w z bs
 
   public export
-  setZoneManyVerbed : Maybe VerbName -> VerbName -> NounWord -> Zone -> Bindings -> Bindings
+  setZoneManyVerbed : Maybe VerbName -> VerbName -> NounWord -> Maybe Zone -> Bindings -> Bindings
   setZoneManyVerbed p v w z [] = []
   setZoneManyVerbed p v w z (b :: bs) =
     if verbedMatchMany v w b then setZone p z b :: bs
                              else b :: setZoneManyVerbed p v w z bs
 
   public export
-  moveIntro : {bs : Bindings} -> {k : Kind} -> Maybe VerbName -> Noun bs k -> Zone -> Bindings
+  moveIntro : {bs : Bindings} -> {k : Kind} -> Maybe VerbName -> Noun bs k -> Maybe Zone -> Bindings
   moveIntro p nn@(Each pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(Indefinite m pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(TargetGroup q pr) z = setZoneHead p z (nomIntro nn)
@@ -8635,7 +9000,7 @@ mutual
   -- frame stays conservatively False — an ascribed-self cost participle TYPE
   -- word waits on a corpus witness, so the pre-move zone is passed as
   -- untracked here rather than read off `nounZone`.
-  moveIntro p (AsType t n) z = MkBinding TheD Object OneOf (ObjectP (Just t) (Just z) (mkStamp p Nothing)) :: bs
+  moveIntro p (AsType t n) z = MkBinding TheD Object OneOf (ObjectP (Just t) z (mkStamp p Nothing)) :: bs
   moveIntro p You z = bs
   moveIntro p They z = bs
   moveIntro p (ControllerOf n) z = nomIntro (ControllerOf n)
@@ -8750,7 +9115,7 @@ mutual
   -- writes that move, so there is no retag for this clause to record.
   effIntro (CounterSpell what) = nomIntro what
   effIntro (Choose n) = nomIntro n
-  effIntro (Move what to) = moveIntro Nothing what (zoneSort to)
+  effIntro (Move what to) = moveIntro Nothing what (Just (zoneSort to))
   effIntro (ChangeLife who (Up a)) = outcomeB LifeGained :: lifeIntro (Up a)
   effIntro (ChangeLife who (Down a)) = outcomeB LifeLost :: lifeIntro (Down a)
   -- no outcome mention: which direction a set-to went is not a fact the
@@ -8814,9 +9179,9 @@ mutual
   effIntro (Distribute (DividedDamage _) amt among) = outcomeB DamageDealt :: nomIntro among
   effIntro (Distribute (DistributedCounters _) amt among) = nomIntro among
   effIntro (RemoveCounters amt kind from) = nomIntro from
-  effIntro (Composite v (Move what to)) = moveIntro (Just v) what (zoneSort to)
+  effIntro (Composite v (Move what to)) = moveIntro (Just v) what (Just (zoneSort to))
   effIntro (Composite _ e) = effIntro e
-  effIntro (Does s v (Move what to)) = moveIntro (Just v) what (zoneSort to)
+  effIntro (Does s v (Move what to)) = moveIntro (Just v) what (Just (zoneSort to))
   effIntro (Does s v e) = effIntro e
   effIntro (Pay who c) = costIntro c
   effIntro (May d body did notd) = mayIntro body did notd
@@ -9337,8 +9702,19 @@ mutual
     -- window/limit/guard and joined by "and only" when more than one is
     -- written ([CR#602.1b]: activation instructions "appear last, after
     -- the ability's effect"), kind: Ability
+    -- The self-tap symbols are UNIQUE across a compound cost: [CR#107.5]
+    -- says "a permanent that's already tapped can't be tapped again to
+    -- pay the cost", so "{T}, {T}:" spends one state twice and "{T},
+    -- {Q}:" is the same impossibility written the other way round
+    -- (`CostTapOnce`, `badDoubleTapCost`).
+    -- …and every component that names a payer names the ACTIVATOR
+    -- ([CR#602.1a]; `CostPaidByYou`, `badForeignPayerCost`). Here rather
+    -- than on the clause, because the same life component is a resolving
+    -- PAYMENT under `Pay`, where the sentence names its own payer.
     Activated : (cost : Cost []) ->
                 (eff : Effect (publicOnly (costIntro cost))) ->
+                {auto 0 tp : CostTapOnce cost} ->
+                {auto 0 py : CostPaidByYou cost} ->
                 {default Nothing window : Maybe Timing} ->
                 {default Nothing limit : Maybe UsageLimit} ->
                 {default Nothing guard : Maybe (Condition [])} -> Ability
@@ -9381,10 +9757,16 @@ mutual
     -- the event's own finite clause, a comma, and the effect; the
     -- intervening condition sits between two commas when written --
     -- see [CR#603.4]), kind: Ability
+    -- The HEADER announces no target ([CR#115.1d] chooses a triggered
+    -- ability's targets "as the ability is put on the stack", which is
+    -- after its event) — the demand is this carrier's alone, the delayed
+    -- and reflexive rows writing the marked subject the corpus gives
+    -- them (`HeaderNontarget`, `badTargetedDeathHeader`).
     Triggered : (word : TriggerWord) -> (ev : GameEvent []) ->
                 (eff : Effect (eventAfter ev)) ->
                 {default Nothing intervening : Maybe (Condition (eventAfter ev))} ->
                 {auto 0 tr : Triggerable ev} ->
+                {auto 0 hn : HeaderNontarget ev} ->
                 {auto 0 wo : TriggerWordOk ev word} -> Ability
     -- "[statement]" — the STATIC ability ([CR#113.3d,604.1]: "static
     -- abilities do something all the time rather than being activated or
@@ -9456,11 +9838,29 @@ mutual
   ||| says which question refused.
   public export
   data StaticLine : StaticEffect bs -> Type where
-    MkStaticLine : {auto 0 ok : staticAsAbility (staticKind se) = True} -> StaticLine se
+    MkStaticLine : {auto 0 ok : staticLineOk se = True} -> StaticLine se
 
   public export
   data Untargeting : StaticEffect bs -> Type where
     MkUntargeting : {auto 0 ok : anyTargetedAt (staticIntro se) = False} -> Untargeting se
+
+  ||| An ordinary trigger's HEADER announces no target, and [CR#115.1d]
+  ||| is the reason rather than a count: a triggered ability's targets
+  ||| "are chosen as the ability is put on the stack", which happens
+  ||| because the event already occurred, so the header cannot be where
+  ||| one is announced. The ability targets perfectly well one clause
+  ||| later ("Whenever this creature blocks, it deals 1 damage to target
+  ||| attacking creature"), which is what makes this the header's own
+  ||| demand and not the container's.
+  ||| The DELAYED carrier keeps the marked subject and is the corpus's
+  ||| whole witness for one — Graceful Reprieve's "When target creature
+  ||| dies this turn, return that card to the battlefield under its
+  ||| owner's control", where the spell that created the delay announced
+  ||| the target as it was cast (`badTargetedDeathHeader`).
+  public export
+  data HeaderNontarget : GameEvent bs -> Type where
+    MkHeaderNontarget : {auto 0 ok : anyTargetedAt (eventIntro ev) = False} ->
+                        HeaderNontarget ev
 
   public export
   grantableAb : Ability -> Bool
@@ -9512,6 +9912,145 @@ mutual
   costsIntro [] = bs
   costsIntro (c :: cs) = costsIntro cs
 
+  ||| Is this component a SELF-TAP payment? [CR#107.5] gives "{T}" the
+  ||| fixed meaning "Tap this permanent" and [CR#602.5a] names "{Q}" as
+  ||| its twin over the same tap state, so the two symbols spend one
+  ||| resource between them.
+  public export
+  selfTapPayment : {0 bs : Bindings} -> Cost bs -> Bool
+  selfTapPayment (Mana _) = False
+  selfTapPayment TapSymbol = True
+  selfTapPayment UntapSymbol = True
+  selfTapPayment (Do _) = False
+  selfTapPayment (Compound _) = False
+
+  ||| How many of them a component sequence writes.
+  public export
+  selfTapCount : {0 bs : Bindings} -> {0 n : Nat} -> CostSeq n bs -> Nat
+  selfTapCount [] = Z
+  selfTapCount (c :: cs) =
+    (if selfTapPayment c then S Z else Z) + selfTapCount cs
+
+  ||| At most ONE. [CR#107.5] says in as many words that "a permanent
+  ||| that's already tapped can't be tapped again to pay the cost", and
+  ||| [CR#118.3] makes a cost unpayable without the resources, so "{T},
+  ||| {T}:" charges the same permanent twice for a state it has once —
+  ||| and "{T}, {Q}:" is the same impossibility written the other way
+  ||| round. No corpus line writes either (`badDoubleTapCost`).
+  public export
+  selfTapOnce : {0 bs : Bindings} -> {0 n : Nat} -> CostSeq n bs -> Bool
+  selfTapOnce cs = leNat (selfTapCount cs) 1
+
+  ||| …asked of a whole cost, so the demand can ride the ABILITY LINE
+  ||| rather than the `Compound` constructor. That placement is not
+  ||| cosmetic: an auto-implicit on the constructor is solved before its
+  ||| own component list's errors surface, so every malformed component
+  ||| would have reported THIS question instead of its own
+  ||| (`badNestedCompound`, `badCostReadsSiblingDeed`) — and the pin
+  ||| discipline is the whole reason these are separate witnesses.
+  ||| `Activated` is the only carrier a compound reaches: the pay clause
+  ||| refuses one outright (`payableOk`).
+  public export
+  costTapOnce : {0 bs : Bindings} -> Cost bs -> Bool
+  costTapOnce (Mana _) = True
+  costTapOnce TapSymbol = True
+  costTapOnce UntapSymbol = True
+  costTapOnce (Do _) = True
+  costTapOnce (Compound cs) = selfTapOnce cs
+
+  ||| The self-tap uniqueness demand as a witness.
+  public export
+  data CostTapOnce : Cost bs -> Type where
+    MkCostTapOnce : {auto 0 ok : costTapOnce c = True} -> CostTapOnce c
+
+  ||| Does every component of this cost name the ACTIVATOR as its payer?
+  ||| [CR#602.1a] says an activation cost "must be paid by the player who
+  ||| is activating it", so a component that names a player names "you":
+  ||| Erebos, God of the Dead's "Pay 2 life" and every one of the
+  ||| ninety-five life components charge the activator, and none charges
+  ||| an opponent.
+  ||| The demand rides the ABILITY LINE and not the clause, which is the
+  ||| whole of what makes it right: the same `Do (ChangeLife …)` component
+  ||| stands under the `Pay` CLAUSE, where the payer is whoever the
+  ||| sentence names — a hundred twenty-five "unless its/their controller
+  ||| pays" lines, forty-three "unless that player pays", nine "unless any
+  ||| player pays". One position demands the activator; the other writes
+  ||| its payer down (`badForeignPayerCost`).
+  ||| The two symbols and the mana run name no player at all; the action
+  ||| rows that do are the life payment and the two subjected verbs, and
+  ||| the inner catch-all is `payableOk`'s discipline — the question is
+  ||| asked of the COST row, not of the clause vocabulary.
+  public export
+  costPaidByYou : {0 bs : Bindings} -> Cost bs -> Bool
+  costPaidByYou (Mana _) = True
+  costPaidByYou TapSymbol = True
+  costPaidByYou UntapSymbol = True
+  costPaidByYou (Do (ChangeLife who _)) = nounIsYou who
+  costPaidByYou (Do (Does subj _ _)) = nounIsYou subj
+  costPaidByYou (Do _) = True
+  costPaidByYou (Compound cs) = costsPaidByYou cs
+
+  ||| The same question over a whole component sequence.
+  public export
+  costsPaidByYou : {0 bs : Bindings} -> {0 n : Nat} -> CostSeq n bs -> Bool
+  costsPaidByYou [] = True
+  costsPaidByYou (c :: cs) = costPaidByYou c && costsPaidByYou cs
+
+  ||| The activator-pays demand as a witness.
+  public export
+  data CostPaidByYou : Cost bs -> Type where
+    MkCostPaidByYou : {auto 0 ok : costPaidByYou c = True} -> CostPaidByYou c
+
+  ||| Under the pay CLAUSE the component's payer agrees with the verb's
+  ||| subject. The verb spells the subject once — "you pay 3 life", "its
+  ||| controller pays {1}" — so a component naming a different player
+  ||| spells nobody the sentence wrote (`badMismatchedPayer`).
+  ||| One direction only, and the reason is the telescope rather than
+  ||| laziness: the subject and the component's own player slot live in
+  ||| two different contexts and cannot be compared at all (`effEq`'s
+  ||| problem). What CAN be stated is that an imperative "you pay" takes a
+  ||| component naming you, which is the frame a hundred forty-five
+  ||| "unless you pay" lines write; a named subject's component is left to
+  ||| the anaphor work the payer family is ledgered with.
+  public export
+  payAgreesOk : {0 bs : Bindings} -> {0 cs : Bindings} ->
+                Noun bs Player -> Cost cs -> Bool
+  payAgreesOk who c = not (nounIsYou who) || costPaidByYou c
+
+  ||| The pay clause's agreement demand as a witness.
+  public export
+  data PayAgrees : Noun bs Player -> Cost cs -> Type where
+    MkPayAgrees : {auto 0 ok : payAgreesOk who c = True} -> PayAgrees who c
+
+  ||| Can every component of this cost be paid from OFF the battlefield?
+  ||| The two symbols cannot: [CR#107.5] gives "{T}" the fixed meaning
+  ||| "tap this permanent" and [CR#602.5a] pairs "{Q}" with it, and only a
+  ||| permanent taps. Everything else can — a symbol run is paid from the
+  ||| mana pool and an action component names its own patient.
+  ||| The classification is the rules' own axis, not this file's:
+  ||| [CR#113.6j] says an activated ability "that has a cost that can't be
+  ||| paid while the object is on the battlefield functions from any zone
+  ||| in which its cost can be paid", which is the rule cycling runs on.
+  ||| The card container is the reader ([CR#110.4] keeps an instant or
+  ||| sorcery card off the battlefield, so a spell card's activated line
+  ||| has to be payable from somewhere else): zero Instant or Sorcery
+  ||| cards in the corpus carry a top-level "{T}" ability, and cycling's
+  ||| "{2}{W}, Discard this card" is what one really looks like
+  ||| (`badTapSorcery`).
+  public export
+  costOffBattlefield : {0 bs : Bindings} -> Cost bs -> Bool
+  costOffBattlefield (Mana _) = True
+  costOffBattlefield TapSymbol = False
+  costOffBattlefield UntapSymbol = False
+  costOffBattlefield (Do _) = True
+  costOffBattlefield (Compound cs) = costsOffBattlefield cs
+
+  ||| The same question over a whole component sequence.
+  public export
+  costsOffBattlefield : {0 bs : Bindings} -> {0 n : Nat} -> CostSeq n bs -> Bool
+  costsOffBattlefield [] = True
+  costsOffBattlefield (c :: cs) = costOffBattlefield c && costsOffBattlefield cs
+
 -- ===== The card container =====
 
 ||| SUPERTYPES ([CR#205.4a] closes the list at five: basic, legendary,
@@ -9547,21 +10086,32 @@ public export
 sameSupertype : Supertype -> Supertype -> Bool
 sameSupertype Legendary Legendary = True
 
-||| Is this card type a PERMANENT type? [CR#110.4] gives the list —
-||| "there are six permanent types: artifact, battle, creature,
-||| enchantment, land, and planeswalker" — and names the exclusion in the
-||| next breath: "instant and sorcery cards can't enter the battlefield
-||| and thus can't be permanents", which is exactly the pair this file
-||| added for the container. Full rows, so a new card type declares which
-||| side of the container's gate it stands on.
+||| Is a supertype already in a list? `colorMember`'s shape over the
+||| other catalog list.
 public export
-permanentType : CardType -> Bool
-permanentType Creature = True
-permanentType Artifact = True
-permanentType Land = True
-permanentType Enchantment = True
-permanentType Instant = False
-permanentType Sorcery = False
+supertypeMember : Supertype -> List Supertype -> Bool
+supertypeMember s [] = False
+supertypeMember s (t :: ts) = sameSupertype s t || supertypeMember s ts
+
+||| A card's supertypes are DUPLICATE-FREE. [CR#205.4b] makes a supertype
+||| a property an object HAS or LACKS — an object that "gains or loses a
+||| supertype … retains any OTHER supertypes it had", which is a set's
+||| arithmetic and not a list's — so a word printed twice is one fact
+||| written twice, which is `colorsDistinct`'s refusal at the
+||| catalog list beside it. Unordered, for the colors' reason too:
+||| [CR#205.4a] closes the list at five and fixes no order among them,
+||| and no printed line carries two.
+public export
+supersDistinct : List Supertype -> Bool
+supersDistinct [] = True
+supersDistinct (s :: ss) = not (supertypeMember s ss) && supersDistinct ss
+
+||| The supertype list's demand as a witness — the field carried none at
+||| all until this round, which is how "Legendary Legendary Creature"
+||| came to be writable (`badDuplicateSupertype`).
+public export
+data CardSupers : List Supertype -> Type where
+  MkCardSupers : {auto 0 ok : supersDistinct ss = True} -> CardSupers ss
 
 ||| Which of the two things a card's TEXT can be, read off its type
 ||| line. [CR#113.3a] makes this the container's central question and
@@ -9582,6 +10132,30 @@ public export
 cardClassOf : List CardType -> CardClass
 cardClassOf [] = PermanentCard
 cardClassOf (t :: ts) = if permanentType t then cardClassOf ts else SpellCard
+
+||| Does a line name a permanent type at all? Its spell twin below.
+public export
+anyPermanentType : List CardType -> Bool
+anyPermanentType [] = False
+anyPermanentType (t :: ts) = permanentType t || anyPermanentType ts
+
+public export
+anySpellType : List CardType -> Bool
+anySpellType [] = False
+anySpellType (t :: ts) = not (permanentType t) || anySpellType ts
+
+||| The two families do not share a line. [CR#110.4] rules it out in as
+||| many words — "instant and sorcery cards can't enter the battlefield
+||| and thus can't be permanents" — and [CR#110.4a] lists the six types
+||| that can, so a line naming one of each names a card that would have
+||| to be a permanent and not be one. The ORDER check cannot see this:
+||| the ranks put the two spell types last, so [Land, Creature, Instant]
+||| is perfectly ascending and was accepted (`badMixedPermanentSpellLine`).
+||| One demand, both directions, because the illegality is the PAIRING
+||| and not either word.
+public export
+typesCombinable : List CardType -> Bool
+typesCombinable tys = not (anyPermanentType tys && anySpellType tys)
 
 ||| WHICH ability rows a card of each class may carry — the container's
 ||| gate, and the round's central finding written as a table. Full rows
@@ -9621,16 +10195,35 @@ cardClassOf (t :: ts) = if permanentType t then cardClassOf ts else SpellCard
 ||| a rule: the three keywords this file carries are [CR#702]'s
 ||| flying, trample and haste, all of them abilities of a permanent in
 ||| combat, and none is printed on an instant or sorcery
-||| (`badKeywordOnInstant`).
+||| (`badKeywordOnInstant`). It delegates to a per-keyword table rather
+||| than answering with a wildcard, so a new keyword cannot inherit a
+||| decision nothing measured for it (`keywordCardOk`).
+||| The ACTIVATED cell on a spell card is not open, and the correction is
+||| the one this table's own rule already implied: [CR#113.6j] lets an
+||| activated ability function off the battlefield exactly when its cost
+||| can be paid there, and an instant or sorcery card is never on the
+||| battlefield ([CR#110.4]). So the cell asks the COST — cycling's
+||| "{2}{W}, Discard this card" passes and a top-level "{T}" line does
+||| not, the tap symbol meaning "Tap this permanent" [CR#107.5]. Measured:
+||| zero Instant or Sorcery cards carry one (`badTapSorcery`).
+public export
+keywordCardOk : CardClass -> Keyword -> Bool
+keywordCardOk PermanentCard Haste = True
+keywordCardOk PermanentCard Flying = True
+keywordCardOk PermanentCard Trample = True
+keywordCardOk SpellCard Haste = False
+keywordCardOk SpellCard Flying = False
+keywordCardOk SpellCard Trample = False
+
 public export
 cardAbilityOk : CardClass -> Ability -> Bool
-cardAbilityOk PermanentCard (KeywordAbility _) = True
+cardAbilityOk PermanentCard (KeywordAbility k) = keywordCardOk PermanentCard k
 cardAbilityOk PermanentCard (Activated _ _) = True
 cardAbilityOk PermanentCard (Triggered _ _ _) = True
 cardAbilityOk PermanentCard (Static _) = True
 cardAbilityOk PermanentCard (Spell _) = False
-cardAbilityOk SpellCard (KeywordAbility _) = False
-cardAbilityOk SpellCard (Activated _ _) = True
+cardAbilityOk SpellCard (KeywordAbility k) = keywordCardOk SpellCard k
+cardAbilityOk SpellCard (Activated c _) = costOffBattlefield c
 cardAbilityOk SpellCard (Triggered _ _ _) = True
 cardAbilityOk SpellCard (Static _) = False
 cardAbilityOk SpellCard (Spell _) = True
@@ -9650,8 +10243,21 @@ cardTextOk tys (a :: as) = cardAbilityOk (cardClassOf tys) a && cardTextOk tys a
 ||| [CR#208.2]'s star: a characteristic-defining ability setting power
 ||| and toughness is an ability line this container has no row for
 ||| (ledger).
+|||
+||| The pair is SIGNED, and the reason is a card rather than a taste:
+||| [CR#107.1b] says "it's possible for a game value, such as a
+||| creature's power, to be less than zero", and Char-Rumbler prints
+||| "-1/3" in the corner [CR#208.1] describes. Stored as `Nat` the
+||| container did not refuse that card — Idris saturates a negative
+||| literal, so the printed -1 was silently kept as 0 and the record
+||| misrepresented the card it was holding. A misrepresentation is worse
+||| than a refusal, so the slot got the type the printed value has
+||| (`charRumbler`). The TOKEN's pair stays `Nat` (`TokenChars`): a
+||| token's characteristics are what the creating effect defines
+||| ([CR#111.3]), the corpus writes every one of them as a plain numeral,
+||| and no clause here spells a negative one.
 public export
-cardPtOk : List CardType -> Maybe (Nat, Nat) -> Bool
+cardPtOk : List CardType -> Maybe (Integer, Integer) -> Bool
 cardPtOk tys pt = case (lineHasType Creature tys, pt) of
   (True, Nothing) => False
   _ => True
@@ -9674,6 +10280,7 @@ public export
 data CardLine : TypeLine -> Type where
   MkCardLine : {auto 0 ne : lineNonEmpty l = True} ->
                {auto 0 ord : typesOrdered l.tys = True} ->
+               {auto 0 cmb : typesCombinable l.tys = True} ->
                {auto 0 sf : subsFitLine l.subs l.tys = True} -> CardLine l
 
 public export
@@ -9681,8 +10288,8 @@ data CardText : TypeLine -> List Ability -> Type where
   MkCardText : {auto 0 ok : cardTextOk l.tys as = True} -> CardText l as
 
 public export
-data CardPt : TypeLine -> Maybe (Nat, Nat) -> Type where
-  MkCardPt : {0 stats : Maybe (Nat, Nat)} ->
+data CardPt : TypeLine -> Maybe (Integer, Integer) -> Type where
+  MkCardPt : {0 stats : Maybe (Integer, Integer)} ->
              {auto 0 ok : cardPtOk l.tys stats = True} -> CardPt l stats
 
 public export
@@ -9733,10 +10340,11 @@ record Card where
   supers : List Supertype
   line : TypeLine
   text : List Ability
-  pt : Maybe (Nat, Nat)
+  pt : Maybe (Integer, Integer)
 
--- (The container's four demands are NOT gathered into one witness, and
+-- (The container's five demands are NOT gathered into one witness, and
 -- the reason is the pin discipline: a gathering type would report its
--- own name whichever demand refused, where four separate ones let a
+-- own name whichever demand refused, where five separate ones let a
 -- `failing` block say which question the card failed. They are threaded
--- to the construction site by the `card` macro instead.)
+-- to the construction site by the `card` macro instead. The fifth is the
+-- SUPERTYPE list's, which carried no witness at all until this round.)
