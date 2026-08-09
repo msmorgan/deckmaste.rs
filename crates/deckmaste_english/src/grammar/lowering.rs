@@ -676,7 +676,7 @@ fn erased_field(
         }
         K::TypedScalar {
             value_type: "NumberLiteral",
-            codec: "Numeral",
+            codec: "Numeral" | "DegreeMeasureNumeral",
         } => {
             let Lowered::Number(value) = value else {
                 return None;

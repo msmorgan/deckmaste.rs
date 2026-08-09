@@ -350,6 +350,30 @@ fn public_adjective_facade_builds_projects_rebuilds_and_renders_every_shape() {
             expected
         );
     }
+
+    for measure in [
+        NumberLiteral {
+            value: 2,
+            numeral: Numeral::Ordinal,
+        },
+        NumberLiteral {
+            value: 10,
+            numeral: Numeral::Roman,
+        },
+        NumberLiteral {
+            value: 2_000,
+            numeral: Numeral::Arabic(true),
+        },
+    ] {
+        assert!(
+            adjective_api::build_adjective_phrase_degree_measure(
+                measure,
+                Adjective::Word(Vocab::Greater),
+            )
+            .is_err(),
+            "the public facade admitted non-degree notation {measure:?}",
+        );
+    }
 }
 
 #[test]

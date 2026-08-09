@@ -617,6 +617,78 @@ pub(crate) fn parse_groups_as_declared_category_in_both_orders(
     ])
 }
 
+#[cfg(test)]
+fn parse_adjective_phrase_values_with_registration_order(
+    source: &str,
+    catalogs: &Catalogs,
+    budget: usize,
+    order: RegistrationOrder,
+    groups: &'static [&'static deckmaste_construction_compiler::runtime::GroupData],
+) -> Result<Vec<crate::syntax::AdjectivePhrase>, ExactParseError> {
+    let self_reference = SelfReference::default();
+    let surface = lex(source);
+    let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
+    let grammar = EnglishGrammar::with_opacity_mode_and_registration_order(
+        source,
+        catalogs,
+        Nonterminal::AdjectivePhrase,
+        OpacityMode::Exact,
+        self_reference,
+        order,
+        GeneratedActivation::Groups(groups),
+    );
+    let chart = parse_chart(&grammar, &tokens).map_err(ExactParseError::Grammar)?;
+    let mut remaining = budget;
+    let mut results = Vec::new();
+    for &root in &chart.roots {
+        let selections = chart
+            .forest
+            .enumerate_selections(root, &mut remaining)
+            .map_err(|error| match error {
+                SelectionEnumerationError::Cycle(_) => ExactParseError::Cycle,
+                SelectionEnumerationError::BudgetExhausted => {
+                    ExactParseError::TooManyAlternatives { budget }
+                }
+            })?;
+        for selection in selections {
+            let Some(Lowered::AdjectivePhrase(value)) =
+                lower(&grammar, &chart.forest, root, &selection)
+            else {
+                continue;
+            };
+            if !results.contains(&value) {
+                results.push(value);
+            }
+        }
+    }
+    Ok(results)
+}
+
+#[cfg(test)]
+pub(crate) fn parse_groups_as_adjective_phrase_values_in_both_orders(
+    source: &str,
+    catalogs: &Catalogs,
+    budget: usize,
+    groups: &'static [&'static deckmaste_construction_compiler::runtime::GroupData],
+) -> Result<[Vec<crate::syntax::AdjectivePhrase>; 2], ExactParseError> {
+    Ok([
+        parse_adjective_phrase_values_with_registration_order(
+            source,
+            catalogs,
+            budget,
+            RegistrationOrder::Normal,
+            groups,
+        )?,
+        parse_adjective_phrase_values_with_registration_order(
+            source,
+            catalogs,
+            budget,
+            RegistrationOrder::Reversed,
+            groups,
+        )?,
+    ])
+}
+
 fn parse_generated_noun_phrase_as(
     source: &str,
     catalogs: &Catalogs,
