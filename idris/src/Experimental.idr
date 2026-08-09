@@ -143,12 +143,14 @@ comparedType Power = Just Creature
 comparedType Toughness = Just Creature
 comparedType ManaValue = Nothing
 
-||| Quality sorts — the choosable characteristics ([CR#105.1,302.3];
-||| only what the chapters need).
+||| Quality sorts — the choosable characteristics ([CR#105.1,302.3,607.2d];
+||| only what the chapters need). `QualityNoun` selects all four.
 public export
 -- spelling: (construction-owned catalog -- Color="color", CreatureType=
--- "creature type"; consumed by QualityNoun/OfChosen, never spelled alone)
-data QualitySort = Color | CreatureType
+-- "creature type", CardName="card name", Number="number"; consumed by
+-- QualityNoun, and by OfChosen only where ChosenQualityRead admits it;
+-- never spelled alone)
+data QualitySort = Color | CreatureType | CardName | Number
 
 public export
 sameQ : QualitySort -> QualitySort -> Bool
@@ -156,6 +158,28 @@ sameQ Color Color = True
 sameQ Color _ = False
 sameQ CreatureType CreatureType = True
 sameQ CreatureType _ = False
+sameQ CardName CardName = True
+sameQ CardName _ = False
+sameQ Number Number = True
+sameQ Number _ = False
+
+||| Whether the surface `OfChosen` honestly reads this chosen sort. Colors
+||| and creature types take "of the chosen …"; card names and numbers use
+||| their own later equality surfaces. Linked choices remain governed by
+||| [CR#607.2d].
+public export
+chosenQualityReadOk : QualitySort -> Bool
+chosenQualityReadOk Color = True
+chosenQualityReadOk CreatureType = True
+chosenQualityReadOk CardName = False
+chosenQualityReadOk Number = False
+
+||| The erased readback-surface witness, kept named so failing catalog pins
+||| report the unavailable surface rather than a generic equality goal.
+public export
+data ChosenQualityRead : QualitySort -> Type where
+  MkChosenQualityRead : {auto 0 ok : chosenQualityReadOk q = True} ->
+                        ChosenQualityRead q
 
 ||| What a binding can bind ([CR#115.1] — targets are objects and/or
 ||| players; the union kind is deferred with the carrier lattice) —
@@ -1392,11 +1416,41 @@ targetablePhrasal PlayerTgt = PhPlayer
 ||| `plugins/builtin/macros/keyword/` — parameterized keywords spell
 ||| their parameters explicitly (e.g. a from-quality as `Maybe`, written
 ||| `Nothing` in the plain form), never as defaults.
+||| A row here is STANDING, and core decides who gets it: `Trample`,
+||| `Vigilance`, `Deathtouch`, `DoubleStrike` and `FirstStrike` have NO
+||| macro under `plugins/builtin/macros/keyword/` because the engine
+||| implements them itself, and a word the engine owns cannot be spelled
+||| as anything else. Every keyword that DOES have a macro there — menace,
+||| reach, hexproof, indestructible, lifelink, shadow, exalted and their
+||| neighbours — is a composite of abilities, and composites are the
+||| composite carrier's to spell (ledger), never a row of their own.
+||| `Haste` and `Flying` are the two composite rows here, minted in earlier
+||| chapters and left where the cards that use them put them.
 public export
--- spelling: ["haste", "flying", "trample"] (row order: Haste/Flying/Trample),
--- kind: KeywordLine (bare keyword-ability line, no params/cost -- contrast
--- Madness.ron's parameterized "madness <Param(0)>")
-data Keyword = Haste | Flying | Trample
+-- spelling: ["haste", "flying", "trample", "vigilance", "deathtouch",
+-- "double strike", "first strike"] (bare keyword-ability lines, no
+-- params/cost; exact row order follows Keyword)
+data Keyword = Haste | Flying | Trample | Vigilance | Deathtouch
+             | DoubleStrike | FirstStrike
+
+||| Keyword equality, per-row catch-alls. This is vocabulary only: it does
+||| not classify or implement keyword mechanics.
+public export
+sameKeyword : Keyword -> Keyword -> Bool
+sameKeyword Haste Haste = True
+sameKeyword Haste _ = False
+sameKeyword Flying Flying = True
+sameKeyword Flying _ = False
+sameKeyword Trample Trample = True
+sameKeyword Trample _ = False
+sameKeyword Vigilance Vigilance = True
+sameKeyword Vigilance _ = False
+sameKeyword Deathtouch Deathtouch = True
+sameKeyword Deathtouch _ = False
+sameKeyword DoubleStrike DoubleStrike = True
+sameKeyword DoubleStrike _ = False
+sameKeyword FirstStrike FirstStrike = True
+sameKeyword FirstStrike _ = False
 
 -- (The `Ability` CONTAINER that carries these — the type above `Effect` —
 -- lives in the mutual block, its activated row needing `Cost` and
@@ -1567,8 +1621,8 @@ public export
 data ManaRun : ManaCost -> Type where
   MkManaRun : {auto 0 ok : manaRunWritten c = True} -> ManaRun c
 
-||| Subtypes, as catalog atoms ([CR#205.3m] — creatures and kindreds
-||| share one open list of creature types). Witnessed rows, and
+||| Subtypes, as catalog atoms ([CR#205.3m] creature types;
+||| [CR#205.3i,305.6] the five basic land types). Witnessed rows, and
 ||| DELIBERATELY not a port of core's shape: core declares subtypes as
 ||| open plugin data (`Subtype { name, types, confers }`,
 ||| `deckmaste_core/src/type.rs`) resolved through a generated catalog of
@@ -1581,7 +1635,8 @@ public export
 -- Army"), as a bare noun head ("an Army you control"), or after "becomes a"
 -- in a type-addition clause; never spelled alone)
 data Subtype = Zombie | Army | Soldier | Thopter | Construct | Fractal
-             | Coward | Demon | Plant | Dragon
+             | Coward | Demon | Plant | Dragon | Plains | Island | Swamp
+             | Mountain | Forest
 
 ||| Subtype equality, per-row catch-alls — `sameVerb`'s discipline.
 public export
@@ -1606,17 +1661,26 @@ sameSub Plant Plant = True
 sameSub Plant _ = False
 sameSub Dragon Dragon = True
 sameSub Dragon _ = False
+sameSub Plains Plains = True
+sameSub Plains _ = False
+sameSub Island Island = True
+sameSub Island _ = False
+sameSub Swamp Swamp = True
+sameSub Swamp _ = False
+sameSub Mountain Mountain = True
+sameSub Mountain _ = False
+sameSub Forest Forest = True
+sameSub Forest _ = False
 
 ||| Which card type a subtype's set belongs to — [CR#205.1a] names the
 ||| sets themselves (creature types, land types, artifact types,
-||| enchantment types, planeswalker types, spell types) and [CR#205.3m]
-||| lists the creature types, which is every row here. Single-valued
-||| because [CR#205.3m]'s set is shared by creature and kindred alone and
-||| this vocabulary has no kindred row, so the creature answer is exact
-||| for what English spells here.
-||| Full rows: a subtype from another set (an artifact type like
-||| Equipment, an enchantment type like Aura) is a totality error that
-||| must declare its card type before anything can be written with it.
+||| enchantment types, planeswalker types, spell types). [CR#205.3m]
+||| supplies the creature rows; [CR#205.3i,305.6] supply Plains, Island,
+||| Swamp, Mountain, and Forest as land rows. Each catalog atom belongs to
+||| one card-type set in this vocabulary.
+||| Full rows: a subtype from another set (an artifact type like Equipment
+||| or an enchantment type like Aura) must declare its card type before it
+||| can be written.
 public export
 subtypeType : Subtype -> CardType
 subtypeType Zombie = Creature
@@ -1629,52 +1693,109 @@ subtypeType Coward = Creature
 subtypeType Demon = Creature
 subtypeType Plant = Creature
 subtypeType Dragon = Creature
+subtypeType Plains = Land
+subtypeType Island = Land
+subtypeType Swamp = Land
+subtypeType Mountain = Land
+subtypeType Forest = Land
+
+||| Binding-free counter deltas, deliberately separate from `LifeOp`'s
+||| discourse-indexed amount operations. A zero component is a valid counter
+||| component ("-0/-1", six lines); no nonzero proof belongs to this literal
+||| vocabulary. Two rows and not three: [CR#122.1a] knows "+X/+Y" and
+||| "-X/-Y" and nothing sets a stat counter to a value, so `LifeOp.SetTo`'s
+||| twin would be a phrase no card prints.
+namespace Counter
+  public export
+  -- spelling: (construction-owned literal operation -- BoostCounter owns
+  -- the surrounding counter name. Up n contributes "+n", Down n "-n".)
+  data Delta : Type where
+    Up : Nat -> Delta
+    Down : Nat -> Delta
+
+  public export
+  sameDelta : Delta -> Delta -> Bool
+  sameDelta (Up a) (Up b) = a == b
+  sameDelta (Up _) _ = False
+  sameDelta (Down a) (Down b) = a == b
+  sameDelta (Down _) _ = False
+
+||| Which bare keyword names belong to [CR#122.1b]'s named base
+||| keyword-counter family. The rule closes that list at fifteen and every
+||| row this vocabulary carries is on it, so the table answers True
+||| throughout — it is a FORCING function, not a measurement: a keyword row
+||| off [CR#122.1b]'s list (banding, phasing) must answer False here before
+||| anything can put a counter of its name on anything. Parameterized
+||| variants remain outside this vocabulary.
+public export
+keywordCounterOk : Keyword -> Bool
+keywordCounterOk Haste = True
+keywordCounterOk Flying = True
+keywordCounterOk Trample = True
+keywordCounterOk Vigilance = True
+keywordCounterOk Deathtouch = True
+keywordCounterOk DoubleStrike = True
+keywordCounterOk FirstStrike = True
+
+||| The eligibility decision is explicit for every Keyword row, so a future
+||| keyword must opt in (or out) before it can become a keyword counter.
+public export
+data KeywordCounterEligible : Keyword -> Type where
+  MkKeywordCounterEligible : {auto 0 ok : keywordCounterOk k = True} ->
+                            KeywordCounterEligible k
 
 ||| Counter kinds ([CR#122.1] — "a marker placed on an object or player
 ||| that modifies its characteristics and/or interacts with a rule,
 ||| ability, or effect"). Core spells the kind as an open bare-identifier
 ||| reference into a plugin registry (`CounterRef`,
 ||| `deckmaste_core/src/counter.rs`), which is the same open-catalog shape
-||| its subtypes take and the same one this file answers with witnessed
-||| rows. The two stat counters are first-class because they lead the
-||| corpus by an order of magnitude — "put a +1/+1 counter on" runs to
-||| one thousand four hundred ninety-three lines and "put N +1/+1
-||| counters on" to four hundred thirty-one, against eighty-eight and
-||| twenty for -1/-1 — and each carries its own rule ([CR#122.1a]). A
-||| NAMED counter earns a row only where a corpus line writes it as a
-||| one-shot put or remove, which is why `Stun` is here (fifty-six lines;
-||| Kaito, Bane of Nightmares' "Tap target creature. Put two stun counters
-||| on it.", its replacement identity being [CR#122.1d]'s) and charge,
-||| age, quest, loyalty, oil, level and the rest are not — their lines are
-||| costs, upkeep triggers, and enters-with riders, which are other axes.
-||| `Time` is the fourth row and the one the exile zone brought: a
-||| hundred fifty-nine lines write the words "time counter", and unlike
-||| the named kinds above it they are one-shot puts and removes of
-||| exactly the sort this grammar writes — Arc Blade's "Exile Arc Blade
-||| with three time counters on it", Jhoira of the Ghitu's "Put four time
-||| counters on the exiled card", Alaundo the Seer's "remove a time
-||| counter from each other card you own in exile". It has no rule of its
-||| own in [CR#122.1]'s list, which is the point: a time counter does
-||| nothing by itself and the abilities that read it supply the meaning
-||| ([CR#702.62a] is the biggest reader and is the keyword this file does
-||| not build).
+||| its subtypes take. This vocabulary answers that openness with TWO
+||| PRODUCTS and a witnessed flat tail, and never by transcribing the
+||| registry — a counter NAME sighted in a corpus line is data, and data
+||| that no construction here writes is the ledger's, not a row's.
+||| The stat product is `BoostCounter`, one constructor for [CR#122.1a]'s
+||| "+X/+Y" and "-X/-Y". Twelve distinct pairs are printed, and +1/+1 and
+||| -1/-1 take all but forty-three of the mentions; the other ten are
+||| +1/+0, +2/+2, +0/+1, -0/-1, -2/-2, -0/-2, -2/-1, +1/+2, -1/-0 and
+||| +0/+2. One product spells all twelve where twelve rows would have been
+||| twelve decisions, and the everyday two are MACRO spellings over it
+||| (`plusOnePlusOne`, `minusOneMinusOne`) — which is where a catalog word
+||| belongs once the shape beneath it is a product.
+||| The keyword product is `KeywordCounter`, closed by [CR#122.1b]'s
+||| fifteen names through `keywordCounterOk`. Forty-five corpus lines write
+||| one as a one-shot put — "put a flying counter on target creature you
+||| control" (Avian Oddity) — which is the same verb the stat counters take.
+||| A FLAT named kind still earns its row one at a time, and only where a
+||| corpus line writes it as a one-shot put or remove: `Stun` ([CR#122.1d];
+||| Kaito, Bane of Nightmares' "Put two stun counters on it") and `Time`
+||| (chapter thirty-one's exile tail) are the two that have. Charge, oil,
+||| fade, loyalty, shield, finality and their neighbours are NOT rows —
+||| their lines are costs, upkeep triggers and enters-with riders, which
+||| are other axes (ledger). Engine `Counter.confers`, the layer system and
+||| the state-based actions stay RON-side throughout.
 public export
--- spelling: ["+1/+1", "-1/-1", "stun", "time"] (row order: PlusOnePlusOne/
--- MinusOneMinusOne/Stun/Time -- the kind's own word, written between the count
--- and the noun "counter(s)"; never spelled alone)
-data CounterKind = PlusOnePlusOne | MinusOneMinusOne | Stun | Time
+-- spelling: (BoostCounter delegates its two operations to Counter.Delta and
+-- writes them as one word, "+1/+1" or "-0/-1"; KeywordCounter writes the
+-- keyword's own lowercase word; Stun and Time write "stun" and "time". Each
+-- stands between the count and the noun "counter(s)", never alone.)
+data CounterKind : Type where
+  BoostCounter : Counter.Delta -> Counter.Delta -> CounterKind
+  Stun : CounterKind
+  Time : CounterKind
+  KeywordCounter : (k : Keyword) -> {auto 0 ok : KeywordCounterEligible k} -> CounterKind
 
 ||| Counter-kind equality, per-row catch-alls.
 public export
 sameCounter : CounterKind -> CounterKind -> Bool
-sameCounter PlusOnePlusOne PlusOnePlusOne = True
-sameCounter PlusOnePlusOne _ = False
-sameCounter MinusOneMinusOne MinusOneMinusOne = True
-sameCounter MinusOneMinusOne _ = False
+sameCounter (BoostCounter ap at) (BoostCounter bp bt) =
+  Counter.sameDelta ap bp && Counter.sameDelta at bt
+sameCounter (BoostCounter _ _) _ = False
 sameCounter Stun Stun = True
 sameCounter Stun _ = False
 sameCounter Time Time = True
 sameCounter Time _ = False
+sameCounter (KeywordCounter a) (KeywordCounter b) = sameKeyword a b
+sameCounter (KeywordCounter _) _ = False
 
 ||| The TYPE LINE a token defines and a type-addition clause adds
 ||| ([CR#205.1] — the line carries the card types and the subtypes).
@@ -3382,8 +3503,14 @@ mutual
     -- [CR#608.2d]). The chosen-OBJECT twin ("the chosen creatures")
     -- waits with the definite reads.
     -- spelling: ["of the chosen <Param(0)>"], kind: TODO(reason: non-head
-    -- modifier per hasHead -- not a complete Nominal alone)
-    OfChosen : (q : QualitySort) -> {auto 0 ok : countQuality q bs = 1} -> Predicate bs Object
+    -- modifier per hasHead -- not a complete Nominal alone). CardName is
+    -- later read as "with the chosen name"/"with that name", and Number by
+    -- numeric equality, not "of the chosen number".
+    OfChosen : (q : QualitySort) -> {auto 0 ok : countQuality q bs = 1} ->
+               {auto 0 read : ChosenQualityRead q} -> Predicate bs Object
+    -- "with [keyword]" / "that has [keyword]" ([CR#702.1d]): a non-head
+    -- modifier. It has no type, zone, or head projection/presupposition.
+    HasKeyword : Keyword -> Predicate bs Object
     -- zero relative "[player] controls": the possessor is singular
     -- ([CR#109.4] — one controller; the union read "creatures your
     -- opponents control" is the player-groups vocabulary, ledger).
@@ -3779,6 +3906,7 @@ mutual
   hasHead Opponent = True
   hasHead (QualityNoun _) = True
   hasHead (OfChosen _) = False
+  hasHead (HasKeyword _) = False
   hasHead (ControlledBy _) = False
   hasHead Attacking = False
   hasHead Blocking = False
@@ -3911,6 +4039,8 @@ mutual
   predEq (QualityNoun _) _ = False
   predEq (OfChosen a) (OfChosen b) = sameQ a b
   predEq (OfChosen _) _ = False
+  predEq (HasKeyword a) (HasKeyword b) = sameKeyword a b
+  predEq (HasKeyword _) _ = False
   predEq (ControlledBy a) (ControlledBy b) = nounEqRef a b
   predEq (ControlledBy _) _ = False
   -- two linkage reads name the same group whenever their sources are
@@ -4432,6 +4562,7 @@ mutual
   negatable Opponent = True
   negatable (QualityNoun _) = True
   negatable (OfChosen _) = True
+  negatable (HasKeyword _) = True
   negatable (ControlledBy _) = True
   -- the linkage read does NOT negate, and the measurement is total:
   -- "not exiled with" is zero corpus lines against a hundred
@@ -4471,6 +4602,7 @@ mutual
   predSays Opponent = True
   predSays (QualityNoun _) = True
   predSays (OfChosen _) = True
+  predSays (HasKeyword _) = True
   predSays (ControlledBy _) = True
   predSays (ExiledWith _) = True
   predSays Attacking = True
@@ -4511,6 +4643,7 @@ mutual
   predNegFree Opponent = True
   predNegFree (QualityNoun _) = True
   predNegFree (OfChosen _) = True
+  predNegFree (HasKeyword _) = True
   predNegFree (ControlledBy _) = True
   predNegFree (ExiledWith _) = True
   predNegFree Attacking = True
@@ -4548,6 +4681,7 @@ mutual
   anyTargetFree Opponent = True
   anyTargetFree (QualityNoun _) = True
   anyTargetFree (OfChosen _) = True
+  anyTargetFree (HasKeyword _) = True
   anyTargetFree (ControlledBy n) = nounAnyTargetFree n
   anyTargetFree (ExiledWith n) = nounAnyTargetFree n
   anyTargetFree Attacking = True
@@ -6694,7 +6828,7 @@ mutual
     -- `CounterKind`, which reaches a hundred sixty-eight of the three
     -- hundred eighty-six lines (ninety-nine plural and sixty-two
     -- singular "+1/+1", seven "-1/-1") and leaves the rest to the
-    -- counter catalog itself — time, oil, fade, charge, indestructible,
+    -- counter catalog itself — oil, fade, charge, indestructible,
     -- finality, shield and their neighbours, eight lines apiece and
     -- fewer (ledger).
     -- spelling: ["<Param(0)> enters with <Param(1)> <Param(2)> counter(s)
@@ -10054,7 +10188,7 @@ mutual
 -- ===== The card container =====
 
 ||| SUPERTYPES ([CR#205.4a] closes the list at five: basic, legendary,
-||| ongoing, snow, world). ONE row here, whittled to what a witness
+||| ongoing, snow, world). Three rows here, whittled to what a witness
 ||| needs exactly as `CardType` is whittled to six of fifteen — a
 ||| supertype is an ordinary catalog word, not a rules-fixed structure
 ||| like `Color`, so an unwitnessed row would be a phrase nothing here
@@ -10069,22 +10203,24 @@ mutual
 ||| nineteen's forty-six "legendary … token" lines are the token half
 ||| and stay ledgered with the predefined-token catalog they arrive
 ||| with), and the third reader, the printed card, is the one that has
-||| them. `Legendary` is the row a bench witness needs (Rorix
-||| Bladewing); the other four are measured and left — `Basic` is a
-||| land-type vocabulary this file has no subtype rows for, `Snow` a
-||| mana-and-permanent axis whose symbol landed in chapter twenty-seven
-||| and whose supertype nothing here writes, `World` and `Ongoing`
-||| legacy and Archenemy respectively.
+||| them. `Legendary` (Rorix Bladewing), `Basic`, and `Snow`
+||| (Snow-Covered Forest) have witnesses; World and Ongoing remain
+||| unminted.
 public export
--- spelling: ["legendary"] (the supertype word, printed before the card
--- types and after nothing: "Legendary Creature — Dragon". Spelled only
--- through Card)
-data Supertype = Legendary
+-- spelling: ["legendary", "basic", "snow"] (the supertype words, printed
+-- before card types; a line may carry more than one: "Snow-Covered Forest"
+-- is Basic Snow Land — Forest. Spelled only through Card.)
+data Supertype = Legendary | Basic | Snow
 
 ||| Supertype equality, per-row catch-alls — `sameCT`'s discipline.
 public export
 sameSupertype : Supertype -> Supertype -> Bool
 sameSupertype Legendary Legendary = True
+sameSupertype Legendary _ = False
+sameSupertype Basic Basic = True
+sameSupertype Basic _ = False
+sameSupertype Snow Snow = True
+sameSupertype Snow _ = False
 
 ||| Is a supertype already in a list? `colorMember`'s shape over the
 ||| other catalog list.
@@ -10099,8 +10235,9 @@ supertypeMember s (t :: ts) = sameSupertype s t || supertypeMember s ts
 ||| arithmetic and not a list's — so a word printed twice is one fact
 ||| written twice, which is `colorsDistinct`'s refusal at the
 ||| catalog list beside it. Unordered, for the colors' reason too:
-||| [CR#205.4a] closes the list at five and fixes no order among them,
-||| and no printed line carries two.
+||| [CR#205.4a] closes the list at five and fixes no order among them;
+||| Snow-Covered Forest demonstrates that a printed line may carry both
+||| Basic and Snow.
 public export
 supersDistinct : List Supertype -> Bool
 supersDistinct [] = True
@@ -10192,9 +10329,9 @@ typesCombinable tys = not (anyPermanentType tys && anySpellType tys)
 ||| this cell, a per-row exception wanting an axis the table does not
 ||| have (`badStaticOnSorcery`).
 ||| The KEYWORD row is shut on spell cards on a measurement rather than
-||| a rule: the three keywords this file carries are [CR#702]'s
-||| flying, trample and haste, all of them abilities of a permanent in
-||| combat, and none is printed on an instant or sorcery
+||| a rule: no Instant or Sorcery card in the supported corpus prints any
+||| of the seven keywords this file carries as a bare keyword line, zero
+||| lines against the permanent cards that print them everywhere
 ||| (`badKeywordOnInstant`). It delegates to a per-keyword table rather
 ||| than answering with a wildcard, so a new keyword cannot inherit a
 ||| decision nothing measured for it (`keywordCardOk`).
@@ -10211,9 +10348,17 @@ keywordCardOk : CardClass -> Keyword -> Bool
 keywordCardOk PermanentCard Haste = True
 keywordCardOk PermanentCard Flying = True
 keywordCardOk PermanentCard Trample = True
+keywordCardOk PermanentCard Vigilance = True
+keywordCardOk PermanentCard Deathtouch = True
+keywordCardOk PermanentCard DoubleStrike = True
+keywordCardOk PermanentCard FirstStrike = True
 keywordCardOk SpellCard Haste = False
 keywordCardOk SpellCard Flying = False
 keywordCardOk SpellCard Trample = False
+keywordCardOk SpellCard Vigilance = False
+keywordCardOk SpellCard Deathtouch = False
+keywordCardOk SpellCard DoubleStrike = False
+keywordCardOk SpellCard FirstStrike = False
 
 public export
 cardAbilityOk : CardClass -> Ability -> Bool

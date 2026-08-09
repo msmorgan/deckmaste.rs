@@ -5034,6 +5034,124 @@ own kind of wrong):
    in finding 215 and whose universal row is what makes it more than a
    one-line refusal.
 
+## Chapter Thirty-Three — The Catalog Sweep
+
+Chapter thirty-three sweeps five vocabularies — the keyword rows and the
+possession predicate, the supertypes, the basic land types, the counter
+kinds, and the chosen-quality sorts — and then CORRECTS what the sweep
+first landed. Its witnesses are whole cards or first sentences of them:
+Aerial Volley, Yotian Soldier, Pym Particles, Bladebrand, Critical Hit,
+Lightning Blow, Avian Oddity, Song of Eärendil, Demonic Consultation, Void,
+the five basic lands, and Snow-Covered Forest.
+225. **A catalog row names English; it does not duplicate RON mechanics.**
+   The word is this file's and the body is core's, and the two answer
+   different questions. `Counter.confers`, the layer system and the
+   state-based actions stay RON-side, and so does what a keyword DOES; what
+   lands here is the atom, its spelling, and the tables that gate it.
+226. **The stat-counter family is a product, not a list.** `Counter.Delta`
+   is `Up Nat | Down Nat`, the binding-free twin of `LifeOp`'s amount
+   algebra, and `BoostCounter Delta Delta` is one constructor for
+   [CR#122.1a]'s "+X/+Y" and "-X/-Y". Twelve distinct pairs are printed and
+   +1/+1 and -1/-1 take all but forty-three of the mentions; +1/+0, +2/+2,
+   +0/+1, -0/-1 and the other six are representable now without a mint or a
+   refusal, where two rows had spelled two of them. `Down 0` is valid and
+   carries no proof — "-0/-1" is six lines. The third row the sweep minted,
+   `Set Nat`, is gone: [CR#122.1a] does not know the shape and no card sets
+   a stat counter to a value, so it was a phrase nothing prints.
+227. **A catalog WORD belongs in the macro layer once the vocabulary
+   beneath it is a product.** The sweep inlined
+   `BoostCounter (Up 1) (Up 1)` at thirty bench call sites,
+   which is a product spelled out where a word was wanted. `plusOnePlusOne`,
+   `minusOneMinusOne` and `flyingCounter` are macros in
+   `Experimental/Macros.idr` and the call sites read as they did before the
+   product existed. What a new kind word costs is now a line in the macro
+   layer rather than a decision in the grammar — which is the whole reason
+   to find the product.
+228. **A keyword counter is the keyword product, closed by rule.**
+   `KeywordCounter` takes a `Keyword` through `keywordCounterOk`, whose rows
+   all answer True because every keyword this file carries is on
+   [CR#122.1b]'s closed list of fifteen. The table is a FORCING function and
+   not a measurement: a row off that list (banding, phasing) has to answer
+   False before a counter of its name can be formed. Forty-five corpus lines
+   write one as a one-shot put — Avian Oddity's "put a flying counter on
+   target creature you control" is the bench witness — and it is the same
+   verb the stat product takes, which is why the two are one type.
+229. **A counter NAME sighted in a line is not a row.** The entry-family
+   query reports four hundred six supported lines and sixty-three distinct
+   kinds. The sweep minted fifty-four flat named rows off that census —
+   arrowhead, croak, polyp, reprieve and the rest — with no construction
+   transcribed for a single one of them, and all fifty-four are deleted. The
+   bar this file already carried is the right one and is restored: a flat
+   kind earns its row where a corpus line writes it as a one-shot put or
+   remove, which is why `Stun` ([CR#122.1d]; Kaito, Bane of Nightmares) and
+   `Time` (chapter thirty-one's exile tail) are rows and charge, oil, fade,
+   loyalty, shield and finality are not — their lines are costs, upkeep
+   triggers and enters-with riders, which are other axes. The catalog is
+   open in core (`CounterRef` into a plugin registry) and it stays open
+   here; a census is a ledger entry, not a mint.
+230. **Possession is not granting, and STANDING is core's call.**
+   `HasKeyword` is [CR#702.1d]'s "with [keyword]" / "that has [keyword]":
+   non-head, no type or zone projection, negatable — "each creature you
+   control without flying" (Song of Eärendil) — and contradiction-checked
+   against its own negation. Aerial Volley is the whole card. The vocabulary
+   it ranges over is SEVEN rows and not the fifteen the sweep minted, and
+   the deciding evidence is core's own setup rather than any list of words:
+   `Trample`, `Vigilance`, `Deathtouch`, `DoubleStrike` and `FirstStrike`
+   have NO macro under `plugins/builtin/macros/keyword/` because the engine
+   implements them itself, while hexproof, indestructible, lifelink, menace,
+   reach, shadow and exalted each have one, and decayed is composite by its
+   own rule ([CR#702.147a] — "a static ability and a triggered ability").
+   A composite is the queued composite carrier's to spell, never a row of
+   its own. Haste and Flying are the two composite rows here, carried in
+   from earlier chapters. Bladebrand, Critical Hit and Lightning Blow
+   witness the three new rows in the grant slot `gainsHaste` already had,
+   and Yotian Soldier prints vigilance as a bare line.
+231. **Selection and readback are separate catalog decisions.**
+   `QualitySort` gains `CardName` and `Number`: "Choose a card name." is
+   Demonic Consultation's first sentence, thirty lines writing it and
+   thirteen more with "nonland", and "Choose a number." is Void's, thirteen
+   lines. The READ is a different question and the measurement settles it —
+   "of the chosen color" is forty-four lines and "of the chosen type"
+   ninety-one, while "of the chosen name" and "of the chosen number" are
+   ZERO, those two sorts reading back instead as "with the chosen name"
+   (thirty-seven) and "equal to the chosen number" (eight). So
+   `chosenQualityReadOk` is a full-row table with two False rows that refuse
+   nothing anyone prints, `OfChosen` carries its witness, and [CR#607.2d] is
+   the linkage the later equality reads will answer to.
+232. **Basic is a supertype; Forest is a subtype.** [CR#205.4a] closes the
+   supertypes at five and [CR#205.3i,305.6] name the five basic land types,
+   and both are catalog words rather than rules-fixed structures. `Basic`
+   and `Snow` join `Supertype` on witnesses — the five basic land cards, and
+   Snow-Covered Forest, whose printed "Basic Snow Land — Forest" is also the
+   proof that one line carries two supertype words where it may not carry
+   one twice (`badDuplicateSnow`). World and Ongoing stay unminted. The five
+   land subtypes answer Land in `subtypeType`, which is what makes
+   `badForestNonland` refuse. No `HasSupertype`, no basic/nonbasic
+   predicate, and no chosen-land-type surface was added. Counts: "basic"
+   four hundred thirty-nine lines, "snow" a hundred twenty-one, "basic land"
+   four hundred thirty-seven, "nonbasic land" sixty-eight, "basic land type"
+   ninety-three.
+233. **What the correction removed, and the rule it was made under.** The
+   sweep read "thorough" as "enumerate the catalog", and the ruling (the
+   user, 2026-08-08) is that a round like this owes the basic structure and
+   the primitives, so that everything else can be authored as macros later;
+   deleting what was extra is part of the delivery, not a loss. Deleted on
+   that ruling: `Set` from `Counter.Delta`; fifty-four flat `CounterKind`
+   rows and the `counterCatalogWitnesses` atom list that was their only
+   bench presence — a term that transcribed no line and still counted as a
+   positive; eight composite `Keyword` rows with their `sameKeyword`,
+   `keywordCounterOk` and `keywordCardOk` cells (`keywordCardOk` had scaled
+   to thirty cells for words no card here writes, and is fourteen now); and
+   two pins that were clones of pins already standing, `badVigilanceInstant`
+   of `badKeywordOnInstant` and `badDuplicateBasic` of
+   `badDuplicateSupertype`. Restructured: the two stat words, out of the
+   grammar and into macros. Kept: the two products, the possession
+   predicate, the supertype and land-type rows, and the chosen-quality gate.
+   The bench is a hundred ninety-nine positives and three hundred forty-eight
+   pins; the six pins this round adds each fail for their own reason under a
+   single adversarial pass, six expected and six observed, and the build is
+   clean.
+
 ## Engine-Boundary Deferrals
 
 Engine-boundary deferrals (deliberate, and to stay so): the
@@ -5329,7 +5447,9 @@ finding 68); last-known VALUES (reads ignore zone — finding
 so the value story belongs to the ability layer); Token / Spell
 / stack-object / Amount carriers ("that much"; bare `This` stays
 untracked, and "this spell" / "this card" carriers with it); "the
-chosen [quality]" (quality-kind bindings); coordinated verb
+chosen [quality]" [PARTLY TAKEN, finding 231 — all four sorts bind and
+select; `OfChosen` remains Color/CreatureType only, while CardName and
+Number await equality-specific reads]; coordinated verb
 COMPLEMENTS ("deals 2 damage to any target and 1 damage to any
 other target", Arc Trail — one verb distributing over paired
 amount+recipient complements; the bench transcribes them as a
@@ -5397,8 +5517,12 @@ below have and wants a token whose defined abilities this
 vocabulary cannot spell; the SUBTYPE and COUNTER-KIND catalog PORTS
 themselves (core declares both as open plugin data —
 `Subtype { name, types, confers }`, `CounterRef` into a counter
-registry — where this file grows witnessed rows, and the two
-choices are the same choice made twice); token SUPERTYPES
+registry — where this file grows witnessed rows, and the two choices are
+the same choice made twice; PARTLY TAKEN in chapter thirty-three: the
+five basic land subtype rows landed, and the counter-kind port did NOT —
+what landed there is two PRODUCTS, finding 229, and the flat catalog is
+as open as core leaves it);
+token SUPERTYPES
 ("create Boo, a legendary 1/1 red Hamster creature token", forty-six
 lines), a third list on the type line neither of THIS record's readers
 witnesses — the CARD's own supertype list landed in chapter thirty at
@@ -5426,8 +5550,13 @@ recorded here was about the wrong container: an `Amount bs` could never
 have gone into `TokenRider`, that enum being shared with the unindexed
 `TokenChars`, so the line is a second `StaticEffect` row answering the
 same `staticKind` and needing no new vocabulary (Workhorse). What is
-left of the three hundred eighty-six lines is the two hundred eighteen
-whose counter kind is outside `CounterKind`'s three rows. The ONE-SHOT
+left is a kind count that is construction-relative, finding 229: the
+entry family is four hundred six supported lines over sixty-three kinds,
+and what `CounterKind` reaches is now every stat pair and every
+[CR#122.1b] keyword name, through two products rather than a row apiece.
+The flat named kinds past stun and time are NOT taken and stay here at
+the bar finding 229 restores — a one-shot put or remove writes the word,
+or the word waits. The ONE-SHOT
 twin is finding 191's, a closed rider BUNDLE on `Move` — "onto the
 battlefield tapped" three hundred fifteen lines, "tapped and attacking"
 nineteen (chapter nineteen's own `ridersOk` trio at a second site), and
@@ -5740,13 +5869,18 @@ shield, divinity and their neighbours at eight lines apiece and fewer,
 plus the twenty other kinds the exile rider writes (scream, hit, delay,
 study, memory, void, silver, brain, hatching, egg, ice, blood,
 collection, stash, croak, takeover, discovery, dream, kick), each one or
-two lines and none of them a second construction. The "unless" MARKING is TAKEN, finding 196, on the deed
+two lines and none of them a second construction. Chapter thirty-three
+measured that tail again and left it here, finding 229: the products
+reached the stat pairs and the keyword names, and a flat name still
+waits on a construction. The "unless" MARKING is TAKEN, finding
+196, on the deed
 restriction alone: the hundred eleven "can't … unless" lines are
-writable and the thirty-nine "enters tapped unless" ones each want a
-basic land TYPE ([CR#305.6]'s five, a subtype vocabulary this file has no
-rows for), the "legendary" supertype as a PREDICATE rather than a
-type-line field, a counted comparison over "other lands", or a
-game-state condition. And the END-OF-COMBAT header is TAKEN as a
+writable and the thirty-nine "enters tapped unless" ones remain
+unwritable. The five basic land subtype rows have landed; remaining
+blockers include the generic chosen/basic-land-type surface, the
+"legendary" supertype as a PREDICATE rather than a type-line field, a
+counted comparison over "other lands", and a game-state condition. And
+the END-OF-COMBAT header is TAKEN as a
 `TurnPart` row, finding 196, with the eleven headers themselves still
 unwritable — each wants a blocking-RELATION predicate or a combat
 lookback — so the delayed clause carries the witness. Still open: the
@@ -5785,10 +5919,9 @@ planeswalker subtypes are a set apart. The card's remaining PARTS: the
 colour indicator ([CR#204.1] — a printed dot and not language), the
 defense number, and [CR#208.2]'s star power and toughness, which is a
 characteristic-defining ability ([CR#604.3]) this container has no
-ability row for. The four unwitnessed SUPERTYPE rows of [CR#205.4a]'s
-five — `Basic` wanting a land-type subtype vocabulary, `Snow` a
-supertype nothing here writes, `World` and `Ongoing` legacy and
-Archenemy — and the "legendary" supertype as a PREDICATE rather than a
+ability row for. Of [CR#205.4a]'s five SUPERTYPE rows, `Basic` and
+`Snow` are TAKEN in chapter thirty-three; only `World` and `Ongoing`
+remain. The "legendary" supertype as a PREDICATE rather than a
 type-line field, which is what the "enters tapped unless you control a
 legendary creature" lines want. Two-FACED cards ([CR#712.8] gives each
 face its own characteristics; core wraps a face in a layout enum where
@@ -5866,9 +5999,10 @@ provides); aggregation and extremal selection (Crackling Doom's
 Hailfire's "repeat this process X times"); turn-schedule
 insertion (Relentless Assault, [CR#500.8]); standing triggered
 abilities ([CR#603.1] — the ability SHAPE beyond delayed
-queries); counters as per-HOLDER state [LANDED in part, chapter
-nineteen — the object-borne put and remove verbs over a witnessed
-`CounterKind` — and their ZONE landed in chapter thirty-one, findings
+queries); counters as per-HOLDER state [LANDED in part, chapters nineteen
+and thirty-three — the object-borne put and remove verbs over a witnessed
+`CounterKind`, whose stat and keyword halves became PRODUCTS in finding
+226 and 228 — and their ZONE landed in chapter thirty-one, findings
 198-199: the gate is `CounterHolder`'s closed full-row table over the
 seven zones, open on the battlefield and on EXILE ([CR#122.1a,122.1b]
 name counters outside the battlefield and oracle writes them there,
@@ -5937,10 +6071,14 @@ filed beside the engine-boundary deferrals) sorts the same ground four
 ways, and the SHAPE of that sort is the part worth keeping here.
 VOCABULARY ROWS, each an enum row or a table cell and nothing more: the
 object-class nouns — permanent, spell, card, source — which is the
-biggest single catalog win at forty-three cards; the counter-kind tail;
-the turn-part catalog, which is what the activation WINDOW above waits
-on; the participle verb tags beyond the four; supertypes; land types;
-and the characteristic predicates. NEW AXES, by demand: object STATUS
+biggest single catalog win at forty-three cards; the entry and exile
+counter NAME tails [NOT taken, finding 229 — measured, and the flat
+names left to the bar that governs them]; the turn-part catalog, which
+is what the activation WINDOW above waits on; the participle verb tags
+beyond the four; Basic/Snow and the five basic land types [LANDED,
+finding 232]; keyword possession [LANDED, finding 230]; and the
+characteristic predicates.
+NEW AXES, by demand: object STATUS
 (tapped, flipped, face-down, phased — forty-four cards, the largest
 single axis), ability-as-a-value (thirty-three, and its one blocker is
 `grantableAb`'s four False rows), the fronted for-each binder
@@ -5962,7 +6100,10 @@ the half-dozen truly intrinsic keywords whose effects are non-composite,
 and a composite carrier for all the rest — which is the
 ability-as-a-value axis under another name — while per-keyword authoring
 stays out of scope, and the intrinsic set is read off core's own setup
-rather than off any paraphrase. The GAME RESTART is MINT QUEUED:
+rather than off any paraphrase. [LANDED in vocabulary, findings 230/228:
+the rows, `HasKeyword`, and the `KeywordCounter` carrier, with the seven
+rows set by which keywords core implements itself. The composite carrier
+is what remains, and it is still the ability-as-a-value axis.] The GAME RESTART is MINT QUEUED:
 chapter thirty-one measured it and declined on the honest count
 ([CR#727.1]'s one corpus line, and a family of one is not a family), and
 that decline is overridden — it is a small late round, and finding 208's
@@ -6041,8 +6182,9 @@ library's as much as this primitive's; set-exception
 noun phrases
 ("choose a card type other than creature", Arachne, Psionic
 Weaver) — a complement
-over a QUALITY domain, which `Other`'s object distinctness is not,
-waiting with the chosen-quality bindings; arithmetic and rounding
+over a QUALITY domain, which `Other`'s object distinctness is not;
+the binding mechanism now covers four selected sorts, but the CardType
+domain and the complement remain; arithmetic and rounding
 ("Target opponent loses half their life, rounded up") — `Plus` is
 the only composition, and subtraction, halving, and a rounding
 mode have no constructor; quoted abilities (Master of the Hunt's
@@ -6139,9 +6281,11 @@ untargeted group already ledgered.
 "The" itself is what the sweep was for, and it is not a free
 anaphoric determiner. The guide gives the antecedent job to
 "that"/"those" and licenses "the" for the chosen quality, the
-participle read, and "the rest" — the first two typed here
-already as `OfChosen` and `TheVerbed` (uniqueness-gated exactly
-as the guide states it), the third the group complement above,
+participle read, and "the rest" — selection now covers four quality
+sorts, but `OfChosen` remains Color/CreatureType only and CardName/Number
+reads are equality-specific and still open; `TheVerbed` is typed here
+(uniqueness-gated exactly as the guide states it), and the third is the
+group complement above,
 which is why `TheD` is already a `Determiner` row. Across the
 eleven thousand corpus lines carrying "the", the mass is zone
 words ("the battlefield", a bare-scoped `ZoneAt`), the trigger

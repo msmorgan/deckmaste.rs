@@ -643,8 +643,8 @@ darettisMinusOne =
 crovaxTheCursed : Effect []
 crovaxTheCursed =
   mayThenElse You (sacrifice You (a creature))
-                  (PutCounters (Lit 1) PlusOnePlusOne thisCreature)
-                  (RemoveCounters (Lit 1) PlusOnePlusOne thisCreature)
+                  (PutCounters (Lit 1) plusOnePlusOne thisCreature)
+                  (RemoveCounters (Lit 1) plusOnePlusOne thisCreature)
 
 yawgmothDemon : Effect []
 yawgmothDemon =
@@ -674,7 +674,7 @@ raiseTheAlarm = create (Lit 2) (creatureTok 1 1 [White] [Soldier])
 -- clause exists to fix.
 additiveEvolution : Effect []
 additiveEvolution = Sequentially [create (Lit 1) (creatureTok 0 0 [Green, Blue] [Fractal]),
-                                  PutCounters (Lit 3) PlusOnePlusOne It]
+                                  PutCounters (Lit 3) plusOnePlusOne It]
 
 -- "When this creature enters, create a 1/1 colorless Thopter artifact
 -- creature token with flying." (Aviation Pioneer; the trigger header
@@ -730,7 +730,7 @@ amassZombiesTwo =
                    (notSo (Exists (And [HasSubtype Army, creature, ControlledBy You])))
                    Nothing,
                 Choose (a (And [HasSubtype Army, creature, ControlledBy You])),
-                PutCounters (Lit 2) PlusOnePlusOne (That (TypeW Creature)),
+                PutCounters (Lit 2) plusOnePlusOne (That (TypeW Creature)),
                 If (becomes It (subtypesOnly [Zombie]) Nothing)
                    (itIsntA (HasSubtype Zombie))
                    Nothing]
@@ -740,7 +740,7 @@ amassZombiesTwo =
 -- `PutCounters` carries no actor slot either) and battlefield-bound like
 -- every other verb that touches a permanent.
 battlegrowth : Effect []
-battlegrowth = PutCounters (Lit 1) PlusOnePlusOne (target creature)
+battlegrowth = PutCounters (Lit 1) plusOnePlusOne (target creature)
 
 -- "{3}, {T}: Remove a -1/-1 counter from target creature."
 -- (Chainbreaker; its mana and {T} cost elided as Icy Manipulator's are,
@@ -748,7 +748,7 @@ battlegrowth = PutCounters (Lit 1) PlusOnePlusOne (target creature)
 -- twin, and the other stat counter, so the two first-class kinds are
 -- spelled end to end by real cards.
 chainbreaker : Effect []
-chainbreaker = RemoveCounters (Lit 1) MinusOneMinusOne (target creature)
+chainbreaker = RemoveCounters (Lit 1) minusOneMinusOne (target creature)
 
 -- "[−2]: Tap target creature. Put two stun counters on it." (Kaito, Bane
 -- of Nightmares; the loyalty cost is the ability layer's, as Daretti's
@@ -805,7 +805,7 @@ daydream =
        [Spell (Sequentially [exile (target creatureYouControl),
                              returnToBattlefieldWithCounters
                                (That CardW) (OwnerOf (That CardW))
-                               (Lit 1) PlusOnePlusOne])]
+                               (Lit 1) plusOnePlusOne])]
        Nothing
 
 -- "{T}, Sacrifice this artifact: Put a +1/+1 counter on target
@@ -820,7 +820,7 @@ daydream =
 ashnodsTransmogrant : Ability
 ashnodsTransmogrant =
   Activated (Compound [TapSymbol, Do (sacrifice You thisArtifact)])
-            (Sequentially [PutCounters (Lit 1) PlusOnePlusOne
+            (Sequentially [PutCounters (Lit 1) plusOnePlusOne
                                          (target (And [creature, Not artifact])),
                              becomes (That (TypeW Creature)) (typesOnly [Artifact]) Nothing])
 
@@ -961,7 +961,7 @@ austereCommand =
 azulaAlwaysLies : Effect []
 azulaAlwaysLies =
   chooseOneOrBoth [gets (target creature) (-1) (-1) (Just untilEndOfTurn),
-                   PutCounters (Lit 1) PlusOnePlusOne (target creature)]
+                   PutCounters (Lit 1) plusOnePlusOne (target creature)]
 
 -- "Choose one or more — • Destroy target artifact. • Destroy target
 -- enchantment. • Destroy target land." (Rain of Thorns; the whole card) —
@@ -1026,7 +1026,7 @@ warScreecher =
 -- complement, source-anchored.
 bellowingAegisaur : Effect []
 bellowingAegisaur =
-  PutCounters (Lit 1) PlusOnePlusOne (Each (otherCreatureYouControl thisCreature))
+  PutCounters (Lit 1) plusOnePlusOne (Each (otherCreatureYouControl thisCreature))
 
 -- "{B}, Remove a -1/-1 counter from this creature: Put a -1/-1 counter
 -- on each other creature." (Carnifex Demon; the cost line elided) — the
@@ -1034,7 +1034,7 @@ bellowingAegisaur =
 -- without it.
 carnifexDemon : Effect []
 carnifexDemon =
-  PutCounters (Lit 1) MinusOneMinusOne (Each (otherCreature thisCreature))
+  PutCounters (Lit 1) minusOneMinusOne (Each (otherCreature thisCreature))
 
 -- "Each other player discards a card." (Syphon Mind's first sentence;
 -- the second, "You draw a card for each card discarded this way", waits
@@ -1130,7 +1130,7 @@ sparkmagesGambit =
 -- Twenty-nine corpus lines write "each of up to two target creatures".
 ajaniAdversaryOfTyrants : Effect []
 ajaniAdversaryOfTyrants =
-  PutCounters (Lit 1) PlusOnePlusOne (EachOf (TargetGroup (upTo 2) creature))
+  PutCounters (Lit 1) plusOnePlusOne (EachOf (TargetGroup (upTo 2) creature))
 
 -- "Fall of the Titans deals X damage to each of up to two targets."
 -- (Fall of the Titans; its surge cost line elided) — the each-of
@@ -1148,7 +1148,7 @@ fallOfTheTitans = DealDamage This XVal (EachOf (TargetGroup (upTo 2) AnyTarget))
 naturesPanoply : Effect []
 naturesPanoply =
   Sequentially [Choose (TargetGroup anyNumber creature),
-                PutCounters (Lit 1) PlusOnePlusOne (EachOf Them)]
+                PutCounters (Lit 1) plusOnePlusOne (EachOf Them)]
 
 -- "Arc Lightning deals 3 damage divided as you choose among one, two, or
 -- three targets." (Arc Lightning, whole) — the DIVISION: one written
@@ -1181,7 +1181,7 @@ boulderfall = dealsDivided This (Lit 5) (TargetGroup anyNumber AnyTarget)
 -- structure, a different word, forty-six corpus lines.
 armamentCorps : Effect []
 armamentCorps =
-  distributeCounters (Lit 2) PlusOnePlusOne
+  distributeCounters (Lit 2) plusOnePlusOne
                      (TargetGroup (oneThrough 2) creatureYouControl)
 
 
@@ -1441,7 +1441,7 @@ erebos = Activated (Compound [Mana [generic 1, pip Black], payLife You 2]) drawA
 savagebornHydra : Ability
 savagebornHydra =
   Activated (Mana [generic 1, hybridPip Red Green])
-            (PutCounters (Lit 1) PlusOnePlusOne thisCreature)
+            (PutCounters (Lit 1) plusOnePlusOne thisCreature)
             {window = Just AsSorcery}
 
 -- "{1}{G}: This creature gets +2/+2 until end of turn. Activate only
@@ -1472,7 +1472,7 @@ bondersEnclave =
 woeleecher : Ability
 woeleecher =
   Activated (Compound [Mana [pip White], TapSymbol])
-            (doThen (RemoveCounters (Lit 1) MinusOneMinusOne (target creature))
+            (doThen (RemoveCounters (Lit 1) minusOneMinusOne (target creature))
                     (gainsLife You (Lit 2)))
 
 -- "Sacrifice this creature unless you pay {2}." (Molting Harpy; its
@@ -1713,7 +1713,7 @@ anointerOfValor : Ability
 anointerOfValor =
   Triggered Whenever (Attacks (a creature))
     (mayWhen You (Pay You (Mana [generic 3]))
-                 (PutCounters (Lit 1) PlusOnePlusOne (That (TypeW Creature))))
+                 (PutCounters (Lit 1) plusOnePlusOne (That (TypeW Creature))))
 
 -- ===== The card container round: arrival riders =====
 
@@ -1791,7 +1791,7 @@ silentAssassin =
 -- Put in its own row instead, the line needs no new vocabulary at all,
 -- the count being `WrittenCount`'s and the kind `CounterKind`'s.
 workhorse : Ability
-workhorse = Static (entersWithCounters thisCreature 4 PlusOnePlusOne)
+workhorse = Static (entersWithCounters thisCreature 4 plusOnePlusOne)
 
 -- ===== The card container round: the spell carrier =====
 
@@ -2012,7 +2012,126 @@ museVesselPlay =
             (Sequentially [Choose (a exiledWithThisArtifact),
                            Continuously (MayPlay You (That CardW)) (Just thisTurn)])
 
+-- Aerial Volley {G}, Instant — "Aerial Volley deals 3 damage divided as you
+-- choose among one, two, or three target creatures with flying."
+aerialVolley : Card
+aerialVolley =
+  card "Aerial Volley" (Just [pip Green]) [] (MkTypeLine [] [Instant])
+       [Spell (dealsDivided This (Lit 3)
+                            (TargetGroup (oneThrough 3)
+                              (And [creature, HasKeyword Flying])))] Nothing
+
+-- Yotian Soldier {3}, Artifact Creature — Soldier, vigilance, 1/4.
+yotianSoldier : Card
+yotianSoldier =
+  card "Yotian Soldier" (Just [generic 3]) []
+       (MkTypeLine [Soldier] [Artifact, Creature])
+       [KeywordAbility Vigilance] (Just (1, 4))
+
+-- Pym Particles' first coordinated sentence is "Target creature gains
+-- vigilance until end of turn and can't be blocked this turn." This term
+-- transcribes only its first conjunct; "Draw a card" remains elided.
+pymParticlesVigilanceGrant : Effect []
+pymParticlesVigilanceGrant =
+  gains (target creature) (KeywordAbility Vigilance) (Just untilEndOfTurn)
+
+-- Demonic Consultation and Void's exact first sentences. Their later
+-- sentences are outside this catalog witness.
+demonicConsultationChoice : Effect []
+demonicConsultationChoice = Choose (a (QualityNoun CardName))
+
+voidChoice : Effect []
+voidChoice = Choose (a (QualityNoun Number))
+
+-- The five basic land cards, and Snow-Covered Forest: no mana cost, no P/T,
+-- and no ability line — [CR#305.6] gives a land with a basic land type its
+-- "{T}: Add [mana symbol]" intrinsically, so what the box prints is a symbol
+-- (Snow-Covered Forest's reminder text) and not a sentence. Snow-Covered
+-- Forest is the proof that one printed line carries Basic and Snow together.
+basicLandCards : List Card
+basicLandCards =
+  [ card "Plains" Nothing [Basic] (MkTypeLine [Plains] [Land]) [] Nothing
+  , card "Island" Nothing [Basic] (MkTypeLine [Island] [Land]) [] Nothing
+  , card "Swamp" Nothing [Basic] (MkTypeLine [Swamp] [Land]) [] Nothing
+  , card "Mountain" Nothing [Basic] (MkTypeLine [Mountain] [Land]) [] Nothing
+  , card "Forest" Nothing [Basic] (MkTypeLine [Forest] [Land]) [] Nothing
+  ]
+
+snowCoveredForest : Card
+snowCoveredForest =
+  card "Snow-Covered Forest" Nothing [Basic, Snow]
+       (MkTypeLine [Forest] [Land]) [] Nothing
+
+-- "Target creature gains deathtouch until end of turn." (Bladebrand's first
+-- line, "Draw a card." elided), and the double-strike and first-strike twins
+-- (Critical Hit, Lightning Blow, each eliding its own second line) — the
+-- grant slot `gainsHaste` already had, now over the keywords core keeps for
+-- itself.
+bladebrand : Effect []
+bladebrand =
+  gains (target creature) (KeywordAbility Deathtouch) (Just untilEndOfTurn)
+
+criticalHit : Effect []
+criticalHit =
+  gains (target creature) (KeywordAbility DoubleStrike) (Just untilEndOfTurn)
+
+lightningBlow : Effect []
+lightningBlow =
+  gains (target creature) (KeywordAbility FirstStrike) (Just untilEndOfTurn)
+
+-- "When you cycle this card, put a flying counter on target creature you
+-- control." (Avian Oddity; the cycling trigger header elided as other
+-- headers are) — the keyword product under the same one-shot put verb the
+-- stat product takes, and the only witness `flyingCounter` needs.
+avianOddity : Effect []
+avianOddity = PutCounters (Lit 1) flyingCounter (target creatureYouControl)
+
+-- "Put a flying counter on each creature you control without flying." (Song
+-- of Eärendil's third chapter, its saga header elided) — the possession
+-- predicate NEGATED, which is the surface `negatable` licenses and the
+-- reason the keyword row and the keyword counter meet on one line.
+songOfEarendil : Effect []
+songOfEarendil =
+  PutCounters (Lit 1) flyingCounter
+              (Each (And [creature, ControlledBy You, Not (HasKeyword Flying)]))
+
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
+
+-- A keyword is a modifier, never a noun head.
+failing "Headed"
+  badKeywordHead : Effect []
+  badKeywordHead = Choose (a (HasKeyword Flying))
+
+-- The full predicate equality table catches a keyword and its negation.
+failing "ContradictionFree"
+  badKeywordContradiction : Effect []
+  badKeywordContradiction = Tap (target (And [creature, HasKeyword Flying,
+                                               Not (HasKeyword Flying)]))
+
+-- These choices bind their qualities, but their later readback surfaces are
+-- name equality and numeric equality, not `OfChosen`.
+failing "ChosenQualityRead"
+  badChosenCardNameRead :
+    Predicate [MkBinding AD (Quality CardName) OneOf QualityP] Object
+  badChosenCardNameRead = OfChosen CardName
+
+failing "ChosenQualityRead"
+  badChosenNumberRead :
+    Predicate [MkBinding AD (Quality Number) OneOf QualityP] Object
+  badChosenNumberRead = OfChosen Number
+
+-- Forest presupposes land, so this conjunction contradicts itself.
+failing "ContradictionFree"
+  badForestNonland : Effect []
+  badForestNonland = Tap (target (And [HasSubtype Forest, Not land]))
+
+-- One printed line carries Basic and Snow, so the distinctness the type
+-- line asks for is per WORD and not per line — `badDuplicateSupertype`
+-- pins the same table on the row that came before these.
+failing "CardSupers"
+  badDuplicateSnow : Card
+  badDuplicateSnow =
+    card "" Nothing [Snow, Snow] (MkTypeLine [Forest] [Land]) [] Nothing
 
 -- "other" with no target before it: the presupposition has no witness.
 -- Forward and self references are unspellable the same way — there is
@@ -3268,7 +3387,7 @@ failing "RidersOk"
 failing "CounterHolder"
   badPutCountersGraveyard : Effect []
   badPutCountersGraveyard =
-    PutCounters (Lit 1) PlusOnePlusOne (target (And [creature, InZone (graveyardOf You)]))
+    PutCounters (Lit 1) plusOnePlusOne (target (And [creature, InZone (graveyardOf You)]))
 
 -- …and the removal twin reads the same fold-state: a destroyed referent
 -- has no counters to take off. The destination is what decides — the
@@ -3276,7 +3395,7 @@ failing "CounterHolder"
 failing "CounterHolder"
   badRemoveCountersDead : Effect []
   badRemoveCountersDead = Sequentially [destroy (target creature),
-                                        RemoveCounters (Lit 1) PlusOnePlusOne It]
+                                        RemoveCounters (Lit 1) plusOnePlusOne It]
 
 -- A token's stated characteristics ARE its text ([CR#111.3]), so the
 -- bundle is a surface phrase and not a set of facts about an object: a
@@ -3317,7 +3436,7 @@ failing "WrittenCount"
 
 failing "WrittenCount"
   badPutZeroCounters : Effect []
-  badPutZeroCounters = PutCounters (Lit 0) PlusOnePlusOne (target creature)
+  badPutZeroCounters = PutCounters (Lit 0) plusOnePlusOne (target creature)
 
 -- ===== What a type addition may add, and for how long =====
 
@@ -3560,7 +3679,7 @@ failing "countOnes"
     Sequentially [If (create (Lit 1) (creatureTok 1 1 [White] [Soldier]))
                      (Exists creatureYouControl)
                      Nothing,
-                  PutCounters (Lit 1) PlusOnePlusOne It]
+                  PutCounters (Lit 1) plusOnePlusOne It]
 
 -- With BOTH arms written, the may exports its BODY and neither arm.
 -- [CR#118.12] says why: the branch checks "whether the player chose to
@@ -3575,7 +3694,7 @@ failing "countOnes"
     Sequentially [May (Just You) (gainsLife You (Lit 1))
                        (Just (create (Lit 1) (creatureTok 1 1 [White] [Soldier])))
                        (Just (create (Lit 2) (creatureTok 1 1 [White] [Soldier]))),
-                  PutCounters (Lit 1) PlusOnePlusOne It]
+                  PutCounters (Lit 1) plusOnePlusOne It]
 
 
 
@@ -3725,7 +3844,7 @@ failing "countOnes Object"
   badSimultaneousReadsMayDeed : Effect []
   badSimultaneousReadsMayDeed =
     Simultaneously [may You (create (Lit 1) (creatureTok 1 1 [Green] [Plant])),
-                    PutCounters (Lit 1) PlusOnePlusOne It]
+                    PutCounters (Lit 1) plusOnePlusOne It]
 
 -- …and the magnitude twin, which is `badSimultaneousReadsOutcome`
 -- reached through the same wrapper.
@@ -3746,7 +3865,7 @@ failing "countOnes Object"
   badBatchTwoCreatesThenIt =
     Sequentially [Simultaneously [create (Lit 1) (creatureTok 1 1 [Green] [Plant]),
                                  create (Lit 1) (creatureTok 1 1 [White] [Soldier])],
-                  PutCounters (Lit 1) PlusOnePlusOne It]
+                  PutCounters (Lit 1) plusOnePlusOne It]
 
 -- The magnitude twin outward: two outcomes in one batch, and "that
 -- much" does not say which.
@@ -3803,7 +3922,7 @@ failing "countOnes"
   badDistributedCreationIt : Effect []
   badDistributedCreationIt =
     Sequentially [Create (Each AnyPlayer) (Lit 1) (creatureTok 1 1 [Green] [Plant]) [],
-                  PutCounters (Lit 1) PlusOnePlusOne It]
+                  PutCounters (Lit 1) plusOnePlusOne It]
 
 -- "Each of" distributes over MEMBERS, so its complement is plural:
 -- "each of target creature" names one thing and has nothing to reach
@@ -3839,7 +3958,7 @@ failing "GroupMention"
 failing "PerMember"
   badBarePluralCounterRecipient : Effect []
   badBarePluralCounterRecipient =
-    PutCounters (Lit 1) PlusOnePlusOne (TargetGroup (upTo 2) creature)
+    PutCounters (Lit 1) plusOnePlusOne (TargetGroup (upTo 2) creature)
 
 -- …and the damage verb reads the same way: "deals 1 damage to up to two
 -- target creatures" is unwritten, while "to up to ONE target creature"
@@ -3856,7 +3975,7 @@ failing "PerMember"
   badThemCounterRecipient : Effect []
   badThemCounterRecipient =
     Sequentially [Choose (TargetGroup anyNumber creature),
-                  PutCounters (Lit 1) PlusOnePlusOne Them]
+                  PutCounters (Lit 1) plusOnePlusOne Them]
 
 -- …and the universal determiner with them: "deals 2 damage to all
 -- creatures" is zero lines, the sweep being written distributively
@@ -3892,7 +4011,7 @@ failing "WrittenCount"
 failing "OnBattlefield"
   badDistributeCountersGraveyard : Effect []
   badDistributeCountersGraveyard =
-    distributeCounters (Lit 2) PlusOnePlusOne
+    distributeCounters (Lit 2) plusOnePlusOne
                        (TargetGroup (oneThrough 2) (And [creature, InZone (graveyardOf You)]))
 
 -- "[-10]: Target player's life total becomes 1." — the set-to, chapter
@@ -4938,7 +5057,7 @@ failing "RidersFit"
   badMoveCountersToGraveyard =
     Move (target creature) graveyardZ
          {riders = MkMoveRiders [] Nothing
-                                {counters = Just (MkCounterRider (Lit 1) PlusOnePlusOne)}}
+                                {counters = Just (MkCounterRider (Lit 1) plusOnePlusOne)}}
 
 -- …and the leak the other way is refused by the same table's other half:
 -- an exile writes the counter rider and nothing else, "exile it tapped"
@@ -5036,9 +5155,9 @@ failing "CardText"
          [Static (Gets (AllOf creatureYouControl) 1 1)] Nothing
 
 -- The keyword row is shut on a spell card by MEASUREMENT rather than by
--- rule: the three keywords this file carries are [CR#702]'s flying,
--- trample and haste, all of them abilities of a permanent in combat, and
--- no instant or sorcery is printed with one.
+-- rule: the seven keywords this file carries are all [CR#702] abilities of
+-- a permanent in combat, and no instant or sorcery in the supported corpus
+-- is printed with one as a bare line — zero, for all seven.
 failing "CardText"
   badKeywordOnInstant : Card
   badKeywordOnInstant =

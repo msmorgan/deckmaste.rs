@@ -755,6 +755,29 @@ gainsHaste : (n : Noun bs Object) -> (d : Maybe (Duration (nomIntro n))) ->
              {auto 0 sp : SpanOk KeywordGrant d} -> Effect bs
 gainsHaste n d = gains n (KeywordAbility Haste) d
 
+-- The counter-kind WORDS, one macro per kind English writes, over the two
+-- products `CounterKind` is: the stat pair and the keyword name. These are
+-- the layer a catalog belongs in once the vocabulary beneath it is a
+-- product — a new kind word is a line here, not a decision in the grammar.
+-- The RON side owns what each kind DOES; a macro here neither models that
+-- nor fabricates a card line for it.
+-- spelling: ["+1/+1"] (the construction-owned kind word before
+-- "counter(s)"; `BoostCounter (Up 1) (Up 1)` -- see CounterKind)
+public export
+plusOnePlusOne : CounterKind
+plusOnePlusOne = BoostCounter (Up 1) (Up 1)
+
+-- spelling: ["-1/-1"] (as plusOnePlusOne, the stat pair written down)
+public export
+minusOneMinusOne : CounterKind
+minusOneMinusOne = BoostCounter (Down 1) (Down 1)
+
+-- spelling: ["flying"] (the construction-owned kind word before
+-- "counter(s)"; `KeywordCounter Flying` -- see CounterKind)
+public export
+flyingCounter : CounterKind
+flyingCounter = KeywordCounter Flying
+
 -- The one-shot restrictions, one macro per verb phrase English
 -- writes: the deed word inflected by the voice its subject's part
 -- calls for. Core marks the same distinction by which slot carries the
