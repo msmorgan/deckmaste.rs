@@ -905,6 +905,12 @@ fn make_frequency_phrase_adverb(
             "the frequency limiter is `only`",
         ));
     }
+    if frequency.bound != FrequencyBound::MoreThan {
+        return Err(violation(
+            "frequency_phrase_adverb",
+            "the child frequency has the `more than` bound",
+        ));
+    }
     Ok(FrequencyPhrase {
         bound: FrequencyBound::NoMoreThan,
         count: frequency.count,
@@ -1189,6 +1195,7 @@ deckmaste_constructions_macro::constructions! {
         derive object_gap: Features = reduce_object_gap_auxiliary(auxiliary, predicate);
         form only @ 0 inverse check(is_verb_phrase_auxiliary) = identity(auxiliary) predicate;
         dominates verb_phrase_adjective;
+        dominates verb_phrase_adverb;
         selection unique;
     }
 
@@ -1841,6 +1848,36 @@ mod tests {
         assert_eq!(
             build_frequency_phrase_adverb(recovered_limiter, recovered_frequency).unwrap(),
             limited_frequency
+        );
+    }
+
+    #[test]
+    fn frequency_limiter_rejects_already_bounded_child_and_rebuilds_from_parts() {
+        let already_bounded = FrequencyPhrase {
+            bound: FrequencyBound::NoMoreThan,
+            count: crate::syntax::FrequencyCount::Once,
+        };
+        assert_eq!(
+            build_frequency_phrase_adverb(Vocab::Only, already_bounded),
+            Err(DeclarationViolation {
+                construction: "frequency_phrase_adverb",
+                requirement: "the child frequency has the `more than` bound",
+            }),
+            "Only + NoMoreThan must not collapse onto the same semantic value as Only + MoreThan"
+        );
+
+        let child = FrequencyPhrase {
+            bound: FrequencyBound::MoreThan,
+            count: crate::syntax::FrequencyCount::Twice,
+        };
+        let built = build_frequency_phrase_adverb(Vocab::Only, child)
+            .expect("Only + MoreThan is the admitted composition");
+        let (limiter, recovered_child) = parts_frequency_phrase_adverb(&built);
+        assert_eq!(recovered_child, child);
+        assert_eq!(
+            build_frequency_phrase_adverb(limiter, recovered_child).unwrap(),
+            built,
+            "an admitted build must survive parts and rebuild exactly"
         );
     }
 

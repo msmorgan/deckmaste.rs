@@ -1732,6 +1732,19 @@ mod tests {
     }
 
     #[test]
+    fn predicate_auxiliary_declares_dominance_over_postverbal_adverb() {
+        let auxiliary = crate::constructions::predicate::PREDICATE_DECLARATION
+            .constructions
+            .iter()
+            .find(|construction| construction.id == "verb_phrase_auxiliary")
+            .expect("the predicate declaration contains the auxiliary construction");
+        assert!(
+            auxiliary.dominates.contains(&"verb_phrase_adverb"),
+            "the generated declaration itself must encode auxiliary > postverbal adverb"
+        );
+    }
+
+    #[test]
     fn predicate_temporal_attachment_cost_is_a_typed_conditional_output() {
         // Mutation caught: omit the handwritten +1 precedence cost when the
         // direct-object surface slot is actually an active temporal adjunct.
