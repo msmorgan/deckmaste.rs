@@ -1743,7 +1743,7 @@ fn check_lens_edit_contract(
             LensFieldKind::Vector { .. },
         )
     );
-    if !valid_shape || actual.as_deref() != Some(expected) {
+    if !valid_shape || (edit.adapter.is_none() && actual.as_deref() != Some(expected)) {
         let operation = match edit.kind {
             LensEditKind::Focus => "focus",
             LensEditKind::Prepend => "prepend",
@@ -1764,6 +1764,16 @@ fn check_lens_edit_contract(
                     actual.as_deref().unwrap_or("<unknown>"),
                     target.name.value,
                 ),
+            )
+            .with_span(edit.value.span),
+        );
+    }
+    if edit.adapter.is_some() && context.application.source.is_none() {
+        diags.push(
+            Diagnostic::new(
+                DiagCode::LensCannotRebuild,
+                context.id(),
+                "an adapted lens edit requires a source owner for owner-relative conversion",
             )
             .with_span(edit.value.span),
         );

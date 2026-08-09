@@ -777,6 +777,19 @@ pub(crate) fn extend_predicate_features(
     else {
         return None;
     };
+    // The feature transition is also called by generated checked builders,
+    // which do not pass through the chart's dot-1 prediction gate. Keep the
+    // terminal and one-shot tail boundaries intrinsic to the transition so
+    // direct construction cannot manufacture a value the parser would never
+    // admit.
+    if *phase == PredicateAttachmentPhase::ExceptionTail
+        || (matches!(
+            attachment,
+            PredicateAttachment::Particle(_) | PredicateAttachment::CoinResult(_)
+        ) && *phase != PredicateAttachmentPhase::Object)
+    {
+        return None;
+    }
     let prepositional_role = match attachment {
         PredicateAttachment::Prepositional(preposition) => {
             Some(frame.prepositional_role(preposition)?)

@@ -402,6 +402,51 @@ deckmaste_constructions_macro::constructions! {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct LensSurface;
+
+fn encode_lens_surface(
+    owner: &FlattenedLensRecord,
+    _surface: LensSurface,
+) -> Result<LensToken, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+    if owner.head != LensToken::Head {
+        return Err(
+            deckmaste_construction_compiler::runtime::DeclarationViolation {
+                construction: "adapted_lens_append",
+                requirement: "the source owner licenses the adapted member",
+            },
+        );
+    }
+    Ok(LensToken::Inserted)
+}
+
+fn decode_lens_surface(owner: &FlattenedLensRecord, member: LensToken) -> Option<LensSurface> {
+    (owner.head == LensToken::Head && member == LensToken::Inserted).then_some(LensSurface)
+}
+
+deckmaste_constructions_macro::constructions! {
+    group adapted_ordered_lens;
+
+    lens adapted_record bind FlattenedLensRecord {
+        determiner: opt LensToken,
+        prefix: vec LensToken,
+        head: value LensToken,
+        suffix: vec LensToken,
+    }
+
+    construction adapted_lens_append: FlattenedLensRecord {
+        bind FlattenedLensRecord {
+            owner: hole FlattenedLensRecord,
+            member: hole LensSurface,
+        }
+        lens adapted_record from owner {
+            append suffix with member via encode_lens_surface, decode_lens_surface;
+        }
+        form only @ 0 = owner member;
+        selection unique;
+    }
+}
+
 #[allow(
     clippy::unnecessary_wraps,
     reason = "the fixture adapter must implement the same Result-returning contract as generated bind adapters"
@@ -655,6 +700,38 @@ fn lens_prepend_and_append_preserve_residual_slices_and_declared_order() {
             LensToken::Inserted,
         ]
     );
+}
+
+#[test]
+fn adapted_ordered_lens_preserves_multiple_prior_members_owner_relatively() {
+    // Mutations guarded: require the surface field to have the owner's vector
+    // element type, omit the source owner from adapted conversion, overwrite
+    // a prior adapted member, or pop from the wrong end during inverse replay.
+    let first = build_adapted_lens_append(flattened_owner(), LensSurface)
+        .expect("the source owner licenses the adapted member");
+    let second = build_adapted_lens_append(first.clone(), LensSurface)
+        .expect("an ordered lens retains an already occupied adapted slice");
+    assert_eq!(
+        second.suffix,
+        [LensToken::Suffix, LensToken::Inserted, LensToken::Inserted]
+    );
+    let (recovered_first, recovered_surface) =
+        parts_adapted_lens_append(&second).expect("the outer adapted member destructures");
+    assert_eq!(recovered_first, first);
+    assert_eq!(recovered_surface, LensSurface);
+    assert_eq!(
+        build_adapted_lens_append(recovered_first, recovered_surface).unwrap(),
+        second
+    );
+    let edit = &ADAPTED_ORDERED_LENS_DECLARATION.constructions[0]
+        .lens
+        .expect("the adapted construction publishes its lens contract")
+        .edits[0];
+    let adapter = edit
+        .adapter
+        .expect("the runtime metadata retains owner-relative conversion names");
+    assert_eq!(adapter.constructor, "encode_lens_surface");
+    assert_eq!(adapter.destructurer, "decode_lens_surface");
 }
 
 #[test]

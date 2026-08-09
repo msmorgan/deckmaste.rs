@@ -360,6 +360,23 @@ impl VerbPhrase {
         shell
     }
 
+    pub(crate) fn declaration_into_preverb_projection(mut self) -> (Vec<PreverbModifier>, Self) {
+        let modifiers = std::mem::take(&mut self.preverb_modifiers);
+        (modifiers, self)
+    }
+
+    pub(crate) fn declaration_from_preverb_projection(
+        mut shell: Self,
+        modifiers: Vec<PreverbModifier>,
+    ) -> Self {
+        shell.preverb_modifiers = modifiers;
+        shell
+    }
+
+    pub(crate) fn declaration_first_preverb_modifier(&self) -> Option<PreverbModifier> {
+        self.preverb_modifiers.first().copied()
+    }
+
     pub(crate) fn declaration_frame(&self) -> PredicateFrame {
         self.frame
     }
@@ -398,6 +415,12 @@ impl VerbPhrase {
                     PredicateAttachment::Prepositional(pp.head().preposition)
                 }
                 VerbDependent::Infinitive(_) => PredicateAttachment::InfinitiveComplement,
+                VerbDependent::Adverbial(Phrase::Adverb(_)) | VerbDependent::Frequency(_) => {
+                    PredicateAttachment::Adjunct
+                }
+                VerbDependent::Particle(particle) => PredicateAttachment::Particle(*particle),
+                VerbDependent::CoinResult(side) => PredicateAttachment::CoinResult(*side),
+                VerbDependent::Exception(_) => PredicateAttachment::Exception,
                 _ => return None,
             };
             features = extend_predicate_features(&features, attachment)?;
@@ -839,6 +862,8 @@ pub(crate) enum EnglishLexicalSlot {
     /// the preverbal production sees only this word and no other adverb becomes
     /// placeable between a subject and its finite verb.
     PreverbAdverb,
+    /// The exact adverb `only` when it composes a bounded frequency phrase.
+    FrequencyLimiter,
     /// The literal word `declare` heading the `declare attackers`/`declare
     /// blockers` combat-step formative [CR#508.1,509.1]. Recognized only as
     /// this exact literal token — never the ordinary `Verb` slot — so the
@@ -864,7 +889,11 @@ pub(crate) enum EnglishLexicalSlot {
     /// the fronting production.
     SentenceAdverbial,
     VerbParticle(VerbParticle),
+    /// Either licensed directional particle, with its typed identity retained.
+    AnyVerbParticle,
     CoinResult(crate::syntax::CoinSide),
+    /// Either closed `up heads` / `up tails` result surface.
+    AnyCoinResult,
     Frequency,
     Pronoun(PronounCase),
     Auxiliary,
@@ -961,6 +990,7 @@ impl EnglishLexicalSlot {
             Self::TimesNoun => &["times"],
             Self::NumberNoun => &["number"],
             Self::PreverbAdverb => &["next"],
+            Self::FrequencyLimiter => &["only"],
             Self::CombatStepDeclare => &["declare"],
             Self::CombatStepParticipants => &["attackers", "blockers"],
             Self::CombatStepHead => &["step"],
@@ -1007,6 +1037,8 @@ impl EnglishLexicalSlot {
             | Self::NegatedModifier
             | Self::Adverb
             | Self::SentenceAdverbial
+            | Self::AnyVerbParticle
+            | Self::AnyCoinResult
             | Self::Frequency
             | Self::Pronoun(_)
             | Self::Auxiliary
@@ -1040,6 +1072,7 @@ impl EnglishLexicalSlot {
         Self::TimesNoun,
         Self::NumberNoun,
         Self::PreverbAdverb,
+        Self::FrequencyLimiter,
         Self::CombatStepDeclare,
         Self::CombatStepParticipants,
         Self::CombatStepHead,
@@ -1108,12 +1141,15 @@ impl EnglishLexicalSlot {
             | Self::TimesNoun
             | Self::NumberNoun
             | Self::PreverbAdverb
+            | Self::FrequencyLimiter
             | Self::CombatStepDeclare
             | Self::CombatStepParticipants
             | Self::CombatStepHead
             | Self::NegatedModifier
             | Self::Adverb
             | Self::SentenceAdverbial
+            | Self::AnyVerbParticle
+            | Self::AnyCoinResult
             | Self::VerbParticle(_)
             | Self::CoinResult(_)
             | Self::Frequency
@@ -1781,6 +1817,7 @@ pub(crate) enum MeaningKey {
     Noun(NounInstance),
     Adjective(Adjective),
     Adverb(Vocab),
+    PreverbModifier(PreverbModifierKey),
     VerbParticle(VerbParticle),
     CoinResult(crate::syntax::CoinSide),
     Frequency(FrequencyPhrase),
@@ -1806,6 +1843,11 @@ pub(crate) enum MeaningKey {
     Preposition(Preposition),
     NegatedModifier(NegatedModifierKey),
     Opaque(OpaqueKey),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum PreverbModifierKey {
+    Next,
 }
 
 /// A `non-` negation resolved to its base modifier at scan time. Held as a
@@ -2963,7 +3005,17 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     })
                     .collect()
             }
-            slot @ EnglishLexicalSlot::PreverbAdverb => {
+            slot @ EnglishLexicalSlot::PreverbAdverb => self
+                .literal_token_match(tokens, start, slot)
+                .map(|end| LexicalMatch {
+                    end,
+                    features: Features::None,
+                    meaning: MeaningKey::PreverbModifier(PreverbModifierKey::Next),
+                    local_cost: ParseCost::default(),
+                })
+                .into_iter()
+                .collect(),
+            slot @ EnglishLexicalSlot::FrequencyLimiter => {
                 if self.literal_token_match(tokens, start, slot).is_none() {
                     return Vec::new();
                 }
@@ -2984,6 +3036,22 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 })
                 .into_iter()
                 .collect(),
+            EnglishLexicalSlot::AnyVerbParticle => [VerbParticle::In, VerbParticle::Out]
+                .into_iter()
+                .filter_map(|particle| {
+                    self.literal_token_match(
+                        tokens,
+                        start,
+                        EnglishLexicalSlot::VerbParticle(particle),
+                    )
+                    .map(|end| LexicalMatch {
+                        end,
+                        features: Features::VerbParticle(particle),
+                        meaning: MeaningKey::VerbParticle(particle),
+                        local_cost: ParseCost::default(),
+                    })
+                })
+                .collect(),
             // The closed two-word coin-result surface [CR#705.1,705.2]:
             // scanned as an exact literal `up heads`/`up tails`, never as a
             // general noun/adjective lookup for `heads`/`tails`.
@@ -2997,6 +3065,21 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 })
                 .into_iter()
                 .collect(),
+            EnglishLexicalSlot::AnyCoinResult => [
+                crate::syntax::CoinSide::Heads,
+                crate::syntax::CoinSide::Tails,
+            ]
+            .into_iter()
+            .filter_map(|side| {
+                self.literal_words_match(tokens, start, EnglishLexicalSlot::CoinResult(side))
+                    .map(|end| LexicalMatch {
+                        end,
+                        features: Features::CoinResult(side),
+                        meaning: MeaningKey::CoinResult(side),
+                        local_cost: ParseCost::default(),
+                    })
+            })
+            .collect(),
             EnglishLexicalSlot::Frequency => self.scan_frequency(tokens, start),
             EnglishLexicalSlot::Pronoun(case) => {
                 self.word_matches(tokens, start, LexicalSlot::Pronoun(case))

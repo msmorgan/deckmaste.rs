@@ -116,6 +116,7 @@ pub(super) enum Lowered {
     NounPhrase(NounPhrase),
     Catalog(crate::catalog::CatalogAtom),
     Adverb(Vocab),
+    PreverbModifier(crate::syntax::PreverbModifier),
     VerbParticle(VerbParticle),
     CoinResult(crate::syntax::CoinSide),
     Frequency(FrequencyPhrase),
@@ -429,6 +430,10 @@ fn project_generated_category(
         let value = value.downcast::<VerbPhrase>().ok()?;
         return Some(Lowered::VerbPhrase(*value));
     }
+    if construction.category == "FrequencyPhrase" {
+        let value = value.downcast::<FrequencyPhrase>().ok()?;
+        return Some(Lowered::Frequency(*value));
+    }
     #[cfg(test)]
     match construction.id {
         "probe_word" => {
@@ -468,6 +473,10 @@ fn project_generated_category(
     Some(Lowered::Generated(GeneratedValue::Typed(value)))
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "one exhaustive erased adapter table covers every declared English field kind"
+)]
 fn erased_field(
     kind: deckmaste_construction_compiler::runtime::FieldKindData,
     value: Lowered,
@@ -488,6 +497,51 @@ fn erased_field(
             ..
         } => {
             let Lowered::Auxiliary(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Identity {
+            value_type: "Vocab",
+            provider: "Adverb" | "FrequencyLimiter",
+        } => {
+            let Lowered::Adverb(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Identity {
+            value_type: "PreverbModifier",
+            provider: "PreverbAdverb",
+        } => {
+            let Lowered::PreverbModifier(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Identity {
+            value_type: "VerbParticle",
+            provider: "VerbParticle",
+        } => {
+            let Lowered::VerbParticle(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Identity {
+            value_type: "CoinSide",
+            provider: "CoinResult",
+        } => {
+            let Lowered::CoinResult(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Identity {
+            value_type: "FrequencyPhrase",
+            provider: "Frequency",
+        } => {
+            let Lowered::Frequency(value) = value else {
                 return None;
             };
             Some(Box::new(value))
@@ -672,6 +726,7 @@ fn erased_subtree(
             let value = clause::finish_infinitive(value)?;
             if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
         }
+        "FrequencyPhrase" => typed!(Frequency, value),
         "RelativeClause" => typed!(RelativeClause, value),
         "Quantity" => typed!(Quantity, value),
         "DevotionColors" => typed!(DevotionColors, value),
@@ -893,6 +948,9 @@ pub(super) fn lower_lexical(
         MeaningKey::Noun(noun) => Lowered::Noun(noun.clone()),
         MeaningKey::Adjective(adjective) => Lowered::Adjective(adjective.clone()),
         MeaningKey::Adverb(adverb) => Lowered::Adverb(*adverb),
+        MeaningKey::PreverbModifier(crate::grammar::PreverbModifierKey::Next) => {
+            Lowered::PreverbModifier(crate::syntax::PreverbModifier::Next)
+        }
         MeaningKey::VerbParticle(particle) => Lowered::VerbParticle(*particle),
         MeaningKey::CoinResult(side) => Lowered::CoinResult(*side),
         MeaningKey::Frequency(frequency) => Lowered::Frequency(*frequency),

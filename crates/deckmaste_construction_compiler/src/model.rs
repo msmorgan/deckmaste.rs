@@ -327,6 +327,9 @@ pub struct LensEdit {
     pub target: FieldPath,
     pub value: Spanned<String>,
     pub kind: LensEditKind,
+    /// Typed owner-relative conversion between a semantic field and the
+    /// lens owner's focused field or ordered-slice element.
+    pub adapter: Option<BindAdapter>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

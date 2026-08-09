@@ -246,9 +246,10 @@ pub(super) fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<
             // modifier lands on preverb_modifiers rather than becoming a
             // VerbDependent — routing through PredicateAttachment::Adjunct
             // would render post-verbally (`cast next …`), a round-trip
-            // failure. The literal matcher already pinned this token to
-            // `next`, so the specific Vocab value need not be inspected here.
-            let Lowered::Adverb(_next) = take(children, 0)? else {
+            // failure. The dedicated scanner carries the typed closed-class
+            // value, so this path and generated identity lowering share one
+            // lexical contract instead of reconstructing it from a Vocab.
+            let Lowered::PreverbModifier(PreverbModifier::Next) = take(children, 0)? else {
                 return None;
             };
             let Lowered::VerbPhrase(mut predicate) = take(children, 1)? else {

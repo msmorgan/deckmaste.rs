@@ -303,6 +303,13 @@ pub struct LensEditData {
     pub target: &'static str,
     pub value: &'static str,
     pub kind: LensEditKindData,
+    pub adapter: Option<LensEditAdapterData>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LensEditAdapterData {
+    pub constructor: &'static str,
+    pub destructurer: &'static str,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -612,11 +612,24 @@ fn parse_lens_application(input: ParseStream<'_>) -> syn::Result<LensApplication
         let target = parse_path(&content)?;
         content.parse::<kw::with>()?;
         let value = spanned_ident(&content)?;
+        let adapter = if content.peek(kw::via) {
+            content.parse::<kw::via>()?;
+            let constructor = spanned_type_path(&content)?;
+            content.parse::<syn::Token![,]>()?;
+            let destructurer = spanned_type_path(&content)?;
+            Some(BindAdapter {
+                constructor,
+                destructurer,
+            })
+        } else {
+            None
+        };
         content.parse::<syn::Token![;]>()?;
         edits.push(LensEdit {
             target,
             value,
             kind,
+            adapter,
         });
     }
     Ok(LensApplication {

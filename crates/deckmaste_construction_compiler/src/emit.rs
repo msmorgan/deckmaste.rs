@@ -985,6 +985,13 @@ fn lens_construct(
                 let target_field =
                     quote::format_ident!("__lens_{}", edit.target.segments[0].value);
                 let value = quote::format_ident!("{}", edit.value.value);
+                let value = edit.adapter.as_ref().map_or_else(
+                    || quote! { #value },
+                    |adapter| {
+                        let constructor = parse_type(&adapter.constructor.value);
+                        quote! { #constructor(&__lens_source_owner, #value)? }
+                    },
+                );
                 match edit.kind {
                     LensEditKind::Focus => {
                         let requirement = format!("{}.is_none()", edit.target.dotted());
@@ -1003,6 +1010,7 @@ fn lens_construct(
                 }
             });
             return quote! {
+                let __lens_source_owner = #source.clone();
                 let (#(mut #owner_fields),*) = #destructurer(#source);
                 #(#edits)*
                 Ok(#constructor(#(#owner_fields),*))
@@ -1036,6 +1044,13 @@ fn lens_construct(
         let edits = application.edits.iter().map(|edit| {
             let target_field = quote::format_ident!("{}", edit.target.segments[0].value);
             let value = quote::format_ident!("{}", edit.value.value);
+            let value = edit.adapter.as_ref().map_or_else(
+                || quote! { #value },
+                |adapter| {
+                    let constructor = parse_type(&adapter.constructor.value);
+                    quote! { #constructor(&#source, #value)? }
+                },
+            );
             match edit.kind {
                 LensEditKind::Focus => {
                     let requirement = format!("{}.is_none()", edit.target.dotted());
@@ -1084,6 +1099,10 @@ fn lens_construct(
     quote! { Ok(#target { #(#values),* }) }
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "source-relative and whole-owner lenses share one ordered inverse emitter"
+)]
 fn lens_destructure(
     lens: &crate::model::LensDeclaration,
     application: &LensApplication,
@@ -1101,22 +1120,34 @@ fn lens_destructure(
             let source_ident = quote::format_ident!("{}", source.value);
             let extracts = application.edits.iter().map(|edit| {
                 let target_field = quote::format_ident!("__lens_{}", edit.target.segments[0].value);
-                let value = quote::format_ident!("{}", edit.value.value);
+                let raw = quote::format_ident!("__lens_raw_{}", edit.value.value);
                 match edit.kind {
-                    LensEditKind::Focus => quote! { let #value = #target_field.take()?; },
+                    LensEditKind::Focus => quote! { let #raw = #target_field.take()?; },
                     LensEditKind::Prepend => quote! {
                         if #target_field.is_empty() {
                             return None;
                         }
-                        let #value = #target_field.remove(0);
+                        let #raw = #target_field.remove(0);
                     },
-                    LensEditKind::Append => quote! { let #value = #target_field.pop()?; },
+                    LensEditKind::Append => quote! { let #raw = #target_field.pop()?; },
                 }
+            });
+            let decodes = application.edits.iter().map(|edit| {
+                let value = quote::format_ident!("{}", edit.value.value);
+                let raw = quote::format_ident!("__lens_raw_{}", edit.value.value);
+                edit.adapter.as_ref().map_or_else(
+                    || quote! { let #value = #raw; },
+                    |adapter| {
+                        let destructurer = parse_type(&adapter.destructurer.value);
+                        quote! { let #value = #destructurer(&#source_ident, #raw)?; }
+                    },
+                )
             });
             return quote! {
                 let (#(mut #owner_fields),*) = #destructurer(value.clone());
                 #(#extracts)*
                 let #source_ident = #constructor(#(#owner_fields),*);
+                #(#decodes)*
                 Some((#(#field_names),*))
             };
         }
@@ -1172,22 +1203,34 @@ fn lens_destructure(
         let source_ident = quote::format_ident!("{}", source.value);
         let extracts = application.edits.iter().map(|edit| {
             let target_field = quote::format_ident!("{}", edit.target.segments[0].value);
-            let value = quote::format_ident!("{}", edit.value.value);
+            let raw = quote::format_ident!("__lens_raw_{}", edit.value.value);
             match edit.kind {
-                LensEditKind::Focus => quote! { let #value = __owner.#target_field.take()?; },
+                LensEditKind::Focus => quote! { let #raw = __owner.#target_field.take()?; },
                 LensEditKind::Prepend => quote! {
                     if __owner.#target_field.is_empty() {
                         return None;
                     }
-                    let #value = __owner.#target_field.remove(0);
+                    let #raw = __owner.#target_field.remove(0);
                 },
-                LensEditKind::Append => quote! { let #value = __owner.#target_field.pop()?; },
+                LensEditKind::Append => quote! { let #raw = __owner.#target_field.pop()?; },
             }
+        });
+        let decodes = application.edits.iter().map(|edit| {
+            let value = quote::format_ident!("{}", edit.value.value);
+            let raw = quote::format_ident!("__lens_raw_{}", edit.value.value);
+            edit.adapter.as_ref().map_or_else(
+                || quote! { let #value = #raw; },
+                |adapter| {
+                    let destructurer = parse_type(&adapter.destructurer.value);
+                    quote! { let #value = #destructurer(&#source_ident, #raw)?; }
+                },
+            )
         });
         return quote! {
             let mut __owner = value.clone();
             #(#extracts)*
             let #source_ident = __owner;
+            #(#decodes)*
             Some((#(#field_names),*))
         };
     }
@@ -2583,11 +2626,25 @@ fn lens_application_row(application: &LensApplication) -> TokenStream {
                 quote! { ::deckmaste_construction_compiler::runtime::LensEditKindData::Append }
             }
         };
+        let adapter = edit.adapter.as_ref().map_or_else(
+            || quote! { None },
+            |adapter| {
+                let constructor = adapter.constructor.value.as_str();
+                let destructurer = adapter.destructurer.value.as_str();
+                quote! {
+                    Some(::deckmaste_construction_compiler::runtime::LensEditAdapterData {
+                        constructor: #constructor,
+                        destructurer: #destructurer,
+                    })
+                }
+            },
+        );
         quote! {
             ::deckmaste_construction_compiler::runtime::LensEditData {
                 target: #target,
                 value: #value,
                 kind: #kind,
+                adapter: #adapter,
             }
         }
     });

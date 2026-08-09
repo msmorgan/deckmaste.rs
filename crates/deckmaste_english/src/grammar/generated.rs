@@ -443,6 +443,7 @@ fn engine_category(name: &str) -> Option<Nonterminal> {
         "CoordinatedAdjectivePhrase" => Nonterminal::CoordinatedModifier,
         "PrepositionalPhrase" => Nonterminal::PrepositionalPhrase,
         "InfinitiveClause" => Nonterminal::InfinitiveClause,
+        "FrequencyPhrase" => Nonterminal::FrequencyPhrase,
         "RelativeClause" => Nonterminal::RelativeClause,
         "TransitivePredicate" => Nonterminal::ReducedRecipientPassive,
         "ReducedRecipientPassiveTheme" => Nonterminal::ReducedRecipientPassiveTheme,
@@ -642,6 +643,12 @@ fn identity_slot(
     match (value_type, provider) {
         ("VerbAnalysis", "LexicalVerb") => Ok(EnglishLexicalSlot::AnyVerb),
         ("AuxiliaryInstance", "Auxiliary") => Ok(EnglishLexicalSlot::Auxiliary),
+        ("Vocab", "Adverb") => Ok(EnglishLexicalSlot::Adverb),
+        ("Vocab", "FrequencyLimiter") => Ok(EnglishLexicalSlot::FrequencyLimiter),
+        ("PreverbModifier", "PreverbAdverb") => Ok(EnglishLexicalSlot::PreverbAdverb),
+        ("VerbParticle", "VerbParticle") => Ok(EnglishLexicalSlot::AnyVerbParticle),
+        ("CoinSide", "CoinResult") => Ok(EnglishLexicalSlot::AnyCoinResult),
+        ("FrequencyPhrase", "Frequency") => Ok(EnglishLexicalSlot::Frequency),
         ("NounInstance", "KnownNoun") => {
             Ok(EnglishLexicalSlot::Noun(crate::word::NounUsage::Either))
         }
@@ -1584,6 +1591,7 @@ mod tests {
 
     use super::super::EnglishLexicalSlot;
     use super::super::Expected;
+    use super::super::ParseCost;
     use super::super::rules::RegistrationOrder;
     use super::super::rules::RuleBuilder;
     use super::GeneratedAssemblyError;
@@ -1704,6 +1712,23 @@ mod tests {
             generated_cost(construction("verb_phrase_prepositional")).precedence,
             1
         );
+        for id in [
+            "verb_phrase_passive_shared_determiner_prepositional",
+            "verb_phrase_except_by",
+            "verb_phrase_adverb",
+            "verb_phrase_preverb_adverb",
+            "verb_phrase_particle",
+            "verb_phrase_coin_result",
+            "verb_phrase_frequency",
+            "frequency_phrase_adverb",
+            "frequency_phrase",
+        ] {
+            assert_eq!(
+                generated_cost(construction(id)),
+                ParseCost::default(),
+                "{id} retains its exact historical zero local cost"
+            );
+        }
     }
 
     #[test]
