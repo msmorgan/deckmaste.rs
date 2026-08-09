@@ -52,6 +52,13 @@ fn is_closed(value: &Determiner) -> bool {
 }
 
 fn make_closed(identity: ClosedDeterminer) -> Result<Determiner, DeclarationViolation> {
+    if matches!(identity, ClosedDeterminer::PossessivePronoun(pronoun) if pronoun.possessive_spelling().is_none())
+    {
+        return Err(violation(
+            "determiner_closed",
+            "possessive pronoun has a determiner form",
+        ));
+    }
     let repr = match identity {
         ClosedDeterminer::The => DeterminerRepr::The,
         ClosedDeterminer::Each => DeterminerRepr::Each,
@@ -180,10 +187,45 @@ fn is_possessive_noun_base(value: &PossessiveNominal) -> bool {
     value.determiner().is_none() && value.modifiers().is_empty() && value.complements().is_empty()
 }
 
+fn is_valid_possessive_nominal(value: &PossessiveNominal) -> bool {
+    let mut inverse_count = u8::from(is_possessive_noun_base(value));
+
+    if value.determiner().is_some() && value.complements().is_empty() {
+        let (_, modifiers, head, complements) = value.clone().into_projection_parts();
+        let possessor = NominalPhrase::from_projection_parts(None, modifiers, head, complements);
+        inverse_count += u8::from(is_valid_possessive_nominal(&possessor));
+    }
+
+    if value.determiner().is_none()
+        && value.complements().is_empty()
+        && matches!(
+            value.modifiers().first(),
+            Some(crate::syntax::NominalModifier::Adjective {
+                polarity: crate::syntax::Polarity::Positive,
+                ..
+            })
+        )
+    {
+        let (determiner, mut modifiers, head, complements) = value.clone().into_projection_parts();
+        modifiers.remove(0);
+        let possessor =
+            NominalPhrase::from_projection_parts(determiner, modifiers, head, complements);
+        inverse_count += u8::from(is_valid_possessive_nominal(&possessor));
+    }
+
+    inverse_count == 1
+}
+
 fn make_possessive_noun_determined(
     determiner: Determiner,
     possessor: PossessiveNominal,
 ) -> Result<PossessiveNominal, DeclarationViolation> {
+    if !is_valid_possessive_nominal(&possessor) {
+        return Err(violation(
+            "possessive_noun_determined",
+            "possessor has exactly one D01 inverse",
+        ));
+    }
     crate::constructions::nominal::build_nominal_determiner(determiner, possessor)
 }
 
@@ -200,12 +242,23 @@ fn possessive_noun_determined_parts(value: &PossessiveNominal) -> (Determiner, P
 }
 
 fn is_possessive_noun_determined(value: &PossessiveNominal) -> bool {
-    value.determiner().is_some() && value.complements().is_empty()
+    if value.determiner().is_none() || !value.complements().is_empty() {
+        return false;
+    }
+    let (_, modifiers, head, complements) = value.clone().into_projection_parts();
+    let possessor = NominalPhrase::from_projection_parts(None, modifiers, head, complements);
+    is_valid_possessive_nominal(&possessor)
 }
 
 fn make_determiner_possessive_noun(
     possessor: PossessiveNominal,
 ) -> Result<Determiner, DeclarationViolation> {
+    if !is_valid_possessive_nominal(&possessor) {
+        return Err(violation(
+            "determiner_possessive_noun",
+            "possessor has exactly one D01 inverse",
+        ));
+    }
     Ok(Determiner {
         repr: DeterminerRepr::Possessive(Possessor {
             repr: PossessorRepr::NounPhrase(Box::new(NounPhrase::Nominal(possessor))),
@@ -232,7 +285,7 @@ fn is_determiner_possessive_noun(value: &Determiner) -> bool {
         DeterminerRepr::Possessive(Possessor {
             repr: PossessorRepr::NounPhrase(noun)
         })
-            if matches!(noun.as_ref(), NounPhrase::Nominal(_))
+            if matches!(noun.as_ref(), NounPhrase::Nominal(nominal) if is_valid_possessive_nominal(nominal))
     )
 }
 
@@ -240,6 +293,12 @@ fn make_possessive_noun_adjective(
     adjective: AdjectivePhrase,
     mut possessor: PossessiveNominal,
 ) -> Result<PossessiveNominal, DeclarationViolation> {
+    if !is_valid_possessive_nominal(&possessor) {
+        return Err(violation(
+            "possessive_noun_adjective",
+            "possessor has exactly one D01 inverse",
+        ));
+    }
     if possessor.determiner().is_some() {
         return Err(violation(
             "possessive_noun_adjective",
@@ -271,12 +330,22 @@ fn possessive_noun_adjective_parts(
 }
 
 fn is_possessive_noun_adjective(value: &PossessiveNominal) -> bool {
-    value.determiner().is_none()
-        && matches!(
-            value.modifiers().first(),
-            Some(crate::syntax::NominalModifier::Adjective { .. })
-        )
-        && value.complements().is_empty()
+    if value.determiner().is_some() || !value.complements().is_empty() {
+        return false;
+    }
+    if !matches!(
+        value.modifiers().first(),
+        Some(crate::syntax::NominalModifier::Adjective {
+            polarity: crate::syntax::Polarity::Positive,
+            ..
+        })
+    ) {
+        return false;
+    }
+    let (determiner, mut modifiers, head, complements) = value.clone().into_projection_parts();
+    modifiers.remove(0);
+    let possessor = NominalPhrase::from_projection_parts(determiner, modifiers, head, complements);
+    is_valid_possessive_nominal(&possessor)
 }
 
 fn closed_features(identity: &Features) -> Option<Features> {
@@ -535,6 +604,8 @@ pub(crate) static GROUPS: &[&GroupData] = &[&DETERMINER_DECLARATION];
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::features::Gender;
+    use crate::word::Pronoun;
 
     const D01_IDS: &[&str] = &[
         "determiner_closed",
@@ -556,5 +627,33 @@ mod tests {
             .map(|construction| construction.id)
             .collect::<Vec<_>>();
         assert_eq!(actual, D01_IDS);
+    }
+
+    #[test]
+    fn closed_possessive_pronoun_identity_accepts_exactly_the_five_renderable_classes() {
+        let fixtures = [
+            (Pronoun::You, Some("your")),
+            (Pronoun::It(Gender::Neuter), Some("its")),
+            (Pronoun::They, Some("their")),
+            (Pronoun::It(Gender::Masculine), Some("his")),
+            (Pronoun::It(Gender::Feminine), Some("her")),
+            (Pronoun::EachOther, None),
+            (Pronoun::Itself, None),
+            (Pronoun::Himself, None),
+            (Pronoun::YoursAbsolute, None),
+        ];
+        assert_eq!(fixtures.map(|(pronoun, _)| pronoun), Pronoun::ALL);
+        for (pronoun, expected_spelling) in fixtures {
+            let built = build_determiner_closed(ClosedDeterminer::PossessivePronoun(pronoun));
+            match expected_spelling {
+                Some(expected) => {
+                    assert_eq!(built.unwrap().render().unwrap(), expected, "{pronoun:?}")
+                }
+                None => assert!(
+                    built.is_err(),
+                    "{pronoun:?} has no possessive determiner form"
+                ),
+            }
+        }
     }
 }

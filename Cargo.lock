@@ -514,6 +514,7 @@ dependencies = [
  "deckmaste_features",
  "hashbrown 0.15.5",
  "proptest",
+ "ron",
  "serde",
  "strum",
  "thiserror",

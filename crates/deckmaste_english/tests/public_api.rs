@@ -524,6 +524,96 @@ fn public_determiner_facade_builds_projects_and_rebuilds_every_d01_shape() {
 }
 
 #[test]
+fn public_determiner_rejects_every_pronoun_without_a_possessive_determiner_form() {
+    use deckmaste_english::determiner as determiner_api;
+    use deckmaste_english::features::Gender;
+
+    let fixtures = [
+        (Pronoun::You, true),
+        (Pronoun::It(Gender::Neuter), true),
+        (Pronoun::They, true),
+        (Pronoun::It(Gender::Masculine), true),
+        (Pronoun::It(Gender::Feminine), true),
+        (Pronoun::EachOther, false),
+        (Pronoun::Itself, false),
+        (Pronoun::Himself, false),
+        (Pronoun::YoursAbsolute, false),
+    ];
+    for (pronoun, expected_valid) in fixtures {
+        let result =
+            determiner_api::build_determiner_closed(ClosedDeterminer::PossessivePronoun(pronoun));
+        assert_eq!(result.is_ok(), expected_valid, "{pronoun:?}");
+    }
+}
+
+#[test]
+fn public_possessive_nominal_boundary_rejects_non_d01_nominal_shapes() {
+    use deckmaste_english::adjective as adjective_api;
+    use deckmaste_english::determiner as determiner_api;
+    use deckmaste_english::nominal as nominal_api;
+
+    let bare = || {
+        determiner_api::build_possessive_noun_base(
+            NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
+        )
+        .unwrap()
+    };
+    let noun_modified = nominal_api::build_nominal_noun_modifier(
+        NounInstance::try_singular(Noun::Word(Vocab::Ability)).unwrap(),
+        bare(),
+    )
+    .unwrap();
+    let quantity_modified = nominal_api::build_nominal_quantity_modifier(
+        Quantity::try_exact(NumberLiteral {
+            value: 1,
+            numeral: Numeral::Cardinal,
+        })
+        .unwrap(),
+        bare(),
+    )
+    .unwrap();
+    let object = nominal_api::build_nominal_noun(
+        NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
+    )
+    .unwrap();
+    let complemented = nominal_api::build_nominal_prepositional(
+        bare(),
+        PrepositionalPhrase::simple(
+            Preposition::In,
+            Phrase::NounPhrase(Box::new(NounPhrase::Nominal(object))),
+        ),
+    )
+    .unwrap();
+
+    for unsupported in [noun_modified, quantity_modified, complemented] {
+        assert!(
+            determiner_api::build_determiner_possessive_noun(unsupported).is_err(),
+            "non-D01 nominal state crossed the possessive boundary",
+        );
+    }
+
+    let black = adjective_api::build_adjective_phrase(Adjective::Color(ColorWord::Black)).unwrap();
+    let negative_adjective = nominal_api::build_nominal_negated_modifier(
+        NominalModifier::Adjective {
+            polarity: Polarity::Negative,
+            phrase: black,
+        },
+        bare(),
+    )
+    .unwrap();
+    assert!(
+        determiner_api::build_determiner_possessive_noun(negative_adjective).is_err(),
+        "a negative adjective is not a D01 possessive-noun prefix",
+    );
+
+    let face_down = adjective_api::build_adjective_phrase_face_down().unwrap();
+    assert!(
+        determiner_api::build_possessive_noun_adjective(face_down, bare()).is_err(),
+        "a card-orientation adjective is not a possessive noun prefix",
+    );
+}
+
+#[test]
 fn public_determiner_provenance_exposes_the_complete_stable_d01_id_order() {
     const D01_IDS: &[&str] = &[
         "determiner_closed",

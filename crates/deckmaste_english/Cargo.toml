@@ -26,4 +26,5 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 proptest = "1.11.0"
+ron = "0.12.1"
 trybuild = "1.0"
