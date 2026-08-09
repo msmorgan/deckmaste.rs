@@ -1750,7 +1750,7 @@ mod tests {
     }
 
     #[test]
-    fn adjective_attachment_and_degree_use_category_owned_generic_adapters() {
+    fn adjective_attachment_uses_checked_bind_and_category_owned_adapters() {
         let declaration = &crate::constructions::adjective::ADJECTIVE_DECLARATION;
         let comparison = &declaration.constructions[7];
         assert_eq!(comparison.id, "adjective_phrase_comparison");
@@ -1768,17 +1768,9 @@ mod tests {
                 boxed: false,
             }
         );
-        let lens = comparison
-            .lens
-            .expect("comparison appends through its owner lens");
-        assert_eq!(
-            (lens.owner, lens.source),
-            ("adjective_phrase_complements", Some("owner"))
-        );
-        assert_eq!(lens.edits[0].target, "complements");
-        assert_eq!(
-            lens.edits[0].kind,
-            deckmaste_construction_compiler::runtime::LensEditKindData::Append
+        assert!(
+            comparison.lens.is_none(),
+            "owner-private adjective fields require the explicit checked bind"
         );
 
         let degree = &declaration.constructions[8];

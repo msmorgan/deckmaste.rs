@@ -1191,7 +1191,7 @@ fn append_postpositive(
 fn make_nominal_postpositive_adjective_conjoined_prepositional(
     nominal: NominalPhrase,
     conjunction: Conjunction,
-    mut adjective: AdjectivePhrase,
+    adjective: AdjectivePhrase,
     preposition: PrepositionalPhrase,
 ) -> Result<NominalPhrase, DeclarationViolation> {
     if !matches!(nominal.complements(), [NominalComplement::Adjective(_)]) {
@@ -1200,8 +1200,8 @@ fn make_nominal_postpositive_adjective_conjoined_prepositional(
             "a binary continuation follows exactly one postpositive adjective",
         ));
     }
-    if !adjective.complements.is_empty()
-        || !matches!(adjective.head, Adjective::Participle(Tense::Past, _))
+    if !adjective.complements().is_empty()
+        || !matches!(adjective.head(), Adjective::Participle(Tense::Past, _))
         || preposition.head().preposition != Preposition::By
     {
         return Err(violation(
@@ -1210,9 +1210,14 @@ fn make_nominal_postpositive_adjective_conjoined_prepositional(
         ));
     }
     let conjunction = noun_phrase_conjunction(conjunction)?;
-    adjective
-        .complements
-        .push(AdjectiveComplement::Prepositional(preposition));
+    let adjective = adjective
+        .try_attach_compatibility_complement(AdjectiveComplement::Prepositional(preposition))
+        .ok_or_else(|| {
+            violation(
+                "nominal_postpositive_adjective_conjoined_prepositional",
+                "the checked adjective owner accepts the by phrase",
+            )
+        })?;
     append_postpositive(nominal, Some(conjunction), adjective)
 }
 
@@ -1224,10 +1229,10 @@ fn split_nominal_postpositive_adjective_conjoined_prepositional(
     AdjectivePhrase,
     PrepositionalPhrase,
 ) {
-    let (nominal, conjunction, mut adjective) = split_postpositive(value, true);
-    let Some(AdjectiveComplement::Prepositional(preposition)) = adjective.complements.pop() else {
-        unreachable!("conjoined participle carries its by phrase")
-    };
+    let (nominal, conjunction, adjective) = split_postpositive(value, true);
+    let (adjective, preposition) = adjective
+        .try_split_trailing_prepositional()
+        .expect("conjoined participle carries its checked by phrase");
     (
         nominal,
         conjunction.expect("conjoined continuation carries a conjunction"),
@@ -1374,9 +1379,16 @@ fn make_nominal_comparison(
             "a pending adjective accepts the comparison",
         ));
     };
-    adjective
-        .complements
-        .push(AdjectiveComplement::PostnominalComparison(comparison));
+    let attached = adjective
+        .clone()
+        .try_attach_postnominal_comparison(comparison)
+        .ok_or_else(|| {
+            violation(
+                "nominal_comparison",
+                "the checked adjective owner accepts the postnominal comparison",
+            )
+        })?;
+    *adjective = attached;
     Ok(nominal)
 }
 
@@ -1395,18 +1407,19 @@ fn split_nominal_comparison(value: &NominalPhrase) -> (NominalPhrase, Comparison
             _ => None,
         })
         .expect("comparison nominal has an adjective modifier");
-    let Some(AdjectiveComplement::PostnominalComparison(comparison)) = adjective.complements.pop()
-    else {
-        unreachable!("comparison nominal stores its postnominal comparison")
-    };
+    let (owner, comparison) = adjective
+        .clone()
+        .try_split_postnominal_comparison()
+        .expect("comparison nominal stores one checked postnominal comparison");
+    *adjective = owner;
     (nominal, comparison)
 }
 
 fn adjective_is_pending_comparative(phrase: &AdjectivePhrase) -> bool {
     matches!(
-        crate::grammar::adjective_comparison_state(&phrase.head),
+        crate::grammar::adjective_comparison_state(phrase.head()),
         AdjectiveComparisonState::Pending(_)
-    ) && !phrase.complements.iter().any(|complement| {
+    ) && !phrase.complements().iter().any(|complement| {
         matches!(
             complement,
             AdjectiveComplement::Comparison(_) | AdjectiveComplement::PostnominalComparison(_)
@@ -1416,10 +1429,10 @@ fn adjective_is_pending_comparative(phrase: &AdjectivePhrase) -> bool {
 
 fn adjective_has_declared_postnominal_comparison(phrase: &AdjectivePhrase) -> bool {
     matches!(
-        crate::grammar::adjective_comparison_state(&phrase.head),
+        crate::grammar::adjective_comparison_state(phrase.head()),
         AdjectiveComparisonState::Pending(_)
     ) && matches!(
-        phrase.complements.as_slice(),
+        phrase.complements(),
         [AdjectiveComplement::PostnominalComparison(_)]
     )
 }
@@ -1523,7 +1536,7 @@ fn has_postnominal_comparison(value: &NominalPhrase) -> bool {
             modifier,
             NominalModifier::Adjective { phrase, .. }
                 if phrase
-                    .complements
+                    .complements()
                     .iter()
                     .any(|complement| matches!(complement, AdjectiveComplement::PostnominalComparison(_)))
         )
@@ -1787,7 +1800,7 @@ fn is_nominal_postpositive_adjective_conjoined_prepositional(value: &NominalPhra
                 && coordinated.rest.last().is_some_and(|last| {
                     last.conjunction.is_some()
                         && matches!(
-                            (&last.phrase.head, last.phrase.complements.as_slice()),
+                            (last.phrase.head(), last.phrase.complements()),
                             (
                                 Adjective::Participle(Tense::Past, _),
                                 [AdjectiveComplement::Prepositional(preposition)]
@@ -1803,7 +1816,7 @@ fn is_nominal_postpositive_adjective_conjoined(value: &NominalPhrase) -> bool {
             coordinated.rest.len() == 1
                 && coordinated.rest[0].conjunction.is_some()
                 && !matches!(
-                    coordinated.rest[0].phrase.complements.last(),
+                    coordinated.rest[0].phrase.complements().last(),
                     Some(AdjectiveComplement::Prepositional(_))
                 )
         })

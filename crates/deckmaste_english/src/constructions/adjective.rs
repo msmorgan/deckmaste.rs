@@ -12,7 +12,6 @@ use crate::grammar::AdjectiveComparisonState;
 use crate::grammar::Features;
 use crate::grammar::adjective_comparison_state;
 use crate::grammar::adjective_features;
-use crate::syntax::AdjectiveComplement;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::Clause;
 use crate::syntax::ComparisonComplement;
@@ -118,27 +117,20 @@ fn make_adjective_phrase(head: Adjective) -> Result<AdjectivePhrase, Declaration
             "head is a single lexical adjective",
         ));
     }
-    Ok(AdjectivePhrase::from_projection_parts(
-        None,
-        head,
-        Vec::new(),
-    ))
+    AdjectivePhrase::try_from_lexical_head(head)
+        .ok_or_else(|| violation("adjective_phrase", "head is a single lexical adjective"))
 }
 
 fn adjective_phrase_head(value: &AdjectivePhrase) -> Adjective {
-    value.head.clone()
+    value.head().clone()
 }
 
 fn is_base_adjective_phrase(value: &AdjectivePhrase) -> bool {
-    value.degree.is_none() && value.complements.is_empty() && is_lexical_adjective(&value.head)
+    value.degree().is_none() && value.complements().is_empty() && is_lexical_adjective(value.head())
 }
 
 fn orientation_phrase(orientation: CardOrientation) -> AdjectivePhrase {
-    AdjectivePhrase::from_projection_parts(
-        None,
-        Adjective::CardOrientation(orientation),
-        Vec::new(),
-    )
+    AdjectivePhrase::from_orientation(orientation)
 }
 
 #[allow(
@@ -232,10 +224,12 @@ fn make_comparison_than(standard: Phrase) -> Result<ComparisonComplement, Declar
             "standard is a noun phrase, adjective phrase, or clause",
         ));
     }
-    Ok(ComparisonComplement::from_projection_parts(
-        ComparisonMarker::Than,
-        standard,
-    ))
+    ComparisonComplement::try_new(ComparisonMarker::Than, standard).ok_or_else(|| {
+        violation(
+            "comparison_than",
+            "standard is a noun phrase, adjective phrase, or clause",
+        )
+    })
 }
 
 fn make_comparison_than_or_equal_to(
@@ -247,36 +241,41 @@ fn make_comparison_than_or_equal_to(
             "standard is a noun phrase, adjective phrase, or clause",
         ));
     }
-    Ok(ComparisonComplement::from_projection_parts(
-        ComparisonMarker::ThanOrEqualTo,
-        standard,
-    ))
+    ComparisonComplement::try_new(ComparisonMarker::ThanOrEqualTo, standard).ok_or_else(|| {
+        violation(
+            "comparison_than_or_equal_to",
+            "standard is a noun phrase, adjective phrase, or clause",
+        )
+    })
 }
 
 fn comparison_standard(value: &ComparisonComplement) -> Phrase {
-    value.standard.as_ref().clone()
+    value.standard().clone()
 }
 
 fn is_comparison_than(value: &ComparisonComplement) -> bool {
-    value.marker == ComparisonMarker::Than
+    value.marker() == ComparisonMarker::Than
 }
 
 fn is_comparison_than_or_equal_to(value: &ComparisonComplement) -> bool {
-    value.marker == ComparisonMarker::ThanOrEqualTo
+    value.marker() == ComparisonMarker::ThanOrEqualTo
 }
 
 fn pending_comparison_owner(value: &AdjectivePhrase) -> bool {
-    value.degree.is_none()
-        && value.complements.is_empty()
+    value.degree().is_none()
+        && value.complements().is_empty()
         && matches!(
-            adjective_comparison_state(&value.head),
+            adjective_comparison_state(value.head()),
             AdjectiveComparisonState::Pending(_)
         )
 }
 
 fn comparison_class_matches(owner: &AdjectivePhrase, comparison: &ComparisonComplement) -> bool {
     matches!(
-        (adjective_comparison_state(&owner.head), comparison.marker),
+        (
+            adjective_comparison_state(owner.head()),
+            comparison.marker()
+        ),
         (
             AdjectiveComparisonState::Pending(AdjectiveComparisonClass::OrComparative),
             ComparisonMarker::Than | ComparisonMarker::ThanOrEqualTo,
@@ -287,43 +286,43 @@ fn comparison_class_matches(owner: &AdjectivePhrase, comparison: &ComparisonComp
     )
 }
 
-fn attach_comparison(
-    owner: &AdjectivePhrase,
+fn make_adjective_phrase_comparison(
+    owner: AdjectivePhrase,
     comparison: ComparisonComplement,
-) -> Result<AdjectiveComplement, DeclarationViolation> {
-    if !pending_comparison_owner(owner) || !comparison_class_matches(owner, &comparison) {
+) -> Result<AdjectivePhrase, DeclarationViolation> {
+    if !pending_comparison_owner(&owner) || !comparison_class_matches(&owner, &comparison) {
         return Err(violation(
             "adjective_phrase_comparison",
             "the owner is an unmeasured matching-class comparison-pending adjective phrase with no complements",
         ));
     }
-    if !is_comparison_standard(&comparison.standard) {
+    if !is_comparison_standard(comparison.standard()) {
         return Err(violation(
             "adjective_phrase_comparison",
             "the comparison has a typed standard",
         ));
     }
-    Ok(AdjectiveComplement::Comparison(comparison))
+    owner
+        .try_attach_declared_comparison(comparison)
+        .ok_or_else(|| {
+            violation(
+                "adjective_phrase_comparison",
+                "the checked adjective owner accepts the typed comparison exactly once",
+            )
+        })
 }
 
-fn detach_comparison(
-    owner: &AdjectivePhrase,
-    complement: AdjectiveComplement,
-) -> Option<ComparisonComplement> {
-    let AdjectiveComplement::Comparison(comparison) = complement else {
-        return None;
-    };
-    attach_comparison(owner, comparison.clone()).ok()?;
-    Some(comparison)
+fn adjective_phrase_comparison_parts(
+    value: &AdjectivePhrase,
+) -> (AdjectivePhrase, ComparisonComplement) {
+    value
+        .clone()
+        .try_split_declared_comparison()
+        .expect("the comparison dispatcher admits one checked comparison")
 }
 
 fn is_adjective_phrase_comparison(value: &AdjectivePhrase) -> bool {
-    let [AdjectiveComplement::Comparison(comparison)] = value.complements.as_slice() else {
-        return false;
-    };
-    let mut owner = value.clone();
-    owner.complements.clear();
-    attach_comparison(&owner, comparison.clone()).is_ok()
+    value.clone().try_split_declared_comparison().is_some()
 }
 
 fn reduce_comparison_features(owner: &Features, complement: &Features) -> Option<Features> {
@@ -368,27 +367,29 @@ fn make_degree_measure(
             "the adjective is a pending OrComparative and is not a card orientation",
         ));
     }
-    Ok(AdjectivePhrase::from_projection_parts(
-        Some(measure),
-        adjective,
-        Vec::new(),
-    ))
+    AdjectivePhrase::try_from_degree_measure(measure, adjective).ok_or_else(|| {
+        violation(
+            "adjective_phrase_degree_measure",
+            "the checked adjective owner accepts this degree measure",
+        )
+    })
 }
 
 fn degree_measure_parts(value: &AdjectivePhrase) -> (NumberLiteral, Adjective) {
     (
         value
-            .degree
+            .degree()
+            .copied()
             .expect("the degree-measure dispatcher admits only measured phrases"),
-        value.head.clone(),
+        value.head().clone(),
     )
 }
 
 fn is_adjective_phrase_degree_measure(value: &AdjectivePhrase) -> bool {
-    let Some(measure) = value.degree else {
+    let Some(measure) = value.degree().copied() else {
         return false;
     };
-    value.complements.is_empty() && make_degree_measure(measure, value.head.clone()).is_ok()
+    value.complements().is_empty() && make_degree_measure(measure, value.head().clone()).is_ok()
 }
 
 fn reduce_degree_measure_features(measure: &Features, adjective: &Features) -> Option<Features> {
@@ -410,12 +411,6 @@ fn reduce_degree_measure_features(measure: &Features, adjective: &Features) -> O
 
 deckmaste_constructions_macro::constructions! {
     group adjective;
-
-    lens adjective_phrase_complements bind AdjectivePhrase {
-        degree: opt NumberLiteral,
-        head: value Adjective,
-        complements: vec AdjectiveComplement,
-    }
 
     construction adjective: Adjective {
         bind Adjective via make_adjective, adjective_identity {
@@ -483,12 +478,9 @@ deckmaste_constructions_macro::constructions! {
     }
 
     construction adjective_phrase_comparison: AdjectivePhrase {
-        bind AdjectivePhrase {
+        bind AdjectivePhrase via make_adjective_phrase_comparison, adjective_phrase_comparison_parts {
             owner: hole AdjectivePhrase,
             comparison: hole ComparisonComplement,
-        }
-        lens adjective_phrase_complements from owner {
-            append complements with comparison via attach_comparison, detach_comparison;
         }
         derive features: Features = reduce_comparison_features(owner, comparison);
         form only @ 0 inverse check(is_adjective_phrase_comparison) = owner comparison;
@@ -514,7 +506,6 @@ mod tests {
     use super::*;
     use crate::catalog::Catalogs;
     use crate::numeral::Numeral;
-    use crate::syntax::AdjectiveComplement;
     use crate::syntax::AdjectivePhrase;
     use crate::syntax::NumberLiteral;
     use crate::word::Adjective;
@@ -567,14 +558,13 @@ mod tests {
     }
 
     fn comparison(marker: ComparisonMarker) -> ComparisonComplement {
-        ComparisonComplement {
+        ComparisonComplement::try_new(
             marker,
-            standard: Box::new(Phrase::AdjectivePhrase(Box::new(AdjectivePhrase {
-                degree: None,
-                head: Adjective::Word(Vocab::Target),
-                complements: Vec::new(),
-            }))),
-        }
+            Phrase::AdjectivePhrase(Box::new(
+                AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Target)).unwrap(),
+            )),
+        )
+        .unwrap()
     }
 
     fn rebuild_adjective(value: Adjective) -> Adjective {
@@ -629,11 +619,7 @@ mod tests {
                 build_adjective_phrase_face_down,
             ),
         ] {
-            let expected = AdjectivePhrase {
-                degree: None,
-                head: Adjective::CardOrientation(orientation),
-                complements: Vec::new(),
-            };
+            let expected = AdjectivePhrase::from_orientation(orientation);
             assert_eq!(rebuild_phrase(&expected, parts, build), expected);
         }
 
@@ -656,11 +642,8 @@ mod tests {
 
         let noun =
             crate::syntax::NounPhrase::ThisCard(crate::syntax::ThisCardForm::AbbreviatedName);
-        let adjective = AdjectivePhrase {
-            degree: None,
-            head: Adjective::Word(Vocab::Target),
-            complements: Vec::new(),
-        };
+        let adjective =
+            AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Target)).unwrap();
         let clause = crate::grammar::parse_nonterminal_with_activation(
             "copy that spell",
             &Catalogs::default(),
@@ -703,11 +686,9 @@ mod tests {
             );
         }
 
-        let standard = crate::syntax::Phrase::AdjectivePhrase(Box::new(AdjectivePhrase {
-            degree: None,
-            head: Adjective::Word(Vocab::Target),
-            complements: Vec::new(),
-        }));
+        let standard = crate::syntax::Phrase::AdjectivePhrase(Box::new(
+            AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Target)).unwrap(),
+        ));
         for (expected_marker, build, parts) in [
             (
                 crate::syntax::ComparisonMarker::Than,
@@ -721,8 +702,8 @@ mod tests {
             ),
         ] {
             let built = build(standard.clone()).expect("the marker admits a typed standard");
-            assert_eq!(built.marker, expected_marker);
-            assert_eq!(*built.standard, standard);
+            assert_eq!(built.marker(), expected_marker);
+            assert_eq!(built.standard(), &standard);
             let standard = parts(&built);
             assert_eq!(build(standard).expect("the marker rebuilds"), built);
         }
@@ -737,11 +718,7 @@ mod tests {
     #[test]
     fn inactive_group_lowers_and_matches_both_generic_adjective_categories() {
         let lexical = Adjective::Word(Vocab::Target);
-        let phrase = AdjectivePhrase {
-            degree: None,
-            head: lexical.clone(),
-            complements: Vec::new(),
-        };
+        let phrase = AdjectivePhrase::try_from_lexical_head(lexical.clone()).unwrap();
         for (source, category, expected, construction) in [
             (
                 "target",
@@ -822,8 +799,7 @@ mod tests {
         for marker in [ComparisonMarker::Than, ComparisonMarker::ThanOrEqualTo] {
             let owner = build_adjective_phrase(Adjective::Word(Vocab::Greater)).unwrap();
             let built = build_adjective_phrase_comparison(owner, comparison(marker)).unwrap();
-            let (owner, complement) = parts_adjective_phrase_comparison(&built)
-                .expect("the trailing comparison detaches from its owner");
+            let (owner, complement) = parts_adjective_phrase_comparison(&built);
             assert_eq!(
                 build_adjective_phrase_comparison(owner, complement).unwrap(),
                 built
@@ -900,12 +876,9 @@ mod tests {
             "{DUPLICATE_COMPARISON}"
         );
 
-        let mut surplus = greater;
-        surplus
-            .complements
-            .push(AdjectiveComplement::PostnominalComparison(comparison(
-                ComparisonMarker::Than,
-            )));
+        let surplus = greater
+            .try_attach_postnominal_comparison(comparison(ComparisonMarker::Than))
+            .expect("a pending owner accepts one checked postnominal comparison");
         assert!(
             build_adjective_phrase_comparison(surplus, comparison(ComparisonMarker::Than)).is_err(),
             "{SURPLUS_COMPLEMENT}"
@@ -919,55 +892,51 @@ mod tests {
 
     #[test]
     fn inactive_group_parses_all_required_comparison_and_measure_witnesses() {
-        let target = Phrase::AdjectivePhrase(Box::new(AdjectivePhrase {
-            degree: None,
-            head: Adjective::Word(Vocab::Target),
-            complements: Vec::new(),
-        }));
+        let target = Phrase::AdjectivePhrase(Box::new(
+            AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Target)).unwrap(),
+        ));
         for (source, expected) in [
             (
                 "greater than target",
-                AdjectivePhrase {
-                    degree: None,
-                    head: Adjective::Word(Vocab::Greater),
-                    complements: vec![AdjectiveComplement::Comparison(ComparisonComplement {
-                        marker: ComparisonMarker::Than,
-                        standard: Box::new(target.clone()),
-                    })],
-                },
+                AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Greater))
+                    .unwrap()
+                    .try_attach_declared_comparison(
+                        ComparisonComplement::try_new(ComparisonMarker::Than, target.clone())
+                            .unwrap(),
+                    )
+                    .unwrap(),
             ),
             (
                 "greater than or equal to target",
-                AdjectivePhrase {
-                    degree: None,
-                    head: Adjective::Word(Vocab::Greater),
-                    complements: vec![AdjectiveComplement::Comparison(ComparisonComplement {
-                        marker: ComparisonMarker::ThanOrEqualTo,
-                        standard: Box::new(target),
-                    })],
-                },
+                AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Greater))
+                    .unwrap()
+                    .try_attach_declared_comparison(
+                        ComparisonComplement::try_new(ComparisonMarker::ThanOrEqualTo, target)
+                            .unwrap(),
+                    )
+                    .unwrap(),
             ),
             (
                 "2 greater",
-                AdjectivePhrase {
-                    degree: Some(NumberLiteral {
+                AdjectivePhrase::try_from_degree_measure(
+                    NumberLiteral {
                         value: 2,
                         numeral: Numeral::Arabic(false),
-                    }),
-                    head: Adjective::Word(Vocab::Greater),
-                    complements: Vec::new(),
-                },
+                    },
+                    Adjective::Word(Vocab::Greater),
+                )
+                .unwrap(),
             ),
             (
                 "two greater",
-                AdjectivePhrase {
-                    degree: Some(NumberLiteral {
+                AdjectivePhrase::try_from_degree_measure(
+                    NumberLiteral {
                         value: 2,
                         numeral: Numeral::Cardinal,
-                    }),
-                    head: Adjective::Word(Vocab::Greater),
-                    complements: Vec::new(),
-                },
+                    },
+                    Adjective::Word(Vocab::Greater),
+                )
+                .unwrap(),
             ),
             ("face up", orientation_phrase(CardOrientation::FaceUp)),
             ("face down", orientation_phrase(CardOrientation::FaceDown)),

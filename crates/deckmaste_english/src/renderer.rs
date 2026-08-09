@@ -20,7 +20,6 @@ use crate::syntax::Clause;
 use crate::syntax::ClauseAttachment;
 use crate::syntax::ClauseAttachmentKind;
 use crate::syntax::ComparisonComplement;
-use crate::syntax::ComparisonMarker;
 use crate::syntax::ComplexClause;
 use crate::syntax::CoordinatedAdjectivePhrase;
 use crate::syntax::CoordinatedClauseMember;
@@ -3495,7 +3494,7 @@ impl<'identity> Renderer<'identity> {
                 deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
                     ..
                 },
-            ) => Ok(None),
+            ) if phrase.is_explicit_non_j01_compatibility() => Ok(None),
             Err(deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error)) => {
                 Err(error)
             }
@@ -3548,25 +3547,21 @@ impl<'identity> Renderer<'identity> {
         &self,
         phrase: &AdjectivePhrase,
     ) -> Result<(String, Vec<String>), RenderError> {
-        let immediate_phrase = AdjectivePhrase::from_projection_parts(
-            phrase.degree().copied(),
-            phrase.head().clone(),
-            phrase
-                .complements()
-                .iter()
-                .filter(|complement| {
-                    !matches!(complement, AdjectiveComplement::PostnominalComparison(_))
-                })
-                .cloned()
-                .collect(),
-        );
+        let (immediate_phrase, comparison) = phrase
+            .clone()
+            .try_split_postnominal_comparison()
+            .map_or_else(
+                || (phrase.clone(), None),
+                |(owner, comparison)| (owner, Some(comparison)),
+            );
         let immediate = self.adjective_phrase(&immediate_phrase)?;
-        let mut trailing = Vec::new();
-        for complement in phrase.complements() {
-            if matches!(complement, AdjectiveComplement::PostnominalComparison(_)) {
-                trailing.push(self.adjective_complement(complement)?);
-            }
-        }
+        let trailing = comparison
+            .map(|comparison| {
+                self.adjective_complement(&AdjectiveComplement::PostnominalComparison(comparison))
+            })
+            .transpose()?
+            .into_iter()
+            .collect();
         Ok((immediate, trailing))
     }
 
@@ -3589,17 +3584,6 @@ impl<'identity> Renderer<'identity> {
                     &mut visitor,
                 ) {
                     Ok(()) => visitor.rendered,
-                    Err(
-                        deckmaste_construction_compiler::runtime::LinearizationError::Visitor(
-                            RenderError::InvalidAdjectiveConstruction,
-                        ),
-                    ) => {
-                        let marker = match comparison.marker() {
-                            ComparisonMarker::Than => "than",
-                            ComparisonMarker::ThanOrEqualTo => "than or equal to",
-                        };
-                        format!("{marker} {}", self.phrase(comparison.standard())?)
-                    }
                     Err(
                         deckmaste_construction_compiler::runtime::LinearizationError::Visitor(
                             error,
@@ -5113,11 +5097,10 @@ mod tests {
                 THIRD_PLURAL_PRESENT,
                 vec![
                     VerbDependent::Scalar(Phrase::OracleSymbol(OracleSymbol::new("{1}").unwrap())),
-                    VerbDependent::Adverbial(Phrase::AdjectivePhrase(Box::new(AdjectivePhrase {
-                        degree: None,
-                        head: Adjective::Word(Vocab::Less),
-                        complements: vec![],
-                    }))),
+                    VerbDependent::Adverbial(Phrase::AdjectivePhrase(Box::new(
+                        crate::adjective::build_adjective_phrase(Adjective::Word(Vocab::Less))
+                            .unwrap(),
+                    ))),
                     VerbDependent::Infinitive(
                         InfinitiveMarker::To,
                         Box::new(verb_phrase(Vocab::Cast, VerbSlot::Infinitive, vec![])),
@@ -5200,11 +5183,10 @@ mod tests {
                 vec![
                     NominalModifier::Adjective {
                         polarity: Polarity::Positive,
-                        phrase: AdjectivePhrase {
-                            degree: None,
-                            head: Adjective::Word(Vocab::Other),
-                            complements: vec![],
-                        },
+                        phrase: crate::adjective::build_adjective_phrase(Adjective::Word(
+                            Vocab::Other,
+                        ))
+                        .unwrap(),
                     },
                     NominalModifier::Noun {
                         polarity: Polarity::Positive,
@@ -5428,16 +5410,20 @@ mod tests {
                 Vocab::Be,
                 THIRD_SINGULAR_PRESENT,
                 vec![VerbDependent::PredicateComplement(Phrase::AdjectivePhrase(
-                    Box::new(AdjectivePhrase {
-                        degree: None,
-                        head: Adjective::Word(Vocab::Equal),
-                        complements: vec![AdjectiveComplement::Prepositional(
-                            PrepositionalPhrase::simple(
-                                Preposition::To,
-                                Phrase::NounPhrase(Box::new(number)),
-                            ),
-                        )],
-                    }),
+                    Box::new(
+                        AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Equal))
+                            .and_then(|phrase| {
+                                phrase.try_attach_compatibility_complement(
+                                    AdjectiveComplement::Prepositional(
+                                        PrepositionalPhrase::simple(
+                                            Preposition::To,
+                                            Phrase::NounPhrase(Box::new(number)),
+                                        ),
+                                    ),
+                                )
+                            })
+                            .unwrap(),
+                    ),
                 ))],
             ),
         ));
@@ -5975,21 +5961,20 @@ mod tests {
     fn adjective_phrase_renders_a_degree_measure_before_the_head() {
         // RB1: predicative path, notation-fidelity pin (design point 3).
         let renderer = Renderer::new("Test Card", false);
-        let greater = || Adjective::Word(Vocab::Greater);
-        let arabic_phrase = AdjectivePhrase {
-            degree: Some(degcmp_arabic(2)),
-            head: greater(),
-            complements: vec![],
-        };
+        let arabic_phrase = crate::adjective::build_adjective_phrase_degree_measure(
+            degcmp_arabic(2),
+            Adjective::Word(Vocab::Greater),
+        )
+        .unwrap();
         assert_eq!(
             renderer.adjective_phrase(&arabic_phrase).unwrap(),
             "2 greater"
         );
-        let cardinal_phrase = AdjectivePhrase {
-            degree: Some(cardinal(2)),
-            head: greater(),
-            complements: vec![],
-        };
+        let cardinal_phrase = crate::adjective::build_adjective_phrase_degree_measure(
+            cardinal(2),
+            Adjective::Word(Vocab::Greater),
+        )
+        .unwrap();
         assert_eq!(
             renderer.adjective_phrase(&cardinal_phrase).unwrap(),
             "two greater"
@@ -5997,23 +5982,58 @@ mod tests {
     }
 
     #[test]
-    fn nominal_modifier_adjective_renders_a_degree_measure() {
-        // RB2: attributive path — unreachable from parsing (§2), but the
-        // renderer must not silently drop the field.
+    fn explicit_non_j01_adjective_complements_keep_read_compatibility() {
         let renderer = Renderer::new("Test Card", false);
-        let phrase = AdjectivePhrase {
-            degree: Some(degcmp_arabic(2)),
-            head: Adjective::Word(Vocab::Greater),
-            complements: vec![AdjectiveComplement::PostnominalComparison(
-                ComparisonComplement {
-                    marker: ComparisonMarker::Than,
-                    standard: Box::new(Phrase::NumberLiteral(cardinal(1))),
-                },
-            )],
-        };
+        let prepositional = AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Equal))
+            .and_then(|phrase| {
+                phrase.try_attach_compatibility_complement(AdjectiveComplement::Prepositional(
+                    PrepositionalPhrase::simple(
+                        Preposition::To,
+                        Phrase::NounPhrase(Box::new(NounPhrase::ThisCard(ThisCardForm::FullName))),
+                    ),
+                ))
+            })
+            .unwrap();
+        assert_eq!(
+            renderer.adjective_phrase(&prepositional).unwrap(),
+            "equal to Test Card"
+        );
+
+        let infinitive = AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Able))
+            .and_then(|phrase| {
+                phrase.try_attach_compatibility_complement(AdjectiveComplement::Infinitive(
+                    InfinitiveClause {
+                        negated: false,
+                        marker: InfinitiveMarker::To,
+                        predicate: Box::new(strict_predicate(verb_phrase(
+                            Vocab::Attack,
+                            VerbSlot::Infinitive,
+                            vec![],
+                        ))),
+                    },
+                ))
+            })
+            .unwrap();
+        assert_eq!(
+            renderer.adjective_phrase(&infinitive).unwrap(),
+            "able to attack"
+        );
+    }
+
+    #[test]
+    fn nominal_modifier_adjective_renders_a_checked_postnominal_comparison() {
+        let renderer = Renderer::new("Test Card", false);
+        let target =
+            crate::adjective::build_adjective_phrase(Adjective::Word(Vocab::Target)).unwrap();
+        let standard =
+            crate::adjective::build_comparison_standard(None, Some(target), None).unwrap();
+        let comparison = crate::adjective::build_comparison_than(standard).unwrap();
+        let phrase = AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Greater))
+            .and_then(|phrase| phrase.try_attach_postnominal_comparison(comparison))
+            .unwrap();
         let (immediate, trailing) = renderer.nominal_modifier_adjective(&phrase).unwrap();
-        assert_eq!(immediate, "2 greater");
-        assert_eq!(trailing, vec!["than one".to_string()]);
+        assert_eq!(immediate, "greater");
+        assert_eq!(trailing, vec!["than target".to_string()]);
     }
 
     fn power_toughness_nominal(power: ScalarValue) -> NominalPhrase {

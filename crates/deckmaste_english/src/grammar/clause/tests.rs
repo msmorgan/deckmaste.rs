@@ -7,7 +7,6 @@ use crate::identity::SelfReference;
 use crate::syntax::Ability;
 use crate::syntax::AbilityKind;
 use crate::syntax::AdjectiveComplement;
-use crate::syntax::AdjectivePhrase;
 use crate::syntax::Demonstrative;
 use crate::syntax::Determiner;
 use crate::syntax::FrequencyBound;
@@ -1171,14 +1170,17 @@ fn degree_measured_comparative_structural_shape() {
         panic!("expected an adjective complement: {predicate:#?}");
     };
     assert_eq!(
-        adjective.degree,
+        adjective.degree().copied(),
         Some(NumberLiteral {
             value: 2,
             numeral: Numeral::Arabic(false),
         })
     );
-    assert_eq!(adjective.head, crate::word::Adjective::Word(Vocab::Greater));
-    assert!(adjective.complements.is_empty());
+    assert_eq!(
+        adjective.head(),
+        &crate::word::Adjective::Word(Vocab::Greater)
+    );
+    assert!(adjective.complements().is_empty());
 }
 
 #[test]
@@ -1211,7 +1213,7 @@ fn numeral_before_a_than_only_adjective_is_not_a_degree_phrase() {
         panic!("expected a single adjective modifier: {nominal:#?}");
     };
     assert!(
-        phrase.degree.is_none(),
+        phrase.degree().is_none(),
         "the `other` modifier must not carry a degree measure: {phrase:#?}"
     );
 }
@@ -1282,7 +1284,7 @@ fn numeral_before_an_or_comparative_stays_attributive() {
             .iter()
             .find_map(|modifier| match modifier {
                 NominalModifier::Adjective { phrase, .. }
-                    if matches!(phrase.head, Adjective::Word(Vocab::More | Vocab::Fewer)) =>
+                    if matches!(phrase.head(), Adjective::Word(Vocab::More | Vocab::Fewer)) =>
                 {
                     Some(phrase)
                 }
@@ -1290,7 +1292,7 @@ fn numeral_before_an_or_comparative_stays_attributive() {
             })
             .unwrap_or_else(|| panic!("expected an attributive comparative: {nominal:#?}"));
         assert!(
-            comparative.degree.is_none(),
+            comparative.degree().is_none(),
             "{source} must not carry a degree measure: {comparative:#?}"
         );
     }
@@ -2592,7 +2594,7 @@ fn subject_relative_differential_comparisons_are_structural() {
                 NominalModifier::Adjective {
                     phrase: adjective, ..
                 } if matches!(
-                    adjective.head,
+                    adjective.head(),
                     Adjective::Word(word) if word.spelling() == expected_adjective
                 ) =>
                 {
@@ -2601,13 +2603,12 @@ fn subject_relative_differential_comparisons_are_structural() {
                 _ => None,
             })
             .unwrap_or_else(|| panic!("missing {expected_adjective:?} modifier: {cards:#?}"));
-        let [AdjectiveComplement::PostnominalComparison(comparison)] =
-            adjective.complements.as_slice()
+        let [AdjectiveComplement::PostnominalComparison(comparison)] = adjective.complements()
         else {
             panic!("expected a comparison complement: {adjective:#?}");
         };
         assert!(matches!(
-            comparison.standard.as_ref(),
+            comparison.standard(),
             crate::syntax::Phrase::Clause(clause)
                 if matches!(
                     clause.as_ref(),
@@ -3142,7 +3143,7 @@ fn participle_position_distinguishes_modifier_from_passive_predicate() {
         subject.modifiers(),
         [NominalModifier::Adjective { phrase: adjective, .. }]
             if matches!(
-                adjective.head,
+                adjective.head(),
                 Adjective::Participle(Tense::Past, Verb::Word(Vocab::Prevent))
             )
     ));
@@ -3607,12 +3608,10 @@ fn face_down_is_a_secondary_adjective_predicate() {
     assert!(matches!(
         predicate.elements.as_slice(),
         [PredicateElement::Complement(PredicateComplement::Adjective(
-            AdjectivePhrase {
-                degree: None,
-                head: Adjective::CardOrientation(crate::word::CardOrientation::FaceDown),
-                complements,
-            }
-        ))] if complements.is_empty()
+            phrase
+        ))] if phrase.degree().is_none()
+            && matches!(phrase.head(), Adjective::CardOrientation(crate::word::CardOrientation::FaceDown))
+            && phrase.complements().is_empty()
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -4598,10 +4597,10 @@ fn distributive_each_copular_carries_each_and_binds_the_standard() {
         let crate::syntax::CopularComplement::Adjective(adjective) = &predicate.complement else {
             panic!("expected an adjective complement: {predicate:#?}");
         };
-        assert_eq!(adjective.head, Adjective::Word(Vocab::Equal));
+        assert_eq!(adjective.head(), &Adjective::Word(Vocab::Equal));
         assert!(
             matches!(
-                adjective.complements.as_slice(),
+                adjective.complements(),
                 [AdjectiveComplement::Prepositional(preposition)]
                     if preposition.head().preposition == crate::syntax::Preposition::To
             ),
@@ -5310,14 +5309,8 @@ fn turn_head_spelling(nominal: &crate::syntax::NominalPhrase) -> &'static str {
 
 fn sole_adjective_spelling(nominal: &crate::syntax::NominalPhrase) -> &'static str {
     for modifier in nominal.modifiers() {
-        if let NominalModifier::Adjective {
-            phrase:
-                crate::syntax::AdjectivePhrase {
-                    head: Adjective::Word(word),
-                    ..
-                },
-            ..
-        } = modifier
+        if let NominalModifier::Adjective { phrase, .. } = modifier
+            && let Adjective::Word(word) = phrase.head()
         {
             return word.spelling();
         }
@@ -5823,14 +5816,10 @@ fn next_cleanup_step_is_one_nominal() {
     assert!(
         nominal.modifiers().iter().any(|modifier| matches!(
             modifier,
-            NominalModifier::Adjective {
-                phrase: AdjectivePhrase {
-                    degree: None,
-                    head: Adjective::Word(vocab),
-                    ..
-                },
-                ..
-            } if matches!(vocab, Vocab::Regular(_)) && vocab.spelling() == "next"
+            NominalModifier::Adjective { phrase, .. }
+                if phrase.degree().is_none()
+                    && matches!(phrase.head(), Adjective::Word(vocab)
+                        if matches!(vocab, Vocab::Regular(_)) && vocab.spelling() == "next")
         )),
         "expected the `next` adjective on the `beginning of …` object: {nominal:#?}"
     );
@@ -5885,14 +5874,10 @@ fn known_noun_step_compounds_are_not_split() {
         assert!(
             nominal.modifiers().iter().any(|modifier| matches!(
                 modifier,
-                NominalModifier::Adjective {
-                    phrase: AdjectivePhrase {
-                        degree: None,
-                        head: Adjective::Word(vocab),
-                        ..
-                    },
-                    ..
-                } if matches!(vocab, Vocab::Regular(_)) && vocab.spelling() == "next"
+                NominalModifier::Adjective { phrase, .. }
+                    if phrase.degree().is_none()
+                        && matches!(phrase.head(), Adjective::Word(vocab)
+                            if matches!(vocab, Vocab::Regular(_)) && vocab.spelling() == "next")
             )) && nominal.modifiers().iter().any(|modifier| matches!(
                 modifier,
                 NominalModifier::Noun {
@@ -6130,13 +6115,8 @@ fn attributive_next_is_not_a_preverb_modifier() {
     assert!(
         nominal.modifiers().iter().any(|modifier| matches!(
             modifier,
-            NominalModifier::Adjective {
-                phrase: AdjectivePhrase {
-                    head: Adjective::Word(vocab),
-                    ..
-                },
-                ..
-            } if vocab.spelling() == "next"
+            NominalModifier::Adjective { phrase, .. }
+                if matches!(phrase.head(), Adjective::Word(vocab) if vocab.spelling() == "next")
         )),
         "expected `next` as an adjective modifier: {nominal:#?}"
     );
@@ -6816,7 +6796,7 @@ fn coordinated_postpositive_participles_share_the_creature_head() {
         panic!("expected coordinated postpositive participles: {target:#?}");
     };
     assert!(matches!(
-        participles.first.head,
+        participles.first.head(),
         Adjective::Participle(Tense::Present, Verb::Word(Vocab::Block))
     ));
     let [second] = participles.rest.as_slice() else {
@@ -6824,11 +6804,11 @@ fn coordinated_postpositive_participles_share_the_creature_head() {
     };
     assert_eq!(second.conjunction, Some(PredicateConjunction::Or));
     assert!(matches!(
-        second.phrase.head,
+        second.phrase.head(),
         Adjective::Participle(Tense::Past, Verb::Word(Vocab::Block))
     ));
     assert!(matches!(
-        second.phrase.complements.as_slice(),
+        second.phrase.complements(),
         [AdjectiveComplement::Prepositional(by)] if by.head().preposition == Preposition::By
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);

@@ -18,6 +18,8 @@ use crate::constructions::coordination::CoordinatedNounPhrase;
 use crate::features::Comma;
 use crate::features::Conjunction;
 use crate::word::Adjective;
+use crate::word::AdjectiveComparisonClass;
+use crate::word::CardOrientation;
 use crate::word::ColorWord;
 use crate::word::InitialSound;
 use crate::word::Noun;
@@ -25,6 +27,7 @@ use crate::word::NounInstance;
 use crate::word::Pronoun;
 use crate::word::PronounCase;
 use crate::word::Vocab;
+use crate::word::Vocabulary;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct RecoveredText {
@@ -1103,26 +1106,172 @@ pub struct AdjectivePhrase {
     /// A numeral degree measure premodifying the head (`2 greater`). A
     /// premodifier, never a complement: `complements` renders post-head.
     /// Carries its own notation so `two greater` never renders `2 greater`.
-    pub(crate) degree: Option<NumberLiteral>,
-    pub(crate) head: Adjective,
-    pub(crate) complements: Vec<AdjectiveComplement>,
+    degree: Option<NumberLiteral>,
+    head: Adjective,
+    complements: Vec<AdjectiveComplement>,
 }
 
 impl AdjectivePhrase {
-    /// Canonical crate-internal projection seam for parser lowering and
-    /// declaration-generated reconstruction. Public callers use the checked
-    /// builders in [`crate::adjective`].
+    /// Checked base projection used by declaration-owned lowering paths.
     #[must_use]
-    pub(crate) const fn from_projection_parts(
-        degree: Option<NumberLiteral>,
-        head: Adjective,
-        complements: Vec<AdjectiveComplement>,
-    ) -> Self {
-        Self {
-            degree,
+    pub(crate) fn try_from_lexical_head(head: Adjective) -> Option<Self> {
+        (!matches!(head, Adjective::CardOrientation(_))
+            && Vocabulary::new().render_adjective(&head).is_some())
+        .then_some(Self {
+            degree: None,
             head,
-            complements,
+            complements: Vec::new(),
+        })
+    }
+
+    #[must_use]
+    pub(crate) const fn from_orientation(orientation: CardOrientation) -> Self {
+        Self {
+            degree: None,
+            head: Adjective::CardOrientation(orientation),
+            complements: Vec::new(),
         }
+    }
+
+    #[must_use]
+    pub(crate) fn try_from_degree_measure(measure: NumberLiteral, head: Adjective) -> Option<Self> {
+        let comparison = match &head {
+            Adjective::Word(word) => word.comparison(),
+            _ => None,
+        }?;
+        (comparison.class() == AdjectiveComparisonClass::OrComparative
+            && Vocabulary::new().render_adjective(&head).is_some())
+        .then_some(Self {
+            degree: Some(measure),
+            head,
+            complements: Vec::new(),
+        })
+    }
+
+    #[must_use]
+    pub(crate) fn try_attach_declared_comparison(
+        self,
+        comparison: ComparisonComplement,
+    ) -> Option<Self> {
+        self.try_attach_comparison(comparison, false)
+    }
+
+    #[must_use]
+    pub(crate) fn try_attach_postnominal_comparison(
+        self,
+        comparison: ComparisonComplement,
+    ) -> Option<Self> {
+        self.try_attach_comparison(comparison, true)
+    }
+
+    fn try_attach_comparison(
+        mut self,
+        comparison: ComparisonComplement,
+        postnominal: bool,
+    ) -> Option<Self> {
+        if self.degree.is_some() || !self.complements.is_empty() {
+            return None;
+        }
+        let class = match &self.head {
+            Adjective::Word(word) => word.comparison()?.class(),
+            _ => return None,
+        };
+        if !comparison.has_typed_standard()
+            || !matches!(
+                (class, comparison.marker),
+                (AdjectiveComparisonClass::OrComparative, _)
+                    | (AdjectiveComparisonClass::ThanOnly, ComparisonMarker::Than)
+            )
+        {
+            return None;
+        }
+        self.complements.push(if postnominal {
+            AdjectiveComplement::PostnominalComparison(comparison)
+        } else {
+            AdjectiveComplement::Comparison(comparison)
+        });
+        Some(self)
+    }
+
+    #[must_use]
+    pub(crate) fn try_split_declared_comparison(mut self) -> Option<(Self, ComparisonComplement)> {
+        let [AdjectiveComplement::Comparison(comparison)] = self.complements.as_slice() else {
+            return None;
+        };
+        let comparison = comparison.clone();
+        self.complements.clear();
+        self.clone()
+            .try_attach_declared_comparison(comparison.clone())?;
+        Some((self, comparison))
+    }
+
+    #[must_use]
+    pub(crate) fn try_split_postnominal_comparison(
+        mut self,
+    ) -> Option<(Self, ComparisonComplement)> {
+        let [AdjectiveComplement::PostnominalComparison(comparison)] = self.complements.as_slice()
+        else {
+            return None;
+        };
+        let comparison = comparison.clone();
+        self.complements.clear();
+        self.clone()
+            .try_attach_postnominal_comparison(comparison.clone())?;
+        Some((self, comparison))
+    }
+
+    /// Extends only the explicit non-J01 compatibility family. Declared
+    /// degree, orientation, and comparison shapes cannot cross this seam.
+    #[must_use]
+    pub(crate) fn try_attach_compatibility_complement(
+        mut self,
+        complement: AdjectiveComplement,
+    ) -> Option<Self> {
+        if self.degree.is_some()
+            || matches!(self.head, Adjective::CardOrientation(_))
+            || Vocabulary::new().render_adjective(&self.head).is_none()
+            || !self
+                .complements
+                .iter()
+                .all(Self::is_compatibility_complement)
+            || !Self::is_compatibility_complement(&complement)
+        {
+            return None;
+        }
+        self.complements.push(complement);
+        Some(self)
+    }
+
+    #[must_use]
+    pub(crate) fn try_split_trailing_prepositional(
+        mut self,
+    ) -> Option<(Self, PrepositionalPhrase)> {
+        if !self.is_explicit_non_j01_compatibility() {
+            return None;
+        }
+        let Some(AdjectiveComplement::Prepositional(preposition)) = self.complements.pop() else {
+            return None;
+        };
+        Some((self, preposition))
+    }
+
+    #[must_use]
+    pub(crate) fn is_explicit_non_j01_compatibility(&self) -> bool {
+        self.degree.is_none()
+            && !matches!(self.head, Adjective::CardOrientation(_))
+            && Vocabulary::new().render_adjective(&self.head).is_some()
+            && !self.complements.is_empty()
+            && self
+                .complements
+                .iter()
+                .all(Self::is_compatibility_complement)
+    }
+
+    const fn is_compatibility_complement(complement: &AdjectiveComplement) -> bool {
+        matches!(
+            complement,
+            AdjectiveComplement::Prepositional(_) | AdjectiveComplement::Infinitive(_)
+        )
     }
 
     #[must_use]
@@ -1191,19 +1340,28 @@ pub enum ComparisonMarker {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ComparisonComplement {
-    pub(crate) marker: ComparisonMarker,
-    pub(crate) standard: Box<Phrase>,
+    marker: ComparisonMarker,
+    standard: Box<Phrase>,
 }
 
 impl ComparisonComplement {
-    /// Canonical crate-internal projection seam. Public callers choose a
-    /// checked marker construction through [`crate::adjective`].
     #[must_use]
-    pub(crate) fn from_projection_parts(marker: ComparisonMarker, standard: Phrase) -> Self {
-        Self {
+    pub(crate) fn try_new(marker: ComparisonMarker, standard: Phrase) -> Option<Self> {
+        matches!(
+            standard,
+            Phrase::NounPhrase(_) | Phrase::AdjectivePhrase(_) | Phrase::Clause(_)
+        )
+        .then_some(Self {
             marker,
             standard: Box::new(standard),
-        }
+        })
+    }
+
+    fn has_typed_standard(&self) -> bool {
+        matches!(
+            self.standard.as_ref(),
+            Phrase::NounPhrase(_) | Phrase::AdjectivePhrase(_) | Phrase::Clause(_)
+        )
     }
 
     #[must_use]
@@ -1485,6 +1643,104 @@ pub enum Phrase {
     EmbeddedAbility(Box<Ability>),
     QuotedAbility(Box<QuotedAbility>),
     Recovered(RecoveredText),
+}
+
+#[cfg(test)]
+mod adjective_invariant_tests {
+    use super::*;
+
+    fn two() -> NumberLiteral {
+        NumberLiteral {
+            value: 2,
+            numeral: Numeral::Arabic(false),
+        }
+    }
+
+    #[test]
+    fn owner_operations_refuse_internal_invariant_bypasses() {
+        assert!(
+            AdjectivePhrase::try_from_lexical_head(Adjective::CardOrientation(
+                crate::word::CardOrientation::FaceUp,
+            ))
+            .is_none()
+        );
+        assert!(
+            AdjectivePhrase::try_from_degree_measure(
+                two(),
+                Adjective::CardOrientation(crate::word::CardOrientation::FaceUp),
+            )
+            .is_none()
+        );
+        assert!(
+            ComparisonComplement::try_new(ComparisonMarker::Than, Phrase::NumberLiteral(two()),)
+                .is_none()
+        );
+
+        let pending =
+            AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Greater)).unwrap();
+        let target =
+            AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Target)).unwrap();
+        let comparison = ComparisonComplement::try_new(
+            ComparisonMarker::Than,
+            Phrase::AdjectivePhrase(Box::new(target)),
+        )
+        .unwrap();
+        let completed = pending
+            .try_attach_declared_comparison(comparison.clone())
+            .unwrap();
+        assert!(
+            completed
+                .try_attach_declared_comparison(comparison)
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn generated_renderer_rejects_owner_private_malformed_shapes() {
+        let target =
+            AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Target)).unwrap();
+        let comparison = ComparisonComplement::try_new(
+            ComparisonMarker::Than,
+            Phrase::AdjectivePhrase(Box::new(target)),
+        )
+        .unwrap();
+        let malformed = [
+            AdjectivePhrase {
+                degree: Some(two()),
+                head: Adjective::Word(Vocab::Greater),
+                complements: vec![AdjectiveComplement::Comparison(comparison.clone())],
+            },
+            AdjectivePhrase {
+                degree: Some(two()),
+                head: Adjective::CardOrientation(crate::word::CardOrientation::FaceUp),
+                complements: Vec::new(),
+            },
+            AdjectivePhrase {
+                degree: None,
+                head: Adjective::Word(Vocab::Greater),
+                complements: vec![
+                    AdjectiveComplement::Comparison(comparison.clone()),
+                    AdjectiveComplement::Comparison(comparison),
+                ],
+            },
+            AdjectivePhrase {
+                degree: None,
+                head: Adjective::Word(Vocab::Greater),
+                complements: vec![AdjectiveComplement::Comparison(ComparisonComplement {
+                    marker: ComparisonMarker::Than,
+                    standard: Box::new(Phrase::NumberLiteral(two())),
+                })],
+            },
+        ];
+
+        for phrase in malformed {
+            assert_eq!(
+                crate::adjective::render(&phrase, "Test Card", false),
+                Err(crate::RenderError::InvalidAdjectiveConstruction),
+                "{phrase:#?}",
+            );
+        }
+    }
 }
 
 #[cfg(test)]

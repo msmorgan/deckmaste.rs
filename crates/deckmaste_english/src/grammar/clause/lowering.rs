@@ -588,15 +588,15 @@ pub(super) fn lower_copular_remainder(tag: RuleTag, children: &mut [Lowered]) ->
             // trailing prepositional phrase (`to X`) as its own complement so
             // the standard stays bound to the adjective rather than floating as
             // a clause adjunct.
-            let Lowered::AdjectivePhrase(mut adjective) = take(children, 1)? else {
+            let Lowered::AdjectivePhrase(adjective) = take(children, 1)? else {
                 return None;
             };
             let Lowered::PrepositionalPhrase(standard) = take(children, 2)? else {
                 return None;
             };
-            adjective
-                .complements
-                .push(crate::syntax::AdjectiveComplement::Prepositional(standard));
+            let adjective = adjective.try_attach_compatibility_complement(
+                crate::syntax::AdjectiveComplement::Prepositional(standard),
+            )?;
             CopularRemainder {
                 negated: false,
                 distributive_each: true,
