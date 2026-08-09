@@ -1,0 +1,5 @@
+error[E0616]: field `marker` of struct `ComparisonComplement` is private
+ --> tests/compile_fail/mutate_comparison_complement.rs:5:16
+  |
+5 |     comparison.marker = ComparisonMarker::ThanOrEqualTo;
+  |                ^^^^^^ private field

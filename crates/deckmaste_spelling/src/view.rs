@@ -716,6 +716,7 @@ mod tests {
     use deckmaste_english::features::PronounCase;
     use deckmaste_english::features::PronounClass;
     use deckmaste_english::syntax::ComparativeWord;
+    use deckmaste_english::syntax::ComparisonMarker;
     use deckmaste_english::syntax::CoordinationJunction;
     use deckmaste_english::syntax::Demonstrative;
     use deckmaste_english::syntax::NounPhrase;
@@ -724,6 +725,7 @@ mod tests {
     use deckmaste_english::syntax::OpaqueLexeme;
     use deckmaste_english::syntax::Quantity;
     use deckmaste_english::syntax::QuantityValue;
+    use deckmaste_english::word::Adjective;
     use deckmaste_english::word::Noun;
     use deckmaste_english::word::NounInstance;
     use deckmaste_english::word::PronounInstance;
@@ -946,6 +948,49 @@ mod tests {
             disjunction,
             "the two binary quantity families must remain frame-distinguishable"
         );
+    }
+
+    #[test]
+    fn adjective_view_keeps_checked_face_degree_marker_and_standard_shapes() {
+        use deckmaste_english::adjective as adjective_api;
+
+        let face = adjective_api::build_adjective_phrase_face_up().unwrap();
+        let measured = adjective_api::build_adjective_phrase_degree_measure(
+            NumberLiteral {
+                value: 2,
+                numeral: Numeral::Cardinal,
+            },
+            Adjective::Word(Vocab::Greater),
+        )
+        .unwrap();
+        let target = adjective_api::build_adjective_phrase(Adjective::Word(Vocab::Target)).unwrap();
+        let standard = adjective_api::build_comparison_standard(None, Some(target), None).unwrap();
+        let comparison = adjective_api::build_comparison_than(standard).unwrap();
+
+        for (value, head) in [(of(&face), "CardOrientation"), (of(&measured), "Word")] {
+            let View::Node { name, fields, .. } = value else {
+                panic!("checked adjective phrase must remain a structural node")
+            };
+            assert_eq!(name, "AdjectivePhrase");
+            assert_eq!(
+                fields.iter().map(|(name, _)| *name).collect::<Vec<_>>(),
+                ["degree", "head", "complements"]
+            );
+            assert!(format!("{:?}", fields[1].1).contains(head));
+        }
+        let View::Node { name, fields, .. } = of(&comparison) else {
+            panic!("checked comparison must remain a structural node")
+        };
+        assert_eq!(name, "ComparisonComplement");
+        assert_eq!(
+            fields.iter().map(|(name, _)| *name).collect::<Vec<_>>(),
+            ["marker", "standard"]
+        );
+        assert_eq!(comparison.marker(), ComparisonMarker::Than);
+        assert!(matches!(
+            comparison.standard(),
+            deckmaste_english::syntax::Phrase::AdjectivePhrase(_)
+        ));
     }
 
     #[test]

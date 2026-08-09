@@ -1,0 +1,5 @@
+error[E0616]: field `head` of struct `deckmaste_english::syntax::AdjectivePhrase` is private
+ --> tests/compile_fail/mutate_adjective_phrase.rs:5:12
+  |
+5 |     phrase.head = head;
+  |            ^^^^ private field

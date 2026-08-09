@@ -118,11 +118,11 @@ fn make_adjective_phrase(head: Adjective) -> Result<AdjectivePhrase, Declaration
             "head is a single lexical adjective",
         ));
     }
-    Ok(AdjectivePhrase {
-        degree: None,
+    Ok(AdjectivePhrase::from_projection_parts(
+        None,
         head,
-        complements: Vec::new(),
-    })
+        Vec::new(),
+    ))
 }
 
 fn adjective_phrase_head(value: &AdjectivePhrase) -> Adjective {
@@ -134,11 +134,11 @@ fn is_base_adjective_phrase(value: &AdjectivePhrase) -> bool {
 }
 
 fn orientation_phrase(orientation: CardOrientation) -> AdjectivePhrase {
-    AdjectivePhrase {
-        degree: None,
-        head: Adjective::CardOrientation(orientation),
-        complements: Vec::new(),
-    }
+    AdjectivePhrase::from_projection_parts(
+        None,
+        Adjective::CardOrientation(orientation),
+        Vec::new(),
+    )
 }
 
 #[allow(
@@ -232,10 +232,10 @@ fn make_comparison_than(standard: Phrase) -> Result<ComparisonComplement, Declar
             "standard is a noun phrase, adjective phrase, or clause",
         ));
     }
-    Ok(ComparisonComplement {
-        marker: ComparisonMarker::Than,
-        standard: Box::new(standard),
-    })
+    Ok(ComparisonComplement::from_projection_parts(
+        ComparisonMarker::Than,
+        standard,
+    ))
 }
 
 fn make_comparison_than_or_equal_to(
@@ -247,10 +247,10 @@ fn make_comparison_than_or_equal_to(
             "standard is a noun phrase, adjective phrase, or clause",
         ));
     }
-    Ok(ComparisonComplement {
-        marker: ComparisonMarker::ThanOrEqualTo,
-        standard: Box::new(standard),
-    })
+    Ok(ComparisonComplement::from_projection_parts(
+        ComparisonMarker::ThanOrEqualTo,
+        standard,
+    ))
 }
 
 fn comparison_standard(value: &ComparisonComplement) -> Phrase {
@@ -368,11 +368,11 @@ fn make_degree_measure(
             "the adjective is a pending OrComparative and is not a card orientation",
         ));
     }
-    Ok(AdjectivePhrase {
-        degree: Some(measure),
-        head: adjective,
-        complements: Vec::new(),
-    })
+    Ok(AdjectivePhrase::from_projection_parts(
+        Some(measure),
+        adjective,
+        Vec::new(),
+    ))
 }
 
 fn degree_measure_parts(value: &AdjectivePhrase) -> (NumberLiteral, Adjective) {
@@ -552,6 +552,19 @@ mod tests {
     const ATTRIBUTIVE_DEGREE_MEASURE: &str = "ATTRIBUTIVE_DEGREE_MEASURE";
     const DUPLICATE_COMPARISON: &str = "DUPLICATE_COMPARISON";
     const SURPLUS_COMPLEMENT: &str = "SURPLUS_COMPLEMENT";
+
+    fn production_groups_with_adjective() -> &'static [&'static GroupData] {
+        static GROUPS_WITH_ADJECTIVE: &[&GroupData] = &[
+            crate::constructions::coordination::GROUPS[0],
+            crate::constructions::noun::GROUPS[0],
+            crate::constructions::nominal::GROUPS[0],
+            crate::constructions::predicate::GROUPS[0],
+            crate::constructions::quantity::GROUPS[0],
+            crate::constructions::sentence::GROUPS[0],
+            GROUPS[0],
+        ];
+        GROUPS_WITH_ADJECTIVE
+    }
 
     fn comparison(marker: ComparisonMarker) -> ComparisonComplement {
         ComparisonComplement {
@@ -782,7 +795,7 @@ mod tests {
                 "AdjectivePhrase",
                 &expected,
                 10_000,
-                GROUPS,
+                production_groups_with_adjective(),
             )
             .expect("the orientation declaration is test-activatable");
             for parses in orders {
@@ -970,6 +983,214 @@ mod tests {
             .unwrap_or_else(|error| panic!("{source}: {error:?}"));
             for parses in orders {
                 assert_eq!(parses.len(), 1, "{source}");
+            }
+        }
+    }
+
+    #[test]
+    fn generated_inverse_renders_and_exactly_reparses_every_adjective_shape() {
+        let target = build_adjective_phrase(Adjective::Word(Vocab::Target)).unwrap();
+        let comparison = |marker, standard| {
+            let complement = match marker {
+                ComparisonMarker::Than => build_comparison_than(standard),
+                ComparisonMarker::ThanOrEqualTo => build_comparison_than_or_equal_to(standard),
+            }
+            .unwrap();
+            build_adjective_phrase_comparison(
+                build_adjective_phrase(Adjective::Word(Vocab::Greater)).unwrap(),
+                complement,
+            )
+            .unwrap()
+        };
+        let clause = crate::grammar::parse_nonterminal_with_activation(
+            "draw a card",
+            &Catalogs::default(),
+            crate::grammar::Nonterminal::Clause,
+            crate::grammar::GeneratedActivation::Production,
+        )
+        .unwrap()
+        .clause()
+        .unwrap()
+        .clone();
+        let noun_standard = crate::grammar::parse_nonterminal_with_activation(
+            "a card",
+            &Catalogs::default(),
+            crate::grammar::Nonterminal::NounPhrase,
+            crate::grammar::GeneratedActivation::Production,
+        )
+        .unwrap()
+        .noun_phrase()
+        .unwrap()
+        .clone();
+        let rows = [
+            ("target", target.clone(), "adjective_phrase", None),
+            (
+                "face up",
+                build_adjective_phrase_face_up().unwrap(),
+                "adjective_phrase_face_up",
+                None,
+            ),
+            (
+                "face down",
+                build_adjective_phrase_face_down().unwrap(),
+                "adjective_phrase_face_down",
+                None,
+            ),
+            (
+                "2 greater",
+                build_adjective_phrase_degree_measure(
+                    NumberLiteral {
+                        value: 2,
+                        numeral: Numeral::Arabic(false),
+                    },
+                    Adjective::Word(Vocab::Greater),
+                )
+                .unwrap(),
+                "adjective_phrase_degree_measure",
+                None,
+            ),
+            (
+                "two greater",
+                build_adjective_phrase_degree_measure(
+                    NumberLiteral {
+                        value: 2,
+                        numeral: Numeral::Cardinal,
+                    },
+                    Adjective::Word(Vocab::Greater),
+                )
+                .unwrap(),
+                "adjective_phrase_degree_measure",
+                None,
+            ),
+            (
+                "greater than a card",
+                comparison(
+                    ComparisonMarker::Than,
+                    build_comparison_standard(Some(noun_standard), None, None).unwrap(),
+                ),
+                "adjective_phrase_comparison",
+                Some(0),
+            ),
+            (
+                "greater than or equal to target",
+                comparison(
+                    ComparisonMarker::ThanOrEqualTo,
+                    build_comparison_standard(None, Some(target), None).unwrap(),
+                ),
+                "adjective_phrase_comparison",
+                Some(1),
+            ),
+            (
+                "greater than draw a card",
+                comparison(
+                    ComparisonMarker::Than,
+                    build_comparison_standard(None, None, Some(clause)).unwrap(),
+                ),
+                "adjective_phrase_comparison",
+                Some(2),
+            ),
+        ];
+
+        for (source, expected, root, standard_form) in rows {
+            let rendered = crate::renderer::render_generated_adjective_phrase_law(&expected)
+                .unwrap_or_else(|error| panic!("{source}: {error:?}"));
+            assert_eq!(rendered.text, source);
+            assert_eq!(rendered.forms.first().map(|form| form.0), Some(root));
+            if let Some(ordinal) = standard_form {
+                assert!(
+                    rendered.forms.contains(&("comparison_standard", ordinal)),
+                    "{source}: {:?}",
+                    rendered.forms,
+                );
+            }
+            let orders = crate::grammar::exact::parse_groups_as_declared_category_in_both_orders(
+                source,
+                &Catalogs::default(),
+                "AdjectivePhrase",
+                &expected,
+                10_000,
+                production_groups_with_adjective(),
+            )
+            .unwrap_or_else(|error| panic!("{source}: {error:?}"));
+            for parses in orders {
+                assert_eq!(
+                    parses
+                        .iter()
+                        .map(|parse| parse.ast().construction)
+                        .collect::<Vec<_>>(),
+                    [root],
+                    "{source}",
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn inactive_rows_report_generated_ownership_in_both_registration_orders() {
+        use crate::grammar::Nonterminal;
+
+        for (source, nonterminal, expected) in [
+            ("target", Nonterminal::Adjective, "adjective"),
+            ("target", Nonterminal::AdjectivePhrase, "adjective_phrase"),
+            (
+                "face up",
+                Nonterminal::AdjectivePhrase,
+                "adjective_phrase_face_up",
+            ),
+            (
+                "face down",
+                Nonterminal::AdjectivePhrase,
+                "adjective_phrase_face_down",
+            ),
+            (
+                "than target",
+                Nonterminal::ComparisonComplement,
+                "comparison_standard",
+            ),
+            (
+                "than target",
+                Nonterminal::ComparisonComplement,
+                "comparison_than",
+            ),
+            (
+                "than or equal to target",
+                Nonterminal::ComparisonComplement,
+                "comparison_than_or_equal_to",
+            ),
+            (
+                "greater than target",
+                Nonterminal::AdjectivePhrase,
+                "adjective_phrase_comparison",
+            ),
+            (
+                "2 greater",
+                Nonterminal::AdjectivePhrase,
+                "adjective_phrase_degree_measure",
+            ),
+        ] {
+            let orders = crate::grammar::parse_nonterminal_with_activation_in_both_orders(
+                source,
+                &Catalogs::default(),
+                nonterminal,
+                &crate::identity::SelfReference::default(),
+                crate::grammar::GeneratedActivation::Groups(GROUPS),
+            );
+            for parsed in orders {
+                let decision = parsed
+                    .construction_decisions()
+                    .iter()
+                    .find(|decision| decision.selected().as_str() == expected)
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "missing inactive generated {expected} for {source:?}: {:#?}",
+                            parsed.construction_decisions(),
+                        )
+                    });
+                assert_eq!(
+                    decision.owner(),
+                    crate::construction::ConstructionOwner::Generated,
+                    "{source}",
+                );
             }
         }
     }

@@ -1,0 +1,11 @@
+error[E0451]: fields `degree`, `head` and `complements` of struct `deckmaste_english::syntax::AdjectivePhrase` are private
+ --> tests/compile_fail/construct_adjective_phrase.rs:7:9
+  |
+6 |     AdjectivePhrase {
+  |     --------------- in this type
+7 |         degree: None,
+  |         ^^^^^^ private field
+8 |         head,
+  |         ^^^^ private field
+9 |         complements: Vec::<AdjectiveComplement>::new(),
+  |         ^^^^^^^^^^^ private field

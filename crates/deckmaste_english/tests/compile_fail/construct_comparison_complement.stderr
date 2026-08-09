@@ -1,0 +1,9 @@
+error[E0451]: fields `marker` and `standard` of struct `ComparisonComplement` are private
+ --> tests/compile_fail/construct_comparison_complement.rs:7:9
+  |
+6 |     ComparisonComplement {
+  |     -------------------- in this type
+7 |         marker: ComparisonMarker::Than,
+  |         ^^^^^^ private field
+8 |         standard: Box::new(standard),
+  |         ^^^^^^^^ private field
