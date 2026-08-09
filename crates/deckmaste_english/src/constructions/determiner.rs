@@ -656,7 +656,7 @@ mod tests {
             let built = build_determiner_closed(ClosedDeterminer::PossessivePronoun(pronoun));
             match expected_spelling {
                 Some(expected) => {
-                    assert_eq!(built.unwrap().render().unwrap(), expected, "{pronoun:?}")
+                    assert_eq!(built.unwrap().render().unwrap(), expected, "{pronoun:?}");
                 }
                 None => assert!(
                     built.is_err(),
