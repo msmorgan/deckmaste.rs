@@ -1184,6 +1184,19 @@ public export
 data OnBattlefield : Maybe Zone -> Type where
   OnField : OnBattlefield (Just Battlefield)
 
+||| The attested next-untap-step counts — the timed restriction's one
+||| independent endpoint value, a closed table over the written number:
+||| one (66 lines; the numeral is unwritten and "step" singular) and two
+||| (one line, Telekinesis; the word "two" and plural "steps"). Three and
+||| up are unwritten English (`badUntapNextThree`), and the table is what
+||| keeps them so. Construction-owned: the endpoint occurs zero times
+||| with any non-untap restriction, so no `Duration`, `SpanOk`, or
+||| turn-part cell opens for it.
+public export
+data NextUntapCount : Nat -> Type where
+  OneNextStep : NextUntapCount 1
+  TwoNextSteps : NextUntapCount 2
+
 ||| The same demand at the STACK, and a separate type for `OnBattlefield`'s
 ||| reason: the carrier that reaches a spell has to say the phrase names
 ||| one ([CR#112.1] — "a spell is a card on the stack"), where a
@@ -7688,6 +7701,43 @@ mutual
     Reflexively : (body : Effect bs) -> (trig : Effect (reflexCtx body)) ->
                   {auto 0 en : ReflexEnclosure body} -> Effect bs
 
+    -- "[n] doesn't untap during [possessor] next [count] untap step(s)"
+    -- -- the TIMED untap restriction, a resolving one-shot clause
+    -- ([CR#611.2a] -- a restriction created by resolution lasts as long
+    -- as its text states, against the standing `DoesntUntap` line's
+    -- source-bound span [CR#611.3b]). ONE clause covers all 67 corpus
+    -- lines: 19 stand alone and 48 ride another action (38 after tap, 10
+    -- after mana-addition, damage, or shroud clauses), so "rider" is
+    -- placement the clause sequence already owns, and the 38/10
+    -- period-versus-"and" split is the renderer's, not a field. What the
+    -- restriction governs is [CR#502.3]'s turn-based untap -- the active
+    -- player determines which permanents they control will untap, and
+    -- effects may keep one or more from untapping.
+    -- The SUBJECT is an ordinary battlefield noun, singular or
+    -- distributive ("each attacking creature"), demanded exactly as
+    -- `Tap`/`Untap` demand theirs (`badUntapNextGraveyard`); no plurality
+    -- gate, three of the 67 subjects being plural/distributive.
+    -- The POSSESSOR is derived, never a slot: [CR#109.5] makes "you"/
+    -- "your" the controller's words, so a self subject writes "your"
+    -- (12 lines) and a third party "its controller's" (55) -- the standing
+    -- row's own derivation at a second site (finding 250).
+    -- The COUNT is the one independent endpoint value, a closed two-row
+    -- table over the written Nat (`NextUntapCount`): one and two are the
+    -- whole attested vocabulary (66/1), three is unwritten English
+    -- (`badUntapNextThree`). [CR#614.10a]'s skipped-step "next" is the
+    -- engine's bookkeeping, no part of the phrase.
+    -- spelling: ["<Param(0)> doesn't untap during <possessor> next untap
+    -- step."] at count one, ["<Param(0)> doesn't untap during <possessor>
+    -- next two untap steps."] at count two (the possessor is derived --
+    -- "your" for the self subject, "its controller's" otherwise; count
+    -- one writes no numeral and singular "step", count two the word "two"
+    -- and plural "steps" -- style guide §4 "Fixed counts of things are
+    -- words", §11 "This, next, and each"; the contraction is §1 "Voice
+    -- and tense", "does not untap" written zero times), kind: Sentence
+    DoesntUntapNext : (n : Noun bs Object) -> (steps : Nat) ->
+                      {auto 0 ok : OnBattlefield (nounZone n)} ->
+                      {auto 0 ct : NextUntapCount steps} -> Effect bs
+
   ||| Which clause may carry a [CR#610.3] "until [event]" rider. Full rows,
   ||| so a new clause declares whether the corpus hangs one on it. Exactly
   ||| one row is `True` and it is a nested pattern rather than a
@@ -7698,6 +7748,7 @@ mutual
   public export
   heldUntilOk : {0 bs : Bindings} -> Effect bs -> Bool
   heldUntilOk (DealDamage _ _ _) = False
+  heldUntilOk (DoesntUntapNext _ _) = False
   heldUntilOk (Distribute _ _ _) = False
   heldUntilOk (Fights _ _) = False
   heldUntilOk (Tap _) = False
@@ -7803,6 +7854,7 @@ mutual
   public export
   reflexEncloseUse : {0 bs : Bindings} -> Effect bs -> EncloseUse
   reflexEncloseUse (DealDamage _ _ _) = EncAgentless
+  reflexEncloseUse (DoesntUntapNext _ _) = EncAgentless
   reflexEncloseUse (Distribute _ _ _) = EncAgentless
   reflexEncloseUse (Fights _ _) = EncAgentless
   reflexEncloseUse (ChangeLife _ _) = EncAgentless
@@ -7976,6 +8028,7 @@ mutual
   public export
   costActionOk : {0 bs : Bindings} -> Effect bs -> Bool
   costActionOk (DealDamage _ _ _) = False
+  costActionOk (DoesntUntapNext _ _) = False
   costActionOk (Distribute _ _ _) = False
   costActionOk (Fights _ _) = False
   costActionOk (Tap n) = costNounOk n
@@ -8061,6 +8114,8 @@ mutual
   public export
   effEq : {0 bs : Bindings} -> Effect bs -> Effect bs -> Bool
   effEq (DealDamage _ _ _) _ = False
+  effEq (DoesntUntapNext n s) (DoesntUntapNext m t) = nounEqRef n m && s == t
+  effEq (DoesntUntapNext _ _) _ = False
   effEq (Distribute _ _ _) _ = False
   effEq (Fights _ _) _ = False
   effEq (Tap a) (Tap b) = nounEqRef a b
@@ -8627,6 +8682,7 @@ mutual
   effIntro (DealDamage src amt to) = outcomeB DamageDealt :: nomIntro to
   effIntro (Fights a b) = nomIntro b
   effIntro (Tap n) = nomIntro n
+  effIntro (DoesntUntapNext n _) = nomIntro n
   effIntro (Untap n) = nomIntro n
   -- The countering announces its patient and nothing else: [CR#701.6a]
   -- puts the countered spell into a graveyard, but the sentence never
@@ -8772,6 +8828,7 @@ mutual
   preIntro (Distribute v amt among) = nomIntro among
   preIntro (Fights a b) = nomIntro b
   preIntro (Tap n) = nomIntro n
+  preIntro (DoesntUntapNext n _) = nomIntro n
   preIntro (Untap n) = nomIntro n
   preIntro (CounterSpell what) = nomIntro what
   preIntro (Choose n) = nomIntro n
@@ -8861,6 +8918,7 @@ mutual
   annIntro (Distribute v amt among) = nomIntro among
   annIntro (Fights a b) = nomIntro b
   annIntro (Tap n) = nomIntro n
+  annIntro (DoesntUntapNext n _) = nomIntro n
   annIntro (Untap n) = nomIntro n
   annIntro (CounterSpell what) = nomIntro what
   annIntro (Choose n) = nomIntro n
@@ -8938,6 +8996,7 @@ mutual
   deedDelta (Distribute (DistributedCounters _) amt among) = []
   deedDelta (Fights a b) = []
   deedDelta (Tap n) = []
+  deedDelta (DoesntUntapNext _ _) = []
   deedDelta (Untap n) = []
   deedDelta (CounterSpell _) = []
   deedDelta (Choose n) = []

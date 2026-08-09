@@ -5595,3 +5595,71 @@ failing "SpanOk PtDelta"
   badGetsUntilBecomesUntapped =
     gets (target creature) 2 2
          (Just (UntilEvent (BecomesStatus thisCreature Untapped)))
+
+-- ===== The timed untap restriction =====
+
+-- "{3}: Target creature doesn't untap during its controller's next
+-- untap step." (Barl's Cage, the whole card's text) — the standalone
+-- timed clause: no preceding action, the generic-mana activated
+-- carrier, and the third-party possessor derived from the target
+-- subject ([CR#109.5]).
+barlsCage : Ability
+barlsCage = Activated (Mana [generic 3])
+                      (DoesntUntapNext (target creature) 1)
+
+-- "Tap target creature. It doesn't untap during its controller's next
+-- untap step." (Take into Custody) — the separate-sentence tap rider
+-- with the plain pronoun: the tap introduces the mention, and the timed
+-- clause reads it through the ordinary uniqueness discipline; no
+-- tap-specific antecedent relation exists.
+takeIntoCustody : Effect []
+takeIntoCustody = Sequentially [Tap (target creature),
+                                DoesntUntapNext It 1]
+
+-- "Chandra's Revolution deals 4 damage to target creature. Tap target
+-- land. That land doesn't untap during its controller's next untap
+-- step." (Chandra's Revolution) — the multi-action sequence: two
+-- singular object mentions precede, so the plain pronoun would be
+-- ambiguous and the card switches to the sorted demonstrative, exactly
+-- the clarity rule the guide states (§5).
+chandrasRevolution : Effect []
+chandrasRevolution = Sequentially [DealDamage This (Lit 4) (target creature),
+                                   Tap (target land),
+                                   DoesntUntapNext (That (TypeW Land)) 1]
+
+-- "{2}{W}, {T}: This creature deals 3 damage to target attacking or
+-- blocking creature. This creature doesn't untap during your next
+-- untap step." (Arbalest Elite, the whole ability) — the non-tap
+-- predecessor whose restricted object is the damage SOURCE rather than
+-- the damage patient, and the self subject whose possessor derives to
+-- "your" ([CR#109.5]). The attacking-or-blocking target is
+-- `arrowsOfJustice`'s phrase.
+arbalestElite : Ability
+arbalestElite =
+  Activated (Compound [Mana [generic 2, pip White], TapSymbol])
+            (Sequentially [DealDamage thisCreature (Lit 3)
+                                      (target (And [creature, Or [Attacking, Blocking]])),
+                           DoesntUntapNext thisCreature 1])
+
+-- the timed clause's subject stands on the battlefield, `Tap`/`Untap`'s
+-- own demand at the new row ([CR#701.26a]'s zone, `badUntapGraveyard`'s
+-- twin).
+failing "OnBattlefield"
+  badUntapNextGraveyard : Effect []
+  badUntapNextGraveyard =
+    DoesntUntapNext (target (And [creature, InZone (graveyardOf You)])) 1
+
+-- "it" after two singular object introductions reaches two mentions and
+-- resolves neither — the strict uniqueness gate, unchanged at the new
+-- consumer.
+failing "countOnes"
+  badUntapNextAmbiguousIt : Effect []
+  badUntapNextAmbiguousIt = Sequentially [Tap (target creature),
+                                          Tap (target artifact),
+                                          DoesntUntapNext It 1]
+
+-- the count vocabulary is closed at the attested one and two: "next
+-- three untap steps" is written zero times, and the table refuses it.
+failing "NextUntapCount"
+  badUntapNextThree : Effect []
+  badUntapNextThree = DoesntUntapNext (target creature) 3

@@ -5545,8 +5545,10 @@ one wall. The group MENTION now exists as a first-class thing —
 `EachOf` reaches into one — so what the pair complement is missing
 is no longer "a group to subtract from" but (a) an ELEMENT-scoped
 context, which is the fronted iteration clause "For each of
-[group], …" (thirty-seven corpus lines, core's
-`OneShotEffect::Each`) and which `EachOf` deliberately does not
+[group], …" (thirty-seven corpus lines as counted then; REMEASURED in
+chapter thirty-two at twenty-five supported fronted, fifty-one
+any-position; core's `OneShotEffect::Each`) and which `EachOf`
+deliberately does not
 provide, being a determiner that binds no element, and (b) a
 complement whose domain is that group mention rather than a
 description, which is finding 111's subtract-a-subset half
@@ -6130,13 +6132,21 @@ turn-face-up permission; phasing's [CR#702.26] semantic tail.
 
 L6 **Untap-lock variants:** the one-shot "during its controller's next
 untap step" family, the single "doesn't untap" line without "during",
-and the seven "can't untap" lines — the 121/1/7 split of the family
-this round's standing row does not claim.
+and the seven "can't untap" lines — the 121/1/7 split as counted then;
+REMEASURED in chapter thirty-five at 54 standing / 67 timed / 1
+replacement reminder / 7 caps (finding 250). The 67 timed lines are
+REPRESENTED in chapter thirty-six (`DoesntUntapNext`); the one
+replacement reminder (Bewitching Leechcraft) is ledgered with quoted
+granted replacements and attachment, and the seven caps are their own
+future static-restriction round.
 
 L7 **Becomes-status trigger event:** designed (EventName row,
 `TriggeredOnly`, per-value attestation), blocked on a clean witness
-line; "becomes tapped" 100, "becomes untapped" 33, all other values 0;
-"remains tapped" (40) unclassified.
+line — as recorded then; LANDED in chapter thirty-five (findings
+245–248: `BecomesStatus`, `StatusChange`, `statusEventOk`; Gideon's
+Avenger and Mesmeric Orb the witnesses); "becomes tapped" 100,
+"becomes untapped" 33, all other values 0; "remains tapped" (40)
+classified by finding 249 as a "for as long as" duration condition.
 
 L8 **"Enters untapped"** (6 lines): a measured [CR#110.5b]-default
 override with no quoted witness; `TokenRider` unchanged.
@@ -6165,9 +6175,10 @@ while Equip is the activated ability that does the attaching
 object status — newly representable: status words in ordinary
 descriptions and conditions; the permanent head across its three
 carriers; the token head, "nontoken", and the created-token readback;
-the untap effect; and the standing untap-step lock. Still out: source
-phrases, becomes-status triggers, face/flip/phase transitions, and
-one-shot untap-step locks; pile partitions
+the untap effect; the standing untap-step lock; becomes-status triggers
+(chapter thirty-five); and the timed one-shot untap lock (chapter
+thirty-six). Still out: source phrases and face/flip/phase
+transitions; pile partitions
 (Death or Glory partitions the GRAVEYARD, so this is not the
 library gap — [CR#700.3a] puts each object in exactly one pile
 "unless the effect specifies otherwise" and [CR#700.3d] lets a
@@ -6728,3 +6739,195 @@ Ledger updates this chapter:
   the Representability Frontier).
 - Scope note: the 100/33 event counts are supported-scope; all-cards is
   109/35.
+
+## Chapter thirty-six — the timed untap restriction
+
+Chapter thirty-five measured the doesn't-untap census (finding 250: 54
+standing / 67 timed / 1 replacement reminder / 7 caps) and left the 67 timed
+lines as a future construction. This chapter mints it: `DoesntUntapNext`, the
+resolving one-shot restriction "[subject] doesn't untap during [possessor]
+next [count] untap step(s)", over an ordinary battlefield object noun and a
+closed next-step count. Witnesses: Barl's Cage, Take into Custody, Chandra's
+Revolution, and Arbalest Elite. The chapter also drains four ledger items
+settled elsewhere and repairs three stale in-place figures. Bench:
+210 positives / 375 pins (designed 210 positives / 375 pins).
+
+**Finding 252 — the timed restriction is one resolving clause, not a tap
+rider and not a duration.** Coding all 67 supported "doesn't untap during …
+next … untap step(s)" lines by frame: 48 ride a preceding one-shot action
+against 19 that stand alone; of the riders, 38 follow a tap and 10 follow
+something else (six mana additions, two damage actions, two shroud grants);
+39 restrict the preceding action's patient and 9 name a different referent
+(Arbalest Elite restricts the damage SOURCE); 38 are a separate sentence and
+10 coordinate in the same sentence. So "rider" is a placement fact the
+existing clause sequence consumes, the sentence boundary is the renderer's,
+and the construction is one `Effect` row — not a field of `Tap`, and not a
+`Continuously` span: a restriction created by resolution lasts as long as its
+text states ([CR#611.2a]) where a standing static applies while its source
+remains in place ([CR#611.3b]), and what the clause restricts is [CR#502.3]'s
+turn-based untap. Opening a general `Duration` cell instead would expose the
+endpoint to every `DeedRestriction` — attack and block restrictions for which
+it has zero evidence — and "during" names the interval the restriction
+governs, not an ending boundary, so neither `Until (StartOf UntapStep …)` nor
+`UntilEvent (BeginningOf …)` is the phrase (style guide §11,
+"Turn-structure names"; §11, "Continuous and bounded durations"). The
+`spanUse`/`partUse`/`eventSpan` zeroes stay closed.
+
+**Finding 253 — the endpoint is construction-owned, and its count is a
+closed two-row table.** The complete endpoint inventory of the 67 lines:
+"during your next untap step." 12, "during its controller's next untap
+step." 54, "during its controller's next two untap steps." 1. Every line
+writes "next"; the only explicit count is the word "two", once, and only that
+cell pluralizes "steps" — no digit, no bare "the next", no count of three or
+more, and no endpoint other than an untap step (style guide §4, "Fixed counts
+of things are words"; §11, "This, next, and each"; the contraction is §1,
+"Voice and tense" — "does not untap" is written zero times). `NextUntapCount`
+is the closed table over the written Nat: rows for one and two, a pin at
+three (`badUntapNextThree`). The unattested self-plus-two combination is
+ADMITTED as tolerated over-generation rather than pinned: the semantic family
+offers no distinction between the self and third-party possessor at count
+two, and over-refusal is the forbidden direction — the zero cell is recorded
+here instead of gated. [CR#614.10a] settles what "next" means across skipped
+untap steps (the scheduled event waits for the first occurrence that is not
+skipped); that is the engine's bookkeeping and no part of the phrase.
+
+**Finding 254 — the possessor is derived at the timed site exactly as at the
+standing one.** The 12/55 measured split is exactly self ⇒ "your" and third
+party ⇒ "its controller's", matching finding 250's standing-row split
+(15/39), and [CR#109.5] is the warrant: "you"/"your" refer to the spell or
+ability's controller, so the possessor is a function of the restricted noun
+and no slot is minted. A plural subject distributes "its controller's" per
+object; how the engine snapshots controllers for members that change hands
+before their steps is a runtime question outside this grammar, and deciding
+it here would have put a slot on the clause that no line writes.
+
+**Finding 255 — totality answers, read against each reader's contract.**
+The new row introduces its noun and changes nothing else: `effIntro`,
+`preIntro`, and `annIntro` all answer `nomIntro n` — a flat clause with no
+retag, no stamp, and no outcome has one answer at all three sites, which is
+what lets the family's 22 "it" subjects and 23 sorted demonstratives use the
+existing binding discipline with no tap-specific readback — and `deedDelta`
+is empty, the announcement telescope already carrying the phrase.
+`heldUntilOk` is False (the [CR#610.3] rider rides tagged exile moves and
+nothing else), and `costActionOk` is False (no oracle line writes the clause
+before a colon). Two answers were revised against the contracts during
+design: `reflexEncloseUse` is `EncAgentless`, not `EncUnattested` — the
+clause is a declarative that instructs no player, so "do" has nobody to
+stand for, `Continuously`'s situation rather than `Untap`'s unattested
+imperative — and `effEq` COMPARES, `nounEqRef` on the subject and equality
+on the count, because both arguments live in the clause's own context and
+the equality contract reserves False for payloads the telescope makes
+incomparable. The `isSeq`/`isSim` catch-alls compile untouched.
+
+**Finding 256 — four witnesses span the frame axes; Telekinesis stays
+evidence.** Barl's Cage ("{3}: Target creature doesn't untap during its
+controller's next untap step.") is the standalone clause under the activated
+carrier; Take into Custody ("Tap target creature. It doesn't untap during
+its controller's next untap step.") is the separate-sentence tap rider with
+the plain pronoun; Chandra's Revolution ("Chandra's Revolution deals 4
+damage to target creature. Tap target land. That land doesn't untap during
+its controller's next untap step.") is the multi-action sequence whose two
+singular mentions force the sorted demonstrative (style guide §5,
+"Pronouns"); Arbalest Elite ("{2}{W}, {T}: This creature deals 3 damage to
+target attacking or blocking creature. This creature doesn't untap during
+your next untap step.") is the non-tap predecessor, the source-not-patient
+restriction, and the derived "your" in one ability — its target phrase
+already witnessed by `arrowsOfJustice`. Telekinesis, the sole count-two
+line, fails the whole-line rule on its [CR#609.7] by-source prevention rider
+(ledger L1), so `TwoNextSteps` lands with corpus evidence and no bench
+positive — whole-line discipline limits the bench, never the grammar's
+evidence. Three pins: a graveyard subject at the battlefield gate
+(`badUntapNextGraveyard`), an ambiguous "it" after two singular
+introductions (`badUntapNextAmbiguousIt`), and count three
+(`badUntapNextThree`). `badUntapLockClause` remains the standing/effect
+boundary pin. The single adversarial pass produced 3 expected pin diagnostics
+and 3 observed pin diagnostics; after restoration, the build is clean.
+
+**Finding 257 — ledger drain: two recovered rounds, two user rulings, the
+cap deferral, the residual line, and three in-place repairs.**
+
+- **ROUND A, "The Blocking Relation," filed as a future round.** The
+  blocking relation as read in both voices and tenses (claimed 131 cards /
+  72 ex-reminder); a first two-place combat relation and a third
+  `groupMention` kind beside `TargetGroup`/`LibrarySlice`; a
+  `RemoveFromCombat` verb (claimed 24 operative sites, [CR#506.4]), with a
+  Cant≠removal refusal pin per [CR#506.4a]. Claimed to discharge finding
+  196's eleven end-of-combat headers and finding 167's Bill Ferny blocker,
+  and to complete Labyrinth of Skophos and Hollowhenge Spirit. The counts
+  are the prior session's claims, filed as claimed: this round's packet
+  carried no re-measurement, and the figures are marked UNVERIFIED until one
+  lands.
+- **ROUND B, "Combat-Assignment Surgery," filed as a future round.** A
+  `CouldBlock` condition (claimed N=2; resolution-time, reading restrictions
+  and tapped-ness but not requirements or costs) and a
+  `Blocks`/`StopsBlocking` write (claimed N=5, needing the
+  remove-then-write versus stops-blocking distinction, [CR#509.3a]). Same
+  caveat: counts filed as the prior session's claims, UNVERIFIED.
+- **User ruling, ability words:** the grammar gets `AbilityWord Name
+  Ability` — a plain two-argument constructor. The word is semantically
+  inert but RETAINED, because it prints and this grammar encodes the printed
+  line. The shape correlation ("Inspired —" appearing only on "Whenever
+  this creature becomes untapped") is content, authored as a MACRO over the
+  primitive, never as a gate in the grammar.
+- **User ruling, keyword scope:** adding keywords that will eventually
+  become macros is OUT OF SCOPE for this workbench until it becomes the
+  verifier; `docs/keyword-policy.md`'s keywords-by-name mapping describes
+  the OLD Idris model. Flying and Haste are deliberate passes already in the
+  tree and stay. Keywords already implemented may be USED where they unlock
+  better bench witnesses, but no round mints a new one.
+- **The quantity caps are deferred to their own round.** The seven "can't
+  untap more than" lines are one parameterized static cap — player domain
+  5/1/1 (players/you/your opponents), bound 5/2 (one/two), five object
+  sets, step possessor 6/1, embedding 2/4/1 (as-long-as conditional / bare /
+  quoted emblem) — and structurally separate from the timed lock: no cap
+  line writes "next", no timed line writes "more than", and the cap bounds
+  the cardinality of [CR#502.3]'s per-step choice where the lock names fixed
+  objects. Implementing it needs three axes the timed row does not:
+  bare/all player domains including "your opponents", a set-level "more
+  than N" bound, and recurring "your/their untap step(s)" agreement. Mungha
+  Wurm ("You can't untap more than one land during your untap step.") is
+  the cleanest whole-line witness for that round; Damping Field supplies the
+  plural-player cell; Winter Orb tests composition under the existing
+  as-long-as wrapper; Dovin Baan's emblem is evidence only. Future pins:
+  bound three, a "next" endpoint, a non-untap-eligible set.
+- **Bewitching Leechcraft is the one non-"during" line, and it is a fourth
+  construction.** The operative quoted ability is a granted static
+  replacement effect ([CR#604.2]): "instead" marks replacement
+  ([CR#614.1a]) and the replaced untap never happens ([CR#614.6]); the
+  parenthetical is reminder text with no game function ([CR#207.2]). It is
+  unwritable for three independent reasons — no "would untap" event (the
+  nearest `BecomesStatus … Untapped` is trigger-only and fails
+  `Interceptable`), `Grantable` rejects nonkeyword static abilities for
+  want of quotation, and Aura attachment/"enchanted creature" is absent —
+  so it is ledgered with quoted granted replacements and attachment, and
+  offers no witness.
+- **All-cards lexical outlier, retained as a migration/style note:** Goblin
+  Polka Band writes "do not untap during their controllers' next untap
+  phases" — outside the supported "doesn't … next untap step(s)" family; it
+  does not change the 67-line inventory and is not generalized into the
+  grammar.
+- **Three in-place repairs**, in chapter twenty-three's annotation form: the
+  fronted "For each of [group], …" figure of thirty-seven corpus lines is
+  annotated with chapter thirty-two's remeasurement (twenty-five supported
+  fronted, fifty-one any-position); ledger L6's primary 121/1/7 text is
+  annotated with chapter thirty-five's 54/67/1/7 and this chapter's
+  representation of the 67; L7 and the Representability Frontier are
+  annotated for chapter thirty-five's becomes-status landing and this
+  chapter's timed lock.
+
+Ledger updates this chapter:
+
+- L6 (**updated in place**): the 67 timed lines move to REPRESENTED
+  (`DoesntUntapNext`). Remaining in the family: 1 replacement reminder
+  (Bewitching Leechcraft — with quoted granted replacements and
+  attachment) and 7 set-level caps (own future round, witnesses named
+  above).
+- L7 and the Frontier (**annotated in place**): becomes-status landed in
+  chapter thirty-five; the timed one-shot untap lock lands here.
+- Recovered rounds A and B filed above with claimed, UNVERIFIED counts; a
+  re-measurement is owed before either round is scheduled.
+- The two user rulings recorded verbatim above (ability words; keyword
+  scope).
+- Telekinesis remains L1-blocked: the only "next two" line, waiting on the
+  [CR#609.7] by-source prevention rider; the count-two row carries its
+  evidence meanwhile.
