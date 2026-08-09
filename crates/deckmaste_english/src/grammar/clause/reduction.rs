@@ -600,7 +600,8 @@ pub(in crate::grammar) fn predicate_arguments_complete(
         return false;
     }
     // A frame pending a required `CoinResult` tail is never complete on its
-    // own; only the `VerbPhraseCoinResult` reduction discharges it.
+    // own; only the generated `verb_phrase_coin_result` construction
+    // discharges the coin-result frame.
     if frame.requires_coin_result() {
         return false;
     }
