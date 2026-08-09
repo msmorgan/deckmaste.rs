@@ -121,6 +121,10 @@ pub enum RenderError {
     MissingLexicalForm(&'static str),
     #[error("card identity is required to render this determiner")]
     CardIdentityRequired,
+    #[error("the card identity has no abbreviated name")]
+    AbbreviatedCardNameUnavailable,
+    #[error("the following material's onset is required to render an indefinite determiner")]
+    DeterminerOnsetRequired,
     /// A [`NominalComplement::KeywordArgument`] carrying a `KeywordArgument`
     /// shape the syntax never licenses in nominal-complement position (only
     /// `Costed(Symbols)` and `Predicated` are licensed there) — `kwgrant`
@@ -482,7 +486,9 @@ impl Determiner {
     /// # Errors
     ///
     /// A noun-phrase possessor containing a self reference requires the
-    /// [`OracleText::render`] identity arguments and is rejected here.
+    /// [`OracleText::render`] identity arguments and is rejected here. An
+    /// indefinite determiner is rejected because its article requires the
+    /// following material's onset.
     pub fn render(&self) -> Result<String, RenderError> {
         if matches!(
             self.kind(),
@@ -495,11 +501,7 @@ impl Determiner {
             return Err(RenderError::CardIdentityRequired);
         }
         if matches!(self.kind(), crate::syntax::DeterminerKind::Indefinite) {
-            unreachable!(
-                "indefinite article needs the following material's initial sound, which this \
-                 determiner-only method has no access to; NominalPhrase/CoordinatedNominalPhrase \
-                 derive it themselves before ever calling this"
-            );
+            return Err(RenderError::DeterminerOnsetRequired);
         }
         Renderer::new("", false).generated_determiner(self)
     }
@@ -1355,11 +1357,10 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                     .vocabulary
                     .render_noun(noun)
                     .ok_or(RenderError::MissingLexicalForm("noun"))?;
-                rendered.push_str(match noun.kind() {
-                    crate::word::NounInstanceKind::Plural(_) => "'",
-                    crate::word::NounInstanceKind::Singular(_)
-                    | crate::word::NounInstanceKind::Mass(_) => "'s",
-                });
+                let plural_ending_in_s =
+                    matches!(noun.kind(), crate::word::NounInstanceKind::Plural(_))
+                        && (rendered.ends_with('s') || rendered.ends_with('S'));
+                rendered.push_str(if plural_ending_in_s { "'" } else { "'s" });
                 rendered
             }
             ("ThisCardForm", "PossessiveThisCard") => {
@@ -3652,6 +3653,7 @@ impl<'identity> Renderer<'identity> {
         let determiner = match possessor.kind() {
             crate::syntax::PossessorKind::Pronoun(pronoun) => {
                 crate::determiner::possessive_pronoun(pronoun)
+                    .map_err(|_| RenderError::InvalidDeterminerConstruction)?
             }
             crate::syntax::PossessorKind::NounPhrase(NounPhrase::ThisCard(form)) => {
                 crate::determiner::possessive_this_card(*form)
@@ -3922,10 +3924,9 @@ impl<'identity> Renderer<'identity> {
 
     fn this_card(&self, form: ThisCardForm) -> Result<String, RenderError> {
         let rendered = match form {
-            ThisCardForm::AbbreviatedName => self.short_name.expect(
-                "AbbreviatedName is emitted only for a face with a shortened name; \
-                 render with the parse identity",
-            ),
+            ThisCardForm::AbbreviatedName => self
+                .short_name
+                .ok_or(RenderError::AbbreviatedCardNameUnavailable)?,
             ThisCardForm::FullName => self.name,
         };
         if rendered.is_empty() {
@@ -5362,7 +5363,7 @@ mod tests {
         );
 
         let opponents = nominal(
-            Some(crate::determiner::possessive_pronoun(Pronoun::You)),
+            Some(crate::determiner::possessive_pronoun(Pronoun::You).unwrap()),
             vec![],
             NounInstance::Plural(Noun::Word(Vocab::Opponent)),
             vec![],
@@ -5391,6 +5392,7 @@ mod tests {
         );
         assert_eq!(
             crate::determiner::possessive_pronoun(Pronoun::You)
+                .unwrap()
                 .render()
                 .unwrap(),
             "your"
@@ -5607,7 +5609,7 @@ mod tests {
                 PrepositionalPhrase::simple(
                     Preposition::In,
                     Phrase::NounPhrase(Box::new(nominal(
-                        Some(crate::determiner::possessive_pronoun(Pronoun::You)),
+                        Some(crate::determiner::possessive_pronoun(Pronoun::You).unwrap()),
                         vec![],
                         NounInstance::Singular(Noun::Word(Vocab::Hand)),
                         vec![],

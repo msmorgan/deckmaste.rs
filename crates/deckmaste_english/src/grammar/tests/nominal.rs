@@ -2410,7 +2410,7 @@ mod tests {
         };
         assert_eq!(
             object.determiner(),
-            Some(&crate::determiner::possessive_pronoun(Pronoun::You))
+            Some(&crate::determiner::possessive_pronoun(Pronoun::You).unwrap())
         );
     }
 
@@ -2805,7 +2805,7 @@ mod tests {
         };
         assert_eq!(
             nominal.determiner(),
-            Some(&crate::determiner::possessive_pronoun(Pronoun::You))
+            Some(&crate::determiner::possessive_pronoun(Pronoun::You).unwrap())
         );
         let [NominalModifier::Coordinated(coordinated)] = nominal.modifiers() else {
             panic!(

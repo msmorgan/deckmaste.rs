@@ -1066,13 +1066,35 @@ mod tests {
         Nonterminal::Generated(cats[name])
     }
 
+    fn canonical_determiner_exact_set(
+        parses: &[ExactParse<GeneratedDeterminerParse, EnglishSurfaceWitness>],
+    ) -> Vec<(String, &'static str, u16, String)> {
+        let mut canonical = parses
+            .iter()
+            .map(|parse| {
+                (
+                    ron::to_string(&parse.ast().value).unwrap(),
+                    parse.ast().construction,
+                    parse.ast().form_ordinal,
+                    format!("{:?}", parse.surface()),
+                )
+            })
+            .collect::<Vec<_>>();
+        canonical.sort_unstable();
+        canonical
+    }
+
     #[test]
     fn determiner_exact_laws_recover_checked_values_in_both_registration_orders() {
+        use crate::catalog::CatalogSlot;
+        use crate::catalog::CatalogValue;
         use crate::determiner as determiner_api;
         use crate::syntax::ClosedDeterminer;
         use crate::syntax::NumberLiteral;
         use crate::word::Adjective;
+        use crate::word::NounUsage;
         use crate::word::Pronoun;
+        use crate::word::WordMatch;
 
         let two = Quantity::try_exact(NumberLiteral {
             value: 2,
@@ -1090,6 +1112,27 @@ mod tests {
             crate::adjective::build_adjective_phrase(Adjective::Word(Vocab::Target)).unwrap();
         let modified =
             determiner_api::build_possessive_noun_adjective(adjective, base.clone()).unwrap();
+        let catalogs = fixture_catalogs();
+        let catalog_plural = |surface| {
+            catalogs
+                .matches(surface, CatalogSlot::Noun(NounUsage::Either))
+                .into_iter()
+                .find_map(|catalog_match| match catalog_match.value {
+                    CatalogValue::Word(WordMatch::Noun(noun))
+                        if matches!(noun.kind(), crate::word::NounInstanceKind::Plural(_)) =>
+                    {
+                        Some(noun)
+                    }
+                    CatalogValue::Word(_) | CatalogValue::Atom(_) => None,
+                })
+                .unwrap_or_else(|| panic!("missing plural catalog noun for {surface:?}"))
+        };
+        let plural_possessive = |head| {
+            let possessor = determiner_api::build_possessive_noun_base(head).unwrap();
+            determiner_api::build_determiner_possessive_noun(possessor).unwrap()
+        };
+        let irregular_plural = plural_possessive(catalog_plural("Children"));
+        let invariant_plural = plural_possessive(catalog_plural("Fish"));
         let fixtures = [
             (
                 "determiner_closed",
@@ -1103,7 +1146,7 @@ mod tests {
             ("determiner_quantity", determiner_api::quantity(two)),
             (
                 "determiner_closed",
-                determiner_api::possessive_pronoun(Pronoun::You),
+                determiner_api::possessive_pronoun(Pronoun::You).unwrap(),
             ),
             (
                 "determiner_possessive_noun",
@@ -1117,26 +1160,35 @@ mod tests {
                 "determiner_possessive_noun",
                 determiner_api::possessive_nominal(modified),
             ),
+            ("determiner_possessive_noun", irregular_plural),
+            ("determiner_possessive_noun", invariant_plural),
         ];
 
         for (expected_id, expected) in fixtures {
             let source = expected.render().unwrap();
-            let orders = parse_groups_as_declared_category_in_both_orders(
+            let orders = parse_determiner_with_identity_in_both_orders(
                 &source,
-                &fixture_catalogs(),
-                "Determiner",
-                &expected,
+                &catalogs,
+                SelfReference::default(),
                 100_000,
                 crate::constructions::GROUPS,
             )
             .unwrap_or_else(|error| panic!("exact D01 parse failed for {source:?}: {error:?}"));
-            for parses in orders {
+            assert_eq!(
+                canonical_determiner_exact_set(&orders[0]),
+                canonical_determiner_exact_set(&orders[1]),
+                "complete exact result set changed for {source:?}",
+            );
+            for parses in &orders {
                 let parse = parses
                     .iter()
-                    .find(|parse| parse.ast().construction == expected_id)
+                    .find(|parse| {
+                        parse.ast().construction == expected_id && parse.ast().value == expected
+                    })
                     .unwrap_or_else(|| {
                         panic!("missing exact {expected_id} for {source:?}: {parses:#?}")
                     });
+                assert_eq!(parse.ast().value, expected, "{source:?}");
                 assert_eq!(parse.ast().form_ordinal, 0, "{source:?}");
                 assert_eq!(*parse.surface(), EnglishSurfaceWitness::None, "{source:?}");
             }
@@ -1281,7 +1333,8 @@ mod tests {
             .with_catalog(
                 CatalogKind::CreatureType,
                 [
-                    "Avatar", "Citizen", "Halfling", "Human", "Kithkin", "Scout", "Soldier",
+                    "Avatar", "Child", "Citizen", "Fish", "Halfling", "Human", "Kithkin", "Scout",
+                    "Soldier",
                 ],
             )
     }

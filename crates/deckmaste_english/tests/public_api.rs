@@ -543,6 +543,83 @@ fn public_determiner_rejects_every_pronoun_without_a_possessive_determiner_form(
         let result =
             determiner_api::build_determiner_closed(ClosedDeterminer::PossessivePronoun(pronoun));
         assert_eq!(result.is_ok(), expected_valid, "{pronoun:?}");
+        assert_eq!(
+            determiner_api::possessive_pronoun(pronoun).is_ok(),
+            expected_valid,
+            "public convenience helper: {pronoun:?}",
+        );
+    }
+}
+
+#[test]
+fn public_indefinite_determiner_render_reports_missing_onset_without_panicking() {
+    let attempted =
+        std::panic::catch_unwind(|| deckmaste_english::determiner::indefinite().render());
+    assert!(attempted.is_ok(), "the public render API must be total");
+    assert_eq!(
+        attempted.unwrap(),
+        Err(deckmaste_english::RenderError::DeterminerOnsetRequired),
+    );
+}
+
+#[test]
+fn abbreviated_self_reference_without_a_short_name_returns_an_error() {
+    use deckmaste_english::determiner as determiner_api;
+    use deckmaste_english::nominal as nominal_api;
+
+    let nominal = nominal_api::build_nominal_noun(
+        NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
+    )
+    .unwrap();
+    let nominal = nominal_api::build_nominal_determiner(
+        determiner_api::possessive_this_card(ThisCardForm::AbbreviatedName),
+        nominal,
+    )
+    .unwrap();
+    let fragment = Fragment::Nominal(NounPhrase::Nominal(nominal));
+
+    for (name, is_legendary) in [
+        ("Progenitus", true),
+        ("Test Card", false),
+        ("The Reality Chip", true),
+    ] {
+        let attempted = std::panic::catch_unwind(|| render_fragment(&fragment, name, is_legendary));
+        assert!(
+            attempted.is_ok(),
+            "{name:?} must return an error, not panic"
+        );
+        assert_eq!(
+            attempted.unwrap(),
+            Err(deckmaste_english::RenderError::AbbreviatedCardNameUnavailable),
+            "{name:?}",
+        );
+    }
+}
+
+#[test]
+fn plural_possessors_choose_apostrophe_from_the_rendered_noun_ending() {
+    let catalogs = Catalogs::default().with_catalog(CatalogKind::CreatureType, ["Child", "Fish"]);
+    for source in [
+        "Children's power is 2.",
+        "Fish's power is 2.",
+        "Cards' power is 2.",
+    ] {
+        let report = parse_with_catalogs(source, &catalogs);
+        assert!(report.ast().recoveries().is_empty(), "{report:#?}");
+        assert!(
+            report
+                .provenance()
+                .selections()
+                .iter()
+                .flat_map(ParseSelection::constructions)
+                .any(|decision| decision.selected().as_str() == "determiner_possessive_noun"),
+            "{report:#?}",
+        );
+        assert_eq!(
+            report.ast().render("Test Card", false).unwrap(),
+            source,
+            "{report:#?}",
+        );
     }
 }
 
@@ -610,6 +687,29 @@ fn public_possessive_nominal_boundary_rejects_non_d01_nominal_shapes() {
     assert!(
         determiner_api::build_possessive_noun_adjective(face_down, bare()).is_err(),
         "a card-orientation adjective is not a possessive noun prefix",
+    );
+
+    let pending = adjective_api::build_adjective_phrase(Adjective::Word(Vocab::Greater)).unwrap();
+    let comparison = adjective_api::build_comparison_than(
+        adjective_api::build_comparison_standard(Some(NounPhrase::Nominal(bare())), None, None)
+            .unwrap(),
+    )
+    .unwrap();
+    let ordinary_completed =
+        adjective_api::build_adjective_phrase_comparison(pending.clone(), comparison.clone())
+            .unwrap();
+    assert!(
+        determiner_api::build_possessive_noun_adjective(ordinary_completed, bare()).is_ok(),
+        "a J01-owned comparison remains a valid D01 adjective prefix",
+    );
+    let comparison_carrier = nominal_api::build_nominal_comparison(
+        nominal_api::build_nominal_adjective(pending, bare()).unwrap(),
+        comparison,
+    )
+    .unwrap();
+    assert!(
+        determiner_api::build_determiner_possessive_noun(comparison_carrier).is_err(),
+        "M01 postnominal comparison state has no total D01 inverse",
     );
 }
 

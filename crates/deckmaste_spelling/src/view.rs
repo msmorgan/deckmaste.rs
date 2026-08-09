@@ -848,7 +848,7 @@ mod tests {
             },
         );
 
-        let possessive = of(&determiner_api::possessive_pronoun(Pronoun::You));
+        let possessive = of(&determiner_api::possessive_pronoun(Pronoun::You).unwrap());
         let View::Newtype {
             name: "Determiner",
             variant: Some("Possessive"),
