@@ -2,6 +2,8 @@
 
 > **Reading the card explains the card.**
 
+**Project site:** [deckmaste.rs — Magic: The Gathering rules engine](https://deckmaste.rs/)
+
 deckmaste.rs tests the long-standing intuition that Oracle text can serve as an
 executable source language for Magic: it builds the whole path — parser, typed
 intermediate form, rules engine — and measures, card by card, where recovery
