@@ -421,7 +421,9 @@ impl VerbPhrase {
                 VerbDependent::Particle(particle) => PredicateAttachment::Particle(*particle),
                 VerbDependent::CoinResult(side) => PredicateAttachment::CoinResult(*side),
                 VerbDependent::Exception(_) => PredicateAttachment::Exception,
-                VerbDependent::PredicateComplement(Phrase::CatalogAtom(_)) => {
+                VerbDependent::PredicateComplement(Phrase::CatalogAtom(ability))
+                    if ability.is_keyword_ability() =>
+                {
                     PredicateAttachment::AbilityComplement
                 }
                 VerbDependent::PredicateComplement(Phrase::QuotedAbility(_)) => {

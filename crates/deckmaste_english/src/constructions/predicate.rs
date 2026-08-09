@@ -1083,17 +1083,26 @@ pub(crate) fn declaration_coordination_is_quoted(value: &CoordinatedPredicateObj
             conjunction: Some(Conjunction::And | Conjunction::Or),
             object: PredicateObject::QuotedAbility(_),
         }]
-    ) && matches!(
-        value.first.as_ref(),
-        PredicateObject::QuotedAbility(_)
-            | PredicateObject::Ability(AbilityObject { argument: None, .. })
-    )
+    ) && match value.first.as_ref() {
+        PredicateObject::QuotedAbility(_) => true,
+        PredicateObject::Ability(AbilityObject {
+            ability,
+            argument: None,
+        }) => ability.is_keyword_ability(),
+        _ => false,
+    }
 }
 
 fn attach_ability_dependent(
     predicate: &VerbPhrase,
     ability: CatalogAtom,
 ) -> Result<VerbDependent, DeclarationViolation> {
+    if !ability.is_keyword_ability() {
+        return Err(violation(
+            "verb_phrase_ability",
+            "the ability identity is a keyword-ability catalog atom",
+        ));
+    }
     licensed_attachment(
         "verb_phrase_ability",
         predicate,
@@ -1215,6 +1224,12 @@ fn attach_ability_quoted_pair_dependent(
     };
     let conjunction =
         object_conjunction("verb_phrase_ability_quoted_coordination", pair.conjunction)?;
+    if !pair.ability.is_keyword_ability() {
+        return Err(violation(
+            "verb_phrase_ability_quoted_coordination",
+            "the first identity is a keyword-ability catalog atom",
+        ));
+    }
     licensed_attachment(
         "verb_phrase_ability_quoted_coordination",
         predicate,
@@ -1249,6 +1264,9 @@ fn detach_ability_quoted_pair_dependent(
     else {
         return None;
     };
+    if !ability.is_keyword_ability() {
+        return None;
+    }
     let [
         PredicateObjectCoordination {
             conjunction: Some(conjunction),
@@ -1597,7 +1615,8 @@ fn is_verb_phrase_ability(value: &VerbPhrase) -> bool {
     dependent_matches(value, |dependent| {
         matches!(
             dependent,
-            VerbDependent::PredicateComplement(Phrase::CatalogAtom(_))
+            VerbDependent::PredicateComplement(Phrase::CatalogAtom(ability))
+                if ability.is_keyword_ability()
         )
     })
 }
@@ -1630,7 +1649,11 @@ fn is_verb_phrase_ability_quoted_coordination(value: &VerbPhrase) -> bool {
         matches!(
             dependent,
             VerbDependent::CoordinatedObject(CoordinatedPredicateObject { first, rest })
-                if matches!(first.as_ref(), PredicateObject::Ability(AbilityObject { argument: None, .. }))
+                if matches!(
+                    first.as_ref(),
+                    PredicateObject::Ability(AbilityObject { ability, argument: None })
+                        if ability.is_keyword_ability()
+                )
                     && matches!(rest.as_slice(), [PredicateObjectCoordination {
                         conjunction: Some(Conjunction::And | Conjunction::Or),
                         object: PredicateObject::QuotedAbility(_),
@@ -2823,6 +2846,33 @@ mod tests {
         atom
     }
 
+    fn test_non_keyword_ability_atoms() -> [CatalogAtom; 2] {
+        let catalogs = Catalogs::default()
+            .with_catalog(CatalogKind::CardType, ["Creature"])
+            .with_catalog(CatalogKind::AbilityWord, ["Landfall"]);
+        let CatalogValue::Word(crate::word::WordMatch::Noun(card_type)) = catalogs.matches(
+            "creature",
+            crate::catalog::CatalogSlot::Noun(crate::word::NounUsage::Count),
+        )[0]
+        .value
+        .clone() else {
+            panic!("the card-type fixture carries a noun")
+        };
+        let crate::word::NounInstanceKind::Singular(crate::word::Noun::Catalog(card_type)) =
+            card_type.kind()
+        else {
+            panic!("the card-type noun carries a catalog atom")
+        };
+        let CatalogValue::Atom(ability_word) = catalogs
+            .matches("Landfall", crate::catalog::CatalogSlot::AbilityWord)[0]
+            .value
+            .clone()
+        else {
+            panic!("the ability-word fixture carries a catalog atom")
+        };
+        [card_type.clone(), ability_word]
+    }
+
     fn test_quoted_ability(source: &str, catalogs: &Catalogs) -> QuotedAbility {
         crate::grammar::ability::parse_quoted_ability_fragment(
             source,
@@ -3157,6 +3207,101 @@ mod tests {
                 .is_err(),
             "ONE_MEMBER_COORDINATION: the verb attachment refuses an empty rest"
         );
+    }
+
+    #[test]
+    fn predicate_value_ability_builders_reject_non_keyword_atoms() {
+        // Mutation caught: forge the broad CatalogAtom identity with a card
+        // type or ability word instead of a keyword ability.
+        let catalogs = Catalogs::default().with_catalog(CatalogKind::KeywordAbility, ["Flying"]);
+        let quoted = test_quoted_ability("{T}: Draw a card.", &catalogs);
+        for wrong in test_non_keyword_ability_atoms() {
+            assert!(
+                build_verb_phrase_ability(open_predicate(Vocab::Gain), wrong.clone()).is_err(),
+                "single-ability ingress admitted {:?}",
+                wrong.kind,
+            );
+            assert!(
+                build_verb_phrase_ability_quoted_coordination(
+                    open_predicate(Vocab::Have),
+                    vec![AbilityQuotedPairMember {
+                        ability: wrong.clone(),
+                        conjunction: Conjunction::And,
+                        quoted: quoted.clone(),
+                    }],
+                )
+                .is_err(),
+                "mixed ability+quote ingress admitted {:?}",
+                wrong.kind,
+            );
+        }
+    }
+
+    #[test]
+    fn predicate_value_ability_parts_reject_non_keyword_atoms() {
+        // Mutation caught: let an invalid direct AST bypass the checked
+        // builder through a permissive detach/inverse path.
+        let catalogs = Catalogs::default().with_catalog(CatalogKind::KeywordAbility, ["Flying"]);
+        let quoted = test_quoted_ability("{T}: Draw a card.", &catalogs);
+        for wrong in test_non_keyword_ability_atoms() {
+            let base = open_predicate(Vocab::Gain);
+            let (_, shell) = base.declaration_into_dependent_projection();
+            let invalid_single = VerbPhrase::declaration_from_dependent_projection(
+                shell,
+                vec![VerbDependent::PredicateComplement(Phrase::CatalogAtom(
+                    wrong.clone(),
+                ))],
+            );
+            assert!(
+                parts_verb_phrase_ability(&invalid_single).is_none(),
+                "single-ability inverse admitted {:?}",
+                wrong.kind,
+            );
+
+            let base = open_predicate(Vocab::Have);
+            let (_, shell) = base.declaration_into_dependent_projection();
+            let invalid_mixed = VerbPhrase::declaration_from_dependent_projection(
+                shell,
+                vec![VerbDependent::CoordinatedObject(
+                    CoordinatedPredicateObject {
+                        first: Box::new(PredicateObject::Ability(AbilityObject {
+                            ability: wrong.clone(),
+                            argument: None,
+                        })),
+                        rest: vec![PredicateObjectCoordination {
+                            conjunction: Some(Conjunction::And),
+                            object: PredicateObject::QuotedAbility(Box::new(quoted.clone())),
+                        }],
+                    },
+                )],
+            );
+            assert!(
+                parts_verb_phrase_ability_quoted_coordination(&invalid_mixed).is_none(),
+                "mixed ability+quote inverse admitted {:?}",
+                wrong.kind,
+            );
+        }
+    }
+
+    #[test]
+    fn predicate_value_feature_replay_rejects_non_keyword_catalog_atoms() {
+        // Mutation caught: classify every Phrase::CatalogAtom as an ability
+        // complement while replaying a direct AST's predicate features.
+        for wrong in test_non_keyword_ability_atoms() {
+            let base = open_predicate(Vocab::Gain);
+            let (_, shell) = base.declaration_into_dependent_projection();
+            let invalid = VerbPhrase::declaration_from_dependent_projection(
+                shell,
+                vec![VerbDependent::PredicateComplement(Phrase::CatalogAtom(
+                    wrong.clone(),
+                ))],
+            );
+            assert!(
+                invalid.declaration_core_features().is_none(),
+                "feature replay admitted {:?}",
+                wrong.kind,
+            );
+        }
     }
 
     #[test]

@@ -122,6 +122,11 @@ pub struct CatalogAtom {
 
 impl CatalogAtom {
     #[must_use]
+    pub(crate) const fn is_keyword_ability(&self) -> bool {
+        matches!(self.kind, CatalogKind::KeywordAbility)
+    }
+
+    #[must_use]
     pub fn canonical(&self) -> &str {
         &self.canonical
     }
