@@ -97,10 +97,10 @@ pub(crate) struct PredicateFrame {
     /// (`come up heads`/`come up tails`). Set only on the narrow `Come` frame
     /// used for the coin-result predicate; `predicate_arguments_complete` and
     /// `predicate_object_gap_complete` both reject a pending frame outright,
-    /// so `Come` is never selectable OPEN in this round — only the
-    /// `VerbPhraseCoinResult` reduction (which discharges this flag) can
-    /// complete it. This keeps `whichever comes first` and `came under your
-    /// control` (a general `come` frame, not yet added) out of the blast
+    /// so `Come` is never selectable OPEN in this round. Only the generated
+    /// `verb_phrase_coin_result` construction discharges the coin-result frame
+    /// and can complete it. This keeps `whichever comes first` and `came under
+    /// your control` (a general `come` frame, not yet added) out of the blast
     /// radius.
     requires_coin_result: bool,
 }
@@ -210,9 +210,10 @@ impl PredicateFrame {
     }
 
     /// Returns a copy of this frame with `requires_coin_result` cleared.
-    /// Called only from the `VerbPhraseCoinResult` reduction, once its typed
-    /// `CoinResult` tail has attached, so the completed predicate's frame
-    /// stops rejecting further completion checks.
+    /// Called only from the generated `verb_phrase_coin_result` construction,
+    /// the sole frame-discharge owner, once its typed `CoinResult` tail has
+    /// attached, so the completed predicate's frame stops rejecting further
+    /// completion checks.
     pub(crate) const fn discharge_coin_result(mut self) -> Self {
         self.requires_coin_result = false;
         self
