@@ -144,3 +144,39 @@ mod predicate_family_laws {
         );
     }
 }
+
+#[cfg(test)]
+mod adjective_family_laws {
+    #[test]
+    fn all_nine_adjective_rows_expose_checked_declaration_laws() {
+        let required = [
+            ("adjective", "Adjective", 1),
+            ("adjective_phrase", "AdjectivePhrase", 1),
+            ("adjective_phrase_face_up", "AdjectivePhrase", 1),
+            ("adjective_phrase_face_down", "AdjectivePhrase", 1),
+            ("comparison_standard", "ComparisonStandard", 3),
+            ("comparison_than", "ComparisonComplement", 1),
+            ("comparison_than_or_equal_to", "ComparisonComplement", 1),
+            ("adjective_phrase_comparison", "AdjectivePhrase", 1),
+            ("adjective_phrase_degree_measure", "AdjectivePhrase", 1),
+        ];
+        let declaration = &crate::constructions::adjective::ADJECTIVE_DECLARATION;
+        assert_eq!(declaration.constructions.len(), required.len());
+        for (actual, (id, category, form_count)) in declaration.constructions.iter().zip(required) {
+            assert_eq!((actual.id, actual.category), (id, category));
+            assert!(actual.selection_unique, "{id} must select uniquely");
+            assert!(actual.erased_builder.is_some(), "{id} checked builder");
+            assert!(actual.bind_path.is_some(), "{id} typed bind target");
+            assert_eq!(actual.forms.len(), form_count, "{id} exact form count");
+            assert_eq!(
+                actual
+                    .forms
+                    .iter()
+                    .map(|form| form.ordinal)
+                    .collect::<Vec<_>>(),
+                (0..u16::try_from(form_count).unwrap()).collect::<Vec<_>>(),
+                "{id} exact witness ordinals"
+            );
+        }
+    }
+}

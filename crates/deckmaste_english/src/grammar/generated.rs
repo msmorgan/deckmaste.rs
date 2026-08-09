@@ -1750,6 +1750,64 @@ mod tests {
     }
 
     #[test]
+    fn adjective_attachment_and_degree_use_category_owned_generic_adapters() {
+        let declaration = &crate::constructions::adjective::ADJECTIVE_DECLARATION;
+        let comparison = &declaration.constructions[7];
+        assert_eq!(comparison.id, "adjective_phrase_comparison");
+        assert_eq!(
+            comparison.fields[0].kind,
+            FieldKindData::Subtree {
+                category: "AdjectivePhrase",
+                boxed: false,
+            }
+        );
+        assert_eq!(
+            comparison.fields[1].kind,
+            FieldKindData::Subtree {
+                category: "ComparisonComplement",
+                boxed: false,
+            }
+        );
+        let lens = comparison
+            .lens
+            .expect("comparison appends through its owner lens");
+        assert_eq!(
+            (lens.owner, lens.source),
+            ("adjective_phrase_complements", Some("owner"))
+        );
+        assert_eq!(lens.edits[0].target, "complements");
+        assert_eq!(
+            lens.edits[0].kind,
+            deckmaste_construction_compiler::runtime::LensEditKindData::Append
+        );
+
+        let degree = &declaration.constructions[8];
+        assert_eq!(degree.id, "adjective_phrase_degree_measure");
+        assert_eq!(
+            degree.fields[0].kind,
+            FieldKindData::TypedScalar {
+                value_type: "NumberLiteral",
+                codec: "Numeral",
+            }
+        );
+        assert_eq!(
+            super::typed_scalar_slot(
+                degree.id,
+                degree.fields[0].name,
+                "NumberLiteral",
+                "Numeral",
+                false,
+            ),
+            Ok(EnglishLexicalSlot::QuantityNumber)
+        );
+
+        let cats = internal_categories(&[declaration]);
+        let mut builder = RuleBuilder::default();
+        register_generated(&mut builder, &[declaration], &cats)
+            .expect("the generic adjective lens and scalar adapters assemble");
+    }
+
+    #[test]
     fn engine_combinator_discovery_preserves_legacy_targets_among_typed_outputs() {
         const FIELDS: &[FieldData] = &[
             FieldData {
