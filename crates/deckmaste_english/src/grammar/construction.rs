@@ -249,6 +249,51 @@ mod tests {
     }
 
     #[test]
+    fn production_j01_has_exactly_nine_generated_owners_without_dominance() {
+        let declarations = crate::constructions::adjective::ADJECTIVE_DECLARATION.constructions;
+        assert_eq!(declarations.len(), 9, "required J01 declarations");
+        let ids = declarations
+            .iter()
+            .map(|construction| ConstructionId::new(construction.id))
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(ids.len(), 9, "J01 IDs are unique");
+
+        for construction in declarations {
+            let id = ConstructionId::new(construction.id);
+            assert!(construction.dominates.is_empty(), "{id} declares dominance");
+            assert!(
+                construction.dominated_by.is_empty(),
+                "{id} declares subordinate status"
+            );
+            assert!(
+                handwritten_registry().family(id).is_none(),
+                "{id} still has a handwritten owner"
+            );
+            let family = registry()
+                .family(id)
+                .unwrap_or_else(|| panic!("{id} is absent from production"));
+            assert_eq!(family.owner(), ConstructionOwner::Generated, "{id}");
+            assert_eq!(family.backend(), ConstructionBackend::Chart, "{id}");
+            assert_eq!(
+                registry()
+                    .families()
+                    .iter()
+                    .filter(|family| family.id() == id)
+                    .count(),
+                1,
+                "{id} must fan out to one production owner"
+            );
+            for other in registry().families() {
+                assert!(
+                    !registry().dominates(id, other.id()) && !registry().dominates(other.id(), id),
+                    "J01 must have no dominance relation: {id} / {}",
+                    other.id()
+                );
+            }
+        }
+    }
+
+    #[test]
     fn production_predicate_registry_is_group_permutation_neutral() {
         // Mutation caught: let generated replacement ownership or dominance
         // depend on the predicate group's insertion position.
@@ -303,8 +348,8 @@ mod tests {
             .iter()
             .filter(|family| family.owner() == ConstructionOwner::Generated)
             .count();
-        assert_eq!(handwritten, 106, "handwritten chart families");
-        assert_eq!(generated, 86, "generated chart families");
+        assert_eq!(handwritten, 97, "handwritten chart families");
+        assert_eq!(generated, 95, "generated chart families");
         assert_eq!(families.len(), 192, "all chart families");
 
         let chart_fragment_entries = [FragmentKind::Nominal, FragmentKind::Sentence];
@@ -315,7 +360,7 @@ mod tests {
         ];
         assert_eq!(chart_fragment_entries.len(), 2);
         assert_eq!(ability_fragment_entries.len(), 3);
-        assert_eq!(handwritten + ability_fragment_entries.len(), 109);
+        assert_eq!(handwritten + ability_fragment_entries.len(), 100);
         assert_eq!(families.len() + ability_fragment_entries.len(), 195);
     }
 

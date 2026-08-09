@@ -1,8 +1,4 @@
-//! Compiler-derived adjective declarations.
-#![allow(
-    dead_code,
-    reason = "the adjective declaration group stays inactive until its production-ownership migration"
-)]
+//! Compiler-derived production adjective declarations.
 
 use deckmaste_construction_compiler::runtime::DeclarationViolation;
 use deckmaste_construction_compiler::runtime::GroupData;
@@ -506,6 +502,7 @@ mod tests {
     use super::*;
     use crate::catalog::Catalogs;
     use crate::numeral::Numeral;
+    use crate::syntax::AdjectiveComplement;
     use crate::syntax::AdjectivePhrase;
     use crate::syntax::NumberLiteral;
     use crate::word::Adjective;
@@ -543,19 +540,6 @@ mod tests {
     const ATTRIBUTIVE_DEGREE_MEASURE: &str = "ATTRIBUTIVE_DEGREE_MEASURE";
     const DUPLICATE_COMPARISON: &str = "DUPLICATE_COMPARISON";
     const SURPLUS_COMPLEMENT: &str = "SURPLUS_COMPLEMENT";
-
-    fn production_groups_with_adjective() -> &'static [&'static GroupData] {
-        static GROUPS_WITH_ADJECTIVE: &[&GroupData] = &[
-            crate::constructions::coordination::GROUPS[0],
-            crate::constructions::noun::GROUPS[0],
-            crate::constructions::nominal::GROUPS[0],
-            crate::constructions::predicate::GROUPS[0],
-            crate::constructions::quantity::GROUPS[0],
-            crate::constructions::sentence::GROUPS[0],
-            GROUPS[0],
-        ];
-        GROUPS_WITH_ADJECTIVE
-    }
 
     fn comparison(marker: ComparisonMarker) -> ComparisonComplement {
         ComparisonComplement::try_new(
@@ -716,7 +700,7 @@ mod tests {
     }
 
     #[test]
-    fn inactive_group_lowers_and_matches_both_generic_adjective_categories() {
+    fn declaration_lowers_and_matches_both_generic_adjective_categories() {
         let lexical = Adjective::Word(Vocab::Target);
         let phrase = AdjectivePhrase::try_from_lexical_head(lexical.clone()).unwrap();
         for (source, category, expected, construction) in [
@@ -741,7 +725,7 @@ mod tests {
                 10_000,
                 GROUPS,
             )
-            .expect("the inactive adjective group is test-activatable");
+            .expect("the adjective declaration parses through its category adapters");
             for parses in orders {
                 assert_eq!(
                     parses
@@ -772,9 +756,9 @@ mod tests {
                 "AdjectivePhrase",
                 &expected,
                 10_000,
-                production_groups_with_adjective(),
+                crate::constructions::GROUPS,
             )
-            .expect("the orientation declaration is test-activatable");
+            .expect("the production orientation declaration parses");
             for parses in orders {
                 assert_eq!(
                     parses
@@ -826,6 +810,18 @@ mod tests {
             build_adjective_phrase_face_down().unwrap(),
             orientation_phrase(CardOrientation::FaceDown)
         );
+    }
+
+    #[test]
+    fn than_only_adjective_accepts_the_than_marker() {
+        let owner = build_adjective_phrase(Adjective::Word(Vocab::Other)).unwrap();
+        let comparison = comparison(ComparisonMarker::Than);
+        let built = build_adjective_phrase_comparison(owner, comparison).unwrap();
+        assert_eq!(built.head(), &Adjective::Word(Vocab::Other));
+        let AdjectiveComplement::Comparison(comparison) = &built.complements()[0] else {
+            panic!("the declared complement is a comparison")
+        };
+        assert_eq!(comparison.marker(), ComparisonMarker::Than);
     }
 
     #[test]
@@ -891,7 +887,7 @@ mod tests {
     }
 
     #[test]
-    fn inactive_group_parses_all_required_comparison_and_measure_witnesses() {
+    fn declaration_parses_all_required_comparison_and_measure_witnesses() {
         let target = Phrase::AdjectivePhrase(Box::new(
             AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Target)).unwrap(),
         ));
@@ -1078,7 +1074,7 @@ mod tests {
                 "AdjectivePhrase",
                 &expected,
                 10_000,
-                production_groups_with_adjective(),
+                crate::constructions::GROUPS,
             )
             .unwrap_or_else(|error| panic!("{source}: {error:?}"));
             for parses in orders {
@@ -1095,7 +1091,7 @@ mod tests {
     }
 
     #[test]
-    fn inactive_rows_report_generated_ownership_in_both_registration_orders() {
+    fn declared_rows_report_generated_ownership_in_both_registration_orders() {
         use crate::grammar::Nonterminal;
 
         for (source, nonterminal, expected) in [
@@ -1151,7 +1147,7 @@ mod tests {
                     .find(|decision| decision.selected().as_str() == expected)
                     .unwrap_or_else(|| {
                         panic!(
-                            "missing inactive generated {expected} for {source:?}: {:#?}",
+                            "missing generated {expected} for {source:?}: {:#?}",
                             parsed.construction_decisions(),
                         )
                     });

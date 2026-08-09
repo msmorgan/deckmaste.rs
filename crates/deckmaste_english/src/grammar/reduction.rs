@@ -1,4 +1,3 @@
-use super::AdjectiveComparisonClass;
 use super::AdjectiveComparisonState;
 use super::Agreement;
 use super::Child;
@@ -43,16 +42,7 @@ pub(super) fn reduce(
         | RuleTag::PossessiveNounDetermined
         | RuleTag::DeterminerPossessiveNoun
         | RuleTag::PossessiveNounAdjective => reduce_possessive_noun_phrase(tag, children)?,
-        RuleTag::Adjective
-        | RuleTag::AdjectivePhrase
-        | RuleTag::AdjectivePhraseFaceUp
-        | RuleTag::AdjectivePhraseFaceDown
-        | RuleTag::AdjectivePhraseComparison
-        | RuleTag::AdjectivePhraseDegreeMeasure
-        | RuleTag::ComparisonStandard
-        | RuleTag::ComparisonThan
-        | RuleTag::ComparisonThanOrEqualTo
-        | RuleTag::NominalPowerToughnessComplement
+        RuleTag::NominalPowerToughnessComplement
         | RuleTag::ModifierConjunctAdjective
         | RuleTag::ModifierConjunctNoun
         | RuleTag::ModifierConjunctNegated
@@ -337,15 +327,6 @@ pub(super) const fn target_cardinality(cardinality: NounCardinality) -> NounCard
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum HandwrittenNominalReduction {
-    Adjective,
-    AdjectivePhrase,
-    AdjectivePhraseFaceUp,
-    AdjectivePhraseFaceDown,
-    AdjectivePhraseComparison,
-    AdjectivePhraseDegreeMeasure,
-    ComparisonStandard,
-    ComparisonThan,
-    ComparisonThanOrEqualTo,
     NominalPowerToughnessComplement,
     ModifierConjunctAdjective,
     ModifierConjunctNoun,
@@ -360,15 +341,6 @@ enum HandwrittenNominalReduction {
 impl HandwrittenNominalReduction {
     fn from_rule_tag(tag: RuleTag) -> Option<Self> {
         Some(match tag {
-            RuleTag::Adjective => Self::Adjective,
-            RuleTag::AdjectivePhrase => Self::AdjectivePhrase,
-            RuleTag::AdjectivePhraseFaceUp => Self::AdjectivePhraseFaceUp,
-            RuleTag::AdjectivePhraseFaceDown => Self::AdjectivePhraseFaceDown,
-            RuleTag::AdjectivePhraseComparison => Self::AdjectivePhraseComparison,
-            RuleTag::AdjectivePhraseDegreeMeasure => Self::AdjectivePhraseDegreeMeasure,
-            RuleTag::ComparisonStandard => Self::ComparisonStandard,
-            RuleTag::ComparisonThan => Self::ComparisonThan,
-            RuleTag::ComparisonThanOrEqualTo => Self::ComparisonThanOrEqualTo,
             RuleTag::NominalPowerToughnessComplement => Self::NominalPowerToughnessComplement,
             RuleTag::ModifierConjunctAdjective => Self::ModifierConjunctAdjective,
             RuleTag::ModifierConjunctNoun => Self::ModifierConjunctNoun,
@@ -393,73 +365,6 @@ fn reduce_nominal(
 ) -> Option<Reduced> {
     use HandwrittenNominalReduction as RuleTag;
     match tag {
-        RuleTag::Adjective => Some(propagate(children.first()?)),
-        RuleTag::AdjectivePhraseFaceUp | RuleTag::AdjectivePhraseFaceDown => {
-            Some(Features::Adjective {
-                initial_sound: InitialSound::Consonant,
-                comparison: AdjectiveComparisonState::NotComparative,
-                card_orientation: true,
-                past_participle: false,
-                demonstrative_shared_determiner: true,
-            })
-        }
-        RuleTag::AdjectivePhrase => {
-            let Features::Adjective { .. } = children.first()?.features else {
-                return None;
-            };
-            Some(children.first()?.features.clone())
-        }
-        RuleTag::AdjectivePhraseComparison => {
-            let Features::Adjective {
-                initial_sound,
-                comparison: AdjectiveComparisonState::Pending(_),
-                card_orientation,
-                past_participle,
-                demonstrative_shared_determiner,
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            Some(Features::Adjective {
-                initial_sound: *initial_sound,
-                comparison: AdjectiveComparisonState::Complete,
-                card_orientation: *card_orientation,
-                past_participle: *past_participle,
-                demonstrative_shared_determiner: *demonstrative_shared_determiner,
-            })
-        }
-        RuleTag::AdjectivePhraseDegreeMeasure => {
-            let Features::Number { .. } = children.first()?.features else {
-                return None;
-            };
-            let Features::Adjective {
-                initial_sound,
-                // Only the `N or <word>` comparison class takes a degree
-                // measure; `other` (`ThanOnly`) must not — see
-                // `AdjectiveComparisonState`.
-                comparison:
-                    AdjectiveComparisonState::Pending(AdjectiveComparisonClass::OrComparative),
-                card_orientation: false,
-                past_participle,
-                demonstrative_shared_determiner,
-            } = children.get(1)?.features
-            else {
-                return None;
-            };
-            Some(Features::Adjective {
-                // Inert: `Measured` never reaches an article-bearing position
-                // (`nominal_with_prefix` rejects it), so this is carried, not
-                // used.
-                initial_sound: *initial_sound,
-                comparison: AdjectiveComparisonState::Measured,
-                card_orientation: false,
-                past_participle: *past_participle,
-                demonstrative_shared_determiner: *demonstrative_shared_determiner,
-            })
-        }
-        RuleTag::ComparisonStandard
-        | RuleTag::ComparisonThan
-        | RuleTag::ComparisonThanOrEqualTo => Some(Features::None),
         RuleTag::NominalPowerToughnessComplement => {
             let Features::Nominal {
                 head,

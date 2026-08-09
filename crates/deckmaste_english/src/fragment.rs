@@ -706,38 +706,60 @@ mod tests {
     }
 
     #[test]
-    fn adjective_rendering_reaches_fragments_while_j01_ownership_stays_inactive() {
-        const INACTIVE_IDS: &[&str] = &[
-            "adjective",
-            "adjective_phrase",
-            "adjective_phrase_face_up",
-            "adjective_phrase_face_down",
-            "comparison_standard",
-            "comparison_than",
-            "comparison_than_or_equal_to",
-            "adjective_phrase_comparison",
-            "adjective_phrase_degree_measure",
-        ];
-        for source in [
-            "Turn this creature face up.",
-            "Turn this creature face down.",
-            "Its power is 2 greater.",
-            "Its power is greater than a card.",
+    fn production_j01_ownership_reaches_sentence_and_nominal_fragments() {
+        for (source, kind, required) in [
+            (
+                "black creature",
+                FragmentKind::Nominal,
+                &["adjective", "adjective_phrase"][..],
+            ),
+            (
+                "Turn this creature face up.",
+                FragmentKind::Sentence,
+                &["adjective_phrase_face_up"][..],
+            ),
+            (
+                "Turn this creature face down.",
+                FragmentKind::Sentence,
+                &["adjective_phrase_face_down"][..],
+            ),
+            (
+                "Its power is 2 greater.",
+                FragmentKind::Sentence,
+                &["adjective", "adjective_phrase_degree_measure"][..],
+            ),
+            (
+                "Its power is greater than a card.",
+                FragmentKind::Sentence,
+                &[
+                    "adjective",
+                    "adjective_phrase",
+                    "comparison_standard",
+                    "comparison_than",
+                    "adjective_phrase_comparison",
+                ][..],
+            ),
+            (
+                "Its power is greater than or equal to a card.",
+                FragmentKind::Sentence,
+                &[
+                    "adjective",
+                    "adjective_phrase",
+                    "comparison_standard",
+                    "comparison_than_or_equal_to",
+                    "adjective_phrase_comparison",
+                ][..],
+            ),
         ] {
-            let report = production_fragment(source, FragmentKind::Sentence);
+            let report = production_fragment(source, kind);
             assert!(report.clean(), "{source:?}: {:?}", report.diagnostics());
             assert_eq!(
                 render_fragment(report.fragment().unwrap(), "", false).unwrap(),
                 source,
             );
-            assert!(
-                report.construction_decisions().iter().all(|decision| {
-                    !INACTIVE_IDS.contains(&decision.selected().as_str())
-                        || decision.owner() == ConstructionOwner::Handwritten
-                }),
-                "J01 must remain inactive in production: {source:?}: {:#?}",
-                report.construction_decisions(),
-            );
+            for construction in required {
+                assert_generated(&report, construction);
+            }
         }
     }
 
