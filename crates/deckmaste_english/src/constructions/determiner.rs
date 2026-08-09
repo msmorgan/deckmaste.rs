@@ -187,29 +187,56 @@ fn is_possessive_noun_base(value: &PossessiveNominal) -> bool {
     value.determiner().is_none() && value.modifiers().is_empty() && value.complements().is_empty()
 }
 
+fn possessive_noun_determined_remainder(value: &PossessiveNominal) -> Option<PossessiveNominal> {
+    if value.determiner().is_none() || !value.complements().is_empty() {
+        return None;
+    }
+    let (_, modifiers, head, complements) = value.clone().into_projection_parts();
+    Some(NominalPhrase::from_projection_parts(
+        None,
+        modifiers,
+        head,
+        complements,
+    ))
+}
+
+fn possessive_noun_adjective_remainder(value: &PossessiveNominal) -> Option<PossessiveNominal> {
+    if value.determiner().is_some() || !value.complements().is_empty() {
+        return None;
+    }
+    let Some(crate::syntax::NominalModifier::Adjective {
+        polarity: crate::syntax::Polarity::Positive,
+        phrase,
+    }) = value.modifiers().first()
+    else {
+        return None;
+    };
+    if phrase.complements().iter().any(|complement| {
+        matches!(
+            complement,
+            crate::syntax::AdjectiveComplement::PostnominalComparison(_)
+        )
+    }) {
+        return None;
+    }
+    let (determiner, mut modifiers, head, complements) = value.clone().into_projection_parts();
+    modifiers.remove(0);
+    Some(NominalPhrase::from_projection_parts(
+        determiner,
+        modifiers,
+        head,
+        complements,
+    ))
+}
+
 fn is_valid_possessive_nominal(value: &PossessiveNominal) -> bool {
     let mut inverse_count = u8::from(is_possessive_noun_base(value));
 
-    if value.determiner().is_some() && value.complements().is_empty() {
-        let (_, modifiers, head, complements) = value.clone().into_projection_parts();
-        let possessor = NominalPhrase::from_projection_parts(None, modifiers, head, complements);
+    if let Some(possessor) = possessive_noun_determined_remainder(value) {
         inverse_count += u8::from(is_valid_possessive_nominal(&possessor));
     }
 
-    if value.determiner().is_none()
-        && value.complements().is_empty()
-        && matches!(
-            value.modifiers().first(),
-            Some(crate::syntax::NominalModifier::Adjective {
-                polarity: crate::syntax::Polarity::Positive,
-                ..
-            })
-        )
-    {
-        let (determiner, mut modifiers, head, complements) = value.clone().into_projection_parts();
-        modifiers.remove(0);
-        let possessor =
-            NominalPhrase::from_projection_parts(determiner, modifiers, head, complements);
+    if let Some(possessor) = possessive_noun_adjective_remainder(value) {
         inverse_count += u8::from(is_valid_possessive_nominal(&possessor));
     }
 
@@ -242,12 +269,8 @@ fn possessive_noun_determined_parts(value: &PossessiveNominal) -> (Determiner, P
 }
 
 fn is_possessive_noun_determined(value: &PossessiveNominal) -> bool {
-    if value.determiner().is_none() || !value.complements().is_empty() {
-        return false;
-    }
-    let (_, modifiers, head, complements) = value.clone().into_projection_parts();
-    let possessor = NominalPhrase::from_projection_parts(None, modifiers, head, complements);
-    is_valid_possessive_nominal(&possessor)
+    possessive_noun_determined_remainder(value)
+        .is_some_and(|possessor| is_valid_possessive_nominal(&possessor))
 }
 
 fn make_determiner_possessive_noun(
@@ -330,22 +353,8 @@ fn possessive_noun_adjective_parts(
 }
 
 fn is_possessive_noun_adjective(value: &PossessiveNominal) -> bool {
-    if value.determiner().is_some() || !value.complements().is_empty() {
-        return false;
-    }
-    if !matches!(
-        value.modifiers().first(),
-        Some(crate::syntax::NominalModifier::Adjective {
-            polarity: crate::syntax::Polarity::Positive,
-            ..
-        })
-    ) {
-        return false;
-    }
-    let (determiner, mut modifiers, head, complements) = value.clone().into_projection_parts();
-    modifiers.remove(0);
-    let possessor = NominalPhrase::from_projection_parts(determiner, modifiers, head, complements);
-    is_valid_possessive_nominal(&possessor)
+    possessive_noun_adjective_remainder(value)
+        .is_some_and(|possessor| is_valid_possessive_nominal(&possessor))
 }
 
 fn closed_features(identity: &Features) -> Option<Features> {

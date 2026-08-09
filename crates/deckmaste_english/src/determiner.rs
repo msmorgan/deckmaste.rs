@@ -49,9 +49,14 @@ pub fn demonstrative(value: Demonstrative) -> Determiner {
     closed(ClosedDeterminer::Demonstrative(value))
 }
 
-#[must_use]
-pub fn possessive_pronoun(value: Pronoun) -> Determiner {
-    closed(ClosedDeterminer::PossessivePronoun(value))
+/// Builds a possessive determiner from a pronoun that has a determiner form.
+///
+/// # Errors
+///
+/// Returns a declaration violation when `value` has no possessive determiner
+/// spelling.
+pub fn possessive_pronoun(value: Pronoun) -> Result<Determiner, DeclarationViolation> {
+    build_determiner_closed(ClosedDeterminer::PossessivePronoun(value))
 }
 
 #[must_use]

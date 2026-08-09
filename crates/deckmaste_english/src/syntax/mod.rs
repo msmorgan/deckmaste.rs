@@ -954,7 +954,9 @@ mod tests {
             NounCardinality::Mass
         );
         assert_eq!(
-            crate::determiner::possessive_pronoun(Pronoun::You).noun_cardinality(),
+            crate::determiner::possessive_pronoun(Pronoun::You)
+                .unwrap()
+                .noun_cardinality(),
             NounCardinality::Unconstrained
         );
         assert_eq!(
