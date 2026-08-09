@@ -17,6 +17,7 @@ pub(crate) static GROUPS: &[&GroupData] = &[
     coordination::GROUPS[0],
     noun::GROUPS[0],
     nominal::GROUPS[0],
+    predicate::GROUPS[0],
     quantity::GROUPS[0],
     sentence::GROUPS[0],
 ];

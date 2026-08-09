@@ -1,0 +1,11 @@
+error[E0451]: fields `head`, `kind` and `elements` of struct `HeadedPredicate` are private
+  --> tests/compile_fail/construct_headed_predicate.rs:8:9
+   |
+ 7 |     HeadedPredicate {
+   |     --------------- in this type
+ 8 |         head,
+   |         ^^^^ private field
+ 9 |         kind: Intransitive,
+   |         ^^^^ private field
+10 |         elements: Vec::<PredicateElement>::new(),
+   |         ^^^^^^^^ private field

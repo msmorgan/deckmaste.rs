@@ -772,6 +772,16 @@ mod tests {
             false,
         );
         assert!(report.clean(), "{:?}", report.diagnostics());
+        let decision = report
+            .construction_decisions()
+            .iter()
+            .find(|decision| decision.selected().as_str() == "verb_phrase_causative")
+            .expect("the spelling parse reports its causative owner");
+        assert_eq!(
+            decision.owner(),
+            deckmaste_english::ConstructionOwner::Generated,
+            "spelling must consume the production-generated predicate path"
+        );
         let fragment = report.fragment().expect("the causative fragment lowers");
         let deckmaste_english::Fragment::Sentence(sentence) = fragment else {
             panic!("the spelling fixture remains a semantic Sentence")

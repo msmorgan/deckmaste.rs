@@ -39,7 +39,6 @@ pub(super) fn reduce(
         | RuleTag::DeterminerQuantifiedTarget
         | RuleTag::DeterminerQuantity
         | RuleTag::DeterminerPossessiveThisCard => reduce_quantity_or_determiner(tag, children)?,
-        RuleTag::FrequencyPhrase | RuleTag::FrequencyPhraseAdverb => Features::None,
         RuleTag::PossessiveNounBase
         | RuleTag::PossessiveNounDetermined
         | RuleTag::DeterminerPossessiveNoun
@@ -88,38 +87,7 @@ pub(super) fn reduce(
         | RuleTag::PrepositionalPhraseListComma
         | RuleTag::PrepositionalPhraseSiblingCoordinated
         | RuleTag::PrepositionalObject => reduce_phrase(tag, children)?,
-        RuleTag::Verb
-        | RuleTag::VerbPhraseBase
-        | RuleTag::VerbPhraseAuxiliary
-        | RuleTag::VerbPhraseAuxiliaryProform
-        | RuleTag::VerbPhraseDirectObject
-        | RuleTag::VerbPhraseIndirectObject
-        | RuleTag::VerbPhraseAdjective
-        | RuleTag::VerbPhrasePrepositional
-        | RuleTag::VerbPhrasePassiveSharedDeterminerPrepositional
-        | RuleTag::VerbPhraseExceptBy
-        | RuleTag::VerbPhraseInfinitive
-        | RuleTag::VerbPhraseAdverb
-        | RuleTag::VerbPhrasePreverbAdverb
-        | RuleTag::VerbPhraseParticle
-        | RuleTag::VerbPhraseCoinResult
-        | RuleTag::VerbPhraseFrequency
-        | RuleTag::VerbPhraseAbility
-        | RuleTag::VerbPhraseQuotedAbility
-        | RuleTag::VerbPhraseQuotedAbilityCoordination
-        | RuleTag::VerbPhraseAbilityQuotedCoordination
-        | RuleTag::VerbPhraseOracleSymbol
-        | RuleTag::VerbPhraseSymbolSequence
-        | RuleTag::VerbPhraseManaAmountCoordination
-        | RuleTag::ManaAmountSymbol
-        | RuleTag::ManaAmountSequence
-        | RuleTag::ManaAmountListSingle
-        | RuleTag::ManaAmountListComma
-        | RuleTag::ManaAmountCoordination
-        | RuleTag::ManaAmountCoordinationOxford
-        | RuleTag::VerbPhrasePowerToughness
-        | RuleTag::VerbPhraseQuantity
-        | RuleTag::InfinitiveTo
+        RuleTag::InfinitiveTo
         | RuleTag::InfinitiveNotTo
         | RuleTag::GerundClauseBase
         | RuleTag::GerundClauseSubordinateAfter
@@ -171,7 +139,6 @@ pub(super) fn reduce(
         | RuleTag::ExceptionRiderConjoined
         | RuleTag::ExceptionRiderComma
         | RuleTag::ExceptionRiderOxford
-        | RuleTag::VerbPhraseCausative
         | RuleTag::VerbPhraseCoordinatedAdjective
         | RuleTag::CopularRemainderCoordinatedAdjective
         | RuleTag::RelativeContractedCopularCoordinatedAdjective => {

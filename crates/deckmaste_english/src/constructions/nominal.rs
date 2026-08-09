@@ -2175,6 +2175,7 @@ deckmaste_constructions_macro::constructions! {
         }
         derive features: Features = reduce_recipient_passive_nominal_adjunct(predicate, noun_phrase);
         derive prefix_admission: Features = admit_recipient_passive_prefix(predicate);
+        derive base_attachment_count: Features = mark_generated_cost(noun_phrase);
         evidence guard "reduced-recipient-passive frame" from field predicate.frame;
         form only @ 0 = predicate noun_phrase;
         selection unique;

@@ -655,7 +655,6 @@ fn identity_slot(
         ("VerbAnalysis", "LexicalVerb") => Ok(EnglishLexicalSlot::AnyVerb),
         ("AuxiliaryInstance", "Auxiliary") => Ok(EnglishLexicalSlot::Auxiliary),
         ("Vocab", "Adverb") => Ok(EnglishLexicalSlot::Adverb),
-        ("Vocab", "FrequencyLimiter") => Ok(EnglishLexicalSlot::FrequencyLimiter),
         ("PreverbModifier", "PreverbAdverb") => Ok(EnglishLexicalSlot::PreverbAdverb),
         ("VerbParticle", "VerbParticle") => Ok(EnglishLexicalSlot::AnyVerbParticle),
         ("CoinSide", "CoinResult") => Ok(EnglishLexicalSlot::AnyCoinResult),
@@ -1708,7 +1707,7 @@ mod tests {
     }
 
     #[test]
-    fn predicate_static_attachment_costs_match_the_handwritten_family() {
+    fn predicate_static_attachment_costs_are_declaration_owned() {
         // Mutation caught: collapse the adjective dispreference from two
         // precedence points to the PP's single point. Equalizing those costs
         // makes adjective-vs-PP selection registration-order-sensitive.
@@ -1734,7 +1733,6 @@ mod tests {
             "verb_phrase_preverb_adverb",
             "verb_phrase_particle",
             "verb_phrase_coin_result",
-            "verb_phrase_frequency",
             "frequency_phrase_adverb",
             "frequency_phrase",
         ] {
@@ -1744,6 +1742,14 @@ mod tests {
                 "{id} retains its exact historical zero local cost"
             );
         }
+        assert_eq!(
+            generated_cost(construction("verb_phrase_frequency")),
+            ParseCost {
+                attachment_count: 1,
+                ..ParseCost::default()
+            },
+            "frequency declares the attachment cost that preserves its reduced-passive role"
+        );
     }
 
     #[test]
@@ -2084,6 +2090,30 @@ mod tests {
             [
                 Expected::Nonterminal(super::super::Nonterminal::ObjectGapVerbPhrase),
                 Expected::Nonterminal(super::super::Nonterminal::VerbPhrase),
+            ]
+        );
+    }
+
+    #[test]
+    fn production_frequency_registers_a_reduced_passive_context_rule() {
+        let cats = internal_categories(crate::constructions::GROUPS);
+        let mut builder = RuleBuilder::default();
+        register_generated(&mut builder, crate::constructions::GROUPS, &cats)
+            .expect("production declarations assemble");
+        let book = builder.finish(RegistrationOrder::Normal);
+        let rule = book
+            .rules
+            .iter()
+            .find(|rule| {
+                rule.production.construction.as_str() == "verb_phrase_frequency"
+                    && rule.lhs == super::super::Nonterminal::ReducedRecipientPassive
+            })
+            .expect("frequency declares a reduced-passive contextual production");
+        assert_eq!(
+            rule.rhs,
+            [
+                Expected::Nonterminal(super::super::Nonterminal::ReducedRecipientPassive),
+                Expected::Nonterminal(super::super::Nonterminal::FrequencyPhrase),
             ]
         );
     }

@@ -516,7 +516,7 @@ fn erased_field(
         }
         K::Identity {
             value_type: "Vocab",
-            provider: "Adverb" | "FrequencyLimiter",
+            provider: "Adverb",
         } => {
             let Lowered::Adverb(value) = value else {
                 return None;
@@ -1087,22 +1087,6 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::DeterminerQuantifiedTarget
         | RuleTag::DeterminerQuantity
         | RuleTag::DeterminerPossessiveThisCard => lower_quantity_or_determiner(tag, children),
-        RuleTag::FrequencyPhrase => take(children, 0),
-        RuleTag::FrequencyPhraseAdverb => {
-            let Lowered::Adverb(adverb) = take(children, 0)? else {
-                return None;
-            };
-            if adverb != Vocab::Only {
-                return None;
-            }
-            let Lowered::Frequency(freq) = take(children, 1)? else {
-                return None;
-            };
-            Some(Lowered::Frequency(crate::syntax::FrequencyPhrase {
-                bound: crate::syntax::FrequencyBound::NoMoreThan,
-                count: freq.count,
-            }))
-        }
         RuleTag::PossessiveNounBase
         | RuleTag::PossessiveNounDetermined
         | RuleTag::DeterminerPossessiveNoun
@@ -1149,38 +1133,7 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::PrepositionalPhraseSiblingCoordinated
         | RuleTag::PrepositionalPhrase
         | RuleTag::PrepositionalObject => lower_phrase(tag, children),
-        RuleTag::Verb
-        | RuleTag::VerbPhraseBase
-        | RuleTag::VerbPhraseAuxiliary
-        | RuleTag::VerbPhraseAuxiliaryProform
-        | RuleTag::VerbPhraseDirectObject
-        | RuleTag::VerbPhraseIndirectObject
-        | RuleTag::VerbPhraseAdjective
-        | RuleTag::VerbPhrasePrepositional
-        | RuleTag::VerbPhrasePassiveSharedDeterminerPrepositional
-        | RuleTag::VerbPhraseExceptBy
-        | RuleTag::VerbPhraseInfinitive
-        | RuleTag::VerbPhraseAdverb
-        | RuleTag::VerbPhrasePreverbAdverb
-        | RuleTag::VerbPhraseParticle
-        | RuleTag::VerbPhraseCoinResult
-        | RuleTag::VerbPhraseFrequency
-        | RuleTag::VerbPhraseAbility
-        | RuleTag::VerbPhraseQuotedAbility
-        | RuleTag::VerbPhraseQuotedAbilityCoordination
-        | RuleTag::VerbPhraseAbilityQuotedCoordination
-        | RuleTag::VerbPhraseOracleSymbol
-        | RuleTag::VerbPhraseSymbolSequence
-        | RuleTag::VerbPhraseManaAmountCoordination
-        | RuleTag::ManaAmountSymbol
-        | RuleTag::ManaAmountSequence
-        | RuleTag::ManaAmountListSingle
-        | RuleTag::ManaAmountListComma
-        | RuleTag::ManaAmountCoordination
-        | RuleTag::ManaAmountCoordinationOxford
-        | RuleTag::VerbPhrasePowerToughness
-        | RuleTag::VerbPhraseQuantity
-        | RuleTag::InfinitiveTo
+        RuleTag::InfinitiveTo
         | RuleTag::InfinitiveNotTo
         | RuleTag::GerundClauseBase
         | RuleTag::GerundClauseSubordinateAfter
@@ -1232,7 +1185,6 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::ExceptionRiderConjoined
         | RuleTag::ExceptionRiderComma
         | RuleTag::ExceptionRiderOxford
-        | RuleTag::VerbPhraseCausative
         | RuleTag::VerbPhraseCoordinatedAdjective
         | RuleTag::CopularRemainderCoordinatedAdjective
         | RuleTag::RelativeContractedCopularCoordinatedAdjective => {

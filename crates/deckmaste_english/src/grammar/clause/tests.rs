@@ -879,7 +879,7 @@ fn as_though_mana_copula_purpose_infinitive_attaches_inside_the_complement_nomin
     // PA4: pins the §2.5 attachment ruling empirically (confirmed by
     // probing `Agatha's Soul Cauldron`, whose purpose tail has the same
     // shape). The purpose infinitive cannot attach at
-    // `RuleTag::VerbPhraseInfinitive` (the subordinate clause linearly
+    // generated `verb_phrase_infinitive` (the subordinate clause linearly
     // separates `spend mana` from the tail); the reachable analysis is
     // `RuleTag::NominalInfinitive`, and it lands as a complement of the
     // *inner* `any color` nominal (not the outer `mana of any color`
@@ -3810,64 +3810,6 @@ fn direct_objects_cannot_follow_predicate_tail_elements() {
 }
 
 #[test]
-fn predicate_prefix_pruning_keeps_possible_nominal_adjuncts() {
-    let predicate = |object, phase| Features::VerbPhrase {
-        form: PredicateForm::Imperative,
-        passive: false,
-        dependent_count: u16::from(object != PredicateObjectState::None),
-        object,
-        indirect_object: false,
-        selected_preposition: false,
-        phase,
-        frame: PredicateFrame::OPEN,
-        bare: object == PredicateObjectState::None,
-        head_is_copular: false,
-        object_gap_requires_rules_object: false,
-        subjunctive: false,
-    };
-    let open = predicate(PredicateObjectState::None, PredicateAttachmentPhase::Object);
-    let occupied = predicate(
-        PredicateObjectState::Direct,
-        PredicateAttachmentPhase::Object,
-    );
-    let ability = predicate(
-        PredicateObjectState::Ability,
-        PredicateAttachmentPhase::Object,
-    );
-    let tail = predicate(PredicateObjectState::None, PredicateAttachmentPhase::Tail);
-    let prepositional_tail = predicate(
-        PredicateObjectState::None,
-        PredicateAttachmentPhase::PrepositionalTail,
-    );
-
-    assert!(accepts_predicate_prefix(
-        RuleTag::VerbPhraseDirectObject,
-        1,
-        &open,
-    ));
-    assert!(accepts_predicate_prefix(
-        RuleTag::VerbPhraseDirectObject,
-        1,
-        &occupied,
-    ));
-    assert!(accepts_predicate_prefix(
-        RuleTag::VerbPhraseQuantity,
-        1,
-        &ability,
-    ));
-    assert!(accepts_predicate_prefix(
-        RuleTag::VerbPhraseDirectObject,
-        1,
-        &tail,
-    ));
-    assert!(accepts_predicate_prefix(
-        RuleTag::VerbPhraseDirectObject,
-        1,
-        &prepositional_tail,
-    ));
-}
-
-#[test]
 fn karmic_justice_trigger_event_is_transitive() {
     let catalogs = fixture_catalogs();
     for noun_phrase in [
@@ -6161,7 +6103,7 @@ fn preverb_adverb_slot_admits_only_next() {
     }
     // A synthetic `you only cast a spell` — substituting `only` for the
     // pinned literal — has no complete parse: `only`/`just`/`once`/
-    // `twice`/`still` never reduce through `RuleTag::VerbPhrasePreverbAdverb`.
+    // `twice`/`still` never reduce through `verb_phrase_preverb_adverb`.
     for adverb in ["only", "just", "once", "twice", "still"] {
         let source = format!("you {adverb} cast a spell");
         assert!(

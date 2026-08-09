@@ -8,27 +8,24 @@ row; production declarations and Rust types remain authoritative.
 
 ## Census derivation and accounting
 
-The chart census comes from `RuleTag` in
-`crates/deckmaste_english/src/grammar/mod.rs`. `RuleTag` derives `EnumIter` and
-`IntoStaticStr` with `snake_case`, and
-`grammar/construction.rs::handwritten_registry` maps every iterated tag to one
-handwritten, fan-out-one chart row. The merged production registry adds 52
-generated rows: the ten Q01 quantity rows, the 37 M01 nominal rows, `sentence`,
-`noun`, `noun_opaque`, `noun_phrase_coordination`, and
-`shared_determiner_nominal`; they are not remaining work. The ability census
+The chart census comes from the merged production registry in
+`grammar/construction.rs`. Its handwritten side maps each remaining `RuleTag`
+to one fan-out-one row; its generated side contributes the ten Q01 quantity
+rows, the 37 M01 nominal rows, S01 `sentence`, N01 `noun`/`noun_opaque`, the two
+generated coordination rows, and all 34 V01 predicate rows. The ability census
 comes from the three non-chart entry points documented and dispatched by
 `FragmentKind`: `Cost`, `KeywordLine`, and `Ability`.
 
 | source | handwritten / ungenerated | already generated | accounted total |
 |---|---:|---:|---:|
-| chart construction registry | 140 | 52 | 192 |
+| chart construction registry | 106 | 86 | 192 |
 | handwritten ability layer | 3 | 0 | 3 |
-| migration inventory | 143 | 52 | 195 |
+| migration inventory | 109 | 86 | 195 |
 
-Every one of the 192 chart IDs occurs once in the ledger below: 140 remain
-handwritten, while Q01, M01, S01, N01, and the two coordination rows are
+Every one of the 192 chart IDs occurs once in the ledger below: 106 remain
+handwritten, while Q01, M01, V01, S01, N01, and the two coordination rows are
 generated. The three ability IDs occur once in A01. Thus the remaining work is
-143 rows, with no `later` row. No raw corpus query was needed for this
+109 rows, with no `later` row. No raw corpus query was needed for this
 accounting; the census is grounded in the registry and the current
 `FragmentKind` dispatch. Future corpus evidence must use supported faces, and
 normalized-template questions must use the existing English instruments.
@@ -330,6 +327,8 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 
 ## V01 — predicate spine
 
+**Status:** generated.
+
 **Stable IDs (34):** `verb`, `verb_phrase_base`, `verb_phrase_auxiliary`,
 `verb_phrase_auxiliary_proform`, `verb_phrase_direct_object`,
 `verb_phrase_indirect_object`, `verb_phrase_adjective`,
@@ -338,7 +337,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 `verb_phrase_except_by`, `verb_phrase_infinitive`, `verb_phrase_adverb`,
 `verb_phrase_preverb_adverb`, `verb_phrase_particle`,
 `verb_phrase_coin_result`, `verb_phrase_frequency`,
-`frequency_phrase_adverb`, `verb_phrase_ability`,
+`frequency_phrase_adverb`, `frequency_phrase`, `verb_phrase_ability`,
 `verb_phrase_quoted_ability`, `verb_phrase_quoted_ability_coordination`,
 `verb_phrase_ability_quoted_coordination`, `verb_phrase_oracle_symbol`,
 `verb_phrase_symbol_sequence`, `mana_amount_symbol`,
@@ -346,36 +345,39 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 `mana_amount_list_comma`, `mana_amount_coordination`,
 `mana_amount_coordination_oxford`, `verb_phrase_mana_amount_coordination`,
 `verb_phrase_power_toughness`, `verb_phrase_quantity`,
-`verb_phrase_causative`, `frequency_phrase`.
+`verb_phrase_causative`.
 
-- **Owners and AST:** CR owns ordinary predicate registration and substantive
-  predicate reduction/lowering, mana helpers, frequency, and the late
-  `verb_phrase_causative`. NR additionally registers five V01 IDs in
-  `add_reduced_recipient_passive_rules`—`verb_phrase_base`,
-  `verb_phrase_direct_object`, `verb_phrase_prepositional`,
-  `verb_phrase_adverb`, and `verb_phrase_frequency`—and is the sole
-  registration owner of `verb_phrase_coin_result` through
-  `add_coin_result_rules`; all six still dispatch reduction/lowering to CR.
-  These lower to `Predicate`, `PredicateHead`, `VerbPhrase`,
+- **Owners and AST:** the predicate declaration and its generated chart,
+  lexical, feature, contextual object-gap/reduced-passive, lowering, exact,
+  and inverse adapters are the single V01 authority. These lower to
+  `Predicate`, sealed `PredicateHead`/`HeadedPredicate`, `VerbPhrase`,
   `PredicateObject`, `PredicateComplement`, `PredicateAdjunct`,
-  `FrequencyPhrase`, and typed mana sequences. REN owns predicate/element
-  rendering; SYN-C owns ingress.
+  `FrequencyPhrase`, and typed mana sequences. The production renderer
+  reconstructs the exact retained lexical frame through the sealed ingress
+  and invokes the generated inverse; no handwritten V01 element renderer or
+  writable public construction path remains. The three A01 ability-layer
+  entry points remain handwritten consumers, not predicate owners.
 - **Holes and constraints:** identity holes for verbs, auxiliaries, particles,
   coin results, adverbs, and symbols; scalar holes for quantities and
   power/toughness; subtree holes for NP, PP, infinitive, adjective, and ability;
   lenses into pre-object and post-object element slices. Lexical valency,
   predicate form, voice, auxiliary agreement, direct/indirect object slots,
   causative frame, selected PP, and attachment phase are required constraints.
-- **Ambiguity/backend:** fan-out one on Chart. `verb_phrase_auxiliary` dominates
+- **Ambiguity/backend:** fan-out one on Chart. Declaration-owned
+  `verb_phrase_auxiliary` dominates
   `verb_phrase_adjective`, `verb_phrase_adverb`, and `verb_phrase_ability`;
   `verb_phrase_base` dominates `verb_phrase_auxiliary_proform`. Existing
-  attachment/precedence costs remain named tie-breakers.
+  attachment/precedence costs remain named declaration outputs, including the
+  structural attachment count that keeps reduced-passive frequency from being
+  reclassified as a nominal adjunct.
 - **Witnesses:** voice, form, object role, particle, conjunction, and event
   order are semantic. Pre/post-object position and keyword/quoted ordering are
   stored because they affect exact output. Mana-list Oxford commas and ordinary
   spacing are style evidence under §§3, 4, and 10.
 - **Consumers and gates:** Sentence, Cost, KeywordLine, and Ability entry
-  points, spelling frames, views, inspect, and recovery. Direct ASTs cover
+  points all report generated V01 provenance; spelling frames, serialized
+  views, verbose inspect, and recovery traverse the same production owner.
+  Direct ASTs cover
   every valency and element position; inspect pins dominance, role, and cost;
   exactness covers pre/post-object order, mixed ability objects, mana lists,
   symbols, and particles; negatives reject surplus/missing arguments, wrong

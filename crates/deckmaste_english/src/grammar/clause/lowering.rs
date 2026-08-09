@@ -13,7 +13,6 @@ use super::ClauseCoordination;
 use super::ComplexClause;
 use super::CoordinatedClauseMember;
 use super::CoordinatedIndependentClause;
-use super::CoordinatedPredicateObject;
 use super::Coordination;
 use super::CoordinationJunction;
 use super::CopularComplement;
@@ -41,8 +40,6 @@ use super::PredicateExpression;
 use super::PredicateForm;
 use super::PredicateHead;
 use super::PredicateObject;
-use super::PredicateObjectCoordination;
-use super::PreverbModifier;
 use super::ProPredicate;
 use super::Quantity;
 use super::RelativeBody;
@@ -54,56 +51,20 @@ use super::RuleTag;
 use super::SimpleClause;
 use super::Subject;
 use super::SubordinateBody;
-use super::VerbAnalysis;
 use super::VerbDependent;
-use super::VerbInstance;
 use super::VerbPhrase;
 use super::VerbSlot;
-use super::Vocab;
 use super::reduction::auxiliary_form;
 use super::take;
-use crate::features::ComplementRole;
 use crate::features::Conjunction;
 use crate::grammar::reduction::predicate_form;
 use crate::syntax::ObjectGapPredicate;
 
 pub(in crate::grammar) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
-        RuleTag::Verb
-        | RuleTag::VerbPhraseBase
-        | RuleTag::VerbPhraseAuxiliary
-        | RuleTag::VerbPhraseAuxiliaryProform
-        | RuleTag::VerbPhraseDirectObject
-        | RuleTag::VerbPhraseIndirectObject
-        | RuleTag::VerbPhraseAdjective
-        | RuleTag::VerbPhrasePrepositional
-        | RuleTag::VerbPhrasePassiveSharedDeterminerPrepositional
-        | RuleTag::VerbPhraseExceptBy
-        | RuleTag::VerbPhraseInfinitive
-        | RuleTag::VerbPhraseAdverb
-        | RuleTag::VerbPhrasePreverbAdverb
-        | RuleTag::VerbPhraseParticle
-        | RuleTag::VerbPhraseCoinResult
-        | RuleTag::VerbPhraseFrequency
-        | RuleTag::VerbPhraseAbility
-        | RuleTag::VerbPhraseQuotedAbility
-        | RuleTag::VerbPhraseQuotedAbilityCoordination
-        | RuleTag::VerbPhraseAbilityQuotedCoordination
-        | RuleTag::VerbPhraseOracleSymbol
-        | RuleTag::VerbPhraseSymbolSequence
-        | RuleTag::VerbPhraseManaAmountCoordination
-        | RuleTag::VerbPhrasePowerToughness
-        | RuleTag::VerbPhraseQuantity
-        | RuleTag::VerbPhraseCausative
-        | RuleTag::VerbPhraseCoordinatedAdjective
+        RuleTag::VerbPhraseCoordinatedAdjective
         | RuleTag::InfinitiveTo
         | RuleTag::InfinitiveNotTo => lower_predicate(tag, children),
-        RuleTag::ManaAmountSymbol
-        | RuleTag::ManaAmountSequence
-        | RuleTag::ManaAmountListSingle
-        | RuleTag::ManaAmountListComma
-        | RuleTag::ManaAmountCoordination
-        | RuleTag::ManaAmountCoordinationOxford => lower_mana_amount(tag, children),
         RuleTag::GerundClauseBase => {
             let Lowered::VerbPhrase(predicate) = take(children, 0)? else {
                 return None;
@@ -198,116 +159,7 @@ pub(in crate::grammar) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -
 
 pub(super) fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
-        RuleTag::Verb => take(children, 0),
-        RuleTag::VerbPhraseBase => {
-            let Lowered::Verb(VerbAnalysis { instance, frame }) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::VerbPhrase(VerbPhrase {
-                auxiliaries: Vec::new(),
-                first_auxiliary_contracted_with_subject: false,
-                preverb_modifiers: Vec::new(),
-                verb: instance,
-                frame,
-                dependents: Vec::new(),
-                distributive_each: false,
-            }))
-        }
-        RuleTag::VerbPhraseAuxiliaryProform => {
-            let Lowered::Auxiliary(auxiliary) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::VerbPhrase(VerbPhrase {
-                auxiliaries: vec![auxiliary],
-                first_auxiliary_contracted_with_subject: false,
-                preverb_modifiers: Vec::new(),
-                verb: VerbInstance {
-                    verb: crate::word::Verb::Word(Vocab::Do),
-                    slot: VerbSlot::Infinitive,
-                },
-                frame: crate::word::PROFORM_PREDICATE_FRAMES[0],
-                dependents: Vec::new(),
-                distributive_each: false,
-            }))
-        }
-        RuleTag::VerbPhraseAuxiliary => {
-            let Lowered::Auxiliary(auxiliary) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::VerbPhrase(mut predicate) = take(children, 1)? else {
-                return None;
-            };
-            predicate.auxiliaries.insert(0, auxiliary);
-            Some(Lowered::VerbPhrase(predicate))
-        }
-        RuleTag::VerbPhrasePreverbAdverb => {
-            // Not a §2.4 dependent site: children are swapped relative to the
-            // sibling VerbPhraseAdverb (adverb at 0, VerbPhrase at 1), and the
-            // modifier lands on preverb_modifiers rather than becoming a
-            // VerbDependent — routing through PredicateAttachment::Adjunct
-            // would render post-verbally (`cast next …`), a round-trip
-            // failure. The dedicated scanner carries the typed closed-class
-            // value, so this path and generated identity lowering share one
-            // lexical contract instead of reconstructing it from a Vocab.
-            let Lowered::PreverbModifier(PreverbModifier::Next) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::VerbPhrase(mut predicate) = take(children, 1)? else {
-                return None;
-            };
-            predicate.preverb_modifiers.push(PreverbModifier::Next);
-            Some(Lowered::VerbPhrase(predicate))
-        }
-        RuleTag::VerbPhraseCausative => {
-            let Lowered::VerbPhrase(mut predicate) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::VerbPhrase(complement) = take(children, 1)? else {
-                return None;
-            };
-            predicate
-                .dependents
-                .push(VerbDependent::Infinitive(InfinitiveClause {
-                    negated: false,
-                    marker: InfinitiveMarker::Bare,
-                    predicate: Box::new(complement),
-                }));
-            Some(Lowered::VerbPhrase(predicate))
-        }
-        RuleTag::VerbPhraseExceptBy => {
-            // Handled directly rather than through `lower_predicate_dependent`,
-            // whose ordinary dependent sits at child 1 and whose PP arm
-            // consults the verb frame: here the PP is at child 2 and child 1
-            // is the pinned `except` literal.
-            let Lowered::VerbPhrase(mut predicate) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::PrepositionalPhrase(pp) = take(children, 2)? else {
-                return None;
-            };
-            predicate.dependents.push(VerbDependent::Exception(pp));
-            Some(Lowered::VerbPhrase(predicate))
-        }
-        RuleTag::VerbPhraseDirectObject
-        | RuleTag::VerbPhraseIndirectObject
-        | RuleTag::VerbPhraseAdjective
-        | RuleTag::VerbPhrasePrepositional
-        | RuleTag::VerbPhrasePassiveSharedDeterminerPrepositional
-        | RuleTag::VerbPhraseInfinitive
-        | RuleTag::VerbPhraseAdverb
-        | RuleTag::VerbPhraseParticle
-        | RuleTag::VerbPhraseCoinResult
-        | RuleTag::VerbPhraseFrequency
-        | RuleTag::VerbPhraseAbility
-        | RuleTag::VerbPhraseQuotedAbility
-        | RuleTag::VerbPhraseQuotedAbilityCoordination
-        | RuleTag::VerbPhraseAbilityQuotedCoordination
-        | RuleTag::VerbPhraseOracleSymbol
-        | RuleTag::VerbPhraseSymbolSequence
-        | RuleTag::VerbPhraseManaAmountCoordination
-        | RuleTag::VerbPhrasePowerToughness
-        | RuleTag::VerbPhraseQuantity
-        | RuleTag::VerbPhraseCoordinatedAdjective => lower_predicate_dependent(tag, children),
+        RuleTag::VerbPhraseCoordinatedAdjective => lower_predicate_dependent(tag, children),
         RuleTag::InfinitiveTo | RuleTag::InfinitiveNotTo => {
             let negated = tag == RuleTag::InfinitiveNotTo;
             let predicate_index = if negated { 2 } else { 1 };
@@ -333,264 +185,16 @@ pub(super) fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) 
         return None;
     };
     let dependent = match tag {
-        RuleTag::VerbPhraseDirectObject => {
-            let Lowered::NounPhrase(noun_phrase) = take(children, 1)? else {
-                return None;
-            };
-            match lowered_nominal_adjunct_kind(&predicate, &noun_phrase) {
-                Some(BareNominalAdjunct::Temporal) => VerbDependent::Temporal(noun_phrase),
-                Some(BareNominalAdjunct::Manner) => VerbDependent::Manner(noun_phrase),
-                None => VerbDependent::DirectObject(noun_phrase),
-            }
-        }
-        RuleTag::VerbPhraseIndirectObject => {
-            let Lowered::NounPhrase(noun_phrase) = take(children, 1)? else {
-                return None;
-            };
-            VerbDependent::IndirectObject(noun_phrase)
-        }
-        RuleTag::VerbPhraseAdjective => {
-            let Lowered::AdjectivePhrase(adjective) = take(children, 1)? else {
-                return None;
-            };
-            VerbDependent::Adverbial(Phrase::AdjectivePhrase(Box::new(adjective)))
-        }
         RuleTag::VerbPhraseCoordinatedAdjective => {
             let Lowered::CoordinatedModifier(coordinated) = take(children, 1)? else {
                 return None;
             };
             VerbDependent::CoordinatedAdjective(coordinated_modifier_as_adjectives(coordinated)?)
         }
-        RuleTag::VerbPhrasePrepositional
-        | RuleTag::VerbPhrasePassiveSharedDeterminerPrepositional => {
-            let Lowered::PrepositionalPhrase(preposition) = take(children, 1)? else {
-                return None;
-            };
-            match predicate
-                .frame
-                .prepositional_role(preposition.head().preposition)?
-            {
-                ComplementRole::SelectedComplement => VerbDependent::PredicateComplement(
-                    Phrase::PrepositionalPhrase(Box::new(preposition)),
-                ),
-                ComplementRole::Adjunct => VerbDependent::Prepositional(preposition),
-            }
-        }
-        RuleTag::VerbPhraseInfinitive => {
-            let Lowered::InfinitiveClause(infinitive) = take(children, 1)? else {
-                return None;
-            };
-            VerbDependent::Infinitive(infinitive)
-        }
-        RuleTag::VerbPhraseAdverb => {
-            let Lowered::Adverb(adverb) = take(children, 1)? else {
-                return None;
-            };
-            VerbDependent::Adverbial(Phrase::Adverb(adverb))
-        }
-        RuleTag::VerbPhraseParticle => {
-            let Lowered::VerbParticle(particle) = take(children, 1)? else {
-                return None;
-            };
-            VerbDependent::Particle(particle)
-        }
-        RuleTag::VerbPhraseCoinResult => {
-            let Lowered::CoinResult(side) = take(children, 1)? else {
-                return None;
-            };
-            VerbDependent::CoinResult(side)
-        }
-        RuleTag::VerbPhraseFrequency => {
-            let Lowered::Frequency(frequency) = take(children, 1)? else {
-                return None;
-            };
-            VerbDependent::Frequency(frequency)
-        }
-        RuleTag::VerbPhraseAbility => {
-            let Lowered::Catalog(atom) = take(children, 1)? else {
-                return None;
-            };
-            VerbDependent::PredicateComplement(Phrase::CatalogAtom(atom))
-        }
-        RuleTag::VerbPhraseQuotedAbility => {
-            let Lowered::Phrase(phrase @ Phrase::QuotedAbility(_)) = take(children, 1)? else {
-                return None;
-            };
-            VerbDependent::PredicateComplement(phrase)
-        }
-        RuleTag::VerbPhraseQuotedAbilityCoordination => {
-            let Lowered::Phrase(Phrase::QuotedAbility(first)) = take(children, 1)? else {
-                return None;
-            };
-            let Lowered::Conjunction(conjunction) = take(children, 2)? else {
-                return None;
-            };
-            let Lowered::Phrase(Phrase::QuotedAbility(next)) = take(children, 3)? else {
-                return None;
-            };
-            VerbDependent::CoordinatedObject(CoordinatedPredicateObject {
-                first: Box::new(PredicateObject::QuotedAbility(first)),
-                rest: vec![PredicateObjectCoordination {
-                    conjunction: Some(conjunction),
-                    object: PredicateObject::QuotedAbility(next),
-                }],
-            })
-        }
-        RuleTag::VerbPhraseAbilityQuotedCoordination => {
-            let Lowered::Catalog(atom) = take(children, 1)? else {
-                return None;
-            };
-            let Lowered::Conjunction(conjunction) = take(children, 2)? else {
-                return None;
-            };
-            let Lowered::Phrase(Phrase::QuotedAbility(next)) = take(children, 3)? else {
-                return None;
-            };
-            VerbDependent::CoordinatedObject(CoordinatedPredicateObject {
-                first: Box::new(PredicateObject::Ability(AbilityObject {
-                    ability: atom,
-                    argument: None,
-                })),
-                rest: vec![PredicateObjectCoordination {
-                    conjunction: Some(conjunction),
-                    object: PredicateObject::QuotedAbility(next),
-                }],
-            })
-        }
-        RuleTag::VerbPhraseOracleSymbol => {
-            let Lowered::OracleSymbol(symbol) = take(children, 1)? else {
-                return None;
-            };
-            VerbDependent::Scalar(Phrase::OracleSymbol(symbol))
-        }
-        RuleTag::VerbPhraseSymbolSequence => {
-            let Lowered::SymbolSequence(symbols) = take(children, 1)? else {
-                return None;
-            };
-            VerbDependent::Scalar(Phrase::SymbolSequence(symbols))
-        }
-        RuleTag::VerbPhraseManaAmountCoordination => {
-            let Lowered::ManaAmount(PredicateObject::Coordinated(coordinated)) = take(children, 1)?
-            else {
-                return None;
-            };
-            VerbDependent::CoordinatedObject(coordinated)
-        }
-        RuleTag::VerbPhrasePowerToughness => {
-            let Lowered::PowerToughness(power_toughness) = take(children, 1)? else {
-                return None;
-            };
-            VerbDependent::Statistic(Phrase::PowerToughness(power_toughness))
-        }
-        RuleTag::VerbPhraseQuantity => {
-            let Lowered::Quantity(quantity) = take(children, 1)? else {
-                return None;
-            };
-            VerbDependent::Scalar(Phrase::Quantity(quantity))
-        }
         _ => return None,
     };
     predicate.dependents.push(dependent);
     Some(Lowered::VerbPhrase(predicate))
-}
-
-/// Lower the six `ManaAmount*` rules. This is the symbol-typed analogue of
-/// generated noun coordination, but stays typed to
-/// [`PredicateObject`] so no symbol is ever wrapped as a `NounPhrase`.
-pub(super) fn lower_mana_amount(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
-    fn member(lowered: Lowered) -> Option<PredicateObject> {
-        let Lowered::ManaAmount(object) = lowered else {
-            return None;
-        };
-        Some(object)
-    }
-
-    #[allow(
-        clippy::needless_pass_by_value,
-        reason = "mirrors the by-value take() idiom used throughout this module"
-    )]
-    fn mana_conjunction(lowered: Lowered) -> Option<Conjunction> {
-        let Lowered::Conjunction(conjunction) = lowered else {
-            return None;
-        };
-        match conjunction {
-            Conjunction::And | Conjunction::Or => Some(conjunction),
-            // `then`/`and-or` never join predicate objects.
-            Conjunction::Then | Conjunction::AndOr | Conjunction::Plus => None,
-        }
-    }
-
-    match tag {
-        RuleTag::ManaAmountSymbol => {
-            let Lowered::OracleSymbol(symbol) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::ManaAmount(PredicateObject::OracleSymbol(symbol)))
-        }
-        RuleTag::ManaAmountSequence => {
-            let Lowered::SymbolSequence(symbols) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::ManaAmount(PredicateObject::SymbolSequence(
-                symbols,
-            )))
-        }
-        RuleTag::ManaAmountListSingle => take(children, 0),
-        RuleTag::ManaAmountListComma => {
-            let first = member(take(children, 0)?)?;
-            let next = member(take(children, 2)?)?;
-            let coordination = PredicateObjectCoordination {
-                conjunction: None,
-                object: next,
-            };
-            Some(Lowered::ManaAmount(PredicateObject::Coordinated(
-                push_mana_coordination(first, coordination),
-            )))
-        }
-        RuleTag::ManaAmountCoordination => {
-            let first = member(take(children, 0)?)?;
-            let conjunction = mana_conjunction(take(children, 1)?)?;
-            let next = member(take(children, 2)?)?;
-            let coordination = PredicateObjectCoordination {
-                conjunction: Some(conjunction),
-                object: next,
-            };
-            Some(Lowered::ManaAmount(PredicateObject::Coordinated(
-                push_mana_coordination(first, coordination),
-            )))
-        }
-        RuleTag::ManaAmountCoordinationOxford => {
-            let first = member(take(children, 0)?)?;
-            let conjunction = mana_conjunction(take(children, 2)?)?;
-            let next = member(take(children, 3)?)?;
-            let coordination = PredicateObjectCoordination {
-                conjunction: Some(conjunction),
-                object: next,
-            };
-            Some(Lowered::ManaAmount(PredicateObject::Coordinated(
-                push_mana_coordination(first, coordination),
-            )))
-        }
-        _ => None,
-    }
-}
-
-/// Fold a new mana coordination member onto an already-coordinated first
-/// object, or start a fresh coordinated run.
-pub(super) fn push_mana_coordination(
-    first: PredicateObject,
-    coordination: PredicateObjectCoordination,
-) -> CoordinatedPredicateObject {
-    match first {
-        PredicateObject::Coordinated(mut coordinated) => {
-            coordinated.rest.push(coordination);
-            coordinated
-        }
-        first => CoordinatedPredicateObject {
-            first: Box::new(first),
-            rest: vec![coordination],
-        },
-    }
 }
 
 #[allow(clippy::too_many_lines, reason = "lowering has many grammar variants")]
@@ -2372,6 +1976,7 @@ pub(super) fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredica
         ),
         preverb_modifiers: phrase.preverb_modifiers,
         verb: phrase.verb,
+        frame: phrase.frame,
         distributive_each: phrase.distributive_each,
     };
     // A bare proform under a modal (nothing surviving beside the modal) is

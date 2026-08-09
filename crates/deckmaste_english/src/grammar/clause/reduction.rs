@@ -32,49 +32,9 @@ pub(in crate::grammar) fn reduce_clause(
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> Option<Reduced> {
     match tag {
-        RuleTag::Verb
-        | RuleTag::VerbPhraseBase
-        | RuleTag::VerbPhraseAuxiliary
-        | RuleTag::VerbPhraseAuxiliaryProform
-        | RuleTag::VerbPhraseDirectObject
-        | RuleTag::VerbPhraseIndirectObject
-        | RuleTag::VerbPhraseAdjective
-        | RuleTag::VerbPhrasePrepositional
-        | RuleTag::VerbPhrasePassiveSharedDeterminerPrepositional
-        | RuleTag::VerbPhraseExceptBy
-        | RuleTag::VerbPhraseInfinitive
-        | RuleTag::VerbPhraseAdverb
-        | RuleTag::VerbPhrasePreverbAdverb
-        | RuleTag::VerbPhraseParticle
-        | RuleTag::VerbPhraseCoinResult
-        | RuleTag::VerbPhraseFrequency
-        | RuleTag::VerbPhraseAbility
-        | RuleTag::VerbPhraseQuotedAbility
-        | RuleTag::VerbPhraseQuotedAbilityCoordination
-        | RuleTag::VerbPhraseAbilityQuotedCoordination
-        | RuleTag::VerbPhraseOracleSymbol
-        | RuleTag::VerbPhraseSymbolSequence
-        | RuleTag::VerbPhraseManaAmountCoordination
-        | RuleTag::VerbPhrasePowerToughness
-        | RuleTag::VerbPhraseQuantity
-        | RuleTag::VerbPhraseCausative
-        | RuleTag::VerbPhraseCoordinatedAdjective
+        RuleTag::VerbPhraseCoordinatedAdjective
         | RuleTag::InfinitiveTo
         | RuleTag::InfinitiveNotTo => reduce_predicate(tag, children),
-        RuleTag::ManaAmountSymbol
-        | RuleTag::ManaAmountSequence
-        | RuleTag::ManaAmountListSingle
-        | RuleTag::ManaAmountListComma => Some(Features::None),
-        RuleTag::ManaAmountCoordination | RuleTag::ManaAmountCoordinationOxford => {
-            let conjunction_index =
-                if tag == RuleTag::ManaAmountCoordinationOxford { 2 } else { 1 };
-            let Features::Conjunction(Conjunction::And | Conjunction::Or) =
-                children.get(conjunction_index)?.features
-            else {
-                return None;
-            };
-            Some(Features::None)
-        }
         RuleTag::GerundClauseBase => {
             let Features::VerbPhrase {
                 form: PredicateForm::PresentParticiple,
@@ -197,47 +157,13 @@ pub(in crate::grammar) fn accepts_predicate_prefix(
                 && (a.number == Number::Plural || a.person == Person::Second)
         );
     }
-    if tag == RuleTag::VerbPhrasePassiveSharedDeterminerPrepositional {
-        return matches!(features, Features::VerbPhrase { passive: true, .. });
-    }
     if let Some(accepts) = accepts_shared_copular_coordination_prefix(tag, features) {
         return accepts;
     }
-    let predicate_rule = matches!(
-        tag,
-        RuleTag::VerbPhraseDirectObject
-            | RuleTag::VerbPhraseIndirectObject
-            | RuleTag::VerbPhraseAdjective
-            | RuleTag::VerbPhraseCoordinatedAdjective
-            | RuleTag::VerbPhrasePrepositional
-            | RuleTag::VerbPhraseExceptBy
-            | RuleTag::VerbPhraseInfinitive
-            | RuleTag::VerbPhraseParticle
-            | RuleTag::VerbPhraseCoinResult
-            | RuleTag::VerbPhraseAbility
-            | RuleTag::VerbPhraseQuotedAbility
-            | RuleTag::VerbPhraseQuotedAbilityCoordination
-            | RuleTag::VerbPhraseAbilityQuotedCoordination
-            | RuleTag::VerbPhraseOracleSymbol
-            | RuleTag::VerbPhraseSymbolSequence
-            | RuleTag::VerbPhraseManaAmountCoordination
-            | RuleTag::VerbPhrasePowerToughness
-            | RuleTag::VerbPhraseQuantity
-            | RuleTag::VerbPhraseCausative
-    );
-    if !predicate_rule {
+    if tag != RuleTag::VerbPhraseCoordinatedAdjective {
         return true;
     }
-    let Features::VerbPhrase {
-        object,
-        indirect_object,
-        selected_preposition,
-        phase,
-        frame,
-        passive,
-        ..
-    } = features
-    else {
+    let Features::VerbPhrase { frame, phase, .. } = features else {
         return false;
     };
     // The exception tail is a closed terminal phase: once reached, reject
@@ -245,83 +171,7 @@ pub(in crate::grammar) fn accepts_predicate_prefix(
     if *phase == PredicateAttachmentPhase::ExceptionTail {
         return false;
     }
-    match tag {
-        RuleTag::VerbPhraseExceptBy => {
-            *passive
-                && predicate_arguments_complete(
-                    *frame,
-                    *passive,
-                    *object,
-                    *indirect_object,
-                    *selected_preposition,
-                )
-        }
-        // Only predict the bare-infinitive complement after a causative head
-        // (`have`) that has already taken its direct-object causee. Without this
-        // gate the `VerbPhrase = VerbPhrase VerbPhrase` production predicts a
-        // second verb phrase after every verb phrase, perturbing the parse
-        // forest of unrelated clauses.
-        RuleTag::VerbPhraseCausative => {
-            frame.causative_complement()
-                && *object == PredicateObjectState::Direct
-                && *phase == PredicateAttachmentPhase::Object
-        }
-        RuleTag::VerbPhraseDirectObject => {
-            let nominal_adjunct = frame.licenses_bare_nominal_adjunct(BareNominalAdjunct::Temporal)
-                || frame.licenses_bare_nominal_adjunct(BareNominalAdjunct::Manner);
-            if *phase == PredicateAttachmentPhase::Object && *object == PredicateObjectState::None {
-                frame.direct_object().accepts() || nominal_adjunct
-            } else {
-                nominal_adjunct
-            }
-        }
-        RuleTag::VerbPhraseIndirectObject => {
-            // An indirect object is a literal dependent NP; under a
-            // recipient-passive frame the recipient is the promoted subject,
-            // never a further explicit indirect object, so the passive never
-            // predicts this rule regardless of frame.
-            !*passive
-                && *phase == PredicateAttachmentPhase::Object
-                && *object == PredicateObjectState::None
-                && !*indirect_object
-                && frame.indirect_object().accepts()
-        }
-        RuleTag::VerbPhraseAdjective | RuleTag::VerbPhraseCoordinatedAdjective => {
-            frame.licenses_complement(PredicateComplementKind::Adjective)
-        }
-        RuleTag::VerbPhraseInfinitive => {
-            frame.licenses_complement(PredicateComplementKind::Infinitive)
-        }
-        RuleTag::VerbPhraseAbility
-        | RuleTag::VerbPhraseQuotedAbility
-        | RuleTag::VerbPhraseQuotedAbilityCoordination
-        | RuleTag::VerbPhraseAbilityQuotedCoordination => {
-            *object == PredicateObjectState::None
-                && frame.licenses_complement(PredicateComplementKind::Ability)
-        }
-        RuleTag::VerbPhraseOracleSymbol
-        | RuleTag::VerbPhraseSymbolSequence
-        | RuleTag::VerbPhraseManaAmountCoordination => {
-            *object == PredicateObjectState::None
-                && frame.licenses_complement(PredicateComplementKind::Scalar)
-        }
-        RuleTag::VerbPhrasePowerToughness => {
-            *object == PredicateObjectState::None
-                && frame.licenses_complement(PredicateComplementKind::Statistic)
-        }
-        RuleTag::VerbPhraseQuantity => {
-            matches!(
-                object,
-                PredicateObjectState::None | PredicateObjectState::Ability
-            ) && frame.licenses_complement(PredicateComplementKind::Scalar)
-        }
-        RuleTag::VerbPhraseParticle => !frame.particles.is_empty(),
-        // Gate on the narrow pending `Come` frame, not a generic particle
-        // license: `VerbPhraseCoinResult` is predicted only when the child's
-        // frame is still awaiting its coin-result tail.
-        RuleTag::VerbPhraseCoinResult => frame.requires_coin_result(),
-        _ => true,
-    }
+    frame.licenses_complement(PredicateComplementKind::Adjective)
 }
 
 pub(crate) fn reduce_generated_recipient_passive_nominal_adjunct_features(
@@ -363,20 +213,7 @@ pub(in crate::grammar) fn reduction_cost(
     tag: RuleTag,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> ParseCost {
-    let active_temporal_attachment = tag == RuleTag::VerbPhraseDirectObject
-        && matches!(
-            children.first().map(|child| child.features),
-            Some(Features::VerbPhrase { passive: false, .. })
-        )
-        && matches!(
-            children.get(1).map(|child| child.features),
-            Some(Features::NounPhrase {
-                adjunct: Some(BareNominalAdjunct::Temporal),
-                ..
-            })
-        );
-    let precedence =
-        u32::from(active_temporal_attachment) + u32::from(tag == RuleTag::ClauseSubordinateAfter);
+    let precedence = u32::from(tag == RuleTag::ClauseSubordinateAfter);
     // The finite-first shared-predicate reading (a modal/finite clause hosting
     // a subjectless standalone-imperative continuation, asyndetic or
     // `then`/`and`-joined) is a narrow additive allowance layered on top of the
@@ -416,135 +253,6 @@ pub(super) fn reduce_predicate(
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> Option<Reduced> {
     match tag {
-        RuleTag::Verb => Some(propagate(children.first()?)),
-        RuleTag::VerbPhraseBase => {
-            crate::grammar::reduction::reduce_verb_phrase_base(children.first()?.features)
-        }
-        RuleTag::VerbPhraseAuxiliaryProform => {
-            let Features::Auxiliary(auxiliary) = children.first()?.features else {
-                return None;
-            };
-            let form = auxiliary_form(*auxiliary, PredicateForm::Infinitive)?;
-            Some(Features::VerbPhrase {
-                form,
-                passive: false,
-                dependent_count: 0,
-                object: PredicateObjectState::None,
-                indirect_object: false,
-                selected_preposition: false,
-                phase: PredicateAttachmentPhase::Object,
-                frame: crate::word::PROFORM_PREDICATE_FRAMES[0],
-                bare: false,
-                head_is_copular: false,
-                object_gap_requires_rules_object: false,
-                subjunctive: matches!(
-                    auxiliary.inflection,
-                    crate::word::AuxiliaryInflection::PastSubjunctive
-                ),
-            })
-        }
-        RuleTag::VerbPhraseAuxiliary => {
-            let Features::Auxiliary(auxiliary) = children.first()?.features else {
-                return None;
-            };
-            let Features::VerbPhrase {
-                form: child_form,
-                passive: child_passive,
-                dependent_count,
-                object,
-                indirect_object,
-                selected_preposition,
-                phase,
-                frame,
-                head_is_copular,
-                object_gap_requires_rules_object,
-                subjunctive: child_subjunctive,
-                ..
-            } = children.get(1)?.features
-            else {
-                return None;
-            };
-            let form = auxiliary_form(*auxiliary, *child_form)?;
-            let passive = fold_auxiliary_passive(
-                *auxiliary,
-                *child_form,
-                *child_passive,
-                *object,
-                *indirect_object,
-                *frame,
-            )?;
-            let subjunctive = *child_subjunctive
-                || matches!(
-                    auxiliary.inflection,
-                    crate::word::AuxiliaryInflection::PastSubjunctive
-                );
-            Some(Features::VerbPhrase {
-                form,
-                passive,
-                dependent_count: *dependent_count,
-                object: *object,
-                indirect_object: *indirect_object,
-                selected_preposition: *selected_preposition,
-                phase: *phase,
-                frame: *frame,
-                bare: false,
-                head_is_copular: *head_is_copular,
-                object_gap_requires_rules_object: *object_gap_requires_rules_object,
-                subjunctive,
-            })
-        }
-        RuleTag::VerbPhraseDirectObject | RuleTag::VerbPhraseIndirectObject => {
-            let Features::NounPhrase {
-                pronoun_case,
-                adjunct,
-                ..
-            } = children.get(1)?.features
-            else {
-                return None;
-            };
-            if *pronoun_case == Some(PronounCase::Subject) {
-                return None;
-            }
-            let attachment = if tag == RuleTag::VerbPhraseIndirectObject {
-                PredicateAttachment::IndirectObject
-            } else {
-                let Features::VerbPhrase {
-                    form,
-                    passive,
-                    object,
-                    phase,
-                    frame,
-                    ..
-                } = children.first()?.features
-                else {
-                    return None;
-                };
-                match adjunct.filter(|adjunct| {
-                    frame.licenses_bare_nominal_adjunct(*adjunct)
-                        && (*form == PredicateForm::PastParticiple
-                            || *passive
-                            || *phase != PredicateAttachmentPhase::Object
-                            || object.has_direct_object()
-                            || !frame.direct_object().accepts())
-                }) {
-                    Some(adjunct) => PredicateAttachment::NominalAdjunct(adjunct),
-                    None => PredicateAttachment::DirectObject,
-                }
-            };
-            extend_predicate(children.first()?, attachment)
-        }
-        RuleTag::VerbPhraseManaAmountCoordination => {
-            extend_predicate(children.first()?, PredicateAttachment::ScalarComplement)
-        }
-        RuleTag::VerbPhraseQuotedAbilityCoordination
-        | RuleTag::VerbPhraseAbilityQuotedCoordination => {
-            let Features::Conjunction(Conjunction::And | Conjunction::Or) =
-                children.get(2)?.features
-            else {
-                return None;
-            };
-            extend_predicate(children.first()?, PredicateAttachment::QuotedObject)
-        }
         RuleTag::VerbPhraseCoordinatedAdjective => {
             // Only a coordinated run whose every conjunct is an adjective
             // predicates as an adjective complement. A bare coordinated *noun*
@@ -559,94 +267,6 @@ pub(super) fn reduce_predicate(
                 return None;
             };
             extend_predicate(children.first()?, PredicateAttachment::AdjectiveComplement)
-        }
-        RuleTag::VerbPhrasePreverbAdverb => {
-            // Not an extend_predicate/Adjunct site (§2.4): the preverb
-            // modifier attaches before the verb phrase (child 1, not child 0)
-            // and changes no predicate-phase or object-state licensing, so the
-            // composed features are exactly the inner VerbPhrase's, unchanged.
-            Some(children.get(1)?.features.clone())
-        }
-        RuleTag::VerbPhraseExceptBy => {
-            // The `By` fact is carried by the third child (the
-            // PrepositionalPhrase), not the first, so it is not dot-1
-            // expressible and is checked here rather than in
-            // `accepts_predicate_prefix`.
-            let Features::PrepositionalPhrase {
-                preposition: Preposition::By,
-                ..
-            } = children.get(2)?.features
-            else {
-                return None;
-            };
-            extend_predicate(children.first()?, PredicateAttachment::Exception)
-        }
-        RuleTag::VerbPhrasePassiveSharedDeterminerPrepositional => {
-            let Features::VerbPhrase { passive: true, .. } = children.first()?.features else {
-                return None;
-            };
-            let Features::PrepositionalPhrase {
-                preposition,
-                shared_determiner_object: true,
-                ..
-            } = children.get(1)?.features
-            else {
-                return None;
-            };
-            extend_predicate(
-                children.first()?,
-                PredicateAttachment::Prepositional(*preposition),
-            )
-        }
-        RuleTag::VerbPhraseAdjective
-        | RuleTag::VerbPhrasePrepositional
-        | RuleTag::VerbPhraseInfinitive
-        | RuleTag::VerbPhraseAdverb
-        | RuleTag::VerbPhraseParticle
-        | RuleTag::VerbPhraseCoinResult
-        | RuleTag::VerbPhraseFrequency
-        | RuleTag::VerbPhraseAbility
-        | RuleTag::VerbPhraseQuotedAbility
-        | RuleTag::VerbPhraseOracleSymbol
-        | RuleTag::VerbPhraseSymbolSequence
-        | RuleTag::VerbPhrasePowerToughness
-        | RuleTag::VerbPhraseQuantity => {
-            let attachment = match tag {
-                RuleTag::VerbPhraseAdjective => PredicateAttachment::AdjectiveComplement,
-                RuleTag::VerbPhrasePrepositional => {
-                    let Features::PrepositionalPhrase { preposition, .. } =
-                        children.get(1)?.features
-                    else {
-                        return None;
-                    };
-                    PredicateAttachment::Prepositional(*preposition)
-                }
-                RuleTag::VerbPhraseInfinitive => PredicateAttachment::InfinitiveComplement,
-                RuleTag::VerbPhraseAdverb | RuleTag::VerbPhraseFrequency => {
-                    PredicateAttachment::Adjunct
-                }
-                RuleTag::VerbPhraseParticle => {
-                    let Features::VerbParticle(particle) = children.get(1)?.features else {
-                        return None;
-                    };
-                    PredicateAttachment::Particle(*particle)
-                }
-                RuleTag::VerbPhraseCoinResult => {
-                    let Features::CoinResult(side) = children.get(1)?.features else {
-                        return None;
-                    };
-                    PredicateAttachment::CoinResult(*side)
-                }
-                RuleTag::VerbPhraseAbility => PredicateAttachment::AbilityComplement,
-                RuleTag::VerbPhraseQuotedAbility => PredicateAttachment::QuotedObject,
-                RuleTag::VerbPhraseOracleSymbol | RuleTag::VerbPhraseSymbolSequence => {
-                    PredicateAttachment::ScalarComplement
-                }
-                RuleTag::VerbPhrasePowerToughness => PredicateAttachment::StatisticComplement,
-                RuleTag::VerbPhraseQuantity => PredicateAttachment::ScalarOrAbilityArgument,
-                _ => return None,
-            };
-            extend_predicate(children.first()?, attachment)
         }
         RuleTag::InfinitiveTo | RuleTag::InfinitiveNotTo => {
             let predicate_index = if tag == RuleTag::InfinitiveNotTo { 2 } else { 1 };
@@ -672,12 +292,6 @@ pub(super) fn reduce_predicate(
                 return None;
             }
             Some(Features::InfinitiveClause)
-        }
-        RuleTag::VerbPhraseCausative => {
-            crate::constructions::predicate::reduce_verb_phrase_causative_features(
-                children.first()?.features,
-                children.get(1)?.features,
-            )
         }
         _ => None,
     }
@@ -940,11 +554,10 @@ pub(crate) enum PredicateAttachment {
 
 /// Folds an auxiliary attaching from outside a verb phrase into that phrase's
 /// passive determination, and applies the retained-object rule. Shared by
-/// [`RuleTag::VerbPhraseAuxiliary`] (the auxiliary sits inside the phrase) and
-/// [`RuleTag::SimpleClauseContractedSubject`] (the auxiliary is contracted onto
-/// the subject and reaches the phrase as a sibling), so the two paths cannot
-/// drift: before this was shared, the contracted path never credited
-/// passivization and no recipient passive could reduce under it.
+/// Both the declaration-owned auxiliary construction (where the auxiliary sits
+/// inside the phrase) and [`RuleTag::SimpleClauseContractedSubject`] (where it
+/// is contracted onto the subject) use this helper, so the two paths cannot
+/// drift.
 ///
 /// Returns `None` when the combination is ill-formed — a passive may keep a
 /// direct object only as a recipient passive's retained theme, and never keeps

@@ -146,9 +146,8 @@ fn write_provenance(mut writer: impl Write, report: &ParseReport) -> Result<()> 
 }
 
 /// One construction row in verbose inspect. Keeping this formatter generic
-/// over the public decision value means an inactive generated family can be
-/// exercised in English tests without adding a second predicate-specific
-/// inspect path; production activation in Task 6 reaches this exact function.
+/// over the public decision value lets generated families use the ordinary
+/// English inspect path without adding a predicate-specific formatter.
 fn construction_decision_text(decision: &ConstructionDecision) -> String {
     let span = decision.span();
     let evidence = decision.evidence();
@@ -617,11 +616,6 @@ mod tests {
                 "nominal_noun",
             ),
             (
-                "If a creature dealt damage this way would die this turn, exile it instead.",
-                "nominal_reduced_recipient_passive",
-                "nominal_noun",
-            ),
-            (
                 "Create a 1/1 white Ally creature token for each experience counter you have.",
                 "nominal_relative",
                 "nominal_prepositional",
@@ -629,6 +623,35 @@ mod tests {
         ] {
             assert_verbose_dominance(source, winner, loser);
         }
+
+        // The reduced-passive edge remains declaration-owned and is asserted
+        // in the construction registry. Its production predicate now carries
+        // an attachment cost before the completed nominal competes with the
+        // opaque-noun alternative, so provenance correctly reports the
+        // reduced-passive construction as unique instead of attributing the
+        // selection to dominance.
+        let reduced = verbose_m01(
+            "If a creature dealt damage this way would die this turn, exile it instead.",
+        );
+        assert!(
+            reduced.contains(
+                "nominal_reduced_recipient_passive owner=generated backend=chart form=0 evidence=guard:reduced-recipient-passive frame"
+            ),
+            "{reduced}"
+        );
+    }
+
+    #[test]
+    fn verbose_output_reports_production_generated_predicate_ownership() {
+        // Mutations caught: format generated ownership only for isolated
+        // English fixtures, or leave xtask's production parse on RuleTag.
+        let rendered = verbose_m01("You may have this creature enter.");
+        assert!(
+            rendered.contains(
+                "verb_phrase_causative owner=generated backend=chart form=0 evidence=role:causative host-causee-complement order"
+            ),
+            "{rendered}"
+        );
     }
 
     #[test]

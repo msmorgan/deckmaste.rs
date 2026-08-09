@@ -994,7 +994,7 @@ impl<'syntax> SyntaxInventory<'syntax> {
     fn has_verb(&self, predicate: impl Fn(&Verb) -> bool) -> bool {
         self.predicate_heads
             .iter()
-            .any(|head| predicate(&head.verb.verb))
+            .any(|head| predicate(&head.verb().verb))
     }
 
     fn ability(&mut self, ability: &'syntax Ability) {
@@ -1153,8 +1153,8 @@ impl<'syntax> SyntaxInventory<'syntax> {
             }
             IndependentClause::Intransitive(subject, predicate) => {
                 self.subject(subject);
-                self.predicate_head(&predicate.head);
-                self.predicate_elements(&predicate.elements);
+                self.predicate_head(predicate.head());
+                self.predicate_elements(predicate.elements());
             }
             IndependentClause::Copular(subject, predicate) => {
                 self.subject(subject);
@@ -1163,11 +1163,11 @@ impl<'syntax> SyntaxInventory<'syntax> {
             }
             IndependentClause::Passive(subject, predicate) => {
                 self.subject(subject);
-                self.predicate_head(&predicate.head);
+                self.predicate_head(predicate.head());
                 if let Some(object) = &predicate.retained_object {
                     self.predicate_object(object);
                 }
-                self.predicate_elements(&predicate.elements);
+                self.predicate_elements(predicate.elements());
             }
             IndependentClause::Predicated(subject, expression) => {
                 if let Some(subject) = subject {
@@ -1266,19 +1266,19 @@ impl<'syntax> SyntaxInventory<'syntax> {
         match predicate {
             Predicate::Transitive(predicate) => self.transitive_predicate(predicate),
             Predicate::Intransitive(predicate) => {
-                self.predicate_head(&predicate.head);
-                self.predicate_elements(&predicate.elements);
+                self.predicate_head(predicate.head());
+                self.predicate_elements(predicate.elements());
             }
             Predicate::Copular(predicate) => {
                 self.copular_complement(&predicate.complement);
                 self.predicate_adjuncts(&predicate.adjuncts);
             }
             Predicate::Passive(predicate) => {
-                self.predicate_head(&predicate.head);
+                self.predicate_head(predicate.head());
                 if let Some(object) = &predicate.retained_object {
                     self.predicate_object(object);
                 }
-                self.predicate_elements(&predicate.elements);
+                self.predicate_elements(predicate.elements());
             }
             Predicate::Deontic(predicate) => {
                 if let Some(inner) = &predicate.inner {
@@ -1296,10 +1296,10 @@ impl<'syntax> SyntaxInventory<'syntax> {
     }
 
     fn transitive_predicate(&mut self, predicate: &'syntax TransitivePredicate) {
-        self.predicate_head(&predicate.head);
+        self.predicate_head(predicate.head());
         self.predicate_elements(&predicate.pre_object_elements);
         self.predicate_object(&predicate.object);
-        self.predicate_elements(&predicate.elements);
+        self.predicate_elements(predicate.elements());
     }
 
     fn predicate_head(&mut self, head: &'syntax PredicateHead) {
@@ -1392,8 +1392,8 @@ impl<'syntax> SyntaxInventory<'syntax> {
             RelativeBody::SubjectGap(predicate) => self.predicate(predicate),
             RelativeBody::ObjectGap { subject, predicate } => {
                 self.subject(subject);
-                self.predicate_head(&predicate.head);
-                self.predicate_elements(&predicate.elements);
+                self.predicate_head(predicate.head());
+                self.predicate_elements(predicate.elements());
             }
         }
     }
@@ -1738,9 +1738,9 @@ fn appositive_in_predicate(predicate: &Predicate) -> Option<&IndependentClause> 
 
 fn predicate_head(predicate: &Predicate) -> Option<&PredicateHead> {
     match predicate {
-        Predicate::Transitive(predicate) => Some(&predicate.head),
-        Predicate::Intransitive(predicate) => Some(&predicate.head),
-        Predicate::Passive(predicate) => Some(&predicate.head),
+        Predicate::Transitive(predicate) => Some(predicate.head()),
+        Predicate::Intransitive(predicate) => Some(predicate.head()),
+        Predicate::Passive(predicate) => Some(predicate.head()),
         Predicate::Attached(attached) => predicate_head(&attached.predicate),
         Predicate::Deontic(deontic) => deontic.inner.as_deref().and_then(predicate_head),
         Predicate::Copular(_) | Predicate::Proform(_) => None,
@@ -1749,9 +1749,9 @@ fn predicate_head(predicate: &Predicate) -> Option<&PredicateHead> {
 
 fn matrix_predicate_head(clause: &IndependentClause) -> Option<&PredicateHead> {
     match clause {
-        IndependentClause::Transitive(_, predicate) => Some(&predicate.head),
-        IndependentClause::Intransitive(_, predicate) => Some(&predicate.head),
-        IndependentClause::Passive(_, predicate) => Some(&predicate.head),
+        IndependentClause::Transitive(_, predicate) => Some(predicate.head()),
+        IndependentClause::Intransitive(_, predicate) => Some(predicate.head()),
+        IndependentClause::Passive(_, predicate) => Some(predicate.head()),
         IndependentClause::Predicated(_, PredicateExpression::Simple(predicate))
         | IndependentClause::Imperative(predicate) => predicate_head(predicate),
         IndependentClause::Deontic(_, _, predicate) => predicate.as_ref().and_then(predicate_head),
@@ -1813,7 +1813,8 @@ fn direct_object(clause: &IndependentClause) -> Option<&PredicateObject> {
 }
 
 fn matrix_distributive_each(ast: &OracleText) -> bool {
-    matrix_predicate_head(only_independent_clause(ast)).is_some_and(|head| head.distributive_each)
+    matrix_predicate_head(only_independent_clause(ast))
+        .is_some_and(PredicateHead::distributive_each)
 }
 
 fn first_independent_in_paragraph(paragraph: &Paragraph) -> Option<&IndependentClause> {
@@ -1939,13 +1940,13 @@ fn matrix_has_prepositional_adjunct(clause: &IndependentClause, expected: Prepos
         | IndependentClause::Predicated(
             _,
             PredicateExpression::Simple(Predicate::Transitive(predicate)),
-        ) => &predicate.elements,
+        ) => predicate.elements(),
         IndependentClause::Intransitive(_, predicate)
         | IndependentClause::Predicated(
             _,
             PredicateExpression::Simple(Predicate::Intransitive(predicate)),
-        ) => &predicate.elements,
-        IndependentClause::Passive(_, predicate) => &predicate.elements,
+        ) => predicate.elements(),
+        IndependentClause::Passive(_, predicate) => predicate.elements(),
         IndependentClause::Complex(complex) => {
             return matrix_has_prepositional_adjunct(&complex.matrix, expected);
         }
@@ -2152,16 +2153,14 @@ fn a_the_headed_nickname_keeps_its_capital_the() {
                     [sentence] if matches!(
                         sentence.body(),
                         SentenceBody::Independent(IndependentClause::Imperative(
-                            Predicate::Transitive(TransitivePredicate {
-                                kind: Transitive {
-                                    object: PredicateObject::NounPhrase(NounPhrase::ThisCard(
-                                        ThisCardForm::AbbreviatedName
-                                    )),
-                                    ..
-                                },
-                                ..
-                            })
+                            Predicate::Transitive(predicate)
                         ))
+                            if matches!(
+                                &predicate.object,
+                                PredicateObject::NounPhrase(NounPhrase::ThisCard(
+                                    ThisCardForm::AbbreviatedName
+                                ))
+                            )
                     )
                 )
         ),
@@ -2249,18 +2248,9 @@ fn quoted_final_exception_conjunct_stays_inside_oxford_rider() {
                     },
                     ExceptionConjunct {
                         conjunction: Some(PredicateConjunction::And),
-                        clause: IndependentClause::Transitive(
-                            _,
-                            TransitivePredicate {
-                                kind: Transitive {
-                                    object: PredicateObject::QuotedAbility(_),
-                                    ..
-                                },
-                                ..
-                            }
-                        ),
+                        clause: IndependentClause::Transitive(_, predicate),
                     },
-                ]
+                ] if matches!(&predicate.object, PredicateObject::QuotedAbility(_))
             ),
         "AST:\n{ast}"
     );
@@ -2293,16 +2283,8 @@ fn two_member_post_exception_coordination_stays_outside_the_rider() {
                         ..
                     }] if matches!(
                         clause.as_ref(),
-                        IndependentClause::Transitive(
-                            _,
-                            TransitivePredicate {
-                                kind: Transitive {
-                                    object: PredicateObject::QuotedAbility(_),
-                                    ..
-                                },
-                                ..
-                            }
-                        )
+                        IndependentClause::Transitive(_, predicate)
+                            if matches!(&predicate.object, PredicateObject::QuotedAbility(_))
                     )
                 )
             ),
@@ -2324,16 +2306,8 @@ fn quoted_ability_exception_on_a_token_copy_round_trips() {
     assert!(
         matches!(
             rider.first.as_ref(),
-            IndependentClause::Transitive(
-                _,
-                TransitivePredicate {
-                    kind: Transitive {
-                        object: PredicateObject::QuotedAbility(_),
-                        ..
-                    },
-                    ..
-                }
-            )
+            IndependentClause::Transitive(_, predicate)
+                if matches!(&predicate.object, PredicateObject::QuotedAbility(_))
         ) && rider.rest.is_empty(),
         "AST:\n{ast}"
     );
@@ -2626,34 +2600,31 @@ fn cost_noun_phrases_coordinate_with_and_or() {
     let (rendered, ast) = parse_face(source, &cost_catalogs(), "Test Card", false);
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
+    let [CostComponent::Clause(clause)] = only_activated(&ast).cost.components.as_slice() else {
+        panic!("expected one clause cost: {ast}");
+    };
+    let IndependentClause::Imperative(Predicate::Transitive(predicate)) = clause.as_ref() else {
+        panic!("expected a transitive imperative cost: {ast}");
+    };
+    let PredicateObject::NounPhrase(NounPhrase::CoordinatedNominal(coordinated)) =
+        &predicate.object
+    else {
+        panic!("expected a coordinated nominal object: {ast}");
+    };
     assert!(
         matches!(
-            only_activated(&ast).cost.components.as_slice(),
-            [CostComponent::Clause(clause)] if matches!(
-                clause.as_ref(),
-                IndependentClause::Imperative(Predicate::Transitive(TransitivePredicate {
-                    kind: Transitive {
-                        object: PredicateObject::NounPhrase(
-                            NounPhrase::CoordinatedNominal(coordinated)
-                        ),
-                        ..
-                    },
-                    ..
-                })) if matches!(
-                    coordinated.determiner(),
-                    Determiner::Quantity(quantity)
-                        if matches!(
-                            quantity.kind(),
-                            QuantityKind::Exact(NumberLiteral { value: 2, .. })
-                        )
-                ) && matches!(
-                    coordinated.rest().as_slice(),
-                    [NominalPhraseCoordination {
-                        conjunction: Some(NounPhraseConjunction::AndOr),
-                        ..
-                    }]
+            coordinated.determiner(),
+            Determiner::Quantity(quantity)
+                if matches!(
+                    quantity.kind(),
+                    QuantityKind::Exact(NumberLiteral { value: 2, .. })
                 )
-            )
+        ) && matches!(
+            coordinated.rest().as_slice(),
+            [NominalPhraseCoordination {
+                conjunction: Some(NounPhraseConjunction::AndOr),
+                ..
+            }]
         ),
         "AST:\n{ast}"
     );
@@ -3954,8 +3925,9 @@ fn qfloat_core_relative_that_each_have() {
         SyntaxInventory::from_ast(&ast)
             .predicate_heads
             .iter()
-            .any(|head| head.distributive_each
-                && matches!(head.verb.verb, Verb::Word(Vocab::Have))),
+            .any(|head| {
+                head.distributive_each() && matches!(head.verb().verb, Verb::Word(Vocab::Have))
+            }),
         "expected the relative-clause distributive float to attach\nAST:\n{ast}"
     );
 }
@@ -3989,13 +3961,7 @@ fn qfloat_anti_misparse_each_sacrifice_stays_verbal() {
     assert!(
         matches!(
             matrix_predicate_head(only_independent_clause(&ast)),
-            Some(PredicateHead {
-                verb: VerbInstance {
-                    verb: Verb::Word(Vocab::Sacrifice),
-                    ..
-                },
-                ..
-            })
+            Some(head) if matches!(head.verb().verb, Verb::Word(Vocab::Sacrifice))
         ),
         "`sacrifice` must be a transitive finite verb, never a nominal reading \
          inside the discarded `each` slot\nAST:\n{ast}"
@@ -4011,13 +3977,7 @@ fn qfloat_anti_misparse_each_discard_stays_verbal() {
     assert!(
         matches!(
             matrix_predicate_head(only_independent_clause(&ast)),
-            Some(PredicateHead {
-                verb: VerbInstance {
-                    verb: Verb::Word(Vocab::Discard),
-                    ..
-                },
-                ..
-            })
+            Some(head) if matches!(head.verb().verb, Verb::Word(Vocab::Discard))
         ),
         "`discard` must be a transitive finite verb\nAST:\n{ast}"
     );
@@ -4065,7 +4025,7 @@ fn qfloat_anti_misparse_goblin_game_pronominal_each_unchanged() {
         SyntaxInventory::from_ast(&ast)
             .predicate_heads
             .iter()
-            .all(|head| !head.distributive_each),
+            .all(|head| !head.distributive_each()),
         "the pronominal `each` subject must not reach the new float tag or \
          `PredicateHead::distributive_each`\nAST:\n{ast}"
     );
@@ -4234,7 +4194,7 @@ fn anof_concord_curse_of_surveillance_tree_is_sound() {
         "expected the ordinary nominal head/complement shape as the subject\nAST:\n{ast}"
     );
     assert!(
-        matrix_predicate_head(clause).is_some_and(|head| head.distributive_each),
+        matrix_predicate_head(clause).is_some_and(PredicateHead::distributive_each),
         "expected the floated `each` on the `draw` predicate\nAST:\n{ast}"
     );
 }
@@ -4255,7 +4215,8 @@ fn anof_concord_launch_the_fleet_embedded_recovery_exposed() {
     // recovery, and that recovery must not be hidden to force the census
     // prediction.
     assert!(
-        matrix_predicate_head(last_effect_clause(&ast)).is_some_and(|head| head.distributive_each),
+        matrix_predicate_head(last_effect_clause(&ast))
+            .is_some_and(PredicateHead::distributive_each),
         "expected the outer float to resolve\nAST:\n{ast}"
     );
     assert!(

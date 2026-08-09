@@ -275,6 +275,21 @@ impl VerbAnalysis {
 }
 
 impl VerbPhrase {
+    pub(crate) fn from_finished_parts(
+        head: &crate::syntax::PredicateHead,
+        dependents: Vec<VerbDependent>,
+    ) -> Self {
+        Self {
+            auxiliaries: head.auxiliaries.clone(),
+            first_auxiliary_contracted_with_subject: false,
+            preverb_modifiers: head.preverb_modifiers.clone(),
+            verb: head.verb.clone(),
+            frame: head.frame,
+            dependents,
+            distributive_each: false,
+        }
+    }
+
     pub(crate) fn from_base(head: VerbAnalysis) -> Self {
         Self {
             auxiliaries: Vec::new(),
@@ -342,9 +357,23 @@ impl VerbPhrase {
     }
 
     pub(crate) fn declaration_last_dependent_parts(&self) -> Option<(Self, VerbDependent)> {
+        if !self.preverb_modifiers.is_empty() {
+            return None;
+        }
         let mut predicate = self.clone();
         let dependent = predicate.dependents.pop()?;
         Some((predicate, dependent))
+    }
+
+    pub(crate) fn declaration_coordinated_adjective_parts(
+        &self,
+    ) -> Option<(Self, crate::syntax::CoordinatedAdjectivePhrase)> {
+        let (predicate, VerbDependent::CoordinatedAdjective(adjective)) =
+            self.declaration_last_dependent_parts()?
+        else {
+            return None;
+        };
+        Some((predicate, adjective))
     }
 
     pub(crate) fn declaration_into_dependent_projection(mut self) -> (Vec<VerbDependent>, Self) {
@@ -502,6 +531,18 @@ pub(crate) struct InfinitiveClause {
 }
 
 impl InfinitiveClause {
+    pub(crate) fn from_finished_parts(
+        negated: bool,
+        marker: InfinitiveMarker,
+        predicate: VerbPhrase,
+    ) -> Self {
+        Self {
+            negated,
+            marker,
+            predicate: Box::new(predicate),
+        }
+    }
+
     pub(crate) fn declaration_bare(predicate: VerbPhrase) -> Self {
         Self {
             negated: false,
@@ -514,7 +555,6 @@ impl InfinitiveClause {
         (!self.negated && self.marker == InfinitiveMarker::Bare).then_some(self.predicate.as_ref())
     }
 
-    #[cfg(test)]
     pub(crate) fn declaration_parts(&self) -> (bool, InfinitiveMarker, &VerbPhrase) {
         (self.negated, self.marker, self.predicate.as_ref())
     }
@@ -911,7 +951,6 @@ pub(crate) enum EnglishLexicalSlot {
     /// placeable between a subject and its finite verb.
     PreverbAdverb,
     /// The exact adverb `only` when it composes a bounded frequency phrase.
-    FrequencyLimiter,
     /// The literal word `declare` heading the `declare attackers`/`declare
     /// blockers` combat-step formative [CR#508.1,509.1]. Recognized only as
     /// this exact literal token — never the ordinary `Verb` slot — so the
@@ -1038,7 +1077,6 @@ impl EnglishLexicalSlot {
             Self::TimesNoun => &["times"],
             Self::NumberNoun => &["number"],
             Self::PreverbAdverb => &["next"],
-            Self::FrequencyLimiter => &["only"],
             Self::CombatStepDeclare => &["declare"],
             Self::CombatStepParticipants => &["attackers", "blockers"],
             Self::CombatStepHead => &["step"],
@@ -1120,7 +1158,6 @@ impl EnglishLexicalSlot {
         Self::TimesNoun,
         Self::NumberNoun,
         Self::PreverbAdverb,
-        Self::FrequencyLimiter,
         Self::CombatStepDeclare,
         Self::CombatStepParticipants,
         Self::CombatStepHead,
@@ -1189,7 +1226,6 @@ impl EnglishLexicalSlot {
             | Self::TimesNoun
             | Self::NumberNoun
             | Self::PreverbAdverb
-            | Self::FrequencyLimiter
             | Self::CombatStepDeclare
             | Self::CombatStepParticipants
             | Self::CombatStepHead
@@ -1998,47 +2034,6 @@ enum RuleTag {
     NounPhraseHalfRoundedDown,
     PrepositionalPhrase,
     PrepositionalObject,
-    Verb,
-    VerbPhraseBase,
-    VerbPhraseAuxiliary,
-    VerbPhraseAuxiliaryProform,
-    VerbPhraseDirectObject,
-    VerbPhraseIndirectObject,
-    VerbPhraseAdjective,
-    VerbPhrasePrepositional,
-    /// A zero-cost passive-predicate attachment for a PP whose object has one
-    /// shared determiner. The ordinary PP rule retains its historical cost.
-    VerbPhrasePassiveSharedDeterminerPrepositional,
-    /// The append-last `except by <PP>` exception tail on a passive
-    /// predicate: `VerbPhrase -> VerbPhrase Except PrepositionalPhrase`.
-    VerbPhraseExceptBy,
-    VerbPhraseInfinitive,
-    VerbPhraseAdverb,
-    VerbPhrasePreverbAdverb,
-    VerbPhraseParticle,
-    /// The closed `come up heads`/`come up tails` coin-result predicate tail
-    /// [CR#705.1,705.2]. Registered late (after every other rule) alongside
-    /// [`VerbPhraseParticle`], its structural analogue; the pending `Come`
-    /// frame (`PredicateFrame::requires_coin_result`) is what gates
-    /// prediction, not a generic particle license.
-    VerbPhraseCoinResult,
-    VerbPhraseFrequency,
-    FrequencyPhraseAdverb,
-    VerbPhraseAbility,
-    VerbPhraseQuotedAbility,
-    VerbPhraseQuotedAbilityCoordination,
-    VerbPhraseAbilityQuotedCoordination,
-    VerbPhraseOracleSymbol,
-    VerbPhraseSymbolSequence,
-    ManaAmountSymbol,
-    ManaAmountSequence,
-    ManaAmountListSingle,
-    ManaAmountListComma,
-    ManaAmountCoordination,
-    ManaAmountCoordinationOxford,
-    VerbPhraseManaAmountCoordination,
-    VerbPhrasePowerToughness,
-    VerbPhraseQuantity,
     InfinitiveTo,
     InfinitiveNotTo,
     GerundClauseBase,
@@ -2109,10 +2104,6 @@ enum RuleTag {
     RelativeContractedCopularNoun,
     RelativeContractedCopularAdjective,
     RelativeContractedCopularPrepositional,
-    /// The causative `have <object> <bare-infinitive VP>` construction
-    /// (`have this creature enter as a copy of …`). The head verb's object is
-    /// the causee; the bare verb phrase is its infinitival complement.
-    VerbPhraseCausative,
     /// A single-conjunct exception rider (`except it isn't legendary`): the
     /// `except` marker plus one finite clause.
     ExceptionRiderSingle,
@@ -2136,7 +2127,6 @@ enum RuleTag {
     /// The `["only", <adjunct-or-if-clause>]` production building one
     /// restriction-run member.
     ClauseRestrictionMember,
-    FrequencyPhrase,
     /// A coordinable modifier atom built from an adjective phrase.
     ModifierConjunctAdjective,
     /// A coordinable modifier atom built from a bare noun.
@@ -2260,13 +2250,9 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         // read, independent of their eventual numeric lookup IDs.
         builder.add_coordination_consumer_rules();
         builder.add_possessive_modifier_rules();
-        // The coin-result predicate's dot-1 gate is categorical (the pending
-        // `Come` frame), rather than an ordering preference.
-        builder.add_coin_result_rules();
         // This rule's dot-1 gate (`Features::Subordinator(While)`) is likewise
         // categorical.
         builder.add_while_gerund_rules();
-        builder.add_reduced_recipient_passive_rules();
         // This widens `NounPhrase`, but its dot-1 host gate is categorical.
         builder.add_set_exception_rules();
         // The subject-shared copular continuation also has a categorical dot-1
@@ -3068,12 +3054,6 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 })
                 .into_iter()
                 .collect(),
-            slot @ EnglishLexicalSlot::FrequencyLimiter => {
-                if self.literal_token_match(tokens, start, slot).is_none() {
-                    return Vec::new();
-                }
-                self.word_matches(tokens, start, LexicalSlot::Adverb)
-            }
             EnglishLexicalSlot::NegatedModifier => self.scan_negated_modifier(tokens, start),
             EnglishLexicalSlot::Adverb => self.word_matches(tokens, start, LexicalSlot::Adverb),
             EnglishLexicalSlot::SentenceAdverbial => {

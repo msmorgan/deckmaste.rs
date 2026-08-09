@@ -12,6 +12,7 @@ use crate::syntax::ClauseCoordination;
 use crate::syntax::ComplexClause;
 use crate::syntax::CoordinatedClauseMember;
 use crate::syntax::CoordinatedIndependentClause;
+#[cfg(test)]
 use crate::syntax::CoordinatedPredicateObject;
 use crate::syntax::Coordination;
 use crate::syntax::CoordinationJunction;
@@ -32,8 +33,8 @@ use crate::syntax::PredicateElement;
 use crate::syntax::PredicateExpression;
 use crate::syntax::PredicateHead;
 use crate::syntax::PredicateObject;
+#[cfg(test)]
 use crate::syntax::PredicateObjectCoordination;
-use crate::syntax::PreverbModifier;
 use crate::syntax::ProPredicate;
 use crate::syntax::RelativeBody;
 use crate::syntax::RelativeMarker;

@@ -1,0 +1,5 @@
+error[E0616]: field `verb` of struct `PredicateHead` is private
+ --> tests/compile_fail/mutate_predicate_head.rs:5:10
+  |
+5 |     head.verb = verb;
+  |          ^^^^ private field

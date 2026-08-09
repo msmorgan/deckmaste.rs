@@ -1,5 +1,4 @@
 use std::ops::Deref;
-use std::ops::DerefMut;
 
 use super::ability::Ability;
 use super::ability::QuotedAbility;
@@ -17,6 +16,7 @@ use crate::features::Conjunction;
 use crate::features::Contraction;
 use crate::features::GapState;
 use crate::word::AuxiliaryInstance;
+use crate::word::PredicateFrame;
 use crate::word::VerbInstance;
 use crate::word::Vocab;
 
@@ -116,7 +116,7 @@ pub struct AttachedPredicate {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct PredicateHead {
-    pub auxiliaries: Vec<AuxiliaryInstance>,
+    pub(crate) auxiliaries: Vec<AuxiliaryInstance>,
     /// **Measured, field KEPT** (surface-fact diet, 2026-07-30 measurement
     /// round): the ticket's construction-kind hypothesis — non-passive
     /// positions contract, passive `it is` does not — is FALSIFIED. Coding
@@ -140,16 +140,47 @@ pub struct PredicateHead {
     /// `cannot`/`does not`/`do not`/`is not`/`did not`/`are not`, against
     /// `can't` 3131 / `don't` 728 / `doesn't` 450 / `isn't` 246 / `didn't`
     /// 128 / `aren't` 54 — the corpus has no variation to store.
-    pub first_auxiliary_contracted_with_subject: Contraction,
-    pub preverb_modifiers: Vec<PreverbModifier>,
-    pub verb: VerbInstance,
+    pub(crate) first_auxiliary_contracted_with_subject: Contraction,
+    pub(crate) preverb_modifiers: Vec<PreverbModifier>,
+    pub(crate) verb: VerbInstance,
+    /// Lexical selection belongs to the sealed generated predicate owner. It
+    /// is retained for checked inverse rendering but is not a surface fact.
+    #[serde(skip)]
+    pub(crate) frame: PredicateFrame,
     /// The finite verbal quantifier float (`Two target creatures each get
     /// ...`): renders as literal `each` prepended before every auxiliary,
     /// preverb modifier, and the lexical verb. Never true together with
     /// `first_auxiliary_contracted_with_subject`: the grammar that sets this
     /// flag never also contracts a subject auxiliary, since `each`
     /// intervenes between the subject and the verb phrase.
-    pub distributive_each: bool,
+    pub(crate) distributive_each: bool,
+}
+
+impl PredicateHead {
+    #[must_use]
+    pub fn auxiliaries(&self) -> &[AuxiliaryInstance] {
+        &self.auxiliaries
+    }
+
+    #[must_use]
+    pub const fn first_auxiliary_contracted_with_subject(&self) -> Contraction {
+        self.first_auxiliary_contracted_with_subject
+    }
+
+    #[must_use]
+    pub fn preverb_modifiers(&self) -> &[PreverbModifier] {
+        &self.preverb_modifiers
+    }
+
+    #[must_use]
+    pub const fn verb(&self) -> &VerbInstance {
+        &self.verb
+    }
+
+    #[must_use]
+    pub const fn distributive_each(&self) -> bool {
+        self.distributive_each
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -166,9 +197,26 @@ pub enum PreverbModifier {
 /// and trailing elements have one representation.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct HeadedPredicate<K> {
-    pub head: PredicateHead,
-    pub kind: K,
-    pub elements: Vec<PredicateElement>,
+    pub(crate) head: PredicateHead,
+    pub(crate) kind: K,
+    pub(crate) elements: Vec<PredicateElement>,
+}
+
+impl<K> HeadedPredicate<K> {
+    #[must_use]
+    pub const fn head(&self) -> &PredicateHead {
+        &self.head
+    }
+
+    #[must_use]
+    pub const fn kind(&self) -> &K {
+        &self.kind
+    }
+
+    #[must_use]
+    pub fn elements(&self) -> &[PredicateElement] {
+        &self.elements
+    }
 }
 
 impl<K> Deref for HeadedPredicate<K> {
@@ -176,12 +224,6 @@ impl<K> Deref for HeadedPredicate<K> {
 
     fn deref(&self) -> &Self::Target {
         &self.kind
-    }
-}
-
-impl<K> DerefMut for HeadedPredicate<K> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.kind
     }
 }
 

@@ -3156,6 +3156,7 @@ mod tests {
                                         verb: Verb::Word(Vocab::Draw),
                                         slot: VerbSlot::Imperative,
                                     },
+                                    frame: Verb::Word(Vocab::Draw).predicate_frames()[0],
                                     distributive_each: false,
                                 },
                                 kind: crate::syntax::Transitive {

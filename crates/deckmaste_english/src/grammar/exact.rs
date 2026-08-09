@@ -833,8 +833,6 @@ fn linearize_sentence_exact_form(parse: &GeneratedSentenceParse) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::OnceLock;
-
     use deckmaste_construction_compiler::runtime::FieldKindData;
     use deckmaste_construction_compiler::runtime::PredicateData;
     use proptest::prelude::*;
@@ -870,20 +868,8 @@ mod tests {
         Nonterminal::Generated(cats[name])
     }
 
-    fn groups_with_inactive_predicate()
-    -> &'static [&'static deckmaste_construction_compiler::runtime::GroupData] {
-        static GROUPS: OnceLock<
-            &'static [&'static deckmaste_construction_compiler::runtime::GroupData],
-        > = OnceLock::new();
-        GROUPS.get_or_init(|| {
-            let mut groups = crate::constructions::GROUPS.to_vec();
-            groups.push(&crate::constructions::predicate::PREDICATE_DECLARATION);
-            Box::leak(groups.into_boxed_slice())
-        })
-    }
-
     #[test]
-    fn inactive_causative_exact_root_replays_form_witness_in_both_orders() {
+    fn production_causative_exact_root_replays_form_witness_in_both_orders() {
         // Mutation caught: let exact enumeration attribute the complete host
         // to direct-object/infinitive pieces instead of the causative root, or
         // change its ordinal/surface witness under registration reversal.
@@ -892,14 +878,14 @@ mod tests {
         // declaration requires that causee to be the host's sole dependent.
         let source = "have this creature enter";
         let catalogs = fixture_catalogs();
-        let activation = GeneratedActivation::Groups(groups_with_inactive_predicate());
+        let activation = GeneratedActivation::Production;
         let parsed = super::super::parse_nonterminal_with_activation(
             source,
             &catalogs,
             Nonterminal::VerbPhrase,
             activation,
         )
-        .expect("the inactive causative root lowers");
+        .expect("the production causative root lowers");
         let value = parsed
             .verb_phrase()
             .expect("the exact fixture lowers a VerbPhrase");
@@ -913,7 +899,7 @@ mod tests {
             "VerbPhrase",
             value,
             100_000,
-            groups_with_inactive_predicate(),
+            crate::constructions::GROUPS,
         )
         .expect("exact causative enumeration remains within budget");
         for parses in orders {
@@ -1085,6 +1071,7 @@ mod tests {
                                 verb: crate::word::Verb::Word(Vocab::Draw),
                                 slot: crate::word::VerbSlot::Imperative,
                             },
+                            frame: crate::word::Verb::Word(Vocab::Draw).predicate_frames()[0],
                             distributive_each: false,
                         },
                         kind: crate::syntax::Transitive {

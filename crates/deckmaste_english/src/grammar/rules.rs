@@ -448,47 +448,6 @@ impl RuleBuilder {
         clause::add_rules(self);
     }
 
-    /// The markerless recipient-passive relative (`a creature dealt damage
-    /// this way`). Its dedicated nonterminal starts with a scan-time-gated
-    /// participle and reuses only the predicate extensions the construction
-    /// needs. It never predicts generic `VerbPhrase`, whose registration here
-    /// previously perturbed unrelated `do so` derivations.
-    pub(super) fn add_reduced_recipient_passive_rules(&mut self) {
-        use EnglishLexicalSlot as L;
-        use Expected::Lexical as l;
-        use Expected::Nonterminal as n;
-        use Nonterminal as N;
-
-        self.add(
-            RuleTag::VerbPhraseBase,
-            N::ReducedRecipientPassive,
-            [l(L::ReducedRecipientPassiveParticiple)],
-        );
-        self.add(
-            RuleTag::VerbPhraseDirectObject,
-            N::ReducedRecipientPassive,
-            [
-                n(N::ReducedRecipientPassive),
-                n(N::ReducedRecipientPassiveTheme),
-            ],
-        );
-        self.add(
-            RuleTag::VerbPhrasePrepositional,
-            N::ReducedRecipientPassive,
-            [n(N::ReducedRecipientPassive), n(N::PrepositionalPhrase)],
-        );
-        self.add(
-            RuleTag::VerbPhraseAdverb,
-            N::ReducedRecipientPassive,
-            [n(N::ReducedRecipientPassive), l(L::Adverb)],
-        );
-        self.add(
-            RuleTag::VerbPhraseFrequency,
-            N::ReducedRecipientPassive,
-            [n(N::ReducedRecipientPassive), n(N::FrequencyPhrase)],
-        );
-    }
-
     /// A noun-phrase-denotation exception (`all creatures except (for)
     /// Dragons`).
     /// The completed host is checked at dot 1 before either `except` surface is
@@ -806,29 +765,6 @@ impl RuleBuilder {
         );
     }
 
-    /// Registers the closed `come up heads`/`come up tails` coin-result
-    /// predicate tail [CR#705.1,705.2] after every other rule in the
-    /// grammar, mirroring `VerbPhraseParticle`'s structural placement. Its
-    /// dot-1 gate (`accepts_predicate_prefix`) requires the narrow pending
-    /// `Come` frame before either alternative is even predicted, so no other
-    /// verb phrase can reach this production.
-    pub(super) fn add_coin_result_rules(&mut self) {
-        use Expected::Lexical as l;
-        use Expected::Nonterminal as n;
-        use Nonterminal as N;
-
-        for side in [
-            crate::syntax::CoinSide::Heads,
-            crate::syntax::CoinSide::Tails,
-        ] {
-            self.add(
-                RuleTag::VerbPhraseCoinResult,
-                N::VerbPhrase,
-                [n(N::VerbPhrase), l(EnglishLexicalSlot::CoinResult(side))],
-            );
-        }
-    }
-
     /// Registers the fronted `While <gerund clause>, <clause>.` production
     /// [CR#701.38d] after every other rule, including the coin-result
     /// predicate. The dot-1 gate in `accepts_predicate_prefix` requires
@@ -949,11 +885,9 @@ mod tests {
             [Expected::Lexical(EnglishLexicalSlot::Adjective)],
         );
         builder.add(
-            RuleTag::Verb,
-            Nonterminal::Verb,
-            [Expected::Lexical(EnglishLexicalSlot::Verb(
-                crate::word::VerbSlot::Infinitive,
-            ))],
+            RuleTag::AdjectivePhrase,
+            Nonterminal::AdjectivePhrase,
+            [Expected::Nonterminal(Nonterminal::Adjective)],
         );
         builder
     }

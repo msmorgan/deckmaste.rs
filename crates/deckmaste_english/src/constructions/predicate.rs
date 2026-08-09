@@ -4,7 +4,7 @@
     dead_code,
     clippy::needless_pass_by_value,
     clippy::unnecessary_wraps,
-    reason = "inactive generated adapters own their erased builder and inverse values"
+    reason = "generated adapters own their erased builder and inverse values"
 )]
 
 use deckmaste_construction_compiler::runtime::DeclarationViolation;
@@ -33,6 +33,10 @@ use crate::syntax::NounPhrase;
 use crate::syntax::OracleSymbol;
 use crate::syntax::Phrase;
 use crate::syntax::PowerToughness;
+use crate::syntax::Predicate;
+use crate::syntax::PredicateAdjunct;
+use crate::syntax::PredicateComplement;
+use crate::syntax::PredicateElement;
 use crate::syntax::PredicateObject;
 use crate::syntax::PredicateObjectCoordination;
 use crate::syntax::PrepositionalPhrase;
@@ -49,6 +53,168 @@ type SymbolSequence = Vec<OracleSymbol>;
 type ManaAmount = PredicateObject;
 type ManaAmountList = PredicateObject;
 type CoordinatedManaAmount = CoordinatedPredicateObject;
+
+pub(crate) fn inverse_public_predicate(
+    predicate: &Predicate,
+) -> Result<VerbPhrase, DeclarationViolation> {
+    let invalid = || {
+        violation(
+            "predicate",
+            "the sealed public predicate has a generated owner",
+        )
+    };
+    match predicate {
+        Predicate::Transitive(predicate) => {
+            let mut dependents = public_elements(&predicate.pre_object_elements)?;
+            dependents.extend(public_object(&predicate.object)?);
+            dependents.extend(public_elements(predicate.elements())?);
+            Ok(VerbPhrase::from_finished_parts(
+                predicate.head(),
+                dependents,
+            ))
+        }
+        Predicate::Intransitive(predicate) => Ok(VerbPhrase::from_finished_parts(
+            predicate.head(),
+            public_elements(predicate.elements())?,
+        )),
+        Predicate::Passive(predicate) => {
+            let mut dependents = Vec::new();
+            if let Some(object) = &predicate.retained_object {
+                dependents.extend(public_object(object)?);
+            }
+            dependents.extend(public_elements(predicate.elements())?);
+            Ok(VerbPhrase::from_finished_parts(
+                predicate.head(),
+                dependents,
+            ))
+        }
+        Predicate::Proform(predicate) => Ok(VerbPhrase::declaration_proform(predicate.auxiliary)),
+        Predicate::Deontic(predicate) => {
+            let inner = predicate.inner.as_deref().map_or_else(
+                || {
+                    Ok(VerbPhrase::declaration_proform(AuxiliaryInstance {
+                        auxiliary: crate::word::Auxiliary::Do,
+                        inflection: crate::word::AuxiliaryInflection::Base,
+                        contracted_negation: crate::features::Contraction::Full,
+                    }))
+                },
+                inverse_public_predicate,
+            )?;
+            Ok(VerbPhrase::declaration_with_auxiliary(
+                inner,
+                predicate.modal.auxiliary,
+            ))
+        }
+        Predicate::Attached(_) | Predicate::Copular(_) => Err(invalid()),
+    }
+}
+
+pub(crate) fn inverse_public_object_gap_predicate(
+    predicate: &crate::syntax::ObjectGapPredicate,
+) -> Result<VerbPhrase, DeclarationViolation> {
+    Ok(VerbPhrase::from_finished_parts(
+        predicate.head(),
+        public_elements(predicate.elements())?,
+    ))
+}
+
+fn public_elements(
+    elements: &[PredicateElement],
+) -> Result<Vec<VerbDependent>, DeclarationViolation> {
+    elements.iter().map(public_element).collect()
+}
+
+fn public_element(element: &PredicateElement) -> Result<VerbDependent, DeclarationViolation> {
+    Ok(match element {
+        PredicateElement::Complement(PredicateComplement::IndirectObject(value)) => {
+            VerbDependent::IndirectObject(value.clone())
+        }
+        PredicateElement::Complement(PredicateComplement::Adjective(value)) => {
+            VerbDependent::Adverbial(Phrase::AdjectivePhrase(Box::new(value.clone())))
+        }
+        PredicateElement::Complement(PredicateComplement::CoordinatedAdjective(value)) => {
+            VerbDependent::CoordinatedAdjective(value.clone())
+        }
+        PredicateElement::Complement(PredicateComplement::Prepositional(value)) => {
+            VerbDependent::PredicateComplement(Phrase::PrepositionalPhrase(Box::new(value.clone())))
+        }
+        PredicateElement::Complement(PredicateComplement::Infinitive(value)) => {
+            VerbDependent::Infinitive(InfinitiveClause::from_finished_parts(
+                value.negated,
+                value.marker,
+                inverse_public_predicate(&value.predicate)?,
+            ))
+        }
+        PredicateElement::Adjunct(PredicateAdjunct::Adverb(value)) => {
+            VerbDependent::Adverbial(Phrase::Adverb(*value))
+        }
+        PredicateElement::Adjunct(PredicateAdjunct::Frequency(value)) => {
+            VerbDependent::Frequency(*value)
+        }
+        PredicateElement::Adjunct(PredicateAdjunct::Temporal(value)) => {
+            VerbDependent::Temporal(value.clone())
+        }
+        PredicateElement::Adjunct(PredicateAdjunct::Manner(value)) => {
+            VerbDependent::Manner(value.clone())
+        }
+        PredicateElement::Adjunct(PredicateAdjunct::Prepositional(value)) => {
+            VerbDependent::Prepositional(value.clone())
+        }
+        PredicateElement::Adjunct(PredicateAdjunct::Exception(value)) => {
+            VerbDependent::Exception(value.clone())
+        }
+        PredicateElement::Adjunct(PredicateAdjunct::Dependent(value)) => {
+            VerbDependent::Subordinate(Box::new(crate::syntax::Clause::Dependent(
+                (**value).clone(),
+            )))
+        }
+        PredicateElement::Particle(value) => VerbDependent::Particle(*value),
+        PredicateElement::CoinResult(value) => VerbDependent::CoinResult(*value),
+    })
+}
+
+fn public_object(object: &PredicateObject) -> Result<Vec<VerbDependent>, DeclarationViolation> {
+    let mut dependents = Vec::new();
+    match object {
+        PredicateObject::NounPhrase(value) => {
+            dependents.push(VerbDependent::DirectObject(value.clone()));
+        }
+        PredicateObject::Ability(value) => {
+            dependents.push(VerbDependent::PredicateComplement(Phrase::CatalogAtom(
+                value.ability.clone(),
+            )));
+            if let Some(argument) = &value.argument {
+                dependents.extend(public_object(argument)?);
+            }
+        }
+        PredicateObject::Quantity(value) => {
+            dependents.push(VerbDependent::Scalar(Phrase::Quantity(*value)));
+        }
+        PredicateObject::OracleSymbol(value) => {
+            dependents.push(VerbDependent::Scalar(Phrase::OracleSymbol(value.clone())));
+        }
+        PredicateObject::SymbolSequence(value) => {
+            dependents.push(VerbDependent::Scalar(Phrase::SymbolSequence(value.clone())));
+        }
+        PredicateObject::PowerToughness(value) => {
+            dependents.push(VerbDependent::Statistic(Phrase::PowerToughness(*value)));
+        }
+        PredicateObject::EmbeddedAbility(value) => {
+            dependents.push(VerbDependent::PredicateComplement(Phrase::EmbeddedAbility(
+                value.clone(),
+            )));
+        }
+        PredicateObject::QuotedAbility(value) => {
+            dependents.push(VerbDependent::PredicateComplement(Phrase::QuotedAbility(
+                value.clone(),
+            )));
+        }
+        PredicateObject::Coordinated(value) => {
+            dependents.push(VerbDependent::CoordinatedObject(value.clone()));
+        }
+    }
+    Ok(dependents)
+}
 
 fn violation(construction: &'static str, requirement: &'static str) -> DeclarationViolation {
     DeclarationViolation {
@@ -475,6 +641,10 @@ fn reduce_verb_phrase_frequency_features(
         .then(|| extend_predicate_features(predicate, PredicateAttachment::Adjunct))?
 }
 
+fn mark_generated_attachment_cost(features: &Features) -> Option<Features> {
+    Some(features.clone())
+}
+
 fn reduce_passive_shared_prepositional_features(
     predicate: &Features,
     preposition: &Features,
@@ -508,12 +678,8 @@ fn reduce_frequency_phrase_features(frequency: &Features) -> Option<Features> {
     matches!(frequency, Features::None).then_some(Features::None)
 }
 
-fn reduce_frequency_phrase_adverb_features(
-    limiter: &Features,
-    frequency: &Features,
-) -> Option<Features> {
-    (matches!(limiter, Features::None) && matches!(frequency, Features::None))
-        .then_some(Features::None)
+fn reduce_frequency_phrase_adverb_features(frequency: &Features) -> Option<Features> {
+    matches!(frequency, Features::None).then_some(Features::None)
 }
 
 fn reduce_verb_phrase_ability_features(
@@ -825,9 +991,35 @@ fn verb_phrase_auxiliary_parts(value: &VerbPhrase) -> (AuxiliaryInstance, VerbPh
 }
 
 fn is_verb_phrase_auxiliary(value: &VerbPhrase) -> bool {
+    let Some((_, predicate)) = value.declaration_auxiliary_parts() else {
+        return false;
+    };
+    // A bare temporal/manner nominal is classified against the lexical
+    // participle before a perfect auxiliary wraps it. The flattened finished
+    // predicate retains both facts, so inverse dispatch must peel that
+    // auxiliary before asking the nominal lens to reproduce its classification.
+    let nominal_adjunct_reproduces_without_auxiliary = predicate
+        .declaration_last_dependent_parts()
+        .is_some_and(|(host, dependent)| {
+            matches!(
+                &dependent,
+                VerbDependent::Temporal(_) | VerbDependent::Manner(_)
+            ) && detach_nominal_dependent(&host, dependent).is_some()
+        });
+    let nominal_adjunct_reproduces_with_auxiliary = value
+        .declaration_last_dependent_parts()
+        .is_some_and(|(host, dependent)| {
+            matches!(
+                &dependent,
+                VerbDependent::Temporal(_) | VerbDependent::Manner(_)
+            ) && detach_nominal_dependent(&host, dependent).is_some()
+        });
+    let reveals_nominal_adjunct =
+        nominal_adjunct_reproduces_without_auxiliary && !nominal_adjunct_reproduces_with_auxiliary;
     value.declaration_proform_part().is_none()
-        && value.declaration_auxiliary_parts().is_some()
-        && value.declaration_last_dependent_parts().is_none()
+        && (value.declaration_last_dependent_parts().is_none()
+            || is_verb_phrase_causative(&predicate)
+            || reveals_nominal_adjunct)
         && value.declaration_first_preverb_modifier().is_none()
         && value.declaration_core_features().is_some()
 }
@@ -1181,15 +1373,8 @@ fn frequency_phrase_parts(frequency: &FrequencyPhrase) -> FrequencyPhrase {
 }
 
 fn make_frequency_phrase_adverb(
-    limiter: Vocab,
     frequency: FrequencyPhrase,
 ) -> Result<FrequencyPhrase, DeclarationViolation> {
-    if limiter != Vocab::Only {
-        return Err(violation(
-            "frequency_phrase_adverb",
-            "the frequency limiter is `only`",
-        ));
-    }
     if frequency.bound != FrequencyBound::MoreThan {
         return Err(violation(
             "frequency_phrase_adverb",
@@ -1202,14 +1387,11 @@ fn make_frequency_phrase_adverb(
     })
 }
 
-fn frequency_phrase_adverb_parts(frequency: &FrequencyPhrase) -> (Vocab, FrequencyPhrase) {
-    (
-        Vocab::Only,
-        FrequencyPhrase {
-            bound: FrequencyBound::MoreThan,
-            count: frequency.count,
-        },
-    )
+fn frequency_phrase_adverb_parts(frequency: &FrequencyPhrase) -> FrequencyPhrase {
+    FrequencyPhrase {
+        bound: FrequencyBound::MoreThan,
+        count: frequency.count,
+    }
 }
 
 fn is_frequency_phrase_adverb(frequency: &FrequencyPhrase) -> bool {
@@ -2363,17 +2545,17 @@ deckmaste_constructions_macro::constructions! {
         derive argument_complete: Features = complete_frequency(predicate, frequency);
         derive object_gap: Features = reduce_verb_phrase_frequency_features(predicate, frequency);
         derive reduced_passive: Features = reduce_verb_phrase_frequency_features(predicate, frequency);
+        derive base_attachment_count: Features = mark_generated_attachment_cost(predicate);
         form only @ 0 inverse check(is_verb_phrase_frequency) = predicate frequency;
         selection unique;
     }
 
     construction frequency_phrase_adverb: FrequencyPhrase {
         bind FrequencyPhrase via make_frequency_phrase_adverb, frequency_phrase_adverb_parts {
-            limiter: identity Vocab via FrequencyLimiter,
             frequency: hole FrequencyPhrase,
         }
-        derive features: Features = reduce_frequency_phrase_adverb_features(limiter, frequency);
-        form only @ 0 inverse check(is_frequency_phrase_adverb) = identity(limiter) frequency;
+        derive features: Features = reduce_frequency_phrase_adverb_features(frequency);
+        form only @ 0 inverse check(is_frequency_phrase_adverb) = "no" frequency;
         selection unique;
     }
 
@@ -2592,7 +2774,6 @@ pub(crate) static GROUPS: &[&GroupData] = &[&PREDICATE_DECLARATION];
 #[cfg(test)]
 mod tests {
     use std::any::Any;
-    use std::sync::OnceLock;
 
     use super::*;
     use crate::CatalogKind;
@@ -2712,12 +2893,7 @@ mod tests {
     }
 
     fn all_groups_with_predicate() -> &'static [&'static GroupData] {
-        static GROUPS: OnceLock<&'static [&'static GroupData]> = OnceLock::new();
-        GROUPS.get_or_init(|| {
-            let mut groups = crate::constructions::GROUPS.to_vec();
-            groups.push(&PREDICATE_DECLARATION);
-            Box::leak(groups.into_boxed_slice())
-        })
+        crate::constructions::GROUPS
     }
 
     fn parsed_preposition(source: &str) -> PrepositionalPhrase {
@@ -2761,13 +2937,13 @@ mod tests {
         // Mutations caught: bypass lexical-form validation in the checked
         // builder, bypass the generated whole-value inverse check so a
         // non-base predicate linearizes, accept a feature argument whose
-        // category is not `Features::Verb`, or let the handwritten mirror
-        // mask a broken inactive generated lowering path.
+        // category is not `Features::Verb`, or break the production generated
+        // lowering path.
         assert!(
-            !crate::constructions::GROUPS
+            crate::constructions::GROUPS
                 .iter()
                 .any(|group| group.name == "predicate"),
-            "the Task 1 declaration compiles without production activation"
+            "the predicate declaration is active in production"
         );
         let head = attack_head();
         let predicate = build_verb_phrase_base(head.clone()).expect("a lexical head builds");
@@ -2903,7 +3079,7 @@ mod tests {
     #[test]
     fn attachment_slice_has_the_independently_authored_nine_id_census() {
         // Mutations caught by the Task 3 matrix: omit or rename any declared
-        // attachment owner while handwritten production remains inactive.
+        // attachment owner after production activation.
         let attachment_ids = PREDICATE_DECLARATION
             .constructions
             .iter()
@@ -2942,8 +3118,8 @@ mod tests {
     #[test]
     fn predicate_value_slice_has_the_independently_authored_fifteen_id_census() {
         // Mutations caught by the Task 4 matrix: omit or rename any typed
-        // object, symbol, mana-list, power/toughness, or quantity owner while
-        // the handwritten production family remains production-active.
+        // object, symbol, mana-list, power/toughness, or quantity owner after
+        // production activation.
         let value_ids = PREDICATE_DECLARATION
             .constructions
             .iter()
@@ -3422,7 +3598,7 @@ mod tests {
             PredicateFamilyWitness {
                 id: "verb_phrase_frequency",
                 category: "VerbPhrase",
-                surface: "attack only more than once",
+                surface: "attack no more than once",
                 value: PredicateFamilyWitnessValue::VerbPhrase(
                     build_verb_phrase_frequency(
                         base(Vocab::Attack, VerbSlot::Imperative, 0),
@@ -3434,9 +3610,9 @@ mod tests {
             PredicateFamilyWitness {
                 id: "frequency_phrase_adverb",
                 category: "FrequencyPhrase",
-                surface: "only more than twice",
+                surface: "no more than twice",
                 value: PredicateFamilyWitnessValue::Frequency(
-                    build_frequency_phrase_adverb(Vocab::Only, frequency_more_than_twice).unwrap(),
+                    build_frequency_phrase_adverb(frequency_more_than_twice).unwrap(),
                 ),
             },
             PredicateFamilyWitness {
@@ -3620,7 +3796,7 @@ mod tests {
     )]
     fn every_predicate_row_has_a_typed_generated_inverse_and_exact_reparse() {
         // Mutations caught: omit a row from the category visitor, route any
-        // identity through handwritten rendering, change exact bytes or form
+        // identity through a parallel renderer, change exact bytes or form
         // ordinal, lower a row to a sibling typed value, or make registration
         // order choose a different generated construction.
         let catalogs = crate::grammar::fixture_catalogs();
@@ -3951,7 +4127,7 @@ mod tests {
         assert!(
             build_mana_amount_coordination(white.clone(), Conjunction::AndOr, blue.clone(),)
                 .is_err(),
-            "ILLEGAL_CONJUNCTION: `and/or` is not admitted by the handwritten family"
+            "ILLEGAL_CONJUNCTION: `and/or` is not admitted by the predicate family"
         );
         assert!(
             build_mana_amount_list_comma(
@@ -4368,9 +4544,9 @@ mod tests {
     }
 
     #[test]
-    fn inactive_predicate_value_anchors_match_handwritten_selection_in_both_orders() {
+    fn production_predicate_value_anchors_match_selection_in_both_orders() {
         // Mutations caught: change a Task 4 row's local cost or semantic AST,
-        // or let an inactive generated result depend on registration order.
+        // or let a generated result depend on registration order.
         let catalogs = crate::grammar::fixture_catalogs();
         let self_reference = crate::identity::SelfReference::default();
         for source in [
@@ -4385,7 +4561,7 @@ mod tests {
             "Other Goblin creatures you control get +1/+1 and have haste.",
             "Scry 2.",
         ] {
-            let handwritten = crate::grammar::parse_nonterminal_with_activation_in_both_orders(
+            let production = crate::grammar::parse_nonterminal_with_activation_in_both_orders(
                 source,
                 &catalogs,
                 Nonterminal::Sentence,
@@ -4399,11 +4575,11 @@ mod tests {
                 &self_reference,
                 GeneratedActivation::Groups(all_groups_with_predicate()),
             );
-            let handwritten_shape = format!(
+            let production_shape = format!(
                 "{:#?}",
-                handwritten[0]
+                production[0]
                     .sentence()
-                    .unwrap_or_else(|| panic!("handwritten root is not a sentence for {source:?}"))
+                    .unwrap_or_else(|| panic!("production root is not a sentence for {source:?}"))
             );
             let generated_shape = format!(
                 "{:#?}",
@@ -4412,9 +4588,9 @@ mod tests {
                     .unwrap_or_else(|| panic!("generated root is not a sentence for {source:?}"))
             );
             assert_eq!(
-                format!("{:#?}", handwritten[1].sentence().unwrap()),
-                handwritten_shape,
-                "handwritten reversal changed {source:?}"
+                format!("{:#?}", production[1].sentence().unwrap()),
+                production_shape,
+                "production reversal changed {source:?}"
             );
             assert_eq!(
                 format!("{:#?}", generated[1].sentence().unwrap()),
@@ -4422,11 +4598,11 @@ mod tests {
                 "generated reversal changed {source:?}"
             );
             assert_eq!(
-                generated_shape, handwritten_shape,
+                generated_shape, production_shape,
                 "AST mismatch for {source:?}"
             );
-            assert_eq!(generated[0].cost(), handwritten[0].cost(), "{source:?}");
-            assert_eq!(generated[1].cost(), handwritten[1].cost(), "{source:?}");
+            assert_eq!(generated[0].cost(), production[0].cost(), "{source:?}");
+            assert_eq!(generated[1].cost(), production[1].cost(), "{source:?}");
         }
     }
 
@@ -4510,43 +4686,41 @@ mod tests {
         };
         let base_frequency = build_frequency_phrase(lexical_frequency).unwrap();
         assert_eq!(parts_frequency_phrase(&base_frequency), lexical_frequency);
-        let limited_frequency = build_frequency_phrase_adverb(Vocab::Only, base_frequency).unwrap();
+        let limited_frequency = build_frequency_phrase_adverb(base_frequency).unwrap();
         assert_eq!(limited_frequency.bound, FrequencyBound::NoMoreThan);
-        let (recovered_limiter, recovered_frequency) =
-            parts_frequency_phrase_adverb(&limited_frequency);
-        assert_eq!(recovered_limiter, Vocab::Only);
+        let recovered_frequency = parts_frequency_phrase_adverb(&limited_frequency);
         assert_eq!(recovered_frequency, lexical_frequency);
         assert_eq!(
-            build_frequency_phrase_adverb(recovered_limiter, recovered_frequency).unwrap(),
+            build_frequency_phrase_adverb(recovered_frequency).unwrap(),
             limited_frequency
         );
     }
 
     #[test]
-    fn frequency_limiter_rejects_already_bounded_child_and_rebuilds_from_parts() {
+    fn frequency_no_more_literal_rejects_already_bounded_child_and_rebuilds_from_parts() {
         let already_bounded = FrequencyPhrase {
             bound: FrequencyBound::NoMoreThan,
             count: crate::syntax::FrequencyCount::Once,
         };
         assert_eq!(
-            build_frequency_phrase_adverb(Vocab::Only, already_bounded),
+            build_frequency_phrase_adverb(already_bounded),
             Err(DeclarationViolation {
                 construction: "frequency_phrase_adverb",
                 requirement: "the child frequency has the `more than` bound",
             }),
-            "Only + NoMoreThan must not collapse onto the same semantic value as Only + MoreThan"
+            "No + NoMoreThan must not collapse onto the same semantic value as No + MoreThan"
         );
 
         let child = FrequencyPhrase {
             bound: FrequencyBound::MoreThan,
             count: crate::syntax::FrequencyCount::Twice,
         };
-        let built = build_frequency_phrase_adverb(Vocab::Only, child)
-            .expect("Only + MoreThan is the admitted composition");
-        let (limiter, recovered_child) = parts_frequency_phrase_adverb(&built);
+        let built = build_frequency_phrase_adverb(child)
+            .expect("No + MoreThan is the admitted composition");
+        let recovered_child = parts_frequency_phrase_adverb(&built);
         assert_eq!(recovered_child, child);
         assert_eq!(
-            build_frequency_phrase_adverb(limiter, recovered_child).unwrap(),
+            build_frequency_phrase_adverb(recovered_child).unwrap(),
             built,
             "an admitted build must survive parts and rebuild exactly"
         );
@@ -4764,18 +4938,6 @@ mod tests {
             )
             .is_err(),
             "the exception requires an argument-complete passive host"
-        );
-
-        assert!(
-            build_frequency_phrase_adverb(
-                Vocab::Again,
-                FrequencyPhrase {
-                    bound: FrequencyBound::MoreThan,
-                    count: crate::syntax::FrequencyCount::Once,
-                },
-            )
-            .is_err(),
-            "a non-Only limiter is malformed frequency composition"
         );
 
         let mut exception_terminal = passive
@@ -5147,8 +5309,8 @@ mod tests {
     fn generated_contexts_cover_agreement_object_gap_and_reduced_recipient_passive() {
         // Mutations caught: bypass finite subject agreement, fail to project
         // the declaration family into the object-gap category, retain an
-        // arbitrary reduced-recipient-passive theme, or let a handwritten
-        // mirror hide a broken generated lowering path.
+        // arbitrary reduced-recipient-passive theme, or break the generated
+        // lowering path.
         let activation = GeneratedActivation::Groups(all_groups_with_predicate());
         assert!(
             crate::grammar::parse_nonterminal_with_activation(
@@ -5199,6 +5361,17 @@ mod tests {
             decision.selected().as_str() == "verb_phrase_direct_object"
                 && decision.owner() == crate::construction::ConstructionOwner::Generated
         }));
+        let reduced_value = reduced
+            .verb_phrase()
+            .expect("the reduced-passive prefix lowers a VerbPhrase");
+        build_verb_phrase_frequency(
+            reduced_value.clone(),
+            FrequencyPhrase {
+                bound: FrequencyBound::NoMoreThan,
+                count: crate::syntax::FrequencyCount::Twice,
+            },
+        )
+        .expect("the generated frequency builder admits the reduced-passive value");
         assert!(
             crate::grammar::parse_nonterminal_with_activation(
                 "dealt a card",
@@ -5266,10 +5439,14 @@ mod tests {
             .unwrap_or_else(|error| {
                 panic!("generated reduced-passive attachment failed for {source:?}: {error:?}")
             });
-            assert!(parsed.construction_decisions().iter().any(|decision| {
-                decision.selected().as_str() == construction
-                    && decision.owner() == crate::construction::ConstructionOwner::Generated
-            }));
+            assert!(
+                parsed.construction_decisions().iter().any(|decision| {
+                    decision.selected().as_str() == construction
+                        && decision.owner() == crate::construction::ConstructionOwner::Generated
+                }),
+                "{source:?} selected decisions: {:#?}",
+                parsed.construction_decisions()
+            );
         }
         assert!(
             crate::grammar::parse_nonterminal_with_activation(
@@ -5284,7 +5461,7 @@ mod tests {
     }
 
     #[test]
-    fn inactive_generated_direct_object_preserves_a_later_temporal_dependent() {
+    fn generated_direct_object_preserves_a_later_temporal_dependent() {
         // Mutation caught: project predicate dependents through one occupied
         // optional focus, so attaching `this turn` after `that card` fails
         // during generated lowering instead of preserving both in order.
@@ -5315,7 +5492,7 @@ mod tests {
     }
 
     #[test]
-    fn inactive_generated_adjective_pp_selection_matches_in_both_orders() {
+    fn generated_adjective_pp_selection_matches_in_both_orders() {
         // Mutations caught: charge adjective like PP instead of +2 versus +1,
         // or let that defect make equal-cost alternatives depend on
         // registration order. The conditional active-temporal cost has its
@@ -5323,7 +5500,7 @@ mod tests {
         let source = "Nissa's power is equal to the number of lands you control.";
         let self_reference = crate::identity::SelfReference::new("Nissa Revane", true);
         let catalogs = crate::grammar::fixture_catalogs();
-        let handwritten = crate::grammar::parse_nonterminal_with_activation_in_both_orders(
+        let production = crate::grammar::parse_nonterminal_with_activation_in_both_orders(
             source,
             &catalogs,
             Nonterminal::Sentence,
@@ -5337,11 +5514,11 @@ mod tests {
             &self_reference,
             GeneratedActivation::Groups(all_groups_with_predicate()),
         );
-        let handwritten_shape = format!(
+        let production_shape = format!(
             "{:#?}",
-            handwritten[0]
+            production[0]
                 .sentence()
-                .expect("the handwritten parse lowers a sentence")
+                .expect("the production parse lowers a sentence")
         );
         let generated_shape = format!(
             "{:#?}",
@@ -5352,12 +5529,12 @@ mod tests {
         assert_eq!(
             format!(
                 "{:#?}",
-                handwritten[1]
+                production[1]
                     .sentence()
-                    .expect("the reversed handwritten parse lowers a sentence")
+                    .expect("the reversed production parse lowers a sentence")
             ),
-            handwritten_shape,
-            "handwritten selection changed under reversal for {source:?}"
+            production_shape,
+            "production selection changed under reversal for {source:?}"
         );
         assert_eq!(
             format!(
@@ -5369,13 +5546,13 @@ mod tests {
             generated_shape,
             "generated selection changed under reversal for {source:?}"
         );
-        assert_eq!(generated_shape, handwritten_shape, "{source:?}");
-        assert_eq!(generated[0].cost(), handwritten[0].cost(), "{source:?}");
-        assert_eq!(generated[1].cost(), handwritten[1].cost(), "{source:?}");
+        assert_eq!(generated_shape, production_shape, "{source:?}");
+        assert_eq!(generated[0].cost(), production[0].cost(), "{source:?}");
+        assert_eq!(generated[1].cost(), production[1].cost(), "{source:?}");
     }
 
     #[test]
-    fn inactive_predicate_dominance_edges_remove_only_the_named_loser() {
+    fn predicate_dominance_edges_remove_only_the_named_loser() {
         // Mutations caught: remove or reverse any one of the four declared
         // edges, let dominance leak to an incomparable attachment, choose by
         // registration order, or classify lexical `do` with a proform frame
@@ -5468,7 +5645,7 @@ mod tests {
     }
 
     #[test]
-    fn inactive_predicate_incomparable_tie_remains_visible_in_both_orders() {
+    fn predicate_incomparable_tie_remains_visible_in_both_orders() {
         // Mutation caught: broaden an auxiliary dominance edge to the direct
         // object attachment or let stable registration identity change the
         // selected semantic value or the visible tied-candidate set.
@@ -5525,7 +5702,7 @@ mod tests {
     }
 
     #[test]
-    fn inactive_generated_attachment_anchors_are_registration_order_neutral() {
+    fn generated_attachment_anchors_are_registration_order_neutral() {
         // Mutations caught: assign a Task 3 attachment a registration-order
         // tie-break, lose pre/post-object order during lowering, or let a
         // generated attachment diverge in AST shape or local cost from its
@@ -5542,7 +5719,7 @@ mod tests {
             "Prevent all damage that would be dealt to target player or planeswalker this turn.",
             "This creature can't be blocked except by creatures with flying.",
         ] {
-            let handwritten = crate::grammar::parse_nonterminal_with_activation_in_both_orders(
+            let production = crate::grammar::parse_nonterminal_with_activation_in_both_orders(
                 source,
                 &catalogs,
                 Nonterminal::Sentence,
@@ -5556,11 +5733,11 @@ mod tests {
                 &self_reference,
                 GeneratedActivation::Groups(all_groups_with_predicate()),
             );
-            let handwritten_shape = format!(
+            let production_shape = format!(
                 "{:#?}",
-                handwritten[0]
+                production[0]
                     .sentence()
-                    .unwrap_or_else(|| panic!("handwritten root is not a sentence for {source:?}"))
+                    .unwrap_or_else(|| panic!("production root is not a sentence for {source:?}"))
             );
             let generated_shape = format!(
                 "{:#?}",
@@ -5571,12 +5748,12 @@ mod tests {
             assert_eq!(
                 format!(
                     "{:#?}",
-                    handwritten[1]
+                    production[1]
                         .sentence()
-                        .expect("the reversed handwritten root is a sentence")
+                        .expect("the reversed production root is a sentence")
                 ),
-                handwritten_shape,
-                "handwritten reversal changed {source:?}"
+                production_shape,
+                "production reversal changed {source:?}"
             );
             assert_eq!(
                 format!(
@@ -5588,9 +5765,9 @@ mod tests {
                 generated_shape,
                 "generated reversal changed {source:?}"
             );
-            assert_eq!(generated_shape, handwritten_shape, "{source:?}");
-            assert_eq!(generated[0].cost(), handwritten[0].cost(), "{source:?}");
-            assert_eq!(generated[1].cost(), handwritten[1].cost(), "{source:?}");
+            assert_eq!(generated_shape, production_shape, "{source:?}");
+            assert_eq!(generated[0].cost(), production[0].cost(), "{source:?}");
+            assert_eq!(generated[1].cost(), production[1].cost(), "{source:?}");
         }
     }
 
@@ -5598,7 +5775,7 @@ mod tests {
     fn predicate_family_has_exactly_the_required_34_id_census() {
         // Mutation caught: omit or rename the final causative declaration, or
         // accidentally admit an extra predicate-family owner while the group
-        // is still production-inactive.
+        // is admitted to the production group.
         assert_eq!(
             PREDICATE_DECLARATION
                 .constructions
@@ -5645,17 +5822,17 @@ mod tests {
     }
 
     #[test]
-    fn inactive_generated_sentence_root_reaches_the_causative_owner() {
+    fn generated_sentence_root_reaches_the_causative_owner() {
         // Mutation caught: keep causative parsing available only through the
-        // handwritten RuleTag path, so an explicit inactive generated
-        // Sentence consumer cannot reach the declaration-owned construction.
+        // former handwritten RuleTag path, so the production Sentence
+        // consumer cannot reach the declaration-owned construction.
         let parsed = crate::grammar::parse_nonterminal_with_activation(
             "You may have this creature enter.",
             &crate::grammar::fixture_catalogs(),
             Nonterminal::Sentence,
             GeneratedActivation::Groups(all_groups_with_predicate()),
         )
-        .expect("the inactive generated family parses a causative sentence");
+        .expect("the production generated family parses a causative sentence");
         assert!(parsed.construction_decisions().iter().any(|decision| {
             decision.selected().as_str() == "verb_phrase_causative"
                 && decision.owner() == crate::construction::ConstructionOwner::Generated
@@ -5795,8 +5972,8 @@ mod tests {
     fn generated_predicate_inverse_renderer_owns_causative_recursion() {
         // Mutation caught: leave the generated predicate inverse without a
         // category-total renderer, so the causative host or its declaration-
-        // internal bare-infinitive complement falls back to handwritten
-        // predicate rendering.
+        // internal bare-infinitive complement falls back to a parallel
+        // predicate renderer.
         let host = build_verb_phrase_direct_object(
             build_verb_phrase_base(
                 build_verb(lexical_head(Vocab::Have, VerbSlot::Infinitive, 1)).unwrap(),

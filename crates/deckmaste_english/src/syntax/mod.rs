@@ -1270,6 +1270,7 @@ mod tests {
                 verb: Verb::Word(vocab),
                 slot: VerbSlot::Imperative,
             },
+            frame: Verb::Word(vocab).predicate_frames()[0],
             distributive_each: false,
         }
     }

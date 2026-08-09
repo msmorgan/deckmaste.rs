@@ -31,7 +31,7 @@ fn family(tag: RuleTag) -> ConstructionFamily {
     )
 }
 
-fn dominance_edges() -> [DominanceEdge; 8] {
+fn dominance_edges() -> [DominanceEdge; 4] {
     let edge = |dominant, subordinate| {
         DominanceEdge::new(construction_id(dominant), construction_id(subordinate))
     };
@@ -44,10 +44,6 @@ fn dominance_edges() -> [DominanceEdge; 8] {
             RuleTag::NounPhraseSubjectPronoun,
             RuleTag::NounPhraseObjectPronoun,
         ),
-        edge(RuleTag::VerbPhraseAuxiliary, RuleTag::VerbPhraseAdjective),
-        edge(RuleTag::VerbPhraseAuxiliary, RuleTag::VerbPhraseAdverb),
-        edge(RuleTag::VerbPhraseAuxiliary, RuleTag::VerbPhraseAbility),
-        edge(RuleTag::VerbPhraseBase, RuleTag::VerbPhraseAuxiliaryProform),
         edge(RuleTag::ClauseSimple, RuleTag::ClauseCopular),
         edge(RuleTag::RelativeSubject, RuleTag::RelativeObject),
     ]
@@ -208,17 +204,61 @@ mod tests {
     }
 
     #[test]
-    fn inactive_predicate_registry_is_group_permutation_neutral() {
+    fn production_v01_has_exactly_34_generated_owners_and_declaration_edges() {
+        // Mutations caught: leave any V01 ID as a RuleTag-backed handwritten
+        // family, activate only part of the declaration group, duplicate an
+        // owner, or retain/drop a handwritten dominance mirror.
+        let declarations = crate::constructions::predicate::PREDICATE_DECLARATION.constructions;
+        assert_eq!(declarations.len(), 34, "required V01 declarations");
+        for construction in declarations {
+            let id = ConstructionId::new(construction.id);
+            assert!(
+                handwritten_registry().family(id).is_none(),
+                "{} still has a handwritten owner",
+                construction.id
+            );
+            let family = registry()
+                .family(id)
+                .unwrap_or_else(|| panic!("{} is absent from production", construction.id));
+            assert_eq!(family.owner(), ConstructionOwner::Generated, "{id}");
+            assert_eq!(family.backend(), ConstructionBackend::Chart, "{id}");
+        }
+
+        let expected = [
+            ("verb_phrase_base", "verb_phrase_auxiliary_proform"),
+            ("verb_phrase_auxiliary", "verb_phrase_adjective"),
+            ("verb_phrase_auxiliary", "verb_phrase_adverb"),
+            ("verb_phrase_auxiliary", "verb_phrase_ability"),
+        ];
+        let actual = declarations
+            .iter()
+            .flat_map(|construction| {
+                construction
+                    .dominates
+                    .iter()
+                    .map(move |subordinate| (construction.id, *subordinate))
+            })
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(actual, expected.into_iter().collect());
+        for (winner, loser) in expected {
+            assert!(
+                registry().dominates(ConstructionId::new(winner), ConstructionId::new(loser)),
+                "missing declaration-owned V01 edge {winner}>{loser}"
+            );
+        }
+    }
+
+    #[test]
+    fn production_predicate_registry_is_group_permutation_neutral() {
         // Mutation caught: let generated replacement ownership or dominance
         // depend on the predicate group's insertion position.
-        let mut normal = crate::constructions::GROUPS.to_vec();
-        normal.push(&crate::constructions::predicate::PREDICATE_DECLARATION);
+        let normal = crate::constructions::GROUPS.to_vec();
         let mut reversed = normal.clone();
         reversed.reverse();
         let normal = super::merged_registry_for_activation(&normal)
-            .expect("normal inactive group assembly is valid");
+            .expect("normal production group assembly is valid");
         let reversed = super::merged_registry_for_activation(&reversed)
-            .expect("reversed inactive group assembly is valid");
+            .expect("reversed production group assembly is valid");
         let required = crate::constructions::predicate::PREDICATE_DECLARATION
             .constructions
             .iter()
@@ -263,8 +303,8 @@ mod tests {
             .iter()
             .filter(|family| family.owner() == ConstructionOwner::Generated)
             .count();
-        assert_eq!(handwritten, 140, "handwritten chart families");
-        assert_eq!(generated, 52, "generated chart families");
+        assert_eq!(handwritten, 106, "handwritten chart families");
+        assert_eq!(generated, 86, "generated chart families");
         assert_eq!(families.len(), 192, "all chart families");
 
         let chart_fragment_entries = [FragmentKind::Nominal, FragmentKind::Sentence];
@@ -275,7 +315,7 @@ mod tests {
         ];
         assert_eq!(chart_fragment_entries.len(), 2);
         assert_eq!(ability_fragment_entries.len(), 3);
-        assert_eq!(handwritten + ability_fragment_entries.len(), 143);
+        assert_eq!(handwritten + ability_fragment_entries.len(), 109);
         assert_eq!(families.len() + ability_fragment_entries.len(), 195);
     }
 

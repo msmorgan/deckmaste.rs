@@ -491,10 +491,6 @@ fn ability_diagnostic(diagnostic: &AbilityDiagnostic) -> Diagnostic {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::OnceLock;
-
-    use deckmaste_construction_compiler::runtime::GroupData;
-
     use super::*;
     use crate::catalog::CatalogKind;
     use crate::construction::ConstructionOwner;
@@ -511,23 +507,14 @@ mod tests {
             )
     }
 
-    fn all_groups_with_predicate() -> &'static [&'static GroupData] {
-        static GROUPS: OnceLock<&'static [&'static GroupData]> = OnceLock::new();
-        GROUPS.get_or_init(|| {
-            let mut groups = crate::constructions::GROUPS.to_vec();
-            groups.push(&crate::constructions::predicate::PREDICATE_DECLARATION);
-            Box::leak(groups.into_boxed_slice())
-        })
-    }
-
-    fn inactive_fragment(source: &str, kind: FragmentKind) -> FragmentReport {
+    fn production_fragment(source: &str, kind: FragmentKind) -> FragmentReport {
         parse_fragment_with_activation(
             source,
             &catalogs(),
             kind,
             "",
             false,
-            GeneratedActivation::Groups(all_groups_with_predicate()),
+            GeneratedActivation::Production,
         )
     }
 
@@ -551,13 +538,13 @@ mod tests {
     }
 
     #[test]
-    fn inactive_predicate_activation_reaches_every_vertical_fragment_root() {
+    fn predicate_activation_reaches_every_vertical_fragment_root() {
         // Mutations caught: hardcode production activation in the ability
         // layer; discard nested construction provenance at a fragment seam;
         // or let a recovered/handwritten predicate masquerade as a semantic
         // Sentence, Cost, KeywordLine, or Ability result.
         let sentence =
-            inactive_fragment("You may have this creature enter.", FragmentKind::Sentence);
+            production_fragment("You may have this creature enter.", FragmentKind::Sentence);
         assert!(sentence.clean(), "{:?}", sentence.diagnostics());
         let causative = assert_generated(&sentence, "verb_phrase_causative");
         assert_eq!(
@@ -578,7 +565,7 @@ mod tests {
             }))
         ));
 
-        let cost = inactive_fragment("Discard a card", FragmentKind::Cost);
+        let cost = production_fragment("Discard a card", FragmentKind::Cost);
         assert!(cost.clean(), "{:?}", cost.diagnostics());
         let direct = assert_generated(&cost, "verb_phrase_direct_object");
         assert_eq!(
@@ -601,7 +588,7 @@ mod tests {
             )
         ));
 
-        let keyword = inactive_fragment("Ward—Discard a card.", FragmentKind::KeywordLine);
+        let keyword = production_fragment("Ward—Discard a card.", FragmentKind::KeywordLine);
         assert!(keyword.clean(), "{:?}", keyword.diagnostics());
         assert_generated(&keyword, "verb_phrase_direct_object");
         let Some(Fragment::KeywordLine(line)) = keyword.fragment() else {
@@ -625,7 +612,7 @@ mod tests {
                 ))
         ));
 
-        let ability = inactive_fragment(
+        let ability = production_fragment(
             "{T}: You may have this creature enter.",
             FragmentKind::Ability,
         );
@@ -649,17 +636,67 @@ mod tests {
     }
 
     #[test]
-    fn inactive_causative_semantics_remain_visible_to_recovery_traversal() {
+    fn causative_semantics_remain_visible_to_recovery_traversal() {
         // Mutation caught: lower the generated causative complement as an
         // opaque parallel value, so the ordinary syntax recovery walker can
         // no longer descend into its quoted embedded rules.
-        let report = inactive_fragment(
+        let report = production_fragment(
             "You may have this creature gain \"Zibble quux.\".",
             FragmentKind::Sentence,
         );
         assert_generated(&report, "verb_phrase_causative");
         assert_eq!(
             report
+                .recoveries()
+                .iter()
+                .map(|recovery| (recovery.role, recovery.text))
+                .collect::<Vec<_>>(),
+            [(crate::syntax::RecoveryRole::EmbeddedRules, "Zibble quux.")]
+        );
+    }
+
+    #[test]
+    fn production_predicate_ownership_reaches_every_vertical_fragment_and_recovery_consumer() {
+        // Mutations caught: activate V01 only at the Sentence chart root;
+        // discard nested provenance at a Cost/KeywordLine/Ability seam; or
+        // retain a handwritten/recovery-only semantic predicate path.
+        for (source, kind, construction) in [
+            (
+                "You may have this creature enter.",
+                FragmentKind::Sentence,
+                "verb_phrase_causative",
+            ),
+            (
+                "Discard a card",
+                FragmentKind::Cost,
+                "verb_phrase_direct_object",
+            ),
+            (
+                "Ward—Discard a card.",
+                FragmentKind::KeywordLine,
+                "verb_phrase_direct_object",
+            ),
+            (
+                "{T}: You may have this creature enter.",
+                FragmentKind::Ability,
+                "verb_phrase_causative",
+            ),
+        ] {
+            let report = parse_fragment(source, &catalogs(), kind, "", false);
+            assert!(report.clean(), "{source:?}: {:?}", report.diagnostics());
+            assert_generated(&report, construction);
+        }
+
+        let recovered = parse_fragment(
+            "You may have this creature gain \"Zibble quux.\".",
+            &catalogs(),
+            FragmentKind::Sentence,
+            "",
+            false,
+        );
+        assert_generated(&recovered, "verb_phrase_causative");
+        assert_eq!(
+            recovered
                 .recoveries()
                 .iter()
                 .map(|recovery| (recovery.role, recovery.text))
