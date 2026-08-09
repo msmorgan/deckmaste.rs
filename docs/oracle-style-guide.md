@@ -1641,7 +1641,12 @@ or, when participation varies:
 
 > Then each player who searched a library this way shuffles.
 
-Do not say `shuffle your deck`; the zone is a library.
+The Vintage corpus uses `shuffle your deck` only on three Draft Matters cards,
+all in this pregame template:
+
+> Before you shuffle your deck to start the game, [effect].
+
+Otherwise, the zone is a library, not a deck.
 
 ##### Moving cards and permanents
 
