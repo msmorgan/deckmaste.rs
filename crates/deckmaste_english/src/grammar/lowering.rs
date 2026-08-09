@@ -434,6 +434,18 @@ fn project_generated_category(
         let value = value.downcast::<FrequencyPhrase>().ok()?;
         return Some(Lowered::Frequency(*value));
     }
+    if matches!(construction.category, "ManaAmount" | "ManaAmountList") {
+        let value = value.downcast::<crate::syntax::PredicateObject>().ok()?;
+        return Some(Lowered::ManaAmount(*value));
+    }
+    if construction.category == "CoordinatedManaAmount" {
+        let value = value
+            .downcast::<crate::syntax::CoordinatedPredicateObject>()
+            .ok()?;
+        return Some(Lowered::ManaAmount(
+            crate::syntax::PredicateObject::Coordinated(*value),
+        ));
+    }
     #[cfg(test)]
     match construction.id {
         "probe_word" => {
@@ -573,6 +585,39 @@ fn erased_field(
             };
             Some(Box::new(value))
         }
+        K::Identity {
+            value_type: "QuotedAbility",
+            provider: "QuotedAbility",
+        } => {
+            let Lowered::Phrase(Phrase::QuotedAbility(value)) = value else {
+                return None;
+            };
+            Some(Box::new(*value))
+        }
+        K::Identity {
+            value_type: "OracleSymbol",
+            provider: "OracleSymbol",
+        }
+        | K::Scalar {
+            codec: "OracleSymbol",
+        } => {
+            let Lowered::OracleSymbol(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Identity {
+            value_type: "SymbolSequence",
+            provider: "SymbolSequence",
+        }
+        | K::Scalar {
+            codec: "SymbolSequence",
+        } => {
+            let Lowered::SymbolSequence(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
         K::Subtree { category, boxed } => erased_subtree(category, boxed, value),
         K::Scalar {
             codec: "Conjunction" | "NounPhraseConjunction",
@@ -603,6 +648,15 @@ fn erased_field(
             };
             Some(Box::new(super::quantity_value(value)))
         }
+        K::TypedScalar {
+            value_type: "PowerToughness",
+            codec: "PowerToughness",
+        } => {
+            let Lowered::PowerToughness(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
         K::Scalar {
             codec: "ComparativeWord",
         } => {
@@ -621,22 +675,6 @@ fn erased_field(
             codec: "Preposition",
         } => {
             let Lowered::Preposition(value) = value else {
-                return None;
-            };
-            Some(Box::new(value))
-        }
-        K::Scalar {
-            codec: "OracleSymbol",
-        } => {
-            let Lowered::OracleSymbol(value) = value else {
-                return None;
-            };
-            Some(Box::new(value))
-        }
-        K::Scalar {
-            codec: "SymbolSequence",
-        } => {
-            let Lowered::SymbolSequence(value) = value else {
                 return None;
             };
             Some(Box::new(value))
@@ -731,6 +769,14 @@ fn erased_subtree(
         "Quantity" => typed!(Quantity, value),
         "DevotionColors" => typed!(DevotionColors, value),
         "PowerToughness" => typed!(PowerToughness, value),
+        "ManaAmount" | "ManaAmountList" => typed!(ManaAmount, value),
+        "CoordinatedManaAmount" => {
+            let Lowered::ManaAmount(crate::syntax::PredicateObject::Coordinated(value)) = value
+            else {
+                return None;
+            };
+            if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
+        }
         "TransitivePredicate" => {
             let value = match value {
                 Lowered::VerbPhrase(value) => {

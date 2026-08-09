@@ -421,6 +421,35 @@ impl VerbPhrase {
                 VerbDependent::Particle(particle) => PredicateAttachment::Particle(*particle),
                 VerbDependent::CoinResult(side) => PredicateAttachment::CoinResult(*side),
                 VerbDependent::Exception(_) => PredicateAttachment::Exception,
+                VerbDependent::PredicateComplement(Phrase::CatalogAtom(_)) => {
+                    PredicateAttachment::AbilityComplement
+                }
+                VerbDependent::PredicateComplement(Phrase::QuotedAbility(_)) => {
+                    PredicateAttachment::QuotedObject
+                }
+                VerbDependent::Scalar(Phrase::OracleSymbol(_) | Phrase::SymbolSequence(_)) => {
+                    PredicateAttachment::ScalarComplement
+                }
+                VerbDependent::Scalar(Phrase::Quantity(_)) => {
+                    PredicateAttachment::ScalarOrAbilityArgument
+                }
+                VerbDependent::Statistic(Phrase::PowerToughness(_)) => {
+                    PredicateAttachment::StatisticComplement
+                }
+                VerbDependent::CoordinatedObject(coordination)
+                    if crate::constructions::predicate::declaration_coordination_is_quoted(
+                        coordination,
+                    ) =>
+                {
+                    PredicateAttachment::QuotedObject
+                }
+                VerbDependent::CoordinatedObject(coordination)
+                    if crate::constructions::predicate::declaration_coordination_is_mana(
+                        coordination,
+                    ) =>
+                {
+                    PredicateAttachment::ScalarComplement
+                }
                 _ => return None,
             };
             features = extend_predicate_features(&features, attachment)?;

@@ -2844,16 +2844,35 @@ fn generated_surface_sequence_scalars_match(
                 .enumerate()
                 .find_map(|(surface_index, field)| {
                     matches!(field.kind, FieldKindData::SurfaceScalar { codec: "Comma" })
-                        .then_some((field_index, surface_index))
+                        .then_some((field_index, surface_index, element))
                 })
         })
-        .all(|(field_index, comma_index)| {
+        .all(|(field_index, comma_index, element)| {
             let Some(Features::GeneratedSequence { tail }) =
                 fields.get(field_index).copied().flatten()
             else {
                 return false;
             };
-            let expected = tail.len >= 2;
+            let Some(sequence) = construction.fields.get(field_index) else {
+                return false;
+            };
+            let Some((_, conjunction_index)) =
+                super::generated::coordination_delimiter_fields(rule.group, element)
+            else {
+                return false;
+            };
+            let Some(conjunction) = element.fields.get(conjunction_index) else {
+                return false;
+            };
+            let open_comma_prefix = construction.requirements.iter().any(|requirement| {
+                matches!(
+                    requirement.predicate,
+                    deckmaste_construction_compiler::runtime::PredicateData::IsNone { path }
+                        if path
+                            == format!("{}.last.{}", sequence.name, conjunction.name)
+                )
+            });
+            let expected = open_comma_prefix || tail.len >= 2;
             tail.elements()
                 .into_iter()
                 .all(|element| (element.present_fields & (1_u64 << comma_index) != 0) == expected)

@@ -10,6 +10,9 @@
 use deckmaste_construction_compiler::runtime::DeclarationViolation;
 use deckmaste_construction_compiler::runtime::GroupData;
 
+use crate::catalog::CatalogAtom;
+use crate::features::Comma;
+use crate::features::Conjunction;
 use crate::grammar::Features;
 use crate::grammar::InfinitiveClause;
 use crate::grammar::PredicateAttachment;
@@ -20,20 +23,32 @@ use crate::grammar::auxiliary_form;
 use crate::grammar::extend_predicate_features;
 use crate::grammar::fold_auxiliary_passive;
 use crate::grammar::reduction::reduce_verb_phrase_base;
+use crate::syntax::AbilityObject;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::CoinSide;
+use crate::syntax::CoordinatedPredicateObject;
 use crate::syntax::FrequencyBound;
 use crate::syntax::FrequencyPhrase;
 use crate::syntax::NounPhrase;
+use crate::syntax::OracleSymbol;
 use crate::syntax::Phrase;
+use crate::syntax::PowerToughness;
+use crate::syntax::PredicateObject;
+use crate::syntax::PredicateObjectCoordination;
 use crate::syntax::PrepositionalPhrase;
 use crate::syntax::PreverbModifier;
+use crate::syntax::Quantity;
+use crate::syntax::QuotedAbility;
 use crate::syntax::VerbParticle;
 use crate::word::AuxiliaryInstance;
 use crate::word::Vocab;
 use crate::word::Vocabulary;
 
 type Verb = VerbAnalysis;
+type SymbolSequence = Vec<OracleSymbol>;
+type ManaAmount = PredicateObject;
+type ManaAmountList = PredicateObject;
+type CoordinatedManaAmount = CoordinatedPredicateObject;
 
 fn violation(construction: &'static str, requirement: &'static str) -> DeclarationViolation {
     DeclarationViolation {
@@ -492,6 +507,60 @@ fn reduce_frequency_phrase_adverb_features(
         .then_some(Features::None)
 }
 
+fn reduce_verb_phrase_ability_features(
+    predicate: &Features,
+    ability: &Features,
+) -> Option<Features> {
+    matches!(ability, Features::None)
+        .then(|| extend_predicate_features(predicate, PredicateAttachment::AbilityComplement))?
+}
+
+fn reduce_verb_phrase_quoted_ability_features(
+    predicate: &Features,
+    quoted: &Features,
+) -> Option<Features> {
+    matches!(quoted, Features::None)
+        .then(|| extend_predicate_features(predicate, PredicateAttachment::QuotedObject))?
+}
+
+fn reduce_verb_phrase_quoted_coordination_features(
+    predicate: &Features,
+    pair: &Features,
+) -> Option<Features> {
+    matches!(pair, Features::GeneratedSequence { .. })
+        .then(|| extend_predicate_features(predicate, PredicateAttachment::QuotedObject))?
+}
+
+fn reduce_verb_phrase_scalar_features(predicate: &Features, scalar: &Features) -> Option<Features> {
+    matches!(scalar, Features::None)
+        .then(|| extend_predicate_features(predicate, PredicateAttachment::ScalarComplement))?
+}
+
+fn reduce_verb_phrase_mana_coordination_features(
+    predicate: &Features,
+    coordination: &Features,
+) -> Option<Features> {
+    matches!(coordination, Features::None)
+        .then(|| extend_predicate_features(predicate, PredicateAttachment::ScalarComplement))?
+}
+
+fn reduce_verb_phrase_power_toughness_features(
+    predicate: &Features,
+    value: &Features,
+) -> Option<Features> {
+    matches!(value, Features::PowerToughness { .. })
+        .then(|| extend_predicate_features(predicate, PredicateAttachment::StatisticComplement))?
+}
+
+fn reduce_verb_phrase_quantity_features(
+    predicate: &Features,
+    quantity: &Features,
+) -> Option<Features> {
+    matches!(quantity, Features::Quantity(_)).then(|| {
+        extend_predicate_features(predicate, PredicateAttachment::ScalarOrAbilityArgument)
+    })?
+}
+
 fn complete_adverb(predicate: &Features, adverb: &Features) -> Option<Features> {
     admit_argument_complete(reduce_verb_phrase_adverb_features(predicate, adverb))
 }
@@ -526,6 +595,43 @@ fn complete_passive_shared_prepositional(
 
 fn complete_exception(predicate: &Features, preposition: &Features) -> Option<Features> {
     admit_argument_complete(reduce_exception_features(predicate, preposition))
+}
+
+fn complete_ability(predicate: &Features, ability: &Features) -> Option<Features> {
+    admit_argument_complete(reduce_verb_phrase_ability_features(predicate, ability))
+}
+
+fn complete_quoted_ability(predicate: &Features, quoted: &Features) -> Option<Features> {
+    admit_argument_complete(reduce_verb_phrase_quoted_ability_features(
+        predicate, quoted,
+    ))
+}
+
+fn complete_quoted_coordination(predicate: &Features, pair: &Features) -> Option<Features> {
+    admit_argument_complete(reduce_verb_phrase_quoted_coordination_features(
+        predicate, pair,
+    ))
+}
+
+fn complete_scalar(predicate: &Features, scalar: &Features) -> Option<Features> {
+    admit_argument_complete(reduce_verb_phrase_scalar_features(predicate, scalar))
+}
+
+fn complete_mana_coordination(predicate: &Features, coordination: &Features) -> Option<Features> {
+    admit_argument_complete(reduce_verb_phrase_mana_coordination_features(
+        predicate,
+        coordination,
+    ))
+}
+
+fn complete_power_toughness(predicate: &Features, value: &Features) -> Option<Features> {
+    admit_argument_complete(reduce_verb_phrase_power_toughness_features(
+        predicate, value,
+    ))
+}
+
+fn complete_quantity(predicate: &Features, quantity: &Features) -> Option<Features> {
+    admit_argument_complete(reduce_verb_phrase_quantity_features(predicate, quantity))
 }
 
 fn make_verb_phrase_auxiliary(
@@ -931,6 +1037,647 @@ fn is_frequency_phrase_adverb(frequency: &FrequencyPhrase) -> bool {
     frequency.bound == FrequencyBound::NoMoreThan
 }
 
+fn object_conjunction(
+    construction: &'static str,
+    conjunction: Conjunction,
+) -> Result<Conjunction, DeclarationViolation> {
+    matches!(conjunction, Conjunction::And | Conjunction::Or)
+        .then_some(conjunction)
+        .ok_or_else(|| {
+            violation(
+                construction,
+                "the object conjunction is exactly `and` or `or`",
+            )
+        })
+}
+
+fn is_mana_atom(object: &PredicateObject) -> bool {
+    match object {
+        PredicateObject::OracleSymbol(_) => true,
+        PredicateObject::SymbolSequence(symbols) => !symbols.is_empty(),
+        _ => false,
+    }
+}
+
+fn coordinated_mana_is_valid(value: &CoordinatedPredicateObject) -> bool {
+    !value.rest.is_empty()
+        && is_mana_atom(value.first.as_ref())
+        && value.rest.iter().enumerate().all(|(index, member)| {
+            is_mana_atom(&member.object)
+                && if index + 1 == value.rest.len() {
+                    matches!(member.conjunction, Some(Conjunction::And | Conjunction::Or))
+                } else {
+                    member.conjunction.is_none()
+                }
+        })
+}
+
+pub(crate) fn declaration_coordination_is_mana(value: &CoordinatedPredicateObject) -> bool {
+    coordinated_mana_is_valid(value)
+}
+
+pub(crate) fn declaration_coordination_is_quoted(value: &CoordinatedPredicateObject) -> bool {
+    matches!(
+        value.rest.as_slice(),
+        [PredicateObjectCoordination {
+            conjunction: Some(Conjunction::And | Conjunction::Or),
+            object: PredicateObject::QuotedAbility(_),
+        }]
+    ) && matches!(
+        value.first.as_ref(),
+        PredicateObject::QuotedAbility(_)
+            | PredicateObject::Ability(AbilityObject { argument: None, .. })
+    )
+}
+
+fn attach_ability_dependent(
+    predicate: &VerbPhrase,
+    ability: CatalogAtom,
+) -> Result<VerbDependent, DeclarationViolation> {
+    licensed_attachment(
+        "verb_phrase_ability",
+        predicate,
+        PredicateAttachment::AbilityComplement,
+    )?;
+    Ok(VerbDependent::PredicateComplement(Phrase::CatalogAtom(
+        ability,
+    )))
+}
+
+fn detach_ability_dependent(
+    predicate: &VerbPhrase,
+    dependent: VerbDependent,
+) -> Option<CatalogAtom> {
+    let VerbDependent::PredicateComplement(Phrase::CatalogAtom(ability)) = dependent else {
+        return None;
+    };
+    attach_ability_dependent(predicate, ability.clone()).ok()?;
+    Some(ability)
+}
+
+fn attach_quoted_ability_dependent(
+    predicate: &VerbPhrase,
+    quoted: QuotedAbility,
+) -> Result<VerbDependent, DeclarationViolation> {
+    licensed_attachment(
+        "verb_phrase_quoted_ability",
+        predicate,
+        PredicateAttachment::QuotedObject,
+    )?;
+    Ok(VerbDependent::PredicateComplement(Phrase::QuotedAbility(
+        Box::new(quoted),
+    )))
+}
+
+fn detach_quoted_ability_dependent(
+    predicate: &VerbPhrase,
+    dependent: VerbDependent,
+) -> Option<QuotedAbility> {
+    let VerbDependent::PredicateComplement(Phrase::QuotedAbility(quoted)) = dependent else {
+        return None;
+    };
+    attach_quoted_ability_dependent(predicate, (*quoted).clone()).ok()?;
+    Some(*quoted)
+}
+
+fn attach_quoted_pair_dependent(
+    predicate: &VerbPhrase,
+    mut pair: Vec<QuotedAbilityPairMember>,
+) -> Result<VerbDependent, DeclarationViolation> {
+    let [pair] = pair.as_mut_slice() else {
+        return Err(violation(
+            "verb_phrase_quoted_ability_coordination",
+            "the quoted coordination has exactly two members",
+        ));
+    };
+    let conjunction =
+        object_conjunction("verb_phrase_quoted_ability_coordination", pair.conjunction)?;
+    licensed_attachment(
+        "verb_phrase_quoted_ability_coordination",
+        predicate,
+        PredicateAttachment::QuotedObject,
+    )?;
+    Ok(VerbDependent::CoordinatedObject(
+        CoordinatedPredicateObject {
+            first: Box::new(PredicateObject::QuotedAbility(Box::new(pair.first.clone()))),
+            rest: vec![PredicateObjectCoordination {
+                conjunction: Some(conjunction),
+                object: PredicateObject::QuotedAbility(Box::new(pair.next.clone())),
+            }],
+        },
+    ))
+}
+
+fn detach_quoted_pair_dependent(
+    predicate: &VerbPhrase,
+    dependent: VerbDependent,
+) -> Option<Vec<QuotedAbilityPairMember>> {
+    let VerbDependent::CoordinatedObject(CoordinatedPredicateObject { first, rest }) = dependent
+    else {
+        return None;
+    };
+    let PredicateObject::QuotedAbility(first) = *first else {
+        return None;
+    };
+    let [
+        PredicateObjectCoordination {
+            conjunction: Some(conjunction),
+            object: PredicateObject::QuotedAbility(next),
+        },
+    ] = rest.as_slice()
+    else {
+        return None;
+    };
+    let pair = vec![QuotedAbilityPairMember {
+        first: *first,
+        conjunction: *conjunction,
+        next: (**next).clone(),
+    }];
+    object_conjunction("verb_phrase_quoted_ability_coordination", *conjunction).ok()?;
+    licensed_attachment(
+        "verb_phrase_quoted_ability_coordination",
+        predicate,
+        PredicateAttachment::QuotedObject,
+    )
+    .ok()?;
+    Some(pair)
+}
+
+fn attach_ability_quoted_pair_dependent(
+    predicate: &VerbPhrase,
+    mut pair: Vec<AbilityQuotedPairMember>,
+) -> Result<VerbDependent, DeclarationViolation> {
+    let [pair] = pair.as_mut_slice() else {
+        return Err(violation(
+            "verb_phrase_ability_quoted_coordination",
+            "the mixed coordination has exactly one ability then one quote",
+        ));
+    };
+    let conjunction =
+        object_conjunction("verb_phrase_ability_quoted_coordination", pair.conjunction)?;
+    licensed_attachment(
+        "verb_phrase_ability_quoted_coordination",
+        predicate,
+        PredicateAttachment::QuotedObject,
+    )?;
+    Ok(VerbDependent::CoordinatedObject(
+        CoordinatedPredicateObject {
+            first: Box::new(PredicateObject::Ability(AbilityObject {
+                ability: pair.ability.clone(),
+                argument: None,
+            })),
+            rest: vec![PredicateObjectCoordination {
+                conjunction: Some(conjunction),
+                object: PredicateObject::QuotedAbility(Box::new(pair.quoted.clone())),
+            }],
+        },
+    ))
+}
+
+fn detach_ability_quoted_pair_dependent(
+    predicate: &VerbPhrase,
+    dependent: VerbDependent,
+) -> Option<Vec<AbilityQuotedPairMember>> {
+    let VerbDependent::CoordinatedObject(CoordinatedPredicateObject { first, rest }) = dependent
+    else {
+        return None;
+    };
+    let PredicateObject::Ability(AbilityObject {
+        ability,
+        argument: None,
+    }) = *first
+    else {
+        return None;
+    };
+    let [
+        PredicateObjectCoordination {
+            conjunction: Some(conjunction),
+            object: PredicateObject::QuotedAbility(quoted),
+        },
+    ] = rest.as_slice()
+    else {
+        return None;
+    };
+    let pair = vec![AbilityQuotedPairMember {
+        ability,
+        conjunction: *conjunction,
+        quoted: (**quoted).clone(),
+    }];
+    object_conjunction("verb_phrase_ability_quoted_coordination", *conjunction).ok()?;
+    licensed_attachment(
+        "verb_phrase_ability_quoted_coordination",
+        predicate,
+        PredicateAttachment::QuotedObject,
+    )
+    .ok()?;
+    Some(pair)
+}
+
+fn attach_oracle_symbol_dependent(
+    predicate: &VerbPhrase,
+    symbol: OracleSymbol,
+) -> Result<VerbDependent, DeclarationViolation> {
+    licensed_attachment(
+        "verb_phrase_oracle_symbol",
+        predicate,
+        PredicateAttachment::ScalarComplement,
+    )?;
+    Ok(VerbDependent::Scalar(Phrase::OracleSymbol(symbol)))
+}
+
+fn detach_oracle_symbol_dependent(
+    predicate: &VerbPhrase,
+    dependent: VerbDependent,
+) -> Option<OracleSymbol> {
+    let VerbDependent::Scalar(Phrase::OracleSymbol(symbol)) = dependent else {
+        return None;
+    };
+    attach_oracle_symbol_dependent(predicate, symbol.clone()).ok()?;
+    Some(symbol)
+}
+
+fn attach_symbol_sequence_dependent(
+    predicate: &VerbPhrase,
+    symbols: SymbolSequence,
+) -> Result<VerbDependent, DeclarationViolation> {
+    if symbols.is_empty() {
+        return Err(violation(
+            "verb_phrase_symbol_sequence",
+            "the symbol sequence is nonempty",
+        ));
+    }
+    licensed_attachment(
+        "verb_phrase_symbol_sequence",
+        predicate,
+        PredicateAttachment::ScalarComplement,
+    )?;
+    Ok(VerbDependent::Scalar(Phrase::SymbolSequence(symbols)))
+}
+
+fn detach_symbol_sequence_dependent(
+    predicate: &VerbPhrase,
+    dependent: VerbDependent,
+) -> Option<SymbolSequence> {
+    let VerbDependent::Scalar(Phrase::SymbolSequence(symbols)) = dependent else {
+        return None;
+    };
+    attach_symbol_sequence_dependent(predicate, symbols.clone()).ok()?;
+    Some(symbols)
+}
+
+fn attach_mana_coordination_dependent(
+    predicate: &VerbPhrase,
+    coordination: CoordinatedManaAmount,
+) -> Result<VerbDependent, DeclarationViolation> {
+    if !coordinated_mana_is_valid(&coordination) {
+        return Err(violation(
+            "verb_phrase_mana_amount_coordination",
+            "the mana coordination has two or more typed symbol members",
+        ));
+    }
+    licensed_attachment(
+        "verb_phrase_mana_amount_coordination",
+        predicate,
+        PredicateAttachment::ScalarComplement,
+    )?;
+    Ok(VerbDependent::CoordinatedObject(coordination))
+}
+
+fn detach_mana_coordination_dependent(
+    predicate: &VerbPhrase,
+    dependent: VerbDependent,
+) -> Option<CoordinatedManaAmount> {
+    let VerbDependent::CoordinatedObject(coordination) = dependent else {
+        return None;
+    };
+    attach_mana_coordination_dependent(predicate, coordination.clone()).ok()?;
+    Some(coordination)
+}
+
+fn attach_power_toughness_dependent(
+    predicate: &VerbPhrase,
+    value: PowerToughness,
+) -> Result<VerbDependent, DeclarationViolation> {
+    licensed_attachment(
+        "verb_phrase_power_toughness",
+        predicate,
+        PredicateAttachment::StatisticComplement,
+    )?;
+    Ok(VerbDependent::Statistic(Phrase::PowerToughness(value)))
+}
+
+fn detach_power_toughness_dependent(
+    predicate: &VerbPhrase,
+    dependent: VerbDependent,
+) -> Option<PowerToughness> {
+    let VerbDependent::Statistic(Phrase::PowerToughness(value)) = dependent else {
+        return None;
+    };
+    attach_power_toughness_dependent(predicate, value).ok()?;
+    Some(value)
+}
+
+fn attach_quantity_dependent(
+    predicate: &VerbPhrase,
+    quantity: Quantity,
+) -> Result<VerbDependent, DeclarationViolation> {
+    licensed_attachment(
+        "verb_phrase_quantity",
+        predicate,
+        PredicateAttachment::ScalarOrAbilityArgument,
+    )?;
+    Ok(VerbDependent::Scalar(Phrase::Quantity(quantity)))
+}
+
+fn detach_quantity_dependent(predicate: &VerbPhrase, dependent: VerbDependent) -> Option<Quantity> {
+    let VerbDependent::Scalar(Phrase::Quantity(quantity)) = dependent else {
+        return None;
+    };
+    attach_quantity_dependent(predicate, quantity).ok()?;
+    Some(quantity)
+}
+
+fn make_mana_amount_symbol(symbol: OracleSymbol) -> Result<ManaAmount, DeclarationViolation> {
+    Ok(PredicateObject::OracleSymbol(symbol))
+}
+
+fn mana_amount_symbol_parts(value: &ManaAmount) -> OracleSymbol {
+    let PredicateObject::OracleSymbol(symbol) = value else {
+        unreachable!("mana_amount_symbol dispatcher admits only one symbol")
+    };
+    symbol.clone()
+}
+
+fn is_mana_amount_symbol(value: &ManaAmount) -> bool {
+    matches!(value, PredicateObject::OracleSymbol(_))
+}
+
+fn make_mana_amount_sequence(symbols: SymbolSequence) -> Result<ManaAmount, DeclarationViolation> {
+    if symbols.is_empty() {
+        return Err(violation(
+            "mana_amount_sequence",
+            "the symbol sequence is nonempty",
+        ));
+    }
+    Ok(PredicateObject::SymbolSequence(symbols))
+}
+
+fn mana_amount_sequence_parts(value: &ManaAmount) -> SymbolSequence {
+    let PredicateObject::SymbolSequence(symbols) = value else {
+        unreachable!("mana_amount_sequence dispatcher admits only symbol groups")
+    };
+    symbols.clone()
+}
+
+fn is_mana_amount_sequence(value: &ManaAmount) -> bool {
+    matches!(value, PredicateObject::SymbolSequence(symbols) if !symbols.is_empty())
+}
+
+fn make_mana_amount_list_single(
+    amount: ManaAmount,
+) -> Result<ManaAmountList, DeclarationViolation> {
+    is_mana_atom(&amount).then_some(amount).ok_or_else(|| {
+        violation(
+            "mana_amount_list_single",
+            "the list has exactly one typed mana amount",
+        )
+    })
+}
+
+fn mana_amount_list_single_parts(value: &ManaAmountList) -> ManaAmount {
+    value.clone()
+}
+
+fn is_mana_amount_list_single(value: &ManaAmountList) -> bool {
+    is_mana_atom(value)
+}
+
+fn make_mana_amount_list_comma(
+    first: ManaAmount,
+    rest: Vec<PredicateObjectCoordination>,
+) -> Result<ManaAmountList, DeclarationViolation> {
+    if !is_mana_atom(&first)
+        || rest.is_empty()
+        || rest
+            .iter()
+            .any(|member| member.conjunction.is_some() || !is_mana_atom(&member.object))
+    {
+        return Err(violation(
+            "mana_amount_list_comma",
+            "the open list has at least two comma-separated mana amounts",
+        ));
+    }
+    Ok(PredicateObject::Coordinated(CoordinatedPredicateObject {
+        first: Box::new(first),
+        rest,
+    }))
+}
+
+fn mana_amount_list_comma_parts(
+    value: &ManaAmountList,
+) -> (ManaAmount, Vec<PredicateObjectCoordination>) {
+    let PredicateObject::Coordinated(coordination) = value else {
+        unreachable!("mana_amount_list_comma dispatcher admits only open lists")
+    };
+    ((*coordination.first).clone(), coordination.rest.clone())
+}
+
+fn is_mana_amount_list_comma(value: &ManaAmountList) -> bool {
+    matches!(
+        value,
+        PredicateObject::Coordinated(CoordinatedPredicateObject { first, rest })
+            if is_mana_atom(first)
+                && !rest.is_empty()
+                && rest.iter().all(|member| member.conjunction.is_none() && is_mana_atom(&member.object))
+    )
+}
+
+fn make_mana_amount_coordination(
+    first: ManaAmount,
+    conjunction: Conjunction,
+    next: ManaAmount,
+) -> Result<CoordinatedManaAmount, DeclarationViolation> {
+    if !is_mana_atom(&first) || !is_mana_atom(&next) {
+        return Err(violation(
+            "mana_amount_coordination",
+            "the binary coordination has exactly two mana amounts",
+        ));
+    }
+    Ok(CoordinatedPredicateObject {
+        first: Box::new(first),
+        rest: vec![PredicateObjectCoordination {
+            conjunction: Some(object_conjunction("mana_amount_coordination", conjunction)?),
+            object: next,
+        }],
+    })
+}
+
+fn mana_amount_coordination_parts(
+    value: &CoordinatedManaAmount,
+) -> (ManaAmount, Conjunction, ManaAmount) {
+    let [member] = value.rest.as_slice() else {
+        unreachable!("mana_amount_coordination dispatcher admits only binary values")
+    };
+    (
+        (*value.first).clone(),
+        member
+            .conjunction
+            .expect("the binary member has a conjunction"),
+        member.object.clone(),
+    )
+}
+
+fn is_mana_amount_coordination(value: &CoordinatedManaAmount) -> bool {
+    coordinated_mana_is_valid(value) && value.rest.len() == 1
+}
+
+fn make_mana_amount_coordination_oxford(
+    list: ManaAmountList,
+    conjunction: Conjunction,
+    next: ManaAmount,
+) -> Result<CoordinatedManaAmount, DeclarationViolation> {
+    let PredicateObject::Coordinated(mut coordination) = list else {
+        return Err(violation(
+            "mana_amount_coordination_oxford",
+            "the Oxford prefix contains at least two comma-separated members",
+        ));
+    };
+    if !is_mana_atom(coordination.first.as_ref())
+        || coordination.rest.is_empty()
+        || coordination
+            .rest
+            .iter()
+            .any(|member| member.conjunction.is_some() || !is_mana_atom(&member.object))
+        || !is_mana_atom(&next)
+    {
+        return Err(violation(
+            "mana_amount_coordination_oxford",
+            "the Oxford list has a comma prefix and final mana member",
+        ));
+    }
+    coordination.rest.push(PredicateObjectCoordination {
+        conjunction: Some(object_conjunction(
+            "mana_amount_coordination_oxford",
+            conjunction,
+        )?),
+        object: next,
+    });
+    Ok(coordination)
+}
+
+fn mana_amount_coordination_oxford_parts(
+    value: &CoordinatedManaAmount,
+) -> (ManaAmountList, Conjunction, ManaAmount) {
+    let mut prefix = value.clone();
+    let final_member = prefix
+        .rest
+        .pop()
+        .expect("the Oxford dispatcher admits a final member");
+    (
+        PredicateObject::Coordinated(prefix),
+        final_member
+            .conjunction
+            .expect("the Oxford final member has a conjunction"),
+        final_member.object,
+    )
+}
+
+fn is_mana_amount_coordination_oxford(value: &CoordinatedManaAmount) -> bool {
+    coordinated_mana_is_valid(value) && value.rest.len() >= 2
+}
+
+fn dependent_matches(value: &VerbPhrase, matches: impl FnOnce(&VerbDependent) -> bool) -> bool {
+    value
+        .declaration_last_dependent_parts()
+        .is_some_and(|(_, dependent)| matches(&dependent))
+        && value.declaration_core_features().is_some()
+}
+
+fn is_verb_phrase_ability(value: &VerbPhrase) -> bool {
+    dependent_matches(value, |dependent| {
+        matches!(
+            dependent,
+            VerbDependent::PredicateComplement(Phrase::CatalogAtom(_))
+        )
+    })
+}
+
+fn is_verb_phrase_quoted_ability(value: &VerbPhrase) -> bool {
+    dependent_matches(value, |dependent| {
+        matches!(
+            dependent,
+            VerbDependent::PredicateComplement(Phrase::QuotedAbility(_))
+        )
+    })
+}
+
+fn is_verb_phrase_quoted_ability_coordination(value: &VerbPhrase) -> bool {
+    dependent_matches(value, |dependent| {
+        matches!(
+            dependent,
+            VerbDependent::CoordinatedObject(CoordinatedPredicateObject { first, rest })
+                if matches!(first.as_ref(), PredicateObject::QuotedAbility(_))
+                    && matches!(rest.as_slice(), [PredicateObjectCoordination {
+                        conjunction: Some(Conjunction::And | Conjunction::Or),
+                        object: PredicateObject::QuotedAbility(_),
+                    }])
+        )
+    })
+}
+
+fn is_verb_phrase_ability_quoted_coordination(value: &VerbPhrase) -> bool {
+    dependent_matches(value, |dependent| {
+        matches!(
+            dependent,
+            VerbDependent::CoordinatedObject(CoordinatedPredicateObject { first, rest })
+                if matches!(first.as_ref(), PredicateObject::Ability(AbilityObject { argument: None, .. }))
+                    && matches!(rest.as_slice(), [PredicateObjectCoordination {
+                        conjunction: Some(Conjunction::And | Conjunction::Or),
+                        object: PredicateObject::QuotedAbility(_),
+                    }])
+        )
+    })
+}
+
+fn is_verb_phrase_oracle_symbol(value: &VerbPhrase) -> bool {
+    dependent_matches(value, |dependent| {
+        matches!(dependent, VerbDependent::Scalar(Phrase::OracleSymbol(_)))
+    })
+}
+
+fn is_verb_phrase_symbol_sequence(value: &VerbPhrase) -> bool {
+    dependent_matches(value, |dependent| {
+        matches!(
+            dependent,
+            VerbDependent::Scalar(Phrase::SymbolSequence(symbols)) if !symbols.is_empty()
+        )
+    })
+}
+
+fn is_verb_phrase_mana_amount_coordination(value: &VerbPhrase) -> bool {
+    dependent_matches(value, |dependent| {
+        matches!(
+            dependent,
+            VerbDependent::CoordinatedObject(coordination) if coordinated_mana_is_valid(coordination)
+        )
+    })
+}
+
+fn is_verb_phrase_power_toughness(value: &VerbPhrase) -> bool {
+    dependent_matches(value, |dependent| {
+        matches!(
+            dependent,
+            VerbDependent::Statistic(Phrase::PowerToughness(_))
+        )
+    })
+}
+
+fn is_verb_phrase_quantity(value: &VerbPhrase) -> bool {
+    dependent_matches(value, |dependent| {
+        matches!(dependent, VerbDependent::Scalar(Phrase::Quantity(_)))
+    })
+}
+
 fn is_verb_phrase_direct_object(value: &VerbPhrase) -> bool {
     matches!(
         value.declaration_last_dependent_parts(),
@@ -1125,6 +1872,24 @@ fn is_exception(value: &VerbPhrase) -> bool {
 deckmaste_constructions_macro::constructions! {
     group predicate;
 
+    element quoted_ability_pair_member {
+        first: identity QuotedAbility via QuotedAbility,
+        conjunction: lex Conjunction,
+        next: identity QuotedAbility via QuotedAbility,
+    }
+
+    element ability_quoted_pair_member {
+        ability: identity CatalogAtom via AbilityItem,
+        conjunction: lex Conjunction,
+        quoted: identity QuotedAbility via QuotedAbility,
+    }
+
+    element mana_amount_list_member bind PredicateObjectCoordination {
+        comma: surface lex Comma,
+        conjunction: opt lex Conjunction,
+        object: hole ManaAmount,
+    }
+
     lens verb_phrase_dependents bind VerbPhrase via from_dependent_lens_parts, into_dependent_lens_parts {
         dependents: vec VerbDependent,
         shell: value VerbPhrase,
@@ -1196,6 +1961,7 @@ deckmaste_constructions_macro::constructions! {
         form only @ 0 inverse check(is_verb_phrase_auxiliary) = identity(auxiliary) predicate;
         dominates verb_phrase_adjective;
         dominates verb_phrase_adverb;
+        dominates verb_phrase_ability;
         selection unique;
     }
 
@@ -1409,6 +2175,194 @@ deckmaste_constructions_macro::constructions! {
         form only @ 0 = identity(frequency);
         selection unique;
     }
+
+    construction verb_phrase_ability: VerbPhrase {
+        bind VerbPhrase {
+            predicate: hole VerbPhrase,
+            ability: identity CatalogAtom via AbilityItem,
+        }
+        lens verb_phrase_dependents from predicate {
+            append dependents with ability via attach_ability_dependent, detach_ability_dependent;
+        }
+        derive features: Features = reduce_verb_phrase_ability_features(predicate, ability);
+        derive argument_complete: Features = complete_ability(predicate, ability);
+        form only @ 0 inverse check(is_verb_phrase_ability) = predicate identity(ability);
+        selection unique;
+    }
+
+    construction verb_phrase_quoted_ability: VerbPhrase {
+        bind VerbPhrase {
+            predicate: hole VerbPhrase,
+            quoted: identity QuotedAbility via QuotedAbility,
+        }
+        lens verb_phrase_dependents from predicate {
+            append dependents with quoted via attach_quoted_ability_dependent, detach_quoted_ability_dependent;
+        }
+        derive features: Features = reduce_verb_phrase_quoted_ability_features(predicate, quoted);
+        derive argument_complete: Features = complete_quoted_ability(predicate, quoted);
+        form only @ 0 inverse check(is_verb_phrase_quoted_ability) = predicate identity(quoted);
+        selection unique;
+    }
+
+    construction verb_phrase_quoted_ability_coordination: VerbPhrase {
+        bind VerbPhrase {
+            predicate: hole VerbPhrase,
+            pair: seq quoted_ability_pair_member,
+        }
+        lens verb_phrase_dependents from predicate {
+            append dependents with pair via attach_quoted_pair_dependent, detach_quoted_pair_dependent;
+        }
+        require pair.len() == 1;
+        require pair.last.conjunction in [And, Or];
+        derive features: Features = reduce_verb_phrase_quoted_coordination_features(predicate, pair);
+        derive argument_complete: Features = complete_quoted_coordination(predicate, pair);
+        form only @ 0 inverse check(is_verb_phrase_quoted_ability_coordination) = predicate pair;
+        selection unique;
+    }
+
+    construction verb_phrase_ability_quoted_coordination: VerbPhrase {
+        bind VerbPhrase {
+            predicate: hole VerbPhrase,
+            pair: seq ability_quoted_pair_member,
+        }
+        lens verb_phrase_dependents from predicate {
+            append dependents with pair via attach_ability_quoted_pair_dependent, detach_ability_quoted_pair_dependent;
+        }
+        require pair.len() == 1;
+        require pair.last.conjunction in [And, Or];
+        derive features: Features = reduce_verb_phrase_quoted_coordination_features(predicate, pair);
+        derive argument_complete: Features = complete_quoted_coordination(predicate, pair);
+        form only @ 0 inverse check(is_verb_phrase_ability_quoted_coordination) = predicate pair;
+        selection unique;
+    }
+
+    construction verb_phrase_oracle_symbol: VerbPhrase {
+        bind VerbPhrase {
+            predicate: hole VerbPhrase,
+            symbol: identity OracleSymbol via OracleSymbol,
+        }
+        lens verb_phrase_dependents from predicate {
+            append dependents with symbol via attach_oracle_symbol_dependent, detach_oracle_symbol_dependent;
+        }
+        derive features: Features = reduce_verb_phrase_scalar_features(predicate, symbol);
+        derive argument_complete: Features = complete_scalar(predicate, symbol);
+        form only @ 0 inverse check(is_verb_phrase_oracle_symbol) = predicate identity(symbol);
+        selection unique;
+    }
+
+    construction verb_phrase_symbol_sequence: VerbPhrase {
+        bind VerbPhrase {
+            predicate: hole VerbPhrase,
+            symbols: identity SymbolSequence via SymbolSequence,
+        }
+        lens verb_phrase_dependents from predicate {
+            append dependents with symbols via attach_symbol_sequence_dependent, detach_symbol_sequence_dependent;
+        }
+        derive features: Features = reduce_verb_phrase_scalar_features(predicate, symbols);
+        derive argument_complete: Features = complete_scalar(predicate, symbols);
+        form only @ 0 inverse check(is_verb_phrase_symbol_sequence) = predicate identity(symbols);
+        selection unique;
+    }
+
+    construction mana_amount_symbol: ManaAmount {
+        bind ManaAmount via make_mana_amount_symbol, mana_amount_symbol_parts {
+            symbol: identity OracleSymbol via OracleSymbol,
+        }
+        form only @ 0 inverse check(is_mana_amount_symbol) = identity(symbol);
+        selection unique;
+    }
+
+    construction mana_amount_sequence: ManaAmount {
+        bind ManaAmount via make_mana_amount_sequence, mana_amount_sequence_parts {
+            symbols: identity SymbolSequence via SymbolSequence,
+        }
+        form only @ 0 inverse check(is_mana_amount_sequence) = identity(symbols);
+        selection unique;
+    }
+
+    construction mana_amount_list_single: ManaAmountList {
+        bind ManaAmountList via make_mana_amount_list_single, mana_amount_list_single_parts {
+            amount: hole ManaAmount,
+        }
+        form only @ 0 inverse check(is_mana_amount_list_single) = amount;
+        selection unique;
+    }
+
+    construction mana_amount_list_comma: ManaAmountList {
+        bind ManaAmountList via make_mana_amount_list_comma, mana_amount_list_comma_parts {
+            first: hole ManaAmount,
+            rest: seq mana_amount_list_member,
+        }
+        require rest.len() >= 1;
+        require rest.nonfinal.conjunction.is_none();
+        require rest.last.conjunction.is_none();
+        form only @ 0 inverse check(is_mana_amount_list_comma) = first rest;
+        selection unique;
+    }
+
+    construction mana_amount_coordination: CoordinatedManaAmount {
+        bind CoordinatedManaAmount via make_mana_amount_coordination, mana_amount_coordination_parts {
+            first: hole ManaAmount,
+            conjunction: lex Conjunction,
+            next: hole ManaAmount,
+        }
+        require conjunction in [And, Or];
+        form only @ 0 inverse check(is_mana_amount_coordination) = first lex(conjunction) next;
+        selection unique;
+    }
+
+    construction mana_amount_coordination_oxford: CoordinatedManaAmount {
+        bind CoordinatedManaAmount via make_mana_amount_coordination_oxford, mana_amount_coordination_oxford_parts {
+            list: hole ManaAmountList,
+            conjunction: lex Conjunction,
+            next: hole ManaAmount,
+        }
+        require conjunction in [And, Or];
+        form only @ 0 inverse check(is_mana_amount_coordination_oxford) = list "," lex(conjunction) next;
+        selection unique;
+    }
+
+    construction verb_phrase_mana_amount_coordination: VerbPhrase {
+        bind VerbPhrase {
+            predicate: hole VerbPhrase,
+            coordination: hole CoordinatedManaAmount,
+        }
+        lens verb_phrase_dependents from predicate {
+            append dependents with coordination via attach_mana_coordination_dependent, detach_mana_coordination_dependent;
+        }
+        derive features: Features = reduce_verb_phrase_mana_coordination_features(predicate, coordination);
+        derive argument_complete: Features = complete_mana_coordination(predicate, coordination);
+        form only @ 0 inverse check(is_verb_phrase_mana_amount_coordination) = predicate coordination;
+        selection unique;
+    }
+
+    construction verb_phrase_power_toughness: VerbPhrase {
+        bind VerbPhrase {
+            predicate: hole VerbPhrase,
+            stats: lex PowerToughness via PowerToughness,
+        }
+        lens verb_phrase_dependents from predicate {
+            append dependents with stats via attach_power_toughness_dependent, detach_power_toughness_dependent;
+        }
+        derive features: Features = reduce_verb_phrase_power_toughness_features(predicate, stats);
+        derive argument_complete: Features = complete_power_toughness(predicate, stats);
+        form only @ 0 inverse check(is_verb_phrase_power_toughness) = predicate lex(stats);
+        selection unique;
+    }
+
+    construction verb_phrase_quantity: VerbPhrase {
+        bind VerbPhrase {
+            predicate: hole VerbPhrase,
+            quantity: hole Quantity,
+        }
+        lens verb_phrase_dependents from predicate {
+            append dependents with quantity via attach_quantity_dependent, detach_quantity_dependent;
+        }
+        derive features: Features = reduce_verb_phrase_quantity_features(predicate, quantity);
+        derive argument_complete: Features = complete_quantity(predicate, quantity);
+        form only @ 0 inverse check(is_verb_phrase_quantity) = predicate quantity;
+        selection unique;
+    }
 }
 
 pub(crate) static GROUPS: &[&GroupData] = &[&PREDICATE_DECLARATION];
@@ -1419,6 +2373,8 @@ mod tests {
     use std::sync::OnceLock;
 
     use super::*;
+    use crate::CatalogKind;
+    use crate::catalog::CatalogValue;
     use crate::catalog::Catalogs;
     use crate::features::Contraction;
     use crate::features::Number;
@@ -1426,6 +2382,7 @@ mod tests {
     use crate::features::VerbSlot;
     use crate::grammar::GeneratedActivation;
     use crate::grammar::Nonterminal;
+    use crate::syntax::NumberLiteral;
     use crate::word::Auxiliary;
     use crate::word::AuxiliaryInflection;
     use crate::word::PredicateFrame;
@@ -1757,6 +2714,749 @@ mod tests {
                 "frequency_phrase",
             ]
         );
+    }
+
+    #[test]
+    fn predicate_value_slice_has_the_independently_authored_fifteen_id_census() {
+        // Mutations caught by the Task 4 matrix: omit or rename any typed
+        // object, symbol, mana-list, power/toughness, or quantity owner while
+        // the handwritten production family remains production-active.
+        let value_ids = PREDICATE_DECLARATION
+            .constructions
+            .iter()
+            .map(|construction| construction.id)
+            .filter(|id| {
+                matches!(
+                    *id,
+                    "verb_phrase_ability"
+                        | "verb_phrase_quoted_ability"
+                        | "verb_phrase_quoted_ability_coordination"
+                        | "verb_phrase_ability_quoted_coordination"
+                        | "verb_phrase_oracle_symbol"
+                        | "verb_phrase_symbol_sequence"
+                        | "mana_amount_symbol"
+                        | "mana_amount_sequence"
+                        | "mana_amount_list_single"
+                        | "mana_amount_list_comma"
+                        | "mana_amount_coordination"
+                        | "mana_amount_coordination_oxford"
+                        | "verb_phrase_mana_amount_coordination"
+                        | "verb_phrase_power_toughness"
+                        | "verb_phrase_quantity"
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            value_ids,
+            [
+                "verb_phrase_ability",
+                "verb_phrase_quoted_ability",
+                "verb_phrase_quoted_ability_coordination",
+                "verb_phrase_ability_quoted_coordination",
+                "verb_phrase_oracle_symbol",
+                "verb_phrase_symbol_sequence",
+                "mana_amount_symbol",
+                "mana_amount_sequence",
+                "mana_amount_list_single",
+                "mana_amount_list_comma",
+                "mana_amount_coordination",
+                "mana_amount_coordination_oxford",
+                "verb_phrase_mana_amount_coordination",
+                "verb_phrase_power_toughness",
+                "verb_phrase_quantity",
+            ]
+        );
+    }
+
+    #[test]
+    fn generated_mana_symbol_lowers_through_the_declared_category() {
+        // Mutation caught: register the typed field/category in the chart but
+        // omit the corresponding generic lowering projection.
+        let expected = build_mana_amount_symbol(
+            OracleSymbol::new("{C}").expect("a colorless mana symbol is valid"),
+        )
+        .expect("one symbol is a valid mana amount");
+        let parsed = crate::grammar::parse_nonterminal_with_activation(
+            "{C}",
+            &Catalogs::default(),
+            Nonterminal::ManaAmount,
+            GeneratedActivation::Groups(all_groups_with_predicate()),
+        )
+        .expect("the generated mana amount root lowers");
+        assert_eq!(
+            parsed
+                .construction_decisions()
+                .last()
+                .expect("the root has a construction decision")
+                .selected()
+                .as_str(),
+            "mana_amount_symbol",
+        );
+        let orders = crate::grammar::exact::parse_groups_as_declared_category_in_both_orders(
+            "{C}",
+            &Catalogs::default(),
+            "ManaAmount",
+            &expected,
+            10_000,
+            all_groups_with_predicate(),
+        )
+        .expect("the exact generated parse stays within its enumeration budget");
+        for parses in orders {
+            assert_eq!(
+                parses
+                    .iter()
+                    .map(|parse| parse.ast().construction)
+                    .collect::<Vec<_>>(),
+                ["mana_amount_symbol"],
+            );
+        }
+    }
+
+    fn test_ability_atom(catalogs: &Catalogs) -> CatalogAtom {
+        let CatalogValue::Atom(atom) = catalogs
+            .matches("flying", crate::catalog::CatalogSlot::AbilityItem)[0]
+            .value
+            .clone()
+        else {
+            panic!("the ability-item match carries a catalog atom")
+        };
+        atom
+    }
+
+    fn test_quoted_ability(source: &str, catalogs: &Catalogs) -> QuotedAbility {
+        crate::grammar::ability::parse_quoted_ability_fragment(
+            source,
+            catalogs,
+            &crate::identity::SelfReference::default(),
+        )
+    }
+
+    fn open_predicate(vocab: Vocab) -> VerbPhrase {
+        build_verb_phrase_base(
+            build_verb(lexical_head(vocab, VerbSlot::Imperative, 0))
+                .expect("the lexical form builds"),
+        )
+        .expect("the open predicate head builds")
+    }
+
+    fn test_symbol(source: &str) -> OracleSymbol {
+        OracleSymbol::new(source).unwrap_or_else(|| panic!("invalid test symbol {source:?}"))
+    }
+
+    #[test]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the one ordered matrix audits every Task 4 declaration row"
+    )]
+    fn predicate_value_builders_and_parts_round_trip_every_declared_row() {
+        // Mutations caught: erase a typed identity, flatten a symbol sequence,
+        // reorder the mixed pair, discard a mana member/connective, collapse
+        // list cardinality, or coerce P/T and quantity into an untyped scalar.
+        let catalogs = Catalogs::default().with_catalog(CatalogKind::KeywordAbility, ["Flying"]);
+        let ability = test_ability_atom(&catalogs);
+        let quoted_tap = test_quoted_ability("{T}: Draw a card.", &catalogs);
+        let quoted_fly = test_quoted_ability("Flying", &catalogs);
+
+        let ability_value = build_verb_phrase_ability(open_predicate(Vocab::Gain), ability.clone())
+            .expect("an open frame admits the keyword-ability complement");
+        let (predicate, recovered) =
+            parts_verb_phrase_ability(&ability_value).expect("ability parts exist");
+        assert_eq!(
+            build_verb_phrase_ability(predicate, recovered).unwrap(),
+            ability_value,
+            "verb_phrase_ability"
+        );
+
+        let quoted_value =
+            build_verb_phrase_quoted_ability(open_predicate(Vocab::Gain), quoted_tap.clone())
+                .expect("an open frame admits the quoted-ability complement");
+        let (predicate, recovered) =
+            parts_verb_phrase_quoted_ability(&quoted_value).expect("quoted ability parts exist");
+        assert_eq!(
+            build_verb_phrase_quoted_ability(predicate, recovered).unwrap(),
+            quoted_value,
+            "verb_phrase_quoted_ability"
+        );
+
+        let quoted_pair_value = build_verb_phrase_quoted_ability_coordination(
+            open_predicate(Vocab::Have),
+            vec![QuotedAbilityPairMember {
+                first: quoted_tap.clone(),
+                conjunction: Conjunction::Or,
+                next: quoted_fly.clone(),
+            }],
+        )
+        .expect("two quotes joined by or are admitted");
+        let (predicate, recovered) =
+            parts_verb_phrase_quoted_ability_coordination(&quoted_pair_value)
+                .expect("quoted-pair parts exist");
+        assert_eq!(
+            build_verb_phrase_quoted_ability_coordination(predicate, recovered).unwrap(),
+            quoted_pair_value,
+            "verb_phrase_quoted_ability_coordination"
+        );
+
+        let mixed_value = build_verb_phrase_ability_quoted_coordination(
+            open_predicate(Vocab::Have),
+            vec![AbilityQuotedPairMember {
+                ability: ability.clone(),
+                conjunction: Conjunction::And,
+                quoted: quoted_tap.clone(),
+            }],
+        )
+        .expect("ability first and quote second are admitted");
+        let (predicate, recovered) = parts_verb_phrase_ability_quoted_coordination(&mixed_value)
+            .expect("mixed-pair parts exist");
+        assert_eq!(
+            build_verb_phrase_ability_quoted_coordination(predicate, recovered).unwrap(),
+            mixed_value,
+            "verb_phrase_ability_quoted_coordination"
+        );
+
+        let white = test_symbol("{W}");
+        let blue = test_symbol("{U}");
+        let black = test_symbol("{B}");
+        let symbol_value =
+            build_verb_phrase_oracle_symbol(open_predicate(Vocab::Add), white.clone())
+                .expect("one symbol is a scalar complement");
+        let (predicate, recovered) =
+            parts_verb_phrase_oracle_symbol(&symbol_value).expect("symbol parts exist");
+        assert_eq!(
+            build_verb_phrase_oracle_symbol(predicate, recovered).unwrap(),
+            symbol_value,
+            "verb_phrase_oracle_symbol"
+        );
+
+        let symbols = vec![blue.clone(), black.clone()];
+        let sequence_value = build_verb_phrase_symbol_sequence(open_predicate(Vocab::Add), symbols)
+            .expect("a nonempty symbol sequence is a scalar complement");
+        let (predicate, recovered) = parts_verb_phrase_symbol_sequence(&sequence_value)
+            .expect("symbol-sequence parts exist");
+        assert_eq!(
+            build_verb_phrase_symbol_sequence(predicate, recovered).unwrap(),
+            sequence_value,
+            "verb_phrase_symbol_sequence"
+        );
+
+        let mana_symbol = build_mana_amount_symbol(white.clone()).unwrap();
+        assert_eq!(
+            build_mana_amount_symbol(parts_mana_amount_symbol(&mana_symbol)).unwrap(),
+            mana_symbol,
+            "mana_amount_symbol"
+        );
+        let mana_sequence = build_mana_amount_sequence(vec![blue.clone(), black.clone()]).unwrap();
+        assert_eq!(
+            build_mana_amount_sequence(parts_mana_amount_sequence(&mana_sequence)).unwrap(),
+            mana_sequence,
+            "mana_amount_sequence"
+        );
+        let list_single = build_mana_amount_list_single(mana_symbol.clone()).unwrap();
+        assert_eq!(
+            build_mana_amount_list_single(parts_mana_amount_list_single(&list_single)).unwrap(),
+            list_single,
+            "mana_amount_list_single"
+        );
+        let list_comma = build_mana_amount_list_comma(
+            mana_symbol.clone(),
+            vec![PredicateObjectCoordination {
+                conjunction: None,
+                object: mana_sequence.clone(),
+            }],
+        )
+        .unwrap();
+        let (first, rest) = parts_mana_amount_list_comma(&list_comma);
+        assert_eq!(
+            build_mana_amount_list_comma(first, rest).unwrap(),
+            list_comma,
+            "mana_amount_list_comma"
+        );
+        let binary = build_mana_amount_coordination(
+            mana_symbol.clone(),
+            Conjunction::Or,
+            mana_sequence.clone(),
+        )
+        .unwrap();
+        let (first, conjunction, next) = parts_mana_amount_coordination(&binary);
+        assert_eq!(
+            build_mana_amount_coordination(first, conjunction, next).unwrap(),
+            binary,
+            "mana_amount_coordination"
+        );
+        let oxford = build_mana_amount_coordination_oxford(
+            list_comma,
+            Conjunction::And,
+            build_mana_amount_symbol(black.clone()).unwrap(),
+        )
+        .unwrap();
+        let (list, conjunction, next) = parts_mana_amount_coordination_oxford(&oxford);
+        assert_eq!(
+            build_mana_amount_coordination_oxford(list, conjunction, next).unwrap(),
+            oxford,
+            "mana_amount_coordination_oxford"
+        );
+        let coordinated_value =
+            build_verb_phrase_mana_amount_coordination(open_predicate(Vocab::Add), binary).unwrap();
+        let (predicate, recovered) = parts_verb_phrase_mana_amount_coordination(&coordinated_value)
+            .expect("coordinated mana parts exist");
+        assert_eq!(
+            build_verb_phrase_mana_amount_coordination(predicate, recovered).unwrap(),
+            coordinated_value,
+            "verb_phrase_mana_amount_coordination"
+        );
+
+        let stats = PowerToughness {
+            power: crate::syntax::SignedScalar {
+                sign: crate::syntax::ScalarSign::Plus,
+                value: crate::syntax::ScalarValue::Integer(1),
+            },
+            toughness: crate::syntax::SignedScalar {
+                sign: crate::syntax::ScalarSign::Plus,
+                value: crate::syntax::ScalarValue::Integer(2),
+            },
+        };
+        let stats_value =
+            build_verb_phrase_power_toughness(open_predicate(Vocab::Get), stats).unwrap();
+        let (predicate, recovered) =
+            parts_verb_phrase_power_toughness(&stats_value).expect("power/toughness parts exist");
+        assert_eq!(
+            build_verb_phrase_power_toughness(predicate, recovered).unwrap(),
+            stats_value,
+            "verb_phrase_power_toughness"
+        );
+
+        let quantity = Quantity::try_exact(NumberLiteral {
+            value: 2,
+            numeral: crate::numeral::Numeral::Cardinal,
+        })
+        .unwrap();
+        let quantity_value =
+            build_verb_phrase_quantity(open_predicate(Vocab::Scry), quantity).unwrap();
+        let (predicate, recovered) =
+            parts_verb_phrase_quantity(&quantity_value).expect("quantity parts exist");
+        assert_eq!(
+            build_verb_phrase_quantity(predicate, recovered).unwrap(),
+            quantity_value,
+            "verb_phrase_quantity"
+        );
+    }
+
+    #[test]
+    fn predicate_value_builders_reject_named_structural_mutations() {
+        // Named mutations: EMPTY_SEQUENCE, MISSING_PAIR, SURPLUS_PAIR,
+        // SWAP_MIXED_ORDER, ONE_MEMBER_COORDINATION, ILLEGAL_CONJUNCTION,
+        // MALFORMED_COMMA_PREFIX, and SCALAR_CATEGORY_MISMATCH.
+        let catalogs = Catalogs::default().with_catalog(CatalogKind::KeywordAbility, ["Flying"]);
+        let ability = test_ability_atom(&catalogs);
+        let quoted = test_quoted_ability("{T}: Draw a card.", &catalogs);
+        assert!(
+            build_verb_phrase_symbol_sequence(open_predicate(Vocab::Add), Vec::new()).is_err(),
+            "EMPTY_SEQUENCE: a verb phrase cannot attach an empty symbol group"
+        );
+        assert!(
+            build_mana_amount_sequence(Vec::new()).is_err(),
+            "EMPTY_SEQUENCE: a mana amount cannot erase symbol identity"
+        );
+        assert!(
+            build_verb_phrase_quoted_ability_coordination(open_predicate(Vocab::Have), Vec::new(),)
+                .is_err(),
+            "MISSING_PAIR"
+        );
+        assert!(
+            build_verb_phrase_ability_quoted_coordination(
+                open_predicate(Vocab::Have),
+                vec![
+                    AbilityQuotedPairMember {
+                        ability: ability.clone(),
+                        conjunction: Conjunction::And,
+                        quoted: quoted.clone(),
+                    },
+                    AbilityQuotedPairMember {
+                        ability: ability.clone(),
+                        conjunction: Conjunction::Or,
+                        quoted: quoted.clone(),
+                    },
+                ],
+            )
+            .is_err(),
+            "SURPLUS_PAIR"
+        );
+
+        let base = open_predicate(Vocab::Have);
+        let (_, shell) = base.clone().declaration_into_dependent_projection();
+        let swapped = VerbPhrase::declaration_from_dependent_projection(
+            shell,
+            vec![VerbDependent::CoordinatedObject(
+                CoordinatedPredicateObject {
+                    first: Box::new(PredicateObject::QuotedAbility(Box::new(quoted.clone()))),
+                    rest: vec![PredicateObjectCoordination {
+                        conjunction: Some(Conjunction::And),
+                        object: PredicateObject::Ability(AbilityObject {
+                            ability: ability.clone(),
+                            argument: None,
+                        }),
+                    }],
+                },
+            )],
+        );
+        assert!(
+            parts_verb_phrase_ability_quoted_coordination(&swapped).is_none(),
+            "SWAP_MIXED_ORDER: the verified surface is ability first, quote second"
+        );
+
+        let white = build_mana_amount_symbol(test_symbol("{W}")).unwrap();
+        let blue = build_mana_amount_symbol(test_symbol("{U}")).unwrap();
+        assert!(
+            build_mana_amount_list_comma(white.clone(), Vec::new()).is_err(),
+            "ONE_MEMBER_COORDINATION: a comma list needs a second member"
+        );
+        assert!(
+            build_mana_amount_coordination(white.clone(), Conjunction::Then, blue.clone(),)
+                .is_err(),
+            "ILLEGAL_CONJUNCTION: `then` is not a predicate-object connective"
+        );
+        assert!(
+            build_mana_amount_coordination(white.clone(), Conjunction::AndOr, blue.clone(),)
+                .is_err(),
+            "ILLEGAL_CONJUNCTION: `and/or` is not admitted by the handwritten family"
+        );
+        assert!(
+            build_mana_amount_list_comma(
+                white.clone(),
+                vec![PredicateObjectCoordination {
+                    conjunction: Some(Conjunction::Or),
+                    object: blue.clone(),
+                }],
+            )
+            .is_err(),
+            "MALFORMED_COMMA_PREFIX: an open prefix cannot contain its final connective"
+        );
+        assert!(
+            build_mana_amount_coordination_oxford(
+                build_mana_amount_list_single(white.clone()).unwrap(),
+                Conjunction::Or,
+                blue.clone(),
+            )
+            .is_err(),
+            "ONE_MEMBER_COORDINATION: an Oxford prefix must already contain two members"
+        );
+        let quantity = Quantity::try_exact(NumberLiteral {
+            value: 2,
+            numeral: crate::numeral::Numeral::Cardinal,
+        })
+        .unwrap();
+        assert!(
+            build_mana_amount_list_single(PredicateObject::Quantity(quantity)).is_err(),
+            "SCALAR_CATEGORY_MISMATCH: quantity is not a mana atom"
+        );
+        let one_member = CoordinatedPredicateObject {
+            first: Box::new(white),
+            rest: Vec::new(),
+        };
+        assert!(
+            build_verb_phrase_mana_amount_coordination(open_predicate(Vocab::Add), one_member,)
+                .is_err(),
+            "ONE_MEMBER_COORDINATION: the verb attachment refuses an empty rest"
+        );
+    }
+
+    #[test]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the exact registration matrix deliberately names every Task 4 row"
+    )]
+    fn predicate_value_rows_lower_exactly_in_normal_and_reversed_registration() {
+        // Mutations caught: lose a typed lowering adapter, attribute a surface
+        // to the wrong row, flatten a sequence, or let registration position
+        // choose between the atomic/list/Oxford shapes.
+        let catalogs = Catalogs::default().with_catalog(CatalogKind::KeywordAbility, ["Flying"]);
+        macro_rules! exact_row {
+            ($id:literal, $source:literal, $category:literal, $value:expr) => {{
+                let value = $value;
+                let orders =
+                    crate::grammar::exact::parse_groups_as_declared_category_in_both_orders(
+                        $source,
+                        &catalogs,
+                        $category,
+                        &value,
+                        100_000,
+                        all_groups_with_predicate(),
+                    )
+                    .unwrap_or_else(|error| {
+                        panic!("{} exact parse failed for {:?}: {error:?}", $id, $source)
+                    });
+                for parses in orders {
+                    let actual = parses
+                        .iter()
+                        .map(|parse| (parse.ast().construction, parse.ast().form_ordinal))
+                        .collect::<std::collections::BTreeSet<_>>();
+                    assert_eq!(
+                        actual,
+                        std::collections::BTreeSet::from([($id, 0)]),
+                        "{} exact attribution for {:?}: {parses:#?}",
+                        $id,
+                        $source,
+                    );
+                }
+            }};
+        }
+
+        let ability = test_ability_atom(&catalogs);
+        let quoted_tap = test_quoted_ability("{T}: Draw a card.", &catalogs);
+        let quoted_flying = test_quoted_ability("Flying", &catalogs);
+        exact_row!(
+            "verb_phrase_ability",
+            "gain flying",
+            "VerbPhrase",
+            build_verb_phrase_ability(open_predicate(Vocab::Gain), ability.clone()).unwrap()
+        );
+        exact_row!(
+            "verb_phrase_quoted_ability",
+            "gain \"{T}: Draw a card.\"",
+            "VerbPhrase",
+            build_verb_phrase_quoted_ability(open_predicate(Vocab::Gain), quoted_tap.clone(),)
+                .unwrap()
+        );
+        exact_row!(
+            "verb_phrase_quoted_ability_coordination",
+            "have \"{T}: Draw a card.\" or \"Flying\"",
+            "VerbPhrase",
+            build_verb_phrase_quoted_ability_coordination(
+                open_predicate(Vocab::Have),
+                vec![QuotedAbilityPairMember {
+                    first: quoted_tap.clone(),
+                    conjunction: Conjunction::Or,
+                    next: quoted_flying,
+                }],
+            )
+            .unwrap()
+        );
+        exact_row!(
+            "verb_phrase_ability_quoted_coordination",
+            "have flying and \"{T}: Draw a card.\"",
+            "VerbPhrase",
+            build_verb_phrase_ability_quoted_coordination(
+                open_predicate(Vocab::Have),
+                vec![AbilityQuotedPairMember {
+                    ability,
+                    conjunction: Conjunction::And,
+                    quoted: quoted_tap,
+                }],
+            )
+            .unwrap()
+        );
+
+        let white = build_mana_amount_symbol(test_symbol("{W}")).unwrap();
+        let blue = build_mana_amount_symbol(test_symbol("{U}")).unwrap();
+        let black = build_mana_amount_symbol(test_symbol("{B}")).unwrap();
+        let blue_black =
+            build_mana_amount_sequence(vec![test_symbol("{U}"), test_symbol("{B}")]).unwrap();
+        exact_row!(
+            "verb_phrase_oracle_symbol",
+            "add {W}",
+            "VerbPhrase",
+            build_verb_phrase_oracle_symbol(open_predicate(Vocab::Add), test_symbol("{W}"))
+                .unwrap()
+        );
+        exact_row!(
+            "verb_phrase_symbol_sequence",
+            "add {U}{B}",
+            "VerbPhrase",
+            build_verb_phrase_symbol_sequence(
+                open_predicate(Vocab::Add),
+                vec![test_symbol("{U}"), test_symbol("{B}")],
+            )
+            .unwrap()
+        );
+        exact_row!("mana_amount_symbol", "{W}", "ManaAmount", white.clone());
+        exact_row!(
+            "mana_amount_sequence",
+            "{U}{B}",
+            "ManaAmount",
+            blue_black.clone()
+        );
+        exact_row!(
+            "mana_amount_list_single",
+            "{W}",
+            "ManaAmountList",
+            build_mana_amount_list_single(white.clone()).unwrap()
+        );
+        let comma_list = build_mana_amount_list_comma(
+            white.clone(),
+            vec![PredicateObjectCoordination {
+                conjunction: None,
+                object: blue.clone(),
+            }],
+        )
+        .unwrap();
+        crate::grammar::parse_nonterminal_with_activation(
+            "{W}, {U}",
+            &catalogs,
+            Nonterminal::ManaAmountList,
+            GeneratedActivation::Groups(all_groups_with_predicate()),
+        )
+        .expect("the generated comma-list root parses and lowers");
+        exact_row!(
+            "mana_amount_list_comma",
+            "{W}, {U}",
+            "ManaAmountList",
+            comma_list.clone()
+        );
+        let binary =
+            build_mana_amount_coordination(white.clone(), Conjunction::Or, blue.clone()).unwrap();
+        exact_row!(
+            "mana_amount_coordination",
+            "{W} or {U}",
+            "CoordinatedManaAmount",
+            binary.clone()
+        );
+        exact_row!(
+            "mana_amount_coordination_oxford",
+            "{W}, {U}, or {B}",
+            "CoordinatedManaAmount",
+            build_mana_amount_coordination_oxford(comma_list, Conjunction::Or, black,).unwrap()
+        );
+        exact_row!(
+            "verb_phrase_mana_amount_coordination",
+            "add {W} or {U}",
+            "VerbPhrase",
+            build_verb_phrase_mana_amount_coordination(open_predicate(Vocab::Add), binary).unwrap()
+        );
+        let stats = PowerToughness {
+            power: crate::syntax::SignedScalar {
+                sign: crate::syntax::ScalarSign::Plus,
+                value: crate::syntax::ScalarValue::Integer(1),
+            },
+            toughness: crate::syntax::SignedScalar {
+                sign: crate::syntax::ScalarSign::Plus,
+                value: crate::syntax::ScalarValue::Integer(2),
+            },
+        };
+        exact_row!(
+            "verb_phrase_power_toughness",
+            "get +1/+2",
+            "VerbPhrase",
+            build_verb_phrase_power_toughness(open_predicate(Vocab::Get), stats).unwrap()
+        );
+        let quantity = Quantity::try_exact(NumberLiteral {
+            value: 2,
+            numeral: crate::numeral::Numeral::Cardinal,
+        })
+        .unwrap();
+        exact_row!(
+            "verb_phrase_quantity",
+            "scry two",
+            "VerbPhrase",
+            build_verb_phrase_quantity(open_predicate(Vocab::Scry), quantity).unwrap()
+        );
+    }
+
+    #[test]
+    fn predicate_value_surfaces_reject_malformed_list_and_connective_witnesses() {
+        // Named surface mutations: DROP_COMMA, INSERT_CONNECTIVE_IN_OPEN_LIST,
+        // DROP_OXFORD_COMMA, ONE_MEMBER_COORDINATION, and CHANGE_CONNECTIVE.
+        let activation = GeneratedActivation::Groups(all_groups_with_predicate());
+        for (source, category, mutation) in [
+            ("{W} {U}", Nonterminal::ManaAmountList, "DROP_COMMA"),
+            (
+                "{W}, or {U}",
+                Nonterminal::ManaAmountList,
+                "INSERT_CONNECTIVE_IN_OPEN_LIST",
+            ),
+            (
+                "{W}, {U} or {B}",
+                Nonterminal::CoordinatedManaAmount,
+                "DROP_OXFORD_COMMA",
+            ),
+            (
+                "{W}",
+                Nonterminal::CoordinatedManaAmount,
+                "ONE_MEMBER_COORDINATION",
+            ),
+            (
+                "{W} then {U}",
+                Nonterminal::CoordinatedManaAmount,
+                "CHANGE_CONNECTIVE",
+            ),
+            (
+                "{W} and/or {U}",
+                Nonterminal::CoordinatedManaAmount,
+                "CHANGE_CONNECTIVE",
+            ),
+        ] {
+            assert!(
+                crate::grammar::parse_nonterminal_with_activation(
+                    source,
+                    &Catalogs::default(),
+                    category,
+                    activation,
+                )
+                .is_err(),
+                "{mutation} unexpectedly admitted {source:?} as {category:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn inactive_predicate_value_anchors_match_handwritten_selection_in_both_orders() {
+        // Mutations caught: change a Task 4 row's local cost or semantic AST,
+        // or let an inactive generated result depend on registration order.
+        let catalogs = crate::grammar::fixture_catalogs();
+        let self_reference = crate::identity::SelfReference::default();
+        for source in [
+            "This creature has flying.",
+            "Enchanted creature gains \"{T}: Draw a card.\"",
+            "Enchanted creature has \"When this creature dies, draw a card\" and \"{T}: Draw a card.\"",
+            "Enchanted creature has flying and \"{T}: Draw a card.\"",
+            "Add {C}.",
+            "Add {C}{C}.",
+            "Add {R} or {G}.",
+            "Add {W}, {B}, or {G}.",
+            "Other Goblin creatures you control get +1/+1 and have haste.",
+            "Scry 2.",
+        ] {
+            let handwritten = crate::grammar::parse_nonterminal_with_activation_in_both_orders(
+                source,
+                &catalogs,
+                Nonterminal::Sentence,
+                &self_reference,
+                GeneratedActivation::Production,
+            );
+            let generated = crate::grammar::parse_nonterminal_with_activation_in_both_orders(
+                source,
+                &catalogs,
+                Nonterminal::Sentence,
+                &self_reference,
+                GeneratedActivation::Groups(all_groups_with_predicate()),
+            );
+            let handwritten_shape = format!(
+                "{:#?}",
+                handwritten[0]
+                    .sentence()
+                    .unwrap_or_else(|| panic!("handwritten root is not a sentence for {source:?}"))
+            );
+            let generated_shape = format!(
+                "{:#?}",
+                generated[0]
+                    .sentence()
+                    .unwrap_or_else(|| panic!("generated root is not a sentence for {source:?}"))
+            );
+            assert_eq!(
+                format!("{:#?}", handwritten[1].sentence().unwrap()),
+                handwritten_shape,
+                "handwritten reversal changed {source:?}"
+            );
+            assert_eq!(
+                format!("{:#?}", generated[1].sentence().unwrap()),
+                generated_shape,
+                "generated reversal changed {source:?}"
+            );
+            assert_eq!(
+                generated_shape, handwritten_shape,
+                "AST mismatch for {source:?}"
+            );
+            assert_eq!(generated[0].cost(), handwritten[0].cost(), "{source:?}");
+            assert_eq!(generated[1].cost(), handwritten[1].cost(), "{source:?}");
+        }
     }
 
     #[test]

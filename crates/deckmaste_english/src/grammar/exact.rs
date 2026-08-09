@@ -15,6 +15,7 @@ use super::GrammarError;
 use super::MeaningKey;
 use super::Nonterminal;
 use super::OpacityMode;
+use super::VerbPhrase;
 use super::generated::GeneratedActivation;
 use super::lowering::Lowered;
 use super::lowering::lower;
@@ -306,6 +307,10 @@ pub(super) fn parse_as(
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the exact root harness exposes source, type, expected value, budget, order, and activation as independent test axes"
+)]
 fn parse_generated_root_as_with_registration_order(
     source: &str,
     catalogs: &Catalogs,
@@ -314,6 +319,7 @@ fn parse_generated_root_as_with_registration_order(
     expected: &dyn std::any::Any,
     budget: usize,
     order: RegistrationOrder,
+    activation: GeneratedActivation,
 ) -> Result<Vec<ExactParse<GeneratedRootParse, EnglishSurfaceWitness>>, ExactParseError> {
     let self_reference = SelfReference::default();
     let surface = lex(source);
@@ -325,7 +331,7 @@ fn parse_generated_root_as_with_registration_order(
         OpacityMode::Exact,
         self_reference,
         order,
-        GeneratedActivation::Production,
+        activation,
     );
     let chart = parse_chart(&grammar, &tokens).map_err(ExactParseError::Grammar)?;
     let mut remaining = budget;
@@ -435,6 +441,27 @@ fn lowered_matches_expected(
             ),
             (Lowered::DevotionColors(actual), Some(expected)) if actual == expected
         ),
+        "ManaAmount" | "ManaAmountList" => matches!(
+            (
+                lowered,
+                expected.downcast_ref::<crate::syntax::PredicateObject>(),
+            ),
+            (Lowered::ManaAmount(actual), Some(expected)) if actual == expected
+        ),
+        "CoordinatedManaAmount" => matches!(
+            (
+                lowered,
+                expected.downcast_ref::<crate::syntax::CoordinatedPredicateObject>(),
+            ),
+            (
+                Lowered::ManaAmount(crate::syntax::PredicateObject::Coordinated(actual)),
+                Some(expected),
+            ) if actual == expected
+        ),
+        "VerbPhrase" => matches!(
+            (lowered, expected.downcast_ref::<VerbPhrase>()),
+            (Lowered::VerbPhrase(actual), Some(expected)) if actual == expected
+        ),
         "TransitivePredicate" => {
             let Lowered::Generated(value) = lowered else {
                 return false;
@@ -518,6 +545,7 @@ pub(crate) fn parse_production_as_declared_category_in_both_orders(
             expected,
             budget,
             RegistrationOrder::Normal,
+            GeneratedActivation::Production,
         )?,
         parse_generated_root_as_with_registration_order(
             source,
@@ -527,6 +555,42 @@ pub(crate) fn parse_production_as_declared_category_in_both_orders(
             expected,
             budget,
             RegistrationOrder::Reversed,
+            GeneratedActivation::Production,
+        )?,
+    ])
+}
+
+#[cfg(test)]
+pub(crate) fn parse_groups_as_declared_category_in_both_orders(
+    source: &str,
+    catalogs: &Catalogs,
+    category: &str,
+    expected: &dyn std::any::Any,
+    budget: usize,
+    groups: &'static [&'static deckmaste_construction_compiler::runtime::GroupData],
+) -> Result<[Vec<ExactParse<GeneratedRootParse, EnglishSurfaceWitness>>; 2], ExactParseError> {
+    let nonterminal = super::generated::declared_category_nonterminal(category)
+        .unwrap_or_else(|| panic!("construction has unmapped declared category `{category}`"));
+    Ok([
+        parse_generated_root_as_with_registration_order(
+            source,
+            catalogs,
+            nonterminal,
+            category,
+            expected,
+            budget,
+            RegistrationOrder::Normal,
+            GeneratedActivation::Groups(groups),
+        )?,
+        parse_generated_root_as_with_registration_order(
+            source,
+            catalogs,
+            nonterminal,
+            category,
+            expected,
+            budget,
+            RegistrationOrder::Reversed,
+            GeneratedActivation::Groups(groups),
         )?,
     ])
 }

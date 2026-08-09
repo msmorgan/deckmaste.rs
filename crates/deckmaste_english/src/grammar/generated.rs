@@ -176,10 +176,9 @@ pub(super) fn coordination_member_role<'a>(
 }
 
 pub(super) fn coordination_delimiter_fields(
-    group: &GroupData,
+    _group: &GroupData,
     element: &ElementData,
 ) -> Option<(usize, usize)> {
-    coordination_member_role(group, element.name)?;
     let codec = |kind| match kind {
         FieldKindData::Scalar { codec }
         | FieldKindData::SurfaceScalar { codec }
@@ -450,6 +449,9 @@ fn engine_category(name: &str) -> Option<Nonterminal> {
         "Quantity" => Nonterminal::Quantity,
         "DevotionColors" => Nonterminal::DevotionColors,
         "PowerToughness" => Nonterminal::PowerToughness,
+        "ManaAmount" => Nonterminal::ManaAmount,
+        "ManaAmountList" => Nonterminal::ManaAmountList,
+        "CoordinatedManaAmount" => Nonterminal::CoordinatedManaAmount,
         "IndependentClause" | "Clause" => Nonterminal::Clause,
         "ComparisonComplement" => Nonterminal::ComparisonComplement,
         "RulesObjectNominal" => Nonterminal::RulesObjectNominal,
@@ -477,6 +479,14 @@ pub(super) fn typed_feature_projection(
     target: &str,
     fields: &[Option<&super::Features>],
 ) -> Option<Option<super::Features>> {
+    let construction_data = group.constructions.get(construction)?;
+    if !construction_data
+        .feature_combinators
+        .iter()
+        .any(|feature| feature.target == target)
+    {
+        return None;
+    }
     match (group.name, target) {
         ("nominal", "features") => Some(crate::constructions::nominal::reduce_nominal_features(
             construction,
@@ -616,6 +626,7 @@ fn typed_scalar_slot(
     }
     match (value_type, codec) {
         ("NumberLiteral" | "QuantityValue", "Numeral") => Ok(EnglishLexicalSlot::QuantityNumber),
+        ("PowerToughness", "PowerToughness") => Ok(EnglishLexicalSlot::PowerToughness),
         _ => Err(GeneratedAssemblyError::UnsupportedTypedScalar {
             owner,
             field,
@@ -649,6 +660,10 @@ fn identity_slot(
         ("VerbParticle", "VerbParticle") => Ok(EnglishLexicalSlot::AnyVerbParticle),
         ("CoinSide", "CoinResult") => Ok(EnglishLexicalSlot::AnyCoinResult),
         ("FrequencyPhrase", "Frequency") => Ok(EnglishLexicalSlot::Frequency),
+        ("CatalogAtom", "AbilityItem") => Ok(EnglishLexicalSlot::AbilityItem),
+        ("QuotedAbility", "QuotedAbility") => Ok(EnglishLexicalSlot::QuotedAbility),
+        ("OracleSymbol", "OracleSymbol") => Ok(EnglishLexicalSlot::OracleSymbol),
+        ("SymbolSequence", "SymbolSequence") => Ok(EnglishLexicalSlot::SymbolSequence),
         ("NounInstance", "KnownNoun") => {
             Ok(EnglishLexicalSlot::Noun(crate::word::NounUsage::Either))
         }
@@ -1741,6 +1756,75 @@ mod tests {
         assert!(
             auxiliary.dominates.contains(&"verb_phrase_adverb"),
             "the generated declaration itself must encode auxiliary > postverbal adverb"
+        );
+    }
+
+    #[test]
+    fn predicate_value_fields_have_closed_typed_chart_adapters() {
+        // Mutations caught: route an ability, quoted ability, symbol, symbol
+        // sequence, or P/T value through a string/scalar fallback, or treat a
+        // mana-list category as an untyped generated side channel.
+        assert_eq!(
+            super::identity_slot(
+                "verb_phrase_ability",
+                "ability",
+                "CatalogAtom",
+                "AbilityItem",
+                false
+            ),
+            Ok(EnglishLexicalSlot::AbilityItem)
+        );
+        assert_eq!(
+            super::identity_slot(
+                "verb_phrase_quoted_ability",
+                "ability",
+                "QuotedAbility",
+                "QuotedAbility",
+                false,
+            ),
+            Ok(EnglishLexicalSlot::QuotedAbility)
+        );
+        assert_eq!(
+            super::identity_slot(
+                "verb_phrase_oracle_symbol",
+                "symbol",
+                "OracleSymbol",
+                "OracleSymbol",
+                false,
+            ),
+            Ok(EnglishLexicalSlot::OracleSymbol)
+        );
+        assert_eq!(
+            super::identity_slot(
+                "verb_phrase_symbol_sequence",
+                "symbols",
+                "SymbolSequence",
+                "SymbolSequence",
+                false,
+            ),
+            Ok(EnglishLexicalSlot::SymbolSequence)
+        );
+        assert_eq!(
+            super::typed_scalar_slot(
+                "verb_phrase_power_toughness",
+                "value",
+                "PowerToughness",
+                "PowerToughness",
+                false,
+            ),
+            Ok(EnglishLexicalSlot::PowerToughness)
+        );
+        assert_eq!(
+            super::engine_category("ManaAmount"),
+            Some(super::super::Nonterminal::ManaAmount)
+        );
+        assert_eq!(
+            super::engine_category("ManaAmountList"),
+            Some(super::super::Nonterminal::ManaAmountList)
+        );
+        assert_eq!(
+            super::engine_category("CoordinatedManaAmount"),
+            Some(super::super::Nonterminal::CoordinatedManaAmount)
         );
     }
 
