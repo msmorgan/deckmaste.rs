@@ -6577,3 +6577,154 @@ took its noun-phrase half — `noun_phrase_coordination` and
 `shared_determiner_nominal`, which is Disenchant's alternatives
 and Rats of Rath's shared modifier — and the rest is deferred by
 axis rather than unmapped, in the frontier entry above.
+
+## Chapter thirty-five — the becomes-status event
+
+Chapter thirty-four gave the grammar [CR#110.5]'s status product and two of its
+three consumers: `HasStatus` DESCRIBES a status and `Untap` CHANGES one. This
+chapter adds the third — the event that OBSERVES a change — in the shape
+finding 244 fixed: an `EventName` row (`StatusChange`) with `TriggeredOnly`
+use and a per-value attestation gate on `BeginningOf`'s pattern. Bench:
+206 positives / 372 pins.
+
+**Finding 245 — a status transition is its own event, and [CR#603.2e] is the
+whole warrant.** The rule gives "becomes" trigger events their reading: they
+trigger only at the time the named event happens — not if the state already
+exists, and not again while it persists — which for the tap pair is the
+change from untapped to tapped and back. That separates three constructions
+the vocabulary now keeps apart: the state description (`HasStatus`), the
+requested change (`Untap`), and the observed transition (`BecomesStatus`).
+The constructor is one row over an ordinary object noun and a status value,
+not a per-noun family: the corpus varies the subject across the bare type,
+the controller-qualified phrase, the sorted self, and the permanent head
+(100 supported "becomes tapped" lines, 33 "becomes untapped"; 109/35 under
+all-cards scope — the figures are scope-labeled so a data refresh is not
+mistaken for a semantic change) while the event relation never varies. The
+subject stands on the battlefield ([CR#110.5d] — only permanents have
+status), demanded as `zoneFits`' silence-passing gate, and carries the
+family's `SelfSorted` demand — measured this round rather than inherited: the
+self subject is one of the family's largest cells ("Whenever this creature
+becomes tapped", "Whenever this artifact becomes tapped", and the whole
+`Inspired —` untapped family), and every line sorts it. A bare "this becomes
+tapped" is written zero times.
+
+**Finding 246 — the attestation gate is a second total reader of the value
+product, not an alias of `statusWordOk`.** Eight values, two attested:
+"becomes tapped" 100 lines, "becomes untapped" 33, and the other six exact
+event phrases zero apiece, individually queried. The face pair is the proof
+the two tables are different questions: FaceUp and FaceDown are real
+descriptions (`statusWordOk` admits them) and unwritten events
+(`statusEventOk` refuses them). The zeroes are phrase-specific — the face
+and phasing transitions exist under their own rules and verb families
+([CR#708]'s "turned face up", [CR#710]'s flip cards, [CR#702.26]'s "phases
+out") and stay on the ledger with the morph and phasing machinery, outside
+this row. Six pins, one per unattested value, each posed over an ordinary
+subject so the refusal is attributable to the value alone. One of the six is
+stronger than attestation: flipping is a one-way process and a flipped
+permanent can never become unflipped ([CR#710.4]), so the Unflipped cell
+refuses an event the rules cannot produce, not merely one the corpus declines
+to write.
+
+**Finding 247 — the grammar admits both `When` and `Whenever` and refuses
+`At`, and the residue is now explained rather than merely measured.** The
+direct headers split 81 `Whenever` against five Aura `When` spellings on
+seven cards ("When enchanted permanent becomes tapped, destroy it"), every
+`When` subject attachment-shaped. The style guide (§8, "Triggered
+abilities") supplies what [CR#603.1] does not: **When** marks a discrete
+event naturally singular in context, **Whenever** a repeatable event class —
+and the Aura lines are naturally singular because their effect destroys the
+enchanted permanent and ends the relationship. So the split is real, keyed
+on the EFFECT, and the grammar deliberately declines to encode it: tolerated
+over-generation, the same posture the When/Whenever slot has held since
+chapter twenty-eight. `At` stays [CR#603.2b]'s and is pinned. The guide also
+forbids `If`/`During`/`Each time`/`After` as trigger words for an ordinary
+standalone triggered ability; `TriggerWord` has no such rows, so those
+refusals are structural and need no pin.
+
+**Finding 248 — the event preserves its subject through `eventAfter` by
+ordinary nominal introduction, because the transition is not a zone
+change.** Status is the permanent's physical state and not a characteristic
+([CR#110.5,110.5a]), and both directions of the tap pair are a rotation in
+place that moves nothing between zones ([CR#701.26a,701.26b] — sideways from
+upright, and back again),
+so `eventAfter (BecomesStatus n _) = nomIntro n` — `IsDealtDamage`'s row,
+not the retagging three's. That is what makes the family's readbacks
+structural: Mesmeric Orb's "that permanent's controller" is the sorted
+demonstrative (`That PermanentW`, whose word reads the binding's battlefield
+zone) under the relational noun, and Mine Layer's "destroy it" would read
+the same binding once its mine-counter subject becomes writable. No
+reflexive relation is consumed; the ordinary event binding covers every
+measured read.
+
+**Finding 249 — "remains tapped" is a duration condition, not an event, and
+leaves this family's ledger.** All forty supported "remains tapped" lines
+sit inside a "for as long as" adverbial ([CR#611.2b]); zero trigger headers
+write the phrase. The enclosed effects range over control grants (9),
+stat/keyword grants (13), type settings and copies (3), and locks (15) —
+the construction belongs to the duration envelope, not to any effect row.
+Giant Oyster and The Pandorica each write the duration BESIDE a separate
+"becomes untapped" trigger in one text box, which is [CR#603.2e]'s
+distinction printed on a card. No row lands: the temporal spelling "X
+remains tapped" (against `Matches`'s present-tense "X is tapped") and the
+six lines needing condition conjunction (Hivis of the Scale, Rubinia
+Soulsinger, and family; Old Man of the Sea) are the ledgered gap. The
+recommended boundary pin — a remains-condition supplied where a transition
+event is required — is unwritable today because no "remains" condition
+exists to misuse, and is recorded here rather than pinned. The neighbouring
+question is settled by the same measurement: no line ends a duration AT the
+transition either, so `eventSpan StatusChange = Unattested` is measured, not
+assumed. The only two "until … becomes tapped/untapped" lines end at a turn
+boundary ("Until your next turn, whenever a creature becomes tapped, destroy
+it"; "Until end of turn, it gains … 'Whenever this creature becomes tapped,
+…'") — the transition is the nested TRIGGER there, never the endpoint.
+
+**Finding 250 — the doesn't-untap census splits 54/67/1/7, and the standing
+row was correctly narrow with stale bookkeeping.** Of the 121 "doesn't
+untap during … untap step(s)" lines: 54 are standing statics (15 "your",
+39 "its controller's") — `DoesntUntap`'s actual corpus, with Time Vault,
+Merieke Ri Berit, and Claustrophobia as exact witnesses; 67 carry
+`next`/`next two` and are timed one-shot restrictions (12/55 by possessor;
+Reveka, Chandra's Revolution, Frost Lynx) that the endpoint-less standing
+row cannot author and must not claim; one line is a non-"during"
+parenthetical; and seven "can't untap" lines (Winter Orb: "players can't
+untap more than one land during their untap steps") are set-level quantity
+caps, a third construction. The 15/39 and 12/55 possessor splits both agree
+with the derived-spelling rule (self ⇒ "your", third party ⇒ "its
+controller's"), so the constructor keeps no possessor slot. The
+constructor's "unmeasured splits" comment is corrected; the timed family's
+representation is future design and stays ledgered.
+
+**Finding 251 — the gnarly-inventory discrepancy closes at 43 cards / 44
+alias memberships.** The five alias sets hold 44 membership rows over 43
+distinct card names; Celestial Dawn is the sole overlap, legitimately
+belonging to both `object-class-noun` and `permanent-word` ("Nonland
+permanents you control are white. The same is true for spells you control
+and nonland cards you own that aren't on the battlefield."). Forty-three is
+the card count; forty-four is only the membership count. Bookkeeping;
+nothing structural.
+
+Ledger updates this chapter:
+
+- L5/OPEN-5 (**closed**): "remains tapped" classified — duration condition
+  inside "for as long as" ([CR#611.2b]); the "remains" spelling and the
+  six-line condition-conjunction demand move to the duration/condition
+  ledger. Face/flip/phase transitions stay in L5/OPEN-7 unchanged, with
+  their rule pointers recorded, all three families now named: [CR#708]
+  (face-down spells and permanents), [CR#710] (flip cards), and [CR#702.26]
+  (phasing). Flip is a one-way process ([CR#710.4]), so the unflipped
+  transition is impossible rather than merely unwritten.
+- L6/OPEN-6 (**updated**): 54 standing during-lines (the `DoesntUntap`
+  row's), 67 `next`-timed during-lines (own future construction), 1
+  non-during line (unclassified conditional), 7 set-level "can't untap"
+  caps (own future construction).
+- L9/OPEN-4 (**closed**): 43 distinct cards, 44 alias memberships,
+  Celestial Dawn the one overlap.
+- New near-miss entries from the whole-line-witness discipline, none
+  required by this round's row: the Dwarf subtype; Wind and Mine counter
+  kinds and a counter-presence noun predicate ("a land with a mine counter
+  on it"); the predefined Treasure token; the `Inspired —` ability-word
+  presentation; coordinated event subjects; the "to pay a teamwork cost"
+  event rider; the attachment edge behind "enchanted permanent" (already on
+  the Representability Frontier).
+- Scope note: the 100/33 event counts are supported-scope; all-cards is
+  109/35.

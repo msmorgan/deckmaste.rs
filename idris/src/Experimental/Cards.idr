@@ -5489,3 +5489,109 @@ failing "VerbedMarkingOk"
 failing "ZoneCoherent"
   badControlledSpell : Predicate [] Object
   badControlledSpell = And [spell, ControlledBy You]
+
+-- ===== The becomes-status event: observing a transition =====
+
+-- "Whenever a creature an opponent controls becomes tapped, put a +1/+1
+-- counter on this creature." (Gideon's Avenger, the whole card's text) —
+-- the tapped cell's witness: [CR#603.2e]'s untapped-to-tapped transition
+-- under a controller-qualified subject, with the effect reading the
+-- SOURCE rather than the event's subject.
+gideonsAvenger : Ability
+gideonsAvenger =
+  Triggered Whenever
+            (BecomesStatus (a (And [creature, ControlledBy anOpponent])) Tapped)
+            (PutCounters (Lit 1) plusOnePlusOne thisCreature)
+
+-- "Whenever a permanent becomes untapped, that permanent's controller
+-- mills a card." (Mesmeric Orb, the whole card's text) — the untapped
+-- cell AND the event-subject readback: the transition changes no zone,
+-- so the subject's binding survives into the trigger body and "that
+-- permanent's controller" is the sorted demonstrative under the
+-- relational noun.
+mesmericOrb : Ability
+mesmericOrb =
+  Triggered Whenever (BecomesStatus (a Permanent) Untapped)
+            (millsCards (ControllerOf (That PermanentW)) 1)
+
+-- The six unattested values, one pin each so a future broadening fails
+-- at the VALUE gate with the failure attributable to nothing else: the
+-- subject and context are ordinary throughout. The zero counts are
+-- exact and individually queried ("becomes flipped/unflipped/face
+-- up/face down/phased in/phased out" — zero supported lines apiece);
+-- the operations exist under their own verbs ([CR#708] for the face
+-- pair, [CR#710] for flip, [CR#702.26] for phasing) and are the
+-- ledger's. Unflipped is stronger still: flipping is one-way, so the
+-- transition cannot happen ([CR#710.4]).
+failing "StatusEventVal"
+  badBecomesFlipped : Ability
+  badBecomesFlipped =
+    Triggered Whenever (BecomesStatus (a Permanent) Flipped) drawACard
+
+failing "StatusEventVal"
+  badBecomesUnflipped : Ability
+  badBecomesUnflipped =
+    Triggered Whenever (BecomesStatus (a Permanent) Unflipped) drawACard
+
+failing "StatusEventVal"
+  badBecomesFaceUp : Ability
+  badBecomesFaceUp =
+    Triggered Whenever (BecomesStatus (a Permanent) FaceUp) drawACard
+
+failing "StatusEventVal"
+  badBecomesFaceDown : Ability
+  badBecomesFaceDown =
+    Triggered Whenever (BecomesStatus (a Permanent) FaceDown) drawACard
+
+failing "StatusEventVal"
+  badBecomesPhasedIn : Ability
+  badBecomesPhasedIn =
+    Triggered Whenever (BecomesStatus (a Permanent) PhasedIn) drawACard
+
+failing "StatusEventVal"
+  badBecomesPhasedOut : Ability
+  badBecomesPhasedOut =
+    Triggered Whenever (BecomesStatus (a Permanent) PhasedOut) drawACard
+
+-- [CR#603.2b] keeps `At` for phases and steps: "At a creature becomes
+-- tapped" is unwritten, as it is for every other object event.
+failing "TriggerWordOk"
+  badAtBecomesTapped : Ability
+  badAtBecomesTapped =
+    Triggered At (BecomesStatus (a creature) Tapped) drawACard
+
+-- Trigger-only, reader by reader — `badInterceptEnters`'s shape at the
+-- new event. Nothing intercepts a becomes-tapped: no "if [it] would
+-- become tapped, … instead" line exists.
+failing "Interceptable"
+  badInterceptBecomesTapped : Effect []
+  badInterceptBecomesTapped =
+    ifWouldInstead (BecomesStatus (target creature) Tapped)
+                   (exile It) (Just thisTurn)
+
+-- …and the [CR#610.3] rider does not wait for one: "exile it until
+-- [something] becomes untapped" is written zero times, the rider's
+-- whole corpus being the departure.
+failing "Holdable"
+  badHeldUntilBecomesUntapped : Effect []
+  badHeldUntilBecomesUntapped =
+    exileUntil (target creature) (BecomesStatus (a creature) Untapped)
+
+-- …nor does the delayed clause: the delayed family stays the end-step
+-- beginning, the departure, and the death.
+failing "Awaitable"
+  badDelayedOnBecomesTapped : Effect []
+  badDelayedOnBecomesTapped =
+    Delayed (BecomesStatus (target creature) Tapped)
+            (sacrifice You (That (TypeW Creature)))
+
+-- No measured duration ends at a status transition: the tapped-STATE
+-- span is "for as long as … remains tapped" ([CR#611.2b]), a condition
+-- inside the for-as-long-as adverbial and not an event endpoint (forty
+-- of forty corpus "remains tapped" lines; zero write "until … becomes
+-- untapped" in a clause this grammar spells).
+failing "SpanOk PtDelta"
+  badGetsUntilBecomesUntapped : Effect []
+  badGetsUntilBecomesUntapped =
+    gets (target creature) 2 2
+         (Just (UntilEvent (BecomesStatus thisCreature Untapped)))

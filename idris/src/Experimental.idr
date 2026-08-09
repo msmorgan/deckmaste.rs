@@ -1958,6 +1958,32 @@ public export
 data StatusWord : StatusVal c -> Type where
   MkStatusWord : {auto 0 ok : statusWordOk v = True} -> StatusWord v
 
+||| Which status values the becomes-status EVENT spells — a second total
+||| reader of [CR#110.5]'s value product, deliberately NOT derived from
+||| `statusWordOk` beside it: the two tables disagree on the face pair,
+||| which is a real description ("face-down creature") and an unwritten
+||| event ("becomes face down" is written zero times — the face, flip,
+||| and phasing transitions have their own verb families, ledgered).
+||| Only the tap pair is written as a "becomes" transition, the frame
+||| [CR#603.2e] gives its trigger reading. The Unflipped cell is
+||| additionally rules-backed rather than merely unwritten: flipping is
+||| one-way, so no becomes-unflipped transition can occur at all
+||| ([CR#710.4]).
+public export
+statusEventOk : {0 c : StatusCat} -> StatusVal c -> Bool
+statusEventOk Tapped = True
+statusEventOk Untapped = True
+statusEventOk Flipped = False
+statusEventOk Unflipped = False
+statusEventOk FaceUp = False
+statusEventOk FaceDown = False
+statusEventOk PhasedIn = False
+statusEventOk PhasedOut = False
+
+public export
+data StatusEventVal : StatusVal c -> Type where
+  MkStatusEventVal : {auto 0 ok : statusEventOk v = True} -> StatusEventVal v
+
 ||| Colors are duplicate-free but NOT ordered, and the corpus is why:
 ||| Additive Evolution writes "a 0/0 green and blue Fractal creature
 ||| token", which the mana order would have spelled the other way round.
@@ -2188,8 +2214,7 @@ data SpanUse = Unattested | Unclaimed | GrantsAndControl | GrantsTypesControlRep
 ||| supported corpus with the moods counted separately because they are
 ||| different constructions. What sits below the minted rows is ledgered
 ||| with its count rather than minted: the put-into-a-graveyard event, the
-||| becomes-tapped event, the becomes-the-target event, the create event,
-||| and the life-change pair.
+||| becomes-the-target event, the create event, and the life-change pair.
 |||
 ||| The NAMES are the event class and not any construction's spelling,
 ||| which is chapter twenty-eight's correction: `GameEvent`'s rows carry
@@ -2214,7 +2239,7 @@ public export
 -- GameEvent)
 data EventName = Death | Departure | Destruction | DamageTaken
                | CardDrawn | Entry | AttackDeclaration | BlockDeclaration
-               | CombatDamage | PartBeginning | SpellCast
+               | CombatDamage | PartBeginning | SpellCast | StatusChange
 
 ||| WHICH constructions write a clause over a given event — `SpanUse`'s
 ||| shape asked of the event axis, and it tells the same two silences
@@ -2270,6 +2295,11 @@ eventUse PartBeginning = TriggeredAndDelayed
 -- is writable -- every body either grants an ability to an object on the
 -- STACK, which `Gains` refuses by zone, or copies the spell (ledger).
 eventUse SpellCast = TriggeredOnly
+-- The STATUS transition, trigger-only like the object events beside
+-- it: nothing intercepts a becomes-tapped, nothing holds a zone change
+-- on one, and nothing delays on one — each a measured silence — while
+-- the trigger headers are the family's whole corpus ([CR#603.2e]).
+eventUse StatusChange = TriggeredOnly
 
 ||| May the would/instead clause intercept an event of this class? Full
 ||| rows in the answer axis, so a new `EventUse` declares every reader.
@@ -2362,6 +2392,12 @@ eventSpan CombatDamage = Unattested
 -- spell" is written none), not adverbials.
 eventSpan SpellCast = Unattested
 eventSpan PartBeginning = Unclaimed
+-- Measured: no corpus line ends a duration at a status transition. The
+-- tapped-STATE family is [CR#611.2b]'s "for as long as … remains
+-- tapped" condition, another axis entirely; the two "until …" lines
+-- that mention the transition end at a TURN boundary and merely
+-- contain a becomes-tapped trigger (chapter thirty-five).
+eventSpan StatusChange = Unattested
 
 ||| How many times an interception fires — [CR#614.3]'s two ways for a
 ||| replacement effect to end, "used up" against "duration expired", and
@@ -2429,6 +2465,8 @@ replUseOk CombatDamage Repeatedly = False
 replUseOk CombatDamage NextTimeOnly = False
 replUseOk PartBeginning Repeatedly = False
 replUseOk PartBeginning NextTimeOnly = False
+replUseOk StatusChange Repeatedly = False
+replUseOk StatusChange NextTimeOnly = False
 
 -- ===== The trigger header's opening word =====
 
@@ -2508,6 +2546,16 @@ triggerWordOk CombatDamage At = False
 triggerWordOk PartBeginning When = False
 triggerWordOk PartBeginning Whenever = False
 triggerWordOk PartBeginning At = True
+-- Both English words: the direct "Whenever … becomes tapped" mass
+-- against the Aura family's "When enchanted … becomes tapped"
+-- ([CR#603.1] assigns neither word; the guide's split tracks whether
+-- the event is naturally singular in context, which the EFFECT decides
+-- — an Aura's destroy ends the relationship — so the grammar declines
+-- to encode it, tolerated over-generation). `At` is refused with every
+-- other object event ([CR#603.2b]).
+triggerWordOk StatusChange When = True
+triggerWordOk StatusChange Whenever = True
+triggerWordOk StatusChange At = False
 
 -- ===== Which turn-part beginnings a header names =====
 
@@ -5799,6 +5847,28 @@ mutual
             {auto 0 zn : OnStack (nounZone what)} ->
             {auto 0 one : nounPlur what = OneOf} ->
             {auto 0 nt : Nontarget what} -> GameEvent bs
+    -- "[n] becomes [tapped/untapped]" ([CR#603.2e] — a "becomes" trigger
+    -- event fires only at the time the named event happens, neither when
+    -- the state already exists nor again while it persists, so this row
+    -- names a TRANSITION where `HasStatus` describes the standing state
+    -- and `Untap` requests the change: three readers, three
+    -- constructions. The subject is an ordinary object noun — the corpus
+    -- varies it across the bare type, the controller-qualified phrase,
+    -- the sorted self, and the permanent head while the event relation
+    -- stays one — and it stands on the battlefield, only permanents
+    -- having status at all ([CR#110.5d]): a phrase stating another zone
+    -- contradicts, silence passes (`zoneFits`' discipline). WHICH values
+    -- the event spells is `statusEventOk`'s measured answer — the tap
+    -- pair and nothing else — a different table from `statusWordOk`,
+    -- whose face cells are real DESCRIPTIONS and unwritten EVENTS.
+    -- spelling: ["<Param(0)> becomes <Param(1)>"] (the finite clause
+    -- the header word introduces; Param(1) is the status value's own
+    -- word — see StatusVal)
+    BecomesStatus : {c : StatusCat} -> (n : Noun bs Object) ->
+                    (v : StatusVal c) ->
+                    {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                    {auto 0 ss : SelfSorted n} ->
+                    {auto 0 at : StatusEventVal v} -> GameEvent bs
 
   ||| Which row an event pattern is, for the event tables.
   public export
@@ -5814,6 +5884,7 @@ mutual
   eventName (DealsCombatDamage _ _) = CombatDamage
   eventName (BeginningOf _ _) = PartBeginning
   eventName (Casts _ _) = SpellCast
+  eventName (BecomesStatus _ _) = StatusChange
 
   ||| What an event pattern contributes to the discourse: its subject
   ||| phrase, exactly as a clause contributes its own. The event has not
@@ -5833,6 +5904,7 @@ mutual
   eventIntro (DealsCombatDamage n to) = nomIntro to
   eventIntro (BeginningOf _ _) = bs
   eventIntro (Casts _ what) = nomIntro what
+  eventIntro (BecomesStatus n _) = nomIntro n
 
   ||| The discourse AFTER the event has happened — the second projection
   ||| the trigger container forced, and the sharpest single difference
@@ -5876,6 +5948,14 @@ mutual
   -- it.
   eventAfter (Casts _ what) = nomIntro what
   eventAfter (BeginningOf _ _) = bs
+  -- the status transition changes no ZONE — status is the permanent's
+  -- physical state and not a characteristic ([CR#110.5,110.5a]), and
+  -- both directions are a rotation in place, moving nothing anywhere
+  -- ([CR#701.26a,701.26b]) — so the subject's
+  -- binding survives into the trigger body untouched: `IsDealtDamage`'s
+  -- row, not the retagging three's. "Destroy it" and "that permanent's
+  -- controller" read the phrase where it announced itself.
+  eventAfter (BecomesStatus n _) = nomIntro n
 
   ||| The grammatical number of an event's SUBJECT, for the one reader
   ||| that demands one. [CR#603.7b] gives a delayed trigger a single firing
@@ -5900,6 +5980,7 @@ mutual
   eventSubjectPlur (DealsCombatDamage n _) = nounPlur n
   eventSubjectPlur (BeginningOf _ _) = OneOf
   eventSubjectPlur (Casts _ what) = nounPlur what
+  eventSubjectPlur (BecomesStatus n _) = nounPlur n
 
   ||| The context a delayed body reads: the event's own after-discourse
   ||| with the outer clause's targets SETTLED — [CR#603.7c] refers to
@@ -6175,8 +6256,9 @@ mutual
     -- kind-keyed reader. The step's POSSESSOR is not a slot: a permanent
     -- untaps only during its controller's untap step, so the possessive
     -- AGREES with the subject and the spelling owns it. The one-shot
-    -- "during its controller's NEXT untap step" family and the single
-    -- non-"during" line are unmeasured splits and are ledgered.
+    -- "during its controller's next untap step" family, the single
+    -- non-"during" line, and the set-level "can't untap" caps are
+    -- measured and stay other constructions (ledger).
     -- spelling: ["<Param(0)> doesn't untap during your untap step"
     -- (self subject), "<Param(0)> doesn't untap during its controller's
     -- untap step" (otherwise)], kind: Sentence
