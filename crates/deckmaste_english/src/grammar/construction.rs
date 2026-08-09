@@ -208,6 +208,48 @@ mod tests {
     }
 
     #[test]
+    fn inactive_predicate_registry_is_group_permutation_neutral() {
+        // Mutation caught: let generated replacement ownership or dominance
+        // depend on the predicate group's insertion position.
+        let mut normal = crate::constructions::GROUPS.to_vec();
+        normal.push(&crate::constructions::predicate::PREDICATE_DECLARATION);
+        let mut reversed = normal.clone();
+        reversed.reverse();
+        let normal = super::merged_registry_for_activation(&normal)
+            .expect("normal inactive group assembly is valid");
+        let reversed = super::merged_registry_for_activation(&reversed)
+            .expect("reversed inactive group assembly is valid");
+        let required = crate::constructions::predicate::PREDICATE_DECLARATION
+            .constructions
+            .iter()
+            .map(|construction| construction.id)
+            .collect::<Vec<_>>();
+        for id in required {
+            let id = ConstructionId::new(id);
+            assert_eq!(normal.family(id), reversed.family(id), "{id}");
+            assert_eq!(
+                normal
+                    .family(id)
+                    .expect("predicate family is present")
+                    .owner(),
+                ConstructionOwner::Generated,
+                "{id}"
+            );
+        }
+        for (winner, loser) in [
+            ("verb_phrase_base", "verb_phrase_auxiliary_proform"),
+            ("verb_phrase_auxiliary", "verb_phrase_adjective"),
+            ("verb_phrase_auxiliary", "verb_phrase_adverb"),
+            ("verb_phrase_auxiliary", "verb_phrase_ability"),
+        ] {
+            let winner = ConstructionId::new(winner);
+            let loser = ConstructionId::new(loser);
+            assert!(normal.dominates(winner, loser));
+            assert!(reversed.dominates(winner, loser));
+        }
+    }
+
+    #[test]
     fn production_registry_and_ability_entry_census_matches_the_inventory() {
         // Mutation caught: add/drop a RuleTag or generated declaration without
         // updating the migration inventory, or accidentally count the two

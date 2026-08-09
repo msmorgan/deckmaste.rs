@@ -706,6 +706,8 @@ impl ser::SerializeStructVariant for NodeBuilder {
 
 #[cfg(test)]
 mod tests {
+    use deckmaste_english::Catalogs;
+    use deckmaste_english::FragmentKind;
     use deckmaste_english::Numeral;
     use deckmaste_english::features::Comma;
     use deckmaste_english::features::Conjunction;
@@ -737,6 +739,53 @@ mod tests {
             .iter()
             .find_map(|(name, value)| (*name == wanted).then_some(value))
             .unwrap_or_else(|| panic!("missing field {wanted:?} in {view:#?}"))
+    }
+
+    fn has_variant(view: &View, wanted: &str) -> bool {
+        let own = match view {
+            View::Unit { variant, .. }
+            | View::Newtype { variant, .. }
+            | View::Node { variant, .. } => *variant == Some(wanted),
+            View::Scalar { .. }
+            | View::Seq(_)
+            | View::Map(_)
+            | View::Absent
+            | View::Hole { .. } => false,
+        };
+        own || view
+            .children()
+            .into_iter()
+            .any(|(_, child)| has_variant(child, wanted))
+    }
+
+    #[test]
+    fn causative_fragment_serde_view_retains_causee_and_bare_complement() {
+        // Mutation caught: lower the causative through a declaration-local
+        // parallel IR that does not implement the ordinary semantic serde
+        // traversal consumed by spelling frames.
+        let report = deckmaste_english::parse_fragment(
+            "You may have this creature enter.",
+            &Catalogs::default()
+                .with_catalog(deckmaste_english::CatalogKind::CardType, ["Creature"]),
+            FragmentKind::Sentence,
+            "",
+            false,
+        );
+        assert!(report.clean(), "{:?}", report.diagnostics());
+        let fragment = report.fragment().expect("the causative fragment lowers");
+        let deckmaste_english::Fragment::Sentence(sentence) = fragment else {
+            panic!("the spelling fixture remains a semantic Sentence")
+        };
+        assert!(matches!(
+            sentence.body(),
+            deckmaste_english::syntax::SentenceBody::Independent(
+                deckmaste_english::syntax::IndependentClause::Deontic(_, _, Some(_))
+            )
+        ));
+        let view = of(fragment);
+        assert!(has_variant(&view, "Transitive"), "{view:#?}");
+        assert!(has_variant(&view, "Infinitive"), "{view:#?}");
+        assert!(has_variant(&view, "Bare"), "{view:#?}");
     }
 
     #[test]

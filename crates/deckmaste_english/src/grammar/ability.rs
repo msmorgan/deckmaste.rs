@@ -175,6 +175,7 @@ pub(crate) fn parse_quoted_ability_fragment(
 pub(crate) struct AbilityFragment<T> {
     pub(crate) value: T,
     pub(crate) diagnostics: Vec<AbilityDiagnostic>,
+    pub(crate) constructions: Vec<crate::construction::ConstructionDecision>,
 }
 
 /// Parses a bare activation-cost line (`{2}{W}, Sacrifice this artifact`) with
@@ -205,6 +206,11 @@ pub(crate) fn parse_cost_fragment(
     AbilityFragment {
         value,
         diagnostics: parser.diagnostics,
+        constructions: parser
+            .selections
+            .into_iter()
+            .flat_map(|selection| selection.constructions)
+            .collect(),
     }
 }
 
@@ -231,6 +237,11 @@ pub(crate) fn parse_keyword_line_fragment(
     AbilityFragment {
         value,
         diagnostics: parser.diagnostics,
+        constructions: parser
+            .selections
+            .into_iter()
+            .flat_map(|selection| selection.constructions)
+            .collect(),
     }
 }
 
@@ -256,6 +267,74 @@ pub(crate) fn parse_ability_fragment(
     AbilityFragment {
         value,
         diagnostics: parser.diagnostics,
+        constructions: parser
+            .selections
+            .into_iter()
+            .flat_map(|selection| selection.constructions)
+            .collect(),
+    }
+}
+
+pub(crate) fn parse_cost_fragment_with_activation(
+    source: &str,
+    catalogs: &Catalogs,
+    tokens: &[Token],
+    self_reference: &SelfReference,
+    activation: super::GeneratedActivation,
+) -> AbilityFragment<Cost> {
+    let mut parser =
+        Parser::new_with_activation(source, catalogs, self_reference, false, activation);
+    let value = parser.parse_cost(tokens);
+    AbilityFragment {
+        value,
+        diagnostics: parser.diagnostics,
+        constructions: parser
+            .selections
+            .into_iter()
+            .flat_map(|selection| selection.constructions)
+            .collect(),
+    }
+}
+
+pub(crate) fn parse_keyword_line_fragment_with_activation(
+    source: &str,
+    catalogs: &Catalogs,
+    tokens: &[Token],
+    self_reference: &SelfReference,
+    activation: super::GeneratedActivation,
+) -> AbilityFragment<Option<KeywordAbilityList>> {
+    let mut parser =
+        Parser::new_with_activation(source, catalogs, self_reference, false, activation);
+    let value = parser.parse_keyword_list(tokens);
+    AbilityFragment {
+        value,
+        diagnostics: parser.diagnostics,
+        constructions: parser
+            .selections
+            .into_iter()
+            .flat_map(|selection| selection.constructions)
+            .collect(),
+    }
+}
+
+pub(crate) fn parse_ability_fragment_with_activation(
+    source: &str,
+    catalogs: &Catalogs,
+    tokens: &[Token],
+    self_reference: &SelfReference,
+    activation: super::GeneratedActivation,
+) -> AbilityFragment<Ability> {
+    let mut parser =
+        Parser::new_with_activation(source, catalogs, self_reference, false, activation);
+    let value = parser.parse_ability(tokens);
+    AbilityFragment {
+        value,
+        diagnostics: parser.diagnostics,
+        constructions: parser
+            .selections
+            .into_iter()
+            .flat_map(|selection| selection.constructions)
+            .collect(),
     }
 }
 
@@ -274,6 +353,7 @@ struct Parser<'source, 'catalogs, 'sr> {
     /// outside a quote, where nothing downstream would ever put the period
     /// back.
     quoted_fragment: bool,
+    activation: super::GeneratedActivation,
 }
 
 impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
@@ -283,6 +363,22 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         self_reference: &'sr SelfReference,
         quoted_fragment: bool,
     ) -> Self {
+        Self::new_with_activation(
+            source,
+            catalogs,
+            self_reference,
+            quoted_fragment,
+            super::GeneratedActivation::Production,
+        )
+    }
+
+    fn new_with_activation(
+        source: &'source str,
+        catalogs: &'catalogs Catalogs,
+        self_reference: &'sr SelfReference,
+        quoted_fragment: bool,
+        activation: super::GeneratedActivation,
+    ) -> Self {
         Self {
             source,
             catalogs,
@@ -290,6 +386,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             diagnostics: Vec::new(),
             selections: Vec::new(),
             quoted_fragment,
+            activation,
         }
     }
 
@@ -2590,11 +2687,12 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             return None;
         }
         let span = tokens_span(tokens);
-        parse_nonterminal_with_self_reference(
+        super::parse_nonterminal_with_self_reference_and_activation(
             span.text(self.source)?,
             self.catalogs,
             nonterminal,
             self.self_reference,
+            self.activation,
         )
         .ok()
     }
@@ -2606,7 +2704,13 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         let surface = lex(fragment);
         let tokens = collapse_full_names(fragment, surface.tokens, self.self_reference.full_name());
         let selections = {
-            let mut parser = Parser::new(fragment, self.catalogs, self.self_reference, true);
+            let mut parser = Parser::new_with_activation(
+                fragment,
+                self.catalogs,
+                self.self_reference,
+                true,
+                self.activation,
+            );
             parser.parse_ability(&tokens);
             parser.selections
         };

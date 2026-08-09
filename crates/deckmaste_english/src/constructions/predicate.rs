@@ -74,6 +74,12 @@ fn verb_parts(value: &VerbAnalysis) -> VerbAnalysis {
     value.clone()
 }
 
+fn is_verb(value: &VerbAnalysis) -> bool {
+    Vocabulary::new()
+        .render_verb_instance(value.instance())
+        .is_some()
+}
+
 fn reduce_verb_features(head: &Features) -> Option<Features> {
     matches!(head, Features::Verb { .. }).then(|| head.clone())
 }
@@ -634,6 +640,157 @@ fn complete_quantity(predicate: &Features, quantity: &Features) -> Option<Featur
     admit_argument_complete(reduce_verb_phrase_quantity_features(predicate, quantity))
 }
 
+fn causative_host_features(host: &Features) -> Option<Features> {
+    let Features::VerbPhrase {
+        form: crate::grammar::PredicateForm::Infinitive,
+        passive: false,
+        object: crate::grammar::PredicateObjectState::Direct,
+        indirect_object,
+        selected_preposition,
+        phase: crate::grammar::PredicateAttachmentPhase::Object,
+        frame,
+        ..
+    } = host
+    else {
+        return None;
+    };
+    (frame.causative_complement()
+        && crate::grammar::predicate_features_are_argument_complete(host)
+        && frame.indirect_object().is_satisfied_by(*indirect_object)
+        && frame
+            .selected_preposition()
+            .is_satisfied_by(*selected_preposition))
+    .then(|| host.clone())
+}
+
+fn causative_complement_features(complement: &Features) -> Option<Features> {
+    let Features::VerbPhrase {
+        form: crate::grammar::PredicateForm::Infinitive,
+        frame,
+        bare,
+        ..
+    } = complement
+    else {
+        return None;
+    };
+    (!(*bare && frame.is_proform())
+        && crate::grammar::predicate_features_are_argument_complete(complement))
+    .then(|| complement.clone())
+}
+
+pub(crate) fn reduce_verb_phrase_causative_features(
+    host: &Features,
+    complement: &Features,
+) -> Option<Features> {
+    let Features::VerbPhrase {
+        form,
+        indirect_object,
+        selected_preposition,
+        frame,
+        head_is_copular,
+        object_gap_requires_rules_object,
+        ..
+    } = causative_host_features(host)?
+    else {
+        unreachable!("the causative host helper returns verb-phrase features")
+    };
+    causative_complement_features(complement)?;
+    Some(Features::VerbPhrase {
+        form,
+        passive: false,
+        object: crate::grammar::PredicateObjectState::Direct,
+        indirect_object,
+        selected_preposition,
+        phase: crate::grammar::PredicateAttachmentPhase::Tail,
+        frame,
+        bare: false,
+        head_is_copular,
+        object_gap_requires_rules_object,
+        subjunctive: false,
+    })
+}
+
+fn complete_causative(host: &Features, complement: &Features) -> Option<Features> {
+    admit_argument_complete(reduce_verb_phrase_causative_features(host, complement))
+}
+
+fn make_verb_phrase_causative(
+    host: VerbPhrase,
+    complement: VerbPhrase,
+) -> Result<VerbPhrase, DeclarationViolation> {
+    let host_features = host.declaration_core_features().ok_or_else(|| {
+        violation(
+            "verb_phrase_causative",
+            "the host is a complete causative infinitive with exactly one direct-object causee",
+        )
+    })?;
+    if causative_host_features(&host_features).is_none() {
+        return Err(violation(
+            "verb_phrase_causative",
+            "the host is a complete causative infinitive with exactly one direct-object causee",
+        ));
+    }
+    let complement_features = complement.declaration_core_features().ok_or_else(|| {
+        violation(
+            "verb_phrase_causative",
+            "the complement is a complete bare-infinitive predicate",
+        )
+    })?;
+    if causative_complement_features(&complement_features).is_none() {
+        return Err(violation(
+            "verb_phrase_causative",
+            "the complement is a complete bare-infinitive predicate",
+        ));
+    }
+    reduce_verb_phrase_causative_features(&host_features, &complement_features).ok_or_else(
+        || {
+            violation(
+                "verb_phrase_causative",
+                "the causee precedes the bare-infinitive complement",
+            )
+        },
+    )?;
+    let (mut dependents, shell) = host.declaration_into_dependent_projection();
+    dependents.push(VerbDependent::Infinitive(
+        InfinitiveClause::declaration_bare(complement),
+    ));
+    Ok(VerbPhrase::declaration_from_dependent_projection(
+        shell, dependents,
+    ))
+}
+
+fn verb_phrase_causative_parts(value: &VerbPhrase) -> (VerbPhrase, VerbPhrase) {
+    let (host, VerbDependent::Infinitive(infinitive)) = value
+        .declaration_last_dependent_parts()
+        .expect("the causative inverse has a final infinitive dependent")
+    else {
+        unreachable!("the causative inverse check pins the dependent variant")
+    };
+    let complement = infinitive
+        .declaration_bare_predicate()
+        .expect("the causative inverse check pins the bare infinitive")
+        .clone();
+    (host, complement)
+}
+
+fn is_verb_phrase_causative(value: &VerbPhrase) -> bool {
+    let Some((host, VerbDependent::Infinitive(infinitive))) =
+        value.declaration_last_dependent_parts()
+    else {
+        return false;
+    };
+    let Some(complement) = infinitive.declaration_bare_predicate() else {
+        return false;
+    };
+    let Some(host_features) = host.declaration_core_features() else {
+        return false;
+    };
+    let Some(complement_features) = complement.declaration_core_features() else {
+        return false;
+    };
+    reduce_verb_phrase_causative_features(&host_features, &complement_features).is_some()
+}
+
 fn make_verb_phrase_auxiliary(
     auxiliary: AuxiliaryInstance,
     predicate: VerbPhrase,
@@ -1035,6 +1192,10 @@ fn frequency_phrase_adverb_parts(frequency: &FrequencyPhrase) -> (Vocab, Frequen
 
 fn is_frequency_phrase_adverb(frequency: &FrequencyPhrase) -> bool {
     frequency.bound == FrequencyBound::NoMoreThan
+}
+
+fn is_frequency_phrase(frequency: &FrequencyPhrase) -> bool {
+    frequency.bound == FrequencyBound::MoreThan
 }
 
 fn object_conjunction(
@@ -1727,7 +1888,7 @@ dependent_lens!(
     is_verb_phrase_infinitive,
     Infinitive,
     InfinitiveClause,
-    |_: &InfinitiveClause| true
+    |infinitive: &InfinitiveClause| infinitive.declaration_bare_predicate().is_none()
 );
 
 fn from_adjective_lens_parts(
@@ -1956,7 +2117,7 @@ deckmaste_constructions_macro::constructions! {
             head: identity VerbAnalysis via LexicalVerb,
         }
         derive features: Features = reduce_verb_features(head);
-        form only @ 0 = identity(head);
+        form only @ 0 inverse check(is_verb) = identity(head);
         selection unique;
     }
 
@@ -1981,6 +2142,7 @@ deckmaste_constructions_macro::constructions! {
         derive features: Features = reduce_verb_phrase_auxiliary_features(auxiliary, predicate);
         derive argument_complete: Features = complete_auxiliary(auxiliary, predicate);
         derive object_gap: Features = reduce_object_gap_auxiliary(auxiliary, predicate);
+        evidence feature "predicate voice" from category;
         form only @ 0 inverse check(is_verb_phrase_auxiliary) = identity(auxiliary) predicate;
         dominates verb_phrase_adjective;
         dominates verb_phrase_adverb;
@@ -2010,6 +2172,7 @@ deckmaste_constructions_macro::constructions! {
         derive argument_complete: Features = complete_direct_object(predicate, object);
         derive reduced_passive: Features = reduce_reduced_passive_direct(predicate, object);
         derive precedence: Features = disprefer_active_temporal_attachment(predicate, object);
+        evidence role "predicate object role" from category;
         form only @ 0 inverse check(is_verb_phrase_direct_object) = predicate object;
         selection unique;
     }
@@ -2041,6 +2204,7 @@ deckmaste_constructions_macro::constructions! {
         derive argument_complete: Features = complete_adjective(predicate, adjective);
         derive object_gap: Features = reduce_object_gap_adjective(predicate, adjective);
         derive base_precedence_2: Features = reduce_verb_phrase_adjective_features(predicate, adjective);
+        evidence feature "predicate local cost" from category;
         form only @ 0 inverse check(is_verb_phrase_adjective) = predicate adjective;
         selection unique;
     }
@@ -2117,6 +2281,7 @@ deckmaste_constructions_macro::constructions! {
         derive argument_complete: Features = complete_adverb(predicate, adverb);
         derive object_gap: Features = reduce_verb_phrase_adverb_features(predicate, adverb);
         derive reduced_passive: Features = reduce_verb_phrase_adverb_features(predicate, adverb);
+        evidence feature "predicate attachment phase" from category;
         form only @ 0 inverse check(is_verb_phrase_adverb) = predicate identity(adverb);
         selection unique;
     }
@@ -2195,7 +2360,7 @@ deckmaste_constructions_macro::constructions! {
             frequency: identity FrequencyPhrase via Frequency,
         }
         derive features: Features = reduce_frequency_phrase_features(frequency);
-        form only @ 0 = identity(frequency);
+        form only @ 0 inverse check(is_frequency_phrase) = identity(frequency);
         selection unique;
     }
 
@@ -2384,6 +2549,18 @@ deckmaste_constructions_macro::constructions! {
         derive features: Features = reduce_verb_phrase_quantity_features(predicate, quantity);
         derive argument_complete: Features = complete_quantity(predicate, quantity);
         form only @ 0 inverse check(is_verb_phrase_quantity) = predicate quantity;
+        selection unique;
+    }
+
+    construction verb_phrase_causative: VerbPhrase {
+        bind VerbPhrase via make_verb_phrase_causative, verb_phrase_causative_parts {
+            host: hole VerbPhrase,
+            complement: hole VerbPhrase,
+        }
+        derive features: Features = reduce_verb_phrase_causative_features(host, complement);
+        derive argument_complete: Features = complete_causative(host, complement);
+        evidence role "causative host-causee-complement order" from category;
+        form only @ 0 inverse check(is_verb_phrase_causative) = host complement;
         selection unique;
     }
 }
@@ -3314,15 +3491,14 @@ mod tests {
         // to the wrong row, flatten a sequence, or let registration position
         // choose between the atomic/list/Oxford shapes.
         let catalogs = Catalogs::default().with_catalog(CatalogKind::KeywordAbility, ["Flying"]);
-        macro_rules! exact_row {
+        macro_rules! exact_row_impl {
             ($id:literal, $source:literal, $category:literal, $value:expr) => {{
-                let value = $value;
                 let orders =
                     crate::grammar::exact::parse_groups_as_declared_category_in_both_orders(
                         $source,
                         &catalogs,
                         $category,
-                        &value,
+                        $value,
                         100_000,
                         all_groups_with_predicate(),
                     )
@@ -3342,6 +3518,49 @@ mod tests {
                         $source,
                     );
                 }
+            }};
+        }
+        macro_rules! exact_row {
+            ($id:literal, $source:literal, "VerbPhrase", $value:expr) => {{
+                let value = $value;
+                assert_eq!(
+                    crate::renderer::render_generated_predicate_verb_phrase(&value).unwrap(),
+                    $source,
+                    "{} generated inverse",
+                    $id,
+                );
+                exact_row_impl!($id, $source, "VerbPhrase", &value);
+            }};
+            ($id:literal, $source:literal, "ManaAmount", $value:expr) => {{
+                let value = $value;
+                assert_eq!(
+                    crate::renderer::render_generated_predicate_mana_amount(&value).unwrap(),
+                    $source,
+                    "{} generated inverse",
+                    $id,
+                );
+                exact_row_impl!($id, $source, "ManaAmount", &value);
+            }};
+            ($id:literal, $source:literal, "ManaAmountList", $value:expr) => {{
+                let value = $value;
+                assert_eq!(
+                    crate::renderer::render_generated_predicate_mana_amount_list(&value).unwrap(),
+                    $source,
+                    "{} generated inverse",
+                    $id,
+                );
+                exact_row_impl!($id, $source, "ManaAmountList", &value);
+            }};
+            ($id:literal, $source:literal, "CoordinatedManaAmount", $value:expr) => {{
+                let value = $value;
+                assert_eq!(
+                    crate::renderer::render_generated_predicate_coordinated_mana_amount(&value)
+                        .unwrap(),
+                    $source,
+                    "{} generated inverse",
+                    $id,
+                );
+                exact_row_impl!($id, $source, "CoordinatedManaAmount", &value);
             }};
         }
 
@@ -4616,5 +4835,209 @@ mod tests {
             assert_eq!(generated[0].cost(), handwritten[0].cost(), "{source:?}");
             assert_eq!(generated[1].cost(), handwritten[1].cost(), "{source:?}");
         }
+    }
+
+    #[test]
+    fn predicate_family_has_exactly_the_required_34_id_census() {
+        // Mutation caught: omit or rename the final causative declaration, or
+        // accidentally admit an extra predicate-family owner while the group
+        // is still production-inactive.
+        assert_eq!(
+            PREDICATE_DECLARATION
+                .constructions
+                .iter()
+                .map(|construction| construction.id)
+                .collect::<Vec<_>>(),
+            [
+                "verb",
+                "verb_phrase_base",
+                "verb_phrase_auxiliary",
+                "verb_phrase_auxiliary_proform",
+                "verb_phrase_direct_object",
+                "verb_phrase_indirect_object",
+                "verb_phrase_adjective",
+                "verb_phrase_prepositional",
+                "verb_phrase_passive_shared_determiner_prepositional",
+                "verb_phrase_except_by",
+                "verb_phrase_infinitive",
+                "verb_phrase_adverb",
+                "verb_phrase_preverb_adverb",
+                "verb_phrase_particle",
+                "verb_phrase_coin_result",
+                "verb_phrase_frequency",
+                "frequency_phrase_adverb",
+                "frequency_phrase",
+                "verb_phrase_ability",
+                "verb_phrase_quoted_ability",
+                "verb_phrase_quoted_ability_coordination",
+                "verb_phrase_ability_quoted_coordination",
+                "verb_phrase_oracle_symbol",
+                "verb_phrase_symbol_sequence",
+                "mana_amount_symbol",
+                "mana_amount_sequence",
+                "mana_amount_list_single",
+                "mana_amount_list_comma",
+                "mana_amount_coordination",
+                "mana_amount_coordination_oxford",
+                "verb_phrase_mana_amount_coordination",
+                "verb_phrase_power_toughness",
+                "verb_phrase_quantity",
+                "verb_phrase_causative",
+            ]
+        );
+    }
+
+    #[test]
+    fn inactive_generated_sentence_root_reaches_the_causative_owner() {
+        // Mutation caught: keep causative parsing available only through the
+        // handwritten RuleTag path, so an explicit inactive generated
+        // Sentence consumer cannot reach the declaration-owned construction.
+        let parsed = crate::grammar::parse_nonterminal_with_activation(
+            "You may have this creature enter.",
+            &crate::grammar::fixture_catalogs(),
+            Nonterminal::Sentence,
+            GeneratedActivation::Groups(all_groups_with_predicate()),
+        )
+        .expect("the inactive generated family parses a causative sentence");
+        assert!(parsed.construction_decisions().iter().any(|decision| {
+            decision.selected().as_str() == "verb_phrase_causative"
+                && decision.owner() == crate::construction::ConstructionOwner::Generated
+        }));
+        let crate::syntax::SentenceBody::Independent(crate::syntax::IndependentClause::Deontic(
+            _,
+            _,
+            Some(predicate),
+        )) = &parsed
+            .sentence()
+            .expect("the vertical root lowers a semantic sentence")
+            .body
+        else {
+            panic!("expected the causative sentence's semantic deontic AST")
+        };
+        let crate::syntax::Predicate::Transitive(predicate) = predicate else {
+            panic!("the causative host retains its direct-object causee")
+        };
+        assert!(matches!(
+            predicate.elements.as_slice(),
+            [crate::syntax::PredicateElement::Complement(
+                crate::syntax::PredicateComplement::Infinitive(crate::syntax::InfinitiveClause {
+                    marker: crate::syntax::InfinitiveMarker::Bare,
+                    ..
+                })
+            )]
+        ));
+    }
+
+    #[test]
+    fn causative_builder_inverse_and_invalid_domain_matrix() {
+        // Mutations caught: NON_CAUSATIVE_HOST accepts an ordinary transitive
+        // host, FINITE_COMPLEMENT accepts a finite embedded predicate,
+        // SWAP_CAUSEE_COMPLEMENT admits the complement before the causee, and
+        // SURPLUS_HOST_DEPENDENT accepts material between the causee and bare
+        // infinitive. The admitted case also pins host -> causee -> complement
+        // event order through parts/rebuild and named inverse selection.
+        let causative_base = build_verb_phrase_base(
+            build_verb(lexical_head(Vocab::Have, VerbSlot::Infinitive, 1)).unwrap(),
+        )
+        .unwrap();
+        let host = build_verb_phrase_direct_object(causative_base, this_card()).unwrap();
+        let complement = build_verb_phrase_base(
+            build_verb(lexical_head(Vocab::Attack, VerbSlot::Infinitive, 0)).unwrap(),
+        )
+        .unwrap();
+
+        let causative = build_verb_phrase_causative(host.clone(), complement.clone())
+            .expect("causative have admits one causee then a complete bare infinitive");
+        let (recovered_host, recovered_complement) = parts_verb_phrase_causative(&causative);
+        assert_eq!(recovered_host, host);
+        assert_eq!(recovered_complement, complement);
+        assert_eq!(
+            build_verb_phrase_causative(recovered_host, recovered_complement).unwrap(),
+            causative
+        );
+        assert_eq!(
+            selected_verb_phrase_construction(&causative),
+            "verb_phrase_causative"
+        );
+
+        let ordinary_host = build_verb_phrase_direct_object(
+            build_verb_phrase_base(
+                build_verb(lexical_head(Vocab::Play, VerbSlot::Infinitive, 0)).unwrap(),
+            )
+            .unwrap(),
+            this_card(),
+        )
+        .unwrap();
+        assert_eq!(
+            build_verb_phrase_causative(ordinary_host, complement.clone()),
+            Err(violation(
+                "verb_phrase_causative",
+                "the host is a complete causative infinitive with exactly one direct-object causee",
+            ))
+        );
+
+        let finite_complement = build_verb_phrase_base(
+            build_verb(lexical_head(
+                Vocab::Attack,
+                VerbSlot::Present {
+                    person: Person::Third,
+                    number: Number::Singular,
+                },
+                0,
+            ))
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            build_verb_phrase_causative(host.clone(), finite_complement),
+            Err(violation(
+                "verb_phrase_causative",
+                "the complement is a complete bare-infinitive predicate",
+            ))
+        );
+        assert!(build_verb_phrase_causative(complement, host.clone()).is_err());
+
+        let surplus = build_verb_phrase_adverb(host, Vocab::Again).unwrap();
+        assert_eq!(
+            build_verb_phrase_causative(
+                surplus,
+                build_verb_phrase_base(
+                    build_verb(lexical_head(Vocab::Attack, VerbSlot::Infinitive, 0)).unwrap(),
+                )
+                .unwrap(),
+            ),
+            Err(violation(
+                "verb_phrase_causative",
+                "the host is a complete causative infinitive with exactly one direct-object causee",
+            ))
+        );
+    }
+
+    #[test]
+    fn generated_predicate_inverse_renderer_owns_causative_recursion() {
+        // Mutation caught: leave the generated predicate inverse without a
+        // category-total renderer, so the causative host or its declaration-
+        // internal bare-infinitive complement falls back to handwritten
+        // predicate rendering.
+        let host = build_verb_phrase_direct_object(
+            build_verb_phrase_base(
+                build_verb(lexical_head(Vocab::Have, VerbSlot::Infinitive, 1)).unwrap(),
+            )
+            .unwrap(),
+            NounPhrase::ThisCard(crate::syntax::ThisCardForm::FullName),
+        )
+        .expect("the causative host admits its causee");
+        let complement = build_verb_phrase_base(
+            build_verb(lexical_head(Vocab::Enter, VerbSlot::Infinitive, 0)).unwrap(),
+        )
+        .expect("the bare causative complement builds");
+        let causative = build_verb_phrase_causative(host, complement)
+            .expect("the checked causative shape builds");
+
+        assert_eq!(
+            crate::renderer::render_generated_predicate_verb_phrase(&causative)
+                .expect("the generated inverse renders every recursive field"),
+            "have this card enter"
+        );
     }
 }

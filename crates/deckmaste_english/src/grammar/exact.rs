@@ -822,6 +822,8 @@ fn linearize_sentence_exact_form(parse: &GeneratedSentenceParse) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::OnceLock;
+
     use deckmaste_construction_compiler::runtime::FieldKindData;
     use deckmaste_construction_compiler::runtime::PredicateData;
     use proptest::prelude::*;
@@ -855,6 +857,57 @@ mod tests {
     fn law_category(name: &str) -> Nonterminal {
         let cats = super::super::generated::internal_categories(law::GROUPS);
         Nonterminal::Generated(cats[name])
+    }
+
+    fn groups_with_inactive_predicate()
+    -> &'static [&'static deckmaste_construction_compiler::runtime::GroupData] {
+        static GROUPS: OnceLock<
+            &'static [&'static deckmaste_construction_compiler::runtime::GroupData],
+        > = OnceLock::new();
+        GROUPS.get_or_init(|| {
+            let mut groups = crate::constructions::GROUPS.to_vec();
+            groups.push(&crate::constructions::predicate::PREDICATE_DECLARATION);
+            Box::leak(groups.into_boxed_slice())
+        })
+    }
+
+    #[test]
+    fn inactive_causative_exact_root_replays_form_witness_in_both_orders() {
+        // Mutation caught: let exact enumeration attribute the complete host
+        // to direct-object/infinitive pieces instead of the causative root, or
+        // change its ordinal/surface witness under registration reversal.
+        let source = "have this creature enter";
+        let catalogs = fixture_catalogs();
+        let activation = GeneratedActivation::Groups(groups_with_inactive_predicate());
+        let parsed = super::super::parse_nonterminal_with_activation(
+            source,
+            &catalogs,
+            Nonterminal::VerbPhrase,
+            activation,
+        )
+        .expect("the inactive causative root lowers");
+        let value = parsed
+            .verb_phrase()
+            .expect("the exact fixture lowers a VerbPhrase");
+        assert_eq!(
+            crate::renderer::render_generated_predicate_verb_phrase(value).unwrap(),
+            source
+        );
+        let orders = parse_groups_as_declared_category_in_both_orders(
+            source,
+            &catalogs,
+            "VerbPhrase",
+            value,
+            100_000,
+            groups_with_inactive_predicate(),
+        )
+        .expect("exact causative enumeration remains within budget");
+        for parses in orders {
+            assert_eq!(parses.len(), 1, "{parses:#?}");
+            assert_eq!(parses[0].ast().construction, "verb_phrase_causative");
+            assert_eq!(parses[0].ast().form_ordinal, 0);
+            assert_eq!(*parses[0].surface(), EnglishSurfaceWitness::None);
+        }
     }
 
     /// Order-insensitive set equality — permutations may reorder discovery.

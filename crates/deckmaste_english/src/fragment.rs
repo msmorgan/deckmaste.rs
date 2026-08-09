@@ -37,13 +37,17 @@ use crate::Diagnostic;
 use crate::DiagnosticKind;
 use crate::Span;
 use crate::catalog::Catalogs;
+use crate::grammar::GeneratedActivation;
 use crate::grammar::Nonterminal;
 use crate::grammar::ability::AbilityDiagnostic;
 use crate::grammar::ability::AbilityDiagnosticKind;
 use crate::grammar::ability::parse_ability_fragment;
+use crate::grammar::ability::parse_ability_fragment_with_activation;
 use crate::grammar::ability::parse_cost_fragment;
+use crate::grammar::ability::parse_cost_fragment_with_activation;
 use crate::grammar::ability::parse_keyword_line_fragment;
-use crate::grammar::parse_nonterminal_with_self_reference;
+use crate::grammar::ability::parse_keyword_line_fragment_with_activation;
+use crate::grammar::parse_nonterminal_with_self_reference_and_activation;
 use crate::identity::SelfReference;
 use crate::renderer::RenderError;
 use crate::surface::collapse_full_names;
@@ -145,6 +149,7 @@ pub struct FragmentReport {
     kind: FragmentKind,
     fragment: Option<Fragment>,
     diagnostics: Vec<Diagnostic>,
+    construction_decisions: Vec<crate::ConstructionDecision>,
 }
 
 impl FragmentReport {
@@ -180,6 +185,13 @@ impl FragmentReport {
     #[must_use]
     pub fn diagnostics(&self) -> &[Diagnostic] {
         &self.diagnostics
+    }
+
+    /// Generated and handwritten construction selections made inside the
+    /// fragment, including chart subtrees nested by the ability layer.
+    #[must_use]
+    pub fn construction_decisions(&self) -> &[crate::ConstructionDecision] {
+        &self.construction_decisions
     }
 
     /// Every recovered span inside the parsed subtree, or empty when there is
@@ -259,6 +271,36 @@ pub fn parse_fragment(
     name: &str,
     is_legendary: bool,
 ) -> FragmentReport {
+    parse_fragment_with_generated_activation(
+        source,
+        catalogs,
+        kind,
+        name,
+        is_legendary,
+        GeneratedActivation::Production,
+    )
+}
+
+#[cfg(test)]
+pub(crate) fn parse_fragment_with_activation(
+    source: &str,
+    catalogs: &Catalogs,
+    kind: FragmentKind,
+    name: &str,
+    is_legendary: bool,
+    activation: GeneratedActivation,
+) -> FragmentReport {
+    parse_fragment_with_generated_activation(source, catalogs, kind, name, is_legendary, activation)
+}
+
+fn parse_fragment_with_generated_activation(
+    source: &str,
+    catalogs: &Catalogs,
+    kind: FragmentKind,
+    name: &str,
+    is_legendary: bool,
+    activation: GeneratedActivation,
+) -> FragmentReport {
     let self_reference = SelfReference::new(name, is_legendary);
     // Lexed here for two reasons: the ability-layer seams take prepared
     // tokens, and the chart entry lexes privately and drops the surface
@@ -275,6 +317,7 @@ pub fn parse_fragment(
         })
         .collect::<Vec<_>>();
     let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
+    let mut construction_decisions = Vec::new();
 
     let mut fragment = match kind {
         FragmentKind::Nominal => chart_fragment(
@@ -282,28 +325,71 @@ pub fn parse_fragment(
             catalogs,
             Nonterminal::NounPhrase,
             &self_reference,
+            activation,
             |parsed| parsed.noun_phrase().cloned().map(Fragment::Nominal),
-        ),
+        )
+        .and_then(|(fragment, decisions)| {
+            construction_decisions = decisions;
+            fragment
+        }),
         FragmentKind::Sentence => chart_fragment(
             source,
             catalogs,
             Nonterminal::Sentence,
             &self_reference,
+            activation,
             |parsed| parsed.sentence().cloned().map(Fragment::Sentence),
-        ),
+        )
+        .and_then(|(fragment, decisions)| {
+            construction_decisions = decisions;
+            fragment
+        }),
         FragmentKind::Cost => {
-            let parsed = parse_cost_fragment(source, catalogs, &tokens, &self_reference);
+            let parsed = if activation.is_production() {
+                parse_cost_fragment(source, catalogs, &tokens, &self_reference)
+            } else {
+                parse_cost_fragment_with_activation(
+                    source,
+                    catalogs,
+                    &tokens,
+                    &self_reference,
+                    activation,
+                )
+            };
             diagnostics.extend(parsed.diagnostics.iter().map(ability_diagnostic));
+            construction_decisions = parsed.constructions;
             Some(Fragment::Cost(parsed.value))
         }
         FragmentKind::KeywordLine => {
-            let parsed = parse_keyword_line_fragment(source, catalogs, &tokens, &self_reference);
+            let parsed = if activation.is_production() {
+                parse_keyword_line_fragment(source, catalogs, &tokens, &self_reference)
+            } else {
+                parse_keyword_line_fragment_with_activation(
+                    source,
+                    catalogs,
+                    &tokens,
+                    &self_reference,
+                    activation,
+                )
+            };
             diagnostics.extend(parsed.diagnostics.iter().map(ability_diagnostic));
+            construction_decisions = parsed.constructions;
             parsed.value.map(Fragment::KeywordLine)
         }
         FragmentKind::Ability => {
-            let parsed = parse_ability_fragment(source, catalogs, &tokens, &self_reference);
+            let parsed = if activation.is_production() {
+                parse_ability_fragment(source, catalogs, &tokens, &self_reference)
+            } else {
+                parse_ability_fragment_with_activation(
+                    source,
+                    catalogs,
+                    &tokens,
+                    &self_reference,
+                    activation,
+                )
+            };
             diagnostics.extend(parsed.diagnostics.iter().map(ability_diagnostic));
+            construction_decisions = parsed.constructions;
             Some(Fragment::Ability(parsed.value))
         }
     };
@@ -335,6 +421,7 @@ pub fn parse_fragment(
         kind,
         fragment,
         diagnostics,
+        construction_decisions,
     }
 }
 
@@ -376,12 +463,19 @@ fn chart_fragment(
     catalogs: &Catalogs,
     nonterminal: Nonterminal,
     self_reference: &SelfReference,
+    activation: GeneratedActivation,
     lower: impl FnOnce(&crate::grammar::ParsedNonterminal) -> Option<Fragment>,
-) -> Option<Fragment> {
-    parse_nonterminal_with_self_reference(source, catalogs, nonterminal, self_reference)
-        .ok()
-        .as_ref()
-        .and_then(lower)
+) -> Option<(Option<Fragment>, Vec<crate::ConstructionDecision>)> {
+    let parsed = parse_nonterminal_with_self_reference_and_activation(
+        source,
+        catalogs,
+        nonterminal,
+        self_reference,
+        activation,
+    )
+    .ok()?;
+    let decisions = parsed.construction_decisions().to_vec();
+    Some((lower(&parsed), decisions))
 }
 
 fn ability_diagnostic(diagnostic: &AbilityDiagnostic) -> Diagnostic {
@@ -397,8 +491,13 @@ fn ability_diagnostic(diagnostic: &AbilityDiagnostic) -> Diagnostic {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::OnceLock;
+
+    use deckmaste_construction_compiler::runtime::GroupData;
+
     use super::*;
     use crate::catalog::CatalogKind;
+    use crate::construction::ConstructionOwner;
 
     /// Bare `parse`-mode catalogs: the corpus supplies these externally, so a
     /// fragment test that uses corpus vocabulary must supply them too.
@@ -406,7 +505,167 @@ mod tests {
         Catalogs::default()
             .with_catalog(CatalogKind::CardType, ["Artifact", "Creature", "Land"])
             .with_catalog(CatalogKind::CreatureType, ["Soldier"])
-            .with_catalog(CatalogKind::KeywordAbility, ["Flying", "First strike"])
+            .with_catalog(
+                CatalogKind::KeywordAbility,
+                ["Flying", "First strike", "Ward"],
+            )
+    }
+
+    fn all_groups_with_predicate() -> &'static [&'static GroupData] {
+        static GROUPS: OnceLock<&'static [&'static GroupData]> = OnceLock::new();
+        GROUPS.get_or_init(|| {
+            let mut groups = crate::constructions::GROUPS.to_vec();
+            groups.push(&crate::constructions::predicate::PREDICATE_DECLARATION);
+            Box::leak(groups.into_boxed_slice())
+        })
+    }
+
+    fn inactive_fragment(source: &str, kind: FragmentKind) -> FragmentReport {
+        parse_fragment_with_activation(
+            source,
+            &catalogs(),
+            kind,
+            "",
+            false,
+            GeneratedActivation::Groups(all_groups_with_predicate()),
+        )
+    }
+
+    fn assert_generated<'a>(
+        report: &'a FragmentReport,
+        construction: &str,
+    ) -> &'a crate::ConstructionDecision {
+        report
+            .construction_decisions()
+            .iter()
+            .find(|decision| {
+                decision.selected().as_str() == construction
+                    && decision.owner() == ConstructionOwner::Generated
+            })
+            .unwrap_or_else(|| {
+                panic!(
+                    "missing generated {construction} decision: {:#?}",
+                    report.construction_decisions()
+                )
+            })
+    }
+
+    #[test]
+    fn inactive_predicate_activation_reaches_every_vertical_fragment_root() {
+        // Mutations caught: hardcode production activation in the ability
+        // layer; discard nested construction provenance at a fragment seam;
+        // or let a recovered/handwritten predicate masquerade as a semantic
+        // Sentence, Cost, KeywordLine, or Ability result.
+        let sentence =
+            inactive_fragment("You may have this creature enter.", FragmentKind::Sentence);
+        assert!(sentence.clean(), "{:?}", sentence.diagnostics());
+        let causative = assert_generated(&sentence, "verb_phrase_causative");
+        assert_eq!(
+            causative.evidence().kind(),
+            crate::ConstructionEvidenceKind::Role
+        );
+        assert_eq!(
+            causative.evidence().label(),
+            "causative host-causee-complement order"
+        );
+        assert_eq!(causative.evidence_value(), Some("category=VerbPhrase"));
+        assert!(matches!(
+            sentence.fragment(),
+            Some(Fragment::Sentence(Sentence {
+                body: crate::syntax::SentenceBody::Independent(
+                    crate::syntax::IndependentClause::Deontic(_, _, Some(_))
+                ),
+            }))
+        ));
+
+        let cost = inactive_fragment("Discard a card", FragmentKind::Cost);
+        assert!(cost.clean(), "{:?}", cost.diagnostics());
+        let direct = assert_generated(&cost, "verb_phrase_direct_object");
+        assert_eq!(
+            direct.evidence().kind(),
+            crate::ConstructionEvidenceKind::Role
+        );
+        assert_eq!(direct.evidence().label(), "predicate object role");
+        assert_eq!(direct.evidence_value(), Some("category=VerbPhrase"));
+        assert!(matches!(
+            cost.fragment(),
+            Some(Fragment::Cost(crate::syntax::Cost {
+                components,
+                ..
+            })) if matches!(
+                components.as_slice(),
+                [crate::syntax::CostComponent::Clause(clause)]
+                    if matches!(clause.as_ref(), crate::syntax::IndependentClause::Imperative(
+                        crate::syntax::Predicate::Transitive(_)
+                    ))
+            )
+        ));
+
+        let keyword = inactive_fragment("Ward—Discard a card.", FragmentKind::KeywordLine);
+        assert!(keyword.clean(), "{:?}", keyword.diagnostics());
+        assert_generated(&keyword, "verb_phrase_direct_object");
+        let Some(Fragment::KeywordLine(line)) = keyword.fragment() else {
+            panic!("the keyword root returns a semantic keyword line")
+        };
+        let [item] = line.abilities.as_slice() else {
+            panic!("the keyword fixture contains exactly one ability")
+        };
+        let crate::syntax::KeywordArgument::Costed(crate::syntax::KeywordCost::Components {
+            cost,
+            terminal: true,
+        }) = &item.argument
+        else {
+            panic!("the keyword cost retains its typed tight-dash component shape")
+        };
+        assert!(matches!(
+            cost.components.as_slice(),
+            [crate::syntax::CostComponent::Clause(clause)]
+                if matches!(clause.as_ref(), crate::syntax::IndependentClause::Imperative(
+                    crate::syntax::Predicate::Transitive(_)
+                ))
+        ));
+
+        let ability = inactive_fragment(
+            "{T}: You may have this creature enter.",
+            FragmentKind::Ability,
+        );
+        assert!(ability.clean(), "{:?}", ability.diagnostics());
+        assert_generated(&ability, "verb_phrase_causative");
+        let Some(Fragment::Ability(crate::syntax::Ability {
+            kind: crate::syntax::AbilityKind::Activated(activated),
+            ..
+        })) = ability.fragment()
+        else {
+            panic!("the ability root returns a semantic activated ability")
+        };
+        assert!(matches!(
+            activated.effect.sentences.as_slice(),
+            [Sentence {
+                body: crate::syntax::SentenceBody::Independent(
+                    crate::syntax::IndependentClause::Deontic(_, _, Some(_))
+                ),
+            }]
+        ));
+    }
+
+    #[test]
+    fn inactive_causative_semantics_remain_visible_to_recovery_traversal() {
+        // Mutation caught: lower the generated causative complement as an
+        // opaque parallel value, so the ordinary syntax recovery walker can
+        // no longer descend into its quoted embedded rules.
+        let report = inactive_fragment(
+            "You may have this creature gain \"Zibble quux.\".",
+            FragmentKind::Sentence,
+        );
+        assert_generated(&report, "verb_phrase_causative");
+        assert_eq!(
+            report
+                .recoveries()
+                .iter()
+                .map(|recovery| (recovery.role, recovery.text))
+                .collect::<Vec<_>>(),
+            [(crate::syntax::RecoveryRole::EmbeddedRules, "Zibble quux.")]
+        );
     }
 
     #[test]

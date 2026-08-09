@@ -671,72 +671,10 @@ pub(super) fn reduce_predicate(
             Some(Features::InfinitiveClause)
         }
         RuleTag::VerbPhraseCausative => {
-            let Features::VerbPhrase {
-                form: head_form,
-                passive: false,
-                object: PredicateObjectState::Direct,
-                indirect_object,
-                selected_preposition,
-                phase: PredicateAttachmentPhase::Object,
-                frame,
-                head_is_copular,
-                object_gap_requires_rules_object,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            if !frame.causative_complement() || *head_form != PredicateForm::Infinitive {
-                return None;
-            }
-            if !predicate_arguments_complete(
-                *frame,
-                false,
-                PredicateObjectState::Direct,
-                *indirect_object,
-                *selected_preposition,
-            ) {
-                return None;
-            }
-            // The causative complement is a complete bare-infinitive verb phrase.
-            let Features::VerbPhrase {
-                form: PredicateForm::Infinitive,
-                passive: complement_passive,
-                object: complement_object,
-                indirect_object: complement_indirect_object,
-                selected_preposition: complement_selected_preposition,
-                frame: complement_frame,
-                bare: complement_bare,
-                ..
-            } = children.get(1)?.features
-            else {
-                return None;
-            };
-            if *complement_bare && complement_frame.is_proform() {
-                return None;
-            }
-            if !predicate_arguments_complete(
-                *complement_frame,
-                *complement_passive,
-                *complement_object,
-                *complement_indirect_object,
-                *complement_selected_preposition,
-            ) {
-                return None;
-            }
-            Some(Features::VerbPhrase {
-                form: *head_form,
-                passive: false,
-                object: PredicateObjectState::Direct,
-                indirect_object: *indirect_object,
-                selected_preposition: *selected_preposition,
-                phase: PredicateAttachmentPhase::Tail,
-                frame: *frame,
-                bare: false,
-                head_is_copular: *head_is_copular,
-                object_gap_requires_rules_object: *object_gap_requires_rules_object,
-                subjunctive: false,
-            })
+            crate::constructions::predicate::reduce_verb_phrase_causative_features(
+                children.first()?.features,
+                children.get(1)?.features,
+            )
         }
         _ => None,
     }

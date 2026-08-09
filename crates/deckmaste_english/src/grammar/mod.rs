@@ -15,7 +15,6 @@ mod opacity;
 mod nominal;
 
 mod generated;
-#[cfg(test)]
 pub(crate) use generated::GeneratedActivation;
 
 #[cfg(test)]
@@ -44,6 +43,7 @@ use parse_support::parse_nonterminal;
 #[cfg(test)]
 use parse_support::parse_nonterminal_with_mode;
 pub(crate) use parse_support::parse_nonterminal_with_self_reference;
+pub(crate) use parse_support::parse_nonterminal_with_self_reference_and_activation;
 use reduction::Reduced;
 use reduction::propagate;
 use reduction::reduce;
@@ -502,6 +502,23 @@ pub(crate) struct InfinitiveClause {
 }
 
 impl InfinitiveClause {
+    pub(crate) fn declaration_bare(predicate: VerbPhrase) -> Self {
+        Self {
+            negated: false,
+            marker: InfinitiveMarker::Bare,
+            predicate: Box::new(predicate),
+        }
+    }
+
+    pub(crate) fn declaration_bare_predicate(&self) -> Option<&VerbPhrase> {
+        (!self.negated && self.marker == InfinitiveMarker::Bare).then_some(self.predicate.as_ref())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn declaration_parts(&self) -> (bool, InfinitiveMarker, &VerbPhrase) {
+        (self.negated, self.marker, self.predicate.as_ref())
+    }
+
     #[cfg(test)]
     pub(crate) fn declaration_to(predicate: VerbPhrase) -> Self {
         Self {

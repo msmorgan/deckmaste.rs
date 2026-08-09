@@ -5,6 +5,12 @@ use crate::features::Conjunction;
 use crate::features::Number;
 use crate::features::Onset as InitialSound;
 use crate::features::Person;
+#[cfg(test)]
+use crate::grammar::InfinitiveClause as GeneratedInfinitiveClause;
+#[cfg(test)]
+use crate::grammar::VerbAnalysis as GeneratedVerb;
+#[cfg(test)]
+use crate::grammar::VerbPhrase as GeneratedVerbPhrase;
 use crate::identity::short_name;
 use crate::syntax::Ability;
 use crate::syntax::AbilityKind;
@@ -143,6 +149,9 @@ pub enum RenderError {
     InvalidNominalConjunction(Conjunction),
     #[error("nominal AST does not match exactly one generated construction")]
     InvalidNominalConstruction,
+    #[cfg(test)]
+    #[error("predicate AST does not match exactly one generated construction")]
+    InvalidPredicateConstruction,
 }
 
 impl OracleText {
@@ -225,6 +234,59 @@ pub(crate) fn render_fragment(
             .map(capitalize_first),
         Fragment::Ability(ability) => renderer.ability(ability, true, false),
     }
+}
+
+/// Exercises the declaration-owned predicate inverse without routing through
+/// the production predicate renderer. The argument is crate-private because
+/// the staged `VerbPhrase` is an internal chart value, not a public AST
+/// ingress; Task 5 uses this seam only under explicit inactive activation.
+#[cfg(test)]
+pub(crate) fn render_generated_predicate_verb_phrase(
+    value: &GeneratedVerbPhrase,
+) -> Result<String, RenderError> {
+    Renderer::new("this card", false).generated_predicate_verb_phrase(value)
+}
+
+#[cfg(test)]
+pub(crate) fn render_generated_predicate_mana_amount(
+    value: &PredicateObject,
+) -> Result<String, RenderError> {
+    let renderer = Renderer::new("this card", false);
+    let mut visitor = GeneratedPredicateRenderer::new(&renderer);
+    GeneratedPredicateRenderer::accept_generated(
+        crate::constructions::predicate::linearize_predicate_mana_amount_with(value, &mut visitor),
+    )?;
+    Ok(visitor.finish())
+}
+
+#[cfg(test)]
+pub(crate) fn render_generated_predicate_mana_amount_list(
+    value: &PredicateObject,
+) -> Result<String, RenderError> {
+    let renderer = Renderer::new("this card", false);
+    let mut visitor = GeneratedPredicateRenderer::new(&renderer);
+    GeneratedPredicateRenderer::accept_generated(
+        crate::constructions::predicate::linearize_predicate_mana_amount_list_with(
+            value,
+            &mut visitor,
+        ),
+    )?;
+    Ok(visitor.finish())
+}
+
+#[cfg(test)]
+pub(crate) fn render_generated_predicate_coordinated_mana_amount(
+    value: &CoordinatedPredicateObject,
+) -> Result<String, RenderError> {
+    let renderer = Renderer::new("this card", false);
+    let mut visitor = GeneratedPredicateRenderer::new(&renderer);
+    GeneratedPredicateRenderer::accept_generated(
+        crate::constructions::predicate::linearize_predicate_coordinated_mana_amount_with(
+            value,
+            &mut visitor,
+        ),
+    )?;
+    Ok(visitor.finish())
 }
 
 /// Whether a sentence in top-level ability context derives an outer period.
@@ -387,6 +449,326 @@ struct GeneratedSentenceRenderer<'renderer, 'identity> {
 struct GeneratedNounRenderer<'renderer, 'identity> {
     renderer: &'renderer Renderer<'identity>,
     rendered: Option<String>,
+}
+
+#[cfg(test)]
+struct GeneratedPredicateRenderer<'renderer, 'identity> {
+    renderer: &'renderer Renderer<'identity>,
+    rendered: String,
+}
+
+#[cfg(test)]
+impl<'renderer, 'identity> GeneratedPredicateRenderer<'renderer, 'identity> {
+    fn new(renderer: &'renderer Renderer<'identity>) -> Self {
+        Self {
+            renderer,
+            rendered: String::new(),
+        }
+    }
+
+    fn push(&mut self, part: &str) {
+        if part.is_empty() {
+            return;
+        }
+        if part == "," {
+            self.rendered.push(',');
+        } else {
+            if !self.rendered.is_empty() {
+                self.rendered.push(' ');
+            }
+            self.rendered.push_str(part);
+        }
+    }
+
+    fn accept_generated(
+        result: Result<
+            (),
+            deckmaste_construction_compiler::runtime::LinearizationError<RenderError>,
+        >,
+    ) -> Result<(), RenderError> {
+        result.map_err(|error| match error {
+            deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error) => error,
+            _ => RenderError::InvalidPredicateConstruction,
+        })
+    }
+
+    fn finish(self) -> String {
+        self.rendered
+    }
+}
+
+#[cfg(test)]
+impl deckmaste_construction_compiler::runtime::LinearizationVisitor
+    for GeneratedPredicateRenderer<'_, '_>
+{
+    type Error = RenderError;
+
+    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
+        self.push(literal);
+        Ok(())
+    }
+
+    fn subtree<T: std::any::Any>(
+        &mut self,
+        category: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        let rendered = match category {
+            "NounPhrase" => self.renderer.noun_phrase(
+                value
+                    .downcast_ref::<NounPhrase>()
+                    .expect("the predicate noun-phrase hole preserves NounPhrase"),
+            )?,
+            "AdjectivePhrase" => self.renderer.adjective_phrase(
+                value
+                    .downcast_ref::<AdjectivePhrase>()
+                    .expect("the predicate adjective hole preserves AdjectivePhrase"),
+            )?,
+            "PrepositionalPhrase" => self.renderer.prepositional_phrase(
+                value
+                    .downcast_ref::<PrepositionalPhrase>()
+                    .expect("the predicate PP hole preserves PrepositionalPhrase"),
+            )?,
+            "InfinitiveClause" => {
+                let infinitive = value
+                    .downcast_ref::<GeneratedInfinitiveClause>()
+                    .expect("the predicate infinitive hole preserves its staged type");
+                let (negated, marker, predicate) = infinitive.declaration_parts();
+                if negated {
+                    self.push("not");
+                }
+                if marker == InfinitiveMarker::To {
+                    self.push("to");
+                }
+                Self::accept_generated(
+                    crate::constructions::predicate::linearize_predicate_verb_phrase_with(
+                        predicate, self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "Verb" => {
+                Self::accept_generated(
+                    crate::constructions::predicate::linearize_predicate_verb_with(
+                        value
+                            .downcast_ref::<GeneratedVerb>()
+                            .expect("the predicate Verb hole preserves VerbAnalysis"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "VerbPhrase" => {
+                Self::accept_generated(
+                    crate::constructions::predicate::linearize_predicate_verb_phrase_with(
+                        value
+                            .downcast_ref::<GeneratedVerbPhrase>()
+                            .expect("the recursive predicate hole preserves VerbPhrase"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "FrequencyPhrase" => {
+                Self::accept_generated(
+                    crate::constructions::predicate::linearize_predicate_frequency_phrase_with(
+                        value
+                            .downcast_ref::<FrequencyPhrase>()
+                            .expect("the frequency hole preserves FrequencyPhrase"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "Quantity" => render_quantity(
+                *value
+                    .downcast_ref::<Quantity>()
+                    .expect("the quantity hole preserves Quantity"),
+            ),
+            "ManaAmount" => {
+                Self::accept_generated(
+                    crate::constructions::predicate::linearize_predicate_mana_amount_with(
+                        value
+                            .downcast_ref::<PredicateObject>()
+                            .expect("the mana hole preserves PredicateObject"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "ManaAmountList" => {
+                Self::accept_generated(
+                    crate::constructions::predicate::linearize_predicate_mana_amount_list_with(
+                        value
+                            .downcast_ref::<PredicateObject>()
+                            .expect("the mana-list hole preserves PredicateObject"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "CoordinatedManaAmount" => {
+                Self::accept_generated(
+                    crate::constructions::predicate::linearize_predicate_coordinated_mana_amount_with(
+                        value
+                            .downcast_ref::<CoordinatedPredicateObject>()
+                            .expect("the coordinated mana hole preserves its typed value"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            other => panic!("unexpected predicate subtree category `{other}`"),
+        };
+        self.push(&rendered);
+        Ok(())
+    }
+
+    fn scalar<T: std::any::Any>(
+        &mut self,
+        codec: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        let rendered = match codec {
+            "Conjunction" => render_predicate_conjunction(
+                *value
+                    .downcast_ref::<Conjunction>()
+                    .expect("the predicate conjunction preserves Conjunction"),
+            )?
+            .to_owned(),
+            "PowerToughness" => {
+                let value = value
+                    .downcast_ref::<crate::syntax::PowerToughness>()
+                    .expect("the predicate stats scalar preserves PowerToughness");
+                format!(
+                    "{}/{}",
+                    render_signed_scalar(value.power),
+                    render_signed_scalar(value.toughness)
+                )
+            }
+            "Comma" => {
+                if value
+                    .downcast_ref::<crate::features::Comma>()
+                    .expect("the comma scalar preserves Comma")
+                    .is_present()
+                {
+                    ",".to_owned()
+                } else {
+                    String::new()
+                }
+            }
+            other => panic!("unexpected predicate scalar codec `{other}`"),
+        };
+        self.push(&rendered);
+        Ok(())
+    }
+
+    fn identity<T: std::any::Any>(
+        &mut self,
+        provider: &'static str,
+        value_type: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        let rendered = match provider {
+            "LexicalVerb" => self
+                .renderer
+                .vocabulary
+                .render_verb_instance(
+                    value
+                        .downcast_ref::<GeneratedVerb>()
+                        .expect("the lexical identity preserves VerbAnalysis")
+                        .instance(),
+                )
+                .ok_or(RenderError::MissingLexicalForm("verb"))?,
+            "Auxiliary" => self.renderer.render_auxiliary(
+                *value
+                    .downcast_ref::<AuxiliaryInstance>()
+                    .expect("the auxiliary identity preserves AuxiliaryInstance"),
+            )?,
+            "Adverb" | "FrequencyLimiter" => value
+                .downcast_ref::<Vocab>()
+                .expect("the adverb identity preserves Vocab")
+                .spelling()
+                .to_owned(),
+            "PreverbAdverb" => match value
+                .downcast_ref::<PreverbModifier>()
+                .expect("the preverb identity preserves PreverbModifier")
+            {
+                PreverbModifier::Not => "not",
+                PreverbModifier::Also => "also",
+                PreverbModifier::Next => "next",
+            }
+            .to_owned(),
+            "VerbParticle" => match value
+                .downcast_ref::<VerbParticle>()
+                .expect("the particle identity preserves VerbParticle")
+            {
+                VerbParticle::In => "in",
+                VerbParticle::Out => "out",
+            }
+            .to_owned(),
+            "CoinResult" => match value
+                .downcast_ref::<crate::syntax::CoinSide>()
+                .expect("the result identity preserves CoinSide")
+            {
+                crate::syntax::CoinSide::Heads => "up heads",
+                crate::syntax::CoinSide::Tails => "up tails",
+            }
+            .to_owned(),
+            "Frequency" => render_frequency(
+                *value
+                    .downcast_ref::<FrequencyPhrase>()
+                    .expect("the frequency identity preserves FrequencyPhrase"),
+            ),
+            "AbilityItem" => render_catalog_atom(
+                value
+                    .downcast_ref::<crate::catalog::CatalogAtom>()
+                    .expect("the ability identity preserves CatalogAtom"),
+            ),
+            "QuotedAbility" => {
+                let quoted = value
+                    .downcast_ref::<QuotedAbility>()
+                    .expect("the quoted identity preserves QuotedAbility");
+                let previous = self
+                    .renderer
+                    .terminal_quote
+                    .replace(Some(std::ptr::from_ref(quoted)));
+                let rendered = self.renderer.quoted_ability(quoted);
+                self.renderer.terminal_quote.set(previous);
+                rendered?
+            }
+            "OracleSymbol" => value
+                .downcast_ref::<OracleSymbol>()
+                .expect("the symbol identity preserves OracleSymbol")
+                .as_str()
+                .to_owned(),
+            "SymbolSequence" => render_symbol_sequence(
+                value
+                    .downcast_ref::<Vec<OracleSymbol>>()
+                    .expect("the symbol sequence identity preserves Vec<OracleSymbol>"),
+            ),
+            other => panic!("unexpected predicate identity provider `{other}` for `{value_type}`"),
+        };
+        self.push(&rendered);
+        Ok(())
+    }
+
+    fn derived_sequence_scalar(
+        &mut self,
+        _field: &'static str,
+        codec: &'static str,
+        _index: usize,
+        _len: usize,
+    ) -> Result<(), Self::Error> {
+        match codec {
+            "Comma" => self.push(","),
+            other => panic!("unexpected derived predicate scalar codec `{other}`"),
+        }
+        Ok(())
+    }
 }
 
 impl deckmaste_construction_compiler::runtime::LinearizationVisitor
@@ -958,6 +1340,21 @@ impl<'identity> Renderer<'identity> {
             nesting: Cell::new(0),
             terminal_quote: Cell::new(None),
         }
+    }
+
+    #[cfg(test)]
+    fn generated_predicate_verb_phrase(
+        &self,
+        value: &GeneratedVerbPhrase,
+    ) -> Result<String, RenderError> {
+        let mut visitor = GeneratedPredicateRenderer::new(self);
+        GeneratedPredicateRenderer::accept_generated(
+            crate::constructions::predicate::linearize_predicate_verb_phrase_with(
+                value,
+                &mut visitor,
+            ),
+        )?;
+        Ok(visitor.finish())
     }
 
     fn coordinated_noun_phrase(

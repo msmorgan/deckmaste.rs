@@ -6,6 +6,7 @@ use anyhow::bail;
 use clap::Args;
 use deckmaste_english::Catalogs;
 use deckmaste_english::ConstructionBackend;
+use deckmaste_english::ConstructionDecision;
 use deckmaste_english::ConstructionEvidenceKind;
 use deckmaste_english::ConstructionOwner;
 use deckmaste_english::ParseCost;
@@ -129,26 +130,7 @@ fn write_provenance(mut writer: impl Write, report: &ParseReport) -> Result<()> 
     writeln!(writer, "\nProvenance:")?;
     for selection in report.provenance().selections() {
         for decision in selection.constructions() {
-            let span = decision.span();
-            let evidence = decision.evidence();
-            let evidence_value = decision
-                .evidence_value()
-                .map_or_else(String::new, |value| format!(" value={value}"));
-            writeln!(
-                writer,
-                "bytes {}..{} {} owner={} backend={} form={} evidence={}:{}{} reason={} cost={}",
-                span.start,
-                span.end,
-                decision.selected(),
-                owner_name(decision.owner()),
-                backend_name(decision.backend()),
-                decision.selected_production_ordinal(),
-                evidence_kind_name(evidence.kind()),
-                evidence.label(),
-                evidence_value,
-                reason_name(decision.reason()),
-                cost_text(decision.cost()),
-            )?;
+            writeln!(writer, "{}", construction_decision_text(decision))?;
             for alternative in decision.alternatives() {
                 writeln!(
                     writer,
@@ -161,6 +143,32 @@ fn write_provenance(mut writer: impl Write, report: &ParseReport) -> Result<()> 
         }
     }
     Ok(())
+}
+
+/// One construction row in verbose inspect. Keeping this formatter generic
+/// over the public decision value means an inactive generated family can be
+/// exercised in English tests without adding a second predicate-specific
+/// inspect path; production activation in Task 6 reaches this exact function.
+fn construction_decision_text(decision: &ConstructionDecision) -> String {
+    let span = decision.span();
+    let evidence = decision.evidence();
+    let evidence_value = decision
+        .evidence_value()
+        .map_or_else(String::new, |value| format!(" value={value}"));
+    format!(
+        "bytes {}..{} {} owner={} backend={} form={} evidence={}:{}{} reason={} cost={}",
+        span.start,
+        span.end,
+        decision.selected(),
+        owner_name(decision.owner()),
+        backend_name(decision.backend()),
+        decision.selected_production_ordinal(),
+        evidence_kind_name(evidence.kind()),
+        evidence.label(),
+        evidence_value,
+        reason_name(decision.reason()),
+        cost_text(decision.cost()),
+    )
 }
 
 const fn owner_name(owner: ConstructionOwner) -> &'static str {

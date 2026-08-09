@@ -111,6 +111,14 @@ impl ParsedNonterminal {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) fn verb_phrase(&self) -> Option<&super::VerbPhrase> {
+        match &self.syntax {
+            Lowered::VerbPhrase(predicate) => Some(predicate),
+            _ => None,
+        }
+    }
+
     pub(crate) fn root_rule(&self) -> Option<usize> {
         let node = self.chart.forest.node(self.root);
         let alternative = self.best.alternative(self.root)?;
@@ -189,25 +197,47 @@ pub(crate) fn parse_nonterminal_with_self_reference(
     nonterminal: Nonterminal,
     self_reference: &SelfReference,
 ) -> Result<ParsedNonterminal, ParseNonterminalError> {
+    parse_nonterminal_with_self_reference_and_activation(
+        source,
+        catalogs,
+        nonterminal,
+        self_reference,
+        super::generated::GeneratedActivation::Production,
+    )
+}
+
+pub(crate) fn parse_nonterminal_with_self_reference_and_activation(
+    source: &str,
+    catalogs: &Catalogs,
+    nonterminal: Nonterminal,
+    self_reference: &SelfReference,
+    activation: super::generated::GeneratedActivation,
+) -> Result<ParsedNonterminal, ParseNonterminalError> {
     let surface = lex(source);
     let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
-    match parse_nonterminal_with_mode(
+    match parse_nonterminal_with_mode_and_registration_order(
         source,
         catalogs,
         nonterminal,
         &tokens,
         OpacityMode::Exact,
         self_reference,
+        RegistrationOrder::Normal,
+        activation,
     ) {
         Ok(parsed) => Ok(parsed),
-        Err(ParseNonterminalError::NoCompleteParse(_)) => parse_nonterminal_with_mode(
-            source,
-            catalogs,
-            nonterminal,
-            &tokens,
-            OpacityMode::OpaqueNouns,
-            self_reference,
-        ),
+        Err(ParseNonterminalError::NoCompleteParse(_)) => {
+            parse_nonterminal_with_mode_and_registration_order(
+                source,
+                catalogs,
+                nonterminal,
+                &tokens,
+                OpacityMode::OpaqueNouns,
+                self_reference,
+                RegistrationOrder::Normal,
+                activation,
+            )
+        }
         Err(error) => Err(error),
     }
 }

@@ -227,7 +227,7 @@ impl GeneratedActivation {
         }
     }
 
-    pub(super) const fn is_production(self) -> bool {
+    pub(crate) const fn is_production(self) -> bool {
         matches!(self, Self::Production)
     }
 }
