@@ -52,7 +52,6 @@ mod tests {
     use crate::fragment::render_fragment;
     use crate::syntax::Ability;
     use crate::syntax::AbilityKind;
-    use crate::syntax::Determiner;
     use crate::syntax::IndependentClause;
     use crate::syntax::NominalModifier;
     use crate::syntax::NounPhrase;
@@ -93,7 +92,7 @@ mod tests {
         let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &predicate.object else {
             panic!("expected one nominal direct object");
         };
-        assert_eq!(object.determiner(), Some(&Determiner::Indefinite));
+        assert_eq!(object.determiner(), Some(&crate::determiner::indefinite()));
         assert!(matches!(
             object.head().kind(),
             crate::word::NounInstanceKind::Singular(Noun::Opaque(opaque))

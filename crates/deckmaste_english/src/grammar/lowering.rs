@@ -30,7 +30,6 @@ use super::OpaqueLexeme;
 use super::OracleSymbol;
 use super::Phrase;
 use super::Polarity;
-use super::Possessor;
 use super::PowerToughness;
 use super::Preposition;
 use super::PrepositionalPhrase;
@@ -47,7 +46,6 @@ use super::SetExceptionNounPhrase;
 use super::SimpleClause;
 use super::Subject;
 use super::ThisCardForm;
-use super::Verb;
 use super::VerbAnalysis;
 use super::VerbParticle;
 use super::VerbPhrase;
@@ -382,6 +380,10 @@ fn project_generated_category(
         let value = value.downcast::<NominalPhrase>().ok()?;
         return Some(Lowered::Nominal(*value));
     }
+    if construction.category == "PossessiveNominal" {
+        let value = value.downcast::<NominalPhrase>().ok()?;
+        return Some(Lowered::PossessiveNominal(*value));
+    }
     if construction.category == "RulesObjectNominal" {
         let value = value.downcast::<RulesObjectNominal>().ok()?;
         return Some(Lowered::Nominal(value.into_nominal()));
@@ -431,6 +433,10 @@ fn project_generated_category(
     if construction.category == "Quantity" {
         let value = value.downcast::<Quantity>().ok()?;
         return Some(Lowered::Quantity(*value));
+    }
+    if construction.category == "Determiner" {
+        let value = value.downcast::<Determiner>().ok()?;
+        return Some(Lowered::Determiner(*value));
     }
     if construction.category == "Sentence" {
         let value = value.downcast::<Sentence>().ok()?;
@@ -578,6 +584,26 @@ fn erased_field(
             ..
         } => {
             let Lowered::Noun(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Identity {
+            value_type: "ClosedDeterminer",
+            provider: "Determiner",
+        } => {
+            let Lowered::Determiner(value) = value else {
+                return None;
+            };
+            Some(Box::new(
+                crate::constructions::determiner::parts_determiner_closed(&value),
+            ))
+        }
+        K::Identity {
+            value_type: "ThisCardForm",
+            provider: "PossessiveThisCard",
+        } => {
+            let Lowered::ThisCard(value) = value else {
                 return None;
             };
             Some(Box::new(value))
@@ -777,6 +803,7 @@ fn erased_subtree(
             if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
         }
         "NominalPhrase" => typed!(Nominal, value),
+        "PossessiveNominal" => typed!(PossessiveNominal, value),
         "RulesObjectNominal" => {
             let Lowered::Nominal(value) = value else {
                 return None;
@@ -1125,15 +1152,6 @@ pub(super) fn lower_lexical(
 )]
 pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
-        RuleTag::DeterminerClosed
-        | RuleTag::DeterminerTarget
-        | RuleTag::DeterminerQuantifiedTarget
-        | RuleTag::DeterminerQuantity
-        | RuleTag::DeterminerPossessiveThisCard => lower_quantity_or_determiner(tag, children),
-        RuleTag::PossessiveNounBase
-        | RuleTag::PossessiveNounDetermined
-        | RuleTag::DeterminerPossessiveNoun
-        | RuleTag::PossessiveNounAdjective => lower_possessive_noun_phrase(tag, children),
         RuleTag::NominalPowerToughnessComplement
         | RuleTag::ModifierConjunctAdjective
         | RuleTag::ModifierConjunctNoun
@@ -1225,97 +1243,6 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
             clause::lower_clause(tag, children)
         }
     }
-}
-
-pub(super) fn lower_possessive_noun_phrase(
-    tag: RuleTag,
-    children: &mut [Lowered],
-) -> Option<Lowered> {
-    match tag {
-        RuleTag::PossessiveNounBase => {
-            let Lowered::Noun(head) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::PossessiveNominal(
-                NominalPhrase::try_from_noun(head).ok()?,
-            ))
-        }
-        RuleTag::PossessiveNounDetermined => {
-            let Lowered::Determiner(determiner) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::PossessiveNominal(nominal) = take(children, 1)? else {
-                return None;
-            };
-            Some(Lowered::PossessiveNominal(
-                crate::constructions::nominal::build_nominal_determiner(determiner, nominal)
-                    .ok()?,
-            ))
-        }
-        RuleTag::DeterminerPossessiveNoun => {
-            let Lowered::PossessiveNominal(possessor) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::Determiner(Determiner::Possessive(
-                Possessor::NounPhrase(Box::new(NounPhrase::Nominal(possessor))),
-            )))
-        }
-        RuleTag::PossessiveNounAdjective => {
-            let Lowered::AdjectivePhrase(adjective) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::PossessiveNominal(mut nominal) = take(children, 1)? else {
-                return None;
-            };
-            if introduces_proper_name(&adjective) {
-                nominal.open_name_interior();
-            }
-            Some(Lowered::PossessiveNominal(
-                crate::constructions::nominal::build_nominal_adjective(adjective, nominal).ok()?,
-            ))
-        }
-        _ => None,
-    }
-}
-
-pub(super) fn lower_quantity_or_determiner(
-    tag: RuleTag,
-    children: &mut [Lowered],
-) -> Option<Lowered> {
-    match tag {
-        RuleTag::DeterminerClosed => take(children, 0),
-        RuleTag::DeterminerTarget => Some(Lowered::Determiner(Determiner::Target(None))),
-        RuleTag::DeterminerQuantifiedTarget => {
-            let Lowered::Quantity(quantity) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::Determiner(Determiner::Target(Some(quantity))))
-        }
-        RuleTag::DeterminerQuantity => {
-            let Lowered::Quantity(quantity) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::Determiner(Determiner::Quantity(quantity)))
-        }
-        RuleTag::DeterminerPossessiveThisCard => {
-            let Lowered::ThisCard(form) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::Determiner(Determiner::Possessive(
-                Possessor::NounPhrase(Box::new(NounPhrase::ThisCard(form))),
-            )))
-        }
-        _ => None,
-    }
-}
-
-/// Whether an adjectival modifier is the `named` participle that introduces a
-/// proper name (e.g. `creature named Storm Crow`).
-pub(super) fn introduces_proper_name(adjective: &AdjectivePhrase) -> bool {
-    matches!(
-        adjective.head(),
-        Adjective::Participle(_, Verb::Word(Vocab::Name))
-    )
 }
 
 /// Re-labels keyword-ability catalog atoms inside a proper name so they are
@@ -1500,13 +1427,21 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
             let Lowered::ThisCard(form) = take(children, 0)? else {
                 return None;
             };
+            let determiner =
+                crate::constructions::determiner::build_determiner_possessive_this_card(form)
+                    .ok()?;
+            let crate::syntax::DeterminerKind::Possessive(possessor) = determiner.kind() else {
+                return None;
+            };
             Some(Lowered::NounPhrase(NounPhrase::Possessive(
-                Possessor::NounPhrase(Box::new(NounPhrase::ThisCard(form))),
+                possessor.clone(),
             )))
         }
         RuleTag::NounPhraseDemonstrative => {
-            let Lowered::Determiner(crate::syntax::Determiner::Demonstrative(demonstrative)) =
-                take(children, 0)?
+            let Lowered::Determiner(determiner) = take(children, 0)? else {
+                return None;
+            };
+            let crate::syntax::DeterminerKind::Demonstrative(demonstrative) = determiner.kind()
             else {
                 return None;
             };
@@ -1532,9 +1467,12 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
             )))
         }
         RuleTag::NounPhraseEachPartitive => {
-            let Lowered::Determiner(crate::syntax::Determiner::Each) = take(children, 0)? else {
+            let Lowered::Determiner(determiner) = take(children, 0)? else {
                 return None;
             };
+            if !matches!(determiner.kind(), crate::syntax::DeterminerKind::Each) {
+                return None;
+            }
             let Lowered::Preposition(Preposition::Of) = take(children, 1)? else {
                 return None;
             };
@@ -1553,11 +1491,12 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
             // analyses (this notional-plural reduce vs. the formal-singular
             // `NounPhraseNominal` path) must differ only in parse features,
             // never in stored or rendered structure [`anof` round].
-            let Lowered::Determiner(determiner @ crate::syntax::Determiner::Any) =
-                take(children, 0)?
-            else {
+            let Lowered::Determiner(determiner) = take(children, 0)? else {
                 return None;
             };
+            if !matches!(determiner.kind(), crate::syntax::DeterminerKind::Any) {
+                return None;
+            }
             let Lowered::Noun(head) = take(children, 1)? else {
                 return None;
             };

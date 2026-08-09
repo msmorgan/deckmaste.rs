@@ -50,7 +50,6 @@ use reduction::reduce;
 use rules::RegistrationOrder;
 use rules::RuleBuilder;
 use rules::RuleImpl;
-use scan::accepts_possessive_modifier_prefix;
 use scan::accepts_set_exception_prefix;
 pub(crate) use scan::adjective_comparison_state;
 pub(crate) use scan::adjective_features;
@@ -135,7 +134,6 @@ use crate::syntax::OpaqueLexeme;
 use crate::syntax::OracleSymbol;
 use crate::syntax::Phrase;
 use crate::syntax::Polarity;
-use crate::syntax::Possessor;
 use crate::syntax::PowerToughness;
 use crate::syntax::Preposition;
 use crate::syntax::PrepositionalPhrase;
@@ -1320,7 +1318,7 @@ pub(crate) enum NounForm {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct QuantityFeatures {
-    cardinality: NounCardinality,
+    pub(crate) cardinality: NounCardinality,
     standalone_number: Number,
     is_one: bool,
 }
@@ -2005,15 +2003,6 @@ pub(crate) struct SubjectAuxiliaryKey {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, strum::EnumIter, strum::IntoStaticStr)]
 #[strum(serialize_all = "snake_case")]
 enum RuleTag {
-    DeterminerClosed,
-    DeterminerTarget,
-    DeterminerQuantifiedTarget,
-    DeterminerQuantity,
-    DeterminerPossessiveThisCard,
-    PossessiveNounBase,
-    PossessiveNounDetermined,
-    DeterminerPossessiveNoun,
-    PossessiveNounAdjective,
     NounPhraseSetExceptionBare,
     NounPhraseSetExceptionFor,
     NounPhraseNominal,
@@ -2255,7 +2244,6 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         // Coordination *consumers* are kept beside the list constructions they
         // read, independent of their eventual numeric lookup IDs.
         builder.add_coordination_consumer_rules();
-        builder.add_possessive_modifier_rules();
         // This rule's dot-1 gate (`Features::Subordinator(While)`) is likewise
         // categorical.
         builder.add_while_gerund_rules();
@@ -3256,7 +3244,12 @@ impl Grammar for EnglishGrammar<'_, '_> {
                         demonstrative_this: false,
                         set_exception_host: true,
                     },
-                    meaning: MeaningKey::Determiner(Determiner::Each),
+                    meaning: MeaningKey::Determiner(
+                        crate::constructions::determiner::build_determiner_closed(
+                            crate::syntax::ClosedDeterminer::Each,
+                        )
+                        .expect("each is a closed determiner identity"),
+                    ),
                     local_cost: ParseCost::default(),
                 })
                 .into_iter()
@@ -3271,7 +3264,12 @@ impl Grammar for EnglishGrammar<'_, '_> {
                         demonstrative_this: false,
                         set_exception_host: false,
                     },
-                    meaning: MeaningKey::Determiner(Determiner::Any),
+                    meaning: MeaningKey::Determiner(
+                        crate::constructions::determiner::build_determiner_closed(
+                            crate::syntax::ClosedDeterminer::Any,
+                        )
+                        .expect("any is a closed determiner identity"),
+                    ),
                     local_cost: ParseCost::default(),
                 })
                 .into_iter()
@@ -3430,8 +3428,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
     ) -> bool {
         match self.impls.get(rule.index()).copied() {
             Some(RuleImpl::Handwritten(tag)) => {
-                accepts_possessive_modifier_prefix(tag, completed_children, latest_child)
-                    && accepts_set_exception_prefix(tag, completed_children, latest_child)
+                accepts_set_exception_prefix(tag, completed_children, latest_child)
                     && clause::accepts_predicate_prefix(tag, completed_children, latest_child)
             }
             Some(RuleImpl::Generated(generated)) => {

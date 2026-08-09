@@ -482,6 +482,37 @@ mod tests {
     }
 
     #[test]
+    fn production_d01_inspect_reports_generated_owners_and_constraint_evidence() {
+        let target = verbose_m01("Target creature gets +1/+1 until end of turn.");
+        assert!(
+            target.contains(
+                " determiner_target owner=generated backend=chart form=0 evidence=feature:singular target cardinality"
+            ),
+            "{target}",
+        );
+
+        let possessive = verbose_m01("The creature's controller draws two cards.");
+        for (construction, evidence) in [
+            ("possessive_noun_base", "noun possessor number and onset"),
+            (
+                "possessive_noun_determined",
+                "possessor determination and agreement",
+            ),
+            ("determiner_possessive_noun", "noun possessor determiner"),
+            ("determiner_quantity", "quantity cardinality"),
+        ] {
+            assert!(
+                possessive.contains(&format!(
+                    " {construction} owner=generated backend=chart form=0 evidence=feature:{evidence}"
+                )) || possessive.contains(&format!(
+                    " {construction} owner=generated backend=chart form=0 evidence=role:{evidence}"
+                )),
+                "missing generated D01 evidence for {construction}:\n{possessive}",
+            );
+        }
+    }
+
+    #[test]
     fn normal_output_resolves_spans_while_verbose_output_keeps_them() {
         let cards = [CardFace {
             card_name: "Test Card".to_owned(),

@@ -1,0 +1,11 @@
+error[E0616]: field `repr` of struct `Determiner` is private
+ --> tests/compile_fail/mutate_determiner.rs:4:16
+  |
+4 |     determiner.repr = replacement.repr;
+  |                ^^^^ private field
+
+error[E0616]: field `repr` of struct `Determiner` is private
+ --> tests/compile_fail/mutate_determiner.rs:4:35
+  |
+4 |     determiner.repr = replacement.repr;
+  |                                   ^^^^ private field

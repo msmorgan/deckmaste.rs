@@ -3553,7 +3553,7 @@ mod tests {
         else {
             panic!("expected nominal subject");
         };
-        assert_eq!(subject.determiner(), Some(&Determiner::Target(None)));
+        assert_eq!(subject.determiner(), Some(&crate::determiner::target(None)));
     }
 
     #[test]
@@ -6078,10 +6078,16 @@ mod tests {
                     _
                 )) if matches!(
                     nominal.determiner(),
-                    Some(Determiner::Possessive(Possessor::NounPhrase(possessor)))
+                    Some(determiner)
                         if matches!(
-                            possessor.as_ref(),
-                            NounPhrase::ThisCard(ThisCardForm::AbbreviatedName)
+                            determiner.kind(),
+                            crate::syntax::DeterminerKind::Possessive(possessor)
+                                if matches!(
+                                    possessor.kind(),
+                                    crate::syntax::PossessorKind::NounPhrase(
+                                        NounPhrase::ThisCard(ThisCardForm::AbbreviatedName)
+                                    )
+                                )
                         )
                 )
             ),

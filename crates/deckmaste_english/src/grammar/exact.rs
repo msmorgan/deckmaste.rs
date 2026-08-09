@@ -452,6 +452,13 @@ fn lowered_matches_expected(
             ),
             (Lowered::DevotionColors(actual), Some(expected)) if actual == expected
         ),
+        "Determiner" => matches!(
+            (
+                lowered,
+                expected.downcast_ref::<crate::syntax::Determiner>(),
+            ),
+            (Lowered::Determiner(actual), Some(expected)) if actual == expected
+        ),
         "ManaAmount" | "ManaAmountList" => matches!(
             (
                 lowered,
@@ -493,7 +500,7 @@ fn lowered_matches_expected(
                 .zip(expected.downcast_ref::<crate::syntax::TransitivePredicate>())
                 .is_some_and(|(actual, expected)| actual == expected)
         }
-        other => panic!("M01 exact value matcher has no declared category `{other}`"),
+        other => panic!("generated exact value matcher has no declared category `{other}`"),
     }
 }
 
@@ -557,7 +564,7 @@ pub(crate) fn parse_production_as_declared_category_in_both_orders(
     budget: usize,
 ) -> Result<[Vec<ExactParse<GeneratedRootParse, EnglishSurfaceWitness>>; 2], ExactParseError> {
     let nonterminal = super::generated::declared_category_nonterminal(category)
-        .unwrap_or_else(|| panic!("M01 construction has unmapped declared category `{category}`"));
+        .unwrap_or_else(|| panic!("construction has unmapped declared category `{category}`"));
     Ok([
         parse_generated_root_as_with_registration_order(
             source,
@@ -930,7 +937,6 @@ mod tests {
     use crate::constructions::sentence;
     use crate::features::Comma;
     use crate::features::Conjunction;
-    use crate::syntax::Determiner;
     use crate::syntax::NominalComplement;
     use crate::syntax::NominalPhrase;
     use crate::syntax::NominalPhraseCoordination;
@@ -949,6 +955,83 @@ mod tests {
     fn law_category(name: &str) -> Nonterminal {
         let cats = super::super::generated::internal_categories(law::GROUPS);
         Nonterminal::Generated(cats[name])
+    }
+
+    #[test]
+    fn determiner_exact_laws_recover_checked_values_in_both_registration_orders() {
+        use crate::determiner as determiner_api;
+        use crate::syntax::ClosedDeterminer;
+        use crate::syntax::NumberLiteral;
+        use crate::word::Adjective;
+        use crate::word::Pronoun;
+
+        let two = Quantity::try_exact(NumberLiteral {
+            value: 2,
+            numeral: crate::Numeral::Cardinal,
+        })
+        .unwrap();
+        let base = determiner_api::build_possessive_noun_base(
+            NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
+        )
+        .unwrap();
+        let determined =
+            determiner_api::build_possessive_noun_determined(determiner_api::the(), base.clone())
+                .unwrap();
+        let adjective =
+            crate::adjective::build_adjective_phrase(Adjective::Word(Vocab::Target)).unwrap();
+        let modified =
+            determiner_api::build_possessive_noun_adjective(adjective, base.clone()).unwrap();
+        let fixtures = [
+            (
+                "determiner_closed",
+                determiner_api::build_determiner_closed(ClosedDeterminer::The).unwrap(),
+            ),
+            ("determiner_target", determiner_api::target(None)),
+            (
+                "determiner_quantified_target",
+                determiner_api::target(Some(two)),
+            ),
+            ("determiner_quantity", determiner_api::quantity(two)),
+            (
+                "determiner_closed",
+                determiner_api::possessive_pronoun(Pronoun::You),
+            ),
+            (
+                "determiner_possessive_noun",
+                determiner_api::possessive_nominal(base),
+            ),
+            (
+                "determiner_possessive_noun",
+                determiner_api::possessive_nominal(determined),
+            ),
+            (
+                "determiner_possessive_noun",
+                determiner_api::possessive_nominal(modified),
+            ),
+        ];
+
+        for (expected_id, expected) in fixtures {
+            let source = expected.render().unwrap();
+            let orders = parse_groups_as_declared_category_in_both_orders(
+                &source,
+                &fixture_catalogs(),
+                "Determiner",
+                &expected,
+                100_000,
+                crate::constructions::GROUPS,
+            )
+            .unwrap_or_else(|error| panic!("exact D01 parse failed for {source:?}: {error:?}"));
+            for parses in orders {
+                let parse = parses
+                    .iter()
+                    .find(|parse| parse.ast().construction == expected_id)
+                    .unwrap_or_else(|| {
+                        panic!("missing exact {expected_id} for {source:?}: {parses:#?}")
+                    });
+                assert_eq!(parse.ast().form_ordinal, 0, "{source:?}");
+                assert_eq!(*parse.surface(), EnglishSurfaceWitness::None, "{source:?}");
+            }
+        }
     }
 
     #[test]
@@ -1162,7 +1245,7 @@ mod tests {
                             object: crate::syntax::PredicateObject::NounPhrase(
                                 crate::syntax::NounPhrase::Nominal(
                                     crate::syntax::NominalPhrase::test_from_projection_parts(
-                                        Some(crate::syntax::Determiner::Indefinite),
+                                        Some(crate::determiner::indefinite()),
                                         Vec::new(),
                                         NounInstance::Singular(Noun::Word(Vocab::Card)),
                                         Vec::new(),
@@ -1716,16 +1799,25 @@ mod tests {
         };
         assert!(matches!(
             first.determiner(),
-            Some(Determiner::Possessive(crate::syntax::Possessor::Pronoun(
-                crate::word::Pronoun::They,
-            )))
+            Some(determiner)
+                if matches!(
+                    determiner.kind(),
+                    crate::syntax::DeterminerKind::Possessive(possessor)
+                        if matches!(
+                            possessor.kind(),
+                            crate::syntax::PossessorKind::Pronoun(crate::word::Pronoun::They)
+                        )
+                )
         ));
         assert_eq!(nominal_head_spelling(first), "hand");
         assert_eq!(graveyard.conjunction, None);
         assert_eq!(graveyard_phrase.determiner(), None);
         assert_eq!(nominal_head_spelling(graveyard_phrase), "graveyard");
         assert_eq!(permanents.conjunction, Some(Conjunction::And));
-        assert_eq!(permanents_phrase.determiner(), Some(&Determiner::All));
+        assert_eq!(
+            permanents_phrase.determiner(),
+            Some(&crate::determiner::all())
+        );
         assert_eq!(nominal_head_spelling(permanents_phrase), "permanent");
     }
 
@@ -1747,7 +1839,7 @@ mod tests {
             };
             let (determiner, first, rest, _) =
                 coordination::parts_shared_determiner_nominal(&coordination);
-            assert_eq!(determiner, &Determiner::Target(None), "{face}");
+            assert_eq!(determiner, &crate::determiner::target(None), "{face}");
             let [middle, final_member] = rest.as_slice() else {
                 panic!("{face} did not select a flat three-member nominal list: {coordination:#?}");
             };
@@ -1783,7 +1875,7 @@ mod tests {
         else {
             panic!("The Tale of Tamiyo did not select nominal members: {coordination:#?}");
         };
-        assert_eq!(first.determiner(), Some(&Determiner::Target(None)));
+        assert_eq!(first.determiner(), Some(&crate::determiner::target(None)));
         assert_eq!(middle_phrase.determiner(), None);
         assert_eq!(final_member_phrase.determiner(), None);
         assert_eq!(middle.conjunction, None);
@@ -1840,7 +1932,7 @@ mod tests {
         };
         let (determiner, first, rest, complements) =
             coordination::parts_shared_determiner_nominal(&coordination);
-        assert_eq!(determiner, &Determiner::Target(None));
+        assert_eq!(determiner, &crate::determiner::target(None));
         assert_eq!(nominal_head_spelling(first), "Artifact");
         let [second] = rest.as_slice() else {
             panic!("expected exactly two nominal members: {coordination:#?}");
@@ -2084,7 +2176,7 @@ mod tests {
                         matches!(
                             destination,
                             NounPhrase::Nominal(nominal)
-                                if nominal.determiner() == Some(&Determiner::Demonstrative(
+                                if nominal.determiner() == Some(&crate::determiner::demonstrative(
                                     crate::syntax::Demonstrative::That
                                 )) && nominal_head_spelling(nominal) == "Creature"
                         )
@@ -2496,7 +2588,7 @@ mod tests {
         );
 
         let violation = coordination::build_shared_determiner_nominal(
-            Determiner::Any,
+            crate::determiner::any(),
             Box::new(nominal(Vocab::Card)),
             vec![NominalPhraseCoordination {
                 conjunction: Some(Conjunction::Then),
@@ -2514,7 +2606,7 @@ mod tests {
     #[test]
     fn shared_determiner_builder_derives_oxford_and_rejects_unrecognized_complements() {
         let built = coordination::build_shared_determiner_nominal(
-            Determiner::Any,
+            crate::determiner::any(),
             Box::new(nominal(Vocab::Card)),
             vec![NominalPhraseCoordination {
                 conjunction: Some(Conjunction::Or),
@@ -2525,14 +2617,14 @@ mod tests {
         .expect("a binary shared-determiner nominal with no complement is admitted");
         let (determiner, first, rest, complements) =
             coordination::parts_shared_determiner_nominal(&built);
-        assert_eq!(determiner, &Determiner::Any);
+        assert_eq!(determiner, &crate::determiner::any());
         assert_eq!(first, &nominal(Vocab::Card));
         assert_eq!(rest.len(), 1);
         assert_eq!(rest[0].conjunction, Some(Conjunction::Or));
         assert_eq!(rest[0].phrase, nominal(Vocab::Spell));
         assert!(complements.is_empty());
         let violation = coordination::build_shared_determiner_nominal(
-            Determiner::Any,
+            crate::determiner::any(),
             Box::new(nominal(Vocab::Card)),
             vec![NominalPhraseCoordination {
                 conjunction: Some(Conjunction::Or),
@@ -2586,7 +2678,7 @@ mod tests {
     #[test]
     fn nominal_coordination_linearizes_binary_and_oxford_with_one_shared_determiner() {
         let binary = coordination::build_shared_determiner_nominal(
-            Determiner::Any,
+            crate::determiner::any(),
             Box::new(nominal(Vocab::Card)),
             vec![NominalPhraseCoordination {
                 conjunction: Some(Conjunction::Or),
@@ -2609,7 +2701,7 @@ mod tests {
         assert!(complements.is_empty());
 
         let oxford = coordination::build_shared_determiner_nominal(
-            Determiner::Any,
+            crate::determiner::any(),
             Box::new(nominal(Vocab::Card)),
             vec![
                 NominalPhraseCoordination {
@@ -2650,7 +2742,7 @@ mod tests {
         assert_eq!(violation.requirement, "rest.nonfinal.conjunction.is_none()",);
 
         let violation = crate::syntax::CoordinatedNominalPhrase::try_new(
-            Determiner::Any,
+            crate::determiner::any(),
             Box::new(nominal(Vocab::Card)),
             vec![NominalPhraseCoordination {
                 conjunction: Some(Conjunction::Or),
@@ -2962,7 +3054,7 @@ mod tests {
                 )
             };
             let built = build(
-                Determiner::Target(None),
+                crate::determiner::target(None),
                 first,
                 rest,
                 Vec::new(),
@@ -3135,6 +3227,7 @@ mod tests {
     fn real_generated_exact_parses_carry_built_ast_and_form_witness() {
         static GROUPS: &[&deckmaste_construction_compiler::runtime::GroupData] = &[
             noun::GROUPS[0],
+            crate::constructions::determiner::GROUPS[0],
             crate::constructions::nominal::GROUPS[0],
             coordination::GROUPS[0],
         ];

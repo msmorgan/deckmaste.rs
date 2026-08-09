@@ -1,0 +1,5 @@
+error[E0616]: field `repr` of struct `Possessor` is private
+ --> tests/compile_fail/construct_possessor.rs:4:30
+  |
+4 |     Possessor { repr: source.repr }
+  |                              ^^^^ private field

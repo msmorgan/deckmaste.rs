@@ -1,0 +1,5 @@
+error[E0616]: field `repr` of struct `Determiner` is private
+ --> tests/compile_fail/construct_determiner.rs:4:31
+  |
+4 |     Determiner { repr: source.repr }
+  |                               ^^^^ private field

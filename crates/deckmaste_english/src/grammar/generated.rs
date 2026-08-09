@@ -438,6 +438,7 @@ fn engine_category(name: &str) -> Option<Nonterminal> {
         "Noun" | "NounInstance" => Nonterminal::Noun,
         "NounPhrase" => Nonterminal::NounPhrase,
         "NominalPhrase" => Nonterminal::Nominal,
+        "PossessiveNominal" => Nonterminal::PossessiveNounPhrase,
         "Determiner" => Nonterminal::Determiner,
         "AdjectivePhrase" | "ComparisonAdjectivePhrase" => Nonterminal::AdjectivePhrase,
         "CoordinatedAdjectivePhrase" => Nonterminal::CoordinatedModifier,
@@ -532,6 +533,9 @@ pub(super) fn typed_feature_projection(
         ("adjective", "features") => Some(
             crate::constructions::adjective::reduce_adjective_features(construction, fields),
         ),
+        ("determiner", "features") => {
+            Some(crate::constructions::determiner::reduce_determiner_features(construction, fields))
+        }
         _ => None,
     }
 }
@@ -672,6 +676,9 @@ fn identity_slot(
         ("VerbParticle", "VerbParticle") => Ok(EnglishLexicalSlot::AnyVerbParticle),
         ("CoinSide", "CoinResult") => Ok(EnglishLexicalSlot::AnyCoinResult),
         ("FrequencyPhrase", "Frequency") => Ok(EnglishLexicalSlot::Frequency),
+        ("ClosedDeterminer", "Determiner") => Ok(EnglishLexicalSlot::Determiner),
+        ("NounInstance", "PossessiveNoun") => Ok(EnglishLexicalSlot::PossessiveNoun),
+        ("ThisCardForm", "PossessiveThisCard") => Ok(EnglishLexicalSlot::PossessiveThisCard),
         ("CatalogAtom", "AbilityItem") => Ok(EnglishLexicalSlot::AbilityItem),
         ("QuotedAbility", "QuotedAbility") => Ok(EnglishLexicalSlot::QuotedAbility),
         ("OracleSymbol", "OracleSymbol") => Ok(EnglishLexicalSlot::OracleSymbol),

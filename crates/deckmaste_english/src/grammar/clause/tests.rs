@@ -8,7 +8,6 @@ use crate::syntax::Ability;
 use crate::syntax::AbilityKind;
 use crate::syntax::AdjectiveComplement;
 use crate::syntax::Demonstrative;
-use crate::syntax::Determiner;
 use crate::syntax::FrequencyBound;
 use crate::syntax::FrequencyCount;
 use crate::syntax::KeywordArgument;
@@ -149,7 +148,7 @@ fn singular_demonstratives_determine_mass_nouns() {
     };
     assert_eq!(
         nominal.determiner(),
-        Some(&Determiner::Demonstrative(Demonstrative::That))
+        Some(&crate::determiner::demonstrative(Demonstrative::That))
     );
     assert!(matches!(
         nominal.head().kind(),
@@ -198,7 +197,7 @@ fn flip_is_a_count_noun_alongside_its_irregular_verb() {
     let PredicateObject::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.object else {
         panic!("expected a nominal object, got {:?}", predicate.object);
     };
-    assert_eq!(nominal.determiner(), Some(&Determiner::The));
+    assert_eq!(nominal.determiner(), Some(&crate::determiner::the()));
     assert!(matches!(
         nominal.head().kind(),
         NounInstanceKind::Singular(Noun::Word(Vocab::Flip))
@@ -228,7 +227,7 @@ fn flip_is_a_count_noun_alongside_its_irregular_verb() {
     let PredicateObject::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.object else {
         panic!("expected a nominal object, got {:?}", predicate.object);
     };
-    assert_eq!(nominal.determiner(), Some(&Determiner::Indefinite));
+    assert_eq!(nominal.determiner(), Some(&crate::determiner::indefinite()));
     assert!(matches!(
         nominal.head().kind(),
         NounInstanceKind::Singular(Noun::Word(Vocab::Coin))
@@ -1377,8 +1376,12 @@ fn exact_quantities_can_measure_mass_nouns() {
             PredicateObject::NounPhrase(NounPhrase::Nominal(nominal))
                 if matches!(
                     nominal.determiner(),
-                    Some(Determiner::Quantity(quantity))
-                        if matches!(quantity.kind(), crate::syntax::QuantityKind::Exact(_))
+                    Some(determiner)
+                        if matches!(
+                            determiner.kind(),
+                            crate::syntax::DeterminerKind::Quantity(quantity)
+                                if matches!(quantity.kind(), crate::syntax::QuantityKind::Exact(_))
+                        )
                 ) && matches!(
                     nominal.head().kind(),
                     NounInstanceKind::Mass(Noun::Word(word)) if *word == expected
@@ -1416,7 +1419,7 @@ fn bonfire_recipient_is_full_coordination_with_a_shared_target_member() {
     let NounPhrase::CoordinatedNominal(targets) = recipient.first().as_ref() else {
         panic!("expected one shared-target first member: {recipient:#?}");
     };
-    assert_eq!(*targets.determiner(), Determiner::Target(None));
+    assert_eq!(*targets.determiner(), crate::determiner::target(None));
     assert!(targets.first().determiner().is_none());
     assert!(matches!(
         targets.rest().as_slice(),
@@ -1436,7 +1439,7 @@ fn bonfire_recipient_is_full_coordination_with_a_shared_target_member() {
     let NounPhrase::Nominal(creatures) = &creatures.phrase else {
         panic!("expected an independently determined creature member");
     };
-    assert_eq!(creatures.determiner(), Some(&Determiner::Each));
+    assert_eq!(creatures.determiner(), Some(&crate::determiner::each()));
     assert!(matches!(
         creatures.complements(),
         [NominalComplement::Relative(RelativeClause {
@@ -1472,7 +1475,7 @@ fn adversarial_shared_subject_keeps_damage_and_recipient_coordinations_nested() 
     assert!(matches!(
         first_recipient.as_ref(),
         NounPhrase::CoordinatedNominal(targets)
-            if *targets.determiner() == Determiner::Target(None) && targets.rest().len() == 1
+            if *targets.determiner() == crate::determiner::target(None) && targets.rest().len() == 1
     ));
 
     let [second_damage] = damage.rest().as_slice() else {
@@ -1494,7 +1497,7 @@ fn adversarial_shared_subject_keeps_damage_and_recipient_coordinations_nested() 
     assert!(matches!(
         second_recipient.as_ref(),
         NounPhrase::Nominal(creatures)
-            if creatures.determiner() == Some(&Determiner::Each)
+            if creatures.determiner() == Some(&crate::determiner::each())
                 && matches!(
                     creatures.complements(),
                     [NominalComplement::Relative(_)]
@@ -1740,7 +1743,7 @@ fn rules_object_gap_prefers_the_nearest_preposition_without_stealing_its_subject
     else {
         panic!("expected an object-gap relative with a nominal subject: {relative:#?}");
     };
-    assert_eq!(subject.determiner(), Some(&Determiner::Target(None)));
+    assert_eq!(subject.determiner(), Some(&crate::determiner::target(None)));
     assert!(matches!(
         subject.head().kind(),
         NounInstanceKind::Singular(Noun::Word(Vocab::Opponent))
@@ -3834,7 +3837,7 @@ fn target_and_relative_clauses_keep_their_nominal_roles() {
     let (Subject(NounPhrase::Nominal(target)), _) = finite(target_parse.sentence().unwrap()) else {
         panic!("expected target nominal subject");
     };
-    assert_eq!(target.determiner(), Some(&Determiner::Target(None)));
+    assert_eq!(target.determiner(), Some(&crate::determiner::target(None)));
 
     let fight_parse =
         parse("Target creature you control fights target creature you don't control.");
