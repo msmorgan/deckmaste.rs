@@ -522,6 +522,12 @@ pub(super) fn typed_feature_projection(
         ("predicate", "precedence") => {
             Some(crate::constructions::predicate::reduce_predicate_precedence(construction, fields))
         }
+        ("predicate", "prefix_admission") => Some(
+            crate::constructions::predicate::reduce_predicate_prefix_admission(
+                construction,
+                fields,
+            ),
+        ),
         _ => None,
     }
 }

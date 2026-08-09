@@ -562,6 +562,84 @@ fn admit_argument_complete(features: Option<Features>) -> Option<Features> {
     crate::grammar::predicate_features_are_argument_complete(&features).then_some(features)
 }
 
+fn admit_attachment_prefix(
+    predicate: &Features,
+    attachments: impl IntoIterator<Item = PredicateAttachment>,
+) -> Option<Features> {
+    attachments
+        .into_iter()
+        .any(|attachment| extend_predicate_features(predicate, attachment).is_some())
+        .then(|| predicate.clone())
+}
+
+fn admit_direct_object_prefix(predicate: &Features) -> Option<Features> {
+    admit_attachment_prefix(
+        predicate,
+        [
+            PredicateAttachment::DirectObject,
+            PredicateAttachment::NominalAdjunct(crate::word::BareNominalAdjunct::Temporal),
+            PredicateAttachment::NominalAdjunct(crate::word::BareNominalAdjunct::Manner),
+        ],
+    )
+}
+
+fn admit_indirect_object_prefix(predicate: &Features) -> Option<Features> {
+    admit_attachment_prefix(predicate, [PredicateAttachment::IndirectObject])
+}
+
+fn admit_adjective_prefix(predicate: &Features) -> Option<Features> {
+    admit_attachment_prefix(predicate, [PredicateAttachment::AdjectiveComplement])
+}
+
+fn admit_infinitive_prefix(predicate: &Features) -> Option<Features> {
+    admit_attachment_prefix(predicate, [PredicateAttachment::InfinitiveComplement])
+}
+
+fn admit_particle_prefix(predicate: &Features) -> Option<Features> {
+    admit_attachment_prefix(
+        predicate,
+        [
+            PredicateAttachment::Particle(VerbParticle::In),
+            PredicateAttachment::Particle(VerbParticle::Out),
+        ],
+    )
+}
+
+fn admit_coin_result_prefix(predicate: &Features) -> Option<Features> {
+    admit_attachment_prefix(
+        predicate,
+        [PredicateAttachment::CoinResult(CoinSide::Heads)],
+    )
+}
+
+fn admit_passive_shared_prepositional_prefix(predicate: &Features) -> Option<Features> {
+    matches!(predicate, Features::VerbPhrase { passive: true, .. }).then(|| predicate.clone())
+}
+
+fn admit_exception_prefix(predicate: &Features) -> Option<Features> {
+    admit_attachment_prefix(predicate, [PredicateAttachment::Exception])
+}
+
+fn admit_ability_prefix(predicate: &Features) -> Option<Features> {
+    admit_attachment_prefix(predicate, [PredicateAttachment::AbilityComplement])
+}
+
+fn admit_quoted_ability_prefix(predicate: &Features) -> Option<Features> {
+    admit_attachment_prefix(predicate, [PredicateAttachment::QuotedObject])
+}
+
+fn admit_scalar_prefix(predicate: &Features) -> Option<Features> {
+    admit_attachment_prefix(predicate, [PredicateAttachment::ScalarComplement])
+}
+
+fn admit_power_toughness_prefix(predicate: &Features) -> Option<Features> {
+    admit_attachment_prefix(predicate, [PredicateAttachment::StatisticComplement])
+}
+
+fn admit_quantity_prefix(predicate: &Features) -> Option<Features> {
+    admit_attachment_prefix(predicate, [PredicateAttachment::ScalarOrAbilityArgument])
+}
+
 fn complete_base(head: &Features) -> Option<Features> {
     admit_argument_complete(reduce_verb_phrase_base(head))
 }
@@ -2372,6 +2450,7 @@ deckmaste_constructions_macro::constructions! {
         lens verb_phrase_dependents from predicate {
             append dependents with object via attach_nominal_dependent, detach_nominal_dependent;
         }
+        derive prefix_admission: Features = admit_direct_object_prefix(predicate);
         derive features: Features = reduce_verb_phrase_direct_object_features(predicate, object);
         derive argument_complete: Features = complete_direct_object(predicate, object);
         derive reduced_passive: Features = reduce_reduced_passive_direct(predicate, object);
@@ -2389,6 +2468,7 @@ deckmaste_constructions_macro::constructions! {
         lens verb_phrase_indirect_object from predicate {
             focus object with object;
         }
+        derive prefix_admission: Features = admit_indirect_object_prefix(predicate);
         derive features: Features = reduce_verb_phrase_indirect_object_features(predicate, object);
         derive argument_complete: Features = complete_indirect_object(predicate, object);
         derive object_gap: Features = reduce_object_gap_indirect(predicate, object);
@@ -2404,6 +2484,7 @@ deckmaste_constructions_macro::constructions! {
         lens verb_phrase_adjective from predicate {
             focus adjective with adjective;
         }
+        derive prefix_admission: Features = admit_adjective_prefix(predicate);
         derive features: Features = reduce_verb_phrase_adjective_features(predicate, adjective);
         derive argument_complete: Features = complete_adjective(predicate, adjective);
         derive object_gap: Features = reduce_object_gap_adjective(predicate, adjective);
@@ -2438,6 +2519,7 @@ deckmaste_constructions_macro::constructions! {
         lens verb_phrase_dependents from predicate {
             append dependents with preposition via attach_passive_shared_prepositional_dependent, detach_passive_shared_prepositional_dependent;
         }
+        derive prefix_admission: Features = admit_passive_shared_prepositional_prefix(predicate);
         derive features: Features = reduce_passive_shared_prepositional_features(predicate, preposition);
         derive argument_complete: Features = complete_passive_shared_prepositional(predicate, preposition);
         form only @ 0 inverse check(is_passive_shared_prepositional) = predicate preposition;
@@ -2452,6 +2534,7 @@ deckmaste_constructions_macro::constructions! {
         lens verb_phrase_dependents from predicate {
             append dependents with preposition via attach_exception_dependent, detach_exception_dependent;
         }
+        derive prefix_admission: Features = admit_exception_prefix(predicate);
         derive features: Features = reduce_exception_features(predicate, preposition);
         derive argument_complete: Features = complete_exception(predicate, preposition);
         form only @ 0 inverse check(is_exception) = predicate "except" preposition;
@@ -2466,6 +2549,7 @@ deckmaste_constructions_macro::constructions! {
         lens verb_phrase_infinitive from predicate {
             focus infinitive with infinitive;
         }
+        derive prefix_admission: Features = admit_infinitive_prefix(predicate);
         derive features: Features = reduce_verb_phrase_infinitive_features(predicate, infinitive);
         derive argument_complete: Features = complete_infinitive(predicate, infinitive);
         derive object_gap: Features = reduce_object_gap_infinitive(predicate, infinitive);
@@ -2512,6 +2596,7 @@ deckmaste_constructions_macro::constructions! {
         lens verb_phrase_dependents from predicate {
             append dependents with particle via attach_particle_dependent, detach_particle_dependent;
         }
+        derive prefix_admission: Features = admit_particle_prefix(predicate);
         derive features: Features = reduce_verb_phrase_particle_features(predicate, particle);
         derive argument_complete: Features = complete_particle(predicate, particle);
         derive object_gap: Features = reduce_verb_phrase_particle_features(predicate, particle);
@@ -2527,6 +2612,7 @@ deckmaste_constructions_macro::constructions! {
         lens verb_phrase_dependents from predicate {
             append dependents with side via attach_coin_result_dependent, detach_coin_result_dependent;
         }
+        derive prefix_admission: Features = admit_coin_result_prefix(predicate);
         derive features: Features = reduce_verb_phrase_coin_result_features(predicate, side);
         derive argument_complete: Features = complete_coin_result(predicate, side);
         form only @ 0 inverse check(is_verb_phrase_coin_result) = predicate identity(side);
@@ -2576,6 +2662,7 @@ deckmaste_constructions_macro::constructions! {
         lens verb_phrase_dependents from predicate {
             append dependents with ability via attach_ability_dependent, detach_ability_dependent;
         }
+        derive prefix_admission: Features = admit_ability_prefix(predicate);
         derive features: Features = reduce_verb_phrase_ability_features(predicate, ability);
         derive argument_complete: Features = complete_ability(predicate, ability);
         form only @ 0 inverse check(is_verb_phrase_ability) = predicate identity(ability);
@@ -2590,6 +2677,7 @@ deckmaste_constructions_macro::constructions! {
         lens verb_phrase_dependents from predicate {
             append dependents with quoted via attach_quoted_ability_dependent, detach_quoted_ability_dependent;
         }
+        derive prefix_admission: Features = admit_quoted_ability_prefix(predicate);
         derive features: Features = reduce_verb_phrase_quoted_ability_features(predicate, quoted);
         derive argument_complete: Features = complete_quoted_ability(predicate, quoted);
         form only @ 0 inverse check(is_verb_phrase_quoted_ability) = predicate identity(quoted);
@@ -2606,6 +2694,7 @@ deckmaste_constructions_macro::constructions! {
         }
         require pair.len() == 1;
         require pair.last.conjunction in [And, Or];
+        derive prefix_admission: Features = admit_quoted_ability_prefix(predicate);
         derive features: Features = reduce_verb_phrase_quoted_coordination_features(predicate, pair);
         derive argument_complete: Features = complete_quoted_coordination(predicate, pair);
         form only @ 0 inverse check(is_verb_phrase_quoted_ability_coordination) = predicate pair;
@@ -2622,6 +2711,7 @@ deckmaste_constructions_macro::constructions! {
         }
         require pair.len() == 1;
         require pair.last.conjunction in [And, Or];
+        derive prefix_admission: Features = admit_quoted_ability_prefix(predicate);
         derive features: Features = reduce_verb_phrase_quoted_coordination_features(predicate, pair);
         derive argument_complete: Features = complete_quoted_coordination(predicate, pair);
         form only @ 0 inverse check(is_verb_phrase_ability_quoted_coordination) = predicate pair;
@@ -2636,6 +2726,7 @@ deckmaste_constructions_macro::constructions! {
         lens verb_phrase_dependents from predicate {
             append dependents with symbol via attach_oracle_symbol_dependent, detach_oracle_symbol_dependent;
         }
+        derive prefix_admission: Features = admit_scalar_prefix(predicate);
         derive features: Features = reduce_verb_phrase_scalar_features(predicate, symbol);
         derive argument_complete: Features = complete_scalar(predicate, symbol);
         form only @ 0 inverse check(is_verb_phrase_oracle_symbol) = predicate identity(symbol);
@@ -2650,6 +2741,7 @@ deckmaste_constructions_macro::constructions! {
         lens verb_phrase_dependents from predicate {
             append dependents with symbols via attach_symbol_sequence_dependent, detach_symbol_sequence_dependent;
         }
+        derive prefix_admission: Features = admit_scalar_prefix(predicate);
         derive features: Features = reduce_verb_phrase_scalar_features(predicate, symbols);
         derive argument_complete: Features = complete_scalar(predicate, symbols);
         form only @ 0 inverse check(is_verb_phrase_symbol_sequence) = predicate identity(symbols);
@@ -2722,6 +2814,7 @@ deckmaste_constructions_macro::constructions! {
         lens verb_phrase_dependents from predicate {
             append dependents with coordination via attach_mana_coordination_dependent, detach_mana_coordination_dependent;
         }
+        derive prefix_admission: Features = admit_scalar_prefix(predicate);
         derive features: Features = reduce_verb_phrase_mana_coordination_features(predicate, coordination);
         derive argument_complete: Features = complete_mana_coordination(predicate, coordination);
         form only @ 0 inverse check(is_verb_phrase_mana_amount_coordination) = predicate coordination;
@@ -2736,6 +2829,7 @@ deckmaste_constructions_macro::constructions! {
         lens verb_phrase_dependents from predicate {
             append dependents with stats via attach_power_toughness_dependent, detach_power_toughness_dependent;
         }
+        derive prefix_admission: Features = admit_power_toughness_prefix(predicate);
         derive features: Features = reduce_verb_phrase_power_toughness_features(predicate, stats);
         derive argument_complete: Features = complete_power_toughness(predicate, stats);
         form only @ 0 inverse check(is_verb_phrase_power_toughness) = predicate lex(stats);
@@ -2750,6 +2844,7 @@ deckmaste_constructions_macro::constructions! {
         lens verb_phrase_dependents from predicate {
             append dependents with quantity via attach_quantity_dependent, detach_quantity_dependent;
         }
+        derive prefix_admission: Features = admit_quantity_prefix(predicate);
         derive features: Features = reduce_verb_phrase_quantity_features(predicate, quantity);
         derive argument_complete: Features = complete_quantity(predicate, quantity);
         form only @ 0 inverse check(is_verb_phrase_quantity) = predicate quantity;
@@ -2761,6 +2856,7 @@ deckmaste_constructions_macro::constructions! {
             host: hole VerbPhrase,
             complement: hole VerbPhrase,
         }
+        derive prefix_admission: Features = causative_host_features(host);
         derive features: Features = reduce_verb_phrase_causative_features(host, complement);
         derive argument_complete: Features = complete_causative(host, complement);
         evidence role "causative host-causee-complement order" from category;
