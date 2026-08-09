@@ -15,6 +15,7 @@ pub(crate) mod sentence;
 use deckmaste_construction_compiler::runtime::GroupData;
 
 pub(crate) static GROUPS: &[&GroupData] = &[
+    adjective::GROUPS[0],
     coordination::GROUPS[0],
     noun::GROUPS[0],
     nominal::GROUPS[0],

@@ -994,6 +994,44 @@ mod tests {
     }
 
     #[test]
+    fn production_j01_spelling_parse_selects_generated_owners() {
+        let report = deckmaste_english::parse_fragment(
+            "black creature",
+            &Catalogs::default()
+                .with_catalog(deckmaste_english::CatalogKind::CardType, ["Creature"]),
+            FragmentKind::Nominal,
+            "",
+            false,
+        );
+        assert!(report.clean(), "{:?}", report.diagnostics());
+        for construction in ["adjective", "adjective_phrase"] {
+            let decision = report
+                .construction_decisions()
+                .iter()
+                .find(|decision| decision.selected().as_str() == construction)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "missing {construction}: {:#?}",
+                        report.construction_decisions()
+                    )
+                });
+            assert_eq!(
+                decision.owner(),
+                deckmaste_english::ConstructionOwner::Generated,
+                "spelling must consume production-generated J01 ownership"
+            );
+        }
+        assert!(matches!(
+            of(report.fragment().expect("the nominal fragment lowers")),
+            View::Newtype {
+                name: "Fragment",
+                variant: Some("Nominal"),
+                ..
+            }
+        ));
+    }
+
+    #[test]
     fn canonical_feature_aliases_keep_legacy_view_names() {
         assert_eq!(
             of(&Onset::Vowel),

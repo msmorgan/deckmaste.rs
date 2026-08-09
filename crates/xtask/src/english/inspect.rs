@@ -465,6 +465,23 @@ mod tests {
     }
 
     #[test]
+    fn production_j01_inspect_reports_generated_owners() {
+        let verbose = verbose_m01("Its power is greater than a card.");
+        for construction in [
+            "adjective",
+            "adjective_phrase",
+            "comparison_standard",
+            "comparison_than",
+            "adjective_phrase_comparison",
+        ] {
+            assert!(
+                verbose.contains(&format!(" {construction} owner=generated backend=chart ")),
+                "missing production-generated J01 owner {construction}:\n{verbose}"
+            );
+        }
+    }
+
+    #[test]
     fn normal_output_resolves_spans_while_verbose_output_keeps_them() {
         let cards = [CardFace {
             card_name: "Test Card".to_owned(),

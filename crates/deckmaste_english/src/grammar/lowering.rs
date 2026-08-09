@@ -1134,16 +1134,7 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::PossessiveNounDetermined
         | RuleTag::DeterminerPossessiveNoun
         | RuleTag::PossessiveNounAdjective => lower_possessive_noun_phrase(tag, children),
-        RuleTag::Adjective
-        | RuleTag::AdjectivePhrase
-        | RuleTag::AdjectivePhraseFaceUp
-        | RuleTag::AdjectivePhraseFaceDown
-        | RuleTag::AdjectivePhraseComparison
-        | RuleTag::AdjectivePhraseDegreeMeasure
-        | RuleTag::ComparisonStandard
-        | RuleTag::ComparisonThan
-        | RuleTag::ComparisonThanOrEqualTo
-        | RuleTag::NominalPowerToughnessComplement
+        RuleTag::NominalPowerToughnessComplement
         | RuleTag::ModifierConjunctAdjective
         | RuleTag::ModifierConjunctNoun
         | RuleTag::ModifierConjunctNegated
@@ -1347,79 +1338,6 @@ pub(super) fn introduces_proper_name(adjective: &AdjectivePhrase) -> bool {
 )]
 pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
-        RuleTag::Adjective => take(children, 0),
-        RuleTag::AdjectivePhraseFaceUp | RuleTag::AdjectivePhraseFaceDown => {
-            let phrase = match tag {
-                RuleTag::AdjectivePhraseFaceUp => {
-                    crate::constructions::adjective::build_adjective_phrase_face_up()
-                }
-                RuleTag::AdjectivePhraseFaceDown => {
-                    crate::constructions::adjective::build_adjective_phrase_face_down()
-                }
-                _ => return None,
-            }
-            .ok()?;
-            Some(Lowered::AdjectivePhrase(phrase))
-        }
-        RuleTag::AdjectivePhrase => {
-            let Lowered::Adjective(head) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::AdjectivePhrase(
-                crate::constructions::adjective::build_adjective_phrase(head).ok()?,
-            ))
-        }
-        RuleTag::AdjectivePhraseComparison => {
-            let Lowered::Adjective(head) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::ComparisonComplement(comparison) = take(children, 1)? else {
-                return None;
-            };
-            let owner = crate::constructions::adjective::build_adjective_phrase(head).ok()?;
-            Some(Lowered::AdjectivePhrase(
-                crate::constructions::adjective::build_adjective_phrase_comparison(
-                    owner, comparison,
-                )
-                .ok()?,
-            ))
-        }
-        RuleTag::AdjectivePhraseDegreeMeasure => {
-            let Lowered::Number(number) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Adjective(head) = take(children, 1)? else {
-                return None;
-            };
-            Some(Lowered::AdjectivePhrase(
-                crate::constructions::adjective::build_adjective_phrase_degree_measure(
-                    number, head,
-                )
-                .ok()?,
-            ))
-        }
-        RuleTag::ComparisonStandard => {
-            let standard = match take(children, 0)? {
-                Lowered::Clause(clause) => Phrase::Clause(Box::new(clause)),
-                Lowered::NounPhrase(noun_phrase) => Phrase::NounPhrase(Box::new(noun_phrase)),
-                Lowered::AdjectivePhrase(adjective) => Phrase::AdjectivePhrase(Box::new(adjective)),
-                _ => return None,
-            };
-            Some(Lowered::Phrase(standard))
-        }
-        RuleTag::ComparisonThan | RuleTag::ComparisonThanOrEqualTo => {
-            let standard_index = if tag == RuleTag::ComparisonThan { 1 } else { 2 };
-            let Lowered::Phrase(standard) = take(children, standard_index)? else {
-                return None;
-            };
-            let comparison = if tag == RuleTag::ComparisonThan {
-                crate::constructions::adjective::build_comparison_than(standard)
-            } else {
-                crate::constructions::adjective::build_comparison_than_or_equal_to(standard)
-            }
-            .ok()?;
-            Some(Lowered::ComparisonComplement(comparison))
-        }
         RuleTag::NominalPowerToughnessComplement => {
             let Lowered::Nominal(nominal) = take(children, 0)? else {
                 return None;

@@ -2,7 +2,6 @@ use super::EnglishLexicalSlot;
 use super::Expected;
 use super::HashMap;
 use super::Nonterminal;
-use super::Numeral;
 use super::ParseCost;
 use super::PronounCase;
 use super::Punctuation;
@@ -237,62 +236,6 @@ impl RuleBuilder {
             [n(N::PossessiveNounPhrase)],
         );
 
-        self.add(RuleTag::Adjective, N::Adjective, [l(L::Adjective)]);
-        self.add(
-            RuleTag::AdjectivePhrase,
-            N::AdjectivePhrase,
-            [n(N::Adjective)],
-        );
-        self.add(
-            RuleTag::AdjectivePhraseFaceUp,
-            N::AdjectivePhrase,
-            [l(L::Face), l(L::Up)],
-        );
-        self.add(
-            RuleTag::AdjectivePhraseFaceDown,
-            N::AdjectivePhrase,
-            [l(L::Face), l(L::Down)],
-        );
-        self.add(
-            RuleTag::ComparisonStandard,
-            N::ComparisonStandard,
-            [n(N::NounPhrase)],
-        );
-        self.add(
-            RuleTag::ComparisonStandard,
-            N::ComparisonStandard,
-            [n(N::AdjectivePhrase)],
-        );
-        self.add(
-            RuleTag::ComparisonStandard,
-            N::ComparisonStandard,
-            [n(N::Clause)],
-        );
-        self.add(
-            RuleTag::ComparisonThan,
-            N::ComparisonComplement,
-            [l(L::Than), n(N::ComparisonStandard)],
-        );
-        self.add(
-            RuleTag::ComparisonThanOrEqualTo,
-            N::ComparisonComplement,
-            [l(L::Than), l(L::OrEqualTo), n(N::ComparisonStandard)],
-        );
-        self.add(
-            RuleTag::AdjectivePhraseComparison,
-            N::AdjectivePhrase,
-            [n(N::Adjective), n(N::ComparisonComplement)],
-        );
-        // `2 greater` / `two greater`: a numeral degree premodifier on an
-        // `OrComparative` adjective. Predicative only — see
-        // `AdjectiveComparisonState::Measured`.
-        for notation in [Numeral::Cardinal, Numeral::Arabic(false)] {
-            self.add(
-                RuleTag::AdjectivePhraseDegreeMeasure,
-                N::AdjectivePhrase,
-                [l(L::Number(notation)), n(N::Adjective)],
-            );
-        }
         self.add(
             RuleTag::PossessiveNounBase,
             N::PossessiveNounPhrase,
@@ -875,19 +818,19 @@ mod tests {
     fn interleaved_builder() -> RuleBuilder {
         let mut builder = RuleBuilder::default();
         builder.add(
-            RuleTag::Adjective,
-            Nonterminal::Adjective,
-            [Expected::Lexical(EnglishLexicalSlot::Adjective)],
+            RuleTag::DeterminerClosed,
+            Nonterminal::Determiner,
+            [Expected::Lexical(EnglishLexicalSlot::Determiner)],
         );
         builder.add(
-            RuleTag::Adjective,
-            Nonterminal::Adjective,
-            [Expected::Lexical(EnglishLexicalSlot::Adjective)],
+            RuleTag::DeterminerClosed,
+            Nonterminal::Determiner,
+            [Expected::Lexical(EnglishLexicalSlot::Determiner)],
         );
         builder.add(
-            RuleTag::AdjectivePhrase,
-            Nonterminal::AdjectivePhrase,
-            [Expected::Nonterminal(Nonterminal::Adjective)],
+            RuleTag::DeterminerTarget,
+            Nonterminal::Determiner,
+            [Expected::Lexical(EnglishLexicalSlot::DeterminerTarget)],
         );
         builder
     }
