@@ -382,8 +382,8 @@ impl VerbPhrase {
     }
 
     pub(crate) fn declaration_core_features(&self) -> Option<Features> {
-        let mut features = if self.frame.is_proform() {
-            let auxiliary = self.declaration_proform_part()?;
+        let proform = self.declaration_proform_part();
+        let mut features = if let Some(auxiliary) = proform {
             crate::constructions::predicate::reduce_verb_phrase_auxiliary_proform_features(
                 &Features::Auxiliary(auxiliary.into()),
             )?
@@ -456,7 +456,7 @@ impl VerbPhrase {
             };
             features = extend_predicate_features(&features, attachment)?;
         }
-        if !self.frame.is_proform() {
+        if proform.is_none() {
             for auxiliary in self.auxiliaries.iter().rev() {
                 features = crate::constructions::predicate::reduce_verb_phrase_auxiliary_features(
                     &Features::Auxiliary((*auxiliary).into()),
@@ -1579,6 +1579,11 @@ pub(crate) enum Features {
     VerbPhrase {
         form: PredicateForm,
         passive: bool,
+        /// Number of semantic dependents in the ordered predicate projection.
+        /// Unlike attachment phase, this retains pre-object material after an
+        /// object attaches and therefore lets declaration reducers express
+        /// exact host cardinality without inspecting a lowered AST.
+        dependent_count: u16,
         object: PredicateObjectState,
         indirect_object: bool,
         selected_preposition: bool,

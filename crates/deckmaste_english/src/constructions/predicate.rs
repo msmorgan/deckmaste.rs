@@ -115,6 +115,7 @@ pub(crate) fn reduce_verb_phrase_auxiliary_proform_features(
     Some(Features::VerbPhrase {
         form,
         passive: false,
+        dependent_count: 0,
         object: crate::grammar::PredicateObjectState::None,
         indirect_object: false,
         selected_preposition: false,
@@ -140,6 +141,7 @@ pub(crate) fn reduce_verb_phrase_auxiliary_features(
     let Features::VerbPhrase {
         form: child_form,
         passive: child_passive,
+        dependent_count,
         object,
         indirect_object,
         selected_preposition,
@@ -165,6 +167,7 @@ pub(crate) fn reduce_verb_phrase_auxiliary_features(
     Some(Features::VerbPhrase {
         form,
         passive,
+        dependent_count: *dependent_count,
         object: *object,
         indirect_object: *indirect_object,
         selected_preposition: *selected_preposition,
@@ -644,6 +647,7 @@ fn causative_host_features(host: &Features) -> Option<Features> {
     let Features::VerbPhrase {
         form: crate::grammar::PredicateForm::Infinitive,
         passive: false,
+        dependent_count: 1,
         object: crate::grammar::PredicateObjectState::Direct,
         indirect_object,
         selected_preposition,
@@ -684,6 +688,7 @@ pub(crate) fn reduce_verb_phrase_causative_features(
 ) -> Option<Features> {
     let Features::VerbPhrase {
         form,
+        dependent_count,
         indirect_object,
         selected_preposition,
         frame,
@@ -698,6 +703,7 @@ pub(crate) fn reduce_verb_phrase_causative_features(
     Some(Features::VerbPhrase {
         form,
         passive: false,
+        dependent_count: dependent_count.checked_add(1)?,
         object: crate::grammar::PredicateObjectState::Direct,
         indirect_object,
         selected_preposition,
@@ -718,6 +724,12 @@ fn make_verb_phrase_causative(
     host: VerbPhrase,
     complement: VerbPhrase,
 ) -> Result<VerbPhrase, DeclarationViolation> {
+    if !causative_host_has_only_causee(&host) {
+        return Err(violation(
+            "verb_phrase_causative",
+            "the host is a complete causative infinitive with exactly one direct-object causee",
+        ));
+    }
     let host_features = host.declaration_core_features().ok_or_else(|| {
         violation(
             "verb_phrase_causative",
@@ -759,6 +771,11 @@ fn make_verb_phrase_causative(
     ))
 }
 
+fn causative_host_has_only_causee(host: &VerbPhrase) -> bool {
+    let (dependents, _) = host.clone().declaration_into_dependent_projection();
+    matches!(dependents.as_slice(), [VerbDependent::DirectObject(_)])
+}
+
 fn verb_phrase_causative_parts(value: &VerbPhrase) -> (VerbPhrase, VerbPhrase) {
     let (host, VerbDependent::Infinitive(infinitive)) = value
         .declaration_last_dependent_parts()
@@ -779,6 +796,9 @@ fn is_verb_phrase_causative(value: &VerbPhrase) -> bool {
     else {
         return false;
     };
+    if !causative_host_has_only_causee(&host) {
+        return false;
+    }
     let Some(complement) = infinitive.declaration_bare_predicate() else {
         return false;
     };
@@ -807,6 +827,8 @@ fn verb_phrase_auxiliary_parts(value: &VerbPhrase) -> (AuxiliaryInstance, VerbPh
 fn is_verb_phrase_auxiliary(value: &VerbPhrase) -> bool {
     value.declaration_proform_part().is_none()
         && value.declaration_auxiliary_parts().is_some()
+        && value.declaration_last_dependent_parts().is_none()
+        && value.declaration_first_preverb_modifier().is_none()
         && value.declaration_core_features().is_some()
 }
 
@@ -2002,7 +2024,8 @@ fn is_verb_phrase_prepositional(value: &VerbPhrase) -> bool {
             VerbDependent::PredicateComplement(Phrase::PrepositionalPhrase(_))
                 | VerbDependent::Prepositional(_)
         ))
-    ) && value.declaration_core_features().is_some()
+    ) && !is_passive_shared_prepositional(value)
+        && value.declaration_core_features().is_some()
 }
 
 fn is_verb_phrase_adverb(value: &VerbPhrase) -> bool {
@@ -2043,7 +2066,6 @@ fn is_passive_shared_prepositional(value: &VerbPhrase) -> bool {
         return false;
     };
     detach_passive_shared_prepositional_dependent(&predicate, dependent).is_some()
-        && value.declaration_core_features().is_some()
 }
 
 fn is_exception(value: &VerbPhrase) -> bool {
@@ -2788,6 +2810,7 @@ mod tests {
             Some(Features::VerbPhrase {
                 form: crate::grammar::PredicateForm::Imperative,
                 passive: false,
+                dependent_count: 0,
                 object: crate::grammar::PredicateObjectState::None,
                 indirect_object: false,
                 selected_preposition: false,
@@ -3068,6 +3091,590 @@ mod tests {
 
     fn test_symbol(source: &str) -> OracleSymbol {
         OracleSymbol::new(source).unwrap_or_else(|| panic!("invalid test symbol {source:?}"))
+    }
+
+    #[derive(Debug)]
+    enum PredicateFamilyWitnessValue {
+        Verb(VerbAnalysis),
+        VerbPhrase(VerbPhrase),
+        Frequency(FrequencyPhrase),
+        ManaAmount(PredicateObject),
+        ManaAmountList(PredicateObject),
+        CoordinatedMana(CoordinatedPredicateObject),
+    }
+
+    impl PredicateFamilyWitnessValue {
+        fn as_any(&self) -> &dyn Any {
+            match self {
+                Self::Verb(value) => value,
+                Self::VerbPhrase(value) => value,
+                Self::Frequency(value) => value,
+                Self::ManaAmount(value) | Self::ManaAmountList(value) => value,
+                Self::CoordinatedMana(value) => value,
+            }
+        }
+
+        fn render_generated(
+            &self,
+        ) -> Result<crate::renderer::GeneratedPredicateRender, crate::renderer::RenderError>
+        {
+            match self {
+                Self::Verb(value) => crate::renderer::render_generated_predicate_verb_law(value),
+                Self::VerbPhrase(value) => {
+                    crate::renderer::render_generated_predicate_verb_phrase_law(value)
+                }
+                Self::Frequency(value) => {
+                    crate::renderer::render_generated_predicate_frequency_phrase_law(value)
+                }
+                Self::ManaAmount(value) => {
+                    crate::renderer::render_generated_predicate_mana_amount_law(value)
+                }
+                Self::ManaAmountList(value) => {
+                    crate::renderer::render_generated_predicate_mana_amount_list_law(value)
+                }
+                Self::CoordinatedMana(value) => {
+                    crate::renderer::render_generated_predicate_coordinated_mana_amount_law(value)
+                }
+            }
+        }
+    }
+
+    #[derive(Debug)]
+    struct PredicateFamilyWitness {
+        id: &'static str,
+        category: &'static str,
+        surface: &'static str,
+        value: PredicateFamilyWitnessValue,
+    }
+
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the explicit table keeps all 34 stable IDs and their typed witnesses reviewable in declaration order"
+    )]
+    fn all_34_predicate_family_witnesses(catalogs: &Catalogs) -> Vec<PredicateFamilyWitness> {
+        let verb = |vocab, slot, frame| {
+            build_verb(lexical_head(vocab, slot, frame)).expect("the witness verb builds")
+        };
+        let base = |vocab, slot, frame| {
+            build_verb_phrase_base(verb(vocab, slot, frame)).expect("the witness base builds")
+        };
+        let object_it = || NounPhrase::Pronoun {
+            pronoun: crate::word::Pronoun::It(crate::word::Gender::Neuter),
+            case: crate::features::PronounCase::Object,
+        };
+        let adjective = AdjectivePhrase {
+            degree: None,
+            head: crate::word::Adjective::Color(crate::word::ColorWord::Red),
+            complements: Vec::new(),
+        };
+        let progressive = build_verb_phrase_auxiliary(
+            full_auxiliary(
+                Auxiliary::Be,
+                AuxiliaryInflection::Present {
+                    person: Person::Third,
+                    number: Number::Singular,
+                },
+            ),
+            base(Vocab::Attack, VerbSlot::PresentParticiple, 0),
+        )
+        .unwrap();
+        let passive = build_verb_phrase_auxiliary(
+            full_auxiliary(
+                Auxiliary::Be,
+                AuxiliaryInflection::Present {
+                    person: Person::Third,
+                    number: Number::Singular,
+                },
+            ),
+            base(Vocab::Block, VerbSlot::PastParticiple, 1),
+        )
+        .unwrap();
+        let frequency_more_than_twice = FrequencyPhrase {
+            bound: FrequencyBound::MoreThan,
+            count: crate::syntax::FrequencyCount::Twice,
+        };
+        let frequency_no_more_than_once = FrequencyPhrase {
+            bound: FrequencyBound::NoMoreThan,
+            count: crate::syntax::FrequencyCount::Once,
+        };
+        let ability = test_ability_atom(catalogs);
+        let quoted_tap = test_quoted_ability("{T}: Draw a card.", catalogs);
+        let quoted_flying = test_quoted_ability("Flying", catalogs);
+        let white = test_symbol("{W}");
+        let blue = test_symbol("{U}");
+        let black = test_symbol("{B}");
+        let white_amount = build_mana_amount_symbol(white.clone()).unwrap();
+        let blue_amount = build_mana_amount_symbol(blue.clone()).unwrap();
+        let black_amount = build_mana_amount_symbol(black.clone()).unwrap();
+        let blue_black = build_mana_amount_sequence(vec![blue.clone(), black.clone()]).unwrap();
+        let comma_list = build_mana_amount_list_comma(
+            white_amount.clone(),
+            vec![PredicateObjectCoordination {
+                conjunction: None,
+                object: blue_amount.clone(),
+            }],
+        )
+        .unwrap();
+        let binary_mana = build_mana_amount_coordination(
+            white_amount.clone(),
+            Conjunction::Or,
+            blue_amount.clone(),
+        )
+        .unwrap();
+        let stats = PowerToughness {
+            power: crate::syntax::SignedScalar {
+                sign: crate::syntax::ScalarSign::Plus,
+                value: crate::syntax::ScalarValue::Integer(1),
+            },
+            toughness: crate::syntax::SignedScalar {
+                sign: crate::syntax::ScalarSign::Plus,
+                value: crate::syntax::ScalarValue::Integer(2),
+            },
+        };
+        let quantity = Quantity::try_exact(NumberLiteral {
+            value: 2,
+            numeral: crate::numeral::Numeral::Cardinal,
+        })
+        .unwrap();
+
+        vec![
+            PredicateFamilyWitness {
+                id: "verb",
+                category: "Verb",
+                surface: "attack",
+                value: PredicateFamilyWitnessValue::Verb(verb(
+                    Vocab::Attack,
+                    VerbSlot::Imperative,
+                    0,
+                )),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_base",
+                category: "VerbPhrase",
+                surface: "attack",
+                value: PredicateFamilyWitnessValue::VerbPhrase(base(
+                    Vocab::Attack,
+                    VerbSlot::Imperative,
+                    0,
+                )),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_auxiliary",
+                category: "VerbPhrase",
+                surface: "is attacking",
+                value: PredicateFamilyWitnessValue::VerbPhrase(progressive),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_auxiliary_proform",
+                category: "VerbPhrase",
+                surface: "can",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_auxiliary_proform(full_auxiliary(
+                        Auxiliary::Can,
+                        AuxiliaryInflection::Base,
+                    ))
+                    .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_direct_object",
+                category: "VerbPhrase",
+                surface: "have it",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_direct_object(
+                        base(Vocab::Have, VerbSlot::Imperative, 0),
+                        object_it(),
+                    )
+                    .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_indirect_object",
+                category: "VerbPhrase",
+                surface: "ask it",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_indirect_object(
+                        base(Vocab::Ask, VerbSlot::Imperative, 1),
+                        object_it(),
+                    )
+                    .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_adjective",
+                category: "VerbPhrase",
+                surface: "be red",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_adjective(
+                        base(Vocab::Be, VerbSlot::Infinitive, 0),
+                        adjective,
+                    )
+                    .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_prepositional",
+                category: "VerbPhrase",
+                surface: "look at it",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_prepositional(
+                        base(Vocab::Look, VerbSlot::Imperative, 1),
+                        PrepositionalPhrase::simple(
+                            crate::syntax::Preposition::At,
+                            Phrase::NounPhrase(Box::new(object_it())),
+                        ),
+                    )
+                    .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_passive_shared_determiner_prepositional",
+                category: "VerbPhrase",
+                surface: "is blocked to target player or planeswalker",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_passive_shared_determiner_prepositional(
+                        passive.clone(),
+                        parsed_preposition("to target player or planeswalker"),
+                    )
+                    .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_except_by",
+                category: "VerbPhrase",
+                surface: "is blocked except by creatures",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_except_by(passive, parsed_preposition("by creatures"))
+                        .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_infinitive",
+                category: "VerbPhrase",
+                surface: "begins to attack",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_infinitive(
+                        base(
+                            Vocab::Begin,
+                            VerbSlot::Present {
+                                person: Person::Third,
+                                number: Number::Singular,
+                            },
+                            0,
+                        ),
+                        InfinitiveClause::declaration_to(base(
+                            Vocab::Attack,
+                            VerbSlot::Infinitive,
+                            0,
+                        )),
+                    )
+                    .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_adverb",
+                category: "VerbPhrase",
+                surface: "attack again",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_adverb(
+                        base(Vocab::Attack, VerbSlot::Imperative, 0),
+                        Vocab::Again,
+                    )
+                    .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_preverb_adverb",
+                category: "VerbPhrase",
+                surface: "next attack",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_preverb_adverb(
+                        PreverbModifier::Next,
+                        base(Vocab::Attack, VerbSlot::Imperative, 0),
+                    )
+                    .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_particle",
+                category: "VerbPhrase",
+                surface: "phase out",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_particle(
+                        base(Vocab::Phase, VerbSlot::Imperative, 0),
+                        VerbParticle::Out,
+                    )
+                    .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_coin_result",
+                category: "VerbPhrase",
+                surface: "come up heads",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_coin_result(
+                        base(Vocab::Come, VerbSlot::Imperative, 0),
+                        CoinSide::Heads,
+                    )
+                    .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_frequency",
+                category: "VerbPhrase",
+                surface: "attack only more than once",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_frequency(
+                        base(Vocab::Attack, VerbSlot::Imperative, 0),
+                        frequency_no_more_than_once,
+                    )
+                    .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "frequency_phrase_adverb",
+                category: "FrequencyPhrase",
+                surface: "only more than twice",
+                value: PredicateFamilyWitnessValue::Frequency(
+                    build_frequency_phrase_adverb(Vocab::Only, frequency_more_than_twice).unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "frequency_phrase",
+                category: "FrequencyPhrase",
+                surface: "more than twice",
+                value: PredicateFamilyWitnessValue::Frequency(
+                    build_frequency_phrase(frequency_more_than_twice).unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_ability",
+                category: "VerbPhrase",
+                surface: "gain flying",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_ability(open_predicate(Vocab::Gain), ability.clone())
+                        .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_quoted_ability",
+                category: "VerbPhrase",
+                surface: "gain \"{T}: Draw a card.\"",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_quoted_ability(
+                        open_predicate(Vocab::Gain),
+                        quoted_tap.clone(),
+                    )
+                    .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_quoted_ability_coordination",
+                category: "VerbPhrase",
+                surface: "have \"{T}: Draw a card.\" or \"Flying\"",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_quoted_ability_coordination(
+                        open_predicate(Vocab::Have),
+                        vec![QuotedAbilityPairMember {
+                            first: quoted_tap.clone(),
+                            conjunction: Conjunction::Or,
+                            next: quoted_flying,
+                        }],
+                    )
+                    .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_ability_quoted_coordination",
+                category: "VerbPhrase",
+                surface: "have flying and \"{T}: Draw a card.\"",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_ability_quoted_coordination(
+                        open_predicate(Vocab::Have),
+                        vec![AbilityQuotedPairMember {
+                            ability,
+                            conjunction: Conjunction::And,
+                            quoted: quoted_tap,
+                        }],
+                    )
+                    .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_oracle_symbol",
+                category: "VerbPhrase",
+                surface: "add {W}",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_oracle_symbol(open_predicate(Vocab::Add), white.clone())
+                        .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_symbol_sequence",
+                category: "VerbPhrase",
+                surface: "add {U}{B}",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_symbol_sequence(
+                        open_predicate(Vocab::Add),
+                        vec![blue.clone(), black.clone()],
+                    )
+                    .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "mana_amount_symbol",
+                category: "ManaAmount",
+                surface: "{W}",
+                value: PredicateFamilyWitnessValue::ManaAmount(white_amount.clone()),
+            },
+            PredicateFamilyWitness {
+                id: "mana_amount_sequence",
+                category: "ManaAmount",
+                surface: "{U}{B}",
+                value: PredicateFamilyWitnessValue::ManaAmount(blue_black),
+            },
+            PredicateFamilyWitness {
+                id: "mana_amount_list_single",
+                category: "ManaAmountList",
+                surface: "{W}",
+                value: PredicateFamilyWitnessValue::ManaAmountList(
+                    build_mana_amount_list_single(white_amount.clone()).unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "mana_amount_list_comma",
+                category: "ManaAmountList",
+                surface: "{W}, {U}",
+                value: PredicateFamilyWitnessValue::ManaAmountList(comma_list.clone()),
+            },
+            PredicateFamilyWitness {
+                id: "mana_amount_coordination",
+                category: "CoordinatedManaAmount",
+                surface: "{W} or {U}",
+                value: PredicateFamilyWitnessValue::CoordinatedMana(binary_mana.clone()),
+            },
+            PredicateFamilyWitness {
+                id: "mana_amount_coordination_oxford",
+                category: "CoordinatedManaAmount",
+                surface: "{W}, {U}, and {B}",
+                value: PredicateFamilyWitnessValue::CoordinatedMana(
+                    build_mana_amount_coordination_oxford(
+                        comma_list,
+                        Conjunction::And,
+                        black_amount,
+                    )
+                    .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_mana_amount_coordination",
+                category: "VerbPhrase",
+                surface: "add {W} or {U}",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_mana_amount_coordination(
+                        open_predicate(Vocab::Add),
+                        binary_mana,
+                    )
+                    .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_power_toughness",
+                category: "VerbPhrase",
+                surface: "get +1/+2",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_power_toughness(open_predicate(Vocab::Get), stats).unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_quantity",
+                category: "VerbPhrase",
+                surface: "scry two",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_quantity(open_predicate(Vocab::Scry), quantity).unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_causative",
+                category: "VerbPhrase",
+                surface: "have it enter",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_causative(
+                        build_verb_phrase_direct_object(
+                            base(Vocab::Have, VerbSlot::Infinitive, 1),
+                            object_it(),
+                        )
+                        .unwrap(),
+                        base(Vocab::Enter, VerbSlot::Infinitive, 0),
+                    )
+                    .unwrap(),
+                ),
+            },
+        ]
+    }
+
+    #[test]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "one explicit behavioral law checks all 34 stable declaration rows"
+    )]
+    fn every_predicate_row_has_a_typed_generated_inverse_and_exact_reparse() {
+        // Mutations caught: omit a row from the category visitor, route any
+        // identity through handwritten rendering, change exact bytes or form
+        // ordinal, lower a row to a sibling typed value, or make registration
+        // order choose a different generated construction.
+        let catalogs = crate::grammar::fixture_catalogs();
+        let witnesses = all_34_predicate_family_witnesses(&catalogs);
+        assert_eq!(witnesses.len(), 34);
+        assert_eq!(
+            witnesses
+                .iter()
+                .map(|witness| witness.id)
+                .collect::<Vec<_>>(),
+            PREDICATE_DECLARATION
+                .constructions
+                .iter()
+                .map(|construction| construction.id)
+                .collect::<Vec<_>>()
+        );
+
+        for witness in witnesses {
+            let rendered = witness.value.render_generated().unwrap_or_else(|error| {
+                panic!("{} generated inverse failed: {error:?}", witness.id)
+            });
+            assert_eq!(
+                rendered.text, witness.surface,
+                "{} inverse bytes",
+                witness.id
+            );
+            assert_eq!(
+                (rendered.construction, rendered.form_ordinal),
+                (witness.id, 0),
+                "{} emitted category dispatcher selection",
+                witness.id
+            );
+            let orders = crate::grammar::exact::parse_groups_as_declared_category_in_both_orders(
+                witness.surface,
+                &catalogs,
+                witness.category,
+                witness.value.as_any(),
+                100_000,
+                all_groups_with_predicate(),
+            )
+            .unwrap_or_else(|error| panic!("{} exact reparse failed: {error:?}", witness.id));
+            for parses in orders {
+                assert_eq!(
+                    parses
+                        .iter()
+                        .filter(|parse| parse.ast().construction == witness.id)
+                        .map(|parse| (parse.ast().construction, parse.ast().form_ordinal))
+                        .collect::<Vec<_>>(),
+                    [(witness.id, 0)],
+                    "{} exact generated root/form must survive alongside genuine alternatives: {parses:#?}",
+                    witness.id,
+                );
+            }
+        }
     }
 
     #[test]
@@ -4768,6 +5375,156 @@ mod tests {
     }
 
     #[test]
+    fn inactive_predicate_dominance_edges_remove_only_the_named_loser() {
+        // Mutations caught: remove or reverse any one of the four declared
+        // edges, let dominance leak to an incomparable attachment, choose by
+        // registration order, or classify lexical `do` with a proform frame
+        // as the synthesized auxiliary-proform shape during checked lowering.
+        let catalogs = crate::grammar::fixture_catalogs();
+        for (source, winner, loser) in [
+            (
+                "do again",
+                "verb_phrase_base",
+                "verb_phrase_auxiliary_proform",
+            ),
+            (
+                "is becoming red",
+                "verb_phrase_auxiliary",
+                "verb_phrase_adjective",
+            ),
+            (
+                "is attacking again",
+                "verb_phrase_auxiliary",
+                "verb_phrase_adverb",
+            ),
+            (
+                "has gained flying",
+                "verb_phrase_auxiliary",
+                "verb_phrase_ability",
+            ),
+        ] {
+            let parses = crate::grammar::parse_nonterminal_with_activation_in_both_orders(
+                source,
+                &catalogs,
+                Nonterminal::VerbPhrase,
+                &crate::identity::SelfReference::default(),
+                GeneratedActivation::Groups(all_groups_with_predicate()),
+            );
+            assert_eq!(
+                parses[0].verb_phrase(),
+                parses[1].verb_phrase(),
+                "selected semantic AST changed under reversed registration for {source:?}",
+            );
+            let mut signatures = Vec::new();
+            for parsed in &parses {
+                let decision = parsed
+                    .construction_decisions()
+                    .iter()
+                    .find(|decision| {
+                        decision.selected().as_str() == winner
+                            && decision
+                                .alternatives()
+                                .iter()
+                                .any(|alternative| alternative.id().as_str() == loser)
+                    })
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "{source:?} did not exercise declared edge {winner}>{loser}: {:#?}",
+                            parsed.construction_decisions(),
+                        )
+                    });
+                assert_eq!(
+                    decision.reason(),
+                    crate::forest::SelectionReason::Dominance,
+                    "{winner}>{loser} must be the actual selection reason",
+                );
+                let mut candidates = decision
+                    .alternatives()
+                    .iter()
+                    .map(|alternative| {
+                        (
+                            alternative.id().as_str(),
+                            alternative.production_ordinal(),
+                            alternative.is_dominated(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                candidates.sort_unstable();
+                let mut expected = vec![(winner, 0, false), (loser, 0, true)];
+                expected.sort_unstable();
+                assert_eq!(
+                    candidates, expected,
+                    "{winner}>{loser} must remove exactly its named subordinate",
+                );
+                assert_eq!(parsed.root_equal_cost_alternatives().len(), 2, "{source:?}");
+                assert_eq!(parsed.root_tied_alternatives().len(), 1, "{source:?}");
+                signatures.push(candidates);
+            }
+            assert_eq!(
+                signatures[0], signatures[1],
+                "tied and removed alternatives changed under reversed registration for {source:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn inactive_predicate_incomparable_tie_remains_visible_in_both_orders() {
+        // Mutation caught: broaden an auxiliary dominance edge to the direct
+        // object attachment or let stable registration identity change the
+        // selected semantic value or the visible tied-candidate set.
+        let source = "is attacking target player";
+        let parses = crate::grammar::parse_nonterminal_with_activation_in_both_orders(
+            source,
+            &crate::grammar::fixture_catalogs(),
+            Nonterminal::VerbPhrase,
+            &crate::identity::SelfReference::default(),
+            GeneratedActivation::Groups(all_groups_with_predicate()),
+        );
+        assert_eq!(
+            parses[0].verb_phrase(),
+            parses[1].verb_phrase(),
+            "the selected semantic AST must be registration-order neutral",
+        );
+        let expected = [
+            ("verb_phrase_auxiliary", 0, false),
+            ("verb_phrase_direct_object", 0, false),
+        ];
+        for parsed in &parses {
+            let decision = parsed
+                .construction_decisions()
+                .iter()
+                .find(|decision| {
+                    decision.selected().as_str() == "verb_phrase_auxiliary"
+                        && decision.alternatives().len() == 2
+                })
+                .unwrap_or_else(|| {
+                    panic!(
+                        "the incomparable predicate tie was not visible: {:#?}",
+                        parsed.construction_decisions(),
+                    )
+                });
+            assert_eq!(
+                decision.reason(),
+                crate::forest::SelectionReason::StableIdentity,
+            );
+            assert_eq!(
+                decision
+                    .alternatives()
+                    .iter()
+                    .map(|alternative| (
+                        alternative.id().as_str(),
+                        alternative.production_ordinal(),
+                        alternative.is_dominated(),
+                    ))
+                    .collect::<Vec<_>>(),
+                expected,
+            );
+            assert_eq!(parsed.root_equal_cost_alternatives().len(), 2);
+            assert_eq!(parsed.root_tied_alternatives().len(), 2);
+        }
+    }
+
+    #[test]
     fn inactive_generated_attachment_anchors_are_registration_order_neutral() {
         // Mutations caught: assign a Task 3 attachment a registration-order
         // tie-break, lose pre/post-object order during lowering, or let a
@@ -4932,15 +5689,17 @@ mod tests {
     fn causative_builder_inverse_and_invalid_domain_matrix() {
         // Mutations caught: NON_CAUSATIVE_HOST accepts an ordinary transitive
         // host, FINITE_COMPLEMENT accepts a finite embedded predicate,
-        // SWAP_CAUSEE_COMPLEMENT admits the complement before the causee, and
-        // SURPLUS_HOST_DEPENDENT accepts material between the causee and bare
-        // infinitive. The admitted case also pins host -> causee -> complement
-        // event order through parts/rebuild and named inverse selection.
+        // SWAP_CAUSEE_COMPLEMENT admits the complement before the causee,
+        // SURPLUS_PRE_OBJECT_HOST_DEPENDENT admits an adverb before the
+        // causee, and SURPLUS_HOST_DEPENDENT accepts material between the
+        // causee and bare infinitive. The admitted case also pins host ->
+        // causee -> complement event order through parts/rebuild and named
+        // inverse selection.
         let causative_base = build_verb_phrase_base(
             build_verb(lexical_head(Vocab::Have, VerbSlot::Infinitive, 1)).unwrap(),
         )
         .unwrap();
-        let host = build_verb_phrase_direct_object(causative_base, this_card()).unwrap();
+        let host = build_verb_phrase_direct_object(causative_base.clone(), this_card()).unwrap();
         let complement = build_verb_phrase_base(
             build_verb(lexical_head(Vocab::Attack, VerbSlot::Infinitive, 0)).unwrap(),
         )
@@ -4996,6 +5755,25 @@ mod tests {
             ))
         );
         assert!(build_verb_phrase_causative(complement, host.clone()).is_err());
+
+        let pre_object_surplus = build_verb_phrase_direct_object(
+            build_verb_phrase_adverb(causative_base, Vocab::Again).unwrap(),
+            this_card(),
+        )
+        .unwrap();
+        assert_eq!(
+            build_verb_phrase_causative(
+                pre_object_surplus,
+                build_verb_phrase_base(
+                    build_verb(lexical_head(Vocab::Attack, VerbSlot::Infinitive, 0)).unwrap(),
+                )
+                .unwrap(),
+            ),
+            Err(violation(
+                "verb_phrase_causative",
+                "the host is a complete causative infinitive with exactly one direct-object causee",
+            ))
+        );
 
         let surplus = build_verb_phrase_adverb(host, Vocab::Again).unwrap();
         assert_eq!(

@@ -428,6 +428,7 @@ pub(super) fn reduce_predicate(
             Some(Features::VerbPhrase {
                 form,
                 passive: false,
+                dependent_count: 0,
                 object: PredicateObjectState::None,
                 indirect_object: false,
                 selected_preposition: false,
@@ -449,6 +450,7 @@ pub(super) fn reduce_predicate(
             let Features::VerbPhrase {
                 form: child_form,
                 passive: child_passive,
+                dependent_count,
                 object,
                 indirect_object,
                 selected_preposition,
@@ -479,6 +481,7 @@ pub(super) fn reduce_predicate(
             Some(Features::VerbPhrase {
                 form,
                 passive,
+                dependent_count: *dependent_count,
                 object: *object,
                 indirect_object: *indirect_object,
                 selected_preposition: *selected_preposition,
@@ -702,6 +705,7 @@ pub(crate) fn extend_predicate_features(
     let Features::VerbPhrase {
         form,
         passive,
+        dependent_count,
         object,
         indirect_object,
         selected_preposition,
@@ -885,6 +889,7 @@ pub(crate) fn extend_predicate_features(
     Some(Features::VerbPhrase {
         form: *form,
         passive: *passive,
+        dependent_count: dependent_count.checked_add(1)?,
         object,
         indirect_object,
         selected_preposition,

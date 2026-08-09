@@ -221,7 +221,7 @@ fn lower_generated_aux(
                 fields.push(if present_fields & (1_u64 << index) == 0 {
                     erased_absent(field.kind)?
                 } else {
-                    erased_field(field.kind, children.next()?)?
+                    erased_field(group.name, field.kind, children.next()?)?
                 });
             }
             if children.next().is_some() {
@@ -240,7 +240,7 @@ fn lower_generated_aux(
             let element = group.element_data.get(element)?;
             let declaration = element.variants.get(variant)?;
             let [child]: [Lowered; 1] = children.try_into().ok()?;
-            let payload = erased_field(declaration.payload, child)?;
+            let payload = erased_field(group.name, declaration.payload, child)?;
             Some(Lowered::Generated(GeneratedValue::Typed(
                 element.erased_builders.get(variant)?(vec![payload]).ok()?,
             )))
@@ -323,7 +323,7 @@ fn lower_generated_construction(
             };
             element.erased_sequence_builder?(values).ok()?
         } else {
-            erased_field(field.kind, children.next()?)?
+            erased_field(rule.group.name, field.kind, children.next()?)?
         };
         fields[field_index] = Some(value);
     }
@@ -490,6 +490,7 @@ fn project_generated_category(
     reason = "one exhaustive erased adapter table covers every declared English field kind"
 )]
 fn erased_field(
+    group: &'static str,
     kind: deckmaste_construction_compiler::runtime::FieldKindData,
     value: Lowered,
 ) -> Option<deckmaste_construction_compiler::runtime::ErasedValue> {
@@ -617,6 +618,17 @@ fn erased_field(
                 return None;
             };
             Some(Box::new(value))
+        }
+        K::Subtree {
+            category: "InfinitiveClause",
+            boxed,
+        } if group == "predicate" => {
+            // Predicate declarations extend the internal verb-phrase grammar,
+            // so their infinitive field deliberately precedes clause finalization.
+            let Lowered::InfinitiveClause(value) = value else {
+                return None;
+            };
+            if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
         }
         K::Subtree { category, boxed } => erased_subtree(category, boxed, value),
         K::Scalar {

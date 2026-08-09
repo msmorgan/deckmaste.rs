@@ -1849,6 +1849,7 @@ mod tests {
         let active = Features::VerbPhrase {
             form: PredicateForm::Imperative,
             passive: false,
+            dependent_count: 1,
             object: PredicateObjectState::Direct,
             indirect_object: false,
             selected_preposition: false,

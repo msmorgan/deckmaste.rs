@@ -150,8 +150,17 @@ pub enum RenderError {
     #[error("nominal AST does not match exactly one generated construction")]
     InvalidNominalConstruction,
     #[cfg(test)]
-    #[error("predicate AST does not match exactly one generated construction")]
-    InvalidPredicateConstruction,
+    #[error(
+        "predicate AST does not match exactly one generated construction: {problem} in {owner}, {first:?}/{second:?}, forms {first_form:?}/{second_form:?}"
+    )]
+    InvalidPredicateConstruction {
+        problem: &'static str,
+        owner: &'static str,
+        first: Option<&'static str>,
+        second: Option<&'static str>,
+        first_form: Option<u16>,
+        second_form: Option<u16>,
+    },
 }
 
 impl OracleText {
@@ -244,25 +253,86 @@ pub(crate) fn render_fragment(
 pub(crate) fn render_generated_predicate_verb_phrase(
     value: &GeneratedVerbPhrase,
 ) -> Result<String, RenderError> {
-    Renderer::new("this card", false).generated_predicate_verb_phrase(value)
+    render_generated_predicate_verb_phrase_law(value).map(|rendered| rendered.text)
+}
+
+#[cfg(test)]
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct GeneratedPredicateRender {
+    pub(crate) text: String,
+    pub(crate) construction: &'static str,
+    pub(crate) form_ordinal: u16,
+}
+
+#[cfg(test)]
+pub(crate) fn render_generated_predicate_verb_phrase_law(
+    value: &GeneratedVerbPhrase,
+) -> Result<GeneratedPredicateRender, RenderError> {
+    let renderer = Renderer::new("this card", false);
+    let mut visitor = GeneratedPredicateRenderer::new(&renderer);
+    GeneratedPredicateRenderer::accept_generated(
+        crate::constructions::predicate::linearize_predicate_verb_phrase_with(value, &mut visitor),
+    )?;
+    visitor.finish_with_root()
+}
+
+#[cfg(test)]
+pub(crate) fn render_generated_predicate_verb_law(
+    value: &crate::grammar::VerbAnalysis,
+) -> Result<GeneratedPredicateRender, RenderError> {
+    let renderer = Renderer::new("this card", false);
+    let mut visitor = GeneratedPredicateRenderer::new(&renderer);
+    GeneratedPredicateRenderer::accept_generated(
+        crate::constructions::predicate::linearize_predicate_verb_with(value, &mut visitor),
+    )?;
+    visitor.finish_with_root()
+}
+
+#[cfg(test)]
+pub(crate) fn render_generated_predicate_frequency_phrase_law(
+    value: &crate::syntax::FrequencyPhrase,
+) -> Result<GeneratedPredicateRender, RenderError> {
+    let renderer = Renderer::new("this card", false);
+    let mut visitor = GeneratedPredicateRenderer::new(&renderer);
+    GeneratedPredicateRenderer::accept_generated(
+        crate::constructions::predicate::linearize_predicate_frequency_phrase_with(
+            value,
+            &mut visitor,
+        ),
+    )?;
+    visitor.finish_with_root()
 }
 
 #[cfg(test)]
 pub(crate) fn render_generated_predicate_mana_amount(
     value: &PredicateObject,
 ) -> Result<String, RenderError> {
+    render_generated_predicate_mana_amount_law(value).map(|rendered| rendered.text)
+}
+
+#[cfg(test)]
+pub(crate) fn render_generated_predicate_mana_amount_law(
+    value: &PredicateObject,
+) -> Result<GeneratedPredicateRender, RenderError> {
     let renderer = Renderer::new("this card", false);
     let mut visitor = GeneratedPredicateRenderer::new(&renderer);
     GeneratedPredicateRenderer::accept_generated(
         crate::constructions::predicate::linearize_predicate_mana_amount_with(value, &mut visitor),
     )?;
-    Ok(visitor.finish())
+    visitor.finish_with_root()
 }
 
 #[cfg(test)]
 pub(crate) fn render_generated_predicate_mana_amount_list(
     value: &PredicateObject,
 ) -> Result<String, RenderError> {
+    render_generated_predicate_mana_amount_list_law(value).map(|rendered| rendered.text)
+}
+
+#[cfg(test)]
+pub(crate) fn render_generated_predicate_mana_amount_list_law(
+    value: &PredicateObject,
+) -> Result<GeneratedPredicateRender, RenderError> {
     let renderer = Renderer::new("this card", false);
     let mut visitor = GeneratedPredicateRenderer::new(&renderer);
     GeneratedPredicateRenderer::accept_generated(
@@ -271,13 +341,20 @@ pub(crate) fn render_generated_predicate_mana_amount_list(
             &mut visitor,
         ),
     )?;
-    Ok(visitor.finish())
+    visitor.finish_with_root()
 }
 
 #[cfg(test)]
 pub(crate) fn render_generated_predicate_coordinated_mana_amount(
     value: &CoordinatedPredicateObject,
 ) -> Result<String, RenderError> {
+    render_generated_predicate_coordinated_mana_amount_law(value).map(|rendered| rendered.text)
+}
+
+#[cfg(test)]
+pub(crate) fn render_generated_predicate_coordinated_mana_amount_law(
+    value: &CoordinatedPredicateObject,
+) -> Result<GeneratedPredicateRender, RenderError> {
     let renderer = Renderer::new("this card", false);
     let mut visitor = GeneratedPredicateRenderer::new(&renderer);
     GeneratedPredicateRenderer::accept_generated(
@@ -286,7 +363,7 @@ pub(crate) fn render_generated_predicate_coordinated_mana_amount(
             &mut visitor,
         ),
     )?;
-    Ok(visitor.finish())
+    visitor.finish_with_root()
 }
 
 /// Whether a sentence in top-level ability context derives an outer period.
@@ -455,6 +532,7 @@ struct GeneratedNounRenderer<'renderer, 'identity> {
 struct GeneratedPredicateRenderer<'renderer, 'identity> {
     renderer: &'renderer Renderer<'identity>,
     rendered: String,
+    forms: Vec<(&'static str, u16)>,
 }
 
 #[cfg(test)]
@@ -463,6 +541,7 @@ impl<'renderer, 'identity> GeneratedPredicateRenderer<'renderer, 'identity> {
         Self {
             renderer,
             rendered: String::new(),
+            forms: Vec::new(),
         }
     }
 
@@ -488,12 +567,69 @@ impl<'renderer, 'identity> GeneratedPredicateRenderer<'renderer, 'identity> {
     ) -> Result<(), RenderError> {
         result.map_err(|error| match error {
             deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error) => error,
-            _ => RenderError::InvalidPredicateConstruction,
+            deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
+                group,
+            } => RenderError::InvalidPredicateConstruction {
+                problem: "no matching construction",
+                owner: group,
+                first: None,
+                second: None,
+                first_form: None,
+                second_form: None,
+            },
+            deckmaste_construction_compiler::runtime::LinearizationError::MultipleMatchingConstructions {
+                group,
+                first,
+                second,
+            } => RenderError::InvalidPredicateConstruction {
+                problem: "multiple matching constructions",
+                owner: group,
+                first: Some(first),
+                second: Some(second),
+                first_form: None,
+                second_form: None,
+            },
+            deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
+                construction,
+            } => RenderError::InvalidPredicateConstruction {
+                problem: "no matching form",
+                owner: construction,
+                first: None,
+                second: None,
+                first_form: None,
+                second_form: None,
+            },
+            deckmaste_construction_compiler::runtime::LinearizationError::MultipleMatchingForms {
+                construction,
+                first,
+                second,
+            } => RenderError::InvalidPredicateConstruction {
+                problem: "multiple matching forms",
+                owner: construction,
+                first: None,
+                second: None,
+                first_form: Some(first),
+                second_form: Some(second),
+            },
         })
     }
 
-    fn finish(self) -> String {
-        self.rendered
+    fn finish_with_root(self) -> Result<GeneratedPredicateRender, RenderError> {
+        let Some(&(construction, form_ordinal)) = self.forms.first() else {
+            return Err(RenderError::InvalidPredicateConstruction {
+                problem: "visitor received no selected form",
+                owner: "predicate",
+                first: None,
+                second: None,
+                first_form: None,
+                second_form: None,
+            });
+        };
+        Ok(GeneratedPredicateRender {
+            text: self.rendered,
+            construction,
+            form_ordinal,
+        })
     }
 }
 
@@ -502,6 +638,16 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
     for GeneratedPredicateRenderer<'_, '_>
 {
     type Error = RenderError;
+
+    fn begin_form(
+        &mut self,
+        construction: &'static str,
+        _form: &'static str,
+        ordinal: u16,
+    ) -> Result<(), Self::Error> {
+        self.forms.push((construction, ordinal));
+        Ok(())
+    }
 
     fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
         self.push(literal);
@@ -1340,21 +1486,6 @@ impl<'identity> Renderer<'identity> {
             nesting: Cell::new(0),
             terminal_quote: Cell::new(None),
         }
-    }
-
-    #[cfg(test)]
-    fn generated_predicate_verb_phrase(
-        &self,
-        value: &GeneratedVerbPhrase,
-    ) -> Result<String, RenderError> {
-        let mut visitor = GeneratedPredicateRenderer::new(self);
-        GeneratedPredicateRenderer::accept_generated(
-            crate::constructions::predicate::linearize_predicate_verb_phrase_with(
-                value,
-                &mut visitor,
-            ),
-        )?;
-        Ok(visitor.finish())
     }
 
     fn coordinated_noun_phrase(

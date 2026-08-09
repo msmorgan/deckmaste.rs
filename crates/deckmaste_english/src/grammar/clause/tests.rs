@@ -3814,6 +3814,7 @@ fn predicate_prefix_pruning_keeps_possible_nominal_adjuncts() {
     let predicate = |object, phase| Features::VerbPhrase {
         form: PredicateForm::Imperative,
         passive: false,
+        dependent_count: u16::from(object != PredicateObjectState::None),
         object,
         indirect_object: false,
         selected_preposition: false,

@@ -458,6 +458,17 @@ fn lowered_matches_expected(
                 Some(expected),
             ) if actual == expected
         ),
+        "Verb" => matches!(
+            (lowered, expected.downcast_ref::<super::VerbAnalysis>()),
+            (Lowered::Verb(actual), Some(expected)) if actual == expected
+        ),
+        "FrequencyPhrase" => matches!(
+            (
+                lowered,
+                expected.downcast_ref::<crate::syntax::FrequencyPhrase>(),
+            ),
+            (Lowered::Frequency(actual), Some(expected)) if actual == expected
+        ),
         "VerbPhrase" => matches!(
             (lowered, expected.downcast_ref::<VerbPhrase>()),
             (Lowered::VerbPhrase(actual), Some(expected)) if actual == expected
@@ -876,6 +887,9 @@ mod tests {
         // Mutation caught: let exact enumeration attribute the complete host
         // to direct-object/infinitive pieces instead of the causative root, or
         // change its ordinal/surface witness under registration reversal.
+        // SURPLUS_PRE_OBJECT_HOST_DEPENDENT additionally catches admitting an
+        // adverb before the direct-object causee even though the causative
+        // declaration requires that causee to be the host's sole dependent.
         let source = "have this creature enter";
         let catalogs = fixture_catalogs();
         let activation = GeneratedActivation::Groups(groups_with_inactive_predicate());
@@ -908,6 +922,16 @@ mod tests {
             assert_eq!(parses[0].ast().form_ordinal, 0);
             assert_eq!(*parses[0].surface(), EnglishSurfaceWitness::None);
         }
+        assert!(
+            super::super::parse_nonterminal_with_activation(
+                "have again this creature enter",
+                &catalogs,
+                Nonterminal::VerbPhrase,
+                activation,
+            )
+            .is_err(),
+            "the declaration-visible dependent count rejects a pre-object host adjunct"
+        );
     }
 
     /// Order-insensitive set equality — permutations may reorder discovery.

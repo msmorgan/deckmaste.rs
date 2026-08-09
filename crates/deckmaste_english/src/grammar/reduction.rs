@@ -2335,6 +2335,7 @@ pub(crate) fn reduce_verb_phrase_base(head: &Features) -> Option<Features> {
     Some(Features::VerbPhrase {
         form,
         passive: false,
+        dependent_count: 0,
         object: super::PredicateObjectState::None,
         indirect_object: false,
         selected_preposition: false,
