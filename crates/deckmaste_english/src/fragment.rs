@@ -706,6 +706,42 @@ mod tests {
     }
 
     #[test]
+    fn adjective_rendering_reaches_fragments_while_j01_ownership_stays_inactive() {
+        const INACTIVE_IDS: &[&str] = &[
+            "adjective",
+            "adjective_phrase",
+            "adjective_phrase_face_up",
+            "adjective_phrase_face_down",
+            "comparison_standard",
+            "comparison_than",
+            "comparison_than_or_equal_to",
+            "adjective_phrase_comparison",
+            "adjective_phrase_degree_measure",
+        ];
+        for source in [
+            "Turn this creature face up.",
+            "Turn this creature face down.",
+            "Its power is 2 greater.",
+            "Its power is greater than a card.",
+        ] {
+            let report = production_fragment(source, FragmentKind::Sentence);
+            assert!(report.clean(), "{source:?}: {:?}", report.diagnostics());
+            assert_eq!(
+                render_fragment(report.fragment().unwrap(), "", false).unwrap(),
+                source,
+            );
+            assert!(
+                report.construction_decisions().iter().all(|decision| {
+                    !INACTIVE_IDS.contains(&decision.selected().as_str())
+                        || decision.owner() == ConstructionOwner::Handwritten
+                }),
+                "J01 must remain inactive in production: {source:?}: {:#?}",
+                report.construction_decisions(),
+            );
+        }
+    }
+
+    #[test]
     fn fragments_parse_cleanly_at_their_kind() {
         let catalogs = catalogs();
         for (text, kind) in [

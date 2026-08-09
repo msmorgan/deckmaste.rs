@@ -805,11 +805,11 @@ impl<'syntax> RecoveryWalker<'syntax> {
         role: RecoveryRole,
         context: Option<RecoveryRole>,
     ) {
-        for complement in &phrase.complements {
+        for complement in phrase.complements() {
             match complement {
                 AdjectiveComplement::Comparison(comparison)
                 | AdjectiveComplement::PostnominalComparison(comparison) => {
-                    self.phrase(&comparison.standard, role, context);
+                    self.phrase(comparison.standard(), role, context);
                 }
                 AdjectiveComplement::Prepositional(preposition) => {
                     self.prepositional_phrase(preposition, role, context);
@@ -1127,6 +1127,40 @@ mod tests {
                     source_tokens: 1,
                 },
             ]
+        );
+    }
+
+    #[test]
+    fn recovery_walker_descends_through_a_checked_comparison_standard() {
+        let nested = AdjectivePhrase::from_projection_parts(
+            None,
+            crate::word::Adjective::Word(Vocab::Target),
+            vec![AdjectiveComplement::Prepositional(
+                PrepositionalPhrase::simple(
+                    Preposition::With,
+                    Phrase::Recovered(recovered("standard")),
+                ),
+            )],
+        );
+        let standard = crate::adjective::build_comparison_standard(None, Some(nested), None)
+            .expect("an adjective phrase is a typed comparison standard");
+        let comparison = crate::adjective::build_comparison_than(standard)
+            .expect("the typed standard accepts a than marker");
+        let owner =
+            crate::adjective::build_adjective_phrase(crate::word::Adjective::Word(Vocab::Greater))
+                .expect("greater is a pending comparison head");
+        let phrase = crate::adjective::build_adjective_phrase_comparison(owner, comparison)
+            .expect("the pending head accepts its comparison");
+
+        let mut walker = RecoveryWalker::default();
+        walker.adjective_phrase(&phrase, RecoveryRole::Clause, None);
+        assert_eq!(
+            walker.phrases,
+            [RecoveryRef {
+                role: RecoveryRole::Clause,
+                text: "standard",
+                source_tokens: 1,
+            }],
         );
     }
 

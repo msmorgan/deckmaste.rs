@@ -1103,9 +1103,42 @@ pub struct AdjectivePhrase {
     /// A numeral degree measure premodifying the head (`2 greater`). A
     /// premodifier, never a complement: `complements` renders post-head.
     /// Carries its own notation so `two greater` never renders `2 greater`.
-    pub degree: Option<NumberLiteral>,
-    pub head: Adjective,
-    pub complements: Vec<AdjectiveComplement>,
+    pub(crate) degree: Option<NumberLiteral>,
+    pub(crate) head: Adjective,
+    pub(crate) complements: Vec<AdjectiveComplement>,
+}
+
+impl AdjectivePhrase {
+    /// Canonical crate-internal projection seam for parser lowering and
+    /// declaration-generated reconstruction. Public callers use the checked
+    /// builders in [`crate::adjective`].
+    #[must_use]
+    pub(crate) const fn from_projection_parts(
+        degree: Option<NumberLiteral>,
+        head: Adjective,
+        complements: Vec<AdjectiveComplement>,
+    ) -> Self {
+        Self {
+            degree,
+            head,
+            complements,
+        }
+    }
+
+    #[must_use]
+    pub const fn degree(&self) -> Option<&NumberLiteral> {
+        self.degree.as_ref()
+    }
+
+    #[must_use]
+    pub const fn head(&self) -> &Adjective {
+        &self.head
+    }
+
+    #[must_use]
+    pub fn complements(&self) -> &[AdjectiveComplement] {
+        &self.complements
+    }
 }
 
 /// A coordinated run of adjective phrases filling one predicative or
@@ -1158,8 +1191,30 @@ pub enum ComparisonMarker {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ComparisonComplement {
-    pub marker: ComparisonMarker,
-    pub standard: Box<Phrase>,
+    pub(crate) marker: ComparisonMarker,
+    pub(crate) standard: Box<Phrase>,
+}
+
+impl ComparisonComplement {
+    /// Canonical crate-internal projection seam. Public callers choose a
+    /// checked marker construction through [`crate::adjective`].
+    #[must_use]
+    pub(crate) fn from_projection_parts(marker: ComparisonMarker, standard: Phrase) -> Self {
+        Self {
+            marker,
+            standard: Box::new(standard),
+        }
+    }
+
+    #[must_use]
+    pub const fn marker(&self) -> ComparisonMarker {
+        self.marker
+    }
+
+    #[must_use]
+    pub fn standard(&self) -> &Phrase {
+        &self.standard
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]

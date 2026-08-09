@@ -1995,11 +1995,7 @@ impl NegatedModifierKey {
         match &self.base {
             NegatedBase::Adjective(adjective) => NominalModifier::Adjective {
                 polarity,
-                phrase: AdjectivePhrase {
-                    degree: None,
-                    head: adjective.clone(),
-                    complements: Vec::new(),
-                },
+                phrase: AdjectivePhrase::from_projection_parts(None, adjective.clone(), Vec::new()),
             },
             NegatedBase::Noun(noun) => NominalModifier::Noun {
                 polarity,

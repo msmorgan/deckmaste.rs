@@ -19,6 +19,7 @@ use crate::syntax::ChoiceInstruction;
 use crate::syntax::Clause;
 use crate::syntax::ClauseAttachment;
 use crate::syntax::ClauseAttachmentKind;
+use crate::syntax::ComparisonComplement;
 use crate::syntax::ComparisonMarker;
 use crate::syntax::ComplexClause;
 use crate::syntax::CoordinatedAdjectivePhrase;
@@ -146,6 +147,8 @@ pub enum RenderError {
     InvalidNominalConjunction(Conjunction),
     #[error("nominal AST does not match exactly one generated construction")]
     InvalidNominalConstruction,
+    #[error("adjective AST does not match exactly one generated construction")]
+    InvalidAdjectiveConstruction,
     #[error(
         "predicate AST does not match exactly one generated construction: {problem} in {owner}, {first:?}/{second:?}, forms {first_form:?}/{second_form:?}"
     )]
@@ -239,6 +242,39 @@ pub(crate) fn render_fragment(
             .map(capitalize_first),
         Fragment::Ability(ability) => renderer.ability(ability, true, false),
     }
+}
+
+pub(crate) fn render_adjective_phrase(
+    phrase: &AdjectivePhrase,
+    name: &str,
+    is_legendary: bool,
+) -> Result<String, RenderError> {
+    Renderer::new(name, is_legendary).adjective_phrase(phrase)
+}
+
+#[cfg(test)]
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct GeneratedAdjectiveRender {
+    pub(crate) text: String,
+    pub(crate) forms: Vec<(&'static str, u16)>,
+}
+
+#[cfg(test)]
+pub(crate) fn render_generated_adjective_phrase_law(
+    value: &AdjectivePhrase,
+) -> Result<GeneratedAdjectiveRender, RenderError> {
+    let renderer = Renderer::new("this card", false);
+    let mut visitor = GeneratedAdjectiveRenderer::new(&renderer);
+    GeneratedAdjectiveRenderer::accept_generated(
+        crate::constructions::adjective::linearize_adjective_adjective_phrase_with(
+            value,
+            &mut visitor,
+        ),
+    )?;
+    Ok(GeneratedAdjectiveRender {
+        text: visitor.rendered,
+        forms: visitor.forms,
+    })
 }
 
 /// Exercises the declaration-owned predicate inverse without routing through
@@ -505,6 +541,12 @@ struct GeneratedCoordinationRenderer<'renderer, 'identity> {
     rendered: String,
     pending_determiner: Option<Determiner>,
     skip_payload_subtrees: usize,
+}
+
+struct GeneratedAdjectiveRenderer<'renderer, 'identity> {
+    renderer: &'renderer Renderer<'identity>,
+    rendered: String,
+    forms: Vec<(&'static str, u16)>,
 }
 
 pub(crate) struct GeneratedNominalRenderer<'renderer, 'identity> {
@@ -1126,6 +1168,159 @@ impl<'renderer, 'identity> GeneratedCoordinationRenderer<'renderer, 'identity> {
         debug_assert!(self.pending_determiner.is_none());
         debug_assert_eq!(self.skip_payload_subtrees, 0);
         self.rendered
+    }
+}
+
+impl<'renderer, 'identity> GeneratedAdjectiveRenderer<'renderer, 'identity> {
+    fn new(renderer: &'renderer Renderer<'identity>) -> Self {
+        Self {
+            renderer,
+            rendered: String::new(),
+            forms: Vec::new(),
+        }
+    }
+
+    fn push(&mut self, part: &str) {
+        if part.is_empty() {
+            return;
+        }
+        if !self.rendered.is_empty() {
+            self.rendered.push(' ');
+        }
+        self.rendered.push_str(part);
+    }
+
+    fn accept_generated(
+        result: Result<
+            (),
+            deckmaste_construction_compiler::runtime::LinearizationError<RenderError>,
+        >,
+    ) -> Result<(), RenderError> {
+        result.map_err(|error| match error {
+            deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error) => error,
+            _ => RenderError::InvalidAdjectiveConstruction,
+        })
+    }
+}
+
+impl deckmaste_construction_compiler::runtime::LinearizationVisitor
+    for GeneratedAdjectiveRenderer<'_, '_>
+{
+    type Error = RenderError;
+
+    fn begin_form(
+        &mut self,
+        construction: &'static str,
+        _form: &'static str,
+        ordinal: u16,
+    ) -> Result<(), Self::Error> {
+        self.forms.push((construction, ordinal));
+        Ok(())
+    }
+
+    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
+        self.push(literal);
+        Ok(())
+    }
+
+    fn subtree<T: std::any::Any>(
+        &mut self,
+        category: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        let rendered = match category {
+            "Adjective" => {
+                Self::accept_generated(
+                    crate::constructions::adjective::linearize_adjective_adjective_with(
+                        value
+                            .downcast_ref::<Adjective>()
+                            .expect("the adjective hole preserves Adjective"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "AdjectivePhrase" | "ComparisonAdjectivePhrase" => {
+                Self::accept_generated(
+                    crate::constructions::adjective::linearize_adjective_adjective_phrase_with(
+                        value
+                            .downcast_ref::<AdjectivePhrase>()
+                            .expect("the adjective-phrase hole preserves AdjectivePhrase"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "ComparisonComplement" => {
+                Self::accept_generated(
+                    crate::constructions::adjective::linearize_adjective_comparison_complement_with(
+                        value
+                            .downcast_ref::<ComparisonComplement>()
+                            .expect("the comparison hole preserves ComparisonComplement"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "ComparisonStandard" => {
+                Self::accept_generated(
+                    crate::constructions::adjective::linearize_comparison_standard_with(
+                        value
+                            .downcast_ref::<Phrase>()
+                            .expect("the comparison-standard hole preserves Phrase"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "NounPhrase" => self.renderer.noun_phrase(
+                value
+                    .downcast_ref::<NounPhrase>()
+                    .expect("the comparison standard preserves NounPhrase"),
+            )?,
+            "Clause" => self.renderer.clause(
+                value
+                    .downcast_ref::<Clause>()
+                    .expect("the comparison standard preserves Clause"),
+            )?,
+            other => panic!("unexpected adjective subtree category `{other}`"),
+        };
+        self.push(&rendered);
+        Ok(())
+    }
+
+    fn scalar<T: std::any::Any>(
+        &mut self,
+        codec: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        match codec {
+            "Numeral" => {
+                let number = (value as &dyn std::any::Any)
+                    .downcast_ref::<NumberLiteral>()
+                    .expect("the degree scalar preserves NumberLiteral");
+                self.push(&number.numeral.format(number.value));
+            }
+            other => panic!("unexpected adjective scalar codec `{other}`"),
+        }
+        Ok(())
+    }
+
+    fn identity<T: std::any::Any>(
+        &mut self,
+        provider: &'static str,
+        value_type: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        assert_eq!(provider, "Adjective");
+        assert_eq!(value_type, "Adjective");
+        let adjective = (value as &dyn std::any::Any)
+            .downcast_ref::<Adjective>()
+            .expect("the adjective identity preserves Adjective");
+        let rendered = self.renderer.adjective_head(adjective)?;
+        self.push(&rendered);
+        Ok(())
     }
 }
 
@@ -3140,7 +3335,7 @@ impl<'identity> Renderer<'identity> {
             NominalModifier::Adjective { polarity, phrase } => {
                 let (head, trailing) = self.nominal_modifier_adjective(phrase)?;
                 Ok((
-                    apply_polarity(*polarity, head, adjective_is_rules_bundle(&phrase.head)),
+                    apply_polarity(*polarity, head, adjective_is_rules_bundle(phrase.head())),
                     trailing,
                 ))
             }
@@ -3213,7 +3408,9 @@ impl<'identity> Renderer<'identity> {
             {
                 Ok(InitialSound::Consonant)
             }
-            NominalModifier::Adjective { phrase, .. } => self.adjective_initial_sound(&phrase.head),
+            NominalModifier::Adjective { phrase, .. } => {
+                self.adjective_initial_sound(phrase.head())
+            }
             NominalModifier::Noun { noun, .. } => self.noun_initial_sound(noun),
             // Always literally `declare …` — a fixed consonant onset.
             NominalModifier::CombatStepName { .. } => Ok(InitialSound::Consonant),
@@ -3278,11 +3475,43 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn adjective_phrase(&self, phrase: &AdjectivePhrase) -> Result<String, RenderError> {
-        let mut parts = adjective_degree(phrase.degree.as_ref())
+        if let Some(rendered) = self.generated_adjective_phrase(phrase)? {
+            return Ok(rendered);
+        }
+        self.legacy_adjective_phrase(phrase)
+    }
+
+    fn generated_adjective_phrase(
+        &self,
+        phrase: &AdjectivePhrase,
+    ) -> Result<Option<String>, RenderError> {
+        let mut visitor = GeneratedAdjectiveRenderer::new(self);
+        match crate::constructions::adjective::linearize_adjective_adjective_phrase_with(
+            phrase,
+            &mut visitor,
+        ) {
+            Ok(()) => Ok(Some(visitor.rendered)),
+            Err(
+                deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
+                    ..
+                },
+            ) => Ok(None),
+            Err(deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error)) => {
+                Err(error)
+            }
+            Err(_) => Err(RenderError::InvalidAdjectiveConstruction),
+        }
+    }
+
+    /// Compatibility renderer for adjective shapes outside the nine-row J01
+    /// declaration (prepositional and infinitival complements). Checked J01
+    /// values never reach this path.
+    fn legacy_adjective_phrase(&self, phrase: &AdjectivePhrase) -> Result<String, RenderError> {
+        let mut parts = adjective_degree(phrase.degree())
             .into_iter()
             .collect::<Vec<_>>();
-        parts.push(self.adjective_head(&phrase.head)?);
-        for complement in &phrase.complements {
+        parts.push(self.adjective_head(phrase.head())?);
+        for complement in phrase.complements() {
             parts.push(self.adjective_complement(complement)?);
         }
         Ok(join_words(parts))
@@ -3319,20 +3548,26 @@ impl<'identity> Renderer<'identity> {
         &self,
         phrase: &AdjectivePhrase,
     ) -> Result<(String, Vec<String>), RenderError> {
-        let mut immediate = adjective_degree(phrase.degree.as_ref())
-            .into_iter()
-            .collect::<Vec<_>>();
-        immediate.push(self.adjective_head(&phrase.head)?);
+        let immediate_phrase = AdjectivePhrase::from_projection_parts(
+            phrase.degree().copied(),
+            phrase.head().clone(),
+            phrase
+                .complements()
+                .iter()
+                .filter(|complement| {
+                    !matches!(complement, AdjectiveComplement::PostnominalComparison(_))
+                })
+                .cloned()
+                .collect(),
+        );
+        let immediate = self.adjective_phrase(&immediate_phrase)?;
         let mut trailing = Vec::new();
-        for complement in &phrase.complements {
-            let rendered = self.adjective_complement(complement)?;
+        for complement in phrase.complements() {
             if matches!(complement, AdjectiveComplement::PostnominalComparison(_)) {
-                trailing.push(rendered);
-            } else {
-                immediate.push(rendered);
+                trailing.push(self.adjective_complement(complement)?);
             }
         }
-        Ok((join_words(immediate), trailing))
+        Ok((immediate, trailing))
     }
 
     fn adjective_head(&self, adjective: &Adjective) -> Result<String, RenderError> {
@@ -3348,11 +3583,30 @@ impl<'identity> Renderer<'identity> {
         Ok(match complement {
             AdjectiveComplement::Comparison(comparison)
             | AdjectiveComplement::PostnominalComparison(comparison) => {
-                let marker = match comparison.marker {
-                    ComparisonMarker::Than => "than",
-                    ComparisonMarker::ThanOrEqualTo => "than or equal to",
-                };
-                format!("{marker} {}", self.phrase(&comparison.standard)?)
+                let mut visitor = GeneratedAdjectiveRenderer::new(self);
+                match crate::constructions::adjective::linearize_adjective_comparison_complement_with(
+                    comparison,
+                    &mut visitor,
+                ) {
+                    Ok(()) => visitor.rendered,
+                    Err(
+                        deckmaste_construction_compiler::runtime::LinearizationError::Visitor(
+                            RenderError::InvalidAdjectiveConstruction,
+                        ),
+                    ) => {
+                        let marker = match comparison.marker() {
+                            ComparisonMarker::Than => "than",
+                            ComparisonMarker::ThanOrEqualTo => "than or equal to",
+                        };
+                        format!("{marker} {}", self.phrase(comparison.standard())?)
+                    }
+                    Err(
+                        deckmaste_construction_compiler::runtime::LinearizationError::Visitor(
+                            error,
+                        ),
+                    ) => return Err(error),
+                    Err(_) => return Err(RenderError::InvalidAdjectiveConstruction),
+                }
             }
             AdjectiveComplement::Prepositional(preposition) => {
                 self.prepositional_phrase(preposition)?

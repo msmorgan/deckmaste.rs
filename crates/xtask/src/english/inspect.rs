@@ -110,7 +110,7 @@ fn write_cards(
         if output_config.abilities_only {
             writeln!(writer, "\nAbilities:\n{:#?}", ast.abilities)?;
         } else {
-            writeln!(writer, "\nAST:\n{ast:#?}")?;
+            writeln!(writer, "\nAST:\n{}", structural_debug(ast))?;
         }
         write_diagnostics(
             &mut writer,
@@ -124,6 +124,10 @@ fn write_cards(
     }
 
     Ok(())
+}
+
+fn structural_debug(value: &impl std::fmt::Debug) -> String {
+    format!("{value:#?}")
 }
 
 fn write_provenance(mut writer: impl Write, report: &ParseReport) -> Result<()> {
@@ -383,6 +387,81 @@ mod tests {
             cards[0].oracle_text,
             "Other permanents you control have \"{T}: Add one mana of any color.\""
         );
+    }
+
+    #[test]
+    fn adjective_structural_debug_keeps_face_degree_marker_and_standard_categories() {
+        use deckmaste_english::Fragment;
+        use deckmaste_english::Numeral;
+        use deckmaste_english::adjective as adjective_api;
+        use deckmaste_english::syntax::Clause;
+        use deckmaste_english::syntax::NounPhrase;
+        use deckmaste_english::syntax::NumberLiteral;
+        use deckmaste_english::syntax::SentenceBody;
+        use deckmaste_english::syntax::ThisCardForm;
+        use deckmaste_english::word::Adjective;
+        use deckmaste_english::word::Vocab;
+
+        let face = adjective_api::build_adjective_phrase_face_down().unwrap();
+        let measured = adjective_api::build_adjective_phrase_degree_measure(
+            NumberLiteral {
+                value: 2,
+                numeral: Numeral::Arabic(false),
+            },
+            Adjective::Word(Vocab::Greater),
+        )
+        .unwrap();
+        let target = adjective_api::build_adjective_phrase(Adjective::Word(Vocab::Target)).unwrap();
+        let parsed = deckmaste_english::parse_fragment(
+            "Draw a card.",
+            &Catalogs::default(),
+            deckmaste_english::FragmentKind::Sentence,
+            "Test Card",
+            false,
+        )
+        .into_fragment()
+        .unwrap();
+        let Fragment::Sentence(sentence) = parsed else {
+            panic!("the clause fixture is a sentence")
+        };
+        let SentenceBody::Independent(clause) = sentence.body() else {
+            panic!("the clause fixture is independent")
+        };
+
+        let standards = [
+            adjective_api::build_comparison_standard(
+                Some(NounPhrase::ThisCard(ThisCardForm::AbbreviatedName)),
+                None,
+                None,
+            )
+            .unwrap(),
+            adjective_api::build_comparison_standard(None, Some(target), None).unwrap(),
+            adjective_api::build_comparison_standard(
+                None,
+                None,
+                Some(Clause::Independent(clause.clone())),
+            )
+            .unwrap(),
+        ];
+
+        let face = structural_debug(&face);
+        let measured = structural_debug(&measured);
+        assert!(
+            face.contains("CardOrientation(\n        FaceDown"),
+            "{face}"
+        );
+        assert!(measured.contains("degree: Some"), "{measured}");
+        assert!(measured.contains("Arabic"), "{measured}");
+        for (standard, category) in
+            standards
+                .iter()
+                .zip(["NounPhrase", "AdjectivePhrase", "Clause"])
+        {
+            let comparison = adjective_api::build_comparison_than(standard.clone()).unwrap();
+            let debug = structural_debug(&comparison);
+            assert!(debug.contains("marker: Than"), "{debug}");
+            assert!(debug.contains(category), "{debug}");
+        }
     }
 
     #[test]

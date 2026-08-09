@@ -1324,7 +1324,7 @@ pub(super) fn lower_quantity_or_determiner(
 /// proper name (e.g. `creature named Storm Crow`).
 pub(super) fn introduces_proper_name(adjective: &AdjectivePhrase) -> bool {
     matches!(
-        adjective.head,
+        adjective.head(),
         Adjective::Participle(_, Verb::Word(Vocab::Name))
     )
 }
@@ -1356,21 +1356,21 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
                 RuleTag::AdjectivePhraseFaceDown => CardOrientation::FaceDown,
                 _ => return None,
             };
-            Some(Lowered::AdjectivePhrase(AdjectivePhrase {
-                degree: None,
-                head: Adjective::CardOrientation(orientation),
-                complements: Vec::new(),
-            }))
+            Some(Lowered::AdjectivePhrase(
+                AdjectivePhrase::from_projection_parts(
+                    None,
+                    Adjective::CardOrientation(orientation),
+                    Vec::new(),
+                ),
+            ))
         }
         RuleTag::AdjectivePhrase => {
             let Lowered::Adjective(head) = take(children, 0)? else {
                 return None;
             };
-            Some(Lowered::AdjectivePhrase(AdjectivePhrase {
-                degree: None,
-                head,
-                complements: Vec::new(),
-            }))
+            Some(Lowered::AdjectivePhrase(
+                AdjectivePhrase::from_projection_parts(None, head, Vec::new()),
+            ))
         }
         RuleTag::AdjectivePhraseComparison => {
             let Lowered::Adjective(head) = take(children, 0)? else {
@@ -1379,11 +1379,13 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
             let Lowered::ComparisonComplement(comparison) = take(children, 1)? else {
                 return None;
             };
-            Some(Lowered::AdjectivePhrase(AdjectivePhrase {
-                degree: None,
-                head,
-                complements: vec![crate::syntax::AdjectiveComplement::Comparison(comparison)],
-            }))
+            Some(Lowered::AdjectivePhrase(
+                AdjectivePhrase::from_projection_parts(
+                    None,
+                    head,
+                    vec![crate::syntax::AdjectiveComplement::Comparison(comparison)],
+                ),
+            ))
         }
         RuleTag::AdjectivePhraseDegreeMeasure => {
             let Lowered::Number(number) = take(children, 0)? else {
@@ -1392,11 +1394,9 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
             let Lowered::Adjective(head) = take(children, 1)? else {
                 return None;
             };
-            Some(Lowered::AdjectivePhrase(AdjectivePhrase {
-                degree: Some(number),
-                head,
-                complements: Vec::new(),
-            }))
+            Some(Lowered::AdjectivePhrase(
+                AdjectivePhrase::from_projection_parts(Some(number), head, Vec::new()),
+            ))
         }
         RuleTag::ComparisonStandard => {
             let standard = match take(children, 0)? {
@@ -1417,10 +1417,9 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
             } else {
                 ComparisonMarker::ThanOrEqualTo
             };
-            Some(Lowered::ComparisonComplement(ComparisonComplement {
-                marker,
-                standard: Box::new(standard),
-            }))
+            Some(Lowered::ComparisonComplement(
+                ComparisonComplement::from_projection_parts(marker, standard),
+            ))
         }
         RuleTag::NominalPowerToughnessComplement => {
             let Lowered::Nominal(nominal) = take(children, 0)? else {

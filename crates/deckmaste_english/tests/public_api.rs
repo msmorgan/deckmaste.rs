@@ -219,6 +219,141 @@ fn public_invariant_bearing_syntax_uses_checked_constructors() {
 }
 
 #[test]
+fn public_adjective_facade_builds_projects_rebuilds_and_renders_every_shape() {
+    use deckmaste_english::adjective as adjective_api;
+
+    let target = adjective_api::build_adjective(Adjective::Word(Vocab::Target)).unwrap();
+    assert_eq!(adjective_api::parts_adjective(&target), target);
+
+    let target_phrase = adjective_api::build_adjective_phrase(target.clone()).unwrap();
+    assert_eq!(target_phrase.degree(), None);
+    assert_eq!(target_phrase.head(), &target);
+    assert!(target_phrase.complements().is_empty());
+    assert_eq!(
+        adjective_api::build_adjective_phrase(adjective_api::parts_adjective_phrase(
+            &target_phrase,
+        ))
+        .unwrap(),
+        target_phrase,
+    );
+
+    for (build, parts, expected) in [
+        (
+            adjective_api::build_adjective_phrase_face_up as fn() -> Result<_, _>,
+            adjective_api::parts_adjective_phrase_face_up as fn(&AdjectivePhrase),
+            "face up",
+        ),
+        (
+            adjective_api::build_adjective_phrase_face_down,
+            adjective_api::parts_adjective_phrase_face_down,
+            "face down",
+        ),
+    ] {
+        let phrase = build().unwrap();
+        parts(&phrase);
+        assert_eq!(build().unwrap(), phrase);
+        assert_eq!(
+            adjective_api::render(&phrase, "Test Card", false).unwrap(),
+            expected
+        );
+    }
+
+    let clause = parse_fragment(
+        "Draw a card.",
+        &Catalogs::default(),
+        FragmentKind::Sentence,
+        "Test Card",
+        false,
+    )
+    .into_fragment()
+    .expect("the clause-standard fixture parses");
+    let Fragment::Sentence(sentence) = clause else {
+        panic!("the fixture is a sentence")
+    };
+    let SentenceBody::Independent(clause) = sentence.body() else {
+        panic!("the fixture has an independent clause")
+    };
+
+    let standards = [
+        adjective_api::build_comparison_standard(
+            Some(NounPhrase::ThisCard(ThisCardForm::AbbreviatedName)),
+            None,
+            None,
+        )
+        .unwrap(),
+        adjective_api::build_comparison_standard(None, Some(target_phrase.clone()), None).unwrap(),
+        adjective_api::build_comparison_standard(
+            None,
+            None,
+            Some(Clause::Independent(clause.clone())),
+        )
+        .unwrap(),
+    ];
+    for standard in &standards {
+        let parts = adjective_api::parts_comparison_standard(standard);
+        assert_eq!(
+            adjective_api::build_comparison_standard(parts.0, parts.1, parts.2).unwrap(),
+            *standard,
+        );
+    }
+
+    let greater =
+        || adjective_api::build_adjective_phrase(Adjective::Word(Vocab::Greater)).unwrap();
+    for (build, parts, marker, expected) in [
+        (
+            adjective_api::build_comparison_than as fn(Phrase) -> Result<_, _>,
+            adjective_api::parts_comparison_than as fn(&ComparisonComplement) -> Phrase,
+            ComparisonMarker::Than,
+            "greater than target",
+        ),
+        (
+            adjective_api::build_comparison_than_or_equal_to,
+            adjective_api::parts_comparison_than_or_equal_to,
+            ComparisonMarker::ThanOrEqualTo,
+            "greater than or equal to target",
+        ),
+    ] {
+        let comparison = build(standards[1].clone()).unwrap();
+        assert_eq!(comparison.marker(), marker);
+        assert_eq!(comparison.standard(), &standards[1]);
+        assert_eq!(build(parts(&comparison)).unwrap(), comparison);
+
+        let phrase = adjective_api::build_adjective_phrase_comparison(greater(), comparison)
+            .expect("a matching pending comparative accepts its standard");
+        let (owner, comparison) = adjective_api::parts_adjective_phrase_comparison(&phrase)
+            .expect("the generated inverse detaches the comparison");
+        assert_eq!(
+            adjective_api::build_adjective_phrase_comparison(owner, comparison).unwrap(),
+            phrase,
+        );
+        assert_eq!(
+            adjective_api::render(&phrase, "Test Card", false).unwrap(),
+            expected
+        );
+    }
+
+    for (numeral, expected) in [
+        (Numeral::Arabic(false), "2 greater"),
+        (Numeral::Cardinal, "two greater"),
+    ] {
+        let phrase = adjective_api::build_adjective_phrase_degree_measure(
+            NumberLiteral { value: 2, numeral },
+            Adjective::Word(Vocab::Greater),
+        )
+        .unwrap();
+        let (measure, head) = adjective_api::parts_adjective_phrase_degree_measure(&phrase);
+        assert_eq!(
+            adjective_api::build_adjective_phrase_degree_measure(measure, head).unwrap(),
+            phrase,
+        );
+        assert_eq!(
+            adjective_api::render(&phrase, "Test Card", false).unwrap(),
+            expected
+        );
+    }
+}
+
+#[test]
 fn public_predicate_facade_constructs_transitive_and_roundtrips_exact() {
     use deckmaste_english::nominal as nominal_api;
     use deckmaste_english::predicate as predicate_api;
@@ -665,15 +800,10 @@ fn public_nominal_construction_api_exposes_every_checked_m01_builder() {
         NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
     )
     .unwrap();
-    let red_card = nominal_api::build_nominal_adjective(
-        AdjectivePhrase {
-            degree: None,
-            head: Adjective::Color(ColorWord::Red),
-            complements: Vec::new(),
-        },
-        card.clone(),
-    )
-    .unwrap();
+    let red =
+        deckmaste_english::adjective::build_adjective_phrase(Adjective::Color(ColorWord::Red))
+            .unwrap();
+    let red_card = nominal_api::build_nominal_adjective(red, card.clone()).unwrap();
     let (adjective, adjective_base) = nominal_api::parts_nominal_adjective(&red_card);
     assert_eq!(
         nominal_api::build_nominal_adjective(adjective, adjective_base).unwrap(),
@@ -1902,12 +2032,12 @@ impl<'syntax> SyntaxInventory<'syntax> {
     }
 
     fn adjective_phrase(&mut self, phrase: &'syntax AdjectivePhrase) {
-        self.adjectives.push(&phrase.head);
-        for complement in &phrase.complements {
+        self.adjectives.push(phrase.head());
+        for complement in phrase.complements() {
             match complement {
                 AdjectiveComplement::Comparison(comparison)
                 | AdjectiveComplement::PostnominalComparison(comparison) => {
-                    self.phrase(&comparison.standard);
+                    self.phrase(comparison.standard());
                 }
                 AdjectiveComplement::Prepositional(preposition) => {
                     self.prepositional_phrase(preposition);
