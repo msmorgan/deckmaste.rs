@@ -963,6 +963,29 @@ mod tests {
     }
 
     #[test]
+    fn lexical_verb_builder_parts_retain_analysis_frame_and_slot() {
+        let expected_frame = Vocab::Ask.predicate_frames()[1];
+        let expected_instance = VerbInstance {
+            verb: LexicalVerb::Word(Vocab::Ask),
+            slot: VerbSlot::PastParticiple,
+        };
+        let analysis = VerbAnalysis::new(expected_instance.clone(), expected_frame);
+        let verb = build_verb(analysis.clone()).expect("the exact lexical analysis builds");
+        assert_eq!(verb.instance().slot, VerbSlot::PastParticiple);
+        let recovered = parts_verb(&verb);
+        assert_eq!(
+            recovered,
+            VerbAnalysis::new(expected_instance, expected_frame),
+            "the exact lexical instance, slot, and selected frame survive parts"
+        );
+        assert_eq!(recovered, analysis);
+        assert_eq!(
+            build_verb(recovered).expect("the recovered lexical analysis rebuilds"),
+            verb
+        );
+    }
+
+    #[test]
     fn verb_phrase_base_builds_destructures_linearizes_and_reparses() {
         // Mutations caught: bypass lexical-form validation in the checked
         // builder, bypass the generated whole-value inverse check so a
