@@ -1,4 +1,3 @@
-use super::AbilityObject;
 use super::Agreement;
 use super::AttachedPredicate;
 use super::AttachmentPosition;
@@ -30,17 +29,12 @@ use super::InfinitiveMarker;
 use super::Lowered;
 use super::Modal;
 use super::NounPhrase;
-use super::PassivePredicate;
 use super::Phrase;
 use super::Predicate;
 use super::PredicateAdjunct;
-use super::PredicateComplement;
-use super::PredicateElement;
 use super::PredicateExpression;
 use super::PredicateForm;
 use super::PredicateHead;
-use super::PredicateObject;
-use super::ProPredicate;
 use super::Quantity;
 use super::RelativeBody;
 use super::RelativeClause;
@@ -56,6 +50,7 @@ use super::VerbPhrase;
 use super::VerbSlot;
 use super::reduction::auxiliary_form;
 use super::take;
+use crate::constructions::predicate::FinishedPredicate;
 use crate::features::Conjunction;
 use crate::grammar::reduction::predicate_form;
 use crate::syntax::ObjectGapPredicate;
@@ -1737,16 +1732,6 @@ pub(super) fn with_clause_attachment(
     }
 }
 
-pub(super) struct FinishedPredicate {
-    modal: Option<Modal>,
-    predicate: Predicate,
-    /// True when the verb phrase was an elided proform under a modal, i.e.
-    /// VP-ellipsis ("If you can't, …"). The `predicate` field then holds the
-    /// synthesized proform as a placeholder; consumers building a modal clause
-    /// drop it so the modal renders alone.
-    elided: bool,
-}
-
 pub(in crate::grammar) fn finish_simple_clause(simple: SimpleClause) -> Option<IndependentClause> {
     let imperative = simple.subject.is_none() && simple.predicate.verb.slot == VerbSlot::Imperative;
     let subject = simple.subject;
@@ -1830,237 +1815,9 @@ pub(super) fn modifier_as_predicative_adjective(
     }
 }
 
-#[allow(
-    clippy::too_many_lines,
-    reason = "one arm per verb dependent is intentionally verbose"
-)]
-pub(super) fn finish_predicate(mut phrase: VerbPhrase) -> Option<FinishedPredicate> {
-    let proform = phrase.frame.is_proform();
-    let modal = phrase
-        .auxiliaries
-        .first()
-        .copied()
-        .filter(|auxiliary| is_modal(auxiliary.auxiliary))
-        .map(|auxiliary| {
-            phrase.auxiliaries.remove(0);
-            Modal { auxiliary }
-        });
-    let passive = phrase.verb.slot == VerbSlot::PastParticiple
-        && phrase
-            .auxiliaries
-            .first()
-            .is_some_and(|auxiliary| auxiliary.auxiliary == Auxiliary::Be);
-    let mut object = None;
-    let mut pre_object_elements = Vec::new();
-    let mut elements = Vec::new();
-    for dependent in phrase.dependents {
-        let target_elements =
-            if object.is_none() { &mut pre_object_elements } else { &mut elements };
-        match dependent {
-            VerbDependent::DirectObject(noun_phrase) => {
-                attach_object(&mut object, PredicateObject::NounPhrase(noun_phrase))?;
-            }
-            VerbDependent::IndirectObject(noun_phrase) => {
-                target_elements.push(PredicateElement::Complement(
-                    PredicateComplement::IndirectObject(noun_phrase),
-                ));
-            }
-            VerbDependent::PredicateComplement(phrase) => match phrase {
-                Phrase::CatalogAtom(atom) => {
-                    attach_object(
-                        &mut object,
-                        PredicateObject::Ability(AbilityObject {
-                            ability: atom,
-                            argument: None,
-                        }),
-                    )?;
-                }
-                Phrase::EmbeddedAbility(ability) => {
-                    attach_object(&mut object, PredicateObject::EmbeddedAbility(ability))?;
-                }
-                Phrase::QuotedAbility(ability) => {
-                    attach_object(&mut object, PredicateObject::QuotedAbility(ability))?;
-                }
-                Phrase::AdjectivePhrase(adjective) => {
-                    target_elements.push(PredicateElement::Complement(
-                        PredicateComplement::Adjective(*adjective),
-                    ));
-                }
-                Phrase::PrepositionalPhrase(preposition) => {
-                    target_elements.push(PredicateElement::Complement(
-                        PredicateComplement::Prepositional(*preposition),
-                    ));
-                }
-                _ => return None,
-            },
-            VerbDependent::Scalar(phrase) => match phrase {
-                Phrase::Quantity(quantity) => {
-                    attach_object(&mut object, PredicateObject::Quantity(quantity))?;
-                }
-                Phrase::OracleSymbol(symbol) => {
-                    attach_object(&mut object, PredicateObject::OracleSymbol(symbol))?;
-                }
-                Phrase::SymbolSequence(symbols) => {
-                    attach_object(&mut object, PredicateObject::SymbolSequence(symbols))?;
-                }
-                _ => return None,
-            },
-            VerbDependent::Statistic(Phrase::PowerToughness(value)) => {
-                attach_object(&mut object, PredicateObject::PowerToughness(value))?;
-            }
-            VerbDependent::Prepositional(phrase) => {
-                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Prepositional(
-                    phrase,
-                )));
-            }
-            VerbDependent::Exception(phrase) => {
-                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Exception(
-                    phrase,
-                )));
-            }
-            VerbDependent::Temporal(phrase) => {
-                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Temporal(
-                    phrase,
-                )));
-            }
-            VerbDependent::Manner(phrase) => {
-                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Manner(phrase)));
-            }
-            VerbDependent::Infinitive(clause) => {
-                target_elements.push(PredicateElement::Complement(
-                    PredicateComplement::Infinitive(finish_infinitive(clause)?),
-                ));
-            }
-            VerbDependent::Subordinate(clause) => {
-                let Clause::Dependent(clause) = *clause else {
-                    return None;
-                };
-                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Dependent(
-                    Box::new(clause),
-                )));
-            }
-            VerbDependent::Adverbial(Phrase::Adverb(adverb)) => {
-                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Adverb(adverb)));
-            }
-            VerbDependent::Adverbial(Phrase::AdjectivePhrase(adjective)) => {
-                target_elements.push(PredicateElement::Complement(
-                    PredicateComplement::Adjective(*adjective),
-                ));
-            }
-            VerbDependent::Statistic(_) | VerbDependent::Adverbial(_) => return None,
-            VerbDependent::Particle(particle) => {
-                target_elements.push(PredicateElement::Particle(particle));
-            }
-            VerbDependent::CoinResult(side) => {
-                target_elements.push(PredicateElement::CoinResult(side));
-            }
-            VerbDependent::Frequency(frequency) => {
-                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Frequency(
-                    frequency,
-                )));
-            }
-            VerbDependent::CoordinatedObject(coordinated) => {
-                attach_object(&mut object, PredicateObject::Coordinated(coordinated))?;
-            }
-            VerbDependent::CoordinatedAdjective(coordinated) => {
-                target_elements.push(PredicateElement::Complement(
-                    PredicateComplement::CoordinatedAdjective(coordinated),
-                ));
-            }
-        }
-    }
-    let head = PredicateHead {
-        auxiliaries: phrase.auxiliaries,
-        first_auxiliary_contracted_with_subject: crate::features::Contraction::from(
-            phrase.first_auxiliary_contracted_with_subject,
-        ),
-        preverb_modifiers: phrase.preverb_modifiers,
-        verb: phrase.verb,
-        frame: phrase.frame,
-        distributive_each: phrase.distributive_each,
-    };
-    // A bare proform under a modal (nothing surviving beside the modal) is
-    // VP-ellipsis: "If you can't, …". The synthesized `do` pro-verb is a
-    // placeholder the surface never spelled, so flag it for the modal-clause
-    // builder to drop rather than render.
-    let elided = proform
-        && modal.is_some()
-        && object.is_none()
-        && head.auxiliaries.is_empty()
-        && head.preverb_modifiers.is_empty()
-        && pre_object_elements.is_empty()
-        && elements.is_empty();
-    let predicate = if passive {
-        let retained_object = match object {
-            None => None,
-            Some(object) => {
-                if !phrase.frame.is_recipient_passive() {
-                    return None;
-                }
-                // Surface order is head → retained object → elements. Any
-                // element that landed BEFORE the object would be lost by the
-                // flattening below, so refuse rather than render a reordered
-                // face. No corpus witness exists; if one appears, model the
-                // position explicitly.
-                if !pre_object_elements.is_empty() {
-                    return None;
-                }
-                Some(object)
-            }
-        };
-        pre_object_elements.append(&mut elements);
-        Predicate::Passive(PassivePredicate {
-            head,
-            kind: crate::syntax::Passive { retained_object },
-            elements: pre_object_elements,
-        })
-    } else if let Some(object) = object {
-        Predicate::Transitive(crate::syntax::TransitivePredicate {
-            head,
-            kind: crate::syntax::Transitive {
-                pre_object_elements,
-                object,
-            },
-            elements,
-        })
-    } else if head.auxiliaries.is_empty()
-        && modal.is_none()
-        && head.preverb_modifiers.is_empty()
-        && pre_object_elements.is_empty()
-        && elements.is_empty()
-        && proform
-    {
-        Predicate::Proform(ProPredicate {
-            auxiliary: AuxiliaryInstance {
-                auxiliary: Auxiliary::Do,
-                inflection: proform_inflection(head.verb.slot),
-                contracted_negation: crate::features::Contraction::Full,
-            },
-        })
-    } else if head.auxiliaries.len() == 1
-        && head.preverb_modifiers.is_empty()
-        && pre_object_elements.is_empty()
-        && elements.is_empty()
-        && proform
-    {
-        Predicate::Proform(ProPredicate {
-            auxiliary: head.auxiliaries[0],
-        })
-    } else {
-        pre_object_elements.append(&mut elements);
-        Predicate::Intransitive(crate::syntax::IntransitivePredicate {
-            head,
-            kind: crate::syntax::Intransitive,
-            elements: pre_object_elements,
-        })
-    };
-    Some(FinishedPredicate {
-        modal,
-        predicate,
-        elided,
-    })
+pub(super) fn finish_predicate(phrase: VerbPhrase) -> Option<FinishedPredicate> {
+    crate::constructions::predicate::project_public_predicate(phrase).ok()
 }
-
 pub(in crate::grammar) fn finish_reduced_recipient_passive(
     phrase: VerbPhrase,
 ) -> Option<crate::syntax::TransitivePredicate> {
@@ -2081,16 +1838,6 @@ pub(in crate::grammar) fn finish_reduced_recipient_passive(
     Some(predicate)
 }
 
-pub(super) const fn proform_inflection(slot: VerbSlot) -> AuxiliaryInflection {
-    match slot {
-        VerbSlot::Infinitive | VerbSlot::Imperative => AuxiliaryInflection::Base,
-        VerbSlot::Present { person, number } => AuxiliaryInflection::Present { person, number },
-        VerbSlot::Past { person, number } => AuxiliaryInflection::Past { person, number },
-        VerbSlot::PresentParticiple => AuxiliaryInflection::PresentParticiple,
-        VerbSlot::PastParticiple => AuxiliaryInflection::PastParticiple,
-    }
-}
-
 pub(in crate::grammar) fn finish_infinitive(
     clause: InfinitiveClause,
 ) -> Option<crate::syntax::InfinitiveClause> {
@@ -2105,37 +1852,6 @@ pub(in crate::grammar) fn finish_infinitive(
         marker: clause.marker,
         predicate: Box::new(predicate),
     })
-}
-
-pub(super) fn attach_object(
-    slot: &mut Option<PredicateObject>,
-    object: PredicateObject,
-) -> Option<()> {
-    if let Some(PredicateObject::Ability(ability)) = slot
-        && ability.argument.is_none()
-    {
-        ability.argument = Some(Box::new(object));
-        return Some(());
-    }
-    if slot.replace(object).is_some() {
-        return None;
-    }
-    Some(())
-}
-
-pub(super) const fn is_modal(auxiliary: Auxiliary) -> bool {
-    matches!(
-        auxiliary,
-        Auxiliary::Can
-            | Auxiliary::Could
-            | Auxiliary::May
-            | Auxiliary::Might
-            | Auxiliary::Must
-            | Auxiliary::Shall
-            | Auxiliary::Should
-            | Auxiliary::Will
-            | Auxiliary::Would
-    )
 }
 
 pub(crate) fn lowered_nominal_adjunct_kind(

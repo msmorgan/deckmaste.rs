@@ -13,6 +13,7 @@ use deckmaste_construction_compiler::runtime::GroupData;
 use crate::catalog::CatalogAtom;
 use crate::features::Comma;
 use crate::features::Conjunction;
+use crate::features::Contraction;
 use crate::grammar::Features;
 use crate::grammar::InfinitiveClause;
 use crate::grammar::PredicateAttachment;
@@ -27,24 +28,34 @@ use crate::syntax::AbilityObject;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::CoinSide;
 use crate::syntax::CoordinatedPredicateObject;
+use crate::syntax::DeonticPredicate;
 use crate::syntax::FrequencyBound;
 use crate::syntax::FrequencyPhrase;
+use crate::syntax::Modal;
 use crate::syntax::NounPhrase;
 use crate::syntax::OracleSymbol;
+use crate::syntax::PassivePredicate;
 use crate::syntax::Phrase;
 use crate::syntax::PowerToughness;
 use crate::syntax::Predicate;
 use crate::syntax::PredicateAdjunct;
 use crate::syntax::PredicateComplement;
 use crate::syntax::PredicateElement;
+use crate::syntax::PredicateHead;
 use crate::syntax::PredicateObject;
 use crate::syntax::PredicateObjectCoordination;
 use crate::syntax::PrepositionalPhrase;
 use crate::syntax::PreverbModifier;
+use crate::syntax::ProPredicate;
 use crate::syntax::Quantity;
 use crate::syntax::QuotedAbility;
 use crate::syntax::VerbParticle;
+use crate::word::Auxiliary;
+use crate::word::AuxiliaryInflection;
 use crate::word::AuxiliaryInstance;
+use crate::word::PredicateFrame;
+use crate::word::VerbInstance;
+use crate::word::VerbSlot;
 use crate::word::Vocab;
 use crate::word::Vocabulary;
 
@@ -53,6 +64,523 @@ type SymbolSequence = Vec<OracleSymbol>;
 type ManaAmount = PredicateObject;
 type ManaAmountList = PredicateObject;
 type CoordinatedManaAmount = CoordinatedPredicateObject;
+
+/// A typed choice among the declaration's lexical predicate frames.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PredicateFrameChoice {
+    Intransitive,
+    Transitive,
+    Ditransitive,
+    RecipientPassive,
+    Causative,
+}
+
+/// An opaque, declaration-validated predicate construction in progress.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PredicateBuilder {
+    phrase: VerbPhrase,
+}
+
+pub(crate) struct FinishedPredicate {
+    pub(crate) modal: Option<Modal>,
+    pub(crate) predicate: Predicate,
+    pub(crate) elided: bool,
+}
+
+/// Starts a checked predicate from a typed lexical head and frame choice.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the verb is not renderable or does not
+/// license exactly one frame of the requested typed kind.
+pub fn build_predicate_verb(
+    verb: VerbInstance,
+    choice: PredicateFrameChoice,
+) -> Result<PredicateBuilder, DeclarationViolation> {
+    let frame = select_public_frame(&verb, choice)?;
+    let phrase = build_verb_phrase_base(VerbAnalysis::new(verb, frame))?;
+    Ok(PredicateBuilder { phrase })
+}
+
+/// Attaches a noun-phrase direct object through the generated declaration.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the selected frame or current
+/// attachment phase does not admit a direct object.
+pub fn build_predicate_direct_object(
+    predicate: PredicateBuilder,
+    object: NounPhrase,
+) -> Result<PredicateBuilder, DeclarationViolation> {
+    build_verb_phrase_direct_object(predicate.phrase, object)
+        .map(|phrase| PredicateBuilder { phrase })
+}
+
+/// Wraps a predicate with a typed auxiliary through the generated declaration.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the auxiliary's form or the resulting
+/// voice is incompatible with the predicate's declared state.
+pub fn build_predicate_auxiliary(
+    auxiliary: AuxiliaryInstance,
+    predicate: PredicateBuilder,
+) -> Result<PredicateBuilder, DeclarationViolation> {
+    build_verb_phrase_auxiliary(auxiliary, predicate.phrase)
+        .map(|phrase| PredicateBuilder { phrase })
+}
+
+/// Attaches one public predicate element through its declaration-owned row.
+///
+/// # Errors
+///
+/// Returns a declaration violation when no generated predicate row admits the
+/// typed element in the builder's current state or order.
+pub fn build_predicate_element(
+    predicate: PredicateBuilder,
+    element: PredicateElement,
+) -> Result<PredicateBuilder, DeclarationViolation> {
+    let phrase = match element {
+        PredicateElement::Complement(PredicateComplement::IndirectObject(value)) => {
+            build_verb_phrase_indirect_object(predicate.phrase, value)?
+        }
+        PredicateElement::Complement(PredicateComplement::Adjective(value)) => {
+            build_verb_phrase_adjective(predicate.phrase, value)?
+        }
+        PredicateElement::Complement(PredicateComplement::Prepositional(value))
+        | PredicateElement::Adjunct(PredicateAdjunct::Prepositional(value)) => {
+            build_verb_phrase_prepositional(predicate.phrase, value)?
+        }
+        PredicateElement::Complement(PredicateComplement::Infinitive(value)) => {
+            let infinitive = InfinitiveClause::from_finished_parts(
+                value.negated,
+                value.marker,
+                inverse_public_predicate(&value.predicate)?,
+            );
+            build_verb_phrase_infinitive(predicate.phrase, infinitive)?
+        }
+        PredicateElement::Adjunct(PredicateAdjunct::Adverb(value)) => {
+            build_verb_phrase_adverb(predicate.phrase, value)?
+        }
+        PredicateElement::Adjunct(PredicateAdjunct::Frequency(value)) => {
+            build_verb_phrase_frequency(predicate.phrase, value)?
+        }
+        PredicateElement::Adjunct(PredicateAdjunct::Exception(value)) => {
+            build_verb_phrase_except_by(predicate.phrase, value)?
+        }
+        PredicateElement::Particle(value) => build_verb_phrase_particle(predicate.phrase, value)?,
+        PredicateElement::CoinResult(value) => {
+            build_verb_phrase_coin_result(predicate.phrase, value)?
+        }
+        PredicateElement::Complement(PredicateComplement::CoordinatedAdjective(_))
+        | PredicateElement::Adjunct(
+            PredicateAdjunct::Temporal(_)
+            | PredicateAdjunct::Manner(_)
+            | PredicateAdjunct::Dependent(_),
+        ) => {
+            return Err(violation(
+                "predicate",
+                "the public element has a generated predicate construction",
+            ));
+        }
+    };
+    Ok(PredicateBuilder { phrase })
+}
+
+/// Finishes a checked builder into the sealed public predicate projection.
+///
+/// # Errors
+///
+/// Returns a declaration violation when required arguments are missing or the
+/// validated construction cannot project to one sealed public predicate shape.
+pub fn finish_predicate(predicate: PredicateBuilder) -> Result<Predicate, DeclarationViolation> {
+    ensure_complete(&predicate.phrase)?;
+    let FinishedPredicate {
+        modal,
+        predicate,
+        elided,
+    } = project_public_predicate(predicate.phrase)?;
+    match modal {
+        None => Ok(predicate),
+        Some(modal) => Ok(Predicate::Deontic(DeonticPredicate {
+            modal,
+            inner: (!elided).then(|| Box::new(predicate)),
+        })),
+    }
+}
+
+/// Projects immutable checked construction parts from a sealed predicate.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the public predicate is outside the
+/// generated family or does not satisfy the declaration's completion rules.
+pub fn parts_predicate(predicate: &Predicate) -> Result<PredicateBuilder, DeclarationViolation> {
+    let phrase = inverse_public_predicate(predicate)?;
+    ensure_complete(&phrase)?;
+    Ok(PredicateBuilder { phrase })
+}
+
+/// Rebuilds a sealed predicate from its immutable checked parts.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the parts are incomplete or cannot
+/// project to one sealed public predicate shape.
+pub fn rebuild_predicate(parts: PredicateBuilder) -> Result<Predicate, DeclarationViolation> {
+    finish_predicate(parts)
+}
+
+fn select_public_frame(
+    verb: &VerbInstance,
+    choice: PredicateFrameChoice,
+) -> Result<PredicateFrame, DeclarationViolation> {
+    let mut candidates =
+        verb.verb
+            .predicate_frames()
+            .iter()
+            .copied()
+            .filter(|frame| match choice {
+                PredicateFrameChoice::Intransitive => {
+                    !frame.direct_object().accepts()
+                        && !frame.indirect_object().accepts()
+                        && !frame.is_recipient_passive()
+                        && !frame.causative_complement()
+                        && !frame.requires_coin_result()
+                }
+                PredicateFrameChoice::Transitive => {
+                    frame.direct_object().accepts()
+                        && !frame.indirect_object().accepts()
+                        && !frame.is_recipient_passive()
+                        && !frame.causative_complement()
+                }
+                PredicateFrameChoice::Ditransitive => {
+                    frame.indirect_object().accepts() && !frame.is_recipient_passive()
+                }
+                PredicateFrameChoice::RecipientPassive => frame.is_recipient_passive(),
+                PredicateFrameChoice::Causative => frame.causative_complement(),
+            });
+    let frame = candidates.next().ok_or_else(|| {
+        violation(
+            "verb_phrase_base",
+            "the lexical verb licenses the requested typed predicate frame",
+        )
+    })?;
+    if candidates.next().is_some() {
+        return Err(violation(
+            "verb_phrase_base",
+            "the typed predicate frame choice selects exactly one lexical frame",
+        ));
+    }
+    Ok(frame)
+}
+
+fn ensure_complete(phrase: &VerbPhrase) -> Result<(), DeclarationViolation> {
+    phrase
+        .declaration_core_arguments_complete()
+        .then_some(())
+        .ok_or_else(|| {
+            violation(
+                "predicate",
+                "the generated predicate satisfies form, voice, valency, and dependent order",
+            )
+        })
+}
+
+#[allow(
+    clippy::too_many_lines,
+    reason = "one arm per declaration dependent keeps the public projection explicit"
+)]
+pub(crate) fn project_public_predicate(
+    phrase: VerbPhrase,
+) -> Result<FinishedPredicate, DeclarationViolation> {
+    let (
+        mut auxiliaries,
+        first_auxiliary_contracted_with_subject,
+        preverb_modifiers,
+        verb,
+        frame,
+        dependents,
+        distributive_each,
+    ) = phrase.into_public_projection_parts();
+    let proform = frame.is_proform();
+    let modal = auxiliaries
+        .first()
+        .copied()
+        .filter(|auxiliary| is_modal(auxiliary.auxiliary))
+        .map(|auxiliary| {
+            auxiliaries.remove(0);
+            Modal { auxiliary }
+        });
+    let passive = verb.slot == VerbSlot::PastParticiple
+        && auxiliaries
+            .first()
+            .is_some_and(|auxiliary| auxiliary.auxiliary == Auxiliary::Be);
+    let mut object = None;
+    let mut pre_object_elements = Vec::new();
+    let mut elements = Vec::new();
+    for dependent in dependents {
+        let target_elements =
+            if object.is_none() { &mut pre_object_elements } else { &mut elements };
+        match dependent {
+            VerbDependent::DirectObject(noun_phrase) => {
+                attach_public_object(&mut object, PredicateObject::NounPhrase(noun_phrase))?;
+            }
+            VerbDependent::IndirectObject(noun_phrase) => {
+                target_elements.push(PredicateElement::Complement(
+                    PredicateComplement::IndirectObject(noun_phrase),
+                ));
+            }
+            VerbDependent::PredicateComplement(phrase) => match phrase {
+                Phrase::CatalogAtom(atom) => {
+                    attach_public_object(
+                        &mut object,
+                        PredicateObject::Ability(AbilityObject {
+                            ability: atom,
+                            argument: None,
+                        }),
+                    )?;
+                }
+                Phrase::EmbeddedAbility(ability) => {
+                    attach_public_object(&mut object, PredicateObject::EmbeddedAbility(ability))?;
+                }
+                Phrase::QuotedAbility(ability) => {
+                    attach_public_object(&mut object, PredicateObject::QuotedAbility(ability))?;
+                }
+                Phrase::AdjectivePhrase(adjective) => {
+                    target_elements.push(PredicateElement::Complement(
+                        PredicateComplement::Adjective(*adjective),
+                    ));
+                }
+                Phrase::PrepositionalPhrase(preposition) => {
+                    target_elements.push(PredicateElement::Complement(
+                        PredicateComplement::Prepositional(*preposition),
+                    ));
+                }
+                _ => return Err(public_projection_violation()),
+            },
+            VerbDependent::Scalar(phrase) => match phrase {
+                Phrase::Quantity(quantity) => {
+                    attach_public_object(&mut object, PredicateObject::Quantity(quantity))?;
+                }
+                Phrase::OracleSymbol(symbol) => {
+                    attach_public_object(&mut object, PredicateObject::OracleSymbol(symbol))?;
+                }
+                Phrase::SymbolSequence(symbols) => {
+                    attach_public_object(&mut object, PredicateObject::SymbolSequence(symbols))?;
+                }
+                _ => return Err(public_projection_violation()),
+            },
+            VerbDependent::Statistic(Phrase::PowerToughness(value)) => {
+                attach_public_object(&mut object, PredicateObject::PowerToughness(value))?;
+            }
+            VerbDependent::Prepositional(phrase) => {
+                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Prepositional(
+                    phrase,
+                )));
+            }
+            VerbDependent::Exception(phrase) => {
+                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Exception(
+                    phrase,
+                )));
+            }
+            VerbDependent::Temporal(phrase) => {
+                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Temporal(
+                    phrase,
+                )));
+            }
+            VerbDependent::Manner(phrase) => {
+                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Manner(phrase)));
+            }
+            VerbDependent::Infinitive(clause) => {
+                target_elements.push(PredicateElement::Complement(
+                    PredicateComplement::Infinitive(project_public_infinitive(clause)?),
+                ));
+            }
+            VerbDependent::Subordinate(clause) => {
+                let crate::syntax::Clause::Dependent(clause) = *clause else {
+                    return Err(public_projection_violation());
+                };
+                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Dependent(
+                    Box::new(clause),
+                )));
+            }
+            VerbDependent::Adverbial(Phrase::Adverb(adverb)) => {
+                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Adverb(adverb)));
+            }
+            VerbDependent::Adverbial(Phrase::AdjectivePhrase(adjective)) => {
+                target_elements.push(PredicateElement::Complement(
+                    PredicateComplement::Adjective(*adjective),
+                ));
+            }
+            VerbDependent::Statistic(_) | VerbDependent::Adverbial(_) => {
+                return Err(public_projection_violation());
+            }
+            VerbDependent::Particle(particle) => {
+                target_elements.push(PredicateElement::Particle(particle));
+            }
+            VerbDependent::CoinResult(side) => {
+                target_elements.push(PredicateElement::CoinResult(side));
+            }
+            VerbDependent::Frequency(frequency) => {
+                target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Frequency(
+                    frequency,
+                )));
+            }
+            VerbDependent::CoordinatedObject(coordinated) => {
+                attach_public_object(&mut object, PredicateObject::Coordinated(coordinated))?;
+            }
+            VerbDependent::CoordinatedAdjective(coordinated) => {
+                target_elements.push(PredicateElement::Complement(
+                    PredicateComplement::CoordinatedAdjective(coordinated),
+                ));
+            }
+        }
+    }
+    let head = PredicateHead {
+        auxiliaries,
+        first_auxiliary_contracted_with_subject: Contraction::from(
+            first_auxiliary_contracted_with_subject,
+        ),
+        preverb_modifiers,
+        verb,
+        frame,
+        distributive_each,
+    };
+    let elided = proform
+        && modal.is_some()
+        && object.is_none()
+        && head.auxiliaries.is_empty()
+        && head.preverb_modifiers.is_empty()
+        && pre_object_elements.is_empty()
+        && elements.is_empty();
+    let predicate = if passive {
+        let retained_object = match object {
+            None => None,
+            Some(object) => {
+                if !frame.is_recipient_passive() || !pre_object_elements.is_empty() {
+                    return Err(public_projection_violation());
+                }
+                Some(object)
+            }
+        };
+        pre_object_elements.append(&mut elements);
+        Predicate::Passive(PassivePredicate {
+            head,
+            kind: crate::syntax::Passive { retained_object },
+            elements: pre_object_elements,
+        })
+    } else if let Some(object) = object {
+        Predicate::Transitive(crate::syntax::TransitivePredicate {
+            head,
+            kind: crate::syntax::Transitive {
+                pre_object_elements,
+                object,
+            },
+            elements,
+        })
+    } else if head.auxiliaries.is_empty()
+        && modal.is_none()
+        && head.preverb_modifiers.is_empty()
+        && pre_object_elements.is_empty()
+        && elements.is_empty()
+        && proform
+    {
+        Predicate::Proform(ProPredicate {
+            auxiliary: AuxiliaryInstance {
+                auxiliary: Auxiliary::Do,
+                inflection: proform_inflection(head.verb.slot),
+                contracted_negation: Contraction::Full,
+            },
+        })
+    } else if head.auxiliaries.len() == 1
+        && head.preverb_modifiers.is_empty()
+        && pre_object_elements.is_empty()
+        && elements.is_empty()
+        && proform
+    {
+        Predicate::Proform(ProPredicate {
+            auxiliary: head.auxiliaries[0],
+        })
+    } else {
+        pre_object_elements.append(&mut elements);
+        Predicate::Intransitive(crate::syntax::IntransitivePredicate {
+            head,
+            kind: crate::syntax::Intransitive,
+            elements: pre_object_elements,
+        })
+    };
+    Ok(FinishedPredicate {
+        modal,
+        predicate,
+        elided,
+    })
+}
+
+fn project_public_infinitive(
+    clause: InfinitiveClause,
+) -> Result<crate::syntax::InfinitiveClause, DeclarationViolation> {
+    let (negated, marker, predicate) = clause.declaration_parts();
+    let FinishedPredicate {
+        modal, predicate, ..
+    } = project_public_predicate(predicate.clone())?;
+    if modal.is_some() {
+        return Err(public_projection_violation());
+    }
+    Ok(crate::syntax::InfinitiveClause {
+        negated,
+        marker,
+        predicate: Box::new(predicate),
+    })
+}
+
+fn attach_public_object(
+    slot: &mut Option<PredicateObject>,
+    object: PredicateObject,
+) -> Result<(), DeclarationViolation> {
+    if let Some(PredicateObject::Ability(ability)) = slot
+        && ability.argument.is_none()
+    {
+        ability.argument = Some(Box::new(object));
+        return Ok(());
+    }
+    if slot.replace(object).is_some() {
+        return Err(public_projection_violation());
+    }
+    Ok(())
+}
+
+const fn proform_inflection(slot: VerbSlot) -> AuxiliaryInflection {
+    match slot {
+        VerbSlot::Infinitive | VerbSlot::Imperative => AuxiliaryInflection::Base,
+        VerbSlot::Present { person, number } => AuxiliaryInflection::Present { person, number },
+        VerbSlot::Past { person, number } => AuxiliaryInflection::Past { person, number },
+        VerbSlot::PresentParticiple => AuxiliaryInflection::PresentParticiple,
+        VerbSlot::PastParticiple => AuxiliaryInflection::PastParticiple,
+    }
+}
+
+pub(crate) const fn is_modal(auxiliary: Auxiliary) -> bool {
+    matches!(
+        auxiliary,
+        Auxiliary::Can
+            | Auxiliary::Could
+            | Auxiliary::May
+            | Auxiliary::Might
+            | Auxiliary::Must
+            | Auxiliary::Shall
+            | Auxiliary::Should
+            | Auxiliary::Will
+            | Auxiliary::Would
+    )
+}
+
+fn public_projection_violation() -> DeclarationViolation {
+    violation(
+        "predicate",
+        "the generated predicate projects to one sealed public shape without reordering",
+    )
+}
 
 pub(crate) fn inverse_public_predicate(
     predicate: &Predicate,
@@ -91,13 +619,7 @@ pub(crate) fn inverse_public_predicate(
         Predicate::Proform(predicate) => Ok(VerbPhrase::declaration_proform(predicate.auxiliary)),
         Predicate::Deontic(predicate) => {
             let inner = predicate.inner.as_deref().map_or_else(
-                || {
-                    Ok(VerbPhrase::declaration_proform(AuxiliaryInstance {
-                        auxiliary: crate::word::Auxiliary::Do,
-                        inflection: crate::word::AuxiliaryInflection::Base,
-                        contracted_negation: crate::features::Contraction::Full,
-                    }))
-                },
+                || Ok(VerbPhrase::declaration_elided_proform()),
                 inverse_public_predicate,
             )?;
             Ok(VerbPhrase::declaration_with_auxiliary(

@@ -3,7 +3,6 @@
     reason = "module uses generated imports and shared grammar aliases"
 )]
 use super::*;
-use crate::syntax::AbilityObject;
 use crate::syntax::AttachedPredicate;
 use crate::syntax::AttachmentPosition;
 use crate::syntax::ClauseAttachment;
@@ -25,17 +24,18 @@ use crate::syntax::ExceptionRider;
 use crate::syntax::IndependentClause;
 use crate::syntax::InfinitiveMarker;
 use crate::syntax::Modal;
+#[cfg(test)]
 use crate::syntax::PassivePredicate;
 use crate::syntax::Predicate;
 use crate::syntax::PredicateAdjunct;
+#[cfg(test)]
 use crate::syntax::PredicateComplement;
+#[cfg(test)]
 use crate::syntax::PredicateElement;
 use crate::syntax::PredicateExpression;
 use crate::syntax::PredicateHead;
-use crate::syntax::PredicateObject;
 #[cfg(test)]
 use crate::syntax::PredicateObjectCoordination;
-use crate::syntax::ProPredicate;
 use crate::syntax::RelativeBody;
 use crate::syntax::RelativeMarker;
 use crate::syntax::RestrictionCoordination;

@@ -219,6 +219,276 @@ fn public_invariant_bearing_syntax_uses_checked_constructors() {
 }
 
 #[test]
+fn public_predicate_facade_constructs_transitive_and_roundtrips_exact() {
+    use deckmaste_english::nominal as nominal_api;
+    use deckmaste_english::predicate as predicate_api;
+
+    let card = nominal_api::build_nominal_noun(
+        NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
+    )
+    .unwrap();
+    let card = nominal_api::build_nominal_determiner(Determiner::Indefinite, card).unwrap();
+    let transitive = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Draw),
+            slot: VerbSlot::Imperative,
+        },
+        predicate_api::PredicateFrameChoice::Transitive,
+    )
+    .and_then(|predicate| {
+        predicate_api::build_predicate_direct_object(predicate, NounPhrase::Nominal(card.clone()))
+    })
+    .and_then(predicate_api::finish_predicate)
+    .expect("the declaration accepts draw plus its direct object");
+
+    assert!(matches!(transitive, Predicate::Transitive(_)));
+    let parts = predicate_api::parts_predicate(&transitive)
+        .expect("the generated inverse projects immutable checked parts");
+    assert_eq!(predicate_api::rebuild_predicate(parts).unwrap(), transitive);
+
+    let parsed = parse_fragment(
+        "Draw a card.",
+        &Catalogs::default(),
+        FragmentKind::Sentence,
+        "Test Card",
+        false,
+    )
+    .into_fragment()
+    .expect("the representative generated sentence parses exactly");
+    let Fragment::Sentence(parsed) = parsed else {
+        panic!("requested a sentence fragment")
+    };
+    let SentenceBody::Independent(IndependentClause::Imperative(parsed_predicate)) = parsed.body()
+    else {
+        panic!("draw fixture is imperative")
+    };
+    assert_eq!(parsed_predicate, &transitive);
+    let parsed_parts = predicate_api::parts_predicate(parsed_predicate).unwrap();
+    assert_eq!(
+        predicate_api::rebuild_predicate(parsed_parts).unwrap(),
+        *parsed_predicate,
+    );
+    let sentence = Sentence::try_from_clause(Clause::Independent(IndependentClause::Imperative(
+        transitive.clone(),
+    )))
+    .unwrap();
+    assert_eq!(
+        render_fragment(&Fragment::Sentence(sentence), "Test Card", false).unwrap(),
+        "Draw a card.",
+    );
+}
+
+#[test]
+fn public_predicate_facade_constructs_representative_shapes() {
+    use deckmaste_english::predicate as predicate_api;
+
+    let intransitive = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Attack),
+            slot: VerbSlot::Imperative,
+        },
+        predicate_api::PredicateFrameChoice::Intransitive,
+    )
+    .and_then(predicate_api::finish_predicate)
+    .expect("the declaration accepts an intransitive attack");
+    assert!(matches!(intransitive, Predicate::Intransitive(_)));
+
+    let progressive = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Attack),
+            slot: VerbSlot::PresentParticiple,
+        },
+        predicate_api::PredicateFrameChoice::Intransitive,
+    )
+    .and_then(|predicate| {
+        predicate_api::build_predicate_auxiliary(
+            AuxiliaryInstance {
+                auxiliary: Auxiliary::Be,
+                inflection: AuxiliaryInflection::Base,
+                contracted_negation: deckmaste_english::features::Contraction::Full,
+            },
+            predicate,
+        )
+    })
+    .and_then(predicate_api::finish_predicate)
+    .expect("the declaration accepts a progressive auxiliary");
+    assert!(matches!(progressive, Predicate::Intransitive(_)));
+
+    let passive = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Draw),
+            slot: VerbSlot::PastParticiple,
+        },
+        predicate_api::PredicateFrameChoice::Transitive,
+    )
+    .and_then(|predicate| {
+        predicate_api::build_predicate_auxiliary(
+            AuxiliaryInstance {
+                auxiliary: Auxiliary::Be,
+                inflection: AuxiliaryInflection::Base,
+                contracted_negation: deckmaste_english::features::Contraction::Full,
+            },
+            predicate,
+        )
+    })
+    .and_then(predicate_api::finish_predicate)
+    .expect("the declaration accepts passive promotion");
+    assert!(matches!(passive, Predicate::Passive(_)));
+
+    let dependent = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Play),
+            slot: VerbSlot::Imperative,
+        },
+        predicate_api::PredicateFrameChoice::Transitive,
+    )
+    .and_then(|predicate| {
+        predicate_api::build_predicate_element(
+            predicate,
+            PredicateElement::Adjunct(PredicateAdjunct::Adverb(Vocab::Again)),
+        )
+    })
+    .and_then(predicate_api::finish_predicate)
+    .expect("the declaration accepts a typed adverb dependent");
+    assert!(matches!(dependent, Predicate::Intransitive(_)));
+
+    for predicate in [&intransitive, &progressive, &passive, &dependent] {
+        let parts = predicate_api::parts_predicate(predicate)
+            .expect("every representative public shape has generated inverse parts");
+        assert_eq!(predicate_api::rebuild_predicate(parts).unwrap(), *predicate);
+    }
+
+    for (source, predicate) in [
+        ("Attack.", &intransitive),
+        ("Be attacking.", &progressive),
+        ("Be drawn.", &passive),
+        ("Play again.", &dependent),
+    ] {
+        let sentence = Sentence::try_from_clause(Clause::Independent(
+            IndependentClause::Imperative(predicate.clone()),
+        ))
+        .unwrap();
+        assert_eq!(
+            render_fragment(&Fragment::Sentence(sentence), "Test Card", false).unwrap(),
+            source,
+        );
+    }
+
+    for (source, predicate) in [("Attack.", &intransitive), ("Play again.", &dependent)] {
+        let parsed = parse_fragment(
+            source,
+            &Catalogs::default(),
+            FragmentKind::Sentence,
+            "Test Card",
+            false,
+        )
+        .into_fragment()
+        .expect("the representative generated sentence parses exactly");
+        let Fragment::Sentence(parsed) = parsed else {
+            panic!("requested a sentence fragment")
+        };
+        let SentenceBody::Independent(IndependentClause::Imperative(parsed_predicate)) =
+            parsed.body()
+        else {
+            panic!("representative fixture is imperative")
+        };
+        assert_eq!(parsed_predicate, predicate);
+        let parsed_parts = predicate_api::parts_predicate(parsed_predicate)
+            .expect("grammar-lowered public AST has the same generated inverse");
+        assert_eq!(
+            predicate_api::rebuild_predicate(parsed_parts).unwrap(),
+            *parsed_predicate,
+        );
+    }
+}
+
+#[test]
+fn public_predicate_facade_rejects_invalid_valency_form_voice_and_order() {
+    use deckmaste_english::nominal as nominal_api;
+    use deckmaste_english::predicate as predicate_api;
+
+    let card = nominal_api::build_nominal_noun(
+        NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
+    )
+    .unwrap();
+    let card = nominal_api::build_nominal_determiner(Determiner::Indefinite, card).unwrap();
+
+    let illegal_object = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Attack),
+            slot: VerbSlot::Imperative,
+        },
+        predicate_api::PredicateFrameChoice::Intransitive,
+    )
+    .and_then(|predicate| {
+        predicate_api::build_predicate_direct_object(predicate, NounPhrase::Nominal(card.clone()))
+    });
+    assert!(illegal_object.is_err(), "intransitive valency is sealed");
+
+    let illegal_form = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Attack),
+            slot: VerbSlot::Imperative,
+        },
+        predicate_api::PredicateFrameChoice::Intransitive,
+    )
+    .and_then(|predicate| {
+        predicate_api::build_predicate_auxiliary(
+            AuxiliaryInstance {
+                auxiliary: Auxiliary::Be,
+                inflection: AuxiliaryInflection::Base,
+                contracted_negation: deckmaste_english::features::Contraction::Full,
+            },
+            predicate,
+        )
+    });
+    assert!(illegal_form.is_err(), "auxiliary form selection is sealed");
+
+    let illegal_voice = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Draw),
+            slot: VerbSlot::PastParticiple,
+        },
+        predicate_api::PredicateFrameChoice::Transitive,
+    )
+    .and_then(|predicate| {
+        predicate_api::build_predicate_direct_object(predicate, NounPhrase::Nominal(card.clone()))
+    })
+    .and_then(|predicate| {
+        predicate_api::build_predicate_auxiliary(
+            AuxiliaryInstance {
+                auxiliary: Auxiliary::Be,
+                inflection: AuxiliaryInflection::Base,
+                contracted_negation: deckmaste_english::features::Contraction::Full,
+            },
+            predicate,
+        )
+    });
+    assert!(
+        illegal_voice.is_err(),
+        "ordinary passives cannot retain themes"
+    );
+
+    let illegal_order = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Phase),
+            slot: VerbSlot::Imperative,
+        },
+        predicate_api::PredicateFrameChoice::Transitive,
+    )
+    .and_then(|predicate| {
+        predicate_api::build_predicate_element(
+            predicate,
+            PredicateElement::Particle(VerbParticle::Out),
+        )
+    })
+    .and_then(|predicate| {
+        predicate_api::build_predicate_direct_object(predicate, NounPhrase::Nominal(card))
+    });
+    assert!(illegal_order.is_err(), "tail dependents close object order");
+}
+
+#[test]
 fn public_nominal_phrase_has_a_complete_read_only_projection() {
     let head =
         NounInstance::try_singular(Noun::Word(Vocab::Card)).expect("card is a singular count noun");

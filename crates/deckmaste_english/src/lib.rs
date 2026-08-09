@@ -24,6 +24,7 @@ mod input;
 pub mod nominal;
 mod numeral;
 mod parse;
+pub mod predicate;
 pub mod renderer;
 mod span;
 mod surface;

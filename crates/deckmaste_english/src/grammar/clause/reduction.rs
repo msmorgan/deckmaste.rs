@@ -22,8 +22,8 @@ use super::PronounCase;
 use super::Reduced;
 use super::RuleTag;
 use super::VerbParticle;
-use super::lowering::is_modal;
 use super::propagate;
+use crate::constructions::predicate::is_modal;
 use crate::features::ComplementRole;
 use crate::features::Conjunction;
 

@@ -281,12 +281,14 @@ impl VerbPhrase {
     ) -> Self {
         Self {
             auxiliaries: head.auxiliaries.clone(),
-            first_auxiliary_contracted_with_subject: false,
+            first_auxiliary_contracted_with_subject: head
+                .first_auxiliary_contracted_with_subject
+                .is_contracted(),
             preverb_modifiers: head.preverb_modifiers.clone(),
             verb: head.verb.clone(),
             frame: head.frame,
             dependents,
-            distributive_each: false,
+            distributive_each: head.distributive_each,
         }
     }
 
@@ -308,10 +310,8 @@ impl VerbPhrase {
 
     pub(crate) fn is_declaration_base(&self) -> bool {
         self.auxiliaries.is_empty()
-            && !self.first_auxiliary_contracted_with_subject
             && self.preverb_modifiers.is_empty()
             && self.dependents.is_empty()
-            && !self.distributive_each
     }
 
     pub(crate) fn declaration_with_auxiliary(
@@ -344,16 +344,51 @@ impl VerbPhrase {
         }
     }
 
+    pub(crate) fn declaration_elided_proform() -> Self {
+        Self {
+            auxiliaries: Vec::new(),
+            first_auxiliary_contracted_with_subject: false,
+            preverb_modifiers: Vec::new(),
+            verb: VerbInstance {
+                verb: crate::word::Verb::Word(Vocab::Do),
+                slot: VerbSlot::Infinitive,
+            },
+            frame: crate::word::PROFORM_PREDICATE_FRAMES[0],
+            dependents: Vec::new(),
+            distributive_each: false,
+        }
+    }
+
     pub(crate) fn declaration_proform_part(&self) -> Option<AuxiliaryInstance> {
         (self.frame.is_proform()
             && self.verb.verb == crate::word::Verb::Word(Vocab::Do)
             && self.verb.slot == VerbSlot::Infinitive
             && self.auxiliaries.len() == 1
-            && !self.first_auxiliary_contracted_with_subject
             && self.preverb_modifiers.is_empty()
-            && self.dependents.is_empty()
-            && !self.distributive_each)
-            .then(|| self.auxiliaries[0])
+            && self.dependents.is_empty())
+        .then(|| self.auxiliaries[0])
+    }
+
+    pub(crate) fn into_public_projection_parts(
+        self,
+    ) -> (
+        Vec<AuxiliaryInstance>,
+        bool,
+        Vec<PreverbModifier>,
+        VerbInstance,
+        PredicateFrame,
+        Vec<VerbDependent>,
+        bool,
+    ) {
+        (
+            self.auxiliaries,
+            self.first_auxiliary_contracted_with_subject,
+            self.preverb_modifiers,
+            self.verb,
+            self.frame,
+            self.dependents,
+            self.distributive_each,
+        )
     }
 
     pub(crate) fn declaration_last_dependent_parts(&self) -> Option<(Self, VerbDependent)> {
@@ -496,7 +531,6 @@ impl VerbPhrase {
         Some(features)
     }
 
-    #[cfg(test)]
     pub(crate) fn declaration_core_arguments_complete(&self) -> bool {
         matches!(
             self.declaration_core_features(),
@@ -950,7 +984,6 @@ pub(crate) enum EnglishLexicalSlot {
     /// the preverbal production sees only this word and no other adverb becomes
     /// placeable between a subject and its finite verb.
     PreverbAdverb,
-    /// The exact adverb `only` when it composes a bounded frequency phrase.
     /// The literal word `declare` heading the `declare attackers`/`declare
     /// blockers` combat-step formative [CR#508.1,509.1]. Recognized only as
     /// this exact literal token — never the ordinary `Verb` slot — so the
