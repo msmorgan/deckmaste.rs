@@ -14,23 +14,23 @@ import Experimental.Macros
 
 -- "Lightning Bolt deals 3 damage to any target."
 bolt : Effect []
-bolt = DealDamage This (Lit 3) (target AnyTarget)
+bolt = DealDamage This (Lit 3) (Macros.target AnyTarget)
 
 -- "Barrage of Boulders deals 1 damage to each creature you don't
 -- control." (Ferocious rider line elided) — the corpus has no "each
 -- creature an opponent controls": opponent-scoped sweeps say "you don't
 -- control" or plural "your opponents control" (a later chapter's noun).
 barrageOfBoulders : Effect []
-barrageOfBoulders = DealDamage This (Lit 1) (Each creatureYouDontControl)
+barrageOfBoulders = DealDamage This (Lit 1) (Each Macros.creatureYouDontControl)
 
 -- "Target creature you control deals damage equal to its power to target
 -- creature you don't control." — THE in-situ dividend: "its" is read
 -- where only slot A precedes, so plain uniqueness resolves it; slot B
 -- doesn't exist yet. Hoisted, this exact card needed positional reads.
 rabidBite : Effect []
-rabidBite = DealDamage (target creatureYouControl)
-                       (powerOf It)
-                       (target creatureYouDontControl)
+rabidBite = DealDamage (Macros.target Macros.creatureYouControl)
+                       (Macros.powerOf It)
+                       (Macros.target Macros.creatureYouDontControl)
 
 -- "Target creature you control fights target creature you don't
 -- control." (Prey Upon; its reminder text "(Each deals damage equal to
@@ -39,7 +39,7 @@ rabidBite = DealDamage (target creatureYouControl)
 -- operative spelling) — two same-sort slots are just two argument
 -- positions.
 preyUpon : Effect []
-preyUpon = Fights (target creatureYouControl) (target creatureYouDontControl)
+preyUpon = Fights (Macros.target Macros.creatureYouControl) (Macros.target Macros.creatureYouDontControl)
 
 -- "Arc Trail deals 2 damage to any target and 1 damage to any other
 -- target." — "other" reaches back across the clause boundary; no index,
@@ -49,8 +49,8 @@ preyUpon = Fights (target creatureYouControl) (target creatureYouDontControl)
 -- binding-wise but serializes what the card states as a single
 -- instruction (ledger).
 arcTrail : Effect []
-arcTrail = Sequentially [DealDamage This (Lit 2) (target AnyTarget),
-                         DealDamage This (Lit 1) (target anyOtherTarget)]
+arcTrail = Sequentially [DealDamage This (Lit 2) (Macros.target AnyTarget),
+                         DealDamage This (Lit 1) (Macros.target Macros.anyOtherTarget)]
 
 -- "Exile target creature you control, then return that card to the
 -- battlefield under your control." (Cloudshift) — the exile RETAGS the
@@ -62,8 +62,8 @@ arcTrail = Sequentially [DealDamage This (Lit 2) (target AnyTarget),
 -- elision is derivable, unlike the owner-control override its siblings
 -- write.
 cloudshift : Effect []
-cloudshift = Sequentially [exile (target creatureYouControl),
-                           Move (That CardW) battlefieldZ]
+cloudshift = Sequentially [Macros.exile (Macros.target Macros.creatureYouControl),
+                           Move (That CardW) Macros.battlefieldZ]
 
 -- "You may put a creature card from your hand onto the battlefield. That
 -- creature gains haste. Sacrifice that creature at the beginning of the
@@ -74,9 +74,9 @@ cloudshift = Sequentially [exile (target creatureYouControl),
 -- referent survives the delay [CR#603.7c], and the trailing adverbial
 -- is the `Delayed` mark on its clause.
 throughTheBreach : Effect []
-throughTheBreach = Sequentially [may You (Move (a (And [creature, InZone (handOf You)])) battlefieldZ),
-                                 gainsHaste (That (TypeW Creature)) Nothing,
-                                 Delayed (BeginningOf EndStep Nothing) (sacrifice You (That (TypeW Creature)))]
+throughTheBreach = Sequentially [Macros.may You (Move (Macros.a (And [Macros.creature, InZone (Macros.handOf You)])) Macros.battlefieldZ),
+                                 Macros.gainsHaste (That (TypeW Creature)) Nothing,
+                                 Delayed (BeginningOf EndStep Nothing) (Macros.sacrifice You (That (TypeW Creature)))]
 
 -- "Destroy target creature. Its controller loses 2 life." (Bitter
 -- Downfall; its cost-reduction line elided) — the relational noun:
@@ -84,15 +84,15 @@ throughTheBreach = Sequentially [may You (Move (a (And [creature, InZone (handOf
 -- object (whose "its" still resolves — the retag moved it to the
 -- graveyard, it didn't unmention it).
 bitterDownfall : Effect []
-bitterDownfall = Sequentially [destroy (target creature),
-                               losesLife (ControllerOf It) (Lit 2)]
+bitterDownfall = Sequentially [Macros.destroy (Macros.target Macros.creature),
+                               Macros.losesLife (ControllerOf It) (Lit 2)]
 
 -- "Tap target creature. It deals damage equal to its power to another
 -- target creature." (Deadshot) — pronoun as source, and "another" is
 -- the same `Other` modifier "any other target" uses.
 deadshot : Effect []
-deadshot = Sequentially [Tap (target creature),
-                         DealDamage It (powerOf It) (target (And [creature, Other]))]
+deadshot = Sequentially [Tap (Macros.target Macros.creature),
+                         DealDamage It (Macros.powerOf It) (Macros.target (And [Macros.creature, Other]))]
 
 -- "{1}{B}{R}{R}, {T}, Sacrifice this land: It deals 3 damage to target
 -- player. That player discards a card. Activate only as a sorcery."
@@ -105,10 +105,10 @@ deadshot = Sequentially [Tap (target creature),
 -- (Discard) whose body moves a hand-zone choice.
 immersturmSkullcairn : Ability
 immersturmSkullcairn =
-  Activated (Compound [Mana [generic 1, pip Black, pip Red, pip Red], TapSymbol,
-                       Do (sacrifice You thisLand)])
-            (Sequentially [DealDamage It (Lit 3) (target AnyPlayer),
-                           discardsACard (That PlayerW)])
+  Activated (Compound [Mana [Macros.generic 1, Macros.pip Black, Macros.pip Red, Macros.pip Red], TapSymbol,
+                       Do (Macros.sacrifice You Macros.thisLand)])
+            (Sequentially [DealDamage It (Lit 3) (Macros.target AnyPlayer),
+                           Macros.discardsACard (That PlayerW)])
             {window = Just AsSorcery}
 
 -- "{R}, Sacrifice this artifact: It deals 2 damage to any target."
@@ -118,8 +118,8 @@ immersturmSkullcairn =
 -- now, which is what makes the pair a two-component cost rather than a
 -- one-component one with a note.
 pyriteSpellbomb : Ability
-pyriteSpellbomb = Activated (Compound [Mana [pip Red], Do (sacrifice You thisArtifact)])
-                            (DealDamage It (Lit 2) (target AnyTarget))
+pyriteSpellbomb = Activated (Compound [Mana [Macros.pip Red], Do (Macros.sacrifice You Macros.thisArtifact)])
+                            (DealDamage It (Lit 2) (Macros.target AnyTarget))
 
 -- "Target player sacrifices a creature of their choice." (Diabolic
 -- Edict) — the declarative clause: the target subject introduces, the
@@ -127,18 +127,18 @@ pyriteSpellbomb = Activated (Compound [Mana [pip Red], Do (sacrifice You thisArt
 -- own-choice method on the indefinite (the corpus has no bare "Target
 -- player sacrifices a creature").
 diabolicEdict : Effect []
-diabolicEdict = sacrifice (target AnyPlayer) (aTheirChoice creature)
+diabolicEdict = Macros.sacrifice (Macros.target AnyPlayer) (Macros.aTheirChoice Macros.creature)
 
 -- "Each player sacrifices a creature of their choice." (Innocent
 -- Blood) — a group subject: the same clause shape over "each player".
 innocentBlood : Effect []
-innocentBlood = sacrifice (Each AnyPlayer) (aTheirChoice creature)
+innocentBlood = Macros.sacrifice (Each AnyPlayer) (Macros.aTheirChoice Macros.creature)
 
 -- "Target player discards a card." (Cry of Contrition, first line; its
 -- Haunt lines elided) — the declarative discard whose imperative twin
 -- is the same macro with `You`.
 cryOfContrition : Effect []
-cryOfContrition = discardsACard (target AnyPlayer)
+cryOfContrition = Macros.discardsACard (Macros.target AnyPlayer)
 
 -- "Destroy target creature an opponent controls. That player loses 3
 -- life." (Suspended Sentence; its self-exile clause and Suspend lines
@@ -146,8 +146,8 @@ cryOfContrition = discardsACard (target AnyPlayer)
 -- opponent enters the discourse from INSIDE the target's predicate,
 -- and the sorted demonstrative reads it.
 suspendedSentence : Effect []
-suspendedSentence = Sequentially [destroy (target (And [creature, ControlledBy anOpponent])),
-                                  losesLife (That PlayerW) (Lit 3)]
+suspendedSentence = Sequentially [Macros.destroy (Macros.target (And [Macros.creature, ControlledBy Macros.anOpponent])),
+                                  Macros.losesLife (That PlayerW) (Lit 3)]
 
 -- "Exile this creature, then return it to the battlefield under its
 -- owner's control." (Flickering Spirit's activated ability; its
@@ -158,8 +158,8 @@ suspendedSentence = Sequentially [destroy (target (And [creature, ControlledBy a
 -- instructed player), so its elision is meaning-carrying — pending the
 -- control-assignment axis.
 flickeringSpirit : Effect []
-flickeringSpirit = Sequentially [exile thisCreature,
-                                 Move It battlefieldZ]
+flickeringSpirit = Sequentially [Macros.exile Macros.thisCreature,
+                                 Move It Macros.battlefieldZ]
 
 -- "Exile target creature. Return that card to the battlefield under
 -- its owner's control at the beginning of the next end step." (Turn to
@@ -171,19 +171,19 @@ flickeringSpirit = Sequentially [exile thisCreature,
 -- zone expectation stays runtime (a mismatch is a no-op, not an
 -- illegality).
 turnToMist : Effect []
-turnToMist = Sequentially [exile (target creature),
-                           Delayed (BeginningOf EndStep Nothing) (Move (That CardW) battlefieldZ)]
+turnToMist = Sequentially [Macros.exile (Macros.target Macros.creature),
+                           Delayed (BeginningOf EndStep Nothing) (Move (That CardW) Macros.battlefieldZ)]
 
 -- "Target creature gains flying until end of turn." (Jump) — the
 -- duration as trailing-adverbial data ([CR#611.2a]), and the clause
 -- under the envelope that carries it: the grant is the static effect,
 -- "until end of turn" the span it lasts.
 jump : Effect []
-jump = gains (target creature) (KeywordAbility Flying) (Just untilEndOfTurn)
+jump = Macros.gains (Macros.target Macros.creature) (KeywordAbility Flying) (Just Macros.untilEndOfTurn)
 
 -- "Target creature gets +3/+3 until end of turn." (Giant Growth)
 giantGrowth : Effect []
-giantGrowth = gets (target creature) 3 3 (Just untilEndOfTurn)
+giantGrowth = Macros.gets (Macros.target Macros.creature) 3 3 (Just Macros.untilEndOfTurn)
 
 -- "Target blocking Wall you control gets +10/+0 until end of combat."
 -- (Glyph of Destruction; its damage-prevention and delayed-destruction
@@ -195,7 +195,7 @@ giantGrowth = gets (target creature) 3 3 (Just untilEndOfTurn)
 -- constructions that write it.
 glyphOfDestruction : Effect []
 glyphOfDestruction =
-  gets (target (And [Blocking, creature, ControlledBy You])) 10 0 (Just untilEndOfCombat)
+  Macros.gets (Macros.target (And [Blocking, Macros.creature, ControlledBy You])) 10 0 (Just Macros.untilEndOfCombat)
 
 -- "Gabriel Angelfire gains that ability until your next upkeep."
 -- (Gabriel Angelfire; its upkeep trigger header elided as Case of the
@@ -207,15 +207,15 @@ glyphOfDestruction =
 -- decomposition had to reach a step inside the turn at all.
 gabrielAngelfire : Effect []
 gabrielAngelfire =
-  gains thisCreature (KeywordAbility Flying) (Just untilYourNextUpkeep)
+  Macros.gains Macros.thisCreature (KeywordAbility Flying) (Just Macros.untilYourNextUpkeep)
 
 -- "Return target creature card from your graveyard to the
 -- battlefield. It gains haste until your next turn." (Bond of
 -- Revival) — an owned-zone source and the cross-turn duration; the
 -- return is just a Move, and "it" reads the retagged referent.
 bondOfRevival : Effect []
-bondOfRevival = Sequentially [Move (target (And [creature, InZone (graveyardOf You)])) battlefieldZ,
-                              gainsHaste It (Just untilYourNextTurn)]
+bondOfRevival = Sequentially [Move (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) Macros.battlefieldZ,
+                              Macros.gainsHaste It (Just Macros.untilYourNextTurn)]
 
 -- "When target creature dies this turn, return that card to the
 -- battlefield under its owner's control." (Graceful Reprieve; "under
@@ -226,8 +226,8 @@ bondOfRevival = Sequentially [Move (target (And [creature, InZone (graveyardOf Y
 -- dying retags it to the graveyard ([CR#700.4]), so "that card" is
 -- the carrier that resolves.
 gracefulReprieve : Effect []
-gracefulReprieve = Delayed (Dies (target creature)) {span = Just ThisTurn}
-                           (Move (That CardW) battlefieldZ)
+gracefulReprieve = Delayed (Dies (Macros.target Macros.creature)) {span = Just ThisTurn}
+                           (Move (That CardW) Macros.battlefieldZ)
 
 -- "Destroy target creature. You gain life equal to its toughness."
 -- (Vraska's Stoneglare; its tutor clause elided) — a last-known read:
@@ -235,16 +235,16 @@ gracefulReprieve = Delayed (Dies (target creature)) {span = Just ThisTurn}
 -- readable; which values they see is runtime (the ability layer's
 -- story).
 vraskasStoneglare : Effect []
-vraskasStoneglare = Sequentially [destroy (target creature),
-                                  gainsLife You (toughnessOf It)]
+vraskasStoneglare = Sequentially [Macros.destroy (Macros.target Macros.creature),
+                                  Macros.gainsLife You (Macros.toughnessOf It)]
 
 -- "Destroy target creature. Its controller loses life equal to its
 -- power plus its toughness." (Phthisis; its Suspend line elided) —
 -- the relational noun over the dead referent, and amount arithmetic
 -- threading left to right.
 phthisis : Effect []
-phthisis = Sequentially [destroy (target creature),
-                         losesLife (ControllerOf It) (Plus (powerOf It) (toughnessOf It))]
+phthisis = Sequentially [Macros.destroy (Macros.target Macros.creature),
+                         Macros.losesLife (ControllerOf It) (Plus (Macros.powerOf It) (Macros.toughnessOf It))]
 
 -- "This creature deals damage equal to its power to target creature.
 -- That creature deals damage equal to its power to this creature."
@@ -255,15 +255,15 @@ phthisis = Sequentially [destroy (target creature),
 -- simultaneously (state-based actions see neither mid-resolution,
 -- [CR#704.4]), which is why `Fights` stays primitive.
 karplusanYeti : Effect []
-karplusanYeti = Sequentially [DealDamage thisCreature (powerOf thisCreature) (target creature),
-                              DealDamage (That (TypeW Creature)) (powerOf It) thisCreature]
+karplusanYeti = Sequentially [DealDamage Macros.thisCreature (Macros.powerOf Macros.thisCreature) (Macros.target Macros.creature),
+                              DealDamage (That (TypeW Creature)) (Macros.powerOf It) Macros.thisCreature]
 
 -- "Choose two target creatures. Tap those creatures, then unattach
 -- all Equipment from them." (Fulgent Distraction; the unattach clause
 -- elided) — a counted group mention, read back by the sorted plural
 -- demonstrative.
 fulgentDistraction : Effect []
-fulgentDistraction = Sequentially [Choose (TargetGroup (exactly 2) creature),
+fulgentDistraction = Sequentially [Choose (TargetGroup (Macros.exactly 2) Macros.creature),
                                    Tap (Those (TypeW Creature))]
 
 -- "Choose up to four target creature cards in your graveyard that
@@ -273,8 +273,8 @@ fulgentDistraction = Sequentially [Choose (TargetGroup (exactly 2) creature),
 -- owned-zone predicate, and the plural wildcard riding the return's
 -- retag.
 continueSpell : Effect []
-continueSpell = Sequentially [Choose (TargetGroup (upTo 4) (And [creature, InZone (graveyardOf You)])),
-                              Move Them battlefieldZ]
+continueSpell = Sequentially [Choose (TargetGroup (Macros.upTo 4) (And [Macros.creature, InZone (Macros.graveyardOf You)])),
+                              Move Them Macros.battlefieldZ]
 
 -- "Choose a color. Sudden Demise deals X damage to each creature of
 -- the chosen color." (Sudden Demise) — a quality mention: the chosen
@@ -282,15 +282,15 @@ continueSpell = Sequentially [Choose (TargetGroup (upTo 4) (And [creature, InZon
 -- predicate-internal read demands it uniquely; X is the announced
 -- cost variable ([CR#107.3a]).
 suddenDemise : Effect []
-suddenDemise = Sequentially [Choose (a (QualityNoun Color)),
-                             DealDamage This XVal (Each (And [creature, OfChosen Color]))]
+suddenDemise = Sequentially [Choose (Macros.a (QualityNoun Color)),
+                             DealDamage This XVal (Each (And [Macros.creature, OfChosen Color]))]
 
 -- "Choose a creature type. Destroy all creatures that aren't of the
 -- chosen type." (Kindred Dominance) — the set-level "all" determiner
 -- over a negated quality read.
 kindredDominance : Effect []
-kindredDominance = Sequentially [Choose (a (QualityNoun CreatureType)),
-                                 destroy (AllOf (And [creature, Not (OfChosen CreatureType)]))]
+kindredDominance = Sequentially [Choose (Macros.a (QualityNoun CreatureType)),
+                                 Macros.destroy (AllOf (And [Macros.creature, Not (OfChosen CreatureType)]))]
 
 -- "{2}, Sacrifice this artifact: Exile target creature. Return the
 -- exiled card to the battlefield under its owner's control at the
@@ -304,9 +304,9 @@ kindredDominance = Sequentially [Choose (a (QualityNoun CreatureType)),
 -- verb filter picks the exile; the delay carries it as usual
 -- ([CR#603.7c]).
 voyagerStaff : Ability
-voyagerStaff = Activated (Compound [Mana [generic 2], Do (sacrifice You thisArtifact)])
-                         (Sequentially [exile (target creature),
-                                          Delayed (BeginningOf EndStep Nothing) (Move (TheVerbed Exile CardW) battlefieldZ)])
+voyagerStaff = Activated (Compound [Mana [Macros.generic 2], Do (Macros.sacrifice You Macros.thisArtifact)])
+                         (Sequentially [Macros.exile (Macros.target Macros.creature),
+                                          Delayed (BeginningOf EndStep Nothing) (Move (TheVerbed Exile CardW) Macros.battlefieldZ)])
 
 -- "{3}{R}, Sacrifice an artifact: Bosh deals damage equal to the
 -- sacrificed artifact's mana value to any target." (Bosh, Iron Golem;
@@ -316,11 +316,11 @@ voyagerStaff = Activated (Compound [Mana [generic 2], Do (sacrifice You thisArti
 -- time-stable projected head type, the axis a declared type word
 -- lives on (finding 27).
 boshIronGolem : Ability
-boshIronGolem = Activated (Compound [Mana [generic 3, pip Red],
-                                     Do (sacrifice You (a (HasType Artifact)))])
+boshIronGolem = Activated (Compound [Mana [Macros.generic 3, Macros.pip Red],
+                                     Do (Macros.sacrifice You (Macros.a (HasType Artifact)))])
                           (DealDamage This
-                                      (manaValueOf (TheVerbed Sacrifice (TypeW Artifact)))
-                                      (target AnyTarget))
+                                      (Macros.manaValueOf (TheVerbed Sacrifice (TypeW Artifact)))
+                                      (Macros.target AnyTarget))
 
 -- "{3}, Discard a card at random: This enchantment deals damage to
 -- any target equal to the mana value of the discarded card."
@@ -335,11 +335,11 @@ boshIronGolem = Activated (Compound [Mana [generic 3, pip Red],
 -- type, so [CR#109.2] denotes the permanent (bare `This` was standing
 -- in for the missing `Enchantment` row).
 pyromancy : Ability
-pyromancy = Activated (Compound [Mana [generic 3],
-                                 Do (discards You (aAtRandom (InZone handZ)))])
-                      (DealDamage thisEnchantment
-                                  (manaValueOf (TheVerbed Discard CardW))
-                                  (target AnyTarget))
+pyromancy = Activated (Compound [Mana [Macros.generic 3],
+                                 Do (Macros.discards You (Macros.aAtRandom (InZone Macros.handZ)))])
+                      (DealDamage Macros.thisEnchantment
+                                  (Macros.manaValueOf (TheVerbed Discard CardW))
+                                  (Macros.target AnyTarget))
 
 -- "Target opponent loses 1 life for each attacking creature you
 -- control. You gain that much life." (Foul-Tongue Shriek) — the
@@ -348,16 +348,16 @@ pyromancy = Activated (Compound [Mana [generic 3],
 -- "that much" reads the unique outcome in scope, sort-blind. The
 -- attacking modifier is a battlefield state word ([CR#508.1a]).
 foulTongueShriek : Effect []
-foulTongueShriek = Sequentially [losesLife (target Opponent)
-                                           (forEach (And [Attacking, creature, ControlledBy You])),
-                                 gainsLife You ThatMuch]
+foulTongueShriek = Sequentially [Macros.losesLife (Macros.target Opponent)
+                                           (Macros.forEach (And [Attacking, Macros.creature, ControlledBy You])),
+                                 Macros.gainsLife You ThatMuch]
 
 -- "Return target creature to its owner's hand." (Unsummon) — the
 -- destination is the bare-scoped hand (`handZ`): [CR#400.3] admits no
 -- other hand, so
 -- the possessive is derived surface, never stored (finding 34).
 unsummon : Effect []
-unsummon = Move (target creature) handZ
+unsummon = Move (Macros.target Macros.creature) Macros.handZ
 
 -- "When this Equipment enters, attach it to up to one target creature
 -- you control. Destroy up to one other target creature." (Phantom
@@ -366,8 +366,8 @@ unsummon = Move (target creature) handZ
 -- mention is a real "other" anchor: the witness is the MENTION, not
 -- a nonempty denotation (finding 35).
 phantomBlade : Effect []
-phantomBlade = Sequentially [Choose (TargetGroup (upTo 1) (And [creature, ControlledBy You])),
-                             destroy (TargetGroup (upTo 1) (And [creature, Other]))]
+phantomBlade = Sequentially [Choose (TargetGroup (Macros.upTo 1) (And [Macros.creature, ControlledBy You])),
+                             Macros.destroy (TargetGroup (Macros.upTo 1) (And [Macros.creature, Other]))]
 
 -- "When this Case enters, choose target creature you don't control.
 -- Each creature you control deals 1 damage to that creature." (Case of
@@ -379,8 +379,8 @@ phantomBlade = Sequentially [Choose (TargetGroup (upTo 1) (And [creature, Contro
 -- sentence scopes the demonstrative that follows (finding 22), and the
 -- group source is no antecedent for it — `countWord` counts singulars.
 caseOfTheGatewayExpress : Effect []
-caseOfTheGatewayExpress = Sequentially [Choose (target creatureYouDontControl),
-                                        DealDamage (Each creatureYouControl) (Lit 1)
+caseOfTheGatewayExpress = Sequentially [Choose (Macros.target Macros.creatureYouDontControl),
+                                        DealDamage (Each Macros.creatureYouControl) (Lit 1)
                                                    (That (TypeW Creature))]
 
 -- "Cycling {2}" — "{2}, Discard this card: Draw a card." ([CR#702.29a];
@@ -390,7 +390,7 @@ caseOfTheGatewayExpress = Sequentially [Choose (target creatureYouDontControl),
 -- while the SORTED self-reference now denotes the permanent
 -- ([CR#109.2]) and cannot be discarded (`badDiscardThisCreature`).
 cyclingCost : Effect []
-cyclingCost = discards You This
+cyclingCost = Macros.discards You This
 
 -- "Target nonattacking, nonblocking creature gets +0/+2 until end of
 -- turn." — a presupposed zone projects THROUGH negation: negating the
@@ -404,7 +404,7 @@ cyclingCost = discards You This
 -- which is the same fact `badNegatedDisjunction` states from the
 -- other side.
 rawNonattacking : Predicate [] Object
-rawNonattacking = And [creature, Not Attacking, Not Blocking]
+rawNonattacking = And [Macros.creature, Not Attacking, Not Blocking]
 
 -- "Exile target creature." spelled raw — the tag-ALIGNED twin of
 -- `badDestroyTaggedExile`: same body, agreeing tag. The `TagBody`
@@ -412,7 +412,7 @@ rawNonattacking = And [creature, Not Attacking, Not Blocking]
 -- here, at a concrete site with no nested autos — the same reason the
 -- `exile` macro passes `{ok = ExileB}`.
 rawExile : Effect []
-rawExile = Composite Exile (Move (target creature) exileZ) {ok = ExileB}
+rawExile = Composite Exile (Move (Macros.target Macros.creature) Macros.exileZ) {ok = ExileB}
 
 -- ===== Alternatives under one determiner: the disjunction chapter =====
 
@@ -424,7 +424,7 @@ rawExile = Composite Exile (Move (target creature) exileZ) {ok = ExileB}
 -- beside it. That is why disjunction is a PREDICATE, not a second
 -- noun.
 disenchant : Effect []
-disenchant = destroy (target (Or [artifact, enchantment]))
+disenchant = Macros.destroy (Macros.target (Or [Macros.artifact, Macros.enchantment]))
 
 -- "Tap target artifact, creature, or land." (Icy Manipulator; its mana
 -- and {T} cost elided) — a third alternative costs no machinery, and
@@ -433,7 +433,7 @@ disenchant = destroy (target (Or [artifact, enchantment]))
 -- connective, and it is core's shape too (`Predicate::Or` takes a
 -- slice).
 icyManipulator : Effect []
-icyManipulator = Tap (target (Or [artifact, creature, land]))
+icyManipulator = Tap (Macros.target (Or [Macros.artifact, Macros.creature, Macros.land]))
 
 -- "Destroy target artifact, creature, or land you control." (Rats of
 -- Rath; its mana cost elided) — the shared trailing modifier, and it
@@ -445,7 +445,7 @@ icyManipulator = Tap (target (Or [artifact, creature, land]))
 -- alternative — is what the guide reserves for alternatives with
 -- different domains.
 ratsOfRath : Effect []
-ratsOfRath = destroy (target (And [Or [artifact, creature, land], ControlledBy You]))
+ratsOfRath = Macros.destroy (Macros.target (And [Or [Macros.artifact, Macros.creature, Macros.land], ControlledBy You]))
 
 -- "Arrows of Justice deals 4 damage to target attacking or blocking
 -- creature." — alternatives that CONTRAST: no creature is both, and
@@ -455,7 +455,7 @@ ratsOfRath = destroy (target (And [Or [artifact, creature, land], ControlledBy Y
 -- and blocking" and refuse a phrase ninety-five corpus lines write.
 arrowsOfJustice : Effect []
 arrowsOfJustice = DealDamage This (Lit 4)
-                             (target (And [creature, Or [Attacking, Blocking]]))
+                             (Macros.target (And [Macros.creature, Or [Attacking, Blocking]]))
 
 -- "another target creature or land" — the selector reaches over the
 -- whole coordination, as the corpus writes it ("Another target Wolf or
@@ -467,7 +467,7 @@ arrowsOfJustice = DealDamage This (Lit 4)
 -- refusal is `badDisjunctiveOtherCrossHead`'s.
 anotherDisjunctPhrase : Predicate [MkBinding TargetD Object OneOf
                                              (ObjectP Nothing (Just Battlefield) Nothing Nothing)] Object
-anotherDisjunctPhrase = And [Or [creature, land], Other]
+anotherDisjunctPhrase = And [Or [Macros.creature, Macros.land], Other]
 
 -- ===== What a clause forbids: the deontics chapter =====
 
@@ -479,14 +479,14 @@ anotherDisjunctPhrase = And [Or [creature, land], Other]
 -- creature being blocked, core's `on` slot, where "can't block" would
 -- put it in `by`.
 infiltrate : Effect []
-infiltrate = cantBeBlocked (target creature) (Just thisTurn)
+infiltrate = Macros.cantBeBlocked (Macros.target Macros.creature) (Just Macros.thisTurn)
 
 -- "Target creature can't attack this turn." (Change of Heart; its
 -- Buyback line elided — a keyword rider, as with Cascade and Splice)
 -- — the active voice of the same clause, checked at declare attackers
 -- instead ([CR#508.1c]).
 changeOfHeart : Effect []
-changeOfHeart = cantAttack (target creature) (Just thisTurn)
+changeOfHeart = Macros.cantAttack (Macros.target Macros.creature) (Just Macros.thisTurn)
 
 -- "Blindblast deals 1 damage to target creature. That creature can't
 -- block this turn." (Blindblast; "Draw a card." elided — no draw
@@ -494,8 +494,8 @@ changeOfHeart = cantAttack (target creature) (Just thisTurn)
 -- like any other clause: the demonstrative reads the mention the damage
 -- clause introduced, and the deontic needs nothing of its own for it.
 blindblast : Effect []
-blindblast = Sequentially [DealDamage This (Lit 1) (target creature),
-                           cantBlock (That (TypeW Creature)) (Just thisTurn)]
+blindblast = Sequentially [DealDamage This (Lit 1) (Macros.target Macros.creature),
+                           Macros.cantBlock (That (TypeW Creature)) (Just Macros.thisTurn)]
 
 -- "Any number of target creatures can't block this turn." (Blinding
 -- Flare; its Strive cost-modification line elided) — the subject is
@@ -503,7 +503,7 @@ blindblast = Sequentially [DealDamage This (Lit 1) (target creature),
 -- ranges over whatever its subject phrase describes, one creature or a
 -- group announced at once.
 blindingFlare : Effect []
-blindingFlare = cantBlock (TargetGroup anyNumber creature) (Just thisTurn)
+blindingFlare = Macros.cantBlock (TargetGroup Macros.anyNumber Macros.creature) (Just Macros.thisTurn)
 
 -- ===== A bound on a characteristic: the comparatives chapter =====
 
@@ -514,7 +514,7 @@ blindingFlare = cantBlock (TargetGroup anyNumber creature) (Just thisTurn)
 -- (`Stat(Power, AtMost, 2)`), and the presupposition that comes with
 -- them — only a creature has power ([CR#208.3]).
 defeat : Effect []
-defeat = destroy (target (And [creature, Compare Power OrLess (Lit 2)]))
+defeat = Macros.destroy (Macros.target (And [Macros.creature, Compare Power OrLess (Lit 2)]))
 
 -- "Destroy target attacking creature with power 3 or less." (Terashi's
 -- Verdict) — a status word and a bound in ONE phrase, which is the
@@ -524,7 +524,7 @@ defeat = destroy (target (And [creature, Compare Power OrLess (Lit 2)]))
 -- bound places nothing.
 terashisVerdict : Effect []
 terashisVerdict =
-  destroy (target (And [creature, Attacking, Compare Power OrLess (Lit 3)]))
+  Macros.destroy (Macros.target (And [Macros.creature, Attacking, Compare Power OrLess (Lit 3)]))
 
 -- "Exile target creature with toughness 4 or greater." (Pillar of
 -- Light) — the other comparator and the other creature-gated
@@ -532,7 +532,7 @@ terashisVerdict =
 -- real cards rather than by one card and an argument.
 pillarOfLight : Effect []
 pillarOfLight =
-  exile (target (And [creature, Compare Toughness OrGreater (Lit 4)]))
+  Macros.exile (Macros.target (And [Macros.creature, Compare Toughness OrGreater (Lit 4)]))
 
 -- "Destroy target artifact with mana value 3 or less. You gain 3
 -- life." (Lucky Offering) — mana value on a NONCREATURE head, which is
@@ -544,9 +544,9 @@ pillarOfLight =
 -- but creatures.
 luckyOffering : Effect []
 luckyOffering =
-  Sequentially [destroy (target (And [artifact,
+  Sequentially [Macros.destroy (Macros.target (And [Macros.artifact,
                                       Compare ManaValue OrLess (Lit 3)])),
-                gainsLife You (Lit 3)]
+                Macros.gainsLife You (Lit 3)]
 
 -- ===== What a clause can be conditioned on: the conditions chapter =====
 
@@ -560,8 +560,8 @@ luckyOffering =
 -- `Comparator`, one `StatOf` read, one written bound — in the
 -- predicative frame instead of the postnominal one.
 overload : Effect []
-overload = If (destroy (target artifact))
-              (CompareAmt (manaValueOf It) OrLess (Lit 2))
+overload = If (Macros.destroy (Macros.target Macros.artifact))
+              (CompareAmt (Macros.manaValueOf It) OrLess (Lit 2))
               Nothing
 
 -- "Target attacking creature gets +3/+3 until end of turn. If it's an
@@ -574,9 +574,9 @@ overload = If (destroy (target artifact))
 -- creature" a noun phrase would spell the same way.
 builtToSmash : Effect []
 builtToSmash =
-  Sequentially [gets (target (And [creature, Attacking])) 3 3 (Just untilEndOfTurn),
-                If (gains It (KeywordAbility Trample) (Just untilEndOfTurn))
-                   (itsA (And [artifact, creature]))
+  Sequentially [Macros.gets (Macros.target (And [Macros.creature, Attacking])) 3 3 (Just Macros.untilEndOfTurn),
+                If (Macros.gains It (KeywordAbility Trample) (Just Macros.untilEndOfTurn))
+                   (Macros.itsA (And [Macros.artifact, Macros.creature]))
                    Nothing]
 
 -- "Flames of the Raze-Boar deals 4 damage to target creature an
@@ -591,10 +591,10 @@ builtToSmash =
 -- inside the conditions chapter's quantifier.
 flamesOfTheRazeBoar : Effect []
 flamesOfTheRazeBoar =
-  Sequentially [DealDamage This (Lit 4) (target (And [creature, ControlledBy anOpponent])),
+  Sequentially [DealDamage This (Lit 4) (Macros.target (And [Macros.creature, ControlledBy Macros.anOpponent])),
                 If (DealDamage This (Lit 2)
-                               (Each (And [creature, Other, ControlledBy (That PlayerW)])))
-                   (Exists (And [creature, ControlledBy You,
+                               (Each (And [Macros.creature, Other, ControlledBy (That PlayerW)])))
+                   (Exists (And [Macros.creature, ControlledBy You,
                                  Compare Power OrGreater (Lit 4)]))
                    Nothing]
 
@@ -607,7 +607,7 @@ flamesOfTheRazeBoar =
 -- type.
 braidsFrightfulReturn : Effect []
 braidsFrightfulReturn =
-  mayThen You (sacrifice You (a creature)) (discardsACard (Each Opponent))
+  Macros.mayThen You (Macros.sacrifice You (Macros.a Macros.creature)) (Macros.discardsACard (Each Opponent))
 
 -- "You may sacrifice an artifact. If you do, destroy target artifact or
 -- creature." (Daretti, Ingenious Iconoclast's [−1]; the loyalty cost is
@@ -616,8 +616,8 @@ braidsFrightfulReturn =
 -- carried on the same sentence.
 darettisMinusOne : Effect []
 darettisMinusOne =
-  mayThen You (sacrifice You (a artifact))
-              (destroy (target (Or [artifact, creature])))
+  Macros.mayThen You (Macros.sacrifice You (Macros.a Macros.artifact))
+              (Macros.destroy (Macros.target (Or [Macros.artifact, Macros.creature])))
 
 -- "You may sacrifice an artifact. If you don't, tap this creature and
 -- it deals 2 damage to you." (Yawgmoth Demon; the upkeep trigger
@@ -642,14 +642,14 @@ darettisMinusOne =
 -- afterward, and names its subject rather than pronouncing it.
 crovaxTheCursed : Effect []
 crovaxTheCursed =
-  mayThenElse You (sacrifice You (a creature))
-                  (PutCounters (Lit 1) plusOnePlusOne thisCreature)
-                  (RemoveCounters (Lit 1) plusOnePlusOne thisCreature)
+  Macros.mayThenElse You (Macros.sacrifice You (Macros.a Macros.creature))
+                  (PutCounters (Lit 1) Macros.plusOnePlusOne Macros.thisCreature)
+                  (RemoveCounters (Lit 1) Macros.plusOnePlusOne Macros.thisCreature)
 
 yawgmothDemon : Effect []
 yawgmothDemon =
-  mayElse You (sacrifice You (a artifact))
-              (Sequentially [Tap thisCreature, DealDamage This (Lit 2) You])
+  Macros.mayElse You (Macros.sacrifice You (Macros.a Macros.artifact))
+              (Sequentially [Tap Macros.thisCreature, DealDamage This (Lit 2) You])
 
 -- ===== Objects made and counters moved: the creation chapter =====
 
@@ -660,7 +660,7 @@ yawgmothDemon =
 -- The count is the ordinary amount vocabulary and the plural noun reads
 -- off it (`amtPlur`).
 raiseTheAlarm : Effect []
-raiseTheAlarm = create (Lit 2) (creatureTok 1 1 [White] [Soldier])
+raiseTheAlarm = Macros.create (Lit 2) (Macros.creatureTok 1 1 [White] [Soldier])
 
 -- "When this enchantment enters, create a 0/0 green and blue Fractal
 -- creature token. Put three +1/+1 counters on it." (Additive Evolution's
@@ -673,8 +673,8 @@ raiseTheAlarm = create (Lit 2) (creatureTok 1 1 [White] [Soldier])
 -- object is two or more of the five colors) and the 0/0 body a counter
 -- clause exists to fix.
 additiveEvolution : Effect []
-additiveEvolution = Sequentially [create (Lit 1) (creatureTok 0 0 [Green, Blue] [Fractal]),
-                                  PutCounters (Lit 3) plusOnePlusOne It]
+additiveEvolution = Sequentially [Macros.create (Lit 1) (Macros.creatureTok 0 0 [Green, Blue] [Fractal]),
+                                  PutCounters (Lit 3) Macros.plusOnePlusOne It]
 
 -- "When this creature enters, create a 1/1 colorless Thopter artifact
 -- creature token with flying." (Aviation Pioneer; the trigger header
@@ -684,7 +684,7 @@ additiveEvolution = Sequentially [create (Lit 1) (creatureTok 0 0 [Green, Blue] 
 -- keyword vocabulary unchanged.
 aviationPioneer : Effect []
 aviationPioneer =
-  create (Lit 1) (MkToken (Just (1, 1)) [] (MkTypeLine [Thopter] [Artifact, Creature])
+  Macros.create (Lit 1) (MkToken (Just (1, 1)) [] (MkTypeLine [Thopter] [Artifact, Creature])
                           [Flying] Nothing)
 
 -- "Whenever you attack, create a 2/1 colorless Construct artifact
@@ -697,7 +697,7 @@ aviationPioneer =
 -- follows both.
 fireNavyTrebuchet : Effect []
 fireNavyTrebuchet =
-  createTappedAttacking (Lit 1)
+  Macros.createTappedAttacking (Lit 1)
     (MkToken (Just (2, 1)) [] (MkTypeLine [Construct] [Artifact, Creature])
              [Flying] (Just "Ballistic Boulder"))
 
@@ -726,13 +726,13 @@ fireNavyTrebuchet =
 -- then the counters on what was chosen.
 amassZombiesTwo : Effect []
 amassZombiesTwo =
-  Sequentially [If (create (Lit 1) (creatureTok 0 0 [Black] [Zombie, Army]))
-                   (notSo (Exists (And [HasSubtype Army, creature, ControlledBy You])))
+  Sequentially [If (Macros.create (Lit 1) (Macros.creatureTok 0 0 [Black] [Zombie, Army]))
+                   (Macros.notSo (Exists (And [HasSubtype Army, Macros.creature, ControlledBy You])))
                    Nothing,
-                Choose (a (And [HasSubtype Army, creature, ControlledBy You])),
-                PutCounters (Lit 2) plusOnePlusOne (That (TypeW Creature)),
-                If (becomes It (subtypesOnly [Zombie]) Nothing)
-                   (itIsntA (HasSubtype Zombie))
+                Choose (Macros.a (And [HasSubtype Army, Macros.creature, ControlledBy You])),
+                PutCounters (Lit 2) Macros.plusOnePlusOne (That (TypeW Creature)),
+                If (Macros.becomes It (Macros.subtypesOnly [Zombie]) Nothing)
+                   (Macros.itIsntA (HasSubtype Zombie))
                    Nothing]
 
 -- "Put a +1/+1 counter on target creature." (Battlegrowth) — the
@@ -740,7 +740,7 @@ amassZombiesTwo =
 -- `PutCounters` carries no actor slot either) and battlefield-bound like
 -- every other verb that touches a permanent.
 battlegrowth : Effect []
-battlegrowth = PutCounters (Lit 1) plusOnePlusOne (target creature)
+battlegrowth = PutCounters (Lit 1) Macros.plusOnePlusOne (Macros.target Macros.creature)
 
 -- "{3}, {T}: Remove a -1/-1 counter from target creature."
 -- (Chainbreaker; its mana and {T} cost elided as Icy Manipulator's are,
@@ -748,7 +748,7 @@ battlegrowth = PutCounters (Lit 1) plusOnePlusOne (target creature)
 -- twin, and the other stat counter, so the two first-class kinds are
 -- spelled end to end by real cards.
 chainbreaker : Effect []
-chainbreaker = RemoveCounters (Lit 1) minusOneMinusOne (target creature)
+chainbreaker = RemoveCounters (Lit 1) Macros.minusOneMinusOne (Macros.target Macros.creature)
 
 -- "[−2]: Tap target creature. Put two stun counters on it." (Kaito, Bane
 -- of Nightmares; the loyalty cost is the ability layer's, as Daretti's
@@ -756,7 +756,7 @@ chainbreaker = RemoveCounters (Lit 1) minusOneMinusOne (target creature)
 -- kind's positive: a kind earns its row where a corpus line writes it as
 -- a one-shot put, which stun is and charge, age, and quest are not.
 kaitoBaneOfNightmares : Effect []
-kaitoBaneOfNightmares = Sequentially [Tap (target creature),
+kaitoBaneOfNightmares = Sequentially [Tap (Macros.target Macros.creature),
                                       PutCounters (Lit 2) Stun It]
 
 -- "{2}, Exile a nonland card from your hand: Put four time counters on
@@ -769,8 +769,8 @@ kaitoBaneOfNightmares = Sequentially [Tap (target creature),
 -- thing that had to change is the verb's zone table.
 jhoiraOfTheGhitu : Ability
 jhoiraOfTheGhitu =
-  Activated (Compound [Mana [generic 2],
-                       Do (exile (a (And [Not land, InZone (handOf You)])))])
+  Activated (Compound [Mana [Macros.generic 2],
+                       Do (Macros.exile (Macros.a (And [Not Macros.land, InZone (Macros.handOf You)])))])
             (PutCounters (Lit 4) Time (TheVerbed Exile CardW))
 
 -- "…Then remove a time counter from each other card you own in exile."
@@ -780,7 +780,7 @@ jhoiraOfTheGhitu =
 -- in the second zone, and the phrase places its own referent there
 -- rather than inheriting a mention's fold-state.
 alaundoTheSeer : Effect []
-alaundoTheSeer = RemoveCounters (Lit 1) Time (Each (InZone exileZ))
+alaundoTheSeer = RemoveCounters (Lit 1) Time (Each (InZone Macros.exileZ))
 
 -- "Arc Blade deals 2 damage to any target. Exile Arc Blade with three
 -- time counters on it." (Arc Blade, both sentences; its suspend line is
@@ -788,8 +788,8 @@ alaundoTheSeer = RemoveCounters (Lit 1) Time (Each (InZone exileZ))
 -- EXILE-WITH-COUNTERS rider, the delay family's own frame, and the card
 -- exiles ITSELF, which is why the second sentence names no new phrase.
 arcBlade : Effect []
-arcBlade = Sequentially [DealDamage This (Lit 2) (target AnyTarget),
-                         exileWithCounters This (Lit 3) Time]
+arcBlade = Sequentially [DealDamage This (Lit 2) (Macros.target AnyTarget),
+                         Macros.exileWithCounters This (Lit 3) Time]
 
 -- "Exile target creature you control, then return that card to the
 -- battlefield under its owner's control with a +1/+1 counter on it."
@@ -801,11 +801,11 @@ arcBlade = Sequentially [DealDamage This (Lit 2) (target AnyTarget),
 -- one's reason ([CR#110.1]).
 daydream : Card
 daydream =
-  card "Daydream" (Just [pip White]) [] (MkTypeLine [] [Sorcery])
-       [Spell (Sequentially [exile (target creatureYouControl),
-                             returnToBattlefieldWithCounters
+  Macros.card "Daydream" (Just [Macros.pip White]) [] (MkTypeLine [] [Sorcery])
+       [Spell (Sequentially [Macros.exile (Macros.target Macros.creatureYouControl),
+                             Macros.returnToBattlefieldWithCounters
                                (That CardW) (OwnerOf (That CardW))
-                               (Lit 1) plusOnePlusOne])]
+                               (Lit 1) Macros.plusOnePlusOne])]
        Nothing
 
 -- "{T}, Sacrifice this artifact: Put a +1/+1 counter on target
@@ -819,10 +819,10 @@ daydream =
 -- a graveyard.
 ashnodsTransmogrant : Ability
 ashnodsTransmogrant =
-  Activated (Compound [TapSymbol, Do (sacrifice You thisArtifact)])
-            (Sequentially [PutCounters (Lit 1) plusOnePlusOne
-                                         (target (And [creature, Not artifact])),
-                             becomes (That (TypeW Creature)) (typesOnly [Artifact]) Nothing])
+  Activated (Compound [TapSymbol, Do (Macros.sacrifice You Macros.thisArtifact)])
+            (Sequentially [PutCounters (Lit 1) Macros.plusOnePlusOne
+                                         (Macros.target (And [Macros.creature, Not Macros.artifact])),
+                             Macros.becomes (That (TypeW Creature)) (Macros.typesOnly [Artifact]) Nothing])
 
 -- "{U}: Target creature becomes an artifact in addition to its other
 -- types until end of turn." (Neurok Transmuter, first ability; its mana
@@ -831,7 +831,7 @@ ashnodsTransmogrant =
 -- eighteen corpus lines end a bare type addition at end of turn and not
 -- one ends one at end of combat.
 neurokTransmuter : Effect []
-neurokTransmuter = becomes (target creature) (typesOnly [Artifact]) (Just untilEndOfTurn)
+neurokTransmuter = Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Artifact]) (Just Macros.untilEndOfTurn)
 
 -- "Target creature can't block this turn and becomes a Coward in
 -- addition to its other types until end of turn." (Coward // Killer's
@@ -842,9 +842,9 @@ neurokTransmuter = becomes (target creature) (typesOnly [Artifact]) (Just untilE
 -- takes "until end of turn", the two adverbials chapter seventeen
 -- measured apart, written here by one writer in one breath.
 cowardKiller : Effect []
-cowardKiller = Sequentially [cantBlock (target creature) (Just thisTurn),
-                             becomes (That (TypeW Creature)) (subtypesOnly [Coward])
-                                     (Just untilEndOfTurn)]
+cowardKiller = Sequentially [Macros.cantBlock (Macros.target Macros.creature) (Just Macros.thisTurn),
+                             Macros.becomes (That (TypeW Creature)) (Macros.subtypesOnly [Coward])
+                                     (Just Macros.untilEndOfTurn)]
 
 -- "Target attacking creature that isn't a Demon" — the negated subtype
 -- word, widened from Clavileño, First of the Blessed's "target attacking
@@ -854,7 +854,7 @@ cowardKiller = Sequentially [cantBlock (target creature) (Just thisTurn),
 -- head, so a Creature projection here would read "that isn't a Demon" as
 -- "noncreature" and refuse a phrase oracle writes.
 clavilenoPhrase : Predicate [] Object
-clavilenoPhrase = And [creature, Attacking, Not (HasSubtype Demon)]
+clavilenoPhrase = And [Macros.creature, Attacking, Not (HasSubtype Demon)]
 
 -- "Draw a card. If you control a Demon, each opponent loses 2 life and
 -- you gain 2 life. Otherwise, you lose 2 life." (Unholy Annex's end-step
@@ -868,11 +868,11 @@ clavilenoPhrase = And [creature, Attacking, Not (HasSubtype Demon)]
 -- sequence the card writes.
 unholyAnnex : Effect []
 unholyAnnex =
-  Sequentially [drawACard,
-                If (Sequentially [losesLife (Each Opponent) (Lit 2),
-                                  gainsLife You (Lit 2)])
+  Sequentially [Macros.drawACard,
+                If (Sequentially [Macros.losesLife (Each Opponent) (Lit 2),
+                                  Macros.gainsLife You (Lit 2)])
                    (Exists (And [HasSubtype Demon, ControlledBy You]))
-                   (Just (losesLife You (Lit 2)))]
+                   (Just (Macros.losesLife You (Lit 2)))]
 
 -- ===== Cards drawn, modes chosen, and what a choice leaves behind: the composite-glue chapter =====
 
@@ -880,13 +880,13 @@ unholyAnnex =
 -- flagship, and the plainest shape it has: the imperative's unpronounced
 -- subject spelled as `You`, and a written numeral in the count slot.
 divination : Effect []
-divination = drawCards 2
+divination = Macros.drawCards 2
 
 -- "Target player draws three cards." (Ancestral Recall; the whole card) —
 -- the SUBJECTED form, and why the drawer is a slot rather than the
 -- imperative's silent `You`: the same clause writes both.
 ancestralRecall : Effect []
-ancestralRecall = Draw (target AnyPlayer) (Lit 3)
+ancestralRecall = Draw (Macros.target AnyPlayer) (Lit 3)
 
 -- "Each player draws X cards." (Prosperity; the whole card, its {X}
 -- announced with the mana cost as every X is [CR#107.3a]) — the
@@ -900,7 +900,7 @@ prosperity = Draw (Each AnyPlayer) XVal
 -- whole point of reusing `Amount` instead of minting a number path: the
 -- adverbial that scales damage scales a draw unchanged.
 collectiveUnconscious : Effect []
-collectiveUnconscious = Draw You (forEach creatureYouControl)
+collectiveUnconscious = Draw You (Macros.forEach Macros.creatureYouControl)
 
 -- "Target creature gets +1/+1 until end of turn. Draw a card." (Killian's
 -- Confidence; its graveyard-return trigger is a second ability) — the
@@ -908,17 +908,17 @@ collectiveUnconscious = Draw You (forEach creatureYouControl)
 -- written in, and the proof that it introduces nothing: the sequence ends
 -- there because there is nothing left to say about the card drawn.
 killiansConfidence : Effect []
-killiansConfidence = Sequentially [gets (target creature) 1 1 (Just untilEndOfTurn),
-                                   drawACard]
+killiansConfidence = Sequentially [Macros.gets (Macros.target Macros.creature) 1 1 (Just Macros.untilEndOfTurn),
+                                   Macros.drawACard]
 
 -- "Blindblast deals 1 damage to target creature. That creature can't
 -- block this turn. Draw a card." (Blindblast; the whole card at last) —
 -- the RETRO-OPEN of chapter fifteen's elision, which was elided for want
 -- of the draw verb and nothing else.
 blindblastWhole : Effect []
-blindblastWhole = Sequentially [DealDamage This (Lit 1) (target creature),
-                                cantBlock (That (TypeW Creature)) (Just thisTurn),
-                                drawACard]
+blindblastWhole = Sequentially [DealDamage This (Lit 1) (Macros.target Macros.creature),
+                                Macros.cantBlock (That (TypeW Creature)) (Just Macros.thisTurn),
+                                Macros.drawACard]
 
 -- "{2}, Discard this card: Draw a card." — cycling's expansion
 -- ([CR#702.29a]) with its EFFECT written, which `cyclingCost` above could
@@ -926,7 +926,7 @@ blindblastWhole = Sequentially [DealDamage This (Lit 1) (target creature),
 -- does, and the discard is the same term that justifies `DiscardOk`'s
 -- bare-`This` row.
 cycling : Ability
-cycling = Activated (Compound [Mana [generic 2], Do (discards You This)]) drawACard
+cycling = Activated (Compound [Mana [Macros.generic 2], Do (Macros.discards You This)]) Macros.drawACard
 
 -- "Choose one — • Abrade deals 3 damage to target creature. • Destroy
 -- target artifact." (Abrade; the whole card) — the modal flagship, at the
@@ -934,8 +934,8 @@ cycling = Activated (Compound [Mana [generic 2], Do (discards You This)]) drawAC
 -- the SAME discourse and not in one another's: neither reads the other,
 -- and each announces its own targets only if it is chosen ([CR#700.2c]).
 abrade : Effect []
-abrade = chooseOne [DealDamage This (Lit 3) (target creature),
-                    destroy (target artifact)]
+abrade = Macros.chooseOne [DealDamage This (Lit 3) (Macros.target Macros.creature),
+                    Macros.destroy (Macros.target Macros.artifact)]
 
 -- "Choose two — • Destroy all artifacts. • Destroy all enchantments. •
 -- Destroy all creatures with mana value 3 or less. • Destroy all
@@ -946,10 +946,10 @@ abrade = chooseOne [DealDamage This (Lit 3) (target creature),
 -- (`ModesFit`, `badModalFixedWhole`).
 austereCommand : Effect []
 austereCommand =
-  chooseTwo [destroy (AllOf artifact),
-             destroy (AllOf enchantment),
-             destroy (AllOf (And [creature, Compare ManaValue OrLess (Lit 3)])),
-             destroy (AllOf (And [creature, Compare ManaValue OrGreater (Lit 4)]))]
+  Macros.chooseTwo [Macros.destroy (AllOf Macros.artifact),
+             Macros.destroy (AllOf Macros.enchantment),
+             Macros.destroy (AllOf (And [Macros.creature, Compare ManaValue OrLess (Lit 3)])),
+             Macros.destroy (AllOf (And [Macros.creature, Compare ManaValue OrGreater (Lit 4)]))]
 
 -- "Choose one or both — • Target creature gets -1/-1 until end of turn. •
 -- Put a +1/+1 counter on target creature." (Azula Always Lies; the whole
@@ -960,17 +960,17 @@ austereCommand =
 -- as a sequence the second phrase would have to say "another".
 azulaAlwaysLies : Effect []
 azulaAlwaysLies =
-  chooseOneOrBoth [gets (target creature) (-1) (-1) (Just untilEndOfTurn),
-                   PutCounters (Lit 1) plusOnePlusOne (target creature)]
+  Macros.chooseOneOrBoth [Macros.gets (Macros.target Macros.creature) (-1) (-1) (Just Macros.untilEndOfTurn),
+                   PutCounters (Lit 1) Macros.plusOnePlusOne (Macros.target Macros.creature)]
 
 -- "Choose one or more — • Destroy target artifact. • Destroy target
 -- enchantment. • Destroy target land." (Rain of Thorns; the whole card) —
 -- the OPEN top, whose word says the mode list is its own bound. Nineteen
 -- cards write it and none over two modes: at two the word is "both".
 rainOfThorns : Effect []
-rainOfThorns = chooseOneOrMore [destroy (target artifact),
-                                destroy (target enchantment),
-                                destroy (target land)]
+rainOfThorns = Macros.chooseOneOrMore [Macros.destroy (Macros.target Macros.artifact),
+                                Macros.destroy (Macros.target Macros.enchantment),
+                                Macros.destroy (Macros.target Macros.land)]
 
 -- "Whenever Rankle deals combat damage to a player, choose any number —
 -- • Each player discards a card. • Each player sacrifices a creature of
@@ -983,8 +983,8 @@ rainOfThorns = chooseOneOrMore [destroy (target artifact),
 -- every mode is a legal reading of the instruction and the head says so.
 rankleMasterOfPranks : Effect []
 rankleMasterOfPranks =
-  chooseAnyNumber [discardsACard (Each AnyPlayer),
-                   sacrifice (Each AnyPlayer) (aTheirChoice creature)]
+  Macros.chooseAnyNumber [Macros.discardsACard (Each AnyPlayer),
+                   Macros.sacrifice (Each AnyPlayer) (Macros.aTheirChoice Macros.creature)]
 
 -- "Choose an opponent. That player sacrifices a creature of their
 -- choice." (Myrkul's Edict, the 1—9 face of its d20 roll; the roll is a
@@ -993,8 +993,8 @@ rankleMasterOfPranks =
 -- the next sentence's demonstrative subject, and the unique player
 -- antecedent "of their choice" needs (`countChoosers`).
 myrkulsEdict : Effect []
-myrkulsEdict = Sequentially [Choose (a Opponent),
-                             sacrifice (That PlayerW) (aTheirChoice creature)]
+myrkulsEdict = Sequentially [Choose (Macros.a Opponent),
+                             Macros.sacrifice (That PlayerW) (Macros.aTheirChoice Macros.creature)]
 
 
 -- ===== The group complement, the control verb, and the batch =====
@@ -1006,8 +1006,8 @@ myrkulsEdict = Sequentially [Choose (a Opponent),
 -- the first sentence announced, read back exactly as "it" reads it.
 nibelheimAflame : Effect []
 nibelheimAflame =
-  Sequentially [Choose (target creatureYouControl),
-                DealDamage It (powerOf It) (Each (otherCreature It))]
+  Sequentially [Choose (Macros.target Macros.creatureYouControl),
+                DealDamage It (Macros.powerOf It) (Each (Macros.otherCreature It))]
 
 -- "{5}{W}, {T}: Other creatures you control get +1/+1 until end of
 -- turn." (War Screecher; the activation cost elided as every cost line
@@ -1018,7 +1018,7 @@ nibelheimAflame =
 -- waiting on.
 warScreecher : Effect []
 warScreecher =
-  gets (AllOf (otherCreatureYouControl thisCreature)) 1 1 (Just untilEndOfTurn)
+  Macros.gets (AllOf (Macros.otherCreatureYouControl Macros.thisCreature)) 1 1 (Just Macros.untilEndOfTurn)
 
 -- "Enrage — Whenever this creature is dealt damage, put a +1/+1 counter
 -- on each other creature you control." (Bellowing Aegisaur; the trigger
@@ -1026,7 +1026,7 @@ warScreecher =
 -- complement, source-anchored.
 bellowingAegisaur : Effect []
 bellowingAegisaur =
-  PutCounters (Lit 1) plusOnePlusOne (Each (otherCreatureYouControl thisCreature))
+  PutCounters (Lit 1) Macros.plusOnePlusOne (Each (Macros.otherCreatureYouControl Macros.thisCreature))
 
 -- "{B}, Remove a -1/-1 counter from this creature: Put a -1/-1 counter
 -- on each other creature." (Carnifex Demon; the cost line elided) — the
@@ -1034,7 +1034,7 @@ bellowingAegisaur =
 -- without it.
 carnifexDemon : Effect []
 carnifexDemon =
-  PutCounters (Lit 1) minusOneMinusOne (Each (otherCreature thisCreature))
+  PutCounters (Lit 1) Macros.minusOneMinusOne (Each (Macros.otherCreature Macros.thisCreature))
 
 -- "Each other player discards a card." (Syphon Mind's first sentence;
 -- the second, "You draw a card for each card discarded this way", waits
@@ -1042,7 +1042,7 @@ carnifexDemon =
 -- anchored to `You`: the kind index makes the anchor a player without a
 -- gate, and [CR#102.1] makes "player" the word the exclusion applies to.
 syphonMind : Effect []
-syphonMind = discardsACard (Each otherPlayer)
+syphonMind = Macros.discardsACard (Each Macros.otherPlayer)
 
 -- "{2}{R}, {T}: This creature fights another target creature." (Brash
 -- Taunter; the cost line elided) — the SINGULAR complement, spelled
@@ -1053,7 +1053,7 @@ syphonMind = discardsACard (Each otherPlayer)
 -- `Other` could not reach, its anchor search reading bindings where the
 -- source leaves none.
 brashTaunter : Effect []
-brashTaunter = Fights thisCreature (target (otherCreature thisCreature))
+brashTaunter = Fights Macros.thisCreature (Macros.target (Macros.otherCreature Macros.thisCreature))
 
 -- "{1}{G}, {T}: Target creature you control fights another target
 -- creature." (Ulvenwald Tracker; the cost line elided) — the CONTRAST
@@ -1064,7 +1064,7 @@ brashTaunter = Fights thisCreature (target (otherCreature thisCreature))
 -- object), where Brash Taunter's is a referent the clause names. Same
 -- word, same slot, different relation.
 ulvenwaldTracker : Effect []
-ulvenwaldTracker = Fights (target creatureYouControl) (target (And [creature, Other]))
+ulvenwaldTracker = Fights (Macros.target Macros.creatureYouControl) (Macros.target (And [Macros.creature, Other]))
 
 -- "Gain control of target creature until end of turn." (Act of
 -- Treason's first sentence; "Untap that creature. It gains haste until
@@ -1072,7 +1072,7 @@ ulvenwaldTracker = Fights (target creatureYouControl) (target (And [creature, Ot
 -- axis) — the control verb under the ordinary current-turn grant
 -- adverbial, a hundred and eleven corpus lines.
 actOfTreason : Effect []
-actOfTreason = gainControl (target creature) (Just untilEndOfTurn)
+actOfTreason = Macros.gainControl (Macros.target Macros.creature) (Just Macros.untilEndOfTurn)
 
 -- "Dominate Monster — When this creature enters, gain control of target
 -- creature for as long as you control this creature." (Mind Flayer; the
@@ -1083,7 +1083,7 @@ actOfTreason = gainControl (target creature) (Just untilEndOfTurn)
 -- reference frame chapter eighteen already built.
 mindFlayer : Effect []
 mindFlayer =
-  gainControl (target creature) (Just (ForAsLongAs (Matches thisCreature (ControlledBy You))))
+  Macros.gainControl (Macros.target Macros.creature) (Just (ForAsLongAs (Matches Macros.thisCreature (ControlledBy You))))
 
 -- "{2}{U}{U}: Exchange control of this creature and target creature.
 -- (This effect lasts indefinitely.)" (Phyrexian Infiltrator; the cost
@@ -1097,8 +1097,8 @@ mindFlayer =
 phyrexianInfiltrator : Effect []
 phyrexianInfiltrator =
   Simultaneously
-    [gainsControl (ControllerOf (target creature)) thisCreature Nothing,
-     gainsControl (ControllerOf thisCreature) (That (TypeW Creature)) Nothing]
+    [Macros.gainsControl (ControllerOf (Macros.target Macros.creature)) Macros.thisCreature Nothing,
+     Macros.gainsControl (ControllerOf Macros.thisCreature) (That (TypeW Creature)) Nothing]
 
 -- "At the beginning of your end step, each player creates a 1/1 green
 -- Plant creature token." (Grismold, the Dreadsower; the trigger header
@@ -1110,7 +1110,7 @@ phyrexianInfiltrator =
 -- Resurgence's "Those creatures", whose own sentence waits elsewhere
 -- (ledger).
 grismold : Effect []
-grismold = Create (Each AnyPlayer) (Lit 1) (creatureTok 1 1 [Green] [Plant]) []
+grismold = Create (Each AnyPlayer) (Lit 1) (Macros.creatureTok 1 1 [Green] [Plant]) []
 
 -- "Sparkmage's Gambit deals 1 damage to each of up to two target
 -- creatures. Those creatures can't block this turn." (Sparkmage's
@@ -1120,8 +1120,8 @@ grismold = Create (Each AnyPlayer) (Lit 1) (creatureTok 1 1 [Green] [Plant]) []
 -- and the next sentence reads it with the sorted plural demonstrative.
 sparkmagesGambit : Effect []
 sparkmagesGambit =
-  Sequentially [DealDamage This (Lit 1) (EachOf (TargetGroup (upTo 2) creature)),
-                cantBlock (Those (TypeW Creature)) (Just thisTurn)]
+  Sequentially [DealDamage This (Lit 1) (EachOf (TargetGroup (Macros.upTo 2) Macros.creature)),
+                Macros.cantBlock (Those (TypeW Creature)) (Just Macros.thisTurn)]
 
 -- "[+1]: Put a +1/+1 counter on each of up to two target creatures."
 -- (Ajani, Adversary of Tyrants; the loyalty cost and the card's other
@@ -1130,7 +1130,7 @@ sparkmagesGambit =
 -- Twenty-nine corpus lines write "each of up to two target creatures".
 ajaniAdversaryOfTyrants : Effect []
 ajaniAdversaryOfTyrants =
-  PutCounters (Lit 1) plusOnePlusOne (EachOf (TargetGroup (upTo 2) creature))
+  PutCounters (Lit 1) Macros.plusOnePlusOne (EachOf (TargetGroup (Macros.upTo 2) Macros.creature))
 
 -- "Fall of the Titans deals X damage to each of up to two targets."
 -- (Fall of the Titans; its surge cost line elided) — the each-of
@@ -1138,7 +1138,7 @@ ajaniAdversaryOfTyrants =
 -- names and the corpus writes only under this determiner or under a
 -- division.
 fallOfTheTitans : Effect []
-fallOfTheTitans = DealDamage This XVal (EachOf (TargetGroup (upTo 2) AnyTarget))
+fallOfTheTitans = DealDamage This XVal (EachOf (TargetGroup (Macros.upTo 2) AnyTarget))
 
 -- "Choose any number of target creatures. Put a +1/+1 counter on each of
 -- them." (Nature's Panoply; its strive cost line elided — an
@@ -1147,8 +1147,8 @@ fallOfTheTitans = DealDamage This XVal (EachOf (TargetGroup (upTo 2) AnyTarget))
 -- mention. Thirty-seven corpus lines write "each of them".
 naturesPanoply : Effect []
 naturesPanoply =
-  Sequentially [Choose (TargetGroup anyNumber creature),
-                PutCounters (Lit 1) plusOnePlusOne (EachOf Them)]
+  Sequentially [Choose (TargetGroup Macros.anyNumber Macros.creature),
+                PutCounters (Lit 1) Macros.plusOnePlusOne (EachOf Them)]
 
 -- "Arc Lightning deals 3 damage divided as you choose among one, two, or
 -- three targets." (Arc Lightning, whole) — the DIVISION: one written
@@ -1157,13 +1157,13 @@ naturesPanoply =
 -- ([CR#115.7f]). The enumerated range is how the phrase spells the
 -- caster's choice of how many.
 arcLightning : Effect []
-arcLightning = dealsDivided This (Lit 3) (TargetGroup (oneThrough 3) AnyTarget)
+arcLightning = Macros.dealsDivided This (Lit 3) (TargetGroup (Macros.oneThrough 3) AnyTarget)
 
 -- "Forked Bolt deals 2 damage divided as you choose among one or two
 -- targets." (Forked Bolt, whole) — the same structure at the narrower
 -- range, which twelve corpus lines write.
 forkedBolt : Effect []
-forkedBolt = dealsDivided This (Lit 2) (TargetGroup (oneThrough 2) AnyTarget)
+forkedBolt = Macros.dealsDivided This (Lit 2) (TargetGroup (Macros.oneThrough 2) AnyTarget)
 
 -- "Boulderfall deals 5 damage divided as you choose among any number of
 -- targets." (Boulderfall, whole) — the UNBOUNDED division, and the
@@ -1171,7 +1171,7 @@ forkedBolt = dealsDivided This (Lit 2) (TargetGroup (oneThrough 2) AnyTarget)
 -- corpus lines write "among any number of targets", and the structure
 -- they needed is this one.
 boulderfall : Effect []
-boulderfall = dealsDivided This (Lit 5) (TargetGroup anyNumber AnyTarget)
+boulderfall = Macros.dealsDivided This (Lit 5) (TargetGroup Macros.anyNumber AnyTarget)
 
 -- "When this creature enters, distribute two +1/+1 counters among one or
 -- two target creatures you control." (Armament Corps; the trigger header
@@ -1181,8 +1181,8 @@ boulderfall = dealsDivided This (Lit 5) (TargetGroup anyNumber AnyTarget)
 -- structure, a different word, forty-six corpus lines.
 armamentCorps : Effect []
 armamentCorps =
-  distributeCounters (Lit 2) plusOnePlusOne
-                     (TargetGroup (oneThrough 2) creatureYouControl)
+  Macros.distributeCounters (Lit 2) Macros.plusOnePlusOne
+                     (TargetGroup (Macros.oneThrough 2) Macros.creatureYouControl)
 
 
 -- ===== The ordered library, the exposure clause, and the partition =====
@@ -1192,7 +1192,7 @@ armamentCorps =
 -- writes "look at all cards in target player's hand". Two printed
 -- lines, one term.
 peek : Effect []
-peek = Sequentially [lookAtHandOf (target AnyPlayer), drawACard]
+peek = Sequentially [Macros.lookAtHandOf (Macros.target AnyPlayer), Macros.drawACard]
 
 -- "Look at the top four cards of your library. Put one of them into
 -- your hand and the rest on the bottom of your library in any order."
@@ -1203,9 +1203,9 @@ peek = Sequentially [lookAtHandOf (target AnyPlayer), drawACard]
 -- complements, transcribed as the named two-clause stand-in the ledger
 -- already parks Arc Trail's beside.
 impulse : Effect []
-impulse = Sequentially [ lookAt (topCards 4)
-                       , Move (oneOf Them) handZ
-                       , Move TheRest (onBottomIn AnyOrder)
+impulse = Sequentially [ Macros.lookAt (Macros.topCards 4)
+                       , Move (Macros.oneOf Them) Macros.handZ
+                       , Move TheRest (Macros.onBottomIn AnyOrder)
                        ]
 
 -- "Look at the top three cards of your library. Put one of them into
@@ -1213,9 +1213,9 @@ impulse = Sequentially [ lookAt (topCards 4)
 -- (Anticipate) — the same frame at a different count, which is what
 -- makes it a frame.
 anticipate : Effect []
-anticipate = Sequentially [ lookAt (topCards 3)
-                          , Move (oneOf Them) handZ
-                          , Move TheRest (onBottomIn AnyOrder)
+anticipate = Sequentially [ Macros.lookAt (Macros.topCards 3)
+                          , Move (Macros.oneOf Them) Macros.handZ
+                          , Move TheRest (Macros.onBottomIn AnyOrder)
                           ]
 
 -- "Reveal the top four cards of your library. … Put the rest into your
@@ -1226,9 +1226,9 @@ anticipate = Sequentially [ lookAt (topCards 3)
 -- among-restriction and is elided; the frame under test is the
 -- assemble-then-partition one.
 revealFourPartition : Effect []
-revealFourPartition = Sequentially [ revealCards (topCards 4)
-                                   , Move (oneOf (Those CardW)) handZ
-                                   , Move TheRest graveyardZ
+revealFourPartition = Sequentially [ Macros.revealCards (Macros.topCards 4)
+                                   , Move (Macros.oneOf (Those CardW)) Macros.handZ
+                                   , Move TheRest Macros.graveyardZ
                                    ]
 
 -- "{R}, {T}: Look at the top eight cards of your library. Exile four of
@@ -1239,9 +1239,9 @@ revealFourPartition = Sequentially [ revealCards (topCards 4)
 -- indefinite phrase, not to a partitive, and no partitive carries one
 -- in this vocabulary yet.)
 exileFourOfThem : Effect []
-exileFourOfThem = Sequentially [ lookAt (topCards 8)
-                               , exile (someOf 4 Them)
-                               , Move TheRest (onTopIn AnyOrder)
+exileFourOfThem = Sequentially [ Macros.lookAt (Macros.topCards 8)
+                               , Macros.exile (Macros.someOf 4 Them)
+                               , Move TheRest (Macros.onTopIn AnyOrder)
                                ]
 
 -- "{2}: Put the bottom card of your library into your graveyard." — the
@@ -1251,7 +1251,7 @@ exileFourOfThem = Sequentially [ lookAt (topCards 8)
 -- retag: a library card put into a public zone is readable afterwards
 -- ([CR#400.7j]), which the graveyard destination makes true here.
 grenzoBottomCard : Effect []
-grenzoBottomCard = Move bottomCard graveyardZ
+grenzoBottomCard = Move Macros.bottomCard Macros.graveyardZ
 
 -- "Search your library for a land card, reveal it, put it into your
 -- hand, then shuffle." (Sylvan Scrying) — the search frame whole: the
@@ -1261,10 +1261,10 @@ grenzoBottomCard = Move bottomCard graveyardZ
 -- the sequence tail. Note the order: the card leaves before the
 -- library is randomized, which is [CR#701.24b]'s own arrangement.
 sylvanScrying : Effect []
-sylvanScrying = Sequentially [ searchLibraryFor land
-                             , revealCards It
-                             , Move It handZ
-                             , shuffle
+sylvanScrying = Sequentially [ Macros.searchLibraryFor Macros.land
+                             , Macros.revealCards It
+                             , Move It Macros.handZ
+                             , Macros.shuffle
                              ]
 
 -- "Search your library for a creature card, put that card onto the
@@ -1272,15 +1272,15 @@ sylvanScrying = Sequentially [ searchLibraryFor land
 -- with the found card placed on the battlefield and no reveal, which is
 -- [CR#701.23e]'s default and a hundred seven corpus lines.
 searchToBattlefield : Effect []
-searchToBattlefield = Sequentially [ searchLibraryFor creature
-                                   , Move It battlefieldZ
-                                   , shuffle
+searchToBattlefield = Sequentially [ Macros.searchLibraryFor Macros.creature
+                                   , Move It Macros.battlefieldZ
+                                   , Macros.shuffle
                                    ]
 
 -- "Target player mills ten cards." (Glimpse the Unthinkable) — the mill
 -- clause whole, subject and all ([CR#701.17a]).
 glimpseTheUnthinkable : Effect []
-glimpseTheUnthinkable = millsCards (target AnyPlayer) 10
+glimpseTheUnthinkable = Macros.millsCards (Macros.target AnyPlayer) 10
 
 -- "Mill three cards." — the imperative mill, and the clause whose
 -- milled group is a real mention: the graveyard is public, so
@@ -1289,7 +1289,7 @@ glimpseTheUnthinkable = millsCards (target AnyPlayer) 10
 -- demonstrative; the corpus's own reads are the among-restriction and
 -- the "this way" participle, both ledgered.
 millThenReadGroup : Effect []
-millThenReadGroup = Sequentially [millCards 3, exile (Those CardW)]
+millThenReadGroup = Sequentially [Macros.millCards 3, Macros.exile (Those CardW)]
 
 -- "Look at the top card of your library. You may put that card into
 -- your graveyard." — the singular slice with the offer, which is what
@@ -1298,7 +1298,7 @@ millThenReadGroup = Sequentially [millCards 3, exile (Those CardW)]
 -- "them".
 lookAtTopThenBin : Effect []
 lookAtTopThenBin =
-  Sequentially [lookAt topCard, may You (Move (That CardW) graveyardZ)]
+  Sequentially [Macros.lookAt Macros.topCard, Macros.may You (Move (That CardW) Macros.graveyardZ)]
 
 
 -- ===== Replacement, prevention, and the event-ended rider =====
@@ -1315,8 +1315,8 @@ lookAtTopThenBin =
 -- writes.
 botBashingTime : Effect []
 botBashingTime =
-  Sequentially [ DealDamage This (Lit 6) (target creature)
-               , ifWouldInstead (Dies (That (TypeW Creature))) (exile It) (Just thisTurn)
+  Sequentially [ DealDamage This (Lit 6) (Macros.target Macros.creature)
+               , Macros.ifWouldInstead (Dies (That (TypeW Creature))) (Macros.exile It) (Just Macros.thisTurn)
                ]
 
 -- "{1}: The next time you would draw a card this turn, this enchantment
@@ -1326,39 +1326,39 @@ botBashingTime =
 -- single-use one are different effects and the writer has to say which
 -- ([CR#614.11] gives draw replacement its own paragraph).
 wordsOfWar : Effect []
-wordsOfWar = nextTimeWouldInstead (Draws You)
-                                  (DealDamage This (Lit 2) (target AnyTarget))
-                                  (Just thisTurn)
+wordsOfWar = Macros.nextTimeWouldInstead (Draws You)
+                                  (DealDamage This (Lit 2) (Macros.target AnyTarget))
+                                  (Just Macros.thisTurn)
 
 -- "{1}: The next time you would draw a card this turn, you gain 5 life
 -- instead." (Words of Worship) — the same shield with a replacement
 -- that touches no object at all, which is what [CR#611.2c]'s
 -- rules-modifying half looks like from the clause side.
 wordsOfWorship : Effect []
-wordsOfWorship = nextTimeWouldInstead (Draws You)
-                                      (gainsLife You (Lit 5))
-                                      (Just thisTurn)
+wordsOfWorship = Macros.nextTimeWouldInstead (Draws You)
+                                      (Macros.gainsLife You (Lit 5))
+                                      (Just Macros.thisTurn)
 
 -- "Prevent all combat damage that would be dealt this turn." (Fog, Holy
 -- Day, Darkness, Root Snare — five lines, one sentence) — the shield
 -- with no recipient at all, [CR#611.2c]'s own example of an effect that
 -- modifies the rules of the game rather than any object.
 fog : Effect []
-fog = preventAll CombatOnly Everywhere (Just thisTurn)
+fog = Macros.preventAll CombatOnly Everywhere (Just Macros.thisTurn)
 
 -- "Prevent all damage that would be dealt to target creature this
 -- turn." (Indestructible Aura, Shielded Passage) — the same shield with
 -- a recipient, and the recipient is the damage clause's own row rather
 -- than a second one.
 indestructibleAura : Effect []
-indestructibleAura = preventAll AnyDamage (shieldingIt (target creature)) (Just thisTurn)
+indestructibleAura = Macros.preventAll AnyDamage (Macros.shieldingIt (Macros.target Macros.creature)) (Just Macros.thisTurn)
 
 -- "Prevent the next 3 damage that would be dealt to any target this
 -- turn." (Shieldmate's Blessing) — [CR#615.7]'s numbered shield, the
 -- one that is used up a damage at a time, over the damage class word.
 shieldmatesBlessing : Effect []
 shieldmatesBlessing =
-  preventNext AnyDamage (Lit 3) (shieldingIt (target AnyTarget)) (Just thisTurn)
+  Macros.preventNext AnyDamage (Lit 3) (Macros.shieldingIt (Macros.target AnyTarget)) (Just Macros.thisTurn)
 
 -- "Exile target creature an opponent controls until this creature
 -- leaves the battlefield." (Banisher Priest's triggered body; the
@@ -1368,8 +1368,8 @@ shieldmatesBlessing =
 -- returning the object, which is why the rider sits on the clause and
 -- the `Duration` row over the same event stays unclaimed.
 banisherPriest : Effect []
-banisherPriest = exileUntil (target (And [creature, ControlledBy anOpponent]))
-                            (Leaves thisCreature)
+banisherPriest = Macros.exileUntil (Macros.target (And [Macros.creature, ControlledBy Macros.anOpponent]))
+                            (Leaves Macros.thisCreature)
 
 -- "[0]: Draw a card. If you control three or more artifacts, draw two
 -- cards instead." (Tezzeret, Artifice Master) — the SELF-replacement
@@ -1378,9 +1378,9 @@ banisherPriest = exileUntil (target (And [creature, ControlledBy anOpponent]))
 -- it replaces, which is what makes "instead" mean anything at all.
 tezzeretDrawTwo : Effect []
 tezzeretDrawTwo =
-  insteadOf drawACard
-            (If (drawCards 2)
-                (CompareAmt (CountOf (And [artifact, ControlledBy You]))
+  Macros.insteadOf Macros.drawACard
+            (If (Macros.drawCards 2)
+                (CompareAmt (CountOf (And [Macros.artifact, ControlledBy You]))
                             OrGreater (Lit 3))
                 Nothing)
 
@@ -1389,9 +1389,9 @@ tezzeretDrawTwo =
 -- different domain and count, which is what makes it a frame.
 zimoneDrawTwo : Effect []
 zimoneDrawTwo =
-  insteadOf drawACard
-            (If (drawCards 2)
-                (CompareAmt (CountOf (And [land, ControlledBy You]))
+  Macros.insteadOf Macros.drawACard
+            (If (Macros.drawCards 2)
+                (CompareAmt (CountOf (And [Macros.land, ControlledBy You]))
                             OrGreater (Lit 8))
                 Nothing)
 
@@ -1405,8 +1405,8 @@ zimoneDrawTwo =
 -- corpus writes together on exactly this card.
 merrowGrimeblotter : Ability
 merrowGrimeblotter =
-  Activated (Compound [Mana [generic 1, hybridPip Blue Black], UntapSymbol])
-            (gets (target creature) (-2) 0 (Just untilEndOfTurn))
+  Activated (Compound [Mana [Macros.generic 1, Macros.hybridPip Blue Black], UntapSymbol])
+            (Macros.gets (Macros.target Macros.creature) (-2) 0 (Just Macros.untilEndOfTurn))
 
 -- "{1}{S}: This creature gets +1/+0 until end of turn." (Phyrexian
 -- Snowcrusher) — the snow symbol ([CR#107.4h]), which is neither a color
@@ -1414,8 +1414,8 @@ merrowGrimeblotter =
 -- than a colorless pip with a note.
 phyrexianSnowcrusher : Ability
 phyrexianSnowcrusher =
-  Activated (Mana [generic 1, SnowMana])
-            (gets thisCreature 1 0 (Just untilEndOfTurn))
+  Activated (Mana [Macros.generic 1, SnowMana])
+            (Macros.gets Macros.thisCreature 1 0 (Just Macros.untilEndOfTurn))
 
 -- "{1}{C}: This creature gets +2/+1 until end of turn." (Havoc Sower;
 -- its Devoid line and reminder gloss elided) — the COLORLESS pip
@@ -1424,15 +1424,15 @@ phyrexianSnowcrusher =
 -- "{C}".
 havocSower : Ability
 havocSower =
-  Activated (Mana [generic 1, colorlessPip])
-            (gets thisCreature 2 1 (Just untilEndOfTurn))
+  Activated (Mana [Macros.generic 1, Macros.colorlessPip])
+            (Macros.gets Macros.thisCreature 2 1 (Just Macros.untilEndOfTurn))
 
 -- "{1}{B}, Pay 2 life: Draw a card." (Erebos, God of the Dead; its other
 -- three lines elided) — the life payment as a cost COMPONENT, which is
 -- the same `ChangeLife` clause the sentence grammar already had, wearing
 -- the cost frame's verb.
 erebos : Ability
-erebos = Activated (Compound [Mana [generic 1, pip Black], payLife You 2]) drawACard
+erebos = Activated (Compound [Mana [Macros.generic 1, Macros.pip Black], Macros.payLife You 2]) Macros.drawACard
 
 -- "{1}{R/G}: Put a +1/+1 counter on this creature. Activate only as a
 -- sorcery." (Savageborn Hydra; its double strike and enters-with lines
@@ -1440,8 +1440,8 @@ erebos = Activated (Compound [Mana [generic 1, pip Black], payLife You 2]) drawA
 -- cost under it.
 savagebornHydra : Ability
 savagebornHydra =
-  Activated (Mana [generic 1, hybridPip Red Green])
-            (PutCounters (Lit 1) plusOnePlusOne thisCreature)
+  Activated (Mana [Macros.generic 1, Macros.hybridPip Red Green])
+            (PutCounters (Lit 1) Macros.plusOnePlusOne Macros.thisCreature)
             {window = Just AsSorcery}
 
 -- "{1}{G}: This creature gets +2/+2 until end of turn. Activate only
@@ -1449,8 +1449,8 @@ savagebornHydra =
 -- use LIMIT ([CR#602.5b]), the second restriction slot.
 baskingRootwalla : Ability
 baskingRootwalla =
-  Activated (Mana [generic 1, pip Green])
-            (gets thisCreature 2 2 (Just untilEndOfTurn))
+  Activated (Mana [Macros.generic 1, Macros.pip Green])
+            (Macros.gets Macros.thisCreature 2 2 (Just Macros.untilEndOfTurn))
             {limit = Just OncePerTurn}
 
 -- "{3}, {T}: Draw a card. Activate only if you control a creature with
@@ -1460,9 +1460,9 @@ baskingRootwalla =
 -- chapter sixteen's unchanged, and the carrier is new.
 bondersEnclave : Ability
 bondersEnclave =
-  Activated (Compound [Mana [generic 3], TapSymbol])
-            drawACard
-            {guard = Just (Exists (And [creature, ControlledBy You,
+  Activated (Compound [Mana [Macros.generic 3], TapSymbol])
+            Macros.drawACard
+            {guard = Just (Exists (And [Macros.creature, ControlledBy You,
                                         Compare Power OrGreater (Lit 4)]))}
 
 -- "{W}, {T}: Remove a -1/-1 counter from target creature. If you do, you
@@ -1471,9 +1471,9 @@ bondersEnclave =
 -- the line, and the arm still asks whether the payment was started.
 woeleecher : Ability
 woeleecher =
-  Activated (Compound [Mana [pip White], TapSymbol])
-            (doThen (RemoveCounters (Lit 1) minusOneMinusOne (target creature))
-                    (gainsLife You (Lit 2)))
+  Activated (Compound [Mana [Macros.pip White], TapSymbol])
+            (Macros.doThen (RemoveCounters (Lit 1) Macros.minusOneMinusOne (Macros.target Macros.creature))
+                    (Macros.gainsLife You (Lit 2)))
 
 -- "Sacrifice this creature unless you pay {2}." (Molting Harpy; its
 -- upkeep trigger shell and flying line elided) — the UNLESS family's
@@ -1483,13 +1483,13 @@ woeleecher =
 -- something]", so the sentence is the may node read backwards, the
 -- payment in the body and the main clause in the declined arm.
 moltingHarpy : Effect []
-moltingHarpy = mayElse You (Pay You (Mana [generic 2])) (sacrifice You thisCreature)
+moltingHarpy = Macros.mayElse You (Pay You (Mana [Macros.generic 2])) (Macros.sacrifice You Macros.thisCreature)
 
 -- "Tap this creature unless you pay 1 life." (Carnophage; upkeep shell
 -- elided) — the same frame with a LIFE payment, which is what makes the
 -- verb's complement a whole `Cost` and not a mana amount.
 carnophage : Effect []
-carnophage = mayElse You (Pay You (payLife You 1)) (Tap thisCreature)
+carnophage = Macros.mayElse You (Pay You (Macros.payLife You 1)) (Tap Macros.thisCreature)
 
 -- "Sacrifice this enchantment unless you discard a card." (Solitary
 -- Confinement; upkeep shell and its other three lines elided) — the
@@ -1497,7 +1497,7 @@ carnophage = mayElse You (Pay You (payLife You 1)) (Tap thisCreature)
 -- ordinary clause and no "pay" is written at all. Seventy-one corpus
 -- lines pay an unless with a non-mana action.
 solitaryConfinement : Effect []
-solitaryConfinement = mayElse You (discardsACard You) (sacrifice You thisEnchantment)
+solitaryConfinement = Macros.mayElse You (Macros.discardsACard You) (Macros.sacrifice You Macros.thisEnchantment)
 
 
 -- "{W}{W}: Create a 1/1 white Soldier creature token. Activate only if
@@ -1510,10 +1510,10 @@ solitaryConfinement = mayElse You (discardsACard You) (sacrifice You thisEnchant
 -- is that carrier.
 securityDetail : Ability
 securityDetail =
-  Activated (Mana [pip White, pip White])
-            (create (Lit 1) (creatureTok 1 1 [White] [Soldier]))
+  Activated (Mana [Macros.pip White, Macros.pip White])
+            (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [Soldier]))
             {limit = Just OncePerTurn}
-            {guard = Just (notSo (Exists (And [creature, ControlledBy You])))}
+            {guard = Just (Macros.notSo (Exists (And [Macros.creature, ControlledBy You])))}
 
 
 
@@ -1524,14 +1524,14 @@ securityDetail =
 -- single commonest shape, two thousand four hundred seventy-three lines
 -- of "When this [permanent] enters".
 cloudkinSeer : Ability
-cloudkinSeer = Triggered When (Enters thisCreature) drawACard
+cloudkinSeer = Triggered When (Enters Macros.thisCreature) Macros.drawACard
 
 -- "Whenever a creature dies, you gain 1 life." (Moonlit Wake, whole) —
 -- the same event under a DESCRIPTION, which is what moves the header
 -- word: one object enters once and dies once, so a fixed subject takes
 -- "When", and a description ranging over many takes "Whenever".
 moonlitWake : Ability
-moonlitWake = Triggered Whenever (Dies (a creature)) (gainsLife You (Lit 1))
+moonlitWake = Triggered Whenever (Dies (Macros.a Macros.creature)) (Macros.gainsLife You (Lit 1))
 
 -- "Whenever a creature you control dies, exile it." (Promise of
 -- Tomorrow's first line) — the trigger's participant read BACK, and the
@@ -1539,20 +1539,20 @@ moonlitWake = Triggered Whenever (Dies (a creature)) (gainsLife You (Lit 1))
 -- a graveyard ([CR#603.6,700.4]), which is exactly what exile wants and
 -- exactly what the interception's replacement must not have.
 promiseOfTomorrow : Ability
-promiseOfTomorrow = Triggered Whenever (Dies (a creatureYouControl)) (exile It)
+promiseOfTomorrow = Triggered Whenever (Dies (Macros.a Macros.creatureYouControl)) (Macros.exile It)
 
 -- "At the beginning of your upkeep, draw a card." (Staff of Nin's first
 -- line) — the turn-part event, the one row whose header word is fixed
 -- ([CR#603.2b]) and the only one with no noun phrase in it.
 staffOfNin : Ability
-staffOfNin = Triggered At (BeginningOf Upkeep (Just Yours)) drawACard
+staffOfNin = Triggered At (BeginningOf Upkeep (Just Yours)) Macros.drawACard
 
 -- "Whenever this creature attacks, draw a card." (Library Larcenist,
 -- whole) — the fixed subject taking "Whenever", which is the header
 -- word tracking the EVENT's repeatability rather than the subject's
 -- fixity: a creature attacks many times.
 libraryLarcenist : Ability
-libraryLarcenist = Triggered Whenever (Attacks thisCreature) drawACard
+libraryLarcenist = Triggered Whenever (Attacks Macros.thisCreature) Macros.drawACard
 
 -- "Whenever this creature blocks, it deals 1 damage to target attacking
 -- creature." (Elite Javelineer, whole) — the block event, and a trigger
@@ -1560,8 +1560,8 @@ libraryLarcenist = Triggered Whenever (Attacks thisCreature) drawACard
 -- write.
 eliteJavelineer : Ability
 eliteJavelineer =
-  Triggered Whenever (Blocks thisCreature)
-            (DealDamage This (Lit 1) (target (And [creature, Attacking])))
+  Triggered Whenever (Blocks Macros.thisCreature)
+            (DealDamage This (Lit 1) (Macros.target (And [Macros.creature, Attacking])))
 
 -- "Whenever this creature deals combat damage to a player, draw a
 -- card." (Jhessian Thief's second line; its prowess line is a keyword)
@@ -1569,7 +1569,7 @@ eliteJavelineer =
 -- table for the third time.
 jhessianThief : Ability
 jhessianThief =
-  Triggered Whenever (DealsCombatDamage thisCreature (a AnyPlayer)) drawACard
+  Triggered Whenever (DealsCombatDamage Macros.thisCreature (Macros.a AnyPlayer)) Macros.drawACard
 
 -- "When this creature enters, if you control an artifact, draw a card."
 -- (Scholar of Stars, whole) — the INTERVENING "if" ([CR#603.4]), which
@@ -1579,20 +1579,20 @@ jhessianThief =
 -- checked twice, once as the event occurs and again on resolution.
 scholarOfStars : Ability
 scholarOfStars =
-  Triggered When (Enters thisCreature) drawACard
-            {intervening = Just (Exists (And [artifact, ControlledBy You]))}
+  Triggered When (Enters Macros.thisCreature) Macros.drawACard
+            {intervening = Just (Exists (And [Macros.artifact, ControlledBy You]))}
 
 -- "Creatures you control can't attack." (Glacial Chasm's third line) —
 -- the durationless deontic `badStaticCant` has refused since chapter
 -- seventeen, in the container it was waiting for.
 glacialChasmCant : Ability
-glacialChasmCant = Static (Cant (AllOf creatureYouControl) Attack Agent)
+glacialChasmCant = Static (Cant (AllOf Macros.creatureYouControl) Attack Agent)
 
 -- "Prevent all damage that would be dealt to you." (Glacial Chasm's
 -- fourth line) — `badStandingPrevention`'s own sentence, one line below
 -- the last on the same card.
 glacialChasmShield : Ability
-glacialChasmShield = Static (Prevents AnyDamage AllOfIt (shieldingIt You))
+glacialChasmShield = Static (Prevents AnyDamage AllOfIt (Macros.shieldingIt You))
 
 -- "If a creature an opponent controls would die, exile it instead."
 -- (Misery's Shadow's first line) — `badStandingIntercept` as a
@@ -1600,8 +1600,8 @@ glacialChasmShield = Static (Prevents AnyDamage AllOfIt (shieldingIt You))
 -- with the container named.
 miserysShadow : Ability
 miserysShadow =
-  Static (Intercepts (Dies (a (And [creature, ControlledBy (a Opponent)])))
-                     (exile It) Repeatedly)
+  Static (Intercepts (Dies (Macros.a (And [Macros.creature, ControlledBy (Macros.a Opponent)])))
+                     (Macros.exile It) Repeatedly)
 
 -- "If you would draw a card, draw two cards instead." (Thought
 -- Reflection, the whole card) — the standing DRAW replacement, and the
@@ -1623,34 +1623,34 @@ thoughtReflection =
 -- family chapter twenty-two measured and could not write.
 jorKadeen : Ability
 jorKadeen =
-  Static (asLongAs (CompareAmt (CountOf (And [artifact, ControlledBy You]))
+  Static (Macros.asLongAs (CompareAmt (CountOf (And [Macros.artifact, ControlledBy You]))
                                OrGreater (Lit 3))
-                   (Gets (AllOf creatureYouControl) 3 0))
+                   (Gets (AllOf Macros.creatureYouControl) 3 0))
 
 -- "This land enters tapped." (Abandoned Outpost's first line) — the
 -- entry rider [CR#603.6d] calls a static ability in as many words, owed
 -- from three sites since chapter twenty-five and paid here.
 abandonedOutpost : Ability
-abandonedOutpost = Static (entersTapped (AsType Land This))
+abandonedOutpost = Static (Macros.entersTapped (AsType Land This))
 
 -- "Destroy target tapped creature." (Aerial Assault; per the round's
 -- recon) — the status word inside an ordinary target phrase, seeding the
 -- battlefield the way the combat designations do but presupposing no
 -- type of its own.
 aerialAssault : Effect []
-aerialAssault = destroy (target (And [creature, tapped]))
+aerialAssault = Macros.destroy (Macros.target (And [Macros.creature, Macros.tapped]))
 
 -- "Destroy target untapped creature." (Asphyxiate) — the paired value,
 -- its own word and not a negation of the first.
 asphyxiate : Effect []
-asphyxiate = destroy (target (And [creature, untapped]))
+asphyxiate = Macros.destroy (Macros.target (And [Macros.creature, Macros.untapped]))
 
 -- "{T}: Untap target artifact or creature." (Aphetto Alchemist) — the
 -- untap effect under the tap-symbol cost: the two surfaces of the same
 -- tapped axis, kept apart as cost and effect.
 aphettoAlchemist : Ability
 aphettoAlchemist = Activated TapSymbol
-                             (Untap (target (Or [artifact, creature])))
+                             (Untap (Macros.target (Or [Macros.artifact, Macros.creature])))
 
 -- "This artifact doesn't untap during your untap step." (Time Vault,
 -- second line; its first line is the enters-tapped family's and its
@@ -1663,7 +1663,7 @@ timeVaultLock = Static (DoesntUntap (AsType Artifact This))
 -- ordinary target phrase: no projected type, battlefield by default
 -- ([CR#109.2,110.1]).
 vindicate : Effect []
-vindicate = destroy (target Permanent)
+vindicate = Macros.destroy (Macros.target Permanent)
 
 -- "{T}: Exile the top card of your library. Until your next end step,
 -- you may play it." (Yasmin Khan's first ability) — the play PERMISSION,
@@ -1675,8 +1675,8 @@ vindicate = destroy (target Permanent)
 yasminKhan : Ability
 yasminKhan =
   Activated TapSymbol
-            (Sequentially [exile topCard,
-                           Continuously (MayPlay You It) (Just untilYourNextEndStep)])
+            (Sequentially [Macros.exile Macros.topCard,
+                           Continuously (MayPlay You It) (Just Macros.untilYourNextEndStep)])
 
 -- "Until end of combat on your next turn, you may play that card."
 -- (Brazen Cannonade's second line, whose raid trigger and postcombat
@@ -1686,7 +1686,7 @@ yasminKhan =
 -- reason down.
 brazenCannonadePermission : Effect []
 brazenCannonadePermission =
-  Sequentially [exile topCard,
+  Sequentially [Macros.exile Macros.topCard,
                 Continuously (MayPlay You It) (Just (Until (EndOf Combat (Just Yours))))]
 
 -- ===== The reflexive trigger: what "you do" stands for =====
@@ -1699,9 +1699,9 @@ brazenCannonadePermission =
 -- this one creates as it resolves.
 corneredCrook : Ability
 corneredCrook =
-  Triggered When (Enters thisCreature)
-    (mayWhen You (sacrifice You (a artifact))
-                 (DealDamage This (Lit 3) (target AnyTarget)))
+  Triggered When (Enters Macros.thisCreature)
+    (Macros.mayWhen You (Macros.sacrifice You (Macros.a Macros.artifact))
+                 (DealDamage This (Lit 3) (Macros.target AnyTarget)))
 
 -- "Mill four cards. When you do, return target creature card from your
 -- graveyard to your hand." (The Last Ronin, chapter II; the Saga's
@@ -1716,8 +1716,8 @@ corneredCrook =
 -- second sentence.
 theLastRoninII : Effect []
 theLastRoninII =
-  Reflexively (millCards 4)
-              (Move (target (And [creature, InZone (graveyardOf You)])) handZ)
+  Reflexively (Macros.millCards 4)
+              (Move (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) Macros.handZ)
 
 -- "Whenever this creature attacks, you may pay {2}{W}. When you do, tap
 -- target creature." (Thousand Moons Crackshot, the whole card) — the
@@ -1728,9 +1728,9 @@ theLastRoninII =
 -- stack as its own object.
 thousandMoonsCrackshot : Ability
 thousandMoonsCrackshot =
-  Triggered Whenever (Attacks thisCreature)
-    (mayWhen You (Pay You (Mana [generic 2, pip White]))
-                 (Tap (target creature)))
+  Triggered Whenever (Attacks Macros.thisCreature)
+    (Macros.mayWhen You (Pay You (Mana [Macros.generic 2, Macros.pip White]))
+                 (Tap (Macros.target Macros.creature)))
 
 -- "Whenever a creature attacks, you may pay {3}. When you do, put a
 -- +1/+1 counter on that creature." (Anointer of Valor; its Flying line
@@ -1743,9 +1743,9 @@ thousandMoonsCrackshot =
 -- the attacker unreachable.
 anointerOfValor : Ability
 anointerOfValor =
-  Triggered Whenever (Attacks (a creature))
-    (mayWhen You (Pay You (Mana [generic 3]))
-                 (PutCounters (Lit 1) plusOnePlusOne (That (TypeW Creature))))
+  Triggered Whenever (Attacks (Macros.a Macros.creature))
+    (Macros.mayWhen You (Pay You (Mana [Macros.generic 3]))
+                 (PutCounters (Lit 1) Macros.plusOnePlusOne (That (TypeW Creature))))
 
 -- ===== The card container round: arrival riders =====
 
@@ -1757,9 +1757,9 @@ anointerOfValor =
 -- otherwise", and this is the sentence saying otherwise.
 zimoneQuandrixProdigy : Ability
 zimoneQuandrixProdigy =
-  Activated (Compound [Mana [generic 1], TapSymbol])
-            (may You (putOntoBattlefieldTapped
-                        (a (And [land, InZone (handOf You)]))))
+  Activated (Compound [Mana [Macros.generic 1], TapSymbol])
+            (Macros.may You (Macros.putOntoBattlefieldTapped
+                        (Macros.a (And [Macros.land, InZone (Macros.handOf You)]))))
 
 -- "Whenever this creature attacks, you may put a Soldier creature card
 -- from your hand onto the battlefield tapped and attacking."
@@ -1770,9 +1770,9 @@ zimoneQuandrixProdigy =
 -- battlefield attacking".
 preeminentCaptain : Ability
 preeminentCaptain =
-  Triggered Whenever (Attacks thisCreature)
-    (may You (putOntoBattlefieldTappedAttacking
-                (a (And [HasSubtype Soldier, creature, InZone (handOf You)]))))
+  Triggered Whenever (Attacks Macros.thisCreature)
+    (Macros.may You (Macros.putOntoBattlefieldTappedAttacking
+                (Macros.a (And [HasSubtype Soldier, Macros.creature, InZone (Macros.handOf You)]))))
 
 -- "Put target creature card from a graveyard onto the battlefield under
 -- your control." (Hymn of Rebirth, the whole card's text) — the
@@ -1783,8 +1783,8 @@ preeminentCaptain =
 -- which is why the slot is a `Maybe` and not a field.
 hymnOfRebirth : Effect []
 hymnOfRebirth =
-  putOntoBattlefieldUnderYourControl
-    (target (And [creature, InZone graveyardZ]))
+  Macros.putOntoBattlefieldUnderYourControl
+    (Macros.target (And [Macros.creature, InZone Macros.graveyardZ]))
 
 -- "This creature can't attack unless you control an artifact."
 -- (Desperate Castaways, the whole card's text) — the MARKING WORD
@@ -1795,8 +1795,8 @@ hymnOfRebirth =
 -- lines, and this is the shape all of them have.
 desperateCastaways : Ability
 desperateCastaways =
-  Static (unlessSo (Exists (And [artifact, ControlledBy You]))
-                   (Cant thisCreature Attack Agent))
+  Static (Macros.unlessSo (Exists (And [Macros.artifact, ControlledBy You]))
+                   (Cant Macros.thisCreature Attack Agent))
 
 -- "{3}{B}: Destroy target blocking creature at end of combat."
 -- (Silent Assassin, the whole card's text) — the SIXTH turn part.
@@ -1810,9 +1810,9 @@ desperateCastaways =
 -- one of those wants a blocking-relation predicate or a combat lookback.
 silentAssassin : Ability
 silentAssassin =
-  Activated (Mana [generic 3, pip Black])
+  Activated (Mana [Macros.generic 3, Macros.pip Black])
             (Delayed (BeginningOf EndOfCombat Nothing)
-                     (destroy (target (And [Blocking, creature]))))
+                     (Macros.destroy (Macros.target (And [Blocking, Macros.creature]))))
 
 -- "This creature enters with four +1/+1 counters on it." (Workhorse's
 -- first line; its mana ability is a second line and wants a production
@@ -1823,7 +1823,7 @@ silentAssassin =
 -- Put in its own row instead, the line needs no new vocabulary at all,
 -- the count being `WrittenCount`'s and the kind `CounterKind`'s.
 workhorse : Ability
-workhorse = Static (entersWithCounters thisCreature 4 plusOnePlusOne)
+workhorse = Static (Macros.entersWithCounters Macros.thisCreature 4 Macros.plusOnePlusOne)
 
 -- ===== The card container round: the spell carrier =====
 
@@ -1834,7 +1834,7 @@ workhorse = Static (entersWithCounters thisCreature 4 plusOnePlusOne)
 -- is a zone clause whose word goes unspelled, exactly as "card" goes
 -- unspelled under a graveyard clause.
 counterspell : Effect []
-counterspell = counterSpell (target spell)
+counterspell = Macros.counterSpell (Macros.target Macros.spell)
 
 -- "Whenever you cast a creature spell, draw a card." (Beast Whisperer,
 -- the whole card's text) — the CAST event, chapter twenty-eight's
@@ -1843,7 +1843,7 @@ counterspell = counterSpell (target spell)
 -- creature spell" is the type word under the stack clause.
 beastWhisperer : Ability
 beastWhisperer =
-  Triggered Whenever (Casts You (a (And [creature, spell]))) drawACard
+  Triggered Whenever (Casts You (Macros.a (And [Macros.creature, Macros.spell]))) Macros.drawACard
 
 -- "You may cast this card from your graveyard." (Skaab Ruinator's third
 -- line; its additional-cost line is [CR#118.8]'s and its Flying line a
@@ -1855,7 +1855,7 @@ beastWhisperer =
 -- projecting no zone of its own for the derivation to read.
 skaabRuinator : Ability
 skaabRuinator =
-  Static (MayPlay You This {verb = Cast} {from = Just (graveyardOf You)})
+  Static (MayPlay You This {verb = Cast} {from = Just (Macros.graveyardOf You)})
 
 -- ===== The card container round: "this way" =====
 
@@ -1872,7 +1872,7 @@ skaabRuinator =
 -- disambiguate against.
 escapeToTheWilds : Effect []
 escapeToTheWilds =
-  Sequentially [exile (topCards 5),
+  Sequentially [Macros.exile (Macros.topCards 5),
                 Continuously
                   (MayPlay You (ThoseVerbed Exile CardW {marking = ThisWay}))
                   (Just (Until (EndOf Turn (Just Yours))))]
@@ -1890,7 +1890,7 @@ escapeToTheWilds =
 -- empty text box is a card with nothing to say, not a card that failed
 -- to be written. Nothing elided.
 scatheZombies : Card
-scatheZombies = card "Scathe Zombies" (Just [generic 2, pip Black]) []
+scatheZombies = Macros.card "Scathe Zombies" (Just [Macros.generic 2, Macros.pip Black]) []
                      (MkTypeLine [Zombie] [Creature]) [] (Just (2, 2))
 
 -- Rorix Bladewing {3}{R}{R}{R}, Legendary Creature — Dragon, 6/5,
@@ -1902,7 +1902,7 @@ scatheZombies = card "Scathe Zombies" (Just [generic 2, pip Black]) []
 -- needs. Nothing elided.
 rorixBladewing : Card
 rorixBladewing =
-  card "Rorix Bladewing" (Just [generic 3, pip Red, pip Red, pip Red])
+  Macros.card "Rorix Bladewing" (Just [Macros.generic 3, Macros.pip Red, Macros.pip Red, Macros.pip Red])
        [Legendary] (MkTypeLine [Dragon] [Creature])
        [KeywordAbility Flying, KeywordAbility Haste] (Just (6, 5))
 
@@ -1912,9 +1912,9 @@ rorixBladewing =
 -- class word in its recipient slot. Nothing elided.
 aladdinsRing : Card
 aladdinsRing =
-  card "Aladdin's Ring" (Just [generic 8]) [] (MkTypeLine [] [Artifact])
-       [Activated (Compound [Mana [generic 8], TapSymbol])
-                  (DealDamage thisArtifact (Lit 4) (target AnyTarget))]
+  Macros.card "Aladdin's Ring" (Just [Macros.generic 8]) [] (MkTypeLine [] [Artifact])
+       [Activated (Compound [Mana [Macros.generic 8], TapSymbol])
+                  (DealDamage Macros.thisArtifact (Lit 4) (Macros.target AnyTarget))]
        Nothing
 
 -- Moonlit Wake {2}{W}, Enchantment, "Whenever a creature dies, you gain
@@ -1923,7 +1923,7 @@ aladdinsRing =
 -- elided.
 moonlitWakeCard : Card
 moonlitWakeCard =
-  card "Moonlit Wake" (Just [generic 2, pip White]) []
+  Macros.card "Moonlit Wake" (Just [Macros.generic 2, Macros.pip White]) []
        (MkTypeLine [] [Enchantment]) [moonlitWake] Nothing
 
 -- Anthem of Champions {G}{W}, Enchantment, "Creatures you control get
@@ -1932,9 +1932,9 @@ moonlitWakeCard =
 -- they're simply true". Nothing elided.
 anthemOfChampions : Card
 anthemOfChampions =
-  card "Anthem of Champions" (Just [pip Green, pip White]) []
+  Macros.card "Anthem of Champions" (Just [Macros.pip Green, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
-       [Static (Gets (AllOf creatureYouControl) 1 1)] Nothing
+       [Static (Gets (AllOf Macros.creatureYouControl) 1 1)] Nothing
 
 -- Counterspell {U}{U}, Instant, "Counter target spell." The SPELL card,
 -- whole, and the one that needed the container to exist: the same
@@ -1943,7 +1943,7 @@ anthemOfChampions =
 -- asking what the CARD is. Nothing elided.
 counterspellCard : Card
 counterspellCard =
-  card "Counterspell" (Just [pip Blue, pip Blue]) []
+  Macros.card "Counterspell" (Just [Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [] [Instant]) [Spell counterspell] Nothing
 
 -- Hymn of Rebirth {3}{G}{W}, Sorcery, "Put target creature card from a
@@ -1951,7 +1951,7 @@ counterspellCard =
 -- card, and the arrival rider's whole-card witness at the same time.
 hymnOfRebirthCard : Card
 hymnOfRebirthCard =
-  card "Hymn of Rebirth" (Just [generic 3, pip Green, pip White]) []
+  Macros.card "Hymn of Rebirth" (Just [Macros.generic 3, Macros.pip Green, Macros.pip White]) []
        (MkTypeLine [] [Sorcery]) [Spell hymnOfRebirth] Nothing
 
 -- Chandra's Pyrohelix {1}{R}, Instant, "Chandra's Pyrohelix deals 2
@@ -1964,7 +1964,7 @@ hymnOfRebirthCard =
 -- of writable; the count word was already here.
 chandrasPyrohelixCard : Card
 chandrasPyrohelixCard =
-  card "Chandra's Pyrohelix" (Just [generic 1, pip Red]) []
+  Macros.card "Chandra's Pyrohelix" (Just [Macros.generic 1, Macros.pip Red]) []
        (MkTypeLine [] [Instant]) [Spell forkedBolt] Nothing
 
 -- Char-Rumbler {2}{R}{R}, Creature — Elemental, -1/3, "Double strike"
@@ -1978,9 +1978,9 @@ chandrasPyrohelixCard =
 -- representation is what a container is for.
 charRumbler : Card
 charRumbler =
-  card "Char-Rumbler" (Just [generic 2, pip Red, pip Red]) []
+  Macros.card "Char-Rumbler" (Just [Macros.generic 2, Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [] [Creature])
-       [Activated (Mana [pip Red]) (gets thisCreature 1 0 (Just untilEndOfTurn))]
+       [Activated (Mana [Macros.pip Red]) (Macros.gets Macros.thisCreature 1 0 (Just Macros.untilEndOfTurn))]
        (Just (-1, 3))
 
 -- "{2}{B}: Put a creature card exiled with Sisters of Stone Death onto
@@ -1994,9 +1994,9 @@ charRumbler =
 -- 188 keeps the name unread, so the self-word is the phrase.
 sistersOfStoneDeathRecall : Ability
 sistersOfStoneDeathRecall =
-  Activated (Mana [generic 2, pip Black])
-            (putOntoBattlefieldUnderYourControl
-               (a (And [creature, ExiledWith thisCreature])))
+  Activated (Mana [Macros.generic 2, Macros.pip Black])
+            (Macros.putOntoBattlefieldUnderYourControl
+               (Macros.a (And [Macros.creature, ExiledWith Macros.thisCreature])))
 
 -- Synod Sanctum {1}, Artifact, "{2}, {T}: Exile target permanent you
 -- control." / "{2}, Sacrifice this artifact: Return all cards exiled
@@ -2012,8 +2012,8 @@ sistersOfStoneDeathRecall =
 -- pile "due to … the abilities of the cards that exiled them".
 synodSanctumReturn : Ability
 synodSanctumReturn =
-  Activated (Compound [Mana [generic 2], Do (sacrifice You thisArtifact)])
-            (putOntoBattlefieldUnderYourControl (AllOf exiledWithThisArtifact))
+  Activated (Compound [Mana [Macros.generic 2], Do (Macros.sacrifice You Macros.thisArtifact)])
+            (Macros.putOntoBattlefieldUnderYourControl (AllOf Macros.exiledWithThisArtifact))
 
 -- Cold Storage {4}, Artifact, "{3}: Exile target creature you control."
 -- / "Sacrifice this artifact: Return each creature card exiled with this
@@ -2024,11 +2024,11 @@ synodSanctumReturn =
 -- [CR#406.6]'s pair written as shortly as English writes it.
 coldStorage : Card
 coldStorage =
-  card "Cold Storage" (Just [generic 4]) [] (MkTypeLine [] [Artifact])
-       [Activated (Mana [generic 3]) (exile (target creatureYouControl)),
-        Activated (Do (sacrifice You thisArtifact))
-                  (putOntoBattlefieldUnderYourControl
-                     (Each (And [creature, exiledWithThisArtifact])))]
+  Macros.card "Cold Storage" (Just [Macros.generic 4]) [] (MkTypeLine [] [Artifact])
+       [Activated (Mana [Macros.generic 3]) (Macros.exile (Macros.target Macros.creatureYouControl)),
+        Activated (Do (Macros.sacrifice You Macros.thisArtifact))
+                  (Macros.putOntoBattlefieldUnderYourControl
+                     (Each (And [Macros.creature, Macros.exiledWithThisArtifact])))]
        Nothing
 
 -- "{1}: Choose a card exiled with this artifact. You may play that card
@@ -2040,23 +2040,23 @@ coldStorage =
 -- card" names the choice across sentences.
 museVesselPlay : Ability
 museVesselPlay =
-  Activated (Mana [generic 1])
-            (Sequentially [Choose (a exiledWithThisArtifact),
-                           Continuously (MayPlay You (That CardW)) (Just thisTurn)])
+  Activated (Mana [Macros.generic 1])
+            (Sequentially [Choose (Macros.a Macros.exiledWithThisArtifact),
+                           Continuously (MayPlay You (That CardW)) (Just Macros.thisTurn)])
 
 -- Aerial Volley {G}, Instant — "Aerial Volley deals 3 damage divided as you
 -- choose among one, two, or three target creatures with flying."
 aerialVolley : Card
 aerialVolley =
-  card "Aerial Volley" (Just [pip Green]) [] (MkTypeLine [] [Instant])
-       [Spell (dealsDivided This (Lit 3)
-                            (TargetGroup (oneThrough 3)
-                              (And [creature, HasKeyword Flying])))] Nothing
+  Macros.card "Aerial Volley" (Just [Macros.pip Green]) [] (MkTypeLine [] [Instant])
+       [Spell (Macros.dealsDivided This (Lit 3)
+                            (TargetGroup (Macros.oneThrough 3)
+                              (And [Macros.creature, HasKeyword Flying])))] Nothing
 
 -- Yotian Soldier {3}, Artifact Creature — Soldier, vigilance, 1/4.
 yotianSoldier : Card
 yotianSoldier =
-  card "Yotian Soldier" (Just [generic 3]) []
+  Macros.card "Yotian Soldier" (Just [Macros.generic 3]) []
        (MkTypeLine [Soldier] [Artifact, Creature])
        [KeywordAbility Vigilance] (Just (1, 4))
 
@@ -2065,15 +2065,15 @@ yotianSoldier =
 -- transcribes only its first conjunct; "Draw a card" remains elided.
 pymParticlesVigilanceGrant : Effect []
 pymParticlesVigilanceGrant =
-  gains (target creature) (KeywordAbility Vigilance) (Just untilEndOfTurn)
+  Macros.gains (Macros.target Macros.creature) (KeywordAbility Vigilance) (Just Macros.untilEndOfTurn)
 
 -- Demonic Consultation and Void's exact first sentences. Their later
 -- sentences are outside this catalog witness.
 demonicConsultationChoice : Effect []
-demonicConsultationChoice = Choose (a (QualityNoun CardName))
+demonicConsultationChoice = Choose (Macros.a (QualityNoun CardName))
 
 voidChoice : Effect []
-voidChoice = Choose (a (QualityNoun Number))
+voidChoice = Choose (Macros.a (QualityNoun Number))
 
 -- The five basic land cards, and Snow-Covered Forest: no mana cost, no P/T,
 -- and no ability line — [CR#305.6] gives a land with a basic land type its
@@ -2082,16 +2082,16 @@ voidChoice = Choose (a (QualityNoun Number))
 -- Forest is the proof that one printed line carries Basic and Snow together.
 basicLandCards : List Card
 basicLandCards =
-  [ card "Plains" Nothing [Basic] (MkTypeLine [Plains] [Land]) [] Nothing
-  , card "Island" Nothing [Basic] (MkTypeLine [Island] [Land]) [] Nothing
-  , card "Swamp" Nothing [Basic] (MkTypeLine [Swamp] [Land]) [] Nothing
-  , card "Mountain" Nothing [Basic] (MkTypeLine [Mountain] [Land]) [] Nothing
-  , card "Forest" Nothing [Basic] (MkTypeLine [Forest] [Land]) [] Nothing
+  [ Macros.card "Plains" Nothing [Basic] (MkTypeLine [Plains] [Land]) [] Nothing
+  , Macros.card "Island" Nothing [Basic] (MkTypeLine [Island] [Land]) [] Nothing
+  , Macros.card "Swamp" Nothing [Basic] (MkTypeLine [Swamp] [Land]) [] Nothing
+  , Macros.card "Mountain" Nothing [Basic] (MkTypeLine [Mountain] [Land]) [] Nothing
+  , Macros.card "Forest" Nothing [Basic] (MkTypeLine [Forest] [Land]) [] Nothing
   ]
 
 snowCoveredForest : Card
 snowCoveredForest =
-  card "Snow-Covered Forest" Nothing [Basic, Snow]
+  Macros.card "Snow-Covered Forest" Nothing [Basic, Snow]
        (MkTypeLine [Forest] [Land]) [] Nothing
 
 -- "Target creature gains deathtouch until end of turn." (Bladebrand's first
@@ -2101,22 +2101,22 @@ snowCoveredForest =
 -- itself.
 bladebrand : Effect []
 bladebrand =
-  gains (target creature) (KeywordAbility Deathtouch) (Just untilEndOfTurn)
+  Macros.gains (Macros.target Macros.creature) (KeywordAbility Deathtouch) (Just Macros.untilEndOfTurn)
 
 criticalHit : Effect []
 criticalHit =
-  gains (target creature) (KeywordAbility DoubleStrike) (Just untilEndOfTurn)
+  Macros.gains (Macros.target Macros.creature) (KeywordAbility DoubleStrike) (Just Macros.untilEndOfTurn)
 
 lightningBlow : Effect []
 lightningBlow =
-  gains (target creature) (KeywordAbility FirstStrike) (Just untilEndOfTurn)
+  Macros.gains (Macros.target Macros.creature) (KeywordAbility FirstStrike) (Just Macros.untilEndOfTurn)
 
 -- "When you cycle this card, put a flying counter on target creature you
 -- control." (Avian Oddity; the cycling trigger header elided as other
 -- headers are) — the keyword product under the same one-shot put verb the
 -- stat product takes, and the only witness `flyingCounter` needs.
 avianOddity : Effect []
-avianOddity = PutCounters (Lit 1) flyingCounter (target creatureYouControl)
+avianOddity = PutCounters (Lit 1) Macros.flyingCounter (Macros.target Macros.creatureYouControl)
 
 -- "Put a flying counter on each creature you control without flying." (Song
 -- of Eärendil's third chapter, its saga header elided) — the possession
@@ -2124,28 +2124,20 @@ avianOddity = PutCounters (Lit 1) flyingCounter (target creatureYouControl)
 -- reason the keyword row and the keyword counter meet on one line.
 songOfEarendil : Effect []
 songOfEarendil =
-  PutCounters (Lit 1) flyingCounter
-              (Each (And [creature, ControlledBy You, Not (HasKeyword Flying)]))
+  PutCounters (Lit 1) Macros.flyingCounter
+              (Each (And [Macros.creature, ControlledBy You, Not (HasKeyword Flying)]))
 
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
--- A keyword is a modifier, never a noun head.
-failing "Headed"
-  badKeywordHead : Effect []
-  badKeywordHead = Choose (a (HasKeyword Flying))
 
 -- The full predicate equality table catches a keyword and its negation.
 failing "ContradictionFree"
   badKeywordContradiction : Effect []
-  badKeywordContradiction = Tap (target (And [creature, HasKeyword Flying,
+  badKeywordContradiction = Tap (Macros.target (And [Macros.creature, HasKeyword Flying,
                                                Not (HasKeyword Flying)]))
 
 -- These choices bind their qualities, but their later readback surfaces are
 -- name equality and numeric equality, not `OfChosen`.
-failing "ChosenQualityRead"
-  badChosenCardNameRead :
-    Predicate [MkBinding AD (Quality CardName) OneOf QualityP] Object
-  badChosenCardNameRead = OfChosen CardName
 
 failing "ChosenQualityRead"
   badChosenNumberRead :
@@ -2155,7 +2147,7 @@ failing "ChosenQualityRead"
 -- Forest presupposes land, so this conjunction contradicts itself.
 failing "ContradictionFree"
   badForestNonland : Effect []
-  badForestNonland = Tap (target (And [HasSubtype Forest, Not land]))
+  badForestNonland = Tap (Macros.target (And [HasSubtype Forest, Not Macros.land]))
 
 -- One printed line carries Basic and Snow, so the distinctness the type
 -- line asks for is per WORD and not per line — `badDuplicateSupertype`
@@ -2163,28 +2155,28 @@ failing "ContradictionFree"
 failing "CardSupers"
   badDuplicateSnow : Card
   badDuplicateSnow =
-    card "" Nothing [Snow, Snow] (MkTypeLine [Forest] [Land]) [] Nothing
+    Macros.card "" Nothing [Snow, Snow] (MkTypeLine [Forest] [Land]) [] Nothing
 
 -- "other" with no target before it: the presupposition has no witness.
 -- Forward and self references are unspellable the same way — there is
 -- no context in which a later mention precedes.
 failing "anyTargeted"
   badOther : Effect []
-  badOther = DealDamage This (Lit 1) (target anyOtherTarget)
+  badOther = DealDamage This (Lit 1) (Macros.target Macros.anyOtherTarget)
 
 -- A genuinely ambiguous pronoun: two singular Object mentions precede
 -- "it", so the uniqueness gate refuses. (Not oracle-legal text — which
 -- is the point: the controlled language never writes this.)
 failing "countOnes"
   badIt : Effect []
-  badIt = Sequentially [Fights (target creature) (target creature),
+  badIt = Sequentially [Fights (Macros.target Macros.creature) (Macros.target Macros.creature),
                         Tap It]
 
 -- A group is not a singular antecedent: "each creature … it" has no
 -- referent for "it" (the plurality guard).
 failing "countOnes"
   badTheyIt : Effect []
-  badTheyIt = Sequentially [DealDamage This (Lit 3) (Each creature),
+  badTheyIt = Sequentially [DealDamage This (Lit 3) (Each Macros.creature),
                             Tap It]
 
 -- The delay does not launder a dead referent: sacrifice's zone demand
@@ -2194,8 +2186,8 @@ failing "countOnes"
 -- zone, never its determiner).
 failing "OnBattlefield"
   badStale : Effect []
-  badStale = Sequentially [destroy (target creature),
-                           Delayed (BeginningOf EndStep Nothing) (sacrifice You It)]
+  badStale = Sequentially [Macros.destroy (Macros.target Macros.creature),
+                           Delayed (BeginningOf EndStep Nothing) (Macros.sacrifice You It)]
 
 -- "Another target" inside a delayed clause can only be distinct from
 -- the DELAYED ability's own targets — it announces in its own event
@@ -2206,8 +2198,8 @@ failing "OnBattlefield"
 -- creature" from the outer clause.)
 failing "anyTargeted"
   badDelayedOther : Effect []
-  badDelayedOther = Sequentially [DealDamage This (Lit 2) (target AnyTarget),
-                                  Delayed (BeginningOf EndStep Nothing) (DealDamage This (Lit 1) (target anyOtherTarget))]
+  badDelayedOther = Sequentially [DealDamage This (Lit 2) (Macros.target AnyTarget),
+                                  Delayed (BeginningOf EndStep Nothing) (DealDamage This (Lit 1) (Macros.target Macros.anyOtherTarget))]
 
 -- After the exile, the referent no longer answers to "creature": its
 -- carrier is derived from the RETAGGED zone ([CR#110.1]), so the typed
@@ -2215,8 +2207,8 @@ failing "anyTargeted"
 -- error ("that card" is the spelling that resolves; see `cloudshift`).
 failing "countWord"
   badStaleCarrier : Effect []
-  badStaleCarrier = Sequentially [exile (target creatureYouControl),
-                                  Move (That (TypeW Creature)) battlefieldZ]
+  badStaleCarrier = Sequentially [Macros.exile (Macros.target Macros.creatureYouControl),
+                                  Move (That (TypeW Creature)) Macros.battlefieldZ]
 
 -- A hidden-zone cost mention is unreadable past the colon: the card
 -- bounced to hand is not among the public survivors ([CR#400.2] —
@@ -2224,7 +2216,7 @@ failing "countWord"
 -- Soratami Cloudskater-family costs write no such read back).
 failing "publicOnly"
   badHiddenCost : Ability
-  badHiddenCost = Activated (Do (Move (a creature) handZ)) (Tap It)
+  badHiddenCost = Activated (Do (Move (Macros.a Macros.creature) Macros.handZ)) (Tap It)
 
 -- Two cost moves leave two candidate antecedents ("Discard a card,
 -- Sacrifice a creature: …" — Falkenrath Pit Fighter-family): a bare
@@ -2234,24 +2226,24 @@ failing "publicOnly"
 -- so the pin isolates the ambiguity, not a zone gate.)
 failing "countOnes"
   badTwoCostMentions : Ability
-  badTwoCostMentions = Activated (Compound [Do (discardsACard You),
-                                            Do (sacrifice You (a creature))])
-                                 (exile It)
+  badTwoCostMentions = Activated (Compound [Do (Macros.discardsACard You),
+                                            Do (Macros.sacrifice You (Macros.a Macros.creature))])
+                                 (Macros.exile It)
 
 -- The zone half of sacrifice's implicit restriction as a type error:
 -- an exiled referent is not sacrificeable [CR#701.21a].
 failing "OnBattlefield"
   badSacrificeExiled : Effect []
-  badSacrificeExiled = Sequentially [exile (target creature),
-                                     sacrifice You It]
+  badSacrificeExiled = Sequentially [Macros.exile (Macros.target Macros.creature),
+                                     Macros.sacrifice You It]
 
 -- After the watched target dies, it no longer answers to "creature":
 -- the event retag flips the carrier ([CR#700.4,110.1]) — "that card"
 -- is the spelling that resolves (see `gracefulReprieve`).
 failing "countWord"
   badDeadCreatureRead : Effect []
-  badDeadCreatureRead = Delayed (Dies (target creature)) {span = Just ThisTurn}
-                                (Move (That (TypeW Creature)) battlefieldZ)
+  badDeadCreatureRead = Delayed (Dies (Macros.target Macros.creature)) {span = Just ThisTurn}
+                                (Move (That (TypeW Creature)) Macros.battlefieldZ)
 
 -- "The chosen type" with only a color chosen: the quality read is
 -- sort-filtered — no witness.
@@ -2263,8 +2255,8 @@ failing "countQuality"
 -- the same strict-uniqueness gate as the singular.
 failing "countManys"
   badThemAmbig : Effect []
-  badThemAmbig = Sequentially [Choose (TargetGroup (exactly 2) creature),
-                               Choose (TargetGroup (exactly 2) creature),
+  badThemAmbig = Sequentially [Choose (TargetGroup (Macros.exactly 2) Macros.creature),
+                               Choose (TargetGroup (Macros.exactly 2) Macros.creature),
                                Tap Them]
 
 -- Two predicate-inner opponents leave "that player" ambiguous — the
@@ -2272,58 +2264,41 @@ failing "countManys"
 -- oracle-legal text; the guide would repeat the noun.)
 failing "countWord"
   badInnerAmbig : Effect []
-  badInnerAmbig = Sequentially [Fights (target (And [creature, ControlledBy anOpponent]))
-                                       (target (And [creature, ControlledBy anOpponent])),
-                                losesLife (That PlayerW) (Lit 1)]
-
--- The representation-level witness of the §3 kind-indexing rule: a
--- binding cannot record data its kind cannot have — "a player in your
--- hand" fails to CONSTRUCT (`Payload Player` has no zone slot), the
--- same refusal the surface grammar makes at `InZone`'s kind.
-failing "Payload Player"
-  badPlayerInHand : Binding
-  badPlayerInHand = MkBinding AD Player OneOf (ObjectP Nothing (Just Hand) Nothing Nothing)
+  badInnerAmbig = Sequentially [Fights (Macros.target (And [Macros.creature, ControlledBy Macros.anOpponent]))
+                                       (Macros.target (And [Macros.creature, ControlledBy Macros.anOpponent])),
+                                Macros.losesLife (That PlayerW) (Lit 1)]
 
 -- The participle's verb filter has no witness: the cost discarded,
 -- nothing was sacrificed.
 failing "countVerbed"
   badVerbedWrongVerb : Ability
-  badVerbedWrongVerb = Activated (Do (discardsACard You))
-                                 (Move (TheVerbed Sacrifice CardW) battlefieldZ)
+  badVerbedWrongVerb = Activated (Do (Macros.discardsACard You))
+                                 (Move (TheVerbed Sacrifice CardW) Macros.battlefieldZ)
 
 -- The noun word misses on the type axis: an artifact was sacrificed,
 -- so "the sacrificed creature" has no referent.
 failing "countVerbed"
   badVerbedWrongNoun : Ability
-  badVerbedWrongNoun = Activated (Do (sacrifice You (a (HasType Artifact))))
-                                 (Move (TheVerbed Sacrifice (TypeW Creature)) battlefieldZ)
+  badVerbedWrongNoun = Activated (Do (Macros.sacrifice You (Macros.a (HasType Artifact))))
+                                 (Move (TheVerbed Sacrifice (TypeW Creature)) Macros.battlefieldZ)
 
 -- Two same-verb stamps leave the participle ambiguous — the same
 -- strict uniqueness as every read (real costs of this shape name
 -- distinct verbs, which is what the filter buys).
 failing "countVerbed"
   badVerbedAmbig : Ability
-  badVerbedAmbig = Activated (Compound [Do (sacrifice You (a creature)),
-                                        Do (sacrifice You (a creature))])
-                             (Move (TheVerbed Sacrifice CardW) battlefieldZ)
-
--- No participle reads a player, and the word is what says so: it
--- fixes the phrase's KIND exactly as it does for the demonstrative
--- (`kindOfW`), so "the discarded player" is not an object phrase a
--- move could take at all — the refusal lands at the kind rather than
--- waiting for the stamp scan to come back empty (finding 27).
-failing "kindOfW PlayerW"
-  badVerbedPlayerWord : Effect []
-  badVerbedPlayerWord = Move (TheVerbed Discard PlayerW) battlefieldZ
+  badVerbedAmbig = Activated (Compound [Do (Macros.sacrifice You (Macros.a Macros.creature)),
+                                        Do (Macros.sacrifice You (Macros.a Macros.creature))])
+                             (Move (TheVerbed Sacrifice CardW) Macros.battlefieldZ)
 
 -- Voyager Staff's shape with the bare demonstrative: two card
 -- mentions (the sacrificed self, the exiled target) make "that card"
 -- ambiguous — the participle is what real text switches to here.
 failing "countWord"
   badBareCardRead : Ability
-  badBareCardRead = Activated (Do (sacrifice You thisArtifact))
-                              (Sequentially [exile (target creature),
-                                             Delayed (BeginningOf EndStep Nothing) (Move (That CardW) battlefieldZ)])
+  badBareCardRead = Activated (Do (Macros.sacrifice You Macros.thisArtifact))
+                              (Sequentially [Macros.exile (Macros.target Macros.creature),
+                                             Delayed (BeginningOf EndStep Nothing) (Move (That CardW) Macros.battlefieldZ)])
 
 -- ===== Chapter nine negatives: the audit round =====
 
@@ -2331,34 +2306,34 @@ failing "countWord"
 -- cannot be tapped.
 failing "OnBattlefield"
   badTapGraveyard : Effect []
-  badTapGraveyard = Tap (target (And [creature, InZone (graveyardOf You)]))
+  badTapGraveyard = Tap (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)]))
 
 -- a bare status word heads nothing: "choose a tapped" / "destroy target
 -- tapped" are unwritable — the modifier needs a head beside it.
 failing "Headed"
   badBareTappedHead : Effect []
-  badBareTappedHead = destroy (target tapped)
+  badBareTappedHead = Macros.destroy (Macros.target Macros.tapped)
 
 -- status is only a battlefield permanent's ([CR#110.5d]): a "tapped
 -- creature card in your graveyard" places its referent in two zones at
 -- once and describes nothing.
 failing "ZoneCoherent"
   badTappedGraveyard : Effect []
-  badTappedGraveyard = destroy (target (And [creature, tapped,
-                                             InZone (graveyardOf You)]))
+  badTappedGraveyard = Macros.destroy (Macros.target (And [Macros.creature, Macros.tapped,
+                                             InZone (Macros.graveyardOf You)]))
 
 -- one value per category ([CR#110.5]): "tapped untapped creature"
 -- describes nothing, and the refusal is the category clash, not a
 -- negation pair — neither word is spelled as the other's "non-".
 failing "ContradictionFree"
   badTappedUntapped : Effect []
-  badTappedUntapped = destroy (target (And [creature, tapped, untapped]))
+  badTappedUntapped = Macros.destroy (Macros.target (And [Macros.creature, Macros.tapped, Macros.untapped]))
 
 -- the pair is two WORDS: "nontapped" is written zero times, so the
 -- status word does not negate — the opposite value is its own row.
 failing "Negatable"
   badNonTapped : Predicate [] Object
-  badNonTapped = Not tapped
+  badNonTapped = Not Macros.tapped
 
 -- "phased-in" is written zero times as a description; the value exists
 -- in the closed product ([CR#110.5]) and its surface cell refuses.
@@ -2370,39 +2345,39 @@ failing "StatusWord"
 -- ([CR#701.26b]; `badTapGraveyard`'s twin).
 failing "OnBattlefield"
   badUntapGraveyard : Effect []
-  badUntapGraveyard = Untap (target (And [creature, InZone (graveyardOf You)]))
+  badUntapGraveyard = Untap (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)]))
 
 -- "permanent" beside a projected instant head describes nothing
 -- ([CR#110.4] — "instant and sorcery cards can't enter the battlefield
 -- and thus can't be permanents").
 failing "ContradictionFree"
   badPermanentInstant : Effect []
-  badPermanentInstant = destroy (target (And [Permanent, HasType Instant]))
+  badPermanentInstant = Macros.destroy (Macros.target (And [Permanent, HasType Instant]))
 
 -- "that permanent" after its referent left: destruction retags to the
 -- graveyard, [CR#110.1] takes the word away with the zone, and the
 -- current-state read reaches nothing.
 failing "countWord"
   badThatPermanentDeparted : Effect []
-  badThatPermanentDeparted = Sequentially [destroy (target Permanent),
+  badThatPermanentDeparted = Sequentially [Macros.destroy (Macros.target Permanent),
                                            Tap (That PermanentW)]
 
 -- a token off the battlefield has ceased to exist ([CR#111.7]): "token
 -- card in your graveyard" describes nothing.
 failing "ZoneCoherent"
   badTokenGraveyard : Effect []
-  badTokenGraveyard = destroy (target (And [IsToken, InZone (graveyardOf You)]))
+  badTokenGraveyard = Macros.destroy (Macros.target (And [IsToken, InZone (Macros.graveyardOf You)]))
 
 -- "nontoken token" is the negation pair the scan already refuses.
 failing "ContradictionFree"
   badNontokenToken : Effect []
-  badNontokenToken = destroy (target (And [IsToken, nontoken]))
+  badNontokenToken = Macros.destroy (Macros.target (And [IsToken, Macros.nontoken]))
 
 -- a referent nothing minted as a token is never "that token": the
 -- origin field is written only by the create clause ([CR#111.1]).
 failing "countWord"
   badThatTokenOfCard : Effect []
-  badThatTokenOfCard = Sequentially [Tap (target creature),
+  badThatTokenOfCard = Sequentially [Tap (Macros.target Macros.creature),
                                      Untap (That TokenW)]
 
 -- the lock's subject stands on the battlefield, `badCantInGraveyard`'s
@@ -2410,7 +2385,7 @@ failing "countWord"
 failing "ZoneFits"
   badUntapLockGraveyard : Ability
   badUntapLockGraveyard =
-    Static (DoesntUntap (a (And [creature, InZone (graveyardOf You)])))
+    Static (DoesntUntap (Macros.a (And [Macros.creature, InZone (Macros.graveyardOf You)])))
 
 -- a durationless "doesn't untap" CLAUSE is the static ability line and
 -- not a clause at all — `badStaticCant`'s shape with the new statement.
@@ -2422,14 +2397,14 @@ failing "SpanOk"
 -- cannot.
 failing "OnBattlefield"
   badFightGraveyard : Effect []
-  badFightGraveyard = Fights (target (And [creature, InZone (graveyardOf You)]))
-                             (target creature)
+  badFightGraveyard = Fights (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)]))
+                             (Macros.target Macros.creature)
 
 -- Only combatant types fight [CR#701.14a]: a land's TypeDef declares
 -- no fight participation.
 failing "FightParticipant"
   badFightLand : Effect []
-  badFightLand = Fights (target (HasType Land)) (target creatureYouDontControl)
+  badFightLand = Fights (Macros.target (HasType Land)) (Macros.target Macros.creatureYouDontControl)
 
 -- Dying is the battlefield-to-graveyard transition [CR#700.4]: an
 -- already-graveyard card cannot die this turn. The demand is
@@ -2441,32 +2416,32 @@ failing "FightParticipant"
 -- its silence.
 failing "ZoneFits"
   badDiesInGraveyard : Effect []
-  badDiesInGraveyard = Delayed (Dies (target (And [creature, InZone (graveyardOf You)]))) {span = Just ThisTurn}
-                               (Move (That CardW) battlefieldZ)
+  badDiesInGraveyard = Delayed (Dies (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)]))) {span = Just ThisTurn}
+                               (Move (That CardW) Macros.battlefieldZ)
 
 -- Damage reaches players and battlefield objects only [CR#120.1]:
 -- the destroyed referent sits in the graveyard.
 failing "DamageRecipient"
   badDamageGraveyardCard : Effect []
-  badDamageGraveyardCard = Sequentially [destroy (target creature),
+  badDamageGraveyardCard = Sequentially [Macros.destroy (Macros.target Macros.creature),
                                          DealDamage This (Lit 3) It]
 
 -- A quality cannot take damage [CR#120.1].
 failing "DamageRecipient"
   badDamageToColor : Effect []
-  badDamageToColor = DealDamage This (Lit 1) (a (QualityNoun Color))
+  badDamageToColor = DealDamage This (Lit 1) (Macros.a (QualityNoun Color))
 
 -- Damage goes to battles, creatures, planeswalkers, or players
 -- [CR#120.1a]: a noncreature artifact takes none.
 failing "DamageRecipient"
   badDamageArtifact : Effect []
-  badDamageArtifact = DealDamage This (Lit 1) (target (HasType Artifact))
+  badDamageArtifact = DealDamage This (Lit 1) (Macros.target (HasType Artifact))
 
 -- A phrase needs a positive head ([CR#105.1,608.2d]): "choose a
 -- noncolor" heads nothing — Not is a modifier, never a head.
 failing "Headed"
   badNegatedQualityHead : Effect []
-  badNegatedQualityHead = Choose (a (Not (QualityNoun Color)))
+  badNegatedQualityHead = Choose (Macros.a (Not (QualityNoun Color)))
 
 -- "Target non-player" is refused EARLIER than headlessness now: the
 -- universal player word names one of the people in the game
@@ -2483,86 +2458,72 @@ failing "Negatable"
 -- names no opponent for "that player" to read.
 failing "countWord"
   badNegatedAntecedent : Effect []
-  badNegatedAntecedent = Sequentially [Tap (target (And [creature, Not (ControlledBy anOpponent)])),
-                                       losesLife (That PlayerW) (Lit 1)]
+  badNegatedAntecedent = Sequentially [Tap (Macros.target (And [Macros.creature, Not (ControlledBy Macros.anOpponent)])),
+                                       Macros.losesLife (That PlayerW) (Lit 1)]
 
 -- An object is in ONE zone: contradicted zone conjuncts refuse in
 -- either order.
 failing "ZoneCoherent"
   badConflictingZones : Effect []
-  badConflictingZones = destroy (target (And [creature, InZone battlefieldZ, InZone graveyardZ]))
+  badConflictingZones = Macros.destroy (Macros.target (And [Macros.creature, InZone Macros.battlefieldZ, InZone Macros.graveyardZ]))
 
 -- Targets are objects and players [CR#115.1]: "target color" is
 -- unwritten — qualities are chosen, never targeted.
 failing "Targetable"
   badTargetColor : Effect []
-  badTargetColor = Choose (target (QualityNoun Color))
+  badTargetColor = Choose (Macros.target (QualityNoun Color))
 
 -- The one-shot stat modification takes a battlefield object: a dead
 -- referent doesn't get +3/+3.
 failing "ZoneFits"
   badGetsGraveyard : Effect []
-  badGetsGraveyard = Sequentially [destroy (target creature),
-                                   gets It 3 3 (Just untilEndOfTurn)]
+  badGetsGraveyard = Sequentially [Macros.destroy (Macros.target Macros.creature),
+                                   Macros.gets It 3 3 (Just Macros.untilEndOfTurn)]
 
 -- A card never enters another player's hand [CR#400.3]: owned
 -- destinations are owner-routed, so this is unwritable.
 failing "DestOk"
   badMoveToTargetsHand : Effect []
-  badMoveToTargetsHand = Move (target creature) (handOf (target AnyPlayer))
+  badMoveToTargetsHand = Move (Macros.target Macros.creature) (Macros.handOf (Macros.target AnyPlayer))
 
 -- Only a battlefield permanent is destroyable [CR#701.8a].
 failing "OnBattlefield"
   badDestroyGraveyard : Effect []
-  badDestroyGraveyard = destroy (target (And [creature, InZone (graveyardOf You)]))
+  badDestroyGraveyard = Macros.destroy (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)]))
 
 -- Discarding moves a card from a HAND [CR#701.9a]: a battlefield
 -- creature is not discardable.
 failing "DiscardOk"
   badDiscardBattlefield : Effect []
-  badDiscardBattlefield = discards You (a creature)
+  badDiscardBattlefield = Macros.discards You (Macros.a Macros.creature)
 
 -- The tag and its body agree: a Destroy-tagged exile would let
 -- indestructible cant an exile [CR#701.8b,702.12b].
 failing "TagBody"
   badDestroyTaggedExile : Effect []
-  badDestroyTaggedExile = Composite Destroy (Move (target creature) exileZ)
+  badDestroyTaggedExile = Composite Destroy (Move (Macros.target Macros.creature) Macros.exileZ)
 
 -- The zone demand lives on the tag-body relation: the raw Composite
 -- spelling proves what the macro proves [CR#701.8a].
 failing "OnBattlefield"
   badCompositeDestroyGraveyard : Effect []
   badCompositeDestroyGraveyard =
-    Composite Destroy (Move (target (And [creature, InZone graveyardZ])) graveyardZ) {ok = DestroyB}
+    Composite Destroy (Move (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) Macros.graveyardZ) {ok = DestroyB}
 
 -- An agentive tag cannot shed its actor [CR#701.21a]: the raw
 -- Composite spelling of sacrifice is refused outright.
 failing "NonAgentive"
   badAgentlessSacrifice : Effect []
-  badAgentlessSacrifice = Composite Sacrifice (Move (a creature) graveyardZ) {ok = SacrificeB}
+  badAgentlessSacrifice = Composite Sacrifice (Move (Macros.a Macros.creature) Macros.graveyardZ) {ok = SacrificeB}
 
 -- Discarding moves a hand card [CR#701.9a]: the demand rides the tag
 -- relation, so a battlefield "discard" is unspellable under Does too
 -- — and with it the forged stamp `TheVerbed Discard` would read.
 failing "DiscardOk"
   badDoesDiscardBattlefield : Effect []
-  badDoesDiscardBattlefield = Does You Discard (Move (a creature) graveyardZ) {tb = DiscardB}
+  badDoesDiscardBattlefield = Does You Discard (Move (Macros.a Macros.creature) Macros.graveyardZ) {tb = DiscardB}
 
--- Two creatures have no single power [CR#208.1] — the aggregate is
--- written explicitly ("the total power of the sacrificed creatures",
--- Soulblast), and is future vocabulary.
-failing "OneOf"
-  badGroupPower : Effect []
-  badGroupPower = Sequentially [Choose (TargetGroup (exactly 2) creature),
-                                gainsLife You (powerOf Them)]
 
--- Two cards need not share an owner [CR#108.3] — oracle writes the
--- plural relational ("their owners' hands", Aether Burst), future
--- vocabulary.
-failing "OneOf"
-  badGroupOwner : Effect []
-  badGroupOwner = Sequentially [Choose (TargetGroup (exactly 2) creature),
-                                losesLife (OwnerOf Them) (Lit 1)]
 
 -- A written quantity permits at least one: "zero target creatures" is
 -- unwritten English, and so is the "up to zero" spelling of it — the
@@ -2571,29 +2532,10 @@ failing "OneOf"
 -- numeral.)
 failing "NonZeroQ"
   badZeroGroup : Effect []
-  badZeroGroup = Choose (TargetGroup (exactly 0) creature)
+  badZeroGroup = Choose (TargetGroup (Macros.exactly 0) Macros.creature)
 
--- The binary fight frame takes singular combatants — a group versus
--- one has no defined pairing; the plural form is the reciprocal
--- "those creatures fight each other" (ledger).
-failing "OneOf"
-  badFightGroup : Effect []
-  badFightGroup = Fights (TargetGroup (exactly 2) creature) (target creature)
 
--- "a creature two target opponents control": an object has one
--- controller [CR#109.4]; the union possessor ("creatures your
--- opponents control") is the player-groups vocabulary (ledger).
--- (Probed at the predicate itself: inside a larger phrase the stuck
--- slot stalls the outer coherence search instead.)
-failing "OneOf"
-  badControlledByGroup : Predicate [] Object
-  badControlledByGroup = ControlledBy (TargetGroup (exactly 2) Opponent)
 
--- Hands and graveyards are per-player zones [CR#400.1]: one zone
--- owned by two players at once is unwritable.
-failing "OneOf"
-  badGraveyardOfGroup : ZoneExpr []
-  badGraveyardOfGroup = graveyardOf (TargetGroup (exactly 2) Opponent)
 
 -- …and the shared zones take no possessor at all: [CR#400.1] gives
 -- each player a library, a hand, and a graveyard and shares the rest,
@@ -2603,12 +2545,6 @@ failing "Possessable"
   badOwnedBattlefield : ZoneExpr []
   badOwnedBattlefield = ZoneAt Battlefield (OwnedBy You)
 
--- The minted dies-watcher is singular (Graceful Reprieve's shape);
--- plural watches wait for corpus evidence.
-failing "OneOf"
-  badDiesGroup : Effect []
-  badDiesGroup = Delayed (Dies (TargetGroup (exactly 2) creature)) {span = Just ThisTurn}
-                         (gainsLife You (Lit 1))
 
 -- A bare type word denotes a permanent [CR#109.2], and what was
 -- discarded left a HAND: "the discarded creature" is unwritten (the
@@ -2617,30 +2553,30 @@ failing "OneOf"
 failing "countVerbed"
   badDiscardedCreatureWord : Ability
   badDiscardedCreatureWord =
-    Activated (Do (discards You (aAtRandom (And [creature, InZone handZ]))))
+    Activated (Do (Macros.discards You (Macros.aAtRandom (And [Macros.creature, InZone Macros.handZ]))))
               (DealDamage This
-                            (manaValueOf (TheVerbed Discard (TypeW Creature)))
-                            (target AnyTarget))
+                            (Macros.manaValueOf (TheVerbed Discard (TypeW Creature)))
+                            (Macros.target AnyTarget))
 
 -- "Of their choice" is a possessive pronoun: it demands a player
 -- antecedent (a subject or one distributive group [CR#608.2d]) —
 -- bare "Destroy a creature of their choice" is unwritten.
 failing "countOnes Player"
   badUnboundTheirChoice : Effect []
-  badUnboundTheirChoice = destroy (aTheirChoice creature)
+  badUnboundTheirChoice = Macros.destroy (Macros.aTheirChoice Macros.creature)
 
 -- "That much" with nothing done yet: no outcome to read.
 failing "countOnes Outcome"
   badThatMuchUnbound : Effect []
-  badThatMuchUnbound = DealDamage This ThatMuch (target AnyTarget)
+  badThatMuchUnbound = DealDamage This ThatMuch (Macros.target AnyTarget)
 
 -- Two event clauses leave "that much" ambiguous — outcomes obey the
 -- same strict uniqueness as every read.
 failing "countOnes Outcome"
   badThatMuchAmbig : Effect []
-  badThatMuchAmbig = Sequentially [DealDamage This (Lit 3) (target AnyTarget),
-                                   losesLife You (Lit 2),
-                                   gainsLife You ThatMuch]
+  badThatMuchAmbig = Sequentially [DealDamage This (Lit 3) (Macros.target AnyTarget),
+                                   Macros.losesLife You (Lit 2),
+                                   Macros.gainsLife You ThatMuch]
 
 -- ===== Chapter thirteen negatives: the refuse-nonsense wave =====
 -- (Probed at the smallest construct that carries the gate — a bare
@@ -2657,22 +2593,22 @@ failing "countOnes Outcome"
 -- conjunction where the head type is known.
 failing "OtherAnchored"
   badOtherCrossHead : Effect []
-  badOtherCrossHead = Sequentially [destroy (target (HasType Land)),
-                                    destroy (target (And [creature, Other]))]
+  badOtherCrossHead = Sequentially [Macros.destroy (Macros.target (HasType Land)),
+                                    Macros.destroy (Macros.target (And [Macros.creature, Other]))]
 
 -- Every corpus for-each domain is noun-headed: "for each you control"
 -- names no set to count — the positive-head demand the determiners
 -- already carry (finding 39), now on the counted-set amount.
 failing "Headed"
   badForEachHeadless : Amount []
-  badForEachHeadless = forEach (ControlledBy You)
+  badForEachHeadless = Macros.forEach (ControlledBy You)
 
 -- A written numeral is at least one — "1 life for each 0 creatures" is
 -- unwritten English. (The comparisons that legitimately carry zero read
 -- a count rather than write one; `Lit` stays ungated.)
 failing "AtLeastOne"
   badForEachZero : Amount []
-  badForEachZero = nForEach 0 creature
+  badForEachZero = Macros.nForEach 0 Macros.creature
 
 -- Zone negation itself is REAL oracle — "Each Vampire creature card
 -- you own that isn't on the battlefield has madness." (Falkenrath
@@ -2681,7 +2617,7 @@ failing "AtLeastOne"
 -- "creature" means the battlefield [CR#109.2].
 failing "ZoneCoherent"
   badNotOnBattlefield : Predicate [] Object
-  badNotOnBattlefield = And [creature, Not (InZone battlefieldZ)]
+  badNotOnBattlefield = And [Macros.creature, Not (InZone Macros.battlefieldZ)]
 
 -- No member negates a sibling: "of the chosen color and not of the
 -- chosen color" describes nothing.
@@ -2696,7 +2632,7 @@ failing "ContradictionFree"
 -- unambiguous.)
 failing "ContradictionFree"
   badNestedContradiction : Predicate [] Object
-  badNestedContradiction = And [creature, And [Not creature]]
+  badNestedContradiction = And [Macros.creature, And [Not Macros.creature]]
 
 -- Attackers are declared from creatures their controller controls
 -- ([CR#508.1a]) and leaving the battlefield removes a permanent from
@@ -2705,14 +2641,14 @@ failing "ContradictionFree"
 -- coherence one.
 failing "ZoneCoherent"
   badAttackingInHand : Predicate [] Object
-  badAttackingInHand = And [Attacking, InZone handZ]
+  badAttackingInHand = And [Attacking, InZone Macros.handZ]
 
 -- A COLLECTIVE group damage subject is unattested: oracle distributes
 -- the frame ("Each creature you control deals 1 damage to that
 -- creature.", Case of the Gateway Express) or names one source.
 failing "DamageSource"
   badGroupDamageSource : Effect []
-  badGroupDamageSource = DealDamage (TargetGroup (exactly 2) creature) (Lit 3) (target AnyPlayer)
+  badGroupDamageSource = DealDamage (TargetGroup (Macros.exactly 2) Macros.creature) (Lit 3) (Macros.target AnyPlayer)
 
 -- The class word is never negated: [CR#115.4] defines "any target"
 -- positively as the damage target class, and the guide forbids using it
@@ -2727,14 +2663,14 @@ failing "Negatable"
 -- synonym, spelled as a restriction.
 failing "AnyTargetLone"
   badAnyTargetInGraveyard : Predicate [] Object
-  badAnyTargetInGraveyard = And [AnyTarget, InZone graveyardZ]
+  badAnyTargetInGraveyard = And [AnyTarget, InZone Macros.graveyardZ]
 
 -- "Any target" is ITSELF the targeting form, so only the targeting
 -- determiners admit it: "a any target" and "each any target" are
 -- unwritable.
 failing "AnyTargetFree"
   badAnyTargetUnderA : Noun [] Object
-  badAnyTargetUnderA = a AnyTarget
+  badAnyTargetUnderA = Macros.a AnyTarget
 
 -- …and the targeting determiner admits it only where the count is the
 -- CASTER's to make: "any target" is the singular damage-class form
@@ -2746,7 +2682,7 @@ failing "AnyTargetFree"
 -- "among two targets" is zero lines, so "two any targets" stays closed.
 failing "AnyTargetAtCount"
   badGroupAnyTarget : Noun [] Object
-  badGroupAnyTarget = TargetGroup (exactly 2) AnyTarget
+  badGroupAnyTarget = TargetGroup (Macros.exactly 2) AnyTarget
 
 -- A type-worded self-reference denotes the PERMANENT ([CR#109.2]), and
 -- discarding moves a card from a HAND ([CR#701.9a]): "discard this
@@ -2754,7 +2690,7 @@ failing "AnyTargetAtCount"
 -- (`cyclingCost`).
 failing "DiscardOk"
   badDiscardThisCreature : Effect []
-  badDiscardThisCreature = discards You thisCreature
+  badDiscardThisCreature = Macros.discards You Macros.thisCreature
 
 -- The ascription is the SOURCE's, and only the source's: "target
 -- creature" already says its type in the predicate it carries, so
@@ -2763,7 +2699,7 @@ failing "DiscardOk"
 -- for it. The closed table is the whole refusal.
 failing "Ascribable"
   badAscribedTarget : Noun [] Object
-  badAscribedTarget = AsType Creature (target creature)
+  badAscribedTarget = AsType Creature (Macros.target Macros.creature)
 
 -- ===== Laundering routes: wrappers, doubled words, untracked reads =====
 
@@ -2774,7 +2710,7 @@ failing "Ascribable"
 -- invisible to the contradiction scan as well.
 failing "Negatable"
   badNegatedConjunction : Predicate [] Object
-  badNegatedConjunction = Not (And [creature])
+  badNegatedConjunction = Not (And [Macros.creature])
 
 -- The syntactically identical contradiction, no longer laundered by a
 -- vacuous member equality: "you" denotes the same player at both
@@ -2791,7 +2727,7 @@ failing "ContradictionFree"
 -- honest, the refusal falling out of the existing coherence gate.
 failing "ContradictionFree"
   badAttackingNoncreature : Predicate [] Object
-  badAttackingNoncreature = And [Attacking, Not creature]
+  badAttackingNoncreature = And [Attacking, Not Macros.creature]
 
 -- The class word is written ONCE: no corpus line repeats it inside one
 -- phrase, and "any target and any target" names one referent twice.
@@ -2806,7 +2742,7 @@ failing "AnyTargetLone"
 failing "OtherAnchored"
   badDoubleOther : Predicate [MkBinding TargetD Object OneOf
                                         (ObjectP (Just Creature) (Just Battlefield) Nothing Nothing)] Object
-  badDoubleOther = And [creature, Other, Other]
+  badDoubleOther = And [Macros.creature, Other, Other]
 
 -- The class word hides just as poorly inside an EMBEDDED noun: a
 -- relative clause's possessor is a phrase like any other, so "a
@@ -2814,7 +2750,7 @@ failing "OtherAnchored"
 -- under the non-targeting determiner that forbids it.
 failing "AnyTargetFree"
   badAnyTargetEmbedded : Noun [] Object
-  badAnyTargetEmbedded = a (And [creature, ControlledBy (ControllerOf (target AnyTarget))])
+  badAnyTargetEmbedded = Macros.a (And [Macros.creature, ControlledBy (ControllerOf (Macros.target AnyTarget))])
 
 -- The untracked exception belongs to the bare self-reference alone —
 -- it is not a free pass for every unplaced referent. A READ whose
@@ -2824,7 +2760,7 @@ failing "AnyTargetFree"
 -- a singular object mention takes before anything places it.)
 failing "DiscardOk"
   badDiscardIt : Effect [MkBinding AD Object OneOf (ObjectP Nothing Nothing Nothing Nothing)]
-  badDiscardIt = discards You It
+  badDiscardIt = Macros.discards You It
 
 -- …and the class word is no hand card either: it heads no zone clause
 -- and takes no [CR#109.2] default (it describes no object to place),
@@ -2833,7 +2769,7 @@ failing "DiscardOk"
 -- gate.
 failing "DiscardOk"
   badDiscardAnyTarget : Effect []
-  badDiscardAnyTarget = discards You (target AnyTarget)
+  badDiscardAnyTarget = Macros.discards You (Macros.target AnyTarget)
 
 -- A controller relation presupposes the battlefield: objects that are
 -- neither on the stack nor on the battlefield "aren't controlled by any
@@ -2843,7 +2779,7 @@ failing "DiscardOk"
 -- supplying the refusal.
 failing "ZoneCoherent"
   badControlledInGraveyard : Predicate [] Object
-  badControlledInGraveyard = And [creature, ControlledBy You, InZone graveyardZ]
+  badControlledInGraveyard = And [Macros.creature, ControlledBy You, InZone Macros.graveyardZ]
 
 -- ===== The converge-on-core round: sequence arity =====
 
@@ -2861,7 +2797,7 @@ failing "AtLeastTwo"
 -- spelling.
 failing "AtLeastTwo"
   badSingletonSequence : Effect []
-  badSingletonSequence = Sequentially [destroy (target creature)]
+  badSingletonSequence = Sequentially [Macros.destroy (Macros.target Macros.creature)]
 
 -- ===== The kind-union round: the class word places nothing =====
 
@@ -2873,22 +2809,22 @@ failing "AtLeastTwo"
 -- refusal now falls out of the zone gate the verb already had.
 failing "OnBattlefield"
   badDestroyAnyTarget : Effect []
-  badDestroyAnyTarget = destroy (target AnyTarget)
+  badDestroyAnyTarget = Macros.destroy (Macros.target AnyTarget)
 
 -- The same refusal one verb over and at the raw constructor — tapping
 -- takes a battlefield object ([CR#701.26a]) — so it is the projection
 -- that changed, not one macro's demand.
 failing "OnBattlefield"
   badTapAnyTarget : Effect []
-  badTapAnyTarget = Tap (target AnyTarget)
+  badTapAnyTarget = Tap (Macros.target AnyTarget)
 
 -- …and the mention is no better placed when it is read back: the
 -- binding an any-target phrase introduces records the phrase's own
 -- silence, so "it" inherits no battlefield the phrase never claimed.
 failing "OnBattlefield"
   badDestroyAnyTargetRemention : Effect []
-  badDestroyAnyTargetRemention = Sequentially [DealDamage This (Lit 3) (target AnyTarget),
-                                               destroy It]
+  badDestroyAnyTargetRemention = Sequentially [DealDamage This (Lit 3) (Macros.target AnyTarget),
+                                               Macros.destroy It]
 
 -- The PLACEMENT is where the silence had to be refused by name rather
 -- than by a zone gate, this verb having none: a move SETS the zone, so
@@ -2897,7 +2833,7 @@ failing "OnBattlefield"
 -- class spans players, and no placement takes one.
 failing "NotAnyTarget"
   badExileAnyTarget : Effect []
-  badExileAnyTarget = exile (target AnyTarget)
+  badExileAnyTarget = Macros.exile (Macros.target AnyTarget)
 
 -- And the COUNTERING for the other half of the same rule: [CR#115.4]
 -- says a spell "can't be chosen this way", and [CR#112.1] makes a spell
@@ -2906,14 +2842,14 @@ failing "NotAnyTarget"
 -- none writes the class word.
 failing "OnStack"
   badCounterAnyTarget : Effect []
-  badCounterAnyTarget = counterSpell (target AnyTarget)
+  badCounterAnyTarget = Macros.counterSpell (Macros.target AnyTarget)
 
 -- The cast event's complement is the same phrase in the same zone, so
 -- it takes the same strict demand: a thousand and sixty-nine headers
 -- write "casts a … spell" and not one names the damage class.
 failing "OnStack"
   badCastsAnyTarget : Ability
-  badCastsAnyTarget = Triggered Whenever (Casts You (target AnyTarget)) drawACard
+  badCastsAnyTarget = Triggered Whenever (Casts You (Macros.target AnyTarget)) Macros.drawACard
 
 -- The recipient gate reads the NOUN, and that is what keeps the class
 -- word's own row from becoming a zone-free hole: bare `This` is the
@@ -2936,13 +2872,13 @@ failing "TwoDisjuncts"
 
 failing "TwoDisjuncts"
   badSingletonOr : Predicate [] Object
-  badSingletonOr = Or [creature]
+  badSingletonOr = Or [Macros.creature]
 
 -- …and the same argument once more at two: "artifact or artifact"
 -- offers a choice between a thing and itself.
 failing "DistinctDisjuncts"
   badRepeatedDisjunct : Predicate [] Object
-  badRepeatedDisjunct = Or [artifact, artifact]
+  badRepeatedDisjunct = Or [Macros.artifact, Macros.artifact]
 
 -- Alternatives are PARALLEL — each one has to be able to stand where
 -- the others stand. A head noun and a bare status word cannot:
@@ -2951,7 +2887,7 @@ failing "DistinctDisjuncts"
 -- alternatives have different domains or modifiers").
 failing "ParallelDisjuncts"
   badHeadlessDisjunct : Predicate [] Object
-  badHeadlessDisjunct = Or [artifact, Attacking]
+  badHeadlessDisjunct = Or [Macros.artifact, Attacking]
 
 -- The same demand about PLACE. Oracle does write cross-zone
 -- alternatives — "an Equipment card from your hand or graveyard",
@@ -2961,21 +2897,21 @@ failing "ParallelDisjuncts"
 -- (the axis is ledgered).
 failing "ParallelDisjuncts"
   badCrossZoneDisjunction : Predicate [] Object
-  badCrossZoneDisjunction = Or [InZone handZ, InZone graveyardZ]
+  badCrossZoneDisjunction = Or [InZone Macros.handZ, InZone Macros.graveyardZ]
 
 -- "Any target" is ALREADY the union [CR#115.4] fixes — creatures,
 -- players, planeswalkers, or battles — so coordinating it with an
 -- alternative re-opens a closed class.
 failing "CoordinableDisjuncts"
   badAnyTargetInOr : Predicate [] Object
-  badAnyTargetInOr = Or [AnyTarget, creature]
+  badAnyTargetInOr = Or [AnyTarget, Macros.creature]
 
 -- …and a singleton conjunction wrapped around it launders nothing:
 -- every alternative is read through `flattenPs`, which is the lesson
 -- the negation row learned when `And [x]` could still hide anything.
 failing "CoordinableDisjuncts"
   badAnyTargetInOrLaundered : Predicate [] Object
-  badAnyTargetInOrLaundered = Or [And [AnyTarget], creature]
+  badAnyTargetInOrLaundered = Or [And [AnyTarget], Macros.creature]
 
 -- "Other" fills one selector slot for the whole coordinated phrase
 -- ("Another target Wolf or Werewolf you control"), so it is not an
@@ -2984,7 +2920,7 @@ failing "CoordinableDisjuncts"
 failing "CoordinableDisjuncts"
   badOtherInOr : Predicate [MkBinding TargetD Object OneOf
                                       (ObjectP (Just Creature) (Just Battlefield) Nothing Nothing)] Object
-  badOtherInOr = Or [And [creature, Other], land]
+  badOtherInOr = Or [And [Macros.creature, Other], Macros.land]
 
 -- Nesting is the flat coordination written with brackets oracle has no
 -- way to print. Core reaches the same place by flattening the two
@@ -2992,14 +2928,14 @@ failing "CoordinableDisjuncts"
 -- one instead.
 failing "CoordinableDisjuncts"
   badNestedOr : Predicate [] Object
-  badNestedOr = Or [Or [creature, land], artifact]
+  badNestedOr = Or [Or [Macros.creature, Macros.land], Macros.artifact]
 
 -- Negation attaches to one modifier at a time. The writer spells
 -- "noncreature, nonland card" — comma-chained atoms, plentiful — and
 -- never "non-(creature or land)", which the corpus does not write once.
 failing "Negatable"
   badNegatedDisjunction : Predicate [] Object
-  badNegatedDisjunction = Not (Or [creature, land])
+  badNegatedDisjunction = Not (Or [Macros.creature, Macros.land])
 
 -- Damage can't be dealt to an object that isn't a battle, a creature,
 -- or a planeswalker ([CR#120.1a]), and a disjunctive head fixes no
@@ -3009,7 +2945,7 @@ failing "Negatable"
 -- does; what closed underneath it is `DamageableTy`'s untyped row.)
 failing "DamageRecipient"
   badDamageDisjunctHead : Effect []
-  badDamageDisjunctHead = DealDamage This (Lit 2) (target (Or [artifact, enchantment]))
+  badDamageDisjunctHead = DealDamage This (Lit 2) (Macros.target (Or [Macros.artifact, Macros.enchantment]))
 
 -- The contrast positive's mirror: alternatives that AGREE on a zone
 -- still project it, so an attacking-or-blocking creature stands on the
@@ -3017,25 +2953,15 @@ failing "DamageRecipient"
 failing "ZoneCoherent"
   badAttackingOrBlockingInGraveyard : Predicate [] Object
   badAttackingOrBlockingInGraveyard =
-    And [creature, Or [Attacking, Blocking], InZone graveyardZ]
+    And [Macros.creature, Or [Attacking, Blocking], InZone Macros.graveyardZ]
 
 -- …and they project the TYPE they agree on the same way: only a
 -- creature can attack or block ([CR#506.3]), a presupposition the
 -- disjunction inherits from both alternatives at once.
 failing "ContradictionFree"
   badNoncreatureAttackingOrBlocking : Predicate [] Object
-  badNoncreatureAttackingOrBlocking = And [Not creature, Or [Attacking, Blocking]]
+  badNoncreatureAttackingOrBlocking = And [Not Macros.creature, Or [Attacking, Blocking]]
 
--- A disjunction is a binding HOLE, for the reason negation is one:
--- exactly one alternative is realized and the phrase never says which,
--- so a possessor written inside one of them names nobody the next
--- sentence can read.
-failing "countWord"
-  badDisjunctAntecedent : Effect []
-  badDisjunctAntecedent =
-    Sequentially [Tap (target (Or [And [creature, ControlledBy anOpponent],
-                                   And [land, ControlledBy You]])),
-                  losesLife (That PlayerW) (Lit 1)]
 
 -- ===== What a wrapper hides: buried seeds, head sets, re-minted trees =====
 
@@ -3047,7 +2973,7 @@ failing "countWord"
 failing "ContradictionFree"
   badWrappedStatusLaunder : Predicate [] Object
   badWrappedStatusLaunder =
-    And [Or [And [artifact, Attacking], And [land, Blocking]], Not creature]
+    And [Or [And [Macros.artifact, Attacking], And [Macros.land, Blocking]], Not Macros.creature]
 
 -- Alternatives that place their referent differently are not
 -- alternatives at all: "attacking artifact" stands on the battlefield
@@ -3059,7 +2985,7 @@ failing "ContradictionFree"
 -- coordination, where the disagreement is.
 failing "ParallelDisjuncts"
   badPartialZoneJoin : Predicate [] Object
-  badPartialZoneJoin = Or [And [artifact, Attacking], land]
+  badPartialZoneJoin = Or [And [Macros.artifact, Attacking], Macros.land]
 
 -- The singular quantity licenses the class word as the phrase's HEAD,
 -- not wherever it can hide: "target creature the controller of any
@@ -3068,21 +2994,21 @@ failing "ParallelDisjuncts"
 failing "AnyTargetAtCount"
   badEmbeddedAnyTargetExact1 : Noun [] Object
   badEmbeddedAnyTargetExact1 =
-    target (And [creature, ControlledBy (ControllerOf (target AnyTarget))])
+    Macros.target (And [Macros.creature, ControlledBy (ControllerOf (Macros.target AnyTarget))])
 
 -- A range runs upward: "between three and two target creatures" names
 -- an empty interval, and the number read off the maximum would call
 -- that plural besides.
 failing "WellFormedQ"
   badDescendingRange : Noun [] Object
-  badDescendingRange = TargetGroup (Range (Just 3) (Just 2)) creature
+  badDescendingRange = TargetGroup (Range (Just 3) (Just 2)) Macros.creature
 
 -- …and it starts at one. "Zero or more target creatures" is a second
 -- spelling of "any number of target creatures" — [CR#107.1c] has "any
 -- number" permit zero already — and the corpus writes only the second.
 failing "WellFormedQ"
   badZeroLowerRange : Noun [] Object
-  badZeroLowerRange = TargetGroup (Range (Just 0) Nothing) creature
+  badZeroLowerRange = TargetGroup (Range (Just 0) Nothing) Macros.creature
 
 -- A coordinated head offers one type per alternative, not none: an
 -- earlier LAND anchors "another target artifact or enchantment" no
@@ -3091,7 +3017,7 @@ failing "WellFormedQ"
 failing "OtherAnchored"
   badDisjunctiveOtherCrossHead : Predicate [MkBinding TargetD Object OneOf
                                                       (ObjectP (Just Land) (Just Battlefield) Nothing Nothing)] Object
-  badDisjunctiveOtherCrossHead = And [Or [artifact, enchantment], Other]
+  badDisjunctiveOtherCrossHead = And [Or [Macros.artifact, Macros.enchantment], Other]
 
 -- "Artifact or artifact" is caught by comparing the two words; the
 -- same repetition spelled with a modifier went through, the member
@@ -3099,7 +3025,7 @@ failing "OtherAnchored"
 failing "DistinctDisjuncts"
   badRepeatedStructuredDisjunct : Predicate [] Object
   badRepeatedStructuredDisjunct =
-    Or [And [creature, ControlledBy You], And [creature, ControlledBy You]]
+    Or [And [Macros.creature, ControlledBy You], And [Macros.creature, ControlledBy You]]
 
 -- A sequence's ELEMENTS are clauses. Nesting one re-mints the
 -- right-nested tree the n-ary list replaced and spells a
@@ -3108,8 +3034,8 @@ failing "DistinctDisjuncts"
 failing "NotSeq"
   badNestedSequence : Effect []
   badNestedSequence =
-    Sequentially [Sequentially [destroy (target creature), exile (target creature)],
-                  destroy (target land)]
+    Sequentially [Sequentially [Macros.destroy (Macros.target Macros.creature), Macros.exile (Macros.target Macros.creature)],
+                  Macros.destroy (Macros.target Macros.land)]
 
 -- ===== What a restriction may forbid, of whom, and for how long =====
 
@@ -3119,7 +3045,7 @@ failing "NotSeq"
 -- ([CR#701.14d]), `deedType` the combat grants themselves.
 failing "DeedParticipant"
   badCantAttackLand : Effect []
-  badCantAttackLand = cantAttack (target land) (Just thisTurn)
+  badCantAttackLand = Macros.cantAttack (Macros.target Macros.land) (Just Macros.thisTurn)
 
 -- A coordinated head fixes no type (finding 50), and an untyped head
 -- cannot prove participation: "target creature or land" would have to
@@ -3127,7 +3053,7 @@ failing "DeedParticipant"
 -- is not permission — `DamageableTy` learned the same lesson.
 failing "DeedParticipant"
   badCantDisjunctSubject : Effect []
-  badCantDisjunctSubject = cantBlock (target (Or [creature, land])) (Just thisTurn)
+  badCantDisjunctSubject = Macros.cantBlock (Macros.target (Or [Macros.creature, Macros.land])) (Just Macros.thisTurn)
 
 -- Splitting the voice off the deed word made "can't be attacked"
 -- WRITABLE as a term for the first time, so the table has to say why
@@ -3139,7 +3065,7 @@ failing "DeedParticipant"
 -- voice gets no macro of its own.
 failing "DeedParticipant"
   badCantBeAttacked : Effect []
-  badCantBeAttacked = Continuously (Cant (target creature) Attack Patient) (Just thisTurn)
+  badCantBeAttacked = Continuously (Cant (Macros.target Macros.creature) Attack Patient) (Just Macros.thisTurn)
 
 -- Combat is fought on the battlefield: a permanent that leaves it is
 -- removed from combat ([CR#506.4]), so a graveyard card has no deed to
@@ -3148,7 +3074,7 @@ failing "DeedParticipant"
 failing "ZoneFits"
   badCantInGraveyard : Effect []
   badCantInGraveyard =
-    cantBlock (target (And [creature, InZone graveyardZ])) (Just thisTurn)
+    Macros.cantBlock (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) (Just Macros.thisTurn)
 
 -- The class word names [CR#115.4]'s damage class, describes no object,
 -- and so places none — and the restriction needed no rule of its own to
@@ -3159,7 +3085,7 @@ failing "ZoneFits"
 -- `badCantDisjunctSubject`'s refusal reaching a second silent phrase.
 failing "DeedParticipant"
   badCantAnyTarget : Effect []
-  badCantAnyTarget = cantBlock (target AnyTarget) (Just thisTurn)
+  badCantAnyTarget = Macros.cantBlock (Macros.target AnyTarget) (Just Macros.thisTurn)
 
 -- The same span, the wrong word. Two hundred ninety-six corpus lines
 -- write a one-shot restriction and every one of them says "this turn";
@@ -3169,19 +3095,19 @@ failing "DeedParticipant"
 -- `admitsSpan` gives the restriction row no share of it.
 failing "SpanOk DeedRestriction"
   badCantUntilEndOfTurn : Effect []
-  badCantUntilEndOfTurn = cantBlock (target creature) (Just untilEndOfTurn)
+  badCantUntilEndOfTurn = Macros.cantBlock (Macros.target Macros.creature) (Just Macros.untilEndOfTurn)
 
 -- …and the inverse, which is what keeps the new word from opening a
 -- hole: no corpus line grants an ability "this turn".
 failing "SpanOk KeywordGrant"
   badGainsThisTurn : Effect []
-  badGainsThisTurn = gains (target creature) (KeywordAbility Flying) (Just thisTurn)
+  badGainsThisTurn = Macros.gains (Macros.target Macros.creature) (KeywordAbility Flying) (Just Macros.thisTurn)
 
 -- The stat change writes the grant's adverbial too — "Target creature
 -- gets +3/+3 until end of turn", never "this turn".
 failing "SpanOk PtDelta"
   badGetsThisTurn : Effect []
-  badGetsThisTurn = gets (target creature) 3 3 (Just thisTurn)
+  badGetsThisTurn = Macros.gets (Macros.target Macros.creature) 3 3 (Just Macros.thisTurn)
 
 -- A durationless "can't" is the STATIC ability line ("Enchanted
 -- creature can't attack", Pacifism), which is a different construction
@@ -3192,7 +3118,7 @@ failing "SpanOk PtDelta"
 -- that table that says no.
 failing "SpanOk DeedRestriction"
   badStaticCant : Effect []
-  badStaticCant = cantBlock (target creature) Nothing
+  badStaticCant = Macros.cantBlock (Macros.target Macros.creature) Nothing
 
 -- The upkeep endpoint belongs to the KEYWORD grant alone. Two corpus
 -- lines write "until your next upkeep" and both grant an ability
@@ -3202,7 +3128,7 @@ failing "SpanOk DeedRestriction"
 -- because they share the other three.
 failing "SpanOk PtDelta"
   badGetsUntilYourNextUpkeep : Effect []
-  badGetsUntilYourNextUpkeep = gets (target creature) 3 3 (Just untilYourNextUpkeep)
+  badGetsUntilYourNextUpkeep = Macros.gets (Macros.target Macros.creature) 3 3 (Just Macros.untilYourNextUpkeep)
 
 -- Real oracle English, no clause of ours: "until the end of your next
 -- turn" runs to eighty-three lines, and every one of them is a play
@@ -3212,7 +3138,7 @@ failing "SpanOk PtDelta"
 failing "SpanOk KeywordGrant"
   badGainsUntilEndOfYourNextTurn : Effect []
   badGainsUntilEndOfYourNextTurn =
-    gains (target creature) (KeywordAbility Flying) (Just (Until (EndOf Turn (Just Yours))))
+    Macros.gains (Macros.target Macros.creature) (KeywordAbility Flying) (Just (Until (EndOf Turn (Just Yours))))
 
 -- The combat endpoint is the grants' too — Glyph of Destruction's
 -- "+10/+0" and one banding line — and no corpus line ends a single-deed
@@ -3220,7 +3146,7 @@ failing "SpanOk KeywordGrant"
 -- "until your next turn".
 failing "SpanOk DeedRestriction"
   badCantUntilEndOfCombat : Effect []
-  badCantUntilEndOfCombat = cantBlock (target creature) (Just untilEndOfCombat)
+  badCantUntilEndOfCombat = Macros.cantBlock (Macros.target Macros.creature) (Just Macros.untilEndOfCombat)
 
 -- And the unattested end of the table: no corpus line ends a duration
 -- at an untap step in words this vocabulary has. The one line that ends
@@ -3231,7 +3157,7 @@ failing "SpanOk DeedRestriction"
 failing "SpanOk KeywordGrant"
   badGainsUntilUntapStep : Effect []
   badGainsUntilUntapStep =
-    gains (target creature) (KeywordAbility Flying)
+    Macros.gains (Macros.target Macros.creature) (KeywordAbility Flying)
           (Just (Until (StartOf UntapStep (Just Yours))))
 
 -- ===== What carries a bound, and how it is written =====
@@ -3241,7 +3167,7 @@ failing "SpanOk KeywordGrant"
 -- The same refusal "attacking" and "other" already take.
 failing "Headed"
   badBareComparison : Noun [] Object
-  badBareComparison = target (Compare Power OrLess (Lit 2))
+  badBareComparison = Macros.target (Compare Power OrLess (Lit 2))
 
 -- Only a creature has power ([CR#208.3] — a noncreature permanent has
 -- none, and a noncreature object off the battlefield has one only if
@@ -3251,7 +3177,7 @@ failing "Headed"
 -- supplying the answer in place of a fixed row.
 failing "ContradictionFree"
   badNoncreaturePower : Predicate [] Object
-  badNoncreaturePower = And [Compare Power OrLess (Lit 2), Not creature]
+  badNoncreaturePower = And [Compare Power OrLess (Lit 2), Not Macros.creature]
 
 -- Oracle never negates a bound. It flips the comparator instead, and
 -- can: the game's numbers are integers ([CR#107.1]), so "not power 2
@@ -3272,7 +3198,7 @@ failing "Negatable"
 -- two qualifiers stacked.
 failing "LoneComparison"
   badDoubleComparison : Predicate [] Object
-  badDoubleComparison = And [creature, Compare Power OrLess (Lit 2),
+  badDoubleComparison = And [Macros.creature, Compare Power OrLess (Lit 2),
                              Compare Power OrGreater (Lit 4)]
 
 -- The bound is WRITTEN — a numeral or the announced X — and a phrasal
@@ -3283,7 +3209,7 @@ failing "LoneComparison"
 -- the comparison-to-a-phrase family waits on the ledger.
 failing "WrittenBound"
   badPhrasalBound : Predicate [] Object
-  badPhrasalBound = Compare Power OrLess (powerOf This)
+  badPhrasalBound = Compare Power OrLess (Macros.powerOf This)
 
 -- An alternative repeated word for word is no alternative, and a bound
 -- is compared by all three of its written parts to see it — the row
@@ -3337,7 +3263,7 @@ failing "AnyTargetFree"
 -- referent.
 failing "AnyTargetFree"
   badMatchesAnyTarget : Effect []
-  badMatchesAnyTarget = If (destroy (target artifact)) (itsA AnyTarget) Nothing
+  badMatchesAnyTarget = If (Macros.destroy (Macros.target Macros.artifact)) (Macros.itsA AnyTarget) Nothing
 
 -- The condition's SUBJECT is a read and never a mention. This is the
 -- refusal that keeps `condDelta`'s opacity honest instead of merely
@@ -3351,7 +3277,7 @@ failing "AnyTargetFree"
 -- ledger.
 failing "Bindingless"
   badMatchesTargetSubject : Condition []
-  badMatchesTargetSubject = Matches (target creature) artifact
+  badMatchesTargetSubject = Matches (Macros.target Macros.creature) Macros.artifact
 
 -- A description that says NOTHING tests nothing. The copular frame does
 -- not demand a HEAD — "if it's attacking" and "if it's tapped" are real
@@ -3362,8 +3288,8 @@ failing "Bindingless"
 failing "PredSays"
   badMatchesNothing : Effect []
   badMatchesNothing =
-    Sequentially [Tap (target creature),
-                  If (gainsLife You (Lit 1)) (Matches It (And [])) Nothing]
+    Sequentially [Tap (Macros.target Macros.creature),
+                  If (Macros.gainsLife You (Lit 1)) (Matches It (And [])) Nothing]
 
 -- A condition negates a POSITIVE description. "If it isn't a
 -- non-artifact" is a negation of a negation, which the predicate layer
@@ -3375,9 +3301,9 @@ failing "PredSays"
 failing "CondNegatable"
   badNegatedNegativeMatch : Effect []
   badNegatedNegativeMatch =
-    Sequentially [Tap (target creature),
-                  If (gainsLife You (Lit 1))
-                     (notSo (Matches It (Not artifact)))
+    Sequentially [Tap (Macros.target Macros.creature),
+                  If (Macros.gainsLife You (Lit 1))
+                     (Macros.notSo (Matches It (Not Macros.artifact)))
                      Nothing]
 
 -- A trailing condition is EVALUATED before the clause it modifies and
@@ -3393,7 +3319,7 @@ failing "CondNegatable"
 failing "ZoneFits"
   badTrailingPostStateZone : Effect []
   badTrailingPostStateZone =
-    If (destroy (target creature)) (Matches It (InZone graveyardZ)) Nothing
+    If (Macros.destroy (Macros.target Macros.creature)) (Matches It (InZone Macros.graveyardZ)) Nothing
 
 -- A written comparison measures a READ against a written value, and a
 -- numeral is not a read: "if 3 is 4 or greater" states an arithmetic
@@ -3421,7 +3347,7 @@ failing "ReadAmount"
 failing "WrittenBound"
   badConditionPhrasalBound : Condition []
   badConditionPhrasalBound =
-    CompareAmt (CountOf creatureYouControl) OrGreater (powerOf This)
+    CompareAmt (CountOf Macros.creatureYouControl) OrGreater (Macros.powerOf This)
 
 -- A condition introduces nothing. The mention written inside one is
 -- reachable while the condition is being written — that is the
@@ -3433,7 +3359,7 @@ failing "WrittenBound"
 failing "countOnes"
   badConditionAntecedent : Effect []
   badConditionAntecedent =
-    Sequentially [If (gainsLife You (Lit 2)) (Exists creatureYouControl) Nothing,
+    Sequentially [If (Macros.gainsLife You (Lit 2)) (Exists Macros.creatureYouControl) Nothing,
                   Tap It]
 
 -- The two branches of a may are not two spellings of one arm. The
@@ -3445,7 +3371,7 @@ failing "countOnes"
 -- reads the body in full (`darettisMinusOne`).
 failing "countOnes"
   badIfNotReadsMayBody : Effect []
-  badIfNotReadsMayBody = mayElse You (sacrifice You (a creature)) (exile It)
+  badIfNotReadsMayBody = Macros.mayElse You (Macros.sacrifice You (Macros.a Macros.creature)) (Macros.exile It)
 
 -- ===== What a token may be, and what a counter may sit on =====
 
@@ -3457,7 +3383,7 @@ failing "countOnes"
 failing "SubtypesFit"
   badZombieArtifactToken : Effect []
   badZombieArtifactToken =
-    create (Lit 1) (MkToken (Just (1, 1)) [Black] (MkTypeLine [Zombie] [Artifact])
+    Macros.create (Lit 1) (MkToken (Just (1, 1)) [Black] (MkTypeLine [Zombie] [Artifact])
                             [] Nothing)
 
 -- A token has only the characteristics its creating effect defines
@@ -3468,7 +3394,7 @@ failing "SubtypesFit"
 failing "TokenPt"
   badCreatureTokenNoPt : Effect []
   badCreatureTokenNoPt =
-    create (Lit 1) (MkToken Nothing [White] (MkTypeLine [Soldier] [Creature]) [] Nothing)
+    Macros.create (Lit 1) (MkToken Nothing [White] (MkTypeLine [Soldier] [Creature]) [] Nothing)
 
 -- A token is a PERMANENT ([CR#111.1]), so its line names at least one
 -- card type. The type-less spelling is the predefined name ("create a
@@ -3479,7 +3405,7 @@ failing "TokenPt"
 failing "TokenTyped"
   badTypelessToken : Effect []
   badTypelessToken =
-    create (Lit 1) (MkToken (Just (1, 1)) [White] (MkTypeLine [] []) [] Nothing)
+    Macros.create (Lit 1) (MkToken (Just (1, 1)) [White] (MkTypeLine [] []) [] Nothing)
 
 -- The arrival riders are not a free product: sixty-six corpus lines
 -- create a token "tapped and attacking" and a hundred fifty-nine write
@@ -3493,7 +3419,7 @@ failing "TokenTyped"
 failing "RidersOk"
   badAttackingUntapped : Effect []
   badAttackingUntapped =
-    Create You (Lit 1) (creatureTok 1 1 [Red] [Soldier]) [EntersAttacking]
+    Create You (Lit 1) (Macros.creatureTok 1 1 [Red] [Soldier]) [EntersAttacking]
 
 -- The GRAVEYARD is the counter table's measured silence and stays shut
 -- with the zone gate widened: all seventeen lines writing "counter" and
@@ -3504,15 +3430,15 @@ failing "RidersOk"
 failing "CounterHolder"
   badPutCountersGraveyard : Effect []
   badPutCountersGraveyard =
-    PutCounters (Lit 1) plusOnePlusOne (target (And [creature, InZone (graveyardOf You)]))
+    PutCounters (Lit 1) Macros.plusOnePlusOne (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)]))
 
 -- …and the removal twin reads the same fold-state: a destroyed referent
 -- has no counters to take off. The destination is what decides — the
 -- same clause with an EXILE in front of it is Jhoira of the Ghitu.
 failing "CounterHolder"
   badRemoveCountersDead : Effect []
-  badRemoveCountersDead = Sequentially [destroy (target creature),
-                                        RemoveCounters (Lit 1) plusOnePlusOne It]
+  badRemoveCountersDead = Sequentially [Macros.destroy (Macros.target Macros.creature),
+                                        RemoveCounters (Lit 1) Macros.plusOnePlusOne It]
 
 -- A token's stated characteristics ARE its text ([CR#111.3]), so the
 -- bundle is a surface phrase and not a set of facts about an object: a
@@ -3527,12 +3453,12 @@ failing "CounterHolder"
 failing "TokenCanonical"
   badTokenTypeOrder : Effect []
   badTokenTypeOrder =
-    create (Lit 1) (MkToken (Just (1, 1)) [] (MkTypeLine [] [Creature, Artifact])
+    Macros.create (Lit 1) (MkToken (Just (1, 1)) [] (MkTypeLine [] [Creature, Artifact])
                             [] Nothing)
 
 failing "TokenCanonical"
   badTokenDuplicateColor : Effect []
-  badTokenDuplicateColor = create (Lit 1) (creatureTok 1 1 [White, White] [Soldier])
+  badTokenDuplicateColor = Macros.create (Lit 1) (Macros.creatureTok 1 1 [White, White] [Soldier])
 
 -- A written action count is at least one. [CR#121.1] makes a draw the
 -- movement of a card, [CR#111.1] a token a marker put onto the
@@ -3545,15 +3471,15 @@ failing "TokenCanonical"
 -- spelling is refused (`writtenCount`).
 failing "WrittenCount"
   badDrawZero : Effect []
-  badDrawZero = drawCards 0
+  badDrawZero = Macros.drawCards 0
 
 failing "WrittenCount"
   badCreateZero : Effect []
-  badCreateZero = create (Lit 0) (creatureTok 1 1 [White] [Soldier])
+  badCreateZero = Macros.create (Lit 0) (Macros.creatureTok 1 1 [White] [Soldier])
 
 failing "WrittenCount"
   badPutZeroCounters : Effect []
-  badPutZeroCounters = PutCounters (Lit 0) plusOnePlusOne (target creature)
+  badPutZeroCounters = PutCounters (Lit 0) Macros.plusOnePlusOne (Macros.target Macros.creature)
 
 -- ===== What a type addition may add, and for how long =====
 
@@ -3565,20 +3491,20 @@ failing "WrittenCount"
 -- ([CR#701.47a]).
 failing "AddedFits"
   badBecomesZombieLand : Effect []
-  badBecomesZombieLand = becomes (target land) (subtypesOnly [Zombie]) Nothing
+  badBecomesZombieLand = Macros.becomes (Macros.target Macros.land) (Macros.subtypesOnly [Zombie]) Nothing
 
 -- "Becomes in addition to its other types" has to say WHAT: an empty
 -- type line adds nothing and spells no phrase.
 failing "LineNonEmpty"
   badBecomesNothing : Effect []
-  badBecomesNothing = becomes (target creature) (MkTypeLine [] []) Nothing
+  badBecomesNothing = Macros.becomes (Macros.target Macros.creature) (MkTypeLine [] []) Nothing
 
 -- A type change is a continuous effect on a permanent: a graveyard card
 -- has no types for the clause to add to on the battlefield.
 failing "ZoneFits"
   badBecomesInGraveyard : Effect []
   badBecomesInGraveyard =
-    becomes (target (And [creature, InZone (graveyardOf You)])) (typesOnly [Artifact]) Nothing
+    Macros.becomes (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) (Macros.typesOnly [Artifact]) Nothing
 
 -- The combat endpoint stays the GRANTS' alone. Chapter seventeen could
 -- not tell "until end of turn" and "until end of combat" apart, both
@@ -3589,7 +3515,7 @@ failing "ZoneFits"
 failing "SpanOk TypeAddition"
   badBecomesUntilEndOfCombat : Effect []
   badBecomesUntilEndOfCombat =
-    becomes (target creature) (typesOnly [Artifact]) (Just untilEndOfCombat)
+    Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Artifact]) (Just Macros.untilEndOfCombat)
 
 -- …and the restriction's current-turn word is not the type addition's
 -- either. Coward // Killer writes both adverbials in one sentence and
@@ -3597,7 +3523,7 @@ failing "SpanOk TypeAddition"
 -- stated by a card rather than by a count.
 failing "SpanOk TypeAddition"
   badBecomesThisTurn : Effect []
-  badBecomesThisTurn = becomes (target creature) (typesOnly [Artifact]) (Just thisTurn)
+  badBecomesThisTurn = Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Artifact]) (Just Macros.thisTurn)
 
 -- …and the upkeep endpoint stays the keyword grant's alone, as it was
 -- against the stat delta (`badGetsUntilYourNextUpkeep`): two corpus
@@ -3605,7 +3531,7 @@ failing "SpanOk TypeAddition"
 failing "SpanOk TypeAddition"
   badBecomesUntilYourNextUpkeep : Effect []
   badBecomesUntilYourNextUpkeep =
-    becomes (target creature) (typesOnly [Artifact]) (Just untilYourNextUpkeep)
+    Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Artifact]) (Just Macros.untilYourNextUpkeep)
 
 -- A subtype word PRESUPPOSES its set's card type ([CR#205.1a]), so "an
 -- Army that isn't a creature" describes nothing — the finding-43 shape
@@ -3614,7 +3540,7 @@ failing "SpanOk TypeAddition"
 -- which is what keeps `clavilenoPhrase` writable.
 failing "ContradictionFree"
   badZombieNoncreature : Predicate [] Object
-  badZombieNoncreature = And [HasSubtype Zombie, Not creature]
+  badZombieNoncreature = And [HasSubtype Zombie, Not Macros.creature]
 
 -- "In addition to its other types" RETAINS what the object had and
 -- states what it gains ([CR#205.1b]), so a clause that states only what
@@ -3626,7 +3552,7 @@ failing "ContradictionFree"
 -- ("If it isn't a [subtype], …") rather than a grammar rule.
 failing "AddsSomething"
   badBecomesOwnType : Effect []
-  badBecomesOwnType = becomes (target creature) (typesOnly [Creature]) Nothing
+  badBecomesOwnType = Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Creature]) Nothing
 
 -- No line writes a NAKED type addition across turns. Chapter nineteen
 -- opened the cell on one apparent witness and flagged it for
@@ -3642,9 +3568,9 @@ failing "AddsSomething"
 failing "SpanOk"
   badTypeAdditionAcrossTurns : Effect []
   badTypeAdditionAcrossTurns =
-    becomes (target (And [artifact, ControlledBy You]))
-            (typesOnly [Creature])
-            (Just untilYourNextTurn)
+    Macros.becomes (Macros.target (And [Macros.artifact, ControlledBy You]))
+            (Macros.typesOnly [Creature])
+            (Just Macros.untilYourNextTurn)
 
 -- ===== What an else arm may read =====
 
@@ -3656,8 +3582,8 @@ failing "SpanOk"
 -- reaches the sentences before the conditional or nothing at all.
 failing "countOnes"
   badOtherwiseReadsIfArm : Effect []
-  badOtherwiseReadsIfArm = If (create (Lit 1) (creatureTok 1 1 [Black] [Zombie]))
-                              (Exists creatureYouControl)
+  badOtherwiseReadsIfArm = If (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Black] [Zombie]))
+                              (Exists Macros.creatureYouControl)
                               (Just (Tap It))
 
 -- ===== What a mode may read, what a headcount may fix, and what a draw leaves =====
@@ -3667,7 +3593,7 @@ failing "countOnes"
 -- itself with a choice clause bolted on front, and no card writes it.
 failing "AtLeastTwo"
   badModalOneMode : Effect []
-  badModalOneMode = Modal (upTo 1) [destroy (target artifact)]
+  badModalOneMode = Modal (Macros.upTo 1) [Macros.destroy (Macros.target Macros.artifact)]
 
 -- A headcount that fixes the whole list instructs no choice: "Choose two
 -- —" over exactly two modes has one answer, and [CR#700.2] calls a spell
@@ -3676,15 +3602,15 @@ failing "AtLeastTwo"
 -- whose top reaches the list ("one or both", "one or more") are ranges.
 failing "ModesFit"
   badModalFixedWhole : Effect []
-  badModalFixedWhole = chooseTwo [destroy (target artifact),
-                                  destroy (target enchantment)]
+  badModalFixedWhole = Macros.chooseTwo [Macros.destroy (Macros.target Macros.artifact),
+                                  Macros.destroy (Macros.target Macros.enchantment)]
 
 -- Nor may a headcount reach PAST the list: three of two options names
 -- nothing at all.
 failing "ModesFit"
   badModalOverreach : Effect []
-  badModalOverreach = Modal (exactly 3) [destroy (target artifact),
-                                         destroy (target enchantment)]
+  badModalOverreach = Modal (Macros.exactly 3) [Macros.destroy (Macros.target Macros.artifact),
+                                         Macros.destroy (Macros.target Macros.enchantment)]
 
 -- The mode list is a LIST and not a telescope: the modes are chosen at
 -- cast ([CR#700.2a]) and an unchosen one's targets are never announced
@@ -3696,7 +3622,7 @@ failing "ModesFit"
 -- and neither reads the other — and zero read a sibling.
 failing "countOnes"
   badModalReadsAcrossModes : Effect []
-  badModalReadsAcrossModes = chooseOne [destroy (target artifact), Tap It]
+  badModalReadsAcrossModes = Macros.chooseOne [Macros.destroy (Macros.target Macros.artifact), Tap It]
 
 -- And nothing after the modal reads into it, for the same reason pointed
 -- forward: Blood on the Snow writes "Then return a creature or
@@ -3705,7 +3631,7 @@ failing "countOnes"
 failing "countOnes"
   badReadsAfterModal : Effect []
   badReadsAfterModal =
-    Sequentially [chooseOne [destroy (target artifact), destroy (target enchantment)],
+    Sequentially [Macros.chooseOne [Macros.destroy (Macros.target Macros.artifact), Macros.destroy (Macros.target Macros.enchantment)],
                   Tap It]
 
 -- WHICH condition frames take a "not" is a closed table. The comparison
@@ -3714,8 +3640,8 @@ failing "countOnes"
 failing "CondNegatable"
   badNegatedComparison : Effect []
   badNegatedComparison =
-    If (destroy (target artifact))
-       (notSo (CompareAmt (manaValueOf It) OrLess (Lit 2)))
+    If (Macros.destroy (Macros.target Macros.artifact))
+       (Macros.notSo (CompareAmt (Macros.manaValueOf It) OrLess (Lit 2)))
        Nothing
 
 -- Nor does a negation take one: no corpus line writes a condition under
@@ -3723,8 +3649,8 @@ failing "CondNegatable"
 failing "CondNegatable"
   badDoubleNegatedCondition : Effect []
   badDoubleNegatedCondition =
-    If (destroy (target artifact))
-       (notSo (notSo (Exists creatureYouControl)))
+    If (Macros.destroy (Macros.target Macros.artifact))
+       (Macros.notSo (Macros.notSo (Exists Macros.creatureYouControl)))
        Nothing
 
 -- A drawn card is not a mention. The corpus never reads one back across a
@@ -3734,7 +3660,7 @@ failing "CondNegatable"
 -- discard it."), a verb-phrase coordination this grammar does not spell.
 failing "countWord"
   badDrawnCardRemention : Effect []
-  badDrawnCardRemention = Sequentially [drawACard, exile (That CardW)]
+  badDrawnCardRemention = Sequentially [Macros.drawACard, Macros.exile (That CardW)]
 
 -- The modal headcount vocabulary is CLOSED over what oracle writes, not
 -- over what the range algebra permits. "Choose up to two —" and "Choose
@@ -3746,9 +3672,9 @@ failing "countWord"
 -- more" say.
 failing "ModalHead"
   badModalUpToTwo : Effect []
-  badModalUpToTwo = Modal (upTo 2) [destroy (target artifact),
-                                    destroy (target enchantment),
-                                    drawACard]
+  badModalUpToTwo = Modal (Macros.upTo 2) [Macros.destroy (Macros.target Macros.artifact),
+                                    Macros.destroy (Macros.target Macros.enchantment),
+                                    Macros.drawACard]
 
 -- Two identical modes are one mode written twice, and the choice between
 -- them decides nothing — [CR#700.2] wants "instructions for a player to
@@ -3760,7 +3686,7 @@ failing "ModalHead"
 -- every semantic twin.
 failing "distinctModes"
   badDuplicateModes : Effect []
-  badDuplicateModes = chooseOne [drawACard, drawACard]
+  badDuplicateModes = Macros.chooseOne [Macros.drawACard, Macros.drawACard]
 
 -- ===== What a choice clause may select =====
 
@@ -3793,10 +3719,10 @@ failing "Choosable"
 failing "countOnes"
   badConditionalArmAntecedent : Effect []
   badConditionalArmAntecedent =
-    Sequentially [If (create (Lit 1) (creatureTok 1 1 [White] [Soldier]))
-                     (Exists creatureYouControl)
+    Sequentially [If (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [Soldier]))
+                     (Exists Macros.creatureYouControl)
                      Nothing,
-                  PutCounters (Lit 1) plusOnePlusOne It]
+                  PutCounters (Lit 1) Macros.plusOnePlusOne It]
 
 -- With BOTH arms written, the may exports its BODY and neither arm.
 -- [CR#118.12] says why: the branch checks "whether the player chose to
@@ -3808,10 +3734,10 @@ failing "countOnes"
 failing "countOnes"
   badBothArmsAntecedent : Effect []
   badBothArmsAntecedent =
-    Sequentially [May (Just You) (gainsLife You (Lit 1))
-                       (Just (create (Lit 1) (creatureTok 1 1 [White] [Soldier])))
-                       (Just (create (Lit 2) (creatureTok 1 1 [White] [Soldier]))),
-                  PutCounters (Lit 1) plusOnePlusOne It]
+    Sequentially [May (Just You) (Macros.gainsLife You (Lit 1))
+                       (Just (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [Soldier])))
+                       (Just (Macros.create (Lit 2) (Macros.creatureTok 1 1 [White] [Soldier]))),
+                  PutCounters (Lit 1) Macros.plusOnePlusOne It]
 
 
 
@@ -3823,7 +3749,7 @@ failing "countOnes"
 -- English, and it stays refused.
 failing "ComplementAnchor"
   badComplementAnchorAnnounces : Predicate [] Object
-  badComplementAnchorAnnounces = OtherThan (a creature)
+  badComplementAnchorAnnounces = OtherThan (Macros.a Macros.creature)
 
 -- "Each player other than target player creates a 5/5 red Dragon
 -- creature token with flying." (Death by Dragons, whole) — the TARGETED
@@ -3836,7 +3762,7 @@ failing "ComplementAnchor"
 -- shape at a different count and a token with a keyword.
 deathByDragons : Effect []
 deathByDragons =
-  Create (Each (And [AnyPlayer, OtherThan (target AnyPlayer)])) (Lit 1)
+  Create (Each (And [AnyPlayer, OtherThan (Macros.target AnyPlayer)])) (Lit 1)
          (MkToken (Just (5, 5)) [Red] (MkTypeLine [Dragon] [Creature])
                   [Flying] Nothing) []
 
@@ -3847,7 +3773,7 @@ deathByDragons =
 -- ("dealt BY", where this vocabulary's `Prevents` scopes by recipient),
 -- so what lands here is the phrase, which is what the finding was about.
 terrifyingPresenceAnchor : Predicate [] Object
-terrifyingPresenceAnchor = And [creature, OtherThan (target creature)]
+terrifyingPresenceAnchor = And [Macros.creature, OtherThan (Macros.target Macros.creature)]
 
 -- The anchor is SINGULAR, which is the second half of the correction and
 -- the one that keeps the deferred family deferred: this constructor
@@ -3859,7 +3785,7 @@ terrifyingPresenceAnchor = And [creature, OtherThan (target creature)]
 -- those creatures") is the same gate a group mention later.
 failing "ComplementAnchor"
   badPluralComplementAnchor : Predicate [] Object
-  badPluralComplementAnchor = OtherThan (TargetGroup (upTo 2) creature)
+  badPluralComplementAnchor = OtherThan (TargetGroup (Macros.upTo 2) Macros.creature)
 
 -- The anchor has to be something the phrase could have described:
 -- "each other creature" anchored to a LAND subtracts nothing, and no
@@ -3868,7 +3794,7 @@ failing "ComplementAnchor"
 failing "OtherAnchored"
   badComplementCrossHead : Effect []
   badComplementCrossHead =
-    DealDamage This (Lit 1) (Each (And [creature, OtherThan thisLand]))
+    DealDamage This (Lit 1) (Each (And [Macros.creature, OtherThan Macros.thisLand]))
 
 -- One selector slot per phrase, whichever spelling fills it: two
 -- complements are two "other"s, and the guide gives the word one
@@ -3877,27 +3803,27 @@ failing "OtherAnchored"
   badDoubleComplement : Effect []
   badDoubleComplement =
     DealDamage This (Lit 1)
-               (Each (And [creature, OtherThan thisCreature, OtherThan thisCreature]))
+               (Each (And [Macros.creature, OtherThan Macros.thisCreature, OtherThan Macros.thisCreature]))
 
 -- And the two spellings share that slot: a phrase cannot write the bare
 -- "other" and an anchored one at once.
 failing "OtherAnchored"
   badOtherAndComplement : Effect []
   badOtherAndComplement =
-    Sequentially [Tap (target creature),
+    Sequentially [Tap (Macros.target Macros.creature),
                   DealDamage This (Lit 1)
-                             (Each (And [creature, Other, OtherThan thisCreature]))]
+                             (Each (And [Macros.creature, Other, OtherThan Macros.thisCreature]))]
 
 -- A word that fills one phrase-level slot is not an ALTERNATIVE, which
 -- is `badOtherInOr`'s refusal reaching the second spelling too.
 failing "CoordinableDisjuncts"
   badComplementInOr : Predicate [] Object
-  badComplementInOr = Or [And [creature, OtherThan thisCreature], land]
+  badComplementInOr = Or [And [Macros.creature, OtherThan Macros.thisCreature], Macros.land]
 
 -- "Non-other" is unwritten, as "non-other" always was.
 failing "Negatable"
   badNegatedComplement : Predicate [] Object
-  badNegatedComplement = Not (OtherThan thisCreature)
+  badNegatedComplement = Not (OtherThan Macros.thisCreature)
 
 -- A batch is at least TWO parts, the arity demand `Sequentially` makes
 -- and for its reasons: nothing at all, and a second spelling of one
@@ -3908,15 +3834,15 @@ failing "AtLeastTwo"
 
 failing "AtLeastTwo"
   badSingletonSimultaneous : Effect []
-  badSingletonSimultaneous = Simultaneously [destroy (target creature)]
+  badSingletonSimultaneous = Simultaneously [Macros.destroy (Macros.target Macros.creature)]
 
 -- Its elements are clauses and not batches — the re-minted tree
 -- `NotSeq` refuses one construction over.
 failing "NotSim"
   badNestedSimultaneous : Effect []
   badNestedSimultaneous =
-    Simultaneously [Simultaneously [destroy (target creature), destroy (target artifact)],
-                    destroy (target land)]
+    Simultaneously [Simultaneously [Macros.destroy (Macros.target Macros.creature), Macros.destroy (Macros.target Macros.artifact)],
+                    Macros.destroy (Macros.target Macros.land)]
 
 -- Nor SEQUENCES: an ordered list inside an unordered one contradicts the
 -- container it sits in, and its announcements would reach the next
@@ -3924,8 +3850,8 @@ failing "NotSim"
 failing "NotSeq"
   badSequenceInsideSimultaneous : Effect []
   badSequenceInsideSimultaneous =
-    Simultaneously [Sequentially [destroy (target creature), destroy (target artifact)],
-                    destroy (target land)]
+    Simultaneously [Sequentially [Macros.destroy (Macros.target Macros.creature), Macros.destroy (Macros.target Macros.artifact)],
+                    Macros.destroy (Macros.target Macros.land)]
 
 -- What a batch's elements share is ONE pre-state — [CR#608.2f]'s rule
 -- for one instruction spread over several objects, whose own example is
@@ -3938,15 +3864,15 @@ failing "NotSeq"
 failing "countWord"
   badSimultaneousReadsRetag : Effect []
   badSimultaneousReadsRetag =
-    Simultaneously [exile (target creature), destroy (That CardW)]
+    Simultaneously [Macros.exile (Macros.target Macros.creature), Macros.destroy (That CardW)]
 
 -- The event OUTCOME is the same fact for magnitudes: no damage has been
 -- dealt when a sibling is typed, so "that much" reads nothing.
 failing "countOnes"
   badSimultaneousReadsOutcome : Effect []
   badSimultaneousReadsOutcome =
-    Simultaneously [DealDamage This (Lit 2) (target creature),
-                    gainsLife You ThatMuch]
+    Simultaneously [DealDamage This (Lit 2) (Macros.target Macros.creature),
+                    Macros.gainsLife You ThatMuch]
 
 -- The MAY is the same fact through a wrapper, and chapter twenty-six's
 -- headline: the batch's telescope threaded `preIntro`, which is not the
@@ -3960,16 +3886,16 @@ failing "countOnes"
 failing "countOnes Object"
   badSimultaneousReadsMayDeed : Effect []
   badSimultaneousReadsMayDeed =
-    Simultaneously [may You (create (Lit 1) (creatureTok 1 1 [Green] [Plant])),
-                    PutCounters (Lit 1) plusOnePlusOne It]
+    Simultaneously [Macros.may You (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [Plant])),
+                    PutCounters (Lit 1) Macros.plusOnePlusOne It]
 
 -- …and the magnitude twin, which is `badSimultaneousReadsOutcome`
 -- reached through the same wrapper.
 failing "countOnes Outcome"
   badSimultaneousReadsMayOutcome : Effect []
   badSimultaneousReadsMayOutcome =
-    Simultaneously [may You (DealDamage This (Lit 2) (target creature)),
-                    gainsLife You ThatMuch]
+    Simultaneously [Macros.may You (DealDamage This (Lit 2) (Macros.target Macros.creature)),
+                    Macros.gainsLife You ThatMuch]
 
 -- OUTWARD, a batch leaves behind EVERY element's deed and not the last
 -- one's: two creates in one instruction leave two tokens ([CR#608.2f]
@@ -3980,18 +3906,18 @@ failing "countOnes Outcome"
 failing "countOnes Object"
   badBatchTwoCreatesThenIt : Effect []
   badBatchTwoCreatesThenIt =
-    Sequentially [Simultaneously [create (Lit 1) (creatureTok 1 1 [Green] [Plant]),
-                                 create (Lit 1) (creatureTok 1 1 [White] [Soldier])],
-                  PutCounters (Lit 1) plusOnePlusOne It]
+    Sequentially [Simultaneously [Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [Plant]),
+                                 Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [Soldier])],
+                  PutCounters (Lit 1) Macros.plusOnePlusOne It]
 
 -- The magnitude twin outward: two outcomes in one batch, and "that
 -- much" does not say which.
 failing "countOnes Outcome"
   badBatchTwoOutcomesThenThatMuch : Effect []
   badBatchTwoOutcomesThenThatMuch =
-    Sequentially [Simultaneously [DealDamage This (Lit 2) (target creature),
-                                 losesLife (target Opponent) (Lit 3)],
-                  gainsLife You ThatMuch]
+    Sequentially [Simultaneously [DealDamage This (Lit 2) (Macros.target Macros.creature),
+                                 Macros.losesLife (Macros.target Opponent) (Lit 3)],
+                  Macros.gainsLife You ThatMuch]
 
 -- Control is a PERMANENT's ([CR#110.2] gives every permanent a
 -- controller; [CR#109.4] gives an object that is neither on the stack
@@ -4000,7 +3926,7 @@ failing "countOnes Outcome"
 failing "ZoneFits"
   badGainControlGraveyard : Effect []
   badGainControlGraveyard =
-    gainControl (target (And [creature, InZone graveyardZ])) Nothing
+    Macros.gainControl (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) Nothing
 
 -- The control grant writes the GRANTS' current-turn word and never the
 -- restrictions': "gain control of target creature this turn" is written
@@ -4008,7 +3934,7 @@ failing "ZoneFits"
 -- clauses ("that attacked you this turn") rather than adverbials.
 failing "SpanOk"
   badGainControlThisTurn : Effect []
-  badGainControlThisTurn = gainControl (target creature) (Just thisTurn)
+  badGainControlThisTurn = Macros.gainControl (Macros.target Macros.creature) (Just Macros.thisTurn)
 
 -- "Until the end of your next turn" is the control grant's ALONE — the
 -- cell chapter seventeen left `Unclaimed` and this chapter claimed. The
@@ -4017,7 +3943,7 @@ failing "SpanOk"
 failing "SpanOk"
   badKeywordGrantEndOfNextTurn : Effect []
   badKeywordGrantEndOfNextTurn =
-    gainsHaste (target creature) (Just (Until (EndOf Turn (Just Yours))))
+    Macros.gainsHaste (Macros.target Macros.creature) (Just (Until (EndOf Turn (Just Yours))))
 
 -- And "for as long as" is written by every construction but the type
 -- ADDITION: the thirteen "becomes … for as long as" corpus lines are
@@ -4026,8 +3952,8 @@ failing "SpanOk"
 failing "SpanOk"
   badTypeAdditionForAsLongAs : Effect []
   badTypeAdditionForAsLongAs =
-    becomes (target creature) (typesOnly [Artifact])
-            (Just (ForAsLongAs (Matches thisCreature (ControlledBy You))))
+    Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Artifact])
+            (Just (ForAsLongAs (Matches Macros.thisCreature (ControlledBy You))))
 
 -- A distributed creation exports a PLURAL mention, so the singular
 -- pronoun has nothing to resolve to: "Each player creates a 1/1 green
@@ -4038,34 +3964,28 @@ failing "SpanOk"
 failing "countOnes"
   badDistributedCreationIt : Effect []
   badDistributedCreationIt =
-    Sequentially [Create (Each AnyPlayer) (Lit 1) (creatureTok 1 1 [Green] [Plant]) [],
-                  PutCounters (Lit 1) plusOnePlusOne It]
+    Sequentially [Create (Each AnyPlayer) (Lit 1) (Macros.creatureTok 1 1 [Green] [Plant]) [],
+                  PutCounters (Lit 1) Macros.plusOnePlusOne It]
 
--- "Each of" distributes over MEMBERS, so its complement is plural:
--- "each of target creature" names one thing and has nothing to reach
--- into.
-failing "ManyOf"
-  badEachOfSingular : Noun [] Object
-  badEachOfSingular = EachOf (target creature)
 
 -- …and it is a group MENTION and not a description: "each of each
 -- creature" is written zero times, the plain distributive being what a
 -- description takes.
 failing "GroupMention"
   badEachOfDistributive : Noun [] Object
-  badEachOfDistributive = EachOf (Each creature)
+  badEachOfDistributive = EachOf (Each Macros.creature)
 
 -- …nor the universal, for the same reason and with the same count:
 -- "each of all creatures" is written zero times.
 failing "GroupMention"
   badEachOfAll : Noun [] Object
-  badEachOfAll = EachOf (AllOf creature)
+  badEachOfAll = EachOf (AllOf Macros.creature)
 
 -- …and it does not stack: one determiner fills the position, and "each
 -- of each of them" spells nothing twice.
 failing "GroupMention"
   badNestedEachOf : Noun [] Object
-  badNestedEachOf = EachOf (EachOf (TargetGroup (upTo 2) creature))
+  badNestedEachOf = EachOf (EachOf (TargetGroup (Macros.upTo 2) Macros.creature))
 
 -- A clause writing ONE per-member amount refuses a bare plural
 -- recipient: "put a +1/+1 counter on up to two target creatures" is the
@@ -4075,7 +3995,7 @@ failing "GroupMention"
 failing "PerMember"
   badBarePluralCounterRecipient : Effect []
   badBarePluralCounterRecipient =
-    PutCounters (Lit 1) plusOnePlusOne (TargetGroup (upTo 2) creature)
+    PutCounters (Lit 1) Macros.plusOnePlusOne (TargetGroup (Macros.upTo 2) Macros.creature)
 
 -- …and the damage verb reads the same way: "deals 1 damage to up to two
 -- target creatures" is unwritten, while "to up to ONE target creature"
@@ -4083,7 +4003,7 @@ failing "PerMember"
 failing "PerMember"
   badBarePluralDamageRecipient : Effect []
   badBarePluralDamageRecipient =
-    DealDamage This (Lit 1) (TargetGroup (upTo 2) creature)
+    DealDamage This (Lit 1) (TargetGroup (Macros.upTo 2) Macros.creature)
 
 -- …and a plural READ is no better than a plural mention: the corpus's
 -- "counters on them" lines are all relative clauses ("cards with intel
@@ -4091,22 +4011,16 @@ failing "PerMember"
 failing "PerMember"
   badThemCounterRecipient : Effect []
   badThemCounterRecipient =
-    Sequentially [Choose (TargetGroup anyNumber creature),
-                  PutCounters (Lit 1) plusOnePlusOne Them]
+    Sequentially [Choose (TargetGroup Macros.anyNumber Macros.creature),
+                  PutCounters (Lit 1) Macros.plusOnePlusOne Them]
 
 -- …and the universal determiner with them: "deals 2 damage to all
 -- creatures" is zero lines, the sweep being written distributively
 -- ("damage to each creature", two hundred thirty-five).
 failing "PerMember"
   badAllOfDamageRecipient : Effect []
-  badAllOfDamageRecipient = DealDamage This (Lit 1) (AllOf creature)
+  badAllOfDamageRecipient = DealDamage This (Lit 1) (AllOf Macros.creature)
 
--- A division needs members to divide among: "deals 2 damage divided as
--- you choose among target creature" names one recipient and divides
--- nothing.
-failing "ManyOf"
-  badDivideAmongSingular : Effect []
-  badDivideAmongSingular = dealsDivided This (Lit 2) (target creature)
 
 -- …and the members must be a MENTION and not a description, since
 -- [CR#601.2d] has the caster announce the division over the targets they
@@ -4114,13 +4028,13 @@ failing "ManyOf"
 -- and every corpus line writes a counted target group or a plural read.
 failing "GroupMention"
   badDivideAmongDescription : Effect []
-  badDivideAmongDescription = dealsDivided This (Lit 2) (Each creature)
+  badDivideAmongDescription = Macros.dealsDivided This (Lit 2) (Each Macros.creature)
 
 -- …and a division of nothing instructs nothing, which is the written-count
 -- discipline reaching the new clause.
 failing "WrittenCount"
   badDivideZero : Effect []
-  badDivideZero = dealsDivided This (Lit 0) (TargetGroup (oneThrough 2) AnyTarget)
+  badDivideZero = Macros.dealsDivided This (Lit 0) (TargetGroup (Macros.oneThrough 2) AnyTarget)
 
 -- …and the counter half keeps the battlefield demand its undivided twin
 -- carries: no corpus line distributes counters onto cards in a
@@ -4128,8 +4042,8 @@ failing "WrittenCount"
 failing "OnBattlefield"
   badDistributeCountersGraveyard : Effect []
   badDistributeCountersGraveyard =
-    distributeCounters (Lit 2) plusOnePlusOne
-                       (TargetGroup (oneThrough 2) (And [creature, InZone (graveyardOf You)]))
+    Macros.distributeCounters (Lit 2) Macros.plusOnePlusOne
+                       (TargetGroup (Macros.oneThrough 2) (And [Macros.creature, InZone (Macros.graveyardOf You)]))
 
 -- "[-10]: Target player's life total becomes 1." — the set-to, chapter
 -- twenty-two's ledgered player-attribute set. It leaves no outcome
@@ -4137,7 +4051,7 @@ failing "OnBattlefield"
 -- realized as a gain or a loss depending on where the total stood, and
 -- the sentence does not say which.
 lifeTotalBecomesOne : Effect []
-lifeTotalBecomesOne = lifeTotalBecomes (target AnyPlayer) (Lit 1)
+lifeTotalBecomesOne = Macros.lifeTotalBecomes (Macros.target AnyPlayer) (Lit 1)
 
 
 
@@ -4149,7 +4063,7 @@ lifeTotalBecomesOne = lifeTotalBecomes (target AnyPlayer) (Lit 1)
 -- which is core's `exclude(Library)` on `Destination` exactly.
 failing "DestOk"
   badMoveToBareLibrary : Effect []
-  badMoveToBareLibrary = Move (target creature) (ZoneAt Library Bare)
+  badMoveToBareLibrary = Move (Macros.target Macros.creature) (ZoneAt Library Bare)
 
 -- The order rider needs two or more cards to order — [CR#401.4]'s own
 -- condition, and English's: "put it on the bottom of your library in
@@ -4157,19 +4071,19 @@ failing "DestOk"
 failing "ArrangementOk"
   badSingularOrderRider : Effect []
   badSingularOrderRider =
-    Sequentially [lookAt topCard, Move (That CardW) (onBottomIn AnyOrder)]
+    Sequentially [Macros.lookAt Macros.topCard, Move (That CardW) (Macros.onBottomIn AnyOrder)]
 
 -- "The rest" of WHAT: with no group in the discourse the complement has
 -- nothing to be the rest of.
 failing "countGroups"
   badRestWithoutGroup : Effect []
-  badRestWithoutGroup = Move TheRest graveyardZ
+  badRestWithoutGroup = Move TheRest Macros.graveyardZ
 
 -- …and with a group but nothing taken out of it, "the rest" IS the
 -- group and the sentence would have written "them".
 failing "countParts"
   badRestWithoutPart : Effect []
-  badRestWithoutPart = Sequentially [lookAt (topCards 4), Move TheRest onBottomZ]
+  badRestWithoutPart = Sequentially [Macros.lookAt (Macros.topCards 4), Move TheRest Macros.onBottomZ]
 
 -- One disposition per remainder, per path. "The rest" names what is
 -- OUTSTANDING of a group, and once it has been placed nothing is:
@@ -4181,10 +4095,10 @@ failing "countParts"
 failing "countGroups"
   badRestDisposedTwice : Effect []
   badRestDisposedTwice =
-    Sequentially [ lookAt (topCards 4)
-                 , Move (oneOf Them) handZ
-                 , Move TheRest onBottomZ
-                 , Move TheRest graveyardZ
+    Sequentially [ Macros.lookAt (Macros.topCards 4)
+                 , Move (Macros.oneOf Them) Macros.handZ
+                 , Move TheRest Macros.onBottomZ
+                 , Move TheRest Macros.graveyardZ
                  ]
 
 -- The direction chapter twenty-two refused, and it stays refused: two
@@ -4195,8 +4109,8 @@ failing "countGroups"
 failing "countGroups"
   badRestOverTwoAnnouncements : Effect []
   badRestOverTwoAnnouncements =
-    Sequentially [ Fights (target creatureYouControl) (target creatureYouDontControl)
-                 , Move TheRest graveyardZ
+    Sequentially [ Fights (Macros.target Macros.creatureYouControl) (Macros.target Macros.creatureYouDontControl)
+                 , Move TheRest Macros.graveyardZ
                  ]
 
 -- A partitive is a selection, but the corpus names its chooser every
@@ -4204,7 +4118,7 @@ failing "countGroups"
 -- slot; an agentless "Choose one of them" is unwritten English.
 failing "Choosable"
   badChooseSomeOf : Effect []
-  badChooseSomeOf = Sequentially [lookAt (topCards 4), Choose (oneOf Them)]
+  badChooseSomeOf = Sequentially [Macros.lookAt (Macros.topCards 4), Choose (Macros.oneOf Them)]
 
 -- A shuffle randomizes the library and destroys what the discourse
 -- knew about it ([CR#701.24a]; [CR#701.20d] makes a reordered revealed
@@ -4214,13 +4128,13 @@ failing "Choosable"
 failing "countOnes"
   badReadAfterShuffle : Effect []
   badReadAfterShuffle =
-    Sequentially [searchLibraryFor land, shuffle, Move It handZ]
+    Sequentially [Macros.searchLibraryFor Macros.land, Macros.shuffle, Move It Macros.handZ]
 
 -- The slice is in a library, so every battlefield-demanding verb
 -- refuses it through the demand it already carried.
 failing "OnBattlefield"
   badTapLibraryTop : Effect []
-  badTapLibraryTop = Tap topCard
+  badTapLibraryTop = Tap Macros.topCard
 
 -- …and it describes no card, which is the hidden zone's honesty made
 -- structural ([CR#400.2,401.2]): the phrase names a place, so a typed
@@ -4228,25 +4142,25 @@ failing "OnBattlefield"
 failing "countManyWord"
   badSliceTypeRead : Effect []
   badSliceTypeRead =
-    Sequentially [lookAt (topCards 4), Move (Those (TypeW Creature)) handZ]
+    Sequentially [Macros.lookAt (Macros.topCards 4), Move (Those (TypeW Creature)) Macros.handZ]
 
 -- A library is not shown whole: "reveal your library" is zero lines,
 -- and what oracle exposes of a library is a positioned slice.
 failing "ExposableZone"
   badRevealWholeLibrary : Effect []
-  badRevealWholeLibrary = Expose Reveal You (ExposedZone yourLibrary)
+  badRevealWholeLibrary = Expose Reveal You (ExposedZone Macros.yourLibrary)
 
 -- Nor is a public zone: a graveyard is already visible to everyone
 -- ([CR#400.2]), so revealing one says nothing and no line does it.
 failing "ExposableZone"
   badRevealGraveyard : Effect []
-  badRevealGraveyard = Expose Reveal You (ExposedZone graveyardZ)
+  badRevealGraveyard = Expose Reveal You (ExposedZone Macros.graveyardZ)
 
 -- Nor is the battlefield searched: [CR#701.23a] is about finding a card
 -- among cards you cannot otherwise read.
 failing "SearchableZone"
   badSearchBattlefield : Effect []
-  badSearchBattlefield = Search You battlefieldZ creature
+  badSearchBattlefield = Search You Macros.battlefieldZ Macros.creature
 
 -- Nor is a POSITION in a library a zone a search looks through, which is
 -- the same rule read one step further in: [CR#701.23a] looks at "all
@@ -4258,12 +4172,12 @@ failing "SearchableZone"
 -- plain: a search cannot look through cards "in a random order".
 failing "WholeZone"
   badSearchLibraryPosition : Effect []
-  badSearchLibraryPosition = Search You (LibraryAt OnTop Nothing Bare) land
+  badSearchLibraryPosition = Search You (LibraryAt OnTop Nothing Bare) Macros.land
 
 failing "WholeZone"
   badSearchLibraryPositionOrdered : Effect []
   badSearchLibraryPositionOrdered =
-    Search You (LibraryAt OnBottom (Just RandomOrder) Bare) creature
+    Search You (LibraryAt OnBottom (Just RandomOrder) Bare) Macros.creature
 
 -- The search's description is the zone's, not another zone's: the
 -- clause supplies the place, so a phrase carrying its own is two
@@ -4271,24 +4185,18 @@ failing "WholeZone"
 failing "ZoneFree"
   badSearchZonedDescription : Effect []
   badSearchZonedDescription =
-    searchLibraryFor (And [creature, InZone graveyardZ])
+    Macros.searchLibraryFor (And [Macros.creature, InZone Macros.graveyardZ])
 
--- Whose library is one player's ([CR#400.1]) — the possessor demand
--- `handOf` and `graveyardOf` already carry, asked of the slice.
-failing "OneOf"
-  badSliceOfPluralPossessor : Effect []
-  badSliceOfPluralPossessor =
-    lookAt (LibrarySlice OnTop (Lit 1) (Each AnyPlayer))
 
 -- A zero slice and a zero mill instruct nothing, which is
 -- `WrittenCount`'s discipline reaching two more counts.
 failing "WrittenCount"
   badZeroSlice : Effect []
-  badZeroSlice = lookAt (topCards 0)
+  badZeroSlice = Macros.lookAt (Macros.topCards 0)
 
 failing "WrittenCount"
   badMillZero : Effect []
-  badMillZero = millCards 0
+  badMillZero = Macros.millCards 0
 
 -- A DISTRIBUTED mill leaves a plural group, and the count is not what
 -- says so — the subject is. [CR#701.17a] has each milled-at player put
@@ -4302,30 +4210,30 @@ failing "WrittenCount"
 failing "countOnes Object"
   badDistributedMillSingular : Effect []
   badDistributedMillSingular =
-    Sequentially [Mill (Each AnyPlayer) (Lit 1), exile It]
+    Sequentially [Mill (Each AnyPlayer) (Lit 1), Macros.exile It]
 
 -- A partitive reaches into a GROUP, not into a description: "one of a
 -- creature you control" is not English, and the determiner has no
 -- members to pick from until some phrase has fixed them.
 failing "GroupMention"
   badPartitiveOfDescription : Effect []
-  badPartitiveOfDescription = exile (SomeOf (exactly 1) (a creature))
+  badPartitiveOfDescription = Macros.exile (SomeOf (Macros.exactly 1) (Macros.a Macros.creature))
 
 -- …nor into another partitive: a part is what was taken, not a group to
 -- take from ("two of one of them" is zero lines).
 failing "GroupMention"
   badPartitiveOfPartitive : Effect []
   badPartitiveOfPartitive =
-    Sequentially [lookAt (topCards 4), exile (oneOf (oneOf Them))]
+    Sequentially [Macros.lookAt (Macros.topCards 4), Macros.exile (Macros.oneOf (Macros.oneOf Them))]
 
 -- …nor into the complement: "each of the rest" is zero lines, the
 -- remainder being named rather than reached into.
 failing "GroupMention"
   badEachOfTheRest : Effect []
   badEachOfTheRest =
-    Sequentially [ lookAt (topCards 4)
-                 , Move (oneOf Them) handZ
-                 , exile (EachOf TheRest)
+    Sequentially [ Macros.lookAt (Macros.topCards 4)
+                 , Move (Macros.oneOf Them) Macros.handZ
+                 , Macros.exile (EachOf TheRest)
                  ]
 
 
@@ -4342,14 +4250,14 @@ failing "GroupMention"
 failing "SpanOk Replacement"
   badStandingIntercept : Effect []
   badStandingIntercept =
-    ifWouldInstead (Dies (target creature)) (exile It) Nothing
+    Macros.ifWouldInstead (Dies (Macros.target Macros.creature)) (Macros.exile It) Nothing
 
 -- The same refusal on the shield: forty-nine "Prevent all …" lines
 -- state no duration and every one of them is a static ability
 -- ("Prevent all combat damage that would be dealt to this creature").
 failing "SpanOk Prevention"
   badStandingPrevention : Effect []
-  badStandingPrevention = preventAll AnyDamage Everywhere Nothing
+  badStandingPrevention = Macros.preventAll AnyDamage Everywhere Nothing
 
 -- Prevention writes ONE adverbial. Two hundred fifty-five prevention
 -- lines carry "this turn"; "prevent … until end of turn" is written
@@ -4358,7 +4266,7 @@ failing "SpanOk Prevention"
 failing "SpanOk Prevention"
   badPreventUntilEndOfTurn : Effect []
   badPreventUntilEndOfTurn =
-    preventAll CombatOnly Everywhere (Just untilEndOfTurn)
+    Macros.preventAll CombatOnly Everywhere (Just Macros.untilEndOfTurn)
 
 -- Nor a for-as-long-as one: no corpus line conditions a shield on a
 -- tracked predicate ([CR#611.2b]'s adverbial), which is what keeps the
@@ -4366,8 +4274,8 @@ failing "SpanOk Prevention"
 failing "SpanOk Replacement"
   badInterceptForAsLongAs : Effect []
   badInterceptForAsLongAs =
-    ifWouldInstead (Dies (target creature)) (exile It)
-                   (Just (ForAsLongAs (Exists creatureYouControl)))
+    Macros.ifWouldInstead (Dies (Macros.target Macros.creature)) (Macros.exile It)
+                   (Just (ForAsLongAs (Exists Macros.creatureYouControl)))
 
 -- Real oracle English, no clause of ours: thirty-one lines write "would
 -- be destroyed" and twenty-five of them are regeneration's own reminder
@@ -4378,7 +4286,7 @@ failing "SpanOk Replacement"
 failing "Interceptable"
   badInterceptDestruction : Effect []
   badInterceptDestruction =
-    ifWouldInstead (IsDestroyed (target creature)) (exile It) (Just thisTurn)
+    Macros.ifWouldInstead (IsDestroyed (Macros.target Macros.creature)) (Macros.exile It) (Just Macros.thisTurn)
 
 -- The multiplicity word is the event's to choose. "The next time
 -- [subject] would die" is written zero times against fifty-seven
@@ -4387,7 +4295,7 @@ failing "Interceptable"
 failing "ReplUseOk"
   badNextTimeWouldDie : Effect []
   badNextTimeWouldDie =
-    nextTimeWouldInstead (Dies (target creature)) (exile It) (Just thisTurn)
+    Macros.nextTimeWouldInstead (Dies (Macros.target Macros.creature)) (Macros.exile It) (Just Macros.thisTurn)
 
 -- (The inverse pin `badIfWouldDraw` stood here and is RETIRED, its cell
 -- having been measured on the wrong axis: "if you would draw a card this
@@ -4404,8 +4312,8 @@ failing "ReplUseOk"
 failing "ZoneFits"
   badWouldDieInGraveyard : Effect []
   badWouldDieInGraveyard =
-    ifWouldInstead (Dies (target (And [creature, InZone (graveyardOf You)])))
-                   (exile It) (Just thisTurn)
+    Macros.ifWouldInstead (Dies (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])))
+                   (Macros.exile It) (Just Macros.thisTurn)
 
 -- The replacement is a HOLE outward. [CR#614.7] says a replacement
 -- effect whose intercepted event never happens "simply doesn't do
@@ -4415,10 +4323,10 @@ failing "ZoneFits"
 failing "countOnes Object"
   badInterceptReplacementAntecedent : Effect []
   badInterceptReplacementAntecedent =
-    Sequentially [ nextTimeWouldInstead (Draws You)
-                                        (create (Lit 1) (creatureTok 1 1 [Green] [Soldier]))
-                                        (Just thisTurn)
-                 , sacrifice You It
+    Sequentially [ Macros.nextTimeWouldInstead (Draws You)
+                                        (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [Soldier]))
+                                        (Just Macros.thisTurn)
+                 , Macros.sacrifice You It
                  ]
 
 -- No corpus line ends a CONTINUOUS effect at a leaves-the-battlefield
@@ -4431,7 +4339,7 @@ failing "countOnes Object"
 failing "SpanOk PtDelta"
   badGetsUntilLeavesBattlefield : Effect []
   badGetsUntilLeavesBattlefield =
-    gets (target creature) 2 2 (Just (UntilEvent (Leaves thisCreature)))
+    Macros.gets (Macros.target Macros.creature) 2 2 (Just (UntilEvent (Leaves Macros.thisCreature)))
 
 -- The rider goes on a zone change to EXILE and on nothing else: nothing
 -- returns from a graveyard "until", and the corpus writes the rider
@@ -4439,7 +4347,7 @@ failing "SpanOk PtDelta"
 failing "HeldClause"
   badHeldUntilDestroy : Effect []
   badHeldUntilDestroy =
-    HeldUntil (destroy (target creature)) (Leaves thisCreature)
+    HeldUntil (Macros.destroy (Macros.target Macros.creature)) (Leaves Macros.thisCreature)
 
 -- And the event half of the same gate: the rider waits for a
 -- leaves-the-battlefield event and for no other. Not one line writes
@@ -4447,7 +4355,7 @@ failing "HeldClause"
 failing "Holdable"
   badHeldUntilDies : Effect []
   badHeldUntilDies =
-    HeldUntil (exile (target creature)) (Dies thisCreature)
+    HeldUntil (Macros.exile (Macros.target Macros.creature)) (Dies Macros.thisCreature)
 
 -- …and the exile the rider takes is the UNRIDDEN one. The two
 -- constructions say opposite things about the same card: [CR#610.3]
@@ -4457,8 +4365,8 @@ failing "Holdable"
 failing "HeldClause"
   badHeldUntilWithCounters : Effect []
   badHeldUntilWithCounters =
-    HeldUntil (exileWithCounters (target creature) (Lit 3) Time)
-              (Leaves thisCreature)
+    HeldUntil (Macros.exileWithCounters (Macros.target Macros.creature) (Lit 3) Time)
+              (Leaves Macros.thisCreature)
 
 -- The held object's ZONE is not settled by the clause: the undo is
 -- scheduled on an event that has not happened, so the exiled creature
@@ -4469,8 +4377,8 @@ failing "HeldClause"
 failing "countWord CardW"
   badHeldUntilExileRetag : Effect []
   badHeldUntilExileRetag =
-    Sequentially [ exileUntil (target creature) (Leaves thisCreature)
-                 , Move (That CardW) handZ
+    Sequentially [ Macros.exileUntil (Macros.target Macros.creature) (Leaves Macros.thisCreature)
+                 , Move (That CardW) Macros.handZ
                  ]
 
 -- A replacement effect gets "only one opportunity to affect an event or
@@ -4479,7 +4387,7 @@ failing "countWord CardW"
 failing "NotInstead"
   badNestedInstead : Effect []
   badNestedInstead =
-    insteadOf (insteadOf drawACard (drawCards 2)) (drawCards 3)
+    Macros.insteadOf (Macros.insteadOf Macros.drawACard (Macros.drawCards 2)) (Macros.drawCards 3)
 
 -- [CR#614.6]: a replaced event "never happens". So the replaced
 -- clause's OUTCOME is not there to read — "that much" after a damage
@@ -4489,8 +4397,8 @@ failing "NotInstead"
 failing "countOnes Outcome"
   badInsteadReadsReplacedOutcome : Effect []
   badInsteadReadsReplacedOutcome =
-    insteadOf (DealDamage This (Lit 3) (target AnyTarget))
-              (gainsLife You ThatMuch)
+    Macros.insteadOf (DealDamage This (Lit 3) (Macros.target AnyTarget))
+              (Macros.gainsLife You ThatMuch)
 
 -- The same refusal through a SEQUENCE, which is where it used to leak:
 -- the replacement was typed in `preIntro replaced`, and a sequence's
@@ -4501,8 +4409,8 @@ failing "countOnes Outcome"
 failing "countOnes Outcome"
   badInsteadReadsReplacedSequenceOutcome : Effect []
   badInsteadReadsReplacedSequenceOutcome =
-    insteadOf (Sequentially [DealDamage This (Lit 3) (target creature), drawACard])
-              (gainsLife You ThatMuch)
+    Macros.insteadOf (Sequentially [DealDamage This (Lit 3) (Macros.target Macros.creature), Macros.drawACard])
+              (Macros.gainsLife You ThatMuch)
 
 -- And through a CONDITIONAL wrapping an optional clause, which is the
 -- recursion that carried either defect: chapter twenty-five opened the
@@ -4513,10 +4421,10 @@ failing "countOnes Outcome"
 failing "countOnes Outcome"
   badConditionalInsteadReadsMayOutcome : Effect []
   badConditionalInsteadReadsMayOutcome =
-    insteadOf (If (may You (DealDamage This (Lit 2) (target creature)))
-                  (Exists creature)
+    Macros.insteadOf (If (Macros.may You (DealDamage This (Lit 2) (Macros.target Macros.creature)))
+                  (Exists Macros.creature)
                   Nothing)
-              (gainsLife You ThatMuch)
+              (Macros.gainsLife You ThatMuch)
 
 -- ===== What may be paid, what may be spelled "pay", and what may be
 -- granted =====
@@ -4528,15 +4436,8 @@ failing "countOnes Outcome"
 -- sacrifice components).
 failing "CostAction"
   badDrawAsCost : Ability
-  badDrawAsCost = Activated (Do drawACard) drawACard
+  badDrawAsCost = Activated (Do Macros.drawACard) Macros.drawACard
 
--- Nor is a destruction, which is the sharper half of the same table:
--- sacrifice and exile ARE cost verbs and destroy is not, so the refusal
--- has to key on the composite's TAG and not on the move underneath it
--- (zero "Destroy …:" components).
-failing "CostAction"
-  badDestroyAsCost : Ability
-  badDestroyAsCost = Activated (Do (destroy (a creature))) drawACard
 
 -- The life row is DIRECTIONAL: ninety-five "Pay N life" components
 -- against zero gain-life ones, so paying life is a cost and gaining it
@@ -4546,7 +4447,7 @@ failing "CostAction"
 -- than an activation cost.
 failing "CostAction"
   badGainLifeCost : Ability
-  badGainLifeCost = Activated (Do (gainsLife You (Lit 2))) drawACard
+  badGainLifeCost = Activated (Do (Macros.gainsLife You (Lit 2))) Macros.drawACard
 
 -- A cost component may not read a SIBLING component's deed. The
 -- telescope threads the stamp because the ability BODY reads it (Bosh,
@@ -4556,9 +4457,9 @@ failing "CostAction"
 failing "CostAction"
   badCostReadsSiblingDeed : Ability
   badCostReadsSiblingDeed =
-    Activated (Compound [Do (sacrifice You (a creature)),
-                         Do (exile (TheVerbed Sacrifice CardW))])
-              drawACard
+    Activated (Compound [Do (Macros.sacrifice You (Macros.a Macros.creature)),
+                         Do (Macros.exile (TheVerbed Sacrifice CardW))])
+              Macros.drawACard
 
 -- Nor may one carry a TARGET. [CR#601.2c] announces targets while the
 -- ability is still being proposed and [CR#601.2h] pays the costs at the
@@ -4566,7 +4467,7 @@ failing "CostAction"
 -- and never before it.
 failing "CostAction"
   badTargetedCost : Ability
-  badTargetedCost = Activated (Do (sacrifice You (target creature))) drawACard
+  badTargetedCost = Activated (Do (Macros.sacrifice You (Macros.target Macros.creature))) Macros.drawACard
 
 -- And the payer is the ACTIVATOR: [CR#602.1a] says the activation cost
 -- "must be paid by the player who is activating it", so a component that
@@ -4578,7 +4479,7 @@ failing "CostAction"
 -- `badUnlessAnaphoricPayer` is measured against.
 failing "CostPaidByYou"
   badForeignPayerCost : Ability
-  badForeignPayerCost = Activated (payLife anOpponent 2) drawACard
+  badForeignPayerCost = Activated (Macros.payLife Macros.anOpponent 2) Macros.drawACard
 
 -- …and the subjected cost verbs the same way: "an opponent sacrifices a
 -- creature" is real English as a resolving clause and is no payment of
@@ -4586,7 +4487,7 @@ failing "CostPaidByYou"
 failing "CostPaidByYou"
   badForeignSacrificeCost : Ability
   badForeignSacrificeCost =
-    Activated (Do (sacrifice anOpponent (a creature))) drawACard
+    Activated (Do (Macros.sacrifice Macros.anOpponent (Macros.a Macros.creature))) Macros.drawACard
 
 -- "Pay" is one English VERB and a cost is the whole thing an ability
 -- charges. A sacrifice is a payment ([CR#118.1] — a cost is "an action
@@ -4595,7 +4496,7 @@ failing "CostPaidByYou"
 -- you sacrifice a land"), never "pay".
 failing "Payable"
   badPayBySacrificing : Effect []
-  badPayBySacrificing = Pay You (Do (sacrifice You (a creature)))
+  badPayBySacrificing = Pay You (Do (Macros.sacrifice You (Macros.a Macros.creature)))
 
 -- The pay clause spells its subject ONCE, so the component under the
 -- verb names the same player: "you pay 1 life" (Carnophage) is one payer
@@ -4605,7 +4506,7 @@ failing "Payable"
 -- anaphoric-payer family `badUnlessAnaphoricPayer` measures.
 failing "PayAgrees"
   badMismatchedPayer : Effect []
-  badMismatchedPayer = mayElse You (Pay You (payLife anOpponent 1)) drawACard
+  badMismatchedPayer = Macros.mayElse You (Pay You (Macros.payLife Macros.anOpponent 1)) Macros.drawACard
 
 -- The tap symbol still more sharply: it is a cost that exists only
 -- before a colon ([CR#107.5] gives it its meaning there), and no
@@ -4618,7 +4519,7 @@ failing "Payable"
 -- cost SHAPE, not a complement English's pay-verb takes.
 failing "Payable"
   badPayCompound : Effect []
-  badPayCompound = Pay You (Compound [Mana [generic 1], TapSymbol])
+  badPayCompound = Pay You (Compound [Mana [Macros.generic 1], TapSymbol])
 
 -- Growing the container is what made this refusal necessary. English
 -- grants an activated ability by QUOTING it — "Enchanted land has \"{T}:
@@ -4627,19 +4528,9 @@ failing "Payable"
 -- "gains flying" is a bare keyword.
 failing "Grantable"
   badGainsActivated : Effect []
-  badGainsActivated = gains (target creature)
-                            (Activated (Mana [generic 1]) drawACard)
-                            (Just untilEndOfTurn)
-
--- The token with-clause is the same refusal one type lower, and it is
--- why that field holds `Keyword` and not the container: seven corpus
--- lines create a token with a quoted activated ability, and none of them
--- is writable without the quotation.
-failing "Keyword"
-  badTokenActivatedAbility : TokenChars
-  badTokenActivatedAbility =
-    MkToken (Just (1, 1)) [Red] (MkTypeLine [] [Creature])
-            [Activated (Mana [generic 1]) drawACard] Nothing
+  badGainsActivated = Macros.gains (Macros.target Macros.creature)
+                            (Activated (Mana [Macros.generic 1]) Macros.drawACard)
+                            (Just Macros.untilEndOfTurn)
 
 -- A compound's ELEMENTS are components: nesting re-mints the
 -- right-nested tree the telescope replaced, and core reaches the flat
@@ -4647,13 +4538,13 @@ failing "Keyword"
 failing "NotCompound"
   badNestedCompound : Ability
   badNestedCompound =
-    Activated (Compound [Compound [Mana [generic 1], TapSymbol], TapSymbol]) drawACard
+    Activated (Compound [Compound [Mana [Macros.generic 1], TapSymbol], TapSymbol]) Macros.drawACard
 
 -- And a compound of one is the component itself spelled a second way —
 -- the singleton-sequence refusal at the cost layer.
 failing "AtLeastTwo"
   badSingletonCompound : Ability
-  badSingletonCompound = Activated (Compound [Mana [generic 1]]) drawACard
+  badSingletonCompound = Activated (Compound [Mana [Macros.generic 1]]) Macros.drawACard
 
 -- One self-tap per cost. [CR#107.5] says it in as many words — "a
 -- permanent that's already tapped can't be tapped again to pay the
@@ -4663,7 +4554,7 @@ failing "AtLeastTwo"
 -- symbol beside it either, the two spending the same state.
 failing "CostTapOnce"
   badDoubleTapCost : Ability
-  badDoubleTapCost = Activated (Compound [TapSymbol, TapSymbol]) drawACard
+  badDoubleTapCost = Activated (Compound [TapSymbol, TapSymbol]) Macros.drawACard
 
 -- A cost component's symbol RUN is written. The empty list is a real
 -- value on a CARD — [CR#202.1b]'s "no mana cost", the unpayable absence
@@ -4672,7 +4563,7 @@ failing "CostTapOnce"
 -- colon. The payment of nothing is "{0}" ([CR#118.5]), one symbol.
 failing "ManaRun"
   badEmptyManaCost : Ability
-  badEmptyManaCost = Activated (Mana []) drawACard
+  badEmptyManaCost = Activated (Mana []) Macros.drawACard
 
 -- A hybrid Phyrexian symbol names two DIFFERENT colors, and [CR#107.4f]
 -- says so by counting: five ordinary Phyrexian symbols and "ten hybrid
@@ -4687,7 +4578,7 @@ failing "PhyrexianDistinct"
 -- same word is one way.
 failing "HalvesDistinct"
   badSameColorHybrid : ManaSymbol
-  badSameColorHybrid = hybridPip Blue Blue
+  badSameColorHybrid = Macros.hybridPip Blue Blue
 
 -- The arm asymmetry carries to the MANDATORY twin unchanged, which is
 -- the check that the two shapes really are one node: the declined arm
@@ -4696,7 +4587,7 @@ failing "HalvesDistinct"
 -- occurred"), so the body's phrase named nobody it can read.
 failing "countOnes"
   badIfNotReadsMandatoryBody : Effect []
-  badIfNotReadsMandatoryBody = doElse (sacrifice You (a creature)) (exile It)
+  badIfNotReadsMandatoryBody = Macros.doElse (Macros.sacrifice You (Macros.a Macros.creature)) (Macros.exile It)
 
 
 -- The unless family's OTHER half, and the shape of its wall: a hundred
@@ -4710,7 +4601,7 @@ failing "countOnes"
 failing "countOnes"
   badUnlessAnaphoricPayer : Effect []
   badUnlessAnaphoricPayer =
-    mayElse (ControllerOf It) (Pay You (Mana [generic 1])) (Tap (target creature))
+    Macros.mayElse (ControllerOf It) (Pay You (Mana [Macros.generic 1])) (Tap (Macros.target Macros.creature))
 
 
 -- ===== What may trigger, what may be stated as a line, and what a
@@ -4722,7 +4613,7 @@ failing "countOnes"
 -- every one of them names a turn part. No object event takes the word.
 failing "TriggerWordOk"
   badAtEnters : Ability
-  badAtEnters = Triggered At (Enters thisCreature) drawACard
+  badAtEnters = Triggered At (Enters Macros.thisCreature) Macros.drawACard
 
 -- The trigger WORD table is right and the SUBJECT was not: "When this
 -- enters" and "Whenever this enters" are written zero times apiece,
@@ -4735,7 +4626,7 @@ failing "TriggerWordOk"
 -- `This` is the source as an object and stands nowhere.
 failing "SelfSorted"
   badEntersBareThis : Ability
-  badEntersBareThis = Triggered When (Enters This) drawACard
+  badEntersBareThis = Triggered When (Enters This) Macros.drawACard
 
 -- An ordinary trigger's header announces no TARGET. [CR#115.1d] chooses
 -- a triggered ability's targets "as the ability is put on the stack",
@@ -4745,17 +4636,8 @@ failing "SelfSorted"
 -- writes and it still builds (`gracefulReprieve`).
 failing "HeaderNontarget"
   badTargetedDeathHeader : Ability
-  badTargetedDeathHeader = Triggered Whenever (Dies (target creature)) drawACard
+  badTargetedDeathHeader = Triggered Whenever (Dies (Macros.target Macros.creature)) Macros.drawACard
 
--- The cast event's complement is ONE spell. [CR#601.2a] moves a single
--- proposed card to the stack as the first step of casting it, so the
--- event watches one spell at a time — Beast Whisperer writes "Whenever
--- you cast a creature spell", singular and nontarget, and no header
--- writes a group.
-failing "ManyOf = OneOf"
-  badCastsPluralComplement : Ability
-  badCastsPluralComplement =
-    Triggered Whenever (Casts You (AllOf spell)) drawACard
 
 -- …and the inverse, which is the half that makes the table a table: the
 -- turn-part beginning takes neither English word, "When the beginning of
@@ -4763,7 +4645,7 @@ failing "ManyOf = OneOf"
 -- "At the beginning of your upkeep".
 failing "TriggerWordOk"
   badWhenUpkeep : Ability
-  badWhenUpkeep = Triggered When (BeginningOf Upkeep (Just Yours)) drawACard
+  badWhenUpkeep = Triggered When (BeginningOf Upkeep (Just Yours)) Macros.drawACard
 
 -- Real oracle English in one mood and none in the other: thirty-one
 -- lines write "would be destroyed" (regeneration's reminder text,
@@ -4772,19 +4654,19 @@ failing "TriggerWordOk"
 -- different row. `EventUnclaimed` is the only class no reader claims.
 failing "Triggerable"
   badTriggerOnDestruction : Ability
-  badTriggerOnDestruction = Triggered Whenever (IsDestroyed (a creature)) drawACard
+  badTriggerOnDestruction = Triggered Whenever (IsDestroyed (Macros.a Macros.creature)) Macros.drawACard
 
 -- The untap step's beginning is written zero times in every possession —
 -- the turn-part grid's emptiest row, and `PartUnattested` says so.
 failing "PartTriggerable"
   badTriggerAtUntapStep : Ability
-  badTriggerAtUntapStep = Triggered At (BeginningOf UntapStep Nothing) drawACard
+  badTriggerAtUntapStep = Triggered At (BeginningOf UntapStep Nothing) Macros.drawACard
 
 -- Nor the turn's own beginning: "at the beginning of your turn" is zero
 -- lines, because the UPKEEP is what English names there.
 failing "PartTriggerable"
   badTriggerAtYourTurn : Ability
-  badTriggerAtYourTurn = Triggered At (BeginningOf Turn (Just Yours)) drawACard
+  badTriggerAtYourTurn = Triggered At (BeginningOf Turn (Just Yours)) Macros.drawACard
 
 -- The other silence, and it is the possessor gap chapter twenty-seven
 -- measured from the activation side: "At the beginning of each upkeep"
@@ -4794,7 +4676,7 @@ failing "PartTriggerable"
 -- two-word pronominal vocabulary. Unpossessed is not what they write.
 failing "PartTriggerable"
   badTriggerAtTheUpkeep : Ability
-  badTriggerAtTheUpkeep = Triggered At (BeginningOf Upkeep Nothing) drawACard
+  badTriggerAtTheUpkeep = Triggered At (BeginningOf Upkeep Nothing) Macros.drawACard
 
 -- The trigger's effect reads the event's AFTER-discourse, and this is
 -- the refusal that shows it: [CR#603.6] has a zone-change trigger "look
@@ -4805,7 +4687,7 @@ failing "PartTriggerable"
 -- event has not happened there ([CR#614.6]).
 failing "OnBattlefield"
   badTriggerTapsDeadCreature : Ability
-  badTriggerTapsDeadCreature = Triggered Whenever (Dies (a creature)) (Tap It)
+  badTriggerTapsDeadCreature = Triggered Whenever (Dies (Macros.a Macros.creature)) (Tap It)
 
 -- …and the DEPARTURE is the same refusal where the destination is not
 -- stated. [CR#603.6c] has a leaves-the-battlefield ability check for the
@@ -4814,7 +4696,7 @@ failing "OnBattlefield"
 -- battlefield: the binding survives the event and its zone does not.
 failing "OnBattlefield"
   badLeavesThenTap : Ability
-  badLeavesThenTap = Triggered Whenever (Leaves (a creature)) (Tap It)
+  badLeavesThenTap = Triggered Whenever (Leaves (Macros.a Macros.creature)) (Tap It)
 
 -- A static ability does not TARGET. [CR#115.1a..115.1e] enumerate what
 -- can — an instant or sorcery spell, an activated ability, a triggered
@@ -4826,7 +4708,7 @@ failing "OnBattlefield"
 -- this the line's own refusal rather than the deontic's.
 failing "Untargeting"
   badStaticTargets : Ability
-  badStaticTargets = Static (Cant (target creature) Attack Agent)
+  badStaticTargets = Static (Cant (Macros.target Macros.creature) Attack Agent)
 
 -- The one static effect English does not state as a line. Its stative
 -- form is a different VERB — "You control enchanted creature" (seven
@@ -4835,7 +4717,7 @@ failing "Untargeting"
 -- durationless "gains control of".
 failing "StaticLine"
   badStaticGainsControl : Ability
-  badStaticGainsControl = Static (GainsControl You (AllOf creatureYouControl))
+  badStaticGainsControl = Static (GainsControl You (AllOf Macros.creatureYouControl))
 
 -- …and the "as long as" wrapper does not launder it. The mood is the
 -- statement's and not the qualifier's: [CR#604.1] has a static ability
@@ -4845,7 +4727,7 @@ failing "StaticLine"
 failing "StaticLine"
   badConditionalGainControl : Ability
   badConditionalGainControl =
-    Static (asLongAs (Exists artifact) (GainsControl You (a creature)))
+    Static (Macros.asLongAs (Exists Macros.artifact) (GainsControl You (Macros.a Macros.creature)))
 
 -- "As long as" is not a duration adverbial and its statement is not a
 -- resolving clause: the conditional static is an ability line and
@@ -4857,8 +4739,8 @@ failing "StaticLine"
 failing "SpanOk"
   badConditionalClause : Effect []
   badConditionalClause =
-    Continuously (asLongAs (Exists creatureYouControl)
-                           (Gets (AllOf creatureYouControl) 1 1))
+    Continuously (Macros.asLongAs (Exists Macros.creatureYouControl)
+                           (Gets (AllOf Macros.creatureYouControl) 1 1))
                  Nothing
 
 -- And no line conditions a statement twice: the singleton discipline
@@ -4866,9 +4748,9 @@ failing "SpanOk"
 failing "NotConditional"
   badDoubleConditional : Ability
   badDoubleConditional =
-    Static (asLongAs (Exists creatureYouControl)
-                     (asLongAs (Exists (And [artifact, ControlledBy You]))
-                               (Gets (AllOf creatureYouControl) 1 1)))
+    Static (Macros.asLongAs (Exists Macros.creatureYouControl)
+                     (Macros.asLongAs (Exists (And [Macros.artifact, ControlledBy You]))
+                               (Gets (AllOf Macros.creatureYouControl) 1 1)))
 
 -- The entry rider is a static ability and not a clause either
 -- ([CR#603.6d] says so in as many words), which is the third of the
@@ -4877,7 +4759,7 @@ failing "NotConditional"
 -- and it is a rider on a MOVE, not a continuous effect (ledger).
 failing "SpanOk"
   badEntryRiderClause : Effect []
-  badEntryRiderClause = Continuously (entersTapped (AllOf creatureYouControl)) Nothing
+  badEntryRiderClause = Continuously (Macros.entersTapped (AllOf Macros.creatureYouControl)) Nothing
 
 -- …and the line writes ONE of the two riders. A token's with-clause can
 -- say "tapped and attacking" because a resolving effect knows there is a
@@ -4897,15 +4779,15 @@ failing "EntryRiderOk"
 failing "SpanOk"
   badStandingPermission : Effect []
   badStandingPermission =
-    Sequentially [exile topCard, Continuously (MayPlay You It) Nothing]
+    Sequentially [Macros.exile Macros.topCard, Continuously (MayPlay You It) Nothing]
 
 -- Nor at an endpoint the permission does not write: "until end of
 -- combat" is the two GRANTS' word and the permission's zero times.
 failing "SpanOk"
   badPermissionUntilEndOfCombat : Effect []
   badPermissionUntilEndOfCombat =
-    Sequentially [exile topCard,
-                  Continuously (MayPlay You It) (Just untilEndOfCombat)]
+    Sequentially [Macros.exile Macros.topCard,
+                  Continuously (MayPlay You It) (Just Macros.untilEndOfCombat)]
 
 -- The new cell is the permission's ALONE, which is what `PermissionOnly`
 -- claims: eight lines write "until your next end step" and every one of
@@ -4913,7 +4795,7 @@ failing "SpanOk"
 failing "SpanOk"
   badGainsUntilYourNextEndStep : Effect []
   badGainsUntilYourNextEndStep =
-    gains (target creature) (KeywordAbility Flying) (Just untilYourNextEndStep)
+    Macros.gains (Macros.target Macros.creature) (KeywordAbility Flying) (Just Macros.untilYourNextEndStep)
 
 -- A permanent on the battlefield has already been played: [CR#604.6]
 -- files the permission as functioning "while a card is in any zone that
@@ -4926,7 +4808,7 @@ failing "SpanOk"
 failing "PlaySource"
   badPlayFromBattlefield : Effect []
   badPlayFromBattlefield =
-    Continuously (MayPlay You (a creature)) (Just thisTurn)
+    Continuously (MayPlay You (Macros.a Macros.creature)) (Just Macros.thisTurn)
 
 -- Growing the container grew its refusal with it: English grants a
 -- triggered ability by QUOTING it, exactly as it grants an activated one
@@ -4935,16 +4817,16 @@ failing "PlaySource"
 failing "Grantable"
   badGainsTriggered : Effect []
   badGainsTriggered =
-    gains (target creature) (Triggered When (Enters thisCreature) drawACard)
-          (Just untilEndOfTurn)
+    Macros.gains (Macros.target Macros.creature) (Triggered When (Enters Macros.thisCreature) Macros.drawACard)
+          (Just Macros.untilEndOfTurn)
 
 -- …and a static ability the same way ("as long as enchanted permanent is
 -- an Equipment, it has 'Equipped creature gets +1/+1 and has trample'").
 failing "Grantable"
   badGainsStatic : Effect []
   badGainsStatic =
-    gains (target creature) (Static (Cant (AllOf creatureYouControl) Attack Agent))
-          (Just untilEndOfTurn)
+    Macros.gains (Macros.target Macros.creature) (Static (Cant (AllOf Macros.creatureYouControl) Attack Agent))
+          (Just Macros.untilEndOfTurn)
 
 -- [CR#603.7b] gives a delayed trigger ONE stated duration and names the
 -- phrase: "unless it has a stated duration, such as 'this turn'". The
@@ -4954,8 +4836,8 @@ failing "Grantable"
 failing "DelaySpanOk"
   badDelayedUntilEndOfTurn : Effect []
   badDelayedUntilEndOfTurn =
-    Delayed (Dies (target creature)) {span = Just untilEndOfTurn}
-            (Move (That CardW) battlefieldZ)
+    Delayed (Dies (Macros.target Macros.creature)) {span = Just Macros.untilEndOfTurn}
+            (Move (That CardW) Macros.battlefieldZ)
 
 -- The delayed clause reads three events of the ten and the attack is not
 -- one: "sacrifice it when this creature attacks" is written zero times,
@@ -4964,7 +4846,7 @@ failing "DelaySpanOk"
 failing "Awaitable"
   badDelayedOnAttack : Effect []
   badDelayedOnAttack =
-    Delayed (Attacks (target creature)) (sacrifice You (That (TypeW Creature)))
+    Delayed (Attacks (Macros.target Macros.creature)) (Macros.sacrifice You (That (TypeW Creature)))
 
 -- The event vocabulary's four readers disagree, and the entry is the
 -- clearest case: two thousand eight hundred ninety-one trigger headers
@@ -4975,14 +4857,14 @@ failing "Awaitable"
 failing "Interceptable"
   badInterceptEnters : Effect []
   badInterceptEnters =
-    ifWouldInstead (Enters (a creature)) (exile It) (Just thisTurn)
+    Macros.ifWouldInstead (Enters (Macros.a Macros.creature)) (Macros.exile It) (Just Macros.thisTurn)
 
 -- …and the [CR#610.3] rider does not wait for one either: "exile it
 -- until a creature enters" is written zero times, the rider's whole
 -- corpus being the departure.
 failing "Holdable"
   badHeldUntilEnters : Effect []
-  badHeldUntilEnters = exileUntil (target creature) (Enters (a creature))
+  badHeldUntilEnters = Macros.exileUntil (Macros.target Macros.creature) (Enters (Macros.a Macros.creature))
 
 -- The turn-part beginning is real oracle as a duration endpoint —
 -- "until the beginning of your next upkeep", twenty-eight lines — and
@@ -4992,7 +4874,7 @@ failing "Holdable"
 failing "SpanOk"
   badUntilBeginningOfUpkeep : Effect []
   badUntilBeginningOfUpkeep =
-    gets (target creature) 3 3 (Just (UntilEvent (BeginningOf Upkeep (Just Yours))))
+    Macros.gets (Macros.target Macros.creature) 3 3 (Just (UntilEvent (BeginningOf Upkeep (Just Yours))))
 
 -- ===== What "you do" may stand for, and what it cannot reach =====
 
@@ -5008,7 +4890,7 @@ failing "SpanOk"
 failing "ReflexEnclosure"
   badReflexiveOnSourceDeed : Effect []
   badReflexiveOnSourceDeed =
-    Reflexively (DealDamage This (Lit 3) (target AnyTarget)) drawACard
+    Reflexively (DealDamage This (Lit 3) (Macros.target AnyTarget)) Macros.drawACard
 
 -- The same demand at the row where a rule rather than a count settles
 -- it: [CR#119.9] rewrites the life-gain trigger as "whenever a source
@@ -5020,7 +4902,7 @@ failing "ReflexEnclosure"
 failing "ReflexEnclosure"
   badReflexiveOnLifeGain : Effect []
   badReflexiveOnLifeGain =
-    Reflexively (gainsLife You (Lit 2)) drawACard
+    Reflexively (Macros.gainsLife You (Lit 2)) Macros.drawACard
 
 -- One verb phrase, because "do" abbreviates one. A sequence has no
 -- single action for it to stand for, and the corpus writes no reflexive
@@ -5031,7 +4913,7 @@ failing "ReflexEnclosure"
 failing "ReflexEnclosure"
   badReflexiveOnSequence : Effect []
   badReflexiveOnSequence =
-    Reflexively (Sequentially [drawACard, sacrifice You (a creature)]) drawACard
+    Reflexively (Sequentially [Macros.drawACard, Macros.sacrifice You (Macros.a Macros.creature)]) Macros.drawACard
 
 -- A clause that SCHEDULES its action has not taken it. [CR#603.12]
 -- triggers the reflexive on whether the event "occurred earlier during
@@ -5042,7 +4924,7 @@ failing "ReflexEnclosure"
 failing "ReflexEnclosure"
   badReflexiveOnDelayed : Effect []
   badReflexiveOnDelayed =
-    Reflexively (Delayed (BeginningOf EndStep (Just Yours)) drawACard) drawACard
+    Reflexively (Delayed (BeginningOf EndStep (Just Yours)) Macros.drawACard) Macros.drawACard
 
 -- One offer, one reader. [CR#118.12]'s "if you do" and [CR#603.12]'s
 -- "when you do" ask the same question of the same choice — the first
@@ -5055,7 +4937,7 @@ failing "ReflexEnclosure"
 failing "ReflexEnclosure"
   badReflexiveOnBranchedMay : Effect []
   badReflexiveOnBranchedMay =
-    Reflexively (mayThen You (sacrifice You (a creature)) drawACard) drawACard
+    Reflexively (Macros.mayThen You (Macros.sacrifice You (Macros.a Macros.creature)) Macros.drawACard) Macros.drawACard
 
 -- …and the declined arm is refused by the same row, which is the
 -- untaken path this construction has no arm for at all. [CR#603.12]
@@ -5068,7 +4950,7 @@ failing "ReflexEnclosure"
 failing "ReflexEnclosure"
   badReflexiveOnDeclinedMay : Effect []
   badReflexiveOnDeclinedMay =
-    Reflexively (mayElse You (sacrifice You (a creature)) drawACard) drawACard
+    Reflexively (Macros.mayElse You (Macros.sacrifice You (Macros.a Macros.creature)) Macros.drawACard) Macros.drawACard
 
 -- The `EncUnclaimed` cell as a pin. "Target opponent gains control of
 -- Yes Man. When they do, …" is real oracle and a reflexive trigger by
@@ -5083,7 +4965,7 @@ failing "ReflexEnclosure"
 failing "ReflexEnclosure"
   badReflexiveOnGainsControl : Effect []
   badReflexiveOnGainsControl =
-    Reflexively (gainsControl (target Opponent) This Nothing) drawACard
+    Reflexively (Macros.gainsControl (Macros.target Opponent) This Nothing) Macros.drawACard
 
 -- What the construction contributes OUTWARD is the enclosure's discourse
 -- and none of the trigger's. [CR#603.3] puts a triggered ability on the
@@ -5095,8 +4977,8 @@ failing "ReflexEnclosure"
 failing "countWord"
   badAfterReflexiveReadsTrigger : Effect []
   badAfterReflexiveReadsTrigger =
-    Sequentially [Reflexively (millCards 4)
-                              (create (Lit 1) (MkToken (Just (1, 1)) [White]
+    Sequentially [Reflexively (Macros.millCards 4)
+                              (Macros.create (Lit 1) (MkToken (Just (1, 1)) [White]
                                                        (MkTypeLine [Soldier] [Creature])
                                                        [] Nothing)),
                   Tap (That (TypeW Creature))]
@@ -5110,7 +4992,7 @@ failing "countWord"
 failing "OnBattlefield"
   badReflexiveTapsSacrificed : Effect []
   badReflexiveTapsSacrificed =
-    Reflexively (sacrifice You (a creature)) (Tap It)
+    Reflexively (Macros.sacrifice You (Macros.a Macros.creature)) (Tap It)
 
 -- ===== What a placement may arrive with =====
 
@@ -5123,7 +5005,7 @@ failing "OnBattlefield"
 failing "RidersFit"
   badMoveRidersToGraveyard : Effect []
   badMoveRidersToGraveyard =
-    Move (target creature) graveyardZ
+    Move (Macros.target Macros.creature) Macros.graveyardZ
          {riders = MkMoveRiders [EntersTapped] Nothing}
 
 -- …and the control override is refused there by the same gate, for
@@ -5133,7 +5015,7 @@ failing "RidersFit"
 failing "RidersFit"
   badMoveControlToHand : Effect []
   badMoveControlToHand =
-    Move (target creature) handZ {riders = MkMoveRiders [] (Just You)}
+    Move (Macros.target Macros.creature) Macros.handZ {riders = MkMoveRiders [] (Just You)}
 
 -- The entry riders keep chapter nineteen's SHAPES, sharing `ridersOk`
 -- with the token with-clause rather than re-minting one: attacking
@@ -5142,7 +5024,7 @@ failing "RidersFit"
 failing "RidersOk"
   badMoveAttackingUntapped : Effect []
   badMoveAttackingUntapped =
-    Move (target creature) battlefieldZ
+    Move (Macros.target Macros.creature) Macros.battlefieldZ
          {riders = MkMoveRiders [EntersAttacking] Nothing}
 
 -- …and the order is fixed there too, no line writing "attacking and
@@ -5150,7 +5032,7 @@ failing "RidersOk"
 failing "RidersOk"
   badMoveRidersReversed : Effect []
   badMoveRidersReversed =
-    Move (target creature) battlefieldZ
+    Move (Macros.target Macros.creature) Macros.battlefieldZ
          {riders = MkMoveRiders [EntersAttacking, EntersTapped] Nothing}
 
 -- ONE controller ([CR#109.4] — an object on the battlefield has a
@@ -5160,8 +5042,8 @@ failing "RidersOk"
 failing "CtrlSingular"
   badMoveRidersPluralController : Effect []
   badMoveRidersPluralController =
-    Move (target creature) battlefieldZ
-         {riders = MkMoveRiders [] (Just (AllOf otherPlayer))}
+    Move (Macros.target Macros.creature) Macros.battlefieldZ
+         {riders = MkMoveRiders [] (Just (AllOf Macros.otherPlayer))}
 
 -- The COUNTER rider does not answer the battlefield question the other
 -- two answer, and this is the pin that says the halves are gated apart:
@@ -5172,9 +5054,9 @@ failing "CtrlSingular"
 failing "RidersFit"
   badMoveCountersToGraveyard : Effect []
   badMoveCountersToGraveyard =
-    Move (target creature) graveyardZ
+    Move (Macros.target Macros.creature) Macros.graveyardZ
          {riders = MkMoveRiders [] Nothing
-                                {counters = Just (MkCounterRider (Lit 1) plusOnePlusOne)}}
+                                {counters = Just (MkCounterRider (Lit 1) Macros.plusOnePlusOne)}}
 
 -- …and the leak the other way is refused by the same table's other half:
 -- an exile writes the counter rider and nothing else, "exile it tapped"
@@ -5184,7 +5066,7 @@ failing "RidersFit"
 failing "RidersFit"
   badExileTapped : Effect []
   badExileTapped =
-    Composite Exile (Move (target creature) exileZ
+    Composite Exile (Move (Macros.target Macros.creature) Macros.exileZ
                           {riders = MkMoveRiders [EntersTapped] Nothing})
 
 -- The rider's count is a WRITTEN magnitude like every other, so the
@@ -5192,7 +5074,7 @@ failing "RidersFit"
 -- second site).
 failing "WrittenCount"
   badExileZeroCounters : Effect []
-  badExileZeroCounters = exileWithCounters (target creature) (Lit 0) Time
+  badExileZeroCounters = Macros.exileWithCounters (Macros.target Macros.creature) (Lit 0) Time
 
 -- ===== What a linkage may name, and where its cards are =====
 
@@ -5205,7 +5087,7 @@ failing "WrittenCount"
 -- unwritable.
 failing "LinkSource"
   badExiledWithOtherSource : Predicate [] Object
-  badExiledWithOtherSource = ExiledWith (target creature)
+  badExiledWithOtherSource = ExiledWith (Macros.target Macros.creature)
 
 -- …and a DESCRIBED source is refused by the same gate, which is the
 -- sharper half of the same fact: the linkage is not a relation between a
@@ -5216,7 +5098,7 @@ failing "LinkSource"
 -- hundred seventy-five "exiled with".
 failing "LinkSource"
   badExiledWithDescribedSource : Predicate [] Object
-  badExiledWithDescribedSource = ExiledWith (a artifact)
+  badExiledWithDescribedSource = ExiledWith (Macros.a Macros.artifact)
 
 -- The linked cards are IN EXILE, which [CR#607.2a] says in as many words
 -- — the second ability "refers only to cards in the exile zone that were
@@ -5226,7 +5108,7 @@ failing "LinkSource"
 -- lines write "a card you control exiled with …".
 failing "ZoneCoherent"
   badExiledWithControlled : Predicate [] Object
-  badExiledWithControlled = And [ControlledBy You, exiledWithThisArtifact]
+  badExiledWithControlled = And [ControlledBy You, Macros.exiledWithThisArtifact]
 
 -- …and the battlefield type word is refused by the same table, which is
 -- what keeps "a creature card exiled with this creature" (real, and
@@ -5235,7 +5117,7 @@ failing "ZoneCoherent"
 -- linkage, the status word does not.
 failing "ZoneCoherent"
   badExiledWithAttacking : Predicate [] Object
-  badExiledWithAttacking = And [Attacking, exiledWithThisArtifact]
+  badExiledWithAttacking = And [Attacking, Macros.exiledWithThisArtifact]
 
 -- The linkage read does not NEGATE. "Not exiled with" is zero corpus
 -- lines against a hundred seventy-five positive ones, and the reason is
@@ -5244,7 +5126,7 @@ failing "ZoneCoherent"
 -- phrase rather than by this one turned inside out.
 failing "Negatable"
   badNegatedExiledWith : Predicate [] Object
-  badNegatedExiledWith = Not exiledWithThisArtifact
+  badNegatedExiledWith = Not Macros.exiledWithThisArtifact
 
 -- ===== What a card may be made of, what a spell carrier may hold, and
 -- ===== what a participle may be marked with
@@ -5256,8 +5138,8 @@ failing "Negatable"
 failing "CardText"
   badSpellAbilityOnPermanent : Card
   badSpellAbilityOnPermanent =
-    card "" (Just [pip Blue]) [] (MkTypeLine [] [Creature])
-         [Spell drawACard] (Just (1, 1))
+    Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Creature])
+         [Spell Macros.drawACard] (Just (1, 1))
 
 -- …and a spell card's text is not a STATIC ability, on the same rule's
 -- other clause: [CR#113.3a] admits one only if it "fits the criteria
@@ -5268,8 +5150,8 @@ failing "CardText"
 failing "CardText"
   badStaticOnSorcery : Card
   badStaticOnSorcery =
-    card "" (Just [pip Green]) [] (MkTypeLine [] [Sorcery])
-         [Static (Gets (AllOf creatureYouControl) 1 1)] Nothing
+    Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Sorcery])
+         [Static (Gets (AllOf Macros.creatureYouControl) 1 1)] Nothing
 
 -- The keyword row is shut on a spell card by MEASUREMENT rather than by
 -- rule: the seven keywords this file carries are all [CR#702] abilities of
@@ -5278,7 +5160,7 @@ failing "CardText"
 failing "CardText"
   badKeywordOnInstant : Card
   badKeywordOnInstant =
-    card "" (Just [pip Red]) [] (MkTypeLine [] [Instant])
+    Macros.card "" (Just [Macros.pip Red]) [] (MkTypeLine [] [Instant])
          [KeywordAbility Flying] Nothing
 
 -- The ACTIVATED row is open on a spell card — cycling is one, printed on
@@ -5292,8 +5174,8 @@ failing "CardText"
 failing "CardText"
   badTapSorcery : Card
   badTapSorcery =
-    card "Impossible Tap Sorcery" (Just [pip Blue]) [] (MkTypeLine [] [Sorcery])
-         [Activated TapSymbol drawACard] Nothing
+    Macros.card "Impossible Tap Sorcery" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Sorcery])
+         [Activated TapSymbol Macros.drawACard] Nothing
 
 -- A creature card writes its two numbers ([CR#208.1] — "a creature card
 -- has two numbers separated by a slash printed in its lower right
@@ -5301,7 +5183,7 @@ failing "CardText"
 failing "CardPt"
   badCreatureCardNoPt : Card
   badCreatureCardNoPt =
-    card "" (Just [pip Green]) [] (MkTypeLine [] [Creature]) [] Nothing
+    Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Creature]) [] Nothing
 
 -- A land card writes NO mana cost ([CR#202.1b]: "some objects have no
 -- mana cost. This normally includes all land cards"), the absence being
@@ -5309,7 +5191,7 @@ failing "CardPt"
 failing "CardCost"
   badLandWithManaCost : Card
   badLandWithManaCost =
-    card "" (Just [generic 1]) [] (MkTypeLine [] [Land]) [] Nothing
+    Macros.card "" (Just [Macros.generic 1]) [] (MkTypeLine [] [Land]) [] Nothing
 
 -- The SUPERTYPE field carried no witness at all, so a word could be
 -- printed twice. [CR#205.4b] makes a supertype a property an object HAS
@@ -5319,7 +5201,7 @@ failing "CardCost"
 failing "CardSupers"
   badDuplicateSupertype : Card
   badDuplicateSupertype =
-    card "" (Just [pip Blue]) [Legendary, Legendary] (MkTypeLine [] [Creature])
+    Macros.card "" (Just [Macros.pip Blue]) [Legendary, Legendary] (MkTypeLine [] [Creature])
          [] (Just (1, 1))
 
 -- A permanent type and a spell type do not share a line. [CR#110.4]
@@ -5332,7 +5214,7 @@ failing "CardSupers"
 failing "CardLine"
   badMixedPermanentSpellLine : Card
   badMixedPermanentSpellLine =
-    card "" Nothing [] (MkTypeLine [] [Land, Creature, Instant]) [] (Just (1, 1))
+    Macros.card "" Nothing [] (MkTypeLine [] [Land, Creature, Instant]) [] (Just (1, 1))
 
 -- A card's type line says SOMETHING — [CR#205.1] has it contain "the
 -- card's card type(s)" without qualification, where the subtypes and
@@ -5340,7 +5222,7 @@ failing "CardLine"
 failing "CardLine"
   badCardNoTypes : Card
   badCardNoTypes =
-    card "" (Just [generic 1]) [] (MkTypeLine [] []) [] Nothing
+    Macros.card "" (Just [Macros.generic 1]) [] (MkTypeLine [] []) [] Nothing
 
 -- …and it writes them in the printed ORDER, which is `typesOrdered`'s
 -- rank at its third reader: "artifact creature" is five hundred
@@ -5348,7 +5230,7 @@ failing "CardLine"
 failing "CardLine"
   badCardTypeOrder : Card
   badCardTypeOrder =
-    card "" (Just [generic 2]) [] (MkTypeLine [] [Creature, Artifact]) []
+    Macros.card "" (Just [Macros.generic 2]) [] (MkTypeLine [] [Creature, Artifact]) []
          (Just (2, 2))
 
 -- A clause cannot GRANT a spell ability, and this refusal is a category
@@ -5359,14 +5241,14 @@ failing "CardLine"
 failing "Grantable"
   badGainsSpellAbility : Effect []
   badGainsSpellAbility =
-    gains (target creature) (Spell drawACard) Nothing
+    Macros.gains (Macros.target Macros.creature) (Spell Macros.drawACard) Nothing
 
 -- The countering's complement is a SPELL, and the zone is what says so
 -- ([CR#112.1] — "a spell is a card on the stack"). A battlefield
 -- permanent has already resolved and there is nothing left to cancel.
 failing "OnStack"
   badCounterPermanent : Effect []
-  badCounterPermanent = counterSpell (target creature)
+  badCounterPermanent = Macros.counterSpell (Macros.target Macros.creature)
 
 -- Cancelling somebody else's spell is not a PAYMENT. [CR#602.1a] makes
 -- an activation cost what the activator pays, and the cost table's
@@ -5375,7 +5257,7 @@ failing "OnStack"
 failing "CostAction"
   badCounterAsCost : Ability
   badCounterAsCost =
-    Activated (Do (counterSpell (target spell))) drawACard
+    Activated (Do (Macros.counterSpell (Macros.target Macros.spell))) Macros.drawACard
 
 -- The stack is not a place one plays a card FROM: [CR#112.1] makes an
 -- object there a spell, and a spell has already been cast. That is the
@@ -5383,7 +5265,7 @@ failing "CostAction"
 failing "PlaySource"
   badPlayFromStack : Effect []
   badPlayFromStack =
-    Continuously (MayPlay You (a spell)) (Just thisTurn)
+    Continuously (MayPlay You (Macros.a Macros.spell)) (Just Macros.thisTurn)
 
 -- "Cast" excludes the LAND, and the rule is [CR#305.9]: "if an object is
 -- both a land and another card type, it can be played only as a land. It
@@ -5392,9 +5274,9 @@ failing "PlaySource"
 failing "CastableTy"
   badCastALand : Effect []
   badCastALand =
-    Continuously (MayPlay You (a (And [land, InZone (graveyardOf You)]))
+    Continuously (MayPlay You (Macros.a (And [Macros.land, InZone (Macros.graveyardOf You)]))
                              {verb = Cast})
-                 (Just thisTurn)
+                 (Just Macros.thisTurn)
 
 -- A written source phrase must AGREE with what the complement already
 -- says: the permission's two ways of naming a zone are one fact, and
@@ -5403,9 +5285,9 @@ failing "CastableTy"
 failing "PlaySource"
   badPlayFromWrongZone : Effect []
   badPlayFromWrongZone =
-    Continuously (MayPlay You (a (And [creature, InZone exileZ]))
-                             {from = Just (graveyardOf You)})
-                 (Just thisTurn)
+    Continuously (MayPlay You (Macros.a (And [Macros.creature, InZone Macros.exileZ]))
+                             {from = Just (Macros.graveyardOf You)})
+                 (Just Macros.thisTurn)
 
 -- Nothing MOVES to the stack. [CR#601.2a] puts a card there as the first
 -- step of casting it, which is an action a player takes and not a
@@ -5413,7 +5295,7 @@ failing "PlaySource"
 -- name (`Destination`'s `exclude(Library, Stack)`).
 failing "DestOk"
   badMoveToStack : Effect []
-  badMoveToStack = Move (target creature) stackZ
+  badMoveToStack = Move (Macros.target Macros.creature) Macros.stackZ
 
 -- The battlefield destination asks about its PATIENT and not only about
 -- its own phrase: [CR#110.4] says "instant and sorcery cards can't enter
@@ -5426,7 +5308,7 @@ failing "DestOk"
 failing "Placeable"
   badInstantOntoBattlefield : Effect []
   badInstantOntoBattlefield =
-    putOntoBattlefieldTapped (target (And [HasType Instant, InZone graveyardZ]))
+    Macros.putOntoBattlefieldTapped (Macros.target (And [HasType Instant, InZone Macros.graveyardZ]))
 
 -- …and no cost component places anything on the battlefield. Every
 -- zone-change verb the corpus writes before a colon REMOVES or
@@ -5438,8 +5320,8 @@ failing "Placeable"
 failing "CostAction"
   badMoveOntoBattlefieldAsCost : Ability
   badMoveOntoBattlefieldAsCost =
-    Activated (Do (putOntoBattlefield (a (And [creature, InZone (graveyardOf You)]))))
-              drawACard
+    Activated (Do (Macros.putOntoBattlefield (Macros.a (And [Macros.creature, InZone (Macros.graveyardOf You)]))))
+              Macros.drawACard
 
 -- "Unless" IS the negation, so it takes a negated condition and spells
 -- the positive underneath. A positive condition under the word would be
@@ -5447,8 +5329,8 @@ failing "CostAction"
 failing "MarkingOk"
   badUnlessOnPositive : Ability
   badUnlessOnPositive =
-    Static (Conditionally (Exists (And [artifact, ControlledBy You]))
-                          (Cant thisCreature Attack Agent)
+    Static (Conditionally (Exists (And [Macros.artifact, ControlledBy You]))
+                          (Cant Macros.thisCreature Attack Agent)
                           {marking = Unless})
 
 -- The end-of-combat header takes no POSSESSOR. Zero lines write "at your
@@ -5458,7 +5340,7 @@ failing "MarkingOk"
 failing "PartTriggerable"
   badTriggerAtYourEndOfCombat : Ability
   badTriggerAtYourEndOfCombat =
-    Triggered At (BeginningOf EndOfCombat (Just Yours)) drawACard
+    Triggered At (BeginningOf EndOfCombat (Just Yours)) Macros.drawACard
 
 -- …and the sixth part names no duration endpoint at all, [CR#511.2]
 -- putting "until end of combat" at the end of the combat PHASE, which is
@@ -5466,7 +5348,7 @@ failing "PartTriggerable"
 failing "SpanOk"
   badUntilEndOfCombatStep : Effect []
   badUntilEndOfCombatStep =
-    gets (target creature) 1 1 (Just (Until (StartOf EndOfCombat Nothing)))
+    Macros.gets (Macros.target Macros.creature) 1 1 (Just (Until (StartOf EndOfCombat Nothing)))
 
 -- The participle's two surfaces are not interchangeable per verb.
 -- "Destroyed this way" is fifty-one lines and "the destroyed [noun]" is
@@ -5475,8 +5357,8 @@ failing "SpanOk"
 failing "VerbedMarkingOk"
   badDestroyedAttributive : Effect []
   badDestroyedAttributive =
-    Sequentially [destroy (target creature),
-                  exile (TheVerbed Destroy CardW {marking = Attributive})]
+    Sequentially [Macros.destroy (Macros.target Macros.creature),
+                  Macros.exile (TheVerbed Destroy CardW {marking = Attributive})]
 
 -- The controller relation still seeds the BATTLEFIELD, and the stack
 -- row's arrival is what makes that a measured refusal rather than a
@@ -5488,7 +5370,7 @@ failing "VerbedMarkingOk"
 -- ledgered rather than repaired here.
 failing "ZoneCoherent"
   badControlledSpell : Predicate [] Object
-  badControlledSpell = And [spell, ControlledBy You]
+  badControlledSpell = And [Macros.spell, ControlledBy You]
 
 -- ===== The becomes-status event: observing a transition =====
 
@@ -5500,8 +5382,8 @@ failing "ZoneCoherent"
 gideonsAvenger : Ability
 gideonsAvenger =
   Triggered Whenever
-            (BecomesStatus (a (And [creature, ControlledBy anOpponent])) Tapped)
-            (PutCounters (Lit 1) plusOnePlusOne thisCreature)
+            (BecomesStatus (Macros.a (And [Macros.creature, ControlledBy Macros.anOpponent])) Tapped)
+            (PutCounters (Lit 1) Macros.plusOnePlusOne Macros.thisCreature)
 
 -- "Whenever a permanent becomes untapped, that permanent's controller
 -- mills a card." (Mesmeric Orb, the whole card's text) — the untapped
@@ -5511,8 +5393,8 @@ gideonsAvenger =
 -- relational noun.
 mesmericOrb : Ability
 mesmericOrb =
-  Triggered Whenever (BecomesStatus (a Permanent) Untapped)
-            (millsCards (ControllerOf (That PermanentW)) 1)
+  Triggered Whenever (BecomesStatus (Macros.a Permanent) Untapped)
+            (Macros.millsCards (ControllerOf (That PermanentW)) 1)
 
 -- The six unattested values, one pin each so a future broadening fails
 -- at the VALUE gate with the failure attributable to nothing else: the
@@ -5526,39 +5408,39 @@ mesmericOrb =
 failing "StatusEventVal"
   badBecomesFlipped : Ability
   badBecomesFlipped =
-    Triggered Whenever (BecomesStatus (a Permanent) Flipped) drawACard
+    Triggered Whenever (BecomesStatus (Macros.a Permanent) Flipped) Macros.drawACard
 
 failing "StatusEventVal"
   badBecomesUnflipped : Ability
   badBecomesUnflipped =
-    Triggered Whenever (BecomesStatus (a Permanent) Unflipped) drawACard
+    Triggered Whenever (BecomesStatus (Macros.a Permanent) Unflipped) Macros.drawACard
 
 failing "StatusEventVal"
   badBecomesFaceUp : Ability
   badBecomesFaceUp =
-    Triggered Whenever (BecomesStatus (a Permanent) FaceUp) drawACard
+    Triggered Whenever (BecomesStatus (Macros.a Permanent) FaceUp) Macros.drawACard
 
 failing "StatusEventVal"
   badBecomesFaceDown : Ability
   badBecomesFaceDown =
-    Triggered Whenever (BecomesStatus (a Permanent) FaceDown) drawACard
+    Triggered Whenever (BecomesStatus (Macros.a Permanent) FaceDown) Macros.drawACard
 
 failing "StatusEventVal"
   badBecomesPhasedIn : Ability
   badBecomesPhasedIn =
-    Triggered Whenever (BecomesStatus (a Permanent) PhasedIn) drawACard
+    Triggered Whenever (BecomesStatus (Macros.a Permanent) PhasedIn) Macros.drawACard
 
 failing "StatusEventVal"
   badBecomesPhasedOut : Ability
   badBecomesPhasedOut =
-    Triggered Whenever (BecomesStatus (a Permanent) PhasedOut) drawACard
+    Triggered Whenever (BecomesStatus (Macros.a Permanent) PhasedOut) Macros.drawACard
 
 -- [CR#603.2b] keeps `At` for phases and steps: "At a creature becomes
 -- tapped" is unwritten, as it is for every other object event.
 failing "TriggerWordOk"
   badAtBecomesTapped : Ability
   badAtBecomesTapped =
-    Triggered At (BecomesStatus (a creature) Tapped) drawACard
+    Triggered At (BecomesStatus (Macros.a Macros.creature) Tapped) Macros.drawACard
 
 -- Trigger-only, reader by reader — `badInterceptEnters`'s shape at the
 -- new event. Nothing intercepts a becomes-tapped: no "if [it] would
@@ -5566,8 +5448,8 @@ failing "TriggerWordOk"
 failing "Interceptable"
   badInterceptBecomesTapped : Effect []
   badInterceptBecomesTapped =
-    ifWouldInstead (BecomesStatus (target creature) Tapped)
-                   (exile It) (Just thisTurn)
+    Macros.ifWouldInstead (BecomesStatus (Macros.target Macros.creature) Tapped)
+                   (Macros.exile It) (Just Macros.thisTurn)
 
 -- …and the [CR#610.3] rider does not wait for one: "exile it until
 -- [something] becomes untapped" is written zero times, the rider's
@@ -5575,15 +5457,15 @@ failing "Interceptable"
 failing "Holdable"
   badHeldUntilBecomesUntapped : Effect []
   badHeldUntilBecomesUntapped =
-    exileUntil (target creature) (BecomesStatus (a creature) Untapped)
+    Macros.exileUntil (Macros.target Macros.creature) (BecomesStatus (Macros.a Macros.creature) Untapped)
 
 -- …nor does the delayed clause: the delayed family stays the end-step
 -- beginning, the departure, and the death.
 failing "Awaitable"
   badDelayedOnBecomesTapped : Effect []
   badDelayedOnBecomesTapped =
-    Delayed (BecomesStatus (target creature) Tapped)
-            (sacrifice You (That (TypeW Creature)))
+    Delayed (BecomesStatus (Macros.target Macros.creature) Tapped)
+            (Macros.sacrifice You (That (TypeW Creature)))
 
 -- No measured duration ends at a status transition: the tapped-STATE
 -- span is "for as long as … remains tapped" ([CR#611.2b]), a condition
@@ -5593,8 +5475,8 @@ failing "Awaitable"
 failing "SpanOk PtDelta"
   badGetsUntilBecomesUntapped : Effect []
   badGetsUntilBecomesUntapped =
-    gets (target creature) 2 2
-         (Just (UntilEvent (BecomesStatus thisCreature Untapped)))
+    Macros.gets (Macros.target Macros.creature) 2 2
+         (Just (UntilEvent (BecomesStatus Macros.thisCreature Untapped)))
 
 -- ===== The timed untap restriction =====
 
@@ -5604,8 +5486,8 @@ failing "SpanOk PtDelta"
 -- carrier, and the third-party possessor derived from the target
 -- subject ([CR#109.5]).
 barlsCage : Ability
-barlsCage = Activated (Mana [generic 3])
-                      (DoesntUntapNext (target creature) 1)
+barlsCage = Activated (Mana [Macros.generic 3])
+                      (DoesntUntapNext (Macros.target Macros.creature) 1)
 
 -- "Tap target creature. It doesn't untap during its controller's next
 -- untap step." (Take into Custody) — the separate-sentence tap rider
@@ -5613,7 +5495,7 @@ barlsCage = Activated (Mana [generic 3])
 -- clause reads it through the ordinary uniqueness discipline; no
 -- tap-specific antecedent relation exists.
 takeIntoCustody : Effect []
-takeIntoCustody = Sequentially [Tap (target creature),
+takeIntoCustody = Sequentially [Tap (Macros.target Macros.creature),
                                 DoesntUntapNext It 1]
 
 -- "Chandra's Revolution deals 4 damage to target creature. Tap target
@@ -5623,8 +5505,8 @@ takeIntoCustody = Sequentially [Tap (target creature),
 -- ambiguous and the card switches to the sorted demonstrative, exactly
 -- the clarity rule the guide states (§5).
 chandrasRevolution : Effect []
-chandrasRevolution = Sequentially [DealDamage This (Lit 4) (target creature),
-                                   Tap (target land),
+chandrasRevolution = Sequentially [DealDamage This (Lit 4) (Macros.target Macros.creature),
+                                   Tap (Macros.target Macros.land),
                                    DoesntUntapNext (That (TypeW Land)) 1]
 
 -- "{2}{W}, {T}: This creature deals 3 damage to target attacking or
@@ -5636,10 +5518,10 @@ chandrasRevolution = Sequentially [DealDamage This (Lit 4) (target creature),
 -- `arrowsOfJustice`'s phrase.
 arbalestElite : Ability
 arbalestElite =
-  Activated (Compound [Mana [generic 2, pip White], TapSymbol])
-            (Sequentially [DealDamage thisCreature (Lit 3)
-                                      (target (And [creature, Or [Attacking, Blocking]])),
-                           DoesntUntapNext thisCreature 1])
+  Activated (Compound [Mana [Macros.generic 2, Macros.pip White], TapSymbol])
+            (Sequentially [DealDamage Macros.thisCreature (Lit 3)
+                                      (Macros.target (And [Macros.creature, Or [Attacking, Blocking]])),
+                           DoesntUntapNext Macros.thisCreature 1])
 
 -- the timed clause's subject stands on the battlefield, `Tap`/`Untap`'s
 -- own demand at the new row ([CR#701.26a]'s zone, `badUntapGraveyard`'s
@@ -5647,19 +5529,19 @@ arbalestElite =
 failing "OnBattlefield"
   badUntapNextGraveyard : Effect []
   badUntapNextGraveyard =
-    DoesntUntapNext (target (And [creature, InZone (graveyardOf You)])) 1
+    DoesntUntapNext (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) 1
 
 -- "it" after two singular object introductions reaches two mentions and
 -- resolves neither — the strict uniqueness gate, unchanged at the new
 -- consumer.
 failing "countOnes"
   badUntapNextAmbiguousIt : Effect []
-  badUntapNextAmbiguousIt = Sequentially [Tap (target creature),
-                                          Tap (target artifact),
+  badUntapNextAmbiguousIt = Sequentially [Tap (Macros.target Macros.creature),
+                                          Tap (Macros.target Macros.artifact),
                                           DoesntUntapNext It 1]
 
 -- the count vocabulary is closed at the attested one and two: "next
 -- three untap steps" is written zero times, and the table refuses it.
 failing "NextUntapCount"
   badUntapNextThree : Effect []
-  badUntapNextThree = DoesntUntapNext (target creature) 3
+  badUntapNextThree = DoesntUntapNext (Macros.target Macros.creature) 3

@@ -7,6 +7,7 @@ modules = Semantics
         , Experimental
         , Experimental.Macros
         , Experimental.Cards
+        , Experimental.Proofs
         , EmitTables
 
 sourcedir = "src"
