@@ -529,7 +529,7 @@ mod tests {
         let selected = verbose_m01("Look at the top card of your library.");
         assert!(
             selected.contains(
-                " prepositional_object owner=generated backend=chart form=0 evidence=feature:prepositional object category value=category=PrepositionalObject"
+                " prepositional_object owner=generated backend=chart form=0 evidence=feature:prepositional object category value=object_category=NounPhrase"
             ),
             "{selected}",
         );
@@ -545,6 +545,20 @@ mod tests {
                 .contains("Complement( Prepositional("),
             "selected PP lost its typed complement role:\n{selected}",
         );
+
+        for (source, form, category) in [
+            ("Attack from among them.", 1, "PrepositionalPhrase"),
+            ("Attack by paying 1 life.", 2, "GerundClause"),
+            ("Attack from anywhere.", 3, "Adverb"),
+        ] {
+            let rendered = verbose_m01(source);
+            assert!(
+                rendered.contains(&format!(
+                    " prepositional_object owner=generated backend=chart form={form} evidence=feature:prepositional object category value=object_category={category}"
+                )),
+                "missing typed {category} object evidence:\n{rendered}",
+            );
+        }
 
         let adjunct = verbose_m01("Attack during your turn.");
         assert!(

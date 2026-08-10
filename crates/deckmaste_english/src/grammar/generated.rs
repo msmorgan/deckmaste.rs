@@ -865,6 +865,9 @@ fn evidence_source_is_supported(
             evidence_requirement_is_supported(construction, path)
         }
         EvidenceSourceData::Output("attachment") => construction.category == "NominalPhrase",
+        EvidenceSourceData::Output("object_category") => {
+            construction.category == "PrepositionalObject"
+        }
         EvidenceSourceData::Field("predicate.frame") => construction.fields.iter().any(|field| {
             field.name == "predicate"
                 && matches!(
