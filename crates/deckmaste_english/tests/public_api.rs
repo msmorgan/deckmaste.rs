@@ -1696,7 +1696,7 @@ fn public_prepositional_facade_builds_projects_and_rejects_invalid_roles() {
         (&by_attacking, "by attacking"),
         (&from_anywhere, "from again"),
     ] {
-        let (preposition, object) = prepositional_api::parts_prepositional_phrase(phrase);
+        let (preposition, object) = prepositional_api::parts_prepositional_phrase(phrase).unwrap();
         assert_eq!(
             prepositional_api::build_prepositional_phrase(preposition, object).unwrap(),
             *phrase,
