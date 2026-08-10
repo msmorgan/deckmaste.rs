@@ -243,10 +243,12 @@ pub use trigger::PendingTrigger;
 pub use trigger::TriggerBindings;
 
 mod state;
+pub use state::EngineIncident;
 pub use state::GameConfig;
 pub use state::GameImage;
 pub use state::GameOutcome;
 pub use state::GameState;
+pub use state::PaymentDeclined;
 pub use state::PlayerConfig;
 pub use state::StartingPlayer;
 

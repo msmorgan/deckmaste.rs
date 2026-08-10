@@ -238,12 +238,9 @@ pub enum WorkItem {
         riders: Vec<deckmaste_core::ManaRider>,
         provenance: crate::player::ManaProvenance,
     },
-    /// [CR#118.12a]: a mid-resolution mana toll — a `MayPayCost`
-    /// continuation's `Mana(...)` cost component, paid by `player` from
-    /// their pool. Surfaces a `PayMana` decision; `subject` is the
-    /// resolving ability's source (a `SpendOnly` rider judges it). A ward
-    /// toll's cost arrives here already priced ([CR#702.21b] — `{X}`
-    /// resolved through `where_x` at `May(Pay)` execution).
+    /// Legacy mid-resolution mana-toll work. New `May(Pay(cost))` effects use
+    /// a full optional payment frame; this remains while older announcement
+    /// and direct-toll callers migrate to that protocol.
     TollMana {
         player: crate::player::PlayerId,
         cost: deckmaste_core::ManaCost,

@@ -422,43 +422,6 @@ impl GameState {
         }
     }
 
-    /// [CR#608.2d]: whether `payer` (resolved from `who`) can make a legal
-    /// "yes" choice for a `May(Pay(cost))` toll — the no-creatures/Standstill
-    /// exiled-source gate the pre-collapse `MustPay` never kept ("v1 does NOT
-    /// gate the offer on affordability" no longer holds once the offer can be
-    /// forced to `if_not`). A lightweight per-component check, not a
-    /// full-fidelity payability oracle (that's T4's `Agency::CostPayment`
-    /// scope): verb costs (`Do(...)`, `{T}`/`{Q}`) reuse the activation-cost
-    /// gate ([`Self::can_pay_verbs`]) via the same
-    /// [`crate::decide::unless_cost_action`] rendering the payment walk
-    /// itself uses. `Mana` is deliberately NOT gated here — unlike a verb
-    /// cost, a mana toll can be answered by activating mana abilities in
-    /// response to the offer ([CR#605.3a]), so an empty pool right now does
-    /// not mean "can't pay"; the pre-collapse `MustPay`/`MayPay` always
-    /// offered on a mana toll regardless of the live pool, and this keeps
-    /// that. A cost-side `With`/`TapTotal`/nested `Cost` has no cheap
-    /// feasibility check here either and is optimistically treated as
-    /// payable — the runner is trusted not to answer "yes" when it can't
-    /// actually follow through, same as the pre-collapse behavior.
-    fn can_pay_may_cost(
-        &self,
-        cost: &[deckmaste_core::CostComponent],
-        who: &Reference,
-        payer: crate::player::PlayerId,
-        frame: &Frame,
-    ) -> bool {
-        use deckmaste_core::CostComponent;
-        let mut verbs = Vec::new();
-        for component in cost {
-            if let other @ (CostComponent::Act(_) | CostComponent::Tap | CostComponent::Untap) =
-                component
-            {
-                verbs.push(crate::decide::unless_cost_action(other, who));
-            }
-        }
-        self.can_pay_verbs(payer, &verbs, frame.source)
-    }
-
     #[expect(
         clippy::too_many_lines,
         reason = "one arm per effect-frame variant; splitting would scatter the dispatch"
@@ -1180,18 +1143,11 @@ impl GameState {
             // yes, if_not on no) runs when the answer comes back — the `May`
             // continuation in `submit_decision`.
             OneShotEffect::May(may) => {
-                // [CR#118.12a,118.12,608.2d]: the collapsed `MayPay`/`MustPay`
-                // shape — `effect` is `Pay(cost)`, so `if_did`/`if_not` invoke
-                // cost semantics rather than plain optionality. Branch on
-                // whether the payer CHOSE to pay, "regardless of what events
-                // actually occurred" ([CR#118.12], the Dermoplasm clause) —
-                // decided by the YesNo answer, never by inspecting what the
-                // payment sub-effects produced. Inability to make a legal
-                // "yes" choice forces `if_not` directly ([CR#608.2d]'s
-                // no-creatures/Standstill-exiled-source cases), mirroring the
-                // Cast-referent gate below. A branchless `May` (`if_did`/
-                // `if_not` both `None`) rides the exact same path — one node
-                // serves both, so there is no separate "plain Pay" arm.
+                // [CR#118.12a,118.12]: `May(Pay(cost))` is a real optional
+                // payment transaction. No preliminary YesNo answer or
+                // affordability oracle can faithfully account for mana
+                // abilities activated during payment; submission means the
+                // payer chose to pay, while decline means they did not.
                 if let OneShotEffect::Act(Action::Pay(cost)) = &*may.effect {
                     let payer = self.acting_player(&may.who, frame);
                     // Normalize at this boundary: read is faithful, so a
@@ -1200,28 +1156,13 @@ impl GameState {
                     // `{X}` (a ward toll's where_x) before the payment walk.
                     let cost = cost.clone().normalize().0;
                     let cost = self.price_variable_cost(cost.to_vec(), frame);
-                    if !self.can_pay_may_cost(&cost, &may.who, payer, frame) {
-                        let items = may
-                            .if_not
-                            .into_iter()
-                            .map(|effect| WorkItem::RunEffect {
-                                effect,
-                                frame: frame.clone(),
-                            })
-                            .collect();
-                        self.schedule_front(items);
-                        return;
-                    }
-                    self.pending = Some(crate::decide::PendingDecision::YesNo(
-                        crate::decide::pending::YesNo { player: payer },
-                    ));
-                    self.choice = Some(crate::state::ChoiceContinuation::MayPayCost {
-                        who: may.who,
-                        cost,
-                        if_did: may.if_did,
-                        if_not: may.if_not,
-                        frame: frame.clone(),
-                    });
+                    self.begin_optional_payment(
+                        payer,
+                        deckmaste_core::Cost(cost.into()),
+                        may.if_did,
+                        may.if_not,
+                        frame.clone(),
+                    );
                     return;
                 }
                 // [CR#608.2g]: "you may cast that card. If you don't, …" — the
@@ -1827,8 +1768,7 @@ impl GameState {
 
     /// The last-known snapshot of the object a cost payment moves
     /// ([CR#608.2k] cost→effect reference) — shared by the
-    /// [`OneShotEffect::AdditionalCost`] arm and the `MayPayCost` yes-answer
-    /// ([`crate::decide::pending::choice`]) — when the cost is a single
+    /// [`OneShotEffect::AdditionalCost`] arm — when the cost is a single
     /// object-moving verb (`Sacrifice`/`Move` — exile is `Move(_, Exile)` —
     /// or a `Discard` that names *what*) over a resolvable reference
     /// (`Sacrifice(This)`, …). Captured BEFORE the verb actually pays, so it
@@ -5054,6 +4994,8 @@ mod tests {
 
         use crate::decide::Decision;
         use crate::decide::PendingDecision;
+        use crate::payment::FulfillmentWitness;
+        use crate::payment::PaymentCommand;
 
         let p0 = PlayerId(0);
         let pay_cost = || {
@@ -5080,14 +5022,21 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(OneShotEffect::May(must_pay()), &frame);
-        let StepOutcome::NeedsDecision(PendingDecision::YesNo(crate::decide::pending::YesNo {
-            player,
-        })) = state.step()
-        else {
-            panic!("expected YesNo, got {:?}", state.pending);
+        let Some(PendingDecision::Payment(prompt)) = state.pending.as_ref() else {
+            panic!("expected optional payment, got {:?}", state.pending);
         };
-        assert_eq!(player, p0, "the payer decides");
-        state.submit_decision(Decision::Answer(true)).unwrap();
+        assert_eq!(prompt.payer, p0, "the payer decides");
+        let iou = prompt.outstanding[0].id;
+        state
+            .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+                iou,
+                witness: FulfillmentWitness::PayLife,
+            }))
+            .unwrap();
+        let _ = drain_progress(&mut state, 40);
+        state
+            .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+            .unwrap();
         let _ = drain_progress(&mut state, 40);
         assert_eq!(
             state.player(p0).life,
@@ -5100,7 +5049,9 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(OneShotEffect::May(must_pay()), &frame);
-        state.submit_decision(Decision::Answer(false)).unwrap();
+        state
+            .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+            .unwrap();
         let _ = drain_progress(&mut state, 40);
         assert_eq!(state.player(p0).life, life0 + 10, "decline → if_not runs");
     }
@@ -5117,6 +5068,8 @@ mod tests {
 
         use crate::decide::Decision;
         use crate::decide::PendingDecision;
+        use crate::payment::FulfillmentWitness;
+        use crate::payment::PaymentCommand;
 
         let p0 = PlayerId(0);
         let pay_cost = || {
@@ -5146,14 +5099,21 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(OneShotEffect::May(may_pay()), &frame);
-        let StepOutcome::NeedsDecision(PendingDecision::YesNo(crate::decide::pending::YesNo {
-            player,
-        })) = state.step()
-        else {
-            panic!("expected YesNo, got {:?}", state.pending);
+        let Some(PendingDecision::Payment(prompt)) = state.pending.as_ref() else {
+            panic!("expected optional payment, got {:?}", state.pending);
         };
-        assert_eq!(player, p0, "the payer decides");
-        state.submit_decision(Decision::Answer(true)).unwrap();
+        assert_eq!(prompt.payer, p0, "the payer decides");
+        let iou = prompt.outstanding[0].id;
+        state
+            .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+                iou,
+                witness: FulfillmentWitness::PayLife,
+            }))
+            .unwrap();
+        let _ = drain_progress(&mut state, 40);
+        state
+            .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+            .unwrap();
         let _ = drain_progress(&mut state, 40);
         assert_eq!(
             state.player(p0).life,
@@ -5166,42 +5126,27 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(OneShotEffect::May(may_pay()), &frame);
-        state.submit_decision(Decision::Answer(false)).unwrap();
+        state
+            .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+            .unwrap();
         let _ = drain_progress(&mut state, 40);
         assert_eq!(state.player(p0).life, life0 + 1, "decline → if_not runs");
     }
 
-    /// [CR#118.12]: the branch is decided by whether the payer CHOSE to pay,
-    /// "regardless of what events actually occurred" (the Dermoplasm
-    /// clause) — the engine schedules `if_did` immediately once the yes
-    /// answer comes back, chained BEFORE the toll items even run (never by
-    /// inspecting what those toll items go on to produce). A sacrifice
-    /// payment — Dermoplasm's own cost verb — demonstrates it: `if_did`
-    /// fires off the choice, not off any inspected sacrifice event.
-    ///
-    /// A test that only checks the AFTERMATH (creature gone + life gained)
-    /// can't discriminate "branch on the choice" from "branch on the
-    /// observed event" — both hypotheses predict the same aftermath here,
-    /// since nothing in this engine can make a CHOSEN, cost-eligible,
-    /// directly-resolvable `Sacrifice(This)` toll item produce no event
-    /// (`can_pay_may_cost`'s pre-offer legality gate, [CR#608.2d], already
-    /// forces `if_not` for anything that can't actually pay — see
-    /// `run_effect_may_pay_forces_if_not_when_unable_to_pay` below — so a
-    /// CHOSEN-but-silent toll is unreachable with current machinery). So
-    /// this asserts the ordering the design actually rests on instead: right
-    /// after the yes answer — BEFORE either work item has been stepped —
-    /// `if_did`'s `RunEffect` already sits in the agenda immediately behind
-    /// the toll item, proving it was scheduled in the same atomic step as
-    /// the toll items ([CR#118.12] "regardless of what events actually
-    /// occurred"), not appended later after inspecting what they produced.
+    /// [CR#118.12]: the branch is decided by whether the payer submitted the
+    /// complete payment, "regardless of what events actually occurred." A
+    /// sacrifice cost demonstrates the boundary: fulfilling the IOU performs
+    /// the sacrifice, but `if_did` is not scheduled until `SubmitPayment`.
     #[test]
-    fn run_effect_may_pay_branches_on_the_choice_not_observed_events() {
+    fn run_effect_may_pay_branches_on_submission_not_observed_events() {
         use deckmaste_core::Cost;
         use deckmaste_core::CostComponent;
         use deckmaste_core::May;
 
         use crate::decide::Decision;
         use crate::decide::PendingDecision;
+        use crate::payment::FulfillmentWitness;
+        use crate::payment::PaymentCommand;
 
         let (mut state, bear) = bear_on_field();
         let p0 = PlayerId(0);
@@ -5224,58 +5169,55 @@ mod tests {
         };
         let life0 = state.player(p0).life;
         state.run_effect(OneShotEffect::May(may), &frame);
-        let StepOutcome::NeedsDecision(PendingDecision::YesNo(crate::decide::pending::YesNo {
-            ..
-        })) = state.step()
-        else {
-            panic!("expected YesNo, got {:?}", state.pending);
+        let Some(PendingDecision::Payment(prompt)) = state.pending.as_ref() else {
+            panic!("expected optional payment, got {:?}", state.pending);
         };
-        state.submit_decision(Decision::Answer(true)).unwrap();
-
-        // Ordering discriminator ([CR#118.12]): inspect the agenda BEFORE
-        // stepping either item — `if_did` (ChangeLife) is already queued
-        // right behind the toll item (Sacrifice), scheduled by the SAME
-        // `schedule_front` call the yes-answer made, not contingent on the
-        // toll item having run yet.
-        assert!(
-            matches!(
-                state.agenda.front(),
-                Some(WorkItem::RunEffect { effect, .. })
-                    if matches!(effect.as_ref(), OneShotEffect::Act(Action::Sacrifice(..)))
-            ),
-            "the toll item (Sacrifice) is at the agenda front, unstepped: {:?}",
-            state.agenda.front()
-        );
-        assert!(
-            matches!(
-                state.agenda.get(1),
-                Some(WorkItem::RunEffect { effect, .. })
-                    if matches!(effect.as_ref(), OneShotEffect::Act(Action::ChangeLife(..)))
-            ),
-            "if_did (ChangeLife) is already scheduled right behind it: {:?}",
-            state.agenda.get(1)
-        );
-
+        let iou = prompt.outstanding[0].id;
+        state
+            .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+                iou,
+                witness: FulfillmentWitness::Bound,
+            }))
+            .unwrap();
         let _ = drain_progress(&mut state, 40);
         assert!(
             !state.zones.battlefield.contains(&bear),
             "the sacrifice paid the cost"
         );
+        assert_eq!(state.player(p0).life, life0, "if_did waits for submission");
+        state
+            .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+            .unwrap();
+        assert!(
+            matches!(
+                state.agenda.front(),
+                Some(WorkItem::RunEffect { effect, .. })
+                    if matches!(effect.as_ref(), OneShotEffect::Act(Action::ChangeLife(..)))
+            ),
+            "submission schedules if_did independently of payment events"
+        );
+        let _ = drain_progress(&mut state, 40);
         assert_eq!(
             state.player(p0).life,
             life0 + 7,
-            "if_did runs off the yes CHOICE, not a post-hoc events check"
+            "if_did runs off submission, not a post-hoc events check"
         );
     }
 
-    /// [CR#608.2d]: inability to make a legal "yes" choice forces `if_not`
-    /// directly — no unanswerable `YesNo` is ever surfaced. An unaffordable
-    /// mana cost (the payer's pool is empty) skips straight to `if_not`.
+    /// Payability is determined by the actual payment protocol, not a
+    /// preliminary approximation. An unaffordable optional cost still opens;
+    /// its invalid fulfillment is rejected atomically and decline runs
+    /// `if_not`.
     #[test]
-    fn run_effect_may_pay_forces_if_not_when_unable_to_pay() {
+    fn run_effect_may_pay_unaffordable_offer_can_be_declined() {
         use deckmaste_core::Cost;
         use deckmaste_core::CostComponent;
         use deckmaste_core::May;
+
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+        use crate::payment::FulfillmentWitness;
+        use crate::payment::PaymentCommand;
 
         let p0 = PlayerId(0);
         let mut state = game();
@@ -5304,15 +5246,28 @@ mod tests {
         };
         let life0 = state.player(p0).life;
         state.run_effect(OneShotEffect::May(may), &frame);
+        let Some(PendingDecision::Payment(prompt)) = state.pending.as_ref() else {
+            panic!("unaffordable cost should still open payment");
+        };
+        let iou = prompt.outstanding[0].id;
+        let before = state.pending.clone();
         assert!(
-            state.pending.is_none(),
-            "unaffordable → no YesNo is ever surfaced"
+            state
+                .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+                    iou,
+                    witness: FulfillmentWitness::PayLife,
+                }))
+                .is_err()
         );
+        assert_eq!(state.pending, before, "rejection is atomic");
+        state
+            .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+            .unwrap();
         let _ = drain_progress(&mut state, 40);
         assert_eq!(
             state.player(p0).life,
             life0 + 1,
-            "unaffordable → if_not runs directly, if_did never offered"
+            "decline runs if_not; if_did never runs"
         );
     }
 

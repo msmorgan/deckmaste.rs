@@ -282,6 +282,48 @@ impl GameState {
             .push(PaymentFrame::proposal(working, payer));
     }
 
+    /// Open a resolution-time optional cost as a real payment transaction.
+    /// There is no preliminary affordability oracle or Yes/No commitment: the
+    /// payer either submits a complete payment or declines the frame.
+    pub(crate) fn begin_optional_payment(
+        &mut self,
+        payer: PlayerId,
+        cost: Cost,
+        if_did: Option<Arc<deckmaste_core::OneShotEffect>>,
+        if_not: Option<Arc<deckmaste_core::OneShotEffect>>,
+        frame: Frame,
+    ) {
+        // Install the isolated image first so the payment id and all later
+        // mutations belong only to this optional transaction.
+        let working = self.active().clone();
+        self.payment
+            .get_or_insert_with(PaymentController::default)
+            .frames
+            .push(PaymentFrame::proposal(working, payer));
+
+        let mut payment_frame = frame.clone();
+        payment_frame.payment = Some(self.mint_payment());
+        let subject = PaymentSubject::Effect {
+            source: frame.source,
+        };
+        let locked = lock_cost(self, payer, subject, &payment_frame, &cost, &[])
+            .expect("a lowered optional cost is concrete at the runnable boundary");
+        let controller = self.payment.as_mut().expect("optional frame is installed");
+        let top = controller
+            .frames
+            .last_mut()
+            .expect("optional frame remains installed");
+        top.purpose = PaymentPurpose::Optional {
+            if_did,
+            if_not,
+            frame: Box::new(frame),
+        };
+        top.initialize(locked);
+        let prompt = top.prompt(Vec::new());
+        top.working.pending = Some(crate::decide::PendingDecision::Payment(prompt));
+        self.refresh_payment_prompt();
+    }
+
     /// Install a just-locked IOU graph on the top proposal frame and surface
     /// its first payment prompt.
     pub(crate) fn open_locked_payment(&mut self, locked: LockedPayment) {
@@ -309,30 +351,7 @@ impl GameState {
             PaymentCommand::BeginPayment(coverage) => self.begin_payment(coverage),
             PaymentCommand::Fulfill { iou, witness } => self.fulfill_payment_iou(iou, witness),
             PaymentCommand::SubmitPayment => self.commit_payment(),
-            PaymentCommand::DeclinePayment => {
-                let nested = self
-                    .payment
-                    .as_ref()
-                    .is_some_and(|controller| controller.frames.len() > 1);
-                if nested {
-                    let controller = self.payment.as_mut().expect("controller remains live");
-                    let child = controller.frames.pop().expect("nested frame remains live");
-                    let action = child
-                        .mana_action
-                        .expect("the only nested frame kind is a mana action");
-                    let active = controller
-                        .mana_actions
-                        .pop()
-                        .expect("a nested mana frame owns an active action");
-                    assert_eq!(active.id, action);
-                } else {
-                    // Root announcement decline: the outer committed image still
-                    // contains the untouched priority prompt. Purpose-sensitive
-                    // optional reconstruction is added in later tasks.
-                    self.payment = None;
-                }
-                Ok(())
-            }
+            PaymentCommand::DeclinePayment => self.decline_payment(),
             PaymentCommand::ActivateManaAbility { source, ability } => {
                 self.activate_payment_mana_ability(source, ability)
             }
@@ -396,6 +415,7 @@ impl GameState {
         }
         let root = controller.frames.len() == 1;
         let root_mana_action = root && frame.mana_action.is_some();
+        let purpose = frame.purpose.clone();
         self.pending = None;
         if root && !root_mana_action {
             let mut controller = self.payment.take().expect("controller remains live");
@@ -409,6 +429,96 @@ impl GameState {
                 .last_mut()
                 .expect("parent frame remains live");
             parent.working = child.working;
+        }
+        if let PaymentPurpose::Optional { if_did, frame, .. } = purpose
+            && let Some(effect) = if_did
+        {
+            self.schedule_front(vec![crate::agenda::WorkItem::RunEffect {
+                effect,
+                frame: *frame,
+            }]);
+        }
+        Ok(())
+    }
+
+    fn decline_payment(&mut self) -> Result<(), crate::decide::DecisionError> {
+        let controller = self
+            .payment
+            .as_ref()
+            .expect("a Payment decision has a controller");
+        let frame = controller
+            .frames
+            .last()
+            .expect("a Payment decision has a frame");
+        let purpose = frame.purpose.clone();
+        let payer = frame.payer;
+        let subject = frame.subject;
+        let nested = controller.frames.len() > 1;
+
+        match purpose {
+            PaymentPurpose::Optional { if_not, frame, .. } => {
+                if nested {
+                    let controller = self.payment.as_mut().expect("controller remains live");
+                    let mut child = controller
+                        .frames
+                        .pop()
+                        .expect("optional child remains live");
+                    assert!(
+                        child.mana_action.is_none(),
+                        "an optional payment frame never owns a mana action"
+                    );
+                    child.working.pending = None;
+                    let parent = controller
+                        .frames
+                        .last_mut()
+                        .expect("parent frame remains live");
+                    parent.working = child.working;
+                } else {
+                    let mut controller = self.payment.take().expect("controller remains live");
+                    let mut child = controller.frames.pop().expect("optional root remains live");
+                    assert!(
+                        child.mana_action.is_none(),
+                        "an optional payment frame never owns a mana action"
+                    );
+                    child.working.pending = None;
+                    self.committed = child.working;
+                }
+                if let Some(effect) = if_not {
+                    self.schedule_front(vec![crate::agenda::WorkItem::RunEffect {
+                        effect,
+                        frame: *frame,
+                    }]);
+                }
+            }
+            PaymentPurpose::Announcement => {
+                if nested {
+                    let controller = self.payment.as_mut().expect("controller remains live");
+                    let child = controller.frames.pop().expect("nested frame remains live");
+                    let action = child
+                        .mana_action
+                        .expect("a nested announcement frame owns a mana action");
+                    let active = controller
+                        .mana_actions
+                        .pop()
+                        .expect("a nested mana frame owns an active action");
+                    assert_eq!(active.id, action);
+                    self.refresh_payment_prompt();
+                } else {
+                    // The committed image still contains the untouched
+                    // preannouncement priority prompt.
+                    self.payment = None;
+                }
+                self.incidents
+                    .push(crate::state::EngineIncident::PaymentDeclined(
+                        crate::state::PaymentDeclined {
+                            player: payer,
+                            subject,
+                            forced_retained_records: Vec::new(),
+                            crossed_reversal_barrier: false,
+                            crossed_observation_barrier: false,
+                        },
+                    ));
+            }
         }
         Ok(())
     }
@@ -619,8 +729,12 @@ mod tests {
     use deckmaste_core::Color;
     use deckmaste_core::Cost;
     use deckmaste_core::CostComponent;
+    use deckmaste_core::Count;
+    use deckmaste_core::LifeOp;
     use deckmaste_core::ManaCost;
     use deckmaste_core::ManaRider;
+    use deckmaste_core::May;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::PayAct;
     use deckmaste_core::PipClass;
     use deckmaste_core::Predicate;
@@ -628,13 +742,16 @@ mod tests {
 
     use super::*;
     use crate::CostOptionChoices;
+    use crate::Decision;
     use crate::GameConfig;
     use crate::GameState;
     use crate::ManaProvenance;
     use crate::ObjectSource;
+    use crate::PendingDecision;
     use crate::PlayerConfig;
     use crate::PlayerId;
     use crate::StartingPlayer;
+    use crate::StepOutcome;
     use crate::SymbolChoice;
     use crate::concretize;
     use crate::stack::Frame;
@@ -667,6 +784,37 @@ mod tests {
 
     fn cost(components: Vec<CostComponent>) -> Cost {
         Cost(components.into())
+    }
+
+    fn may_pay(
+        cost: Cost,
+        if_did: Option<Arc<OneShotEffect>>,
+        if_not: Option<Arc<OneShotEffect>>,
+    ) -> OneShotEffect {
+        OneShotEffect::May(May {
+            who: Reference::You,
+            effect: Arc::new(OneShotEffect::Act(Action::Pay(cost))),
+            if_did,
+            if_not,
+        })
+    }
+
+    fn gain_life(amount: u32) -> Arc<OneShotEffect> {
+        Arc::new(OneShotEffect::Act(Action::ChangeLife(
+            Reference::You,
+            LifeOp::Up(Count::Literal(amount)),
+        )))
+    }
+
+    fn run_until_payment(state: &mut GameState) {
+        for _ in 0..20 {
+            match state.step() {
+                StepOutcome::Progress(_) => {}
+                StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => return,
+                other => panic!("expected payment to resume, got {other:?}"),
+            }
+        }
+        panic!("payment did not resume");
     }
 
     fn lock_components(printed_mana: &str, components: Vec<CostComponent>) -> LockedPayment {
@@ -893,5 +1041,134 @@ mod tests {
 
         state.objects.obj_mut(resource).tapped = true;
         assert!(generic.validate_coverage(&state, &pay_pips).is_err());
+    }
+
+    #[test]
+    fn optional_decline_keeps_pre_payment_mana_and_runs_if_not_without_incident() {
+        let (mut state, payer, subject) = fixture("");
+        state.agenda.clear();
+        let before_life = state.player(payer).life;
+        let frame = Frame::bare(subject, payer);
+        state.run_effect(
+            may_pay(
+                cost(vec![CostComponent::Mana("{G}".parse().unwrap())]),
+                Some(gain_life(10)),
+                Some(gain_life(1)),
+            ),
+            &frame,
+        );
+
+        let Some(PendingDecision::Payment(prompt)) = state.pending.as_ref() else {
+            panic!("May(Pay) should open an optional payment frame");
+        };
+        assert_eq!(prompt.stage, PaymentStage::PrePayment);
+        let green = state.player_mut(payer).mana_pool.add(
+            Color::Green.into(),
+            1,
+            ManaProvenance::default(),
+        )[0];
+
+        state
+            .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+            .unwrap();
+
+        assert_eq!(state.payment_depth(), 0);
+        assert!(state.player(payer).mana_pool.get(green).is_some());
+        assert!(state.incidents().is_empty());
+        assert!(matches!(state.step(), StepOutcome::Progress(_)));
+        assert!(matches!(state.step(), StepOutcome::Progress(_)));
+        assert_eq!(state.player(payer).life, before_life + 1);
+    }
+
+    #[test]
+    fn optional_submit_commits_cost_and_runs_if_did() {
+        let (mut state, payer, subject) = fixture("");
+        state.agenda.clear();
+        let before_life = state.player(payer).life;
+        let frame = Frame::bare(subject, payer);
+        state.run_effect(
+            may_pay(
+                cost(vec![CostComponent::do_action(Action::ChangeLife(
+                    Reference::You,
+                    LifeOp::Down(Count::Literal(2)),
+                ))]),
+                Some(gain_life(10)),
+                Some(gain_life(1)),
+            ),
+            &frame,
+        );
+        let Some(PendingDecision::Payment(prompt)) = state.pending.as_ref() else {
+            panic!("May(Pay) should open an optional payment frame");
+        };
+        assert_eq!(prompt.stage, PaymentStage::Paying);
+        let iou = prompt.outstanding[0].id;
+
+        state
+            .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+                iou,
+                witness: FulfillmentWitness::PayLife,
+            }))
+            .unwrap();
+        run_until_payment(&mut state);
+        assert_eq!(state.player(payer).life, before_life - 2);
+        assert_eq!(state.committed().players[payer.index()].life, before_life);
+
+        state
+            .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+            .unwrap();
+        assert_eq!(state.payment_depth(), 0);
+        assert_eq!(
+            state.committed().players[payer.index()].life,
+            before_life - 2
+        );
+        assert!(matches!(state.step(), StepOutcome::Progress(_)));
+        assert!(matches!(state.step(), StepOutcome::Progress(_)));
+        assert_eq!(state.player(payer).life, before_life + 8);
+        assert!(state.incidents().is_empty());
+    }
+
+    #[test]
+    fn concession_from_a_nested_payment_commits_the_active_image_and_terminates() {
+        let (mut state, payer, subject) = fixture("");
+        state.agenda.clear();
+        state.begin_test_frame();
+        let frame = Frame::bare(subject, payer);
+        state.run_effect(
+            may_pay(
+                cost(vec![CostComponent::Mana("{G}".parse().unwrap())]),
+                None,
+                None,
+            ),
+            &frame,
+        );
+        assert_eq!(state.payment_depth(), 2);
+        let green = state.player_mut(payer).mana_pool.add(
+            Color::Green.into(),
+            1,
+            ManaProvenance::default(),
+        )[0];
+
+        state
+            .submit_decision(Decision::Act(crate::decide::Action::Concede))
+            .unwrap();
+
+        assert_eq!(state.payment_depth(), 0);
+        assert!(
+            state.committed().players[payer.index()]
+                .mana_pool
+                .get(green)
+                .is_some()
+        );
+        let mut ended = false;
+        for _ in 0..4 {
+            if matches!(state.step(), StepOutcome::GameOver(_)) {
+                ended = true;
+                break;
+            }
+        }
+        assert!(
+            ended,
+            "concession should terminate through normal game-end processing"
+        );
     }
 }

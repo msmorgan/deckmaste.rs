@@ -416,46 +416,22 @@ pub(crate) fn unless_cost_action(
              ([CR#118.12a,702.122a]) needs a payment-time subset choice; \
              owner: engine-resolve-effects"
         ),
-        // The `MayPayCost` continuation (the collapsed `May(Pay(cost))`
-        // shape) routes `Mana` components to `WorkItem::TollMana` (see
-        // `toll_item`) before this walk; a caller that reaches here with one
-        // (the `AdditionalCost` arm) is still the announce-slot-bound seam,
-        // like "equal to its mana cost" ([CR#202.1]).
+        // `May(Pay(cost))` routes through the payment protocol before this
+        // action-only renderer. A caller that reaches here with mana (the
+        // `AdditionalCost` arm) is still the announce-slot-bound seam, like
+        // "equal to its mana cost" ([CR#202.1]).
         CostComponent::Mana(_) | CostComponent::ManaCostOf(_) => todo!(
             "engine-resolve-effects seam: a mid-resolution mana cost outside the \
-             May(Pay)/MayPayCost toll path ([CR#118.12a]) — announce-slot-bound; \
+             optional payment protocol ([CR#118.12a]) — announce-slot-bound; \
              owner: engine-resolve-effects"
         ),
     }
 }
 
-/// One toll cost component as an agenda item ([CR#118.12a]): a `Mana`
-/// component surfaces a mid-resolution `PayMana` (`WorkItem::TollMana`,
-/// paid by the resolved `payer` from their pool); every other component is
-/// the payer\'s action/effect via [`unless_cost_effect`].
-pub(crate) fn toll_item(
-    component: &deckmaste_core::CostComponent,
-    who: &deckmaste_core::Reference,
-    payer: crate::player::PlayerId,
-    frame: &crate::stack::Frame,
-) -> WorkItem {
-    match component {
-        deckmaste_core::CostComponent::Mana(mc) => WorkItem::TollMana {
-            player: payer,
-            cost: mc.clone(),
-            subject: frame.source,
-        },
-        other => WorkItem::RunEffect {
-            effect: Arc::new(unless_cost_effect(other, who)),
-            frame: frame.clone(),
-        },
-    }
-}
-
 /// One cost component rendered as the effect `who` runs to pay it
 /// ([CR#118.12a,601.2b]) — the entry point every cost-to-effect payment walk
-/// (the `MayPayCost` continuation, the `AdditionalCost` arm, and the
-/// activation cost-`With` step) uses. Most components are a single payer
+/// outside the optional-payment protocol (`AdditionalCost` and the activation
+/// cost-`With` step) uses. Most components are a single payer
 /// `Action`, so they wrap [`unless_cost_action`] in [`OneShotEffect::Act`]; a
 /// cost-side [`With`](deckmaste_core::CostComponent::With) is a choose-then-pay
 /// step with no single-`Action` rendering, so it becomes an

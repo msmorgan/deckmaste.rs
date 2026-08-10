@@ -24,6 +24,7 @@ use deckmaste_core::Type;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
+use deckmaste_engine::EngineIncident;
 use deckmaste_engine::FulfillmentWitness;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameState;
@@ -34,6 +35,7 @@ use deckmaste_engine::ManaPayment;
 use deckmaste_engine::ManaPip;
 use deckmaste_engine::ManaProvenance;
 use deckmaste_engine::PaymentCommand;
+use deckmaste_engine::PaymentDeclined;
 use deckmaste_engine::PaymentProgress;
 use deckmaste_engine::PaymentStage;
 use deckmaste_engine::PendingDecision;
@@ -531,6 +533,7 @@ fn zero_cost_uses_explicit_empty_coverage_and_commits_only_on_submit() {
 fn announcement_decline_restores_preannouncement_priority() {
     let (mut state, payer, source) = activation_fixture(vec![CostComponent::Tap]);
     announce_to_payment(&mut state, source);
+    let subject = payment_prompt(&state).subject;
     assert!(state.announcing.is_some());
 
     state
@@ -547,6 +550,16 @@ fn announcement_decline_restores_preannouncement_priority() {
         ability: 0,
     }));
     assert!(!state.objects.obj(source).tapped);
+    assert_eq!(
+        state.incidents(),
+        &[EngineIncident::PaymentDeclined(PaymentDeclined {
+            player: payer,
+            subject,
+            forced_retained_records: Vec::new(),
+            crossed_reversal_barrier: false,
+            crossed_observation_barrier: false,
+        })]
+    );
 }
 
 #[test]
