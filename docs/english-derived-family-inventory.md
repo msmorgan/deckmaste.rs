@@ -15,24 +15,24 @@ rows, the nine D01 determiner/possession rows, the nine J01 adjective rows, the
 37 M01 nominal rows, S01 `sentence`, N01 `noun`/`noun_opaque`, the two generated
 coordination rows, all 34 V01 predicate rows, the four F01 nonfinite-clause
 rows, all 18 F02 finite-clause rows, all 16 F03 clause-attachment rows, and all
-19 P01 noun-phrase rows. The ability census comes from the three non-chart
-entry points documented and dispatched by `FragmentKind`: `Cost`,
-`KeywordLine`, and `Ability`.
+19 P01 noun-phrase rows, and both P02 prepositional-phrase rows. The ability
+census comes from the three non-chart entry points documented and dispatched by
+`FragmentKind`: `Cost`, `KeywordLine`, and `Ability`.
 
 | source | handwritten / ungenerated | already generated | accounted total |
 |---|---:|---:|---:|
-| chart construction registry | 31 | 161 | 192 |
+| chart construction registry | 29 | 163 | 192 |
 | handwritten ability layer | 3 | 0 | 3 |
-| migration inventory | 34 | 161 | 195 |
+| migration inventory | 32 | 163 | 195 |
 
-Every one of the 192 chart IDs occurs once in the ledger below: 31 remain
+Every one of the 192 chart IDs occurs once in the ledger below: 29 remain
 handwritten, while Q01, D01, J01, M01, V01, F01, F02, F03, S01, N01, and the two
-coordination rows, and P01 are generated. The three ability IDs occur once in
-A01. Thus the remaining work is 34 rows (31 chart + 3 ability), with no `later`
-row. No raw corpus query was
-needed for this accounting; the census is grounded in the registry and the current
-`FragmentKind` dispatch. Future corpus evidence must use supported faces, and
-normalized-template questions must use the existing English instruments.
+coordination rows, P01, and P02 are generated. The three ability IDs occur once
+in A01. Thus the remaining work is 32 rows (29 chart + 3 ability), with no
+`later` row. No raw corpus query was needed for this accounting; the census is
+grounded in the registry and the current `FragmentKind` dispatch. Future corpus
+evidence must use supported faces, and normalized-template questions must use
+the existing English instruments.
 
 ## How to read the unit records
 
@@ -98,7 +98,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 | N01 noun identity and opacity | 2 | C2 identity | `english-derived-noun-lexeme-family` | generated |
 | M01 nominal spine | 37 | C2 lens | `english-derived-nominal-family` | generated |
 | P01 noun phrase | 19 | C3 | `english-derived-noun-phrase-family` | generated |
-| P02 prepositional phrase | 2 | C3 | `english-derived-prepositional-family` | identity |
+| P02 prepositional phrase | 2 | C3 | `english-derived-prepositional-family` | generated |
 | V01 predicate spine | 34 | C3 | `english-derived-predicate-family` | scalar, identity, lens |
 | F01 nonfinite clause | 4 | C3 | `english-derived-nonfinite-clause-family` | generated |
 | F02 finite and copular clause | 18 | C3 | `english-derived-finite-clause-family` | generated |
@@ -320,11 +320,14 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 
 ## P02 — prepositional phrase
 
+**Status:** generated.
+
 **Stable IDs (2):** `prepositional_phrase`, `prepositional_object`.
 
-- **Owners and AST:** NR → `PrepositionalPhrase` and its noun-phrase,
-  prepositional, gerund, and adverb object variants; REN owns linearization;
-  SYN-P owns constructors.
+- **Owners and AST:** generated declarations own parsing, lowering, inverse
+  rendering, checked building, and typed projections for `PrepositionalPhrase`
+  and its noun-phrase, prepositional, gerund, and adverb object variants;
+  sealed syntax prevents construction outside those checked entry points.
 - **Holes and constraints:** preposition identity plus one whole typed object
   subtree. Object variant, attachment role, and selected-complement versus
   adjunct use are constraints.

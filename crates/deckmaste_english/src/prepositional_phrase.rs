@@ -52,6 +52,11 @@ pub fn build_prepositional_object(
 }
 
 /// Builds the noun-phrase P02 object alternative.
+///
+/// # Errors
+///
+/// Returns a declaration violation if `value` fails the noun-phrase object
+/// constraints.
 pub fn build_prepositional_object_noun_phrase(
     value: NounPhrase,
 ) -> Result<PrepositionalObject, DeclarationViolation> {
@@ -59,6 +64,11 @@ pub fn build_prepositional_object_noun_phrase(
 }
 
 /// Builds the nested-prepositional-phrase P02 object alternative.
+///
+/// # Errors
+///
+/// Returns a declaration violation if `value` contains an object not
+/// recursively admitted by P02.
 pub fn build_prepositional_object_prepositional_phrase(
     value: PrepositionalPhrase,
 ) -> Result<PrepositionalObject, DeclarationViolation> {
@@ -66,6 +76,11 @@ pub fn build_prepositional_object_prepositional_phrase(
 }
 
 /// Builds the gerund-clause P02 object alternative.
+///
+/// # Errors
+///
+/// Returns a declaration violation if `value` fails the gerund-clause object
+/// constraints.
 pub fn build_prepositional_object_gerund_clause(
     value: GerundClause,
 ) -> Result<PrepositionalObject, DeclarationViolation> {
@@ -73,6 +88,11 @@ pub fn build_prepositional_object_gerund_clause(
 }
 
 /// Builds the adverb P02 object alternative.
+///
+/// # Errors
+///
+/// Returns a declaration violation if `value` fails the adverb object
+/// constraints.
 pub fn build_prepositional_object_adverb(
     value: Vocab,
 ) -> Result<PrepositionalObject, DeclarationViolation> {
@@ -86,6 +106,11 @@ pub fn parts_prepositional_object(value: &PrepositionalObject) -> PrepositionalO
 }
 
 /// Builds a simple P02 prepositional phrase.
+///
+/// # Errors
+///
+/// Returns a declaration violation if `object` fails the simple-phrase
+/// constraints.
 pub fn build_prepositional_phrase(
     preposition: Preposition,
     object: PrepositionalObject,
