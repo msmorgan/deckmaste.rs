@@ -5,7 +5,7 @@
 //! Each test builds a two-player game from testing cards, forces the relevant
 //! permanents into play, advances to a priority window via `step`, then
 //! activates the way a UI would: pick the offered `ActivateAbility`, answer
-//! `ChooseTargets` / `PayMana` as they surface, and `Pass` to resolve.
+//! `ChooseTargets` / `Payment` as they surface, and `Pass` to resolve.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -203,13 +203,49 @@ fn step_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
     }
 }
 
+/// Drive an already-surfaced payment through the deterministic compatibility
+/// path and stop at the next priority window, preserving the progress trace.
+fn complete_pending_payment(state: &mut GameState) -> Vec<Progress> {
+    let mut trace = Vec::new();
+    loop {
+        match state.pending.clone() {
+            Some(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("automatic payment decision");
+                state.submit_decision(decision).unwrap();
+            }
+            Some(PendingDecision::ChooseManaReversals(choice)) => {
+                let reversals = choice
+                    .legal
+                    .iter()
+                    .max_by_key(|set| set.len())
+                    .cloned()
+                    .expect("a reversal prompt has a legal set");
+                state
+                    .submit_decision(Decision::ManaReversals(reversals))
+                    .unwrap();
+            }
+            Some(PendingDecision::Priority(_)) => return trace,
+            other => panic!("expected payment or priority, got {other:?}"),
+        }
+        let (progress, stop) = step_to_stop(state);
+        trace.extend(progress);
+        if matches!(
+            stop,
+            StepOutcome::NeedsDecision(PendingDecision::Priority(_))
+        ) {
+            return trace;
+        }
+    }
+}
+
 /// Steps until a `Priority` decision surfaces for `player` in `phase`, passing
 /// any other priority along the way. Returns the legal action list at that
 /// window.
 ///
-/// When a `PayMana` decision surfaces mid-announce, this function auto-taps it
-/// (via the engine's canonical `auto_pay_pending`) and continues. Tests that
-/// need a *specific* allocation must answer that `PayMana` explicitly before
+/// Payment prompts use the engine's deterministic monocolor compatibility
+/// answer. Tests that need a specific transcript answer the protocol before
 /// calling this helper.
 fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) -> Vec<Action> {
     loop {
@@ -232,6 +268,23 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("automatic payment decision");
+                state.submit_decision(decision).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::ChooseManaReversals(choice)) => {
+                let reversals = choice
+                    .legal
+                    .iter()
+                    .max_by_key(|set| set.len())
+                    .cloned()
+                    .expect("a reversal prompt has a legal set");
+                state
+                    .submit_decision(Decision::ManaReversals(reversals))
+                    .unwrap();
+            }
             other => panic!("unexpected stop before {player:?} priority in {phase:?}: {other:?}"),
         }
     }
@@ -253,9 +306,10 @@ fn float_mana(state: &mut GameState, player: PlayerId, count: usize) {
         };
         let tap = legal
             .iter()
-            .find(
-                |a| matches!(a, Action::ActivateAbility { object, .. } if is_land(state, *object)),
-            )
+            .find(|a| {
+                matches!(a, Action::ActivateAbility { object, .. }
+                    if is_land(state, *object) && !state.objects.obj(*object).tapped)
+            })
             .cloned()
             .expect("an untapped land with a mana ability");
         state.submit_decision(Decision::Act(tap)).unwrap();
@@ -353,17 +407,9 @@ fn tap_pinger_damages_target_through_stack() {
         .submit_decision(Decision::Targets(vec![vec![bear]]))
         .unwrap();
 
-    // A mana-free cost: the very next stop is the activator's priority — no
-    // PayMana surfaces; the queued Tapped event paid the {T}.
-    let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-        player,
-        ..
-    })) = stop
-    else {
-        panic!("expected P0 priority with no PayMana for a mana-free cost, got {stop:?}");
-    };
-    assert_eq!(player, PlayerId(0));
+    // The tap IOU is acknowledged through the explicit payment transaction;
+    // the compatibility runner hides those micro-steps here.
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert!(state.objects.obj(pinger).tapped, "the tap cost was paid");
     assert_eq!(state.stack.len(), 1, "the ability sits on the stack");
     let StackObject::Activated { source, .. } = &state.stack[0].object else {
@@ -438,13 +484,7 @@ fn activation_announce_carries_a_minted_stack_identity() {
     state
         .submit_decision(Decision::Targets(vec![vec![bear]]))
         .unwrap();
-    let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-        ..
-    })) = stop
-    else {
-        panic!("expected priority after the mana-free activation, got {stop:?}");
-    };
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert_eq!(
         state.stack[0].id, minted,
         "the committed entry promotes under the announce-time identity"
@@ -503,24 +543,17 @@ fn artifact_pays_mana_ignores_sickness() {
         .expect("a summoning-sick artifact's mana-only ability is offered");
     state.submit_decision(Decision::Act(activate)).unwrap();
 
-    // No targets, so PayMana surfaces directly, carrying the {2} cost.
+    // No targets, so Payment surfaces directly with two generic pips.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
-        cost,
-        ..
-    })) = stop
-    else {
-        panic!("expected PayMana for {{2}}, got {stop:?}");
+    let StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) = stop else {
+        panic!("expected Payment for {{2}}, got {stop:?}");
     };
     assert_eq!(
-        cost,
-        ManaCost::from(Arc::<[ManaSymbol]>::from(vec![ManaSymbol::Simple(
-            SimpleManaSymbol::Generic(2),
-        )])),
-        "the decision carries the ability's {{2}} cost"
+        prompt.outstanding.len(),
+        2,
+        "the decision carries two generic-pip obligations"
     );
-    let pay = state.auto_pay_pending();
-    state.submit_decision(Decision::Pay(pay)).unwrap();
+    let _ = complete_pending_payment(&mut state);
 
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert_eq!(state.stack.len(), 1, "the ability is on the stack");
@@ -610,7 +643,7 @@ fn sorcery_speed_drawer_gated() {
     state
         .submit_decision(Decision::Targets(vec![vec![bear]]))
         .unwrap();
-    // run_to_priority auto-pays the all-colored {R}.
+    // run_to_priority advances the all-colored {R} payment.
     let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert_eq!(state.stack.len(), 1, "the instant is on the stack");
     assert_eq!(
@@ -650,13 +683,11 @@ fn once_per_turn_resets_next_turn() {
     let activate = activate_action(&legal, drawer).expect("offered before any use this turn");
     state.submit_decision(Decision::Act(activate)).unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana { .. })) =
-        stop
-    else {
-        panic!("expected PayMana for {{1}}, got {stop:?}");
-    };
-    let pay = state.auto_pay_pending();
-    state.submit_decision(Decision::Pay(pay)).unwrap();
+    assert!(matches!(
+        stop,
+        StepOutcome::NeedsDecision(PendingDecision::Payment(_))
+    ));
+    let _ = complete_pending_payment(&mut state);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
@@ -704,13 +735,11 @@ fn once_per_game_stays_spent() {
     let activate = activate_action(&legal, drawer).expect("offered before any use this game");
     state.submit_decision(Decision::Act(activate)).unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana { .. })) =
-        stop
-    else {
-        panic!("expected PayMana for {{1}}, got {stop:?}");
-    };
-    let pay = state.auto_pay_pending();
-    state.submit_decision(Decision::Pay(pay)).unwrap();
+    assert!(matches!(
+        stop,
+        StepOutcome::NeedsDecision(PendingDecision::Payment(_))
+    ));
+    let _ = complete_pending_payment(&mut state);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
@@ -774,9 +803,9 @@ fn loyalty_game(seed: u64) -> GameState {
 /// Activates ability `ability` of `object` at the current P0 priority window
 /// and passes it through to resolution (both players pass with the ability
 /// as the lone stack object). `LoyaltyPlus`/`LoyaltyMinus` carry no `Mana`
-/// cost component, so [`cast::pay_cost`]'s "empty cost: no decision surfaces"
-/// branch applies — but `run_to_priority` already answers a `PayMana`
-/// transparently if one ever does, so this works either way.
+/// cost component, so [`cast::pay_cost`]'s empty-payment path applies — but
+/// `run_to_priority` already advances payment prompts transparently if one
+/// ever does, so this works either way.
 fn activate_loyalty_and_resolve(state: &mut GameState, object: ObjectId, ability: usize) {
     let legal = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
     let activate = legal
@@ -960,14 +989,10 @@ fn loyalty_once_per_turn_is_shared_per_permanent() {
     }
 }
 
-/// [CR#606.6] regression: a `−3` loyalty ability stays gated below its
-/// counter floor even reached through the full macro + activation-gate
-/// pipeline (the unit-level gate is
-/// `remove_loyalty_cost_needs_enough_counters_on_source` in
-/// `deckmaste_engine::activate`'s own test module). A sibling `+1` on the
-/// same permanent is unaffected by the `−3`'s unpayability.
+/// [CR#606.6] regression: a `−3` loyalty proposal is visible below its counter
+/// floor, but fulfilling its locked cost is rejected without mutation.
 #[test]
-fn loyalty_minus_blocked_below_its_counter_floor() {
+fn loyalty_minus_below_its_counter_floor_fails_during_payment() {
     let mut state = loyalty_game(13);
     let pw = force_into_play(&mut state, PlayerId(0), LOYALTY_PW);
     state
@@ -978,12 +1003,49 @@ fn loyalty_minus_blocked_below_its_counter_floor() {
 
     let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert!(
-        !loyalty_offered(&legal, pw, 1),
-        "[CR#606.6]: −3 is unpayable with only 2 loyalty counters, legal: {legal:?}"
+        loyalty_offered(&legal, pw, 1),
+        "the −3 proposal is offered before payment is proven, legal: {legal:?}"
     );
     assert!(
         loyalty_offered(&legal, pw, 0),
         "the +1 ability should still be offered even though −3 is unpayable, legal: {legal:?}"
+    );
+
+    state
+        .submit_decision(Decision::Act(Action::ActivateAbility {
+            object: pw,
+            ability: 1,
+        }))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    assert!(matches!(
+        stop,
+        StepOutcome::NeedsDecision(PendingDecision::Payment(_))
+    ));
+    let before = state
+        .objects
+        .obj(pw)
+        .counters
+        .get(&deckmaste_core::Ident::from("LoyaltyCounter"))
+        .copied();
+    assert!(
+        state
+            .submit_decision(
+                state
+                    .auto_payment_pending()
+                    .expect("automatic payment decision"),
+            )
+            .is_err(),
+        "−3 cannot be fulfilled with only two counters"
+    );
+    assert_eq!(
+        state
+            .objects
+            .obj(pw)
+            .counters
+            .get(&deckmaste_core::Ident::from("LoyaltyCounter"))
+            .copied(),
+        before
     );
 }
 
@@ -1072,7 +1134,7 @@ fn pinger_fizzles_when_target_dies() {
     state
         .submit_decision(Decision::Targets(vec![vec![bear]]))
         .unwrap();
-    // run_to_priority auto-pays the all-colored {R}.
+    // run_to_priority advances the all-colored {R} payment.
     let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
     assert_eq!(state.stack.len(), 2, "the instant sits atop the ability");
 
@@ -1189,41 +1251,36 @@ fn cost_game(seed: u64, card: &Arc<Card>) -> GameState {
     })
 }
 
-/// Activates `object`'s only ability at the current P0 priority window, then
-/// answers the `PayMana` that the `{0}` mana component surfaces. Leaves the
-/// engine at whatever stop follows payment.
+/// Activates `object`'s only ability and drives its deterministic payment to
+/// the next priority window, returning every progress item observed along the
+/// way.
 ///
 /// [CR#118.5,118.5a]: a `{0}` cost is a placeholder payable with nothing, but
 /// the ability is NOT paid automatically — the action still requires the
-/// player's acknowledgment. The engine models that acknowledgment as a real
-/// `PayMana` decision carrying the (zero) cost, answered here via
-/// `auto_pay_pending`, which autotaps whatever the pending `PayMana` needs — an
-/// empty payment for `{0}`.
-/// Every `artifact_with_cost` test below relies on this `{0}`-surfaces-PayMana
-/// contract, so this asserts it once for all of them.
-fn activate_and_pay_zero(state: &mut GameState, object: ObjectId) {
+/// player's acknowledgment. The explicit payment transaction therefore still
+/// requires `BeginPayment` with empty coverage, fulfillment of every nonmana
+/// IOU, and `SubmitPayment`.
+fn activate_and_pay_zero(state: &mut GameState, object: ObjectId) -> Vec<Progress> {
     let legal = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
     let activate =
         activate_action(&legal, object).expect("the in-Rust ability is offered at priority");
     state.submit_decision(Decision::Act(activate)).unwrap();
 
-    // No targets: the next stop is the `{0}` PayMana — the acknowledgment that
-    // the cost is being paid ([CR#118.5]), even though it requires no resources.
-    let (_, stop) = step_to_stop(state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
-        cost,
-        ..
-    })) = stop
-    else {
-        panic!("expected PayMana for the {{0}} cost, got {stop:?}");
-    };
-    assert_eq!(
-        cost,
-        "{0}".parse().unwrap(),
-        "[CR#118.5]: a {{0}} cost still surfaces a (zero) PayMana — not auto-paid"
-    );
-    let pay = state.auto_pay_pending();
-    state.submit_decision(Decision::Pay(pay)).unwrap();
+    let mut trace = Vec::new();
+    loop {
+        let (progress, stop) = step_to_stop(state);
+        trace.extend(progress);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("automatic payment decision");
+                state.submit_decision(decision).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Priority(_)) => return trace,
+            other => panic!("unexpected stop while paying a {{0}} ability: {other:?}"),
+        }
+    }
 }
 
 /// [CR#601.2h]: a `Do(Sacrifice(This))` cost is PERFORMED in the payment
@@ -1242,7 +1299,7 @@ fn activated_ability_pays_self_sacrifice_cost() {
     let mut state = cost_game(7, &card);
     let obj = force_into_play(&mut state, PlayerId(0), NAME);
 
-    activate_and_pay_zero(&mut state, obj);
+    let _ = activate_and_pay_zero(&mut state, obj);
 
     // Drive to the next priority: the sacrifice cost must have fired during
     // payment, so the source is gone from the battlefield.
@@ -1283,11 +1340,9 @@ fn activated_ability_pays_life_cost() {
     let obj = force_into_play(&mut state, PlayerId(0), NAME);
 
     let life_before = state.players[0].life;
-    activate_and_pay_zero(&mut state, obj);
-    // Capture the trace from just after payment to the next priority: the
-    // `LifeLost` cost must occur BEFORE the `AbilityActivated` "becomes
-    // activated" step ([CR#601.2h] precedes [CR#601.2i]).
-    let (trace, _) = step_to_stop(&mut state);
+    // The trace spans the full payment and activation. The `LifeLost` cost
+    // must occur before `AbilityActivated` ([CR#601.2h] precedes [CR#601.2i]).
+    let trace = activate_and_pay_zero(&mut state, obj);
     let life_idx = trace.iter().position(|p| {
         matches!(
             applied(p),
@@ -1342,7 +1397,7 @@ fn activated_ability_pays_loyalty_plus_cost() {
         .counters
         .insert("LoyaltyCounter".into(), 3);
 
-    activate_and_pay_zero(&mut state, obj);
+    let _ = activate_and_pay_zero(&mut state, obj);
 
     // Drive to the next priority: the `+2` cost must have fired during payment.
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
@@ -1386,7 +1441,7 @@ fn activated_ability_pays_loyalty_minus_cost() {
         .counters
         .insert("LoyaltyCounter".into(), 5);
 
-    activate_and_pay_zero(&mut state, obj);
+    let _ = activate_and_pay_zero(&mut state, obj);
 
     // Drive to the next priority: the `−2` cost must have fired during payment.
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
@@ -1450,18 +1505,21 @@ fn activated_ability_announces_and_pays_nonmana_x_cost() {
     assert_eq!(player, PlayerId(0), "the activating player announces X");
     state.submit_decision(Decision::XValue(3)).unwrap();
 
-    // The `{0}` mana component still surfaces its (zero) PayMana acknowledgment.
+    // The `{0}` mana component still opens PrePayment with empty coverage, and
+    // the nonmana X action is the sole fulfillment IOU.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
-        cost,
-        ..
-    })) = stop
-    else {
-        panic!("expected the {{0}} PayMana after X, got {stop:?}");
+    let StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) = stop else {
+        panic!("expected Payment after X, got {stop:?}");
     };
-    assert_eq!(cost, "{0}".parse().unwrap(), "the mana component is {{0}}");
-    let pay = state.auto_pay_pending();
-    state.submit_decision(Decision::Pay(pay)).unwrap();
+    assert_eq!(prompt.stage, deckmaste_engine::PaymentStage::PrePayment);
+    assert!(matches!(
+        prompt.outstanding.as_slice(),
+        [deckmaste_engine::PaymentIou {
+            kind: deckmaste_engine::IouKind::Act(_),
+            ..
+        }]
+    ));
+    let _ = complete_pending_payment(&mut state);
 
     // Drive to the next priority: the `−X` cost fired during payment, reading
     // the announced X=3, so 3 loyalty counters were removed (5 -> 2).
@@ -1478,11 +1536,9 @@ fn activated_ability_announces_and_pays_nonmana_x_cost() {
     );
 }
 
-/// [CR#601.2b,601.2h,608.2d]: a `With(ChooseOne(creature), Do(Sacrifice(That)))`
-/// cost surfaces a `ChooseObjects` decision during payment — choosing is the
-/// cost-side `With` pre-step, never part of the verb; the chosen creature is
-/// sacrificed (leaving the battlefield for its owner's graveyard) and the
-/// other is left untouched.
+/// [CR#601.2b,601.2h,608.2d]: a `ChooseAndPay` obligation accepts the complete
+/// chosen object set in its `Fulfill` witness. The chosen creature is
+/// sacrificed and the other is left untouched.
 #[test]
 fn activated_ability_pays_choose_sacrifice_cost() {
     const ARTIFACT_NAME: &str = "Choose-sacrifice test artifact";
@@ -1548,40 +1604,41 @@ fn activated_ability_pays_choose_sacrifice_cost() {
         "two distinct Grizzly Bears are on the battlefield"
     );
 
-    // Activate and pay the {0} mana component; leaves engine waiting after payment.
-    activate_and_pay_zero(&mut state, artifact);
-
-    // The next stop must be ChooseObjects for the sacrifice-a-creature choice.
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    let activate = activate_action(&legal, artifact).expect("the ability is offered");
+    state.submit_decision(Decision::Act(activate)).unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseObjects(
-        deckmaste_engine::ChooseObjects {
-            player,
-            ref candidates,
-            min,
-            max,
-        },
-    )) = stop
-    else {
-        panic!("expected ChooseObjects for the sacrifice-creature cost, got {stop:?}");
+    let StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) = stop else {
+        panic!("expected prepayment, got {stop:?}");
     };
-    assert_eq!(player, PlayerId(0), "the activating player chooses");
-    assert_eq!((min, max), (1, 1), "exactly one creature must be chosen");
-    assert!(
-        candidates.contains(&bear_a),
-        "bear_a is a candidate, candidates: {candidates:?}"
-    );
-    assert!(
-        candidates.contains(&bear_b),
-        "bear_b is a candidate, candidates: {candidates:?}"
-    );
-
-    // Choose bear_a to sacrifice.
+    assert_eq!(prompt.stage, deckmaste_engine::PaymentStage::PrePayment);
     state
-        .submit_decision(Decision::Chosen(vec![bear_a]))
+        .submit_decision(
+            state
+                .auto_payment_pending()
+                .expect("automatic payment decision"),
+        )
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) = stop else {
+        panic!("expected paying prompt, got {stop:?}");
+    };
+    let choose = prompt
+        .outstanding
+        .iter()
+        .find(|iou| matches!(iou.kind, deckmaste_engine::IouKind::ChooseAndPay { .. }))
+        .expect("a choose-and-pay IOU")
+        .id;
+    state
+        .submit_decision(Decision::Payment(
+            deckmaste_engine::PaymentCommand::Fulfill {
+                iou: choose,
+                witness: deckmaste_engine::FulfillmentWitness::Objects(vec![bear_a]),
+            },
+        ))
         .unwrap();
 
-    // Drive to the next priority window: the sacrifice cost must fire during
-    // payment so bear_a is already gone before the ability is on the stack.
+    // Drive the ready prompt through submission and back to priority.
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     // bear_a was sacrificed: its original id is no longer on the battlefield.
@@ -1635,14 +1692,21 @@ fn mana_ability_stays_stackless() {
         .expect("the Mountain's mana ability is offered");
     state.submit_decision(Decision::Act(tap)).unwrap();
 
-    // Drive to the next decision one step at a time: the whole activation is
-    // stackless ([CR#605.3b]) — no ChooseTargets, no PayMana, no stack entry.
+    // Drive to the next priority one step at a time. The payment prompts are
+    // explicit, but the activation remains stackless throughout ([CR#605.3b]).
     let stop = loop {
         match state.step() {
             StepOutcome::Progress(_) => assert!(
                 state.stack.is_empty(),
                 "a mana ability never touches the stack"
             ),
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                assert!(state.stack.is_empty(), "payment never uses the stack");
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("automatic payment decision");
+                state.submit_decision(decision).unwrap();
+            }
             stop => break stop,
         }
     };
@@ -1663,14 +1727,10 @@ fn mana_ability_stays_stackless() {
 // --- hybrid / Phyrexian concretization ([CR#601.2b]) -------------------------
 //
 // These drive the announce flow for an activated ability whose printed mana
-// cost carries a hybrid or Phyrexian symbol. The affordability gate that
-// decides whether such an ability is *offered* (`can_activate` over the
-// concretized readings) is a separate, later task, so these schedule the
-// announce block directly onto the agenda — the same direct-scheduling
-// technique `skeleton.rs` uses to exercise `BeginCast`/`Resolve` without the
-// legality gate. What is under test is the WIRING: a `ChooseCostOptions`
-// decision surfaces at [CR#601.2b] (between targets and payment), and
-// `pay_cost` consumes the player's announced reading.
+// cost carries a hybrid or Phyrexian symbol. They schedule the announce block
+// directly onto the agenda so the tests can isolate the WIRING: a
+// `ChooseCostOptions` decision surfaces at [CR#601.2b] (between targets and
+// payment), and `pay_cost` consumes the player's announced reading.
 
 fn white() -> ColorOrColorless {
     Color::White.into()
@@ -1681,9 +1741,8 @@ fn blue() -> ColorOrColorless {
 
 /// Schedules the [CR#602.2b] activation announce block for `object`'s ability
 /// `index` straight onto the agenda front, mirroring `take_priority_action`'s
-/// `ActivateAbility` arm (minus the priority bookkeeping). Bypasses the
-/// `can_activate` legality gate so a hybrid/Phyrexian cost — not yet affordable
-/// to the offer gate (a later task) — still reaches the announce flow.
+/// `ActivateAbility` arm (minus the priority bookkeeping). This isolates the
+/// announcement flow from priority handling.
 ///
 /// `float` is added to P0's pool AFTER reaching the precombat-main priority
 /// window (the pool empties at every step end, [CR#500.5]) so the injected
@@ -1779,22 +1838,22 @@ fn activated_ability_hybrid_picks_a_color() {
         }))
         .unwrap();
 
-    // PayMana now carries the CONCRETE {U}, not the printed {W/U}.
+    // The payment graph now carries one concrete blue pip, not the printed
+    // hybrid symbol.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
-        cost,
-        ..
-    })) = stop
-    else {
-        panic!("expected PayMana for the concretized {{U}}, got {stop:?}");
+    let StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) = stop else {
+        panic!("expected Payment for the concretized {{U}}, got {stop:?}");
     };
-    assert_eq!(
-        cost,
-        "{U}".parse().unwrap(),
-        "the concretized cost is {{U}}, not the printed {{W/U}}"
-    );
-    let pay = state.auto_pay_pending();
-    state.submit_decision(Decision::Pay(pay)).unwrap();
+    assert!(matches!(
+        prompt.outstanding.as_slice(),
+        [deckmaste_engine::PaymentIou {
+            kind: deckmaste_engine::IouKind::ManaPip(deckmaste_engine::ManaPip::Colored(
+                Color::Blue
+            )),
+            ..
+        }]
+    ));
+    let _ = complete_pending_payment(&mut state);
 
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     // The blue unit was spent on {U}; the white unit is untouched.
@@ -1848,7 +1907,12 @@ fn activated_ability_phyrexian_pays_life() {
     // No mana is required: the concretized cost is empty, so NO PayMana
     // surfaces. The life-loss cost ([CR#601.2h]) fires before the ability
     // becomes activated ([CR#601.2i]).
-    let (trace, _) = step_to_stop(&mut state);
+    let (mut trace, stop) = step_to_stop(&mut state);
+    assert!(matches!(
+        stop,
+        StepOutcome::NeedsDecision(PendingDecision::Payment(_))
+    ));
+    trace.extend(complete_pending_payment(&mut state));
     let life_idx = trace.iter().position(|p| {
         matches!(
             applied(p),
@@ -1916,20 +1980,19 @@ fn activated_ability_monohybrid_picks_generic() {
         .unwrap();
 
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
-        cost,
-        ..
-    })) = stop
-    else {
-        panic!("expected PayMana for the concretized {{2}}, got {stop:?}");
+    let StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) = stop else {
+        panic!("expected Payment for the concretized {{2}}, got {stop:?}");
     };
     assert_eq!(
-        cost,
-        "{2}".parse().unwrap(),
-        "the generic half concretizes to {{2}}"
+        prompt
+            .outstanding
+            .iter()
+            .filter(|iou| matches!(iou.kind, deckmaste_engine::IouKind::ManaPip(_)))
+            .count(),
+        2,
+        "the generic half concretizes to two pip IOUs"
     );
-    let pay = state.auto_pay_pending();
-    state.submit_decision(Decision::Pay(pay)).unwrap();
+    let _ = complete_pending_payment(&mut state);
 
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert_eq!(
@@ -1953,7 +2016,7 @@ fn activated_ability_plain_cost_skips_choose_cost_options() {
     schedule_activation(&mut state, obj, 0, &[(red(), 1)]);
 
     // No hybrid/Phyrexian symbol: ChooseCostOptions surfaces NOTHING; the next
-    // stop is PayMana with the printed {1}.
+    // stop is Payment with one generic pip.
     let (trace, stop) = step_to_stop(&mut state);
     assert!(
         !trace
@@ -1961,27 +2024,19 @@ fn activated_ability_plain_cost_skips_choose_cost_options() {
             .any(|p| matches!(p, Progress::CostOptionsChosen { surfaced: true })),
         "a plain cost surfaces no ChooseCostOptions decision, trace: {trace:?}"
     );
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
-        cost,
-        ..
-    })) = stop
-    else {
-        panic!("expected PayMana for the plain {{1}} cost, got {stop:?}");
+    let StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) = stop else {
+        panic!("expected Payment for the plain {{1}} cost, got {stop:?}");
     };
-    assert_eq!(
-        cost,
-        "{1}".parse().unwrap(),
-        "the printed {{1}} is unchanged"
-    );
+    assert!(matches!(
+        prompt.outstanding.as_slice(),
+        [deckmaste_engine::PaymentIou {
+            kind: deckmaste_engine::IouKind::ManaPip(deckmaste_engine::ManaPip::Generic),
+            ..
+        }]
+    ));
 }
 
-// --- hybrid / Phyrexian AFFORDABILITY GATE ([CR#601.2b,601.2g,107.4e,107.4f])
-//
-// These pin Task 2.4: a hybrid/Phyrexian cost is OFFERED by `can_activate`
-// (→ `legal_actions`) iff SOME legal reading is fully payable. Unlike the
-// 2.2/2.3 wiring tests above (which bypass the gate via `schedule_activation`),
-// these drive the real gate: reach a priority window, float a pool, and assert
-// whether the ability is in the legal list.
+// --- proposal enumeration is independent of affordability ------------------
 
 fn green() -> ColorOrColorless {
     Color::Green.into()
@@ -2013,11 +2068,10 @@ fn legal_with_float(state: &mut GameState, pool: &[(ColorOrColorless, Uint)]) ->
     run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain)
 }
 
-/// [CR#107.4e,601.2g]: a hybrid `{W/U}` ability is OFFERED when only the blue
-/// reading is payable (one blue unit, no white) — the gate must find the
-/// affordable reading — and NOT offered when neither reading is payable.
+/// [CR#107.4e,601.2g]: a hybrid `{W/U}` ability is offered before the player
+/// proves which reading they will pay.
 #[test]
-fn hybrid_ability_offered_when_one_reading_payable() {
+fn hybrid_ability_proposal_is_offered_without_affordability_proof() {
     const NAME: &str = "Hybrid-gate test artifact";
     let card = artifact_with_cost(NAME, vec![CostComponent::Mana("{W/U}".parse().unwrap())]);
 
@@ -2030,21 +2084,20 @@ fn hybrid_ability_offered_when_one_reading_payable() {
         "{{W/U}} is activatable with only blue mana (pick U), legal: {legal:?}"
     );
 
-    // No mana at all: neither {W} nor {U} reading is payable -> not offered.
+    // No mana at all: payment may later fail, but the proposal remains legal.
     let mut state = cost_game(7, &card);
     let obj = force_into_play(&mut state, PlayerId(0), NAME);
     let legal = legal_with_float(&mut state, &[]);
     assert!(
-        activate_action(&legal, obj).is_none(),
-        "{{W/U}} is NOT activatable with no payable reading, legal: {legal:?}"
+        activate_action(&legal, obj).is_some(),
+        "{{W/U}} is offered before payment is proven, legal: {legal:?}"
     );
 }
 
-/// [CR#107.4f,601.2g]: a Phyrexian `{W/P}` ability is OFFERED with NO mana but
-/// life ≥ 2 (pay 2 life), and NOT offered at 1 life with no white (neither
-/// reading payable).
+/// [CR#107.4f,601.2g]: a Phyrexian `{W/P}` ability is offered before the
+/// player proves which reading they will pay.
 #[test]
-fn phyrexian_ability_offered_via_life() {
+fn phyrexian_ability_proposal_is_offered_even_when_current_resources_fail() {
     const NAME: &str = "Phyrexian-gate test artifact";
     let card = artifact_with_cost(NAME, vec![CostComponent::Mana("{W/P}".parse().unwrap())]);
 
@@ -2061,8 +2114,8 @@ fn phyrexian_ability_offered_via_life() {
         "{{W/P}} is activatable via the 2-life reading with no mana, legal: {legal:?}"
     );
 
-    // 1 life, no white: the Life reading needs 2 life and the {W} reading needs
-    // white -> neither payable -> not offered.
+    // One life and no white cannot complete either reading, but affordability
+    // is discovered only after the reading is announced and payment opens.
     let mut state = cost_game(7, &card);
     let obj = force_into_play(&mut state, PlayerId(0), NAME);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
@@ -2071,27 +2124,23 @@ fn phyrexian_ability_offered_via_life() {
     state.agenda.push_front(WorkItem::OpenPriority);
     let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert!(
-        activate_action(&legal, obj).is_none(),
-        "{{W/P}} is NOT activatable at 1 life with no white, legal: {legal:?}"
+        activate_action(&legal, obj).is_some(),
+        "{{W/P}} remains a legal proposal at 1 life with no white, legal: {legal:?}"
     );
 }
 
-/// SHARED-RESOURCE correctness ([CR#107.4f]): two Phyrexian `{W/P}{W/P}` with
-/// exactly 2 life and no white is NOT castable — only ONE symbol can be paid by
-/// life (2 of the 2 life), the other needs white, which is absent. But 2 life
-/// plus ONE white IS payable (one life, one white). A naive per-symbol greedy
-/// that lets each Phyrexian independently "see" the full 2 life would wrongly
-/// offer the no-white case.
+/// [CR#107.4f]: two Phyrexian `{W/P}{W/P}` symbols remain a legal proposal
+/// even though two life and no white cannot complete both readings.
 #[test]
-fn two_phyrexian_share_life_correctly() {
+fn two_phyrexian_proposal_does_not_precompute_shared_life() {
     const NAME: &str = "Double-Phyrexian-gate test artifact";
     let card = artifact_with_cost(
         NAME,
         vec![CostComponent::Mana("{W/P}{W/P}".parse().unwrap())],
     );
 
-    // 2 life, no white: cannot pay both via life (needs 4); cannot pay either
-    // via {W} (no white) -> not offered.
+    // Two life and no white cannot complete both symbols, but the proposal is
+    // still enumerated before the player chooses the readings.
     let mut state = cost_game(7, &card);
     let obj = force_into_play(&mut state, PlayerId(0), NAME);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
@@ -2100,9 +2149,8 @@ fn two_phyrexian_share_life_correctly() {
     state.agenda.push_front(WorkItem::OpenPriority);
     let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert!(
-        activate_action(&legal, obj).is_none(),
-        "{{W/P}}{{W/P}} at 2 life + no white is NOT activatable (only one life payment fits), \
-         legal: {legal:?}"
+        activate_action(&legal, obj).is_some(),
+        "{{W/P}}{{W/P}} is offered without a shared-life precheck, legal: {legal:?}"
     );
 
     // 2 life + ONE white: pay one symbol with the white, the other with 2 life
@@ -2124,11 +2172,10 @@ fn two_phyrexian_share_life_correctly() {
     );
 }
 
-/// Regression: a plain `{1}` cost is gated exactly as before — offered with one
-/// mana, not offered with none. The no-choosable-symbol path must keep the
-/// existing `can_pay` behavior unchanged.
+/// A plain `{1}` ability is offered before its payment is proven, regardless of
+/// whether mana is already floating.
 #[test]
-fn plain_cost_gate_unchanged() {
+fn plain_cost_proposal_is_offered_with_an_empty_pool() {
     const NAME: &str = "Plain-gate test artifact";
     let card = artifact_with_cost(NAME, vec![CostComponent::Mana("{1}".parse().unwrap())]);
 
@@ -2144,17 +2191,15 @@ fn plain_cost_gate_unchanged() {
     let obj = force_into_play(&mut state, PlayerId(0), NAME);
     let legal = legal_with_float(&mut state, &[]);
     assert!(
-        activate_action(&legal, obj).is_none(),
-        "plain {{1}} is NOT offered with an empty pool, legal: {legal:?}"
+        activate_action(&legal, obj).is_some(),
+        "plain {{1}} is offered before payment is proven, legal: {legal:?}"
     );
 }
 
-/// A cost bearing both `{X}` and a hybrid
-/// (`{X}{W/U}`) is still gated on the non-X part — `{X}` reduces to 0 (X never
-/// blocks, [CR#107.3a]), and the hybrid's affordable reading decides. Offered
-/// with one blue; not offered with an empty pool.
+/// A cost bearing both `{X}` and a hybrid (`{X}{W/U}`) is offered before either
+/// part is paid.
 #[test]
-fn x_plus_hybrid_gated_on_hybrid() {
+fn x_plus_hybrid_proposal_is_offered_before_either_part_is_payable() {
     const NAME: &str = "X-plus-hybrid gate test artifact";
     let card = artifact_with_cost(NAME, vec![CostComponent::Mana("{X}{W/U}".parse().unwrap())]);
 
@@ -2170,8 +2215,8 @@ fn x_plus_hybrid_gated_on_hybrid() {
     let obj = force_into_play(&mut state, PlayerId(0), NAME);
     let legal = legal_with_float(&mut state, &[]);
     assert!(
-        activate_action(&legal, obj).is_none(),
-        "{{X}}{{W/U}} is NOT offered with no payable hybrid reading, legal: {legal:?}"
+        activate_action(&legal, obj).is_some(),
+        "{{X}}{{W/U}} is offered before a hybrid reading is paid, legal: {legal:?}"
     );
 }
 
@@ -2179,10 +2224,9 @@ fn x_plus_hybrid_gated_on_hybrid() {
 /// the full announce flow. The two concretizers run at different
 /// steps — `AnnounceX` records X, `ChooseCostOptions` picks the hybrid reading
 /// (passing `{X}` through untouched), then `PayCost` applies `concretize_x` to
-/// the residual `{X}`. With X=2 and the blue reading picked, the `PayMana` cost
-/// must be the composed `{2}{U}` (X→`Generic(2)`, `{W/U}`→`{U}`), and exactly
-/// the right two units (one blue + two generic-payable) are spent. The gate
-/// also OFFERS the ability when the hybrid is affordable ([CR#601.2g]).
+/// the residual `{X}`. With X=2 and the blue reading picked, the payment
+/// obligation contains `{2}{U}` (X→`Generic(2)`, `{W/U}`→`{U}`), and exactly
+/// the right two units (one blue + two generic-payable) are spent.
 #[test]
 fn x_plus_hybrid_announces_x_concretizes_hybrid_pays_composed_cost() {
     const NAME: &str = "X-plus-hybrid e2e test artifact";
@@ -2193,8 +2237,7 @@ fn x_plus_hybrid_announces_x_concretizes_hybrid_pays_composed_cost() {
     // Float one blue (for the {W/U}→{U} reading) plus two greens (generic-
     // payable, to fund X=2). `legal_with_float` floats AFTER reaching the
     // precombat-main priority window (the pool empties at every step end,
-    // [CR#500.5]) and re-derives the legal list with the float reflected. The
-    // gate is X-reduced ([CR#107.3a]), so the offer hangs on the hybrid alone.
+    // [CR#500.5]) and re-derives the legal list with the float reflected.
     let legal = legal_with_float(&mut state, &[(blue(), 1), (green(), 2)]);
     let activate = activate_action(&legal, obj)
         .expect("the {X}{W/U} ability is OFFERED when the hybrid reading is payable");
@@ -2245,24 +2288,36 @@ fn x_plus_hybrid_announces_x_concretizes_hybrid_pays_composed_cost() {
         }))
         .unwrap();
 
-    // PayCost composes the two concretizers: the hybrid is already {U}, and
-    // `concretize_x` turns the residual {X} into Generic(2). The PayMana cost
-    // must be the composed {2}{U}.
+    // Payment composes the two concretizers into two generic pip IOUs and one
+    // blue pip IOU.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
-        cost,
-        ..
-    })) = stop
-    else {
-        panic!("expected PayMana for the composed {{2}}{{U}}, got {stop:?}");
+    let StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) = stop else {
+        panic!("expected Payment for the composed {{2}}{{U}}, got {stop:?}");
     };
+    assert_eq!(prompt.outstanding.len(), 3);
     assert_eq!(
-        cost,
-        "{2}{U}".parse().unwrap(),
-        "X→Generic(2) ∘ hybrid→{{U}} composes to {{2}}{{U}}, not the printed {{X}}{{W/U}}"
+        prompt
+            .outstanding
+            .iter()
+            .filter(|iou| matches!(
+                iou.kind,
+                deckmaste_engine::IouKind::ManaPip(deckmaste_engine::ManaPip::Generic)
+            ))
+            .count(),
+        2
     );
-    let pay = state.auto_pay_pending();
-    state.submit_decision(Decision::Pay(pay)).unwrap();
+    assert_eq!(
+        prompt
+            .outstanding
+            .iter()
+            .filter(|iou| matches!(
+                iou.kind,
+                deckmaste_engine::IouKind::ManaPip(deckmaste_engine::ManaPip::Colored(Color::Blue))
+            ))
+            .count(),
+        1
+    );
+    let _ = complete_pending_payment(&mut state);
 
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     // The blue unit paid {U}; the two greens paid the {2}. Nothing is left over.
@@ -2283,12 +2338,11 @@ fn x_plus_hybrid_announces_x_concretizes_hybrid_pays_composed_cost() {
     );
 }
 
-// --- the cast gate (`can_cast`) over hybrid/Phyrexian -----------------------
+// --- hybrid/Phyrexian spell proposal enumeration ----------------------------
 
 /// An instant whose only distinction is its printed (hybrid/Phyrexian) mana
-/// cost and a harmless no-target effect — so `can_cast`'s affordability gate is
-/// what decides whether `CastSpell` is offered. Instant timing keeps it
-/// castable at any priority.
+/// cost and a harmless no-target effect. Instant timing keeps it castable at
+/// any priority.
 fn instant_with_cost(name: &str, cost: ManaCost) -> Arc<Card> {
     Arc::new(Card::Normal(CardFace {
         name: name.into(),
@@ -2313,10 +2367,10 @@ fn cast_action(legal: &[Action], object: ObjectId) -> Option<Action> {
         .cloned()
 }
 
-/// [CR#601.2g,107.4e]: `can_cast` offers a hybrid `{W/U}` instant with only
-/// blue mana (the {U} reading is payable) and withholds it with an empty pool.
+/// [CR#601.2g,107.4e]: a hybrid `{W/U}` instant is offered before its reading
+/// is paid.
 #[test]
-fn cast_gate_hybrid_offered_when_one_reading_payable() {
+fn hybrid_spell_proposal_is_offered_without_affordability_proof() {
     const NAME: &str = "Hybrid-cost instant";
     let card = instant_with_cost(NAME, "{W/U}".parse().unwrap());
 
@@ -2332,16 +2386,15 @@ fn cast_gate_hybrid_offered_when_one_reading_payable() {
     let spell = find_in_hand(&state, PlayerId(0), NAME);
     let legal = legal_with_float(&mut state, &[]);
     assert!(
-        cast_action(&legal, spell).is_none(),
-        "{{W/U}} instant is NOT castable with no payable reading, legal: {legal:?}"
+        cast_action(&legal, spell).is_some(),
+        "{{W/U}} instant is offered before payment is proven, legal: {legal:?}"
     );
 }
 
-/// [CR#601.2g,107.4f]: `can_cast` offers a Phyrexian `{W/P}` instant with NO
-/// mana but life ≥ 2 (the 2-life reading), and withholds it at 1 life with no
-/// white.
+/// [CR#601.2g,107.4f]: a Phyrexian `{W/P}` instant is offered before payment
+/// is proven.
 #[test]
-fn cast_gate_phyrexian_offered_via_life() {
+fn phyrexian_spell_proposal_is_offered_even_when_current_resources_fail() {
     const NAME: &str = "Phyrexian-cost instant";
     let card = instant_with_cost(NAME, "{W/P}".parse().unwrap());
 
@@ -2361,7 +2414,7 @@ fn cast_gate_phyrexian_offered_via_life() {
     state.agenda.push_front(WorkItem::OpenPriority);
     let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert!(
-        cast_action(&legal, spell).is_none(),
-        "{{W/P}} instant is NOT castable at 1 life with no white, legal: {legal:?}"
+        cast_action(&legal, spell).is_some(),
+        "{{W/P}} instant remains a legal proposal at 1 life with no white, legal: {legal:?}"
     );
 }

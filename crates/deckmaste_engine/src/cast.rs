@@ -709,193 +709,6 @@ pub(crate) fn announced_effect_items(
 }
 
 impl GameState {
-    /// [CR#601.2b,601.2g,107.4e,107.4f]: is SOME legal reading of `cost`'s
-    /// hybrid/Phyrexian symbols fully payable by `player` for `subject`? The
-    /// affordability gate (`can_cast`/`can_activate`) calls this when the cost
-    /// has choosable symbols — a plain or `{S}`-only cost keeps the direct
-    /// `can_pay` path.
-    ///
-    /// Hybrid/Phyrexian are concretized at announce ([CR#601.2b]); the gate
-    /// must already know a payable reading EXISTS so the action is offered. A
-    /// reading is a `CostOptionChoices` — one pick per choosable symbol — that
-    /// `concretize` resolves to a concrete `(mana, verbs)`; it is payable iff
-    /// the spendable pool covers the mana AND the Phyrexian-life picks are
-    /// jointly affordable.
-    ///
-    /// `{X}` never blocks (its floor is X=0, [CR#107.3a]): callers pass an
-    /// already-X-reduced cost (`concretize_x(.., 0)`), so a residual `Variable`
-    /// is impossible and `choosable` (which ignores it anyway) sees only the
-    /// hybrid/Phyrexian symbols. A cost with both `{X}` and a hybrid composes:
-    /// X is reduced to `{0}` first, the hybrid drives this search.
-    ///
-    /// ## Search and shared-resource correctness
-    ///
-    /// The readings are searched by a bounded recursion over the per-symbol
-    /// options (costs carry few choosable symbols; the product is tiny). The
-    /// full concretization is assembled and checked at each leaf — never
-    /// per-symbol greedily — because mana and life are resources SHARED across
-    /// symbols: two `{W/P}` can't both be paid by 2 life (each costs 2; 4
-    /// total), and two hybrids competing for one colored unit can't both take
-    /// it. `can_pay` decides the mana side by an exact matching (joint), and
-    /// the life side is checked against the COMBINED Phyrexian-life total here
-    /// (`can_pay_verbs` alone judges each `LoseLife` against full life, so it
-    /// can't see two life payments competing — this method sums them).
-    #[must_use]
-    pub(crate) fn affordable_concretization(
-        &self,
-        player: PlayerId,
-        cost: &ManaCost,
-        subject: ObjectId,
-        pip_spell: Option<ObjectId>,
-    ) -> bool {
-        let options = crate::cost_options::choosable(cost);
-        // Recurse over the per-symbol option lists, building one pick per
-        // symbol; at a complete pick set, test the assembled concretization.
-        self.any_reading_payable(
-            player,
-            cost,
-            subject,
-            &options.options,
-            &mut Vec::new(),
-            pip_spell,
-        )
-    }
-
-    /// [CR#601.2b,601.2g]: whether `player` can afford `cost`'s mana for
-    /// `subject` under SOME legal reading — reduces `{X}` to its 0 floor
-    /// ([CR#107.3a]), then either the plain `can_pay` fast path (no choosable
-    /// symbol) or the hybrid/Phyrexian reading search
-    /// ([`affordable_concretization`]). The single entry point both `can_cast`
-    /// and `can_activate` gate on, so a new caster can't forget the
-    /// concretize/choosable step.
-    pub(crate) fn gate_mana_affordable(
-        &self,
-        player: PlayerId,
-        cost: &ManaCost,
-        subject: ObjectId,
-        pip_spell: Option<ObjectId>,
-    ) -> bool {
-        let reduced = concretize_x(cost, 0);
-        if crate::cost_options::choosable(&reduced).options.is_empty() {
-            // [CR#601.2g..601.2h]: pips a spell's `PayPips` statics can cover
-            // (convoke / delve / improvise) drop out of the mana that must be
-            // paid with real mana, so a cast is affordable when mana plus
-            // available pip-payment resources together cover the cost.
-            let payable = self.mana_after_pips(&reduced, pip_spell);
-            can_pay(&self.spendable_pool(player, subject), &payable)
-        } else {
-            self.affordable_concretization(player, &reduced, subject, pip_spell)
-        }
-    }
-
-    /// `mana` with the pips a spell's `PayPips` statics can currently cover
-    /// removed ([CR#601.2g..601.2h]) when `pip_spell` names the spell being
-    /// cast, else `mana` unchanged. The single point where the affordability
-    /// gate consults the same [`Self::pip_coverage`] walk the payment window
-    /// uses, so a cast the gate judges payable is actually payable. `None`
-    /// (activated abilities, which have no `PayPips`) is a plain pass-through.
-    fn mana_after_pips(&self, mana: &ManaCost, pip_spell: Option<ObjectId>) -> ManaCost {
-        match pip_spell {
-            Some(spell) => self.pip_coverage(spell, mana).0,
-            None => mana.clone(),
-        }
-    }
-
-    /// Depth-first walk of the choosable symbols' readings: `picks` holds the
-    /// readings chosen for symbols `0..picks.len()`; `options[picks.len()..]`
-    /// remain. At a full pick set (`picks.len() == options.len()`) the
-    /// assembled concretization is tested for full payability. Returns true
-    /// as soon as one payable reading is found (short-circuits).
-    fn any_reading_payable(
-        &self,
-        player: PlayerId,
-        cost: &ManaCost,
-        subject: ObjectId,
-        options: &[crate::cost_options::SymbolOptions],
-        picks: &mut Vec<crate::cost_options::SymbolChoice>,
-        pip_spell: Option<ObjectId>,
-    ) -> bool {
-        if picks.len() == options.len() {
-            return self.reading_payable(player, cost, subject, picks, pip_spell);
-        }
-        for &choice in &options[picks.len()].choices {
-            picks.push(choice);
-            let payable =
-                self.any_reading_payable(player, cost, subject, options, picks, pip_spell);
-            picks.pop();
-            if payable {
-                return true;
-            }
-        }
-        false
-    }
-
-    /// Whether one complete reading (`picks`) of `cost` concretizes to a fully
-    /// payable `(mana, verbs)` for `player`/`subject` ([CR#601.2g,601.2h]). The
-    /// mana is matched against the spendable pool (joint, via `can_pay`); the
-    /// verbs are checked structurally by `can_pay_verbs` AND — for the
-    /// Phyrexian-life picks, the one resource shared across symbols here — by
-    /// their COMBINED life requirement against the player's life.
-    fn reading_payable(
-        &self,
-        player: PlayerId,
-        cost: &ManaCost,
-        subject: ObjectId,
-        picks: &[crate::cost_options::SymbolChoice],
-        pip_spell: Option<ObjectId>,
-    ) -> bool {
-        let choices = crate::cost_options::CostOptionChoices {
-            picks: picks.to_vec(),
-        };
-        // A complete, legal pick set always concretizes — `picks` is built from
-        // `choosable`'s own options, so the count and legality are guaranteed.
-        let Ok((mana, verbs)) = crate::cost_options::concretize(cost, &choices) else {
-            return false;
-        };
-        // [CR#601.2g..601.2h]: pip-payment covers pips of this concretized
-        // reading before the pool is asked to fund the remainder — matching the
-        // payment window, which runs the same walk over the concretized mana.
-        let mana = self.mana_after_pips(&mana, pip_spell);
-        if !can_pay(&self.spendable_pool(player, subject), &mana) {
-            return false;
-        }
-        let verb_actions = phyrexian_life_verbs(&verbs);
-        // Structural per-verb payability (here: each ChangeLife(Down) is
-        // non-negative and life ≥ that ONE amount). `concretize` emits only
-        // Do(ChangeLife(You, Down(2))), so this is the [CR#119.4] floor; the
-        // joint check below adds the shared-life constraint `can_pay_verbs`
-        // can't express.
-        if !self.can_pay_verbs(player, &verb_actions, subject) {
-            return false;
-        }
-        // [CR#107.4f]: the COMBINED life of all Phyrexian-life picks must be
-        // affordable — two {W/P} paid with life cost 4, not 2. `can_pay_verbs`
-        // judges each ChangeLife(Down) against full life independently, so sum them.
-        // The frame mirrors the one `can_pay_verbs`/`verb_payment_items` use: a
-        // cost verb names no targets and `~`/`This` is the live source.
-        let frame = Frame::bare(subject, player);
-        let life_required: Uint = verb_actions
-            .iter()
-            .map(|v| self.life_cost_of(v, &frame))
-            .sum::<Uint>();
-        let life = Uint::try_from(self.player(player).life.max(0)).unwrap_or(Uint::MAX);
-        life >= life_required
-    }
-
-    /// The life a single concretized Phyrexian-life verb costs. `concretize`
-    /// emits only `Do(ChangeLife(You, Down(n)))` for life picks ([CR#107.4f];
-    /// paying life IS losing life, [CR#119.4]); any other shape contributes 0
-    /// (its own structural check in `can_pay_verbs` covers it — this sum is
-    /// purely the shared-life constraint).
-    fn life_cost_of(&self, verb: &CoreAction, frame: &Frame) -> Uint {
-        match verb {
-            CoreAction::ChangeLife(_, deckmaste_core::LifeOp::Down(count)) => {
-                self.eval_count(count, frame)
-            }
-            _ => 0,
-        }
-    }
-
     /// [CR#601.3,601.2g]: may `player` cast `object` now? Offered iff the
     /// object is in the holder's hand (the caller iterates the hand), the
     /// object is not a land ([CR#305.9]), timing permits (instant → any
@@ -917,9 +730,8 @@ impl GameState {
     /// mana-INDEPENDENT casting legality holds (not a land, correct timing per
     /// [CR#307.1,117.1a,702.8a], a non-empty printed cost per [CR#118.6], and —
     /// per [CR#601.2c] — at least one legal candidate for every target spec);
-    /// otherwise `None`. The mana-affordability gate is deliberately omitted so
-    /// a runner autotapper can decide whether an unaffordable-looking cast is
-    /// blocked ONLY by unfloated mana. `can_cast` = this AND affordability.
+    /// otherwise `None`. Resource sufficiency is deliberately deferred to the
+    /// payment protocol, where a runner may advise on a proposed payment.
     pub(crate) fn castable_cost_ignoring_mana(
         &self,
         view: &crate::layer::LayeredView,
@@ -1733,8 +1545,8 @@ impl GameState {
             .collect()
     }
 
-    /// [CR#601.2f,601.2g,601.2h]: pay the in-flight cost. Always surfaces a `PayMana`
-    /// decision for any non-empty mana cost; the core never auto-pays.
+    /// [CR#601.2f,601.2g,601.2h]: open the in-flight cost's payment protocol.
+    /// The core never auto-pays.
     /// Auto-resolution (an Arena-style autotapper) is a future runner concern.
     /// For an activated ability ([CR#602.2b]) the cost's {T}/{Q} components
     /// are scheduled as events alongside the mana decision.
@@ -2072,16 +1884,8 @@ impl GameState {
     /// work item, returning the mana the player must still pay with real mana
     /// plus those tap/exile items for the payment window.
     ///
-    /// `PayPips` is read in exactly two read-only places, both through
-    /// `pip_coverage`: here (to PAY, in the casting's payment window) and the
-    /// castability affordability gate ([`Self::gate_mana_affordable`], to JUDGE
-    /// a cast payable before it is offered). Both are exercised only during a
-    /// casting's cost handling, so the static's "functions while the spell is
-    /// on the stack" lifetime ([CR#702.51a]) still needs no stack-lifetime
-    /// "is it active?" predicate. The total cost and mana value ([CR#202.3])
-    /// are never mutated — it "isn't an additional or alternative cost"
-    /// ([CR#702.51b]) and paying this way still counts as paying the original
-    /// ([CR#118.7]); only HOW each pip is paid changes.
+    /// The total cost and mana value ([CR#202.3]) are never mutated — this
+    /// payment substitution is applied only after the total is locked.
     fn assemble_pip_payments(
         &self,
         spell: ObjectId,
@@ -2098,11 +1902,8 @@ impl GameState {
         (mana, items)
     }
 
-    /// The read-only core of the per-pip alternative-payment walk, shared by
-    /// the payment window ([`assemble_pip_payments`]) and the castability
-    /// affordability gate ([`gate_mana_affordable`]) so both agree, by the SAME
-    /// logic, on which pips of `mana` a spell's `PayPips` statics cover
-    /// ([CR#601.2g..601.2h]). Gathers the spell's `PayPips` statics, walks the
+    /// The read-only core of the per-pip alternative-payment walk. It gathers
+    /// the spell's `PayPips` statics and walks the
     /// locked-in `mana`'s pips, and for each eligible pip with an available
     /// resource covers it that way ([CR#702.51a] "rather than pay that mana"):
     /// tapping a permanent ([CR#107.5]) or exiling a graveyard card
@@ -2115,12 +1916,8 @@ impl GameState {
     /// ([CR#702.51b]) and paying this way still counts as paying the
     /// original ([CR#118.7]); only HOW each pip is paid changes.
     ///
-    /// DEFERRED — interactive picker: the payer is entitled to CHOOSE which
-    /// permanent to tap / card to exile and WHICH pips to cover ([CR#601.2g]);
-    /// this takes a deterministic first-eligible subset (each resource spent at
-    /// most once), exactly as [`GameState::tap_total_subset`] does for Crew.
-    /// Both the gate and the payment take the same subset, so a cast the
-    /// gate judges affordable is always actually payable.
+    /// DEFERRED — interactive picker: the payer is entitled to choose which
+    /// permanent to tap or card to exile and which pips to cover.
     fn pip_coverage(
         &self,
         spell: ObjectId,
@@ -2460,51 +2257,6 @@ impl GameState {
             .cloned()
             .collect();
         ManaPool::from_units(units)
-    }
-
-    /// [CR#733.1,733.2]: reverse an in-flight announce whose announced cost can't
-    /// be paid. A spell returns to its origin zone; an activated ability's
-    /// minted stack identity is discarded (the source is untouched). No
-    /// triggers fire (none were queued — targets are chosen after X), and
-    /// the caster keeps priority. Drains this cast's continuation, still
-    /// contiguous at the agenda front (`take_priority_action` pushed the
-    /// whole block onto an empty agenda; no priority is held mid-announce),
-    /// then reopens priority.
-    ///
-    /// # Panics
-    /// Panics if no announce is in flight.
-    pub(crate) fn rewind_announce(&mut self) {
-        let pending = self.announcing.take().expect("an announce to rewind");
-        match &pending.object {
-            StackObject::Spell(o) => {
-                let object = *o;
-                self.objects.obj_mut(object).zone = Some(pending.origin);
-                self.zones.hands[pending.controller.index()].push(object);
-            }
-            StackObject::Activated { .. } => {
-                // The id begin_activate minted was never committed to the stack.
-                self.objects.remove(pending.id);
-            }
-            StackObject::Triggered { .. } => {
-                unreachable!("triggers never occupy the announce slot")
-            }
-        }
-        while let Some(item) = self.agenda.pop_front() {
-            debug_assert!(
-                matches!(
-                    item,
-                    WorkItem::AnnounceTargets
-                        | WorkItem::ChooseCostOptions
-                        | WorkItem::OpenPayment
-                        | WorkItem::Emit(_)
-                        | WorkItem::CheckSbas
-                        | WorkItem::PlaceTriggers
-                        | WorkItem::OpenPriority
-                ),
-                "rewind drained an unexpected agenda item: {item:?}"
-            );
-        }
-        self.schedule_front(vec![WorkItem::OpenPriority]);
     }
 }
 

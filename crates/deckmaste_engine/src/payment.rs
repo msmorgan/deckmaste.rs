@@ -297,6 +297,74 @@ impl PaymentFrame {
     }
 }
 
+fn automatic_floating_coverage(state: &GameState, locked: &LockedPayment) -> Option<ManaCoverage> {
+    fn search(
+        state: &GameState,
+        locked: &LockedPayment,
+        pips: &[(IouId, ManaPip)],
+        units: &[ManaUnit],
+        used: &mut [bool],
+        assignments: &mut Vec<(IouId, crate::player::FloatingManaId)>,
+    ) -> bool {
+        let Some(&(iou, pip)) = pips.get(assignments.len()) else {
+            return true;
+        };
+        for (index, unit) in units.iter().enumerate() {
+            if used[index]
+                || !coverage::pip_accepts_unit(pip, unit.kind, &unit.riders)
+                || !state.unit_spendable_on(unit, locked.subject.spend_object())
+            {
+                continue;
+            }
+            used[index] = true;
+            assignments.push((iou, unit.id));
+            if search(state, locked, pips, units, used, assignments) {
+                return true;
+            }
+            assignments.pop();
+            used[index] = false;
+        }
+        false
+    }
+
+    let pips: Vec<(IouId, ManaPip)> = locked
+        .mana_pips()
+        .into_iter()
+        .map(|iou| {
+            let IouKind::ManaPip(pip) = iou.kind else {
+                unreachable!("mana_pips returns only mana IOUs")
+            };
+            (iou.id, pip)
+        })
+        .collect();
+    let units = state.player(locked.payer).mana_pool.units();
+    let mut used = vec![false; units.len()];
+    let mut assignments = Vec::with_capacity(pips.len());
+    if !search(state, locked, &pips, units, &mut used, &mut assignments) {
+        return None;
+    }
+    let mut coverage = ManaCoverage::empty();
+    for (iou, unit) in assignments {
+        coverage.insert(iou, ManaPayment::Floating(unit));
+    }
+    Some(coverage)
+}
+
+fn automatic_mana_ability_usable(state: &GameState, source: ObjectId, ability: usize) -> bool {
+    let abilities = crate::derive::usable_abilities(state, source);
+    let Some(compiled) = abilities.get(ability) else {
+        return false;
+    };
+    let Some(activated) = crate::activate::as_activated(compiled) else {
+        return false;
+    };
+    let Some(summary) = crate::activate::cost_summary(activated.cost.as_ref()) else {
+        return false;
+    };
+    let object = state.objects.obj(source);
+    (!summary.tap || !object.tapped) && (!summary.untap || object.tapped)
+}
+
 /// Transaction metadata lives outside every [`GameImage`], preventing image
 /// clones from recursively cloning their owner.
 #[derive(Debug, Clone, Default)]
@@ -307,6 +375,72 @@ pub struct PaymentController {
 }
 
 impl GameState {
+    /// Deterministic compatibility answer for the currently pending payment.
+    ///
+    /// This intentionally narrow runner shim covers the current monocolor
+    /// clients: activate the first offered mana ability until exact floating-
+    /// mana coverage exists, fulfill bound/simple IOUs in the engine-provided
+    /// tier order, then submit. Object-selection costs remain for a future
+    /// interactive payment client; if one appears here, the shim declines the
+    /// proposal instead of inventing a choice.
+    ///
+    /// # Panics
+    ///
+    /// Panics if an internally inconsistent payment prompt has no active frame.
+    #[must_use]
+    pub fn auto_payment_pending(&self) -> Option<crate::decide::Decision> {
+        let Some(crate::decide::PendingDecision::Payment(prompt)) = self.pending.as_ref() else {
+            return None;
+        };
+        let command = match prompt.stage {
+            PaymentStage::PrePayment => {
+                let frame = self
+                    .payment
+                    .as_ref()
+                    .and_then(|controller| controller.frames.last())
+                    .expect("a Payment prompt has an active frame");
+                if let Some(coverage) = automatic_floating_coverage(self, &frame.locked) {
+                    PaymentCommand::BeginPayment(coverage)
+                } else if let Some(&(source, ability)) =
+                    prompt.mana_abilities.iter().find(|&&(source, ability)| {
+                        automatic_mana_ability_usable(self, source, ability)
+                    })
+                {
+                    PaymentCommand::ActivateManaAbility { source, ability }
+                } else {
+                    PaymentCommand::DeclinePayment
+                }
+            }
+            PaymentStage::Paying => {
+                let Some(iou) = prompt
+                    .fulfillable
+                    .first()
+                    .and_then(|id| prompt.outstanding.iter().find(|iou| iou.id == *id))
+                else {
+                    return Some(crate::decide::Decision::Payment(
+                        PaymentCommand::DeclinePayment,
+                    ));
+                };
+                let witness = match iou.kind {
+                    IouKind::ManaPip(_) => FulfillmentWitness::CoveredMana,
+                    IouKind::PayLife(_) => FulfillmentWitness::PayLife,
+                    IouKind::Tap | IouKind::Untap | IouKind::Act(_) => FulfillmentWitness::Bound,
+                    IouKind::ChooseAndPay { .. } | IouKind::TapTotal { .. } => {
+                        return Some(crate::decide::Decision::Payment(
+                            PaymentCommand::DeclinePayment,
+                        ));
+                    }
+                };
+                PaymentCommand::Fulfill {
+                    iou: iou.id,
+                    witness,
+                }
+            }
+            PaymentStage::Ready => PaymentCommand::SubmitPayment,
+        };
+        Some(crate::decide::Decision::Payment(command))
+    }
+
     pub(crate) fn mint_payment_record(&mut self) -> PaymentRecordId {
         let controller = self
             .payment
@@ -640,19 +774,18 @@ impl GameState {
             PaymentPurpose::Announcement => {
                 if nested {
                     return self.decline_nested_mana_action(payer, subject);
-                } else {
-                    let legal = self.legal_mana_reversal_sets();
-                    if legal.iter().any(|set| !set.is_empty()) {
-                        self.pending = Some(crate::decide::PendingDecision::ChooseManaReversals(
-                            crate::decide::pending::ChooseManaReversals {
-                                player: payer,
-                                legal,
-                            },
-                        ));
-                        return Ok(());
-                    }
-                    return self.complete_root_announcement_decline(&[]);
                 }
+                let legal = self.legal_mana_reversal_sets();
+                if legal.iter().any(|set| !set.is_empty()) {
+                    self.pending = Some(crate::decide::PendingDecision::ChooseManaReversals(
+                        crate::decide::pending::ChooseManaReversals {
+                            player: payer,
+                            legal,
+                        },
+                    ));
+                    return Ok(());
+                }
+                return self.complete_root_announcement_decline(&[]);
             }
         }
         Ok(())
