@@ -710,6 +710,28 @@ impl GameState {
             }
             // ── Discard: bound single move, or the chosen-from-hand decision ──
             "Discard" => {
+                // Lowering lifts a cost-position discard's top-level choice
+                // into `CostComponent::ChooseAndPay`. Its runnable composite
+                // therefore starts at the authored per-card `Each(They, ...)`
+                // body, with `They` already bound by the payment witness. Run
+                // that body directly: each member recursively enters the
+                // ordinary bound-discard arm below, preserving one replaceable
+                // discard action per chosen card.
+                if matches!(
+                    body,
+                    deckmaste_core::OneShotEffect::Each(deckmaste_core::Each {
+                        binder: deckmaste_core::Binder::Existing(
+                            deckmaste_core::Selection::They | deckmaste_core::Selection::Them(_)
+                        ),
+                        ..
+                    })
+                ) && frame.anaphora.that.is_some()
+                {
+                    return vec![WorkItem::RunEffect {
+                        effect: std::sync::Arc::new(body.clone()),
+                        frame: frame.clone(),
+                    }];
+                }
                 if let Some(what) = deckmaste_core::discard_body_what(body) {
                     // "Discard this/that card" ([CR#702.29a]): a single move.
                     // The performer is the patient's controller (the affected
