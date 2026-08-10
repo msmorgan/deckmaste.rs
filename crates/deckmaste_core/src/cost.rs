@@ -49,7 +49,7 @@ pub enum CostComponent {
     /// `CostComponent` rides in `Vec<CostComponent>` cost lists, so an
     /// unboxed variant would size every element to it
     /// (`clippy::large_enum_variant`).
-    Do(Arc<crate::Action>),
+    Act(Arc<crate::Action>),
     /// A *nested* cost list. It exists only to let a macro splice a
     /// list-valued cost param into a larger cost list — the body writes
     /// `cost: [Cost(Param(0)), Do(Discard(…))]`, so the spliced `[Mana(…)]`
@@ -93,7 +93,7 @@ pub enum CostComponent {
     /// OUT of the verb — the cost action receives an already-bound
     /// reference. `binder` is boxed (an open `Binder` is large and
     /// `CostComponent` rides in `Vec<CostComponent>` cost lists).
-    With { binder: Arc<Binder>, body: Cost },
+    ChooseAndPay { binder: Arc<Binder>, body: Cost },
     /// A remembered `CostComponent` macro invocation (`SacrificeThis`, loyalty
     /// sugar, …).
     #[macro_ron(expanded)]
@@ -106,7 +106,7 @@ impl CostComponent {
     /// [CR#701.9,601.2b]).
     #[must_use]
     pub fn do_action(action: crate::Action) -> CostComponent {
-        CostComponent::Do(Arc::new(action))
+        CostComponent::Act(Arc::new(action))
     }
 }
 
@@ -132,7 +132,7 @@ impl Normalize for CostComponent {
             CostComponent::Cost(inner) => CostComponent::Cost(inner.normalize()),
             // Recurse into a `With` step's scoped body so a macro-spliced nested
             // cost there still flattens.
-            CostComponent::With { binder, body } => CostComponent::With {
+            CostComponent::ChooseAndPay { binder, body } => CostComponent::ChooseAndPay {
                 binder,
                 body: body.normalize(),
             },
@@ -305,7 +305,7 @@ mod tests {
         // That(Creature)).
         let creature =
             Predicate::Characteristic(CharacteristicPredicate::Supertype(crate::Supertype::Basic));
-        let with = CostComponent::With {
+        let with = CostComponent::ChooseAndPay {
             binder: Arc::new(Binder::ChooseOne {
                 filter: creature,
                 by: Reference::You,
@@ -351,7 +351,7 @@ mod tests {
         let lumpy: Cost = crate::ron::options()
             .from_str(
                 "[Cost([Mana([Generic(2)])]), \
-                 Do(Composite(name: Discard, body: Move(This, Graveyard)))]",
+                 Act(Composite(name: Discard, body: Move(This, Graveyard)))]",
             )
             .unwrap();
         let mana_two = CostComponent::Mana(ManaCost::from(Arc::<[ManaSymbol]>::from(vec![
@@ -403,7 +403,7 @@ mod tests {
         );
         assert_eq!(read("Tap"), CostComponent::Tap);
         assert_eq!(
-            read("Do(Sacrifice(You, This))"),
+            read("Act(Sacrifice(You, This))"),
             CostComponent::do_action(crate::Action::Sacrifice(Reference::You, Reference::This)),
         );
     }
@@ -490,7 +490,7 @@ mod tests {
     fn cost_list_round_trips() {
         // `Sacrifice` carries its agent slot explicitly now ([CR#701.21a]
         // "its controller"); in a cost, `You` is the payer.
-        let source = "[Mana([Generic(2)]),Tap,Do(Sacrifice(You, This))]";
+        let source = "[Mana([Generic(2)]),Tap,Act(Sacrifice(You, This))]";
         let parsed: Arc<[CostComponent]> = crate::ron::options().from_str(source).unwrap();
         let written = crate::ron::options().to_string(&parsed).unwrap();
         let reparsed: Arc<[CostComponent]> = crate::ron::options().from_str(&written).unwrap();

@@ -530,8 +530,8 @@ fn phyrexian_life_verbs(verbs: &[CostComponent]) -> Vec<CoreAction> {
     verbs
         .iter()
         .map(|c| match c {
-            CostComponent::Do(action) => (**action).clone(),
-            other => unreachable!("concretize emits only Do(_) verb costs, got {other:?}"),
+            CostComponent::Act(action) => (**action).clone(),
+            other => unreachable!("concretize emits only Act(_) verb costs, got {other:?}"),
         })
         .collect()
 }
@@ -1561,7 +1561,7 @@ impl GameState {
                 for component in &optional_components {
                     match component {
                         CostComponent::Mana(m) => mana.extend(m.iter().copied()),
-                        CostComponent::Do(pa) => {
+                        CostComponent::Act(pa) => {
                             items.extend(verb_payment_items(
                                 &[(**pa).clone()],
                                 object,

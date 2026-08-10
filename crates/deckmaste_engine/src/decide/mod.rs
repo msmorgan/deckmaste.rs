@@ -360,7 +360,7 @@ pub(crate) fn unless_cost_action(
         // `filter`/`by`), while the bound "discard this card" form
         // ([CR#702.29a]) is paid by its patient's own controller, so it
         // needs only the named card.
-        CostComponent::Do(action) => match &**action {
+        CostComponent::Act(action) => match &**action {
             Action::Sacrifice(_, what) => Action::Sacrifice(who.clone(), what.clone()),
             Action::ChangeLife(_, op) => Action::ChangeLife(who.clone(), op.clone()),
             Action::Composite { name, body } if name.as_str() == "Discard" => {
@@ -393,7 +393,7 @@ pub(crate) fn unless_cost_action(
         // bind `That`/`Those`. Every caller that can see a `With` routes through
         // `unless_cost_effect` (which renders it as an `OneShotEffect::With`), so this
         // Action-only path is never reached for one.
-        CostComponent::With { .. } => unreachable!(
+        CostComponent::ChooseAndPay { .. } => unreachable!(
             "a cost-side With ([CR#601.2b]) is rendered by unless_cost_effect as an \
              OneShotEffect::With, never as a single Action"
         ),
@@ -469,7 +469,7 @@ pub(crate) fn unless_cost_effect(
         // [CR#601.2b]: the binder's choice binds `That`/`Those`; the body pays
         // against that binding. Recurse on the body (a nested `With` still
         // surfaces its own choice) and reuse the `OneShotEffect::With` interpreter.
-        CostComponent::With { binder, body } => OneShotEffect::With(deckmaste_core::With {
+        CostComponent::ChooseAndPay { binder, body } => OneShotEffect::With(deckmaste_core::With {
             binder: (**binder).clone(),
             body: Arc::new(cost_body_effect(body, who)),
         }),

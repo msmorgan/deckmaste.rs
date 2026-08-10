@@ -450,7 +450,7 @@ impl GameState {
         use deckmaste_core::CostComponent;
         let mut verbs = Vec::new();
         for component in cost {
-            if let other @ (CostComponent::Do(_) | CostComponent::Tap | CostComponent::Untap) =
+            if let other @ (CostComponent::Act(_) | CostComponent::Tap | CostComponent::Untap) =
                 component
             {
                 verbs.push(crate::decide::unless_cost_action(other, who));
@@ -1849,7 +1849,7 @@ impl GameState {
         frame: &Frame,
     ) -> Option<crate::lki::LkiSnapshot> {
         for component in cost {
-            let deckmaste_core::CostComponent::Do(pa) = component else {
+            let deckmaste_core::CostComponent::Act(pa) = component else {
                 continue;
             };
             let reference = match pa.as_ref() {
