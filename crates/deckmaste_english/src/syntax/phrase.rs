@@ -1431,7 +1431,11 @@ mod adjective_storage {
     use super::CardOrientation;
     use super::NumberLiteral;
     use super::Phrase;
+    #[cfg(test)]
+    use super::Preposition;
     use super::PrepositionalPhrase;
+    #[cfg(test)]
+    use super::RecoveredText;
     use super::Vocabulary;
     use super::is_valid_degree_measure_number;
 
@@ -1626,6 +1630,20 @@ mod adjective_storage {
             }
             self.complements.push(complement);
             Some(self)
+        }
+
+        #[cfg(test)]
+        #[must_use]
+        pub(crate) fn try_attach_recovered_comparison_standard(
+            self,
+            recovery: RecoveredText,
+        ) -> Option<Self> {
+            self.try_attach_compatibility_complement(AdjectiveComplement::Prepositional(
+                PrepositionalPhrase::from_prepositional_declaration(
+                    Preposition::With,
+                    Phrase::Recovered(recovery),
+                ),
+            ))
         }
 
         #[must_use]
