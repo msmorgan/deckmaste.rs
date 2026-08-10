@@ -1548,11 +1548,9 @@ fn make_verb_phrase_causative(
             "the bare infinitive complement has no modal",
         ));
     };
-    dependents.push(VerbDependent::Infinitive(InfinitiveClause {
-        negated: false,
-        marker: InfinitiveMarker::Bare,
-        predicate: Box::new(complement),
-    }));
+    dependents.push(VerbDependent::Infinitive(
+        InfinitiveClause::declaration_bare(complement),
+    ));
     Ok(VerbPhrase::declaration_from_dependent_projection(
         shell, dependents,
     ))
@@ -1570,7 +1568,7 @@ fn verb_phrase_causative_parts(value: &VerbPhrase) -> (VerbPhrase, VerbPhrase) {
     else {
         unreachable!("the causative inverse check pins the dependent variant")
     };
-    let complement = inverse_public_predicate(&infinitive.predicate)
+    let complement = inverse_public_predicate(infinitive.predicate())
         .expect("the causative inverse check pins an invertible bare infinitive");
     (host, complement)
 }
@@ -1584,10 +1582,10 @@ fn is_verb_phrase_causative(value: &VerbPhrase) -> bool {
     if !causative_host_has_only_causee(&host) {
         return false;
     }
-    if infinitive.negated || infinitive.marker != InfinitiveMarker::Bare {
+    if infinitive.negated() || infinitive.marker() != InfinitiveMarker::Bare {
         return false;
     }
-    let Ok(complement) = inverse_public_predicate(&infinitive.predicate) else {
+    let Ok(complement) = inverse_public_predicate(infinitive.predicate()) else {
         return false;
     };
     let Some(host_features) = host.declaration_core_features() else {
@@ -2715,7 +2713,7 @@ dependent_lens!(
     Infinitive,
     InfinitiveClause,
     |infinitive: &InfinitiveClause| {
-        infinitive.negated || infinitive.marker != InfinitiveMarker::Bare
+        infinitive.negated() || infinitive.marker() != InfinitiveMarker::Bare
     }
 );
 
@@ -6496,11 +6494,8 @@ mod tests {
         assert!(matches!(
             predicate.elements.as_slice(),
             [crate::syntax::PredicateElement::Complement(
-                crate::syntax::PredicateComplement::Infinitive(crate::syntax::InfinitiveClause {
-                    marker: crate::syntax::InfinitiveMarker::Bare,
-                    ..
-                })
-            )]
+                crate::syntax::PredicateComplement::Infinitive(infinitive)
+            )] if infinitive.marker() == crate::syntax::InfinitiveMarker::Bare
         ));
     }
 

@@ -259,6 +259,22 @@ pub(crate) fn render_adjective_phrase(
     Renderer::new(name, is_legendary).adjective_phrase(phrase)
 }
 
+pub(crate) fn render_infinitive_clause(
+    value: &InfinitiveClause,
+    name: &str,
+    is_legendary: bool,
+) -> Result<String, RenderError> {
+    Renderer::new(name, is_legendary).infinitive_clause(value)
+}
+
+pub(crate) fn render_gerund_clause(
+    value: &GerundClause,
+    name: &str,
+    is_legendary: bool,
+) -> Result<String, RenderError> {
+    Renderer::new(name, is_legendary).gerund_clause(value)
+}
+
 #[cfg(test)]
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct GeneratedAdjectiveRender {
@@ -696,6 +712,17 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                         .expect("the clause predicate hole preserves VerbPhrase"),
                 )?;
                 predicate.finish()
+            }
+            "GerundClause" => {
+                Self::accept_generated(
+                    crate::constructions::nonfinite::linearize_nonfinite_gerund_clause_with(
+                        value
+                            .downcast_ref::<GerundClause>()
+                            .expect("the nonfinite hole preserves GerundClause"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
             }
             "NounPhrase" => self.renderer.noun_phrase(
                 value
@@ -3495,41 +3522,29 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn gerund_clause(&self, clause: &GerundClause) -> Result<String, RenderError> {
-        let matrix = self.predicate(&clause.predicate)?;
-        let mut rendered = String::new();
-        for attachment in clause
-            .attachments
-            .iter()
-            .filter(|attachment| attachment.position == AttachmentPosition::BeforeMatrix)
-        {
-            rendered.push_str(&self.dependent_clause(&attachment.payload)?);
-            if attachment.comma.is_present() {
-                rendered.push(',');
-            }
-            rendered.push(' ');
-        }
-        rendered.push_str(&matrix);
-        for attachment in clause
-            .attachments
-            .iter()
-            .filter(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
-        {
-            if attachment.comma.is_present() {
-                rendered.push(',');
-            }
-            rendered.push(' ');
-            rendered.push_str(&self.dependent_clause(&attachment.payload)?);
-        }
-        Ok(rendered)
+        let mut visitor = GeneratedClauseRenderer::new(self, 0, false);
+        GeneratedClauseRenderer::accept_generated(
+            crate::constructions::nonfinite::linearize_nonfinite_gerund_clause_with(
+                clause,
+                &mut visitor,
+            ),
+        )?;
+        Ok(visitor.finish())
     }
 
     fn infinitive_clause(&self, clause: &InfinitiveClause) -> Result<String, RenderError> {
-        let predicate = self.predicate(&clause.predicate)?;
-        let infinitive = match clause.marker {
-            InfinitiveMarker::Bare => predicate,
-            InfinitiveMarker::To => format!("to {predicate}"),
-        };
-        Ok(if clause.negated { format!("not {infinitive}") } else { infinitive })
+        if clause.marker() == InfinitiveMarker::Bare {
+            let predicate = self.predicate(clause.predicate())?;
+            return Ok(if clause.negated() { format!("not {predicate}") } else { predicate });
+        }
+        let mut visitor = GeneratedClauseRenderer::new(self, 0, false);
+        GeneratedClauseRenderer::accept_generated(
+            crate::constructions::nonfinite::linearize_nonfinite_infinitive_clause_with(
+                clause,
+                &mut visitor,
+            ),
+        )?;
+        Ok(visitor.finish())
     }
 
     fn relative_clause(&self, clause: &RelativeClause) -> Result<String, RenderError> {
@@ -4508,7 +4523,7 @@ fn predicate_quoted_ability_count(predicate: &Predicate) -> usize {
 fn predicate_element_quoted_ability_count(element: &PredicateElement) -> usize {
     match element {
         PredicateElement::Complement(PredicateComplement::Infinitive(infinitive)) => {
-            predicate_quoted_ability_count(&infinitive.predicate)
+            predicate_quoted_ability_count(infinitive.predicate())
         }
         PredicateElement::Complement(PredicateComplement::Prepositional(prepositional)) => {
             usize::from(phrase_terminal_quote(&prepositional.tail().object).is_some())
@@ -6533,15 +6548,12 @@ mod tests {
         let infinitive = AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Able))
             .and_then(|phrase| {
                 phrase.try_attach_compatibility_complement(AdjectiveComplement::Infinitive(
-                    InfinitiveClause {
-                        negated: false,
-                        marker: InfinitiveMarker::To,
-                        predicate: Box::new(strict_predicate(verb_phrase(
-                            Vocab::Attack,
-                            VerbSlot::Infinitive,
-                            vec![],
-                        ))),
-                    },
+                    crate::clause::build_infinitive_to(strict_predicate(verb_phrase(
+                        Vocab::Attack,
+                        VerbSlot::Infinitive,
+                        vec![],
+                    )))
+                    .unwrap(),
                 ))
             })
             .unwrap();
@@ -6672,12 +6684,15 @@ mod tests {
                     object = Some(PredicateObject::Quantity(Quantity::Exact(number)));
                 }
                 VerbDependent::Infinitive(marker, predicate) => {
+                    let predicate = strict_predicate(*predicate);
+                    let infinitive = match marker {
+                        InfinitiveMarker::Bare => InfinitiveClause::declaration_bare(predicate),
+                        InfinitiveMarker::To => {
+                            crate::clause::build_infinitive_to(predicate).unwrap()
+                        }
+                    };
                     elements.push(PredicateElement::Complement(
-                        PredicateComplement::Infinitive(InfinitiveClause {
-                            negated: false,
-                            marker,
-                            predicate: Box::new(strict_predicate(*predicate)),
-                        }),
+                        PredicateComplement::Infinitive(infinitive),
                     ));
                 }
                 VerbDependent::IndirectObject(noun_phrase) => {

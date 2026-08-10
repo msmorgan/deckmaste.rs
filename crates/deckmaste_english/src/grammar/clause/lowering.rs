@@ -49,7 +49,6 @@ use crate::constructions::predicate::FinishedPredicate;
 use crate::features::Conjunction;
 use crate::grammar::reduction::predicate_form;
 use crate::syntax::InfinitiveClause;
-use crate::syntax::InfinitiveMarker;
 use crate::syntax::ObjectGapPredicate;
 
 pub(in crate::grammar) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
@@ -501,11 +500,9 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
                 crate::syntax::Subordinator::RatherThan,
                 AttachmentPosition::AfterMatrix,
                 false,
-                SubordinateBody::Infinitive(crate::syntax::InfinitiveClause {
-                    negated: false,
-                    marker: InfinitiveMarker::Bare,
-                    predicate: Box::new(predicate),
-                }),
+                SubordinateBody::Infinitive(crate::syntax::InfinitiveClause::declaration_bare(
+                    predicate,
+                )),
                 consequence,
             )
         }

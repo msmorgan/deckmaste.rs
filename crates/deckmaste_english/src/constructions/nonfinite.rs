@@ -74,54 +74,56 @@ fn checked_predicate(
 
 fn make_infinitive_to(predicate: VerbPhrase) -> Result<InfinitiveClause, DeclarationViolation> {
     let predicate = checked_predicate("infinitive_to", predicate, PredicateForm::Infinitive)?;
-    Ok(InfinitiveClause {
-        negated: false,
-        marker: InfinitiveMarker::To,
-        predicate: Box::new(predicate),
-    })
+    Ok(InfinitiveClause::from_declaration_parts(
+        false,
+        InfinitiveMarker::To,
+        predicate,
+    ))
 }
 
 fn infinitive_to_parts(value: &InfinitiveClause) -> VerbPhrase {
-    crate::constructions::predicate::inverse_public_predicate(&value.predicate)
+    crate::constructions::predicate::inverse_public_predicate(value.predicate())
         .expect("the infinitive recognizer admits an invertible predicate")
 }
 
 fn is_infinitive_to(value: &InfinitiveClause) -> bool {
-    !value.negated
-        && value.marker == InfinitiveMarker::To
-        && predicate_has_complete_form(&value.predicate, PredicateForm::Infinitive)
+    !value.negated()
+        && value.marker() == InfinitiveMarker::To
+        && predicate_has_complete_form(value.predicate(), PredicateForm::Infinitive)
 }
 
 fn make_infinitive_not_to(predicate: VerbPhrase) -> Result<InfinitiveClause, DeclarationViolation> {
     let predicate = checked_predicate("infinitive_not_to", predicate, PredicateForm::Infinitive)?;
-    Ok(InfinitiveClause {
-        negated: true,
-        marker: InfinitiveMarker::To,
-        predicate: Box::new(predicate),
-    })
+    Ok(InfinitiveClause::from_declaration_parts(
+        true,
+        InfinitiveMarker::To,
+        predicate,
+    ))
 }
 
 fn infinitive_not_to_parts(value: &InfinitiveClause) -> VerbPhrase {
-    crate::constructions::predicate::inverse_public_predicate(&value.predicate)
+    crate::constructions::predicate::inverse_public_predicate(value.predicate())
         .expect("the infinitive recognizer admits an invertible predicate")
 }
 
 fn is_infinitive_not_to(value: &InfinitiveClause) -> bool {
-    value.negated
-        && value.marker == InfinitiveMarker::To
-        && predicate_has_complete_form(&value.predicate, PredicateForm::Infinitive)
+    value.negated()
+        && value.marker() == InfinitiveMarker::To
+        && predicate_has_complete_form(value.predicate(), PredicateForm::Infinitive)
 }
 
 pub(crate) fn is_valid_infinitive(value: &InfinitiveClause) -> bool {
     matches!(
-        (value.negated, value.marker),
-        (false, InfinitiveMarker::To) | (true, InfinitiveMarker::To)
-    ) && predicate_has_complete_form(&value.predicate, PredicateForm::Infinitive)
+        (value.negated(), value.marker()),
+        (false, InfinitiveMarker::Bare)
+            | (false, InfinitiveMarker::To)
+            | (true, InfinitiveMarker::To)
+    ) && predicate_has_complete_form(value.predicate(), PredicateForm::Infinitive)
 }
 
 fn valid_gerund(value: &GerundClause) -> bool {
-    predicate_has_complete_form(&value.predicate, PredicateForm::PresentParticiple)
-        && value.attachments.iter().all(|attachment| {
+    predicate_has_complete_form(value.predicate(), PredicateForm::PresentParticiple)
+        && value.attachments().iter().all(|attachment| {
             matches!(
                 attachment,
                 DependentAttachment {
@@ -142,23 +144,20 @@ fn make_gerund_clause_base(predicate: VerbPhrase) -> Result<GerundClause, Declar
         predicate,
         PredicateForm::PresentParticiple,
     )?;
-    Ok(GerundClause {
-        predicate: Box::new(predicate),
-        attachments: Vec::new(),
-    })
+    Ok(GerundClause::from_declaration_parts(predicate, Vec::new()))
 }
 
 fn gerund_clause_base_parts(value: &GerundClause) -> VerbPhrase {
-    crate::constructions::predicate::inverse_public_predicate(&value.predicate)
+    crate::constructions::predicate::inverse_public_predicate(value.predicate())
         .expect("the gerund recognizer admits an invertible predicate")
 }
 
 fn is_gerund_clause_base(value: &GerundClause) -> bool {
-    value.attachments.is_empty() && valid_gerund(value)
+    value.attachments().is_empty() && valid_gerund(value)
 }
 
 fn make_gerund_clause_subordinate_after(
-    mut matrix: GerundClause,
+    matrix: GerundClause,
     alternative: GerundClause,
 ) -> Result<GerundClause, DeclarationViolation> {
     if !valid_gerund(&matrix) || !valid_gerund(&alternative) {
@@ -167,7 +166,8 @@ fn make_gerund_clause_subordinate_after(
             "both sides are complete generated gerund clauses",
         ));
     }
-    matrix.attachments.push(DependentAttachment {
+    let (predicate, mut attachments) = matrix.into_declaration_parts();
+    attachments.push(DependentAttachment {
         position: AttachmentPosition::AfterMatrix,
         comma: Comma::Absent,
         payload: DependentClause::Subordinate(
@@ -175,29 +175,31 @@ fn make_gerund_clause_subordinate_after(
             SubordinateBody::Gerund(alternative),
         ),
     });
-    Ok(matrix)
+    Ok(GerundClause::from_declaration_parts(predicate, attachments))
 }
 
 fn gerund_clause_subordinate_after_parts(value: &GerundClause) -> (GerundClause, GerundClause) {
-    let mut matrix = value.clone();
+    let (predicate, mut attachments) = value.clone().into_declaration_parts();
     let DependentAttachment {
         payload:
             DependentClause::Subordinate(Subordinator::RatherThan, SubordinateBody::Gerund(alternative)),
         ..
-    } = matrix
-        .attachments
+    } = attachments
         .pop()
         .expect("the subordinate recognizer admits one trailing attachment")
     else {
         unreachable!("the subordinate recognizer admits a rather-than gerund")
     };
-    (matrix, alternative)
+    (
+        GerundClause::from_declaration_parts(predicate, attachments),
+        alternative,
+    )
 }
 
 fn is_gerund_clause_subordinate_after(value: &GerundClause) -> bool {
     valid_gerund(value)
         && matches!(
-            value.attachments.last(),
+            value.attachments().last(),
             Some(DependentAttachment {
                 position: AttachmentPosition::AfterMatrix,
                 comma: Comma::Absent,

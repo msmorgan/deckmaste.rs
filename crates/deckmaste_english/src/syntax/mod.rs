@@ -418,7 +418,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 self.independent_clause(clause, context);
             }
             DependentClause::Subordinate(_, SubordinateBody::Infinitive(clause)) => {
-                self.predicate(&clause.predicate, context);
+                self.predicate(clause.predicate(), context);
             }
             DependentClause::Subordinate(_, SubordinateBody::Gerund(clause)) => {
                 self.gerund_clause(clause, context);
@@ -429,15 +429,15 @@ impl<'syntax> RecoveryWalker<'syntax> {
             ) => self.adjective_phrase(adjective, RecoveryRole::Clause, context),
             DependentClause::Relative(relative) => self.relative_clause(relative, context),
             DependentClause::Infinitive(infinitive) => {
-                self.predicate(&infinitive.predicate, context);
+                self.predicate(infinitive.predicate(), context);
             }
             DependentClause::Gerund(gerund) => self.gerund_clause(gerund, context),
         }
     }
 
     fn gerund_clause(&mut self, clause: &'syntax GerundClause, context: Option<RecoveryRole>) {
-        self.predicate(&clause.predicate, context);
-        for attachment in &clause.attachments {
+        self.predicate(clause.predicate(), context);
+        for attachment in clause.attachments() {
             self.dependent_clause(&attachment.payload, context);
         }
     }
@@ -589,7 +589,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
                         self.prepositional_phrase(preposition, RecoveryRole::Clause, context);
                     }
                     PredicateComplement::Infinitive(infinitive) => {
-                        self.predicate(&infinitive.predicate, context);
+                        self.predicate(infinitive.predicate(), context);
                     }
                 },
                 PredicateElement::Adjunct(adjunct) => self.predicate_adjunct(adjunct, context),
@@ -754,7 +754,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 self.prepositional_phrase(preposition, RecoveryRole::NominalComplement, context);
             }
             NominalComplement::Infinitive(infinitive) => {
-                self.predicate(&infinitive.predicate, context);
+                self.predicate(infinitive.predicate(), context);
             }
             NominalComplement::Relative(relative) => self.relative_clause(relative, context),
             NominalComplement::ReducedRecipientPassive(predicate) => {
@@ -818,7 +818,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
                     self.prepositional_phrase(preposition, role, context);
                 }
                 AdjectiveComplement::Infinitive(infinitive) => {
-                    self.predicate(&infinitive.predicate, context);
+                    self.predicate(infinitive.predicate(), context);
                 }
             }
         }
