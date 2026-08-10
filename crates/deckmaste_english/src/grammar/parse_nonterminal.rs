@@ -2037,11 +2037,11 @@ mod registration_order_tests {
                 "conjunction=And;allowed=[And];matched=true",
             ),
             (
-                "This card deals damage to you and creatures you control.",
-                "rules_object_nominal_base",
+                "This card deals damage to you and creatures you control that are tapped.",
+                "rules_object_noun_phrase",
                 ConstructionEvidenceKind::Role,
                 "rules-object attachment role",
-                "category=RulesObjectNominal",
+                "category=RulesObjectNounPhrase",
             ),
             (
                 "If a creature dealt damage this way would die this turn, exile it instead.",
@@ -2078,7 +2078,7 @@ mod registration_order_tests {
             ),
             (
                 "This card deals damage to a creature.",
-                "rules_object_nominal_base",
+                "rules_object_noun_phrase",
             ),
             (
                 "If a creature attacks this turn, exile it instead.",
@@ -2259,6 +2259,7 @@ mod generated_adapter_tests {
         noun::GROUPS[0],
         crate::constructions::determiner::GROUPS[0],
         crate::constructions::nominal::GROUPS[0],
+        crate::constructions::noun_phrase::GROUPS[0],
         coordination::GROUPS[0],
     ];
 

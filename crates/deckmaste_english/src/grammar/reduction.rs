@@ -25,7 +25,6 @@ use super::SetExceptionState;
 use super::VerbSlot;
 use super::clause;
 use super::generated::GeneratedFeatureCombinator;
-use super::noun_phrase_accepts_set_exception;
 
 #[allow(clippy::too_many_lines, reason = "reduce matches on all rule tags")]
 pub(super) fn reduce(
@@ -44,26 +43,7 @@ pub(super) fn reduce(
         | RuleTag::NominalCoordinatedModifier => {
             reduce_nominal(HandwrittenNominalReduction::from_rule_tag(tag)?, children)?
         }
-        RuleTag::NounPhraseNominal
-        | RuleTag::RulesObjectNounPhrase
-        | RuleTag::NounPhraseSetExceptionBare
-        | RuleTag::NounPhraseSetExceptionFor
-        | RuleTag::NounPhraseSubjectPronoun
-        | RuleTag::NounPhraseObjectPronoun
-        | RuleTag::NounPhraseReciprocal
-        | RuleTag::NounPhraseQuantity
-        | RuleTag::NounPhraseThisCard
-        | RuleTag::NounPhraseFullThisCard
-        | RuleTag::NounPhrasePossessiveThisCard
-        | RuleTag::NounPhraseDemonstrative
-        | RuleTag::NounPhrasePartitive
-        | RuleTag::NounPhraseEachPartitive
-        | RuleTag::NounPhraseAnyNumberOf
-        | RuleTag::NounPhraseMinus
-        | RuleTag::NounPhraseHalf
-        | RuleTag::NounPhraseHalfRoundedUp
-        | RuleTag::NounPhraseHalfRoundedDown
-        | RuleTag::PrepositionalPhrase
+        RuleTag::PrepositionalPhrase
         | RuleTag::PrepositionalPhraseListPair
         | RuleTag::PrepositionalPhraseListComma
         | RuleTag::PrepositionalPhraseSiblingCoordinated
@@ -96,24 +76,6 @@ pub(super) fn reduce(
 }
 
 pub(super) type Reduced = Features;
-
-/// Features for an arithmetic value expression: a third-person singular numeric
-/// value with no pronoun case or bare-nominal adjunct.
-pub(super) const fn arithmetic_value_features() -> Features {
-    Features::NounPhrase {
-        agreement: Some(Agreement {
-            person: Person::Third,
-            number: Number::Singular,
-        }),
-        coordination_domain: Some(CoordinationDomain::NonEntity),
-        pronoun_case: None,
-        adjunct: None,
-        set_exception: SetExceptionState::Ineligible,
-        coordination: NounPhraseCoordinationState::None,
-        recipient_passive_theme: false,
-        rules_object_followup: false,
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum HandwrittenNominalReduction {
@@ -1330,249 +1292,11 @@ pub(crate) fn reduce_nominal_times_clause(head: &Features, clause: &Features) ->
     })
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "phrase feature reduction is an irreducible flat dispatch over grammar rule tags"
-)]
 pub(super) fn reduce_phrase(
     tag: RuleTag,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> Option<Reduced> {
     match tag {
-        RuleTag::NounPhraseSetExceptionBare | RuleTag::NounPhraseSetExceptionFor => {
-            let host = children.first()?;
-            if !noun_phrase_accepts_set_exception(host.features)
-                || !matches!(children.last()?.features, Features::NounPhrase { .. })
-            {
-                return None;
-            }
-            let Features::NounPhrase {
-                agreement,
-                coordination_domain,
-                pronoun_case,
-                adjunct,
-                ..
-            } = host.features
-            else {
-                return None;
-            };
-            Some(Features::NounPhrase {
-                agreement: *agreement,
-                coordination_domain: *coordination_domain,
-                pronoun_case: *pronoun_case,
-                adjunct: *adjunct,
-                set_exception: SetExceptionState::Closed,
-                coordination: NounPhraseCoordinationState::None,
-                recipient_passive_theme: false,
-                rules_object_followup: false,
-            })
-        }
-        RuleTag::NounPhraseNominal | RuleTag::RulesObjectNounPhrase => {
-            let Features::Nominal {
-                coordination_domain,
-                form,
-                determined,
-                modified,
-                adjunct,
-                set_exception_host,
-                recipient_passive_theme,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            let agreement = Some(Agreement {
-                person: Person::Third,
-                number: match form {
-                    NounForm::Plural => Number::Plural,
-                    NounForm::Singular | NounForm::Mass => Number::Singular,
-                },
-            });
-            // A completely bare nominal (no determiner, no modifier) must not
-            // surface its bare-temporal/manner-adjunct licensing: it is
-            // always the bare residue of a compound head (`step` left over
-            // from `draw step`), never a legitimate standalone adjunct
-            // [declarestep-plan-C.md §2].
-            let adjunct = if *determined || *modified { *adjunct } else { None };
-            Some(Features::NounPhrase {
-                agreement,
-                coordination_domain: *coordination_domain,
-                pronoun_case: None,
-                adjunct,
-                set_exception: if *set_exception_host {
-                    SetExceptionState::Host
-                } else {
-                    SetExceptionState::Ineligible
-                },
-                coordination: NounPhraseCoordinationState::None,
-                recipient_passive_theme: *recipient_passive_theme,
-                rules_object_followup: tag == RuleTag::RulesObjectNounPhrase,
-            })
-        }
-        RuleTag::NounPhraseSubjectPronoun | RuleTag::NounPhraseObjectPronoun => {
-            noun_phrase_from_pronoun(children.first()?)
-        }
-        RuleTag::NounPhraseReciprocal => noun_phrase_from_pronoun(children.first()?),
-        RuleTag::NounPhraseQuantity => {
-            let Features::Quantity(QuantityFeatures {
-                standalone_number,
-                is_one,
-                ..
-            }) = children.first()?.features
-            else {
-                return None;
-            };
-            Some(Features::NounPhrase {
-                agreement: Some(Agreement {
-                    person: Person::Third,
-                    number: *standalone_number,
-                }),
-                coordination_domain: Some(if *is_one {
-                    CoordinationDomain::SelectionContinuation
-                } else {
-                    CoordinationDomain::NonEntity
-                }),
-                pronoun_case: None,
-                adjunct: None,
-                set_exception: SetExceptionState::Ineligible,
-                coordination: NounPhraseCoordinationState::None,
-                recipient_passive_theme: false,
-                rules_object_followup: false,
-            })
-        }
-        RuleTag::NounPhraseThisCard | RuleTag::NounPhraseFullThisCard => {
-            let Features::NounPhrase {
-                agreement,
-                coordination_domain,
-                pronoun_case,
-                adjunct,
-                set_exception,
-                coordination,
-                recipient_passive_theme,
-                rules_object_followup,
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            Some(Features::NounPhrase {
-                agreement: *agreement,
-                coordination_domain: *coordination_domain,
-                pronoun_case: *pronoun_case,
-                adjunct: *adjunct,
-                set_exception: *set_exception,
-                coordination: *coordination,
-                recipient_passive_theme: *recipient_passive_theme,
-                rules_object_followup: *rules_object_followup,
-            })
-        }
-        RuleTag::NounPhrasePossessiveThisCard => {
-            let Features::PossessiveThisCard { agreement } = children.first()?.features else {
-                return None;
-            };
-            Some(Features::NounPhrase {
-                agreement: Some(*agreement),
-                coordination_domain: Some(CoordinationDomain::Entity),
-                pronoun_case: None,
-                adjunct: None,
-                set_exception: SetExceptionState::Ineligible,
-                coordination: NounPhraseCoordinationState::None,
-                recipient_passive_theme: false,
-                rules_object_followup: false,
-            })
-        }
-        RuleTag::NounPhraseDemonstrative => {
-            let Features::NounPhrase { .. } = children.first()?.features else {
-                return None;
-            };
-            Some(children.first()?.features.clone())
-        }
-        RuleTag::NounPhrasePartitive => {
-            let Features::Quantity(QuantityFeatures {
-                standalone_number, ..
-            }) = children.first()?.features
-            else {
-                return None;
-            };
-            Some(Features::NounPhrase {
-                agreement: Some(Agreement {
-                    person: Person::Third,
-                    number: *standalone_number,
-                }),
-                coordination_domain: Some(CoordinationDomain::SelectionHost),
-                pronoun_case: None,
-                adjunct: None,
-                set_exception: SetExceptionState::Ineligible,
-                coordination: NounPhraseCoordinationState::None,
-                recipient_passive_theme: false,
-                rules_object_followup: false,
-            })
-        }
-        RuleTag::NounPhraseEachPartitive => {
-            // The `each` slot only ever scans "each", so the distributive
-            // partitive is always grammatically third-person singular.
-            let Features::Determiner { .. } = children.first()?.features else {
-                return None;
-            };
-            Some(Features::NounPhrase {
-                agreement: Some(Agreement {
-                    person: Person::Third,
-                    number: Number::Singular,
-                }),
-                coordination_domain: Some(CoordinationDomain::SelectionHost),
-                pronoun_case: None,
-                adjunct: None,
-                set_exception: SetExceptionState::Ineligible,
-                coordination: NounPhraseCoordinationState::None,
-                recipient_passive_theme: false,
-                rules_object_followup: false,
-            })
-        }
-        RuleTag::NounPhraseAnyNumberOf => {
-            // Defensively recheck the specialized lowered children as the
-            // neighbouring arms do. The `any`/`number` slots only ever scan
-            // those two literal words, so this arm's sole remaining
-            // condition is the fourth child's agreement: the notional
-            // plural reading is licensed only when the final noun phrase
-            // is third-person plural [`anof` round].
-            let Features::Determiner { .. } = children.first()?.features else {
-                return None;
-            };
-            let Features::Noun {
-                form: NounForm::Singular,
-                ..
-            } = children.get(1)?.features
-            else {
-                return None;
-            };
-            let Features::Preposition(Preposition::Of) = children.get(2)?.features else {
-                return None;
-            };
-            let Features::NounPhrase {
-                agreement:
-                    Some(Agreement {
-                        number: Number::Plural,
-                        ..
-                    }),
-                coordination_domain,
-                ..
-            } = children.get(3)?.features
-            else {
-                return None;
-            };
-            Some(Features::NounPhrase {
-                agreement: Some(Agreement {
-                    person: Person::Third,
-                    number: Number::Plural,
-                }),
-                coordination_domain: *coordination_domain,
-                pronoun_case: None,
-                adjunct: None,
-                set_exception: SetExceptionState::Ineligible,
-                coordination: NounPhraseCoordinationState::None,
-                recipient_passive_theme: false,
-                rules_object_followup: false,
-            })
-        }
         RuleTag::PrepositionalPhraseListPair | RuleTag::PrepositionalPhraseListComma => {
             let Features::PrepositionalPhrase { .. } = children.first()?.features else {
                 return None;
@@ -1583,10 +1307,6 @@ pub(super) fn reduce_phrase(
             Some(children.first()?.features.clone())
         }
         RuleTag::PrepositionalPhraseSiblingCoordinated => {
-            // Every member repeats its own preposition, so the coordination
-            // keeps the first member's: that is what introduces the phrase and
-            // what an enclosing slot selects on. The object is never a shared
-            // determiner group — each member brought its own.
             let Features::PrepositionalPhrase {
                 preposition,
                 nominal_attachment,
@@ -1601,8 +1321,6 @@ pub(super) fn reduce_phrase(
             else {
                 return None;
             };
-            // The right edge is the last member, so a following relative
-            // attaches against that member's object, not the first's.
             let Features::PrepositionalPhrase {
                 nearer_relative_host,
                 ..
@@ -1616,25 +1334,6 @@ pub(super) fn reduce_phrase(
                 shared_determiner_object: false,
                 nearer_relative_host: *nearer_relative_host,
             })
-        }
-        RuleTag::NounPhraseMinus => {
-            // Both operands must be noun-phrase values; the result is a
-            // singular numeric value.
-            let Features::NounPhrase { .. } = children.first()?.features else {
-                return None;
-            };
-            let Features::NounPhrase { .. } = children.get(2)?.features else {
-                return None;
-            };
-            Some(arithmetic_value_features())
-        }
-        RuleTag::NounPhraseHalf
-        | RuleTag::NounPhraseHalfRoundedUp
-        | RuleTag::NounPhraseHalfRoundedDown => {
-            let Features::NounPhrase { .. } = children.get(1)?.features else {
-                return None;
-            };
-            Some(arithmetic_value_features())
         }
         RuleTag::PrepositionalPhrase => {
             let Features::Preposition(preposition) = children.first()?.features else {
@@ -3027,34 +2726,6 @@ pub(super) fn nominal_with_prefix(
         demonstrative_shared_determiner: *demonstrative_shared_determiner
             && prefix_demonstrative_shared_determiner,
         recipient_passive_theme: *recipient_passive_theme,
-    })
-}
-
-pub(super) fn noun_phrase_from_pronoun(
-    child: &Child<'_, EnglishGrammar<'_, '_>>,
-) -> Option<Reduced> {
-    let Features::NounPhrase {
-        agreement,
-        coordination_domain,
-        pronoun_case,
-        adjunct,
-        set_exception,
-        coordination,
-        recipient_passive_theme,
-        rules_object_followup,
-    } = child.features
-    else {
-        return None;
-    };
-    Some(Features::NounPhrase {
-        agreement: *agreement,
-        coordination_domain: *coordination_domain,
-        pronoun_case: *pronoun_case,
-        adjunct: *adjunct,
-        set_exception: *set_exception,
-        coordination: *coordination,
-        recipient_passive_theme: *recipient_passive_theme,
-        rules_object_followup: *rules_object_followup,
     })
 }
 

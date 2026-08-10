@@ -25,6 +25,7 @@ pub(crate) mod law;
 pub(crate) use crate::syntax::nominal_constructions as nominal;
 pub(crate) mod nonfinite;
 pub(crate) mod noun;
+pub(crate) mod noun_phrase;
 pub(crate) mod predicate;
 #[cfg(test)]
 pub(crate) mod probe;
@@ -40,6 +41,7 @@ pub(crate) static GROUPS: &[&GroupData] = &[
     coordination::GROUPS[0],
     determiner::GROUPS[0],
     noun::GROUPS[0],
+    noun_phrase::GROUPS[0],
     nominal::GROUPS[0],
     nonfinite::GROUPS[0],
     predicate::GROUPS[0],

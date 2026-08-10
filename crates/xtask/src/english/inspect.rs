@@ -482,6 +482,21 @@ mod tests {
     }
 
     #[test]
+    fn production_p01_inspect_reports_generated_owners() {
+        for (source, construction) in [
+            ("They draw a card.", "noun_phrase_subject_pronoun"),
+            ("Destroy one of them.", "noun_phrase_partitive"),
+            ("Its power is 3 minus 1.", "noun_phrase_minus"),
+        ] {
+            let verbose = verbose_m01(source);
+            assert!(
+                verbose.contains(&format!(" {construction} owner=generated backend=chart ")),
+                "missing generated P01 owner {construction}:\n{verbose}"
+            );
+        }
+    }
+
+    #[test]
     fn production_d01_inspect_reports_generated_owners_and_constraint_evidence() {
         let target = verbose_m01("Target creature gets +1/+1 until end of turn.");
         assert!(

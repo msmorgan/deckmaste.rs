@@ -41,8 +41,6 @@ use super::RelativeMarker;
 use super::RuleImpl;
 use super::RuleTag;
 use super::Sentence;
-use super::SetExceptionMarker;
-use super::SetExceptionNounPhrase;
 use super::SimpleClause;
 use super::Subject;
 use super::ThisCardForm;
@@ -129,6 +127,9 @@ pub(super) enum Lowered {
     ManaAmount(crate::syntax::PredicateObject),
     PowerToughness(PowerToughness),
     Pronoun(PronounInstance),
+    SetExceptionMarker(crate::syntax::SetExceptionMarker),
+    PartitiveHead(crate::syntax::PartitiveHead),
+    Rounding(crate::syntax::Rounding),
     ThisCard(ThisCardForm),
     Preposition(Preposition),
     Phrase(Phrase),
@@ -375,6 +376,12 @@ fn project_generated_category(
     if construction.category == "NounPhrase" {
         let value = value.downcast::<NounPhrase>().ok()?;
         return Some(Lowered::NounPhrase(*value));
+    }
+    if construction.category == "RulesObjectNounPhrase" {
+        let value = value
+            .downcast::<crate::constructions::noun_phrase::RulesObjectNounPhrase>()
+            .ok()?;
+        return Some(Lowered::NounPhrase(value.into_noun_phrase()));
     }
     if construction.category == "ReducedRecipientPassiveTheme" {
         let value = value.downcast::<ReducedRecipientPassiveTheme>().ok()?;
@@ -668,9 +675,57 @@ fn erased_field(
         }
         K::Identity {
             value_type: "ThisCardForm",
-            provider: "PossessiveThisCard",
+            provider: "ThisCard" | "FullThisCard" | "PossessiveThisCard",
         } => {
             let Lowered::ThisCard(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Identity {
+            value_type: "Pronoun",
+            provider: "SubjectPronoun" | "ObjectPronoun" | "Reciprocal",
+        } => {
+            let Lowered::Pronoun(value) = value else {
+                return None;
+            };
+            Some(Box::new(value.pronoun))
+        }
+        K::Identity {
+            value_type: "Demonstrative",
+            provider: "Demonstrative",
+        } => {
+            let Lowered::Determiner(value) = value else {
+                return None;
+            };
+            let crate::syntax::DeterminerKind::Demonstrative(value) = value.kind() else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Identity {
+            value_type: "SetExceptionMarker",
+            provider: "SetExceptionMarker",
+        } => {
+            let Lowered::SetExceptionMarker(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Identity {
+            value_type: "PartitiveHead",
+            provider: "PartitiveEach",
+        } => {
+            let Lowered::PartitiveHead(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Identity {
+            value_type: "Rounding",
+            provider: "RoundingUp" | "RoundingDown",
+        } => {
+            let Lowered::Rounding(value) = value else {
                 return None;
             };
             Some(Box::new(value))
@@ -1194,6 +1249,9 @@ pub(super) fn lower_lexical(
         MeaningKey::CoinResult(side) => Lowered::CoinResult(*side),
         MeaningKey::Frequency(frequency) => Lowered::Frequency(*frequency),
         MeaningKey::Pronoun(pronoun) => Lowered::Pronoun(*pronoun),
+        MeaningKey::SetExceptionMarker(marker) => Lowered::SetExceptionMarker(*marker),
+        MeaningKey::PartitiveHead(head) => Lowered::PartitiveHead(*head),
+        MeaningKey::Rounding(rounding) => Lowered::Rounding(*rounding),
         MeaningKey::Auxiliary(auxiliary) => {
             Lowered::Auxiliary(auxiliary.with_contraction(surface.contraction()?))
         }
@@ -1272,26 +1330,7 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::CoordinatedModifierConjoined
         | RuleTag::CoordinatedModifierOxford
         | RuleTag::NominalCoordinatedModifier => lower_nominal(tag, children),
-        RuleTag::NounPhraseNominal
-        | RuleTag::RulesObjectNounPhrase
-        | RuleTag::NounPhraseSetExceptionBare
-        | RuleTag::NounPhraseSetExceptionFor
-        | RuleTag::NounPhraseSubjectPronoun
-        | RuleTag::NounPhraseObjectPronoun
-        | RuleTag::NounPhraseReciprocal
-        | RuleTag::NounPhraseQuantity
-        | RuleTag::NounPhraseThisCard
-        | RuleTag::NounPhraseFullThisCard
-        | RuleTag::NounPhrasePossessiveThisCard
-        | RuleTag::NounPhraseDemonstrative
-        | RuleTag::NounPhrasePartitive
-        | RuleTag::NounPhraseEachPartitive
-        | RuleTag::NounPhraseAnyNumberOf
-        | RuleTag::NounPhraseMinus
-        | RuleTag::NounPhraseHalf
-        | RuleTag::NounPhraseHalfRoundedUp
-        | RuleTag::NounPhraseHalfRoundedDown
-        | RuleTag::PrepositionalPhraseListPair
+        RuleTag::PrepositionalPhraseListPair
         | RuleTag::PrepositionalPhraseListComma
         | RuleTag::PrepositionalPhraseSiblingCoordinated
         | RuleTag::PrepositionalPhrase
@@ -1332,6 +1371,83 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
 /// canonical singular). This also leaves the adjectival `differently named
 /// <type>` reading — which shares this flat shape but carries no keyword atom —
 /// untouched.
+pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
+    match tag {
+        RuleTag::PrepositionalObject => {
+            let phrase = match take(children, 0)? {
+                Lowered::NounPhrase(object) => Phrase::NounPhrase(Box::new(object)),
+                Lowered::PrepositionalPhrase(object) => {
+                    Phrase::PrepositionalPhrase(Box::new(object))
+                }
+                Lowered::GerundClause(object) => Phrase::Clause(Box::new(Clause::Dependent(
+                    crate::syntax::DependentClause::Gerund(object),
+                ))),
+                Lowered::Adverb(object) => Phrase::Adverb(object),
+                _ => return None,
+            };
+            Some(Lowered::Phrase(phrase))
+        }
+        RuleTag::PrepositionalPhrase => {
+            let Lowered::Preposition(preposition) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::Phrase(object) = take(children, 1)? else {
+                return None;
+            };
+            Some(Lowered::PrepositionalPhrase(PrepositionalPhrase::simple(
+                preposition,
+                object,
+            )))
+        }
+        RuleTag::PrepositionalPhraseListPair
+        | RuleTag::PrepositionalPhraseListComma
+        | RuleTag::PrepositionalPhraseSiblingCoordinated => {
+            let Lowered::PrepositionalPhrase(first) = take(children, 0)? else {
+                return None;
+            };
+            let (conjunction, next_index) = if matches!(
+                tag,
+                RuleTag::PrepositionalPhraseListPair | RuleTag::PrepositionalPhraseListComma
+            ) {
+                (None, 2)
+            } else if children.len() == 4 {
+                let Lowered::Conjunction(conjunction) = take(children, 2)? else {
+                    return None;
+                };
+                (Some(noun_phrase_conjunction(conjunction)?), 3)
+            } else {
+                let Lowered::Conjunction(conjunction) = take(children, 1)? else {
+                    return None;
+                };
+                (Some(noun_phrase_conjunction(conjunction)?), 2)
+            };
+            let Lowered::PrepositionalPhrase(next) = take(children, next_index)? else {
+                return None;
+            };
+            let PrepositionalPhrase::Simple(next) = next else {
+                return None;
+            };
+            let coordination = crate::syntax::PrepositionalPhraseCoordination {
+                conjunction,
+                phrase: next,
+            };
+            Some(Lowered::PrepositionalPhrase(match first {
+                PrepositionalPhrase::Simple(first) => PrepositionalPhrase::Coordinated(
+                    crate::syntax::CoordinatedPrepositionalPhrase {
+                        first: Box::new(first),
+                        rest: vec![coordination],
+                    },
+                ),
+                PrepositionalPhrase::Coordinated(mut coordinated) => {
+                    coordinated.rest.push(coordination);
+                    PrepositionalPhrase::Coordinated(coordinated)
+                }
+            }))
+        }
+        _ => None,
+    }
+}
+
 #[allow(
     clippy::too_many_lines,
     reason = "lowering nominals is intentionally long"
@@ -1438,252 +1554,6 @@ pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lo
     }
 }
 
-#[allow(
-    clippy::too_many_lines,
-    reason = "lowering noun phrases is intentionally long"
-)]
-pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
-    match tag {
-        RuleTag::NounPhraseSetExceptionBare | RuleTag::NounPhraseSetExceptionFor => {
-            let (marker, comma, excluded_index) = match (tag, children.len()) {
-                (RuleTag::NounPhraseSetExceptionBare, 3) => (SetExceptionMarker::Bare, false, 2),
-                (RuleTag::NounPhraseSetExceptionBare, 4) => (SetExceptionMarker::Bare, true, 3),
-                (RuleTag::NounPhraseSetExceptionFor, 4) => (SetExceptionMarker::For, false, 3),
-                (RuleTag::NounPhraseSetExceptionFor, 5) => (SetExceptionMarker::For, true, 4),
-                _ => return None,
-            };
-            let Lowered::NounPhrase(included) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::NounPhrase(excluded) = take(children, excluded_index)? else {
-                return None;
-            };
-            Some(Lowered::NounPhrase(NounPhrase::SetException(
-                SetExceptionNounPhrase {
-                    included: Box::new(included),
-                    marker,
-                    comma: crate::features::Comma::from(comma),
-                    excluded: Box::new(excluded),
-                },
-            )))
-        }
-        RuleTag::NounPhraseNominal | RuleTag::RulesObjectNounPhrase => {
-            let Lowered::Nominal(nominal) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::NounPhrase(NounPhrase::Nominal(nominal)))
-        }
-        RuleTag::NounPhraseSubjectPronoun
-        | RuleTag::NounPhraseObjectPronoun
-        | RuleTag::NounPhraseReciprocal => {
-            let Lowered::Pronoun(pronoun) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::NounPhrase(NounPhrase::Pronoun {
-                pronoun: pronoun.pronoun,
-                case: pronoun.case,
-            }))
-        }
-        RuleTag::NounPhraseQuantity => {
-            let Lowered::Quantity(quantity) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::NounPhrase(NounPhrase::Quantity(quantity)))
-        }
-        RuleTag::NounPhraseThisCard | RuleTag::NounPhraseFullThisCard => {
-            let Lowered::ThisCard(form) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::NounPhrase(NounPhrase::ThisCard(form)))
-        }
-        RuleTag::NounPhrasePossessiveThisCard => {
-            let Lowered::ThisCard(form) = take(children, 0)? else {
-                return None;
-            };
-            let determiner =
-                crate::constructions::determiner::build_determiner_possessive_this_card(form)
-                    .ok()?;
-            let crate::syntax::DeterminerKind::Possessive(possessor) = determiner.kind() else {
-                return None;
-            };
-            Some(Lowered::NounPhrase(NounPhrase::Possessive(
-                possessor.clone(),
-            )))
-        }
-        RuleTag::NounPhraseDemonstrative => {
-            let Lowered::Determiner(determiner) = take(children, 0)? else {
-                return None;
-            };
-            let crate::syntax::DeterminerKind::Demonstrative(demonstrative) = determiner.kind()
-            else {
-                return None;
-            };
-            Some(Lowered::NounPhrase(NounPhrase::Demonstrative(
-                demonstrative,
-            )))
-        }
-        RuleTag::NounPhrasePartitive => {
-            let Lowered::Quantity(quantity) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Preposition(Preposition::Of) = take(children, 1)? else {
-                return None;
-            };
-            let Lowered::NounPhrase(whole) = take(children, 2)? else {
-                return None;
-            };
-            Some(Lowered::NounPhrase(NounPhrase::Partitive(
-                crate::syntax::PartitiveNounPhrase {
-                    head: crate::syntax::PartitiveHead::Quantity(quantity),
-                    whole: Box::new(whole),
-                },
-            )))
-        }
-        RuleTag::NounPhraseEachPartitive => {
-            let Lowered::Determiner(determiner) = take(children, 0)? else {
-                return None;
-            };
-            if !matches!(determiner.kind(), crate::syntax::DeterminerKind::Each) {
-                return None;
-            }
-            let Lowered::Preposition(Preposition::Of) = take(children, 1)? else {
-                return None;
-            };
-            let Lowered::NounPhrase(whole) = take(children, 2)? else {
-                return None;
-            };
-            Some(Lowered::NounPhrase(NounPhrase::Partitive(
-                crate::syntax::PartitiveNounPhrase {
-                    head: crate::syntax::PartitiveHead::Each,
-                    whole: Box::new(whole),
-                },
-            )))
-        }
-        RuleTag::NounPhraseAnyNumberOf => {
-            // Lower to the byte-identical ordinary nominal shape: the two
-            // analyses (this notional-plural reduce vs. the formal-singular
-            // `NounPhraseNominal` path) must differ only in parse features,
-            // never in stored or rendered structure [`anof` round].
-            let Lowered::Determiner(determiner) = take(children, 0)? else {
-                return None;
-            };
-            if !matches!(determiner.kind(), crate::syntax::DeterminerKind::Any) {
-                return None;
-            }
-            let Lowered::Noun(head) = take(children, 1)? else {
-                return None;
-            };
-            if !matches!(
-                head.kind(),
-                crate::word::NounInstanceKind::Singular(Noun::Word(Vocab::Number))
-            ) {
-                return None;
-            }
-            let Lowered::Preposition(preposition @ Preposition::Of) = take(children, 2)? else {
-                return None;
-            };
-            let Lowered::NounPhrase(whole) = take(children, 3)? else {
-                return None;
-            };
-            let nominal = crate::constructions::nominal::build_nominal_determiner(
-                determiner,
-                NominalPhrase::try_from_noun(head).ok()?,
-            )
-            .ok()?;
-            let nominal = crate::constructions::nominal::build_nominal_prepositional(
-                nominal,
-                PrepositionalPhrase::simple(preposition, Phrase::NounPhrase(Box::new(whole))),
-            )
-            .ok()?;
-            Some(Lowered::NounPhrase(NounPhrase::Nominal(nominal)))
-        }
-        RuleTag::NounPhraseMinus
-        | RuleTag::NounPhraseHalf
-        | RuleTag::NounPhraseHalfRoundedUp
-        | RuleTag::NounPhraseHalfRoundedDown => lower_arithmetic_phrase(tag, children),
-        RuleTag::PrepositionalObject => {
-            let phrase = match take(children, 0)? {
-                Lowered::NounPhrase(object) => Phrase::NounPhrase(Box::new(object)),
-                Lowered::PrepositionalPhrase(object) => {
-                    Phrase::PrepositionalPhrase(Box::new(object))
-                }
-                Lowered::GerundClause(object) => Phrase::Clause(Box::new(Clause::Dependent(
-                    crate::syntax::DependentClause::Gerund(object),
-                ))),
-                Lowered::Adverb(object) => Phrase::Adverb(object),
-                _ => return None,
-            };
-            Some(Lowered::Phrase(phrase))
-        }
-        RuleTag::PrepositionalPhrase => {
-            let Lowered::Preposition(preposition) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Phrase(object) = take(children, 1)? else {
-                return None;
-            };
-            Some(Lowered::PrepositionalPhrase(PrepositionalPhrase::simple(
-                preposition,
-                object,
-            )))
-        }
-        RuleTag::PrepositionalPhraseListPair
-        | RuleTag::PrepositionalPhraseListComma
-        | RuleTag::PrepositionalPhraseSiblingCoordinated => {
-            let Lowered::PrepositionalPhrase(first) = take(children, 0)? else {
-                return None;
-            };
-            // The serial comma is not recorded — the renderer derives it from
-            // member count. Only the connective is carried, since which of
-            // `and`/`or`/`and-or` closes the list is not derivable.
-            let (conjunction, next_index) = if matches!(
-                tag,
-                RuleTag::PrepositionalPhraseListPair | RuleTag::PrepositionalPhraseListComma
-            ) {
-                // An asyndetic member of the run: `from Vampires,`.
-                (None, 2)
-            } else if children.len() == 4 {
-                // The Oxford close: `…, and from Zombies`.
-                let Lowered::Conjunction(conjunction) = take(children, 2)? else {
-                    return None;
-                };
-                (Some(noun_phrase_conjunction(conjunction)?), 3)
-            } else {
-                // The bare two-member form: `from blue and from black`.
-                let Lowered::Conjunction(conjunction) = take(children, 1)? else {
-                    return None;
-                };
-                (Some(noun_phrase_conjunction(conjunction)?), 2)
-            };
-            let Lowered::PrepositionalPhrase(next) = take(children, next_index)? else {
-                return None;
-            };
-            // Only a simple phrase can join as a member; a nested coordination
-            // would flatten two different bracketings into one shape.
-            let PrepositionalPhrase::Simple(next) = next else {
-                return None;
-            };
-            let coordination = crate::syntax::PrepositionalPhraseCoordination {
-                conjunction,
-                phrase: next,
-            };
-            Some(Lowered::PrepositionalPhrase(match first {
-                PrepositionalPhrase::Simple(first) => PrepositionalPhrase::Coordinated(
-                    crate::syntax::CoordinatedPrepositionalPhrase {
-                        first: Box::new(first),
-                        rest: vec![coordination],
-                    },
-                ),
-                PrepositionalPhrase::Coordinated(mut coordinated) => {
-                    coordinated.rest.push(coordination);
-                    PrepositionalPhrase::Coordinated(coordinated)
-                }
-            }))
-        }
-        _ => None,
-    }
-}
-
 /// The noun-phrase connective a coordinating conjunction denotes, or `None`
 /// when it never joins phrases (`then` sequences clauses).
 fn noun_phrase_conjunction(
@@ -1695,41 +1565,6 @@ fn noun_phrase_conjunction(
         | crate::features::Conjunction::AndOr => Some(conjunction),
         crate::features::Conjunction::Then | crate::features::Conjunction::Plus => None,
     }
-}
-
-pub(super) fn lower_arithmetic_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
-    let value = match tag {
-        RuleTag::NounPhraseMinus => {
-            let Lowered::NounPhrase(left) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::NounPhrase(right) = take(children, 2)? else {
-                return None;
-            };
-            crate::syntax::ArithmeticValue::Minus {
-                left: Box::new(left),
-                right: Box::new(right),
-            }
-        }
-        RuleTag::NounPhraseHalf
-        | RuleTag::NounPhraseHalfRoundedUp
-        | RuleTag::NounPhraseHalfRoundedDown => {
-            let Lowered::NounPhrase(value) = take(children, 1)? else {
-                return None;
-            };
-            let rounding = match tag {
-                RuleTag::NounPhraseHalfRoundedUp => Some(crate::syntax::Rounding::Up),
-                RuleTag::NounPhraseHalfRoundedDown => Some(crate::syntax::Rounding::Down),
-                _ => None,
-            };
-            crate::syntax::ArithmeticValue::Half {
-                value: Box::new(value),
-                rounding,
-            }
-        }
-        _ => return None,
-    };
-    Some(Lowered::NounPhrase(NounPhrase::Arithmetic(value)))
 }
 
 pub(super) fn take(children: &mut [Lowered], index: usize) -> Option<Lowered> {
