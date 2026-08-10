@@ -105,12 +105,12 @@ pub fn parts_gerund_clause_subordinate_after(value: &GerundClause) -> (GerundCla
     crate::constructions::nonfinite::parts_gerund_clause_subordinate_after(value)
 }
 
-/// Renders a checked infinitive through its declaration-generated inverse.
+/// Renders a sealed infinitive through its checked inverse path.
 ///
 /// # Errors
 ///
 /// Returns an error when a nested lexical item has no surface form or the
-/// value does not match exactly one admitted nonfinite construction.
+/// value is outside the admitted infinitive domain.
 pub fn render_infinitive(
     value: &InfinitiveClause,
     name: &str,
