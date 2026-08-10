@@ -14,20 +14,22 @@ to one fan-out-one row; its generated side contributes the ten Q01 quantity
 rows, the nine D01 determiner/possession rows, the nine J01 adjective rows, the
 37 M01 nominal rows, S01 `sentence`, N01 `noun`/`noun_opaque`, the two generated
 coordination rows, all 34 V01 predicate rows, the four F01 nonfinite-clause
-rows, all 18 F02 finite-clause rows, and all 16 F03 clause-attachment rows. The ability census
-comes from the three non-chart entry points documented and dispatched by
-`FragmentKind`: `Cost`, `KeywordLine`, and `Ability`.
+rows, all 18 F02 finite-clause rows, all 16 F03 clause-attachment rows, and all
+19 P01 noun-phrase rows. The ability census comes from the three non-chart
+entry points documented and dispatched by `FragmentKind`: `Cost`,
+`KeywordLine`, and `Ability`.
 
 | source | handwritten / ungenerated | already generated | accounted total |
 |---|---:|---:|---:|
-| chart construction registry | 50 | 142 | 192 |
+| chart construction registry | 31 | 161 | 192 |
 | handwritten ability layer | 3 | 0 | 3 |
-| migration inventory | 53 | 142 | 195 |
+| migration inventory | 34 | 161 | 195 |
 
-Every one of the 192 chart IDs occurs once in the ledger below: 50 remain
+Every one of the 192 chart IDs occurs once in the ledger below: 31 remain
 handwritten, while Q01, D01, J01, M01, V01, F01, F02, F03, S01, N01, and the two
-coordination rows are generated. The three ability IDs occur once in A01. Thus
-the remaining work is 53 rows, with no `later` row. No raw corpus query was
+coordination rows, and P01 are generated. The three ability IDs occur once in
+A01. Thus the remaining work is 34 rows (31 chart + 3 ability), with no `later`
+row. No raw corpus query was
 needed for this accounting; the census is grounded in the registry and the current
 `FragmentKind` dispatch. Future corpus evidence must use supported faces, and
 normalized-template questions must use the existing English instruments.
@@ -95,7 +97,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 | J01 adjective and comparison | 9 | C3 | `english-derived-adjective-comparison-family` | scalar, identity, lens |
 | N01 noun identity and opacity | 2 | C2 identity | `english-derived-noun-lexeme-family` | generated |
 | M01 nominal spine | 37 | C2 lens | `english-derived-nominal-family` | generated |
-| P01 noun phrase | 19 | C3 | `english-derived-noun-phrase-family` | scalar and identity |
+| P01 noun phrase | 19 | C3 | `english-derived-noun-phrase-family` | generated |
 | P02 prepositional phrase | 2 | C3 | `english-derived-prepositional-family` | identity |
 | V01 predicate spine | 34 | C3 | `english-derived-predicate-family` | scalar, identity, lens |
 | F01 nonfinite clause | 4 | C3 | `english-derived-nonfinite-clause-family` | generated |
@@ -292,9 +294,11 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 `noun_phrase_minus`, `noun_phrase_half`, `noun_phrase_half_rounded_up`,
 `noun_phrase_half_rounded_down`.
 
-- **Owners and AST:** NR → `NounPhrase` and its pronoun, self-reference,
-  partitive, set-exception, and arithmetic variants; REN owns noun-phrase and
-  arithmetic rendering; SYN-P owns constructors.
+- **Owners and AST:** the P01 declaration owns generated chart parsing, feature
+  lowering, checked builders, and inverse linearization for `NounPhrase` and
+  its pronoun, self-reference, partitive, set-exception, arithmetic, and
+  rules-object forms. Syntax is sealed behind private `NounPhraseRepr` storage
+  and the read-only `NounPhraseKind` projection.
 - **Holes and constraints:** nominal/quantity/NP subtree holes; identity holes
   for pronoun, reciprocal, demonstrative, and self-reference form; scalar and
   field holes for arithmetic and rounding. Agreement, pronoun case,

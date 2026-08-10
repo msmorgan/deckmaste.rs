@@ -486,16 +486,40 @@ mod tests {
     }
 
     #[test]
-    fn production_p01_inspect_reports_generated_owners() {
-        for (source, construction) in [
-            ("They draw a card.", "noun_phrase_subject_pronoun"),
-            ("Destroy one of them.", "noun_phrase_partitive"),
-            ("Its power is 3 minus 1.", "noun_phrase_minus"),
+    fn production_p01_inspect_reports_generated_owners_and_decisive_constraints() {
+        for (source, construction, evidence) in [
+            (
+                "They draw a card.",
+                "noun_phrase_subject_pronoun",
+                "feature:pronoun case",
+            ),
+            (
+                "Destroy them.",
+                "noun_phrase_object_pronoun",
+                "feature:pronoun case",
+            ),
+            (
+                "Destroy all creatures except artifacts.",
+                "noun_phrase_set_exception_bare",
+                "feature:set-exception host eligibility",
+            ),
+            (
+                "Any number of target players draw a card.",
+                "noun_phrase_any_number_of",
+                "feature:notional plural agreement",
+            ),
+            (
+                "This card deals damage to you and creatures you control that are tapped.",
+                "rules_object_noun_phrase",
+                "role:rules-object attachment role",
+            ),
         ] {
             let verbose = verbose_m01(source);
             assert!(
-                verbose.contains(&format!(" {construction} owner=generated backend=chart ")),
-                "missing generated P01 owner {construction}:\n{verbose}"
+                verbose.contains(&format!(
+                    " {construction} owner=generated backend=chart form=0 evidence={evidence}"
+                )),
+                "missing generated P01 owner/evidence {construction}:\n{verbose}"
             );
         }
     }
