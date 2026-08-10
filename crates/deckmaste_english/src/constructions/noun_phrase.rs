@@ -231,67 +231,76 @@ fn nominal_agreement(nominal: &NominalPhrase) -> Agreement {
     }
 }
 
-fn coordinated_agreement(
+fn coordinated_agreements(
     conjunction: Conjunction,
-    first: Option<Agreement>,
-    last: Option<Agreement>,
-) -> Option<Agreement> {
+    first: Vec<Agreement>,
+    last: Vec<Agreement>,
+) -> Vec<Agreement> {
     match conjunction {
-        Conjunction::And => Some(Agreement {
+        Conjunction::And => vec![Agreement {
             person: Person::Third,
             number: Number::Plural,
-        }),
+        }],
         Conjunction::Or | Conjunction::AndOr => last,
         Conjunction::Plus => first,
-        Conjunction::Then => None,
+        Conjunction::Then => vec![],
     }
 }
 
-fn public_agreement(value: &NounPhrase) -> Option<Agreement> {
+fn public_agreements(value: &NounPhrase) -> Vec<Agreement> {
     match value.kind() {
-        NounPhraseKind::Nominal(nominal) => Some(if any_number_of_whole(value).is_some() {
+        NounPhraseKind::Nominal(nominal) => vec![if any_number_of_whole(value).is_some() {
             Agreement {
                 person: Person::Third,
                 number: Number::Plural,
             }
         } else {
             nominal_agreement(nominal)
-        }),
+        }],
         NounPhraseKind::Pronoun { pronoun, .. } => match pronoun {
-            Pronoun::You => Some(Agreement {
+            Pronoun::You => vec![Agreement {
                 person: Person::Second,
                 number: Number::Singular,
-            }),
-            Pronoun::It(_) => Some(Agreement {
+            }],
+            Pronoun::It(_) => vec![Agreement {
                 person: Person::Third,
                 number: Number::Singular,
-            }),
-            Pronoun::They => Some(Agreement {
+            }],
+            Pronoun::They => vec![Agreement {
                 person: Person::Third,
                 number: Number::Plural,
-            }),
+            }],
             Pronoun::EachOther | Pronoun::Itself | Pronoun::Himself | Pronoun::YoursAbsolute => {
-                None
+                vec![]
             }
         },
         NounPhraseKind::Demonstrative(Demonstrative::This | Demonstrative::That)
         | NounPhraseKind::Possessive(_)
-        | NounPhraseKind::ThisCard(_)
-        | NounPhraseKind::Arithmetic(_) => Some(Agreement {
+        | NounPhraseKind::Arithmetic(_) => vec![Agreement {
             person: Person::Third,
             number: Number::Singular,
-        }),
+        }],
         NounPhraseKind::Demonstrative(Demonstrative::These | Demonstrative::Those) => {
-            Some(Agreement {
+            vec![Agreement {
                 person: Person::Third,
                 number: Number::Plural,
-            })
+            }]
         }
-        NounPhraseKind::Quantity(quantity) => Some(Agreement {
+        NounPhraseKind::Quantity(quantity) => vec![Agreement {
             person: Person::Third,
             number: crate::constructions::quantity::standalone_number(quantity),
-        }),
-        NounPhraseKind::Partitive(partitive) => Some(Agreement {
+        }],
+        NounPhraseKind::ThisCard(_) => vec![
+            Agreement {
+                person: Person::Third,
+                number: Number::Singular,
+            },
+            Agreement {
+                person: Person::Third,
+                number: Number::Plural,
+            },
+        ],
+        NounPhraseKind::Partitive(partitive) => vec![Agreement {
             person: Person::Third,
             number: match partitive.head {
                 PartitiveHead::Each => Number::Singular,
@@ -299,40 +308,55 @@ fn public_agreement(value: &NounPhrase) -> Option<Agreement> {
                     crate::constructions::quantity::standalone_number(quantity)
                 }
             },
-        }),
+        }],
         NounPhraseKind::CoordinatedNominal(coordinated) => {
-            let last = coordinated.rest().last()?;
-            coordinated_agreement(
-                last.conjunction?,
-                Some(nominal_agreement(coordinated.first())),
-                Some(nominal_agreement(&last.phrase)),
+            let Some(last) = coordinated.rest().last() else {
+                return vec![];
+            };
+            let Some(conjunction) = last.conjunction else {
+                return vec![];
+            };
+            coordinated_agreements(
+                conjunction,
+                vec![nominal_agreement(coordinated.first())],
+                vec![nominal_agreement(&last.phrase)],
             )
         }
         NounPhraseKind::Coordinated(coordinated) => {
-            let last = coordinated.rest().last()?;
-            coordinated_agreement(
-                last.conjunction?,
-                public_agreement(coordinated.first()),
-                public_agreement(&last.phrase),
+            let Some(last) = coordinated.rest().last() else {
+                return vec![];
+            };
+            let Some(conjunction) = last.conjunction else {
+                return vec![];
+            };
+            coordinated_agreements(
+                conjunction,
+                public_agreements(coordinated.first()),
+                public_agreements(&last.phrase),
             )
         }
-        NounPhraseKind::SetException(exception) => public_agreement(&exception.included),
+        NounPhraseKind::SetException(exception) => public_agreements(&exception.included),
     }
 }
 
-pub(crate) fn relative_subject_features(value: &NounPhrase) -> Features {
+pub(crate) fn relative_subject_feature_candidates(value: &NounPhrase) -> Vec<Features> {
     let pronoun_case = match value.kind() {
         NounPhraseKind::Pronoun { case, .. } => Some(case),
         _ => None,
     };
-    noun_phrase(
-        public_agreement(value),
-        None,
-        pronoun_case,
-        None,
-        SetExceptionState::Ineligible,
-        false,
-    )
+    public_agreements(value)
+        .into_iter()
+        .map(|agreement| {
+            noun_phrase(
+                Some(agreement),
+                None,
+                pronoun_case,
+                None,
+                SetExceptionState::Ineligible,
+                false,
+            )
+        })
+        .collect()
 }
 
 fn noun_phrase_is_set_exception_host(value: &NounPhrase) -> bool {
