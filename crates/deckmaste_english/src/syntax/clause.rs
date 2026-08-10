@@ -11,10 +11,10 @@ use super::phrase::PowerToughness;
 use super::phrase::PrepositionalPhrase;
 use super::phrase::Quantity;
 use crate::catalog::CatalogAtom;
+pub use crate::constructions::relative::RelativeClause;
 use crate::features::Comma;
 use crate::features::Conjunction;
 use crate::features::Contraction;
-use crate::features::GapState;
 use crate::word::AuxiliaryInstance;
 use crate::word::PredicateFrame;
 use crate::word::VerbInstance;
@@ -538,13 +538,6 @@ impl GerundClause {
     pub fn attachments(&self) -> &[DependentAttachment] {
         &self.attachments
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-pub struct RelativeClause {
-    pub marker: RelativeMarker,
-    pub gap: GapState,
-    pub body: RelativeBody,
 }
 
 /// The `that`/`who`/zero choice heading a subject-gap relative clause

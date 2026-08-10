@@ -8,6 +8,7 @@
 
 use deckmaste_construction_compiler::runtime::DeclarationViolation;
 use deckmaste_construction_compiler::runtime::GroupData;
+use serde::ser::SerializeStruct;
 
 use crate::features::GapState;
 use crate::grammar::ContractedSubjectAuxiliary;
@@ -21,6 +22,7 @@ use crate::grammar::auxiliary_form;
 use crate::grammar::predicate_arguments_complete;
 use crate::grammar::predicate_object_gap_complete;
 use crate::syntax::AdjectivePhrase;
+use crate::syntax::CoordinatedAdjectivePhrase;
 use crate::syntax::Copula;
 use crate::syntax::CopularComplement;
 use crate::syntax::CopularPredicate;
@@ -32,11 +34,51 @@ use crate::syntax::ObjectGapPredicate;
 use crate::syntax::Predicate;
 use crate::syntax::PrepositionalPhrase;
 use crate::syntax::RelativeBody;
-use crate::syntax::RelativeClause;
 use crate::syntax::RelativeMarker;
 use crate::syntax::Subject;
 use crate::word::Auxiliary;
 use crate::word::Number;
+
+/// A sealed, declaration-validated relative clause with one grammatical gap.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RelativeClause {
+    marker: RelativeMarker,
+    gap: GapState,
+    body: RelativeBody,
+}
+
+impl RelativeClause {
+    /// Returns the explicit or structurally zero relative marker.
+    #[must_use]
+    pub const fn marker(&self) -> RelativeMarker {
+        self.marker
+    }
+
+    /// Returns the grammatical position omitted by the relative clause.
+    #[must_use]
+    pub const fn gap(&self) -> GapState {
+        self.gap
+    }
+
+    /// Borrows the typed subject-gap or object-gap clause body.
+    #[must_use]
+    pub const fn body(&self) -> &RelativeBody {
+        &self.body
+    }
+}
+
+impl serde::Serialize for RelativeClause {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("RelativeClause", 3)?;
+        state.serialize_field("marker", &self.marker)?;
+        state.serialize_field("gap", &self.gap)?;
+        state.serialize_field("body", &self.body)?;
+        state.end()
+    }
+}
 
 fn violation(construction: &'static str, requirement: &'static str) -> DeclarationViolation {
     DeclarationViolation {
@@ -110,16 +152,16 @@ fn make_relative_object(
 }
 
 fn relative_object_parts(value: &RelativeClause) -> (NounPhrase, ObjectGapPredicate) {
-    let RelativeBody::ObjectGap { subject, predicate } = &value.body else {
+    let RelativeBody::ObjectGap { subject, predicate } = value.body() else {
         unreachable!("relative_object recognizer admits only object gaps")
     };
     (subject.0.clone(), predicate.clone())
 }
 
 fn is_relative_object(value: &RelativeClause) -> bool {
-    value.marker == RelativeMarker::Zero
-        && value.gap == GapState::Object
-        && matches!(value.body, RelativeBody::ObjectGap { .. })
+    value.marker() == RelativeMarker::Zero
+        && value.gap() == GapState::Object
+        && matches!(value.body(), RelativeBody::ObjectGap { .. })
         && !object_gap_contracted(value)
 }
 
@@ -148,7 +190,7 @@ fn make_relative_object_contracted_subject(
 fn relative_object_contracted_subject_parts(
     value: &RelativeClause,
 ) -> (ContractedSubjectAuxiliary, ObjectGapPredicate) {
-    let RelativeBody::ObjectGap { subject, predicate } = &value.body else {
+    let RelativeBody::ObjectGap { subject, predicate } = value.body() else {
         unreachable!("contracted object-relative recognizer admits only object gaps")
     };
     let (auxiliary, predicate) = object_gap_parts(predicate)
@@ -174,7 +216,7 @@ fn relative_object_contracted_subject_parts(
 }
 
 fn object_gap_contracted(value: &RelativeClause) -> bool {
-    let RelativeBody::ObjectGap { predicate, .. } = &value.body else {
+    let RelativeBody::ObjectGap { predicate, .. } = value.body() else {
         return false;
     };
     object_gap_parts(predicate).is_ok_and(|predicate| {
@@ -185,8 +227,8 @@ fn object_gap_contracted(value: &RelativeClause) -> bool {
 }
 
 fn is_relative_object_contracted_subject(value: &RelativeClause) -> bool {
-    value.marker == RelativeMarker::Zero
-        && value.gap == GapState::Object
+    value.marker() == RelativeMarker::Zero
+        && value.gap() == GapState::Object
         && object_gap_contracted(value)
 }
 
@@ -217,7 +259,7 @@ fn make_relative_subject_contracted_auxiliary(
 fn relative_subject_contracted_auxiliary_parts(
     value: &RelativeClause,
 ) -> (ContractedSubjectAuxiliary, Predicate) {
-    let RelativeBody::SubjectGap(predicate) = &value.body else {
+    let RelativeBody::SubjectGap(predicate) = value.body() else {
         unreachable!("contracted subject-relative recognizer admits only subject gaps")
     };
     let (auxiliary, predicate) = predicate_parts(predicate)
@@ -245,9 +287,9 @@ fn relative_subject_contracted_auxiliary_parts(
 }
 
 fn is_relative_subject_contracted_auxiliary(value: &RelativeClause) -> bool {
-    value.marker == RelativeMarker::That
-        && value.gap == GapState::Subject
-        && matches!(&value.body, RelativeBody::SubjectGap(predicate)
+    value.marker() == RelativeMarker::That
+        && value.gap() == GapState::Subject
+        && matches!(value.body(), RelativeBody::SubjectGap(predicate)
             if predicate_parts(predicate).is_ok_and(|predicate| predicate
                 .declaration_contracted_subject_auxiliary_parts().is_some()))
 }
@@ -266,16 +308,16 @@ fn make_relative_subject(
 }
 
 fn relative_subject_parts(value: &RelativeClause) -> (RelativeMarker, Predicate) {
-    let RelativeBody::SubjectGap(predicate) = &value.body else {
+    let RelativeBody::SubjectGap(predicate) = value.body() else {
         unreachable!("subject-relative recognizer admits only subject gaps")
     };
-    (value.marker, predicate.clone())
+    (value.marker(), predicate.clone())
 }
 
 fn is_relative_subject(value: &RelativeClause) -> bool {
-    value.marker != RelativeMarker::Zero
-        && value.gap == GapState::Subject
-        && matches!(&value.body, RelativeBody::SubjectGap(predicate)
+    value.marker() != RelativeMarker::Zero
+        && value.gap() == GapState::Subject
+        && matches!(value.body(), RelativeBody::SubjectGap(predicate)
         if predicate_parts(predicate).is_ok_and(|predicate| {
             !predicate.declaration_has_distributive_each()
                 && predicate.declaration_contracted_subject_auxiliary_parts().is_none()
@@ -304,7 +346,7 @@ fn make_relative_subject_distributive_each(
 }
 
 fn relative_subject_distributive_each_parts(value: &RelativeClause) -> (RelativeMarker, Predicate) {
-    let RelativeBody::SubjectGap(predicate) = &value.body else {
+    let RelativeBody::SubjectGap(predicate) = value.body() else {
         unreachable!("distributive subject-relative recognizer admits only subject gaps")
     };
     let predicate = predicate_parts(predicate)
@@ -320,13 +362,13 @@ fn relative_subject_distributive_each_parts(value: &RelativeClause) -> (Relative
         })
         .and_then(project_predicate_hole)
         .expect("recognizer retains one distributive each marker");
-    (value.marker, predicate)
+    (value.marker(), predicate)
 }
 
 fn is_relative_subject_distributive_each(value: &RelativeClause) -> bool {
-    value.marker != RelativeMarker::Zero
-        && value.gap == GapState::Subject
-        && matches!(&value.body, RelativeBody::SubjectGap(predicate)
+    value.marker() != RelativeMarker::Zero
+        && value.gap() == GapState::Subject
+        && matches!(value.body(), RelativeBody::SubjectGap(predicate)
             if predicate_parts(predicate).is_ok_and(|predicate| predicate.declaration_has_distributive_each()))
 }
 
@@ -377,7 +419,7 @@ fn make_contracted_copular(
 fn contracted_copular_parts(
     value: &RelativeClause,
 ) -> (ContractedSubjectAuxiliary, &CopularComplement) {
-    let RelativeBody::SubjectGap(Predicate::Copular(predicate)) = &value.body else {
+    let RelativeBody::SubjectGap(Predicate::Copular(predicate)) = value.body() else {
         unreachable!("contracted copular recognizer admits only copular subject gaps")
     };
     (
@@ -392,9 +434,9 @@ fn contracted_copular_parts(
 }
 
 fn is_contracted_copular(value: &RelativeClause) -> bool {
-    value.marker == RelativeMarker::That
-        && value.gap == GapState::Subject
-        && matches!(&value.body, RelativeBody::SubjectGap(Predicate::Copular(predicate))
+    value.marker() == RelativeMarker::That
+        && value.gap() == GapState::Subject
+        && matches!(value.body(), RelativeBody::SubjectGap(Predicate::Copular(predicate))
             if !predicate.negated
                 && predicate.copula.auxiliary.auxiliary == Auxiliary::Be
                 && predicate.copula.contracted_with_subject.is_contracted()
@@ -442,6 +484,27 @@ contracted_copular_adapter!(
     NounPhrase,
     "relative_contracted_copular_noun"
 );
+
+pub(crate) fn build_relative_contracted_copular_coordinated_adjective(
+    subject_auxiliary: ContractedSubjectAuxiliary,
+    complement: CoordinatedAdjectivePhrase,
+) -> Result<RelativeClause, DeclarationViolation> {
+    make_contracted_copular(
+        "relative_contracted_copular_coordinated_adjective",
+        subject_auxiliary,
+        CopularComplement::CoordinatedAdjective(complement),
+    )
+}
+
+pub(crate) fn parts_relative_contracted_copular_coordinated_adjective(
+    value: &RelativeClause,
+) -> (ContractedSubjectAuxiliary, CoordinatedAdjectivePhrase) {
+    let (subject_auxiliary, complement) = contracted_copular_parts(value);
+    let CopularComplement::CoordinatedAdjective(complement) = complement else {
+        unreachable!("coordinated-adjective relative projection requires its C01 shape")
+    };
+    (subject_auxiliary, complement.clone())
+}
 contracted_copular_adapter!(
     make_relative_contracted_copular_adjective,
     relative_contracted_copular_adjective_parts,
@@ -829,6 +892,229 @@ deckmaste_constructions_macro::constructions! {
         form only @ 0 inverse check(is_relative_contracted_copular_prepositional) = identity(subject_auxiliary) complement;
         selection unique;
     }
+}
+
+fn require_selected(
+    construction: &'static str,
+    value: RelativeClause,
+    selected: fn(&RelativeClause) -> bool,
+) -> Result<RelativeClause, DeclarationViolation> {
+    selected(&value).then_some(value).ok_or_else(|| {
+        violation(
+            construction,
+            "the supplied parts select exactly this relative construction",
+        )
+    })
+}
+
+fn public_predicate_features(predicate: &Predicate) -> Result<Features, DeclarationViolation> {
+    predicate_parts(predicate)?
+        .declaration_core_features()
+        .ok_or_else(|| {
+            violation(
+                "relative_predicate",
+                "the predicate has one declaration-derived feature state",
+            )
+        })
+}
+
+fn contracted_that_features(auxiliary: crate::word::AuxiliaryInstance) -> Features {
+    Features::SubjectAuxiliary {
+        subject: crate::grammar::ContractedSubjectKey::Demonstrative(Demonstrative::That),
+        agreement: crate::grammar::Agreement {
+            person: crate::features::Person::Third,
+            number: Number::Singular,
+        },
+        auxiliary: auxiliary.into(),
+    }
+}
+
+fn require_subject_contraction_auxiliary(
+    construction: &'static str,
+    auxiliary: crate::word::AuxiliaryInstance,
+) -> Result<(), DeclarationViolation> {
+    (!auxiliary.contracted_negation.is_contracted())
+        .then_some(())
+        .ok_or_else(|| {
+            violation(
+                construction,
+                "the auxiliary contracts with the relative subject rather than negation",
+            )
+        })
+}
+
+fn require_contracted_copular_auxiliary(
+    construction: &'static str,
+    auxiliary: crate::word::AuxiliaryInstance,
+) -> Result<(), DeclarationViolation> {
+    require_subject_contraction_auxiliary(construction, auxiliary)?;
+    matches!(
+        auxiliary,
+        crate::word::AuxiliaryInstance {
+            auxiliary: Auxiliary::Be,
+            inflection: crate::word::AuxiliaryInflection::Present {
+                person: crate::features::Person::Third,
+                number: Number::Singular,
+            },
+            ..
+        }
+    )
+    .then_some(())
+    .ok_or_else(|| {
+        violation(
+            construction,
+            "contracted demonstrative that agrees with present third-singular be",
+        )
+    })
+}
+
+pub(crate) fn checked_build_relative_object(
+    subject: NounPhrase,
+    predicate: ObjectGapPredicate,
+) -> Result<RelativeClause, DeclarationViolation> {
+    require_selected(
+        "relative_object",
+        build_relative_object(subject, predicate)?,
+        is_relative_object,
+    )
+}
+
+pub(crate) fn checked_build_relative_object_contracted_subject(
+    subject_auxiliary: ContractedSubjectAuxiliary,
+    predicate: ObjectGapPredicate,
+) -> Result<RelativeClause, DeclarationViolation> {
+    require_subject_contraction_auxiliary(
+        "relative_object_contracted_subject",
+        subject_auxiliary.auxiliary,
+    )?;
+    require_selected(
+        "relative_object_contracted_subject",
+        build_relative_object_contracted_subject(subject_auxiliary, predicate)?,
+        is_relative_object_contracted_subject,
+    )
+}
+
+pub(crate) fn checked_build_relative_subject_contracted_auxiliary(
+    subject_auxiliary: ContractedSubjectAuxiliary,
+    predicate: Predicate,
+) -> Result<RelativeClause, DeclarationViolation> {
+    require_subject_contraction_auxiliary(
+        "relative_subject_contracted_auxiliary",
+        subject_auxiliary.auxiliary,
+    )?;
+    let subject_features = contracted_that_features(subject_auxiliary.auxiliary);
+    let predicate_features = public_predicate_features(&predicate)?;
+    reduce_relative_subject_contracted_auxiliary_features(&subject_features, &predicate_features)
+        .ok_or_else(|| {
+        violation(
+            "relative_subject_contracted_auxiliary",
+            "the supplied parts satisfy contraction, agreement, and predicate completion",
+        )
+    })?;
+    require_selected(
+        "relative_subject_contracted_auxiliary",
+        build_relative_subject_contracted_auxiliary(subject_auxiliary, predicate)?,
+        is_relative_subject_contracted_auxiliary,
+    )
+}
+
+pub(crate) fn checked_build_relative_subject(
+    marker: RelativeMarker,
+    predicate: Predicate,
+) -> Result<RelativeClause, DeclarationViolation> {
+    reduce_relative_subject_features(
+        &Features::RelativeMarker(marker),
+        &public_predicate_features(&predicate)?,
+    )
+    .ok_or_else(|| {
+        violation(
+            "relative_subject",
+            "the supplied marker and predicate satisfy subject-relative agreement and completion",
+        )
+    })?;
+    require_selected(
+        "relative_subject",
+        build_relative_subject(marker, predicate)?,
+        is_relative_subject,
+    )
+}
+
+pub(crate) fn checked_build_relative_subject_distributive_each(
+    marker: RelativeMarker,
+    predicate: Predicate,
+) -> Result<RelativeClause, DeclarationViolation> {
+    reduce_relative_subject_distributive_each_features(
+        &Features::RelativeMarker(marker),
+        &public_predicate_features(&predicate)?,
+    )
+    .ok_or_else(|| {
+        violation(
+            "relative_subject_distributive_each",
+            "the supplied marker and predicate satisfy plural agreement and completion",
+        )
+    })?;
+    require_selected(
+        "relative_subject_distributive_each",
+        build_relative_subject_distributive_each(marker, predicate)?,
+        is_relative_subject_distributive_each,
+    )
+}
+
+macro_rules! checked_contracted_copular {
+    ($checked:ident, $build:ident, $is:ident, $ty:ty, $id:literal) => {
+        pub(crate) fn $checked(
+            subject_auxiliary: ContractedSubjectAuxiliary,
+            complement: $ty,
+        ) -> Result<RelativeClause, DeclarationViolation> {
+            require_contracted_copular_auxiliary($id, subject_auxiliary.auxiliary)?;
+            require_selected($id, $build(subject_auxiliary, complement)?, $is)
+        }
+    };
+}
+
+checked_contracted_copular!(
+    checked_build_relative_contracted_copular_noun,
+    build_relative_contracted_copular_noun,
+    is_relative_contracted_copular_noun,
+    NounPhrase,
+    "relative_contracted_copular_noun"
+);
+checked_contracted_copular!(
+    checked_build_relative_contracted_copular_adjective,
+    build_relative_contracted_copular_adjective,
+    is_relative_contracted_copular_adjective,
+    AdjectivePhrase,
+    "relative_contracted_copular_adjective"
+);
+checked_contracted_copular!(
+    checked_build_relative_contracted_copular_prepositional,
+    build_relative_contracted_copular_prepositional,
+    is_relative_contracted_copular_prepositional,
+    PrepositionalPhrase,
+    "relative_contracted_copular_prepositional"
+);
+
+pub(crate) fn checked_build_relative_contracted_copular_coordinated_adjective(
+    subject_auxiliary: ContractedSubjectAuxiliary,
+    complement: CoordinatedAdjectivePhrase,
+) -> Result<RelativeClause, DeclarationViolation> {
+    require_contracted_copular_auxiliary(
+        "relative_contracted_copular_coordinated_adjective",
+        subject_auxiliary.auxiliary,
+    )?;
+    let value =
+        build_relative_contracted_copular_coordinated_adjective(subject_auxiliary, complement)?;
+    require_selected(
+        "relative_contracted_copular_coordinated_adjective",
+        value,
+        |value| {
+            is_contracted_copular(value)
+                && matches!(
+                    contracted_copular_parts(value).1,
+                    CopularComplement::CoordinatedAdjective(_)
+                )
+        },
+    )
 }
 
 pub(crate) static GROUPS: &[&GroupData] = &[&RELATIVE_DECLARATION];

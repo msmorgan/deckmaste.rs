@@ -3997,13 +3997,13 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn relative_clause(&self, clause: &RelativeClause) -> Result<String, RenderError> {
-        let mut marker = match clause.marker {
+        let mut marker = match clause.marker() {
             RelativeMarker::That => "that",
             RelativeMarker::Who => "who",
             RelativeMarker::Zero => "",
         }
         .to_owned();
-        let body = match &clause.body {
+        let body = match clause.body() {
             RelativeBody::SubjectGap(Predicate::Transitive(predicate))
                 if predicate
                     .head()
@@ -4929,7 +4929,7 @@ fn dependent_clause_quoted_ability_count(clause: &DependentClause) -> usize {
         },
         DependentClause::Infinitive(clause) => predicate_quoted_ability_count(clause.predicate()),
         DependentClause::Gerund(clause) => gerund_clause_quoted_ability_count(clause),
-        DependentClause::Relative(clause) => match &clause.body {
+        DependentClause::Relative(clause) => match clause.body() {
             crate::syntax::RelativeBody::SubjectGap(predicate) => {
                 predicate_quoted_ability_count(predicate)
             }
@@ -5958,14 +5958,14 @@ mod tests {
         };
         assert!(
             matches!(
-                relative.body,
+                relative.body(),
                 RelativeBody::SubjectGap(Predicate::Deontic(crate::syntax::DeonticPredicate {
                     inner: None,
                     ..
                 }))
             ),
             "{:#?}",
-            relative.body
+            relative.body()
         );
         assert_eq!(source_free(&ast, "Test Card", false), source);
     }
@@ -7006,25 +7006,21 @@ mod tests {
         else {
             panic!("relative object-gap fixture must be intransitive before filling its gap");
         };
+        let predicate = crate::constructions::predicate::inverse_public_predicate(
+            &Predicate::Intransitive(relative_predicate),
+        )
+        .and_then(crate::constructions::relative::project_object_gap_predicate_hole)
+        .expect("the fixture predicate preserves one checked object gap");
+        let relative = crate::constructions::relative::checked_build_relative_object(
+            NounPhrase::from_pronoun_declaration(Pronoun::You, PronounCase::Subject),
+            predicate,
+        )
+        .expect("the fixture subject agrees with its object-gap predicate");
         nominal(
             (!plural).then_some(crate::determiner::target(None)),
             vec![],
             catalog_noun(catalogs, surface, plural),
-            vec![NominalComplement::Relative(RelativeClause {
-                marker: RelativeMarker::Zero,
-                gap: RelativeGap::Object,
-                body: RelativeBody::ObjectGap {
-                    subject: Subject(NounPhrase::from_pronoun_declaration(
-                        Pronoun::You,
-                        PronounCase::Subject,
-                    )),
-                    predicate: ObjectGapPredicate {
-                        head: relative_predicate.head,
-                        kind: crate::syntax::ObjectGap,
-                        elements: relative_predicate.elements,
-                    },
-                },
-            })],
+            vec![NominalComplement::Relative(relative)],
         )
     }
 

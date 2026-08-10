@@ -655,7 +655,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
         relative: &'syntax RelativeClause,
         context: Option<RecoveryRole>,
     ) {
-        match &relative.body {
+        match relative.body() {
             RelativeBody::SubjectGap(predicate) => self.predicate(predicate, context),
             RelativeBody::ObjectGap { subject, predicate } => {
                 self.subject(subject, context);
@@ -1223,6 +1223,23 @@ mod tests {
                 NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("blorple"))),
                 vec![],
             ));
+        let mut relative_head = predicate_head(Vocab::Draw);
+        relative_head.verb.slot = VerbSlot::Present {
+            person: crate::features::Person::Third,
+            number: crate::features::Number::Singular,
+        };
+        let relative = crate::clause::build_relative_subject(
+            RelativeMarker::That,
+            Predicate::Transitive(TransitivePredicate {
+                head: relative_head,
+                kind: Transitive {
+                    pre_object_elements: vec![],
+                    object: PredicateObject::NounPhrase(opaque),
+                },
+                elements: vec![],
+            }),
+        )
+        .expect("the recovery fixture uses a complete finite subject relative");
         let subject = NounPhrase::from_coordinated_nominal_declaration(
             CoordinatedNominalPhrase::try_new(
                 crate::determiner::any(),
@@ -1231,18 +1248,7 @@ mod tests {
                     conjunction: Some(NounPhraseConjunction::Or),
                     phrase: known_nominal(Vocab::Spell),
                 }],
-                vec![NominalComplement::Relative(RelativeClause {
-                    marker: RelativeMarker::That,
-                    gap: RelativeGap::Subject,
-                    body: RelativeBody::SubjectGap(Predicate::Transitive(TransitivePredicate {
-                        head: predicate_head(Vocab::Draw),
-                        kind: Transitive {
-                            pre_object_elements: vec![],
-                            object: PredicateObject::NounPhrase(opaque),
-                        },
-                        elements: vec![],
-                    })),
-                })],
+                vec![NominalComplement::Relative(relative)],
             )
             .expect("the recovery fixture uses a declared shared-determiner shape"),
         );

@@ -10,6 +10,8 @@ pub use crate::constructions::predicate::build_predicate_auxiliary;
 pub use crate::constructions::predicate::build_predicate_direct_object;
 pub use crate::constructions::predicate::build_predicate_element;
 pub use crate::constructions::predicate::build_predicate_verb;
+pub use crate::constructions::predicate::finish_object_gap_predicate;
 pub use crate::constructions::predicate::finish_predicate;
+pub use crate::constructions::predicate::parts_object_gap_predicate;
 pub use crate::constructions::predicate::parts_predicate;
 pub use crate::constructions::predicate::rebuild_predicate;

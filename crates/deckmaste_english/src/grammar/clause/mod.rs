@@ -38,8 +38,6 @@ use crate::syntax::PredicateExpression;
 use crate::syntax::PredicateHead;
 #[cfg(test)]
 use crate::syntax::PredicateObjectCoordination;
-use crate::syntax::RelativeBody;
-use crate::syntax::RelativeMarker;
 #[cfg(test)]
 use crate::syntax::RestrictionCoordination;
 #[cfg(test)]

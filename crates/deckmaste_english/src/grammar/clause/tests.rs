@@ -61,6 +61,10 @@ fn predicate_object_kind(object: &PredicateObject) -> Option<NounPhraseKind<'_>>
     Some(noun_phrase.kind())
 }
 
+fn relative_has(relative: &RelativeClause, marker: RelativeMarker, gap: RelativeGap) -> bool {
+    relative.marker() == marker && relative.gap() == gap
+}
+
 fn coordinated_pp_prepositions(
     phrase: &crate::syntax::PrepositionalPhrase,
 ) -> Option<Vec<Preposition>> {
@@ -1722,11 +1726,8 @@ fn bonfire_recipient_is_full_coordination_with_a_shared_target_member() {
     assert_eq!(creatures.determiner(), Some(&crate::determiner::each()));
     assert!(matches!(
         creatures.complements(),
-        [NominalComplement::Relative(RelativeClause {
-            marker: RelativeMarker::Zero,
-            gap: RelativeGap::Object,
-            ..
-        })]
+        [NominalComplement::Relative(relative)]
+            if relative_has(relative, RelativeMarker::Zero, RelativeGap::Object)
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -1808,11 +1809,8 @@ fn rules_object_gap_skips_a_mass_comparison_head() {
     assert!(
         matches!(
             object.complements(),
-            [NominalComplement::Relative(RelativeClause {
-                marker: RelativeMarker::Zero,
-                gap: RelativeGap::Object,
-                ..
-            })]
+            [NominalComplement::Relative(relative)]
+                if relative_has(relative, RelativeMarker::Zero, RelativeGap::Object)
         ),
         "the comparison-set member must host the relative: {object:#?}"
     );
@@ -1832,13 +1830,10 @@ fn subject_gap_attachment_remains_governed_by_agreement() {
             toughness.complements(),
             [
                 NominalComplement::Prepositional(preposition),
-                NominalComplement::Relative(RelativeClause {
-                    marker: RelativeMarker::That,
-                    gap: RelativeGap::Subject,
-                    ..
-                }),
+                NominalComplement::Relative(relative),
                 ..
             ] if preposition.head().preposition() == Preposition::Among
+                && relative_has(relative, RelativeMarker::That, RelativeGap::Subject)
         ),
         "agreement must keep the relative on the outer singular head: {toughness:#?}"
     );
@@ -1875,11 +1870,8 @@ fn rules_object_gap_reaches_the_deepest_nested_pp_host() {
     };
     assert!(matches!(
         lands.complements(),
-        [NominalComplement::Relative(RelativeClause {
-            marker: RelativeMarker::Zero,
-            gap: RelativeGap::Object,
-            ..
-        })]
+        [NominalComplement::Relative(relative)]
+            if relative_has(relative, RelativeMarker::Zero, RelativeGap::Object)
     ));
 }
 
@@ -1907,12 +1899,9 @@ fn rules_object_gap_ranks_valid_hosts_across_nested_pps() {
         cards.complements(),
         [
             NominalComplement::Prepositional(preposition),
-            NominalComplement::Relative(RelativeClause {
-                marker: RelativeMarker::Zero,
-                gap: RelativeGap::Object,
-                ..
-            })
+            NominalComplement::Relative(relative)
         ] if preposition.head().preposition() == Preposition::In
+            && relative_has(relative, RelativeMarker::Zero, RelativeGap::Object)
     ));
 }
 
@@ -1928,12 +1917,9 @@ fn invalid_mass_pp_object_falls_back_to_the_outer_count_host() {
         creature.complements(),
         [
             NominalComplement::Prepositional(preposition),
-            NominalComplement::Relative(RelativeClause {
-                marker: RelativeMarker::Zero,
-                gap: RelativeGap::Object,
-                ..
-            })
+            NominalComplement::Relative(relative)
         ] if preposition.head().preposition() == Preposition::With
+            && relative_has(relative, RelativeMarker::Zero, RelativeGap::Object)
     ));
 }
 
@@ -1970,11 +1956,8 @@ fn rules_object_gap_keeps_coordinated_members_inside_the_preposition() {
     };
     assert!(matches!(
         creatures.complements(),
-        [NominalComplement::Relative(RelativeClause {
-            marker: RelativeMarker::Zero,
-            gap: RelativeGap::Object,
-            ..
-        })]
+        [NominalComplement::Relative(relative)]
+            if relative_has(relative, RelativeMarker::Zero, RelativeGap::Object)
     ));
 }
 
@@ -2003,7 +1986,7 @@ fn rules_object_gap_prefers_the_nearest_preposition_without_stealing_its_subject
     let [NominalComplement::Relative(relative)] = objects.complements().as_slice() else {
         panic!("the coordinated objects must host the relative: {objects:#?}");
     };
-    let RelativeBody::ObjectGap { subject, .. } = &relative.body else {
+    let RelativeBody::ObjectGap { subject, .. } = relative.body() else {
         panic!("expected an object-gap relative with a nominal subject: {relative:#?}");
     };
     let NounPhraseKind::Nominal(subject) = subject.0.kind() else {
@@ -2042,16 +2025,12 @@ fn coordinated_member_consumes_following_modifiers_before_the_pp_closes() {
     assert!(matches!(
         second.complements(),
         [
-            NominalComplement::Relative(RelativeClause {
-                gap: RelativeGap::Object,
-                ..
-            }),
-            NominalComplement::Relative(RelativeClause {
-                gap: RelativeGap::Subject,
-                ..
-            }),
+            NominalComplement::Relative(object_relative),
+            NominalComplement::Relative(subject_relative),
             NominalComplement::Prepositional(preposition)
         ] if preposition.head().preposition() == Preposition::With
+            && object_relative.gap() == RelativeGap::Object
+            && subject_relative.gap() == RelativeGap::Subject
     ));
 }
 
@@ -2089,10 +2068,7 @@ fn coordinated_member_refuses_unrelated_following_pps() {
     assert!(last.phrase.complements().is_empty());
     assert!(matches!(
         objects.complements().as_slice(),
-        [NominalComplement::Relative(RelativeClause {
-            gap: RelativeGap::Object,
-            ..
-        })]
+        [NominalComplement::Relative(relative)] if relative.gap() == RelativeGap::Object
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -2198,18 +2174,16 @@ fn later_relative_consumes_its_temporal_adjunct_before_the_pp_closes() {
     };
     assert!(last.phrase.complements().is_empty());
     let [
-        NominalComplement::Relative(RelativeClause {
-            gap: RelativeGap::Object,
-            ..
-        }),
-        NominalComplement::Relative(RelativeClause {
-            gap: RelativeGap::Subject,
-            body: RelativeBody::SubjectGap(Predicate::Transitive(entered)),
-            ..
-        }),
+        NominalComplement::Relative(object_relative),
+        NominalComplement::Relative(subject_relative),
     ] = objects.complements().as_slice()
     else {
         panic!("the coordinated recipients must retain both relatives: {objects:#?}");
+    };
+    assert_eq!(object_relative.gap(), RelativeGap::Object);
+    assert_eq!(subject_relative.gap(), RelativeGap::Subject);
+    let RelativeBody::SubjectGap(Predicate::Transitive(entered)) = subject_relative.body() else {
+        panic!("the later relative must retain its transitive predicate: {subject_relative:#?}")
     };
     assert!(matches!(
         entered.elements.as_slice(),
@@ -2269,18 +2243,14 @@ fn passive_to_shared_target_stays_inside_the_relative_predicate() {
     let Some(NounPhraseKind::Nominal(damage)) = predicate_object_kind(&predicate.object) else {
         panic!("expected a nominal damage object");
     };
-    let [
-        NominalComplement::Relative(RelativeClause {
-            body:
-                RelativeBody::SubjectGap(Predicate::Deontic(DeonticPredicate {
-                    inner: Some(inner),
-                    ..
-                })),
-            ..
-        }),
-    ] = damage.complements()
-    else {
+    let [NominalComplement::Relative(relative)] = damage.complements() else {
         panic!("damage must own one complete relative: {damage:#?}");
+    };
+    let RelativeBody::SubjectGap(Predicate::Deontic(DeonticPredicate {
+        inner: Some(inner), ..
+    })) = relative.body()
+    else {
+        panic!("damage must retain a modal subject relative: {relative:#?}")
     };
     let Predicate::Passive(passive) = inner.as_ref() else {
         panic!("expected a passive predicate inside the relative: {inner:#?}");
@@ -2875,8 +2845,8 @@ fn subject_relative_differential_comparisons_are_structural() {
         let [NominalComplement::Relative(relative)] = opponent.complements() else {
             panic!("expected one relative clause: {opponent:#?}");
         };
-        assert_eq!(relative.marker, RelativeMarker::Who);
-        let RelativeBody::SubjectGap(Predicate::Transitive(have)) = &relative.body else {
+        assert_eq!(relative.marker(), RelativeMarker::Who);
+        let RelativeBody::SubjectGap(Predicate::Transitive(have)) = relative.body() else {
             panic!("expected a subject-gap transitive relative: {relative:#?}");
         };
         let Some(NounPhraseKind::Nominal(cards)) = predicate_object_kind(&have.object) else {
@@ -3683,7 +3653,7 @@ fn contracted_subject_auxiliaries_are_structural() {
     let [NominalComplement::Relative(relative)] = nominal.complements() else {
         panic!("expected a relative-clause complement: {nominal:#?}");
     };
-    let RelativeBody::ObjectGap { subject, predicate } = &relative.body else {
+    let RelativeBody::ObjectGap { subject, predicate } = relative.body() else {
         panic!("expected an object-gap relative clause");
     };
     assert!(matches!(
@@ -3759,11 +3729,10 @@ fn contracted_subject_auxiliaries_are_structural() {
     assert!(
         matches!(
             nominal.complements(),
-            [NominalComplement::Relative(RelativeClause {
-                marker: RelativeMarker::That,
-                gap: RelativeGap::Subject,
-                body: RelativeBody::SubjectGap(Predicate::Copular(predicate)),
-            })] if predicate.copula.contracted_with_subject.is_contracted()
+            [NominalComplement::Relative(relative)]
+                if relative_has(relative, RelativeMarker::That, RelativeGap::Subject)
+                    && matches!(relative.body(), RelativeBody::SubjectGap(Predicate::Copular(predicate))
+                        if predicate.copula.contracted_with_subject.is_contracted())
         ),
         "{nominal:#?}"
     );
@@ -3854,8 +3823,8 @@ fn production_r01_forms_lower_with_decisive_typed_relative_evidence() {
                 _ => None,
             })
             .unwrap_or_else(|| panic!("{source:?} did not retain its relative clause"));
-        assert_eq!(relative.gap, gap, "{source:?}");
-        assert_eq!(relative.marker, marker, "{source:?}");
+        assert_eq!(relative.gap(), gap, "{source:?}");
+        assert_eq!(relative.marker(), marker, "{source:?}");
         let decision = parsed
             .construction_decisions()
             .iter()
@@ -4418,7 +4387,7 @@ fn target_and_relative_clauses_keep_their_nominal_roles() {
     assert!(matches!(
         subject.complements(),
         [NominalComplement::Relative(relative)]
-            if relative.gap == crate::syntax::RelativeGap::Object
+            if relative.gap() == crate::syntax::RelativeGap::Object
     ));
     let Some(NounPhraseKind::Nominal(object)) = predicate_object_kind(&fight.object) else {
         panic!(
@@ -4429,7 +4398,7 @@ fn target_and_relative_clauses_keep_their_nominal_roles() {
     assert!(matches!(
         object.complements(),
         [NominalComplement::Relative(relative)]
-            if relative.gap == crate::syntax::RelativeGap::Object
+            if relative.gap() == crate::syntax::RelativeGap::Object
     ));
 }
 
@@ -4774,11 +4743,10 @@ fn subject_gap_relative_carries_a_recipient_passive() {
     };
     assert!(matches!(
         object.complements(),
-        [NominalComplement::Relative(RelativeClause {
-            marker: RelativeMarker::That,
-            gap: RelativeGap::Subject,
-            body: RelativeBody::SubjectGap(Predicate::Passive(passive)),
-        })] if passive.retained_object.is_some()
+        [NominalComplement::Relative(relative)]
+            if relative_has(relative, RelativeMarker::That, RelativeGap::Subject)
+                && matches!(relative.body(), RelativeBody::SubjectGap(Predicate::Passive(passive))
+                    if passive.retained_object.is_some())
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -5044,25 +5012,23 @@ fn modal_subject_relative_keeps_its_passive_temporal_adjunct() {
     assert!(matrix.elements.is_empty(), "{matrix:#?}");
     assert!(matches!(
         object.complements(),
-        [NominalComplement::Relative(RelativeClause {
-            marker: RelativeMarker::That,
-            gap: RelativeGap::Subject,
-            body: RelativeBody::SubjectGap(Predicate::Deontic(DeonticPredicate {
-                modal: Modal {
-                    auxiliary: AuxiliaryInstance {
-                        auxiliary: Auxiliary::Would,
-                        ..
+        [NominalComplement::Relative(relative)]
+            if relative_has(relative, RelativeMarker::That, RelativeGap::Subject)
+                && matches!(relative.body(), RelativeBody::SubjectGap(Predicate::Deontic(DeonticPredicate {
+                    modal: Modal {
+                        auxiliary: AuxiliaryInstance {
+                            auxiliary: Auxiliary::Would,
+                            ..
+                        },
                     },
-                },
-                inner: Some(predicate),
-            })),
-        })] if matches!(
-            predicate.as_ref(),
-            Predicate::Passive(PassivePredicate { elements, .. }) if matches!(
-                elements.as_slice(),
-                [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
-            )
-        )
+                    inner: Some(predicate),
+                })) if matches!(
+                    predicate.as_ref(),
+                    Predicate::Passive(PassivePredicate { elements, .. }) if matches!(
+                        elements.as_slice(),
+                        [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
+                    )
+                ))
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
