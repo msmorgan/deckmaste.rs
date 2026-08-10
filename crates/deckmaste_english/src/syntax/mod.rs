@@ -1142,12 +1142,7 @@ mod tests {
         let nested =
             AdjectivePhrase::try_from_lexical_head(crate::word::Adjective::Word(Vocab::Target))
                 .and_then(|phrase| {
-                    phrase.try_attach_compatibility_complement(AdjectiveComplement::Prepositional(
-                        crate::constructions::prepositional::expect_prepositional_phrase(
-                            Preposition::With,
-                            Phrase::Recovered(recovered("standard")),
-                        ),
-                    ))
+                    phrase.try_attach_recovered_comparison_standard(recovered("standard"))
                 })
                 .expect("the compatibility seam admits a lexical adjective plus PP");
         let standard = crate::adjective::build_comparison_standard(None, Some(nested), None)

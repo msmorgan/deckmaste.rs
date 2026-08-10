@@ -195,9 +195,8 @@ pub(crate) fn expect_prepositional_phrase(
     preposition: Preposition,
     object: Phrase,
 ) -> PrepositionalPhrase {
-    build_prepositional_phrase_from_phrase(preposition, object.clone()).unwrap_or_else(|_| {
-        PrepositionalPhrase::from_prepositional_declaration(preposition, object)
-    })
+    build_prepositional_phrase_from_phrase(preposition, object)
+        .expect("the internal prepositional object is one admitted whole typed alternative")
 }
 
 fn prepositional_object_category(
@@ -372,3 +371,24 @@ where
 }
 
 pub(crate) static GROUPS: &[&GroupData] = &[&PREPOSITIONAL_DECLARATION];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::syntax::RecoveredText;
+
+    #[test]
+    fn internal_expect_rejects_a_non_p02_object() {
+        let result = std::panic::catch_unwind(|| {
+            expect_prepositional_phrase(
+                Preposition::Under,
+                Phrase::Recovered(RecoveredText::new("unsupported", 1)),
+            )
+        });
+
+        assert!(
+            result.is_err(),
+            "the internal expect helper must not construct an unchecked raw PP",
+        );
+    }
+}
