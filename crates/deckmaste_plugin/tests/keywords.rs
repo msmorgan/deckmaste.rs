@@ -7,10 +7,20 @@ use std::path::Path;
 use std::sync::Arc;
 
 use deckmaste_core::KeywordAbility;
+use deckmaste_lowering::Lower;
 use deckmaste_plugin::plugin::Plugin;
+use deckmaste_semantics::KeywordAbility as SemanticKeywordAbility;
 
 fn builtin() -> Plugin {
     Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
+}
+
+fn read_keyword(plugin: &Plugin, invocation: &str) -> KeywordAbility {
+    let semantic: SemanticKeywordAbility = plugin
+        .macros
+        .read_str(invocation)
+        .unwrap_or_else(|error| panic!("expanding {invocation}: {error}"));
+    semantic.lower()
 }
 
 #[test]
@@ -75,11 +85,11 @@ fn every_builtin_keyword_macro_expands() {
     ];
     let plugin = builtin();
     for (invocation, name) in cases {
-        let kw: KeywordAbility = plugin
+        let kw: SemanticKeywordAbility = plugin
             .macros
             .read_str(invocation)
             .unwrap_or_else(|e| panic!("expanding {invocation}: {e}"));
-        let KeywordAbility::Expanded(expanded) = &kw else {
+        let SemanticKeywordAbility::Expanded(expanded) = &kw else {
             panic!("expected Expanded for {invocation}, got {kw:?}");
         };
         assert_eq!(
@@ -88,7 +98,7 @@ fn every_builtin_keyword_macro_expands() {
             "carried name for {invocation}"
         );
         assert!(
-            matches!(&*expanded.value, KeywordAbility::Composite { name: n, .. } if n.as_str() == name),
+            matches!(&*expanded.value, SemanticKeywordAbility::Composite { name: n, .. } if n.as_str() == name),
             "body of {invocation} is a name-carrying Composite"
         );
     }
@@ -103,11 +113,8 @@ fn crew_expands_to_a_tap_total_activation() {
     use deckmaste_core::Stat;
 
     let plugin = builtin();
-    let keyword: KeywordAbility = plugin.macros.read_str("Crew(3)").unwrap();
-    let KeywordAbility::Expanded(expanded) = keyword else {
-        panic!("Crew should retain its macro expansion");
-    };
-    let KeywordAbility::Composite { abilities, .. } = expanded.value.as_ref() else {
+    let keyword = read_keyword(&plugin, "Crew(3)");
+    let KeywordAbility::Composite { abilities, .. } = &keyword else {
         panic!("Crew should lower to a composite keyword");
     };
     let [Ability::Activated(ability)] = abilities.as_slice() else {
@@ -155,14 +162,8 @@ fn convoke_delve_improvise_confer_pay_pips_statics() {
     }
     // Expand a keyword invocation to the flat list of its `PayPips` rows.
     fn pay_pips(plugin: &Plugin, invocation: &str) -> Arc<[(PipClass, PayAct)]> {
-        let kw: KeywordAbility = plugin
-            .macros
-            .read_str(invocation)
-            .unwrap_or_else(|e| panic!("expanding {invocation}: {e}"));
-        let KeywordAbility::Expanded(expanded) = &kw else {
-            panic!("expected Expanded for {invocation}, got {kw:?}");
-        };
-        let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+        let kw = read_keyword(plugin, invocation);
+        let KeywordAbility::Composite { abilities, .. } = &kw else {
             panic!("{invocation} body is a Composite");
         };
         let mut effs = Vec::new();
@@ -253,14 +254,8 @@ fn enchant_confers_spell_may_attach_and_as_enters() {
     }
 
     let plugin = builtin();
-    let kw: KeywordAbility = plugin
-        .macros
-        .read_str("Enchant(Type(Creature))")
-        .expect("Enchant expands");
-    let KeywordAbility::Expanded(expanded) = &kw else {
-        panic!("expected Expanded, got {kw:?}");
-    };
-    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+    let kw = read_keyword(&plugin, "Enchant(Type(Creature))");
+    let KeywordAbility::Composite { abilities, .. } = &kw else {
         panic!("Enchant body is a Composite");
     };
 
@@ -300,16 +295,9 @@ fn fortify_confers_sorcery_speed_attach_activated() {
     use deckmaste_core::Action;
     use deckmaste_core::OneShotEffect;
     use deckmaste_core::Timing;
-
     let plugin = builtin();
-    let kw: KeywordAbility = plugin
-        .macros
-        .read_str("Fortify([Tap])")
-        .expect("Fortify expands");
-    let KeywordAbility::Expanded(expanded) = &kw else {
-        panic!("expected Expanded, got {kw:?}");
-    };
-    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+    let kw = read_keyword(&plugin, "Fortify([Tap])");
+    let KeywordAbility::Composite { abilities, .. } = &kw else {
         panic!("Fortify body is a Composite");
     };
     let act = abilities
@@ -352,14 +340,8 @@ fn reconfigure_confers_attach_and_unattach_activated() {
     use deckmaste_core::Timing;
 
     let plugin = builtin();
-    let kw: KeywordAbility = plugin
-        .macros
-        .read_str("Reconfigure([Tap])")
-        .expect("Reconfigure expands");
-    let KeywordAbility::Expanded(expanded) = &kw else {
-        panic!("expected Expanded, got {kw:?}");
-    };
-    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+    let kw = read_keyword(&plugin, "Reconfigure([Tap])");
+    let KeywordAbility::Composite { abilities, .. } = &kw else {
         panic!("Reconfigure body is a Composite");
     };
     let acts: Arc<[_]> = abilities
@@ -405,17 +387,11 @@ fn outlast_confers_sorcery_speed_tap_put_counter() {
     use deckmaste_core::ron::options as ron_options;
 
     let plugin = builtin();
-    let kw: KeywordAbility = plugin
-        .macros
-        .read_str("Outlast([Mana([White])])")
-        .expect("Outlast expands");
-    let KeywordAbility::Expanded(expanded) = &kw else {
-        panic!("expected Expanded, got {kw:?}");
-    };
-    assert_eq!(expanded.name.as_str(), "Outlast", "carried name");
-    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+    let kw = read_keyword(&plugin, "Outlast([Mana([White])])");
+    let KeywordAbility::Composite { name, abilities } = &kw else {
         panic!("Outlast body is a Composite");
     };
+    assert_eq!(name.as_str(), "Outlast", "carried name");
     let act = abilities
         .iter()
         .find_map(|a| match a {
@@ -486,14 +462,11 @@ fn ascend_macro_expands_to_static_sba() {
     }
 
     let plugin = builtin();
-    let kw: KeywordAbility = plugin.macros.read_str("Ascend").expect("Ascend expands");
-    let KeywordAbility::Expanded(expanded) = &kw else {
-        panic!("expected Expanded, got {kw:?}");
-    };
-    assert_eq!(expanded.name.as_str(), "Ascend", "carried name");
-    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+    let kw = read_keyword(&plugin, "Ascend");
+    let KeywordAbility::Composite { name, abilities } = &kw else {
         panic!("Ascend body is a Composite");
     };
+    assert_eq!(name.as_str(), "Ascend", "carried name");
 
     let mut effs = Vec::new();
     for a in abilities {
@@ -555,17 +528,11 @@ fn cycling_confers_from_hand_discard_self_draw() {
     use deckmaste_core::Zone;
 
     let plugin = builtin();
-    let kw: KeywordAbility = plugin
-        .macros
-        .read_str("Cycling([Mana([Generic(2)])])")
-        .expect("Cycling expands");
-    let KeywordAbility::Expanded(expanded) = &kw else {
-        panic!("expected Expanded, got {kw:?}");
-    };
-    assert_eq!(expanded.name.as_str(), "Cycling", "carried name");
-    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+    let kw = read_keyword(&plugin, "Cycling([Mana([Generic(2)])])");
+    let KeywordAbility::Composite { name, abilities } = &kw else {
         panic!("Cycling body is a Composite");
     };
+    assert_eq!(name.as_str(), "Cycling", "carried name");
     let act = abilities
         .iter()
         .find_map(|a| match a {
@@ -581,21 +548,24 @@ fn cycling_confers_from_hand_discard_self_draw() {
     // cost macro — the bound single-move discard composite, [CR#702.29a]).
     // `Splice(Param(0))` inlines the printed cost ahead of the fixed
     // discard-self at read time, so the cost is FLAT — no nested `Cost`
-    // wrapper. Read back through the same macro set so the remembered
-    // `Expanded` shape matches exactly.
-    let flat_cost: Cost = plugin
+    // wrapper. Read back through the semantic grammar and lower it so the
+    // expected core shape matches exactly.
+    let flat_cost: deckmaste_semantics::Cost = plugin
         .macros
         .read_str("[Mana([Generic(2)]), DiscardThis]")
         .unwrap();
+    let flat_cost: Cost = flat_cost.lower();
     assert_eq!(
         act.cost, flat_cost,
         "cycling cost is the printed cost + discard this card, spliced flat"
     );
 
     // (3) OneShotEffect = draw a card — the `Draw(1)` macro (Cycling's body
-    // uses `effect: Draw(1)`), read back through the same macro set so the
-    // remembered `Expanded` shape matches exactly.
-    let expected_effect: OneShotEffect = plugin.macros.read_str("Draw(1)").unwrap();
+    // uses `effect: Draw(1)`), read back through the semantic grammar and lower
+    // it so the expected core shape matches exactly.
+    let expected_effect: deckmaste_semantics::OneShotEffect =
+        plugin.macros.read_str("Draw(1)").unwrap();
+    let expected_effect: OneShotEffect = expected_effect.lower();
     assert_eq!(act.effect, expected_effect, "cycling draws a card");
 }
 
@@ -621,17 +591,11 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
     use deckmaste_core::Zone;
 
     let plugin = builtin();
-    let kw: KeywordAbility = plugin
-        .macros
-        .read_str("Reinforce(2, [Mana([Generic(1),Green])])")
-        .expect("Reinforce expands");
-    let KeywordAbility::Expanded(expanded) = &kw else {
-        panic!("expected Expanded, got {kw:?}");
-    };
-    assert_eq!(expanded.name.as_str(), "Reinforce", "carried name");
-    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+    let kw = read_keyword(&plugin, "Reinforce(2, [Mana([Generic(1),Green])])");
+    let KeywordAbility::Composite { name, abilities } = &kw else {
         panic!("Reinforce body is a Composite");
     };
+    assert_eq!(name.as_str(), "Reinforce", "carried name");
     let act = abilities
         .iter()
         .find_map(|a| match a {
@@ -647,11 +611,12 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
     // `DiscardThis` cost macro — the bound single-move discard composite,
     // [CR#702.29a]). `Splice(Param(1))` inlines the printed cost ahead of the
     // fixed discard-self at read time, so the cost is FLAT — no nested `Cost`
-    // wrapper. Read back through the same macro set.
-    let flat_cost: Cost = plugin
+    // wrapper. Read back through the semantic grammar and lower it.
+    let flat_cost: deckmaste_semantics::Cost = plugin
         .macros
         .read_str("[Mana([Generic(1),Green]), DiscardThis]")
         .unwrap();
+    let flat_cost: Cost = flat_cost.lower();
     assert_eq!(
         act.cost, flat_cost,
         "reinforce cost is the printed cost + discard this card, spliced flat"
@@ -718,20 +683,13 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
     use deckmaste_core::TargetSpec;
     use deckmaste_core::Timing;
     use deckmaste_core::Zone;
-    use deckmaste_core::ron::options as ron_options;
 
     let plugin = builtin();
-    let kw: KeywordAbility = plugin
-        .macros
-        .read_str("Scavenge([Mana([Generic(2)])])")
-        .expect("Scavenge expands");
-    let KeywordAbility::Expanded(expanded) = &kw else {
-        panic!("expected Expanded, got {kw:?}");
-    };
-    assert_eq!(expanded.name.as_str(), "Scavenge", "carried name");
-    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+    let kw = read_keyword(&plugin, "Scavenge([Mana([Generic(2)])])");
+    let KeywordAbility::Composite { name, abilities } = &kw else {
         panic!("Scavenge body is a Composite");
     };
+    assert_eq!(name.as_str(), "Scavenge", "carried name");
     let act = abilities
         .iter()
         .find_map(|a| match a {
@@ -758,9 +716,11 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
     // move now (`Move(This, Exile)`, [CR#701.13]). `Splice(Param(0))` inlines the
     // printed cost ahead of the fixed exile-self at read time (Cycling's
     // discard-self twin), so the cost is FLAT — no nested `Cost` wrapper.
-    let flat_cost: Cost = ron_options()
-        .from_str("[Mana([Generic(2)]), Do(Move(This, Exile))]")
+    let flat_cost: deckmaste_semantics::Cost = plugin
+        .macros
+        .read_str("[Mana([Generic(2)]), Do(Move(This, Exile))]")
         .unwrap();
+    let flat_cost: Cost = flat_cost.lower();
     assert_eq!(
         act.cost, flat_cost,
         "scavenge cost is the printed cost + exile this card, spliced flat"
@@ -829,17 +789,11 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
     use deckmaste_core::Zone;
 
     let plugin = builtin();
-    let kw: KeywordAbility = plugin
-        .macros
-        .read_str("Soulshift(3)")
-        .expect("Soulshift expands");
-    let KeywordAbility::Expanded(expanded) = &kw else {
-        panic!("expected Expanded, got {kw:?}");
-    };
-    assert_eq!(expanded.name.as_str(), "Soulshift", "carried name");
-    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+    let kw = read_keyword(&plugin, "Soulshift(3)");
+    let KeywordAbility::Composite { name, abilities } = &kw else {
         panic!("Soulshift body is a Composite");
     };
+    assert_eq!(name.as_str(), "Soulshift", "carried name");
     let trig = abilities
         .iter()
         .find_map(|a| match a {
@@ -849,7 +803,15 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
         .expect("Soulshift confers a Triggered ability");
     // Dies trigger ([CR#700.4]) — the `ThisDies` macro invocation.
     assert!(
-        matches!(&trig.event, EventFilter::Expanded(e) if e.name.as_str() == "ThisDies"),
+        matches!(
+            &trig.event,
+            EventFilter::ZoneChange {
+                what: Predicate::Ref(Reference::This),
+                from: Some(Zone::Battlefield),
+                to: Some(Zone::Graveyard),
+                cause: None,
+            }
+        ),
         "soulshift triggers on dies; got {:?}",
         trig.event
     );
@@ -927,23 +889,19 @@ fn afterlife_confers_dies_create_spirit_tokens_with_flying() {
     use deckmaste_core::Count;
     use deckmaste_core::EventFilter;
     use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::StatValue;
     use deckmaste_core::TokenSpec;
     use deckmaste_core::Type;
+    use deckmaste_core::Zone;
 
     let plugin = builtin();
-    let kw: KeywordAbility = plugin
-        .macros
-        .read_str("Afterlife(2)")
-        .expect("Afterlife expands");
-    let KeywordAbility::Expanded(expanded) = &kw else {
-        panic!("expected Expanded, got {kw:?}");
-    };
-    assert_eq!(expanded.name.as_str(), "Afterlife", "carried name");
-    let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+    let kw = read_keyword(&plugin, "Afterlife(2)");
+    let KeywordAbility::Composite { name, abilities } = &kw else {
         panic!("Afterlife body is a Composite");
     };
+    assert_eq!(name.as_str(), "Afterlife", "carried name");
     let trig = abilities
         .iter()
         .find_map(|a| match a {
@@ -952,7 +910,15 @@ fn afterlife_confers_dies_create_spirit_tokens_with_flying() {
         })
         .expect("Afterlife confers a Triggered ability");
     assert!(
-        matches!(&trig.event, EventFilter::Expanded(e) if e.name.as_str() == "ThisDies"),
+        matches!(
+            &trig.event,
+            EventFilter::ZoneChange {
+                what: Predicate::Ref(Reference::This),
+                from: Some(Zone::Battlefield),
+                to: Some(Zone::Graveyard),
+                cause: None,
+            }
+        ),
         "afterlife triggers on dies; got {:?}",
         trig.event
     );
@@ -1011,6 +977,9 @@ fn names_keyword(a: &deckmaste_core::Ability, name: &str) -> bool {
     match a {
         Ability::Expanded(e) => e.name.as_str() == name || names_keyword(&e.value, name),
         Ability::Keyword(KeywordAbility::Expanded(e)) => e.name.as_str() == name,
+        Ability::Keyword(KeywordAbility::Composite { name: keyword, .. }) => {
+            keyword.as_str() == name
+        }
         _ => false,
     }
 }
