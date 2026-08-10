@@ -1,7 +1,6 @@
 use super::EnglishLexicalSlot;
 use super::Expected;
 use super::Nonterminal;
-use super::Numeral;
 use super::ParseCost;
 use super::Punctuation;
 use super::RuleBuilder;
@@ -36,126 +35,6 @@ pub(in crate::grammar) fn add_rules(builder: &mut RuleBuilder) {
         RuleTag::GerundClauseSubordinateAfter,
         N::GerundClause,
         [n(N::GerundClause), l(L::RatherThan), n(N::GerundClause)],
-    );
-    builder.add(
-        RuleTag::SimpleClauseSubject,
-        N::SimpleClause,
-        [n(N::NounPhrase), n(N::VerbPhrase)],
-    );
-    // The finite verbal quantifier float (`Two target creatures each get
-    // +2/+2 ...`). The dot-1 host gate lives in `accepts_predicate_prefix`
-    // (plural/second-person subject, non-object case); the reduce-time gate
-    // in `reduce_simple_clause` rechecks it and additionally requires exact
-    // subject/predicate agreement and complete predicate arguments. Appended
-    // after the ordinary subject production so existing `RuleId`s are
-    // preserved.
-    builder.add(
-        RuleTag::SimpleClauseSubjectDistributiveEach,
-        N::SimpleClause,
-        [n(N::NounPhrase), l(L::EachDeterminer), n(N::VerbPhrase)],
-    );
-    builder.add(
-        RuleTag::SimpleClauseContractedSubject,
-        N::SimpleClause,
-        [l(L::SubjectAuxiliary), n(N::VerbPhrase)],
-    );
-    builder.add(
-        RuleTag::SimpleClauseSubjectless,
-        N::SimpleClause,
-        [n(N::VerbPhrase)],
-    );
-    builder.add(RuleTag::ClauseSimple, N::Clause, [n(N::SimpleClause)]);
-    builder.add(
-        RuleTag::ClauseExistential,
-        N::Clause,
-        [l(L::Existential), n(N::NounPhrase)],
-    );
-    builder.add_with_cost(
-        RuleTag::CopularRemainderNoun,
-        N::CopularRemainder,
-        [n(N::NounPhrase)],
-        ParseCost {
-            precedence: 1,
-            ..ParseCost::default()
-        },
-    );
-    builder.add(
-        RuleTag::CopularRemainderAdjective,
-        N::CopularRemainder,
-        [n(N::AdjectivePhrase)],
-    );
-    builder.add(
-        RuleTag::CopularRemainderPrepositional,
-        N::CopularRemainder,
-        [n(N::PrepositionalPhrase)],
-    );
-    builder.add(
-        RuleTag::CopularRemainderAdverb,
-        N::CopularRemainder,
-        [l(L::Adverb), n(N::CopularRemainder)],
-    );
-    // The free-standing negation of a contracted copular predication (`it's
-    // *not* your turn`). Negation is normally spelled on the copula itself
-    // (`isn't`), but when the subject and auxiliary contract there is no
-    // auxiliary token left to carry it, so English spells `not` separately.
-    // Mirrors `CopularRemainderAdverb`'s shape.
-    builder.add(
-        RuleTag::CopularRemainderNegated,
-        N::CopularRemainder,
-        [l(L::Not), n(N::CopularRemainder)],
-    );
-    // The distributive floating `each` of a characteristic-defining copular
-    // (`Rosie's power and toughness are each equal to <measure>`). Requiring the
-    // `each` token keeps this frame off the non-`each` singular/plural forms,
-    // which stay on the intransitive `be` + adjective + prepositional-adjunct
-    // analysis. The adjective and its `to`-standard are taken apart here and
-    // rejoined as an `equal to X` adjective phrase (prepositional complement).
-    builder.add(
-        RuleTag::CopularRemainderDistributiveEach,
-        N::CopularRemainder,
-        [
-            l(L::EachDeterminer),
-            n(N::AdjectivePhrase),
-            n(N::PrepositionalPhrase),
-        ],
-    );
-    builder.add(
-        RuleTag::ClauseCopular,
-        N::Clause,
-        [n(N::NounPhrase), l(L::Copula), n(N::CopularRemainder)],
-    );
-    builder.add(
-        RuleTag::ClauseContractedCopular,
-        N::Clause,
-        [l(L::SubjectAuxiliary), n(N::CopularRemainder)],
-    );
-    // A variable's value constraint under a modal (`X can't be 0`): four
-    // scalar slots (no `Noun`, `Verb`, `Adjective`, or `NounPhrase`
-    // nonterminal anywhere in the production), one per numeral notation so
-    // `X can't be 5`, `X can't be fifth`, `X can't be V`, etc. all reach the
-    // same shape.
-    for notation in [
-        Numeral::Cardinal,
-        Numeral::Ordinal,
-        Numeral::Arabic(false),
-        Numeral::Arabic(true),
-        Numeral::Roman,
-    ] {
-        builder.add(
-            RuleTag::ClauseVariableValueConstraint,
-            N::Clause,
-            [
-                n(N::Quantity),
-                l(L::Auxiliary),
-                l(L::Auxiliary),
-                l(L::Number(notation)),
-            ],
-        );
-    }
-    builder.add(
-        RuleTag::ClauseElliptical,
-        N::Clause,
-        [n(N::AdjectivePhrase)],
     );
     builder.add(
         RuleTag::ClauseCoordination,
@@ -292,31 +171,6 @@ pub(in crate::grammar) fn add_rules(builder: &mut RuleBuilder) {
     // adjunct against a noun-internal complement) loses the tie, leaving every
     // already-clean parse untouched.
 
-    // `it's 7/7` — a power/toughness copular complement.
-    builder.add(
-        RuleTag::CopularRemainderPowerToughness,
-        N::CopularRemainder,
-        [l(L::PowerToughness)],
-    );
-    // A trailing prepositional adjunct on a copular predication (`it's legendary
-    // in addition to its other types`). The intransitive `become`/`be` path
-    // already admits this adjunct through the verb phrase; recording it on the
-    // copular remainder closes the same gap for the copular clause. It is a
-    // last resort (high precedence): whenever the preposition can attach to a
-    // verb, adjective, or noun instead — a passive (`it's put into exile`), an
-    // adjective standard (`its power is equal to X`), or a noun complement (`an
-    // Illusion in addition to …`) — that analysis wins. A genuine copular
-    // adjunct on a bare supertype/color adjective has no such competitor and is
-    // the only complete parse, so it wins despite the cost.
-    builder.add_with_cost(
-        RuleTag::CopularRemainderPrepositionalAdjunct,
-        N::CopularRemainder,
-        [n(N::CopularRemainder), n(N::PrepositionalPhrase)],
-        ParseCost {
-            precedence: 8,
-            ..ParseCost::default()
-        },
-    );
     // The exception rider: a leading `except` marker heading a coordinated list
     // of finite clauses. An asyndetic comma run lives on `ExceptionRiderList`
     // until it closes; this keeps punctuation-derived list state out of chart

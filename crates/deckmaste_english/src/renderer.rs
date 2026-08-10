@@ -5,7 +5,10 @@ use crate::features::Conjunction;
 use crate::features::Number;
 use crate::features::Onset as InitialSound;
 use crate::features::Person;
+use crate::grammar::ContractedSubjectAuxiliary as GeneratedContractedSubjectAuxiliary;
+use crate::grammar::CopularRemainder as GeneratedCopularRemainder;
 use crate::grammar::InfinitiveClause as GeneratedInfinitiveClause;
+use crate::grammar::SimpleClause as GeneratedSimpleClause;
 use crate::grammar::VerbAnalysis as GeneratedVerb;
 use crate::grammar::VerbPhrase as GeneratedVerbPhrase;
 use crate::identity::short_name;
@@ -314,6 +317,24 @@ pub(crate) fn render_generated_predicate_verb_phrase_law(
 }
 
 #[cfg(test)]
+pub(crate) fn render_generated_clause_law(value: &Clause) -> Result<String, RenderError> {
+    let renderer = Renderer::new("this card", false);
+    let mut visitor = GeneratedClauseRenderer::new(&renderer, 0, false);
+    GeneratedClauseRenderer::accept_generated(
+        crate::constructions::clause::linearize_clause_clause_with(value, &mut visitor),
+    )?;
+    Ok(visitor.finish())
+}
+
+#[cfg(test)]
+pub(crate) fn render_generated_elliptical_clause_law(
+    value: &EllipticalClause,
+) -> Result<String, RenderError> {
+    let renderer = Renderer::new("this card", false);
+    renderer.generated_elliptical_clause(value)
+}
+
+#[cfg(test)]
 pub(crate) fn render_generated_predicate_verb_law(
     value: &crate::grammar::VerbAnalysis,
 ) -> Result<GeneratedPredicateRender, RenderError> {
@@ -580,6 +601,196 @@ struct GeneratedPredicateRenderer<'renderer, 'identity> {
     publish_identity_quotes: bool,
     quoted_abilities_remaining: usize,
     publish_last_identity_quote: bool,
+}
+
+struct GeneratedClauseRenderer<'renderer, 'identity> {
+    renderer: &'renderer Renderer<'identity>,
+    rendered: String,
+    quoted_ability_count: usize,
+    publish_terminal_quote: bool,
+}
+
+impl<'renderer, 'identity> GeneratedClauseRenderer<'renderer, 'identity> {
+    fn new(
+        renderer: &'renderer Renderer<'identity>,
+        quoted_ability_count: usize,
+        publish_terminal_quote: bool,
+    ) -> Self {
+        Self {
+            renderer,
+            rendered: String::new(),
+            quoted_ability_count,
+            publish_terminal_quote,
+        }
+    }
+
+    fn push(&mut self, part: &str) {
+        if part.is_empty() {
+            return;
+        }
+        if !self.rendered.is_empty() {
+            self.rendered.push(' ');
+        }
+        self.rendered.push_str(part);
+    }
+
+    fn finish(self) -> String {
+        self.rendered
+    }
+
+    fn accept_generated(
+        result: Result<
+            (),
+            deckmaste_construction_compiler::runtime::LinearizationError<RenderError>,
+        >,
+    ) -> Result<(), RenderError> {
+        GeneratedPredicateRenderer::accept_generated(result)
+    }
+}
+
+impl deckmaste_construction_compiler::runtime::LinearizationVisitor
+    for GeneratedClauseRenderer<'_, '_>
+{
+    type Error = RenderError;
+
+    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
+        self.push(literal);
+        Ok(())
+    }
+
+    fn subtree<T: std::any::Any>(
+        &mut self,
+        category: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        let rendered = match category {
+            "SimpleClause" => {
+                Self::accept_generated(
+                    crate::constructions::clause::linearize_clause_simple_clause_with(
+                        value
+                            .downcast_ref::<GeneratedSimpleClause>()
+                            .expect("the clause hole preserves SimpleClause"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "CopularRemainder" => {
+                Self::accept_generated(
+                    crate::constructions::clause::linearize_clause_copular_remainder_with(
+                        value
+                            .downcast_ref::<GeneratedCopularRemainder>()
+                            .expect("the clause hole preserves CopularRemainder"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "VerbPhrase" => {
+                let mut predicate = GeneratedPredicateRenderer::new(self.renderer, 0, false, false);
+                predicate
+                    .publish_terminal_quote(self.quoted_ability_count, self.publish_terminal_quote);
+                predicate.render_verb_phrase(
+                    value
+                        .downcast_ref::<GeneratedVerbPhrase>()
+                        .expect("the clause predicate hole preserves VerbPhrase"),
+                )?;
+                predicate.finish()
+            }
+            "NounPhrase" => self.renderer.noun_phrase(
+                value
+                    .downcast_ref::<NounPhrase>()
+                    .expect("the clause noun-phrase hole preserves NounPhrase"),
+            )?,
+            "AdjectivePhrase" => self.renderer.adjective_phrase(
+                value
+                    .downcast_ref::<AdjectivePhrase>()
+                    .expect("the clause adjective hole preserves AdjectivePhrase"),
+            )?,
+            "PrepositionalPhrase" => self.renderer.prepositional_phrase(
+                value
+                    .downcast_ref::<PrepositionalPhrase>()
+                    .expect("the clause PP hole preserves PrepositionalPhrase"),
+            )?,
+            "Quantity" => render_quantity(
+                *value
+                    .downcast_ref::<Quantity>()
+                    .expect("the variable subject hole preserves Quantity"),
+            ),
+            other => panic!("unexpected clause subtree category `{other}`"),
+        };
+        self.push(&rendered);
+        Ok(())
+    }
+
+    fn scalar<T: std::any::Any>(
+        &mut self,
+        codec: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        let rendered = match codec {
+            "PowerToughness" => {
+                let value = value
+                    .downcast_ref::<crate::syntax::PowerToughness>()
+                    .expect("the clause stats scalar preserves PowerToughness");
+                format!(
+                    "{}/{}",
+                    render_signed_scalar(value.power),
+                    render_signed_scalar(value.toughness)
+                )
+            }
+            "Numeral" => {
+                let value = value
+                    .downcast_ref::<NumberLiteral>()
+                    .expect("the clause numeral scalar preserves NumberLiteral");
+                value.numeral.format(value.value)
+            }
+            other => panic!("unexpected clause scalar codec `{other}`"),
+        };
+        self.push(&rendered);
+        Ok(())
+    }
+
+    fn identity<T: std::any::Any>(
+        &mut self,
+        provider: &'static str,
+        value_type: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        let rendered = match provider {
+            "Auxiliary" | "Copula" => self.renderer.render_auxiliary(
+                *value
+                    .downcast_ref::<crate::word::AuxiliaryInstance>()
+                    .expect("the clause auxiliary identity preserves AuxiliaryInstance"),
+            )?,
+            "SubjectAuxiliary" => {
+                let value = value
+                    .downcast_ref::<GeneratedContractedSubjectAuxiliary>()
+                    .expect("the contracted identity preserves its staged value");
+                format!(
+                    "{}{}",
+                    self.renderer.subject(&value.subject)?,
+                    contraction_suffix(value.auxiliary)?
+                )
+            }
+            "Existential" => value
+                .downcast_ref::<crate::syntax::ExistentialForm>()
+                .expect("the existential identity preserves ExistentialForm")
+                .spelling()
+                .to_owned(),
+            "Adverb" => value
+                .downcast_ref::<Vocab>()
+                .expect("the clause adverb identity preserves Vocab")
+                .spelling()
+                .to_owned(),
+            other => panic!("unexpected clause identity provider `{other}` for `{value_type}`"),
+        };
+        self.push(&rendered);
+        Ok(())
+    }
 }
 
 impl<'renderer, 'identity> GeneratedPredicateRenderer<'renderer, 'identity> {
@@ -2617,6 +2828,40 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn independent_clause(&self, clause: &IndependentClause) -> Result<String, RenderError> {
+        let generated_eligible = !matches!(
+            clause,
+            IndependentClause::Copular(
+                _,
+                CopularPredicate {
+                    complement: CopularComplement::CoordinatedAdjective(_)
+                        | CopularComplement::CatalogAtom(_),
+                    ..
+                }
+            )
+        );
+        if generated_eligible {
+            let generated = Clause::Independent(clause.clone());
+            let mut visitor = GeneratedClauseRenderer::new(
+                self,
+                independent_clause_quoted_ability_count(clause),
+                self.terminal_quote_is(independent_clause_terminal_quote(clause)),
+            );
+            match crate::constructions::clause::linearize_clause_clause_with(
+                &generated,
+                &mut visitor,
+            ) {
+                Ok(()) => return Ok(visitor.finish()),
+                Err(
+                    deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
+                        ..
+                    },
+                ) => {}
+                Err(error) => {
+                    GeneratedClauseRenderer::accept_generated(Err(error))?;
+                    unreachable!("generated clause error is returned above")
+                }
+            }
+        }
         match clause {
             IndependentClause::Transitive(subject, predicate) => {
                 let (subject, auxiliary_start) =
@@ -3230,6 +3475,20 @@ impl<'identity> Renderer<'identity> {
         Ok(join_words(parts))
     }
 
+    fn generated_elliptical_clause(
+        &self,
+        clause: &EllipticalClause,
+    ) -> Result<String, RenderError> {
+        let mut visitor = GeneratedClauseRenderer::new(self, 0, false);
+        GeneratedClauseRenderer::accept_generated(
+            crate::constructions::clause::linearize_clause_elliptical_clause_with(
+                clause,
+                &mut visitor,
+            ),
+        )?;
+        Ok(visitor.finish())
+    }
+
     fn dependent_clause(&self, clause: &DependentClause) -> Result<String, RenderError> {
         match clause {
             DependentClause::Subordinate(subordinator, body) => {
@@ -3237,8 +3496,8 @@ impl<'identity> Renderer<'identity> {
                     SubordinateBody::Finite(clause) => self.independent_clause(clause)?,
                     SubordinateBody::Infinitive(clause) => self.infinitive_clause(clause)?,
                     SubordinateBody::Gerund(clause) => self.gerund_clause(clause)?,
-                    SubordinateBody::Elliptical(EllipticalClause::Adjective(phrase)) => {
-                        self.adjective_phrase(phrase)?
+                    SubordinateBody::Elliptical(clause) => {
+                        self.generated_elliptical_clause(clause)?
                     }
                 };
                 Ok(format!("{} {body}", render_subordinator(*subordinator)))
@@ -4138,6 +4397,64 @@ fn independent_clause_terminal_quote(clause: &IndependentClause) -> Option<&Quot
         IndependentClause::Existential(_)
         | IndependentClause::Proform(..)
         | IndependentClause::Deontic(_, _, None) => None,
+    }
+}
+
+fn independent_clause_quoted_ability_count(clause: &IndependentClause) -> usize {
+    let predicate = match clause {
+        IndependentClause::Transitive(_, value) => Predicate::Transitive(value.clone()),
+        IndependentClause::Intransitive(_, value) => Predicate::Intransitive(value.clone()),
+        IndependentClause::Passive(_, value) => Predicate::Passive(value.clone()),
+        IndependentClause::Imperative(value) | IndependentClause::Deontic(_, _, Some(value)) => {
+            value.clone()
+        }
+        IndependentClause::Predicated(_, expression) => {
+            return predicate_expression_quoted_ability_count(expression);
+        }
+        IndependentClause::Complex(value) => {
+            return independent_clause_quoted_ability_count(&value.matrix)
+                + value
+                    .attachments
+                    .iter()
+                    .map(|attachment| match &attachment.payload {
+                        ClauseAttachmentKind::Appositive(clause) => {
+                            independent_clause_quoted_ability_count(clause)
+                        }
+                        ClauseAttachmentKind::Adjunct(_)
+                        | ClauseAttachmentKind::Dependent(_)
+                        | ClauseAttachmentKind::Exception(_)
+                        | ClauseAttachmentKind::Restriction(_) => 0,
+                    })
+                    .sum::<usize>();
+        }
+        IndependentClause::Coordinated(value) => {
+            return independent_clause_quoted_ability_count(&value.first)
+                + value
+                    .rest
+                    .iter()
+                    .map(|member| match &member.member {
+                        CoordinatedClauseMember::Independent(clause) => {
+                            independent_clause_quoted_ability_count(clause)
+                        }
+                    })
+                    .sum::<usize>();
+        }
+        IndependentClause::Copular(..)
+        | IndependentClause::Existential(_)
+        | IndependentClause::Proform(..)
+        | IndependentClause::Deontic(_, _, None) => return 0,
+    };
+    predicate_quoted_ability_count(&predicate)
+}
+
+fn predicate_expression_quoted_ability_count(expression: &PredicateExpression) -> usize {
+    match expression {
+        PredicateExpression::Simple(predicate) => predicate_quoted_ability_count(predicate),
+        PredicateExpression::Coordinated(coordination) => coordination
+            .conjuncts()
+            .iter()
+            .map(predicate_expression_quoted_ability_count)
+            .sum(),
     }
 }
 

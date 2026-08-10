@@ -31,7 +31,7 @@ fn family(tag: RuleTag) -> ConstructionFamily {
     )
 }
 
-fn dominance_edges() -> [DominanceEdge; 4] {
+fn dominance_edges() -> [DominanceEdge; 3] {
     let edge = |dominant, subordinate| {
         DominanceEdge::new(construction_id(dominant), construction_id(subordinate))
     };
@@ -44,7 +44,6 @@ fn dominance_edges() -> [DominanceEdge; 4] {
             RuleTag::NounPhraseSubjectPronoun,
             RuleTag::NounPhraseObjectPronoun,
         ),
-        edge(RuleTag::ClauseSimple, RuleTag::ClauseCopular),
         edge(RuleTag::RelativeSubject, RuleTag::RelativeObject),
     ]
 }
@@ -399,8 +398,8 @@ mod tests {
             .iter()
             .filter(|family| family.owner() == ConstructionOwner::Generated)
             .count();
-        assert_eq!(handwritten, 88, "handwritten chart families");
-        assert_eq!(generated, 104, "generated chart families");
+        assert_eq!(handwritten, 70, "handwritten chart families");
+        assert_eq!(generated, 122, "generated chart families");
         assert_eq!(families.len(), 192, "all chart families");
 
         let chart_fragment_entries = [FragmentKind::Nominal, FragmentKind::Sentence];
@@ -411,8 +410,38 @@ mod tests {
         ];
         assert_eq!(chart_fragment_entries.len(), 2);
         assert_eq!(ability_fragment_entries.len(), 3);
-        assert_eq!(handwritten + ability_fragment_entries.len(), 91);
+        assert_eq!(handwritten + ability_fragment_entries.len(), 73);
         assert_eq!(families.len() + ability_fragment_entries.len(), 195);
+
+        for id in [
+            "simple_clause_subject",
+            "simple_clause_subject_distributive_each",
+            "simple_clause_contracted_subject",
+            "simple_clause_subjectless",
+            "clause_simple",
+            "clause_elliptical",
+            "clause_existential",
+            "copular_remainder_noun",
+            "copular_remainder_adjective",
+            "copular_remainder_prepositional",
+            "copular_remainder_power_toughness",
+            "copular_remainder_prepositional_adjunct",
+            "copular_remainder_adverb",
+            "copular_remainder_negated",
+            "copular_remainder_distributive_each",
+            "clause_copular",
+            "clause_contracted_copular",
+            "clause_variable_value_constraint",
+        ] {
+            assert_eq!(
+                registry()
+                    .family(ConstructionId::new(id))
+                    .expect("every F02 family is registered")
+                    .owner(),
+                ConstructionOwner::Generated,
+                "{id} must have generated production ownership",
+            );
+        }
     }
 
     #[test]

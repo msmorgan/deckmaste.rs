@@ -27,7 +27,6 @@ use super::IndependentClause;
 use super::InfinitiveClause;
 use super::InfinitiveMarker;
 use super::Lowered;
-use super::Modal;
 use super::NounPhrase;
 use super::Phrase;
 use super::Predicate;
@@ -35,7 +34,6 @@ use super::PredicateAdjunct;
 use super::PredicateExpression;
 use super::PredicateForm;
 use super::PredicateHead;
-use super::Quantity;
 use super::RelativeBody;
 use super::RelativeClause;
 use super::RelativeMarker;
@@ -96,24 +94,7 @@ pub(in crate::grammar) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -
             });
             Some(Lowered::GerundClause(matrix))
         }
-        RuleTag::SimpleClauseSubject
-        | RuleTag::SimpleClauseSubjectDistributiveEach
-        | RuleTag::SimpleClauseContractedSubject
-        | RuleTag::SimpleClauseSubjectless
-        | RuleTag::ClauseSimple
-        | RuleTag::ClauseElliptical
-        | RuleTag::ClauseExistential
-        | RuleTag::CopularRemainderNoun
-        | RuleTag::CopularRemainderAdjective
-        | RuleTag::CopularRemainderPrepositional
-        | RuleTag::CopularRemainderPowerToughness
-        | RuleTag::CopularRemainderPrepositionalAdjunct
-        | RuleTag::CopularRemainderAdverb
-        | RuleTag::CopularRemainderNegated
-        | RuleTag::CopularRemainderDistributiveEach
-        | RuleTag::ClauseCopular
-        | RuleTag::ClauseContractedCopular
-        | RuleTag::RelativeObject
+        RuleTag::RelativeObject
         | RuleTag::RelativeObjectContractedSubject
         | RuleTag::RelativeSubjectContractedAuxiliary
         | RuleTag::RelativeSubject
@@ -125,7 +106,6 @@ pub(in crate::grammar) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -
         | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
             lower_simple_clause(tag, children)
         }
-        RuleTag::ClauseVariableValueConstraint => lower_variable_value_constraint(children),
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
@@ -195,98 +175,7 @@ pub(super) fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) 
 #[allow(clippy::too_many_lines, reason = "lowering has many grammar variants")]
 pub(super) fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
-        RuleTag::SimpleClauseSubject => {
-            let Lowered::NounPhrase(subject) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::VerbPhrase(predicate) = take(children, 1)? else {
-                return None;
-            };
-            Some(Lowered::SimpleClause(SimpleClause {
-                subject: Some(Subject(subject)),
-                predicate,
-            }))
-        }
-        RuleTag::SimpleClauseSubjectDistributiveEach => {
-            let Lowered::NounPhrase(subject) = take(children, 0)? else {
-                return None;
-            };
-            // `each` (index 1) is the floating quantifier — discarded here
-            // and carried as `PredicateHead::distributive_each` instead.
-            let Lowered::VerbPhrase(mut predicate) = take(children, 2)? else {
-                return None;
-            };
-            predicate.distributive_each = true;
-            Some(Lowered::SimpleClause(SimpleClause {
-                subject: Some(Subject(subject)),
-                predicate,
-            }))
-        }
-        RuleTag::SimpleClauseContractedSubject => {
-            let Lowered::SubjectAuxiliary(subject_auxiliary) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::VerbPhrase(mut predicate) = take(children, 1)? else {
-                return None;
-            };
-            predicate.auxiliaries.insert(0, subject_auxiliary.auxiliary);
-            predicate.first_auxiliary_contracted_with_subject = true;
-            Some(Lowered::SimpleClause(SimpleClause {
-                subject: Some(subject_auxiliary.subject),
-                predicate,
-            }))
-        }
-        RuleTag::SimpleClauseSubjectless => {
-            let Lowered::VerbPhrase(predicate) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::SimpleClause(SimpleClause {
-                subject: None,
-                predicate,
-            }))
-        }
-        RuleTag::ClauseSimple => {
-            let Lowered::SimpleClause(simple) = take(children, 0)? else {
-                return None;
-            };
-            let independent = finish_simple_clause(simple)?;
-            Some(Lowered::Clause(Clause::Independent(independent)))
-        }
-        RuleTag::ClauseElliptical => {
-            let Lowered::AdjectivePhrase(adjective) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::EllipticalClause(EllipticalClause::Adjective(
-                adjective,
-            )))
-        }
-        RuleTag::ClauseExistential => {
-            let Lowered::Existential(form) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::NounPhrase(pivot) = take(children, 1)? else {
-                return None;
-            };
-            Some(Lowered::Clause(Clause::Independent(
-                IndependentClause::Existential(crate::syntax::ExistentialClause {
-                    form,
-                    pivot,
-                    adjuncts: vec![],
-                }),
-            )))
-        }
-        tag @ (RuleTag::CopularRemainderNoun
-        | RuleTag::CopularRemainderAdjective
-        | RuleTag::CopularRemainderPrepositional
-        | RuleTag::CopularRemainderPowerToughness
-        | RuleTag::CopularRemainderPrepositionalAdjunct
-        | RuleTag::CopularRemainderAdverb
-        | RuleTag::CopularRemainderNegated
-        | RuleTag::CopularRemainderDistributiveEach
-        | RuleTag::CopularRemainderCoordinatedAdjective) => lower_copular_remainder(tag, children),
-        tag @ (RuleTag::ClauseCopular | RuleTag::ClauseContractedCopular) => {
-            lower_copular_clause(tag, children)
-        }
+        RuleTag::CopularRemainderCoordinatedAdjective => lower_copular_remainder(children),
         RuleTag::RelativeObject => {
             let Lowered::NounPhrase(subject) = take(children, 0)? else {
                 return None;
@@ -484,215 +373,19 @@ pub(super) fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Opt
     }
 }
 
-pub(super) fn lower_copular_remainder(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
-    let remainder = match tag {
-        RuleTag::CopularRemainderNoun => {
-            let Lowered::NounPhrase(complement) = take(children, 0)? else {
-                return None;
-            };
-            CopularRemainder {
-                negated: false,
-                distributive_each: false,
-                precomplement_adverbs: Vec::new(),
-                complement: CopularComplement::NounPhrase(complement),
-                adjuncts: Vec::new(),
-            }
-        }
-        RuleTag::CopularRemainderAdjective => {
-            let Lowered::AdjectivePhrase(complement) = take(children, 0)? else {
-                return None;
-            };
-            CopularRemainder {
-                negated: false,
-                distributive_each: false,
-                precomplement_adverbs: Vec::new(),
-                complement: CopularComplement::Adjective(complement),
-                adjuncts: Vec::new(),
-            }
-        }
-        RuleTag::CopularRemainderCoordinatedAdjective => {
-            let Lowered::CoordinatedModifier(coordinated) = take(children, 0)? else {
-                return None;
-            };
-            CopularRemainder {
-                negated: false,
-                distributive_each: false,
-                precomplement_adverbs: Vec::new(),
-                complement: CopularComplement::CoordinatedAdjective(
-                    coordinated_modifier_as_adjectives(coordinated)?,
-                ),
-                adjuncts: Vec::new(),
-            }
-        }
-        RuleTag::CopularRemainderPrepositional => {
-            let Lowered::PrepositionalPhrase(complement) = take(children, 0)? else {
-                return None;
-            };
-            CopularRemainder {
-                negated: false,
-                distributive_each: false,
-                precomplement_adverbs: Vec::new(),
-                complement: CopularComplement::Prepositional(complement),
-                adjuncts: Vec::new(),
-            }
-        }
-        RuleTag::CopularRemainderPowerToughness => {
-            let Lowered::PowerToughness(power_toughness) = take(children, 0)? else {
-                return None;
-            };
-            CopularRemainder {
-                negated: false,
-                distributive_each: false,
-                precomplement_adverbs: Vec::new(),
-                complement: CopularComplement::PowerToughness(power_toughness),
-                adjuncts: Vec::new(),
-            }
-        }
-        RuleTag::CopularRemainderPrepositionalAdjunct => {
-            let Lowered::CopularRemainder(mut remainder) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::PrepositionalPhrase(adjunct) = take(children, 1)? else {
-                return None;
-            };
-            remainder
-                .adjuncts
-                .push(PredicateAdjunct::Prepositional(adjunct));
-            remainder
-        }
-        RuleTag::CopularRemainderAdverb => {
-            let Lowered::Adverb(adverb) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::CopularRemainder(mut remainder) = take(children, 1)? else {
-                return None;
-            };
-            remainder.precomplement_adverbs.insert(0, adverb);
-            remainder
-        }
-        RuleTag::CopularRemainderNegated => {
-            let Lowered::CopularRemainder(mut remainder) = take(children, 1)? else {
-                return None;
-            };
-            // Double negation is not English and the corpus prints none; one
-            // `not` per predication.
-            if remainder.negated {
-                return None;
-            }
-            remainder.negated = true;
-            remainder
-        }
-        RuleTag::CopularRemainderDistributiveEach => {
-            // `each` (index 0) is the floating quantifier — carried as a flag,
-            // its lexical child discarded. The adjective (`equal`) takes the
-            // trailing prepositional phrase (`to X`) as its own complement so
-            // the standard stays bound to the adjective rather than floating as
-            // a clause adjunct.
-            let Lowered::AdjectivePhrase(adjective) = take(children, 1)? else {
-                return None;
-            };
-            let Lowered::PrepositionalPhrase(standard) = take(children, 2)? else {
-                return None;
-            };
-            let adjective = adjective.try_attach_compatibility_complement(
-                crate::syntax::AdjectiveComplement::Prepositional(standard),
-            )?;
-            CopularRemainder {
-                negated: false,
-                distributive_each: true,
-                precomplement_adverbs: Vec::new(),
-                complement: CopularComplement::Adjective(adjective),
-                adjuncts: Vec::new(),
-            }
-        }
-        _ => return None,
-    };
-    Some(Lowered::CopularRemainder(remainder))
-}
-
-pub(super) fn lower_copular_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
-    let contracted = tag == RuleTag::ClauseContractedCopular;
-    let (subject, copula, remainder_index) = if contracted {
-        let Lowered::SubjectAuxiliary(subject_auxiliary) = take(children, 0)? else {
-            return None;
-        };
-        if subject_auxiliary.auxiliary.auxiliary != Auxiliary::Be {
-            return None;
-        }
-        (
-            subject_auxiliary.subject,
-            crate::syntax::Copula {
-                auxiliary: subject_auxiliary.auxiliary,
-                contracted_with_subject: crate::features::Contraction::Contracted,
-            },
-            1,
-        )
-    } else {
-        let Lowered::NounPhrase(subject) = take(children, 0)? else {
-            return None;
-        };
-        let Lowered::Auxiliary(auxiliary) = take(children, 1)? else {
-            return None;
-        };
-        (
-            Subject(subject),
-            crate::syntax::Copula {
-                auxiliary,
-                contracted_with_subject: crate::features::Contraction::Full,
-            },
-            2,
-        )
-    };
-    let Lowered::CopularRemainder(remainder) = take(children, remainder_index)? else {
+pub(super) fn lower_copular_remainder(children: &mut [Lowered]) -> Option<Lowered> {
+    let Lowered::CoordinatedModifier(coordinated) = take(children, 0)? else {
         return None;
     };
-    Some(Lowered::Clause(Clause::Independent(
-        IndependentClause::Copular(
-            subject,
-            crate::syntax::CopularPredicate {
-                negated: remainder.negated,
-                copula,
-                distributive_each: remainder.distributive_each,
-                precomplement_adverbs: remainder.precomplement_adverbs,
-                complement: remainder.complement,
-                adjuncts: remainder.adjuncts,
-            },
-        ),
-    )))
-}
-
-pub(super) fn lower_variable_value_constraint(children: &mut [Lowered]) -> Option<Lowered> {
-    let Lowered::Quantity(subject_quantity @ Quantity::X) = take(children, 0)? else {
-        return None;
-    };
-    let Lowered::Auxiliary(modal) = take(children, 1)? else {
-        return None;
-    };
-    let Lowered::Auxiliary(be) = take(children, 2)? else {
-        return None;
-    };
-    let Lowered::Number(number) = take(children, 3)? else {
-        return None;
-    };
-    Some(Lowered::Clause(Clause::Independent(
-        IndependentClause::Deontic(
-            Subject(NounPhrase::Quantity(subject_quantity)),
-            Modal { auxiliary: modal },
-            Some(Predicate::Copular(crate::syntax::CopularPredicate {
-                negated: false,
-                copula: crate::syntax::Copula {
-                    auxiliary: be,
-                    contracted_with_subject: crate::features::Contraction::Full,
-                },
-                distributive_each: false,
-                precomplement_adverbs: Vec::new(),
-                complement: CopularComplement::NounPhrase(NounPhrase::Quantity(Quantity::Exact(
-                    number,
-                ))),
-                adjuncts: Vec::new(),
-            })),
-        ),
-    )))
+    Some(Lowered::CopularRemainder(CopularRemainder {
+        negated: false,
+        distributive_each: false,
+        precomplement_adverbs: Vec::new(),
+        complement: CopularComplement::CoordinatedAdjective(coordinated_modifier_as_adjectives(
+            coordinated,
+        )?),
+        adjuncts: Vec::new(),
+    }))
 }
 
 #[allow(
@@ -1732,7 +1425,7 @@ pub(super) fn with_clause_attachment(
     }
 }
 
-pub(in crate::grammar) fn finish_simple_clause(simple: SimpleClause) -> Option<IndependentClause> {
+pub(crate) fn finish_simple_clause(simple: SimpleClause) -> Option<IndependentClause> {
     let imperative = simple.subject.is_none() && simple.predicate.verb.slot == VerbSlot::Imperative;
     let subject = simple.subject;
     let FinishedPredicate {

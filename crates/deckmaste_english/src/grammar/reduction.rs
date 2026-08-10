@@ -72,12 +72,6 @@ pub(super) fn reduce(
         | RuleTag::InfinitiveNotTo
         | RuleTag::GerundClauseBase
         | RuleTag::GerundClauseSubordinateAfter
-        | RuleTag::SimpleClauseSubject
-        | RuleTag::SimpleClauseSubjectDistributiveEach
-        | RuleTag::SimpleClauseContractedSubject
-        | RuleTag::SimpleClauseSubjectless
-        | RuleTag::ClauseSimple
-        | RuleTag::ClauseElliptical
         | RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
@@ -93,18 +87,6 @@ pub(super) fn reduce(
         | RuleTag::ClauseSubordinateAfter
         | RuleTag::ClauseSubordinateAfterComma
         | RuleTag::ClauseSubordinateAfterInfinitive
-        | RuleTag::ClauseExistential
-        | RuleTag::CopularRemainderNoun
-        | RuleTag::CopularRemainderAdjective
-        | RuleTag::CopularRemainderPrepositional
-        | RuleTag::CopularRemainderPowerToughness
-        | RuleTag::CopularRemainderPrepositionalAdjunct
-        | RuleTag::CopularRemainderAdverb
-        | RuleTag::CopularRemainderNegated
-        | RuleTag::CopularRemainderDistributiveEach
-        | RuleTag::ClauseCopular
-        | RuleTag::ClauseContractedCopular
-        | RuleTag::ClauseVariableValueConstraint
         | RuleTag::RelativeObject
         | RuleTag::RelativeObjectContractedSubject
         | RuleTag::RelativeSubjectContractedAuxiliary

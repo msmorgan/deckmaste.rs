@@ -11,7 +11,6 @@ use super::Features;
 use super::GapState;
 use super::Number;
 use super::ParseCost;
-use super::Person;
 use super::PredicateAttachmentPhase;
 use super::PredicateComplementKind;
 use super::PredicateForm;
@@ -23,7 +22,6 @@ use super::Reduced;
 use super::RuleTag;
 use super::VerbParticle;
 use super::propagate;
-use crate::constructions::predicate::is_modal;
 use crate::features::ComplementRole;
 use crate::features::Conjunction;
 
@@ -67,24 +65,7 @@ pub(in crate::grammar) fn reduce_clause(
             }
             Some(Features::GerundClause)
         }
-        RuleTag::SimpleClauseSubject
-        | RuleTag::SimpleClauseSubjectDistributiveEach
-        | RuleTag::SimpleClauseContractedSubject
-        | RuleTag::SimpleClauseSubjectless
-        | RuleTag::ClauseSimple
-        | RuleTag::ClauseElliptical
-        | RuleTag::ClauseExistential
-        | RuleTag::CopularRemainderNoun
-        | RuleTag::CopularRemainderAdjective
-        | RuleTag::CopularRemainderPrepositional
-        | RuleTag::CopularRemainderPowerToughness
-        | RuleTag::CopularRemainderPrepositionalAdjunct
-        | RuleTag::CopularRemainderAdverb
-        | RuleTag::CopularRemainderNegated
-        | RuleTag::CopularRemainderDistributiveEach
-        | RuleTag::ClauseCopular
-        | RuleTag::ClauseContractedCopular
-        | RuleTag::RelativeObject
+        RuleTag::RelativeObject
         | RuleTag::RelativeObjectContractedSubject
         | RuleTag::RelativeSubjectContractedAuxiliary
         | RuleTag::RelativeSubject
@@ -96,7 +77,6 @@ pub(in crate::grammar) fn reduce_clause(
         | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
             reduce_simple_clause(tag, children)
         }
-        RuleTag::ClauseVariableValueConstraint => reduce_variable_value_constraint(children),
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
@@ -138,23 +118,6 @@ pub(in crate::grammar) fn accepts_predicate_prefix(
         return matches!(
             features,
             Features::Subordinator(crate::syntax::Subordinator::While)
-        );
-    }
-    // The finite verbal quantifier float's host gate: only a plural subject,
-    // or a second-person subject (the grammar's `you` feature is
-    // second-person singular even for a plural discourse referent, so
-    // `person == Second` is required for `You each ...`), in non-object case
-    // may scan the dedicated `each` lexeme here. `I each` must not be
-    // admitted, so this is not loosened to every non-third-singular subject.
-    if tag == RuleTag::SimpleClauseSubjectDistributiveEach {
-        return matches!(
-            features,
-            Features::NounPhrase {
-                agreement: Some(a),
-                pronoun_case,
-                ..
-            } if *pronoun_case != Some(PronounCase::Object)
-                && (a.number == Number::Plural || a.person == Person::Second)
         );
     }
     if let Some(accepts) = accepts_shared_copular_coordination_prefix(tag, features) {
@@ -555,9 +518,8 @@ pub(crate) enum PredicateAttachment {
 /// Folds an auxiliary attaching from outside a verb phrase into that phrase's
 /// passive determination, and applies the retained-object rule. Shared by
 /// Both the declaration-owned auxiliary construction (where the auxiliary sits
-/// inside the phrase) and [`RuleTag::SimpleClauseContractedSubject`] (where it
-/// is contracted onto the subject) use this helper, so the two paths cannot
-/// drift.
+/// inside the phrase) and the declaration-owned contracted-subject clause use
+/// this helper, so the two paths cannot drift.
 ///
 /// Returns `None` when the combination is ill-formed — a passive may keep a
 /// direct object only as a recipient passive's retained theme, and never keeps
@@ -586,7 +548,7 @@ pub(crate) fn fold_auxiliary_passive(
     Some(passive)
 }
 
-pub(in crate::grammar) fn predicate_arguments_complete(
+pub(crate) fn predicate_arguments_complete(
     frame: PredicateFrame,
     passive: bool,
     object: PredicateObjectState,
@@ -648,297 +610,6 @@ pub(super) fn reduce_simple_clause(
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> Option<Reduced> {
     match tag {
-        RuleTag::SimpleClauseSubject => {
-            let Features::NounPhrase {
-                agreement: Some(subject_agreement),
-                pronoun_case,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            if *pronoun_case == Some(PronounCase::Object) {
-                return None;
-            }
-            let Features::VerbPhrase {
-                form: PredicateForm::Finite(predicate_agreement),
-                passive,
-                object,
-                indirect_object,
-                selected_preposition,
-                frame,
-                subjunctive,
-                ..
-            } = children.get(1)?.features
-            else {
-                return None;
-            };
-            if predicate_agreement.is_some_and(|agreement| agreement != *subject_agreement) {
-                return None;
-            }
-            if !predicate_arguments_complete(
-                *frame,
-                *passive,
-                *object,
-                *indirect_object,
-                *selected_preposition,
-            ) {
-                return None;
-            }
-            let host_addressee_subject = *pronoun_case == Some(PronounCase::Subject)
-                && subject_agreement.person == Person::Second;
-            let host_modal = predicate_agreement.is_none();
-            Some(simple_clause_reduction(
-                Some(*subject_agreement),
-                true,
-                true,
-                object.has_direct_object(),
-                host_addressee_subject,
-                host_modal,
-                *subjunctive,
-            ))
-        }
-        RuleTag::SimpleClauseSubjectDistributiveEach => {
-            // Defensive recheck of the dot-1 host gate in
-            // `accepts_predicate_prefix`: plural or second-person subject,
-            // non-object case.
-            let Features::NounPhrase {
-                agreement: Some(subject_agreement),
-                pronoun_case,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            if *pronoun_case == Some(PronounCase::Object) {
-                return None;
-            }
-            if subject_agreement.number != Number::Plural
-                && subject_agreement.person != Person::Second
-            {
-                return None;
-            }
-            // The predicate must be a genuinely finite, agreeing verb phrase
-            // (excludes third-singular `gets` and the agreement-neutral
-            // modal path — the predicate fact this floated `each` needs is
-            // only available here, at reduce).
-            let Features::VerbPhrase {
-                form: PredicateForm::Finite(Some(predicate_agreement)),
-                passive,
-                object,
-                indirect_object,
-                selected_preposition,
-                frame,
-                subjunctive,
-                ..
-            } = children.get(2)?.features
-            else {
-                return None;
-            };
-            if *predicate_agreement != *subject_agreement {
-                return None;
-            }
-            if !predicate_arguments_complete(
-                *frame,
-                *passive,
-                *object,
-                *indirect_object,
-                *selected_preposition,
-            ) {
-                return None;
-            }
-            let host_addressee_subject = *pronoun_case == Some(PronounCase::Subject)
-                && subject_agreement.person == Person::Second;
-            Some(simple_clause_reduction(
-                Some(*subject_agreement),
-                true,
-                true,
-                object.has_direct_object(),
-                host_addressee_subject,
-                false,
-                *subjunctive,
-            ))
-        }
-        RuleTag::SimpleClauseContractedSubject => {
-            let Features::SubjectAuxiliary {
-                agreement: subject_agreement,
-                auxiliary,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            let Features::VerbPhrase {
-                form: child_form,
-                passive: child_passive,
-                object,
-                indirect_object,
-                selected_preposition,
-                frame,
-                subjunctive,
-                ..
-            } = children.get(1)?.features
-            else {
-                return None;
-            };
-            let PredicateForm::Finite(Some(predicate_agreement)) =
-                auxiliary_form(*auxiliary, *child_form)?
-            else {
-                return None;
-            };
-            if predicate_agreement != *subject_agreement {
-                return None;
-            }
-            let passive = fold_auxiliary_passive(
-                *auxiliary,
-                *child_form,
-                *child_passive,
-                *object,
-                *indirect_object,
-                *frame,
-            )?;
-            if !predicate_arguments_complete(
-                *frame,
-                passive,
-                *object,
-                *indirect_object,
-                *selected_preposition,
-            ) {
-                return None;
-            }
-            let host_addressee_subject = subject_agreement.person == Person::Second;
-            // `auxiliary_form` only yields `Finite(Some(_))` here (the
-            // `Finite(None)` base-modal path never satisfies this pattern),
-            // so a contracted-subject host never carries `host_modal`.
-            let host_modal = false;
-            Some(simple_clause_reduction(
-                Some(*subject_agreement),
-                true,
-                true,
-                object.has_direct_object(),
-                host_addressee_subject,
-                host_modal,
-                *subjunctive,
-            ))
-        }
-        RuleTag::SimpleClauseSubjectless => {
-            let Features::VerbPhrase {
-                form,
-                passive,
-                object,
-                indirect_object,
-                selected_preposition,
-                frame,
-                subjunctive,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            if !predicate_arguments_complete(
-                *frame,
-                *passive,
-                *object,
-                *indirect_object,
-                *selected_preposition,
-            ) {
-                return None;
-            }
-            match form {
-                PredicateForm::Imperative => Some(simple_clause_reduction(
-                    None,
-                    false,
-                    true,
-                    object.has_direct_object(),
-                    false,
-                    false,
-                    *subjunctive,
-                )),
-                PredicateForm::Finite(agreement) => Some(simple_clause_reduction(
-                    *agreement,
-                    false,
-                    false,
-                    object.has_direct_object(),
-                    false,
-                    agreement.is_none(),
-                    *subjunctive,
-                )),
-                PredicateForm::Infinitive => Some(simple_clause_reduction(
-                    None,
-                    false,
-                    false,
-                    object.has_direct_object(),
-                    false,
-                    false,
-                    *subjunctive,
-                )),
-                PredicateForm::PresentParticiple | PredicateForm::PastParticiple => None,
-            }
-        }
-        RuleTag::ClauseSimple => {
-            let Features::SimpleClause {
-                agreement,
-                has_subject,
-                standalone,
-                host_addressee_subject,
-                host_modal,
-                subjunctive,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            Some(Features::Clause {
-                agreement: *agreement,
-                standalone: *standalone,
-                finite: *has_subject,
-                host_addressee_subject: *host_addressee_subject,
-                host_modal: *host_modal,
-                subjunctive: *subjunctive,
-            })
-        }
-        RuleTag::ClauseElliptical => Some(Features::Clause {
-            agreement: None,
-            standalone: false,
-            finite: false,
-            host_addressee_subject: false,
-            host_modal: false,
-            subjunctive: false,
-        }),
-        RuleTag::ClauseExistential => {
-            let Features::Existential {
-                number: expected_number,
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            let Features::NounPhrase {
-                agreement: Some(agreement),
-                ..
-            } = children.get(1)?.features
-            else {
-                return None;
-            };
-            if agreement.number != *expected_number {
-                return None;
-            }
-            Some(Features::Clause {
-                agreement: None,
-                standalone: true,
-                finite: true,
-                host_addressee_subject: false,
-                host_modal: false,
-                subjunctive: false,
-            })
-        }
-        RuleTag::CopularRemainderNoun
-        | RuleTag::CopularRemainderAdjective
-        | RuleTag::CopularRemainderPrepositional
-        | RuleTag::CopularRemainderPowerToughness
-        | RuleTag::CopularRemainderPrepositionalAdjunct
-        | RuleTag::CopularRemainderAdverb
-        | RuleTag::CopularRemainderNegated
-        | RuleTag::CopularRemainderDistributiveEach => Some(Features::None),
         RuleTag::CopularRemainderCoordinatedAdjective => {
             // Only an all-adjective coordinated run predicates as a copular
             // adjective complement; a coordinated run holding a noun reading
@@ -952,9 +623,6 @@ pub(super) fn reduce_simple_clause(
                 return None;
             };
             Some(Features::None)
-        }
-        tag @ (RuleTag::ClauseCopular | RuleTag::ClauseContractedCopular) => {
-            reduce_copular_clause(tag, children)
         }
         RuleTag::RelativeObject => {
             let Features::NounPhrase {
@@ -1171,118 +839,6 @@ pub(super) fn reduce_simple_clause(
             })
         }
         _ => None,
-    }
-}
-
-pub(super) fn reduce_copular_clause(
-    tag: RuleTag,
-    children: &[Child<'_, EnglishGrammar<'_, '_>>],
-) -> Option<Reduced> {
-    let contracted = tag == RuleTag::ClauseContractedCopular;
-    let (agreement, subjunctive) = if contracted {
-        let Features::SubjectAuxiliary {
-            agreement,
-            auxiliary,
-            ..
-        } = children.first()?.features
-        else {
-            return None;
-        };
-        if auxiliary.auxiliary != Auxiliary::Be {
-            return None;
-        }
-        (*agreement, false)
-    } else {
-        let Features::NounPhrase {
-            agreement: Some(subject_agreement),
-            pronoun_case,
-            ..
-        } = children.first()?.features
-        else {
-            return None;
-        };
-        if *pronoun_case == Some(PronounCase::Object) {
-            return None;
-        }
-        let Features::Copula(copula) = children.get(1)?.features else {
-            return None;
-        };
-        match copula {
-            CopulaAgreement::Indicative(copula_agreement) => {
-                if *subject_agreement != *copula_agreement {
-                    return None;
-                }
-                (*subject_agreement, false)
-            }
-            // Recognition-level licensing: no agreement constraint, but the
-            // clause is marked subjunctive, so every consumer other than the
-            // `as though` gate (clause.rs:2056) rejects it.
-            CopulaAgreement::PastSubjunctive => (*subject_agreement, true),
-        }
-    };
-    Some(Features::Clause {
-        agreement: Some(agreement),
-        standalone: true,
-        finite: true,
-        host_addressee_subject: false,
-        host_modal: false,
-        subjunctive,
-    })
-}
-
-pub(super) fn reduce_variable_value_constraint(
-    children: &[Child<'_, EnglishGrammar<'_, '_>>],
-) -> Option<Reduced> {
-    let Features::Quantity(_) = children.first()?.features else {
-        return None;
-    };
-    let Features::Auxiliary(modal) = children.get(1)?.features else {
-        return None;
-    };
-    if !is_modal(modal.auxiliary) {
-        return None;
-    }
-    let Features::Auxiliary(copula) = children.get(2)?.features else {
-        return None;
-    };
-    if copula.auxiliary != Auxiliary::Be || copula.inflection != AuxiliaryInflection::Base {
-        return None;
-    }
-    let Features::Number { .. } = children.get(3)?.features else {
-        return None;
-    };
-    Some(Features::Clause {
-        agreement: None,
-        standalone: true,
-        finite: true,
-        host_addressee_subject: false,
-        host_modal: false,
-        subjunctive: false,
-    })
-}
-
-#[allow(
-    clippy::fn_params_excessive_bools,
-    reason = "each bool is an independently-computed SimpleClause feature bit; \
-              grouping into enums would obscure the 1:1 field mapping"
-)]
-pub(super) fn simple_clause_reduction(
-    agreement: Option<Agreement>,
-    has_subject: bool,
-    standalone: bool,
-    has_direct_object: bool,
-    host_addressee_subject: bool,
-    host_modal: bool,
-    subjunctive: bool,
-) -> Reduced {
-    Features::SimpleClause {
-        agreement,
-        has_subject,
-        standalone,
-        has_direct_object,
-        host_addressee_subject,
-        host_modal,
-        subjunctive,
     }
 }
 
