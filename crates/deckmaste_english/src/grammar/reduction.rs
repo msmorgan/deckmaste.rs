@@ -1296,18 +1296,37 @@ pub(super) fn reduce_phrase(
 ) -> Option<Reduced> {
     match tag {
         RuleTag::PrepositionalPhraseListPair | RuleTag::PrepositionalPhraseListComma => {
-            let Features::PrepositionalPhrase { .. } = children.first()?.features else {
+            let Features::PrepositionalPhrase {
+                preposition,
+                shared_determiner_object,
+                role_members,
+                ..
+            } = children.first()?.features
+            else {
                 return None;
             };
-            let Features::PrepositionalPhrase { .. } = children.get(2)?.features else {
+            let Features::PrepositionalPhrase {
+                nearer_relative_host,
+                role_members: next_role_members,
+                ..
+            } = children.get(2)?.features
+            else {
                 return None;
             };
-            Some(children.first()?.features.clone())
+            let mut role_members = role_members.clone();
+            role_members.extend(next_role_members.iter().copied());
+            Some(Features::PrepositionalPhrase {
+                preposition: *preposition,
+                nominal_attachment: role_members.iter().all(|member| member.nominal_attachment),
+                role_members,
+                shared_determiner_object: *shared_determiner_object,
+                nearer_relative_host: *nearer_relative_host,
+            })
         }
         RuleTag::PrepositionalPhraseSiblingCoordinated => {
             let Features::PrepositionalPhrase {
                 preposition,
-                nominal_attachment,
+                role_members,
                 ..
             } = children.first()?.features
             else {
@@ -1321,14 +1340,18 @@ pub(super) fn reduce_phrase(
             };
             let Features::PrepositionalPhrase {
                 nearer_relative_host,
+                role_members: final_role_members,
                 ..
             } = children.last()?.features
             else {
                 return None;
             };
+            let mut role_members = role_members.clone();
+            role_members.extend(final_role_members.iter().copied());
             Some(Features::PrepositionalPhrase {
                 preposition: *preposition,
-                nominal_attachment: *nominal_attachment,
+                nominal_attachment: role_members.iter().all(|member| member.nominal_attachment),
+                role_members,
                 shared_determiner_object: false,
                 nearer_relative_host: *nearer_relative_host,
             })
@@ -2144,6 +2167,10 @@ fn generated_prepositional_coordination_features(
             Some(Features::PrepositionalPhrase {
                 preposition,
                 nominal_attachment: true,
+                role_members: vec![crate::grammar::PrepositionalRoleMember {
+                    preposition,
+                    nominal_attachment: true,
+                }],
                 shared_determiner_object: false,
                 nearer_relative_host: preposition == Preposition::To,
             })
@@ -2152,6 +2179,10 @@ fn generated_prepositional_coordination_features(
             Some(Features::PrepositionalPhrase {
                 preposition,
                 nominal_attachment: true,
+                role_members: vec![crate::grammar::PrepositionalRoleMember {
+                    preposition,
+                    nominal_attachment: true,
+                }],
                 shared_determiner_object: true,
                 nearer_relative_host: false,
             })
@@ -2811,6 +2842,64 @@ mod generated_tests {
         }
     }
 
+    fn prepositional_phrase(preposition: Preposition, nominal_attachment: bool) -> Features {
+        Features::PrepositionalPhrase {
+            preposition,
+            nominal_attachment,
+            role_members: vec![crate::grammar::PrepositionalRoleMember {
+                preposition,
+                nominal_attachment,
+            }],
+            shared_determiner_object: false,
+            nearer_relative_host: false,
+        }
+    }
+
+    #[test]
+    fn c01_prepositional_list_preserves_every_member_role_fact() {
+        let pair_features = [
+            prepositional_phrase(Preposition::During, true),
+            Features::None,
+            prepositional_phrase(Preposition::At, false),
+        ];
+        let pair_children = pair_features
+            .iter()
+            .map(|features| Child { features })
+            .collect::<Vec<_>>();
+        let pair = reduce_phrase(RuleTag::PrepositionalPhraseListPair, &pair_children)
+            .expect("the Oxford prefix contains two PPs");
+        let close_features = [
+            pair,
+            Features::None,
+            Features::Conjunction(Conjunction::And),
+            prepositional_phrase(Preposition::During, true),
+        ];
+        let close_children = close_features
+            .iter()
+            .map(|features| Child { features })
+            .collect::<Vec<_>>();
+        let Features::PrepositionalPhrase {
+            nominal_attachment,
+            role_members,
+            ..
+        } = reduce_phrase(
+            RuleTag::PrepositionalPhraseSiblingCoordinated,
+            &close_children,
+        )
+        .expect("the Oxford close produces one coordinated PP feature")
+        else {
+            panic!("C01 must retain the PP feature category")
+        };
+        assert_eq!(
+            role_members
+                .iter()
+                .map(|member| member.preposition)
+                .collect::<Vec<_>>(),
+            vec![Preposition::During, Preposition::At, Preposition::During],
+        );
+        assert!(!nominal_attachment);
+    }
+
     #[test]
     fn conjoined_postpositive_pp_reduction_rejects_a_non_by_preposition() {
         // Mutation caught: remove the construction-specific semantic gate
@@ -2829,6 +2918,10 @@ mod generated_tests {
             Features::PrepositionalPhrase {
                 preposition: Preposition::In,
                 nominal_attachment: true,
+                role_members: vec![crate::grammar::PrepositionalRoleMember {
+                    preposition: Preposition::In,
+                    nominal_attachment: true,
+                }],
                 shared_determiner_object: false,
                 nearer_relative_host: false,
             },

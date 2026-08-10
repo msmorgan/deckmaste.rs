@@ -6,6 +6,7 @@ use deckmaste_construction_compiler::runtime::GroupData;
 use crate::grammar::Features;
 use crate::grammar::NounPhraseCoordinationState;
 use crate::grammar::PrepositionalObjectCategory;
+use crate::grammar::PrepositionalRoleMember;
 use crate::syntax::Clause;
 use crate::syntax::DependentClause;
 use crate::syntax::GerundClause;
@@ -178,6 +179,18 @@ pub(crate) fn is_supported_prepositional_phrase(value: &PrepositionalPhrase) -> 
     }
 }
 
+pub(crate) fn every_prepositional_member(
+    value: &PrepositionalPhrase,
+    mut predicate: impl FnMut(&crate::syntax::SimplePrepositionalPhrase) -> bool,
+) -> bool {
+    match value.kind() {
+        crate::syntax::PrepositionalPhraseKind::Simple(value) => predicate(value),
+        crate::syntax::PrepositionalPhraseKind::Coordinated(value) => {
+            predicate(value.first()) && value.rest().iter().all(|member| predicate(member.phrase()))
+        }
+    }
+}
+
 pub(crate) fn build_prepositional_object_from_phrase(
     value: Phrase,
 ) -> Result<PrepositionalObject, DeclarationViolation> {
@@ -282,6 +295,10 @@ fn reduce_prepositional_phrase_features(
     Some(Features::PrepositionalPhrase {
         preposition: *preposition,
         nominal_attachment: prepositional_nominal_attachment_is_eligible(*preposition, *gerund),
+        role_members: vec![PrepositionalRoleMember {
+            preposition: *preposition,
+            nominal_attachment: prepositional_nominal_attachment_is_eligible(*preposition, *gerund),
+        }],
         shared_determiner_object: *shared_determiner,
         nearer_relative_host: prepositional_nearer_relative_host(*preposition, object),
     })

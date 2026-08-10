@@ -128,6 +128,40 @@ fn checked_prepositional_phrase(preposition: Preposition, object: Phrase) -> Pre
         .expect("the test fixture is a checked simple prepositional phrase")
 }
 
+fn checked_prepositional_coordination(
+    first: PrepositionalPhrase,
+    second: PrepositionalPhrase,
+) -> PrepositionalPhrase {
+    deckmaste_english::prepositional_phrase::build_prepositional_phrase_coordination(
+        first,
+        vec![(Some(deckmaste_english::features::Conjunction::And), second)],
+    )
+    .expect("the fixture is a structurally valid binary PP coordination")
+}
+
+fn coordinated_prepositions(value: &PrepositionalPhrase) -> Option<Vec<Preposition>> {
+    let PrepositionalPhraseKind::Coordinated(coordination) = value.kind() else {
+        return None;
+    };
+    Some(
+        std::iter::once(coordination.first().preposition())
+            .chain(
+                coordination
+                    .rest()
+                    .iter()
+                    .map(|member| member.phrase().preposition()),
+            )
+            .collect(),
+    )
+}
+
+fn public_card_nominal() -> NominalPhrase {
+    deckmaste_english::nominal::build_nominal_noun(
+        NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
+    )
+    .expect("card is a declared singular nominal")
+}
+
 #[test]
 fn sealed_noun_phrase_serialization_matches_the_legacy_enum_schema() {
     for source in [
@@ -1795,6 +1829,169 @@ fn public_prepositional_facade_builds_projects_and_rejects_invalid_roles() {
         .is_err(),
         "the predicate owner rejects an adjunct as a selected complement",
     );
+}
+
+#[test]
+fn public_nominal_consumer_validates_every_coordinated_pp_member() {
+    use deckmaste_english::nominal as nominal_api;
+    use deckmaste_english::predicate as predicate_api;
+    use deckmaste_english::prepositional_phrase as prepositional_api;
+
+    let noun_phrase = nominal_noun_phrase(public_card_nominal());
+    let with_card = checked_prepositional_phrase(
+        Preposition::With,
+        Phrase::NounPhrase(Box::new(noun_phrase.clone())),
+    );
+    let attacking = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Attack),
+            slot: VerbSlot::PresentParticiple,
+        },
+        predicate_api::PredicateFrameChoice::Intransitive,
+    )
+    .and_then(predicate_api::finish_predicate)
+    .and_then(|predicate| deckmaste_english::clause::build_gerund_clause_base(&predicate))
+    .expect("attacking is a declared gerund clause");
+    let by_attacking = prepositional_api::build_prepositional_phrase(
+        Preposition::By,
+        prepositional_api::build_prepositional_object_gerund_clause(attacking).unwrap(),
+    )
+    .unwrap();
+
+    let legitimate = checked_prepositional_coordination(with_card.clone(), with_card.clone());
+    assert_eq!(
+        coordinated_prepositions(&legitimate),
+        Some(vec![Preposition::With, Preposition::With]),
+    );
+    let attached = nominal_api::build_nominal_prepositional(public_card_nominal(), legitimate)
+        .expect("both coordinated members are nominal-attachment eligible");
+    let (_, attached_pp) = nominal_api::parts_nominal_prepositional(&attached);
+    assert_eq!(
+        coordinated_prepositions(&attached_pp),
+        Some(vec![Preposition::With, Preposition::With]),
+    );
+
+    for invalid in [
+        checked_prepositional_coordination(with_card.clone(), by_attacking.clone()),
+        checked_prepositional_coordination(by_attacking, with_card),
+    ] {
+        assert!(
+            nominal_api::build_nominal_prepositional(public_card_nominal(), invalid).is_err(),
+            "a by-gerund member cannot enter a nominal complement in either position",
+        );
+    }
+}
+
+#[test]
+fn public_selected_consumer_validates_every_coordinated_pp_member() {
+    use deckmaste_english::predicate as predicate_api;
+
+    let noun_phrase = nominal_noun_phrase(public_card_nominal());
+    let at_card = checked_prepositional_phrase(
+        Preposition::At,
+        Phrase::NounPhrase(Box::new(noun_phrase.clone())),
+    );
+    let during_card = checked_prepositional_phrase(
+        Preposition::During,
+        Phrase::NounPhrase(Box::new(noun_phrase)),
+    );
+    let selected_frame = || {
+        predicate_api::build_predicate_verb(
+            VerbInstance {
+                verb: Verb::Word(Vocab::Look),
+                slot: VerbSlot::Imperative,
+            },
+            predicate_api::PredicateFrameChoice::SelectedPrepositional(Preposition::At),
+        )
+        .expect("Look has a selected-at frame")
+    };
+
+    let legitimate = checked_prepositional_coordination(at_card.clone(), at_card.clone());
+    let predicate = predicate_api::build_predicate_element(
+        selected_frame(),
+        PredicateElement::Complement(PredicateComplement::Prepositional(legitimate)),
+    )
+    .and_then(predicate_api::finish_predicate)
+    .expect("both coordinated members are selected complements");
+    let Predicate::Intransitive(predicate) = predicate else {
+        panic!("selected-PP Look remains intransitive")
+    };
+    assert!(matches!(
+        predicate.elements(),
+        [PredicateElement::Complement(PredicateComplement::Prepositional(pp))]
+            if coordinated_prepositions(pp)
+                == Some(vec![Preposition::At, Preposition::At])
+    ));
+
+    for invalid in [
+        checked_prepositional_coordination(at_card.clone(), during_card.clone()),
+        checked_prepositional_coordination(during_card, at_card),
+    ] {
+        assert!(
+            predicate_api::build_predicate_element(
+                selected_frame(),
+                PredicateElement::Complement(PredicateComplement::Prepositional(invalid)),
+            )
+            .is_err(),
+            "an adjunct member cannot enter a selected complement in either position",
+        );
+    }
+}
+
+#[test]
+fn public_adjunct_consumer_validates_every_coordinated_pp_member() {
+    use deckmaste_english::predicate as predicate_api;
+
+    let noun_phrase = nominal_noun_phrase(public_card_nominal());
+    let at_card = checked_prepositional_phrase(
+        Preposition::At,
+        Phrase::NounPhrase(Box::new(noun_phrase.clone())),
+    );
+    let during_card = checked_prepositional_phrase(
+        Preposition::During,
+        Phrase::NounPhrase(Box::new(noun_phrase)),
+    );
+    let selected_frame = || {
+        predicate_api::build_predicate_verb(
+            VerbInstance {
+                verb: Verb::Word(Vocab::Look),
+                slot: VerbSlot::Imperative,
+            },
+            predicate_api::PredicateFrameChoice::SelectedPrepositional(Preposition::At),
+        )
+        .expect("Look has a selected-at frame that also admits adjuncts")
+    };
+
+    let legitimate = checked_prepositional_coordination(during_card.clone(), during_card.clone());
+    let predicate = predicate_api::build_predicate_element(
+        selected_frame(),
+        PredicateElement::Adjunct(PredicateAdjunct::Prepositional(legitimate)),
+    )
+    .and_then(predicate_api::finish_predicate)
+    .expect("both coordinated members are adjuncts");
+    let Predicate::Intransitive(predicate) = predicate else {
+        panic!("adjunct-only Look remains intransitive")
+    };
+    assert!(matches!(
+        predicate.elements(),
+        [PredicateElement::Adjunct(PredicateAdjunct::Prepositional(pp))]
+            if coordinated_prepositions(pp)
+                == Some(vec![Preposition::During, Preposition::During])
+    ));
+
+    for invalid in [
+        checked_prepositional_coordination(during_card.clone(), at_card.clone()),
+        checked_prepositional_coordination(at_card, during_card),
+    ] {
+        assert!(
+            predicate_api::build_predicate_element(
+                selected_frame(),
+                PredicateElement::Adjunct(PredicateAdjunct::Prepositional(invalid)),
+            )
+            .is_err(),
+            "a selected member cannot enter an adjunct in either position",
+        );
+    }
 }
 
 #[test]

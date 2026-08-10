@@ -61,6 +61,130 @@ fn predicate_object_kind(object: &PredicateObject) -> Option<NounPhraseKind<'_>>
     Some(noun_phrase.kind())
 }
 
+fn coordinated_pp_prepositions(
+    phrase: &crate::syntax::PrepositionalPhrase,
+) -> Option<Vec<Preposition>> {
+    let crate::syntax::PrepositionalPhraseKind::Coordinated(coordination) = phrase.kind() else {
+        return None;
+    };
+    Some(
+        std::iter::once(coordination.first().preposition())
+            .chain(
+                coordination
+                    .rest()
+                    .iter()
+                    .map(|member| member.phrase().preposition()),
+            )
+            .collect(),
+    )
+}
+
+fn nominal_has_coordinated_pp(noun_phrase: &NounPhrase, expected: &[Preposition]) -> bool {
+    matches!(
+        noun_phrase.kind(),
+        NounPhraseKind::Nominal(nominal)
+            if matches!(
+                nominal.complements(),
+                [NominalComplement::Prepositional(pp)]
+                    if coordinated_pp_prepositions(pp).as_deref() == Some(expected)
+            )
+    )
+}
+
+fn nominal_has_invalid_by_gerund_coordination(noun_phrase: &NounPhrase) -> bool {
+    let NounPhraseKind::Nominal(nominal) = noun_phrase.kind() else {
+        return false;
+    };
+    let [NominalComplement::Prepositional(phrase)] = nominal.complements() else {
+        return false;
+    };
+    let crate::syntax::PrepositionalPhraseKind::Coordinated(coordination) = phrase.kind() else {
+        return false;
+    };
+    std::iter::once(coordination.first())
+        .chain(
+            coordination
+                .rest()
+                .iter()
+                .map(crate::syntax::PrepositionalPhraseCoordination::phrase),
+        )
+        .any(|member| {
+            member.preposition() == Preposition::By
+                && matches!(
+                    member.object(),
+                    Phrase::Clause(clause)
+                        if matches!(
+                            clause.as_ref(),
+                            Clause::Dependent(crate::syntax::DependentClause::Gerund(_))
+                        )
+                )
+        })
+}
+
+fn imperative_has_coordinated_pp_role(
+    sentence: &Sentence,
+    role: crate::features::ComplementRole,
+    expected: &[Preposition],
+) -> bool {
+    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Intransitive(
+        predicate,
+    ))) = &sentence.body
+    else {
+        return false;
+    };
+    predicate.elements.iter().any(|element| {
+        let ((
+            crate::features::ComplementRole::SelectedComplement,
+            PredicateElement::Complement(PredicateComplement::Prepositional(phrase)),
+        )
+        | (
+            crate::features::ComplementRole::Adjunct,
+            PredicateElement::Adjunct(PredicateAdjunct::Prepositional(phrase)),
+        )) = (role, element)
+        else {
+            return false;
+        };
+        coordinated_pp_prepositions(phrase).as_deref() == Some(expected)
+    })
+}
+
+fn assert_exact_sentence_coordination_role(
+    source: &str,
+    role: crate::features::ComplementRole,
+    expected: &[Preposition],
+    admitted: bool,
+) {
+    let orders = crate::grammar::exact::parse_production_sentence_in_all_registration_orders(
+        source,
+        &fixture_catalogs(),
+        100_000,
+    )
+    .unwrap_or_else(|error| panic!("coordinated PP exact search failed: {error:?}"));
+    let sets = orders.clone().map(|parses| {
+        parses
+            .into_iter()
+            .map(|parse| {
+                (
+                    parse.ast().construction,
+                    parse.ast().form_ordinal,
+                    ron::to_string(&parse.ast().value).unwrap(),
+                )
+            })
+            .collect::<std::collections::BTreeSet<_>>()
+    });
+    assert_eq!(sets[1], sets[0], "reversed registration changed {source:?}");
+    assert_eq!(sets[2], sets[0], "fixed shuffle changed {source:?}");
+    assert!(
+        orders.iter().all(|parses| {
+            parses
+                .iter()
+                .any(|parse| imperative_has_coordinated_pp_role(&parse.ast().value, role, expected))
+                == admitted
+        }),
+        "unexpected {role:?} admission for {source:?}: {orders:#?}"
+    );
+}
+
 const FIXTURES: [&str; 29] = [
     "Draw a card.",
     "Prevent that damage.",
@@ -181,6 +305,89 @@ fn p02_registration_order_preserves_packed_attachment() {
         attachment_roles,
         std::collections::BTreeSet::from(["nominal", "predicate-adjunct"]),
         "the exact forest must retain both legitimate PP attachment readings",
+    );
+}
+
+#[test]
+fn p02_nominal_coordination_validates_every_member_in_all_registration_orders() {
+    let catalogs = fixture_catalogs();
+
+    let nominal_orders =
+        crate::grammar::exact::parse_production_noun_phrase_in_all_registration_orders(
+            "card with card and by paying 1 life",
+            &catalogs,
+            &SelfReference::default(),
+            Nonterminal::NounPhrase,
+            100_000,
+        )
+        .expect("the exact nominal search completes");
+    let nominal_sets = nominal_orders.clone().map(|parses| {
+        parses
+            .into_iter()
+            .map(|parse| {
+                (
+                    parse.ast().construction,
+                    parse.ast().form_ordinal,
+                    ron::to_string(&parse.ast().value).unwrap(),
+                )
+            })
+            .collect::<std::collections::BTreeSet<_>>()
+    });
+    assert_eq!(nominal_sets[1], nominal_sets[0]);
+    assert_eq!(nominal_sets[2], nominal_sets[0]);
+    assert!(
+        nominal_orders
+            .iter()
+            .flatten()
+            .all(|parse| { !nominal_has_invalid_by_gerund_coordination(&parse.ast().value) }),
+        "a mixed nominal coordination was admitted: {nominal_orders:#?}",
+    );
+
+    let legitimate_nominal =
+        crate::grammar::exact::parse_production_noun_phrase_in_all_registration_orders(
+            "card from card and from card",
+            &catalogs,
+            &SelfReference::default(),
+            Nonterminal::NounPhrase,
+            100_000,
+        )
+        .expect("the legitimate nominal coordination exact search completes");
+    assert!(legitimate_nominal.iter().all(|parses| {
+        parses.iter().any(|parse| {
+            nominal_has_coordinated_pp(&parse.ast().value, &[Preposition::From, Preposition::From])
+        })
+    }));
+}
+
+#[test]
+fn p02_selected_coordination_validates_every_member_in_all_registration_orders() {
+    assert_exact_sentence_coordination_role(
+        "Look at card and during card.",
+        crate::features::ComplementRole::SelectedComplement,
+        &[Preposition::At, Preposition::During],
+        false,
+    );
+    assert_exact_sentence_coordination_role(
+        "Look at card and at card.",
+        crate::features::ComplementRole::SelectedComplement,
+        &[Preposition::At, Preposition::At],
+        true,
+    );
+}
+
+#[test]
+fn p02_adjunct_coordination_validates_every_member_in_all_registration_orders() {
+    assert_exact_sentence_coordination_role(
+        "Look during card and at card.",
+        crate::features::ComplementRole::Adjunct,
+        &[Preposition::During, Preposition::At],
+        false,
+    );
+    assert_exact_sentence_coordination_role(
+        "Look during card and during card.",
+        crate::features::ComplementRole::Adjunct,
+        &[Preposition::During, Preposition::During],
+        true,
     );
 }
 
