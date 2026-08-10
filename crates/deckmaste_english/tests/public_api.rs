@@ -440,6 +440,11 @@ fn public_noun_phrase_facade_builds_projects_and_renders_all_p01_shapes() {
         full
     );
     assert_eq!(render(&full), "Nissa Revane");
+    assert_ne!(
+        render(&abbreviated),
+        render(&full),
+        "the typed self-reference form must choose the rendered identity"
+    );
 
     let possessive =
         noun_phrase_api::build_noun_phrase_possessive_this_card(ThisCardForm::AbbreviatedName)
@@ -528,6 +533,19 @@ fn public_noun_phrase_facade_builds_projects_and_renders_all_p01_shapes() {
         rounded_down
     );
     assert_eq!(render(&rounded_down), "half 3, rounded down");
+    let up_words = render(&rounded_up)
+        .split_whitespace()
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    let down_words = render(&rounded_down)
+        .split_whitespace()
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        &up_words[..up_words.len() - 1],
+        &down_words[..down_words.len() - 1]
+    );
+    assert_ne!(up_words.last(), down_words.last());
 
     let all =
         deckmaste_english::determiner::build_determiner_closed(ClosedDeterminer::All).unwrap();

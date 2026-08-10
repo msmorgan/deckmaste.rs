@@ -808,17 +808,18 @@ pub(crate) fn parse_groups_as_adjective_phrase_values_in_both_orders(
 fn parse_generated_noun_phrase_as(
     source: &str,
     catalogs: &Catalogs,
+    self_reference: SelfReference,
+    nonterminal: Nonterminal,
     activation: GeneratedActivation,
     budget: usize,
     order: RegistrationOrder,
 ) -> Result<Vec<ExactParse<GeneratedNounPhraseParse, EnglishSurfaceWitness>>, ExactParseError> {
-    let self_reference = SelfReference::default();
     let surface = lex(source);
     let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
     let grammar = EnglishGrammar::with_opacity_mode_and_registration_order(
         source,
         catalogs,
-        Nonterminal::NounPhrase,
+        nonterminal,
         OpacityMode::Exact,
         self_reference,
         order,
@@ -878,6 +879,34 @@ fn parse_generated_noun_phrase_as(
         }
     }
     Ok(results)
+}
+
+#[cfg(test)]
+pub(crate) fn parse_production_noun_phrase_in_all_registration_orders(
+    source: &str,
+    catalogs: &Catalogs,
+    self_reference: SelfReference,
+    nonterminal: Nonterminal,
+    budget: usize,
+) -> Result<[Vec<ExactParse<GeneratedNounPhraseParse, EnglishSurfaceWitness>>; 3], ExactParseError>
+{
+    let parse = |order| {
+        parse_generated_noun_phrase_as(
+            source,
+            catalogs,
+            self_reference.clone(),
+            nonterminal,
+            GeneratedActivation::Production,
+            budget,
+            order,
+        )
+    };
+
+    Ok([
+        parse(RegistrationOrder::Normal)?,
+        parse(RegistrationOrder::Reversed)?,
+        parse(RegistrationOrder::FixedShuffle)?,
+    ])
 }
 
 fn parse_generated_nominal_as(
@@ -3489,6 +3518,8 @@ mod tests {
             let normal = parse_generated_noun_phrase_as(
                 source,
                 &fixture_catalogs(),
+                SelfReference::default(),
+                Nonterminal::NounPhrase,
                 activation,
                 10_000,
                 RegistrationOrder::Normal,
@@ -3516,6 +3547,8 @@ mod tests {
             let reversed = parse_generated_noun_phrase_as(
                 source,
                 &fixture_catalogs(),
+                SelfReference::default(),
+                Nonterminal::NounPhrase,
                 activation,
                 10_000,
                 RegistrationOrder::Reversed,

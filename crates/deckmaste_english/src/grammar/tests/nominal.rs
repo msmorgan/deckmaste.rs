@@ -1697,6 +1697,186 @@ mod tests {
     }
 
     #[test]
+    fn p01_registration_order_is_semantically_neutral() {
+        let self_reference = SelfReference::new("Nissa Revane", true);
+        let fixtures = [
+            (
+                "all cards except them",
+                Nonterminal::NounPhrase,
+                "noun_phrase_set_exception_bare",
+                0,
+            ),
+            (
+                "all cards, except them",
+                Nonterminal::NounPhrase,
+                "noun_phrase_set_exception_bare",
+                1,
+            ),
+            (
+                "all cards except for them",
+                Nonterminal::NounPhrase,
+                "noun_phrase_set_exception_for",
+                0,
+            ),
+            (
+                "all cards, except for them",
+                Nonterminal::NounPhrase,
+                "noun_phrase_set_exception_for",
+                1,
+            ),
+            ("card", Nonterminal::NounPhrase, "noun_phrase_nominal", 0),
+            (
+                "they",
+                Nonterminal::NounPhrase,
+                "noun_phrase_subject_pronoun",
+                0,
+            ),
+            (
+                "them",
+                Nonterminal::NounPhrase,
+                "noun_phrase_object_pronoun",
+                0,
+            ),
+            (
+                "each other",
+                Nonterminal::NounPhrase,
+                "noun_phrase_reciprocal",
+                0,
+            ),
+            ("1", Nonterminal::NounPhrase, "noun_phrase_quantity", 0),
+            ("Nissa", Nonterminal::NounPhrase, "noun_phrase_this_card", 0),
+            (
+                "Nissa Revane",
+                Nonterminal::NounPhrase,
+                "noun_phrase_full_this_card",
+                0,
+            ),
+            (
+                "Nissa's",
+                Nonterminal::NounPhrase,
+                "noun_phrase_possessive_this_card",
+                0,
+            ),
+            (
+                "those",
+                Nonterminal::NounPhrase,
+                "noun_phrase_demonstrative",
+                0,
+            ),
+            (
+                "1 of them",
+                Nonterminal::NounPhrase,
+                "noun_phrase_partitive",
+                0,
+            ),
+            (
+                "each of them",
+                Nonterminal::NounPhrase,
+                "noun_phrase_each_partitive",
+                0,
+            ),
+            (
+                "any number of cards",
+                Nonterminal::NounPhrase,
+                "noun_phrase_any_number_of",
+                0,
+            ),
+            ("3 minus 1", Nonterminal::NounPhrase, "noun_phrase_minus", 0),
+            ("half 3", Nonterminal::NounPhrase, "noun_phrase_half", 0),
+            (
+                "half 3, rounded up",
+                Nonterminal::NounPhrase,
+                "noun_phrase_half_rounded_up",
+                0,
+            ),
+            (
+                "half 3, rounded down",
+                Nonterminal::NounPhrase,
+                "noun_phrase_half_rounded_down",
+                0,
+            ),
+        ];
+
+        for (source, nonterminal, construction, form_ordinal) in fixtures {
+            let orders =
+                crate::grammar::exact::parse_production_noun_phrase_in_all_registration_orders(
+                    source,
+                    &fixture_catalogs(),
+                    self_reference.clone(),
+                    nonterminal,
+                    100_000,
+                )
+                .unwrap_or_else(|error| panic!("P01 exact parse failed for {source:?}: {error:?}"));
+            let mut canonical = orders.map(|parses| {
+                parses
+                    .into_iter()
+                    .map(|parse| {
+                        (
+                            parse.ast().construction,
+                            parse.ast().form_ordinal,
+                            parse.ast().value.clone(),
+                        )
+                    })
+                    .collect::<Vec<_>>()
+            });
+            for values in &mut canonical {
+                values.sort_by_key(|(id, ordinal, value)| {
+                    (*id, *ordinal, ron::to_string(value).unwrap())
+                });
+            }
+            assert!(
+                canonical[0]
+                    .iter()
+                    .any(|(id, ordinal, _)| { *id == construction && *ordinal == form_ordinal }),
+                "normal {source:?}: {:#?}",
+                canonical[0]
+            );
+            assert_eq!(
+                canonical[1], canonical[0],
+                "reversed registration changed {source:?}"
+            );
+            assert_eq!(
+                canonical[2], canonical[0],
+                "fixed shuffle changed {source:?}"
+            );
+        }
+
+        let rules_source =
+            "This card deals damage to you and creatures you control that are tapped.";
+        let parse_rules_object = |order| {
+            super::super::parse_support::parse_nonterminal_with_registration_order(
+                rules_source,
+                &fixture_catalogs(),
+                Nonterminal::Sentence,
+                order,
+                super::super::generated::GeneratedActivation::Production,
+            )
+            .unwrap_or_else(|error| panic!("rules-object fixture failed: {error:?}"))
+        };
+        let normal = parse_rules_object(super::super::rules::RegistrationOrder::Normal);
+        let normal_sentence = normal.sentence().expect("sentence root");
+        assert!(
+            normal
+                .construction_decisions()
+                .iter()
+                .any(|decision| { decision.selected().as_str() == "rules_object_noun_phrase" })
+        );
+        for order in [
+            super::super::rules::RegistrationOrder::Reversed,
+            super::super::rules::RegistrationOrder::FixedShuffle,
+        ] {
+            let permuted = parse_rules_object(order);
+            assert_eq!(permuted.sentence(), Some(normal_sentence), "{order:?}");
+            assert!(
+                permuted
+                    .construction_decisions()
+                    .iter()
+                    .any(|decision| { decision.selected().as_str() == "rules_object_noun_phrase" })
+            );
+        }
+    }
+
+    #[test]
     fn nominal_fixtures_parse_structurally_and_render_without_source() {
         for source in [
             "a card",
