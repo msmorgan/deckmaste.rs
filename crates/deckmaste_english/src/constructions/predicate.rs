@@ -16,7 +16,6 @@ use crate::features::ComplementRole;
 use crate::features::Conjunction;
 use crate::features::Contraction;
 use crate::grammar::Features;
-use crate::grammar::InfinitiveClause;
 use crate::grammar::PredicateAttachment;
 use crate::grammar::VerbAnalysis;
 use crate::grammar::VerbDependent;
@@ -32,6 +31,8 @@ use crate::syntax::CoordinatedPredicateObject;
 use crate::syntax::DeonticPredicate;
 use crate::syntax::FrequencyBound;
 use crate::syntax::FrequencyPhrase;
+use crate::syntax::InfinitiveClause;
+use crate::syntax::InfinitiveMarker;
 use crate::syntax::Modal;
 use crate::syntax::NounPhrase;
 use crate::syntax::OracleSymbol;
@@ -157,12 +158,10 @@ pub fn build_predicate_element(
             build_public_prepositional(predicate.phrase, value, ComplementRole::Adjunct)?
         }
         PredicateElement::Complement(PredicateComplement::Infinitive(value)) => {
-            let infinitive = InfinitiveClause::from_finished_parts(
-                value.negated,
-                value.marker,
-                inverse_public_predicate(&value.predicate)?,
-            );
-            build_verb_phrase_infinitive(predicate.phrase, infinitive)?
+            if !crate::constructions::nonfinite::is_valid_infinitive(&value) {
+                return Err(public_projection_violation());
+            }
+            build_verb_phrase_infinitive(predicate.phrase, value)?
         }
         PredicateElement::Adjunct(PredicateAdjunct::Adverb(value)) => {
             build_verb_phrase_adverb(predicate.phrase, value)?
@@ -421,7 +420,7 @@ pub(crate) fn project_public_predicate(
             }
             VerbDependent::Infinitive(clause) => {
                 target_elements.push(PredicateElement::Complement(
-                    PredicateComplement::Infinitive(project_public_infinitive(clause)?),
+                    PredicateComplement::Infinitive(clause),
                 ));
             }
             VerbDependent::Subordinate(clause) => {
@@ -541,23 +540,6 @@ pub(crate) fn project_public_predicate(
         modal,
         predicate,
         elided,
-    })
-}
-
-fn project_public_infinitive(
-    clause: InfinitiveClause,
-) -> Result<crate::syntax::InfinitiveClause, DeclarationViolation> {
-    let (negated, marker, predicate) = clause.declaration_parts();
-    let FinishedPredicate {
-        modal, predicate, ..
-    } = project_public_predicate(predicate.clone())?;
-    if modal.is_some() {
-        return Err(public_projection_violation());
-    }
-    Ok(crate::syntax::InfinitiveClause {
-        negated,
-        marker,
-        predicate: Box::new(predicate),
     })
 }
 
@@ -688,11 +670,10 @@ fn public_element(element: &PredicateElement) -> Result<VerbDependent, Declarati
             VerbDependent::PredicateComplement(Phrase::PrepositionalPhrase(Box::new(value.clone())))
         }
         PredicateElement::Complement(PredicateComplement::Infinitive(value)) => {
-            VerbDependent::Infinitive(InfinitiveClause::from_finished_parts(
-                value.negated,
-                value.marker,
-                inverse_public_predicate(&value.predicate)?,
-            ))
+            if !crate::constructions::nonfinite::is_valid_infinitive(value) {
+                return Err(public_projection_violation());
+            }
+            VerbDependent::Infinitive(value.clone())
         }
         PredicateElement::Adjunct(PredicateAdjunct::Adverb(value)) => {
             VerbDependent::Adverbial(Phrase::Adverb(*value))
@@ -1556,9 +1537,22 @@ fn make_verb_phrase_causative(
         },
     )?;
     let (mut dependents, shell) = host.declaration_into_dependent_projection();
-    dependents.push(VerbDependent::Infinitive(
-        InfinitiveClause::declaration_bare(complement),
-    ));
+    let FinishedPredicate {
+        modal: None,
+        predicate: complement,
+        ..
+    } = project_public_predicate(complement)?
+    else {
+        return Err(violation(
+            "verb_phrase_causative",
+            "the bare infinitive complement has no modal",
+        ));
+    };
+    dependents.push(VerbDependent::Infinitive(InfinitiveClause {
+        negated: false,
+        marker: InfinitiveMarker::Bare,
+        predicate: Box::new(complement),
+    }));
     Ok(VerbPhrase::declaration_from_dependent_projection(
         shell, dependents,
     ))
@@ -1576,10 +1570,8 @@ fn verb_phrase_causative_parts(value: &VerbPhrase) -> (VerbPhrase, VerbPhrase) {
     else {
         unreachable!("the causative inverse check pins the dependent variant")
     };
-    let complement = infinitive
-        .declaration_bare_predicate()
-        .expect("the causative inverse check pins the bare infinitive")
-        .clone();
+    let complement = inverse_public_predicate(&infinitive.predicate)
+        .expect("the causative inverse check pins an invertible bare infinitive");
     (host, complement)
 }
 
@@ -1592,7 +1584,10 @@ fn is_verb_phrase_causative(value: &VerbPhrase) -> bool {
     if !causative_host_has_only_causee(&host) {
         return false;
     }
-    let Some(complement) = infinitive.declaration_bare_predicate() else {
+    if infinitive.negated || infinitive.marker != InfinitiveMarker::Bare {
+        return false;
+    }
+    let Ok(complement) = inverse_public_predicate(&infinitive.predicate) else {
         return false;
     };
     let Some(host_features) = host.declaration_core_features() else {
@@ -2719,7 +2714,9 @@ dependent_lens!(
     is_verb_phrase_infinitive,
     Infinitive,
     InfinitiveClause,
-    |infinitive: &InfinitiveClause| infinitive.declaration_bare_predicate().is_none()
+    |infinitive: &InfinitiveClause| {
+        infinitive.negated || infinitive.marker != InfinitiveMarker::Bare
+    }
 );
 
 fn from_adjective_lens_parts(
@@ -4182,11 +4179,12 @@ mod tests {
                             },
                             0,
                         ),
-                        InfinitiveClause::declaration_to(base(
+                        crate::constructions::nonfinite::build_infinitive_to(base(
                             Vocab::Attack,
                             VerbSlot::Infinitive,
                             0,
-                        )),
+                        ))
+                        .unwrap(),
                     )
                     .unwrap(),
                 ),
@@ -5713,7 +5711,8 @@ mod tests {
             build_verb(lexical_head(Vocab::Attack, VerbSlot::Infinitive, 0)).unwrap(),
         )
         .unwrap();
-        let infinitive = InfinitiveClause::declaration_to(infinitive_body);
+        let infinitive =
+            crate::constructions::nonfinite::build_infinitive_to(infinitive_body).unwrap();
         let infinitival = build_verb_phrase_infinitive(
             build_verb_phrase_base(
                 build_verb(lexical_head(Vocab::Begin, VerbSlot::Imperative, 0)).unwrap(),
@@ -5882,12 +5881,13 @@ mod tests {
             prepositional
         );
 
-        let infinitive = InfinitiveClause::declaration_to(
+        let infinitive = crate::constructions::nonfinite::build_infinitive_to(
             build_verb_phrase_base(
                 build_verb(lexical_head(Vocab::Attack, VerbSlot::Infinitive, 0)).unwrap(),
             )
             .unwrap(),
-        );
+        )
+        .unwrap();
         let begin = build_verb_phrase_base(
             build_verb(lexical_head(Vocab::Begin, VerbSlot::Imperative, 0)).unwrap(),
         )

@@ -125,7 +125,7 @@ use crate::syntax::FrequencyCount;
 use crate::syntax::FrequencyPhrase;
 use crate::syntax::GerundClause;
 use crate::syntax::IndefiniteArticle;
-use crate::syntax::InfinitiveMarker;
+use crate::syntax::InfinitiveClause;
 use crate::syntax::KeywordArgument;
 use crate::syntax::NominalComplement;
 use crate::syntax::NominalModifier;
@@ -246,7 +246,7 @@ pub(crate) enum VerbDependent {
     Prepositional(PrepositionalPhrase),
     Temporal(NounPhrase),
     Manner(NounPhrase),
-    Infinitive(InfinitiveClause),
+    Infinitive(crate::syntax::InfinitiveClause),
     Subordinate(Box<Clause>),
     Adverbial(Phrase),
     Frequency(FrequencyPhrase),
@@ -598,52 +598,6 @@ impl VerbPhrase {
     #[cfg(test)]
     pub(crate) fn test_add_preverb_modifier(&mut self, modifier: PreverbModifier) {
         self.preverb_modifiers.push(modifier);
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct InfinitiveClause {
-    negated: bool,
-    marker: InfinitiveMarker,
-    predicate: Box<VerbPhrase>,
-}
-
-impl InfinitiveClause {
-    pub(crate) fn from_finished_parts(
-        negated: bool,
-        marker: InfinitiveMarker,
-        predicate: VerbPhrase,
-    ) -> Self {
-        Self {
-            negated,
-            marker,
-            predicate: Box::new(predicate),
-        }
-    }
-
-    pub(crate) fn declaration_bare(predicate: VerbPhrase) -> Self {
-        Self {
-            negated: false,
-            marker: InfinitiveMarker::Bare,
-            predicate: Box::new(predicate),
-        }
-    }
-
-    pub(crate) fn declaration_bare_predicate(&self) -> Option<&VerbPhrase> {
-        (!self.negated && self.marker == InfinitiveMarker::Bare).then_some(self.predicate.as_ref())
-    }
-
-    pub(crate) fn declaration_parts(&self) -> (bool, InfinitiveMarker, &VerbPhrase) {
-        (self.negated, self.marker, self.predicate.as_ref())
-    }
-
-    #[cfg(test)]
-    pub(crate) fn declaration_to(predicate: VerbPhrase) -> Self {
-        Self {
-            negated: false,
-            marker: InfinitiveMarker::To,
-            predicate: Box::new(predicate),
-        }
     }
 }
 
@@ -2090,10 +2044,6 @@ enum RuleTag {
     NounPhraseHalfRoundedDown,
     PrepositionalPhrase,
     PrepositionalObject,
-    InfinitiveTo,
-    InfinitiveNotTo,
-    GerundClauseBase,
-    GerundClauseSubordinateAfter,
     ClauseCoordination,
     ClauseCoordinationComma,
     ClauseCoordinationAsyndetic,

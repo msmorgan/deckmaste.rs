@@ -444,6 +444,7 @@ fn engine_category(name: &str) -> Option<Nonterminal> {
         "CoordinatedAdjectivePhrase" => Nonterminal::CoordinatedModifier,
         "PrepositionalPhrase" => Nonterminal::PrepositionalPhrase,
         "InfinitiveClause" => Nonterminal::InfinitiveClause,
+        "GerundClause" => Nonterminal::GerundClause,
         "FrequencyPhrase" => Nonterminal::FrequencyPhrase,
         "RelativeClause" => Nonterminal::RelativeClause,
         "TransitivePredicate" => Nonterminal::ReducedRecipientPassive,
@@ -542,6 +543,9 @@ pub(super) fn typed_feature_projection(
             construction,
             fields,
         )),
+        ("nonfinite", "features") => Some(
+            crate::constructions::nonfinite::reduce_nonfinite_features(construction, fields),
+        ),
         _ => None,
     }
 }

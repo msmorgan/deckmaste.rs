@@ -22,6 +22,7 @@ pub(crate) mod determiner {
 #[cfg(test)]
 pub(crate) mod law;
 pub(crate) use crate::syntax::nominal_constructions as nominal;
+pub(crate) mod nonfinite;
 pub(crate) mod noun;
 pub(crate) mod predicate;
 #[cfg(test)]
@@ -38,6 +39,7 @@ pub(crate) static GROUPS: &[&GroupData] = &[
     determiner::GROUPS[0],
     noun::GROUPS[0],
     nominal::GROUPS[0],
+    nonfinite::GROUPS[0],
     predicate::GROUPS[0],
     quantity::GROUPS[0],
     sentence::GROUPS[0],

@@ -8,8 +8,10 @@ use crate::syntax::Ability;
 use crate::syntax::AbilityKind;
 use crate::syntax::AdjectiveComplement;
 use crate::syntax::Demonstrative;
+use crate::syntax::DependentAttachment;
 use crate::syntax::FrequencyBound;
 use crate::syntax::FrequencyCount;
+use crate::syntax::InfinitiveMarker;
 use crate::syntax::KeywordArgument;
 use crate::syntax::KeywordCost;
 use crate::syntax::NominalComplement;
@@ -3556,6 +3558,39 @@ fn not_to_negates_an_infinitive_clause() {
         )]
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+}
+
+#[test]
+fn production_f01_forms_render_exactly_and_report_generated_owners() {
+    for (source, required) in [
+        ("Spells cost {1} less to cast.", &["infinitive_to"][..]),
+        (
+            "You may choose not to untap this creature.",
+            &["infinitive_not_to"][..],
+        ),
+        (
+            "You may cast that card by paying life equal to the spell's mana value rather than paying its mana cost.",
+            &["gerund_clause_base", "gerund_clause_subordinate_after"][..],
+        ),
+    ] {
+        let parsed = parse(source);
+        assert_eq!(
+            render_sentence(parsed.sentence().expect("sentence root")),
+            source
+        );
+        for id in required {
+            let decision = parsed
+                .construction_decisions()
+                .iter()
+                .find(|decision| decision.selected().as_str() == *id)
+                .unwrap_or_else(|| panic!("{source:?} did not select {id}"));
+            assert_eq!(
+                decision.owner(),
+                crate::construction::ConstructionOwner::Generated,
+                "{id}"
+            );
+        }
+    }
 }
 
 #[test]

@@ -398,8 +398,8 @@ mod tests {
             .iter()
             .filter(|family| family.owner() == ConstructionOwner::Generated)
             .count();
-        assert_eq!(handwritten, 70, "handwritten chart families");
-        assert_eq!(generated, 122, "generated chart families");
+        assert_eq!(handwritten, 66, "handwritten chart families");
+        assert_eq!(generated, 126, "generated chart families");
         assert_eq!(families.len(), 192, "all chart families");
 
         let chart_fragment_entries = [FragmentKind::Nominal, FragmentKind::Sentence];
@@ -410,7 +410,7 @@ mod tests {
         ];
         assert_eq!(chart_fragment_entries.len(), 2);
         assert_eq!(ability_fragment_entries.len(), 3);
-        assert_eq!(handwritten + ability_fragment_entries.len(), 73);
+        assert_eq!(handwritten + ability_fragment_entries.len(), 69);
         assert_eq!(families.len() + ability_fragment_entries.len(), 195);
 
         for id in [
@@ -441,6 +441,35 @@ mod tests {
                 ConstructionOwner::Generated,
                 "{id} must have generated production ownership",
             );
+        }
+    }
+
+    #[test]
+    fn production_f01_has_exactly_four_generated_owners_without_dominance() {
+        let ids = [
+            "infinitive_to",
+            "infinitive_not_to",
+            "gerund_clause_base",
+            "gerund_clause_subordinate_after",
+        ];
+        for name in ids {
+            let id = ConstructionId::new(name);
+            assert!(
+                handwritten_registry().family(id).is_none(),
+                "{name} still has a handwritten owner"
+            );
+            let family = registry()
+                .family(id)
+                .unwrap_or_else(|| panic!("{name} generated declaration is registered"));
+            assert_eq!(family.owner(), ConstructionOwner::Generated, "{name}");
+            assert_eq!(family.backend(), ConstructionBackend::Chart, "{name}");
+            for other in registry().families() {
+                assert!(
+                    !registry().dominates(id, other.id()) && !registry().dominates(other.id(), id),
+                    "F01 must have no dominance relation: {id} / {}",
+                    other.id()
+                );
+            }
         }
     }
 

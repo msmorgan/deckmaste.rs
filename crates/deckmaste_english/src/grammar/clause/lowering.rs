@@ -17,15 +17,12 @@ use super::CoordinationJunction;
 use super::CopularComplement;
 use super::CopularRemainder;
 use super::DeonticPredicate;
-use super::DependentAttachment;
 use super::DependentClause;
 use super::EllipticalClause;
 use super::ExceptionConjunct;
 use super::ExceptionRider;
 use super::GapState;
 use super::IndependentClause;
-use super::InfinitiveClause;
-use super::InfinitiveMarker;
 use super::Lowered;
 use super::NounPhrase;
 use super::Phrase;
@@ -51,49 +48,13 @@ use super::take;
 use crate::constructions::predicate::FinishedPredicate;
 use crate::features::Conjunction;
 use crate::grammar::reduction::predicate_form;
+use crate::syntax::InfinitiveClause;
+use crate::syntax::InfinitiveMarker;
 use crate::syntax::ObjectGapPredicate;
 
 pub(in crate::grammar) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
-        RuleTag::VerbPhraseCoordinatedAdjective
-        | RuleTag::InfinitiveTo
-        | RuleTag::InfinitiveNotTo => lower_predicate(tag, children),
-        RuleTag::GerundClauseBase => {
-            let Lowered::VerbPhrase(predicate) = take(children, 0)? else {
-                return None;
-            };
-            let FinishedPredicate {
-                modal, predicate, ..
-            } = finish_predicate(predicate)?;
-            if modal.is_some() {
-                return None;
-            }
-            Some(Lowered::GerundClause(crate::syntax::GerundClause {
-                predicate: Box::new(predicate),
-                attachments: Vec::new(),
-            }))
-        }
-        RuleTag::GerundClauseSubordinateAfter => {
-            let Lowered::GerundClause(mut matrix) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Subordinator(crate::syntax::Subordinator::RatherThan) = take(children, 1)?
-            else {
-                return None;
-            };
-            let Lowered::GerundClause(alternative) = take(children, 2)? else {
-                return None;
-            };
-            matrix.attachments.push(DependentAttachment {
-                position: AttachmentPosition::AfterMatrix,
-                comma: crate::features::Comma::Absent,
-                payload: DependentClause::Subordinate(
-                    crate::syntax::Subordinator::RatherThan,
-                    SubordinateBody::Gerund(alternative),
-                ),
-            });
-            Some(Lowered::GerundClause(matrix))
-        }
+        RuleTag::VerbPhraseCoordinatedAdjective => lower_predicate(tag, children),
         RuleTag::RelativeObject
         | RuleTag::RelativeObjectContractedSubject
         | RuleTag::RelativeSubjectContractedAuxiliary
@@ -135,18 +96,6 @@ pub(in crate::grammar) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -
 pub(super) fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
         RuleTag::VerbPhraseCoordinatedAdjective => lower_predicate_dependent(tag, children),
-        RuleTag::InfinitiveTo | RuleTag::InfinitiveNotTo => {
-            let negated = tag == RuleTag::InfinitiveNotTo;
-            let predicate_index = if negated { 2 } else { 1 };
-            let Lowered::VerbPhrase(predicate) = take(children, predicate_index)? else {
-                return None;
-            };
-            Some(Lowered::InfinitiveClause(InfinitiveClause {
-                negated,
-                marker: InfinitiveMarker::To,
-                predicate: Box::new(predicate),
-            }))
-        }
         _ => None,
     }
 }
@@ -1534,17 +1483,7 @@ pub(in crate::grammar) fn finish_reduced_recipient_passive(
 pub(in crate::grammar) fn finish_infinitive(
     clause: InfinitiveClause,
 ) -> Option<crate::syntax::InfinitiveClause> {
-    let FinishedPredicate {
-        modal, predicate, ..
-    } = finish_predicate(*clause.predicate)?;
-    if modal.is_some() {
-        return None;
-    }
-    Some(crate::syntax::InfinitiveClause {
-        negated: clause.negated,
-        marker: clause.marker,
-        predicate: Box::new(predicate),
-    })
+    crate::constructions::nonfinite::is_valid_infinitive(&clause).then_some(clause)
 }
 
 pub(crate) fn lowered_nominal_adjunct_kind(

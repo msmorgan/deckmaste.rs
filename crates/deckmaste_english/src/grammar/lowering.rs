@@ -462,6 +462,14 @@ fn project_generated_category(
         let value = value.downcast::<crate::syntax::EllipticalClause>().ok()?;
         return Some(Lowered::EllipticalClause(*value));
     }
+    if construction.category == "InfinitiveClause" {
+        let value = value.downcast::<crate::syntax::InfinitiveClause>().ok()?;
+        return Some(Lowered::InfinitiveClause(*value));
+    }
+    if construction.category == "GerundClause" {
+        let value = value.downcast::<crate::syntax::GerundClause>().ok()?;
+        return Some(Lowered::GerundClause(*value));
+    }
     if construction.category == "Verb" {
         let value = value.downcast::<VerbAnalysis>().ok()?;
         return Some(Lowered::Verb(*value));
@@ -710,8 +718,6 @@ fn erased_field(
             category: "InfinitiveClause",
             boxed,
         } if group == "predicate" => {
-            // Predicate declarations extend the internal verb-phrase grammar,
-            // so their infinitive field deliberately precedes clause finalization.
             let Lowered::InfinitiveClause(value) = value else {
                 return None;
             };
@@ -874,6 +880,7 @@ fn erased_subtree(
             let value = clause::finish_infinitive(value)?;
             if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
         }
+        "GerundClause" => typed!(GerundClause, value),
         "FrequencyPhrase" => typed!(Frequency, value),
         "RelativeClause" => typed!(RelativeClause, value),
         "Quantity" => typed!(Quantity, value),
@@ -1225,11 +1232,7 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::PrepositionalPhraseSiblingCoordinated
         | RuleTag::PrepositionalPhrase
         | RuleTag::PrepositionalObject => lower_phrase(tag, children),
-        RuleTag::InfinitiveTo
-        | RuleTag::InfinitiveNotTo
-        | RuleTag::GerundClauseBase
-        | RuleTag::GerundClauseSubordinateAfter
-        | RuleTag::ClauseCoordination
+        RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
         | RuleTag::ClauseCoordinationCopularNounPrepositional

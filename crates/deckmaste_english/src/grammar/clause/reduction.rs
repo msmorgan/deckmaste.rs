@@ -30,41 +30,7 @@ pub(in crate::grammar) fn reduce_clause(
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> Option<Reduced> {
     match tag {
-        RuleTag::VerbPhraseCoordinatedAdjective
-        | RuleTag::InfinitiveTo
-        | RuleTag::InfinitiveNotTo => reduce_predicate(tag, children),
-        RuleTag::GerundClauseBase => {
-            let Features::VerbPhrase {
-                form: PredicateForm::PresentParticiple,
-                passive,
-                object,
-                indirect_object,
-                selected_preposition,
-                frame,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            if !predicate_arguments_complete(
-                *frame,
-                *passive,
-                *object,
-                *indirect_object,
-                *selected_preposition,
-            ) {
-                return None;
-            }
-            Some(Features::GerundClause)
-        }
-        RuleTag::GerundClauseSubordinateAfter => {
-            if !matches!(children.first()?.features, Features::GerundClause)
-                || !matches!(children.get(2)?.features, Features::GerundClause)
-            {
-                return None;
-            }
-            Some(Features::GerundClause)
-        }
+        RuleTag::VerbPhraseCoordinatedAdjective => reduce_predicate(tag, children),
         RuleTag::RelativeObject
         | RuleTag::RelativeObjectContractedSubject
         | RuleTag::RelativeSubjectContractedAuxiliary
@@ -230,31 +196,6 @@ pub(super) fn reduce_predicate(
                 return None;
             };
             extend_predicate(children.first()?, PredicateAttachment::AdjectiveComplement)
-        }
-        RuleTag::InfinitiveTo | RuleTag::InfinitiveNotTo => {
-            let predicate_index = if tag == RuleTag::InfinitiveNotTo { 2 } else { 1 };
-            let Features::VerbPhrase {
-                form: PredicateForm::Infinitive,
-                passive,
-                object,
-                indirect_object,
-                selected_preposition,
-                frame,
-                ..
-            } = children.get(predicate_index)?.features
-            else {
-                return None;
-            };
-            if !predicate_arguments_complete(
-                *frame,
-                *passive,
-                *object,
-                *indirect_object,
-                *selected_preposition,
-            ) {
-                return None;
-            }
-            Some(Features::InfinitiveClause)
         }
         _ => None,
     }
