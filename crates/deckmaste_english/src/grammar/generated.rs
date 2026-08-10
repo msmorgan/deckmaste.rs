@@ -211,6 +211,12 @@ pub(crate) enum GeneratedActivation {
     /// Test assemblies only: register exactly these groups, in slice order.
     #[cfg(test)]
     Groups(&'static [&'static GroupData]),
+    /// Test assemblies with ability-family lookup order reversed.
+    #[cfg(test)]
+    AbilityGroupsReversed(&'static [&'static GroupData]),
+    /// Test assemblies with a deterministic nontrivial ability-family shuffle.
+    #[cfg(test)]
+    AbilityGroupsFixedShuffle(&'static [&'static GroupData]),
 }
 
 impl GeneratedActivation {
@@ -224,7 +230,9 @@ impl GeneratedActivation {
             #[cfg(test)]
             Self::Inactive => None,
             #[cfg(test)]
-            Self::Groups(groups) => Some(groups),
+            Self::Groups(groups)
+            | Self::AbilityGroupsReversed(groups)
+            | Self::AbilityGroupsFixedShuffle(groups) => Some(groups),
         }
     }
 
@@ -253,6 +261,17 @@ impl GeneratedActivation {
 
     pub(crate) const fn is_production(self) -> bool {
         matches!(self, Self::Production)
+    }
+
+    #[cfg(test)]
+    pub(super) fn reorder_ability_candidates<T>(self, candidates: &mut [T]) {
+        match self {
+            Self::AbilityGroupsReversed(_) => candidates.reverse(),
+            Self::AbilityGroupsFixedShuffle(_) if candidates.len() > 1 => {
+                candidates.rotate_left(1);
+            }
+            _ => {}
+        }
     }
 }
 

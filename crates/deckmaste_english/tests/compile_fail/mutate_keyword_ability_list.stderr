@@ -1,0 +1,5 @@
+error[E0616]: field `abilities` of struct `KeywordAbilityList` is private
+ --> tests/compile_fail/mutate_keyword_ability_list.rs:3:10
+  |
+3 |     line.abilities = Vec::new();
+  |          ^^^^^^^^^ private field

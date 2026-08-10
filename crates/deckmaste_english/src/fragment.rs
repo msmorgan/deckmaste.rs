@@ -253,7 +253,7 @@ impl FragmentReport {
 /// | [`FragmentKind::Nominal`] | `grammar::parse_nonterminal_with_self_reference(.., Nonterminal::NounPhrase)` → `ParsedNonterminal::noun_phrase` |
 /// | [`FragmentKind::Sentence`] | `grammar::parse_nonterminal_with_self_reference(.., Nonterminal::Sentence)` → `ParsedNonterminal::sentence` |
 /// | [`FragmentKind::Cost`] | `grammar::ability::parse_cost_fragment` → `Parser::parse_cost` |
-/// | [`FragmentKind::KeywordLine`] | `grammar::ability::parse_keyword_line_fragment` → `Parser::parse_keyword_list` |
+/// | [`FragmentKind::KeywordLine`] | generated `keyword_line` ability family |
 /// | [`FragmentKind::Ability`] | `grammar::ability::parse_ability_fragment` → `Parser::parse_ability` |
 ///
 /// The two chart categories go through the *same* entry the whole-card path
@@ -576,6 +576,63 @@ mod tests {
     }
 
     #[test]
+    fn keyword_line_is_generated_and_registration_order_neutral() {
+        let source = "Ward—Discard a card. Draw a card.";
+        let activations = [
+            GeneratedActivation::Groups(crate::constructions::ability::GROUPS),
+            GeneratedActivation::AbilityGroupsReversed(crate::constructions::ability::GROUPS),
+            GeneratedActivation::AbilityGroupsFixedShuffle(crate::constructions::ability::GROUPS),
+        ];
+        let reports = activations.map(|activation| {
+            parse_fragment_with_activation(
+                source,
+                &catalogs(),
+                FragmentKind::KeywordLine,
+                "",
+                false,
+                activation,
+            )
+        });
+        let expected_fragment = reports[0].fragment().cloned();
+        let expected_decisions = reports[0].construction_decisions().to_vec();
+        let expected_diagnostics = reports[0].diagnostics().to_vec();
+        let expected_surface = render_fragment(
+            reports[0].fragment().expect("normal keyword line parses"),
+            "",
+            false,
+        )
+        .unwrap();
+        for report in &reports {
+            assert_eq!(report.fragment(), expected_fragment.as_ref());
+            assert_eq!(report.construction_decisions(), expected_decisions);
+            assert_eq!(report.diagnostics(), expected_diagnostics);
+            assert_eq!(
+                render_fragment(report.fragment().unwrap(), "", false).unwrap(),
+                expected_surface,
+            );
+            let decision = assert_generated(report, "keyword_line");
+            assert_eq!(decision.backend(), crate::ConstructionBackend::Ability);
+            assert_eq!(decision.selected_production_ordinal(), 0);
+            assert_eq!(decision.evidence().label(), "keyword-ability list root");
+        }
+
+        let inactive = parse_fragment_with_activation(
+            "Flying",
+            &catalogs(),
+            FragmentKind::KeywordLine,
+            "",
+            false,
+            GeneratedActivation::Inactive,
+        );
+        assert!(
+            inactive
+                .construction_decisions()
+                .iter()
+                .all(|decision| decision.selected().as_str() != "keyword_line")
+        );
+    }
+
+    #[test]
     fn cost_ability_assembly_is_group_order_neutral() {
         fn assembled(
             mut groups: Vec<&'static deckmaste_construction_compiler::runtime::GroupData>,
@@ -699,7 +756,7 @@ mod tests {
         let Some(Fragment::KeywordLine(line)) = keyword.fragment() else {
             panic!("the keyword root returns a semantic keyword line")
         };
-        let [item] = line.abilities.as_slice() else {
+        let [item] = line.abilities() else {
             panic!("the keyword fixture contains exactly one ability")
         };
         let crate::syntax::KeywordArgument::Costed(crate::syntax::KeywordCost::Components {

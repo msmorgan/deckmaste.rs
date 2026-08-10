@@ -214,7 +214,7 @@ pub(crate) fn parse_cost_fragment(
 }
 
 /// Parses a bare keyword line (`Flying`, `Flying, first strike`) with no
-/// enclosing ability, wrapping the private `Parser::parse_keyword_list`.
+/// enclosing ability, wrapping the declaration-backed keyword-line recognizer.
 ///
 /// Unlike the other two ability-layer seams this one is partial: the method
 /// returns `None` when the line is not a keyword line at all, and that decline
@@ -232,7 +232,7 @@ pub(crate) fn parse_keyword_line_fragment(
     self_reference: &SelfReference,
 ) -> AbilityFragment<Option<KeywordAbilityList>> {
     let mut parser = Parser::new(source, catalogs, self_reference, false);
-    let value = parser.parse_keyword_list(tokens);
+    let value = parser.parse_keyword_line_construction(tokens);
     AbilityFragment {
         value,
         diagnostics: parser.diagnostics,
@@ -304,7 +304,7 @@ pub(crate) fn parse_keyword_line_fragment_with_activation(
 ) -> AbilityFragment<Option<KeywordAbilityList>> {
     let mut parser =
         Parser::new_with_activation(source, catalogs, self_reference, false, activation);
-    let value = parser.parse_keyword_list(tokens);
+    let value = parser.parse_keyword_line_construction(tokens);
     AbilityFragment {
         value,
         diagnostics: parser.diagnostics,
@@ -490,7 +490,9 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     }
 
     fn parse_ability_kind(&mut self, tokens: &[Token]) -> AbilityKind {
-        if let Some(keywords) = self.attempt(|parser| parser.parse_keyword_list(tokens)) {
+        if let Some(keywords) =
+            self.attempt(|parser| parser.parse_keyword_line_construction(tokens))
+        {
             return AbilityKind::Keyword(keywords);
         }
         if let Some((cost, effect)) = self.loyalty_frame(tokens) {
@@ -1294,11 +1296,24 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         let Some(groups) = self.activation.ability_groups() else {
             return;
         };
-        let Some(_construction) = groups
+        #[cfg(test)]
+        let construction = {
+            let mut constructions = groups
+                .iter()
+                .flat_map(|group| group.constructions)
+                .collect::<Vec<_>>();
+            self.activation
+                .reorder_ability_candidates(&mut constructions);
+            constructions
+                .into_iter()
+                .find(|construction| construction.id == id)
+        };
+        #[cfg(not(test))]
+        let construction = groups
             .iter()
             .flat_map(|group| group.constructions)
-            .find(|construction| construction.id == id)
-        else {
+            .find(|construction| construction.id == id);
+        let Some(_construction) = construction else {
             return;
         };
         let id = ConstructionId::new(id);
@@ -1966,7 +1981,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         finish_simple_clause(clause)
     }
 
-    fn parse_keyword_list(&mut self, tokens: &[Token]) -> Option<KeywordAbilityList> {
+    fn parse_keyword_line_construction(&mut self, tokens: &[Token]) -> Option<KeywordAbilityList> {
         if tokens.is_empty() {
             return None;
         }
@@ -1974,27 +1989,38 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         // a later chunk proves this is a single comma-bearing argument. Keep
         // that failed alternative transactional so its chart provenance does
         // not survive beside the whole-line fallback's selected tree.
-        if let Some(list) = self.attempt(|parser| parser.parse_keyword_item_list(tokens)) {
-            return Some(list);
-        }
-        // Fallback: a single unsplit line whose sole item is a Stage B
-        // restriction-plus-cost whose restriction is itself a comma-
-        // coordinated quality list (`Equip Shaman, Warlock, or Wizard {1}`,
-        // `Craft with a Dinosaur, a Merfolk, a Pirate, and a Vampire {4}`).
-        // The ordinary per-chunk splitter above always fails these lines
-        // first — a bare coordinated member (`Warlock`, `a Merfolk`) never
-        // independently matches a keyword atom, so the strict "every chunk
-        // must match" loop aborts exactly as it always has. Only then do we
-        // retry the whole line as one item, letting the noun-phrase grammar
-        // (not a second comma-splitter) parse the coordination. This never
-        // fires for an ordinary multi-keyword line (`Flying, Ward {2}`)
-        // because that line already succeeds in the ordinary path above,
-        // nor for a spaced-em-dash designation header (`Solved — …`)
-        // because its separator is `SpacedEmDash`, rejected below.
-        self.parse_single_restricted_cost_line(tokens)
+        let (abilities, trailing) = if let Some(parts) =
+            self.attempt(|parser| parser.recognize_keyword_item_parts(tokens))
+        {
+            parts
+        } else {
+            // Fallback: a single unsplit line whose sole item is a Stage B
+            // restriction-plus-cost whose restriction is itself a comma-
+            // coordinated quality list (`Equip Shaman, Warlock, or Wizard {1}`,
+            // `Craft with a Dinosaur, a Merfolk, a Pirate, and a Vampire {4}`).
+            // The ordinary per-chunk splitter above always fails these lines
+            // first — a bare coordinated member (`Warlock`, `a Merfolk`) never
+            // independently matches a keyword atom, so the strict "every chunk
+            // must match" loop aborts exactly as it always has. Only then do we
+            // retry the whole line as one item, letting the noun-phrase grammar
+            // (not a second comma-splitter) parse the coordination. This never
+            // fires for an ordinary multi-keyword line (`Flying, Ward {2}`)
+            // because that line already succeeds in the ordinary path above,
+            // nor for a spaced-em-dash designation header (`Solved — …`)
+            // because its separator is `SpacedEmDash`, rejected below.
+            self.recognize_single_restricted_cost_parts(tokens)?
+        };
+        let list = crate::constructions::ability::build_keyword_list(abilities, trailing)
+            .expect("the keyword-line recognizer satisfies the declaration");
+        let form = if list.trailing().is_some() { 0 } else { 1 };
+        self.record_ability_construction(tokens, "keyword_line", form);
+        Some(list)
     }
 
-    fn parse_keyword_item_list(&mut self, tokens: &[Token]) -> Option<KeywordAbilityList> {
+    fn recognize_keyword_item_parts(
+        &mut self,
+        tokens: &[Token],
+    ) -> Option<(Vec<KeywordAbility>, Option<Paragraph>)> {
         let chunks = self.split_keyword_items(tokens);
         let in_list = chunks.len() > 1;
         let mut abilities = Vec::with_capacity(chunks.len());
@@ -2032,21 +2058,19 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 argument,
             });
         }
-        (!abilities.is_empty()).then_some(KeywordAbilityList {
-            abilities,
-            trailing,
-        })
+        (!abilities.is_empty()).then_some((abilities, trailing))
     }
 
-    /// The single-item fallback described on [`Self::parse_keyword_list`].
-    /// Requires the whole line to open `<catalog atom><space>` and its
-    /// argument to shape as [`KeywordArgument::RestrictedCost`] — the only
-    /// shape whose restriction may itself contain the top-level commas that
-    /// defeat the ordinary splitter.
-    fn parse_single_restricted_cost_line(
+    /// The single-item fallback described on
+    /// [`Self::parse_keyword_line_construction`]. Requires the whole line
+    /// to open `<catalog atom><space>` and its argument to shape as
+    /// [`KeywordArgument::RestrictedCost`] — the only shape whose
+    /// restriction may itself contain the top-level commas that defeat the
+    /// ordinary splitter.
+    fn recognize_single_restricted_cost_parts(
         &mut self,
         tokens: &[Token],
-    ) -> Option<KeywordAbilityList> {
+    ) -> Option<(Vec<KeywordAbility>, Option<Paragraph>)> {
         let (atom, matched_end) = self.longest_ability_item_atom(tokens)?;
         let argument_tokens = &tokens[matched_end..];
         let ability_end = tokens.get(matched_end.checked_sub(1)?)?.span.end;
@@ -2055,14 +2079,14 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             return None;
         }
         let argument = self.parse_restricted_cost(body)?;
-        Some(KeywordAbilityList {
-            abilities: vec![KeywordAbility {
+        Some((
+            vec![KeywordAbility {
                 preceding_separator: None,
                 ability: atom,
                 argument,
             }],
-            trailing: None,
-        })
+            None,
+        ))
     }
 
     /// Splitter-time keyword-item boundaries, aware of a tight em-dash cost's
@@ -2139,7 +2163,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
 
     /// The longest `CatalogSlot::AbilityItem` atom matching the start of
     /// `tokens`, and the token index just past it. Shared by the real item
-    /// parser ([`Self::parse_keyword_item_list`]) and the splitter's
+    /// parser ([`Self::recognize_keyword_item_parts`]) and the splitter's
     /// tight-cost lookahead ([`Self::item_opens_tight_cost`]) so both apply
     /// the same `max_by_key(length)` and token-boundary-alignment filter —
     /// the only place the keyword catalog participates. Returns an atom for
@@ -3344,11 +3368,11 @@ mod tests {
             panic!("expected keyword ability");
         };
         let KeywordArgument::Costed(KeywordCost::Symbols(symbols)) =
-            &keywords.abilities[0].argument
+            &keywords.abilities()[0].argument
         else {
             panic!(
                 "expected a symbol keyword cost: {:#?}",
-                keywords.abilities[0]
+                keywords.abilities()[0]
             );
         };
         assert_eq!(symbols.len(), 2);
@@ -3962,7 +3986,7 @@ mod tests {
             panic!("expected keyword ability");
         };
         assert!(matches!(
-            keywords.abilities[0].argument,
+            &keywords.abilities()[0].argument,
             KeywordArgument::Costed(KeywordCost::Sentence { .. })
         ));
     }
@@ -3974,7 +3998,7 @@ mod tests {
             panic!("expected keyword ability");
         };
         assert!(matches!(
-            &keywords.abilities[0].argument,
+            &keywords.abilities()[0].argument,
             KeywordArgument::Costed(KeywordCost::Symbols(symbols))
                 if symbols.iter().map(OracleSymbol::as_str).collect::<String>() == "{2}{W}"
         ));
@@ -4020,10 +4044,10 @@ mod tests {
         let AbilityKind::Keyword(list) = &keywords.ast.abilities[0].kind else {
             panic!("expected keyword list");
         };
-        assert_eq!(list.abilities.len(), 3);
-        assert_eq!(list.abilities[0].ability.canonical(), "Flying");
-        assert_eq!(list.abilities[1].ability.canonical(), "First strike");
-        assert_eq!(list.abilities[2].ability.canonical(), "Protection");
+        assert_eq!(list.abilities().len(), 3);
+        assert_eq!(list.abilities()[0].ability.canonical(), "Flying");
+        assert_eq!(list.abilities()[1].ability.canonical(), "First strike");
+        assert_eq!(list.abilities()[2].ability.canonical(), "Protection");
 
         let action = parse("Manifest dread 2.");
         let AbilityKind::Paragraph(paragraph) = &action.ast.abilities[0].kind else {
@@ -4080,7 +4104,7 @@ mod tests {
             panic!("expected a keyword ability: {:#?}", report.ast.abilities[0]);
         };
         assert!(matches!(
-            list.abilities.as_slice(),
+            list.abilities(),
             [KeywordAbility {
                 ability,
                 argument: KeywordArgument::Predicated(predicated),
@@ -4691,7 +4715,7 @@ mod tests {
         let AbilityKind::Keyword(list) = &row.ability.kind else {
             panic!("expected a keyword list body: {:#?}", row.ability.kind);
         };
-        assert_eq!(list.abilities.len(), 2);
+        assert_eq!(list.abilities().len(), 2);
         assert_eq!(render(&report), source);
     }
 
@@ -5283,7 +5307,7 @@ mod tests {
             );
         };
         assert_eq!(
-            list.abilities.len(),
+            list.abilities().len(),
             1,
             "expected one keyword for {source:?}"
         );
@@ -5292,7 +5316,7 @@ mod tests {
             source,
             "shape argument must round-trip"
         );
-        list.abilities[0].argument.clone()
+        list.abilities()[0].argument.clone()
     }
 
     #[test]
@@ -5425,13 +5449,13 @@ mod tests {
         let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind else {
             panic!("expected a keyword ability: {:#?}", report.ast);
         };
-        assert_eq!(list.abilities.len(), 1, "expected one keyword item");
+        assert_eq!(list.abilities().len(), 1, "expected one keyword item");
         let KeywordArgument::Costed(KeywordCost::Components { cost, terminal }) =
-            &list.abilities[0].argument
+            &list.abilities()[0].argument
         else {
             panic!(
                 "expected a structured cost: {:#?}",
-                list.abilities[0].argument
+                list.abilities()[0].argument
             );
         };
         assert!(*terminal);
@@ -5454,7 +5478,7 @@ mod tests {
             panic!("expected a keyword ability: {:#?}", synthetic_report.ast);
         };
         assert!(matches!(
-            synthetic_list.abilities[0].argument,
+            synthetic_list.abilities()[0].argument,
             KeywordArgument::Costed(KeywordCost::Components { .. })
         ));
 
@@ -5470,9 +5494,13 @@ mod tests {
         let AbilityKind::Keyword(listed_list) = &listed_report.ast.abilities[0].kind else {
             panic!("expected a keyword ability: {:#?}", listed_report.ast);
         };
-        assert_eq!(listed_list.abilities.len(), 2, "expected two keyword items");
+        assert_eq!(
+            listed_list.abilities().len(),
+            2,
+            "expected two keyword items"
+        );
         assert!(matches!(
-            listed_list.abilities[1].argument,
+            listed_list.abilities()[1].argument,
             KeywordArgument::Costed(KeywordCost::Components { .. })
         ));
         assert_eq!(
@@ -5487,7 +5515,7 @@ mod tests {
         let AbilityKind::Keyword(plain_list) = &plain_report.ast.abilities[0].kind else {
             panic!("expected a keyword ability: {:#?}", plain_report.ast);
         };
-        assert_eq!(plain_list.abilities.len(), 3);
+        assert_eq!(plain_list.abilities().len(), 3);
     }
 
     #[test]
@@ -5504,10 +5532,10 @@ mod tests {
             panic!("expected a keyword ability: {:#?}", report.ast);
         };
         assert!(matches!(
-            list.abilities[0].argument,
+            list.abilities()[0].argument,
             KeywordArgument::Costed(KeywordCost::Components { .. })
         ));
-        assert!(list.trailing.is_some(), "expected a trailing paragraph");
+        assert!(list.trailing().is_some(), "expected a trailing paragraph");
         assert_eq!(report.ast.render("Test Card", false).unwrap(), source);
 
         // Shredder's Armor: the inverse-shaped non-target witness — a clean
@@ -5523,10 +5551,10 @@ mod tests {
             panic!("expected a keyword ability: {:#?}", armor_report.ast);
         };
         assert!(matches!(
-            armor_list.abilities[0].argument,
+            armor_list.abilities()[0].argument,
             KeywordArgument::Costed(KeywordCost::Components { .. })
         ));
-        assert!(armor_list.trailing.is_some());
+        assert!(armor_list.trailing().is_some());
         assert_eq!(armor_report.ast.render("Test Card", false).unwrap(), armor);
     }
 
@@ -5552,7 +5580,7 @@ mod tests {
             };
             assert!(
                 matches!(
-                    list.abilities.as_slice(),
+                    list.abilities(),
                     [KeywordAbility {
                         argument: KeywordArgument::RestrictedCost { .. },
                         ..
@@ -5719,7 +5747,7 @@ mod tests {
                         report.ast.abilities[0].kind,
                         AbilityKind::Keyword(ref list)
                             if matches!(
-                                list.abilities.first().map(|ability| &ability.argument),
+                                list.abilities().first().map(|ability| &ability.argument),
                                 Some(KeywordArgument::RestrictedCost { .. })
                             )
                     ),
@@ -5821,7 +5849,7 @@ mod tests {
                 );
             };
             assert!(matches!(
-                list.abilities.as_slice(),
+                list.abilities(),
                 [KeywordAbility {
                     ability,
                     argument: KeywordArgument::Named {
@@ -5862,7 +5890,7 @@ mod tests {
             let report = parse_with_catalogs(source, &shape_catalogs());
             if let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind {
                 assert!(
-                    !matches!(list.abilities[0].argument, KeywordArgument::Named { .. }),
+                    !matches!(list.abilities()[0].argument, KeywordArgument::Named { .. }),
                     "{source:?} must not license a named label: {:#?}",
                     report.ast
                 );
@@ -5913,7 +5941,7 @@ mod tests {
             panic!("expected a keyword ability: {:#?}", quoted.ability);
         };
         assert!(matches!(
-            list.abilities.as_slice(),
+            list.abilities(),
             [KeywordAbility {
                 argument: KeywordArgument::Costed(KeywordCost::Symbols(symbols)),
                 ..
@@ -5965,7 +5993,7 @@ mod tests {
             panic!("expected a keyword ability: {:#?}", report.ast);
         };
         assert!(matches!(
-            &list.abilities[1].argument,
+            &list.abilities()[1].argument,
             KeywordArgument::Predicated(predicated)
                 if matches!(predicated.qualities.as_slice(), [quality]
                     if quality.preposition.is_none())
@@ -5987,7 +6015,7 @@ mod tests {
             panic!("expected a keyword ability: {:#?}", report.ast);
         };
         assert!(matches!(
-            &list.abilities[0].argument,
+            list.abilities()[0].argument,
             KeywordArgument::Recovered { .. }
         ));
         assert_eq!(
@@ -6011,7 +6039,7 @@ mod tests {
             panic!("expected a keyword ability: {:#?}", report.ast);
         };
         assert!(matches!(
-            list.abilities[0].argument,
+            list.abilities()[0].argument,
             KeywordArgument::Qualified(Phrase::NounPhrase(_))
         ));
         assert_eq!(
@@ -6030,7 +6058,7 @@ mod tests {
             if let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind {
                 assert!(
                     !matches!(
-                        list.abilities[0].argument,
+                        list.abilities()[0].argument,
                         KeywordArgument::Qualified(Phrase::NounPhrase(_))
                     ),
                     "{source:?} must not take a bare object: {:#?}",
@@ -6876,7 +6904,7 @@ mod tests {
         let AbilityKind::Keyword(keywords) = &report.ast.abilities[0].kind else {
             panic!("expected a keyword ability: {:#?}", report.ast.abilities[0]);
         };
-        let [ability] = keywords.abilities.as_slice() else {
+        let [ability] = keywords.abilities() else {
             panic!("expected exactly one keyword ability");
         };
         assert_eq!(ability.ability.canonical(), "Hexproof from");
@@ -6904,10 +6932,10 @@ mod tests {
         let AbilityKind::Keyword(keywords) = &report.ast.abilities[0].kind else {
             panic!("expected a keyword ability: {:#?}", report.ast.abilities[0]);
         };
-        let KeywordArgument::Predicated(argument) = &keywords.abilities[0].argument else {
+        let KeywordArgument::Predicated(argument) = &keywords.abilities()[0].argument else {
             panic!(
                 "expected a predicated argument: {:#?}",
-                keywords.abilities[0].argument
+                keywords.abilities()[0].argument
             );
         };
         let [quality] = argument.qualities.as_slice() else {
@@ -6928,7 +6956,7 @@ mod tests {
         let AbilityKind::Keyword(keywords) = &report.ast.abilities[0].kind else {
             panic!("expected a keyword ability");
         };
-        assert_eq!(keywords.abilities[0].ability.canonical(), "Hexproof from");
+        assert_eq!(keywords.abilities()[0].ability.canonical(), "Hexproof from");
     }
 
     #[test]

@@ -443,16 +443,52 @@ pub struct ModeHeading {
     pub cost: Cost,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeywordAbilityList {
-    pub abilities: Vec<KeywordAbility>,
+    abilities: Vec<KeywordAbility>,
     /// Ordinary rules sentences printed on the same physical line after the
     /// terminal carried by the final keyword's cost (`Flashback—{3}{R},
     /// Remove X loyalty counters from among planeswalkers you control. If you
     /// cast this spell this way, X can't be 0.`). Not part of the keyword's
     /// own [`KeywordArgument`], the [`Cost`], or a new top-level [`Ability`],
     /// because all three would lose the surface's line/space boundary.
-    pub trailing: Option<Paragraph>,
+    trailing: Option<Paragraph>,
+}
+
+impl KeywordAbilityList {
+    pub(crate) const fn from_parts(
+        abilities: Vec<KeywordAbility>,
+        trailing: Option<Paragraph>,
+    ) -> Self {
+        Self {
+            abilities,
+            trailing,
+        }
+    }
+
+    #[must_use]
+    pub fn abilities(&self) -> &[KeywordAbility] {
+        &self.abilities
+    }
+
+    #[must_use]
+    pub const fn trailing(&self) -> Option<&Paragraph> {
+        self.trailing.as_ref()
+    }
+}
+
+impl serde::Serialize for KeywordAbilityList {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+
+        let mut state = serializer.serialize_struct("KeywordAbilityList", 2)?;
+        state.serialize_field("abilities", &self.abilities)?;
+        state.serialize_field("trailing", &self.trailing)?;
+        state.end()
+    }
 }
 
 /// A keyword ability: its open-set name (the catalog atom) and the argument the
