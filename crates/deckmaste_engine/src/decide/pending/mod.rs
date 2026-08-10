@@ -42,4 +42,5 @@ pub use combat::DeclareAttackers;
 pub use combat::DeclareBlockers;
 pub use mana::ChooseManaColor;
 pub use mana::ChooseManaMode;
+pub use payment::ChooseManaReversals;
 pub use priority::Priority;

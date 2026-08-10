@@ -1198,6 +1198,8 @@ impl GameState {
         batch: Option<Uint>,
         event: GameEvent,
     ) {
+        let (reversal_barriers, observation_barriers) =
+            crate::payment::contextual_barriers_for(self, &event);
         // A pre-evolution intent is shadowed by its downstream fact
         // ([CR#603.6]) — recording a view for BOTH would double-count every
         // `Happened`/`EventCount` zone-move read.
@@ -1212,7 +1214,30 @@ impl GameState {
             .as_ref()
             .and_then(|v| v.cause.as_ref())
             .and_then(|c| c.payment);
-        self.history.record(turn, batch, payment, event, view);
+        self.history
+            .record(turn, batch, payment, event.clone(), view);
+        if let Some(action) = self
+            .payment
+            .as_mut()
+            .and_then(|controller| controller.mana_actions.last_mut())
+        {
+            action.facts.push(event.clone());
+            action
+                .reversal_barriers
+                .extend(reversal_barriers.iter().copied());
+            action
+                .observation_barriers
+                .extend(observation_barriers.iter().copied());
+        }
+        if let Some(recording) = self
+            .payment
+            .as_mut()
+            .and_then(|controller| controller.frames.last_mut())
+            .and_then(|frame| frame.recording.as_mut())
+        {
+            recording.reversal_barriers.extend(reversal_barriers);
+            recording.observation_barriers.extend(observation_barriers);
+        }
     }
 
     /// Feeds one enacted fact to every OPEN `Noting` collection

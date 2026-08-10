@@ -17,6 +17,7 @@ use super::ManaPayment;
 use super::PaymentIou;
 use super::PaymentProgress;
 use super::PaymentStage;
+use super::ReplayCommand;
 use crate::agenda::WorkItem;
 use crate::decide::DecisionError;
 use crate::event::Cause;
@@ -175,7 +176,7 @@ impl GameState {
                             return illegal("the covered mana unit is no longer available");
                         };
                         if !super::coverage::pip_accepts_unit(*pip, unit.kind, &unit.riders)
-                            || !self.unit_spendable_on(unit, subject.object())
+                            || !self.unit_spendable_on(unit, subject.spend_object())
                         {
                             return illegal(
                                 "the covered mana unit is no longer legal for this pip",
@@ -407,9 +408,39 @@ impl GameState {
 
         // Everything above is read-only. From here on the command cannot fail.
         self.pending = None;
+        let record = self.mint_payment_record();
+        let object_inputs = match &witness {
+            FulfillmentWitness::Objects(objects) => objects
+                .iter()
+                .map(|&object| {
+                    let source = self.objects.obj(object).source;
+                    let logical = match source {
+                        crate::object::ObjectSource::Card(card) => super::LogicalObject::Card(card),
+                        crate::object::ObjectSource::Player(player) => {
+                            super::LogicalObject::Player(player)
+                        }
+                    };
+                    (object, logical)
+                })
+                .collect(),
+            _ => std::collections::HashMap::new(),
+        };
         {
             let controller = self.payment.as_mut().expect("controller remains live");
             let frame = controller.frames.last_mut().expect("frame remains live");
+            frame.recording = Some(super::replay::PendingRecord {
+                id: record,
+                command: ReplayCommand::Fulfill {
+                    iou: id,
+                    witness: witness.clone(),
+                },
+                transcript: super::DecisionTranscript::default(),
+                object_inputs,
+                history_start: frame.working.history.len(),
+                spent_mana: plan.spend.into_iter().collect(),
+                reversal_barriers: Vec::new(),
+                observation_barriers: Vec::new(),
+            });
             frame.progress = PaymentProgress::Fulfilling {
                 iou: id,
                 witness: witness.clone(),
@@ -428,6 +459,58 @@ impl GameState {
     }
 
     pub(crate) fn finish_payment_fulfillment(&mut self, id: IouId) {
+        let (progress, draft) = {
+            let controller = self
+                .payment
+                .as_mut()
+                .expect("a fulfillment sentinel belongs to a payment controller");
+            let frame = controller
+                .frames
+                .last_mut()
+                .expect("a fulfillment sentinel belongs to a payment frame");
+            (
+                std::mem::replace(&mut frame.progress, PaymentProgress::Idle),
+                frame
+                    .recording
+                    .take()
+                    .expect("an in-flight fulfillment owns a replay draft"),
+            )
+        };
+        let PaymentProgress::Fulfilling { iou, witness } = progress else {
+            panic!("a fulfillment sentinel requires an in-flight IOU");
+        };
+        assert_eq!(
+            iou, id,
+            "the fulfillment sentinel matches its in-flight IOU"
+        );
+        let facts = self.history.facts_from(draft.history_start);
+        let mut reversal_barriers = draft.reversal_barriers;
+        let mut observation_barriers = draft.observation_barriers;
+        reversal_barriers.sort_unstable_by_key(|barrier| *barrier as u8);
+        reversal_barriers.dedup();
+        observation_barriers.sort_unstable_by_key(|barrier| *barrier as u8);
+        observation_barriers.dedup();
+        let produced_mana = facts
+            .iter()
+            .filter_map(|fact| match fact {
+                GameEvent::ManaAdded(event) => Some(event.units.iter().copied()),
+                _ => None,
+            })
+            .flatten()
+            .collect();
+        let record = super::TransactionRecord {
+            id: draft.id,
+            command: draft.command,
+            transcript: draft.transcript,
+            object_inputs: draft.object_inputs,
+            children: Vec::new(),
+            facts,
+            produced_mana,
+            spent_mana: draft.spent_mana,
+            dependencies: Vec::new(),
+            reversal_barriers,
+            observation_barriers,
+        };
         let controller = self
             .payment
             .as_mut()
@@ -436,14 +519,7 @@ impl GameState {
             .frames
             .last_mut()
             .expect("a fulfillment sentinel belongs to a payment frame");
-        let progress = std::mem::replace(&mut frame.progress, PaymentProgress::Idle);
-        let PaymentProgress::Fulfilling { iou, witness } = progress else {
-            panic!("a fulfillment sentinel requires an in-flight IOU");
-        };
-        assert_eq!(
-            iou, id,
-            "the fulfillment sentinel matches its in-flight IOU"
-        );
+        frame.records.push(record);
         frame.fulfilled.push((id, witness));
         if frame.fulfilled.len() == frame.locked.ious.len() {
             frame.stage = PaymentStage::Ready;

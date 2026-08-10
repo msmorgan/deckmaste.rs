@@ -45,6 +45,19 @@ pub struct HistEntry {
 pub struct History(Vec<HistEntry>);
 
 impl History {
+    #[must_use]
+    pub(crate) fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    #[must_use]
+    pub(crate) fn facts_from(&self, start: usize) -> Vec<GameEvent> {
+        self.0[start..]
+            .iter()
+            .map(|entry| entry.fact.clone())
+            .collect()
+    }
+
     /// Records `fact` as having occurred on `turn`, as a member of `batch`
     /// (`None` for a `Single` occurrence), with its per-fact LKI `view`.
     /// The entry's log position and turn are stamped onto the view — the

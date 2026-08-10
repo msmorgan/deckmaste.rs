@@ -420,6 +420,16 @@ impl StrategyEvaluator {
             PendingDecision::PayMana(crate::decide::pending::PayMana { .. }) => {
                 Decision::Pay(state.auto_pay_pending())
             }
+            PendingDecision::ChooseManaReversals(crate::decide::pending::ChooseManaReversals {
+                legal,
+                ..
+            }) => Decision::ManaReversals(
+                legal
+                    .iter()
+                    .max_by_key(|set| set.len())
+                    .cloned()
+                    .expect("a mana-reversal prompt offers at least one legal set"),
+            ),
             PendingDecision::OrderTriggers(crate::decide::pending::OrderTriggers {
                 triggers,
                 ..
