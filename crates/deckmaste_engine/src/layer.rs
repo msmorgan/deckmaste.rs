@@ -2308,6 +2308,7 @@ mod tests {
         use deckmaste_card::CardFace;
         use deckmaste_core::ColorOrColorless;
         use deckmaste_core::CostComponent;
+        use deckmaste_core::ManaAbility;
         use deckmaste_core::ManaProduction;
         use deckmaste_core::ManaSpec;
         use deckmaste_core::OneShotEffect;
@@ -2315,27 +2316,34 @@ mod tests {
         use deckmaste_core::Reference;
         use deckmaste_core::Subtype;
 
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+        use crate::step::StepOutcome;
+
         // The Island registry row's conferral ([CR#305.6]): "{T}: Add {U}",
         // carried on the subtype value exactly as the BasicLandType
         // meta-macro declares it.
         let island = Subtype {
             name: "Island".into(),
             types: vec![Type::Land].into(),
-            confers: vec![Property::Ability(Arc::new(Ability::activated(
-                deckmaste_core::ActivatedAbility {
-                    ability_word: None,
-                    cost: Arc::<[CostComponent]>::from(vec![CostComponent::Tap]).into(),
-                    from: None,
-                    window: None,
-                    condition: None,
-                    limits: vec![].into(),
-                    effect: OneShotEffect::Act(deckmaste_core::Action::AddMana(
-                        Reference::You,
-                        Count::Literal(1),
-                        ManaProduction::Bare(ManaSpec::Specific(ColorOrColorless::Color(
-                            deckmaste_core::Color::Blue,
-                        ))),
-                    )),
+            confers: vec![Property::Ability(Arc::new(Ability::Mana(
+                ManaAbility::Activated {
+                    ability: Arc::new(deckmaste_core::ActivatedAbility {
+                        ability_word: None,
+                        cost: Arc::<[CostComponent]>::from(vec![CostComponent::Tap]).into(),
+                        from: None,
+                        window: None,
+                        condition: None,
+                        limits: vec![].into(),
+                        effect: OneShotEffect::Act(deckmaste_core::Action::AddMana(
+                            Reference::You,
+                            Count::Literal(1),
+                            ManaProduction::Bare(ManaSpec::Specific(ColorOrColorless::Color(
+                                deckmaste_core::Color::Blue,
+                            ))),
+                        )),
+                    }),
+                    profile: deckmaste_core::ActivatedManaProfile::Always,
                 },
             )))]
             .into(),
@@ -2377,6 +2385,55 @@ mod tests {
         assert!(
             crate::derive::abilities(&state, id).is_empty(),
             "still invisible to card-facing queries after removal"
+        );
+
+        state.begin_payment_proposal(PlayerId(0));
+        state.activate_root_mana_ability(id, 0);
+        for _ in 0..40 {
+            if state.payment_depth() == 0
+                && state
+                    .player(PlayerId(0))
+                    .mana_pool
+                    .amount(ColorOrColorless::Color(deckmaste_core::Color::Blue))
+                    == 1
+            {
+                break;
+            }
+            match state.step() {
+                StepOutcome::Progress(_) => {}
+                StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                    let decision = state
+                        .auto_payment_pending()
+                        .expect("automatic payment decision");
+                    state
+                        .submit_decision(decision)
+                        .expect("automatic payment succeeds");
+                }
+                StepOutcome::NeedsDecision(PendingDecision::ChooseManaReversals(prompt)) => {
+                    let maximal = prompt
+                        .legal
+                        .iter()
+                        .max_by_key(|set| set.len())
+                        .cloned()
+                        .expect("a reversal prompt offers a legal set");
+                    state
+                        .submit_decision(Decision::ManaReversals(maximal))
+                        .expect("automatic reversal succeeds");
+                }
+                other => panic!("unexpected decision while activating conferred mana: {other:?}"),
+            }
+        }
+        assert!(
+            state.objects.obj(id).tapped,
+            "the conferred ability pays {{T}}"
+        );
+        assert_eq!(
+            state
+                .player(PlayerId(0))
+                .mana_pool
+                .amount(ColorOrColorless::Color(deckmaste_core::Color::Blue)),
+            1,
+            "the conferred ability adds {{U}} through the payment protocol"
         );
     }
 

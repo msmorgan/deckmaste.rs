@@ -2598,6 +2598,43 @@ mod tests {
                 )) => {
                     state.submit_decision(Decision::Answer(cast)).unwrap();
                 }
+                StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) => {
+                    if cast && prompt.stage == crate::payment::PaymentStage::PrePayment {
+                        assert!(
+                            prompt.outstanding.iter().any(|iou| matches!(
+                                iou.kind,
+                                crate::payment::IouKind::ManaPip(crate::payment::ManaPip::Generic)
+                            )),
+                            "the madness cast locks the {{1}} pip"
+                        );
+                        assert!(
+                            prompt.outstanding.iter().any(|iou| matches!(
+                                iou.kind,
+                                crate::payment::IouKind::ManaPip(crate::payment::ManaPip::Colored(
+                                    deckmaste_core::Color::Red
+                                ))
+                            )),
+                            "the madness cast locks the {{R}} pip, not its printed cost"
+                        );
+                    }
+                    let decision = state
+                        .auto_payment_pending()
+                        .expect("automatic payment decision");
+                    state
+                        .submit_decision(decision)
+                        .expect("automatic payment succeeds");
+                }
+                StepOutcome::NeedsDecision(PendingDecision::ChooseManaReversals(prompt)) => {
+                    let maximal = prompt
+                        .legal
+                        .iter()
+                        .max_by_key(|set| set.len())
+                        .cloned()
+                        .expect("a reversal prompt offers a legal set");
+                    state
+                        .submit_decision(Decision::ManaReversals(maximal))
+                        .expect("automatic reversal succeeds");
+                }
                 StepOutcome::NeedsDecision(PendingDecision::PayMana(
                     crate::decide::pending::PayMana { cost, .. },
                 )) => {

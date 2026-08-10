@@ -834,6 +834,32 @@ mod tests {
         })
     }
 
+    fn announce_activation_to_payment(
+        state: &mut GameState,
+        object: ObjectId,
+        ability: usize,
+    ) -> crate::payment::PaymentPrompt {
+        use crate::agenda::WorkItem;
+        use crate::decide::PendingDecision;
+        use crate::step::StepOutcome;
+
+        state.schedule_front(GameState::announce_schedule(
+            WorkItem::BeginActivate { object, ability },
+            crate::event::GameEvent::AbilityActivated(AbilityActivated {
+                source: object,
+                ability,
+            }),
+        ));
+        for _ in 0..20 {
+            match state.step() {
+                StepOutcome::Progress(_) => {}
+                StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) => return prompt,
+                other => panic!("expected activation payment, got {other:?}"),
+            }
+        }
+        panic!("activation did not reach payment")
+    }
+
     /// Build an `ActivatedAbility` with the given cost and no
     /// condition/limits/targets.
     fn activated(cost: Vec<CostComponent>, effect: OneShotEffect) -> ActivatedAbility {
@@ -902,34 +928,32 @@ mod tests {
         assert_eq!(summary.verbs.len(), 1);
     }
 
-    /// A cycling-shaped cost reads LUMPY (faithful read keeps the macro's
-    /// nested `Cost([Mana(2)])` splice), and the pay path summarizes it
-    /// correctly: {2} mana plus the discard-self verb. This is the cycling
-    /// cost paying end-to-end at the level the engine supports (from-hand
-    /// activation is a separate, unbuilt seam) — `cost_summary` doubles as the
-    /// cost's normalization, so the nested `Cost` never derails payment.
+    /// A cycling-shaped semantic cost lowers to the runnable compositional
+    /// grammar: {2} mana followed by the already-bound discard-self action.
+    /// This is the cycling cost paying end-to-end at the level the engine
+    /// supports (from-hand activation is a separate seam).
     #[test]
     fn cost_summary_pays_lumpy_cycling_cost() {
-        use deckmaste_core::Cost;
-        use deckmaste_core::Normalize;
+        use deckmaste_core::KeywordAbility;
+        use deckmaste_lowering::Lower;
 
-        // The exact shape a `Cycling([Mana([Generic(2)])])` expansion produces
-        // under faithful read: the printed cost rides in a nested `Cost`.
-        let lumpy: Cost = deckmaste_core::ron::options()
-            .from_str(
-                "[Cost([Mana([Generic(2)])]), \
-                 Do(Composite(name: Discard, body: Move(This, Graveyard)))]",
-            )
+        let plugin = deckmaste_plugin::plugin::Plugin::load(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"),
+        )
+        .unwrap();
+        let semantic: deckmaste_semantics::KeywordAbility = plugin
+            .macros
+            .read_str("Cycling([Mana([Generic(2)])])")
             .unwrap();
-        // Pre-condition: read really is lumpy (a nested Cost survives).
-        assert!(
-            matches!(lumpy.0.first(), Some(CostComponent::Cost(_))),
-            "cycling cost reads lumpy, got {:?}",
-            lumpy.0,
-        );
+        let KeywordAbility::Composite { abilities, .. } = semantic.lower() else {
+            panic!("Cycling lowers to a composite keyword")
+        };
+        let cycling = abilities
+            .iter()
+            .find_map(Ability::as_activated)
+            .expect("Cycling grants an activated ability");
 
-        // The pay path summarizes the lumpy cost correctly.
-        let summary = cost_summary(&lumpy.0).expect("cycling cost is payable");
+        let summary = cost_summary(&cycling.cost).expect("cycling cost is payable");
         assert_eq!(summary.mana, "{2}".parse().unwrap(), "pays {{2}}");
         assert!(!summary.tap && !summary.untap);
         assert_eq!(summary.verbs.len(), 1, "the discard-self verb is collected");
@@ -941,13 +965,25 @@ mod tests {
             "the verb is the discard-self composite, got {:?}",
             summary.verbs[0],
         );
-
-        // And it summarizes identically to the normalized (flat) cost — the
-        // walk-as-normalize equivalence the boundary relies on.
-        let flat = lumpy.normalize();
-        let flat_summary = cost_summary(&flat.0).expect("flat cost is payable");
-        assert_eq!(summary.mana, flat_summary.mana);
-        assert_eq!(summary.verbs.len(), flat_summary.verbs.len());
+        assert!(
+            cycling.cost.iter().any(|component| matches!(
+                component,
+                CostComponent::Act(action)
+                    if matches!(
+                        action.as_ref(),
+                        Action::Composite { body, .. }
+                            if !matches!(body.as_ref(), deckmaste_core::OneShotEffect::With(_))
+                    )
+            )),
+            "lowering leaves a runnable, already-bound discard action"
+        );
+        assert!(
+            cycling.cost.iter().all(|component| !matches!(
+                component,
+                CostComponent::Expanded(_) | CostComponent::ChooseAndPay { .. }
+            )),
+            "no semantic expansion or unresolved action-selection wrapper reaches runnable costs"
+        );
     }
 
     #[test]
@@ -1434,15 +1470,18 @@ mod tests {
 
     // -- can_pay_verbs gate ([CR#601.2h,118.3,119.4]) --
 
-    /// `LoseLife(2)` cost: the controller must have ≥ 2 life to activate. Goes
-    /// through the real `can_activate` gate so the wiring is exercised end to
-    /// end. The other gate inputs (no mana, no condition/limits/targets) are
-    /// inert, isolating the verb-payability check.
+    /// `LoseLife(2)` is structurally legal at 1 life, but its locked payment
+    /// IOU cannot be fulfilled. Rejection leaves the active prompt unchanged.
     #[test]
     fn gate_rejects_pay_life_cost_when_life_too_low() {
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+        use crate::payment::FulfillmentWitness;
+        use crate::payment::IouKind;
+        use crate::payment::PaymentCommand;
+
         let mut state = game();
         let player = PlayerId(0);
-        let obj = make_object_on_battlefield(&mut state, player);
         let ability = activated(
             vec![CostComponent::do_action(Action::ChangeLife(
                 Reference::You,
@@ -1450,13 +1489,44 @@ mod tests {
             ))],
             noop_effect(),
         );
+        let card_id = state
+            .cards
+            .push(card_with_activated(ability.clone()), player);
+        let obj = state
+            .objects
+            .mint(ObjectSource::Card(card_id), player, Some(Zone::Battlefield));
+        state.zones.battlefield.push(obj);
 
-        // 1 life < 2: cannot pay the life cost.
         state.player_mut(player).life = 1;
         let view = state.layers();
         assert!(
-            !state.can_activate(&view, player, obj, 0, &ability),
-            "LoseLife(2) cost must block activation at 1 life"
+            state.can_activate(&view, player, obj, 0, &ability),
+            "resource insufficiency does not suppress a structurally legal activation"
+        );
+
+        let prompt = announce_activation_to_payment(&mut state, obj, 0);
+        let [iou] = prompt.outstanding.as_slice() else {
+            panic!("the activation locks exactly one life IOU: {prompt:?}")
+        };
+        assert_eq!(iou.kind, IouKind::PayLife(2));
+
+        let iou = iou.id;
+        let before = prompt;
+        assert!(
+            state
+                .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+                    iou,
+                    witness: FulfillmentWitness::PayLife,
+                }))
+                .is_err(),
+            "the explicit fulfillment rejects paying 2 life from a total of 1"
+        );
+        let Some(PendingDecision::Payment(after)) = state.pending.as_ref() else {
+            panic!("the rejected fulfillment keeps the payment prompt open")
+        };
+        assert_eq!(
+            after, &before,
+            "rejection leaves the active prompt unchanged"
         );
     }
 
@@ -1836,11 +1906,20 @@ mod tests {
         );
     }
 
-    /// `can_activate` gates "pay mana equal to its mana cost" on the RESOLVED
-    /// amount ([CR#202.1,601.2g]), not a free read: an empty pool can't afford
-    /// the source's {1}{U}, a matching pool can.
+    /// `ManaCostOf(This)` remains structurally legal with an empty pool. The
+    /// payment boundary resolves it to locked {1}{U} IOUs, then rejects empty
+    /// coverage without mutating the active prompt.
     #[test]
     fn can_activate_gates_on_resolved_mana_cost_of() {
+        use deckmaste_core::Color;
+
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+        use crate::payment::IouKind;
+        use crate::payment::ManaCoverage;
+        use crate::payment::ManaPip;
+        use crate::payment::PaymentCommand;
+
         let mut state = game();
         let player = PlayerId(0);
         let printed: ManaCost = "{1}{U}".parse().unwrap();
@@ -1858,26 +1937,41 @@ mod tests {
 
         let view = state.layers();
         assert!(
-            !state.can_activate(&view, player, obj, 0, &act),
-            "an empty pool can't pay the resolved {{1}}{{U}}"
+            state.can_activate(&view, player, obj, 0, &act),
+            "an empty pool does not suppress a structurally legal activation"
         );
 
-        // Fund exactly the resolved cost: {1} generic + {U}.
-        let pool = &mut state.player_mut(player).mana_pool;
-        pool.add(
-            deckmaste_core::ColorOrColorless::Colorless,
-            1,
-            crate::player::ManaProvenance::default(),
-        );
-        pool.add(
-            deckmaste_core::ColorOrColorless::from(deckmaste_core::Color::Blue),
-            1,
-            crate::player::ManaProvenance::default(),
-        );
-        let view = state.layers();
+        let prompt = announce_activation_to_payment(&mut state, obj, 0);
         assert!(
-            state.can_activate(&view, player, obj, 0, &act),
-            "a {{1}}{{U}} pool affords the resolved ManaCostOf cost"
+            prompt
+                .outstanding
+                .iter()
+                .any(|iou| matches!(iou.kind, IouKind::ManaPip(ManaPip::Generic))),
+            "ManaCostOf locks its generic pip"
+        );
+        assert!(
+            prompt
+                .outstanding
+                .iter()
+                .any(|iou| matches!(iou.kind, IouKind::ManaPip(ManaPip::Colored(Color::Blue)))),
+            "ManaCostOf locks its blue pip"
+        );
+
+        let before = prompt;
+        assert!(
+            state
+                .submit_decision(Decision::Payment(PaymentCommand::BeginPayment(
+                    ManaCoverage::empty(),
+                )))
+                .is_err(),
+            "empty coverage cannot satisfy the locked {{1}}{{U}} IOUs"
+        );
+        let Some(PendingDecision::Payment(after)) = state.pending.as_ref() else {
+            panic!("the rejected coverage keeps the payment prompt open")
+        };
+        assert_eq!(
+            after, &before,
+            "rejection leaves the active prompt unchanged"
         );
     }
 
@@ -1972,6 +2066,27 @@ mod tests {
                 ))) => {
                     activated = true;
                     break;
+                }
+                StepOutcome::NeedsDecision(crate::decide::PendingDecision::Payment(_)) => {
+                    let decision = state
+                        .auto_payment_pending()
+                        .expect("automatic payment decision");
+                    state
+                        .submit_decision(decision)
+                        .expect("automatic payment succeeds");
+                }
+                StepOutcome::NeedsDecision(
+                    crate::decide::PendingDecision::ChooseManaReversals(prompt),
+                ) => {
+                    let maximal = prompt
+                        .legal
+                        .iter()
+                        .max_by_key(|set| set.len())
+                        .cloned()
+                        .expect("a reversal prompt offers a legal set");
+                    state
+                        .submit_decision(crate::decide::Decision::ManaReversals(maximal))
+                        .expect("automatic reversal succeeds");
                 }
                 StepOutcome::NeedsDecision(d) => {
                     panic!("unexpected decision while stepping activation: {d:?}");
