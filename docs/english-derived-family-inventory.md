@@ -412,6 +412,8 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 
 ## F02 — finite and copular clause
 
+**Status:** generated.
+
 **Stable IDs (18):** `simple_clause_subject`,
 `simple_clause_subject_distributive_each`,
 `simple_clause_contracted_subject`, `simple_clause_subjectless`,
@@ -423,9 +425,11 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 `clause_copular`, `clause_contracted_copular`,
 `clause_variable_value_constraint`.
 
-- **Owners and AST:** CR → `IndependentClause`, `Predicate`, copular payloads,
-  existential form, and the variable-value constraint; REN and SYN-C own
-  output and ingress.
+- **Owners and AST:** the F02 declaration and generated chart, typed-feature,
+  lowering, inverse-render, and checked-build projections own
+  `IndependentClause`, staged `SimpleClause`/copular payloads, existential
+  form, and the variable-value constraint. Handwritten F03/F04 consumers keep
+  using the staged categories without recreating F02 productions.
 - **Holes and constraints:** subject, predicate, and copular-complement
   subtrees; auxiliary/modal/negation identities; scalar power/toughness and
   variable values; lenses into predicate heads and copular adjuncts. Subject–

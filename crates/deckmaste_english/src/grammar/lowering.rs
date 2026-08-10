@@ -364,6 +364,10 @@ fn lower_generated_construction(
     }
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "generated declaration categories have one explicit typed projection each"
+)]
 fn project_generated_category(
     construction: &deckmaste_construction_compiler::runtime::ConstructionData,
     value: deckmaste_construction_compiler::runtime::ErasedValue,
@@ -441,6 +445,22 @@ fn project_generated_category(
     if construction.category == "Sentence" {
         let value = value.downcast::<Sentence>().ok()?;
         return Some(Lowered::Sentence(*value));
+    }
+    if matches!(construction.category, "Clause" | "IndependentClause") {
+        let value = value.downcast::<Clause>().ok()?;
+        return Some(Lowered::Clause(*value));
+    }
+    if construction.category == "SimpleClause" {
+        let value = value.downcast::<SimpleClause>().ok()?;
+        return Some(Lowered::SimpleClause(*value));
+    }
+    if construction.category == "CopularRemainder" {
+        let value = value.downcast::<CopularRemainder>().ok()?;
+        return Some(Lowered::CopularRemainder(*value));
+    }
+    if construction.category == "EllipticalClause" {
+        let value = value.downcast::<crate::syntax::EllipticalClause>().ok()?;
+        return Some(Lowered::EllipticalClause(*value));
     }
     if construction.category == "Verb" {
         let value = value.downcast::<VerbAnalysis>().ok()?;
@@ -530,6 +550,24 @@ fn erased_field(
             ..
         } => {
             let Lowered::Auxiliary(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Identity {
+            value_type: "ContractedSubjectAuxiliary",
+            provider: "SubjectAuxiliary",
+        } => {
+            let Lowered::SubjectAuxiliary(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Identity {
+            value_type: "ExistentialForm",
+            provider: "Existential",
+        } => {
+            let Lowered::Existential(value) = value else {
                 return None;
             };
             Some(Box::new(value))
@@ -883,6 +921,8 @@ fn erased_subtree(
             };
             if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
         }
+        "SimpleClause" => typed!(SimpleClause, value),
+        "CopularRemainder" => typed!(CopularRemainder, value),
         "KeywordArgument" => {
             let Lowered::PredicatedArgument(value) = value else {
                 return None;
@@ -1189,12 +1229,6 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::InfinitiveNotTo
         | RuleTag::GerundClauseBase
         | RuleTag::GerundClauseSubordinateAfter
-        | RuleTag::SimpleClauseSubject
-        | RuleTag::SimpleClauseSubjectDistributiveEach
-        | RuleTag::SimpleClauseContractedSubject
-        | RuleTag::SimpleClauseSubjectless
-        | RuleTag::ClauseSimple
-        | RuleTag::ClauseElliptical
         | RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
@@ -1210,18 +1244,6 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::ClauseSubordinateAfter
         | RuleTag::ClauseSubordinateAfterComma
         | RuleTag::ClauseSubordinateAfterInfinitive
-        | RuleTag::ClauseExistential
-        | RuleTag::CopularRemainderNoun
-        | RuleTag::CopularRemainderAdjective
-        | RuleTag::CopularRemainderPrepositional
-        | RuleTag::CopularRemainderPowerToughness
-        | RuleTag::CopularRemainderPrepositionalAdjunct
-        | RuleTag::CopularRemainderAdverb
-        | RuleTag::CopularRemainderDistributiveEach
-        | RuleTag::CopularRemainderNegated
-        | RuleTag::ClauseCopular
-        | RuleTag::ClauseContractedCopular
-        | RuleTag::ClauseVariableValueConstraint
         | RuleTag::RelativeObject
         | RuleTag::RelativeObjectContractedSubject
         | RuleTag::RelativeSubjectContractedAuxiliary

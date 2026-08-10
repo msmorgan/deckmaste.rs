@@ -3,10 +3,12 @@ mod clause;
 pub(crate) use clause::PredicateAttachment;
 pub(crate) use clause::auxiliary_form;
 pub(crate) use clause::extend_predicate_features;
+pub(crate) use clause::finish_simple_clause;
 #[cfg(test)]
 pub(crate) use clause::fixture_catalogs;
 pub(crate) use clause::fold_auxiliary_passive;
 pub(crate) use clause::lowered_nominal_adjunct_kind;
+pub(crate) use clause::predicate_arguments_complete;
 pub(crate) mod construction;
 mod opacity;
 
@@ -272,6 +274,51 @@ impl VerbAnalysis {
 }
 
 impl VerbPhrase {
+    pub(crate) fn declaration_with_distributive_each(mut self) -> Option<Self> {
+        if self.distributive_each || self.first_auxiliary_contracted_with_subject {
+            return None;
+        }
+        self.distributive_each = true;
+        Some(self)
+    }
+
+    pub(crate) const fn declaration_has_distributive_each(&self) -> bool {
+        self.distributive_each
+    }
+
+    pub(crate) fn declaration_without_distributive_each(mut self) -> Option<Self> {
+        if !self.distributive_each {
+            return None;
+        }
+        self.distributive_each = false;
+        Some(self)
+    }
+
+    pub(crate) fn declaration_with_contracted_subject_auxiliary(
+        mut self,
+        auxiliary: AuxiliaryInstance,
+    ) -> Option<Self> {
+        if self.distributive_each || self.first_auxiliary_contracted_with_subject {
+            return None;
+        }
+        self.auxiliaries.insert(0, auxiliary);
+        self.first_auxiliary_contracted_with_subject = true;
+        Some(self)
+    }
+
+    pub(crate) fn declaration_contracted_subject_auxiliary_parts(
+        &self,
+    ) -> Option<(AuxiliaryInstance, Self)> {
+        if !self.first_auxiliary_contracted_with_subject || self.distributive_each {
+            return None;
+        }
+        let mut predicate = self.clone();
+        let auxiliary = predicate.auxiliaries.first().copied()?;
+        predicate.auxiliaries.remove(0);
+        predicate.first_auxiliary_contracted_with_subject = false;
+        Some((auxiliary, predicate))
+    }
+
     pub(crate) fn from_finished_parts(
         head: &crate::syntax::PredicateHead,
         dependents: Vec<VerbDependent>,
@@ -601,30 +648,30 @@ impl InfinitiveClause {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct SimpleClause {
-    subject: Option<Subject>,
-    predicate: VerbPhrase,
+pub(crate) struct SimpleClause {
+    pub(crate) subject: Option<Subject>,
+    pub(crate) predicate: VerbPhrase,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct ContractedSubjectAuxiliary {
-    subject: Subject,
-    auxiliary: AuxiliaryInstance,
+pub(crate) struct ContractedSubjectAuxiliary {
+    pub(crate) subject: Subject,
+    pub(crate) auxiliary: AuxiliaryInstance,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct CopularRemainder {
+pub(crate) struct CopularRemainder {
     /// See [`crate::syntax::CopularPredicate::negated`].
-    negated: bool,
-    distributive_each: bool,
-    precomplement_adverbs: Vec<Vocab>,
-    complement: CopularComplement,
+    pub(crate) negated: bool,
+    pub(crate) distributive_each: bool,
+    pub(crate) precomplement_adverbs: Vec<Vocab>,
+    pub(crate) complement: CopularComplement,
     /// Trailing prepositional adjuncts of the copular predication (`it's
     /// legendary *in addition to its other types*`). The `become`/`is`
     /// intransitive path already carries these as verb-phrase adjuncts; a
     /// copular clause records them here and the renderer replays them after the
     /// complement.
-    adjuncts: Vec<crate::syntax::PredicateAdjunct>,
+    pub(crate) adjuncts: Vec<crate::syntax::PredicateAdjunct>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -653,6 +700,10 @@ impl From<AuxiliaryInstance> for AuxiliaryFeatures {
 }
 
 impl AuxiliaryFeatures {
+    pub(crate) const fn auxiliary(self) -> Auxiliary {
+        self.auxiliary
+    }
+
     pub(crate) const fn inflection(self) -> AuxiliaryInflection {
         self.inflection
     }
@@ -1329,6 +1380,16 @@ pub(crate) struct Agreement {
     number: Number,
 }
 
+impl Agreement {
+    pub(crate) const fn person(self) -> Person {
+        self.person
+    }
+
+    pub(crate) const fn number(self) -> Number {
+        self.number
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum PredicateForm {
     Imperative,
@@ -1426,7 +1487,7 @@ pub(crate) enum CopulaAgreement {
 }
 
 impl PredicateObjectState {
-    const fn has_direct_object(self) -> bool {
+    pub(crate) const fn has_direct_object(self) -> bool {
         !matches!(self, Self::None)
     }
 }
@@ -2033,17 +2094,6 @@ enum RuleTag {
     InfinitiveNotTo,
     GerundClauseBase,
     GerundClauseSubordinateAfter,
-    SimpleClauseSubject,
-    /// The finite verbal quantifier float (`Two target creatures each get
-    /// +2/+2 until end of turn.`): a plural/second-person subject, the
-    /// dedicated `each` lexeme, and a completed finite verb phrase. The
-    /// `each` lexical child is discarded and carried as
-    /// `PredicateHead::distributive_each` — see `finish_predicate`.
-    SimpleClauseSubjectDistributiveEach,
-    SimpleClauseContractedSubject,
-    SimpleClauseSubjectless,
-    ClauseSimple,
-    ClauseElliptical,
     ClauseCoordination,
     ClauseCoordinationComma,
     ClauseCoordinationAsyndetic,
@@ -2066,35 +2116,14 @@ enum RuleTag {
     ClauseSubordinateAfter,
     ClauseSubordinateAfterComma,
     ClauseSubordinateAfterInfinitive,
-    ClauseExistential,
-    CopularRemainderNoun,
-    CopularRemainderAdjective,
-    CopularRemainderPrepositional,
-    CopularRemainderPowerToughness,
-    CopularRemainderPrepositionalAdjunct,
-    CopularRemainderAdverb,
-    CopularRemainderNegated,
-    CopularRemainderDistributiveEach,
-    ClauseCopular,
-    ClauseContractedCopular,
-    /// A variable's value constraint — a modal clause whose predicate is a
-    /// bare-infinitive copula over a bare numeral (`X can't be 0`). `X` is a
-    /// placeholder whose value its controller chooses [CR#107.3,107.3a]; this
-    /// clause restricts that chosen value. Built from a lexeme-pinned `X`
-    /// subject and a lexeme-pinned numeral complement — four literal slots —
-    /// so the production is structurally incapable of matching a
-    /// `can't be <participle>` passive (a numeral is never a participle),
-    /// which is the categorical discrimination this round is gated on.
-    ClauseVariableValueConstraint,
     RelativeObject,
     RelativeObjectContractedSubject,
     RelativeSubjectContractedAuxiliary,
     RelativeSubject,
-    /// The relative-clause counterpart of
-    /// [`RuleTag::SimpleClauseSubjectDistributiveEach`]
-    /// (`target creature cards that each have a different mana value`): a
-    /// relative marker, the dedicated `each` lexeme, and a completed finite
-    /// plural verb phrase.
+    /// The relative-clause counterpart of the finite-clause distributive
+    /// subject construction (`target creature cards that each have a different
+    /// mana value`): a relative marker, the dedicated `each` lexeme, and a
+    /// completed finite plural verb phrase.
     RelativeSubjectDistributiveEach,
     RelativeContractedCopularNoun,
     RelativeContractedCopularAdjective,

@@ -454,7 +454,9 @@ fn engine_category(name: &str) -> Option<Nonterminal> {
         "ManaAmount" => Nonterminal::ManaAmount,
         "ManaAmountList" => Nonterminal::ManaAmountList,
         "CoordinatedManaAmount" => Nonterminal::CoordinatedManaAmount,
-        "IndependentClause" | "Clause" => Nonterminal::Clause,
+        "IndependentClause" | "Clause" | "EllipticalClause" => Nonterminal::Clause,
+        "SimpleClause" => Nonterminal::SimpleClause,
+        "CopularRemainder" => Nonterminal::CopularRemainder,
         "ComparisonComplement" => Nonterminal::ComparisonComplement,
         "RulesObjectNominal" => Nonterminal::RulesObjectNominal,
         "RulesObjectFollowupNominal" => Nonterminal::RulesObjectFollowupNominal,
@@ -536,6 +538,10 @@ pub(super) fn typed_feature_projection(
         ("determiner", "features") => {
             Some(crate::constructions::determiner::reduce_determiner_features(construction, fields))
         }
+        ("clause", "features") => Some(crate::constructions::clause::reduce_clause_features(
+            construction,
+            fields,
+        )),
         _ => None,
     }
 }
@@ -671,6 +677,11 @@ fn identity_slot(
         ("VerbAnalysis", "LexicalVerb") => Ok(EnglishLexicalSlot::AnyVerb),
         ("Adjective", "Adjective") => Ok(EnglishLexicalSlot::Adjective),
         ("AuxiliaryInstance", "Auxiliary") => Ok(EnglishLexicalSlot::Auxiliary),
+        ("AuxiliaryInstance", "Copula") => Ok(EnglishLexicalSlot::Copula),
+        ("ContractedSubjectAuxiliary", "SubjectAuxiliary") => {
+            Ok(EnglishLexicalSlot::SubjectAuxiliary)
+        }
+        ("ExistentialForm", "Existential") => Ok(EnglishLexicalSlot::Existential),
         ("Vocab", "Adverb") => Ok(EnglishLexicalSlot::Adverb),
         ("PreverbModifier", "PreverbAdverb") => Ok(EnglishLexicalSlot::PreverbAdverb),
         ("VerbParticle", "VerbParticle") => Ok(EnglishLexicalSlot::AnyVerbParticle),
@@ -1375,6 +1386,7 @@ fn generated_cost(construction: &ConstructionData) -> super::ParseCost {
         match output.target {
             "base_precedence" => cost.precedence = cost.precedence.saturating_add(1),
             "base_precedence_2" => cost.precedence = cost.precedence.saturating_add(2),
+            "base_precedence_8" => cost.precedence = cost.precedence.saturating_add(8),
             "base_attachment_count" => {
                 cost.attachment_count = cost.attachment_count.saturating_add(1);
             }
