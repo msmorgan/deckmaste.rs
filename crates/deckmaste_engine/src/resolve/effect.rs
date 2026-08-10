@@ -5668,9 +5668,8 @@ mod tests {
         let (mut state, p0, lib_before) = secrets_on_stack(10);
         let name: deckmaste_core::Ident = "CitysBlessing".into();
 
-        state
-            .agenda
-            .push_front(WorkItem::Resolve(state.stack[0].id));
+        let spell = state.stack[0].id;
+        state.agenda.push_front(WorkItem::Resolve(spell));
         let _trace = drain_progress(&mut state, 40);
 
         assert!(
@@ -5696,9 +5695,8 @@ mod tests {
         let (mut state, p0, lib_before) = secrets_on_stack(9);
         let name: deckmaste_core::Ident = "CitysBlessing".into();
 
-        state
-            .agenda
-            .push_front(WorkItem::Resolve(state.stack[0].id));
+        let spell = state.stack[0].id;
+        state.agenda.push_front(WorkItem::Resolve(spell));
         let _trace = drain_progress(&mut state, 40);
 
         assert!(
@@ -5732,9 +5730,8 @@ mod tests {
             "back to nine at resolution"
         );
 
-        state
-            .agenda
-            .push_front(WorkItem::Resolve(state.stack[0].id));
+        let spell = state.stack[0].id;
+        state.agenda.push_front(WorkItem::Resolve(spell));
         let _trace = drain_progress(&mut state, 40);
 
         assert!(

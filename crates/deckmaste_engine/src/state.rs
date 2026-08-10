@@ -265,11 +265,10 @@ pub struct ReplaceState {
     pub remaining: Vec<crate::event::GameEvent>,
 }
 
-/// The whole game. Fields are public for test construction and inspection;
-/// [`GameState::step`] and [`GameState::submit_decision`] are the only
-/// sanctioned mutators.
+/// One complete runnable rules state. Payment frames clone this whole value in
+/// the first implementation; the transaction controller remains outside it.
 #[derive(Debug, Clone)]
-pub struct GameState {
+pub struct GameImage {
     /// Fixed at game start, never mutated after.
     pub cards: Cards,
     pub players: Vec<PlayerState>,
@@ -484,6 +483,37 @@ pub struct GameState {
     /// lone `Move(_, Library(_))` reposition (a definite position, no order
     /// choice) records nothing.
     pub(crate) arrange_scope: Option<crate::state::ArrangeScope>,
+    /// Parent rules-control slots suspended beneath a nested payment action.
+    pub(crate) control_stack: Vec<crate::control::ControlSnapshot>,
+}
+
+/// The public game façade: one committed image plus optional transactional
+/// working images. Ordinary engine code continues to use field syntax through
+/// `Deref`, always reaching the top active image when payment is in flight.
+#[derive(Debug, Clone)]
+pub struct GameState {
+    committed: GameImage,
+    pub(crate) payment: Option<crate::control::PaymentController>,
+}
+
+impl std::ops::Deref for GameState {
+    type Target = GameImage;
+
+    fn deref(&self) -> &Self::Target {
+        self.payment
+            .as_ref()
+            .and_then(|controller| controller.frames.last())
+            .map_or(&self.committed, |frame| &frame.working)
+    }
+}
+
+impl std::ops::DerefMut for GameState {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.payment
+            .as_mut()
+            .and_then(|controller| controller.frames.last_mut())
+            .map_or(&mut self.committed, |frame| &mut frame.working)
+    }
 }
 
 /// The scalar value a resolution note slot stores ([CR#607.2] slots;
@@ -568,7 +598,7 @@ impl GameState {
             }
         }
 
-        Self {
+        let committed = GameImage {
             cards,
             players,
             zones,
@@ -621,7 +651,31 @@ impl GameState {
             noting: Vec::new(),
             resolution_notes: std::collections::HashMap::new(),
             arrange_scope: None,
+            control_stack: Vec::new(),
+        };
+        Self {
+            committed,
+            payment: None,
         }
+    }
+
+    #[must_use]
+    pub fn committed(&self) -> &GameImage {
+        &self.committed
+    }
+
+    #[must_use]
+    pub fn active(&self) -> &GameImage {
+        self
+    }
+
+    #[cfg(test)]
+    pub(crate) fn begin_test_frame(&mut self) {
+        let working = self.active().clone();
+        self.payment
+            .get_or_insert_with(crate::control::PaymentController::default)
+            .frames
+            .push(crate::control::ImageFrame { working });
     }
 
     /// Mints a fresh [`crate::stack::Payment`] id ([CR#118.10]) — call
@@ -1025,6 +1079,113 @@ impl GameState {
                 self.shields.remove(i);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use deckmaste_core::Zone;
+
+    use super::*;
+    use crate::decide::Action;
+    use crate::decide::PendingDecision;
+    use crate::decide::pending::Priority;
+    use crate::event::LossReason;
+    use crate::event::PlayerLost;
+    use crate::stack::PendingStackEntry;
+    use crate::stack::StackObject;
+    use crate::trigger::PendingTrigger;
+    use crate::trigger::TriggerBindings;
+
+    fn fixture() -> GameState {
+        GameState::new(GameConfig {
+            players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            conferral_rules: vec![],
+            damage_result_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
+        })
+    }
+
+    #[test]
+    fn active_image_hides_uncommitted_changes() {
+        let mut state = fixture();
+        let committed_life = state.committed().players[0].life;
+
+        state.begin_test_frame();
+        state.player_mut(PlayerId(0)).life -= 1;
+
+        assert_eq!(state.player(PlayerId(0)).life, committed_life - 1);
+        assert_eq!(state.committed().players[0].life, committed_life);
+    }
+
+    #[test]
+    fn suspend_and_resume_restores_all_control_slots() {
+        let mut state = fixture();
+        let player = PlayerId(0);
+        let id = state.player(player).object;
+        state.announcing = Some(PendingStackEntry {
+            id,
+            object: StackObject::Spell(id),
+            controller: player,
+            origin: Zone::Hand,
+            targets: vec![],
+            chosen_modes: Arc::from([]),
+            x: None,
+            concretized: None,
+            paid_costs: vec![],
+            optional_components: vec![],
+            alternative_cost: None,
+        });
+        state.pending = Some(PendingDecision::Priority(Priority {
+            player,
+            legal: vec![Action::Pass],
+        }));
+        state.choice = Some(ChoiceContinuation::AnnounceModes);
+        state.placing_trigger = Some(PendingTrigger {
+            id,
+            source: ObjectSource::Player(player),
+            ability: 0,
+            created: None,
+            controller: player,
+            bindings: TriggerBindings::default(),
+        });
+        state.replace_state = Some(ReplaceState {
+            current: GameEvent::PlayerLost(PlayerLost {
+                player,
+                reason: LossReason::Conceded,
+            }),
+            applied: std::collections::HashSet::new(),
+            remaining: vec![],
+        });
+        let mut image = state.active().clone();
+
+        image.suspend_control();
+        assert!(image.announcing.is_none());
+        assert!(image.pending.is_none());
+        assert!(image.choice.is_none());
+        assert!(image.placing_trigger.is_none());
+        assert!(image.replace_state.is_none());
+
+        image.resume_control().unwrap();
+        assert!(image.announcing.is_some());
+        assert!(matches!(image.pending, Some(PendingDecision::Priority(_))));
+        assert_eq!(image.choice, Some(ChoiceContinuation::AnnounceModes));
+        assert!(image.placing_trigger.is_some());
+        assert!(matches!(
+            image.replace_state.as_ref().map(|state| &state.current),
+            Some(GameEvent::PlayerLost(PlayerLost {
+                player: PlayerId(0),
+                reason: LossReason::Conceded,
+            }))
+        ));
     }
 }
 

@@ -43,6 +43,10 @@ pub use cast::Payment;
 
 mod condition;
 
+mod control;
+pub use control::ControlError;
+pub use control::ControlSnapshot;
+
 pub mod copy;
 
 mod cost_options;
@@ -216,6 +220,7 @@ pub use trigger::TriggerBindings;
 
 mod state;
 pub use state::GameConfig;
+pub use state::GameImage;
 pub use state::GameOutcome;
 pub use state::GameState;
 pub use state::PlayerConfig;

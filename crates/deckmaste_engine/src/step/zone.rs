@@ -93,8 +93,9 @@ pub(crate) fn handle_token_ceased(g: &mut GameState, id: ObjectId) -> Option<Gam
 /// (UD-8). Revealed-state reset ([CR#701.20d]) is unbuilt (no reveal
 /// windows exist yet).
 pub(crate) fn handle_shuffled(g: &mut GameState, player: PlayerId) -> Option<GameEvent> {
-    g.zones.libraries[player.index()]
+    let image = &mut **g;
+    image.zones.libraries[player.index()]
         .make_contiguous()
-        .shuffle(&mut g.rng);
+        .shuffle(&mut image.rng);
     None
 }

@@ -4566,11 +4566,12 @@ mod tests {
             PlayerId(0),
             Some(Zone::Stack),
         );
+        let source = ObjectSource::Card(state.objects.obj(bear).card_id().unwrap());
         state.stack.push(StackEntry {
             paid_costs: Vec::new(),
             id: ability_id,
             object: StackObject::Triggered {
-                source: ObjectSource::Card(state.objects.obj(bear).card_id().unwrap()),
+                source,
                 ability: 0,
                 created: None,
                 bindings: TriggerBindings::default(),
