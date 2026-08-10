@@ -179,6 +179,15 @@ fn sealed_prepositional_serialization_matches_legacy_schema() {
     )
     .unwrap();
 
+    assert_eq!(
+        serialize_newtype_variant_identity(&simple),
+        ("PrepositionalPhrase", 0, "Simple"),
+    );
+    assert_eq!(
+        serialize_newtype_variant_identity(&coordinated),
+        ("PrepositionalPhrase", 1, "Coordinated"),
+    );
+
     for value in [&simple, &coordinated] {
         assert_eq!(
             ron::to_string(value).unwrap(),
@@ -2413,6 +2422,123 @@ impl ser::Serializer for UnitVariantSerializer {
         _name: &'static str,
         _variant_index: u32,
         _variant: &'static str,
+        _value: &T,
+    ) -> Result<Self::Ok, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_seq(self, _length: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_tuple(self, _length: usize) -> Result<Self::SerializeTuple, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_tuple_struct(
+        self,
+        _name: &'static str,
+        _length: usize,
+    ) -> Result<Self::SerializeTupleStruct, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_tuple_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _length: usize,
+    ) -> Result<Self::SerializeTupleVariant, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_map(self, _length: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_struct(
+        self,
+        _name: &'static str,
+        _length: usize,
+    ) -> Result<Self::SerializeStruct, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_struct_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _length: usize,
+    ) -> Result<Self::SerializeStructVariant, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn collect_str<T: ?Sized + fmt::Display>(self, _value: &T) -> Result<Self::Ok, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+}
+
+fn serialize_newtype_variant_identity(value: impl Serialize) -> (&'static str, u32, &'static str) {
+    value
+        .serialize(NewtypeVariantIdentitySerializer)
+        .expect("the value must serialize as a newtype variant")
+}
+
+struct NewtypeVariantIdentitySerializer;
+
+impl ser::Serializer for NewtypeVariantIdentitySerializer {
+    type Ok = (&'static str, u32, &'static str);
+    type Error = UnitVariantSerializationError;
+    type SerializeSeq = ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeTuple = ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeTupleStruct = ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeTupleVariant = ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeMap = ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeStruct = ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeStructVariant = ser::Impossible<Self::Ok, Self::Error>;
+
+    fn serialize_newtype_variant<T: ?Sized + Serialize>(
+        self,
+        name: &'static str,
+        variant_index: u32,
+        variant: &'static str,
+        _value: &T,
+    ) -> Result<Self::Ok, Self::Error> {
+        Ok((name, variant_index, variant))
+    }
+
+    unsupported_unit_variant_serialization!(
+        serialize_bool(bool),
+        serialize_i8(i8),
+        serialize_i16(i16),
+        serialize_i32(i32),
+        serialize_i64(i64),
+        serialize_i128(i128),
+        serialize_u8(u8),
+        serialize_u16(u16),
+        serialize_u32(u32),
+        serialize_u64(u64),
+        serialize_u128(u128),
+        serialize_f32(f32),
+        serialize_f64(f64),
+        serialize_char(char),
+        serialize_str(&str),
+        serialize_bytes(&[u8]),
+        serialize_none(),
+        serialize_unit(),
+        serialize_unit_struct(&'static str),
+        serialize_unit_variant(&'static str, u32, &'static str),
+    );
+
+    fn serialize_some<T: ?Sized + Serialize>(self, _value: &T) -> Result<Self::Ok, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_newtype_struct<T: ?Sized + Serialize>(
+        self,
+        _name: &'static str,
         _value: &T,
     ) -> Result<Self::Ok, Self::Error> {
         Err(UnitVariantSerializationError)

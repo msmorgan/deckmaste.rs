@@ -1839,9 +1839,8 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         Some(sentence)
     }
 
-    /// Attempts to attach a quoted ability as a `with` postmodifier. P02 does
-    /// not admit quoted-ability objects, so its checked object door declines
-    /// this legacy shape and the caller recovers the complete sentence.
+    /// Attaches the ability owner's legacy quoted `with` postmodifier without
+    /// admitting quoted abilities through the public P02 object facade.
     fn quoted_with_clause(
         &mut self,
         prefix: &[Token],
@@ -1853,13 +1852,8 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         if clause.subject.is_none() && clause.predicate.verb.slot == VerbSlot::Infinitive {
             clause.predicate.verb.slot = VerbSlot::Imperative;
         }
-        let object = crate::prepositional_phrase::build_prepositional_object(
-            Phrase::QuotedAbility(Box::new(quoted)),
-        )
-        .ok()?;
         let preposition =
-            crate::prepositional_phrase::build_prepositional_phrase(Preposition::With, object)
-                .ok()?;
+            crate::syntax::PrepositionalPhrase::from_quoted_ability_postmodifier(quoted);
         clause
             .predicate
             .dependents
@@ -3718,29 +3712,43 @@ mod tests {
     }
 
     #[test]
-    fn quoted_ability_object_survives_while_unsupported_with_object_recovers() {
-        // `gains` takes the quoted ability through its typed predicate-object
-        // door. P02 does not admit a quoted ability object, so `with "..."`
-        // must decline that construction and recover without losing text.
+    fn quoted_ability_object_and_with_postmodifier_keep_structured_slots() {
+        // `gains` takes the quote through its typed predicate-object door.
+        // The distinct legacy `with "..."` relation stays structured through
+        // its ability-owned compatibility door without entering public P02.
         let object = parse("Target creature gains \"Flying.\"");
         let AbilityKind::Paragraph(object_paragraph) = &object.ast.abilities[0].kind else {
             panic!("expected paragraph");
         };
-        assert!(matches!(
-            &object_paragraph.sentences[0].body,
-            SentenceBody::Independent(IndependentClause::Transitive(_, predicate))
-                if matches!(predicate.object, PredicateObject::QuotedAbility(_))
-        ));
+        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            &object_paragraph.sentences[0].body
+        else {
+            panic!("the grant quote should stay a structured object")
+        };
+        let PredicateObject::QuotedAbility(quoted) = &predicate.object else {
+            panic!("the grant quote should occupy the quoted-object slot")
+        };
+        assert!(
+            crate::prepositional_phrase::build_prepositional_object(Phrase::QuotedAbility(
+                quoted.clone(),
+            ))
+            .is_err(),
+            "the ability-owned compatibility door must not widen public P02",
+        );
         assert_eq!(render(&object), "Target creature gains \"Flying.\"");
 
         let with = parse("Create a Goblin creature token with \"{T}: Add {C}.\"");
         let AbilityKind::Paragraph(with_paragraph) = &with.ast.abilities[0].kind else {
             panic!("expected paragraph");
         };
-        assert!(matches!(
-            &with_paragraph.sentences[0].body,
-            SentenceBody::Recovered(_)
-        ));
+        assert!(
+            matches!(
+                &with_paragraph.sentences[0].body,
+                SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(_)))
+            ),
+            "the with-postmodifier clause should remain a structured imperative, got {:?}",
+            with_paragraph.sentences[0].body
+        );
         assert_eq!(
             render(&with),
             "Create a Goblin creature token with \"{T}: Add {C}.\""

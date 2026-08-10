@@ -1928,6 +1928,15 @@ impl PrepositionalPhrase {
         }
     }
 
+    /// Preserves the ability owner's legacy `with "..."` postmodifier without
+    /// widening the four public P02 object alternatives.
+    pub(crate) fn from_quoted_ability_postmodifier(quoted: QuotedAbility) -> Self {
+        Self::from_prepositional_declaration(
+            Preposition::With,
+            Phrase::QuotedAbility(Box::new(quoted)),
+        )
+    }
+
     pub(crate) fn coordinated(
         first: SimplePrepositionalPhrase,
         rest: Vec<PrepositionalPhraseCoordination>,
