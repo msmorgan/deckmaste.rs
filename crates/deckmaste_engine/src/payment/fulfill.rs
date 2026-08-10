@@ -1,8 +1,13 @@
 use deckmaste_core::Action;
 use deckmaste_core::Agency;
 use deckmaste_core::Binder;
+use deckmaste_core::Cmp;
+use deckmaste_core::CostComponent;
 use deckmaste_core::Destination;
 use deckmaste_core::PayAct;
+use deckmaste_core::Predicate;
+use deckmaste_core::Stat;
+use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 
 use super::FulfillmentWitness;
@@ -19,7 +24,9 @@ use crate::event::GameEvent;
 use crate::event::LifeLost;
 use crate::event::Occurrence;
 use crate::event::Tapped;
+use crate::object::ObjectId;
 use crate::player::FloatingManaId;
+use crate::stack::Frame;
 use crate::state::GameState;
 
 /// Return the outstanding obligations currently admitted by CR 601.2h. The
@@ -285,8 +292,116 @@ impl GameState {
                     .collect();
                 FulfillmentPlan { spend: None, work }
             }
-            IouKind::Act(_) | IouKind::ChooseAndPay { .. } | IouKind::TapTotal { .. } => {
-                return illegal("this action-shaped IOU is not implemented yet");
+            IouKind::Act(action) => {
+                if witness != FulfillmentWitness::Bound {
+                    return illegal("a bound action IOU requires Bound");
+                }
+                let frame = self
+                    .payment
+                    .as_ref()
+                    .expect("controller remains live")
+                    .frames
+                    .last()
+                    .expect("frame remains live")
+                    .locked
+                    .frame
+                    .clone();
+                if !self.verb_cost_payable(action, payer, &frame) {
+                    return illegal("the bound action cost cannot currently be paid");
+                }
+                FulfillmentPlan {
+                    spend: None,
+                    work: vec![WorkItem::RunEffect {
+                        effect: std::sync::Arc::new(deckmaste_core::OneShotEffect::Act(
+                            action.as_ref().clone(),
+                        )),
+                        frame,
+                    }],
+                }
+            }
+            IouKind::ChooseAndPay { binder, body } => {
+                let mut frame = self
+                    .payment
+                    .as_ref()
+                    .expect("controller remains live")
+                    .frames
+                    .last()
+                    .expect("frame remains live")
+                    .locked
+                    .frame
+                    .clone();
+                frame.anaphora.chosen =
+                    self.validate_binder_witness(binder, &witness, payer, &frame)?;
+                let group = self.resolve_binder(binder, &frame);
+                let cardinality = match binder.as_ref() {
+                    Binder::TheRef(_) | Binder::ChooseOne { .. } => crate::stack::Cardinality::One,
+                    Binder::Choose { .. } | Binder::Existing(_) => crate::stack::Cardinality::Many,
+                    Binder::SearchOne { .. } | Binder::Produce(_) => crate::stack::Cardinality::One,
+                    Binder::Search { .. } => crate::stack::Cardinality::Many,
+                    Binder::Expanded(_) => unreachable!("provenance erased at lower"),
+                };
+                let kind =
+                    group
+                        .first()
+                        .map_or(crate::stack::RefKind::Object, |&object| {
+                            match self.objects.obj(object).source {
+                                crate::object::ObjectSource::Player(_) => {
+                                    crate::stack::RefKind::Player
+                                }
+                                crate::object::ObjectSource::Card(_) => {
+                                    crate::stack::RefKind::Object
+                                }
+                            }
+                        });
+                frame.anaphora.that = Some(crate::stack::ThatBinding {
+                    cardinality,
+                    kind,
+                    group,
+                });
+                frame.anaphora.chosen = None;
+                FulfillmentPlan {
+                    spend: None,
+                    work: vec![WorkItem::RunEffect {
+                        effect: std::sync::Arc::new(runnable_cost_body_effect(body)?),
+                        frame,
+                    }],
+                }
+            }
+            IouKind::TapTotal {
+                stat,
+                cmp,
+                count,
+                filter,
+            } => {
+                let FulfillmentWitness::Objects(objects) = &witness else {
+                    return illegal("a TapTotal IOU requires a complete object set");
+                };
+                let frame = self
+                    .payment
+                    .as_ref()
+                    .expect("controller remains live")
+                    .frames
+                    .last()
+                    .expect("frame remains live")
+                    .locked
+                    .frame
+                    .clone();
+                if !self.tap_total_witness_is_legal(objects, *stat, *cmp, *count, filter, &frame) {
+                    return illegal("the TapTotal witness is duplicate, stale, or insufficient");
+                }
+                let work = objects
+                    .iter()
+                    .map(|&object| {
+                        WorkItem::Emit(Occurrence::single(GameEvent::Tapped(Tapped {
+                            object,
+                            cause: Some(
+                                Cause::tap(Agency::CostPayment, cause_agent)
+                                    .with_payment(payment_id),
+                            ),
+                        })))
+                    })
+                    .collect();
+                FulfillmentPlan { spend: None, work }
             }
         };
 
@@ -336,10 +451,279 @@ impl GameState {
         let prompt = frame.prompt();
         frame.working.pending = Some(crate::decide::PendingDecision::Payment(prompt));
     }
+
+    fn validate_binder_witness(
+        &self,
+        binder: &Binder,
+        witness: &FulfillmentWitness,
+        _payer: crate::player::PlayerId,
+        frame: &Frame,
+    ) -> Result<Option<Vec<ObjectId>>, DecisionError> {
+        match binder {
+            Binder::ChooseOne { filter, .. } => {
+                let FulfillmentWitness::Objects(objects) = witness else {
+                    return illegal("ChooseOne requires one selected object");
+                };
+                self.validate_choice_objects(objects, 1, 1, filter, frame)?;
+                Ok(Some(objects.clone()))
+            }
+            Binder::Choose {
+                quantity, filter, ..
+            } => {
+                let FulfillmentWitness::Objects(objects) = witness else {
+                    return illegal("Choose requires its complete selected object set");
+                };
+                let (lo, hi) = quantity.bounds();
+                let min = lo.map_or(0, |count| self.eval_count(count, frame));
+                let max = hi.map_or(Uint::MAX, |count| self.eval_count(count, frame));
+                self.validate_choice_objects(objects, min, max, filter, frame)?;
+                Ok(Some(objects.clone()))
+            }
+            Binder::TheRef(_) => {
+                if witness != &FulfillmentWitness::Bound {
+                    return illegal("a nonchoice binder requires Bound");
+                }
+                Ok(None)
+            }
+            Binder::Existing(deckmaste_core::Selection::Random(..)) => {
+                illegal("random cost binders require the deferred random fulfillment path")
+            }
+            Binder::Existing(_) => {
+                if witness != &FulfillmentWitness::Bound {
+                    return illegal("a nonchoice binder requires Bound");
+                }
+                Ok(None)
+            }
+            Binder::SearchOne { .. } | Binder::Search { .. } | Binder::Produce(_) => {
+                illegal("search and producer cost binders are not implemented in payment yet")
+            }
+            Binder::Expanded(_) => unreachable!("provenance erased at lower"),
+        }
+    }
+
+    fn validate_choice_objects(
+        &self,
+        objects: &[ObjectId],
+        min: Uint,
+        max: Uint,
+        filter: &Predicate,
+        frame: &Frame,
+    ) -> Result<(), DecisionError> {
+        let len = Uint::try_from(objects.len()).unwrap_or(Uint::MAX);
+        let distinct: std::collections::HashSet<ObjectId> = objects.iter().copied().collect();
+        let watcher = Some(self.frame_watcher(frame));
+        if len < min
+            || len > max
+            || distinct.len() != objects.len()
+            || objects.iter().any(|&object| {
+                self.objects.get(object).is_none()
+                    || !crate::target::matches_with(self, object, filter, watcher)
+            })
+        {
+            return illegal("the chosen cost subjects must be distinct live legal candidates");
+        }
+        Ok(())
+    }
+
+    fn tap_total_witness_is_legal(
+        &self,
+        objects: &[ObjectId],
+        stat: Stat,
+        cmp: Cmp,
+        count: Uint,
+        filter: &Predicate,
+        frame: &Frame,
+    ) -> bool {
+        let distinct: std::collections::HashSet<ObjectId> = objects.iter().copied().collect();
+        if distinct.len() != objects.len() {
+            return false;
+        }
+        let watcher = Some(self.frame_watcher(frame));
+        let view = self.layers();
+        let mut sum: Uint = 0;
+        for &object in objects {
+            let Some(candidate) = self.objects.get(object) else {
+                return false;
+            };
+            if candidate.zone != Some(Zone::Battlefield)
+                || candidate.tapped
+                || !crate::target::matches_with(self, object, filter, watcher)
+            {
+                return false;
+            }
+            let Some(value) = self.cost_stat_value(&view, object, stat) else {
+                return false;
+            };
+            sum = sum.saturating_add(value);
+        }
+        cmp.apply(sum, count)
+    }
+
+    /// Enumerate every currently legal witness for one outstanding TapTotal
+    /// IOU. The core exposes the full set; runner preference stays external.
+    #[must_use]
+    pub fn legal_tap_total_subsets(&self, id: IouId) -> Vec<Vec<ObjectId>> {
+        let Some(controller) = self.payment.as_ref() else {
+            return Vec::new();
+        };
+        let Some(payment) = controller.frames.last() else {
+            return Vec::new();
+        };
+        if payment.stage != PaymentStage::Paying
+            || payment.progress != PaymentProgress::Idle
+            || payment
+                .fulfilled
+                .iter()
+                .any(|(fulfilled, _)| *fulfilled == id)
+        {
+            return Vec::new();
+        }
+        let Some(iou) = payment.locked.ious.iter().find(|iou| iou.id == id) else {
+            return Vec::new();
+        };
+        let IouKind::TapTotal {
+            stat,
+            cmp,
+            count,
+            filter,
+        } = &iou.kind
+        else {
+            return Vec::new();
+        };
+        let fulfilled: std::collections::HashSet<IouId> =
+            payment.fulfilled.iter().map(|(iou, _)| *iou).collect();
+        let outstanding: Vec<PaymentIou> = payment
+            .locked
+            .ious
+            .iter()
+            .filter(|iou| !fulfilled.contains(&iou.id))
+            .cloned()
+            .collect();
+        if !current_tier(&outstanding)
+            .iter()
+            .any(|candidate| candidate.id == id)
+        {
+            return Vec::new();
+        }
+
+        let frame = &payment.locked.frame;
+        let watcher = Some(self.frame_watcher(frame));
+        let view = self.layers();
+        let candidates: Vec<ObjectId> = crate::target::candidates_with(self, filter, watcher)
+            .into_iter()
+            .filter(|&object| {
+                self.objects.get(object).is_some_and(|candidate| {
+                    candidate.zone == Some(Zone::Battlefield) && !candidate.tapped
+                }) && self.cost_stat_value(&view, object, *stat).is_some()
+            })
+            .collect();
+        let mut subsets = Vec::new();
+        let mut selected = Vec::new();
+        self.enumerate_tap_total_subsets(
+            &candidates,
+            0,
+            &mut selected,
+            &mut subsets,
+            *stat,
+            *cmp,
+            *count,
+            filter,
+            frame,
+        );
+        subsets
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the private subset recursion threads one locked TapTotal predicate"
+    )]
+    fn enumerate_tap_total_subsets(
+        &self,
+        candidates: &[ObjectId],
+        index: usize,
+        selected: &mut Vec<ObjectId>,
+        out: &mut Vec<Vec<ObjectId>>,
+        stat: Stat,
+        cmp: Cmp,
+        count: Uint,
+        filter: &Predicate,
+        frame: &Frame,
+    ) {
+        if index == candidates.len() {
+            if self.tap_total_witness_is_legal(selected, stat, cmp, count, filter, frame) {
+                out.push(selected.clone());
+            }
+            return;
+        }
+        self.enumerate_tap_total_subsets(
+            candidates,
+            index + 1,
+            selected,
+            out,
+            stat,
+            cmp,
+            count,
+            filter,
+            frame,
+        );
+        selected.push(candidates[index]);
+        self.enumerate_tap_total_subsets(
+            candidates,
+            index + 1,
+            selected,
+            out,
+            stat,
+            cmp,
+            count,
+            filter,
+            frame,
+        );
+        selected.pop();
+    }
 }
 
 fn illegal<T>(reason: impl Into<String>) -> Result<T, DecisionError> {
     Err(DecisionError::Illegal {
         reason: reason.into(),
+    })
+}
+
+fn runnable_cost_body_effect(
+    body: &deckmaste_core::Cost,
+) -> Result<deckmaste_core::OneShotEffect, DecisionError> {
+    use deckmaste_core::OneShotEffect;
+
+    fn component_effect(component: &CostComponent) -> Result<OneShotEffect, DecisionError> {
+        match component {
+            CostComponent::Act(action) => Ok(OneShotEffect::Act(action.as_ref().clone())),
+            CostComponent::Tap => Ok(OneShotEffect::Act(Action::Tap(
+                deckmaste_core::Reference::This,
+            ))),
+            CostComponent::Untap => Ok(OneShotEffect::Act(Action::Untap(
+                deckmaste_core::Reference::This,
+            ))),
+            CostComponent::ChooseAndPay { binder, body } => {
+                Ok(OneShotEffect::With(deckmaste_core::With {
+                    binder: binder.as_ref().clone(),
+                    body: std::sync::Arc::new(runnable_cost_body_effect(body)?),
+                }))
+            }
+            CostComponent::Cost(inner) => runnable_cost_body_effect(inner),
+            CostComponent::Mana(_)
+            | CostComponent::ManaCostOf(_)
+            | CostComponent::TapTotal { .. } => {
+                illegal("a chosen action body cannot contain a second payment resource kind")
+            }
+            CostComponent::Expanded(_) => unreachable!("provenance erased at lower"),
+        }
+    }
+
+    let mut effects = body
+        .iter()
+        .map(component_effect)
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(match effects.len() {
+        1 => effects.pop().expect("one effect"),
+        _ => OneShotEffect::Sequentially(effects.into()),
     })
 }

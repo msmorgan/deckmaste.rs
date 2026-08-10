@@ -1,9 +1,11 @@
 // Crew = an activated ability of Vehicles [CR#702.122a]: "tap any number
 // of other untapped creatures you control with total power N or greater:
 // this permanent becomes an artifact creature until end of turn".
-// Name-carrying with N: the cost needs an AGGREGATE predicate (total
-// power over a chosen set) — the explicitly-unsolved aggregate-sums
-// design (core-count-query, devotion family); the body lands with it.
+// `TapTotal` keeps the payer's complete chosen set in cost position: every
+// member must be another untapped creature they control and the live layered
+// power sum must be at least N. The engine validates the whole set before
+// emitting one replaceable tap action per member. The effect adds Creature in
+// layer 4 until end of turn; the Vehicle retains its existing Artifact type.
 (
     name: "Crew",
     template: "crew ${0}",
@@ -11,6 +13,21 @@
     params: [Count],
     body: Composite(
         name: "Crew",
-        abilities: [],
+        abilities: [Activated(
+            cost: [TapTotal(
+                stat: Power,
+                cmp: AtLeast,
+                count: Param(0),
+                filter: And([
+                    Type(Creature),
+                    ControlledBy(Ref(You)),
+                    Not(Ref(This)),
+                ]),
+            )],
+            effect: Continuously(
+                effect: Modify(This, CardTypes(Add("Creature"))),
+                duration: FixedUntil(EndOfTurn),
+            ),
+        )],
     ),
 )

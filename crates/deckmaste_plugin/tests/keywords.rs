@@ -94,6 +94,37 @@ fn every_builtin_keyword_macro_expands() {
     }
 }
 
+#[test]
+fn crew_expands_to_a_tap_total_activation() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::Cmp;
+    use deckmaste_core::CostComponent;
+    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Stat;
+
+    let plugin = builtin();
+    let keyword: KeywordAbility = plugin.macros.read_str("Crew(3)").unwrap();
+    let KeywordAbility::Expanded(expanded) = keyword else {
+        panic!("Crew should retain its macro expansion");
+    };
+    let KeywordAbility::Composite { abilities, .. } = expanded.value.as_ref() else {
+        panic!("Crew should lower to a composite keyword");
+    };
+    let [Ability::Activated(ability)] = abilities.as_slice() else {
+        panic!("Crew should confer exactly one activated ability: {abilities:?}");
+    };
+    assert!(matches!(
+        ability.cost.as_ref(),
+        [CostComponent::TapTotal {
+            stat: Stat::Power,
+            cmp: Cmp::AtLeast,
+            count: deckmaste_core::Count::Literal(3),
+            ..
+        }]
+    ));
+    assert!(matches!(ability.effect, OneShotEffect::Continuously(_)));
+}
+
 /// [CR#702.51a,702.66a,702.126a]: the per-pip alternative-payment keywords
 /// confer the actual `PayPips` STATICS, not merely a name-carrying Composite —
 /// `every_builtin_keyword_macro_expands` checks only the printed name, so a

@@ -539,7 +539,7 @@ impl GameState {
     /// cost summand. `None` for a non-card object (a player proxy has no stat)
     /// or a stat axis whose engine machinery is unbuilt (loyalty/defense). The
     /// view is built once by the caller and threaded in.
-    fn cost_stat_value(
+    pub(crate) fn cost_stat_value(
         &self,
         view: &crate::layer::LayeredView,
         id: ObjectId,
@@ -624,7 +624,7 @@ impl GameState {
         clippy::match_same_arms,
         reason = "the always-payable verb groups are kept separate to carry their distinct scope/TODO comments (Sacrifice/Move/Tap/Untap vs the loyalty-`+N` PutCounters arm vs the out-of-scope Reveal seam)"
     )]
-    fn verb_cost_payable(&self, verb: &Action, player: PlayerId, frame: &Frame) -> bool {
+    pub(crate) fn verb_cost_payable(&self, verb: &Action, player: PlayerId, frame: &Frame) -> bool {
         match verb {
             // Sacrifice/Move (exile is `Move(_, Exile)`)/Tap/Untap take a
             // single `Reference` (an agent slot spelled `You` in cost

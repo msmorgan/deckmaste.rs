@@ -6,6 +6,7 @@ use deckmaste_card::CardFace;
 use deckmaste_core::Ability;
 use deckmaste_core::Action as CoreAction;
 use deckmaste_core::ActivatedAbility;
+use deckmaste_core::Cmp;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::Cost;
@@ -13,7 +14,13 @@ use deckmaste_core::CostComponent;
 use deckmaste_core::Destination;
 use deckmaste_core::ManaCost;
 use deckmaste_core::OneShotEffect;
+use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
+use deckmaste_core::RelationPredicate;
+use deckmaste_core::Stat;
+use deckmaste_core::StatValue;
+use deckmaste_core::StatePredicate;
+use deckmaste_core::Type;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
@@ -57,14 +64,18 @@ fn activated_card(cost: Vec<CostComponent>) -> Arc<Card> {
 fn activation_fixture(
     cost: Vec<CostComponent>,
 ) -> (GameState, PlayerId, deckmaste_engine::ObjectId) {
+    activation_fixture_with_extras(cost, Vec::new())
+}
+
+fn activation_fixture_with_extras(
+    cost: Vec<CostComponent>,
+    extras: Vec<Arc<Card>>,
+) -> (GameState, PlayerId, deckmaste_engine::ObjectId) {
     let payer = PlayerId(0);
+    let mut deck = vec![activated_card(cost)];
+    deck.extend(extras);
     let mut state = GameState::new(GameConfig {
-        players: vec![
-            PlayerConfig {
-                deck: vec![activated_card(cost)],
-            },
-            PlayerConfig { deck: vec![] },
-        ],
+        players: vec![PlayerConfig { deck }, PlayerConfig { deck: vec![] }],
         seed: 7,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(payer),
@@ -75,8 +86,12 @@ fn activation_fixture(
         subtypes: std::collections::HashMap::new(),
         types: std::collections::HashMap::new(),
     });
-    let source = state.zones.hands[payer.index()][0];
-    state.zones.hands[payer.index()].clear();
+    let source = state.zones.hands[payer.index()]
+        .iter()
+        .copied()
+        .find(|&object| card_name(state.def(object)) == "Payment fixture")
+        .expect("the fixture source was drawn");
+    state.zones.hands[payer.index()].retain(|&object| object != source);
     state.objects.obj_mut(source).zone = Some(Zone::Battlefield);
     state.objects.obj_mut(source).summoning_sick = false;
     state.zones.battlefield.push(source);
@@ -94,6 +109,63 @@ fn activation_fixture(
         legal: vec![action],
     }));
     (state, payer, source)
+}
+
+fn card_name(card: &Card) -> &str {
+    match card {
+        Card::Normal(face) => &face.name,
+        Card::TwoFaced { front, .. } => &front.name,
+    }
+}
+
+fn hand_card(state: &GameState, player: PlayerId, name: &str) -> deckmaste_engine::ObjectId {
+    state.zones.hands[player.index()]
+        .iter()
+        .copied()
+        .find(|&object| card_name(state.def(object)) == name)
+        .unwrap_or_else(|| panic!("{name} should be in the fixture hand"))
+}
+
+fn put_named_card_on_battlefield(
+    state: &mut GameState,
+    player: PlayerId,
+    name: &str,
+) -> deckmaste_engine::ObjectId {
+    let object = hand_card(state, player, name);
+    state.zones.hands[player.index()].retain(|&candidate| candidate != object);
+    state.objects.obj_mut(object).zone = Some(Zone::Battlefield);
+    state.objects.obj_mut(object).summoning_sick = false;
+    state.zones.battlefield.push(object);
+    object
+}
+
+fn vanilla_creature(name: &str, power: i32) -> Arc<Card> {
+    Arc::new(Card::Normal(CardFace {
+        name: name.into(),
+        types: vec![Type::Creature.def()],
+        power: Some(StatValue::Number(power)),
+        toughness: Some(StatValue::Number(power)),
+        ..CardFace::default()
+    }))
+}
+
+fn discard_two_cost() -> CostComponent {
+    let CoreAction::Composite { name, body } =
+        CoreAction::discard(Reference::You, deckmaste_core::Count::Literal(2), false)
+    else {
+        unreachable!()
+    };
+    let OneShotEffect::With(with) = body.as_ref() else { unreachable!() };
+    CostComponent::ChooseAndPay {
+        binder: Arc::new(with.binder.clone()),
+        body: Cost(
+            vec![CostComponent::Act(Arc::new(CoreAction::Composite {
+                name,
+                body: Arc::clone(&with.body),
+            }))]
+            .into(),
+        ),
+    }
 }
 
 fn announce_to_payment(state: &mut GameState, source: deckmaste_engine::ObjectId) {
@@ -246,6 +318,119 @@ fn deferred_library_iou_waits_for_the_ordinary_tier() {
         },
     );
     assert_eq!(payment_prompt(&state).fulfillable, vec![library]);
+}
+
+#[test]
+fn discard_set_validates_before_any_card_moves() {
+    let first_card = Arc::new(Card::Normal(CardFace {
+        name: "First discard".into(),
+        ..CardFace::default()
+    }));
+    let second_card = Arc::new(Card::Normal(CardFace {
+        name: "Second discard".into(),
+        ..CardFace::default()
+    }));
+    let (mut state, payer, source) =
+        activation_fixture_with_extras(vec![discard_two_cost()], vec![first_card, second_card]);
+    let first = hand_card(&state, payer, "First discard");
+    let second = hand_card(&state, payer, "Second discard");
+    announce_to_payment(&mut state, source);
+    let iou = payment_prompt(&state).outstanding[0].id;
+
+    let before = state.zones.hands[payer.index()].clone();
+    assert!(
+        state
+            .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+                iou,
+                witness: FulfillmentWitness::Objects(vec![first, first]),
+            }))
+            .is_err()
+    );
+    assert_eq!(state.zones.hands[payer.index()], before);
+    assert_eq!(payment_prompt(&state).outstanding.len(), 1);
+
+    submit_and_run_to_payment(
+        &mut state,
+        PaymentCommand::Fulfill {
+            iou,
+            witness: FulfillmentWitness::Objects(vec![first, second]),
+        },
+    );
+    assert!(state.zones.hands[payer.index()].is_empty());
+    assert_eq!(state.zones.graveyards[payer.index()].len(), 2);
+    assert_eq!(payment_prompt(&state).stage, PaymentStage::Ready);
+}
+
+#[test]
+fn tap_total_enumerates_and_accepts_every_live_satisfying_subset() {
+    let filter = Predicate::And(
+        vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::r#type(Type::Creature),
+            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+                Reference::You,
+            )))),
+        ]
+        .into(),
+    );
+    let cost = CostComponent::TapTotal {
+        stat: Stat::Power,
+        cmp: Cmp::AtLeast,
+        count: deckmaste_core::Count::Literal(3),
+        filter: Arc::new(filter),
+    };
+    let (mut state, payer, source) = activation_fixture_with_extras(
+        vec![cost],
+        vec![
+            vanilla_creature("One", 1),
+            vanilla_creature("Two", 2),
+            vanilla_creature("Three", 3),
+        ],
+    );
+    let one = put_named_card_on_battlefield(&mut state, payer, "One");
+    let two = put_named_card_on_battlefield(&mut state, payer, "Two");
+    let three = put_named_card_on_battlefield(&mut state, payer, "Three");
+    announce_to_payment(&mut state, source);
+    let iou = payment_prompt(&state).outstanding[0].id;
+
+    let subsets = state.legal_tap_total_subsets(iou);
+    assert_eq!(subsets.len(), 5);
+    for expected in [
+        vec![three],
+        vec![one, two],
+        vec![one, three],
+        vec![two, three],
+        vec![one, two, three],
+    ] {
+        assert!(
+            subsets.contains(&expected),
+            "missing legal subset {expected:?}"
+        );
+    }
+
+    let before = payment_prompt(&state);
+    assert!(
+        state
+            .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+                iou,
+                witness: FulfillmentWitness::Objects(vec![one, one, two]),
+            }))
+            .is_err()
+    );
+    assert_eq!(payment_prompt(&state), before);
+    assert!(!state.objects.obj(one).tapped);
+
+    submit_and_run_to_payment(
+        &mut state,
+        PaymentCommand::Fulfill {
+            iou,
+            witness: FulfillmentWitness::Objects(vec![one, two]),
+        },
+    );
+    assert!(state.objects.obj(one).tapped);
+    assert!(state.objects.obj(two).tapped);
+    assert!(!state.objects.obj(three).tapped);
+    assert_eq!(payment_prompt(&state).stage, PaymentStage::Ready);
 }
 
 #[test]
