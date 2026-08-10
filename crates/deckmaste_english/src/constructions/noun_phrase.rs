@@ -247,10 +247,12 @@ fn any_number_of_whole(value: &NounPhrase) -> Option<&NounPhrase> {
     if !matches!(
         nominal.determiner().map(|value| value.kind()),
         Some(DeterminerKind::Any)
-    ) || !matches!(
-        nominal.head().kind(),
-        NounInstanceKind::Singular(Noun::Word(Vocab::Number))
-    ) {
+    ) || !nominal.modifiers().is_empty()
+        || !matches!(
+            nominal.head().kind(),
+            NounInstanceKind::Singular(Noun::Word(Vocab::Number))
+        )
+    {
         return None;
     }
     let [NominalComplement::Prepositional(preposition)] = nominal.complements() else {
@@ -973,3 +975,92 @@ deckmaste_constructions_macro::constructions! {
 }
 
 pub(crate) static GROUPS: &[&GroupData] = &[&NOUN_PHRASE_DECLARATION];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Default)]
+    struct ConstructionRecorder {
+        construction: Option<&'static str>,
+    }
+
+    impl deckmaste_construction_compiler::runtime::LinearizationVisitor for ConstructionRecorder {
+        type Error = std::convert::Infallible;
+
+        fn begin_form(
+            &mut self,
+            construction: &'static str,
+            _form: &'static str,
+            _ordinal: u16,
+        ) -> Result<(), Self::Error> {
+            self.construction = Some(construction);
+            Ok(())
+        }
+
+        fn literal(&mut self, _literal: &'static str) -> Result<(), Self::Error> {
+            Ok(())
+        }
+
+        fn subtree<T: std::any::Any>(
+            &mut self,
+            _category: &'static str,
+            _value: &T,
+        ) -> Result<(), Self::Error> {
+            Ok(())
+        }
+
+        fn scalar<T: std::any::Any>(
+            &mut self,
+            _codec: &'static str,
+            _value: &T,
+        ) -> Result<(), Self::Error> {
+            Ok(())
+        }
+
+        fn identity<T: std::any::Any>(
+            &mut self,
+            _provider: &'static str,
+            _value_type: &'static str,
+            _value: &T,
+        ) -> Result<(), Self::Error> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn modified_any_number_nominal_keeps_the_ordinary_inverse_and_modifier() {
+        let parsed = crate::parse_fragment(
+            "any large number of players",
+            &crate::Catalogs::default(),
+            crate::FragmentKind::Nominal,
+            "Test Card",
+            false,
+        );
+        let Some(crate::Fragment::Nominal(value @ NounPhrase::Nominal(_))) = parsed.into_fragment()
+        else {
+            panic!("expected a nominal noun phrase")
+        };
+        let NounPhrase::Nominal(nominal) = &value else { unreachable!() };
+        assert_eq!(nominal.modifiers().len(), 1);
+        assert!(
+            any_number_of_whole(&value).is_none(),
+            "only the unmodified literal spine belongs to noun_phrase_any_number_of"
+        );
+
+        let mut ordinary = ConstructionRecorder::default();
+        linearize_noun_phrase_nominal_with(&value, &mut ordinary)
+            .expect("the modified nominal has the ordinary P01 inverse");
+        assert_eq!(ordinary.construction, Some("noun_phrase_nominal"));
+
+        let surface = crate::renderer::render_nominal_construction_form(
+            &value,
+            0,
+            |value, ordinal, visitor| {
+                linearize_noun_phrase_nominal_form_with(value, ordinal, visitor)
+            },
+        )
+        .expect("the ordinary nominal inverse preserves every modifier");
+        assert_eq!(surface, "any large number of players");
+    }
+}

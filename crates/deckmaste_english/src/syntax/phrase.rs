@@ -915,18 +915,10 @@ pub enum NounPhrase {
     Arithmetic(ArithmeticValue),
 }
 
-/// **Measured, `comma` field KEPT** (surface-fact diet, 2026-07-30
-/// measurement round): this is a binary wrapper (one included side, one
-/// excluded side), not a coordination list — there is no `conjunction` field
-/// and no `first`/`rest` parent to count members over, so the serial-comma
-/// derivation used elsewhere in this family does not apply. `comma` varies
-/// independently of `marker`: the single lowering site
-/// (`grammar/lowering.rs`, `RuleTag::NounPhraseSetExceptionBare` /
-/// `NounPhraseSetExceptionFor`) assigns both `true` and `false` for *both*
-/// markers depending only on which of 4 `(tag, children.len())` grammar
-/// productions matched — i.e. `comma` records only whether the surface had a
-/// comma token before `except`/`except for`, a fact with no other structural
-/// witness on this node.
+/// A binary set exclusion, not a coordination list. The generated bare and
+/// `except for` declarations each provide plain and comma forms, so `comma`
+/// stores the independent [`Comma`] surface witness that precedes the marker.
+/// No other field on this node can recover that punctuation choice.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct SetExceptionNounPhrase {
     pub included: Box<NounPhrase>,

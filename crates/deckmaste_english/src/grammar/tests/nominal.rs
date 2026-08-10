@@ -1520,10 +1520,18 @@ mod tests {
             parse_self("Nissa Revane").noun_phrase(),
             Some(NounPhrase::ThisCard(ThisCardForm::FullName))
         ));
+        let possessive = parse_self("Nissa's");
         assert!(matches!(
-            parse_self("Nissa's").noun_phrase(),
-            Some(NounPhrase::Possessive(_))
+            possessive.noun_phrase(),
+            Some(NounPhrase::Possessive(possessor))
+                if matches!(
+                    possessor.kind(),
+                    crate::syntax::PossessorKind::NounPhrase(NounPhrase::ThisCard(
+                        ThisCardForm::AbbreviatedName
+                    ))
+                )
         ));
+        assert_generated(&possessive, "noun_phrase_possessive_this_card");
 
         assert!(matches!(
             parse("one of them").noun_phrase(),
@@ -1539,10 +1547,57 @@ mod tests {
                 ..
             }))
         ));
+        let any_number = parse("any number of target players");
         assert!(matches!(
-            parse("any number of target players").noun_phrase(),
-            Some(NounPhrase::Nominal(_))
+            any_number.noun_phrase(),
+            Some(NounPhrase::Nominal(nominal))
+                if nominal.modifiers().is_empty()
+                    && matches!(
+                        nominal.determiner().map(|determiner| determiner.kind()),
+                        Some(crate::syntax::DeterminerKind::Any)
+                    )
+                    && matches!(
+                        nominal.head().kind(),
+                        NounInstanceKind::Singular(Noun::Word(Vocab::Number))
+                    )
+                    && matches!(
+                        nominal.complements(),
+                        [NominalComplement::Prepositional(preposition)]
+                            if matches!(
+                                preposition.as_simple(),
+                                Some(simple)
+                                    if simple.preposition == crate::syntax::Preposition::Of
+                                        && matches!(
+                                            simple.object.as_ref(),
+                                            crate::syntax::Phrase::NounPhrase(_)
+                                        )
+                            )
+                    )
         ));
+        let notional_plural = parse_nonterminal(
+            "Any number of target players draw a card.",
+            &fixture_catalogs(),
+            Nonterminal::Sentence,
+        )
+        .expect("the notional-plural subject agrees with draw");
+        assert_generated(&notional_plural, "noun_phrase_any_number_of");
+
+        let modified_number = parse("any large number of players");
+        assert!(matches!(
+            modified_number.noun_phrase(),
+            Some(NounPhrase::Nominal(nominal)) if nominal.modifiers().len() == 1
+        ));
+        assert_generated(&modified_number, "noun_phrase_nominal");
+        assert!(
+            modified_number
+                .construction_decisions()
+                .iter()
+                .all(|decision| decision.selected().as_str() != "noun_phrase_any_number_of")
+        );
+        assert_eq!(
+            render_fragment(modified_number.noun_phrase().unwrap()),
+            "any large number of players"
+        );
 
         assert!(matches!(
             parse("3 minus 1").noun_phrase(),
