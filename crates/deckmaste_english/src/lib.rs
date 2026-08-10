@@ -29,6 +29,7 @@ pub mod noun_phrase;
 mod numeral;
 mod parse;
 pub mod predicate;
+pub mod prepositional_phrase;
 pub mod renderer;
 mod span;
 mod surface;

@@ -1143,7 +1143,7 @@ mod tests {
             AdjectivePhrase::try_from_lexical_head(crate::word::Adjective::Word(Vocab::Target))
                 .and_then(|phrase| {
                     phrase.try_attach_compatibility_complement(AdjectiveComplement::Prepositional(
-                        PrepositionalPhrase::simple(
+                        crate::constructions::prepositional::expect_prepositional_phrase(
                             Preposition::With,
                             Phrase::Recovered(recovered("standard")),
                         ),

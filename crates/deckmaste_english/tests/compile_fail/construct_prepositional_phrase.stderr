@@ -1,0 +1,11 @@
+error[E0599]: no associated function or constant named `simple` found for struct `deckmaste_english::syntax::PrepositionalPhrase` in the current scope
+ --> tests/compile_fail/construct_prepositional_phrase.rs:6:26
+  |
+6 |     PrepositionalPhrase::simple(Preposition::Of, object)
+  |                          ^^^^^^ associated function or constant not found in `deckmaste_english::syntax::PrepositionalPhrase`
+  |
+help: there is a method `as_simple` with a similar name, but with different arguments
+ --> src/syntax/phrase.rs
+  |
+  |     pub const fn as_simple(&self) -> Option<&SimplePrepositionalPhrase> {
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

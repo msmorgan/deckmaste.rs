@@ -1887,64 +1887,119 @@ pub enum DevotionColors {
     Pair(ColorWord, ColorWord),
 }
 
-/// A prepositional phrase, simple or coordinated. Coordination is a variant of
-/// the phrase type itself — exactly as [`NounPhraseKind::Coordinated`] is — so
-/// every slot that already accepts a prepositional phrase (nominal complements,
-/// clause adjuncts, exception riders, keyword arguments) admits the coordinated
-/// form without opting in. A sibling `Phrase` variant would instead require
-/// each of those slots to widen separately, which is the reachability gap that
-/// left `Protection from blue, from black, and from red` unparsed.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-pub enum PrepositionalPhrase {
+/// A sealed prepositional phrase, either simple or sibling-coordinated.
+///
+/// Every slot accepting a prepositional phrase accepts both forms. Use the
+/// checked builders in [`crate::prepositional_phrase`] to construct values and
+/// [`Self::kind`] to inspect them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrepositionalPhrase {
+    representation: PrepositionalPhraseRepresentation,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum PrepositionalPhraseRepresentation {
     Simple(SimplePrepositionalPhrase),
     Coordinated(CoordinatedPrepositionalPhrase),
 }
 
+/// A borrowed view of a sealed [`PrepositionalPhrase`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrepositionalPhraseKind<'a> {
+    /// One preposition and its whole object.
+    Simple(&'a SimplePrepositionalPhrase),
+    /// Sibling phrases that each repeat their preposition.
+    Coordinated(&'a CoordinatedPrepositionalPhrase),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct SimplePrepositionalPhrase {
-    pub preposition: Preposition,
-    pub object: Box<Phrase>,
+    pub(crate) preposition: Preposition,
+    pub(crate) object: Box<Phrase>,
 }
 
 impl PrepositionalPhrase {
-    /// Builds the uncoordinated form.
-    #[must_use]
-    pub fn simple(preposition: Preposition, object: Phrase) -> Self {
-        Self::Simple(SimplePrepositionalPhrase {
-            preposition,
-            object: Box::new(object),
-        })
+    pub(crate) fn from_prepositional_declaration(preposition: Preposition, object: Phrase) -> Self {
+        Self {
+            representation: PrepositionalPhraseRepresentation::Simple(SimplePrepositionalPhrase {
+                preposition,
+                object: Box::new(object),
+            }),
+        }
     }
 
-    /// The first member. Call this only where the head member genuinely answers
-    /// the question (which preposition introduces the phrase); a site that must
-    /// see every conjunct wants [`Self::members`] instead, since treating the
-    /// head as the whole phrase is the misattachment this type exists to
-    /// prevent.
+    pub(crate) fn coordinated(
+        first: SimplePrepositionalPhrase,
+        rest: Vec<PrepositionalPhraseCoordination>,
+    ) -> Self {
+        Self {
+            representation: PrepositionalPhraseRepresentation::Coordinated(
+                CoordinatedPrepositionalPhrase {
+                    first: Box::new(first),
+                    rest,
+                },
+            ),
+        }
+    }
+
+    pub(crate) fn into_simple(self) -> Option<SimplePrepositionalPhrase> {
+        match self.representation {
+            PrepositionalPhraseRepresentation::Simple(value) => Some(value),
+            PrepositionalPhraseRepresentation::Coordinated(_) => None,
+        }
+    }
+
+    pub(crate) fn push_coordination(
+        &mut self,
+        coordination: PrepositionalPhraseCoordination,
+    ) -> bool {
+        let PrepositionalPhraseRepresentation::Coordinated(value) = &mut self.representation else {
+            return false;
+        };
+        value.rest.push(coordination);
+        true
+    }
+
+    /// Returns the borrowed simple or coordinated representation.
+    #[must_use]
+    pub const fn kind(&self) -> PrepositionalPhraseKind<'_> {
+        match &self.representation {
+            PrepositionalPhraseRepresentation::Simple(value) => {
+                PrepositionalPhraseKind::Simple(value)
+            }
+            PrepositionalPhraseRepresentation::Coordinated(value) => {
+                PrepositionalPhraseKind::Coordinated(value)
+            }
+        }
+    }
+
+    /// Returns the first member.
+    ///
+    /// Use [`Self::members`] when every coordinated member is relevant.
     #[must_use]
     pub const fn head(&self) -> &SimplePrepositionalPhrase {
-        match self {
-            Self::Simple(simple) => simple,
-            Self::Coordinated(coordinated) => &coordinated.first,
+        match &self.representation {
+            PrepositionalPhraseRepresentation::Simple(simple) => simple,
+            PrepositionalPhraseRepresentation::Coordinated(coordinated) => &coordinated.first,
         }
     }
 
-    /// Mutable [`Self::head`], carrying the same caveat.
+    /// Returns the first member mutably.
+    ///
+    /// Use [`Self::members`] when every coordinated member is relevant.
     pub const fn head_mut(&mut self) -> &mut SimplePrepositionalPhrase {
-        match self {
-            Self::Simple(simple) => simple,
-            Self::Coordinated(coordinated) => &mut coordinated.first,
+        match &mut self.representation {
+            PrepositionalPhraseRepresentation::Simple(simple) => simple,
+            PrepositionalPhraseRepresentation::Coordinated(coordinated) => &mut coordinated.first,
         }
     }
 
-    /// The last member — the one whose surface ends the phrase. Sites asking
-    /// what the phrase *ends* with (trailing punctuation, a closing quote) want
-    /// this, not [`Self::head`].
+    /// Returns the last member, whose surface ends the phrase.
     #[must_use]
     pub fn tail(&self) -> &SimplePrepositionalPhrase {
-        match self {
-            Self::Simple(simple) => simple,
-            Self::Coordinated(coordinated) => coordinated
+        match &self.representation {
+            PrepositionalPhraseRepresentation::Simple(simple) => simple,
+            PrepositionalPhraseRepresentation::Coordinated(coordinated) => coordinated
                 .rest
                 .last()
                 .map_or(&*coordinated.first, |coordination| &coordination.phrase),
@@ -1954,19 +2009,49 @@ impl PrepositionalPhrase {
     /// The sole member, or `None` when this phrase is coordinated.
     #[must_use]
     pub const fn as_simple(&self) -> Option<&SimplePrepositionalPhrase> {
-        match self {
-            Self::Simple(simple) => Some(simple),
-            Self::Coordinated(_) => None,
+        match &self.representation {
+            PrepositionalPhraseRepresentation::Simple(simple) => Some(simple),
+            PrepositionalPhraseRepresentation::Coordinated(_) => None,
         }
     }
 
     /// Every member in surface order.
     pub fn members(&self) -> impl Iterator<Item = &SimplePrepositionalPhrase> {
-        let rest = match self {
-            Self::Simple(_) => [].iter(),
-            Self::Coordinated(coordinated) => coordinated.rest.iter(),
+        let rest = match &self.representation {
+            PrepositionalPhraseRepresentation::Simple(_) => [].iter(),
+            PrepositionalPhraseRepresentation::Coordinated(coordinated) => coordinated.rest.iter(),
         };
         std::iter::once(self.head()).chain(rest.map(|coordination| &coordination.phrase))
+    }
+}
+
+impl SimplePrepositionalPhrase {
+    /// Returns the preposition introducing this member.
+    #[must_use]
+    pub const fn preposition(&self) -> Preposition {
+        self.preposition
+    }
+
+    /// Returns the whole object of this member.
+    #[must_use]
+    pub fn object(&self) -> &Phrase {
+        self.object.as_ref()
+    }
+}
+
+impl serde::Serialize for PrepositionalPhrase {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match &self.representation {
+            PrepositionalPhraseRepresentation::Simple(value) => {
+                serializer.serialize_newtype_variant("PrepositionalPhrase", 0, "Simple", value)
+            }
+            PrepositionalPhraseRepresentation::Coordinated(value) => {
+                serializer.serialize_newtype_variant("PrepositionalPhrase", 1, "Coordinated", value)
+            }
+        }
     }
 }
 
@@ -1982,8 +2067,22 @@ impl PrepositionalPhrase {
 /// `conjunction: None`, and the final member carries `Some`.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct CoordinatedPrepositionalPhrase {
-    pub first: Box<SimplePrepositionalPhrase>,
-    pub rest: Vec<PrepositionalPhraseCoordination>,
+    pub(crate) first: Box<SimplePrepositionalPhrase>,
+    pub(crate) rest: Vec<PrepositionalPhraseCoordination>,
+}
+
+impl CoordinatedPrepositionalPhrase {
+    /// Returns the first coordinated member.
+    #[must_use]
+    pub fn first(&self) -> &SimplePrepositionalPhrase {
+        self.first.as_ref()
+    }
+
+    /// Returns the remaining coordinated members in surface order.
+    #[must_use]
+    pub fn rest(&self) -> &[PrepositionalPhraseCoordination] {
+        &self.rest
+    }
 }
 
 /// One non-first member of a sibling prepositional coordination.
@@ -2000,8 +2099,22 @@ pub struct CoordinatedPrepositionalPhrase {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct PrepositionalPhraseCoordination {
     #[serde(serialize_with = "super::legacy_serde::serialize_optional_noun_phrase_conjunction")]
-    pub conjunction: Option<Conjunction>,
-    pub phrase: SimplePrepositionalPhrase,
+    pub(crate) conjunction: Option<Conjunction>,
+    pub(crate) phrase: SimplePrepositionalPhrase,
+}
+
+impl PrepositionalPhraseCoordination {
+    /// Returns the conjunction on this member, if it closes the run.
+    #[must_use]
+    pub const fn conjunction(&self) -> Option<Conjunction> {
+        self.conjunction
+    }
+
+    /// Returns this member's simple phrase.
+    #[must_use]
+    pub const fn phrase(&self) -> &SimplePrepositionalPhrase {
+        &self.phrase
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]

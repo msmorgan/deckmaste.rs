@@ -32,7 +32,6 @@ use crate::syntax::PartitiveNounPhrase;
 use crate::syntax::Phrase;
 use crate::syntax::PossessorKind;
 use crate::syntax::Preposition;
-use crate::syntax::PrepositionalPhrase;
 use crate::syntax::Quantity;
 use crate::syntax::Rounding;
 use crate::syntax::SetExceptionMarker;
@@ -133,7 +132,10 @@ fn make_any_number_of(whole: NounPhrase) -> Result<NounPhrase, DeclarationViolat
     )?;
     let nominal = crate::constructions::nominal::build_nominal_prepositional(
         nominal,
-        PrepositionalPhrase::simple(Preposition::Of, Phrase::NounPhrase(Box::new(whole))),
+        crate::constructions::prepositional::expect_prepositional_phrase(
+            Preposition::Of,
+            Phrase::NounPhrase(Box::new(whole)),
+        ),
     )?;
     Ok(NounPhrase::from_nominal_declaration(nominal))
 }

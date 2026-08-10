@@ -4136,7 +4136,7 @@ mod tests {
                 value: PredicateFamilyWitnessValue::VerbPhrase(
                     build_verb_phrase_prepositional(
                         base(Vocab::Look, VerbSlot::Imperative, 1),
-                        PrepositionalPhrase::simple(
+                        crate::constructions::prepositional::expect_prepositional_phrase(
                             crate::syntax::Preposition::At,
                             Phrase::NounPhrase(Box::new(object_it())),
                         ),
@@ -5683,7 +5683,7 @@ mod tests {
         );
         assert!(copular.declaration_core_arguments_complete());
 
-        let selected_pp = PrepositionalPhrase::simple(
+        let selected_pp = crate::constructions::prepositional::expect_prepositional_phrase(
             crate::syntax::Preposition::At,
             Phrase::NounPhrase(Box::new(this_card())),
         );
@@ -5697,7 +5697,7 @@ mod tests {
             "verb_phrase_prepositional"
         );
         assert!(selected.declaration_core_arguments_complete());
-        let unselected = PrepositionalPhrase::simple(
+        let unselected = crate::constructions::prepositional::expect_prepositional_phrase(
             crate::syntax::Preposition::From,
             Phrase::NounPhrase(Box::new(this_card())),
         );
@@ -5859,7 +5859,7 @@ mod tests {
             copular
         );
 
-        let selected_pp = PrepositionalPhrase::simple(
+        let selected_pp = crate::constructions::prepositional::expect_prepositional_phrase(
             crate::syntax::Preposition::At,
             Phrase::NounPhrase(Box::new(this_card())),
         );
@@ -5909,7 +5909,7 @@ mod tests {
             build_verb_phrase_indirect_object(ditransitive_base.clone(), this_card()).unwrap();
         let with_direct =
             build_verb_phrase_direct_object(with_indirect.clone(), this_card()).unwrap();
-        let trailing_pp = PrepositionalPhrase::simple(
+        let trailing_pp = crate::constructions::prepositional::expect_prepositional_phrase(
             crate::syntax::Preposition::During,
             Phrase::NounPhrase(Box::new(this_card())),
         );

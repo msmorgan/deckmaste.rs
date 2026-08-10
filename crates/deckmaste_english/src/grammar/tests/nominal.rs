@@ -659,10 +659,8 @@ mod tests {
                 crate::syntax::NominalPhraseCoordination { phrase, .. }
             ] if matches!(
                 phrase.complements(),
-                [NominalComplement::Prepositional(crate::syntax::PrepositionalPhrase::Simple(crate::syntax::SimplePrepositionalPhrase {
-                    preposition: crate::syntax::Preposition::With,
-                    ..
-                }))]
+                [NominalComplement::Prepositional(preposition)]
+                    if preposition.head().preposition() == crate::syntax::Preposition::With
             )
         ));
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
