@@ -9,7 +9,6 @@ use super::Demonstrative;
 use super::EnglishGrammar;
 use super::Features;
 use super::GapState;
-use super::Number;
 use super::ParseCost;
 use super::PredicateAttachmentPhase;
 use super::PredicateComplementKind;
@@ -17,7 +16,6 @@ use super::PredicateForm;
 use super::PredicateFrame;
 use super::PredicateObjectState;
 use super::Preposition;
-use super::PronounCase;
 use super::Reduced;
 use super::RuleTag;
 use super::VerbParticle;
@@ -31,15 +29,7 @@ pub(in crate::grammar) fn reduce_clause(
 ) -> Option<Reduced> {
     match tag {
         RuleTag::VerbPhraseCoordinatedAdjective => reduce_predicate(tag, children),
-        RuleTag::RelativeObject
-        | RuleTag::RelativeObjectContractedSubject
-        | RuleTag::RelativeSubjectContractedAuxiliary
-        | RuleTag::RelativeSubject
-        | RuleTag::RelativeSubjectDistributiveEach
-        | RuleTag::RelativeContractedCopularNoun
-        | RuleTag::RelativeContractedCopularAdjective
-        | RuleTag::RelativeContractedCopularPrepositional
-        | RuleTag::CopularRemainderCoordinatedAdjective
+        RuleTag::CopularRemainderCoordinatedAdjective
         | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
             reduce_simple_clause(tag, children)
         }
@@ -500,7 +490,7 @@ pub(crate) fn predicate_arguments_complete(
             .is_satisfied_by(selected_preposition)
 }
 
-pub(super) fn predicate_object_gap_complete(
+pub(crate) fn predicate_object_gap_complete(
     frame: PredicateFrame,
     indirect_object: bool,
     selected_preposition: bool,
@@ -541,187 +531,7 @@ pub(super) fn reduce_simple_clause(
             };
             Some(Features::None)
         }
-        RuleTag::RelativeObject => {
-            let Features::NounPhrase {
-                agreement: Some(subject_agreement),
-                pronoun_case,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            if *pronoun_case == Some(PronounCase::Object) {
-                return None;
-            }
-            let Features::VerbPhrase {
-                form: PredicateForm::Finite(predicate_agreement),
-                object: PredicateObjectState::None,
-                indirect_object,
-                selected_preposition,
-                frame,
-                bare,
-                object_gap_requires_rules_object,
-                ..
-            } = children.get(1)?.features
-            else {
-                return None;
-            };
-            if (*bare && frame.is_proform())
-                || !predicate_object_gap_complete(*frame, *indirect_object, *selected_preposition)
-                || predicate_agreement.is_some_and(|agreement| agreement != *subject_agreement)
-            {
-                return None;
-            }
-            Some(Features::RelativeClause {
-                gap: GapState::Object,
-                antecedent_agreement: None,
-                object_gap_requires_rules_object: *object_gap_requires_rules_object,
-                bare_copular_tail: false,
-            })
-        }
-        RuleTag::RelativeObjectContractedSubject => {
-            let Features::SubjectAuxiliary {
-                agreement: subject_agreement,
-                auxiliary,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            let Features::VerbPhrase {
-                form: child_form,
-                object: PredicateObjectState::None,
-                indirect_object,
-                selected_preposition,
-                frame,
-                bare,
-                object_gap_requires_rules_object,
-                ..
-            } = children.get(1)?.features
-            else {
-                return None;
-            };
-            let PredicateForm::Finite(Some(predicate_agreement)) =
-                auxiliary_form(*auxiliary, *child_form)?
-            else {
-                return None;
-            };
-            if (*bare && frame.is_proform())
-                || !predicate_object_gap_complete(*frame, *indirect_object, *selected_preposition)
-                || predicate_agreement != *subject_agreement
-            {
-                return None;
-            }
-            Some(Features::RelativeClause {
-                gap: GapState::Object,
-                antecedent_agreement: None,
-                object_gap_requires_rules_object: *object_gap_requires_rules_object,
-                bare_copular_tail: false,
-            })
-        }
-        RuleTag::RelativeSubjectContractedAuxiliary => {
-            let Features::SubjectAuxiliary {
-                subject: ContractedSubjectKey::Demonstrative(Demonstrative::That),
-                agreement,
-                auxiliary,
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            let Features::VerbPhrase {
-                form: child_form, ..
-            } = children.get(1)?.features
-            else {
-                return None;
-            };
-            let PredicateForm::Finite(Some(predicate_agreement)) =
-                auxiliary_form(*auxiliary, *child_form)?
-            else {
-                return None;
-            };
-            if predicate_agreement != *agreement {
-                return None;
-            }
-            Some(Features::RelativeClause {
-                gap: GapState::Subject,
-                antecedent_agreement: Some(predicate_agreement),
-                object_gap_requires_rules_object: false,
-                bare_copular_tail: false,
-            })
-        }
-        RuleTag::RelativeSubject => {
-            let Features::VerbPhrase {
-                form: PredicateForm::Finite(antecedent_agreement),
-                passive,
-                object,
-                indirect_object,
-                selected_preposition,
-                frame,
-                bare,
-                head_is_copular,
-                ..
-            } = children.get(1)?.features
-            else {
-                return None;
-            };
-            if !predicate_arguments_complete(
-                *frame,
-                *passive,
-                *object,
-                *indirect_object,
-                *selected_preposition,
-            ) {
-                return None;
-            }
-            Some(Features::RelativeClause {
-                gap: GapState::Subject,
-                antecedent_agreement: *antecedent_agreement,
-                object_gap_requires_rules_object: false,
-                bare_copular_tail: *bare && *head_is_copular,
-            })
-        }
-        RuleTag::RelativeSubjectDistributiveEach => {
-            // `RelativeMarker` carries `Features::None`, so no dot-1 gate is
-            // possible; require a complete, plural, finite verb phrase here
-            // and publish that agreement so the existing nominal-relative
-            // attachment gate checks the plural antecedent.
-            let Features::VerbPhrase {
-                form: PredicateForm::Finite(Some(agreement)),
-                passive,
-                object,
-                indirect_object,
-                selected_preposition,
-                frame,
-                bare,
-                head_is_copular,
-                ..
-            } = children.get(2)?.features
-            else {
-                return None;
-            };
-            if agreement.number != Number::Plural {
-                return None;
-            }
-            if !predicate_arguments_complete(
-                *frame,
-                *passive,
-                *object,
-                *indirect_object,
-                *selected_preposition,
-            ) {
-                return None;
-            }
-            Some(Features::RelativeClause {
-                gap: GapState::Subject,
-                antecedent_agreement: Some(*agreement),
-                object_gap_requires_rules_object: false,
-                bare_copular_tail: *bare && *head_is_copular,
-            })
-        }
-        RuleTag::RelativeContractedCopularNoun
-        | RuleTag::RelativeContractedCopularAdjective
-        | RuleTag::RelativeContractedCopularPrepositional
-        | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
+        RuleTag::RelativeContractedCopularCoordinatedAdjective => {
             let Features::SubjectAuxiliary {
                 subject: ContractedSubjectKey::Demonstrative(Demonstrative::That),
                 agreement,
@@ -734,22 +544,18 @@ pub(super) fn reduce_simple_clause(
             if auxiliary.auxiliary != Auxiliary::Be {
                 return None;
             }
-            // The coordinated variant only predicates when every conjunct is an
-            // adjective; a noun-reading coordinated run is rejected so the
-            // adjective-reading conjuncts are the ones lowering keeps.
-            if tag == RuleTag::RelativeContractedCopularCoordinatedAdjective
-                && !matches!(
-                    children.get(1)?.features,
-                    Features::CoordinatedModifier {
-                        all_adjectives: true,
-                        ..
-                    }
-                )
-            {
+            if !matches!(
+                children.get(1)?.features,
+                Features::CoordinatedModifier {
+                    all_adjectives: true,
+                    ..
+                }
+            ) {
                 return None;
             }
             Some(Features::RelativeClause {
                 gap: GapState::Subject,
+                marker: crate::syntax::RelativeMarker::That,
                 antecedent_agreement: Some(*agreement),
                 object_gap_requires_rules_object: false,
                 bare_copular_tail: false,

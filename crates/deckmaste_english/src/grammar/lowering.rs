@@ -513,6 +513,10 @@ fn project_generated_category(
         let value = value.downcast::<FrequencyPhrase>().ok()?;
         return Some(Lowered::Frequency(*value));
     }
+    if construction.category == "RelativeClause" {
+        let value = value.downcast::<RelativeClause>().ok()?;
+        return Some(Lowered::RelativeClause(*value));
+    }
     if matches!(construction.category, "ManaAmount" | "ManaAmountList") {
         let value = value.downcast::<crate::syntax::PredicateObject>().ok()?;
         return Some(Lowered::ManaAmount(*value));
@@ -598,6 +602,15 @@ fn erased_field(
             provider: "SubjectAuxiliary",
         } => {
             let Lowered::SubjectAuxiliary(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Identity {
+            value_type: "RelativeMarker",
+            provider: "RelativeMarker",
+        } => {
+            let Lowered::RelativeMarker(value) = value else {
                 return None;
             };
             Some(Box::new(value))
@@ -984,6 +997,21 @@ fn erased_subtree(
         "GerundClause" => typed!(GerundClause, value),
         "FrequencyPhrase" => typed!(Frequency, value),
         "RelativeClause" => typed!(RelativeClause, value),
+        "Predicate" => {
+            let Lowered::VerbPhrase(value) = value else {
+                return None;
+            };
+            let value = crate::constructions::relative::project_predicate_hole(value).ok()?;
+            if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
+        }
+        "ObjectGapPredicate" => {
+            let Lowered::VerbPhrase(value) = value else {
+                return None;
+            };
+            let value =
+                crate::constructions::relative::project_object_gap_predicate_hole(value).ok()?;
+            if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
+        }
         "Quantity" => typed!(Quantity, value),
         "DevotionColors" => typed!(DevotionColors, value),
         "PowerToughness" => typed!(PowerToughness, value),
@@ -1386,14 +1414,6 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::ClauseCoordinationCopularNounPrepositional
         | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
         | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic
-        | RuleTag::RelativeObject
-        | RuleTag::RelativeObjectContractedSubject
-        | RuleTag::RelativeSubjectContractedAuxiliary
-        | RuleTag::RelativeSubject
-        | RuleTag::RelativeSubjectDistributiveEach
-        | RuleTag::RelativeContractedCopularNoun
-        | RuleTag::RelativeContractedCopularAdjective
-        | RuleTag::RelativeContractedCopularPrepositional
         | RuleTag::VerbPhraseCoordinatedAdjective
         | RuleTag::CopularRemainderCoordinatedAdjective
         | RuleTag::RelativeContractedCopularCoordinatedAdjective => {

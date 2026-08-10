@@ -449,6 +449,8 @@ fn engine_category(name: &str) -> Option<Nonterminal> {
         "GerundClause" => Nonterminal::GerundClause,
         "FrequencyPhrase" => Nonterminal::FrequencyPhrase,
         "RelativeClause" => Nonterminal::RelativeClause,
+        "Predicate" => Nonterminal::VerbPhrase,
+        "ObjectGapPredicate" => Nonterminal::ObjectGapVerbPhrase,
         "TransitivePredicate" => Nonterminal::ReducedRecipientPassive,
         "ReducedRecipientPassiveTheme" => Nonterminal::ReducedRecipientPassiveTheme,
         "Quantity" => Nonterminal::Quantity,
@@ -575,6 +577,10 @@ pub(super) fn typed_feature_projection(
                 fields,
             ),
         ),
+        ("relative", "features") => Some(crate::constructions::relative::reduce_relative_features(
+            construction,
+            fields,
+        )),
         _ => None,
     }
 }
@@ -715,6 +721,7 @@ fn identity_slot(
         ("ContractedSubjectAuxiliary", "SubjectAuxiliary") => {
             Ok(EnglishLexicalSlot::SubjectAuxiliary)
         }
+        ("RelativeMarker", "RelativeMarker") => Ok(EnglishLexicalSlot::RelativeMarker),
         ("ExistentialForm", "Existential") => Ok(EnglishLexicalSlot::Existential),
         ("Preposition", "Preposition") => Ok(EnglishLexicalSlot::Preposition),
         ("Vocab", "Adverb") => Ok(EnglishLexicalSlot::Adverb),
@@ -867,6 +874,9 @@ fn evidence_source_is_supported(
         EvidenceSourceData::Output("attachment") => construction.category == "NominalPhrase",
         EvidenceSourceData::Output("object_category") => {
             construction.category == "PrepositionalObject"
+        }
+        EvidenceSourceData::Output("relative_signature") => {
+            construction.category == "RelativeClause"
         }
         EvidenceSourceData::Field("predicate.frame") => construction.fields.iter().any(|field| {
             field.name == "predicate"

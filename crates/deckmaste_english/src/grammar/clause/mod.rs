@@ -54,6 +54,7 @@ pub(crate) use reduction::auxiliary_form;
 pub(crate) use reduction::extend_predicate_features;
 pub(crate) use reduction::fold_auxiliary_passive;
 pub(crate) use reduction::predicate_arguments_complete;
+pub(crate) use reduction::predicate_object_gap_complete;
 
 #[cfg(test)]
 pub(crate) mod tests;

@@ -31,16 +31,8 @@ fn family(tag: RuleTag) -> ConstructionFamily {
     )
 }
 
-fn dominance_edges() -> [DominanceEdge; 1] {
-    let edge = |dominant, subordinate| {
-        DominanceEdge::new(construction_id(dominant), construction_id(subordinate))
-    };
-    [
-        // These relationships make the grammar's former insertion-order
-        // preferences explicit. They were censused against the full English
-        // suite when construction identity replaced numeric rule order.
-        edge(RuleTag::RelativeSubject, RuleTag::RelativeObject),
-    ]
+const fn dominance_edges() -> [DominanceEdge; 0] {
+    []
 }
 
 pub(super) fn registry() -> &'static ConstructionRegistry {

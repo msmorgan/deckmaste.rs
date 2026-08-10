@@ -718,6 +718,18 @@ fn requirement_evidence_value(
 }
 
 fn output_evidence_value(path: &str, feature: &Features) -> Option<String> {
+    if path == "relative_signature"
+        && let Features::RelativeClause {
+            gap,
+            marker,
+            antecedent_agreement,
+            ..
+        } = feature
+    {
+        return Some(format!(
+            "gap={gap:?};marker={marker:?};agreement={antecedent_agreement:?}"
+        ));
+    }
     if path == "object_category"
         && let Features::PrepositionalObject {
             object_category, ..

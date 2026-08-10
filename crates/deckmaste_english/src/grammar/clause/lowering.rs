@@ -39,20 +39,11 @@ use crate::constructions::predicate::FinishedPredicate;
 use crate::features::Conjunction;
 use crate::grammar::reduction::predicate_form;
 use crate::syntax::InfinitiveClause;
-use crate::syntax::ObjectGapPredicate;
 
 pub(in crate::grammar) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
         RuleTag::VerbPhraseCoordinatedAdjective => lower_predicate(tag, children),
-        RuleTag::RelativeObject
-        | RuleTag::RelativeObjectContractedSubject
-        | RuleTag::RelativeSubjectContractedAuxiliary
-        | RuleTag::RelativeSubject
-        | RuleTag::RelativeSubjectDistributiveEach
-        | RuleTag::RelativeContractedCopularNoun
-        | RuleTag::RelativeContractedCopularAdjective
-        | RuleTag::RelativeContractedCopularPrepositional
-        | RuleTag::CopularRemainderCoordinatedAdjective
+        RuleTag::CopularRemainderCoordinatedAdjective
         | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
             lower_simple_clause(tag, children)
         }
@@ -100,181 +91,16 @@ pub(super) fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) 
 pub(super) fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
         RuleTag::CopularRemainderCoordinatedAdjective => lower_copular_remainder(children),
-        RuleTag::RelativeObject => {
-            let Lowered::NounPhrase(subject) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::VerbPhrase(predicate) = take(children, 1)? else {
-                return None;
-            };
-            let FinishedPredicate {
-                modal, predicate, ..
-            } = finish_predicate(predicate)?;
-            if modal.is_some() {
-                return None;
-            }
-            let Predicate::Intransitive(predicate) = predicate else {
-                return None;
-            };
-            Some(Lowered::RelativeClause(RelativeClause {
-                marker: RelativeMarker::Zero,
-                gap: GapState::Object,
-                body: RelativeBody::ObjectGap {
-                    subject: Subject(subject),
-                    predicate: ObjectGapPredicate {
-                        head: predicate.head,
-                        kind: crate::syntax::ObjectGap,
-                        elements: predicate.elements,
-                    },
-                },
-            }))
-        }
-        RuleTag::RelativeObjectContractedSubject => {
+        RuleTag::RelativeContractedCopularCoordinatedAdjective => {
             let Lowered::SubjectAuxiliary(subject_auxiliary) = take(children, 0)? else {
                 return None;
             };
-            let Lowered::VerbPhrase(mut predicate) = take(children, 1)? else {
+            let Lowered::CoordinatedModifier(coordinated) = take(children, 1)? else {
                 return None;
             };
-            predicate.auxiliaries.insert(0, subject_auxiliary.auxiliary);
-            predicate.first_auxiliary_contracted_with_subject = true;
-            let FinishedPredicate {
-                modal, predicate, ..
-            } = finish_predicate(predicate)?;
-            if modal.is_some() {
-                return None;
-            }
-            let Predicate::Intransitive(predicate) = predicate else {
-                return None;
-            };
-            Some(Lowered::RelativeClause(RelativeClause {
-                marker: RelativeMarker::Zero,
-                gap: GapState::Object,
-                body: RelativeBody::ObjectGap {
-                    subject: subject_auxiliary.subject,
-                    predicate: ObjectGapPredicate {
-                        head: predicate.head,
-                        kind: crate::syntax::ObjectGap,
-                        elements: predicate.elements,
-                    },
-                },
-            }))
-        }
-        RuleTag::RelativeSubjectContractedAuxiliary => {
-            let Lowered::SubjectAuxiliary(subject_auxiliary) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::VerbPhrase(mut predicate) = take(children, 1)? else {
-                return None;
-            };
-            predicate.auxiliaries.insert(0, subject_auxiliary.auxiliary);
-            predicate.first_auxiliary_contracted_with_subject = true;
-            let FinishedPredicate {
-                modal, predicate, ..
-            } = finish_predicate(predicate)?;
-            if modal.is_some() {
-                return None;
-            }
-            Some(Lowered::RelativeClause(RelativeClause {
-                marker: RelativeMarker::That,
-                gap: GapState::Subject,
-                body: RelativeBody::SubjectGap(predicate),
-            }))
-        }
-        RuleTag::RelativeSubject => {
-            let Lowered::RelativeMarker(marker) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::VerbPhrase(predicate) = take(children, 1)? else {
-                return None;
-            };
-            let FinishedPredicate {
-                modal,
-                predicate,
-                elided,
-            } = finish_predicate(predicate)?;
-            // Only VP-ellipsis under the modal ("creature that can't") drops the
-            // predicate. A modal with a real, complement-less verb ("damage that
-            // would be", "creature that would die") keeps it — nulling those on
-            // the loose "intransitive with empty elements" test silently ate the
-            // verb (e.g. the "be" of "would be dealt").
-            let predicate = match modal {
-                Some(modal) => Predicate::Deontic(DeonticPredicate {
-                    modal,
-                    inner: if elided { None } else { Some(Box::new(predicate)) },
-                }),
-                None => predicate,
-            };
-            let body = RelativeBody::SubjectGap(predicate);
-            Some(Lowered::RelativeClause(RelativeClause {
-                marker,
-                gap: GapState::Subject,
-                body,
-            }))
-        }
-        RuleTag::RelativeSubjectDistributiveEach => {
-            let Lowered::RelativeMarker(marker) = take(children, 0)? else {
-                return None;
-            };
-            // `each` (index 1) is the floating quantifier — discarded here
-            // and carried as `PredicateHead::distributive_each` instead.
-            let Lowered::VerbPhrase(mut predicate) = take(children, 2)? else {
-                return None;
-            };
-            predicate.distributive_each = true;
-            let FinishedPredicate {
-                modal,
-                predicate,
-                elided: _,
-            } = finish_predicate(predicate)?;
-            // The reduce-time gate requires `Finite(Some(agreement))`, which
-            // a modal auxiliary never produces here — a modal reaching this
-            // arm would mean the gate was bypassed.
-            if modal.is_some() {
-                return None;
-            }
-            Some(Lowered::RelativeClause(RelativeClause {
-                marker,
-                gap: GapState::Subject,
-                body: RelativeBody::SubjectGap(predicate),
-            }))
-        }
-        RuleTag::RelativeContractedCopularNoun
-        | RuleTag::RelativeContractedCopularAdjective
-        | RuleTag::RelativeContractedCopularPrepositional
-        | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
-            let Lowered::SubjectAuxiliary(subject_auxiliary) = take(children, 0)? else {
-                return None;
-            };
-            let complement = match tag {
-                RuleTag::RelativeContractedCopularNoun => {
-                    let Lowered::NounPhrase(complement) = take(children, 1)? else {
-                        return None;
-                    };
-                    crate::syntax::CopularComplement::NounPhrase(complement)
-                }
-                RuleTag::RelativeContractedCopularAdjective => {
-                    let Lowered::AdjectivePhrase(complement) = take(children, 1)? else {
-                        return None;
-                    };
-                    crate::syntax::CopularComplement::Adjective(complement)
-                }
-                RuleTag::RelativeContractedCopularCoordinatedAdjective => {
-                    let Lowered::CoordinatedModifier(coordinated) = take(children, 1)? else {
-                        return None;
-                    };
-                    crate::syntax::CopularComplement::CoordinatedAdjective(
-                        coordinated_modifier_as_adjectives(coordinated)?,
-                    )
-                }
-                RuleTag::RelativeContractedCopularPrepositional => {
-                    let Lowered::PrepositionalPhrase(complement) = take(children, 1)? else {
-                        return None;
-                    };
-                    crate::syntax::CopularComplement::Prepositional(complement)
-                }
-                _ => return None,
-            };
+            let complement = crate::syntax::CopularComplement::CoordinatedAdjective(
+                coordinated_modifier_as_adjectives(coordinated)?,
+            );
             Some(Lowered::RelativeClause(RelativeClause {
                 marker: RelativeMarker::That,
                 gap: GapState::Subject,

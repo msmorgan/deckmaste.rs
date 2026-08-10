@@ -817,6 +817,81 @@ mod tests {
     }
 
     #[test]
+    fn production_r01_inspect_reports_generated_typed_relative_evidence() {
+        for (source, construction, gap, marker) in [
+            (
+                "Each spell you cast costs {1} less to cast.",
+                "relative_object",
+                "Object",
+                "Zero",
+            ),
+            (
+                "Each spell you've cast costs {1} less to cast.",
+                "relative_object_contracted_subject",
+                "Object",
+                "Zero",
+            ),
+            (
+                "A creature that's attacking gets +1/+1.",
+                "relative_subject_contracted_auxiliary",
+                "Subject",
+                "That",
+            ),
+            (
+                "A creature that attacks gets +1/+1.",
+                "relative_subject",
+                "Subject",
+                "That",
+            ),
+            (
+                "Creature cards that each have a different mana value get +1/+1.",
+                "relative_subject_distributive_each",
+                "Subject",
+                "That",
+            ),
+            (
+                "A card that's a creature is colorless.",
+                "relative_contracted_copular_noun",
+                "Subject",
+                "That",
+            ),
+            (
+                "A card that's red is colorless.",
+                "relative_contracted_copular_adjective",
+                "Subject",
+                "That",
+            ),
+            (
+                "A card that's in exile is colorless.",
+                "relative_contracted_copular_prepositional",
+                "Subject",
+                "That",
+            ),
+        ] {
+            let verbose = verbose_m01(source);
+            let evidence = format!(
+                "owner=generated backend=chart form=0 evidence=feature:relative gap, marker, and agreement value=gap={gap};marker={marker};agreement="
+            );
+            if construction == "relative_subject_contracted_auxiliary" {
+                assert!(
+                    verbose.contains("alternative relative_subject_contracted_auxiliary#0")
+                        && verbose.contains(&evidence),
+                    "missing packed generated R01 alternative and typed evidence for {source:?}:\n{verbose}",
+                );
+            } else {
+                assert!(
+                    verbose.contains(&format!(" {construction} {evidence}")),
+                    "missing typed R01 evidence for {source:?}:\n{verbose}",
+                );
+            }
+            assert!(
+                !verbose.contains(&format!(" {construction} owner=handwritten ")),
+                "R01 retained a handwritten owner for {source:?}:\n{verbose}",
+            );
+        }
+    }
+
+    #[test]
     fn production_f03_inspect_reports_generated_attachment_scope() {
         let fronted = verbose_m01("Otherwise, draw a card.");
         assert!(
