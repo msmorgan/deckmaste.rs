@@ -3228,6 +3228,8 @@ mod tests {
     use crate::syntax::*;
     use crate::word::ColorWord;
     use crate::word::Noun;
+    use crate::word::NounInstance;
+    use crate::word::Vocab;
 
     #[test]
     fn activated_ability_has_cost_components_and_effect_sentences() {
@@ -3752,6 +3754,90 @@ mod tests {
         assert_eq!(
             render(&with),
             "Create a Goblin creature token with \"{T}: Add {C}.\""
+        );
+    }
+
+    #[test]
+    fn quoted_with_compatibility_cannot_enter_nested_p02_or_c01() {
+        let parsed = parse("Create a Goblin creature token with \"{T}: Add {C}.\"");
+        let AbilityKind::Paragraph(paragraph) = &parsed.ast.abilities[0].kind else {
+            panic!("expected paragraph")
+        };
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+            predicate,
+        ))) = &paragraph.sentences[0].body
+        else {
+            panic!("expected structured imperative")
+        };
+        let compatibility = predicate
+            .elements()
+            .iter()
+            .find_map(|element| match element {
+                PredicateElement::Adjunct(PredicateAdjunct::Prepositional(value)) => Some(value),
+                _ => None,
+            })
+            .expect("the quoted with relation remains a prepositional adjunct")
+            .clone();
+
+        let direct_rejected =
+            crate::prepositional_phrase::build_prepositional_object_prepositional_phrase(
+                compatibility.clone(),
+            )
+            .is_err();
+        let outer = PrepositionalPhrase::from_prepositional_declaration(
+            Preposition::From,
+            Phrase::PrepositionalPhrase(Box::new(compatibility.clone())),
+        );
+        let recursively_rejected =
+            crate::prepositional_phrase::build_prepositional_object_prepositional_phrase(outer)
+                .is_err();
+        let projection_rejected =
+            crate::prepositional_phrase::parts_prepositional_phrase(&compatibility).is_err();
+
+        let card = crate::nominal::build_nominal_noun(
+            NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
+        )
+        .and_then(crate::noun_phrase::build_noun_phrase_nominal)
+        .unwrap();
+        let valid = crate::prepositional_phrase::build_prepositional_phrase(
+            Preposition::Of,
+            crate::prepositional_phrase::build_prepositional_object_noun_phrase(card).unwrap(),
+        )
+        .unwrap();
+        let valid_nested =
+            crate::prepositional_phrase::build_prepositional_object_prepositional_phrase(
+                valid.clone(),
+            )
+            .and_then(|object| {
+                crate::prepositional_phrase::build_prepositional_phrase(Preposition::From, object)
+            })
+            .and_then(crate::prepositional_phrase::build_prepositional_object_prepositional_phrase);
+        let first_rejected = crate::prepositional_phrase::build_prepositional_phrase_coordination(
+            compatibility.clone(),
+            vec![(Some(Conjunction::And), valid.clone())],
+        )
+        .is_err();
+        let later_rejected = crate::prepositional_phrase::build_prepositional_phrase_coordination(
+            valid,
+            vec![(Some(Conjunction::And), compatibility)],
+        )
+        .is_err();
+
+        assert!(
+            direct_rejected && recursively_rejected,
+            "compatibility PP leaked through nested P02: direct={direct_rejected}, recursive={recursively_rejected}",
+        );
+        assert!(
+            projection_rejected,
+            "compatibility PP projected as public P02"
+        );
+        assert!(
+            valid_nested.is_ok(),
+            "a recursively valid nested P02 remains admitted"
+        );
+        assert!(
+            first_rejected && later_rejected,
+            "C01 accepted a compatibility member: first={first_rejected}, later={later_rejected}",
         );
     }
 

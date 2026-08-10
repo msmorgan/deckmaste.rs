@@ -95,31 +95,48 @@ pub fn build_prepositional_phrase(
 
 /// Returns a simple P02 phrase's owned declaration parts.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when `value` is a C01 coordination rather than a simple P02 phrase.
-#[must_use]
+/// Returns a declaration violation if `value` is coordinated or its object is
+/// not admitted by P02. The latter includes the ability-owned quoted `with`
+/// compatibility relation.
 pub fn parts_prepositional_phrase(
     value: &PrepositionalPhrase,
-) -> (Preposition, PrepositionalObject) {
-    assert!(
-        matches!(value.kind(), PrepositionalPhraseKind::Simple(_)),
-        "prepositional_phrase admits only Simple",
-    );
-    crate::constructions::prepositional::parts_prepositional_phrase(value)
+) -> Result<(Preposition, PrepositionalObject), DeclarationViolation> {
+    let PrepositionalPhraseKind::Simple(value) = value.kind() else {
+        return Err(violation(
+            "prepositional_phrase",
+            "the projected value is one simple P02 phrase",
+        ));
+    };
+    let object = crate::constructions::prepositional::build_prepositional_object_from_phrase(
+        value.object().clone(),
+    )?;
+    Ok((value.preposition(), object))
 }
 
 /// Builds a complete C01 sibling coordination from checked simple P02 members.
 ///
 /// # Errors
 ///
-/// Returns a declaration violation when there is no remaining member, any
-/// member is already coordinated, a nonfinal member has a conjunction, or the
-/// final conjunction is not nominal.
+/// Returns a declaration violation if any member is not recursively admitted
+/// by P02 or is already coordinated, if there is no remaining member, if a
+/// nonfinal member has a conjunction, or if the final conjunction is not
+/// nominal.
 pub fn build_prepositional_phrase_coordination(
     first: PrepositionalPhrase,
     rest: Vec<(Option<Conjunction>, PrepositionalPhrase)>,
 ) -> Result<PrepositionalPhrase, DeclarationViolation> {
+    if !crate::constructions::prepositional::is_supported_prepositional_phrase(&first)
+        || rest.iter().any(|(_, phrase)| {
+            !crate::constructions::prepositional::is_supported_prepositional_phrase(phrase)
+        })
+    {
+        return Err(violation(
+            "prepositional_phrase_sibling_coordinated",
+            "every member is recursively admitted by P02",
+        ));
+    }
     let Some(first) = first.into_simple() else {
         return Err(violation(
             "prepositional_phrase_sibling_coordinated",

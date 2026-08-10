@@ -150,14 +150,32 @@ fn is_adverb_object(value: &PrepositionalObject) -> bool {
 }
 
 fn is_supported_object(value: &Phrase) -> bool {
-    matches!(
-        value,
-        Phrase::NounPhrase(_) | Phrase::PrepositionalPhrase(_) | Phrase::Adverb(_)
-    ) || matches!(
-        value,
-        Phrase::Clause(clause)
-            if matches!(clause.as_ref(), Clause::Dependent(DependentClause::Gerund(_)))
-    )
+    matches!(value, Phrase::NounPhrase(_) | Phrase::Adverb(_))
+        || matches!(
+            value,
+            Phrase::PrepositionalPhrase(value)
+                if is_supported_prepositional_phrase(value)
+        )
+        || matches!(
+            value,
+            Phrase::Clause(clause)
+                if matches!(clause.as_ref(), Clause::Dependent(DependentClause::Gerund(_)))
+        )
+}
+
+pub(crate) fn is_supported_prepositional_phrase(value: &PrepositionalPhrase) -> bool {
+    match value.kind() {
+        crate::syntax::PrepositionalPhraseKind::Simple(value) => {
+            is_supported_object(value.object())
+        }
+        crate::syntax::PrepositionalPhraseKind::Coordinated(value) => {
+            is_supported_object(value.first().object())
+                && value
+                    .rest()
+                    .iter()
+                    .all(|member| is_supported_object(member.phrase().object()))
+        }
+    }
 }
 
 pub(crate) fn build_prepositional_object_from_phrase(
