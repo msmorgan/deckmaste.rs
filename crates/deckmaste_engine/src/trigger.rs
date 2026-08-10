@@ -653,8 +653,8 @@ impl GameState {
             }
             GameEvent::ManaAbilityActivated(ManaAbilityActivated {
                 source, controller, ..
-            }) => (Some(source.clone()), Some(*controller), None),
-            GameEvent::ManaProduced(ManaProduced {
+            })
+            | GameEvent::ManaProduced(ManaProduced {
                 source, controller, ..
             })
             | GameEvent::TappedForMana(TappedForMana {

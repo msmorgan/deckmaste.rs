@@ -435,8 +435,7 @@ mod tests {
                             )
                     })
                     .cloned()
-                    .map(Decision::Act)
-                    .unwrap_or_else(|| strat.decide(&driver.state, &pending)),
+                    .map_or_else(|| strat.decide(&driver.state, &pending), Decision::Act),
                 _ => strat.decide(&driver.state, &pending),
             };
             stop = driver.submit(decision).expect("legal decision");

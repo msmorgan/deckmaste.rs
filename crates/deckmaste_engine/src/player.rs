@@ -66,6 +66,10 @@ pub enum ManaPoolError {
 impl ManaPool {
     /// A pool of exactly `units`, in the given order. Used to build the
     /// spendable sub-pool an affordability check runs over ([CR#106.6]).
+    ///
+    /// # Panics
+    ///
+    /// Panics if the greatest supplied mana id cannot be incremented.
     #[must_use]
     pub fn from_units(units: Vec<ManaUnit>) -> Self {
         let next_id = units.iter().map(|unit| unit.id.0).max().map_or(0, |id| {
@@ -95,6 +99,10 @@ impl ManaPool {
 
     /// Add `amount` units of `mana`, each carrying a clone of `riders`
     /// ([CR#106.6a]: under a doubler every unit gets its own riders).
+    ///
+    /// # Panics
+    ///
+    /// Panics if allocating a new floating-mana id overflows.
     pub fn add_riders(
         &mut self,
         mana: ColorOrColorless,
@@ -163,6 +171,10 @@ impl ManaPool {
 
     /// Remove the units at `indices` (a validated payment selection). Indices
     /// must be distinct and in range — callers validate first.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `indices` was not validated against this pool.
     pub fn remove_units(&mut self, indices: &[usize]) {
         let ids: Vec<FloatingManaId> = indices
             .iter()
@@ -179,6 +191,10 @@ impl ManaPool {
 
     /// Remove exactly the identified units, validating the whole submission
     /// before mutating the pool.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if an id is duplicated or absent from the pool.
     pub fn remove_ids(&mut self, ids: &[FloatingManaId]) -> Result<(), ManaPoolError> {
         let mut unique = std::collections::HashSet::with_capacity(ids.len());
         for &id in ids {

@@ -1239,16 +1239,17 @@ impl GameState {
                 created,
                 ..
             } => {
-                match created {
-                    Some(t) => crate::resolve::top_targets(&t.effect).to_vec(),
-                    None => {
-                        let abilities = crate::derive::abilities_of_source(self, *source);
-                        let other = &abilities[*ability];
-                        let t = other.as_triggered().unwrap_or_else(|| {
-                        panic!("a Triggered stack object indexes a Triggered ability, got {other:?}")
+                if let Some(t) = created {
+                    crate::resolve::top_targets(&t.effect).to_vec()
+                } else {
+                    let abilities = crate::derive::abilities_of_source(self, *source);
+                    let other = &abilities[*ability];
+                    let t = other.as_triggered().unwrap_or_else(|| {
+                        panic!(
+                            "a Triggered stack object indexes a Triggered ability, got {other:?}"
+                        )
                     });
-                        crate::resolve::top_targets(&t.effect).to_vec()
-                    }
+                    crate::resolve::top_targets(&t.effect).to_vec()
                 }
             }
         }

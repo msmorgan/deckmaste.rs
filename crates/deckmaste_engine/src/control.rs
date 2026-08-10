@@ -37,6 +37,11 @@ impl GameImage {
         });
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no control snapshot is available or an active slot
+    /// would be overwritten.
     pub fn resume_control(&mut self) -> Result<(), ControlError> {
         if self.announcing.is_some()
             || self.pending.is_some()

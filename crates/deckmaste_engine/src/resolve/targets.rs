@@ -45,15 +45,16 @@ impl GameState {
                 ability,
                 created,
                 ..
-            } => match created {
-                // The delayed/reflexive body is authoritative ([CR#603.7,603.12]).
-                Some(t) => top_targets(&t.effect).to_vec(),
-                None => {
+            } => {
+                if let Some(t) = created {
+                    // The delayed/reflexive body is authoritative ([CR#603.7,603.12]).
+                    top_targets(&t.effect).to_vec()
+                } else {
                     let abilities = crate::derive::abilities_of_source(self, *source);
                     let t = abilities[*ability].as_triggered().expect("trigger index");
                     top_targets(&t.effect).to_vec()
                 }
-            },
+            }
         };
         debug_assert_eq!(
             specs.len(),

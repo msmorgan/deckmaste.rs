@@ -79,8 +79,8 @@ impl GameState {
     }
 
     /// (min, max) objects to choose for `quantity`, clamped to `n` available —
-    /// choose as many as able when fewer exist ([CR#608.2d]). Also used by the
-    /// cost-payability gate (`can_pay_verbs`) to read a selection's required
+    /// choose as many as able when fewer exist ([CR#608.2d]). The test-only
+    /// `can_pay_verbs` helper also uses it to read a selection's required
     /// floor.
     pub(crate) fn choice_bounds(
         &self,

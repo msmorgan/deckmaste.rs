@@ -191,7 +191,7 @@ pub(crate) fn reconstruct_frame(
         PaymentFrame::new(base.clone(), frame.purpose.clone(), frame.locked.clone());
     replay_frame.payment_base = Some(base);
     replay_frame.stage = PaymentStage::Paying;
-    replay_frame.coverage = frame.coverage.clone();
+    replay_frame.coverage.clone_from(&frame.coverage);
     let prompt = replay_frame.prompt(Vec::new());
     replay_frame.working.pending = Some(crate::decide::PendingDecision::Payment(prompt));
     let mut state = GameState {
@@ -217,7 +217,7 @@ pub(crate) fn reconstruct_frame(
 
     let mut controller = state.payment.take().ok_or(ReplayError::MissingBase)?;
     let mut rebuilt = controller.frames.pop().ok_or(ReplayError::MissingBase)?;
-    rebuilt.records = records.clone();
+    rebuilt.records.clone_from(&records);
     rebuilt.recording = None;
     if records.iter().all(|record| record.iou().is_none()) && frame.locked.has_mana_payment {
         rebuilt.stage = PaymentStage::PrePayment;
@@ -225,13 +225,13 @@ pub(crate) fn reconstruct_frame(
         rebuilt.payment_base = None;
     }
     rebuilt.working.pending = None;
-    let stage = rebuilt.stage;
+    let rebuilt_stage = rebuilt.stage;
     let coverage = rebuilt.coverage.clone();
     let fulfilled = rebuilt.fulfilled.clone();
     let working = rebuilt.working;
     Ok(ReconstructedFrame {
         working,
-        stage,
+        stage: rebuilt_stage,
         coverage,
         fulfilled,
         records,
@@ -321,9 +321,8 @@ fn replay_fulfillment_answers(
             continue;
         }
         match state.step() {
-            StepOutcome::Progress(_) => {}
             StepOutcome::NeedsDecision(crate::decide::PendingDecision::Payment(_)) => break,
-            StepOutcome::NeedsDecision(_) => {}
+            StepOutcome::Progress(_) | StepOutcome::NeedsDecision(_) => {}
             StepOutcome::GameOver(_) => return Err(ReplayError::GameEnded),
         }
     }
@@ -591,7 +590,7 @@ pub(crate) fn reconstruct_decline(
         replay_frame.subject = frame.subject;
         replay_frame.locked = frame.locked.clone();
         replay_frame.stage = PaymentStage::Paying;
-        replay_frame.coverage = frame.coverage.clone();
+        replay_frame.coverage.clone_from(&frame.coverage);
         replay_frame.payment_base = Some(replay_frame.working.clone());
         replay_frame.fulfilled.clear();
         replay_frame.progress = super::PaymentProgress::Idle;
@@ -659,7 +658,8 @@ fn rebind_witness(
 fn facts_equivalent(actual: &GameEvent, expected: &GameEvent) -> bool {
     match (actual, expected) {
         (GameEvent::Tapped(actual), GameEvent::Tapped(expected)) => {
-            actual.object == expected.object && causes_equivalent(&actual.cause, &expected.cause)
+            actual.object == expected.object
+                && causes_equivalent(actual.cause.as_ref(), expected.cause.as_ref())
         }
         (GameEvent::ZoneChange(actual), GameEvent::ZoneChange(expected)) => {
             actual.object == expected.object
@@ -669,7 +669,7 @@ fn facts_equivalent(actual: &GameEvent, expected: &GameEvent) -> bool {
                 && actual.enters == expected.enters
                 && actual.position == expected.position
                 && actual.face == expected.face
-                && causes_equivalent(&actual.cause, &expected.cause)
+                && causes_equivalent(actual.cause.as_ref(), expected.cause.as_ref())
         }
         (GameEvent::ManaAdded(actual), GameEvent::ManaAdded(expected)) => {
             actual.player == expected.player
@@ -696,8 +696,8 @@ fn facts_equivalent(actual: &GameEvent, expected: &GameEvent) -> bool {
 }
 
 fn causes_equivalent(
-    actual: &Option<crate::event::Cause>,
-    expected: &Option<crate::event::Cause>,
+    actual: Option<&crate::event::Cause>,
+    expected: Option<&crate::event::Cause>,
 ) -> bool {
     match (actual, expected) {
         (Some(actual), Some(expected)) => {

@@ -1115,6 +1115,16 @@ impl GameState {
     }
 }
 
+/// Whether a `Duration` names a lifetime the engine can actually SWEEP — the
+/// canonical guard shared by both floating-instance mint sites (continuous
+/// effects, [CR#611.2], and replacement shields, [CR#614.3]). Every duration
+/// is sweepable EXCEPT `ForThisEvent`, which is an instruction-scoped rider
+/// ([CR#611.2a]) folded onto its host occurrence in `Sequentially` lowering
+/// and never a standalone instance — minting one would leak forever, silently.
+pub(crate) fn duration_sweepable(d: &deckmaste_core::Duration) -> bool {
+    !matches!(d, deckmaste_core::Duration::ForThisEvent)
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -1220,14 +1230,4 @@ mod tests {
             }))
         ));
     }
-}
-
-/// Whether a `Duration` names a lifetime the engine can actually SWEEP — the
-/// canonical guard shared by both floating-instance mint sites (continuous
-/// effects, [CR#611.2], and replacement shields, [CR#614.3]). Every duration
-/// is sweepable EXCEPT `ForThisEvent`, which is an instruction-scoped rider
-/// ([CR#611.2a]) folded onto its host occurrence in `Sequentially` lowering
-/// and never a standalone instance — minting one would leak forever, silently.
-pub(crate) fn duration_sweepable(d: &deckmaste_core::Duration) -> bool {
-    !matches!(d, deckmaste_core::Duration::ForThisEvent)
 }

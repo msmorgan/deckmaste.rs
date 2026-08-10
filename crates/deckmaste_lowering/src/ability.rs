@@ -238,7 +238,10 @@ fn effect_mana_facts(effect: &deckmaste_core::OneShotEffect) -> ManaFacts {
                 facts.merge(effect_mana_facts(part))
             })
         }
-        OneShotEffect::Continuously(_) | OneShotEffect::Until(_, _) => ManaFacts::NEUTRAL,
+        OneShotEffect::Continuously(_)
+        | OneShotEffect::Until(_, _)
+        | OneShotEffect::Delayed(_)
+        | OneShotEffect::Reflexive(_) => ManaFacts::NEUTRAL,
         OneShotEffect::Label(label) => effect_mana_facts(&label.effect),
         OneShotEffect::SeparatePiles(piles) => piles
             .then
@@ -270,7 +273,6 @@ fn effect_mana_facts(effect: &deckmaste_core::OneShotEffect) -> ManaFacts {
         OneShotEffect::With(with) => effect_mana_facts(&with.body),
         OneShotEffect::Distribute(distribute) => effect_mana_facts(&distribute.body),
         OneShotEffect::Noting(noting) => effect_mana_facts(&noting.effect),
-        OneShotEffect::Delayed(_) | OneShotEffect::Reflexive(_) => ManaFacts::NEUTRAL,
         OneShotEffect::Modal(modal) => {
             modal.modes.iter().fold(ManaFacts::NEUTRAL, |facts, mode| {
                 facts.merge(effect_mana_facts(&mode.effect))

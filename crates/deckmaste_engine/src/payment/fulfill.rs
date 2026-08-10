@@ -104,6 +104,14 @@ struct FulfillmentPlan {
 }
 
 impl GameState {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "payment IOU fulfillment keeps validation and its atomic state transition together"
+    )]
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "the decision boundary owns its witness even when a branch borrows it"
+    )]
     pub(super) fn fulfill_payment_iou(
         &mut self,
         id: IouId,
@@ -335,10 +343,13 @@ impl GameState {
                     self.validate_binder_witness(binder, &witness, payer, &frame)?;
                 let group = self.resolve_binder(binder, &frame);
                 let cardinality = match binder.as_ref() {
-                    Binder::TheRef(_) | Binder::ChooseOne { .. } => crate::stack::Cardinality::One,
-                    Binder::Choose { .. } | Binder::Existing(_) => crate::stack::Cardinality::Many,
-                    Binder::SearchOne { .. } | Binder::Produce(_) => crate::stack::Cardinality::One,
-                    Binder::Search { .. } => crate::stack::Cardinality::Many,
+                    Binder::TheRef(_)
+                    | Binder::ChooseOne { .. }
+                    | Binder::SearchOne { .. }
+                    | Binder::Produce(_) => crate::stack::Cardinality::One,
+                    Binder::Choose { .. } | Binder::Existing(_) | Binder::Search { .. } => {
+                        crate::stack::Cardinality::Many
+                    }
                     Binder::Expanded(_) => unreachable!("provenance erased at lower"),
                 };
                 let kind =
@@ -416,8 +427,8 @@ impl GameState {
                     let source = self.objects.obj(object).source;
                     let logical = match source {
                         crate::object::ObjectSource::Card(card) => super::LogicalObject::Card(card),
-                        crate::object::ObjectSource::Player(player) => {
-                            super::LogicalObject::Player(player)
+                        crate::object::ObjectSource::Player(owner) => {
+                            super::LogicalObject::Player(owner)
                         }
                     };
                     (object, logical)
@@ -556,21 +567,13 @@ impl GameState {
                 self.validate_choice_objects(objects, min, max, filter, frame)?;
                 Ok(Some(objects.clone()))
             }
-            Binder::TheRef(_) => {
-                if witness != &FulfillmentWitness::Bound {
-                    return illegal("a nonchoice binder requires Bound");
-                }
-                Ok(None)
-            }
             Binder::Existing(deckmaste_core::Selection::Random(..)) => {
                 illegal("random cost binders require the deferred random fulfillment path")
             }
-            Binder::Existing(_) => {
-                if witness != &FulfillmentWitness::Bound {
-                    return illegal("a nonchoice binder requires Bound");
-                }
+            Binder::TheRef(_) | Binder::Existing(_) if witness == &FulfillmentWitness::Bound => {
                 Ok(None)
             }
+            Binder::TheRef(_) | Binder::Existing(_) => illegal("a nonchoice binder requires Bound"),
             Binder::SearchOne { .. } | Binder::Search { .. } | Binder::Produce(_) => {
                 illegal("search and producer cost binders are not implemented in payment yet")
             }
@@ -636,7 +639,7 @@ impl GameState {
         cmp.apply(sum, count)
     }
 
-    /// Enumerate every currently legal witness for one outstanding TapTotal
+    /// Enumerate every currently legal witness for one outstanding `TapTotal`
     /// IOU. The core exposes the full set; runner preference stays external.
     #[must_use]
     pub fn legal_tap_total_subsets(&self, id: IouId) -> Vec<Vec<ObjectId>> {
