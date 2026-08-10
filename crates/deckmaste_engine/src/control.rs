@@ -26,21 +26,6 @@ pub enum ControlError {
     NoSuspendedControl,
 }
 
-/// One full runnable image. Payment metadata joins this shell in the next
-/// implementation slice; keeping the image nested here establishes the final
-/// ownership direction now.
-#[derive(Debug, Clone)]
-pub(crate) struct ImageFrame {
-    pub working: GameImage,
-}
-
-/// The out-of-image controller. Checkpoints never sit inside `GameImage`, so
-/// cloning an image cannot recursively clone the transaction that owns it.
-#[derive(Debug, Clone, Default)]
-pub(crate) struct PaymentController {
-    pub frames: Vec<ImageFrame>,
-}
-
 impl GameImage {
     pub fn suspend_control(&mut self) {
         self.control_stack.push(ControlSnapshot {

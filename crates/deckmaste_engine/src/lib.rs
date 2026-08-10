@@ -184,6 +184,26 @@ pub use player::PlayerState;
 
 mod player_statics;
 
+mod payment;
+pub use payment::FulfillmentWitness;
+pub use payment::IouId;
+pub use payment::IouKind;
+pub use payment::LockedPayment;
+pub use payment::ManaCoverage;
+pub use payment::ManaPayment;
+pub use payment::ManaPip;
+pub use payment::PaymentCommand;
+pub use payment::PaymentController;
+pub use payment::PaymentFrame;
+pub use payment::PaymentIou;
+pub use payment::PaymentLockError;
+pub use payment::PaymentPrompt;
+pub use payment::PaymentPurpose;
+pub use payment::PaymentRecordId;
+pub use payment::PaymentStage;
+pub use payment::PaymentSubject;
+pub use payment::lock_cost;
+
 mod replace;
 
 mod replace_registry;

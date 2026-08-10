@@ -493,7 +493,7 @@ pub struct GameImage {
 #[derive(Debug, Clone)]
 pub struct GameState {
     committed: GameImage,
-    pub(crate) payment: Option<crate::control::PaymentController>,
+    pub(crate) payment: Option<crate::payment::PaymentController>,
 }
 
 impl std::ops::Deref for GameState {
@@ -673,9 +673,9 @@ impl GameState {
     pub(crate) fn begin_test_frame(&mut self) {
         let working = self.active().clone();
         self.payment
-            .get_or_insert_with(crate::control::PaymentController::default)
+            .get_or_insert_with(crate::payment::PaymentController::default)
             .frames
-            .push(crate::control::ImageFrame { working });
+            .push(crate::payment::PaymentFrame::image_only(working));
     }
 
     /// Mints a fresh [`crate::stack::Payment`] id ([CR#118.10]) — call

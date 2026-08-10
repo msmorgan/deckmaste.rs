@@ -2324,7 +2324,11 @@ impl GameState {
     /// "your" reference back to the mana's producer — "spend only on a spell
     /// YOU cast") would need the producing source threaded onto the unit; that
     /// is a seam (riders carry no grantor today).
-    fn unit_spendable_on(&self, unit: &crate::player::ManaUnit, subject: ObjectId) -> bool {
+    pub(crate) fn unit_spendable_on(
+        &self,
+        unit: &crate::player::ManaUnit,
+        subject: ObjectId,
+    ) -> bool {
         let watcher = self.objects.obj(subject).source;
         unit.riders.iter().all(|r| match r {
             deckmaste_core::ManaRider::SpendOnly(f) => {
