@@ -514,6 +514,7 @@ impl VerbPhrase {
                 VerbDependent::Adverbial(Phrase::AdjectivePhrase(_)) => {
                     PredicateAttachment::AdjectiveComplement
                 }
+                VerbDependent::CoordinatedAdjective(_) => PredicateAttachment::AdjectiveComplement,
                 VerbDependent::PredicateComplement(Phrase::PrepositionalPhrase(pp)) => {
                     PredicateAttachment::Prepositional(pp.head().preposition)
                 }

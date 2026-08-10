@@ -238,6 +238,34 @@ pub fn finish_predicate(predicate: PredicateBuilder) -> Result<Predicate, Declar
     }
 }
 
+/// Finishes a checked builder whose selected direct-object position is the
+/// relative-clause gap.
+///
+/// # Errors
+///
+/// Returns a declaration violation unless the predicate has an object-taking
+/// frame, no supplied direct object, and every other required argument.
+pub fn finish_object_gap_predicate(
+    predicate: PredicateBuilder,
+) -> Result<crate::syntax::ObjectGapPredicate, DeclarationViolation> {
+    ensure_object_gap_complete(&predicate.phrase)?;
+    crate::constructions::relative::project_object_gap_predicate_hole(predicate.phrase)
+}
+
+/// Projects the checked builder parts of an object-gap predicate.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the predicate cannot be inverted to
+/// a complete object-gap construction.
+pub fn parts_object_gap_predicate(
+    predicate: &crate::syntax::ObjectGapPredicate,
+) -> Result<PredicateBuilder, DeclarationViolation> {
+    let phrase = inverse_public_object_gap_predicate(predicate)?;
+    ensure_object_gap_complete(&phrase)?;
+    Ok(PredicateBuilder { phrase })
+}
+
 /// Projects immutable checked construction parts from a sealed predicate.
 ///
 /// # Errors
@@ -316,6 +344,31 @@ fn ensure_complete(phrase: &VerbPhrase) -> Result<(), DeclarationViolation> {
             violation(
                 "predicate",
                 "the generated predicate satisfies form, voice, valency, and dependent order",
+            )
+        })
+}
+
+fn ensure_object_gap_complete(phrase: &VerbPhrase) -> Result<(), DeclarationViolation> {
+    let Some(Features::VerbPhrase {
+        passive: false,
+        object: crate::grammar::PredicateObjectState::None,
+        indirect_object,
+        selected_preposition,
+        frame,
+        ..
+    }) = phrase.declaration_core_features()
+    else {
+        return Err(violation(
+            "object_gap_predicate",
+            "the predicate preserves one unfilled direct-object position",
+        ));
+    };
+    crate::grammar::predicate_object_gap_complete(frame, indirect_object, selected_preposition)
+        .then_some(())
+        .ok_or_else(|| {
+            violation(
+                "object_gap_predicate",
+                "the predicate preserves one unfilled direct-object position",
             )
         })
 }

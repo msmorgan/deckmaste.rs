@@ -121,6 +121,21 @@ fn parsed_noun_phrase(source: &str) -> NounPhrase {
     noun_phrase
 }
 
+fn parsed_relative_clause(source: &str) -> RelativeClause {
+    let phrase = parsed_noun_phrase(source);
+    let NounPhraseKind::Nominal(nominal) = phrase.kind() else {
+        panic!("fixture must parse as a nominal noun phrase: {source:?}")
+    };
+    nominal
+        .complements()
+        .iter()
+        .find_map(|complement| match complement {
+            NominalComplement::Relative(relative) => Some(relative.clone()),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("fixture must contain a relative clause: {source:?}"))
+}
+
 fn checked_prepositional_phrase(preposition: Preposition, object: Phrase) -> PrepositionalPhrase {
     let object = deckmaste_english::prepositional_phrase::build_prepositional_object(object)
         .expect("the test fixture uses an admitted whole object");
@@ -473,11 +488,9 @@ fn public_noun_phrase_facade_builds_projects_and_renders_all_p01_shapes() {
     )
     .and_then(deckmaste_english::predicate::finish_predicate)
     .unwrap();
-    let rules_relative = RelativeClause {
-        marker: RelativeMarker::That,
-        gap: deckmaste_english::features::GapState::Subject,
-        body: RelativeBody::SubjectGap(rules_predicate),
-    };
+    let rules_relative =
+        deckmaste_english::clause::build_relative_subject(RelativeMarker::That, rules_predicate)
+            .unwrap();
     let rules_base =
         nominal_api::build_rules_object_nominal_base(nominal(Vocab::Card, false)).unwrap();
     let rules_followup = nominal_api::build_rules_object_followup_nominal_relative(
@@ -1476,6 +1489,202 @@ fn public_predicate_facade_constructs_representative_shapes() {
             *parsed_predicate,
         );
     }
+}
+
+#[test]
+#[allow(
+    clippy::too_many_lines,
+    reason = "one contract test covers every stable relative-clause facade pair and its rejection boundaries"
+)]
+fn public_relative_clause_facade_builds_projects_and_rejects_impossible_shapes() {
+    use deckmaste_english::clause as clause_api;
+    use deckmaste_english::predicate as predicate_api;
+
+    let value = parsed_relative_clause("each spell you cast");
+    let (subject, predicate) = clause_api::parts_relative_object(&value);
+    assert_eq!(
+        clause_api::build_relative_object(subject, predicate).unwrap(),
+        value
+    );
+
+    let value = parsed_relative_clause("each spell you've cast");
+    let (subject, auxiliary, predicate) =
+        clause_api::parts_relative_object_contracted_subject(&value);
+    assert_eq!(
+        clause_api::build_relative_object_contracted_subject(subject, auxiliary, predicate)
+            .unwrap(),
+        value
+    );
+
+    let progressive = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Attack),
+            slot: VerbSlot::PresentParticiple,
+        },
+        predicate_api::PredicateFrameChoice::Intransitive,
+    )
+    .and_then(predicate_api::finish_predicate)
+    .unwrap();
+    let value = clause_api::build_relative_subject_contracted_auxiliary(
+        AuxiliaryInstance {
+            auxiliary: Auxiliary::Be,
+            inflection: AuxiliaryInflection::Present {
+                person: deckmaste_english::features::Person::Third,
+                number: deckmaste_english::features::Number::Singular,
+            },
+            contracted_negation: deckmaste_english::features::Contraction::Full,
+        },
+        progressive,
+    )
+    .unwrap();
+    let (auxiliary, predicate) = clause_api::parts_relative_subject_contracted_auxiliary(&value);
+    assert!(
+        clause_api::build_relative_subject_contracted_auxiliary(
+            AuxiliaryInstance {
+                contracted_negation: deckmaste_english::features::Contraction::Contracted,
+                ..auxiliary
+            },
+            predicate.clone(),
+        )
+        .is_err(),
+        "one auxiliary cannot contract with both the subject and negation"
+    );
+    assert_eq!(
+        clause_api::build_relative_subject_contracted_auxiliary(auxiliary, predicate).unwrap(),
+        value
+    );
+
+    let value = parsed_relative_clause("a creature that attacks");
+    let (marker, predicate) = clause_api::parts_relative_subject(&value);
+    assert_eq!(
+        clause_api::build_relative_subject(marker, predicate.clone()).unwrap(),
+        value
+    );
+    assert!(
+        clause_api::build_relative_subject(RelativeMarker::Zero, predicate.clone()).is_err(),
+        "a zero marker cannot be paired with a subject gap"
+    );
+
+    let value = parsed_relative_clause("creature cards that each have a different mana value");
+    let (marker, predicate) = clause_api::parts_relative_subject_distributive_each(&value);
+    assert_eq!(
+        clause_api::build_relative_subject_distributive_each(marker, predicate).unwrap(),
+        value
+    );
+    assert!(
+        clause_api::build_relative_subject_distributive_each(
+            RelativeMarker::That,
+            clause_api::parts_relative_subject(&parsed_relative_clause("a creature that attacks"))
+                .1,
+        )
+        .is_err(),
+        "distributive each requires plural antecedent agreement"
+    );
+
+    let value = parsed_relative_clause("a card that's a creature");
+    let (auxiliary, complement) = clause_api::parts_relative_contracted_copular_noun(&value);
+    assert_eq!(
+        clause_api::build_relative_contracted_copular_noun(auxiliary, complement.clone()).unwrap(),
+        value
+    );
+    assert!(
+        clause_api::build_relative_contracted_copular_noun(
+            AuxiliaryInstance {
+                auxiliary: Auxiliary::Be,
+                inflection: AuxiliaryInflection::Present {
+                    person: deckmaste_english::features::Person::Third,
+                    number: deckmaste_english::features::Number::Plural,
+                },
+                contracted_negation: deckmaste_english::features::Contraction::Full,
+            },
+            complement.clone(),
+        )
+        .is_err(),
+        "contracted demonstrative that requires third-singular agreement"
+    );
+    assert!(
+        clause_api::build_relative_contracted_copular_noun(
+            AuxiliaryInstance {
+                auxiliary: Auxiliary::Have,
+                inflection: AuxiliaryInflection::Present {
+                    person: deckmaste_english::features::Person::Third,
+                    number: deckmaste_english::features::Number::Singular,
+                },
+                contracted_negation: deckmaste_english::features::Contraction::Full,
+            },
+            complement,
+        )
+        .is_err(),
+        "a contracted copular relative requires be"
+    );
+
+    let value = parsed_relative_clause("a card that's red");
+    let (auxiliary, complement) = clause_api::parts_relative_contracted_copular_adjective(&value);
+    assert_eq!(
+        clause_api::build_relative_contracted_copular_adjective(auxiliary, complement).unwrap(),
+        value
+    );
+
+    let value = parsed_relative_clause("a card that's in exile");
+    let (auxiliary, complement) =
+        clause_api::parts_relative_contracted_copular_prepositional(&value);
+    assert_eq!(
+        clause_api::build_relative_contracted_copular_prepositional(auxiliary, complement).unwrap(),
+        value
+    );
+
+    let value = parsed_relative_clause("a card that's red or green");
+    let (auxiliary, complement) =
+        clause_api::parts_relative_contracted_copular_coordinated_adjective(&value);
+    assert_eq!(
+        clause_api::build_relative_contracted_copular_coordinated_adjective(auxiliary, complement)
+            .unwrap(),
+        value
+    );
+
+    let object_gap = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Cast),
+            slot: VerbSlot::Present {
+                person: deckmaste_english::features::Person::Second,
+                number: deckmaste_english::features::Number::Singular,
+            },
+        },
+        predicate_api::PredicateFrameChoice::Transitive,
+    )
+    .and_then(predicate_api::finish_object_gap_predicate)
+    .expect("a transitive frame with its direct object omitted is an object gap");
+    let object_gap_parts = predicate_api::parts_object_gap_predicate(&object_gap).unwrap();
+    assert_eq!(
+        predicate_api::finish_object_gap_predicate(object_gap_parts).unwrap(),
+        object_gap
+    );
+
+    let not_an_object_gap = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Attack),
+            slot: VerbSlot::Present {
+                person: deckmaste_english::features::Person::Third,
+                number: deckmaste_english::features::Number::Singular,
+            },
+        },
+        predicate_api::PredicateFrameChoice::Intransitive,
+    )
+    .unwrap();
+    assert!(predicate_api::finish_object_gap_predicate(not_an_object_gap).is_err());
+
+    assert_eq!(value.marker(), RelativeMarker::That);
+    assert_eq!(value.gap(), deckmaste_english::features::GapState::Subject);
+    assert!(matches!(value.body(), RelativeBody::SubjectGap(_)));
+}
+
+#[test]
+fn relative_clause_serialization_keeps_legacy_struct_name_and_field_order() {
+    let value = parsed_relative_clause("a creature that attacks");
+    assert_eq!(
+        serialize_struct_identity(&value),
+        ("RelativeClause", vec!["marker", "gap", "body"]),
+    );
 }
 
 #[test]
@@ -2804,6 +3013,149 @@ impl ser::Serializer for NewtypeVariantIdentitySerializer {
     }
 }
 
+fn serialize_struct_identity(value: impl Serialize) -> (&'static str, Vec<&'static str>) {
+    value
+        .serialize(StructIdentitySerializer)
+        .expect("the value must serialize as a struct")
+}
+
+struct StructIdentitySerializer;
+
+struct StructIdentityCollector {
+    name: &'static str,
+    fields: Vec<&'static str>,
+}
+
+impl ser::SerializeStruct for StructIdentityCollector {
+    type Ok = (&'static str, Vec<&'static str>);
+    type Error = UnitVariantSerializationError;
+
+    fn serialize_field<T: ?Sized + Serialize>(
+        &mut self,
+        key: &'static str,
+        _value: &T,
+    ) -> Result<(), Self::Error> {
+        self.fields.push(key);
+        Ok(())
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        Ok((self.name, self.fields))
+    }
+}
+
+impl ser::Serializer for StructIdentitySerializer {
+    type Ok = (&'static str, Vec<&'static str>);
+    type Error = UnitVariantSerializationError;
+    type SerializeSeq = ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeTuple = ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeTupleStruct = ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeTupleVariant = ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeMap = ser::Impossible<Self::Ok, Self::Error>;
+    type SerializeStruct = StructIdentityCollector;
+    type SerializeStructVariant = ser::Impossible<Self::Ok, Self::Error>;
+
+    fn serialize_struct(
+        self,
+        name: &'static str,
+        length: usize,
+    ) -> Result<Self::SerializeStruct, Self::Error> {
+        Ok(StructIdentityCollector {
+            name,
+            fields: Vec::with_capacity(length),
+        })
+    }
+
+    unsupported_unit_variant_serialization!(
+        serialize_bool(bool),
+        serialize_i8(i8),
+        serialize_i16(i16),
+        serialize_i32(i32),
+        serialize_i64(i64),
+        serialize_i128(i128),
+        serialize_u8(u8),
+        serialize_u16(u16),
+        serialize_u32(u32),
+        serialize_u64(u64),
+        serialize_u128(u128),
+        serialize_f32(f32),
+        serialize_f64(f64),
+        serialize_char(char),
+        serialize_str(&str),
+        serialize_bytes(&[u8]),
+        serialize_none(),
+        serialize_unit(),
+        serialize_unit_struct(&'static str),
+        serialize_unit_variant(&'static str, u32, &'static str),
+    );
+
+    fn serialize_some<T: ?Sized + Serialize>(self, _value: &T) -> Result<Self::Ok, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_newtype_struct<T: ?Sized + Serialize>(
+        self,
+        _name: &'static str,
+        _value: &T,
+    ) -> Result<Self::Ok, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_newtype_variant<T: ?Sized + Serialize>(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _value: &T,
+    ) -> Result<Self::Ok, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_seq(self, _length: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_tuple(self, _length: usize) -> Result<Self::SerializeTuple, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_tuple_struct(
+        self,
+        _name: &'static str,
+        _length: usize,
+    ) -> Result<Self::SerializeTupleStruct, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_tuple_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _length: usize,
+    ) -> Result<Self::SerializeTupleVariant, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_map(self, _length: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn serialize_struct_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _length: usize,
+    ) -> Result<Self::SerializeStructVariant, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+
+    fn collect_str<T: ?Sized + fmt::Display>(self, _value: &T) -> Result<Self::Ok, Self::Error> {
+        Err(UnitVariantSerializationError)
+    }
+}
+
 #[test]
 fn public_parser_returns_a_source_independent_grammar_tree() {
     let source = String::from("Draw a card.");
@@ -3385,7 +3737,7 @@ impl<'syntax> SyntaxInventory<'syntax> {
     }
 
     fn relative_clause(&mut self, relative: &'syntax RelativeClause) {
-        match &relative.body {
+        match relative.body() {
             RelativeBody::SubjectGap(predicate) => self.predicate(predicate),
             RelativeBody::ObjectGap { subject, predicate } => {
                 self.subject(subject);

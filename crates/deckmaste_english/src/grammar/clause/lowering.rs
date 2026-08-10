@@ -14,7 +14,6 @@ use super::CoordinationJunction;
 use super::CopularComplement;
 use super::CopularRemainder;
 use super::DeonticPredicate;
-use super::GapState;
 use super::IndependentClause;
 use super::Lowered;
 use super::NounPhrase;
@@ -24,9 +23,6 @@ use super::PredicateAdjunct;
 use super::PredicateExpression;
 use super::PredicateForm;
 use super::PredicateHead;
-use super::RelativeBody;
-use super::RelativeClause;
-use super::RelativeMarker;
 use super::RuleTag;
 use super::SimpleClause;
 use super::Subject;
@@ -98,26 +94,12 @@ pub(super) fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Opt
             let Lowered::CoordinatedModifier(coordinated) = take(children, 1)? else {
                 return None;
             };
-            let complement = crate::syntax::CopularComplement::CoordinatedAdjective(
+            crate::constructions::relative::build_relative_contracted_copular_coordinated_adjective(
+                subject_auxiliary,
                 coordinated_modifier_as_adjectives(coordinated)?,
-            );
-            Some(Lowered::RelativeClause(RelativeClause {
-                marker: RelativeMarker::That,
-                gap: GapState::Subject,
-                body: RelativeBody::SubjectGap(Predicate::Copular(
-                    crate::syntax::CopularPredicate {
-                        negated: false,
-                        copula: crate::syntax::Copula {
-                            auxiliary: subject_auxiliary.auxiliary,
-                            contracted_with_subject: crate::features::Contraction::Contracted,
-                        },
-                        distributive_each: false,
-                        precomplement_adverbs: vec![],
-                        complement,
-                        adjuncts: vec![],
-                    },
-                )),
-            }))
+            )
+            .ok()
+            .map(Lowered::RelativeClause)
         }
         _ => None,
     }

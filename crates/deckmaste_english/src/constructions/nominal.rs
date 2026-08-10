@@ -987,20 +987,13 @@ fn split_rules_object_nominal_base(value: &RulesObjectNominal) -> NominalPhrase 
 }
 
 fn nominal_has_rules_object_relative_edge(value: &NominalPhrase) -> bool {
-    matches!(
-        value.complements().last(),
-        Some(NominalComplement::Relative(RelativeClause {
-            body:
-                crate::syntax::RelativeBody::ObjectGap {
-                    predicate,
-                    ..
-                },
-            ..
-        })) if matches!(
+    matches!(value.complements().last(), Some(NominalComplement::Relative(relative)) if matches!(
+        relative.body(),
+        crate::syntax::RelativeBody::ObjectGap { predicate, .. } if matches!(
             predicate.head.verb.verb,
             crate::word::Verb::Word(Vocab::Control | Vocab::Own)
         )
-    )
+    ))
 }
 
 fn make_rules_object_followup_nominal_relative(
