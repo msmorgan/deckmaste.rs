@@ -672,7 +672,7 @@ mod tests {
     /// its power", over the core primitives — no card-layer macros).
     #[test]
     fn additional_cost_reads_and_round_trips() {
-        let src = "AdditionalCost(pay:[Do(Sacrifice(You,This))],body:DealDamage(This,StatOf(EventObject,Power),It))";
+        let src = "AdditionalCost(pay:[Act(Sacrifice(You,This))],body:DealDamage(This,StatOf(EventObject,Power),It))";
         let parsed = read(src);
         let OneShotEffect::AdditionalCost(ac) = &parsed else {
             panic!("expected AdditionalCost, got {parsed:?}");

@@ -184,6 +184,21 @@ impl DecisionHandler for YesNo {
             // `if_did`; no runs `if_not` (or nothing). Front-scheduled
             // in order so `effect` precedes `if_did`.
             crate::state::ChoiceContinuation::May { may, frame } => {
+                if yes
+                    && let Some((caster, object, alternative_cost)) =
+                        g.may_cast_referent(&may, &frame)
+                {
+                    let items = g.may_cast_as_effect_items(
+                        object,
+                        caster,
+                        alternative_cost,
+                        may.if_did,
+                        may.if_not,
+                        frame,
+                    );
+                    g.schedule_front(items);
+                    return Ok(());
+                }
                 let branch: Vec<Arc<deckmaste_core::OneShotEffect>> = if yes {
                     std::iter::once(may.effect).chain(may.if_did).collect()
                 } else {

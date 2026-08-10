@@ -151,6 +151,27 @@ fn step_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
     }
 }
 
+/// Step through the compatibility runner's explicit payment answers while
+/// preserving every intervening progress item for event-grain assertions.
+fn step_to_stop_auto_payment(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
+    let mut trace = Vec::new();
+    loop {
+        let (more, stop) = step_to_stop(state);
+        trace.extend(more);
+        if matches!(
+            stop,
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_))
+        ) {
+            let decision = state
+                .auto_payment_pending()
+                .expect("a Payment prompt has an automatic runner answer");
+            state.submit_decision(decision).unwrap();
+        } else {
+            return (trace, stop);
+        }
+    }
+}
+
 #[test]
 fn turn_one_walks_to_upkeep_priority_one_event_at_a_time() {
     let mut state = two_player_plains(42, 20);
@@ -414,7 +435,7 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
         .expect("mana ability should be legal")
         .clone();
     state.submit_decision(Decision::Act(tap)).unwrap();
-    let (trace, _stop) = step_to_stop(&mut state);
+    let (trace, _stop) = step_to_stop_auto_payment(&mut state);
     assert!(trace.iter().any(|p| matches!(
         applied(p),
         Some(GameEvent::Tapped(Tapped { object, .. })) if *object == played
@@ -560,14 +581,18 @@ fn state_is_assertable_between_two_untap_events() {
 
     // Each player's script at priority: play a land if allowed, tap every
     // untapped land, then pass.
-    let script = |legal: &[Action]| -> Action {
+    let script = |state: &GameState, legal: &[Action]| -> Action {
         legal
             .iter()
             .find(|a| matches!(a, Action::PlayLand { .. }))
             .or_else(|| {
-                legal
-                    .iter()
-                    .find(|a| matches!(a, Action::ActivateAbility { .. }))
+                legal.iter().find(|a| {
+                    matches!(
+                        a,
+                        Action::ActivateAbility { object, .. }
+                            if !state.objects.obj(*object).tapped
+                    )
+                })
             })
             .unwrap_or(&Action::Pass)
             .clone()
@@ -603,13 +628,19 @@ fn state_is_assertable_between_two_untap_events() {
                 legal,
                 ..
             })) => {
-                let action = script(&legal);
+                let action = script(&state, &legal);
                 state.submit_decision(Decision::Act(action)).unwrap();
             }
             StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
                 deckmaste_engine::DeclareAttackers { .. },
             )) => {
                 state.submit_decision(Decision::Attackers(vec![])).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("a Payment prompt has an automatic runner answer");
+                state.submit_decision(decision).unwrap();
             }
             StepOutcome::NeedsDecision(other) => panic!("unexpected decision: {other:?}"),
             StepOutcome::GameOver(o) => panic!("game ended early: {o:?}"),

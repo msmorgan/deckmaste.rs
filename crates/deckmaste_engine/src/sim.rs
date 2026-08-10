@@ -343,7 +343,7 @@ fn greedy_priority(
         .filter(|action| match action {
             Action::ActivateAbility { object, ability } => {
                 state.mana_ability(*object, *ability).is_some()
-                    && !state.objects.obj(*object).tapped
+                    && crate::payment::automatic_activation_cost_usable(state, *object, *ability)
             }
             _ => false,
         })
@@ -368,7 +368,7 @@ fn greedy_priority(
         && let Some(a) = legal.iter().find(|action| match action {
             Action::ActivateAbility { object, ability } => {
                 state.mana_ability(*object, *ability).is_some()
-                    && !state.objects.obj(*object).tapped
+                    && crate::payment::automatic_activation_cost_usable(state, *object, *ability)
             }
             _ => false,
         })
@@ -564,56 +564,7 @@ pub(crate) fn keep_current_targets(
 
 /// The seat a surfaced decision is waiting on — every variant names its player.
 pub(crate) fn pending_player(pending: &PendingDecision) -> PlayerId {
-    match pending {
-        PendingDecision::Priority(crate::decide::pending::Priority { player, .. })
-        | PendingDecision::DiscardToHandSize(crate::decide::pending::DiscardToHandSize {
-            player,
-            ..
-        })
-        | PendingDecision::DiscardCards(crate::decide::pending::DiscardCards { player, .. })
-        | PendingDecision::ChooseManaColor(crate::decide::pending::ChooseManaColor {
-            player,
-            ..
-        })
-        | PendingDecision::ChooseManaMode(crate::decide::pending::ChooseManaMode {
-            player, ..
-        })
-        | PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets {
-            player, ..
-        })
-        | PendingDecision::PayMana(crate::decide::pending::PayMana { player, .. })
-        | PendingDecision::OrderTriggers(crate::decide::pending::OrderTriggers {
-            player, ..
-        })
-        | PendingDecision::DeclareAttackers(crate::decide::pending::DeclareAttackers {
-            player,
-            ..
-        })
-        | PendingDecision::DeclareBlockers(crate::decide::pending::DeclareBlockers {
-            player,
-            ..
-        })
-        | PendingDecision::AssignCombatDamage(crate::decide::pending::AssignCombatDamage {
-            player,
-            ..
-        })
-        | PendingDecision::ChooseXValue(crate::decide::pending::ChooseXValue { player, .. })
-        | PendingDecision::ChooseNoteNumber(crate::decide::pending::ChooseNoteNumber {
-            player,
-            ..
-        })
-        | PendingDecision::ChooseNoteCardName(crate::decide::pending::ChooseNoteCardName {
-            player,
-            ..
-        })
-        | PendingDecision::Retarget(crate::decide::pending::Retarget { player, .. })
-        | PendingDecision::LegendRule(crate::decide::pending::LegendRule { player, .. })
-        | PendingDecision::CallFlip(crate::decide::pending::CallFlip { player }) => *player,
-        other => todo!(
-            "engine seam: shell decision strategy for {other:?} — no mechanical/pending-player \
-             handling wired for this PendingDecision kind yet; owner: engine-shell-decision-strategies"
-        ),
-    }
+    pending.decider_player()
 }
 
 // --- driving the game

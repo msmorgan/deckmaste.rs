@@ -21,6 +21,7 @@ use deckmaste_core::LifeOp;
 use deckmaste_core::ManaAbility;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSpec;
+use deckmaste_core::May;
 use deckmaste_core::Modal;
 use deckmaste_core::Mode;
 use deckmaste_core::Modification;
@@ -37,6 +38,7 @@ use deckmaste_core::StatValue;
 use deckmaste_core::StatePredicate;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::Supertype;
+use deckmaste_core::Token;
 use deckmaste_core::TriggeredAbility;
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
@@ -161,6 +163,10 @@ fn green_source(name: &str) -> Arc<Card> {
 }
 
 fn mana_source(name: &str, cost: Cost, color: Color) -> Arc<Card> {
+    mana_source_for(name, cost, color, Reference::You)
+}
+
+fn mana_source_for(name: &str, cost: Cost, color: Color, recipient: Reference) -> Arc<Card> {
     Arc::new(Card::Normal(CardFace {
         name: name.into(),
         types: vec![Type::Land.def()],
@@ -173,10 +179,407 @@ fn mana_source(name: &str, cost: Cost, color: Color) -> Arc<Card> {
                 condition: None,
                 limits: Arc::from([]),
                 effect: OneShotEffect::Act(CoreAction::AddMana(
-                    Reference::You,
+                    recipient,
                     Count::Literal(1),
                     ManaSpec::Specific(color.into()).into(),
                 )),
+            }),
+            profile: deckmaste_core::ActivatedManaProfile::Always,
+        })],
+        ..CardFace::default()
+    }))
+}
+
+fn suspending_barred_mana_source() -> Arc<Card> {
+    let choose = OneShotEffect::Modal(Modal {
+        choose: ChooseSpec {
+            count: Quantity::one(),
+            up_to: false,
+            repeats: false,
+            chooser: Reference::You,
+            rider: None,
+        },
+        modes: vec![
+            Mode {
+                effect: OneShotEffect::Sequentially(Arc::from([])),
+                cost: None,
+            },
+            Mode {
+                effect: OneShotEffect::Sequentially(Arc::from([])),
+                cost: None,
+            },
+        ]
+        .into(),
+    });
+    Arc::new(Card::Normal(CardFace {
+        name: "Suspending barred mana source".into(),
+        types: vec![Type::Artifact.def()],
+        abilities: vec![Ability::Mana(ManaAbility::Activated {
+            ability: Arc::new(ActivatedAbility {
+                ability_word: None,
+                cost: Cost(Arc::from([])),
+                from: None,
+                window: None,
+                condition: None,
+                limits: Arc::from([]),
+                effect: OneShotEffect::Sequentially(
+                    vec![
+                        OneShotEffect::Act(CoreAction::Move(
+                            Reference::This,
+                            Destination::Library(Anchor::FromBottom(Count::Literal(0))),
+                            Arc::from([]),
+                            Some(Zone::Battlefield),
+                        )),
+                        choose,
+                        OneShotEffect::Act(CoreAction::AddMana(
+                            Reference::You,
+                            Count::Literal(1),
+                            ManaSpec::Specific(Color::Green.into()).into(),
+                        )),
+                    ]
+                    .into(),
+                ),
+            }),
+            profile: deckmaste_core::ActivatedManaProfile::Always,
+        })],
+        ..CardFace::default()
+    }))
+}
+
+fn token_creating_barred_mana_source() -> Arc<Card> {
+    let token = Token {
+        name: None,
+        color_indicator: Arc::from([]),
+        supertypes: Arc::from([]),
+        types: vec![Type::Artifact.def()].into(),
+        subtypes: Arc::from([]),
+        abilities: Arc::from([]),
+        power: None,
+        toughness: None,
+    };
+    Arc::new(Card::Normal(CardFace {
+        name: "Token-creating barred source".into(),
+        types: vec![Type::Artifact.def()],
+        abilities: vec![Ability::Mana(ManaAbility::Activated {
+            ability: Arc::new(ActivatedAbility {
+                ability_word: None,
+                cost: Cost(
+                    vec![CostComponent::do_action(CoreAction::Move(
+                        Reference::This,
+                        Destination::Library(Anchor::FromBottom(Count::Literal(0))),
+                        Arc::from([]),
+                        Some(Zone::Battlefield),
+                    ))]
+                    .into(),
+                ),
+                from: None,
+                window: None,
+                condition: None,
+                limits: Arc::from([]),
+                effect: OneShotEffect::Sequentially(
+                    vec![
+                        OneShotEffect::Act(CoreAction::Create {
+                            agent: Reference::You,
+                            count: Count::Literal(1),
+                            token: token.into(),
+                            riders: Arc::from([]),
+                        }),
+                        OneShotEffect::Act(CoreAction::AddMana(
+                            Reference::You,
+                            Count::Literal(1),
+                            ManaSpec::Specific(Color::Green.into()).into(),
+                        )),
+                    ]
+                    .into(),
+                ),
+            }),
+            profile: deckmaste_core::ActivatedManaProfile::Always,
+        })],
+        ..CardFace::default()
+    }))
+}
+
+fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
+    let token_ability = Ability::Mana(ManaAbility::Activated {
+        ability: Arc::new(ActivatedAbility {
+            ability_word: None,
+            cost: Cost(vec![CostComponent::Tap].into()),
+            from: None,
+            window: None,
+            condition: None,
+            limits: Arc::from([]),
+            effect: OneShotEffect::With(deckmaste_core::With {
+                binder: Binder::ChooseOne {
+                    filter: Predicate::And(
+                        vec![
+                            Predicate::r#type(Type::Artifact),
+                            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                        ]
+                        .into(),
+                    ),
+                    by: Reference::You,
+                },
+                body: Arc::new(OneShotEffect::Act(CoreAction::AddMana(
+                    Reference::You,
+                    Count::Literal(1),
+                    ManaSpec::Specific(Color::Green.into()).into(),
+                ))),
+            }),
+        }),
+        profile: deckmaste_core::ActivatedManaProfile::Always,
+    });
+    let token = Token {
+        name: Some("Replay mana token".into()),
+        color_indicator: Arc::from([]),
+        supertypes: Arc::from([]),
+        types: vec![Type::Artifact.def()].into(),
+        subtypes: Arc::from([]),
+        abilities: vec![token_ability].into(),
+        power: None,
+        toughness: None,
+    };
+    Arc::new(Card::Normal(CardFace {
+        name: "Created-source producer".into(),
+        types: vec![Type::Artifact.def()],
+        abilities: vec![Ability::Mana(ManaAbility::Activated {
+            ability: Arc::new(ActivatedAbility {
+                ability_word: None,
+                cost: Cost(
+                    vec![CostComponent::do_action(CoreAction::Move(
+                        Reference::This,
+                        Destination::Library(Anchor::FromBottom(Count::Literal(0))),
+                        Arc::from([]),
+                        Some(Zone::Battlefield),
+                    ))]
+                    .into(),
+                ),
+                from: None,
+                window: None,
+                condition: None,
+                limits: Arc::from([]),
+                effect: OneShotEffect::Sequentially(
+                    vec![
+                        OneShotEffect::Act(CoreAction::Create {
+                            agent: Reference::You,
+                            count: Count::Literal(1),
+                            token: token.into(),
+                            riders: Arc::from([]),
+                        }),
+                        OneShotEffect::Act(CoreAction::AddMana(
+                            Reference::You,
+                            Count::Literal(1),
+                            ManaSpec::Specific(Color::Green.into()).into(),
+                        )),
+                    ]
+                    .into(),
+                ),
+            }),
+            profile: deckmaste_core::ActivatedManaProfile::Always,
+        })],
+        ..CardFace::default()
+    }))
+}
+
+fn fulfillment_created_mana_source_replacements() -> (Arc<Card>, Arc<Card>) {
+    let token_ability = Ability::Mana(ManaAbility::Activated {
+        ability: Arc::new(ActivatedAbility {
+            ability_word: None,
+            cost: Cost(vec![CostComponent::Tap].into()),
+            from: None,
+            window: None,
+            condition: None,
+            limits: Arc::from([]),
+            effect: OneShotEffect::Act(CoreAction::AddMana(
+                Reference::You,
+                Count::Literal(1),
+                ManaSpec::Specific(Color::Green.into()).into(),
+            )),
+        }),
+        profile: deckmaste_core::ActivatedManaProfile::Always,
+    });
+    let token = Token {
+        name: Some("Fulfillment-created helper".into()),
+        color_indicator: Arc::from([]),
+        supertypes: Arc::from([]),
+        types: vec![Type::Artifact.def()].into(),
+        subtypes: Arc::from([]),
+        abilities: vec![token_ability].into(),
+        power: None,
+        toughness: None,
+    };
+    let creator_replacement = Replacement::Instead {
+        would: EventFilter::LifeLost {
+            who: Predicate::Any,
+            amount: None,
+        },
+        instead: OneShotEffect::Sequentially(
+            vec![
+                OneShotEffect::Act(CoreAction::Create {
+                    agent: Reference::You,
+                    count: Count::Literal(1),
+                    token: token.into(),
+                    riders: Arc::from([]),
+                }),
+                OneShotEffect::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
+                    Reference::You,
+                ))),
+            ]
+            .into(),
+        ),
+    };
+    let creator = Arc::new(Card::Normal(CardFace {
+        name: "Fulfillment source creator".into(),
+        types: vec![Type::Enchantment.def()],
+        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+            creator_replacement,
+        )))],
+        ..CardFace::default()
+    }));
+    let optional_replacement = Replacement::Instead {
+        would: EventFilter::ZoneChange {
+            what: Predicate::Any,
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+            cause: None,
+        },
+        instead: OneShotEffect::May(May {
+            who: Reference::You,
+            effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
+                vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
+            )))),
+            if_did: None,
+            if_not: None,
+        }),
+    };
+    let optional = Arc::new(Card::Normal(CardFace {
+        name: "Fulfillment source consumer".into(),
+        types: vec![Type::Enchantment.def()],
+        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+            optional_replacement,
+        )))],
+        ..CardFace::default()
+    }));
+    (creator, optional)
+}
+
+fn token_creating_then_choosing_barred_mana_source() -> Arc<Card> {
+    let token = Token {
+        name: Some("Same-record choice token".into()),
+        color_indicator: Arc::from([]),
+        supertypes: Arc::from([]),
+        types: vec![Type::Artifact.def()].into(),
+        subtypes: Arc::from([]),
+        abilities: Arc::from([]),
+        power: None,
+        toughness: None,
+    };
+    Arc::new(Card::Normal(CardFace {
+        name: "Same-record choice source".into(),
+        types: vec![Type::Artifact.def()],
+        abilities: vec![Ability::Mana(ManaAbility::Activated {
+            ability: Arc::new(ActivatedAbility {
+                ability_word: None,
+                cost: Cost(
+                    vec![CostComponent::do_action(CoreAction::Move(
+                        Reference::This,
+                        Destination::Library(Anchor::FromBottom(Count::Literal(0))),
+                        Arc::from([]),
+                        Some(Zone::Battlefield),
+                    ))]
+                    .into(),
+                ),
+                from: None,
+                window: None,
+                condition: None,
+                limits: Arc::from([]),
+                effect: OneShotEffect::Sequentially(
+                    vec![
+                        OneShotEffect::Act(CoreAction::Create {
+                            agent: Reference::You,
+                            count: Count::Literal(1),
+                            token: token.into(),
+                            riders: Arc::from([]),
+                        }),
+                        OneShotEffect::With(deckmaste_core::With {
+                            binder: Binder::ChooseOne {
+                                filter: Predicate::And(
+                                    vec![
+                                        Predicate::Characteristic(CharacteristicPredicate::Named(
+                                            "Same-record choice token".into(),
+                                        )),
+                                        Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                                    ]
+                                    .into(),
+                                ),
+                                by: Reference::You,
+                            },
+                            body: Arc::new(OneShotEffect::Act(CoreAction::AddMana(
+                                Reference::You,
+                                Count::Literal(1),
+                                ManaSpec::Specific(Color::Green.into()).into(),
+                            ))),
+                        }),
+                    ]
+                    .into(),
+                ),
+            }),
+            profile: deckmaste_core::ActivatedManaProfile::Always,
+        })],
+        ..CardFace::default()
+    }))
+}
+
+fn token_revealing_reversible_mana_source() -> Arc<Card> {
+    let token = Token {
+        name: Some("Observed transient token".into()),
+        color_indicator: Arc::from([]),
+        supertypes: Arc::from([]),
+        types: vec![Type::Artifact.def()].into(),
+        subtypes: Arc::from([]),
+        abilities: Arc::from([]),
+        power: None,
+        toughness: None,
+    };
+    Arc::new(Card::Normal(CardFace {
+        name: "Transient token source".into(),
+        types: vec![Type::Artifact.def()],
+        abilities: vec![Ability::Mana(ManaAbility::Activated {
+            ability: Arc::new(ActivatedAbility {
+                ability_word: None,
+                cost: Cost(vec![CostComponent::Tap].into()),
+                from: None,
+                window: None,
+                condition: None,
+                limits: Arc::from([]),
+                effect: OneShotEffect::Sequentially(
+                    vec![
+                        OneShotEffect::Act(CoreAction::Create {
+                            agent: Reference::You,
+                            count: Count::Literal(1),
+                            token: token.into(),
+                            riders: Arc::from([]),
+                        }),
+                        OneShotEffect::With(deckmaste_core::With {
+                            binder: Binder::TheRef(Reference::Single(Arc::new(
+                                deckmaste_core::Selection::SelectAll(Predicate::Characteristic(
+                                    CharacteristicPredicate::Named(
+                                        "Observed transient token".into(),
+                                    ),
+                                )),
+                            ))),
+                            body: Arc::new(OneShotEffect::Act(CoreAction::Reveal {
+                                what: Reference::That(Sort::Token),
+                                to: None,
+                            })),
+                        }),
+                        OneShotEffect::Act(CoreAction::AddMana(
+                            Reference::You,
+                            Count::Literal(1),
+                            ManaSpec::Specific(Color::Green.into()).into(),
+                        )),
+                    ]
+                    .into(),
+                ),
             }),
             profile: deckmaste_core::ActivatedManaProfile::Always,
         })],
@@ -265,6 +668,13 @@ fn mox_amber_fixture() -> Arc<Card> {
     let colored_legend = Predicate::And(
         vec![
             Predicate::Characteristic(CharacteristicPredicate::Supertype(Supertype::Legendary)),
+            Predicate::Or(
+                vec![
+                    Predicate::r#type(Type::Creature),
+                    Predicate::r#type(Type::Planeswalker),
+                ]
+                .into(),
+            ),
             Predicate::Not(Arc::new(Predicate::Characteristic(
                 CharacteristicPredicate::Colorless,
             ))),
@@ -275,19 +685,18 @@ fn mox_amber_fixture() -> Arc<Card> {
         ]
         .into(),
     );
-    let effect = OneShotEffect::With(deckmaste_core::With {
-        binder: Binder::ChooseOne {
-            filter: colored_legend,
-            by: Reference::You,
-        },
-        body: Arc::new(OneShotEffect::Act(CoreAction::AddMana(
-            Reference::You,
-            Count::Literal(1),
-            ManaSpec::AmongColorsOf(Reference::That(Sort::Permanent)).into(),
-        ))),
-    });
+    let sole_eligible_legend = Reference::Single(Arc::new(deckmaste_core::Selection::SelectAll(
+        colored_legend,
+    )));
+    let effect = OneShotEffect::Act(CoreAction::AddMana(
+        Reference::You,
+        Count::Literal(1),
+        ManaSpec::AmongColorsOf(sole_eligible_legend).into(),
+    ));
     Arc::new(Card::Normal(CardFace {
         name: "Mox Amber".into(),
+        mana_cost: "{0}".parse().unwrap(),
+        supertypes: vec![Supertype::Legendary],
         types: vec![Type::Artifact.def()],
         abilities: vec![Ability::Mana(ManaAbility::Activated {
             ability: Arc::new(ActivatedAbility {
@@ -329,15 +738,16 @@ fn omnath_fixture() -> Arc<Card> {
     Arc::new(Card::Normal(CardFace {
         name: "Omnath, Locus of Mana".into(),
         mana_cost: "{2}{G}".parse().unwrap(),
+        supertypes: vec![Supertype::Legendary],
         types: vec![Type::Creature.def()],
-        power: Some(StatValue::Count(green.clone())),
-        toughness: Some(StatValue::Count(green.clone())),
+        power: Some(StatValue::Number(1)),
+        toughness: Some(StatValue::Number(1)),
         abilities: vec![Ability::r#static(StaticEffect::Modify(
             Reference::This,
             Modification::Several(
                 vec![
-                    Modification::Power(NumericOp::Set(StatValue::Count(green.clone()))),
-                    Modification::Toughness(NumericOp::Set(StatValue::Count(green))),
+                    Modification::Power(NumericOp::Up(green.clone())),
+                    Modification::Toughness(NumericOp::Up(green)),
                 ]
                 .into(),
             ),
@@ -396,10 +806,10 @@ fn bighorner_rancher_fixture() -> Arc<Card> {
     );
     Arc::new(Card::Normal(CardFace {
         name: "Bighorner Rancher".into(),
-        mana_cost: "{3}{G}".parse().unwrap(),
+        mana_cost: "{4}{G}".parse().unwrap(),
         types: vec![Type::Creature.def()],
-        power: Some(StatValue::Number(1)),
-        toughness: Some(StatValue::Number(1)),
+        power: Some(StatValue::Number(2)),
+        toughness: Some(StatValue::Number(5)),
         abilities: vec![Ability::Mana(ManaAbility::Activated {
             ability: Arc::new(ActivatedAbility {
                 ability_word: None,
@@ -468,6 +878,60 @@ fn submit_tap_mana_action(
 }
 
 #[test]
+fn mana_dependencies_qualify_pool_local_ids_by_player() {
+    let opponent_source = mana_source_for(
+        "Opponent producer",
+        Cost(vec![CostComponent::Tap].into()),
+        Color::Green,
+        Reference::Opponent,
+    );
+    let self_source = green_source("Self producer");
+    let costed_source = mana_source(
+        "Costed producer",
+        Cost(vec![CostComponent::Mana("{1}".parse::<ManaCost>().unwrap())].into()),
+        Color::Green,
+    );
+    let (mut state, payer, parent) = activation_fixture_with_extras(
+        vec![CostComponent::Mana("{G}".parse::<ManaCost>().unwrap())],
+        vec![opponent_source, self_source, costed_source],
+    );
+    let opponent = put_named_in_play(&mut state, payer, "Opponent producer");
+    let own = put_named_in_play(&mut state, payer, "Self producer");
+    let costed = put_named_in_play(&mut state, payer, "Costed producer");
+    announce(&mut state, parent);
+    submit_tap_mana_action(&mut state, opponent);
+    let opponent_record = state.payment_records().unwrap().last().unwrap().id;
+    submit_tap_mana_action(&mut state, own);
+    let own_record = state.payment_records().unwrap().last().unwrap().id;
+    assert_eq!(state.player(PlayerId(1)).mana_pool.units()[0].id.0, 0);
+    assert_eq!(state.player(payer).mana_pool.units()[0].id.0, 0);
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: costed,
+            ability: 0,
+        }))
+        .unwrap();
+    let child = run_to_payment(&mut state);
+    let pip = child.outstanding[0].id;
+    let mana = state.player(payer).mana_pool.units()[0].id;
+    let mut coverage = ManaCoverage::empty();
+    coverage.insert(pip, ManaPayment::Floating(mana));
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::BeginPayment(coverage)))
+        .unwrap();
+    fulfill(&mut state, pip, FulfillmentWitness::CoveredMana);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    run_to_payment(&mut state);
+
+    let record = state.payment_records().unwrap().last().unwrap();
+    assert_eq!(record.dependencies, vec![own_record]);
+    assert_ne!(record.dependencies, vec![opponent_record]);
+}
+
+#[test]
 fn rescind_replays_unrelated_later_fulfillment() {
     let pay_life = CostComponent::do_action(CoreAction::ChangeLife(
         Reference::You,
@@ -511,12 +975,12 @@ fn rescind_replays_unrelated_later_fulfillment() {
 
 #[test]
 fn library_barrier_rejects_selective_rescind_without_mutation() {
-    let put_on_bottom = CostComponent::Act(Arc::new(CoreAction::Move(
+    let put_on_bottom = CostComponent::do_action(CoreAction::Move(
         Reference::This,
         Destination::Library(Anchor::FromBottom(Count::Literal(0))),
         Arc::from([]),
         Some(Zone::Battlefield),
-    )));
+    ));
     let (mut state, payer, source) = activation_fixture(vec![put_on_bottom]);
     let prompt = announce(&mut state, source);
     let move_iou = prompt.outstanding[0].id;
@@ -550,12 +1014,12 @@ fn library_barrier_rejects_selective_rescind_without_mutation() {
 
 #[test]
 fn decline_unannounces_while_retaining_a_barred_root_fulfillment() {
-    let put_on_bottom = CostComponent::Act(Arc::new(CoreAction::Move(
+    let put_on_bottom = CostComponent::do_action(CoreAction::Move(
         Reference::This,
         Destination::Library(Anchor::FromBottom(Count::Literal(0))),
         Arc::from([]),
         Some(Zone::Battlefield),
-    )));
+    ));
     let (mut state, payer, source) = activation_fixture(vec![put_on_bottom]);
     let prompt = announce(&mut state, source);
     fulfill(
@@ -1178,12 +1642,12 @@ fn a_nested_producer_spent_by_a_barred_outer_cost_is_forced_to_remain() {
     let outer_cost = Cost(
         vec![
             CostComponent::Mana("{1}".parse::<ManaCost>().unwrap()),
-            CostComponent::Act(Arc::new(CoreAction::Move(
+            CostComponent::do_action(CoreAction::Move(
                 Reference::This,
                 Destination::Library(Anchor::FromBottom(Count::Literal(0))),
                 Arc::from([]),
                 Some(Zone::Battlefield),
-            ))),
+            )),
         ]
         .into(),
     );
@@ -1306,7 +1770,832 @@ fn decline_is_available_during_an_in_flight_replacement_choice() {
 }
 
 #[test]
-fn decline_records_an_observation_made_before_an_in_flight_choice() {
+fn rescind_replays_an_optional_payment_nested_inside_a_fulfillment() {
+    let replacement = Replacement::Instead {
+        would: EventFilter::ZoneChange {
+            what: Predicate::Any,
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+            cause: None,
+        },
+        instead: OneShotEffect::May(May {
+            who: Reference::You,
+            effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
+                vec![CostComponent::do_action(CoreAction::ChangeLife(
+                    Reference::You,
+                    LifeOp::Down(Count::Literal(1)),
+                ))]
+                .into(),
+            )))),
+            if_did: None,
+            if_not: None,
+        }),
+    };
+    let shield = Arc::new(Card::Normal(CardFace {
+        name: "Optional replacement".into(),
+        types: vec![Type::Enchantment.def()],
+        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+            replacement,
+        )))],
+        ..CardFace::default()
+    }));
+    let sacrifice =
+        CostComponent::do_action(CoreAction::Sacrifice(Reference::You, Reference::This));
+    let (mut state, payer, source) =
+        activation_fixture_with_extras(vec![CostComponent::Tap, sacrifice], vec![shield]);
+    put_named_in_play(&mut state, payer, "Optional replacement");
+    let prompt = announce(&mut state, source);
+    let tap = prompt
+        .outstanding
+        .iter()
+        .find(|iou| matches!(iou.kind, IouKind::Tap))
+        .unwrap()
+        .id;
+    let sacrifice = prompt
+        .outstanding
+        .iter()
+        .find(|iou| matches!(iou.kind, IouKind::Act(_)))
+        .unwrap()
+        .id;
+    fulfill(&mut state, tap, FulfillmentWitness::Bound);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: sacrifice,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    let optional = run_to_payment(&mut state);
+    assert_eq!(state.payment_depth(), 2);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: optional.outstanding[0].id,
+            witness: FulfillmentWitness::PayLife,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    let ready = run_to_payment(&mut state);
+    assert_eq!(
+        state.payment_depth(),
+        1,
+        "unexpected nested prompt: {ready:?}"
+    );
+    assert_eq!(ready.stage, deckmaste_engine::PaymentStage::Ready);
+    assert_eq!(state.player(payer).life, 19);
+    assert!(state.zones.battlefield.contains(&source));
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::RescindFulfillment(tap)))
+        .unwrap();
+
+    let PendingDecision::Payment(rebuilt) = state.pending.as_ref().unwrap() else {
+        panic!("rescind should resume the reconstructed parent payment");
+    };
+    assert_eq!(rebuilt.fulfilled, vec![sacrifice]);
+    assert_eq!(state.player(payer).life, 19);
+    assert!(state.zones.battlefield.contains(&source));
+}
+
+#[test]
+fn fulfillment_owned_mana_child_remains_a_separate_reversal_unit() {
+    let replacement = Replacement::Instead {
+        would: EventFilter::ZoneChange {
+            what: Predicate::Any,
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+            cause: None,
+        },
+        instead: OneShotEffect::May(May {
+            who: Reference::You,
+            effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
+                vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
+            )))),
+            if_did: None,
+            if_not: None,
+        }),
+    };
+    let shield = Arc::new(Card::Normal(CardFace {
+        name: "Optional mana replacement".into(),
+        types: vec![Type::Enchantment.def()],
+        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+            replacement,
+        )))],
+        ..CardFace::default()
+    }));
+    let helper_card = green_source("Fulfillment-owned helper");
+    let sacrifice =
+        CostComponent::do_action(CoreAction::Sacrifice(Reference::You, Reference::This));
+    let (mut state, payer, source) =
+        activation_fixture_with_extras(vec![sacrifice], vec![shield, helper_card]);
+    put_named_in_play(&mut state, payer, "Optional mana replacement");
+    let helper = put_named_in_play(&mut state, payer, "Fulfillment-owned helper");
+
+    let prompt = announce(&mut state, source);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: prompt.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    let optional = run_to_payment(&mut state);
+    assert_eq!(state.payment_depth(), 2);
+    assert!(optional.mana_abilities.contains(&(helper, 0)));
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: helper,
+            ability: 0,
+        }))
+        .unwrap();
+    let child = run_to_payment(&mut state);
+    fulfill(
+        &mut state,
+        child.outstanding[0].id,
+        FulfillmentWitness::Bound,
+    );
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+    let ready = run_to_payment(&mut state);
+    assert_eq!(ready.stage, deckmaste_engine::PaymentStage::Ready);
+
+    let [fulfillment] = state.payment_records().unwrap() else {
+        panic!("the completed fulfillment should own one nested mana child");
+    };
+    let child_action = fulfillment
+        .children
+        .iter()
+        .find_map(|record| match record.command {
+            deckmaste_engine::ReplayCommand::ManaAbility { action, .. } => Some(action),
+            deckmaste_engine::ReplayCommand::Fulfill { .. } => None,
+        })
+        .expect("the nested mana action remains recorded under the fulfillment");
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+        panic!("decline should expose the fulfillment-owned mana action");
+    };
+    assert!(choice.legal.contains(&Vec::new()));
+    assert!(choice.legal.contains(&vec![child_action]));
+    let mut reversed_state = state.clone();
+    state
+        .submit_decision(Decision::ManaReversals(Vec::new()))
+        .unwrap();
+
+    assert_eq!(state.payment_depth(), 0);
+    assert!(state.zones.battlefield.contains(&source));
+    assert!(state.objects.obj(helper).tapped);
+    assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 1);
+
+    reversed_state
+        .submit_decision(Decision::ManaReversals(vec![child_action]))
+        .unwrap();
+    assert_eq!(reversed_state.payment_depth(), 0);
+    assert!(reversed_state.zones.battlefield.contains(&source));
+    assert!(!reversed_state.objects.obj(helper).tapped);
+    assert_eq!(
+        reversed_state
+            .player(payer)
+            .mana_pool
+            .amount(Color::Green.into()),
+        0,
+    );
+}
+
+#[test]
+fn fulfillment_owned_mana_child_can_reverse_under_a_retained_parent() {
+    let replacement = Replacement::Instead {
+        would: EventFilter::ZoneChange {
+            what: Predicate::Any,
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+            cause: None,
+        },
+        instead: OneShotEffect::Sequentially(
+            vec![
+                OneShotEffect::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
+                    Reference::You,
+                ))),
+                OneShotEffect::May(May {
+                    who: Reference::You,
+                    effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
+                        vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
+                    )))),
+                    if_did: None,
+                    if_not: None,
+                }),
+            ]
+            .into(),
+        ),
+    };
+    let shield = Arc::new(Card::Normal(CardFace {
+        name: "Barred optional mana replacement".into(),
+        types: vec![Type::Enchantment.def()],
+        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+            replacement,
+        )))],
+        ..CardFace::default()
+    }));
+    let helper_card = green_source("Barred fulfillment helper");
+    let sacrifice =
+        CostComponent::do_action(CoreAction::Sacrifice(Reference::You, Reference::This));
+    let (mut state, payer, source) =
+        activation_fixture_with_extras(vec![sacrifice], vec![shield, helper_card]);
+    put_named_in_play(&mut state, payer, "Barred optional mana replacement");
+    let helper = put_named_in_play(&mut state, payer, "Barred fulfillment helper");
+
+    let prompt = announce(&mut state, source);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: prompt.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: helper,
+            ability: 0,
+        }))
+        .unwrap();
+    let child = run_to_payment(&mut state);
+    fulfill(
+        &mut state,
+        child.outstanding[0].id,
+        FulfillmentWitness::Bound,
+    );
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+    run_to_payment(&mut state);
+
+    let [fulfillment] = state.payment_records().unwrap() else {
+        panic!("the retained fulfillment should own one nested mana child");
+    };
+    let fulfillment_id = fulfillment.id;
+    assert!(
+        fulfillment
+            .reversal_barriers
+            .contains(&ReversalBarrier::ShuffledLibrary)
+    );
+    let child_action = fulfillment
+        .children
+        .iter()
+        .find_map(|record| match record.command {
+            deckmaste_engine::ReplayCommand::ManaAbility { action, .. } => Some(action),
+            deckmaste_engine::ReplayCommand::Fulfill { .. } => None,
+        })
+        .expect("the fulfillment retains its nested mana child");
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+        panic!("the retained fulfillment should still expose its child reversal");
+    };
+    assert!(choice.legal.contains(&vec![child_action]));
+    state
+        .submit_decision(Decision::ManaReversals(vec![child_action]))
+        .unwrap();
+
+    assert_eq!(state.payment_depth(), 0);
+    assert!(state.zones.battlefield.contains(&source));
+    assert!(!state.objects.obj(helper).tapped);
+    assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 0);
+    assert!(matches!(
+        state.incidents(),
+        [EngineIncident::PaymentDeclined(incident)]
+            if incident.crossed_reversal_barrier
+                && incident.forced_retained_records == vec![fulfillment_id]
+    ));
+}
+
+#[test]
+fn omitted_fulfillment_mana_child_replays_after_earlier_created_source() {
+    let (creator, optional) = fulfillment_created_mana_source_replacements();
+    let pay_life = CostComponent::do_action(CoreAction::ChangeLife(
+        Reference::You,
+        LifeOp::Down(Count::Literal(1)),
+    ));
+    let sacrifice =
+        CostComponent::do_action(CoreAction::Sacrifice(Reference::You, Reference::This));
+    let (mut state, payer, source) =
+        activation_fixture_with_extras(vec![pay_life, sacrifice], vec![creator, optional]);
+    put_named_in_play(&mut state, payer, "Fulfillment source creator");
+    put_named_in_play(&mut state, payer, "Fulfillment source consumer");
+
+    let prompt = announce(&mut state, source);
+    let life = prompt
+        .outstanding
+        .iter()
+        .find(|iou| matches!(iou.kind, IouKind::PayLife(1)))
+        .unwrap()
+        .id;
+    let sacrifice = prompt
+        .outstanding
+        .iter()
+        .find(|iou| matches!(iou.kind, IouKind::Act(_)))
+        .unwrap()
+        .id;
+    fulfill(&mut state, life, FulfillmentWitness::PayLife);
+    let helper = state
+        .zones
+        .battlefield
+        .iter()
+        .copied()
+        .find(|&object| {
+            matches!(
+                state.def(object),
+                Card::Normal(face) if face.name.as_ref() == "Fulfillment-created helper"
+            )
+        })
+        .expect("the retained fulfillment creates the later mana source");
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: sacrifice,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: helper,
+            ability: 0,
+        }))
+        .unwrap();
+    let child = run_to_payment(&mut state);
+    fulfill(
+        &mut state,
+        child.outstanding[0].id,
+        FulfillmentWitness::Bound,
+    );
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+    run_to_payment(&mut state);
+
+    let [creator_record, consumer_record] = state.payment_records().unwrap() else {
+        panic!("the two fulfillments should remain distinct root records");
+    };
+    assert!(
+        creator_record
+            .reversal_barriers
+            .contains(&ReversalBarrier::ShuffledLibrary)
+    );
+    let child_action = consumer_record
+        .children
+        .iter()
+        .find_map(|record| match record.command {
+            deckmaste_engine::ReplayCommand::ManaAbility { action, .. } => Some(action),
+            deckmaste_engine::ReplayCommand::Fulfill { .. } => None,
+        })
+        .expect("the omitted fulfillment owns its nested mana action");
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+        panic!("decline should expose the fulfillment-owned mana action");
+    };
+    assert!(choice.legal.contains(&Vec::new()));
+    assert!(choice.legal.contains(&vec![child_action]));
+    let mut reversed_state = state.clone();
+    state
+        .submit_decision(Decision::ManaReversals(Vec::new()))
+        .unwrap();
+    reversed_state
+        .submit_decision(Decision::ManaReversals(vec![child_action]))
+        .unwrap();
+
+    let retained_helper = state
+        .zones
+        .battlefield
+        .iter()
+        .copied()
+        .find(|&object| {
+            matches!(
+                state.def(object),
+                Card::Normal(face) if face.name.as_ref() == "Fulfillment-created helper"
+            )
+        })
+        .expect("replay remints the retained child's source");
+    assert!(state.objects.obj(retained_helper).tapped);
+    assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 1);
+
+    let reversed_helper = reversed_state
+        .zones
+        .battlefield
+        .iter()
+        .copied()
+        .find(|&object| {
+            matches!(
+                reversed_state.def(object),
+                Card::Normal(face) if face.name.as_ref() == "Fulfillment-created helper"
+            )
+        })
+        .expect("reversing only the child retains its source creator");
+    assert!(!reversed_state.objects.obj(reversed_helper).tapped);
+    assert_eq!(
+        reversed_state
+            .player(payer)
+            .mana_pool
+            .amount(Color::Green.into()),
+        0,
+    );
+}
+
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the suspended fulfillment regression exercises two causal mana children and both reversal outcomes"
+)]
+fn suspended_fulfillment_keeps_dependent_mana_children_separately_reversible() {
+    let modal = OneShotEffect::Modal(Modal {
+        choose: ChooseSpec {
+            count: Quantity::one(),
+            up_to: false,
+            repeats: false,
+            chooser: Reference::You,
+            rider: None,
+        },
+        modes: vec![
+            Mode {
+                effect: OneShotEffect::Sequentially(Arc::from([])),
+                cost: None,
+            },
+            Mode {
+                effect: OneShotEffect::Sequentially(Arc::from([])),
+                cost: None,
+            },
+        ]
+        .into(),
+    });
+    let replacement = Replacement::Instead {
+        would: EventFilter::ZoneChange {
+            what: Predicate::Any,
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+            cause: None,
+        },
+        instead: OneShotEffect::Sequentially(
+            vec![
+                OneShotEffect::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
+                    Reference::You,
+                ))),
+                OneShotEffect::May(May {
+                    who: Reference::You,
+                    effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
+                        vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
+                    )))),
+                    if_did: None,
+                    if_not: Some(Arc::new(modal)),
+                }),
+            ]
+            .into(),
+        ),
+    };
+    let shield = Arc::new(Card::Normal(CardFace {
+        name: "Suspended optional mana replacement".into(),
+        types: vec![Type::Enchantment.def()],
+        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+            replacement,
+        )))],
+        ..CardFace::default()
+    }));
+    let helper_card = green_source("Suspended fulfillment helper");
+    let filter_card = mana_source(
+        "Suspended fulfillment filter",
+        Cost(
+            vec![
+                CostComponent::Mana("{G}".parse().unwrap()),
+                CostComponent::Tap,
+            ]
+            .into(),
+        ),
+        Color::Black,
+    );
+    let sacrifice =
+        CostComponent::do_action(CoreAction::Sacrifice(Reference::You, Reference::This));
+    let (mut state, payer, source) =
+        activation_fixture_with_extras(vec![sacrifice], vec![shield, helper_card, filter_card]);
+    put_named_in_play(&mut state, payer, "Suspended optional mana replacement");
+    let helper = put_named_in_play(&mut state, payer, "Suspended fulfillment helper");
+    let filter = put_named_in_play(&mut state, payer, "Suspended fulfillment filter");
+
+    let prompt = announce(&mut state, source);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: prompt.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: helper,
+            ability: 0,
+        }))
+        .unwrap();
+    let child = run_to_payment(&mut state);
+    fulfill(
+        &mut state,
+        child.outstanding[0].id,
+        FulfillmentWitness::Bound,
+    );
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    run_to_payment(&mut state);
+
+    let helper_mana = state.player(payer).mana_pool.units()[0].id;
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: filter,
+            ability: 0,
+        }))
+        .unwrap();
+    let filter_payment = run_to_payment(&mut state);
+    let pip = filter_payment
+        .outstanding
+        .iter()
+        .find(|iou| matches!(iou.kind, IouKind::ManaPip(_)))
+        .unwrap()
+        .id;
+    let tap = filter_payment
+        .outstanding
+        .iter()
+        .find(|iou| matches!(iou.kind, IouKind::Tap))
+        .unwrap()
+        .id;
+    let mut coverage = ManaCoverage::empty();
+    coverage.insert(pip, ManaPayment::Floating(helper_mana));
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::BeginPayment(coverage)))
+        .unwrap();
+    fulfill(&mut state, pip, FulfillmentWitness::CoveredMana);
+    fulfill(&mut state, tap, FulfillmentWitness::Bound);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    run_to_payment(&mut state);
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+    loop {
+        match state.step() {
+            StepOutcome::Progress(_) => {}
+            StepOutcome::NeedsDecision(PendingDecision::ChooseModes(_)) => break,
+            other => panic!("the fulfillment should suspend after Optional decline, got {other:?}"),
+        }
+    }
+    let helper_action = deckmaste_engine::ManaActionId(0);
+    let filter_action = deckmaste_engine::ManaActionId(1);
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+        panic!("suspended decline should expose the nested child reversal");
+    };
+    assert!(choice.legal.contains(&Vec::new()));
+    assert!(!choice.legal.contains(&vec![helper_action]));
+    assert!(choice.legal.contains(&vec![filter_action]));
+    assert!(choice.legal.contains(&vec![helper_action, filter_action]));
+    let mut filter_reversed = state.clone();
+    let mut both_reversed = state.clone();
+    state
+        .submit_decision(Decision::ManaReversals(Vec::new()))
+        .unwrap();
+    filter_reversed
+        .submit_decision(Decision::ManaReversals(vec![filter_action]))
+        .unwrap();
+    both_reversed
+        .submit_decision(Decision::ManaReversals(vec![helper_action, filter_action]))
+        .unwrap();
+
+    assert!(state.objects.obj(helper).tapped);
+    assert!(state.objects.obj(filter).tapped);
+    assert_eq!(state.player(payer).mana_pool.amount(Color::Black.into()), 1);
+
+    assert!(filter_reversed.objects.obj(helper).tapped);
+    assert!(!filter_reversed.objects.obj(filter).tapped);
+    assert_eq!(
+        filter_reversed
+            .player(payer)
+            .mana_pool
+            .amount(Color::Green.into()),
+        1
+    );
+
+    assert!(!both_reversed.objects.obj(helper).tapped);
+    assert!(!both_reversed.objects.obj(filter).tapped);
+    assert_eq!(
+        both_reversed
+            .player(payer)
+            .mana_pool
+            .amount(Color::Green.into()),
+        0
+    );
+    assert_eq!(
+        both_reversed
+            .player(payer)
+            .mana_pool
+            .amount(Color::Black.into()),
+        0
+    );
+}
+
+#[test]
+fn decline_retains_a_library_move_from_an_in_flight_fulfillment() {
+    let modal = OneShotEffect::Modal(Modal {
+        choose: ChooseSpec {
+            count: Quantity::one(),
+            up_to: false,
+            repeats: false,
+            chooser: Reference::You,
+            rider: None,
+        },
+        modes: vec![
+            Mode {
+                effect: OneShotEffect::Sequentially(Arc::from([])),
+                cost: None,
+            },
+            Mode {
+                effect: OneShotEffect::Sequentially(Arc::from([])),
+                cost: None,
+            },
+        ]
+        .into(),
+    });
+    let replacement = Replacement::Instead {
+        would: EventFilter::ZoneChange {
+            what: Predicate::Any,
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+            cause: None,
+        },
+        instead: OneShotEffect::Sequentially(
+            vec![
+                OneShotEffect::Act(CoreAction::Move(
+                    Reference::EventObject,
+                    Destination::Library(Anchor::FromBottom(Count::Literal(0))),
+                    Arc::from([]),
+                    Some(Zone::Battlefield),
+                )),
+                modal,
+            ]
+            .into(),
+        ),
+    };
+    let shield = Arc::new(Card::Normal(CardFace {
+        name: "Barred replacement".into(),
+        types: vec![Type::Enchantment.def()],
+        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+            replacement,
+        )))],
+        ..CardFace::default()
+    }));
+    let sacrifice_self =
+        CostComponent::do_action(CoreAction::Sacrifice(Reference::You, Reference::This));
+    let (mut state, payer, source) =
+        activation_fixture_with_extras(vec![sacrifice_self], vec![shield]);
+    put_named_in_play(&mut state, payer, "Barred replacement");
+    let prompt = announce(&mut state, source);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: prompt.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    loop {
+        match state.step() {
+            StepOutcome::Progress(_) => {}
+            StepOutcome::NeedsDecision(PendingDecision::ChooseModes(_)) => break,
+            other => panic!("expected the cost's modal choice, got {other:?}"),
+        }
+    }
+    assert!(!state.zones.battlefield.contains(&source));
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+
+    assert_eq!(state.payment_depth(), 0);
+    assert!(!state.zones.battlefield.contains(&source));
+    assert_eq!(state.zones.libraries[payer.index()].len(), 1);
+    assert!(matches!(
+        state.incidents(),
+        [EngineIncident::PaymentDeclined(incident)]
+            if incident.crossed_reversal_barrier
+                && incident.forced_retained_records.len() == 1
+    ));
+}
+
+#[test]
+fn decline_replays_a_retained_fulfillment_that_creates_then_remints_a_token() {
+    let token = Token {
+        name: Some("Transient replay token".into()),
+        color_indicator: Arc::from([]),
+        supertypes: Arc::from([]),
+        types: vec![Type::Artifact.def()].into(),
+        subtypes: Arc::from([]),
+        abilities: Arc::from([]),
+        power: None,
+        toughness: None,
+    };
+    let token_on_battlefield = Predicate::And(
+        vec![
+            Predicate::Characteristic(CharacteristicPredicate::Named(
+                "Transient replay token".into(),
+            )),
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+        ]
+        .into(),
+    );
+    let replacement = Replacement::Instead {
+        would: EventFilter::LifeLost {
+            who: Predicate::Any,
+            amount: None,
+        },
+        instead: OneShotEffect::Sequentially(
+            vec![
+                OneShotEffect::Act(CoreAction::Create {
+                    agent: Reference::You,
+                    count: Count::Literal(1),
+                    token: token.into(),
+                    riders: Arc::from([]),
+                }),
+                OneShotEffect::Act(CoreAction::Move(
+                    Reference::Single(
+                        deckmaste_core::Selection::SelectAll(token_on_battlefield.clone()).into(),
+                    ),
+                    Destination::Zone(Zone::Battlefield),
+                    Arc::from([]),
+                    Some(Zone::Battlefield),
+                )),
+                OneShotEffect::Act(CoreAction::Move(
+                    Reference::Single(
+                        deckmaste_core::Selection::SelectAll(token_on_battlefield).into(),
+                    ),
+                    Destination::Library(Anchor::FromBottom(Count::Literal(0))),
+                    Arc::from([]),
+                    Some(Zone::Battlefield),
+                )),
+            ]
+            .into(),
+        ),
+    };
+    let shield = Arc::new(Card::Normal(CardFace {
+        name: "Create-remint replacement".into(),
+        types: vec![Type::Enchantment.def()],
+        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+            replacement,
+        )))],
+        ..CardFace::default()
+    }));
+    let pay_life = CostComponent::do_action(CoreAction::ChangeLife(
+        Reference::You,
+        LifeOp::Down(Count::Literal(1)),
+    ));
+    let (mut state, payer, source) = activation_fixture_with_extras(vec![pay_life], vec![shield]);
+    put_named_in_play(&mut state, payer, "Create-remint replacement");
+    let prompt = announce(&mut state, source);
+    fulfill(
+        &mut state,
+        prompt.outstanding[0].id,
+        FulfillmentWitness::PayLife,
+    );
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+
+    assert_eq!(state.payment_depth(), 0);
+    assert!(state.zones.battlefield.contains(&source));
+    assert!(matches!(
+        state.incidents(),
+        [EngineIncident::PaymentDeclined(incident)] if incident.crossed_reversal_barrier
+    ));
+}
+
+#[test]
+fn decline_preserves_a_public_reveal_without_crossing_an_observation_barrier() {
     let modal = OneShotEffect::Modal(Modal {
         choose: ChooseSpec {
             count: Quantity::one(),
@@ -1378,10 +2667,12 @@ fn decline_records_an_observation_made_before_an_in_flight_choice() {
         .unwrap();
 
     assert!(state.zones.battlefield.contains(&source));
+    assert!(state.look_grants.contains(&(payer, source)));
+    assert!(state.look_grants.contains(&(PlayerId(1), source)));
     assert!(matches!(
         state.incidents(),
         [EngineIncident::PaymentDeclined(incident)]
-            if incident.crossed_observation_barrier
+            if !incident.crossed_observation_barrier
                 && !incident.crossed_reversal_barrier
     ));
 }
@@ -1389,12 +2680,12 @@ fn decline_records_an_observation_made_before_an_in_flight_choice() {
 #[test]
 fn submitted_mana_action_with_a_library_barrier_is_forced_to_remain() {
     let put_self_on_bottom = Cost(
-        vec![CostComponent::Act(Arc::new(CoreAction::Move(
+        vec![CostComponent::do_action(CoreAction::Move(
             Reference::This,
             Destination::Library(Anchor::FromBottom(Count::Literal(0))),
             Arc::from([]),
             Some(Zone::Battlefield),
-        )))]
+        ))]
         .into(),
     );
     let (mut state, payer, parent) = activation_fixture_with_extras(
@@ -1447,6 +2738,339 @@ fn submitted_mana_action_with_a_library_barrier_is_forced_to_remain() {
 }
 
 #[test]
+fn retained_mana_action_rebinds_objects_it_created_during_replay() {
+    let (mut state, payer, parent) = activation_fixture_with_extras(
+        vec![CostComponent::Mana("{G}".parse::<ManaCost>().unwrap())],
+        vec![token_creating_barred_mana_source()],
+    );
+    let source = put_named_in_play(&mut state, payer, "Token-creating barred source");
+    announce(&mut state, parent);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source,
+            ability: 0,
+        }))
+        .unwrap();
+    let child = run_to_payment(&mut state);
+    fulfill(
+        &mut state,
+        child.outstanding[0].id,
+        FulfillmentWitness::Bound,
+    );
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    run_to_payment(&mut state);
+    let record = state.payment_records().unwrap().last().unwrap();
+    assert!(
+        record
+            .object_inputs
+            .values()
+            .any(|logical| matches!(logical, deckmaste_engine::LogicalObject::Created { .. }))
+    );
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+
+    assert_eq!(state.payment_depth(), 0);
+    assert_eq!(state.zones.libraries[payer.index()].len(), 1);
+    assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 1);
+    assert_eq!(state.zones.battlefield.len(), 2);
+    assert!(state.zones.battlefield.contains(&parent));
+}
+
+#[test]
+fn retained_later_mana_action_rebinds_its_created_source_and_fact_trace() {
+    let (mut state, payer, parent) = activation_fixture_with_extras(
+        vec![CostComponent::Mana("{3}".parse::<ManaCost>().unwrap())],
+        vec![token_creating_source_with_a_token_mana_ability()],
+    );
+    let producer = put_named_in_play(&mut state, payer, "Created-source producer");
+    announce(&mut state, parent);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: producer,
+            ability: 0,
+        }))
+        .unwrap();
+    let producer_payment = run_to_payment(&mut state);
+    fulfill(
+        &mut state,
+        producer_payment.outstanding[0].id,
+        FulfillmentWitness::Bound,
+    );
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    run_to_payment(&mut state);
+
+    let token = state
+        .zones
+        .battlefield
+        .iter()
+        .copied()
+        .find(|&object| match state.def(object) {
+            Card::Normal(face) => face.name.as_ref() == "Replay mana token",
+            Card::TwoFaced { .. } => false,
+        })
+        .expect("the retained producer creates its mana-source token");
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: token,
+            ability: 0,
+        }))
+        .unwrap();
+    let token_payment = run_to_payment(&mut state);
+    fulfill(
+        &mut state,
+        token_payment.outstanding[0].id,
+        FulfillmentWitness::Bound,
+    );
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    loop {
+        match state.step() {
+            StepOutcome::Progress(_) => {}
+            StepOutcome::NeedsDecision(PendingDecision::ChooseObjects(_)) => break,
+            other => panic!("the created mana source should choose an artifact, got {other:?}"),
+        }
+    }
+    state
+        .submit_decision(Decision::Chosen(vec![token]))
+        .unwrap();
+    run_to_payment(&mut state);
+    let token_action = state
+        .payment_records()
+        .unwrap()
+        .last()
+        .and_then(|record| match record.command {
+            deckmaste_engine::ReplayCommand::ManaAbility { action, .. } => Some(action),
+            deckmaste_engine::ReplayCommand::Fulfill { .. } => None,
+        })
+        .expect("the chosen-object mana action completes");
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+        panic!("the created token's reversible action should expose a choice");
+    };
+    assert!(choice.legal.contains(&vec![token_action]));
+    assert!(
+        choice.legal.contains(&Vec::new()),
+        "retaining both actions should replay exactly: {:?}",
+        choice.legal,
+    );
+    state
+        .submit_decision(Decision::ManaReversals(Vec::new()))
+        .unwrap();
+
+    assert_eq!(state.payment_depth(), 0);
+    assert_eq!(state.zones.libraries[payer.index()].len(), 1);
+    let replayed_token = state
+        .zones
+        .battlefield
+        .iter()
+        .copied()
+        .find(|&object| match state.def(object) {
+            Card::Normal(face) => face.name.as_ref() == "Replay mana token",
+            Card::TwoFaced { .. } => false,
+        })
+        .expect("the replay remints the retained producer's token");
+    assert!(state.objects.obj(replayed_token).tapped);
+    assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 2);
+}
+
+#[test]
+fn retained_mana_action_rebinds_a_later_decision_to_its_own_created_object() {
+    let (mut state, payer, parent) = activation_fixture_with_extras(
+        vec![CostComponent::Mana("{G}".parse::<ManaCost>().unwrap())],
+        vec![token_creating_then_choosing_barred_mana_source()],
+    );
+    let source = put_named_in_play(&mut state, payer, "Same-record choice source");
+    announce(&mut state, parent);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source,
+            ability: 0,
+        }))
+        .unwrap();
+    let child = run_to_payment(&mut state);
+    fulfill(
+        &mut state,
+        child.outstanding[0].id,
+        FulfillmentWitness::Bound,
+    );
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    loop {
+        match state.step() {
+            StepOutcome::Progress(_) => {}
+            StepOutcome::NeedsDecision(PendingDecision::ChooseObjects(_)) => break,
+            other => panic!("the mana action should choose its created token, got {other:?}"),
+        }
+    }
+    let token = state
+        .zones
+        .battlefield
+        .iter()
+        .copied()
+        .find(|&object| {
+            matches!(state.def(object), Card::Normal(face) if face.name.as_ref() == "Same-record choice token")
+        })
+        .unwrap();
+    state
+        .submit_decision(Decision::Chosen(vec![token]))
+        .unwrap();
+    run_to_payment(&mut state);
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+
+    assert_eq!(state.payment_depth(), 0);
+    assert_eq!(state.zones.libraries[payer.index()].len(), 1);
+    assert!(state.zones.battlefield.iter().any(|&object| {
+        matches!(state.def(object), Card::Normal(face) if face.name.as_ref() == "Same-record choice token")
+    }));
+    assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 1);
+}
+
+#[test]
+fn declining_can_reverse_the_creator_of_an_observed_transient_token() {
+    let (mut state, payer, parent) = activation_fixture_with_extras(
+        vec![CostComponent::Mana("{2}".parse::<ManaCost>().unwrap())],
+        vec![token_revealing_reversible_mana_source()],
+    );
+    let source = put_named_in_play(&mut state, payer, "Transient token source");
+    announce(&mut state, parent);
+    let action = submit_tap_mana_action(&mut state, source);
+    assert!(state.zones.battlefield.iter().any(|&object| {
+        matches!(state.def(object), Card::Normal(face) if face.name.as_ref() == "Observed transient token")
+    }));
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+        panic!("the observation-only action remains physically reversible");
+    };
+    assert!(choice.legal.contains(&vec![action]));
+    state
+        .submit_decision(Decision::ManaReversals(vec![action]))
+        .unwrap();
+
+    assert_eq!(state.payment_depth(), 0);
+    assert!(!state.objects.obj(source).tapped);
+    assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 0);
+    assert!(!state.zones.battlefield.iter().any(|&object| {
+        matches!(state.def(object), Card::Normal(face) if face.name.as_ref() == "Observed transient token")
+    }));
+}
+
+#[test]
+fn submitted_mana_child_stays_isolated_until_its_effect_and_record_finish() {
+    let (mut state, payer, parent) = activation_fixture_with_extras(
+        vec![CostComponent::Mana("{G}".parse::<ManaCost>().unwrap())],
+        vec![green_source("Child lifetime source")],
+    );
+    let source = put_named_in_play(&mut state, payer, "Child lifetime source");
+    announce(&mut state, parent);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source,
+            ability: 0,
+        }))
+        .unwrap();
+    let child = run_to_payment(&mut state);
+    fulfill(
+        &mut state,
+        child.outstanding[0].id,
+        FulfillmentWitness::Bound,
+    );
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+
+    assert_eq!(
+        state.payment_depth(),
+        2,
+        "the submitted child remains the active isolated image until stackless resolution ends"
+    );
+    assert!(state.payment_records().unwrap().is_empty());
+
+    run_to_payment(&mut state);
+    assert_eq!(state.payment_depth(), 1);
+    assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 1);
+    assert!(matches!(
+        state
+            .payment_records()
+            .unwrap()
+            .last()
+            .map(|record| &record.command),
+        Some(deckmaste_engine::ReplayCommand::ManaAbility {
+            submitted: true,
+            ..
+        })
+    ));
+}
+
+#[test]
+fn declining_a_suspended_submitted_child_retains_its_in_flight_library_barrier() {
+    let (mut state, payer, parent) = activation_fixture_with_extras(
+        vec![CostComponent::Mana("{G}".parse::<ManaCost>().unwrap())],
+        vec![suspending_barred_mana_source()],
+    );
+    let source = put_named_in_play(&mut state, payer, "Suspending barred mana source");
+    announce(&mut state, parent);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source,
+            ability: 0,
+        }))
+        .unwrap();
+    let child = run_to_payment(&mut state);
+    assert_eq!(child.stage, deckmaste_engine::PaymentStage::Ready);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    loop {
+        match state.step() {
+            StepOutcome::Progress(_) => {}
+            StepOutcome::NeedsDecision(PendingDecision::ChooseModes(_)) => break,
+            other => panic!("expected the submitted mana effect to suspend, got {other:?}"),
+        }
+    }
+    assert!(!state.zones.battlefield.contains(&source));
+    assert_eq!(state.zones.libraries[payer.index()].len(), 1);
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+
+    assert_eq!(state.payment_depth(), 1);
+    assert!(!state.zones.battlefield.contains(&source));
+    assert_eq!(state.zones.libraries[payer.index()].len(), 1);
+    assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 0);
+    let retained = state.payment_records().unwrap().last().unwrap();
+    assert!(matches!(
+        retained.command,
+        deckmaste_engine::ReplayCommand::ManaAbility {
+            submitted: true,
+            ..
+        }
+    ));
+    assert!(
+        retained
+            .reversal_barriers
+            .contains(&ReversalBarrier::MovedToLibrary)
+    );
+}
+
+#[test]
 fn kci_under_wheel_is_retained_as_one_submitted_mana_action() {
     let (mut state, payer, parent) = activation_fixture_with_extras(
         vec![CostComponent::Mana("{1}".parse::<ManaCost>().unwrap())],
@@ -1493,20 +3117,26 @@ fn kci_under_wheel_is_retained_as_one_submitted_mana_action() {
     ));
 }
 
-#[test]
-fn mox_then_kci_can_pay_for_the_sacrificed_colored_legends_ability() {
+fn mox_kci_payment_fixture(
+    under_wheel: bool,
+) -> (
+    GameState,
+    PlayerId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+) {
     let payer = PlayerId(0);
+    let mut deck = vec![
+        colored_legendary_artifact(),
+        mox_amber_fixture(),
+        krark_clan_ironworks(),
+    ];
+    if under_wheel {
+        deck.push(wheel_of_sun_and_moon());
+    }
     let mut state = GameState::new(GameConfig {
-        players: vec![
-            PlayerConfig {
-                deck: vec![
-                    colored_legendary_artifact(),
-                    mox_amber_fixture(),
-                    krark_clan_ironworks(),
-                ],
-            },
-            PlayerConfig { deck: vec![] },
-        ],
+        players: vec![PlayerConfig { deck }, PlayerConfig { deck: vec![] }],
         seed: 23,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(payer),
@@ -1520,6 +3150,9 @@ fn mox_then_kci_can_pay_for_the_sacrificed_colored_legends_ability() {
     let legend = put_named_in_play(&mut state, payer, "Colored legendary artifact");
     let mox = put_named_in_play(&mut state, payer, "Mox Amber");
     let kci = put_named_in_play(&mut state, payer, "Krark-Clan Ironworks");
+    if under_wheel {
+        put_named_in_play(&mut state, payer, "Wheel of Sun and Moon");
+    }
     let action = Action::ActivateAbility {
         object: legend,
         ability: 0,
@@ -1537,57 +3170,200 @@ fn mox_then_kci_can_pay_for_the_sacrificed_colored_legends_ability() {
         run_to_payment(&mut state).stage,
         deckmaste_engine::PaymentStage::PrePayment
     );
+    (state, payer, legend, mox, kci)
+}
 
+fn completed_mana_action(state: &GameState) -> deckmaste_engine::ManaActionId {
+    state
+        .payment_records()
+        .unwrap()
+        .last()
+        .and_then(|record| match record.command {
+            deckmaste_engine::ReplayCommand::ManaAbility { action, .. } => Some(action),
+            deckmaste_engine::ReplayCommand::Fulfill { .. } => None,
+        })
+        .expect("the completed mana action is recorded on the parent")
+}
+
+fn submit_mox_action(
+    state: &mut GameState,
+    source: deckmaste_engine::ObjectId,
+    color: Option<Color>,
+) -> deckmaste_engine::ManaActionId {
     state
         .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
-            source: mox,
+            source,
             ability: 0,
         }))
         .unwrap();
-    let child = run_to_payment(&mut state);
-    fulfill(
-        &mut state,
-        child.outstanding[0].id,
-        FulfillmentWitness::Bound,
-    );
+    let child = run_to_payment(state);
+    assert_eq!(child.outstanding.len(), 1);
+    assert!(matches!(child.outstanding[0].kind, IouKind::Tap));
+    fulfill(state, child.outstanding[0].id, FulfillmentWitness::Bound);
     state
         .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
         .unwrap();
     loop {
         match state.step() {
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::ChooseObjects(_)) => {
+            StepOutcome::NeedsDecision(PendingDecision::ChooseManaColor(choice)) => {
+                let selected = color.expect("a colorless Mox state must not open a choice");
+                assert!(choice.options.contains(&selected.into()));
                 state
-                    .submit_decision(Decision::Chosen(vec![legend]))
+                    .submit_decision(Decision::ManaColor(selected.into()))
                     .unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::ChooseManaColor(_)) => {
-                state
-                    .submit_decision(Decision::ManaColor(Color::Green.into()))
-                    .unwrap();
+            StepOutcome::NeedsDecision(PendingDecision::ChooseObjects(_)) => {
+                panic!("Mox chooses a color, never a legendary permanent")
             }
             StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => break,
             other => panic!("expected Mox to resume parent payment, got {other:?}"),
         }
     }
-    assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 1);
+    completed_mana_action(state)
+}
 
+fn submit_kci_action(
+    state: &mut GameState,
+    source: deckmaste_engine::ObjectId,
+    artifact: deckmaste_engine::ObjectId,
+) -> deckmaste_engine::ManaActionId {
     state
         .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
-            source: kci,
+            source,
             ability: 0,
         }))
         .unwrap();
-    let child = run_to_payment(&mut state);
+    let child = run_to_payment(state);
     fulfill(
-        &mut state,
+        state,
         child.outstanding[0].id,
-        FulfillmentWitness::Objects(vec![legend]),
+        FulfillmentWitness::Objects(vec![artifact]),
     );
     state
         .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
         .unwrap();
-    let prompt = run_to_payment(&mut state);
+    run_to_payment(state);
+    completed_mana_action(state)
+}
+
+#[test]
+fn kci_before_mox_removes_the_only_eligible_color_so_mox_adds_nothing_without_a_choice() {
+    let (mut state, payer, legend, mox, kci) = mox_kci_payment_fixture(false);
+
+    submit_kci_action(&mut state, kci, legend);
+    assert!(!state.zones.battlefield.contains(&legend));
+    assert_eq!(
+        state
+            .player(payer)
+            .mana_pool
+            .amount(deckmaste_core::ColorOrColorless::Colorless),
+        2
+    );
+
+    submit_mox_action(&mut state, mox, None);
+
+    assert!(state.objects.obj(mox).tapped);
+    assert_eq!(state.player(payer).mana_pool.units().len(), 2);
+    assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 0);
+    assert!(matches!(state.pending, Some(PendingDecision::Payment(_))));
+}
+
+#[test]
+fn declining_after_mox_then_kci_restores_the_same_legend_checkpoint() {
+    let (mut state, payer, legend, mox, kci) = mox_kci_payment_fixture(false);
+
+    let mox_action = submit_mox_action(&mut state, mox, Some(Color::Green));
+    assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 1);
+    let kci_action = submit_kci_action(&mut state, kci, legend);
+    assert!(!state.zones.battlefield.contains(&legend));
+    assert_eq!(state.player(payer).mana_pool.units().len(), 3);
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+        panic!("declining should expose both independent mana actions");
+    };
+    assert!(choice.legal.contains(&vec![mox_action, kci_action]));
+    state
+        .submit_decision(Decision::ManaReversals(vec![mox_action, kci_action]))
+        .unwrap();
+
+    assert_eq!(state.payment_depth(), 0);
+    assert!(state.zones.battlefield.contains(&legend));
+    assert_eq!(state.objects.obj(legend).zone, Some(Zone::Battlefield));
+    assert!(!state.objects.obj(mox).tapped);
+    assert_eq!(state.player(payer).mana_pool.units().len(), 0);
+}
+
+#[test]
+fn wheel_forces_mox_then_kci_sacrifice_and_kci_mana_to_remain() {
+    let (mut state, payer, legend, mox, kci) = mox_kci_payment_fixture(true);
+
+    let mox_action = submit_mox_action(&mut state, mox, Some(Color::Green));
+    let kci_action = submit_kci_action(&mut state, kci, legend);
+    let records = state.payment_records().unwrap();
+    let kci_record = records
+        .iter()
+        .find(|record| {
+            matches!(
+                record.command,
+                deckmaste_engine::ReplayCommand::ManaAbility { action, .. }
+                    if action == kci_action
+            )
+        })
+        .unwrap();
+    assert!(
+        kci_record
+            .reversal_barriers
+            .contains(&ReversalBarrier::MovedToLibrary)
+    );
+    let kci_record_id = kci_record.id;
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+        panic!("declining should still expose the independent Mox reversal");
+    };
+    assert!(choice.legal.contains(&vec![mox_action]));
+    assert!(!choice.legal.contains(&vec![kci_action]));
+    assert!(!choice.legal.contains(&vec![mox_action, kci_action]));
+    state
+        .submit_decision(Decision::ManaReversals(vec![mox_action]))
+        .unwrap();
+
+    assert_eq!(state.payment_depth(), 0);
+    assert!(!state.zones.battlefield.contains(&legend));
+    assert_eq!(state.zones.libraries[payer.index()].len(), 1);
+    assert!(!state.objects.obj(mox).tapped);
+    assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 0);
+    assert_eq!(
+        state
+            .player(payer)
+            .mana_pool
+            .amount(deckmaste_core::ColorOrColorless::Colorless),
+        2
+    );
+    assert!(matches!(
+        state.incidents(),
+        [EngineIncident::PaymentDeclined(incident)]
+            if incident.forced_retained_records == vec![kci_record_id]
+    ));
+}
+
+#[test]
+fn mox_then_kci_can_pay_for_the_sacrificed_colored_legends_ability() {
+    let (mut state, payer, legend, mox, kci) = mox_kci_payment_fixture(false);
+
+    submit_mox_action(&mut state, mox, Some(Color::Green));
+    assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 1);
+    submit_kci_action(&mut state, kci, legend);
+    let prompt = match state.pending.as_ref() {
+        Some(PendingDecision::Payment(prompt)) => prompt.clone(),
+        other => panic!("KCI should resume parent payment, got {other:?}"),
+    };
     assert!(!state.zones.battlefield.contains(&legend));
     assert_eq!(state.player(payer).mana_pool.units().len(), 3);
 
@@ -1641,7 +3417,7 @@ fn filter_mana_spent_in_a_child_reduces_omnath_before_rancher_produces() {
             bighorner_rancher_fixture(),
         ],
     );
-    put_named_in_play(&mut state, payer, "Omnath, Locus of Mana");
+    let omnath = put_named_in_play(&mut state, payer, "Omnath, Locus of Mana");
     let cylix = put_named_in_play(&mut state, payer, "Mana Cylix");
     let rancher = put_named_in_play(&mut state, payer, "Bighorner Rancher");
     state.player_mut(payer).mana_pool.add(
@@ -1649,6 +3425,7 @@ fn filter_mana_spent_in_a_child_reduces_omnath_before_rancher_produces() {
         3,
         deckmaste_engine::ManaProvenance::default(),
     );
+    assert_eq!(state.layers().power(omnath), Some(4));
     announce(&mut state, parent);
 
     state
@@ -1695,40 +3472,212 @@ fn filter_mana_spent_in_a_child_reduces_omnath_before_rancher_produces() {
     }
     assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 2);
     assert_eq!(state.player(payer).mana_pool.amount(Color::Black.into()), 1);
+    assert_eq!(state.layers().power(omnath), Some(3));
 
     submit_tap_mana_action(&mut state, rancher);
     let prompt = match state.pending.as_ref() {
         Some(PendingDecision::Payment(prompt)) => prompt.clone(),
         other => panic!("Rancher should resume parent payment, got {other:?}"),
     };
-    assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 4);
+    assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 5);
     assert_eq!(state.player(payer).mana_pool.amount(Color::Black.into()), 1);
+    assert_eq!(state.layers().power(omnath), Some(6));
 
-    let mut incomplete = ManaCoverage::empty();
-    for (iou, mana) in prompt
-        .outstanding
+    let black = state
+        .player(payer)
+        .mana_pool
+        .units()
         .iter()
-        .zip(state.player(payer).mana_pool.units())
-    {
-        incomplete.insert(iou.id, ManaPayment::Floating(mana.id));
+        .find(|unit| unit.kind == Color::Black.into())
+        .unwrap()
+        .id;
+    let mut green = state
+        .player(payer)
+        .mana_pool
+        .units()
+        .iter()
+        .filter(|unit| unit.kind == Color::Green.into())
+        .map(|unit| unit.id);
+    let mut incomplete = ManaCoverage::empty();
+    let mut mapped_generics = 0;
+    for iou in &prompt.outstanding {
+        let mana = match iou.kind {
+            IouKind::ManaPip(deckmaste_engine::ManaPip::Colored(Color::Black)) => black,
+            IouKind::ManaPip(deckmaste_engine::ManaPip::Colored(Color::Green)) => {
+                green.next().unwrap()
+            }
+            IouKind::ManaPip(deckmaste_engine::ManaPip::Generic) if mapped_generics < 4 => {
+                mapped_generics += 1;
+                green.next().unwrap()
+            }
+            IouKind::ManaPip(deckmaste_engine::ManaPip::Generic) => continue,
+            ref other => panic!("unexpected IOU {other:?}"),
+        };
+        incomplete.insert(iou.id, ManaPayment::Floating(mana));
     }
+    assert_eq!(mapped_generics, 4, "exactly one generic pip is uncovered");
     assert!(
         state
             .submit_decision(Decision::Payment(PaymentCommand::BeginPayment(incomplete,)))
             .is_err()
     );
-    assert_eq!(state.player(payer).mana_pool.units().len(), 5);
+    assert_eq!(state.player(payer).mana_pool.units().len(), 6);
+    assert_eq!(state.layers().power(omnath), Some(6));
+}
+
+#[test]
+fn rancher_before_cylix_produces_exact_coverage_and_omnath_tracks_each_green_spend() {
+    let (mut state, payer, parent) = activation_fixture_with_extras(
+        vec![CostComponent::Mana(
+            "{5}{B}{G}".parse::<ManaCost>().unwrap(),
+        )],
+        vec![
+            omnath_fixture(),
+            mana_cylix_fixture(),
+            bighorner_rancher_fixture(),
+        ],
+    );
+    let omnath = put_named_in_play(&mut state, payer, "Omnath, Locus of Mana");
+    let cylix = put_named_in_play(&mut state, payer, "Mana Cylix");
+    let rancher = put_named_in_play(&mut state, payer, "Bighorner Rancher");
+    state.player_mut(payer).mana_pool.add(
+        Color::Green.into(),
+        3,
+        deckmaste_engine::ManaProvenance::default(),
+    );
+    assert_eq!(state.layers().power(omnath), Some(4));
+    announce(&mut state, parent);
+
+    submit_tap_mana_action(&mut state, rancher);
+    assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 7);
+    assert_eq!(state.layers().power(omnath), Some(8));
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: cylix,
+            ability: 0,
+        }))
+        .unwrap();
+    let child = run_to_payment(&mut state);
+    let pip = child
+        .outstanding
+        .iter()
+        .find(|iou| matches!(iou.kind, IouKind::ManaPip(_)))
+        .unwrap()
+        .id;
+    let tap = child
+        .outstanding
+        .iter()
+        .find(|iou| matches!(iou.kind, IouKind::Tap))
+        .unwrap()
+        .id;
+    let spent_green = state
+        .player(payer)
+        .mana_pool
+        .units()
+        .iter()
+        .find(|unit| unit.kind == Color::Green.into())
+        .unwrap()
+        .id;
+    let mut child_coverage = ManaCoverage::empty();
+    child_coverage.insert(pip, ManaPayment::Floating(spent_green));
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::BeginPayment(
+            child_coverage,
+        )))
+        .unwrap();
+    fulfill(&mut state, pip, FulfillmentWitness::CoveredMana);
+    assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 6);
+    assert_eq!(state.layers().power(omnath), Some(7));
+    fulfill(&mut state, tap, FulfillmentWitness::Bound);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    loop {
+        match state.step() {
+            StepOutcome::Progress(_) => {}
+            StepOutcome::NeedsDecision(PendingDecision::ChooseManaColor(_)) => {
+                state
+                    .submit_decision(Decision::ManaColor(Color::Black.into()))
+                    .unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => break,
+            other => panic!("expected Cylix to resume parent payment, got {other:?}"),
+        }
+    }
+    assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 6);
+    assert_eq!(state.player(payer).mana_pool.amount(Color::Black.into()), 1);
+    assert_eq!(state.layers().power(omnath), Some(7));
+
+    let prompt = match state.pending.as_ref() {
+        Some(PendingDecision::Payment(prompt)) => prompt.clone(),
+        other => panic!("Cylix should resume parent payment, got {other:?}"),
+    };
+    let green_ids: Vec<_> = state
+        .player(payer)
+        .mana_pool
+        .units()
+        .iter()
+        .filter(|unit| unit.kind == Color::Green.into())
+        .map(|unit| unit.id)
+        .collect();
+    let black = state
+        .player(payer)
+        .mana_pool
+        .units()
+        .iter()
+        .find(|unit| unit.kind == Color::Black.into())
+        .unwrap()
+        .id;
+    let mut green = green_ids.into_iter();
+    let mut coverage = ManaCoverage::empty();
+    let mut spend_plan = Vec::new();
+    for iou in &prompt.outstanding {
+        let (mana, spends_green) = match iou.kind {
+            IouKind::ManaPip(deckmaste_engine::ManaPip::Colored(Color::Black)) => (black, false),
+            IouKind::ManaPip(
+                deckmaste_engine::ManaPip::Colored(Color::Green)
+                | deckmaste_engine::ManaPip::Generic,
+            ) => (green.next().unwrap(), true),
+            ref other => panic!("unexpected IOU {other:?}"),
+        };
+        coverage.insert(iou.id, ManaPayment::Floating(mana));
+        spend_plan.push((iou.id, spends_green));
+    }
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::BeginPayment(coverage)))
+        .unwrap();
+
+    let mut greens_left = 6;
+    for (iou, spends_green) in spend_plan {
+        fulfill(&mut state, iou, FulfillmentWitness::CoveredMana);
+        if spends_green {
+            greens_left -= 1;
+        }
+        assert_eq!(
+            state.player(payer).mana_pool.amount(Color::Green.into()),
+            greens_left
+        );
+        assert_eq!(
+            state.layers().power(omnath),
+            Some(i32::try_from(greens_left + 1).unwrap())
+        );
+    }
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    assert_eq!(state.payment_depth(), 0);
 }
 
 #[test]
 fn declining_unsubmitted_mana_child_retains_only_its_barred_cost() {
     let put_self_on_bottom = Cost(
-        vec![CostComponent::Act(Arc::new(CoreAction::Move(
+        vec![CostComponent::do_action(CoreAction::Move(
             Reference::This,
             Destination::Library(Anchor::FromBottom(Count::Literal(0))),
             Arc::from([]),
             Some(Zone::Battlefield),
-        )))]
+        ))]
         .into(),
     );
     let (mut state, payer, parent) = activation_fixture_with_extras(

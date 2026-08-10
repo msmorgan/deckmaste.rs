@@ -43,10 +43,10 @@ pub enum CostComponent {
     /// what lets a keyword-action composite be a cost — "Discard a card:" is
     /// `Do(Discard(1))`, cycling's "Discard this card:" the bound
     /// [`discard_what`](crate::Action::discard_what) form
-    /// ([CR#701.9,702.29a]). Only cost-eligible actions
-    /// ([`Action::is_cost_eligible`](crate::Action::is_cost_eligible))
-    /// belong here — enforced by the plugin crate's validation lint, not the
-    /// parser. Boxed: `Action` dwarfs the other variants, and
+    /// ([CR#701.9,702.29a]). This authoring layer stays open enough to carry
+    /// the choice-bearing discard composite; lowering lifts that choice and
+    /// admits the remainder only through core's checked runnable-action
+    /// boundary. Boxed: `Action` dwarfs the other variants, and
     /// `CostComponent` rides in `Vec<CostComponent>` cost lists, so an
     /// unboxed variant would size every element to it
     /// (`clippy::large_enum_variant`).

@@ -674,6 +674,10 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             "DEFERRED: see Characteristic::Types.",
         ),
         (
+            n("Characteristic", "Name"),
+            "DEFERRED: no CountDistinct-over-card-names real card in coverage.",
+        ),
+        (
             n("Count", "Max"),
             "DEFERRED: no covered 'the greater of X and Y' real card.",
         ),

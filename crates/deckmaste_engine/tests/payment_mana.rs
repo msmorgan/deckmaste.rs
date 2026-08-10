@@ -7,16 +7,21 @@ use deckmaste_core::Action as CoreAction;
 use deckmaste_core::ActivatedAbility;
 use deckmaste_core::ActivatedManaProfile;
 use deckmaste_core::Binder;
+use deckmaste_core::CharacteristicPredicate;
 use deckmaste_core::ChooseSpec;
 use deckmaste_core::Color;
 use deckmaste_core::Cost;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
+use deckmaste_core::Deontic;
+use deckmaste_core::DeonticAction;
 use deckmaste_core::EventFilter;
+use deckmaste_core::LifeOp;
 use deckmaste_core::ManaAbility;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaModeClass;
 use deckmaste_core::ManaSpec;
+use deckmaste_core::May;
 use deckmaste_core::Modal;
 use deckmaste_core::Mode;
 use deckmaste_core::OneShotEffect;
@@ -24,16 +29,26 @@ use deckmaste_core::Predicate;
 use deckmaste_core::Quantity;
 use deckmaste_core::Reference;
 use deckmaste_core::RelationPredicate;
+use deckmaste_core::Replacement;
+use deckmaste_core::Selection;
 use deckmaste_core::Sort;
+use deckmaste_core::SpellAbility;
 use deckmaste_core::StatePredicate;
+use deckmaste_core::StaticEffect;
+use deckmaste_core::TargetSpec;
+use deckmaste_core::Targeted;
+use deckmaste_core::Token;
 use deckmaste_core::TriggeredAbility;
 use deckmaste_core::Type;
+use deckmaste_core::UseLimit;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
 use deckmaste_engine::FulfillmentWitness;
 use deckmaste_engine::GameConfig;
+use deckmaste_engine::GameEvent;
 use deckmaste_engine::GameState;
+use deckmaste_engine::Occurrence;
 use deckmaste_engine::PaymentCommand;
 use deckmaste_engine::PaymentPrompt;
 use deckmaste_engine::PaymentStage;
@@ -42,8 +57,10 @@ use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::Priority;
 use deckmaste_engine::PriorityRound;
+use deckmaste_engine::Progress;
 use deckmaste_engine::StartingPlayer;
 use deckmaste_engine::StepOutcome;
+use deckmaste_engine::WorkItem;
 
 fn activated_ability(cost: Cost, effect: OneShotEffect) -> ActivatedAbility {
     ActivatedAbility {
@@ -95,6 +112,18 @@ fn payment_fixture_with_source_ability(
     deckmaste_engine::ObjectId,
     deckmaste_engine::ObjectId,
 ) {
+    payment_fixture_with_source_ability_and_extras(source_ability, Vec::new())
+}
+
+fn payment_fixture_with_source_ability_and_extras(
+    source_ability: Ability,
+    extras: Vec<Arc<Card>>,
+) -> (
+    GameState,
+    PlayerId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+) {
     let payer = PlayerId(0);
     let parent = Arc::new(Card::Normal(CardFace {
         name: "Parent ability".into(),
@@ -110,13 +139,10 @@ fn payment_fixture_with_source_ability(
         abilities: vec![source_ability],
         ..CardFace::default()
     }));
+    let mut deck = vec![parent, mana_source];
+    deck.extend(extras);
     let mut state = GameState::new(GameConfig {
-        players: vec![
-            PlayerConfig {
-                deck: vec![parent, mana_source],
-            },
-            PlayerConfig { deck: vec![] },
-        ],
+        players: vec![PlayerConfig { deck }, PlayerConfig { deck: vec![] }],
         seed: 11,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(payer),
@@ -143,7 +169,331 @@ fn payment_fixture_with_source_ability(
     (state, payer, parent, mana_source)
 }
 
+fn nested_optional_mana_fixture() -> (
+    GameState,
+    PlayerId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+) {
+    let optional_source = Ability::Mana(ManaAbility::Activated {
+        ability: Arc::new(activated_ability(
+            Cost(vec![CostComponent::Tap].into()),
+            OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
+                        Reference::You,
+                    ))),
+                    OneShotEffect::May(May {
+                        who: Reference::You,
+                        effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
+                            vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
+                        )))),
+                        if_did: Some(Arc::new(OneShotEffect::Act(CoreAction::AddMana(
+                            Reference::You,
+                            Count::Literal(1),
+                            ManaSpec::Specific(Color::Green.into()).into(),
+                        )))),
+                        if_not: None,
+                    }),
+                ]
+                .into(),
+            ),
+        )),
+        profile: ActivatedManaProfile::Always,
+    });
+    let helper_card = Arc::new(Card::Normal(CardFace {
+        name: "Nested optional helper".into(),
+        types: vec![Type::Land.def()],
+        abilities: vec![Ability::Mana(ManaAbility::Activated {
+            ability: Arc::new(activated_ability(
+                Cost(vec![CostComponent::Tap].into()),
+                OneShotEffect::Act(CoreAction::AddMana(
+                    Reference::You,
+                    Count::Literal(1),
+                    ManaSpec::Specific(Color::Green.into()).into(),
+                )),
+            )),
+            profile: ActivatedManaProfile::Always,
+        })],
+        ..CardFace::default()
+    }));
+    let (mut state, payer, parent, optional_source) =
+        payment_fixture_with_source_ability_and_extras(optional_source, vec![helper_card]);
+    let helper = put_in_play(&mut state, payer, "Nested optional helper");
+    (state, payer, parent, optional_source, helper)
+}
+
+fn self_spending_optional_mana_fixture() -> (
+    GameState,
+    PlayerId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+) {
+    let source_ability = Ability::Mana(ManaAbility::Activated {
+        ability: Arc::new(activated_ability(
+            Cost(vec![CostComponent::Tap].into()),
+            OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::Act(CoreAction::AddMana(
+                        Reference::You,
+                        Count::Literal(1),
+                        ManaSpec::Specific(Color::Green.into()).into(),
+                    )),
+                    OneShotEffect::May(May {
+                        who: Reference::You,
+                        effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
+                            vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
+                        )))),
+                        if_did: None,
+                        if_not: None,
+                    }),
+                ]
+                .into(),
+            ),
+        )),
+        profile: ActivatedManaProfile::Always,
+    });
+    payment_fixture_with_source_ability_and_extras(source_ability, Vec::new())
+}
+
+fn resolution_scope_mana_fixture() -> (
+    GameState,
+    PlayerId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+) {
+    let outer = Ability::Mana(ManaAbility::Activated {
+        ability: Arc::new(activated_ability(
+            Cost(vec![CostComponent::Tap].into()),
+            OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::Act(CoreAction::DealDamage(
+                        Reference::This,
+                        Count::Literal(5),
+                        Reference::You,
+                    )),
+                    OneShotEffect::May(May {
+                        who: Reference::You,
+                        effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
+                            vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
+                        )))),
+                        if_did: Some(Arc::new(OneShotEffect::Act(CoreAction::ChangeLife(
+                            Reference::You,
+                            LifeOp::Up(Count::ThatMuch),
+                        )))),
+                        if_not: None,
+                    }),
+                    OneShotEffect::Act(CoreAction::AddMana(
+                        Reference::You,
+                        Count::Literal(1),
+                        ManaSpec::Specific(Color::Green.into()).into(),
+                    )),
+                ]
+                .into(),
+            ),
+        )),
+        profile: ActivatedManaProfile::Always,
+    });
+    let helper = Arc::new(Card::Normal(CardFace {
+        name: "Resolution scope helper".into(),
+        types: vec![Type::Land.def()],
+        abilities: vec![Ability::Mana(ManaAbility::Activated {
+            ability: Arc::new(activated_ability(
+                Cost(
+                    vec![CostComponent::do_action(CoreAction::ChangeLife(
+                        Reference::You,
+                        LifeOp::Down(Count::Literal(1)),
+                    ))]
+                    .into(),
+                ),
+                OneShotEffect::Act(CoreAction::AddMana(
+                    Reference::You,
+                    Count::Literal(1),
+                    ManaSpec::Specific(Color::Green.into()).into(),
+                )),
+            )),
+            profile: ActivatedManaProfile::Always,
+        })],
+        ..CardFace::default()
+    }));
+    let (mut state, payer, parent, outer) =
+        payment_fixture_with_source_ability_and_extras(outer, vec![helper]);
+    let helper = put_in_play(&mut state, payer, "Resolution scope helper");
+    (state, payer, parent, outer, helper)
+}
+
+fn cost_replacement_nested_mana_fixture() -> (
+    GameState,
+    PlayerId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+) {
+    let outer = Ability::Mana(ManaAbility::Activated {
+        ability: Arc::new(activated_ability(
+            Cost(
+                vec![CostComponent::do_action(CoreAction::Sacrifice(
+                    Reference::You,
+                    Reference::This,
+                ))]
+                .into(),
+            ),
+            OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::Act(CoreAction::Shuffle(Selection::LibraryOf(Reference::You))),
+                    OneShotEffect::Act(CoreAction::AddMana(
+                        Reference::You,
+                        Count::Literal(1),
+                        ManaSpec::Specific(Color::Green.into()).into(),
+                    )),
+                ]
+                .into(),
+            ),
+        )),
+        profile: ActivatedManaProfile::Always,
+    });
+    let replacement = Arc::new(Card::Normal(CardFace {
+        name: "Cost replacement optional".into(),
+        types: vec![Type::Enchantment.def()],
+        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+            Replacement::Instead {
+                would: EventFilter::ZoneChange {
+                    what: Predicate::Any,
+                    from: Some(Zone::Battlefield),
+                    to: Some(Zone::Graveyard),
+                    cause: None,
+                },
+                instead: OneShotEffect::May(May {
+                    who: Reference::You,
+                    effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
+                        vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
+                    )))),
+                    if_did: None,
+                    if_not: None,
+                }),
+            },
+        )))],
+        ..CardFace::default()
+    }));
+    let helper = Arc::new(Card::Normal(CardFace {
+        name: "Ownership helper".into(),
+        types: vec![Type::Land.def()],
+        abilities: vec![Ability::Mana(ManaAbility::Activated {
+            ability: Arc::new(activated_ability(
+                Cost(vec![CostComponent::Tap].into()),
+                OneShotEffect::Act(CoreAction::AddMana(
+                    Reference::You,
+                    Count::Literal(1),
+                    ManaSpec::Specific(Color::Green.into()).into(),
+                )),
+            )),
+            profile: ActivatedManaProfile::Always,
+        })],
+        ..CardFace::default()
+    }));
+    let (mut state, payer, parent, outer) =
+        payment_fixture_with_source_ability_and_extras(outer, vec![replacement, helper]);
+    put_in_play(&mut state, payer, "Cost replacement optional");
+    let helper = put_in_play(&mut state, payer, "Ownership helper");
+    (state, payer, parent, outer, helper)
+}
+
+fn created_nested_optional_mana_fixture() -> (
+    GameState,
+    PlayerId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+) {
+    let token_ability = Ability::Mana(ManaAbility::Activated {
+        ability: Arc::new(activated_ability(
+            Cost(vec![CostComponent::Tap].into()),
+            OneShotEffect::Act(CoreAction::AddMana(
+                Reference::You,
+                Count::Literal(1),
+                ManaSpec::Specific(Color::Green.into()).into(),
+            )),
+        )),
+        profile: ActivatedManaProfile::Always,
+    });
+    let token = Token {
+        name: Some("Nested created helper".into()),
+        color_indicator: Arc::from([]),
+        supertypes: Arc::from([]),
+        types: vec![Type::Artifact.def()].into(),
+        subtypes: Arc::from([]),
+        abilities: vec![token_ability].into(),
+        power: None,
+        toughness: None,
+    };
+    let source_ability = Ability::Mana(ManaAbility::Activated {
+        ability: Arc::new(activated_ability(
+            Cost(vec![CostComponent::Tap].into()),
+            OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
+                        Reference::You,
+                    ))),
+                    OneShotEffect::Act(CoreAction::Create {
+                        agent: Reference::You,
+                        count: Count::Literal(1),
+                        token: token.into(),
+                        riders: Arc::from([]),
+                    }),
+                    OneShotEffect::May(May {
+                        who: Reference::You,
+                        effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
+                            vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
+                        )))),
+                        if_did: Some(Arc::new(OneShotEffect::Act(CoreAction::AddMana(
+                            Reference::You,
+                            Count::Literal(1),
+                            ManaSpec::Specific(Color::Green.into()).into(),
+                        )))),
+                        if_not: None,
+                    }),
+                ]
+                .into(),
+            ),
+        )),
+        profile: ActivatedManaProfile::Always,
+    });
+    payment_fixture_with_source_ability(source_ability)
+}
+
 fn modal_payment_fixture() -> (
+    GameState,
+    PlayerId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+) {
+    modal_payment_fixture_with_extras(Vec::new())
+}
+
+fn modal_payment_fixture_with_extras(
+    extras: Vec<Arc<Card>>,
+) -> (
+    GameState,
+    PlayerId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+) {
+    modal_payment_fixture_with_ordinary_mode(
+        extras,
+        OneShotEffect::Sequentially(Arc::from([])),
+        ManaModeClass {
+            adds_mana: false,
+            targetless: true,
+        },
+    )
+}
+
+fn modal_payment_fixture_with_ordinary_mode(
+    extras: Vec<Arc<Card>>,
+    ordinary_effect: OneShotEffect,
+    ordinary_class: ManaModeClass,
+) -> (
     GameState,
     PlayerId,
     deckmaste_engine::ObjectId,
@@ -167,7 +517,7 @@ fn modal_payment_fixture() -> (
                 cost: None,
             },
             Mode {
-                effect: OneShotEffect::Sequentially(Arc::from([])),
+                effect: ordinary_effect,
                 cost: None,
             },
         ]
@@ -177,20 +527,33 @@ fn modal_payment_fixture() -> (
         ManaModeClass {
             adds_mana: true,
             targetless: true,
-            library_safe: true,
         },
-        ManaModeClass {
-            adds_mana: false,
-            targetless: true,
-            library_safe: true,
-        },
+        ordinary_class,
     ];
-    payment_fixture_with_source_ability(Ability::Mana(ManaAbility::Activated {
-        ability: Arc::new(activated_ability(
-            Cost(vec![CostComponent::Tap].into()),
-            effect,
-        )),
-        profile: ActivatedManaProfile::ByAnnouncedMode(classes.into()),
+    payment_fixture_with_source_ability_and_extras(
+        Ability::Mana(ManaAbility::Activated {
+            ability: Arc::new(activated_ability(
+                Cost(vec![CostComponent::Tap].into()),
+                effect,
+            )),
+            profile: ActivatedManaProfile::ByAnnouncedMode(classes.into()),
+        }),
+        extras,
+    )
+}
+
+fn blanket_activate_lockout_card() -> Arc<Card> {
+    Arc::new(Card::Normal(CardFace {
+        name: "Split-second-style lockout".into(),
+        types: vec![Type::Artifact.def()],
+        abilities: vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
+            DeonticAction::Activate {
+                what: Predicate::Any,
+                by: Predicate::Any,
+                cost: None,
+            },
+        )))],
+        ..CardFace::default()
     }))
 }
 
@@ -385,8 +748,195 @@ fn triggered_mana_fixture() -> (
     (state, payer, parent, source)
 }
 
+fn nested_resolution_cast_trigger_fixture() -> (
+    GameState,
+    PlayerId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+) {
+    let payer = PlayerId(0);
+    let parent = Arc::new(Card::Normal(CardFace {
+        name: "Nested cast parent".into(),
+        abilities: vec![Ability::activated(activated_ability(
+            Cost(vec![CostComponent::Mana("{B}".parse().unwrap())].into()),
+            OneShotEffect::Sequentially(Arc::from([])),
+        ))],
+        ..CardFace::default()
+    }));
+    let source = Arc::new(Card::Normal(CardFace {
+        name: "Nested cast source".into(),
+        types: vec![Type::Land.def()],
+        abilities: vec![Ability::Mana(ManaAbility::Activated {
+            ability: Arc::new(activated_ability(
+                Cost(vec![CostComponent::Tap].into()),
+                OneShotEffect::Act(CoreAction::AddMana(
+                    Reference::You,
+                    Count::Literal(1),
+                    ManaSpec::Specific(Color::Green.into()).into(),
+                )),
+            )),
+            profile: ActivatedManaProfile::Always,
+        })],
+        ..CardFace::default()
+    }));
+    let cast_spell = Arc::new(Card::Normal(CardFace {
+        name: "Nested cast spell".into(),
+        mana_cost: "{G}".parse().unwrap(),
+        types: vec![Type::Instant.def()],
+        abilities: vec![Ability::spell(SpellAbility {
+            ability_word: None,
+            effect: OneShotEffect::Sequentially(Arc::from([])),
+        })],
+        ..CardFace::default()
+    }));
+    let cast_ref = Reference::Single(
+        Selection::SelectAll(Predicate::Characteristic(CharacteristicPredicate::Named(
+            "Nested cast spell".into(),
+        )))
+        .into(),
+    );
+    let watcher = Arc::new(Card::Normal(CardFace {
+        name: "Nested cast watcher".into(),
+        abilities: vec![Ability::Mana(ManaAbility::Triggered(Arc::new(
+            TriggeredAbility {
+                ability_word: None,
+                where_x: None,
+                from: None,
+                event: EventFilter::ManaAdded {
+                    what: Predicate::r#type(Type::Land),
+                    by: Predicate::Any,
+                },
+                condition: None,
+                limits: Arc::from([]),
+                effect: OneShotEffect::Sequentially(
+                    vec![
+                        OneShotEffect::May(May {
+                            who: Reference::You,
+                            effect: Arc::new(OneShotEffect::Act(CoreAction::Cast(
+                                Reference::You,
+                                cast_ref,
+                                None,
+                            ))),
+                            if_did: Some(Arc::new(OneShotEffect::Act(CoreAction::ChangeLife(
+                                Reference::You,
+                                LifeOp::Up(Count::Literal(3)),
+                            )))),
+                            if_not: Some(Arc::new(OneShotEffect::Act(CoreAction::ChangeLife(
+                                Reference::You,
+                                LifeOp::Up(Count::Literal(5)),
+                            )))),
+                        }),
+                        OneShotEffect::Act(CoreAction::AddMana(
+                            Reference::You,
+                            Count::Literal(1),
+                            ManaSpec::Specific(Color::Black.into()).into(),
+                        )),
+                    ]
+                    .into(),
+                ),
+            },
+        )))],
+        ..CardFace::default()
+    }));
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig {
+                deck: vec![parent, source, watcher, cast_spell],
+            },
+            PlayerConfig { deck: vec![] },
+        ],
+        seed: 29,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(payer),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    let parent = put_in_play(&mut state, payer, "Nested cast parent");
+    let source = put_in_play(&mut state, payer, "Nested cast source");
+    put_in_play(&mut state, payer, "Nested cast watcher");
+    let cast_spell = state.zones.hands[payer.index()]
+        .iter()
+        .copied()
+        .find(|&object| {
+            matches!(state.def(object), Card::Normal(face) if face.name.as_ref() == "Nested cast spell")
+        })
+        .unwrap();
+    state.turn.priority = Some(PriorityRound {
+        holder: payer,
+        consecutive_passes: 0,
+    });
+    state.pending = Some(PendingDecision::Priority(Priority {
+        player: payer,
+        legal: vec![Action::ActivateAbility {
+            object: parent,
+            ability: 0,
+        }],
+    }));
+    (state, payer, parent, source, cast_spell)
+}
+
 fn causal_trigger_fixture(
     event: EventFilter,
+) -> (
+    GameState,
+    PlayerId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+) {
+    causal_trigger_fixture_with_effect(
+        event,
+        OneShotEffect::Act(CoreAction::AddMana(
+            Reference::You,
+            Count::Literal(1),
+            ManaSpec::Specific(Color::Green.into()).into(),
+        )),
+    )
+}
+
+fn causal_trigger_fixture_with_effect(
+    event: EventFilter,
+    source_effect: OneShotEffect,
+) -> (
+    GameState,
+    PlayerId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+) {
+    causal_trigger_fixture_with_effect_and_limits(event, source_effect, Arc::from([]))
+}
+
+fn causal_trigger_fixture_with_effect_and_limits(
+    event: EventFilter,
+    source_effect: OneShotEffect,
+    limits: Arc<[UseLimit]>,
+) -> (
+    GameState,
+    PlayerId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+) {
+    causal_trigger_fixture_with_effect_limits_and_trigger(
+        event,
+        source_effect,
+        limits,
+        OneShotEffect::Act(CoreAction::AddMana(
+            Reference::You,
+            Count::Literal(1),
+            ManaSpec::Specific(Color::Black.into()).into(),
+        )),
+    )
+}
+
+fn causal_trigger_fixture_with_effect_limits_and_trigger(
+    event: EventFilter,
+    source_effect: OneShotEffect,
+    limits: Arc<[UseLimit]>,
+    trigger_effect: OneShotEffect,
 ) -> (
     GameState,
     PlayerId,
@@ -408,11 +958,7 @@ fn causal_trigger_fixture(
         abilities: vec![Ability::Mana(ManaAbility::Activated {
             ability: Arc::new(activated_ability(
                 Cost(vec![CostComponent::Tap].into()),
-                OneShotEffect::Act(CoreAction::AddMana(
-                    Reference::You,
-                    Count::Literal(1),
-                    ManaSpec::Specific(Color::Green.into()).into(),
-                )),
+                source_effect,
             )),
             profile: ActivatedManaProfile::Always,
         })],
@@ -427,12 +973,8 @@ fn causal_trigger_fixture(
                 from: None,
                 event,
                 condition: None,
-                limits: Arc::from([]),
-                effect: OneShotEffect::Act(CoreAction::AddMana(
-                    Reference::You,
-                    Count::Literal(1),
-                    ManaSpec::Specific(Color::Black.into()).into(),
-                )),
+                limits,
+                effect: trigger_effect,
             },
         )))],
         ..CardFace::default()
@@ -469,6 +1011,76 @@ fn causal_trigger_fixture(
         }],
     }));
     (state, payer, parent, source)
+}
+
+fn bare_nonmana_mana_added_fixture() -> (GameState, PlayerId, deckmaste_engine::ObjectId) {
+    let payer = PlayerId(0);
+    let source = Arc::new(Card::Normal(CardFace {
+        name: "Ordinary mana-adding ability".into(),
+        types: vec![Type::Land.def()],
+        abilities: vec![Ability::activated(activated_ability(
+            Cost(vec![CostComponent::Mana("{0}".parse::<ManaCost>().unwrap())].into()),
+            OneShotEffect::Act(CoreAction::AddMana(
+                Reference::You,
+                Count::Literal(1),
+                ManaSpec::Specific(Color::Green.into()).into(),
+            )),
+        ))],
+        ..CardFace::default()
+    }));
+    let watcher = Arc::new(Card::Normal(CardFace {
+        name: "Bare ManaAdded watcher".into(),
+        abilities: vec![Ability::Mana(ManaAbility::Triggered(Arc::new(
+            TriggeredAbility {
+                ability_word: None,
+                where_x: None,
+                from: None,
+                event: EventFilter::ManaAdded {
+                    what: Predicate::r#type(Type::Land),
+                    by: Predicate::Any,
+                },
+                condition: None,
+                limits: Arc::from([]),
+                effect: OneShotEffect::Act(CoreAction::AddMana(
+                    Reference::You,
+                    Count::Literal(1),
+                    ManaSpec::Specific(Color::Black.into()).into(),
+                )),
+            },
+        )))],
+        ..CardFace::default()
+    }));
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig {
+                deck: vec![source, watcher],
+            },
+            PlayerConfig { deck: vec![] },
+        ],
+        seed: 23,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(payer),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    let source = put_in_play(&mut state, payer, "Ordinary mana-adding ability");
+    put_in_play(&mut state, payer, "Bare ManaAdded watcher");
+    state.turn.priority = Some(PriorityRound {
+        holder: payer,
+        consecutive_passes: 0,
+    });
+    state.pending = Some(PendingDecision::Priority(Priority {
+        player: payer,
+        legal: vec![Action::ActivateAbility {
+            object: source,
+            ability: 0,
+        }],
+    }));
+    (state, payer, source)
 }
 
 fn run_to_payment(state: &mut GameState) -> PaymentPrompt {
@@ -528,6 +1140,547 @@ fn tap_only_mana_child_runs_paying_ready_submit_and_promotes_whole_image() {
             .mana_pool
             .amount(deckmaste_core::ColorOrColorless::Color(Color::Green)),
         1
+    );
+}
+
+#[test]
+fn nested_optional_payment_inside_a_mana_action_replays_with_its_mana_child() {
+    let (mut state, payer, parent, optional_source, helper) = nested_optional_mana_fixture();
+    state
+        .submit_decision(Decision::Act(Action::ActivateAbility {
+            object: parent,
+            ability: 0,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: optional_source,
+            ability: 0,
+        }))
+        .unwrap();
+    let outer_cost = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: outer_cost.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+
+    let optional = run_to_payment(&mut state);
+    assert_eq!(state.payment_depth(), 3);
+    assert_eq!(optional.stage, PaymentStage::PrePayment);
+    assert!(optional.mana_abilities.contains(&(helper, 0)));
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: helper,
+            ability: 0,
+        }))
+        .unwrap();
+    let helper_cost = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: helper_cost.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    let optional = run_to_payment(&mut state);
+    assert_eq!(state.payment_depth(), 3);
+
+    let pip = optional.outstanding[0].id;
+    let mana = state.player(payer).mana_pool.units()[0].id;
+    let mut coverage = deckmaste_engine::ManaCoverage::empty();
+    coverage.insert(pip, deckmaste_engine::ManaPayment::Floating(mana));
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::BeginPayment(coverage)))
+        .unwrap();
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: pip,
+            witness: FulfillmentWitness::CoveredMana,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    run_to_payment(&mut state);
+    let records = state.payment_records().unwrap();
+    let [outer_record] = records else {
+        panic!("the nested action belongs to one enclosing transaction: {records:?}");
+    };
+    let nested_retained = outer_record
+        .children
+        .iter()
+        .find(|record| {
+            matches!(
+                record.command,
+                deckmaste_engine::ReplayCommand::ManaAbility { .. }
+            )
+        })
+        .expect("the spent nested mana action is retained with its parent")
+        .id;
+    let retained = outer_record.id;
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+    assert_eq!(state.payment_depth(), 0);
+    assert!(state.zones.battlefield.contains(&optional_source));
+    assert!(state.objects.obj(optional_source).tapped);
+    assert!(state.objects.obj(helper).tapped);
+    assert_eq!(
+        state
+            .player(payer)
+            .mana_pool
+            .amount(deckmaste_core::ColorOrColorless::Color(Color::Green)),
+        1,
+    );
+    assert!(matches!(
+        state.incidents(),
+        [deckmaste_engine::EngineIncident::PaymentDeclined(incident)]
+            if incident.forced_retained_records == vec![retained, nested_retained]
+    ));
+}
+
+#[test]
+fn mana_production_facts_include_units_spent_before_the_action_finishes() {
+    let (mut state, payer, parent, source) = self_spending_optional_mana_fixture();
+    state
+        .submit_decision(Decision::Act(Action::ActivateAbility {
+            object: parent,
+            ability: 0,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source,
+            ability: 0,
+        }))
+        .unwrap();
+    let source_cost = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: source_cost.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    assert_eq!(run_to_payment(&mut state).stage, PaymentStage::Ready);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+
+    let optional = run_to_payment(&mut state);
+    let pip = optional.outstanding[0].id;
+    let produced = state.player(payer).mana_pool.units()[0].id;
+    let mut coverage = deckmaste_engine::ManaCoverage::empty();
+    coverage.insert(pip, deckmaste_engine::ManaPayment::Floating(produced));
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::BeginPayment(coverage)))
+        .unwrap();
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: pip,
+            witness: FulfillmentWitness::CoveredMana,
+        }))
+        .unwrap();
+    assert_eq!(run_to_payment(&mut state).stage, PaymentStage::Ready);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    let resumed = run_to_payment(&mut state);
+
+    assert_eq!(resumed.stage, PaymentStage::PrePayment);
+    assert!(state.player(payer).mana_pool.is_empty());
+    let record = state
+        .payment_records()
+        .unwrap()
+        .iter()
+        .find(|record| {
+            matches!(
+                record.command,
+                deckmaste_engine::ReplayCommand::ManaAbility { .. }
+            )
+        })
+        .expect("the completed source action is recorded");
+    assert!(record.facts.iter().any(|fact| {
+        matches!(
+            fact,
+            deckmaste_engine::GameEvent::ManaProduced(event)
+                if event.produced.iter().any(|unit| unit.id == produced)
+        )
+    }));
+    assert!(record.facts.iter().any(|fact| {
+        matches!(
+            fact,
+            deckmaste_engine::GameEvent::TappedForMana(event)
+                if event.produced.iter().any(|unit| unit.id == produced)
+        )
+    }));
+}
+
+#[test]
+fn nested_mana_resolution_restores_the_containing_that_much_register() {
+    let (mut state, payer, parent, outer, helper) = resolution_scope_mana_fixture();
+    state
+        .submit_decision(Decision::Act(Action::ActivateAbility {
+            object: parent,
+            ability: 0,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: outer,
+            ability: 0,
+        }))
+        .unwrap();
+    let outer_cost = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: outer_cost.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: helper,
+            ability: 0,
+        }))
+        .unwrap();
+    let helper_cost = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: helper_cost.outstanding[0].id,
+            witness: FulfillmentWitness::PayLife,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+
+    let optional = run_to_payment(&mut state);
+    let pip = optional.outstanding[0].id;
+    let unit = state.player(payer).mana_pool.units()[0].id;
+    let mut coverage = deckmaste_engine::ManaCoverage::empty();
+    coverage.insert(pip, deckmaste_engine::ManaPayment::Floating(unit));
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::BeginPayment(coverage)))
+        .unwrap();
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: pip,
+            witness: FulfillmentWitness::CoveredMana,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    run_to_payment(&mut state);
+
+    assert_eq!(
+        state.player(payer).life,
+        19,
+        "the helper's one damage must not replace the outer action's five-damage anaphor",
+    );
+}
+
+#[test]
+fn nested_mana_during_an_unsubmitted_action_cost_keeps_its_record_owner() {
+    let (mut state, payer, parent, outer, helper) = cost_replacement_nested_mana_fixture();
+    state
+        .submit_decision(Decision::Act(Action::ActivateAbility {
+            object: parent,
+            ability: 0,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: outer,
+            ability: 0,
+        }))
+        .unwrap();
+    let outer_cost = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: outer_cost.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+
+    let optional = run_to_payment(&mut state);
+    assert_eq!(state.payment_depth(), 3);
+    assert_eq!(optional.stage, PaymentStage::PrePayment);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: helper,
+            ability: 0,
+        }))
+        .unwrap();
+    let helper_cost = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: helper_cost.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+    assert_eq!(run_to_payment(&mut state).stage, PaymentStage::Ready);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    run_to_payment(&mut state);
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+        panic!("the nested helper remains a separately reversible mana action");
+    };
+    assert!(choice.legal.contains(&vec![]));
+    let helper_action = choice
+        .legal
+        .iter()
+        .find_map(|set| (set.len() == 1).then(|| set[0]))
+        .expect("the helper alone is reversible beneath the barred outer action");
+    let mut retained = state.clone();
+
+    retained
+        .submit_decision(Decision::ManaReversals(vec![]))
+        .unwrap();
+    assert!(retained.objects.obj(helper).tapped);
+    assert_eq!(
+        retained.player(payer).mana_pool.amount(Color::Green.into()),
+        2
+    );
+
+    state
+        .submit_decision(Decision::ManaReversals(vec![helper_action]))
+        .unwrap();
+    assert!(!state.objects.obj(helper).tapped);
+    assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 1);
+}
+
+#[test]
+fn declining_optional_payment_keeps_its_mana_child_separately_reversible() {
+    let (mut state, payer, parent, optional_source, helper) = nested_optional_mana_fixture();
+    state
+        .submit_decision(Decision::Act(Action::ActivateAbility {
+            object: parent,
+            ability: 0,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: optional_source,
+            ability: 0,
+        }))
+        .unwrap();
+    let outer_cost = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: outer_cost.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+
+    let optional = run_to_payment(&mut state);
+    assert_eq!(state.payment_depth(), 3);
+    assert!(optional.mana_abilities.contains(&(helper, 0)));
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: helper,
+            ability: 0,
+        }))
+        .unwrap();
+    let helper_cost = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: helper_cost.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    run_to_payment(&mut state);
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+    run_to_payment(&mut state);
+    let records = state.payment_records().unwrap();
+    let [outer_record] = records else {
+        panic!("the nested action belongs to one enclosing transaction: {records:?}");
+    };
+    let outer_record_id = outer_record.id;
+    assert!(!outer_record.reversal_barriers.is_empty());
+    let nested_action = outer_record
+        .children
+        .iter()
+        .find_map(|record| match record.command {
+            deckmaste_engine::ReplayCommand::ManaAbility { action, .. } => Some(action),
+            deckmaste_engine::ReplayCommand::Fulfill { .. } => None,
+        })
+        .expect("the optional payment retains its independently activated mana child");
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+        panic!("decline should expose the nested action despite the outer barrier");
+    };
+    assert!(choice.legal.contains(&Vec::new()));
+    assert!(choice.legal.contains(&vec![nested_action]));
+
+    state
+        .submit_decision(Decision::ManaReversals(vec![nested_action]))
+        .unwrap();
+
+    assert_eq!(state.payment_depth(), 0);
+    assert!(state.objects.obj(optional_source).tapped);
+    assert!(!state.objects.obj(helper).tapped);
+    assert_eq!(
+        state
+            .player(payer)
+            .mana_pool
+            .amount(deckmaste_core::ColorOrColorless::Color(Color::Green)),
+        0,
+    );
+    assert!(matches!(
+        state.incidents(),
+        [deckmaste_engine::EngineIncident::PaymentDeclined(incident)]
+            if incident.crossed_reversal_barrier
+                && incident.forced_retained_records == vec![outer_record_id]
+    ));
+}
+
+#[test]
+fn nested_optional_replay_activates_a_mana_source_created_by_the_outer_action() {
+    let (mut state, payer, parent, outer) = created_nested_optional_mana_fixture();
+    state
+        .submit_decision(Decision::Act(Action::ActivateAbility {
+            object: parent,
+            ability: 0,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: outer,
+            ability: 0,
+        }))
+        .unwrap();
+    let outer_cost = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: outer_cost.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+
+    let optional = run_to_payment(&mut state);
+    let helper = optional
+        .mana_abilities
+        .iter()
+        .find_map(|&(source, ability)| {
+            matches!(state.def(source), Card::Normal(face) if face.name.as_ref() == "Nested created helper")
+                .then_some((source, ability))
+        })
+        .expect("the outer mana action creates the optional payment's helper");
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: helper.0,
+            ability: helper.1,
+        }))
+        .unwrap();
+    let helper_cost = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: helper_cost.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    let optional = run_to_payment(&mut state);
+    let pip = optional.outstanding[0].id;
+    let mana = state.player(payer).mana_pool.units()[0].id;
+    let mut coverage = deckmaste_engine::ManaCoverage::empty();
+    coverage.insert(pip, deckmaste_engine::ManaPayment::Floating(mana));
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::BeginPayment(coverage)))
+        .unwrap();
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: pip,
+            witness: FulfillmentWitness::CoveredMana,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    run_to_payment(&mut state);
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+
+    let replayed_helper = state
+        .zones
+        .battlefield
+        .iter()
+        .copied()
+        .find(|&object| {
+            matches!(state.def(object), Card::Normal(face) if face.name.as_ref() == "Nested created helper")
+        })
+        .expect("replay remints the helper before replaying its nested activation");
+    assert!(state.objects.obj(outer).tapped);
+    assert!(state.objects.obj(replayed_helper).tapped);
+    assert_eq!(
+        state
+            .player(payer)
+            .mana_pool
+            .amount(deckmaste_core::ColorOrColorless::Color(Color::Green)),
+        1,
     );
 }
 
@@ -625,6 +1778,242 @@ fn modal_mana_child_rejects_a_nonmana_announced_mode_without_mutation() {
     );
 
     state.submit_decision(Decision::Modes(vec![0])).unwrap();
+}
+
+#[test]
+fn modal_mana_profile_routes_an_ordinary_mode_through_the_stack() {
+    let (mut state, payer, _parent, source) = modal_payment_fixture();
+    state.pending = Some(PendingDecision::Priority(Priority {
+        player: payer,
+        legal: vec![Action::ActivateAbility {
+            object: source,
+            ability: 0,
+        }],
+    }));
+    state
+        .submit_decision(Decision::Act(Action::ActivateAbility {
+            object: source,
+            ability: 0,
+        }))
+        .unwrap();
+    for _ in 0..20 {
+        if matches!(state.pending, Some(PendingDecision::ChooseModes(_))) {
+            break;
+        }
+        assert!(matches!(state.step(), StepOutcome::Progress(_)));
+    }
+
+    state.submit_decision(Decision::Modes(vec![1])).unwrap();
+    let prompt = run_to_payment(&mut state);
+    assert_eq!(prompt.stage, PaymentStage::Paying);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: prompt.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    assert_eq!(run_to_payment(&mut state).stage, PaymentStage::Ready);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    for _ in 0..20 {
+        if !state.stack.is_empty() {
+            break;
+        }
+        assert!(matches!(state.step(), StepOutcome::Progress(_)));
+    }
+
+    assert_eq!(state.stack.len(), 1);
+    assert!(state.objects.obj(source).tapped);
+    assert!(state.player(payer).mana_pool.is_empty());
+}
+
+#[test]
+fn mixed_modal_mana_profile_rechecks_blanket_lockout_after_modes() {
+    let (mut state, payer, _parent, source) =
+        modal_payment_fixture_with_extras(vec![blanket_activate_lockout_card()]);
+    let lockout = put_in_play(&mut state, PlayerId(0), "Split-second-style lockout");
+    state.pending = None;
+    state.agenda.clear();
+    state.agenda.push_front(WorkItem::OpenPriority);
+    assert!(matches!(state.step(), StepOutcome::Progress(_)));
+    let PendingDecision::Priority(prompt) = state.pending.as_ref().unwrap() else {
+        panic!("OpenPriority should expose the mixed modal activation")
+    };
+    let activation = Action::ActivateAbility {
+        object: source,
+        ability: 0,
+    };
+    assert!(
+        prompt.legal.contains(&activation),
+        "a qualifying mana completion keeps the mixed ability offer legal"
+    );
+
+    state.submit_decision(Decision::Act(activation)).unwrap();
+    for _ in 0..20 {
+        if matches!(state.pending, Some(PendingDecision::ChooseModes(_))) {
+            break;
+        }
+        assert!(matches!(state.step(), StepOutcome::Progress(_)));
+    }
+
+    assert!(state.submit_decision(Decision::Modes(vec![1])).is_err());
+    assert!(matches!(
+        state.pending,
+        Some(PendingDecision::ChooseModes(_))
+    ));
+    assert!(
+        state
+            .announcing
+            .as_ref()
+            .expect("the rejected announcement remains live")
+            .chosen_modes
+            .is_empty()
+    );
+
+    state.submit_decision(Decision::Modes(vec![0])).unwrap();
+    let prompt = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: prompt.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    assert_eq!(run_to_payment(&mut state).stage, PaymentStage::Ready);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    for _ in 0..40 {
+        if state.payment_depth() == 0 && matches!(state.pending, Some(PendingDecision::Priority(_)))
+        {
+            break;
+        }
+        assert!(matches!(state.step(), StepOutcome::Progress(_)));
+    }
+
+    assert!(state.objects.obj(source).tapped);
+    assert!(state.stack.is_empty());
+    assert!(state.zones.battlefield.contains(&lockout));
+    assert_eq!(
+        state
+            .player(payer)
+            .mana_pool
+            .amount(deckmaste_core::ColorOrColorless::Color(Color::Green)),
+        1
+    );
+}
+
+#[test]
+fn mixed_modal_mana_profile_rejects_an_unsatisfiable_ordinary_mode() {
+    let missing_target = OneShotEffect::Targeted(Targeted::new(
+        vec![TargetSpec::Target(
+            Quantity::one(),
+            Predicate::Characteristic(CharacteristicPredicate::Named("Missing target".into())),
+        )]
+        .into(),
+        OneShotEffect::Sequentially(Arc::from([])),
+    ));
+    let (mut state, _payer, _parent, source) = modal_payment_fixture_with_ordinary_mode(
+        Vec::new(),
+        missing_target,
+        ManaModeClass {
+            adds_mana: false,
+            targetless: false,
+        },
+    );
+    state.pending = None;
+    state.agenda.clear();
+    state.agenda.push_front(WorkItem::OpenPriority);
+    assert!(matches!(state.step(), StepOutcome::Progress(_)));
+    let PendingDecision::Priority(priority) = state.pending.as_ref().unwrap() else {
+        panic!("OpenPriority should expose the mixed modal activation")
+    };
+    assert!(priority.legal.contains(&Action::ActivateAbility {
+        object: source,
+        ability: 0,
+    }));
+    state
+        .submit_decision(Decision::Act(Action::ActivateAbility {
+            object: source,
+            ability: 0,
+        }))
+        .unwrap();
+    for _ in 0..20 {
+        if matches!(state.pending, Some(PendingDecision::ChooseModes(_))) {
+            break;
+        }
+        assert!(matches!(state.step(), StepOutcome::Progress(_)));
+    }
+
+    assert!(state.submit_decision(Decision::Modes(vec![1])).is_err());
+    assert!(matches!(
+        state.pending,
+        Some(PendingDecision::ChooseModes(_))
+    ));
+    assert!(
+        state
+            .announcing
+            .as_ref()
+            .expect("the rejected mode leaves the announcement retryable")
+            .chosen_modes
+            .is_empty()
+    );
+
+    state.submit_decision(Decision::Modes(vec![0])).unwrap();
+    assert_eq!(run_to_payment(&mut state).stage, PaymentStage::Paying);
+}
+
+#[test]
+fn modal_mana_profile_routes_a_qualifying_mode_stacklessly() {
+    let (mut state, payer, _parent, source) = modal_payment_fixture();
+    state.pending = Some(PendingDecision::Priority(Priority {
+        player: payer,
+        legal: vec![Action::ActivateAbility {
+            object: source,
+            ability: 0,
+        }],
+    }));
+    state
+        .submit_decision(Decision::Act(Action::ActivateAbility {
+            object: source,
+            ability: 0,
+        }))
+        .unwrap();
+    for _ in 0..20 {
+        if matches!(state.pending, Some(PendingDecision::ChooseModes(_))) {
+            break;
+        }
+        assert!(matches!(state.step(), StepOutcome::Progress(_)));
+    }
+
+    state.submit_decision(Decision::Modes(vec![0])).unwrap();
+    let prompt = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: prompt.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    assert_eq!(run_to_payment(&mut state).stage, PaymentStage::Ready);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    for _ in 0..40 {
+        if state.payment_depth() == 0 && matches!(state.pending, Some(PendingDecision::Priority(_)))
+        {
+            break;
+        }
+        assert!(matches!(state.step(), StepOutcome::Progress(_)));
+    }
+
+    assert!(state.stack.is_empty());
+    assert_eq!(
+        state
+            .player(payer)
+            .mana_pool
+            .amount(deckmaste_core::ColorOrColorless::Color(Color::Green)),
+        1
+    );
 }
 
 #[test]
@@ -759,6 +2148,115 @@ fn tapped_for_mana_trigger_resolves_before_parent_payment_resumes() {
 }
 
 #[test]
+fn triggered_mana_resolution_cast_owns_a_nested_announcement_frame() {
+    let (mut state, payer, parent, source, spell) = nested_resolution_cast_trigger_fixture();
+    state
+        .submit_decision(Decision::Act(Action::ActivateAbility {
+            object: parent,
+            ability: 0,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source,
+            ability: 0,
+        }))
+        .unwrap();
+    let source_cost = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: source_cost.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    assert_eq!(run_to_payment(&mut state).stage, PaymentStage::Ready);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    for _ in 0..80 {
+        if matches!(state.pending, Some(PendingDecision::YesNo(_))) {
+            break;
+        }
+        assert!(matches!(state.step(), StepOutcome::Progress(_)));
+    }
+    state.submit_decision(Decision::Answer(true)).unwrap();
+    let cast_payment = run_to_payment(&mut state);
+
+    assert_eq!(cast_payment.stage, PaymentStage::PrePayment);
+    assert_eq!(state.payment_depth(), 3);
+
+    let mut submitted = state.clone();
+    let pip = cast_payment.outstanding[0].id;
+    let green = submitted
+        .player(payer)
+        .mana_pool
+        .units()
+        .iter()
+        .find(|unit| unit.kind == Color::Green.into())
+        .unwrap()
+        .id;
+    let mut coverage = deckmaste_engine::ManaCoverage::empty();
+    coverage.insert(pip, deckmaste_engine::ManaPayment::Floating(green));
+    submitted
+        .submit_decision(Decision::Payment(PaymentCommand::BeginPayment(coverage)))
+        .unwrap();
+    submitted
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: pip,
+            witness: FulfillmentWitness::CoveredMana,
+        }))
+        .unwrap();
+    assert_eq!(run_to_payment(&mut submitted).stage, PaymentStage::Ready);
+    submitted
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    let resumed = run_to_payment(&mut submitted);
+    assert_eq!(resumed.stage, PaymentStage::PrePayment);
+    assert_eq!(submitted.payment_depth(), 1);
+    assert!(submitted.stack.iter().any(|entry| entry.id == spell));
+    assert_eq!(submitted.player(payer).life, 23);
+    assert_eq!(
+        submitted
+            .player(payer)
+            .mana_pool
+            .amount(deckmaste_core::ColorOrColorless::Color(Color::Green)),
+        0
+    );
+    assert_eq!(
+        submitted
+            .player(payer)
+            .mana_pool
+            .amount(deckmaste_core::ColorOrColorless::Color(Color::Black)),
+        1
+    );
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+    let resumed = run_to_payment(&mut state);
+    assert_eq!(resumed.stage, PaymentStage::PrePayment);
+    assert_eq!(state.payment_depth(), 1);
+    assert!(state.zones.hands[payer.index()].contains(&spell));
+    assert!(state.stack.is_empty());
+    assert_eq!(state.player(payer).life, 25);
+    assert_eq!(
+        state
+            .player(payer)
+            .mana_pool
+            .amount(deckmaste_core::ColorOrColorless::Color(Color::Green)),
+        1
+    );
+    assert_eq!(
+        state
+            .player(payer)
+            .mana_pool
+            .amount(deckmaste_core::ColorOrColorless::Color(Color::Black)),
+        1
+    );
+}
+
+#[test]
 fn triggered_mana_matches_each_causal_fact_before_parent_continues() {
     let source_is_land = Predicate::r#type(Type::Land);
     let causes = [
@@ -818,4 +2316,366 @@ fn triggered_mana_matches_each_causal_fact_before_parent_continues() {
         );
         assert!(state.pending_triggers.is_empty(), "cause {event:?}");
     }
+}
+
+#[test]
+fn activation_triggered_mana_waits_for_the_source_mana_effect() {
+    let event = EventFilter::ManaAbilityActivated {
+        what: Predicate::r#type(Type::Land),
+        by: Predicate::Any,
+    };
+    let (mut state, _payer, parent, source) = causal_trigger_fixture(event);
+    state
+        .submit_decision(Decision::Act(Action::ActivateAbility {
+            object: parent,
+            ability: 0,
+        }))
+        .unwrap();
+    let _ = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source,
+            ability: 0,
+        }))
+        .unwrap();
+    let child = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: child.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    let _ = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+
+    let mut additions = Vec::new();
+    for _ in 0..40 {
+        match state.step() {
+            StepOutcome::Progress(Progress::Applied(Occurrence::Single(GameEvent::ManaAdded(
+                event,
+            )))) => additions.push(event.mana),
+            StepOutcome::Progress(_) => {}
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => break,
+            other => panic!("unexpected outcome while resolving mana action: {other:?}"),
+        }
+    }
+    assert_eq!(
+        additions,
+        vec![Color::Green.into(), Color::Black.into()],
+        "the source mana ability finishes before its activation trigger resolves"
+    );
+}
+
+#[test]
+fn mana_added_triggers_wait_for_all_effects_of_the_source_mana_ability() {
+    let event = EventFilter::ManaAdded {
+        what: Predicate::r#type(Type::Land),
+        by: Predicate::Any,
+    };
+    let source_effect = OneShotEffect::Sequentially(
+        vec![
+            OneShotEffect::Act(CoreAction::AddMana(
+                Reference::You,
+                Count::Literal(1),
+                ManaSpec::Specific(Color::Green.into()).into(),
+            )),
+            OneShotEffect::Act(CoreAction::AddMana(
+                Reference::You,
+                Count::Literal(1),
+                ManaSpec::Specific(Color::Blue.into()).into(),
+            )),
+        ]
+        .into(),
+    );
+    let (mut state, _payer, parent, source) =
+        causal_trigger_fixture_with_effect(event, source_effect);
+    state
+        .submit_decision(Decision::Act(Action::ActivateAbility {
+            object: parent,
+            ability: 0,
+        }))
+        .unwrap();
+    let _ = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source,
+            ability: 0,
+        }))
+        .unwrap();
+    let child = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: child.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    let _ = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+
+    let mut additions = Vec::new();
+    for _ in 0..60 {
+        match state.step() {
+            StepOutcome::Progress(Progress::Applied(Occurrence::Single(GameEvent::ManaAdded(
+                event,
+            )))) => additions.push(event.mana),
+            StepOutcome::Progress(_) => {}
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => break,
+            other => panic!("unexpected outcome while resolving mana action: {other:?}"),
+        }
+    }
+    assert_eq!(
+        additions,
+        vec![
+            Color::Green.into(),
+            Color::Blue.into(),
+            Color::Black.into(),
+            Color::Black.into(),
+        ],
+        "ManaAdded triggers wait until every effect of the causing mana ability finishes"
+    );
+}
+
+#[test]
+fn triggered_mana_use_limit_is_gated_between_causal_firings() {
+    let event = EventFilter::ManaAdded {
+        what: Predicate::r#type(Type::Land),
+        by: Predicate::Any,
+    };
+    let source_effect = OneShotEffect::Sequentially(
+        vec![
+            OneShotEffect::Act(CoreAction::AddMana(
+                Reference::You,
+                Count::Literal(1),
+                ManaSpec::Specific(Color::Green.into()).into(),
+            )),
+            OneShotEffect::Act(CoreAction::AddMana(
+                Reference::You,
+                Count::Literal(1),
+                ManaSpec::Specific(Color::Blue.into()).into(),
+            )),
+        ]
+        .into(),
+    );
+    let (mut state, payer, parent, source) = causal_trigger_fixture_with_effect_and_limits(
+        event,
+        source_effect,
+        vec![UseLimit::OncePerTurn].into(),
+    );
+    state
+        .submit_decision(Decision::Act(Action::ActivateAbility {
+            object: parent,
+            ability: 0,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source,
+            ability: 0,
+        }))
+        .unwrap();
+    let child = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: child.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    run_to_payment(&mut state);
+
+    assert_eq!(
+        state
+            .player(payer)
+            .mana_pool
+            .amount(deckmaste_core::ColorOrColorless::Color(Color::Black)),
+        1,
+        "the second causal firing sees the first one's AbilityUsed fact",
+    );
+}
+
+#[test]
+fn triggered_mana_production_facts_include_units_spent_before_finish() {
+    let trigger_effect = OneShotEffect::Sequentially(
+        vec![
+            OneShotEffect::Act(CoreAction::AddMana(
+                Reference::You,
+                Count::Literal(1),
+                ManaSpec::Specific(Color::Black.into()).into(),
+            )),
+            OneShotEffect::May(May {
+                who: Reference::You,
+                effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
+                    vec![CostComponent::Mana("{B}".parse().unwrap())].into(),
+                )))),
+                if_did: None,
+                if_not: None,
+            }),
+        ]
+        .into(),
+    );
+    let (mut state, payer, parent, source) = causal_trigger_fixture_with_effect_limits_and_trigger(
+        EventFilter::ManaAdded {
+            what: Predicate::r#type(Type::Land),
+            by: Predicate::Any,
+        },
+        OneShotEffect::Act(CoreAction::AddMana(
+            Reference::You,
+            Count::Literal(1),
+            ManaSpec::Specific(Color::Green.into()).into(),
+        )),
+        Arc::from([]),
+        trigger_effect,
+    );
+    state
+        .submit_decision(Decision::Act(Action::ActivateAbility {
+            object: parent,
+            ability: 0,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source,
+            ability: 0,
+        }))
+        .unwrap();
+    let child = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: child.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+
+    let optional = run_to_payment(&mut state);
+    let pip = optional.outstanding[0].id;
+    let black = state
+        .player(payer)
+        .mana_pool
+        .units()
+        .iter()
+        .find(|unit| unit.kind == Color::Black.into())
+        .expect("triggered mana was added")
+        .id;
+    let mut coverage = deckmaste_engine::ManaCoverage::empty();
+    coverage.insert(pip, deckmaste_engine::ManaPayment::Floating(black));
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::BeginPayment(coverage)))
+        .unwrap();
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: pip,
+            witness: FulfillmentWitness::CoveredMana,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    run_to_payment(&mut state);
+
+    assert_eq!(
+        state
+            .player(payer)
+            .mana_pool
+            .amount(deckmaste_core::ColorOrColorless::Color(Color::Black)),
+        0,
+    );
+    assert!(state.payment_records().unwrap().iter().any(|record| {
+        record.facts.iter().any(|fact| {
+            matches!(
+                fact,
+                GameEvent::ManaProduced(event)
+                    if event.produced.iter().any(|unit| unit.id == black)
+            )
+        })
+    }));
+}
+
+#[test]
+fn bare_nonmana_ability_mana_added_trigger_resolves_immediately() {
+    let (mut state, payer, source) = bare_nonmana_mana_added_fixture();
+    state
+        .submit_decision(Decision::Act(Action::ActivateAbility {
+            object: source,
+            ability: 0,
+        }))
+        .unwrap();
+    let prompt = run_to_payment(&mut state);
+    assert_eq!(prompt.stage, PaymentStage::PrePayment);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::BeginPayment(
+            deckmaste_engine::ManaCoverage::empty(),
+        )))
+        .unwrap();
+    assert_eq!(run_to_payment(&mut state).stage, PaymentStage::Ready);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+
+    for _ in 0..20 {
+        if state.stack.len() == 1 {
+            break;
+        }
+        assert!(matches!(state.step(), StepOutcome::Progress(_)));
+    }
+    assert_eq!(state.stack.len(), 1);
+    state.agenda.push_front(WorkItem::OpenPriority);
+    for _ in 0..100 {
+        if state.stack.is_empty()
+            && state
+                .player(payer)
+                .mana_pool
+                .amount(deckmaste_core::ColorOrColorless::Color(Color::Black))
+                == 1
+            && matches!(state.pending, Some(PendingDecision::Priority(_)))
+        {
+            break;
+        }
+        match state.step() {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(_)) => {
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            StepOutcome::Progress(_) => {}
+            other => panic!("unexpected stop while resolving ordinary mana addition: {other:?}"),
+        }
+    }
+
+    assert!(
+        state.stack.is_empty(),
+        "ordinary ability never resolved: stack={}, pending={:?}, priority={:?}, agenda={:?}, outcome={:?}",
+        state.stack.len(),
+        state.pending,
+        state.turn.priority,
+        state.agenda,
+        state.outcome
+    );
+    assert_eq!(
+        state
+            .player(payer)
+            .mana_pool
+            .amount(deckmaste_core::ColorOrColorless::Color(Color::Green)),
+        1
+    );
+    assert_eq!(
+        state
+            .player(payer)
+            .mana_pool
+            .amount(deckmaste_core::ColorOrColorless::Color(Color::Black)),
+        1,
+        "a triggered mana ability caused by a bare ManaAdded fact resolves before priority"
+    );
+    assert!(state.pending_triggers.is_empty());
 }

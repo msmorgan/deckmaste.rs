@@ -112,21 +112,18 @@ impl Lower for deckmaste_semantics::Ability {
 struct ManaFacts {
     adds_mana: bool,
     targetless: bool,
-    library_safe: bool,
 }
 
 impl ManaFacts {
     const NEUTRAL: Self = Self {
         adds_mana: false,
         targetless: true,
-        library_safe: true,
     };
 
     fn merge(self, other: Self) -> Self {
         Self {
             adds_mana: self.adds_mana || other.adds_mana,
             targetless: self.targetless && other.targetless,
-            library_safe: self.library_safe && other.library_safe,
         }
     }
 
@@ -134,7 +131,6 @@ impl ManaFacts {
         deckmaste_core::ManaModeClass {
             adds_mana: self.adds_mana,
             targetless: self.targetless,
-            library_safe: self.library_safe,
         }
     }
 }
@@ -147,9 +143,8 @@ fn classify_activated(
     use deckmaste_core::OneShotEffect;
     use deckmaste_core::UseLimit;
 
-    let eligible_cost = cost_library_safe(&ability.cost);
     let loyalty = ability.limits.contains(&UseLimit::LoyaltyOncePerTurn);
-    if !eligible_cost || loyalty {
+    if loyalty {
         return deckmaste_core::Ability::Activated(ability);
     }
 
@@ -162,7 +157,7 @@ fn classify_activated(
             .into();
         if classes
             .iter()
-            .any(|class| class.adds_mana && class.targetless && class.library_safe)
+            .any(|class| class.adds_mana && class.targetless)
         {
             return deckmaste_core::Ability::Mana(ManaAbility::Activated {
                 ability,
@@ -173,7 +168,7 @@ fn classify_activated(
     }
 
     let facts = effect_mana_facts(&ability.effect);
-    if facts.adds_mana && facts.targetless && facts.library_safe {
+    if facts.adds_mana && facts.targetless {
         deckmaste_core::Ability::Mana(ManaAbility::Activated {
             ability,
             profile: ActivatedManaProfile::Always,
@@ -212,23 +207,6 @@ fn triggered_by_mana(event: &deckmaste_core::EventFilter) -> bool {
     }
 }
 
-fn cost_library_safe(cost: &deckmaste_core::Cost) -> bool {
-    use deckmaste_core::CostComponent;
-    cost.iter().all(|component| match component {
-        CostComponent::Act(action) => effect_action_facts(action).library_safe,
-        CostComponent::Cost(inner) => cost_library_safe(inner),
-        CostComponent::ChooseAndPay { body, .. } => cost_library_safe(body),
-        CostComponent::Expanded(expansion) => cost_library_safe(&deckmaste_core::Cost(
-            vec![(*expansion.value).clone()].into(),
-        )),
-        CostComponent::Mana(_)
-        | CostComponent::ManaCostOf(_)
-        | CostComponent::Tap
-        | CostComponent::Untap
-        | CostComponent::TapTotal { .. } => true,
-    })
-}
-
 fn effect_mana_facts(effect: &deckmaste_core::OneShotEffect) -> ManaFacts {
     use deckmaste_core::OneShotEffect;
     match effect {
@@ -238,10 +216,13 @@ fn effect_mana_facts(effect: &deckmaste_core::OneShotEffect) -> ManaFacts {
                 facts.merge(effect_mana_facts(part))
             })
         }
+        // RevealUntil is intentionally inert at runtime; none of these nodes
+        // can establish that the executable ability produces mana.
         OneShotEffect::Continuously(_)
         | OneShotEffect::Until(_, _)
         | OneShotEffect::Delayed(_)
-        | OneShotEffect::Reflexive(_) => ManaFacts::NEUTRAL,
+        | OneShotEffect::Reflexive(_)
+        | OneShotEffect::RevealUntil(_) => ManaFacts::NEUTRAL,
         OneShotEffect::Label(label) => effect_mana_facts(&label.effect),
         OneShotEffect::SeparatePiles(piles) => piles
             .then
@@ -264,14 +245,16 @@ fn effect_mana_facts(effect: &deckmaste_core::OneShotEffect) -> ManaFacts {
             .fold(ManaFacts::NEUTRAL, |facts, part| {
                 facts.merge(effect_mana_facts(part))
             }),
-        OneShotEffect::AdditionalCost(additional) => {
-            let mut facts = effect_mana_facts(&additional.body);
-            facts.library_safe &= cost_library_safe(&additional.pay);
-            facts
+        OneShotEffect::AdditionalCost(additional) => effect_mana_facts(&additional.body),
+        OneShotEffect::Each(each) => {
+            binder_mana_facts(&each.binder).merge(effect_mana_facts(&each.effect))
         }
-        OneShotEffect::Each(each) => effect_mana_facts(&each.effect),
-        OneShotEffect::With(with) => effect_mana_facts(&with.body),
-        OneShotEffect::Distribute(distribute) => effect_mana_facts(&distribute.body),
+        OneShotEffect::With(with) => {
+            binder_mana_facts(&with.binder).merge(effect_mana_facts(&with.body))
+        }
+        OneShotEffect::Distribute(distribute) => {
+            binder_mana_facts(&distribute.binder).merge(effect_mana_facts(&distribute.body))
+        }
         OneShotEffect::Noting(noting) => effect_mana_facts(&noting.effect),
         OneShotEffect::Modal(modal) => {
             modal.modes.iter().fold(ManaFacts::NEUTRAL, |facts, mode| {
@@ -284,53 +267,35 @@ fn effect_mana_facts(effect: &deckmaste_core::OneShotEffect) -> ManaFacts {
             facts
         }
         OneShotEffect::Repeat(_, body) | OneShotEffect::Batch(_, body) => effect_mana_facts(body),
-        OneShotEffect::RevealUntil(reveal) => effect_mana_facts(&reveal.body),
         OneShotEffect::Expanded(expansion) => effect_mana_facts(&expansion.value),
     }
 }
 
 fn effect_action_facts(action: &deckmaste_core::Action) -> ManaFacts {
     use deckmaste_core::Action;
-    use deckmaste_core::Destination;
-    use deckmaste_core::Zone;
     match action {
         Action::AddMana(_, _, _) => ManaFacts {
             adds_mana: true,
             ..ManaFacts::NEUTRAL
         },
         Action::Composite { body, .. } => effect_mana_facts(body),
-        Action::Move(_, destination, _, from) => ManaFacts {
-            library_safe: !matches!(destination, Destination::Library(_))
-                && *from != Some(Zone::Library),
-            ..ManaFacts::NEUTRAL
-        },
-        Action::MoveGroup { group, to, .. } => ManaFacts {
-            library_safe: !matches!(to, Destination::Library(_)) && !selection_reads_library(group),
-            ..ManaFacts::NEUTRAL
-        },
-        Action::DrawCard(_) | Action::Cast(_, _, _) => ManaFacts {
-            library_safe: false,
-            ..ManaFacts::NEUTRAL
-        },
-        Action::Pay(cost) => ManaFacts {
-            library_safe: cost_library_safe(cost),
-            ..ManaFacts::NEUTRAL
-        },
         Action::Expanded(expansion) => effect_action_facts(&expansion.value),
         _ => ManaFacts::NEUTRAL,
     }
 }
 
-fn selection_reads_library(selection: &deckmaste_core::Selection) -> bool {
-    use deckmaste_core::Selection;
-    match selection {
-        Selection::TopOfLibrary { .. }
-        | Selection::BottomOfLibrary { .. }
-        | Selection::LibraryOf(_) => true,
-        Selection::Union(parts) => parts.iter().any(selection_reads_library),
-        Selection::InChosenOrder(inner, _) => selection_reads_library(inner),
-        Selection::Expanded(expansion) => selection_reads_library(&expansion.value),
-        _ => false,
+fn binder_mana_facts(binder: &deckmaste_core::Binder) -> ManaFacts {
+    use deckmaste_core::Binder;
+    match binder {
+        Binder::Produce(action) => effect_action_facts(action),
+        Binder::SearchOne { if_none, .. } | Binder::Search { if_none, .. } => if_none
+            .as_deref()
+            .map_or(ManaFacts::NEUTRAL, effect_mana_facts),
+        Binder::Expanded(expansion) => binder_mana_facts(&expansion.value),
+        Binder::TheRef(_)
+        | Binder::ChooseOne { .. }
+        | Binder::Choose { .. }
+        | Binder::Existing(_) => ManaFacts::NEUTRAL,
     }
 }
 
@@ -641,7 +606,7 @@ mod tests {
     }
 
     #[test]
-    fn library_touching_mana_producer_remains_ordinary() {
+    fn reversibility_does_not_change_mana_classification() {
         let effect = deckmaste_semantics::OneShotEffect::Sequentially(
             vec![
                 semantic_mana_effect(),
@@ -651,6 +616,40 @@ mod tests {
             ]
             .into(),
         );
+
+        assert_matches!(
+            semantic_mana_activation(effect).lower(),
+            deckmaste_core::Ability::Mana(deckmaste_core::ManaAbility::Activated { .. })
+        );
+    }
+
+    #[test]
+    fn mana_produced_by_a_binder_participates_in_classification() {
+        let effect = deckmaste_semantics::OneShotEffect::With(deckmaste_semantics::With {
+            binder: deckmaste_semantics::Binder::Produce(std::sync::Arc::new(
+                deckmaste_semantics::Action::AddMana(
+                    deckmaste_semantics::Reference::You,
+                    deckmaste_semantics::Count::Literal(1),
+                    deckmaste_semantics::ManaProduction::from(deckmaste_semantics::Color::Green),
+                ),
+            )),
+            body: std::sync::Arc::new(minimal_one_shot_effect()),
+        });
+
+        assert_matches!(
+            semantic_mana_activation(effect).lower(),
+            deckmaste_core::Ability::Mana(deckmaste_core::ManaAbility::Activated { .. })
+        );
+    }
+
+    #[test]
+    fn inert_reveal_until_body_does_not_establish_mana_production() {
+        let effect =
+            deckmaste_semantics::OneShotEffect::RevealUntil(deckmaste_semantics::RevealUntil {
+                whose: deckmaste_semantics::Reference::You,
+                matches: deckmaste_semantics::Predicate::Any,
+                body: std::sync::Arc::new(semantic_mana_effect()),
+            });
 
         assert_matches!(
             semantic_mana_activation(effect).lower(),
@@ -712,8 +711,52 @@ mod tests {
             panic!("a modal producer with a qualifying mode needs a compiled profile");
         };
         assert_eq!(classes.len(), 2);
-        assert!(classes[0].adds_mana && classes[0].targetless && classes[0].library_safe);
-        assert!(classes[1].adds_mana && !classes[1].targetless && classes[1].library_safe);
+        assert!(classes[0].adds_mana && classes[0].targetless);
+        assert!(classes[1].adds_mana && !classes[1].targetless);
+    }
+
+    #[test]
+    fn modal_mana_profile_does_not_treat_reversibility_as_classification() {
+        let unsafe_cost = vec![deckmaste_semantics::CostComponent::do_action(
+            deckmaste_semantics::Action::Move(
+                deckmaste_semantics::Reference::This,
+                deckmaste_semantics::Destination::Library(deckmaste_semantics::Anchor::FromBottom(
+                    deckmaste_semantics::Count::Literal(0),
+                )),
+                [].into(),
+                Some(deckmaste_semantics::Zone::Battlefield),
+            ),
+        )]
+        .into();
+        let modal = deckmaste_semantics::OneShotEffect::Modal(deckmaste_semantics::Modal {
+            choose: minimal_choose_spec(),
+            modes: vec![
+                deckmaste_semantics::Mode {
+                    effect: semantic_mana_effect(),
+                    cost: None,
+                },
+                deckmaste_semantics::Mode {
+                    effect: semantic_mana_effect(),
+                    cost: Some(unsafe_cost),
+                },
+            ]
+            .into(),
+        });
+        let lowered = semantic_mana_activation(modal).lower();
+        let deckmaste_core::Ability::Mana(deckmaste_core::ManaAbility::Activated {
+            profile: deckmaste_core::ActivatedManaProfile::ByAnnouncedMode(classes),
+            ..
+        }) = &lowered
+        else {
+            panic!("runtime barriers do not affect mana-ability classification");
+        };
+
+        assert!(
+            classes
+                .iter()
+                .all(|class| class.adds_mana && class.targetless)
+        );
+        assert!(lowered.mana_profile_for_modes(&[1]));
     }
 
     #[test]

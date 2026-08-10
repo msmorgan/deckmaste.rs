@@ -91,10 +91,9 @@ pub(crate) struct CostSummary {
     pub mana_cost_of: Vec<Reference>,
     /// Aggregate-stat (tap-total) requirements ([CR#702.122a] Crew): each is a
     /// "tap a subset of [filter] whose summed [stat] satisfies [cmp] [count]"
-    /// obligation. Like `ManaCostOf`, it can only be checked/paid against a
-    /// live frame, so it is collected here and resolved by
-    /// [`GameState::tap_total_subset`] at the gate (feasibility) and the
-    /// payment step (which subset to tap).
+    /// obligation. Like `ManaCostOf`, it can only be locked against a live
+    /// frame; the payment protocol exposes every legal complete subset and the
+    /// runner alone applies a preference among them.
     pub tap_totals: Vec<TapTotalReq>,
     /// Cost-side choose-then-pay steps ([CR#601.2b], `CostComponent::With`):
     /// "sacrifice a creature" = `With(ChooseOne(Creature),
@@ -159,14 +158,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
                 count: count.clone(),
                 filter: (**filter).clone(),
             }),
-            CostComponent::Act(action) => {
-                if action.is_cost_eligible() {
-                    verbs.push(action.as_ref().clone());
-                } else {
-                    // Non-eligible verbs in a cost are malformed.
-                    return None;
-                }
-            }
+            CostComponent::Act(action) => verbs.push(action.as_action().clone()),
             // A cost-side choose-then-pay step ([CR#601.2b]) — bind the choice
             // as `That`/`Those`, then pay the body. Collected verbatim: the
             // choice can only be surfaced against a live frame, so the gate
@@ -201,38 +193,6 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
         tap_totals,
         withs,
     })
-}
-
-/// A minimal subset of `(object, stat)` candidates whose summed stat satisfies
-/// `cmp` `need`, or `None` when no subset does ([CR#702.122a] Crew payment).
-///
-/// Greedy from the highest stat (a stable sort, so equal stats keep id order):
-/// for the lower-bound comparators a card actually uses (`AtLeast`/`Greater` —
-/// "total power N or greater"), adding the largest contributors reaches the
-/// bound with the fewest taps, and once it holds it stays held. The empty
-/// subset is returned when `cmp 0 need` already holds (e.g. `AtMost`, or a zero
-/// bound), since tapping nothing is then a legal payment.
-fn greedy_tap_subset(
-    mut candidates: Vec<(ObjectId, Uint)>,
-    cmp: Cmp,
-    need: Uint,
-) -> Option<Vec<ObjectId>> {
-    let mut sum: Uint = 0;
-    let mut chosen: Vec<ObjectId> = Vec::new();
-    if cmp.apply(sum, need) {
-        return Some(chosen);
-    }
-    // Highest stat first; stable, so equal-stat ties keep the id order
-    // `candidates_with` produced.
-    candidates.sort_by_key(|&(_, stat)| std::cmp::Reverse(stat));
-    for (id, stat) in candidates {
-        chosen.push(id);
-        sum = sum.saturating_add(stat);
-        if cmp.apply(sum, need) {
-            return Some(chosen);
-        }
-    }
-    None
 }
 
 impl GameState {
@@ -419,18 +379,10 @@ impl GameState {
             }
         }
 
-        // [CR#601.2c,602.2b,115.7e]: the target specs must be jointly
-        // satisfiable — each slot offering at least its minimum count, the
-        // Distinct slots admitting distinct representatives. The carrier is the
-        // activation object's source — anchors a target filter's carrier-
-        // relative self-reference (`Ref(This)`, `StatOf(This, …)`).
-        let carrier = Some(self.objects.obj(object).source);
-        let specs = crate::resolve::top_targets(&ability.effect);
-        let legal: Vec<Vec<ObjectId>> = specs
-            .iter()
-            .map(|spec| self.legal_targets(spec, carrier))
-            .collect();
-        if !crate::resolve::announce_satisfiable(specs, &legal) {
+        // [CR#601.2b..601.2c,602.2b]: at least one complete mode/target
+        // announcement must exist. A top-level Modal itself has no target
+        // wrapper, so every permitted mode must be considered here.
+        if !self.announcement_effect_satisfiable(object, player, &ability.effect) {
             return false;
         }
         true
@@ -522,44 +474,6 @@ impl GameState {
             // the variant does; `core-demacro` deletes both.
             Binder::Expanded(_) => unreachable!("provenance erased at lower"),
         }
-    }
-
-    /// The subset of untapped permanents `player` would tap to pay one
-    /// aggregate-stat cost `req` for `source` ([CR#601.2h,702.122a] Crew), or
-    /// `None` when no qualifying subset exists (the cost is unpayable). The
-    /// candidates are `req.filter`'s untapped matches (anchored on `source` so
-    /// `Ref(You)`/`Ref(This)` resolve), each contributing its derived
-    /// `req.stat`; the greedy reading taps the fewest (highest-stat first)
-    /// that meet `req.cmp` `req.count`.
-    ///
-    /// The payer is entitled to *choose* which qualifying permanents to tap
-    /// ([CR#601.2h]); this picks a deterministic minimal subset. The
-    /// interactive choice is a follow-up seam (it needs a new payment-time
-    /// decision point) — the chosen subset is always a legal payment.
-    pub(crate) fn tap_total_subset(
-        &self,
-        req: &TapTotalReq,
-        source: ObjectId,
-        controller: PlayerId,
-    ) -> Option<Vec<ObjectId>> {
-        let frame = Frame::bare(source, controller);
-        let need = self.eval_count(&req.count, &frame);
-        let watcher = self.objects.obj(source).source;
-        let view = self.layers();
-        let candidates: Vec<(ObjectId, Uint)> = crate::target::candidates_with(self, &req.filter, Some(watcher))
-                .into_iter()
-                // Only a *permanent* (an object on the battlefield, [CR#110.1])
-                // may be tapped to pay: `candidates_with` is zone-agnostic and
-                // `ControlledBy(You)` matches the `controller` field on a
-                // library/hand object too, so without this guard a controlled
-                // non-battlefield creature would wrongly qualify to crew
-                // ([CR#702.122a]). Mirrors the `PayPips` zone guard in cast.rs.
-                .filter(|&id| self.objects.obj(id).zone == Some(Zone::Battlefield))
-                // Only an *untapped* permanent can be tapped to pay ([CR#107.5]).
-                .filter(|&id| !self.objects.obj(id).tapped)
-                .filter_map(|id| self.cost_stat_value(&view, id, req.stat).map(|v| (id, v)))
-                .collect();
-        greedy_tap_subset(candidates, req.cmp, need)
     }
 
     /// The derived numeric value of `stat` for the card-backed object `id`,
@@ -834,6 +748,16 @@ mod tests {
         })
     }
 
+    fn creature_card(power: i32, toughness: i32) -> Arc<deckmaste_card::Card> {
+        Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
+            name: "Activation fixture".into(),
+            types: vec![deckmaste_core::Type::Creature.def()],
+            power: Some(deckmaste_core::StatValue::Number(power)),
+            toughness: Some(deckmaste_core::StatValue::Number(toughness)),
+            ..deckmaste_card::CardFace::default()
+        }))
+    }
+
     fn announce_activation_to_payment(
         state: &mut GameState,
         object: ObjectId,
@@ -905,13 +829,10 @@ mod tests {
     // -- cost_summary --
 
     #[test]
-    fn cost_summary_returns_none_on_non_eligible_do_cost() {
-        // `DrawCard` is not cost-eligible ([CR#601.2b..601.2c]) — no printed
-        // "draw a card" cost exists.
-        let cost = vec![CostComponent::do_action(Action::DrawCard(Reference::You))];
-        assert!(
-            cost_summary(&cost).is_none(),
-            "Do(...) with a non-cost-eligible action should yield None"
+    fn non_eligible_do_cost_cannot_cross_the_core_boundary() {
+        assert_eq!(
+            CostComponent::try_do_action(Action::DrawCard(Reference::You)),
+            Err(deckmaste_core::RunnableCostActionError::Ineligible),
         );
     }
 
@@ -1049,143 +970,6 @@ mod tests {
         assert_eq!(summary.tap_totals[0].count, Count::Literal(3));
         // The plain {1} still rides the mana lane.
         assert_eq!(summary.mana, "{1}".parse().unwrap());
-    }
-
-    // -- greedy_tap_subset (the aggregate-stat payment reading) --
-
-    #[test]
-    fn greedy_tap_subset_meets_lower_bound_with_fewest_taps() {
-        let a = ObjectId::from_raw(1);
-        let b = ObjectId::from_raw(2);
-        let c = ObjectId::from_raw(3);
-        // Highest-stat first: a single power-3 covers "total power 3 or greater".
-        let chosen = greedy_tap_subset(vec![(a, 1), (b, 3), (c, 2)], Cmp::AtLeast, 3)
-            .expect("3+2+1 = 6 can reach 3");
-        assert_eq!(chosen, vec![b], "tap only the power-3 permanent");
-
-        // Two power-2 bears sum to 4 >= 3 (one is not enough).
-        let two =
-            greedy_tap_subset(vec![(a, 2), (b, 2)], Cmp::AtLeast, 3).expect("2+2 = 4 reaches 3");
-        assert_eq!(two.len(), 2, "needs both bears to clear 3");
-    }
-
-    #[test]
-    fn greedy_tap_subset_none_when_total_falls_short() {
-        let a = ObjectId::from_raw(1);
-        let b = ObjectId::from_raw(2);
-        // Total power 4 can never reach 5 ([CR#601.2h] no partial payment).
-        assert!(greedy_tap_subset(vec![(a, 2), (b, 2)], Cmp::AtLeast, 5).is_none());
-        // No candidates and a positive bound is unpayable.
-        assert!(greedy_tap_subset(vec![], Cmp::AtLeast, 1).is_none());
-    }
-
-    #[test]
-    fn greedy_tap_subset_empty_satisfies_trivial_bound() {
-        let a = ObjectId::from_raw(1);
-        // "total power 0 or greater" holds by tapping nothing.
-        assert_eq!(
-            greedy_tap_subset(vec![(a, 2)], Cmp::AtLeast, 0),
-            Some(vec![])
-        );
-        // An at-most bound is met by the empty subset (sum 0 <= N).
-        assert_eq!(
-            greedy_tap_subset(vec![(a, 2)], Cmp::AtMost, 3),
-            Some(vec![])
-        );
-    }
-
-    // -- tap_total_subset (the crew candidate set) --
-
-    /// A vanilla creature card with the given printed power/toughness.
-    fn creature_card(power: i32, toughness: i32) -> Arc<deckmaste_card::Card> {
-        Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
-            name: "Crew Fixture".into(),
-            mana_cost: ManaCost::from(Arc::from(vec![])),
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![deckmaste_core::Type::Creature.def()],
-            subtypes: vec![],
-            abilities: vec![],
-            power: Some(deckmaste_core::StatValue::Number(power)),
-            toughness: Some(deckmaste_core::StatValue::Number(toughness)),
-            loyalty: None,
-            defense: None,
-        }))
-    }
-
-    /// [CR#702.122a,110.1]: only a creature ON THE BATTLEFIELD may be tapped to
-    /// crew a Vehicle. `candidates_with` scans every object regardless of zone
-    /// and `ControlledBy` matches the `controller` field a library card carries
-    /// too — so without the battlefield zone guard a controlled library
-    /// creature would wrongly count toward (and be tapped for) the
-    /// aggregate power. Here a power-2 creature is on the battlefield and
-    /// an identical one sits in the library: a Crew 4 (total power ≥ 4) is
-    /// UNPAYABLE (the lone battlefield 2 falls short — the library creature
-    /// must not contribute), while a Crew 2 taps exactly the battlefield
-    /// creature, never the library one.
-    #[test]
-    fn tap_total_subset_excludes_a_library_creature() {
-        let mut state = game();
-        let player = PlayerId(0);
-        let card_id = state.cards.push(creature_card(2, 2), player);
-
-        let on_field =
-            state
-                .objects
-                .mint(ObjectSource::Card(card_id), player, Some(Zone::Battlefield));
-        state.zones.battlefield.push(on_field);
-        // An identical creature controlled by the same player, but in the library.
-        let in_library =
-            state
-                .objects
-                .mint(ObjectSource::Card(card_id), player, Some(Zone::Library));
-
-        // Sanity: the library creature really is a zone-agnostic creature
-        // candidate with a readable power — so the *only* thing that can keep it
-        // out of the crew set is the battlefield zone guard, not an incidental
-        // filter/stat mismatch (this is what makes the assertions below a real
-        // regression test of the guard).
-        let raw = crate::target::candidates_with(&state, &Predicate::creature(), None);
-        assert!(
-            raw.contains(&in_library) && raw.contains(&on_field),
-            "both creatures match the zone-agnostic creature filter"
-        );
-        let view = state.layers();
-        assert_eq!(
-            state.cost_stat_value(&view, in_library, Stat::Power),
-            Some(2),
-            "the library creature has a readable power 2"
-        );
-
-        let crew_4 = TapTotalReq {
-            stat: Stat::Power,
-            cmp: Cmp::AtLeast,
-            count: Count::Literal(4),
-            filter: Predicate::creature(),
-        };
-        let crew_2 = TapTotalReq {
-            stat: Stat::Power,
-            cmp: Cmp::AtLeast,
-            count: Count::Literal(2),
-            filter: Predicate::creature(),
-        };
-
-        // Crew 4: the lone battlefield power-2 can't reach 4, and the library
-        // creature must not be borrowed to make up the difference.
-        assert!(
-            state.tap_total_subset(&crew_4, on_field, player).is_none(),
-            "a library creature must not contribute to crew (Crew 4 is unpayable)"
-        );
-
-        // Crew 2: payable by tapping ONLY the battlefield creature.
-        let chosen = state
-            .tap_total_subset(&crew_2, on_field, player)
-            .expect("the battlefield power-2 crews a Crew 2");
-        assert_eq!(
-            chosen,
-            vec![on_field],
-            "only the battlefield creature is tapped — never the library one"
-        );
     }
 
     // -- can_activate gate --
@@ -2078,7 +1862,7 @@ mod tests {
         state.schedule_front(items);
 
         // Step until the `AbilityActivated` apply completes (at most 20 steps).
-        // A {0} cost with no targets/X surfaces no decisions in this window.
+        // A {0} cost with no targets/X surfaces only the payment protocol here.
         let mut activated = false;
         for _ in 0..20 {
             match state.step() {

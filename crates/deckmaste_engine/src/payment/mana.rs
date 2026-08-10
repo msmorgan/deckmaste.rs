@@ -38,6 +38,7 @@ pub(crate) struct ManaAction {
     pub profile: ActivatedManaProfile,
     pub tap_cost: bool,
     pub standalone: bool,
+    pub submission: ManaActionSubmission,
     pub production_facts_emitted: bool,
     pub transcript: DecisionTranscript,
     pub facts: Vec<GameEvent>,
@@ -46,37 +47,134 @@ pub(crate) struct ManaAction {
     pub observation_barriers: Vec<super::ObservationBarrier>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ManaActionSubmission {
+    Proposed,
+    Submitted,
+}
+
+fn produced_units_for_action<'a>(
+    facts: impl IntoIterator<Item = &'a GameEvent>,
+    action: ManaActionId,
+) -> Vec<crate::player::ManaUnit> {
+    facts
+        .into_iter()
+        .filter_map(|fact| match fact {
+            GameEvent::ManaAdded(event) if event.provenance.action == Some(action) => Some(event),
+            _ => None,
+        })
+        .flat_map(|event| {
+            event.units.iter().map(|&unit| crate::player::ManaUnit {
+                id: unit,
+                kind: event.mana,
+                riders: event.riders.clone(),
+                provenance: event.provenance,
+            })
+        })
+        .collect()
+}
+
+impl ManaAction {
+    pub(crate) fn is_submitted(&self) -> bool {
+        self.submission == ManaActionSubmission::Submitted
+    }
+}
+
 impl GameState {
     /// Whether an announcement-time modal selection keeps the current mana
     /// action inside lowering's precomputed mana-ability profile.
     pub(crate) fn payment_mana_modes_legal(&self, modes: &[deckmaste_core::Uint]) -> bool {
-        let Some(action) = self
-            .payment
-            .as_ref()
-            .and_then(|controller| controller.mana_actions.last())
+        if let Some(action) = self.payment.as_ref().and_then(|controller| {
+            let action = controller.mana_actions.last()?;
+            controller
+                .frames
+                .last()
+                .is_some_and(|frame| frame.mana_action == Some(action.id))
+                .then_some(action)
+        }) {
+            return match &action.profile {
+                ActivatedManaProfile::Always => true,
+                ActivatedManaProfile::ByAnnouncedMode(classes) => {
+                    let selected: Option<Vec<_>> = modes
+                        .iter()
+                        .map(|&mode| {
+                            usize::try_from(mode)
+                                .ok()
+                                .and_then(|i| classes.get(i).copied())
+                        })
+                        .collect();
+                    selected.is_some_and(|selected| {
+                        !selected.is_empty()
+                            && selected.iter().all(|class| class.targetless)
+                            && selected.iter().any(|class| class.adds_mana)
+                    })
+                }
+            };
+        }
+
+        let Some((source, ability_index, compiled)) = self.pending_root_modal_mana_activation()
         else {
             return true;
         };
-        match &action.profile {
-            ActivatedManaProfile::Always => true,
-            ActivatedManaProfile::ByAnnouncedMode(classes) => {
-                let selected: Option<Vec<_>> = modes
-                    .iter()
-                    .map(|&mode| {
-                        usize::try_from(mode)
-                            .ok()
-                            .and_then(|i| classes.get(i).copied())
-                    })
-                    .collect();
-                selected.is_some_and(|selected| {
-                    !selected.is_empty()
-                        && selected
-                            .iter()
-                            .all(|class| class.targetless && class.library_safe)
-                        && selected.iter().any(|class| class.adds_mana)
-                })
-            }
+        let Some(ManaAbility::Activated {
+            ability: payload, ..
+        }) = compiled.as_mana()
+        else {
+            unreachable!("the root modal mana context is a mana wrapper")
+        };
+        let controller = self
+            .announcing
+            .as_ref()
+            .expect("the root modal mana context has an announcement")
+            .controller;
+        let layers = self.layers();
+        if compiled.mana_profile_for_modes(modes) {
+            self.can_activate_mana(&layers, controller, source, ability_index, payload)
+        } else {
+            // The initial priority offer is existential over modal completions:
+            // one qualifying mana mode exempts the mixed ability from blanket
+            // activation lockouts. Once an ordinary mode is chosen, re-run the
+            // full non-mana gate before committing that choice.
+            self.can_activate(&layers, controller, source, ability_index, payload)
         }
+    }
+
+    fn pending_root_modal_mana_activation(
+        &self,
+    ) -> Option<(ObjectId, usize, deckmaste_core::Ability)> {
+        let controller = self.payment.as_ref()?;
+        if controller.frames.len() != 1
+            || controller
+                .frames
+                .last()
+                .is_none_or(|frame| frame.mana_action.is_some())
+        {
+            return None;
+        }
+        let pending = self.announcing.as_ref()?;
+        let StackObject::Activated { source, .. } = &pending.object else {
+            return None;
+        };
+        let source = *source;
+        let ability_index = self.agenda.iter().find_map(|item| match item {
+            WorkItem::Emit(Occurrence::Single(GameEvent::AbilityActivated(event)))
+                if event.source == source =>
+            {
+                Some(event.ability)
+            }
+            _ => None,
+        })?;
+        let compiled = crate::derive::usable_abilities(self, source)
+            .get(ability_index)?
+            .clone();
+        matches!(
+            compiled.as_mana(),
+            Some(ManaAbility::Activated {
+                profile: ActivatedManaProfile::ByAnnouncedMode(_),
+                ..
+            })
+        )
+        .then_some((source, ability_index, compiled))
     }
 
     /// Rebuild the active payment prompt from the live working image. A parent
@@ -155,7 +253,62 @@ impl GameState {
         else {
             unreachable!("a triggered mana ability is never a priority action")
         };
-        let profile = profile.clone();
+        let id = self.register_root_mana_action(source, ability, profile.clone());
+
+        let mut items = vec![
+            WorkItem::BeginActivate {
+                object: source,
+                ability,
+            },
+            WorkItem::AnnounceModes,
+            WorkItem::AnnounceOptionalCosts { index: 0 },
+            WorkItem::AnnounceX,
+            WorkItem::AnnounceTargets,
+            WorkItem::ChooseCostOptions,
+            WorkItem::OpenPayment,
+            WorkItem::BeginManaAction(id),
+        ];
+        items.extend(Self::priority_tail());
+        self.schedule_front(items);
+    }
+
+    /// Route a conditionally classified root activation after its modes have
+    /// been announced. A qualifying selection replaces only the ordinary
+    /// becomes-activated work item; an ordinary/targeted/library-moving mode
+    /// keeps the normal stack path.
+    pub(crate) fn route_root_modal_mana_mode(&mut self, modes: &[deckmaste_core::Uint]) {
+        let Some((source, ability_index, compiled)) = self.pending_root_modal_mana_activation()
+        else {
+            return;
+        };
+        let Some(ManaAbility::Activated { profile, .. }) = compiled.as_mana() else {
+            return;
+        };
+        if !compiled.mana_profile_for_modes(modes) {
+            return;
+        }
+        let id = self.register_root_mana_action(source, ability_index, profile.clone());
+        let queued = self.agenda.iter_mut().find(|item| {
+            matches!(
+                item,
+                WorkItem::Emit(Occurrence::Single(GameEvent::AbilityActivated(event)))
+                    if event.source == source && event.ability == ability_index
+            )
+        });
+        *queued.expect("a root activation keeps its becomes-activated continuation queued") =
+            WorkItem::BeginManaAction(id);
+    }
+
+    fn register_root_mana_action(
+        &mut self,
+        source: ObjectId,
+        ability: usize,
+        profile: ActivatedManaProfile,
+    ) -> ManaActionId {
+        let compiled = crate::derive::usable_abilities(self, source)
+            .get(ability)
+            .cloned()
+            .expect("a legal priority action keeps its derived ability index");
         let tap_cost = crate::activate::cost_summary(
             crate::activate::as_activated(&compiled)
                 .expect("an activated mana wrapper contains an activated payload")
@@ -168,6 +321,7 @@ impl GameState {
         let source_snapshot = LkiSnapshot::capture(self, source);
         let id = self.mint_mana_action();
         let record = self.mint_payment_record();
+        self.begin_mana_resolution_scope(None);
         let controller = self
             .payment
             .as_mut()
@@ -185,6 +339,7 @@ impl GameState {
             profile,
             tap_cost,
             standalone: true,
+            submission: ManaActionSubmission::Proposed,
             production_facts_emitted: false,
             transcript: DecisionTranscript::default(),
             facts: Vec::new(),
@@ -192,22 +347,7 @@ impl GameState {
             reversal_barriers: Vec::new(),
             observation_barriers: Vec::new(),
         });
-
-        let mut items = vec![
-            WorkItem::BeginActivate {
-                object: source,
-                ability,
-            },
-            WorkItem::AnnounceModes,
-            WorkItem::AnnounceOptionalCosts { index: 0 },
-            WorkItem::AnnounceX,
-            WorkItem::AnnounceTargets,
-            WorkItem::ChooseCostOptions,
-            WorkItem::OpenPayment,
-            WorkItem::BeginManaAction(id),
-        ];
-        items.extend(Self::priority_tail());
-        self.schedule_front(items);
+        id
     }
 
     pub(super) fn activate_payment_mana_ability(
@@ -250,6 +390,7 @@ impl GameState {
         // suspended inside that clone while ordinary announcement machinery runs.
         let mut working = self.active().clone();
         working.suspend_control();
+        working.begin_mana_resolution_scope(None);
         let id = self.mint_mana_action();
         let record = self.mint_payment_record();
         let controller = self
@@ -265,6 +406,7 @@ impl GameState {
             profile,
             tap_cost,
             standalone: false,
+            submission: ManaActionSubmission::Proposed,
             production_facts_emitted: false,
             transcript: DecisionTranscript::default(),
             facts: Vec::new(),
@@ -365,6 +507,10 @@ impl GameState {
         self.schedule_front(items);
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the stackless completion boundary keeps emission, trigger drain, recording, and child promotion in causal order"
+    )]
     pub(crate) fn finish_mana_action(&mut self, id: ManaActionId) {
         let action = self
             .payment
@@ -372,14 +518,7 @@ impl GameState {
             .and_then(|controller| controller.mana_actions.last())
             .cloned()
             .expect("a finishing activated mana action remains registered");
-        let produced: Vec<_> = self
-            .player(action.controller)
-            .mana_pool
-            .units()
-            .iter()
-            .filter(|unit| unit.provenance.action == Some(id))
-            .cloned()
-            .collect();
+        let produced = produced_units_for_action(&action.facts, id);
         if !action.production_facts_emitted && !produced.is_empty() {
             self.payment
                 .as_mut()
@@ -410,6 +549,10 @@ impl GameState {
             self.schedule_front(items);
             return;
         }
+        if self.resume_after_deferred_triggered_mana(WorkItem::FinishManaAction(id)) {
+            return;
+        }
+        self.finish_mana_resolution_scope();
         assert_eq!(
             self.resolving_mana_actions.pop(),
             Some(id),
@@ -436,27 +579,49 @@ impl GameState {
             .collect();
         dependencies.sort_unstable();
         dependencies.dedup();
+        let source = self.payment_logical_source(action.source.source);
+        let mut object_inputs =
+            self.payment_record_object_inputs(&action.facts, std::collections::HashMap::new());
+        if matches!(source, LogicalObject::Created { .. }) {
+            object_inputs.insert(action.source.object, source);
+        }
         let transaction = (!action.standalone).then(|| {
-            let produced_mana = action
-                .facts
-                .iter()
-                .filter_map(|fact| match fact {
-                    GameEvent::ManaAdded(event) => Some(event.units.iter().copied()),
-                    _ => None,
-                })
-                .flatten()
-                .collect();
+            let produced_mana =
+                action
+                    .facts
+                    .iter()
+                    .filter_map(|fact| match fact {
+                        GameEvent::ManaAdded(event) => {
+                            Some(event.units.iter().copied().map(|id| {
+                                super::replay::QualifiedManaId {
+                                    player: event.player,
+                                    id,
+                                }
+                            }))
+                        }
+                        _ => None,
+                    })
+                    .flatten()
+                    .collect();
             let spent_mana = spent_by_action;
             let mut reversal_barriers = action.reversal_barriers.clone();
             let mut observation_barriers = action.observation_barriers.clone();
+            reversal_barriers.extend(
+                action
+                    .cost_records
+                    .iter()
+                    .flat_map(|record| record.reversal_barriers.iter().copied()),
+            );
+            observation_barriers.extend(
+                action
+                    .cost_records
+                    .iter()
+                    .flat_map(|record| record.observation_barriers.iter().copied()),
+            );
             reversal_barriers.sort_unstable_by_key(|barrier| *barrier as u8);
             reversal_barriers.dedup();
             observation_barriers.sort_unstable_by_key(|barrier| *barrier as u8);
             observation_barriers.dedup();
-            let source = match action.source.source {
-                ObjectSource::Card(card) => LogicalObject::Card(card),
-                ObjectSource::Player(player) => LogicalObject::Player(player),
-            };
             TransactionRecord {
                 id: action.record,
                 command: super::ReplayCommand::ManaAbility {
@@ -464,9 +629,10 @@ impl GameState {
                     source,
                     ability: action.ability,
                     submitted: true,
+                    completed: true,
                 },
                 transcript: action.transcript.clone(),
-                object_inputs: std::collections::HashMap::new(),
+                object_inputs,
                 children: action.cost_records.clone(),
                 facts: action.facts.clone(),
                 produced_mana,
@@ -486,7 +652,12 @@ impl GameState {
             let frame = controller.frames.pop().expect("root frame remains live");
             assert_eq!(frame.mana_action, Some(id));
             self.committed = frame.working;
+            self.clear_payment_metadata();
         } else {
+            debug_assert!(
+                action.is_submitted(),
+                "only a submitted child resolves its mana effect"
+            );
             {
                 let controller = self
                     .payment
@@ -500,12 +671,22 @@ impl GameState {
             }
             self.resume_control()
                 .expect("the completed child leaves no active control slot");
-            self.payment
+            let controller = self
+                .payment
                 .as_mut()
-                .expect("a nested mana action has a payment controller")
+                .expect("a nested mana action has a payment controller");
+            let child = controller
+                .frames
+                .pop()
+                .expect("the completed child remains isolated until this boundary");
+            assert_eq!(child.mana_action, Some(id));
+            let parent = controller
                 .frames
                 .last_mut()
-                .expect("the completed child resumes its parent frame")
+                .expect("the completed child resumes its parent frame");
+            parent.working = child.working;
+            parent.records.extend(child.records);
+            parent
                 .records
                 .push(transaction.expect("a nested action has a transaction record"));
             self.refresh_payment_prompt();
@@ -523,20 +704,36 @@ impl GameState {
         triggered: Arc<deckmaste_core::TriggeredAbility>,
         controller: PlayerId,
         bindings: TriggerBindings,
-    ) -> ManaActionId {
+    ) -> (ManaActionId, bool) {
         let id = self.mint_mana_action();
-        self.resolving_mana_actions.push(id);
         let source = bindings
             .this
             .as_ref()
             .map_or_else(|| self.player(controller).object, |this| this.object);
+        let ability_u =
+            deckmaste_core::Uint::try_from(ability_index).expect("ability index fits in Uint");
+        if bindings.this.is_some()
+            && triggered.limits.iter().any(|limit| {
+                let lookback = match limit {
+                    deckmaste_core::UseLimit::OncePerTurn
+                    | deckmaste_core::UseLimit::LoyaltyOncePerTurn => {
+                        deckmaste_core::Lookback::ThisTurn
+                    }
+                    deckmaste_core::UseLimit::OncePerGame => deckmaste_core::Lookback::ThisGame,
+                };
+                self.ability_used_count(source, ability_u, lookback) >= 1
+            })
+        {
+            return (id, false);
+        }
+        self.begin_mana_resolution_scope(bindings.that_much);
+        self.resolving_mana_actions.push(id);
         self.record_history_fact(
             self.turn.turn_number,
             None,
             GameEvent::AbilityUsed(crate::event::AbilityUsed {
                 object: source,
-                ability: deckmaste_core::Uint::try_from(ability_index)
-                    .expect("ability index fits in Uint"),
+                ability: ability_u,
             }),
         );
         let frame = Frame {
@@ -574,7 +771,7 @@ impl GameState {
             controller,
         });
         self.schedule_front(items);
-        id
+        (id, true)
     }
 
     pub(crate) fn finish_triggered_mana_action(
@@ -583,14 +780,8 @@ impl GameState {
         source: LkiSnapshot,
         controller: PlayerId,
     ) {
-        let produced: Vec<_> = self
-            .player(controller)
-            .mana_pool
-            .units()
-            .iter()
-            .filter(|unit| unit.provenance.action == Some(id))
-            .cloned()
-            .collect();
+        let produced =
+            produced_units_for_action(self.history.entries().map(|entry| &entry.fact), id);
         if !produced.is_empty() {
             self.schedule_front(vec![
                 WorkItem::Emit(Occurrence::single(GameEvent::ManaProduced(ManaProduced {
@@ -607,11 +798,35 @@ impl GameState {
     }
 
     pub(crate) fn complete_triggered_mana_action(&mut self, id: ManaActionId) {
+        if self.resume_after_deferred_triggered_mana(WorkItem::CompleteTriggeredMana(id)) {
+            return;
+        }
+        self.finish_mana_resolution_scope();
         assert_eq!(
             self.resolving_mana_actions.pop(),
             Some(id),
             "triggered mana actions finish in immediate causal order"
         );
+    }
+
+    fn resume_after_deferred_triggered_mana(&mut self, continuation: WorkItem) -> bool {
+        let mut deferred = Vec::new();
+        while matches!(
+            self.agenda.front(),
+            Some(WorkItem::ResolveTriggeredMana { .. })
+        ) {
+            deferred.push(
+                self.agenda
+                    .pop_front()
+                    .expect("the checked deferred trigger remains queued"),
+            );
+        }
+        if deferred.is_empty() {
+            return false;
+        }
+        deferred.push(continuation);
+        self.schedule_front(deferred);
+        true
     }
 }
 use std::sync::Arc;

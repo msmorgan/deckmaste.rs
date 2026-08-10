@@ -113,7 +113,15 @@ impl StrategyEvaluator {
                 let cands: Vec<ObjectId> = legal
                     .iter()
                     .filter_map(|a| match a {
-                        Action::CastSpell { object } => Some(*object),
+                        // Core exposes proposals without proving payment. The
+                        // deterministic runner uses the existing read-only
+                        // autotap plan only as advisory loop prevention; once
+                        // selected, the cast still pays through PaymentCommand.
+                        Action::CastSpell { object }
+                            if state.autotap_for_cast(self.seat, *object).is_some() =>
+                        {
+                            Some(*object)
+                        }
                         _ => None,
                     })
                     .collect();
@@ -124,13 +132,20 @@ impl StrategyEvaluator {
                 let cands: Vec<ObjectId> = legal
                     .iter()
                     .filter_map(|a| match a {
-                        Action::ActivateAbility { object, .. } => Some(*object),
+                        Action::ActivateAbility { object, ability }
+                            if activation_direct_cost_is_usable(state, *object, *ability) =>
+                        {
+                            Some(*object)
+                        }
                         _ => None,
                     })
                     .collect();
                 let picked = self.select(state, what, &cands)?;
                 legal.iter().find_map(|a| match a {
-                    Action::ActivateAbility { object, ability } if *object == picked => {
+                    Action::ActivateAbility { object, ability }
+                        if *object == picked
+                            && activation_direct_cost_is_usable(state, *object, *ability) =>
+                    {
                         Some(Action::ActivateAbility {
                             object: *object,
                             ability: *ability,
@@ -487,9 +502,13 @@ impl StrategyEvaluator {
                 Decision::CardName(name)
             }
             // Simple shells: a legal minimal default.
-            PendingDecision::ChooseModes(crate::decide::pending::ChooseModes { min, .. }) => {
-                Decision::Modes((0..*min).collect())
-            }
+            PendingDecision::ChooseModes(choice) => Decision::Modes(
+                state
+                    .announcing
+                    .as_ref()
+                    .and_then(|_| state.first_legal_announced_mode_selection(choice))
+                    .unwrap_or_else(|| (0..choice.min).collect()),
+            ),
             PendingDecision::Division(crate::decide::pending::Division {
                 total, targets, ..
             }) => {
@@ -541,6 +560,15 @@ impl StrategyEvaluator {
             }
         }
     }
+}
+
+/// Runner-policy guard for activation proposals whose direct tap/untap symbol
+/// is visibly unavailable. Core deliberately enumerates those proposals and
+/// discovers failure through payment; a deterministic strategy must avoid
+/// proposing the same impossible action forever. All other payment choices
+/// remain delegated to the explicit payment decision protocol.
+fn activation_direct_cost_is_usable(state: &GameState, object: ObjectId, ability: usize) -> bool {
+    crate::payment::automatic_activation_cost_usable(state, object, ability)
 }
 
 impl crate::sim::Strategy for StrategyEvaluator {
@@ -837,8 +865,15 @@ mod tests {
         let willow = Arc::new(canon().card("Willow Elf").unwrap().core);
         let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
         let mut state = empty_two_player();
-        let willow_id = put_creature(&mut state, &willow, PlayerId(0));
-        let bears_id = put_creature(&mut state, &bears, PlayerId(0));
+        state.turn.active_player = PlayerId(0);
+        state.turn.current = deckmaste_core::PhaseStep::PrecombatMain;
+        let willow_id = put_in_hand(&mut state, &willow, PlayerId(0));
+        let bears_id = put_in_hand(&mut state, &bears, PlayerId(0));
+        state.player_mut(PlayerId(0)).mana_pool.add(
+            deckmaste_core::ColorOrColorless::Color(deckmaste_core::Color::Green),
+            2,
+            crate::player::ManaProvenance::default(),
+        );
 
         let strat = StrategyDef {
             name: "cast-biggest".into(),
@@ -883,6 +918,65 @@ mod tests {
             legal: vec![],
         });
         assert_eq!(eval.decide(&state, &pending), Decision::Blocks(vec![]));
+    }
+
+    #[test]
+    fn modal_fallback_skips_an_unsatisfiable_first_mode() {
+        use deckmaste_card::CardFace;
+        use deckmaste_core::Ability;
+        use deckmaste_core::CharacteristicPredicate;
+        use deckmaste_core::ChooseSpec;
+        use deckmaste_core::Modal;
+        use deckmaste_core::Mode;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::SpellAbility;
+        use deckmaste_core::Targeted;
+
+        let impossible = OneShotEffect::Targeted(Targeted::new(
+            vec![TargetSpec::Target(
+                Quantity::one(),
+                Predicate::Characteristic(CharacteristicPredicate::Named("Missing target".into())),
+            )]
+            .into(),
+            OneShotEffect::Sequentially(Arc::from([])),
+        ));
+        let card = Arc::new(Card::Normal(CardFace {
+            name: "Modal strategy fixture".into(),
+            mana_cost: "{0}".parse().unwrap(),
+            types: vec![Type::Instant.def()],
+            abilities: vec![Ability::spell(SpellAbility {
+                ability_word: None,
+                effect: OneShotEffect::Modal(Modal {
+                    choose: ChooseSpec {
+                        count: Quantity::one(),
+                        up_to: false,
+                        repeats: false,
+                        chooser: Reference::You,
+                        rider: None,
+                    },
+                    modes: vec![
+                        Mode {
+                            effect: impossible,
+                            cost: None,
+                        },
+                        Mode {
+                            effect: OneShotEffect::Sequentially(Arc::from([])),
+                            cost: None,
+                        },
+                    ]
+                    .into(),
+                }),
+            })],
+            ..CardFace::default()
+        }));
+        let mut state = empty_two_player();
+        let spell = put_in_hand(&mut state, &card, PlayerId(0));
+        state.begin_cast(spell);
+        assert_eq!(state.announce_modes(), 2);
+        let pending = state.pending.clone().expect("ChooseModes is pending");
+        let eval = StrategyEvaluator::new(always_prefer(Preference::Pass), PlayerId(0));
+
+        assert_eq!(eval.decide(&state, &pending), Decision::Modes(vec![1]));
     }
 
     /// `ChooseTargets`: the applicable `Cast` preference's `target` selector

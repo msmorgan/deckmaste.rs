@@ -141,8 +141,8 @@ fn step_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
 }
 
 /// Steps until a `Priority` decision surfaces for `player` in `phase`, passing
-/// any other priority and auto-paying any `PayMana` along the way. Returns the
-/// legal action list at that window.
+/// any other priority and driving the compatibility payment runner along the
+/// way. Returns the legal action list at that window.
 fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) -> Vec<Action> {
     loop {
         let (_, stop) = step_to_stop(state);
@@ -158,11 +158,11 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
             })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
-                ..
-            })) => {
-                let pay = state.auto_pay_pending();
-                state.submit_decision(Decision::Pay(pay)).unwrap();
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("automatic payment decision");
+                state.submit_decision(decision).unwrap();
             }
             other => panic!("unexpected stop before {player:?} priority in {phase:?}: {other:?}"),
         }
@@ -215,7 +215,7 @@ fn spend_only_creature_funds_a_creature_spell() {
         .submit_decision(Decision::Act(Action::CastSpell { object: bears }))
         .unwrap();
 
-    // The cast pays (PayMana surfaces and auto-pays) and the spell reaches the
+    // The payment runner supplies exact coverage and the spell reaches the
     // stack: the SpendOnly(creature) green is spendable on the creature.
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert_eq!(state.stack.len(), 1, "the Bears spell sits on the stack");
@@ -224,7 +224,7 @@ fn spend_only_creature_funds_a_creature_spell() {
 }
 
 /// Steps until a `Priority` decision surfaces for `player` in `phase`, passing
-/// any other priority, auto-paying mana, and declaring no attackers/blockers.
+/// any other priority, driving payments, and declaring no attackers/blockers.
 fn run_to_priority_through_combat(
     state: &mut GameState,
     player: PlayerId,
@@ -244,11 +244,11 @@ fn run_to_priority_through_combat(
             })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
-                ..
-            })) => {
-                let pay = state.auto_pay_pending();
-                state.submit_decision(Decision::Pay(pay)).unwrap();
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("automatic payment decision");
+                state.submit_decision(decision).unwrap();
             }
             StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
                 deckmaste_engine::DeclareAttackers { .. },
@@ -400,11 +400,11 @@ fn snow_source_mana_carries_snow_rider() {
     );
 }
 
-/// Player 0's ONLY green is `SpendOnly(instant)` (a noncreature restriction);
-/// a creature spell cannot be funded by it, so the cast is not offered at
-/// precombat-main priority.
+/// Payment feasibility does not gate spell proposals. Player 0's only green
+/// has `SpendOnly(instant)`, but the creature spell remains available to
+/// announce; exact coverage later rejects that unit for its green pip.
 #[test]
-fn spend_only_instant_cannot_fund_a_creature_spell() {
+fn spend_only_instant_does_not_gate_a_creature_spell_proposal() {
     let mut state = bears_game(1, 0);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
@@ -427,7 +427,7 @@ fn spend_only_instant_cannot_fund_a_creature_spell() {
     let bears = find_in_hand(&state, PlayerId(0), "Grizzly Bears");
     let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert!(
-        !legal.contains(&Action::CastSpell { object: bears }),
-        "an instant-only green cannot fund a creature spell, so the cast is not offered: {legal:?}"
+        legal.contains(&Action::CastSpell { object: bears }),
+        "payment feasibility is not an announcement gate, so the creature proposal is offered: {legal:?}"
     );
 }

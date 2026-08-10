@@ -133,6 +133,14 @@ pub enum WorkItem {
         /// supplied ("cast it by paying its madness cost"), paid RATHER THAN
         /// the card's mana cost; `None` for a plain `Cast(<ref>)`.
         alternative_cost: Option<deckmaste_core::Cost>,
+        /// The resolving instruction queue beneath this speculative announce.
+        /// Announcement decline restores this queue, never the unfinished
+        /// announce tail that follows this work item.
+        resume: Arc<[WorkItem]>,
+        /// A `May(Cast)` branch that runs only if its announcement payment is
+        /// declined. The successful `if_did` branch rides after `SpellCast`
+        /// in the ordinary announce schedule instead.
+        if_not: Option<(Arc<deckmaste_core::OneShotEffect>, Box<crate::stack::Frame>)>,
     },
     /// [CR#602.2a,602.2b]: stage a non-mana activated ability — snapshot the
     /// ability text + source LKI into the announce slot. The shared

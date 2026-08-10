@@ -271,6 +271,23 @@ pub struct ReplaceState {
     pub remaining: Vec<crate::event::GameEvent>,
 }
 
+/// Resolution-local registers suspended while a stackless mana ability runs.
+/// A mana ability has its own resolution under CR 605.3b/605.4a even when it
+/// interrupts another resolving effect, so its anaphora and lookback state
+/// must not overwrite the containing resolution's registers.
+#[derive(Debug, Clone)]
+pub(crate) struct ResolutionScopeSnapshot {
+    that_much: Option<Uint>,
+    moved_chain: Vec<(crate::object::ObjectId, crate::object::ObjectId)>,
+    resolution_events: Vec<GameEvent>,
+    resolution_contained_act_commits: std::collections::HashMap<deckmaste_core::VerbName, u64>,
+    resolution_contained_act_serial: u64,
+    noted: std::collections::HashMap<deckmaste_core::Ident, Vec<NotedMember>>,
+    noting: Vec<deckmaste_core::Ident>,
+    resolution_notes: std::collections::HashMap<deckmaste_core::Ident, NotedValue>,
+    arrange_scope: Option<ArrangeScope>,
+}
+
 /// One complete runnable rules state. Payment frames clone this whole value in
 /// the first implementation; the transaction controller remains outside it.
 #[derive(Debug, Clone)]
@@ -494,6 +511,47 @@ pub struct GameImage {
     /// Stackless mana actions whose effects are currently resolving. The top
     /// identity is copied into every unit of mana that effect produces.
     pub(crate) resolving_mana_actions: Vec<crate::player::ManaActionId>,
+    /// Containing resolution scopes hidden beneath immediate stackless mana
+    /// resolutions. Kept inside the cloned image so payment replay preserves
+    /// the same nesting boundary.
+    pub(crate) resolution_scope_stack: Vec<ResolutionScopeSnapshot>,
+}
+
+impl GameImage {
+    pub(crate) fn begin_mana_resolution_scope(&mut self, that_much: Option<Uint>) {
+        self.resolution_scope_stack.push(ResolutionScopeSnapshot {
+            that_much: self.that_much.take(),
+            moved_chain: std::mem::take(&mut self.moved_chain),
+            resolution_events: std::mem::take(&mut self.resolution_events),
+            resolution_contained_act_commits: std::mem::take(
+                &mut self.resolution_contained_act_commits,
+            ),
+            resolution_contained_act_serial: std::mem::take(
+                &mut self.resolution_contained_act_serial,
+            ),
+            noted: std::mem::take(&mut self.noted),
+            noting: std::mem::take(&mut self.noting),
+            resolution_notes: std::mem::take(&mut self.resolution_notes),
+            arrange_scope: self.arrange_scope.take(),
+        });
+        self.that_much = that_much;
+    }
+
+    pub(crate) fn finish_mana_resolution_scope(&mut self) {
+        let snapshot = self
+            .resolution_scope_stack
+            .pop()
+            .expect("a finishing mana action owns a resolution scope");
+        self.that_much = snapshot.that_much;
+        self.moved_chain = snapshot.moved_chain;
+        self.resolution_events = snapshot.resolution_events;
+        self.resolution_contained_act_commits = snapshot.resolution_contained_act_commits;
+        self.resolution_contained_act_serial = snapshot.resolution_contained_act_serial;
+        self.noted = snapshot.noted;
+        self.noting = snapshot.noting;
+        self.resolution_notes = snapshot.resolution_notes;
+        self.arrange_scope = snapshot.arrange_scope;
+    }
 }
 
 /// The public game façade: one committed image plus optional transactional
@@ -509,6 +567,15 @@ pub struct GameState {
     /// Transaction-external stable identity source for activated and
     /// triggered mana actions. Declined speculative images never reuse IDs.
     pub(crate) next_mana_action: u64,
+    /// Information learned while a payment image is speculative. The ledger
+    /// lives outside `GameImage`, so reconstructing or discarding an image
+    /// cannot make a player forget an observation.
+    pub(crate) payment_observations:
+        std::collections::HashSet<(crate::player::PlayerId, crate::payment::LogicalObject)>,
+    /// Concrete card/object spines minted by the active transaction, named by
+    /// stable replay handles. Cleared once the outer transaction closes.
+    pub(crate) payment_logical_objects:
+        std::collections::HashMap<crate::object::ObjectSource, crate::payment::LogicalObject>,
 }
 
 impl std::ops::Deref for GameState {
@@ -668,12 +735,15 @@ impl GameState {
             arrange_scope: None,
             control_stack: Vec::new(),
             resolving_mana_actions: Vec::new(),
+            resolution_scope_stack: Vec::new(),
         };
         Self {
             committed,
             payment: None,
             incidents: Vec::new(),
             next_mana_action: 0,
+            payment_observations: std::collections::HashSet::new(),
+            payment_logical_objects: std::collections::HashMap::new(),
         }
     }
 

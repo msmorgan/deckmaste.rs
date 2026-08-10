@@ -108,9 +108,15 @@ fn every_builtin_keyword_macro_expands() {
 fn crew_expands_to_a_tap_total_activation() {
     use deckmaste_core::Ability;
     use deckmaste_core::Cmp;
+    use deckmaste_core::CollectionOp;
     use deckmaste_core::CostComponent;
+    use deckmaste_core::Duration;
+    use deckmaste_core::Modification;
     use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Reference;
     use deckmaste_core::Stat;
+    use deckmaste_core::StaticEffect;
+    use deckmaste_core::TurnMarker;
 
     let plugin = builtin();
     let keyword = read_keyword(&plugin, "Crew(3)");
@@ -129,7 +135,17 @@ fn crew_expands_to_a_tap_total_activation() {
             ..
         }]
     ));
-    assert!(matches!(ability.effect, OneShotEffect::Continuously(_)));
+    let OneShotEffect::Continuously(effect) = &ability.effect else {
+        panic!("Crew's activation creates one continuous effect")
+    };
+    assert_eq!(effect.duration, Duration::FixedUntil(TurnMarker::EndOfTurn));
+    assert!(matches!(
+        effect.effect.as_ref(),
+        StaticEffect::Modify(
+            Reference::This,
+            Modification::CardTypes(CollectionOp::Add(kind)),
+        ) if kind.as_str() == "Creature"
+    ));
 }
 
 /// [CR#702.51a,702.66a,702.126a]: the per-pip alternative-payment keywords

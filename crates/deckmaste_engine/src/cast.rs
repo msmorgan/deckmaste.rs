@@ -627,6 +627,59 @@ pub(crate) fn announced_target_specs(
     }
 }
 
+fn first_mode_selection_matching(
+    options: Uint,
+    min: Uint,
+    max: Uint,
+    repeats: bool,
+    entwine: bool,
+    mut accepts: impl FnMut(&[Uint]) -> bool,
+) -> Option<Vec<Uint>> {
+    fn choose(
+        options: Uint,
+        count: usize,
+        repeats: bool,
+        start: Uint,
+        picks: &mut Vec<Uint>,
+        accepts: &mut impl FnMut(&[Uint]) -> bool,
+    ) -> Option<Vec<Uint>> {
+        if picks.len() == count {
+            return accepts(picks).then(|| picks.clone());
+        }
+        for mode in start..options {
+            picks.push(mode);
+            let next = if repeats { mode } else { mode + 1 };
+            if let Some(found) = choose(options, count, repeats, next, picks, accepts) {
+                return Some(found);
+            }
+            picks.pop();
+        }
+        None
+    }
+
+    if min <= max {
+        for count in min..=max {
+            if let Some(found) = choose(
+                options,
+                usize::try_from(count).expect("mode count fits usize"),
+                repeats,
+                0,
+                &mut Vec::new(),
+                &mut accepts,
+            ) {
+                return Some(found);
+            }
+        }
+    }
+    if entwine {
+        let all: Vec<_> = (0..options).collect();
+        if accepts(&all) {
+            return Some(all);
+        }
+    }
+    None
+}
+
 /// Additional cost components contributed by the selected modes and their
 /// modal rider. Per-mode costs follow pick order (and repeat with a repeated
 /// mode); escalate repeats once per pick beyond the first; entwine contributes
@@ -709,6 +762,73 @@ pub(crate) fn announced_effect_items(
 }
 
 impl GameState {
+    pub(crate) fn announcement_effect_satisfiable(
+        &self,
+        source: ObjectId,
+        controller: PlayerId,
+        effect: &OneShotEffect,
+    ) -> bool {
+        let carrier = Some(self.objects.obj(source).source);
+        let selection_satisfiable = |picks: &[Uint]| {
+            let specs = announced_target_specs(effect, picks);
+            let legal: Vec<Vec<ObjectId>> = specs
+                .iter()
+                .map(|spec| self.legal_targets(spec, carrier))
+                .collect();
+            crate::resolve::announce_satisfiable(&specs, &legal)
+        };
+        let OneShotEffect::Modal(modal) = effect else {
+            return selection_satisfiable(&[]);
+        };
+        let options = Uint::try_from(modal.modes.len()).expect("mode count fits Uint");
+        let frame = Frame::bare(source, controller);
+        let (lo, hi) = modal.choose.count.bounds();
+        let lo = lo.map_or(0, |count| self.eval_count(count, &frame));
+        let hi = hi.map_or(options, |count| self.eval_count(count, &frame));
+        let max = if modal.choose.repeats { hi } else { hi.min(options) };
+        let min = if modal.choose.up_to { 0 } else { lo.min(max) };
+        first_mode_selection_matching(
+            options,
+            min,
+            max,
+            modal.choose.repeats,
+            matches!(
+                modal.choose.rider,
+                Some(deckmaste_core::ModalCostRider::Entwine(_))
+            ),
+            selection_satisfiable,
+        )
+        .is_some()
+    }
+
+    pub(crate) fn announced_mode_selection_is_legal(&self, picks: &[Uint]) -> bool {
+        if !self.payment_mana_modes_legal(picks) {
+            return false;
+        }
+        let pending = self
+            .announcing
+            .as_ref()
+            .expect("an announcement-time mode choice has an announce in flight");
+        let view = self.layers();
+        let specs = self.stack_object_target_specs(&view, &pending.object, picks);
+        let legal = self.legal_targets_for_specs(&specs, pending.id);
+        crate::resolve::announce_satisfiable(&specs, &legal)
+    }
+
+    pub(crate) fn first_legal_announced_mode_selection(
+        &self,
+        choice: &crate::decide::pending::ChooseModes,
+    ) -> Option<Vec<Uint>> {
+        first_mode_selection_matching(
+            choice.options,
+            choice.min,
+            choice.max,
+            choice.repeats,
+            choice.entwine,
+            |picks| self.announced_mode_selection_is_legal(picks),
+        )
+    }
+
     /// [CR#601.3,601.2g]: may `player` cast `object` now? Offered iff the
     /// object is in the holder's hand (the caller iterates the hand), the
     /// object is not a land ([CR#305.9]), timing permits (instant → any
@@ -784,17 +904,14 @@ impl GameState {
             return None;
         }
         let cost = self.mana_cost(object)?;
-        // If the spell targets, its specs must be jointly satisfiable — each
-        // slot offering at least its minimum count, the Distinct slots admitting
-        // distinct representatives ([CR#601.2c,115.7e]). The carrier is the
-        // spell's own object source — anchors a target filter's `Ref(This)`.
-        let carrier = Some(self.objects.obj(object).source);
-        let specs = crate::resolve::spell_targets(view, object);
-        let legal: Vec<Vec<ObjectId>> = specs
-            .iter()
-            .map(|spec| self.legal_targets(spec, carrier))
-            .collect();
-        crate::resolve::announce_satisfiable(&specs, &legal).then_some(cost)
+        // At least one complete mode/target announcement must exist. For a
+        // top-level Modal, checking only `top_targets` would see no targets
+        // and could offer a spell whose every mode is impossible to announce.
+        let effect = self.spell_effect(object);
+        effect
+            .as_ref()
+            .is_none_or(|effect| self.announcement_effect_satisfiable(object, player, effect))
+            .then_some(cost)
     }
 
     /// Runner autotap ([CR#106.4,605.1a]): the ordered mana-ability activations
@@ -1033,7 +1150,7 @@ impl GameState {
     #[must_use]
     pub(crate) fn can_cast_as_effect(
         &self,
-        _caster: PlayerId,
+        caster: PlayerId,
         object: ObjectId,
         alternative_cost: Option<&deckmaste_core::Cost>,
     ) -> bool {
@@ -1070,14 +1187,12 @@ impl GameState {
                 return false;
             }
         }
-        // [CR#601.2c]: every target spec must have a legal candidate.
-        let carrier = Some(self.objects.obj(object).source);
-        let specs = crate::resolve::spell_targets(&view, object);
-        let legal: Vec<Vec<ObjectId>> = specs
-            .iter()
-            .map(|spec| self.legal_targets(spec, carrier))
-            .collect();
-        if !crate::resolve::announce_satisfiable(&specs, &legal) {
+        // [CR#601.2b..601.2c]: at least one complete mode/target
+        // announcement must exist before offering this resolution cast.
+        if self
+            .spell_effect(object)
+            .is_some_and(|effect| !self.announcement_effect_satisfiable(object, caster, &effect))
+        {
             return false;
         }
         true
@@ -1111,9 +1226,47 @@ impl GameState {
                 origin,
                 caster,
                 alternative_cost,
+                resume: self.agenda.iter().cloned().collect::<Vec<_>>().into(),
+                if_not: None,
             },
             crate::event::GameEvent::SpellCast(object),
         )
+    }
+
+    /// Resolution-time `May(Cast)` announce schedule with outcome branches
+    /// attached to the payment boundary. `if_did` follows the becomes-cast
+    /// event; `if_not` is retained only for announcement decline.
+    #[must_use]
+    pub(crate) fn may_cast_as_effect_items(
+        &self,
+        object: ObjectId,
+        caster: PlayerId,
+        alternative_cost: Option<deckmaste_core::Cost>,
+        if_did: Option<Arc<OneShotEffect>>,
+        if_not: Option<Arc<OneShotEffect>>,
+        frame: Frame,
+    ) -> Vec<WorkItem> {
+        let origin = self
+            .objects
+            .obj(object)
+            .zone
+            .expect("a castable referent is in a zone");
+        let decline = if_not.map(|effect| (effect, Box::new(frame.clone())));
+        let mut items = Self::announce_schedule_no_priority(
+            WorkItem::BeginCastFromResolution {
+                object,
+                origin,
+                caster,
+                alternative_cost,
+                resume: self.agenda.iter().cloned().collect::<Vec<_>>().into(),
+                if_not: decline,
+            },
+            crate::event::GameEvent::SpellCast(object),
+        );
+        if let Some(effect) = if_did {
+            items.push(WorkItem::RunEffect { effect, frame });
+        }
+        items
     }
 
     /// [CR#601.2b,602.2b,700.2]: surface the mode choice for the spell or
@@ -1670,7 +1823,7 @@ impl GameState {
         dead_code,
         reason = "retained temporarily while staged fulfillment replaces each legacy payment arm"
     )]
-    pub(crate) fn legacy_pay_cost(&mut self) {
+    pub(crate) fn legacy_pay_cost(&mut self) -> Result<(), &'static str> {
         let pending = self.announcing.as_ref().expect("an announce in flight");
         let controller = pending.controller;
         // `announced_x` (defaulted to 0) concretizes `{X}` mana; `x_binding`
@@ -1761,6 +1914,9 @@ impl GameState {
                 let source = *source;
                 let summary = crate::activate::cost_summary(&ability.cost)
                     .expect("can_activate vetted the cost");
+                if !summary.tap_totals.is_empty() {
+                    return Err("TapTotal costs require the payment-obligation protocol");
+                }
                 // [CR#118.10]: one fresh payment id for this activation's
                 // WHOLE cost payment — shared by every verb/`With` step this
                 // payment schedules below, so no event belongs to two
@@ -1832,25 +1988,6 @@ impl GameState {
                         frame,
                     });
                 }
-                // [CR#601.2h,702.122a]: pay each aggregate-stat (tap-total) cost
-                // by tapping a qualifying subset (Crew taps creatures with the
-                // required total power). One `Tapped` event per chosen
-                // permanent, in the same payment window as the {T}/verb costs.
-                for req in &summary.tap_totals {
-                    if let Some(subset) = self.tap_total_subset(req, source, controller) {
-                        for tapped in subset {
-                            items.push(WorkItem::Emit(Occurrence::single(GameEvent::Tapped(
-                                Tapped {
-                                    object: tapped,
-                                    cause: Some(Cause::tap(
-                                        Agency::CostPayment,
-                                        Some((source, controller)),
-                                    )),
-                                },
-                            ))));
-                        }
-                    }
-                }
                 if !items.is_empty() {
                     self.schedule_front(items);
                 }
@@ -1876,6 +2013,7 @@ impl GameState {
                 unreachable!("a triggered ability has no cost and never occupies the announce slot")
             }
         }
+        Ok(())
     }
 
     /// [CR#601.2g..601.2h]: the per-pip alternative-payment hook for a spell
@@ -2623,6 +2761,16 @@ mod tests {
             ..CardFace::default()
         });
         let mut state = cm_game();
+        put_synthetic(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Modal target fixture".into(),
+                types: vec![Type::Creature.def()],
+                ..CardFace::default()
+            }),
+            PlayerId(0),
+            Zone::Battlefield,
+        );
         let spell = put_synthetic(&mut state, card, PlayerId(0), Zone::Hand);
 
         state.begin_cast(spell);
@@ -2646,6 +2794,103 @@ mod tests {
             panic!("the selected targeted mode should announce its target");
         };
         assert_eq!(choice.spec, vec![target]);
+    }
+
+    #[test]
+    fn modal_mode_choices_are_stored_in_printed_order() {
+        use deckmaste_core::ChooseSpec;
+        use deckmaste_core::Modal;
+        use deckmaste_core::Mode;
+        use deckmaste_core::Quantity;
+        use deckmaste_core::SpellAbility;
+
+        let life_mode = |amount| Mode {
+            effect: OneShotEffect::Act(CoreAction::ChangeLife(
+                Reference::You,
+                deckmaste_core::LifeOp::Up(Count::Literal(amount)),
+            )),
+            cost: None,
+        };
+        let card = Card::Normal(CardFace {
+            name: "Ordered modal announcement fixture".into(),
+            mana_cost: "{0}".parse().unwrap(),
+            types: vec![Type::Sorcery.def()],
+            abilities: vec![Ability::spell(SpellAbility {
+                ability_word: None,
+                effect: OneShotEffect::Modal(Modal {
+                    choose: ChooseSpec {
+                        count: Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
+                        up_to: false,
+                        repeats: false,
+                        chooser: Reference::You,
+                        rider: None,
+                    },
+                    modes: vec![life_mode(3), life_mode(5)].into(),
+                }),
+            })],
+            ..CardFace::default()
+        });
+        let mut state = cm_game();
+        let spell = put_synthetic(&mut state, card, PlayerId(0), Zone::Hand);
+
+        state.begin_cast(spell);
+        assert_eq!(state.announce_modes(), 2);
+        state
+            .submit_decision(crate::decide::Decision::Modes(vec![1, 0]))
+            .unwrap();
+
+        assert_eq!(
+            state.announcing.as_ref().unwrap().chosen_modes.as_ref(),
+            &[0, 1]
+        );
+    }
+
+    #[test]
+    fn resolution_cast_rejects_a_modal_spell_with_no_satisfiable_mode() {
+        use deckmaste_core::CharacteristicPredicate;
+        use deckmaste_core::ChooseSpec;
+        use deckmaste_core::Modal;
+        use deckmaste_core::Mode;
+        use deckmaste_core::Quantity;
+        use deckmaste_core::SpellAbility;
+        use deckmaste_core::Targeted;
+
+        let impossible_mode = || Mode {
+            effect: OneShotEffect::Targeted(Targeted::new(
+                vec![TargetSpec::Target(
+                    Quantity::one(),
+                    deckmaste_core::Predicate::Characteristic(CharacteristicPredicate::Named(
+                        "Missing target".into(),
+                    )),
+                )]
+                .into(),
+                OneShotEffect::Sequentially(Arc::from([])),
+            )),
+            cost: None,
+        };
+        let card = Card::Normal(CardFace {
+            name: "Impossible modal spell".into(),
+            mana_cost: "{0}".parse().unwrap(),
+            types: vec![Type::Instant.def()],
+            abilities: vec![Ability::spell(SpellAbility {
+                ability_word: None,
+                effect: OneShotEffect::Modal(Modal {
+                    choose: ChooseSpec {
+                        count: Quantity::one(),
+                        up_to: false,
+                        repeats: false,
+                        chooser: Reference::You,
+                        rider: None,
+                    },
+                    modes: vec![impossible_mode(), impossible_mode()].into(),
+                }),
+            })],
+            ..CardFace::default()
+        });
+        let mut state = cm_game();
+        let spell = put_synthetic(&mut state, card, PlayerId(0), Zone::Hand);
+
+        assert!(!state.can_cast_as_effect(PlayerId(0), spell, None));
     }
 
     #[test]

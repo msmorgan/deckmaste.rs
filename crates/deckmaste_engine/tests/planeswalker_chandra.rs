@@ -5,7 +5,8 @@
 //!
 //! 1. decline — 2 damage to each opponent AND the card stays exiled.
 //! 2. accept — the exiled card is on the stack (being cast) AND no damage.
-//! 3. uncastable — no offer; the `if_not` (2 damage) branch runs, no panic.
+//! 3. unfunded — the legal cast proposal is still offered; declining it runs
+//!    the `if_not` branch for 2 damage.
 //! 4. full card — loads, enters at loyalty 4, four sorcery-speed abilities
 //!    under one shared once-per-turn gate, `−7` mints a functioning emblem,
 //!    `−3` kills a 4-toughness creature.
@@ -25,6 +26,7 @@ use deckmaste_engine::GameState;
 use deckmaste_engine::ManaProvenance;
 use deckmaste_engine::ObjectId;
 use deckmaste_engine::Occurrence;
+use deckmaste_engine::PaymentCommand;
 use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
@@ -191,8 +193,8 @@ fn step_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
 }
 
 /// Drives to the next `Priority` for `player` in `phase`, passing any other
-/// priority and auto-paying any `PayMana` along the way. Returns the legal
-/// action list at that window.
+/// priority and auto-paying any legacy or obligation-protocol payment along
+/// the way. Returns the legal action list at that window.
 fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) -> Vec<Action> {
     loop {
         let (_, stop) = step_to_stop(state);
@@ -214,6 +216,12 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("a Payment prompt has an automatic runner answer");
+                state.submit_decision(decision).unwrap();
+            }
             other => panic!("unexpected stop before {player:?} priority in {phase:?}: {other:?}"),
         }
     }
@@ -222,8 +230,8 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
 /// Activate loyalty ability `ability` of `object` at P0's main priority, pass
 /// it through both players, and drive the resolution until it surfaces a
 /// `YesNo` (the impulse's "may cast") or settles back at P0's main priority.
-/// Returns the stop reached. Auto-pays any mana demand (e.g. the cast's cost on
-/// "yes").
+/// Returns the stop reached. Auto-pays both the loyalty activation cost and any
+/// mana demand (for example, the cast's cost on "yes").
 fn activate_and_drive(state: &mut GameState, object: ObjectId, ability: usize) -> StepOutcome {
     let legal = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
     let act = legal
@@ -255,6 +263,12 @@ fn activate_and_drive(state: &mut GameState, object: ObjectId, ability: usize) -
             })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("a Payment prompt has an automatic runner answer");
+                state.submit_decision(decision).unwrap();
             }
             other => return other,
         }
@@ -389,32 +403,43 @@ fn impulse_accept_puts_card_on_stack_and_deals_no_damage() {
     );
 }
 
-/// (3) Uncastable: the top card has no payable cast (P0 has NO mana floated) →
-/// the offer is empty, so the `if_not` branch runs (2 damage), no panic, no
-/// `YesNo` ([CR#608.2g]).
+/// (3) Unfunded: payment is not a core proposal-legality gate. The cast offer
+/// still surfaces with no mana floated; accepting the proposal and then
+/// declining its explicit payment runs the `if_not` branch for 2 damage
+/// ([CR#608.2g]).
 #[test]
-fn impulse_uncastable_runs_if_not_without_offering() {
+fn impulse_unfunded_cast_is_offered_and_can_be_declined() {
     let bears = Arc::new(canon().card(BEARS).unwrap().core);
     let mut state = game_with_rules(chandra_deck(20), deck(&bears, 20), 3);
     let chandra = enter_chandra(&mut state);
 
     set_top_of_library(&mut state, PlayerId(0), BEARS);
-    // No mana floated → {1}{G} is unaffordable → the cast is not offered.
+    // No mana floated: the proposal is still legal, but cannot be completed.
 
     let stop = activate_and_drive(&mut state, chandra, 0);
-    // Settles straight back to P0's main priority — no YesNo was ever surfaced.
-    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-        player,
-        ..
-    })) = stop
+    let StepOutcome::NeedsDecision(PendingDecision::YesNo(deckmaste_engine::YesNo { player })) =
+        stop
     else {
-        panic!("expected a settled priority (no offer), got {stop:?}");
+        panic!("expected the unfunded cast proposal, got {stop:?}");
     };
     assert_eq!(player, PlayerId(0));
+    state.submit_decision(Decision::Answer(true)).unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    assert!(
+        matches!(
+            stop,
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_))
+        ),
+        "accepting an unfunded cast should reach explicit payment, got {stop:?}"
+    );
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+        .unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     assert_eq!(
         state.players[1].life, 18,
-        "an uncastable top card runs the if_not: 2 damage to each opponent ([CR#608.2g])"
+        "declining the unfunded cast payment runs the if_not branch ([CR#608.2g])"
     );
     assert!(
         in_exile(&state, BEARS),
@@ -448,19 +473,16 @@ fn full_card_abilities_activate() {
         })
     };
 
-    // At sorcery speed with 4 loyalty: [+1]×2 (0,1) and [−3] (2, a creature is
-    // present) are offered; [−7] (3) is NOT — 4 < 7 loyalty ([CR#606.4]).
+    // At sorcery speed all four proposals are offered. The payment protocol,
+    // not priority enumeration, rejects an attempted [−7] fulfillment at four
+    // loyalty ([CR#606.4]).
     let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
-    for ability in 0..3usize {
+    for ability in 0..4usize {
         assert!(
             is_offered(&legal, ability, chandra),
             "loyalty ability {ability} offered at sorcery speed, legal: {legal:?}"
         );
     }
-    assert!(
-        !is_offered(&legal, 3, chandra),
-        "[−7] is not offered at 4 loyalty (4 < 7, [CR#606.4]), legal: {legal:?}"
-    );
 
     // Activate the [+1] mana ability; the shared once-per-turn gate then blocks
     // every loyalty ability of Chandra this turn ([CR#606.3,306.5d]).
@@ -485,6 +507,12 @@ fn full_card_abilities_activate() {
                 ..
             })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("the loyalty cost has an automatic runner answer");
+                state.submit_decision(decision).unwrap();
             }
             other => panic!("unexpected stop resolving [+1] mana: {other:?}"),
         }
@@ -554,6 +582,12 @@ fn minus_three_kills_a_creature() {
                 ..
             })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("the loyalty cost has an automatic runner answer");
+                state.submit_decision(decision).unwrap();
             }
             other => panic!("unexpected stop resolving −3: {other:?}"),
         }
