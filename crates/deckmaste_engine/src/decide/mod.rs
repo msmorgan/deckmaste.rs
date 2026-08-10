@@ -533,11 +533,26 @@ impl GameState {
         let Some(pending) = self.pending.clone() else {
             return Err(DecisionError::NothingPending);
         };
+        // Declining exits the whole payment transaction even when an emitted
+        // cost action has temporarily replaced the payment prompt with an
+        // ordinary replacement/selection decision.
+        if matches!(
+            decision,
+            Decision::Payment(crate::payment::PaymentCommand::DeclinePayment)
+        ) && self.payment.is_some()
+        {
+            return self.submit_payment_command(crate::payment::PaymentCommand::DeclinePayment);
+        }
         // [CR#104.3a] "at any time": conceding answers EVERY decision —
         // the decider walks away mid-discard, mid-targeting, mid-payment.
         // The conceder is the pending decision's decider.
         if matches!(decision, Decision::Act(Action::Concede)) {
             let player = pending.decider_player();
+            if self.payment.is_some() {
+                let active = self.active().clone();
+                self.committed = active;
+                self.payment = None;
+            }
             self.pending = None;
             self.concede(player);
             return Ok(());

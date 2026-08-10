@@ -1,4 +1,5 @@
 mod coverage;
+mod fulfill;
 mod iou;
 
 use std::sync::Arc;
@@ -41,6 +42,17 @@ pub enum PaymentStage {
     /// Every IOU is fulfilled; only submission, editing, decline, or
     /// concession remains.
     Ready,
+}
+
+/// Whether the active payment frame is waiting at its command boundary or is
+/// suspended inside one replaceable/action-producing fulfillment.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PaymentProgress {
+    Idle,
+    Fulfilling {
+        iou: IouId,
+        witness: FulfillmentWitness,
+    },
 }
 
 /// Why a payment frame exists. Decline and successful submission promote or
@@ -105,6 +117,8 @@ pub struct PaymentPrompt {
     pub fulfilled: Vec<IouId>,
     pub floating_mana: Vec<ManaUnit>,
     pub coverage: Option<ManaCoverage>,
+    /// Outstanding IOUs in the currently legal CR 601.2h tier.
+    pub fulfillable: Vec<IouId>,
     pub mana_abilities: Vec<(ObjectId, usize)>,
     pub rescindable: Vec<IouId>,
 }
@@ -157,6 +171,7 @@ pub struct PaymentFrame {
     pub stage: PaymentStage,
     pub coverage: Option<ManaCoverage>,
     pub fulfilled: Vec<(IouId, FulfillmentWitness)>,
+    pub progress: PaymentProgress,
     #[expect(
         dead_code,
         reason = "record ids are minted when the frame-local replay ledger lands"
@@ -178,6 +193,7 @@ impl PaymentFrame {
             locked,
             coverage: None,
             fulfilled: Vec::new(),
+            progress: PaymentProgress::Idle,
             next_record: 0,
         }
     }
@@ -205,29 +221,36 @@ impl PaymentFrame {
         self.locked = locked;
         self.coverage = None;
         self.fulfilled.clear();
+        self.progress = PaymentProgress::Idle;
     }
 
     #[must_use]
     pub(crate) fn prompt(&self) -> PaymentPrompt {
         let fulfilled: Vec<IouId> = self.fulfilled.iter().map(|(iou, _)| *iou).collect();
         let fulfilled_set: std::collections::HashSet<IouId> = fulfilled.iter().copied().collect();
+        let outstanding: Vec<PaymentIou> = self
+            .locked
+            .ious
+            .iter()
+            .filter(|iou| !fulfilled_set.contains(&iou.id))
+            .cloned()
+            .collect();
+        let fulfillable = fulfill::current_tier(&outstanding)
+            .into_iter()
+            .map(|iou| iou.id)
+            .collect();
         PaymentPrompt {
             payer: self.payer,
             subject: self.subject,
             stage: self.stage,
-            outstanding: self
-                .locked
-                .ious
-                .iter()
-                .filter(|iou| !fulfilled_set.contains(&iou.id))
-                .cloned()
-                .collect(),
+            outstanding,
             fulfilled,
             floating_mana: self.working.players[self.payer.index()]
                 .mana_pool
                 .units()
                 .to_vec(),
             coverage: self.coverage.clone(),
+            fulfillable,
             mana_abilities: Vec::new(),
             rescindable: Vec::new(),
         }
@@ -276,6 +299,7 @@ impl GameState {
     ) -> Result<(), crate::decide::DecisionError> {
         match command {
             PaymentCommand::BeginPayment(coverage) => self.begin_payment(coverage),
+            PaymentCommand::Fulfill { iou, witness } => self.fulfill_payment_iou(iou, witness),
             PaymentCommand::SubmitPayment => self.commit_payment(),
             PaymentCommand::DeclinePayment => {
                 // Root announcement decline: the outer committed image still
@@ -284,12 +308,12 @@ impl GameState {
                 self.payment = None;
                 Ok(())
             }
-            PaymentCommand::ActivateManaAbility { .. }
-            | PaymentCommand::Fulfill { .. }
-            | PaymentCommand::RescindFulfillment(_) => Err(crate::decide::DecisionError::Illegal {
-                reason: "that payment operation is not available in this implementation slice"
-                    .into(),
-            }),
+            PaymentCommand::ActivateManaAbility { .. } | PaymentCommand::RescindFulfillment(_) => {
+                Err(crate::decide::DecisionError::Illegal {
+                    reason: "that payment operation is not available in this implementation slice"
+                        .into(),
+                })
+            }
         }
     }
 
@@ -354,6 +378,15 @@ impl GameState {
         let frame = controller.frames.pop().expect("root frame remains live");
         self.committed = frame.working;
         Ok(())
+    }
+
+    /// The active frame's internal suspension state, when payment exists.
+    #[must_use]
+    pub fn payment_progress(&self) -> Option<PaymentProgress> {
+        self.payment
+            .as_ref()
+            .and_then(|controller| controller.frames.last())
+            .map(|frame| frame.progress.clone())
     }
 }
 

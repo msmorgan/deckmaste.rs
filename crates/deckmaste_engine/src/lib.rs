@@ -197,6 +197,7 @@ pub use payment::PaymentController;
 pub use payment::PaymentFrame;
 pub use payment::PaymentIou;
 pub use payment::PaymentLockError;
+pub use payment::PaymentProgress;
 pub use payment::PaymentPrompt;
 pub use payment::PaymentPurpose;
 pub use payment::PaymentRecordId;
