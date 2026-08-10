@@ -30,9 +30,12 @@ impl EventApply for Tapped {
 
 impl EventApply for ManaAdded {
     fn apply(&self, g: &mut GameState) -> Option<GameEvent> {
-        g.player_mut(self.player)
-            .mana_pool
-            .add_riders(self.mana, self.amount, &self.riders);
+        g.player_mut(self.player).mana_pool.add_riders(
+            self.mana,
+            self.amount,
+            &self.riders,
+            self.provenance,
+        );
         None
     }
 }

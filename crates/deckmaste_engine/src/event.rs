@@ -228,6 +228,7 @@ pub struct ManaAdded {
     pub mana: ColorOrColorless,
     pub amount: Uint,
     pub riders: Vec<deckmaste_core::ManaRider>,
+    pub provenance: crate::player::ManaProvenance,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

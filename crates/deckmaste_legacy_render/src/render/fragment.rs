@@ -125,6 +125,24 @@ pub(super) fn count(c: &Count) -> String {
                 )
             ),
         },
+        Count::ManaAvailableKind(r, kind) => {
+            let symbol = super::card::color_letter(*kind);
+            match r {
+                Reference::You => format!("the amount of unspent {{{symbol}}} mana you have"),
+                other => format!(
+                    "the amount of unspent {{{symbol}}} mana {} has",
+                    reference(
+                        other,
+                        &Ctx {
+                            subject: "that player",
+                            targets: &[],
+                            that: None,
+                            named: None,
+                        }
+                    )
+                ),
+            }
+        }
         // [CR#107.1] value arithmetic.
         Count::Plus(a, b) => format!("{} plus {}", count(a), count(b)),
         Count::Minus(a, b) => format!("{} minus {}", count(a), count(b)),

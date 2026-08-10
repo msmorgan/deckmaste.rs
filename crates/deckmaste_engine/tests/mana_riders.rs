@@ -21,6 +21,7 @@ use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameState;
+use deckmaste_engine::ManaProvenance;
 use deckmaste_engine::ObjectId;
 use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
@@ -199,8 +200,12 @@ fn spend_only_creature_funds_a_creature_spell() {
         green(),
         1,
         &[ManaRider::SpendOnly(Predicate::creature())],
+        ManaProvenance::default(),
     );
-    state.player_mut(PlayerId(0)).mana_pool.add(red(), 1);
+    state
+        .player_mut(PlayerId(0))
+        .mana_pool
+        .add(red(), 1, ManaProvenance::default());
     // Re-derive the frozen priority list with the freshly floated pool.
     resurface_priority(&mut state);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
@@ -273,11 +278,15 @@ fn persistent_end_of_turn_mana_survives_step_boundaries() {
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     // Float one plain red and one persistent green (EndOfTurn).
-    state.player_mut(PlayerId(0)).mana_pool.add(red(), 1);
+    state
+        .player_mut(PlayerId(0))
+        .mana_pool
+        .add(red(), 1, ManaProvenance::default());
     state.player_mut(PlayerId(0)).mana_pool.add_riders(
         green(),
         1,
         &[ManaRider::Persistent(TurnMarker::EndOfTurn)],
+        ManaProvenance::default(),
     );
 
     // Both units are present before any step boundary.
@@ -406,8 +415,12 @@ fn spend_only_instant_cannot_fund_a_creature_spell() {
         green(),
         1,
         &[ManaRider::SpendOnly(Predicate::r#type(Type::Instant))],
+        ManaProvenance::default(),
     );
-    state.player_mut(PlayerId(0)).mana_pool.add(red(), 1);
+    state
+        .player_mut(PlayerId(0))
+        .mana_pool
+        .add(red(), 1, ManaProvenance::default());
     // Re-derive the frozen priority list with the freshly floated pool.
     resurface_priority(&mut state);
 

@@ -271,13 +271,15 @@ impl GameState {
                 options,
                 amount,
                 riders,
-            } => self.open_choose_mana_color(player, options, amount, riders),
+                provenance,
+            } => self.open_choose_mana_color(player, options, amount, riders, provenance),
             WorkItem::ChooseManaMode {
                 player,
                 options,
                 amount,
                 riders,
-            } => self.open_choose_mana_mode(player, options, amount, riders),
+                provenance,
+            } => self.open_choose_mana_mode(player, options, amount, riders, provenance),
             WorkItem::AnnounceOptionalCosts { index } => {
                 let surfaced = self.announce_optional_costs(index);
                 Progress::CostOptionsChosen { surfaced }
@@ -1911,6 +1913,7 @@ impl GameState {
         options: Vec<ColorOrColorless>,
         amount: Uint,
         riders: Vec<deckmaste_core::ManaRider>,
+        provenance: crate::player::ManaProvenance,
     ) -> Progress {
         debug_assert!(
             !options.is_empty(),
@@ -1922,6 +1925,7 @@ impl GameState {
                 options,
                 amount,
                 riders,
+                provenance,
             },
         ));
         Progress::ManaColorOpened
@@ -1936,6 +1940,7 @@ impl GameState {
         options: Vec<Vec<ColorOrColorless>>,
         amount: Uint,
         riders: Vec<deckmaste_core::ManaRider>,
+        provenance: crate::player::ManaProvenance,
     ) -> Progress {
         debug_assert!(
             !options.is_empty() && options.iter().all(|run| !run.is_empty()),
@@ -1947,6 +1952,7 @@ impl GameState {
                 options,
                 amount,
                 riders,
+                provenance,
             },
         ));
         Progress::ManaModeOpened

@@ -1242,6 +1242,18 @@ fn eval_count(
                         .expect("mana pool fits Int")
                 })
         }
+        Count::ManaAvailableKind(reference, kind) => {
+            resolve_count_ref(state, working, reference, watcher, controller)
+                .and_then(|id| state.objects.get(id))
+                .and_then(|o| match o.source {
+                    ObjectSource::Player(p) => Some(p),
+                    ObjectSource::Card(_) => None,
+                })
+                .map_or(0, |p| {
+                    Int::try_from(state.player(p).mana_pool.amount(*kind))
+                        .expect("mana pool fits Int")
+                })
+        }
         // [CR#704.5q]: the lesser of two magnitudes.
         Count::Min(a, b) => eval_count(a, state, working, watcher, controller)
             .min(eval_count(b, state, working, watcher, controller)),

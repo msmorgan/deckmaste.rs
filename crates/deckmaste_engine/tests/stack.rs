@@ -28,6 +28,7 @@ use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameEvent;
 use deckmaste_engine::GameOutcome;
 use deckmaste_engine::GameState;
+use deckmaste_engine::ManaProvenance;
 use deckmaste_engine::ObjectId;
 use deckmaste_engine::Occurrence;
 use deckmaste_engine::Payment;
@@ -1470,7 +1471,10 @@ fn paymana_surfaces_for_every_cast() {
         let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
         float_mana(&mut state, PlayerId(0), 2); // G, G from forests
         // Add a stray Red so {1} has a real choice.
-        state.player_mut(PlayerId(0)).mana_pool.add(red(), 1);
+        state
+            .player_mut(PlayerId(0))
+            .mana_pool
+            .add(red(), 1, ManaProvenance::default());
         let bears = find_in_hand(&state, PlayerId(0), "Grizzly Bears");
         state
             .submit_decision(Decision::Act(Action::CastSpell { object: bears }))
@@ -1707,7 +1711,10 @@ fn illegal_target_and_payment_submissions_are_rejected_and_retryable() {
     let mut state = bears_game(2, 2);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     float_mana(&mut state, PlayerId(0), 2); // G, G
-    state.player_mut(PlayerId(0)).mana_pool.add(red(), 1); // G,G,R → a choice
+    state
+        .player_mut(PlayerId(0))
+        .mana_pool
+        .add(red(), 1, ManaProvenance::default()); // G,G,R → a choice
     let bears = find_in_hand(&state, PlayerId(0), "Grizzly Bears");
     state
         .submit_decision(Decision::Act(Action::CastSpell { object: bears }))

@@ -22,6 +22,7 @@ use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameEvent;
 use deckmaste_engine::GameState;
 use deckmaste_engine::ManaEmptied;
+use deckmaste_engine::ManaProvenance;
 use deckmaste_engine::ObjectId;
 use deckmaste_engine::ObjectSource;
 use deckmaste_engine::Occurrence;
@@ -1169,7 +1170,10 @@ fn casting_a_spell_schedules_the_announce_block_and_begin_cast_stages_it() {
     let (mut state, _bear) = decks_bolt_vs_bears_with_bear_on_field();
     // Float player 0 the {R} cost so `can_cast` admits it.
     let red: deckmaste_core::ColorOrColorless = Color::Red.into();
-    state.player_mut(PlayerId(0)).mana_pool.add(red, 1);
+    state
+        .player_mut(PlayerId(0))
+        .mana_pool
+        .add(red, 1, ManaProvenance::default());
     let bolt = *state.zones.hands[0]
         .iter()
         .find(|&&o| state_is_bolt(&state, o))

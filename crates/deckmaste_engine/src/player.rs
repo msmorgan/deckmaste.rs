@@ -16,41 +16,108 @@ impl PlayerId {
     }
 }
 
+/// Stable identity of one unspent mana unit. IDs are never reused within a
+/// game image, so a payment witness cannot silently retarget a neighboring
+/// unit after the pool changes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub struct FloatingManaId(pub u64);
+
+/// Identity of one activated or triggered mana action. The action is minted
+/// when the full payment protocol starts a mana ability; pre-protocol producers
+/// leave this absent while still recording their source.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub struct ManaActionId(pub u64);
+
+/// Where a floating mana unit came from. Riders continue to describe how the
+/// unit may be spent; provenance identifies the producing object/action for
+/// rules reads and payment replay.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub struct ManaProvenance {
+    pub source: Option<ObjectId>,
+    pub action: Option<ManaActionId>,
+}
+
 /// One point of unspent mana ([CR#106.4]) with the riders the producing
 /// effect attached to it ([CR#106.6] — riders live on the UNIT).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ManaUnit {
+    pub id: FloatingManaId,
     pub kind: ColorOrColorless,
     pub riders: Vec<ManaRider>,
+    pub provenance: ManaProvenance,
 }
 
 /// Unspent mana ([CR#106.4]) as a flat list of units, in production order.
 /// Small (rarely > ~10), so linear scans are fine.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct ManaPool(Vec<ManaUnit>);
+pub struct ManaPool {
+    units: Vec<ManaUnit>,
+    next_id: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum ManaPoolError {
+    #[error("floating mana id {0:?} was submitted more than once")]
+    Duplicate(FloatingManaId),
+    #[error("floating mana id {0:?} is not in the pool")]
+    Missing(FloatingManaId),
+}
 
 impl ManaPool {
     /// A pool of exactly `units`, in the given order. Used to build the
     /// spendable sub-pool an affordability check runs over ([CR#106.6]).
     #[must_use]
     pub fn from_units(units: Vec<ManaUnit>) -> Self {
-        Self(units)
+        let next_id = units.iter().map(|unit| unit.id.0).max().map_or(0, |id| {
+            id.checked_add(1).expect("floating mana id overflow")
+        });
+        debug_assert_eq!(
+            units
+                .iter()
+                .map(|unit| unit.id)
+                .collect::<std::collections::HashSet<_>>()
+                .len(),
+            units.len(),
+            "a mana pool contains unique stable ids"
+        );
+        Self { units, next_id }
     }
 
     /// Add `amount` plain (riderless) units of `mana`.
-    pub fn add(&mut self, mana: ColorOrColorless, amount: Uint) {
-        self.add_riders(mana, amount, &[]);
+    pub fn add(
+        &mut self,
+        mana: ColorOrColorless,
+        amount: Uint,
+        provenance: ManaProvenance,
+    ) -> Vec<FloatingManaId> {
+        self.add_riders(mana, amount, &[], provenance)
     }
 
     /// Add `amount` units of `mana`, each carrying a clone of `riders`
     /// ([CR#106.6a]: under a doubler every unit gets its own riders).
-    pub fn add_riders(&mut self, mana: ColorOrColorless, amount: Uint, riders: &[ManaRider]) {
+    pub fn add_riders(
+        &mut self,
+        mana: ColorOrColorless,
+        amount: Uint,
+        riders: &[ManaRider],
+        provenance: ManaProvenance,
+    ) -> Vec<FloatingManaId> {
+        let mut ids = Vec::with_capacity(amount as usize);
         for _ in 0..amount {
-            self.0.push(ManaUnit {
+            let id = FloatingManaId(self.next_id);
+            self.next_id = self
+                .next_id
+                .checked_add(1)
+                .expect("floating mana id overflow");
+            self.units.push(ManaUnit {
+                id,
                 kind: mana,
                 riders: riders.to_vec(),
+                provenance,
             });
+            ids.push(id);
         }
+        ids
     }
 
     /// Count of units of `mana` regardless of riders.
@@ -61,23 +128,24 @@ impl ManaPool {
     /// with more than `Uint::MAX` units would be absurd).
     #[must_use]
     pub fn amount(&self, mana: ColorOrColorless) -> Uint {
-        Uint::try_from(self.0.iter().filter(|u| u.kind == mana).count()).expect("pool fits Uint")
+        Uint::try_from(self.units.iter().filter(|u| u.kind == mana).count())
+            .expect("pool fits Uint")
     }
 
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.units.is_empty()
     }
 
     #[must_use]
     pub fn units(&self) -> &[ManaUnit] {
-        &self.0
+        &self.units
     }
 
     /// [CR#500.5,106.4]: drop every unit (blanket empty; persistence-aware
     /// emptying arrives in a later task as `empty_after`).
     pub fn clear(&mut self) {
-        self.0.clear();
+        self.units.clear();
     }
 
     /// [CR#500.5,106.4]: empty the pool as the `ending` step/phase ends, but
@@ -85,7 +153,7 @@ impl ManaPool {
     /// ([CR#702.189a]). A unit with several `Persistent` riders survives until
     /// the latest marker; a unit with none always empties.
     pub fn empty_after(&mut self, ending: deckmaste_core::PhaseStep) {
-        self.0.retain(|u| {
+        self.units.retain(|u| {
             u.riders.iter().any(|r| {
                 matches!(r,
                     deckmaste_core::ManaRider::Persistent(m) if !marker_expired_at(*m, ending))
@@ -96,13 +164,33 @@ impl ManaPool {
     /// Remove the units at `indices` (a validated payment selection). Indices
     /// must be distinct and in range — callers validate first.
     pub fn remove_units(&mut self, indices: &[usize]) {
-        let drop: std::collections::HashSet<usize> = indices.iter().copied().collect();
-        let mut i = 0;
-        self.0.retain(|_| {
-            let keep = !drop.contains(&i);
-            i += 1;
-            keep
-        });
+        let ids: Vec<FloatingManaId> = indices
+            .iter()
+            .filter_map(|&index| self.units.get(index).map(|unit| unit.id))
+            .collect();
+        self.remove_ids(&ids)
+            .expect("payment indices were validated against the pool snapshot");
+    }
+
+    #[must_use]
+    pub fn get(&self, id: FloatingManaId) -> Option<&ManaUnit> {
+        self.units.iter().find(|unit| unit.id == id)
+    }
+
+    /// Remove exactly the identified units, validating the whole submission
+    /// before mutating the pool.
+    pub fn remove_ids(&mut self, ids: &[FloatingManaId]) -> Result<(), ManaPoolError> {
+        let mut unique = std::collections::HashSet::with_capacity(ids.len());
+        for &id in ids {
+            if !unique.insert(id) {
+                return Err(ManaPoolError::Duplicate(id));
+            }
+            if self.get(id).is_none() {
+                return Err(ManaPoolError::Missing(id));
+            }
+        }
+        self.units.retain(|unit| !unique.contains(&unit.id));
+        Ok(())
     }
 }
 
@@ -182,8 +270,8 @@ mod tests {
     fn mana_pool_adds_reads_and_clears() {
         let mut pool = ManaPool::default();
         assert!(pool.is_empty());
-        pool.add(Color::White.into(), 2);
-        pool.add(ColorOrColorless::Colorless, 1);
+        pool.add(Color::White.into(), 2, ManaProvenance::default());
+        pool.add(ColorOrColorless::Colorless, 1, ManaProvenance::default());
         assert_eq!(pool.amount(Color::White.into()), 2);
         assert_eq!(pool.amount(ColorOrColorless::Colorless), 1);
         assert_eq!(pool.amount(Color::Green.into()), 0);
@@ -195,11 +283,12 @@ mod tests {
     #[test]
     fn persistent_mana_survives_until_its_marker() {
         let mut pool = ManaPool::default();
-        pool.add(Color::Red.into(), 1); // plain
+        pool.add(Color::Red.into(), 1, ManaProvenance::default()); // plain
         pool.add_riders(
             Color::Green.into(),
             1,
             &[ManaRider::Persistent(TurnMarker::EndOfTurn)],
+            ManaProvenance::default(),
         );
         pool.empty_after(PhaseStep::Beginning(BeginningStep::Upkeep)); // a non-final step
         assert_eq!(pool.amount(Color::Red.into()), 0); // plain mana emptied
@@ -211,13 +300,25 @@ mod tests {
     #[test]
     fn pool_units_carry_riders_and_amount_counts_them() {
         let mut pool = ManaPool::default();
-        pool.add(Color::Red.into(), 2); // two plain reds
+        pool.add(Color::Red.into(), 2, ManaProvenance::default()); // two plain reds
         let rider = some_rider(); // a single ManaRider
-        pool.add_riders(Color::Red.into(), 1, &[rider]); // one restricted red
+        pool.add_riders(Color::Red.into(), 1, &[rider], ManaProvenance::default()); // one restricted red
         assert_eq!(pool.amount(Color::Red.into()), 3); // amount counts all reds
         assert_eq!(
             pool.units().iter().filter(|u| !u.riders.is_empty()).count(),
             1
         );
+    }
+
+    #[test]
+    fn pool_ids_survive_neighbor_removal() {
+        let mut pool = ManaPool::default();
+        let ids = pool.add(Color::Green.into(), 3, ManaProvenance::default());
+
+        pool.remove_ids(&[ids[1]]).unwrap();
+
+        assert_eq!(pool.get(ids[0]).unwrap().kind, Color::Green.into());
+        assert_eq!(pool.get(ids[2]).unwrap().kind, Color::Green.into());
+        assert!(pool.get(ids[1]).is_none());
     }
 }

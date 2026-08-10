@@ -620,6 +620,10 @@ impl GameState {
                 // declares — snow-ness is a property of the producing source,
                 // not the effect.
                 riders.extend(self.snow_provenance(frame.source));
+                let provenance = crate::player::ManaProvenance {
+                    source: Some(frame.source),
+                    action: None,
+                };
                 match spec {
                     // A fixed production needs no choice.
                     ManaSpec::Specific(mana) => {
@@ -629,6 +633,7 @@ impl GameState {
                                 mana: *mana,
                                 amount,
                                 riders,
+                                provenance,
                             },
                         )))]
                     }
@@ -640,12 +645,14 @@ impl GameState {
                         options: ANY_COLOR.to_vec(),
                         amount,
                         riders,
+                        provenance,
                     }],
                     ManaSpec::OneOf(options) => vec![WorkItem::ChooseManaColor {
                         player: actor,
                         options: options.to_vec(),
                         amount,
                         riders,
+                        provenance,
                     }],
                     // [CR#106.1b]: the filterland cycle — the actor picks one
                     // of several multi-symbol runs on resolution, then that
@@ -655,6 +662,7 @@ impl GameState {
                         options: options.to_vec(),
                         amount,
                         riders,
+                        provenance,
                     }],
                     // [CR#105.2]: Chrome Mox's imprint — the producer picks
                     // AMONG the referenced object's own colors, resolved
@@ -697,6 +705,7 @@ impl GameState {
                                 options,
                                 amount,
                                 riders,
+                                provenance,
                             }]
                         }
                     }

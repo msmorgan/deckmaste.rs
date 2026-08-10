@@ -1141,7 +1141,14 @@ impl GameState {
                     &crate::derive::usable_abilities(self, *land)[*ability],
                 )
             {
-                projected.add(c, n);
+                projected.add(
+                    c,
+                    n,
+                    crate::player::ManaProvenance {
+                        source: Some(*land),
+                        action: None,
+                    },
+                );
             }
         }
         can_pay(&projected, &cost).then_some(plan)
@@ -2418,7 +2425,7 @@ mod tests {
     fn pool(pairs: &[(ColorOrColorless, Uint)]) -> ManaPool {
         let mut p = ManaPool::default();
         for &(m, n) in pairs {
-            p.add(m, n);
+            p.add(m, n, crate::player::ManaProvenance::default());
         }
         p
     }
@@ -2426,16 +2433,28 @@ mod tests {
     /// by a snow source, so eligible to pay `{S}` (and, being otherwise normal
     /// mana, colored/generic too).
     fn snow_pool(pairs: &[(ColorOrColorless, Uint)]) -> ManaPool {
-        let units = pairs
-            .iter()
-            .flat_map(|&(m, n)| {
-                (0..n).map(move |_| crate::player::ManaUnit {
-                    kind: m,
-                    riders: vec![deckmaste_core::ManaRider::Snow],
-                })
-            })
-            .collect();
-        ManaPool::from_units(units)
+        let mut pool = ManaPool::default();
+        for &(mana, amount) in pairs {
+            pool.add_riders(
+                mana,
+                amount,
+                &[deckmaste_core::ManaRider::Snow],
+                crate::player::ManaProvenance::default(),
+            );
+        }
+        pool
+    }
+    fn unit(
+        id: u64,
+        kind: ColorOrColorless,
+        riders: Vec<deckmaste_core::ManaRider>,
+    ) -> crate::player::ManaUnit {
+        crate::player::ManaUnit {
+            id: crate::player::FloatingManaId(id),
+            kind,
+            riders,
+            provenance: crate::player::ManaProvenance::default(),
+        }
     }
     fn cost(s: &str) -> ManaCost {
         s.parse().unwrap()
@@ -2548,14 +2567,8 @@ mod tests {
     fn snow_and_generic_mix() {
         // One snow + one plain unit pays {1}{S}: snow -> {S}, plain -> {1}.
         let units = vec![
-            crate::player::ManaUnit {
-                kind: red(),
-                riders: vec![deckmaste_core::ManaRider::Snow],
-            },
-            crate::player::ManaUnit {
-                kind: green(),
-                riders: vec![],
-            },
+            unit(0, red(), vec![deckmaste_core::ManaRider::Snow]),
+            unit(1, green(), vec![]),
         ];
         assert!(can_pay(&ManaPool::from_units(units), &cost("{1}{S}")));
         // A single plain unit can't pay {1}{S}: no snow source for {S}.
@@ -2581,14 +2594,8 @@ mod tests {
         // -> {S}. The snow unit is the ONLY one that can cover {S}, so {G} must
         // take the plain green — a correct matcher finds this.
         let units = vec![
-            crate::player::ManaUnit {
-                kind: green(),
-                riders: vec![],
-            },
-            crate::player::ManaUnit {
-                kind: green(),
-                riders: vec![deckmaste_core::ManaRider::Snow],
-            },
+            unit(0, green(), vec![]),
+            unit(1, green(), vec![deckmaste_core::ManaRider::Snow]),
         ];
         assert!(can_pay(&ManaPool::from_units(units), &cost("{G}{S}")));
         // ONE snow green alone canNOT pay {G}{S}: needs two units (one per pip).
@@ -2599,14 +2606,8 @@ mod tests {
     fn validate_payment_snow_round_trips() {
         // Pool [snow-red (0), plain green (1)] against {1}{S}.
         let p = ManaPool::from_units(vec![
-            crate::player::ManaUnit {
-                kind: red(),
-                riders: vec![deckmaste_core::ManaRider::Snow],
-            },
-            crate::player::ManaUnit {
-                kind: green(),
-                riders: vec![],
-            },
+            unit(0, red(), vec![deckmaste_core::ManaRider::Snow]),
+            unit(1, green(), vec![]),
         ]);
         // snow-red -> {S}, plain green -> {1}: a correct selection.
         assert!(validate_payment(
@@ -2628,14 +2629,8 @@ mod tests {
         // anyway — the discriminating case is that a payment naming only the
         // plain unit for an {S}-bearing cost is rejected.
         let mixed = ManaPool::from_units(vec![
-            crate::player::ManaUnit {
-                kind: green(),
-                riders: vec![],
-            },
-            crate::player::ManaUnit {
-                kind: green(),
-                riders: vec![deckmaste_core::ManaRider::Snow],
-            },
+            unit(0, green(), vec![]),
+            unit(1, green(), vec![deckmaste_core::ManaRider::Snow]),
         ]);
         assert!(validate_payment(
             &mixed,
@@ -2650,14 +2645,8 @@ mod tests {
         // go to {S}, so {1} takes the plain green. Auto-pay reserves snow for
         // {S}.
         let p = ManaPool::from_units(vec![
-            crate::player::ManaUnit {
-                kind: green(),
-                riders: vec![],
-            },
-            crate::player::ManaUnit {
-                kind: green(),
-                riders: vec![deckmaste_core::ManaRider::Snow],
-            },
+            unit(0, green(), vec![]),
+            unit(1, green(), vec![deckmaste_core::ManaRider::Snow]),
         ]);
         let pay = auto_pay(&p, &cost("{1}{S}"));
         assert!(validate_payment(&p, &cost("{1}{S}"), &pay));
