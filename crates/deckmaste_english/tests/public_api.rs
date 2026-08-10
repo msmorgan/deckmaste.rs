@@ -5461,6 +5461,57 @@ fn keyword_line_public_facade_is_checked_exact_and_legacy_serialized() {
 }
 
 #[test]
+fn keyword_line_checked_ingress_enforces_separator_topology() {
+    let catalogs = keyword_line_catalogs();
+    for source in ["Flying, first strike", "Flying; first strike"] {
+        let parsed = parse_fragment(
+            source,
+            &catalogs,
+            FragmentKind::KeywordLine,
+            "Test Card",
+            false,
+        );
+        let Some(Fragment::KeywordLine(line)) = parsed.fragment() else {
+            panic!("expected keyword-line control for {source:?}")
+        };
+        let rebuilt = deckmaste_english::keyword_line::build_keyword_line(
+            line.abilities().to_vec(),
+            line.trailing().cloned(),
+        )
+        .expect("the parser emits valid separator topology");
+        assert_eq!(
+            deckmaste_english::keyword_line::render(&rebuilt, "Test Card", false).unwrap(),
+            source
+        );
+    }
+
+    let parsed = parse_fragment(
+        "Flying, first strike",
+        &catalogs,
+        FragmentKind::KeywordLine,
+        "Test Card",
+        false,
+    );
+    let Some(Fragment::KeywordLine(line)) = parsed.fragment() else {
+        panic!("expected keyword-line fixture")
+    };
+
+    let mut leading_separator = line.abilities().to_vec();
+    leading_separator[0].preceding_separator = Some(KeywordListSeparator::Comma);
+    assert!(
+        deckmaste_english::keyword_line::build_keyword_line(leading_separator, None).is_err(),
+        "the first keyword must not carry a preceding separator"
+    );
+
+    let mut missing_separator = line.abilities().to_vec();
+    missing_separator[1].preceding_separator = None;
+    assert!(
+        deckmaste_english::keyword_line::build_keyword_line(missing_separator, None).is_err(),
+        "every later keyword must carry its comma or semicolon"
+    );
+}
+
+#[test]
 fn keyword_line_preserves_every_argument_and_surface_witness() {
     let catalogs = keyword_line_catalogs();
     let mut variants = std::collections::BTreeSet::new();
@@ -5608,6 +5659,52 @@ fn generated_ability_ordinals(report: &deckmaste_english::ParseReport) -> Vec<u1
             decision.selected_production_ordinal()
         })
         .collect()
+}
+
+fn generated_ability_decision(
+    report: &deckmaste_english::ParseReport,
+) -> &deckmaste_english::ConstructionDecision {
+    report
+        .provenance()
+        .selections()
+        .iter()
+        .flat_map(ParseSelection::constructions)
+        .find(|decision| decision.selected().as_str() == "ability")
+        .expect("the ability root records its generated decision")
+}
+
+#[test]
+fn ability_collision_provenance_records_every_ranked_root_alternative() {
+    let catalogs = keyword_line_catalogs();
+    let collision = parse_with_catalogs("Ward—Discard a card: Draw a card.", &catalogs);
+    let decision = generated_ability_decision(&collision);
+    assert_eq!(decision.selected_production_ordinal(), 9);
+    assert_eq!(
+        decision.reason(),
+        SelectionReason::Cost(deckmaste_english::ParseCostDimension::Precedence)
+    );
+    assert_eq!(decision.cost().precedence(), 0);
+    assert_eq!(
+        decision
+            .alternatives()
+            .iter()
+            .map(|alternative| {
+                assert_eq!(alternative.id().as_str(), "ability");
+                (
+                    alternative.production_ordinal(),
+                    alternative.cost().precedence(),
+                    alternative.is_dominated(),
+                )
+            })
+            .collect::<Vec<_>>(),
+        [(0, 4, false), (9, 0, false)]
+    );
+
+    let unique = parse_with_catalogs("Flying", &catalogs);
+    assert_eq!(
+        generated_ability_decision(&unique).reason(),
+        SelectionReason::Unique
+    );
 }
 
 #[test]

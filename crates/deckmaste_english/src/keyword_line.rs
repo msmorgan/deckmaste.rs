@@ -7,12 +7,12 @@ use crate::syntax::KeywordAbility;
 use crate::syntax::KeywordAbilityList;
 use crate::syntax::Paragraph;
 
-/// Builds a nonempty keyword-ability line through the declaration's checked
-/// ingress.
+/// Builds a keyword-ability line through the declaration's checked ingress.
 ///
 /// # Errors
 ///
-/// Returns an error when `abilities` is empty or the fields otherwise violate
+/// Returns an error when `abilities` is empty, the first ability has a
+/// preceding separator, a later ability lacks one, or another field violates
 /// the `keyword_line` declaration.
 pub fn build_keyword_line(
     abilities: Vec<KeywordAbility>,

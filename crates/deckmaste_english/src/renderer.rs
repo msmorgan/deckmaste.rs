@@ -46,7 +46,6 @@ use crate::syntax::IndefiniteArticle;
 use crate::syntax::IndependentClause;
 use crate::syntax::InfinitiveClause;
 use crate::syntax::InfinitiveMarker;
-use crate::syntax::KeywordAbility;
 use crate::syntax::KeywordAbilityList;
 use crate::syntax::KeywordArgument;
 use crate::syntax::KeywordArgumentSeparator;
@@ -808,29 +807,64 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
         category: &'static str,
         value: &T,
     ) -> Result<(), Self::Error> {
-        assert_eq!(category, "Paragraph");
-        let paragraph = (value as &dyn std::any::Any)
-            .downcast_ref::<Paragraph>()
-            .expect("the keyword-line trailing hole preserves Paragraph");
-        self.rendered.push(' ');
-        self.rendered.push_str(&self.renderer.paragraph_with_suffix(
-            paragraph,
-            true,
-            self.suppress_final_period,
-        )?);
-        Ok(())
+        match category {
+            "KeywordArgument" => {
+                let argument = (value as &dyn std::any::Any)
+                    .downcast_ref::<KeywordArgument>()
+                    .expect("the keyword-ability argument hole preserves KeywordArgument");
+                self.rendered
+                    .push_str(&self.renderer.keyword_argument(argument)?);
+                Ok(())
+            }
+            "Paragraph" => {
+                let paragraph = (value as &dyn std::any::Any)
+                    .downcast_ref::<Paragraph>()
+                    .expect("the keyword-line trailing hole preserves Paragraph");
+                self.rendered.push(' ');
+                self.rendered.push_str(&self.renderer.paragraph_with_suffix(
+                    paragraph,
+                    true,
+                    self.suppress_final_period,
+                )?);
+                Ok(())
+            }
+            _ => unreachable!("keyword_line has no other subtree fields"),
+        }
     }
 
     fn scalar<T: std::any::Any>(
         &mut self,
-        _codec: &'static str,
-        _value: &T,
+        codec: &'static str,
+        value: &T,
     ) -> Result<(), Self::Error> {
-        unreachable!("keyword_line has no scalar fields")
+        assert_eq!(codec, "KeywordListSeparator");
+        let separator = (value as &dyn std::any::Any)
+            .downcast_ref::<KeywordListSeparator>()
+            .expect("the keyword separator codec preserves KeywordListSeparator");
+        self.rendered.push_str(match separator {
+            KeywordListSeparator::Comma => ", ",
+            KeywordListSeparator::Semicolon => "; ",
+        });
+        Ok(())
+    }
+
+    fn identity<T: std::any::Any>(
+        &mut self,
+        provider: &'static str,
+        value_type: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        assert_eq!(provider, "AbilityItem");
+        assert_eq!(value_type, "CatalogAtom");
+        let ability = (value as &dyn std::any::Any)
+            .downcast_ref::<crate::catalog::CatalogAtom>()
+            .expect("the keyword identity preserves CatalogAtom");
+        self.rendered.push_str(ability.spelling());
+        Ok(())
     }
 
     fn sequence_member(&mut self, field: &'static str, _index: usize) -> Result<(), Self::Error> {
-        assert_eq!(field, "abilities");
+        assert!(matches!(field, "first" | "rest"));
         Ok(())
     }
 
@@ -839,12 +873,8 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
         element: &'static str,
         value: &T,
     ) -> Result<(), Self::Error> {
-        assert_eq!(element, "keyword_ability");
-        let ability = (value as &dyn std::any::Any)
-            .downcast_ref::<KeywordAbility>()
-            .expect("the keyword-ability sequence preserves KeywordAbility");
-        self.renderer
-            .render_keyword_ability_into(ability, &mut self.rendered)
+        let _ = (element, value);
+        Ok(())
     }
 }
 
@@ -3326,22 +3356,6 @@ impl<'identity> Renderer<'identity> {
             },
         )?;
         Ok(visitor.rendered)
-    }
-
-    fn render_keyword_ability_into(
-        &self,
-        item: &KeywordAbility,
-        rendered: &mut String,
-    ) -> Result<(), RenderError> {
-        if let Some(separator) = item.preceding_separator {
-            rendered.push_str(match separator {
-                KeywordListSeparator::Comma => ", ",
-                KeywordListSeparator::Semicolon => "; ",
-            });
-        }
-        rendered.push_str(item.ability.spelling());
-        rendered.push_str(&self.keyword_argument(&item.argument)?);
-        Ok(())
     }
 
     /// Renders a keyword argument, including the leading separator that joins
@@ -6075,7 +6089,7 @@ mod tests {
         let catalogs = fixture_catalogs();
         let ast = OracleText {
             abilities: vec![checked_ability(AbilityKind::Keyword(
-                KeywordAbilityList::from_parts(
+                crate::keyword_line::build_keyword_line(
                     vec![
                         KeywordAbility {
                             preceding_separator: None,
@@ -6089,7 +6103,8 @@ mod tests {
                         },
                     ],
                     None,
-                ),
+                )
+                .expect("well-formed keyword line must satisfy the declaration"),
             ))],
         };
 
@@ -7255,14 +7270,15 @@ mod tests {
                 range: LevelRange::AtLeast(arabic(12)),
                 stats: stat(9),
                 abilities: vec![checked_ability(AbilityKind::Keyword(
-                    KeywordAbilityList::from_parts(
+                    crate::keyword_line::build_keyword_line(
                         vec![KeywordAbility {
                             preceding_separator: None,
                             ability: keyword_atom(&catalogs, "flying"),
                             argument: KeywordArgument::Absent,
                         }],
                         None,
-                    ),
+                    )
+                    .expect("well-formed keyword line must satisfy the declaration"),
                 ))],
             }))],
         };

@@ -255,6 +255,7 @@ pub struct Cost {
 
 impl Cost {
     pub(crate) const fn from_parts(
+        _owner: &crate::constructions::ability::AbilityOwner,
         flavor_header: Option<FlavorHeader>,
         components: Vec<CostComponent>,
     ) -> Self {
@@ -514,6 +515,7 @@ pub struct KeywordAbilityList {
 
 impl KeywordAbilityList {
     pub(crate) const fn from_parts(
+        _owner: &crate::constructions::ability::AbilityOwner,
         abilities: Vec<KeywordAbility>,
         trailing: Option<Paragraph>,
     ) -> Self {

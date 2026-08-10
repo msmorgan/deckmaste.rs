@@ -19,6 +19,7 @@ use crate::construction::ProductionId;
 use crate::features::Conjunction;
 use crate::forest::ForestStats;
 use crate::forest::ParseCost;
+use crate::forest::ParseCostDimension;
 use crate::forest::SelectionReason;
 use crate::identity::SelfReference;
 use crate::surface::Punctuation;
@@ -388,6 +389,18 @@ impl AbilityFrameCandidate {
             Self::RollRow => 6,
         }
     }
+
+    const fn form_ordinal(self) -> u16 {
+        match self {
+            Self::Activated => 0,
+            Self::ClassLevel => 1,
+            Self::Chapter => 2,
+            Self::RollRow => 3,
+            Self::Triggered => 6,
+            Self::Loyalty => 7,
+            Self::Keyword => 9,
+        }
+    }
 }
 
 struct ParsedAbilityCandidate {
@@ -395,6 +408,43 @@ struct ParsedAbilityCandidate {
     kind: AbilityKind,
     diagnostics: Vec<AbilityDiagnostic>,
     selections: Vec<AbilitySelection>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AbilityFrameSelectionError {
+    EqualGuardRank { rank: u8 },
+}
+
+fn select_best_ability_candidate(
+    candidates: &[ParsedAbilityCandidate],
+) -> Result<Option<usize>, AbilityFrameSelectionError> {
+    let Some(best_rank) = candidates
+        .iter()
+        .map(|candidate| candidate.frame.guard_rank())
+        .min()
+    else {
+        return Ok(None);
+    };
+    let mut matching = candidates
+        .iter()
+        .enumerate()
+        .filter(|(_, candidate)| candidate.frame.guard_rank() == best_rank)
+        .map(|(index, _)| index);
+    let selected = matching
+        .next()
+        .expect("the minimum rank came from a candidate");
+    if matching.next().is_some() {
+        Err(AbilityFrameSelectionError::EqualGuardRank { rank: best_rank })
+    } else {
+        Ok(Some(selected))
+    }
+}
+
+#[derive(Debug)]
+struct AbilityRootDecision {
+    cost: ParseCost,
+    reason: SelectionReason,
+    alternatives: Vec<(u16, ParseCost)>,
 }
 
 impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
@@ -525,11 +575,20 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             self.flavor_word_prefix(body)
                 .map_or((None, body), |(header, rest)| (Some(header), rest))
         };
-        let kind = self.parse_ability_kind(body);
-        self.finish_ability(tokens_span(tokens), ability_word, flavor_header, kind)
+        let (kind, decision) = self.parse_ability_kind(body);
+        self.finish_ability_with_decision(
+            tokens_span(tokens),
+            ability_word,
+            flavor_header,
+            kind,
+            decision,
+        )
     }
 
-    fn parse_ability_kind(&mut self, tokens: &[Token]) -> AbilityKind {
+    fn parse_ability_kind(
+        &mut self,
+        tokens: &[Token],
+    ) -> (AbilityKind, Option<AbilityRootDecision>) {
         #[cfg_attr(
             not(test),
             allow(
@@ -544,15 +603,37 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             .into_iter()
             .filter_map(|frame| self.probe_ability_candidate(frame, tokens))
             .collect::<Vec<_>>();
-        let best_rank = candidates
-            .iter()
-            .map(|candidate| candidate.frame.guard_rank())
-            .min();
-        candidates.retain(|candidate| Some(candidate.frame.guard_rank()) == best_rank);
-        if let [candidate] = candidates.as_mut_slice() {
+        let selected = select_best_ability_candidate(&candidates)
+            .expect("ability classifier guard ranks must be unique");
+        if let Some(selected) = selected {
+            let decision = (candidates.len() > 1).then(|| {
+                let selected_frame = candidates[selected].frame;
+                let mut alternatives = candidates
+                    .iter()
+                    .map(|candidate| {
+                        (
+                            candidate.frame.form_ordinal(),
+                            ParseCost {
+                                precedence: u32::from(candidate.frame.guard_rank()),
+                                ..ParseCost::default()
+                            },
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                alternatives.sort_by_key(|(ordinal, _)| *ordinal);
+                AbilityRootDecision {
+                    cost: ParseCost {
+                        precedence: u32::from(selected_frame.guard_rank()),
+                        ..ParseCost::default()
+                    },
+                    reason: SelectionReason::Cost(ParseCostDimension::Precedence),
+                    alternatives,
+                }
+            });
+            let mut candidate = candidates.swap_remove(selected);
             self.diagnostics.append(&mut candidate.diagnostics);
             self.selections.append(&mut candidate.selections);
-            return candidate.kind.clone();
+            return (candidate.kind, decision);
         }
         if let Some(colon) = find_top_level_punctuation(tokens, Punctuation::Colon)
             && colon + 1 == tokens.len()
@@ -564,7 +645,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                     .map_or_else(|| tokens_span(tokens), |token| token.span),
             });
         }
-        AbilityKind::Paragraph(self.parse_paragraph(tokens))
+        (AbilityKind::Paragraph(self.parse_paragraph(tokens)), None)
     }
 
     fn probe_ability_candidate(
@@ -658,12 +739,23 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         flavor_header: Option<FlavorHeader>,
         kind: AbilityKind,
     ) -> Ability {
+        self.finish_ability_with_decision(span, ability_word, flavor_header, kind, None)
+    }
+
+    fn finish_ability_with_decision(
+        &mut self,
+        span: Span,
+        ability_word: Option<CatalogAtom>,
+        flavor_header: Option<FlavorHeader>,
+        kind: AbilityKind,
+        decision: Option<AbilityRootDecision>,
+    ) -> Ability {
         let ability =
             crate::constructions::ability::build_ability_root(ability_word, flavor_header, kind)
                 .expect("the ability classifier satisfies the declaration");
         let ordinal = crate::constructions::ability::ability_form_ordinal(&ability)
             .expect("the declaration assigns every AbilityKind one form");
-        self.record_ability_construction_span(span, "ability", ordinal);
+        self.record_ability_construction_span_with_decision(span, "ability", ordinal, decision);
         ability
     }
 
@@ -1434,6 +1526,16 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     }
 
     fn record_ability_construction_span(&mut self, span: Span, id: &'static str, ordinal: u16) {
+        self.record_ability_construction_span_with_decision(span, id, ordinal, None);
+    }
+
+    fn record_ability_construction_span_with_decision(
+        &mut self,
+        span: Span,
+        id: &'static str,
+        ordinal: u16,
+        decision: Option<AbilityRootDecision>,
+    ) {
         let Some(groups) = self.activation.ability_groups() else {
             return;
         };
@@ -1474,7 +1576,39 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             construction: id,
             ordinal,
         };
-        let cost = ParseCost::default();
+        let (cost, reason, alternatives) = decision.map_or_else(
+            || {
+                (
+                    ParseCost::default(),
+                    SelectionReason::Unique,
+                    vec![ConstructionAlternative::new(
+                        production,
+                        ParseCost::default(),
+                        false,
+                    )],
+                )
+            },
+            |decision| {
+                (
+                    decision.cost,
+                    decision.reason,
+                    decision
+                        .alternatives
+                        .into_iter()
+                        .map(|(ordinal, cost)| {
+                            ConstructionAlternative::new(
+                                ProductionId {
+                                    construction: id,
+                                    ordinal,
+                                },
+                                cost,
+                                false,
+                            )
+                        })
+                        .collect(),
+                )
+            },
+        );
         self.selections.push(AbilitySelection {
             span,
             constituent_spans: Vec::new(),
@@ -1485,8 +1619,8 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 production,
                 family,
                 cost,
-                SelectionReason::Unique,
-                vec![ConstructionAlternative::new(production, cost, false)],
+                reason,
+                alternatives,
             )],
             tied_alternatives: vec![0],
             cost,
@@ -5457,6 +5591,45 @@ mod tests {
                 .collect::<Vec<_>>();
             assert_eq!(ordinals, expected_ordinals, "{source}");
         }
+
+        let source = "Ward—Discard a card: Draw a card.";
+        let surface = lex(source);
+        let identity = SelfReference::new(FIXTURE_NAME, true);
+        let tokens =
+            crate::surface::collapse_full_names(source, surface.tokens, identity.full_name());
+        let catalogs = shape_catalogs();
+        let reports = activations.map(|activation| {
+            super::Parser::new_with_activation(source, &catalogs, &identity, false, activation)
+                .parse(&tokens)
+        });
+        assert_eq!(reports[0].ast, reports[1].ast);
+        assert_eq!(reports[0].ast, reports[2].ast);
+        assert_eq!(reports[0].diagnostics, reports[1].diagnostics);
+        assert_eq!(reports[0].diagnostics, reports[2].diagnostics);
+        assert_eq!(reports[0].selections, reports[1].selections);
+        assert_eq!(reports[0].selections, reports[2].selections);
+        let decision = reports[0]
+            .selections
+            .iter()
+            .flat_map(|selection| &selection.constructions)
+            .find(|decision| decision.selected().as_str() == "ability")
+            .expect("collision records an ability-root decision");
+        assert_eq!(decision.selected_production_ordinal(), 9);
+        assert_eq!(
+            decision.reason(),
+            crate::SelectionReason::Cost(crate::ParseCostDimension::Precedence)
+        );
+        assert_eq!(
+            decision
+                .alternatives()
+                .iter()
+                .map(|alternative| (
+                    alternative.production_ordinal(),
+                    alternative.cost().precedence(),
+                ))
+                .collect::<Vec<_>>(),
+            [(0, 4), (9, 0)]
+        );
     }
 
     #[test]
@@ -5492,6 +5665,24 @@ mod tests {
 
         let ability = parser.parse_ability(&tokens);
         assert!(matches!(ability.kind(), AbilityKind::Keyword(_)));
+    }
+
+    #[test]
+    fn equal_ability_guard_ranks_are_rejected_explicitly() {
+        let candidate = |frame| super::ParsedAbilityCandidate {
+            frame,
+            kind: AbilityKind::Paragraph(Paragraph::default()),
+            diagnostics: Vec::new(),
+            selections: Vec::new(),
+        };
+        let candidates = [
+            candidate(super::AbilityFrameCandidate::Keyword),
+            candidate(super::AbilityFrameCandidate::Keyword),
+        ];
+        assert!(matches!(
+            super::select_best_ability_candidate(&candidates),
+            Err(super::AbilityFrameSelectionError::EqualGuardRank { rank: 0 })
+        ));
     }
 
     /// A catalog exercising every keyword-argument shape. The keyword names are

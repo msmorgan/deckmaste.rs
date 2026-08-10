@@ -147,10 +147,11 @@ fn write_provenance(mut writer: impl Write, report: &ParseReport) -> Result<()> 
             for alternative in decision.alternatives() {
                 writeln!(
                     writer,
-                    "  alternative {}#{} dominated={}",
+                    "  alternative {}#{} dominated={} cost={}",
                     alternative.id(),
                     alternative.production_ordinal(),
                     alternative.is_dominated(),
+                    cost_text(alternative.cost()),
                 )?;
             }
         }
@@ -659,6 +660,25 @@ mod tests {
     }
 
     #[test]
+    fn ability_collision_inspect_reports_ranked_alternatives_and_decisive_cost() {
+        let verbose = verbose_m01("Ward—Discard a card: Draw a card.");
+        assert!(
+            verbose.contains(
+                " ability owner=generated backend=ability form=9 evidence=guard:decisive ability frame guard reason=cost:precedence cost={opaque_words:0,opaque_lexemes:0,generic_rules:0,reading_dispreference:0,attachment_count:0,attachment_distance:0,attachment_extent:0,precedence:0}"
+            ),
+            "{verbose}"
+        );
+        assert!(
+            verbose.contains("alternative ability#0 dominated=false cost={opaque_words:0,opaque_lexemes:0,generic_rules:0,reading_dispreference:0,attachment_count:0,attachment_distance:0,attachment_extent:0,precedence:4}"),
+            "{verbose}"
+        );
+        assert!(
+            verbose.contains("alternative ability#9 dominated=false cost={opaque_words:0,opaque_lexemes:0,generic_rules:0,reading_dispreference:0,attachment_count:0,attachment_distance:0,attachment_extent:0,precedence:0}"),
+            "{verbose}"
+        );
+    }
+
+    #[test]
     fn production_p01_inspect_reports_generated_owners_and_decisive_constraints() {
         for (source, construction, evidence) in [
             (
@@ -1112,7 +1132,7 @@ mod tests {
         let catalogs = Catalogs::default()
             .with_catalog(
                 deckmaste_english::CatalogKind::KeywordAbility,
-                ["Protection"],
+                ["Protection", "Ward"],
             )
             .with_catalog(deckmaste_english::CatalogKind::CreatureType, ["Ally"])
             .with_catalog(
