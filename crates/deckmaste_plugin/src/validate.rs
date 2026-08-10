@@ -375,7 +375,7 @@ fn lint_card_types(
 /// non-`Do` components (mana, tap, untap).
 fn cost_action(component: &CostComponent) -> Option<&deckmaste_core::Action> {
     match component {
-        CostComponent::Do(action) => Some(action),
+        CostComponent::Act(action) => Some(action),
         CostComponent::Expanded(expansion) => cost_action(&expansion.value),
         _ => None,
     }

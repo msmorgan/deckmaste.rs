@@ -162,7 +162,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
                 count: count.clone(),
                 filter: (**filter).clone(),
             }),
-            CostComponent::Do(action) => {
+            CostComponent::Act(action) => {
                 if action.is_cost_eligible() {
                     verbs.push(action.as_ref().clone());
                 } else {
@@ -175,7 +175,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
             // choice can only be surfaced against a live frame, so the gate
             // checks the binder's choose-feasibility and the pay step runs each
             // as an `OneShotEffect::With` (mirroring `ManaCostOf`/`TapTotal`).
-            CostComponent::With { .. } => withs.push(component.clone()),
+            CostComponent::ChooseAndPay { .. } => withs.push(component.clone()),
             // Provenance is erased at `lower` (`deckmaste_lowering`), so no
             // loaded value reaches here wrapped. The arm survives only because
             // the variant does; `core-demacro` deletes both.
@@ -497,8 +497,8 @@ impl GameState {
         controller: PlayerId,
     ) -> bool {
         use deckmaste_core::Binder;
-        let CostComponent::With { binder, .. } = with else {
-            unreachable!("cost_summary collects only With components into `withs`");
+        let CostComponent::ChooseAndPay { binder, .. } = with else {
+            unreachable!("cost_summary collects only ChooseAndPay components into `withs`");
         };
         let watcher = Some(self.objects.obj(source).source);
         match &**binder {
@@ -1612,7 +1612,7 @@ mod tests {
             Predicate::creature(),
             Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
         ]));
-        let with = CostComponent::With {
+        let with = CostComponent::ChooseAndPay {
             binder: Arc::new(Binder::ChooseOne {
                 filter,
                 by: Reference::You,
@@ -1657,7 +1657,7 @@ mod tests {
         let player = PlayerId(0);
         let source = make_object_on_battlefield(&mut state, player);
 
-        let search_one = CostComponent::With {
+        let search_one = CostComponent::ChooseAndPay {
             binder: Arc::new(Binder::SearchOne {
                 filter: Predicate::Kind(ObjectKind::Card),
                 by: Reference::You,
@@ -1672,7 +1672,7 @@ mod tests {
             "SearchOne over an empty library is still payable"
         );
 
-        let search = CostComponent::With {
+        let search = CostComponent::ChooseAndPay {
             binder: Arc::new(Binder::Search {
                 quantity: Quantity::one(),
                 filter: Predicate::Kind(ObjectKind::Card),
