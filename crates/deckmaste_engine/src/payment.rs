@@ -2,6 +2,7 @@ mod coverage;
 mod fulfill;
 mod iou;
 mod mana;
+mod replay;
 
 use std::sync::Arc;
 
@@ -23,6 +24,16 @@ pub use iou::IouKind;
 pub use iou::ManaPip;
 pub use iou::PaymentIou;
 pub use iou::PaymentRecordId;
+pub use replay::DecisionTranscript;
+pub use replay::LogicalObject;
+pub use replay::ObservationBarrier;
+pub use replay::ReplayCommand;
+pub use replay::ReplayError;
+pub use replay::ReplayMap;
+pub use replay::ReversalBarrier;
+pub use replay::TransactionRecord;
+pub(crate) use replay::contextual_barriers_for;
+pub use replay::reconstruct;
 
 use crate::object::ObjectId;
 use crate::player::ManaActionId;
@@ -81,11 +92,24 @@ pub enum PaymentSubject {
 }
 
 impl PaymentSubject {
+    /// The permanent/card bound by source-relative nonmana costs.
     #[must_use]
     pub fn object(self) -> ObjectId {
         match self {
             Self::Spell(object) => object,
             Self::Activated { source, .. } | Self::Effect { source } => source,
+        }
+    }
+
+    /// The live spell/ability/effect object that mana spend restrictions
+    /// judge. An activated ability's source may legally leave the battlefield
+    /// while its announcement is still being paid for.
+    #[must_use]
+    pub fn spend_object(self) -> ObjectId {
+        match self {
+            Self::Spell(object) => object,
+            Self::Activated { ability, .. } => ability,
+            Self::Effect { source } => source,
         }
     }
 }
@@ -165,6 +189,10 @@ impl LockedPayment {
 #[derive(Debug, Clone)]
 pub struct PaymentFrame {
     pub(crate) working: GameImage,
+    /// The full image before this announcement or optional-payment branch
+    /// began. Announcement decline reconstructs retained mana actions from
+    /// this one base instead of stacking per-action snapshots.
+    pub(crate) proposal_base: GameImage,
     pub(crate) payment_base: Option<GameImage>,
     pub payer: PlayerId,
     pub subject: PaymentSubject,
@@ -174,14 +202,11 @@ pub struct PaymentFrame {
     pub coverage: Option<ManaCoverage>,
     pub fulfilled: Vec<(IouId, FulfillmentWitness)>,
     pub progress: PaymentProgress,
+    pub(crate) records: Vec<TransactionRecord>,
+    pub(crate) recording: Option<replay::PendingRecord>,
     /// The activated mana action whose announcement this nested frame owns.
     /// Root announcements and optional payments leave this absent.
     pub(crate) mana_action: Option<ManaActionId>,
-    #[expect(
-        dead_code,
-        reason = "record ids are minted when the frame-local replay ledger lands"
-    )]
-    pub(crate) next_record: u64,
 }
 
 impl PaymentFrame {
@@ -189,6 +214,7 @@ impl PaymentFrame {
     pub fn new(working: GameImage, purpose: PaymentPurpose, locked: LockedPayment) -> Self {
         let payment_base = (locked.stage != PaymentStage::PrePayment).then(|| working.clone());
         Self {
+            proposal_base: working.clone(),
             working,
             payment_base,
             payer: locked.payer,
@@ -199,8 +225,9 @@ impl PaymentFrame {
             coverage: None,
             fulfilled: Vec::new(),
             progress: PaymentProgress::Idle,
+            records: Vec::new(),
+            recording: None,
             mana_action: None,
-            next_record: 0,
         }
     }
 
@@ -228,6 +255,8 @@ impl PaymentFrame {
         self.coverage = None;
         self.fulfilled.clear();
         self.progress = PaymentProgress::Idle;
+        self.records.clear();
+        self.recording = None;
     }
 
     #[must_use]
@@ -258,7 +287,12 @@ impl PaymentFrame {
             coverage: self.coverage.clone(),
             fulfillable,
             mana_abilities,
-            rescindable: Vec::new(),
+            rescindable: self
+                .records
+                .iter()
+                .filter(|record| record.selectively_reversible())
+                .filter_map(TransactionRecord::iou)
+                .collect(),
         }
     }
 }
@@ -268,10 +302,24 @@ impl PaymentFrame {
 #[derive(Debug, Clone, Default)]
 pub struct PaymentController {
     pub(crate) frames: Vec<PaymentFrame>,
-    mana_actions: Vec<mana::ManaAction>,
+    pub(crate) mana_actions: Vec<mana::ManaAction>,
+    next_record: u64,
 }
 
 impl GameState {
+    pub(crate) fn mint_payment_record(&mut self) -> PaymentRecordId {
+        let controller = self
+            .payment
+            .as_mut()
+            .expect("payment records belong to an active controller");
+        let id = PaymentRecordId(controller.next_record);
+        controller.next_record = controller
+            .next_record
+            .checked_add(1)
+            .expect("payment record id overflow");
+        id
+    }
+
     /// Clone the active image before any proposal mutation and route ordinary
     /// engine field access into that isolated working image.
     pub(crate) fn begin_payment_proposal(&mut self, payer: PlayerId) {
@@ -355,11 +403,100 @@ impl GameState {
             PaymentCommand::ActivateManaAbility { source, ability } => {
                 self.activate_payment_mana_ability(source, ability)
             }
-            PaymentCommand::RescindFulfillment(_) => Err(crate::decide::DecisionError::Illegal {
-                reason: "that payment operation is not available in this implementation slice"
-                    .into(),
-            }),
+            PaymentCommand::RescindFulfillment(iou) => self.rescind_payment_fulfillment(iou),
         }
+    }
+
+    pub(crate) fn record_payment_decision(&mut self, decision: &crate::decide::Decision) {
+        let Some(frame) = self.payment.as_mut().and_then(|controller| {
+            if let Some(action) = controller.mana_actions.last_mut()
+                && !matches!(
+                    decision,
+                    crate::decide::Decision::Payment(PaymentCommand::ActivateManaAbility { .. })
+                )
+            {
+                action.transcript.answers.push(decision.clone());
+            }
+            controller.frames.last_mut()
+        }) else {
+            return;
+        };
+        if matches!(decision, crate::decide::Decision::Payment(_)) {
+            return;
+        }
+        let Some(recording) = frame.recording.as_mut() else {
+            return;
+        };
+        recording.transcript.answers.push(decision.clone());
+    }
+
+    fn rescind_payment_fulfillment(
+        &mut self,
+        iou: IouId,
+    ) -> Result<(), crate::decide::DecisionError> {
+        let retained = {
+            let controller = self
+                .payment
+                .as_ref()
+                .expect("a Payment decision has a controller");
+            let frame = controller
+                .frames
+                .last()
+                .expect("a Payment decision has a frame");
+            if frame.progress != PaymentProgress::Idle {
+                return Err(crate::decide::DecisionError::Illegal {
+                    reason: "RescindFulfillment is unavailable while a fulfillment is in flight"
+                        .into(),
+                });
+            }
+            let Some(selected) = frame
+                .records
+                .iter()
+                .find(|record| record.iou() == Some(iou))
+            else {
+                return Err(crate::decide::DecisionError::Illegal {
+                    reason: "RescindFulfillment must name a fulfilled IOU".into(),
+                });
+            };
+            if !selected.selectively_reversible() {
+                return Err(crate::decide::DecisionError::Illegal {
+                    reason: "that fulfillment crossed a replay barrier".into(),
+                });
+            }
+            frame
+                .records
+                .iter()
+                .filter(|record| record.iou() != Some(iou))
+                .map(|record| record.id)
+                .collect::<Vec<_>>()
+        };
+
+        let rebuilt = {
+            let frame = self
+                .payment
+                .as_ref()
+                .and_then(|controller| controller.frames.last())
+                .expect("a Payment decision has a frame");
+            replay::reconstruct_frame(frame, &retained).map_err(|error| {
+                crate::decide::DecisionError::Illegal {
+                    reason: format!("payment replay failed: {error}"),
+                }
+            })?
+        };
+
+        let controller = self.payment.as_mut().expect("controller remains live");
+        let frame = controller.frames.last_mut().expect("frame remains live");
+        frame.working = rebuilt.working;
+        frame.stage = rebuilt.stage;
+        frame.coverage = rebuilt.coverage;
+        frame.fulfilled = rebuilt.fulfilled;
+        frame.records = rebuilt.records;
+        frame.progress = PaymentProgress::Idle;
+        frame.recording = None;
+        let prompt = frame.prompt(Vec::new());
+        frame.working.pending = Some(crate::decide::PendingDecision::Payment(prompt));
+        self.refresh_payment_prompt();
+        Ok(())
     }
 
     fn begin_payment(
@@ -424,11 +561,21 @@ impl GameState {
         } else if !root {
             let controller = self.payment.as_mut().expect("controller remains live");
             let child = controller.frames.pop().expect("child frame remains live");
+            let (cost_records, nested_actions): (Vec<_>, Vec<_>) = child
+                .records
+                .into_iter()
+                .partition(|record| record.iou().is_some());
+            controller
+                .mana_actions
+                .last_mut()
+                .expect("a submitted mana child belongs to an active mana action")
+                .cost_records = cost_records;
             let parent = controller
                 .frames
                 .last_mut()
                 .expect("parent frame remains live");
             parent.working = child.working;
+            parent.records.extend(nested_actions);
         }
         if let PaymentPurpose::Optional { if_did, frame, .. } = purpose
             && let Some(effect) = if_did
@@ -492,34 +639,430 @@ impl GameState {
             }
             PaymentPurpose::Announcement => {
                 if nested {
-                    let controller = self.payment.as_mut().expect("controller remains live");
-                    let child = controller.frames.pop().expect("nested frame remains live");
-                    let action = child
-                        .mana_action
-                        .expect("a nested announcement frame owns a mana action");
-                    let active = controller
-                        .mana_actions
-                        .pop()
-                        .expect("a nested mana frame owns an active action");
-                    assert_eq!(active.id, action);
-                    self.refresh_payment_prompt();
+                    return self.decline_nested_mana_action(payer, subject);
                 } else {
-                    // The committed image still contains the untouched
-                    // preannouncement priority prompt.
-                    self.payment = None;
+                    let legal = self.legal_mana_reversal_sets();
+                    if legal.iter().any(|set| !set.is_empty()) {
+                        self.pending = Some(crate::decide::PendingDecision::ChooseManaReversals(
+                            crate::decide::pending::ChooseManaReversals {
+                                player: payer,
+                                legal,
+                            },
+                        ));
+                        return Ok(());
+                    }
+                    return self.complete_root_announcement_decline(&[]);
                 }
-                self.incidents
-                    .push(crate::state::EngineIncident::PaymentDeclined(
-                        crate::state::PaymentDeclined {
-                            player: payer,
-                            subject,
-                            forced_retained_records: Vec::new(),
-                            crossed_reversal_barrier: false,
-                            crossed_observation_barrier: false,
-                        },
-                    ));
             }
         }
+        Ok(())
+    }
+
+    fn decline_nested_mana_action(
+        &mut self,
+        payer: PlayerId,
+        subject: PaymentSubject,
+    ) -> Result<(), crate::decide::DecisionError> {
+        let legal = self.legal_nested_mana_reversal_sets();
+        if legal.iter().any(|set| !set.is_empty()) {
+            self.pending = Some(crate::decide::PendingDecision::ChooseManaReversals(
+                crate::decide::pending::ChooseManaReversals {
+                    player: payer,
+                    legal,
+                },
+            ));
+            return Ok(());
+        }
+        self.complete_nested_announcement_decline(&[], payer, subject)
+    }
+
+    fn complete_nested_announcement_decline(
+        &mut self,
+        reversed: &[ManaActionId],
+        payer: PlayerId,
+        subject: PaymentSubject,
+    ) -> Result<(), crate::decide::DecisionError> {
+        let reversible_actions: std::collections::HashSet<ManaActionId> = self
+            .legal_nested_mana_reversal_sets()
+            .into_iter()
+            .flatten()
+            .collect();
+        let (replay_frame, action, crossed_observation) = {
+            let controller = self.payment.as_ref().expect("controller remains live");
+            let child = controller.frames.last().expect("nested frame remains live");
+            let action_id = child
+                .mana_action
+                .expect("a nested announcement frame owns a mana action");
+            let action = controller
+                .mana_actions
+                .last()
+                .filter(|action| action.id == action_id)
+                .cloned()
+                .expect("a nested mana frame owns its active action");
+            let forced_costs: Vec<TransactionRecord> = child
+                .records
+                .iter()
+                .filter(|record| record.iou().is_some() && !record.reversal_barriers.is_empty())
+                .cloned()
+                .collect();
+            let crossed_observation = child
+                .records
+                .iter()
+                .any(|record| !record.observation_barriers.is_empty())
+                || child
+                    .recording
+                    .as_ref()
+                    .is_some_and(|record| !record.observation_barriers.is_empty());
+            let mut replay_frame = child.clone();
+            if !forced_costs.is_empty() {
+                replay_frame
+                    .records
+                    .push(self.partial_mana_record(&action, forced_costs));
+            }
+            (replay_frame, action, crossed_observation)
+        };
+        let retained: Vec<PaymentRecordId> = replay_frame
+            .records
+            .iter()
+            .filter(|record| match record.command {
+                ReplayCommand::ManaAbility { action, .. } => {
+                    !reversed.contains(&action) || !record.reversal_barriers.is_empty()
+                }
+                ReplayCommand::Fulfill { .. } => false,
+            })
+            .map(|record| record.id)
+            .collect();
+        let retained_actions = replay_frame
+            .records
+            .iter()
+            .filter(|record| retained.contains(&record.id))
+            .cloned()
+            .collect::<Vec<_>>();
+        let forced = retained_actions
+            .iter()
+            .filter(|record| {
+                !record.reversal_barriers.is_empty()
+                    || matches!(
+                        record.command,
+                        ReplayCommand::ManaAbility { action, .. }
+                            if !reversible_actions.contains(&action)
+                    )
+            })
+            .map(|record| record.id)
+            .collect::<Vec<_>>();
+        let crossed_reversal = !forced.is_empty();
+        let mut rebuilt =
+            replay::reconstruct_decline(&replay_frame, &retained).map_err(|error| {
+                crate::decide::DecisionError::Illegal {
+                    reason: format!("nested payment decline replay failed: {error}"),
+                }
+            })?;
+        rebuilt.pending = None;
+        rebuilt
+            .resume_control()
+            .map_err(|error| crate::decide::DecisionError::Illegal {
+                reason: format!("nested payment decline could not resume its parent: {error}"),
+            })?;
+        let controller = self.payment.as_mut().expect("controller remains live");
+        let child = controller.frames.pop().expect("nested frame remains live");
+        let active = controller
+            .mana_actions
+            .pop()
+            .expect("a nested mana frame owns an active action");
+        assert_eq!(child.mana_action, Some(active.id));
+        assert_eq!(active.id, action.id);
+        let parent = controller
+            .frames
+            .last_mut()
+            .expect("a nested mana frame has a parent");
+        parent.working = rebuilt;
+        parent.records.extend(retained_actions);
+        self.refresh_payment_prompt();
+        self.incidents
+            .push(crate::state::EngineIncident::PaymentDeclined(
+                crate::state::PaymentDeclined {
+                    player: payer,
+                    subject,
+                    forced_retained_records: forced,
+                    crossed_reversal_barrier: crossed_reversal,
+                    crossed_observation_barrier: crossed_observation,
+                },
+            ));
+        Ok(())
+    }
+
+    fn partial_mana_record(
+        &self,
+        action: &mana::ManaAction,
+        forced_costs: Vec<TransactionRecord>,
+    ) -> TransactionRecord {
+        let facts: Vec<_> = forced_costs
+            .iter()
+            .flat_map(|record| record.facts.iter().cloned())
+            .collect();
+        let spent_mana: Vec<_> = forced_costs
+            .iter()
+            .flat_map(|record| record.spent_mana.iter().copied())
+            .collect();
+        let dependencies = self
+            .payment
+            .as_ref()
+            .into_iter()
+            .flat_map(|controller| controller.frames.iter().rev().skip(1))
+            .flat_map(|frame| frame.records.iter())
+            .filter(|record| {
+                record
+                    .produced_mana
+                    .iter()
+                    .any(|mana| spent_mana.contains(mana))
+            })
+            .map(|record| record.id)
+            .collect();
+        let mut reversal_barriers = forced_costs
+            .iter()
+            .flat_map(|record| record.reversal_barriers.iter().copied())
+            .collect::<Vec<_>>();
+        let mut observation_barriers = forced_costs
+            .iter()
+            .flat_map(|record| record.observation_barriers.iter().copied())
+            .collect::<Vec<_>>();
+        reversal_barriers.sort_unstable_by_key(|barrier| *barrier as u8);
+        reversal_barriers.dedup();
+        observation_barriers.sort_unstable_by_key(|barrier| *barrier as u8);
+        observation_barriers.dedup();
+        let source = match action.source.source {
+            crate::object::ObjectSource::Card(card) => LogicalObject::Card(card),
+            crate::object::ObjectSource::Player(player) => LogicalObject::Player(player),
+        };
+        TransactionRecord {
+            id: action.record,
+            command: ReplayCommand::ManaAbility {
+                action: action.id,
+                source,
+                ability: action.ability,
+                submitted: false,
+            },
+            transcript: action.transcript.clone(),
+            object_inputs: std::collections::HashMap::new(),
+            children: forced_costs,
+            facts,
+            produced_mana: Vec::new(),
+            spent_mana,
+            dependencies,
+            reversal_barriers,
+            observation_barriers,
+        }
+    }
+
+    fn legal_nested_mana_reversal_sets(&self) -> Vec<Vec<ManaActionId>> {
+        let Some(controller) = self.payment.as_ref() else {
+            return Vec::new();
+        };
+        let Some(child) = controller.frames.last() else {
+            return Vec::new();
+        };
+        let Some(action) = child.mana_action.and_then(|id| {
+            controller
+                .mana_actions
+                .last()
+                .filter(|action| action.id == id)
+        }) else {
+            return Vec::new();
+        };
+        let forced_costs = child
+            .records
+            .iter()
+            .filter(|record| record.iou().is_some() && !record.reversal_barriers.is_empty())
+            .cloned()
+            .collect::<Vec<_>>();
+        let mut replay_frame = child.clone();
+        if !forced_costs.is_empty() {
+            replay_frame
+                .records
+                .push(self.partial_mana_record(action, forced_costs));
+        }
+        let candidates: Vec<ManaActionId> = replay_frame
+            .records
+            .iter()
+            .filter(|record| record.reversal_barriers.is_empty())
+            .filter_map(|record| match record.command {
+                ReplayCommand::ManaAbility { action, .. } => Some(action),
+                ReplayCommand::Fulfill { .. } => None,
+            })
+            .collect();
+        let combinations = 1usize
+            .checked_shl(u32::try_from(candidates.len()).unwrap_or(u32::MAX))
+            .unwrap_or(0);
+        let mut legal = Vec::new();
+        for mask in 0..combinations {
+            let reversed: Vec<ManaActionId> = candidates
+                .iter()
+                .enumerate()
+                .filter_map(|(index, &action)| ((mask & (1 << index)) != 0).then_some(action))
+                .collect();
+            let retained: Vec<PaymentRecordId> = replay_frame
+                .records
+                .iter()
+                .filter(|record| match record.command {
+                    ReplayCommand::ManaAbility { action, .. } => {
+                        !reversed.contains(&action) || !record.reversal_barriers.is_empty()
+                    }
+                    ReplayCommand::Fulfill { .. } => false,
+                })
+                .map(|record| record.id)
+                .collect();
+            if replay::reconstruct_decline(&replay_frame, &retained).is_ok() {
+                legal.push(reversed);
+            }
+        }
+        legal
+    }
+
+    fn legal_mana_reversal_sets(&self) -> Vec<Vec<ManaActionId>> {
+        let Some(frame) = self
+            .payment
+            .as_ref()
+            .and_then(|controller| controller.frames.last())
+        else {
+            return Vec::new();
+        };
+        let candidates: Vec<ManaActionId> = frame
+            .records
+            .iter()
+            .filter(|record| record.reversal_barriers.is_empty())
+            .filter_map(|record| match record.command {
+                ReplayCommand::ManaAbility { action, .. } => Some(action),
+                ReplayCommand::Fulfill { .. } => None,
+            })
+            .collect();
+        let mut legal = Vec::new();
+        let combinations = 1usize
+            .checked_shl(u32::try_from(candidates.len()).unwrap_or(u32::MAX))
+            .unwrap_or(0);
+        for mask in 0..combinations {
+            let reversed: Vec<ManaActionId> = candidates
+                .iter()
+                .enumerate()
+                .filter_map(|(index, &action)| ((mask & (1 << index)) != 0).then_some(action))
+                .collect();
+            let retained: Vec<PaymentRecordId> = frame
+                .records
+                .iter()
+                .filter(|record| match record.command {
+                    ReplayCommand::ManaAbility { action, .. } => !reversed.contains(&action),
+                    ReplayCommand::Fulfill { .. } => !record.reversal_barriers.is_empty(),
+                })
+                .map(|record| record.id)
+                .collect();
+            if replay::reconstruct_decline(frame, &retained).is_ok() {
+                legal.push(reversed);
+            }
+        }
+        legal
+    }
+
+    pub(crate) fn submit_mana_reversals(
+        &mut self,
+        actions: Vec<ManaActionId>,
+    ) -> Result<(), crate::decide::DecisionError> {
+        let nested = self
+            .payment
+            .as_ref()
+            .is_some_and(|controller| controller.frames.len() > 1);
+        if nested {
+            let frame = self
+                .payment
+                .as_ref()
+                .and_then(|controller| controller.frames.last())
+                .expect("a nested reversal decision has a payment frame");
+            self.complete_nested_announcement_decline(&actions, frame.payer, frame.subject)
+        } else {
+            self.complete_root_announcement_decline(&actions)
+        }
+    }
+
+    fn complete_root_announcement_decline(
+        &mut self,
+        reversed: &[ManaActionId],
+    ) -> Result<(), crate::decide::DecisionError> {
+        let reversible_actions: std::collections::HashSet<ManaActionId> = self
+            .legal_mana_reversal_sets()
+            .into_iter()
+            .flatten()
+            .collect();
+        let (payer, subject, retained, forced, crossed_reversal, crossed_observation, rebuilt) = {
+            let frame = self
+                .payment
+                .as_ref()
+                .and_then(|controller| controller.frames.last())
+                .expect("announcement decline has an active frame");
+            let retained: Vec<PaymentRecordId> = frame
+                .records
+                .iter()
+                .filter(|record| match record.command {
+                    ReplayCommand::ManaAbility { action, .. } => !reversed.contains(&action),
+                    ReplayCommand::Fulfill { .. } => !record.reversal_barriers.is_empty(),
+                })
+                .map(|record| record.id)
+                .collect();
+            let forced: Vec<PaymentRecordId> = frame
+                .records
+                .iter()
+                .filter(|record| {
+                    !record.reversal_barriers.is_empty()
+                        || matches!(
+                            record.command,
+                            ReplayCommand::ManaAbility { action, .. }
+                                if !reversible_actions.contains(&action)
+                                    && !reversed.contains(&action)
+                        )
+                })
+                .map(|record| record.id)
+                .collect();
+            let crossed_reversal = frame
+                .records
+                .iter()
+                .any(|record| !record.reversal_barriers.is_empty())
+                || frame
+                    .recording
+                    .as_ref()
+                    .is_some_and(|record| !record.reversal_barriers.is_empty());
+            let crossed_observation = frame
+                .records
+                .iter()
+                .any(|record| !record.observation_barriers.is_empty())
+                || frame
+                    .recording
+                    .as_ref()
+                    .is_some_and(|record| !record.observation_barriers.is_empty());
+            let rebuilt = replay::reconstruct_decline(frame, &retained).map_err(|error| {
+                crate::decide::DecisionError::Illegal {
+                    reason: format!("payment decline replay failed: {error}"),
+                }
+            })?;
+            (
+                frame.payer,
+                frame.subject,
+                retained,
+                forced,
+                crossed_reversal,
+                crossed_observation,
+                rebuilt,
+            )
+        };
+        let _ = retained;
+        self.committed = rebuilt;
+        self.payment = None;
+        self.incidents
+            .push(crate::state::EngineIncident::PaymentDeclined(
+                crate::state::PaymentDeclined {
+                    player: payer,
+                    subject,
+                    forced_retained_records: forced,
+                    crossed_reversal_barrier: crossed_reversal,
+                    crossed_observation_barrier: crossed_observation,
+                },
+            ));
         Ok(())
     }
 
@@ -539,6 +1082,14 @@ impl GameState {
         self.payment
             .as_ref()
             .map_or(0, |controller| controller.frames.len())
+    }
+
+    #[must_use]
+    pub fn payment_records(&self) -> Option<&[TransactionRecord]> {
+        self.payment
+            .as_ref()
+            .and_then(|controller| controller.frames.last())
+            .map(|frame| frame.records.as_slice())
     }
 }
 

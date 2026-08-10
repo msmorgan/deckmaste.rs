@@ -1,9 +1,13 @@
 use deckmaste_core::ActivatedManaProfile;
 use deckmaste_core::ManaAbility;
 
+use super::DecisionTranscript;
+use super::LogicalObject;
 use super::PaymentFrame;
 use super::PaymentProgress;
+use super::PaymentRecordId;
 use super::PaymentStage;
+use super::TransactionRecord;
 use crate::agenda::WorkItem;
 use crate::decide::DecisionError;
 use crate::event::GameEvent;
@@ -25,8 +29,9 @@ use crate::trigger::TriggerBindings;
 /// One activated mana ability from the instant its nested announcement opens
 /// until its stackless effect and caused immediate work finish.
 #[derive(Debug, Clone)]
-pub(super) struct ManaAction {
+pub(crate) struct ManaAction {
     pub id: ManaActionId,
+    pub record: PaymentRecordId,
     pub source: LkiSnapshot,
     pub ability: usize,
     pub controller: PlayerId,
@@ -34,6 +39,11 @@ pub(super) struct ManaAction {
     pub tap_cost: bool,
     pub standalone: bool,
     pub production_facts_emitted: bool,
+    pub transcript: DecisionTranscript,
+    pub facts: Vec<GameEvent>,
+    pub cost_records: Vec<TransactionRecord>,
+    pub reversal_barriers: Vec<super::ReversalBarrier>,
+    pub observation_barriers: Vec<super::ObservationBarrier>,
 }
 
 impl GameState {
@@ -157,6 +167,7 @@ impl GameState {
         let controller_player = self.objects.obj(source).controller;
         let source_snapshot = LkiSnapshot::capture(self, source);
         let id = self.mint_mana_action();
+        let record = self.mint_payment_record();
         let controller = self
             .payment
             .as_mut()
@@ -167,6 +178,7 @@ impl GameState {
         frame.mana_action = Some(id);
         controller.mana_actions.push(ManaAction {
             id,
+            record,
             source: source_snapshot,
             ability,
             controller: controller_player,
@@ -174,6 +186,11 @@ impl GameState {
             tap_cost,
             standalone: true,
             production_facts_emitted: false,
+            transcript: DecisionTranscript::default(),
+            facts: Vec::new(),
+            cost_records: Vec::new(),
+            reversal_barriers: Vec::new(),
+            observation_barriers: Vec::new(),
         });
 
         let mut items = vec![
@@ -234,12 +251,14 @@ impl GameState {
         let mut working = self.active().clone();
         working.suspend_control();
         let id = self.mint_mana_action();
+        let record = self.mint_payment_record();
         let controller = self
             .payment
             .as_mut()
             .expect("a payment command has an active controller");
         controller.mana_actions.push(ManaAction {
             id,
+            record,
             source: source_snapshot,
             ability,
             controller: controller_player,
@@ -247,6 +266,11 @@ impl GameState {
             tap_cost,
             standalone: false,
             production_facts_emitted: false,
+            transcript: DecisionTranscript::default(),
+            facts: Vec::new(),
+            cost_records: Vec::new(),
+            reversal_barriers: Vec::new(),
+            observation_barriers: Vec::new(),
         });
         let mut child = PaymentFrame::proposal(working, controller_player);
         child.mana_action = Some(id);
@@ -391,6 +415,67 @@ impl GameState {
             Some(id),
             "mana actions finish in stackless resolution order"
         );
+        let spent_by_action: Vec<_> = action
+            .cost_records
+            .iter()
+            .flat_map(|record| record.spent_mana.iter().copied())
+            .collect();
+        let mut dependencies: Vec<_> = self
+            .payment
+            .as_ref()
+            .into_iter()
+            .flat_map(|controller| controller.frames.iter())
+            .flat_map(|frame| frame.records.iter())
+            .filter(|record| {
+                record
+                    .produced_mana
+                    .iter()
+                    .any(|mana| spent_by_action.contains(mana))
+            })
+            .map(|record| record.id)
+            .collect();
+        dependencies.sort_unstable();
+        dependencies.dedup();
+        let transaction = (!action.standalone).then(|| {
+            let produced_mana = action
+                .facts
+                .iter()
+                .filter_map(|fact| match fact {
+                    GameEvent::ManaAdded(event) => Some(event.units.iter().copied()),
+                    _ => None,
+                })
+                .flatten()
+                .collect();
+            let spent_mana = spent_by_action;
+            let mut reversal_barriers = action.reversal_barriers.clone();
+            let mut observation_barriers = action.observation_barriers.clone();
+            reversal_barriers.sort_unstable_by_key(|barrier| *barrier as u8);
+            reversal_barriers.dedup();
+            observation_barriers.sort_unstable_by_key(|barrier| *barrier as u8);
+            observation_barriers.dedup();
+            let source = match action.source.source {
+                ObjectSource::Card(card) => LogicalObject::Card(card),
+                ObjectSource::Player(player) => LogicalObject::Player(player),
+            };
+            TransactionRecord {
+                id: action.record,
+                command: super::ReplayCommand::ManaAbility {
+                    action: action.id,
+                    source,
+                    ability: action.ability,
+                    submitted: true,
+                },
+                transcript: action.transcript.clone(),
+                object_inputs: std::collections::HashMap::new(),
+                children: action.cost_records.clone(),
+                facts: action.facts.clone(),
+                produced_mana,
+                spent_mana,
+                dependencies,
+                reversal_barriers,
+                observation_barriers,
+            }
+        });
         if action.standalone {
             let mut controller = self.payment.take().expect("root controller remains live");
             let action = controller
@@ -402,17 +487,27 @@ impl GameState {
             assert_eq!(frame.mana_action, Some(id));
             self.committed = frame.working;
         } else {
-            let controller = self
-                .payment
-                .as_mut()
-                .expect("a nested mana action has a payment controller");
-            let action = controller
-                .mana_actions
-                .pop()
-                .expect("a finishing nested mana action remains registered");
-            assert_eq!(action.id, id, "mana actions finish last-in-first-out");
+            {
+                let controller = self
+                    .payment
+                    .as_mut()
+                    .expect("a nested mana action has a payment controller");
+                let action = controller
+                    .mana_actions
+                    .pop()
+                    .expect("a finishing nested mana action remains registered");
+                assert_eq!(action.id, id, "mana actions finish last-in-first-out");
+            }
             self.resume_control()
                 .expect("the completed child leaves no active control slot");
+            self.payment
+                .as_mut()
+                .expect("a nested mana action has a payment controller")
+                .frames
+                .last_mut()
+                .expect("the completed child resumes its parent frame")
+                .records
+                .push(transaction.expect("a nested action has a transaction record"));
             self.refresh_payment_prompt();
         }
     }

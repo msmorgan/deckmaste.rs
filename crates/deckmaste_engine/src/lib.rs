@@ -74,6 +74,7 @@ pub use decide::pending::CallFlip;
 pub use decide::pending::ChooseCostOptions;
 pub use decide::pending::ChooseManaColor;
 pub use decide::pending::ChooseManaMode;
+pub use decide::pending::ChooseManaReversals;
 pub use decide::pending::ChooseModes;
 pub use decide::pending::ChooseNoteCardName;
 pub use decide::pending::ChooseNoteNumber;
@@ -188,13 +189,16 @@ pub use player::PlayerState;
 mod player_statics;
 
 mod payment;
+pub use payment::DecisionTranscript;
 pub use payment::FulfillmentWitness;
 pub use payment::IouId;
 pub use payment::IouKind;
 pub use payment::LockedPayment;
+pub use payment::LogicalObject;
 pub use payment::ManaCoverage;
 pub use payment::ManaPayment;
 pub use payment::ManaPip;
+pub use payment::ObservationBarrier;
 pub use payment::PaymentCommand;
 pub use payment::PaymentController;
 pub use payment::PaymentFrame;
@@ -206,7 +210,13 @@ pub use payment::PaymentPurpose;
 pub use payment::PaymentRecordId;
 pub use payment::PaymentStage;
 pub use payment::PaymentSubject;
+pub use payment::ReplayCommand;
+pub use payment::ReplayError;
+pub use payment::ReplayMap;
+pub use payment::ReversalBarrier;
+pub use payment::TransactionRecord;
 pub use payment::lock_cost;
+pub use payment::reconstruct;
 
 mod replace;
 

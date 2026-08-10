@@ -18,6 +18,7 @@ use pending::CallFlip;
 use pending::ChooseCostOptions;
 use pending::ChooseManaColor;
 use pending::ChooseManaMode;
+use pending::ChooseManaReversals;
 use pending::ChooseModes;
 use pending::ChooseNoteCardName;
 use pending::ChooseNoteNumber;
@@ -130,6 +131,7 @@ impl PendingDecision {
             PendingDecision::Retarget(h) => h.player,
             PendingDecision::PayMana(h) => h.player,
             PendingDecision::Payment(h) => h.payer,
+            PendingDecision::ChooseManaReversals(h) => h.player,
             PendingDecision::OrderTriggers(h) => h.player,
             PendingDecision::DeclareAttackers(h) => h.player,
             PendingDecision::DeclareBlockers(h) => h.player,
@@ -160,7 +162,9 @@ impl PendingDecision {
             | PendingDecision::ChooseCostOptions(_)
             | PendingDecision::ChooseXValue(_)
             | PendingDecision::Division(_) => LockPoint::Announce,
-            PendingDecision::PayMana(_) | PendingDecision::Payment(_) => LockPoint::Payment,
+            PendingDecision::PayMana(_)
+            | PendingDecision::Payment(_)
+            | PendingDecision::ChooseManaReversals(_) => LockPoint::Payment,
             PendingDecision::OrderTriggers(_) => LockPoint::StackPlacement,
             PendingDecision::DeclareAttackers(_)
             | PendingDecision::DeclareBlockers(_)
@@ -199,6 +203,7 @@ pub enum PendingDecision {
     Retarget(Retarget),
     PayMana(PayMana),
     Payment(crate::payment::PaymentPrompt),
+    ChooseManaReversals(ChooseManaReversals),
     OrderTriggers(OrderTriggers),
     DeclareAttackers(DeclareAttackers),
     DeclareBlockers(DeclareBlockers),
@@ -264,6 +269,8 @@ pub enum Decision {
     Pay(crate::cast::Payment),
     /// Answers the staged payment-obligation protocol.
     Payment(crate::payment::PaymentCommand),
+    /// Answers `ChooseManaReversals` with one complete legal action set.
+    ManaReversals(Vec<crate::player::ManaActionId>),
     /// Answers `OrderTriggers`: a permutation of `0..triggers.len()` giving the
     /// placement order ([CR#603.3b]).
     Order(Vec<usize>),
@@ -544,7 +551,8 @@ impl GameState {
         // routing to that kind's `DecisionHandler::resolve`. `.clone()` is
         // needed because `self.pending` can't be moved out of while `self`
         // is passed to `h.resolve` mutably.
-        match pending {
+        let recorded = decision.clone();
+        let result = match pending {
             PendingDecision::Priority(h) => h.resolve(self, decision),
             PendingDecision::DiscardToHandSize(h) => h.resolve(self, decision),
             PendingDecision::DiscardCards(h) => h.resolve(self, decision),
@@ -555,6 +563,7 @@ impl GameState {
             PendingDecision::Retarget(h) => h.resolve(self, decision),
             PendingDecision::PayMana(h) => h.resolve(self, decision),
             PendingDecision::Payment(h) => h.resolve(self, decision),
+            PendingDecision::ChooseManaReversals(h) => h.resolve(self, decision),
             PendingDecision::OrderTriggers(h) => h.resolve(self, decision),
             PendingDecision::DeclareAttackers(h) => h.resolve(self, decision),
             PendingDecision::DeclareBlockers(h) => h.resolve(self, decision),
@@ -573,7 +582,11 @@ impl GameState {
             PendingDecision::ChooseObjects(h) => h.resolve(self, decision),
             PendingDecision::LegendRule(h) => h.resolve(self, decision),
             PendingDecision::ArrangePile(h) => h.resolve(self, decision),
+        };
+        if result.is_ok() {
+            self.record_payment_decision(&recorded);
         }
+        result
     }
 
     fn action_starts_payment_proposal(&self, action: &Action) -> bool {

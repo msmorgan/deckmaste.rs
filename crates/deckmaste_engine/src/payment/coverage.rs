@@ -108,7 +108,7 @@ impl LockedPayment {
                     if !pip_accepts_unit(pip, unit.kind, &unit.riders) {
                         return illegal("floating mana does not match the covered pip");
                     }
-                    if !state.unit_spendable_on(unit, self.subject.object()) {
+                    if !state.unit_spendable_on(unit, self.subject.spend_object()) {
                         return illegal("floating mana's spend restriction rejects this payment");
                     }
                 }
@@ -148,7 +148,8 @@ pub(super) fn validate_pay_pips_object(
     let Some(candidate) = state.objects.get(object) else {
         return illegal("PayPips coverage names a stale object");
     };
-    let watcher = state.objects.obj(locked.subject.object()).source;
+    let spend_object = locked.subject.spend_object();
+    let watcher = state.objects.obj(spend_object).source;
     match act {
         PayAct::TapToPay(filter) => {
             if candidate.zone != Some(Zone::Battlefield)
