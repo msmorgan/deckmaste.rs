@@ -83,6 +83,13 @@ pub(crate) struct GeneratedSentenceParse {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct GeneratedRelativeParse {
+    pub(crate) value: crate::syntax::RelativeClause,
+    pub(crate) construction: &'static str,
+    pub(crate) form_ordinal: u16,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum GeneratedPart {
     Literal(&'static str),
     Scalar {
@@ -1069,6 +1076,93 @@ pub(crate) fn parse_production_sentence_in_all_registration_orders(
         )
     };
 
+    Ok([
+        parse(RegistrationOrder::Normal)?,
+        parse(RegistrationOrder::Reversed)?,
+        parse(RegistrationOrder::FixedShuffle)?,
+    ])
+}
+
+#[cfg(test)]
+fn parse_generated_relative_as(
+    source: &str,
+    catalogs: &Catalogs,
+    budget: usize,
+    order: RegistrationOrder,
+) -> Result<Vec<ExactParse<GeneratedRelativeParse, EnglishSurfaceWitness>>, ExactParseError> {
+    let self_reference = SelfReference::default();
+    let surface = lex(source);
+    let tokens = collapse_full_names(source, surface.tokens, self_reference.full_name());
+    let grammar = EnglishGrammar::with_opacity_mode_and_registration_order(
+        source,
+        catalogs,
+        Nonterminal::RelativeClause,
+        OpacityMode::Exact,
+        self_reference,
+        order,
+        GeneratedActivation::Production,
+    );
+    let chart = parse_chart(&grammar, &tokens).map_err(ExactParseError::Grammar)?;
+    let mut remaining = budget;
+    let mut results = Vec::new();
+    for &root in &chart.roots {
+        let selections = chart
+            .forest
+            .enumerate_selections(root, &mut remaining)
+            .map_err(|error| match error {
+                SelectionEnumerationError::Cycle(_) => ExactParseError::Cycle,
+                SelectionEnumerationError::BudgetExhausted => {
+                    ExactParseError::TooManyAlternatives { budget }
+                }
+            })?;
+        for selection in selections {
+            let forest_node = chart.forest.node(root);
+            let Some(alternative_index) = selection.alternative(root) else {
+                continue;
+            };
+            let Some(alternative) = forest_node.alternatives.get(alternative_index) else {
+                continue;
+            };
+            let Some(rule) = alternative.rule else { continue };
+            let Some(RuleImpl::Generated(generated)) = grammar.impls.get(rule.index()).copied()
+            else {
+                continue;
+            };
+            let Some(construction) = generated.group.constructions.get(generated.construction)
+            else {
+                continue;
+            };
+            let Some(form) = construction.forms.get(generated.form) else {
+                continue;
+            };
+            let Some(Lowered::RelativeClause(value)) =
+                lower(&grammar, &chart.forest, root, &selection)
+            else {
+                continue;
+            };
+            let ast = GeneratedRelativeParse {
+                value,
+                construction: construction.id,
+                form_ordinal: form.ordinal,
+            };
+            let Some(exact) = chart.forest.exact_result(root, alternative_index, ast) else {
+                continue;
+            };
+            if !results.contains(&exact) {
+                results.push(exact);
+            }
+        }
+    }
+    Ok(results)
+}
+
+#[cfg(test)]
+pub(crate) fn parse_production_relative_clause_in_all_registration_orders(
+    source: &str,
+    catalogs: &Catalogs,
+    budget: usize,
+) -> Result<[Vec<ExactParse<GeneratedRelativeParse, EnglishSurfaceWitness>>; 3], ExactParseError> {
+    let parse = |order| parse_generated_relative_as(source, catalogs, budget, order);
     Ok([
         parse(RegistrationOrder::Normal)?,
         parse(RegistrationOrder::Reversed)?,

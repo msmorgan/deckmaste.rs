@@ -3875,6 +3875,143 @@ fn production_r01_forms_lower_with_decisive_typed_relative_evidence() {
 }
 
 #[test]
+fn r01_exact_semantic_form_and_witness_sets_are_registration_order_neutral() {
+    let catalogs = fixture_catalogs();
+    for source in [
+        "you cast",
+        "you've cast",
+        "that's attacking",
+        "that attacks",
+        "who attacks",
+        "that each have a different mana value",
+        "that's a creature",
+        "that's red",
+        "that's in exile",
+        "that opponent controls",
+    ] {
+        let orders =
+            crate::grammar::exact::parse_production_relative_clause_in_all_registration_orders(
+                source, &catalogs, 100_000,
+            )
+            .unwrap_or_else(|error| panic!("exact R01 search failed for {source:?}: {error:?}"));
+        assert!(!orders[0].is_empty(), "no exact R01 parses for {source:?}");
+        for permuted in &orders[1..] {
+            assert_eq!(
+                permuted.len(),
+                orders[0].len(),
+                "registration order changed exact cardinality for {source:?}: {orders:#?}",
+            );
+            assert!(
+                orders[0].iter().all(|member| permuted.contains(member)),
+                "registration order changed construction/form/semantic AST/witness set for {source:?}: {orders:#?}",
+            );
+        }
+    }
+
+    let ambiguous =
+        crate::grammar::exact::parse_production_relative_clause_in_all_registration_orders(
+            "that attacks",
+            &catalogs,
+            100_000,
+        )
+        .expect("the gap-ambiguous fixture has a finite exact set");
+    for parses in &ambiguous {
+        assert!(
+            parses.iter().any(|parse| {
+                parse.ast().construction == "relative_subject"
+                    && parse.ast().value.marker() == RelativeMarker::That
+                    && parse.ast().value.gap() == RelativeGap::Subject
+            }),
+            "the explicit-marker subject gap disappeared: {parses:#?}",
+        );
+        assert!(
+            parses.iter().any(|parse| {
+                parse.ast().construction == "relative_object"
+                    && parse.ast().value.marker() == RelativeMarker::Zero
+                    && parse.ast().value.gap() == RelativeGap::Object
+                    && matches!(
+                        parse.ast().value.body(),
+                        RelativeBody::ObjectGap { subject, .. }
+                            if matches!(subject.0.kind(), NounPhraseKind::Demonstrative(Demonstrative::That))
+                    )
+            }),
+            "the legitimate standalone demonstrative-that object gap disappeared: {parses:#?}",
+        );
+    }
+    let demonstrative_determiner =
+        crate::grammar::exact::parse_production_relative_clause_in_all_registration_orders(
+            "that opponent controls",
+            &catalogs,
+            100_000,
+        )
+        .expect("the demonstrative-determiner fixture has a finite exact set");
+    for parses in &demonstrative_determiner {
+        assert!(
+            parses.iter().any(|parse| {
+                parse.ast().construction == "relative_object"
+                    && parse.ast().value.marker() == RelativeMarker::Zero
+                    && matches!(
+                        parse.ast().value.body(),
+                        RelativeBody::ObjectGap { subject, .. }
+                            if matches!(
+                                subject.0.kind(),
+                                NounPhraseKind::Nominal(nominal)
+                                    if matches!(
+                                        nominal.determiner().map(crate::syntax::Determiner::kind),
+                                        Some(crate::syntax::DeterminerKind::Demonstrative(Demonstrative::That))
+                                    )
+                            )
+                    )
+            }),
+            "the demonstrative determiner was confused with a relative marker: {parses:#?}",
+        );
+    }
+    let relative_group = crate::constructions::relative::GROUPS[0];
+    let dominance = relative_group
+        .constructions
+        .iter()
+        .flat_map(|construction| {
+            construction
+                .dominates
+                .iter()
+                .map(move |subordinate| (construction.id, *subordinate))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(dominance, [("relative_subject", "relative_object")]);
+}
+
+#[test]
+fn impossible_r01_combinations_stay_absent_in_every_registration_order() {
+    let catalogs = fixture_catalogs();
+    for (source, impossible) in [
+        ("who've cast", "relative_object_contracted_subject"),
+        ("who've cast", "relative_subject_contracted_auxiliary"),
+        ("that each attacks", "relative_subject_distributive_each"),
+        ("who's a creature", "relative_contracted_copular_noun"),
+        ("who's red", "relative_contracted_copular_adjective"),
+        (
+            "who's in exile",
+            "relative_contracted_copular_prepositional",
+        ),
+        ("that's affected", "relative_subject_contracted_auxiliary"),
+    ] {
+        let orders =
+            crate::grammar::exact::parse_production_relative_clause_in_all_registration_orders(
+                source, &catalogs, 100_000,
+            )
+            .unwrap_or_else(|error| {
+                panic!("negative exact R01 search failed for {source:?}: {error:?}")
+            });
+        assert!(
+            orders.iter().all(|parses| parses
+                .iter()
+                .all(|parse| parse.ast().construction != impossible)),
+            "{impossible} admitted impossible {source:?} under a registration order: {orders:#?}",
+        );
+    }
+}
+
+#[test]
 fn contracted_subject_auxiliary_rejects_an_incomplete_transitive_at_chart_time() {
     let source = "that's affected";
     let surface = crate::surface::lex(source);

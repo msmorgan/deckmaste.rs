@@ -1697,6 +1697,127 @@ fn public_relative_clause_facade_builds_projects_and_rejects_impossible_shapes()
 }
 
 #[test]
+fn public_checked_relative_asts_render_all_r01_forms_and_nested_relatives() {
+    use deckmaste_english::clause as clause_api;
+    use deckmaste_english::nominal as nominal_api;
+    use deckmaste_english::noun_phrase as noun_phrase_api;
+    use deckmaste_english::predicate as predicate_api;
+
+    let render_attached = |relative: RelativeClause, plural: bool| {
+        let head = if plural {
+            NounInstance::try_plural(Noun::Word(Vocab::Card)).unwrap()
+        } else {
+            NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap()
+        };
+        let base = nominal_api::build_rules_object_nominal_base(
+            nominal_api::build_nominal_noun(head).unwrap(),
+        )
+        .unwrap();
+        let nominal =
+            nominal_api::build_rules_object_followup_nominal_relative(Some(base), None, relative)
+                .unwrap();
+        let phrase = noun_phrase_api::build_rules_object_noun_phrase(nominal).unwrap();
+        noun_phrase_api::render(phrase.as_noun_phrase(), "Test Card", false).unwrap()
+    };
+
+    let object = parsed_relative_clause("a card you cast");
+    let (subject, predicate) = clause_api::parts_relative_object(&object).unwrap();
+    let object = clause_api::build_relative_object(subject, predicate).unwrap();
+
+    let contracted_object = parsed_relative_clause("a card you've cast");
+    let (subject, auxiliary, predicate) =
+        clause_api::parts_relative_object_contracted_subject(&contracted_object).unwrap();
+    let contracted_object =
+        clause_api::build_relative_object_contracted_subject(subject, auxiliary, predicate)
+            .unwrap();
+
+    let progressive = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Attack),
+            slot: VerbSlot::PresentParticiple,
+        },
+        predicate_api::PredicateFrameChoice::Intransitive,
+    )
+    .and_then(predicate_api::finish_predicate)
+    .unwrap();
+    let contracted_subject = clause_api::build_relative_subject_contracted_auxiliary(
+        AuxiliaryInstance {
+            auxiliary: Auxiliary::Be,
+            inflection: AuxiliaryInflection::Present {
+                person: deckmaste_english::features::Person::Third,
+                number: deckmaste_english::features::Number::Singular,
+            },
+            contracted_negation: deckmaste_english::features::Contraction::Full,
+        },
+        progressive,
+    )
+    .unwrap();
+
+    let who = parsed_relative_clause("a card who attacks");
+    let (marker, predicate) = clause_api::parts_relative_subject(&who).unwrap();
+    let who = clause_api::build_relative_subject(marker, predicate).unwrap();
+
+    let distributive = parsed_relative_clause("cards that each have a different mana value");
+    let (marker, predicate) =
+        clause_api::parts_relative_subject_distributive_each(&distributive).unwrap();
+    let distributive =
+        clause_api::build_relative_subject_distributive_each(marker, predicate).unwrap();
+
+    let copular_noun = parsed_relative_clause("a card that's a creature");
+    let (auxiliary, complement) =
+        clause_api::parts_relative_contracted_copular_noun(&copular_noun).unwrap();
+    let copular_noun =
+        clause_api::build_relative_contracted_copular_noun(auxiliary, complement).unwrap();
+
+    let copular_adjective = parsed_relative_clause("a card that's red");
+    let (auxiliary, complement) =
+        clause_api::parts_relative_contracted_copular_adjective(&copular_adjective).unwrap();
+    let copular_adjective =
+        clause_api::build_relative_contracted_copular_adjective(auxiliary, complement).unwrap();
+
+    let copular_prepositional = parsed_relative_clause("a card that's in exile");
+    let (auxiliary, complement) =
+        clause_api::parts_relative_contracted_copular_prepositional(&copular_prepositional)
+            .unwrap();
+    let copular_prepositional =
+        clause_api::build_relative_contracted_copular_prepositional(auxiliary, complement).unwrap();
+
+    for (relative, plural, expected) in [
+        (object, false, "card you cast"),
+        (contracted_object, false, "card you've cast"),
+        (contracted_subject, false, "card that's attacking"),
+        (who, false, "card who attacks"),
+        (
+            distributive,
+            true,
+            "cards that each have a different mana value",
+        ),
+        (copular_noun, false, "card that's a creature"),
+        (copular_adjective, false, "card that's red"),
+        (copular_prepositional, false, "card that's in exile"),
+    ] {
+        assert_eq!(render_attached(relative, plural), expected);
+    }
+
+    let nested = parsed_relative_clause("a card that attacks a creature you control");
+    let (marker, predicate) = clause_api::parts_relative_subject(&nested).unwrap();
+    let nested = clause_api::build_relative_subject(marker, predicate).unwrap();
+    assert_eq!(
+        render_attached(nested, false),
+        "card that attacks a creature you control",
+    );
+
+    let demonstrative = parsed_relative_clause("a card that opponent controls");
+    let (subject, predicate) = clause_api::parts_relative_object(&demonstrative).unwrap();
+    let demonstrative = clause_api::build_relative_object(subject, predicate).unwrap();
+    assert_eq!(demonstrative.marker(), RelativeMarker::Zero);
+    assert_eq!(
+        render_attached(demonstrative, false),
+        "card that opponent controls",
+    );
+}
+
+#[test]
 fn public_relative_object_builders_reject_subject_agreement_mismatches() {
     use deckmaste_english::clause as clause_api;
 

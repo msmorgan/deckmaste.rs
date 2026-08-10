@@ -82,7 +82,6 @@ use crate::syntax::PrepositionalPhraseKind;
 use crate::syntax::PreverbModifier;
 use crate::syntax::Quantity;
 use crate::syntax::QuotedAbility;
-use crate::syntax::RelativeBody;
 use crate::syntax::RelativeClause;
 use crate::syntax::RelativeMarker;
 use crate::syntax::RollRange;
@@ -160,6 +159,8 @@ pub enum RenderError {
     InvalidNounPhraseConstruction,
     #[error("prepositional AST does not match exactly one generated construction")]
     InvalidPrepositionalConstruction,
+    #[error("relative-clause AST does not match exactly one generated construction")]
+    InvalidRelativeConstruction,
     #[error(
         "predicate AST does not match exactly one generated construction: {problem} in {owner}, {first:?}/{second:?}, forms {first_form:?}/{second_form:?}"
     )]
@@ -654,6 +655,136 @@ struct GeneratedNounPhraseRenderer<'renderer, 'identity> {
 struct GeneratedPrepositionalRenderer<'renderer, 'identity> {
     renderer: &'renderer Renderer<'identity>,
     rendered: String,
+}
+
+struct GeneratedRelativeRenderer<'renderer, 'identity> {
+    renderer: &'renderer Renderer<'identity>,
+    rendered: String,
+}
+
+impl<'renderer, 'identity> GeneratedRelativeRenderer<'renderer, 'identity> {
+    fn new(renderer: &'renderer Renderer<'identity>) -> Self {
+        Self {
+            renderer,
+            rendered: String::new(),
+        }
+    }
+
+    fn push(&mut self, part: &str) {
+        if part.is_empty() {
+            return;
+        }
+        if !self.rendered.is_empty() {
+            self.rendered.push(' ');
+        }
+        self.rendered.push_str(part);
+    }
+
+    fn finish(self) -> String {
+        self.rendered
+    }
+
+    fn accept_generated(
+        result: Result<
+            (),
+            deckmaste_construction_compiler::runtime::LinearizationError<RenderError>,
+        >,
+    ) -> Result<(), RenderError> {
+        result.map_err(|error| match error {
+            deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error) => error,
+            _ => RenderError::InvalidRelativeConstruction,
+        })
+    }
+}
+
+impl deckmaste_construction_compiler::runtime::LinearizationVisitor
+    for GeneratedRelativeRenderer<'_, '_>
+{
+    type Error = RenderError;
+
+    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
+        self.push(literal);
+        Ok(())
+    }
+
+    fn subtree<T: std::any::Any>(
+        &mut self,
+        category: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        let rendered = match category {
+            "NounPhrase" => self.renderer.noun_phrase(
+                value
+                    .downcast_ref::<NounPhrase>()
+                    .expect("the R01 noun-phrase hole preserves NounPhrase"),
+            )?,
+            "ObjectGapPredicate" => self.renderer.generated_object_gap_predicate_from(
+                value
+                    .downcast_ref::<crate::syntax::ObjectGapPredicate>()
+                    .expect("the R01 object-gap hole preserves ObjectGapPredicate"),
+                0,
+            )?,
+            "Predicate" => self.renderer.generated_predicate_from(
+                value
+                    .downcast_ref::<Predicate>()
+                    .expect("the R01 predicate hole preserves Predicate"),
+                0,
+                false,
+            )?,
+            "AdjectivePhrase" => self.renderer.adjective_phrase(
+                value
+                    .downcast_ref::<AdjectivePhrase>()
+                    .expect("the R01 adjective hole preserves AdjectivePhrase"),
+            )?,
+            "PrepositionalPhrase" => self.renderer.prepositional_phrase(
+                value
+                    .downcast_ref::<PrepositionalPhrase>()
+                    .expect("the R01 prepositional hole preserves PrepositionalPhrase"),
+            )?,
+            other => panic!("unexpected R01 subtree category `{other}`"),
+        };
+        self.push(&rendered);
+        Ok(())
+    }
+
+    fn scalar<T: std::any::Any>(
+        &mut self,
+        _codec: &'static str,
+        _value: &T,
+    ) -> Result<(), Self::Error> {
+        Err(RenderError::InvalidRelativeConstruction)
+    }
+
+    fn identity<T: std::any::Any>(
+        &mut self,
+        provider: &'static str,
+        value_type: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        let rendered = match (provider, value_type) {
+            ("RelativeMarker", "RelativeMarker") => match value
+                .downcast_ref::<RelativeMarker>()
+                .expect("the R01 marker identity preserves RelativeMarker")
+            {
+                RelativeMarker::That => "that".to_owned(),
+                RelativeMarker::Who => "who".to_owned(),
+                RelativeMarker::Zero => String::new(),
+            },
+            ("SubjectAuxiliary", "ContractedSubjectAuxiliary") => {
+                let subject_auxiliary = value
+                    .downcast_ref::<crate::grammar::ContractedSubjectAuxiliary>()
+                    .expect("the R01 contraction identity preserves SubjectAuxiliary");
+                let mut rendered = self.renderer.subject(&subject_auxiliary.subject)?;
+                rendered.push_str(contraction_suffix(subject_auxiliary.auxiliary)?);
+                rendered
+            }
+            other => panic!("unexpected R01 identity {other:?}"),
+        };
+        self.push(&rendered);
+        Ok(())
+    }
 }
 
 impl<'renderer, 'identity> GeneratedPrepositionalRenderer<'renderer, 'identity> {
@@ -3997,68 +4128,24 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn relative_clause(&self, clause: &RelativeClause) -> Result<String, RenderError> {
-        let mut marker = match clause.marker() {
-            RelativeMarker::That => "that",
-            RelativeMarker::Who => "who",
-            RelativeMarker::Zero => "",
+        if let Ok((auxiliary, complement)) =
+            crate::clause::parts_relative_contracted_copular_coordinated_adjective(clause)
+        {
+            let mut marker = "that".to_owned();
+            marker.push_str(contraction_suffix(auxiliary)?);
+            return Ok(join_words(vec![
+                marker,
+                self.coordinated_adjective_phrase(&complement)?,
+            ]));
         }
-        .to_owned();
-        let body = match clause.body() {
-            RelativeBody::SubjectGap(Predicate::Transitive(predicate))
-                if predicate
-                    .head()
-                    .first_auxiliary_contracted_with_subject()
-                    .is_contracted() =>
-            {
-                let auxiliary_start =
-                    Self::contract_with_first_auxiliary(&mut marker, predicate.head())?;
-                self.transitive_predicate_from(predicate, auxiliary_start)?
-            }
-            RelativeBody::SubjectGap(Predicate::Intransitive(predicate))
-                if predicate
-                    .head()
-                    .first_auxiliary_contracted_with_subject()
-                    .is_contracted() =>
-            {
-                let auxiliary_start =
-                    Self::contract_with_first_auxiliary(&mut marker, predicate.head())?;
-                self.intransitive_predicate_from(predicate, auxiliary_start)?
-            }
-            RelativeBody::SubjectGap(Predicate::Passive(predicate))
-                if predicate
-                    .head()
-                    .first_auxiliary_contracted_with_subject()
-                    .is_contracted() =>
-            {
-                let auxiliary_start =
-                    Self::contract_with_first_auxiliary(&mut marker, predicate.head())?;
-                self.passive_predicate_from(predicate, auxiliary_start)?
-            }
-            RelativeBody::SubjectGap(Predicate::Copular(predicate))
-                if predicate.copula.contracted_with_subject.is_contracted() =>
-            {
-                marker.push_str(contraction_suffix(predicate.copula.auxiliary)?);
-                let mut parts = Vec::new();
-                if predicate.distributive_each {
-                    parts.push("each".to_owned());
-                }
-                parts.push(self.copular_complement(&predicate.complement)?);
-                for adjunct in &predicate.adjuncts {
-                    parts.push(self.predicate_adjunct(adjunct)?);
-                }
-                join_words(parts)
-            }
-            RelativeBody::SubjectGap(predicate) => self.predicate(predicate)?,
-            RelativeBody::ObjectGap { subject, predicate } => {
-                let (subject, auxiliary_start) =
-                    self.subject_with_predicate_head(subject, predicate.head())?;
-                join_words(vec![
-                    subject,
-                    self.generated_object_gap_predicate_from(predicate, auxiliary_start)?,
-                ])
-            }
-        };
-        Ok(join_words(vec![marker, body]))
+        let mut visitor = GeneratedRelativeRenderer::new(self);
+        GeneratedRelativeRenderer::accept_generated(
+            crate::constructions::relative::linearize_relative_relative_clause_with(
+                clause,
+                &mut visitor,
+            ),
+        )?;
+        Ok(visitor.finish())
     }
 
     fn noun_phrase(&self, phrase: &NounPhrase) -> Result<String, RenderError> {
@@ -5968,6 +6055,186 @@ mod tests {
             relative.body()
         );
         assert_eq!(source_free(&ast, "Test Card", false), source);
+    }
+
+    fn relative_fixture_with_base(base: &str, surface: &str) -> RelativeClause {
+        let source = format!("{base} {surface}");
+        let parsed = crate::parse_fragment(
+            &source,
+            &fixture_catalogs(),
+            crate::FragmentKind::Nominal,
+            "Test Card",
+            false,
+        )
+        .into_fragment()
+        .unwrap_or_else(|| panic!("relative fixture must parse for {surface:?}"));
+        let crate::Fragment::Nominal(phrase) = parsed else {
+            panic!("relative fixture must lower as a nominal fragment: {source:?}")
+        };
+        let NounPhraseKind::Nominal(nominal) = phrase.kind() else {
+            panic!("relative fixture must lower as a nominal: {source:?}")
+        };
+        nominal
+            .complements()
+            .iter()
+            .find_map(|complement| match complement {
+                NominalComplement::Relative(relative) => Some(relative.clone()),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("relative fixture must retain a relative: {source:?}"))
+    }
+
+    fn relative_fixture(surface: &str) -> RelativeClause {
+        relative_fixture_with_base("a card", surface)
+    }
+
+    #[test]
+    fn generated_r01_renderer_linearizes_direct_ast_for_every_form_and_nested_relatives() {
+        use crate::clause as clause_api;
+        use crate::predicate as predicate_api;
+
+        let object = relative_fixture("you cast");
+        let (subject, predicate) = clause_api::parts_relative_object(&object).unwrap();
+        let object = clause_api::build_relative_object(subject, predicate).unwrap();
+
+        let contracted_object = relative_fixture("you've cast");
+        let (subject, auxiliary, predicate) =
+            clause_api::parts_relative_object_contracted_subject(&contracted_object).unwrap();
+        let contracted_object =
+            clause_api::build_relative_object_contracted_subject(subject, auxiliary, predicate)
+                .unwrap();
+
+        let progressive = predicate_api::build_predicate_verb(
+            VerbInstance {
+                verb: Verb::Word(Vocab::Attack),
+                slot: VerbSlot::PresentParticiple,
+            },
+            predicate_api::PredicateFrameChoice::Intransitive,
+        )
+        .and_then(predicate_api::finish_predicate)
+        .unwrap();
+        let contracted_subject = clause_api::build_relative_subject_contracted_auxiliary(
+            AuxiliaryInstance {
+                auxiliary: Auxiliary::Be,
+                inflection: AuxiliaryInflection::Present {
+                    person: Person::Third,
+                    number: Number::Singular,
+                },
+                contracted_negation: crate::features::Contraction::Full,
+            },
+            progressive,
+        )
+        .unwrap();
+
+        let nested_subject = relative_fixture("that attacks a creature you control");
+        let (marker, predicate) = clause_api::parts_relative_subject(&nested_subject).unwrap();
+        let nested_subject = clause_api::build_relative_subject(marker, predicate).unwrap();
+
+        let distributive =
+            relative_fixture_with_base("creature cards", "that each have a different mana value");
+        let (marker, predicate) =
+            clause_api::parts_relative_subject_distributive_each(&distributive).unwrap();
+        let distributive =
+            clause_api::build_relative_subject_distributive_each(marker, predicate).unwrap();
+
+        let copular_noun = relative_fixture("that's a creature");
+        let (auxiliary, complement) =
+            clause_api::parts_relative_contracted_copular_noun(&copular_noun).unwrap();
+        let copular_noun =
+            clause_api::build_relative_contracted_copular_noun(auxiliary, complement).unwrap();
+
+        let copular_adjective = relative_fixture("that's red");
+        let (auxiliary, complement) =
+            clause_api::parts_relative_contracted_copular_adjective(&copular_adjective).unwrap();
+        let copular_adjective =
+            clause_api::build_relative_contracted_copular_adjective(auxiliary, complement).unwrap();
+
+        let copular_prepositional = relative_fixture("that's in exile");
+        let (auxiliary, complement) =
+            clause_api::parts_relative_contracted_copular_prepositional(&copular_prepositional)
+                .unwrap();
+        let copular_prepositional =
+            clause_api::build_relative_contracted_copular_prepositional(auxiliary, complement)
+                .unwrap();
+
+        let renderer = Renderer::new("Test Card", false);
+        for (value, expected) in [
+            (object, "you cast"),
+            (contracted_object, "you've cast"),
+            (contracted_subject, "that's attacking"),
+            (nested_subject, "that attacks a creature you control"),
+            (distributive, "that each have a different mana value"),
+            (copular_noun, "that's a creature"),
+            (copular_adjective, "that's red"),
+            (copular_prepositional, "that's in exile"),
+        ] {
+            assert_eq!(renderer.relative_clause(&value).unwrap(), expected);
+        }
+    }
+
+    #[test]
+    fn generated_r01_renderer_distinguishes_zero_marker_demonstrative_that_from_explicit_markers() {
+        use crate::clause as clause_api;
+
+        let demonstrative = relative_fixture("that opponent controls");
+        let (subject, predicate) = clause_api::parts_relative_object(&demonstrative).unwrap();
+        let demonstrative = clause_api::build_relative_object(subject, predicate).unwrap();
+        assert_eq!(demonstrative.marker(), RelativeMarker::Zero);
+        assert!(matches!(
+            demonstrative.body(),
+            RelativeBody::ObjectGap { subject, .. }
+                if matches!(
+                    subject.0.kind(),
+                    NounPhraseKind::Nominal(nominal)
+                        if matches!(
+                            nominal.determiner().map(Determiner::kind),
+                            Some(DeterminerKind::Demonstrative(Demonstrative::That))
+                        )
+                )
+        ));
+
+        let explicit_that = relative_fixture("that attacks");
+        let (marker, predicate) = clause_api::parts_relative_subject(&explicit_that).unwrap();
+        let explicit_that = clause_api::build_relative_subject(marker, predicate).unwrap();
+        assert_eq!(explicit_that.marker(), RelativeMarker::That);
+
+        let explicit_who = relative_fixture("who attacks");
+        let (marker, predicate) = clause_api::parts_relative_subject(&explicit_who).unwrap();
+        let explicit_who = clause_api::build_relative_subject(marker, predicate).unwrap();
+        assert_eq!(explicit_who.marker(), RelativeMarker::Who);
+
+        let renderer = Renderer::new("Test Card", false);
+        assert_eq!(
+            renderer.relative_clause(&demonstrative).unwrap(),
+            "that opponent controls"
+        );
+        assert_eq!(
+            renderer.relative_clause(&explicit_that).unwrap(),
+            "that attacks"
+        );
+        assert_eq!(
+            renderer.relative_clause(&explicit_who).unwrap(),
+            "who attacks"
+        );
+    }
+
+    #[test]
+    fn handwritten_c01_relative_renderer_delegates_only_its_coordinated_adjective_tail() {
+        use crate::clause as clause_api;
+
+        let value = relative_fixture("that's red or green");
+        let (auxiliary, complement) =
+            clause_api::parts_relative_contracted_copular_coordinated_adjective(&value).unwrap();
+        let value = clause_api::build_relative_contracted_copular_coordinated_adjective(
+            auxiliary, complement,
+        )
+        .unwrap();
+        assert_eq!(
+            Renderer::new("Test Card", false)
+                .relative_clause(&value)
+                .unwrap(),
+            "that's red or green",
+        );
     }
 
     #[test]
