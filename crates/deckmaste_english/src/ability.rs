@@ -9,6 +9,10 @@ use crate::syntax::AbilityKind;
 use crate::syntax::FlavorHeader;
 
 /// Builds one ability through the declaration's checked ingress.
+///
+/// # Errors
+///
+/// Returns an error for competing headers or an invalid frame payload.
 pub fn build_ability(
     ability_word: Option<CatalogAtom>,
     flavor_header: Option<FlavorHeader>,
@@ -18,6 +22,10 @@ pub fn build_ability(
 }
 
 /// Projects an ability through its declaration-owned representation.
+///
+/// # Errors
+///
+/// Returns an error if `value` does not satisfy the `ability` declaration.
 pub fn parts_ability(
     value: &Ability,
 ) -> Result<(Option<CatalogAtom>, Option<FlavorHeader>, AbilityKind), BuildError> {
@@ -25,6 +33,11 @@ pub fn parts_ability(
 }
 
 /// Renders an ability through the generated inverse dispatcher.
+///
+/// # Errors
+///
+/// Returns an error if the ability or one of its components has no exact
+/// inverse.
 pub fn render(value: &Ability, name: &str, is_legendary: bool) -> Result<String, RenderError> {
     crate::renderer::render_ability(value, name, is_legendary)
 }

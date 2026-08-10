@@ -712,11 +712,11 @@ impl GeneratedAbilityRenderer<'_, '_> {
         if self.capitalize { capitalize_first(self.rendered) } else { self.rendered }
     }
 
-    fn push_kind(&mut self, kind: AbilityKind) -> Result<(), RenderError> {
+    fn push_kind(&mut self, kind: &AbilityKind) -> Result<(), RenderError> {
         let capitalize = self.has_header || self.capitalize;
         let rendered = self
             .renderer
-            .ability_kind(&kind, capitalize, self.suppress_final_period)?;
+            .ability_kind(kind, capitalize, self.suppress_final_period)?;
         if self.has_header {
             self.rendered.push_str(&capitalize_first(rendered));
         } else {
@@ -747,7 +747,7 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                 let value = value
                     .downcast_ref::<$ty>()
                     .unwrap_or_else(|| panic!("the ability {category} hole preserves its payload"));
-                self.push_kind($variant(value.clone()))
+                self.push_kind(&$variant(value.clone()))
             }};
         }
         match category {

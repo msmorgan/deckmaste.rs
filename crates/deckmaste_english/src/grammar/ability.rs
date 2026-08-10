@@ -530,7 +530,13 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     }
 
     fn parse_ability_kind(&mut self, tokens: &[Token]) -> AbilityKind {
-        #[cfg_attr(not(test), allow(unused_mut))]
+        #[cfg_attr(
+            not(test),
+            allow(
+                unused_mut,
+                reason = "test activations permute the candidate array in place"
+            )
+        )]
         let mut frames = AbilityFrameCandidate::ALL;
         #[cfg(test)]
         self.activation.reorder_ability_candidates(&mut frames);
@@ -1408,12 +1414,15 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     fn parse_cost(&mut self, tokens: &[Token]) -> Cost {
         let all_tokens = tokens;
         let (flavor_header, tokens) = self.peel_cost_flavor_header(tokens);
-        let components = split_top_level(tokens, &[Punctuation::Comma])
+        let mut components = split_top_level(tokens, &[Punctuation::Comma])
             .into_iter()
             .filter(|component| !component.is_empty())
             .map(|component| self.parse_cost_component(component))
-            .collect();
-        let form = if flavor_header.is_some() { 0 } else { 1 };
+            .collect::<Vec<_>>();
+        if components.is_empty() {
+            components.push(CostComponent::Recovered(self.recovered_text(tokens)));
+        }
+        let form = u16::from(flavor_header.is_none());
         let cost = crate::constructions::ability::build(flavor_header, components)
             .expect("the cost recognizer satisfies the declaration");
         self.record_ability_construction(all_tokens, "cost", form);
@@ -1566,13 +1575,17 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
 
     fn parse_paragraph(&mut self, tokens: &[Token]) -> Paragraph {
         let (flavor_header, body) = self.peel_flavor_header(tokens);
+        let mut sentences = split_sentences(self.source, body, self.self_reference.nickname())
+            .into_iter()
+            .filter(|sentence| !sentence.is_empty())
+            .map(|sentence| self.parse_sentence(sentence))
+            .collect::<Vec<_>>();
+        if sentences.is_empty() {
+            sentences.push(self.parse_sentence(body));
+        }
         Paragraph {
             flavor_header,
-            sentences: split_sentences(self.source, body, self.self_reference.nickname())
-                .into_iter()
-                .filter(|sentence| !sentence.is_empty())
-                .map(|sentence| self.parse_sentence(sentence))
-                .collect(),
+            sentences,
         }
     }
 
@@ -2143,7 +2156,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         };
         let list = crate::constructions::ability::build_keyword_list(abilities, trailing)
             .expect("the keyword-line recognizer satisfies the declaration");
-        let form = if list.trailing().is_some() { 0 } else { 1 };
+        let form = u16::from(list.trailing().is_none());
         self.record_ability_construction(tokens, "keyword_line", form);
         Some(list)
     }

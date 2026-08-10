@@ -1308,6 +1308,7 @@ fn lens_bind_construction(
             quote! { #field: #field_ty }
         })
         .collect();
+    let arity_allowance = builder_arity_allowance(params.len());
     let field_names: Vec<proc_macro2::Ident> = fields
         .iter()
         .map(|binding| quote::format_ident!("{}", binding.field.value))
@@ -1369,6 +1370,7 @@ fn lens_bind_construction(
             #(#assert_types)*
         }
 
+        #arity_allowance
         pub fn #build_fn(#(#params),*) -> Result<#target, ::deckmaste_construction_compiler::runtime::DeclarationViolation> {
             #(#checks)*
             #construct
@@ -1413,6 +1415,7 @@ fn bind_construction(
             quote! { #field: #field_ty }
         })
         .collect();
+    let arity_allowance = builder_arity_allowance(params.len());
     let checks: Vec<TokenStream> = construction
         .constraints
         .iter()
@@ -1458,12 +1461,24 @@ fn bind_construction(
         // the checked door and the drift gate. The struct literal and the
         // full (no `..`) pattern each name every declared field, so a
         // declaration/type mismatch in either direction is a compile error.
+        #arity_allowance
         pub fn #build_fn(#(#params),*) -> Result<#target, ::deckmaste_construction_compiler::runtime::DeclarationViolation> {
             #(#checks)*
             #construct
         }
         pub fn #parts_fn(value: &#target) -> #parts_return {
             #destructure
+        }
+    })
+}
+
+fn builder_arity_allowance(param_count: usize) -> Option<TokenStream> {
+    (param_count > 7).then(|| {
+        quote! {
+            #[allow(
+                clippy::too_many_arguments,
+                reason = "the generated builder preserves the declaration's typed field arity"
+            )]
         }
     })
 }

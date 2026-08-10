@@ -5306,6 +5306,11 @@ fn nested_cost_builds_and_renders_every_component_shape() {
 
 #[test]
 fn cost_public_facade_preserves_legacy_serde_field_association() {
+    assert!(
+        deckmaste_english::cost::build_cost(None, Vec::new()).is_err(),
+        "an empty activation cost must not bypass the declaration",
+    );
+
     let parsed = parse_fragment(
         "Boast — {2}{R}, Sacrifice an artifact",
         &cost_catalogs(),
@@ -5335,6 +5340,37 @@ fn cost_public_facade_preserves_legacy_serde_field_association() {
     assert_eq!(
         deckmaste_english::cost::render(&rebuilt, "Test Card", false).unwrap(),
         "Boast — {2}{R}, Sacrifice an artifact"
+    );
+}
+
+#[test]
+fn empty_ability_roots_recover_without_bypassing_checked_ingress() {
+    let catalogs = cost_catalogs();
+    for kind in [FragmentKind::Cost, FragmentKind::Ability] {
+        let report = parse_fragment("", &catalogs, kind, "Test Card", false);
+        let fragment = report.fragment().expect("the ability layer is total");
+        assert!(!report.clean(), "an empty {kind:?} must recover");
+        assert!(
+            !report.recoveries().is_empty(),
+            "an empty {kind:?} must retain explicit recovery"
+        );
+        assert_eq!(render_fragment(fragment, "Test Card", false).unwrap(), "");
+    }
+
+    let report = parse_fragment(
+        ": Draw a card.",
+        &catalogs,
+        FragmentKind::Ability,
+        "Test Card",
+        false,
+    );
+    let fragment = report
+        .fragment()
+        .expect("a missing activation cost recovers structurally");
+    assert!(!report.clean());
+    assert_eq!(
+        render_fragment(fragment, "Test Card", false).unwrap(),
+        ": Draw a card."
     );
 }
 
