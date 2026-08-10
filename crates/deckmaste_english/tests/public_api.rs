@@ -1650,6 +1650,11 @@ fn public_prepositional_facade_builds_projects_and_rejects_invalid_roles() {
     ));
     let of_card =
         prepositional_api::build_prepositional_phrase(Preposition::Of, noun_object).unwrap();
+    let under_card = prepositional_api::build_prepositional_phrase(
+        Preposition::Under,
+        prepositional_api::build_prepositional_object_noun_phrase(card.clone()).unwrap(),
+    )
+    .unwrap();
 
     let nested_object =
         prepositional_api::build_prepositional_object_prepositional_phrase(of_card.clone())
@@ -1692,6 +1697,7 @@ fn public_prepositional_facade_builds_projects_and_rejects_invalid_roles() {
 
     for (phrase, expected) in [
         (&of_card, "of card"),
+        (&under_card, "under card"),
         (&from_of_card, "from of card"),
         (&by_attacking, "by attacking"),
         (&from_anywhere, "from again"),

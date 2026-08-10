@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::io::Write;
 use std::io::{self};
 
@@ -14,6 +15,14 @@ use deckmaste_english::ParseCostDimension;
 use deckmaste_english::ParseReport;
 use deckmaste_english::SelectionReason;
 use deckmaste_english::parse_with_identity;
+use deckmaste_english::syntax::AbilityKind;
+use deckmaste_english::syntax::IndependentClause;
+use deckmaste_english::syntax::Predicate;
+use deckmaste_english::syntax::PredicateAdjunct;
+use deckmaste_english::syntax::PredicateComplement;
+use deckmaste_english::syntax::PredicateElement;
+use deckmaste_english::syntax::PredicateExpression;
+use deckmaste_english::syntax::SentenceBody;
 
 use super::data::CardFace;
 use super::data::OracleDataArgs;
@@ -146,7 +155,149 @@ fn write_provenance(mut writer: impl Write, report: &ParseReport) -> Result<()> 
             }
         }
     }
+    write_p02_attachment_evidence(&mut writer, report)?;
     Ok(())
+}
+
+fn write_p02_attachment_evidence(mut writer: impl Write, report: &ParseReport) -> Result<()> {
+    let has_p02 = report.provenance().selections().iter().any(|selection| {
+        selection
+            .constructions()
+            .iter()
+            .any(|decision| decision.selected().as_str() == "prepositional_phrase")
+    });
+    if !has_p02 {
+        return Ok(());
+    }
+
+    let mut roles = BTreeSet::new();
+    if report.provenance().selections().iter().any(|selection| {
+        selection
+            .constructions()
+            .iter()
+            .any(|decision| decision.selected().as_str() == "nominal_prepositional")
+    }) {
+        roles.insert("nominal");
+    }
+    for ability in &report.ast().abilities {
+        if let AbilityKind::Paragraph(paragraph) = &ability.kind {
+            for sentence in &paragraph.sentences {
+                if let SentenceBody::Independent(clause) = sentence.body() {
+                    collect_predicate_pp_roles(clause, &mut roles);
+                }
+            }
+        }
+    }
+    if !roles.is_empty() {
+        writeln!(writer, "P02 consuming attachment roles:")?;
+        for role in roles {
+            writeln!(writer, "  role={role}")?;
+        }
+    }
+    Ok(())
+}
+
+fn collect_predicate_pp_roles(clause: &IndependentClause, roles: &mut BTreeSet<&'static str>) {
+    match clause {
+        IndependentClause::Transitive(_, predicate) => {
+            collect_pp_element_roles(predicate.elements(), roles);
+        }
+        IndependentClause::Intransitive(_, predicate) => {
+            collect_pp_element_roles(predicate.elements(), roles);
+        }
+        IndependentClause::Passive(_, predicate) => {
+            collect_pp_element_roles(predicate.elements(), roles);
+        }
+        IndependentClause::Imperative(predicate) => collect_predicate_roles(predicate, roles),
+        IndependentClause::Predicated(_, expression) => {
+            collect_predicate_expression_roles(expression, roles);
+        }
+        IndependentClause::Deontic(_, _, Some(predicate)) => {
+            collect_predicate_roles(predicate, roles);
+        }
+        IndependentClause::Copular(_, predicate) => {
+            if matches!(
+                predicate.complement,
+                deckmaste_english::syntax::CopularComplement::Prepositional(_)
+            ) {
+                roles.insert("selected-complement");
+            }
+            collect_pp_adjunct_roles(&predicate.adjuncts, roles);
+        }
+        IndependentClause::Deontic(_, _, None)
+        | IndependentClause::Existential(_)
+        | IndependentClause::Proform(_, _)
+        | IndependentClause::Complex(_)
+        | IndependentClause::Coordinated(_) => {}
+    }
+}
+
+fn collect_predicate_expression_roles(
+    expression: &PredicateExpression,
+    roles: &mut BTreeSet<&'static str>,
+) {
+    match expression {
+        PredicateExpression::Simple(predicate) => collect_predicate_roles(predicate, roles),
+        PredicateExpression::Coordinated(coordination) => {
+            for conjunct in coordination.conjuncts() {
+                collect_predicate_expression_roles(conjunct, roles);
+            }
+        }
+    }
+}
+
+fn collect_predicate_roles(predicate: &Predicate, roles: &mut BTreeSet<&'static str>) {
+    match predicate {
+        Predicate::Transitive(predicate) => collect_pp_element_roles(predicate.elements(), roles),
+        Predicate::Intransitive(predicate) => collect_pp_element_roles(predicate.elements(), roles),
+        Predicate::Passive(predicate) => collect_pp_element_roles(predicate.elements(), roles),
+        Predicate::Copular(predicate) => {
+            if matches!(
+                predicate.complement,
+                deckmaste_english::syntax::CopularComplement::Prepositional(_)
+            ) {
+                roles.insert("selected-complement");
+            }
+            collect_pp_adjunct_roles(&predicate.adjuncts, roles);
+        }
+        Predicate::Deontic(predicate) => {
+            if let Some(inner) = &predicate.inner {
+                collect_predicate_roles(inner, roles);
+            }
+        }
+        Predicate::Attached(predicate) => collect_predicate_roles(&predicate.predicate, roles),
+        Predicate::Proform(_) => {}
+    }
+}
+
+fn collect_pp_element_roles(elements: &[PredicateElement], roles: &mut BTreeSet<&'static str>) {
+    for element in elements {
+        match element {
+            PredicateElement::Complement(PredicateComplement::Prepositional(_)) => {
+                roles.insert("selected-complement");
+            }
+            PredicateElement::Adjunct(
+                PredicateAdjunct::Prepositional(_) | PredicateAdjunct::Exception(_),
+            ) => {
+                roles.insert("adjunct");
+            }
+            PredicateElement::Complement(_)
+            | PredicateElement::Adjunct(_)
+            | PredicateElement::Particle(_)
+            | PredicateElement::CoinResult(_) => {}
+        }
+    }
+}
+
+fn collect_pp_adjunct_roles(adjuncts: &[PredicateAdjunct], roles: &mut BTreeSet<&'static str>) {
+    if adjuncts.iter().any(|adjunct| {
+        matches!(
+            adjunct,
+            PredicateAdjunct::Prepositional(_) | PredicateAdjunct::Exception(_)
+        )
+    }) {
+        roles.insert("adjunct");
+    }
 }
 
 /// One construction row in verbose inspect. Keeping this formatter generic
@@ -545,6 +696,11 @@ mod tests {
                 .contains("Complement( Prepositional("),
             "selected PP lost its typed complement role:\n{selected}",
         );
+        assert!(
+            selected.contains("P02 consuming attachment roles:")
+                && selected.contains("  role=selected-complement"),
+            "selected PP lacks decisive consuming-role evidence:\n{selected}",
+        );
 
         for (source, form, category) in [
             ("Attack from among them.", 1, "PrepositionalPhrase"),
@@ -573,6 +729,10 @@ mod tests {
                 .contains("Adjunct( Prepositional("),
             "adjunct PP lost its typed consumer role:\n{adjunct}",
         );
+        assert!(
+            adjunct.contains("P02 consuming attachment roles:\n  role=adjunct"),
+            "adjunct PP lacks decisive consuming-role evidence:\n{adjunct}",
+        );
 
         let nominal = verbose_m01("Destroy target creature with flying.");
         assert!(
@@ -580,6 +740,10 @@ mod tests {
                 " nominal_prepositional owner=generated backend=chart form=0 evidence=feature:nominal attachment phase"
             ),
             "nominal-attachment consumer missing:\n{nominal}",
+        );
+        assert!(
+            nominal.contains("P02 consuming attachment roles:\n  role=nominal"),
+            "nominal PP lacks decisive consuming-role evidence:\n{nominal}",
         );
         for rendered in [&selected, &adjunct, &nominal] {
             assert!(

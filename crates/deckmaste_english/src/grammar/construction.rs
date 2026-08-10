@@ -505,8 +505,8 @@ mod tests {
             .iter()
             .filter(|family| family.owner() == ConstructionOwner::Generated)
             .count();
-        assert_eq!(handwritten, 31, "handwritten chart families");
-        assert_eq!(generated, 161, "generated chart families");
+        assert_eq!(handwritten, 29, "handwritten chart families");
+        assert_eq!(generated, 163, "generated chart families");
         assert_eq!(families.len(), 192, "all chart families");
 
         let chart_fragment_entries = [FragmentKind::Nominal, FragmentKind::Sentence];
@@ -517,7 +517,7 @@ mod tests {
         ];
         assert_eq!(chart_fragment_entries.len(), 2);
         assert_eq!(ability_fragment_entries.len(), 3);
-        assert_eq!(handwritten + ability_fragment_entries.len(), 34);
+        assert_eq!(handwritten + ability_fragment_entries.len(), 32);
         assert_eq!(families.len() + ability_fragment_entries.len(), 195);
 
         for id in [
