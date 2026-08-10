@@ -1629,6 +1629,10 @@ fn public_attachment_facade_builds_projects_and_rejects_invalid_runs() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one facade test keeps all P02 object variants and role rejections together"
+)]
 fn public_prepositional_facade_builds_projects_and_rejects_invalid_roles() {
     use deckmaste_english::adjective as adjective_api;
     use deckmaste_english::clause as clause_api;

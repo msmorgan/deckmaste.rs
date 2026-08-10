@@ -614,6 +614,9 @@ fn erased_field(
         K::Identity {
             value_type: "Preposition",
             provider: "Preposition",
+        }
+        | K::Scalar {
+            codec: "Preposition",
         } => {
             let Lowered::Preposition(value) = value else {
                 return None;
@@ -878,14 +881,6 @@ fn erased_field(
         }
         K::Scalar { codec: "ColorWord" } => {
             let Lowered::Adjective(Adjective::Color(value)) = value else {
-                return None;
-            };
-            Some(Box::new(value))
-        }
-        K::Scalar {
-            codec: "Preposition",
-        } => {
-            let Lowered::Preposition(value) = value else {
                 return None;
             };
             Some(Box::new(value))
@@ -1448,9 +1443,7 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
             let Lowered::PrepositionalPhrase(next) = take(children, next_index)? else {
                 return None;
             };
-            let Some(next) = next.into_simple() else {
-                return None;
-            };
+            let next = next.into_simple()?;
             let coordination = crate::syntax::PrepositionalPhraseCoordination {
                 conjunction,
                 phrase: next,
