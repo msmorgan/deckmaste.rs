@@ -8,6 +8,7 @@ Souls-style riders).
 DELIVERED: pool provenance (`ManaPool(Vec<ManaUnit>)`), riders through
 production, `SpendOnly` enforced at payment + affordability, `Persistent`
 (non-emptying) mana, and Cavern-style conditional production. Triggered mana
-abilities ([CR#605.1b]) were carved into `engine-triggered-mana-abilities` (they
-need a "tapped for mana" event the engine doesn't emit yet). On-spend riders
+abilities ([CR#605.1b]) remain in `engine-payment-obligation-window`, whose
+explicit core classification and full-state mana-resolution path also supply
+the missing "tapped for mana" event. On-spend riders
 (`GrantOnSpend`/`TriggerOnSpend`) remain a seam (stored, not fired).
