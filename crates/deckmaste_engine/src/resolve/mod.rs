@@ -226,10 +226,11 @@ impl GameState {
                 let t = match created {
                     Some(t) => t.as_ref().clone(),
                     None => {
-                        if let Some(Ability::Triggered(t)) =
-                            crate::derive::abilities_of_source(self, *source).get(*ability)
+                        if let Some(t) = crate::derive::abilities_of_source(self, *source)
+                            .get(*ability)
+                            .and_then(Ability::as_triggered)
                         {
-                            t.as_ref().clone()
+                            t.clone()
                         } else {
                             self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
                                 GameEvent::AbilityResolved(entry.id),

@@ -289,7 +289,7 @@ fn lint_keyword_refs(
 /// e.g. cycling — read is faithful, so it arrives lumpy) are still linted.
 fn lint_card_abilities(path: &Path, abilities: &[Ability], out: &mut Vec<(PathBuf, String)>) {
     for ability in abilities {
-        let Ability::Activated(activated) = ability else {
+        let Some(activated) = ability.as_activated() else {
             continue;
         };
         let normalized = activated.cost.clone().normalize();

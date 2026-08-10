@@ -39,10 +39,7 @@ use crate::trigger::TriggerBindings;
 /// this is (keyword macros expand to the abilities they grant).
 #[must_use]
 pub(crate) fn as_activated(ability: &Ability) -> Option<&ActivatedAbility> {
-    match ability {
-        Ability::Activated(a) => Some(a),
-        _ => None,
-    }
+    ability.as_activated()
 }
 
 /// True iff `cost` pays with a loyalty-counter verb — `Do(PutCounters(This,

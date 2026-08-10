@@ -175,6 +175,35 @@ pub struct Mode {
     pub cost: Option<Arc<[CostComponent]>>,
 }
 
+/// One modal branch's lowering-time mana-ability facts. Runtime mode
+/// announcement selects among these precomputed rows; live game state and
+/// external replacement effects never reclassify the ability.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub struct ManaModeClass {
+    pub adds_mana: bool,
+    pub targetless: bool,
+    pub library_safe: bool,
+}
+
+/// How an activated mana ability's lowering-time classification depends on
+/// its announced modes.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum ActivatedManaProfile {
+    Always,
+    ByAnnouncedMode(Arc<[ManaModeClass]>),
+}
+
+/// A mana ability carries the same activated or triggered payload as its
+/// ordinary peer plus lowering's explicit classification judgment.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum ManaAbility {
+    Activated {
+        ability: Arc<ActivatedAbility>,
+        profile: ActivatedManaProfile,
+    },
+    Triggered(Arc<TriggeredAbility>),
+}
+
 /// An ability ([CR#113]). The struct-carrying variants read flat in RON —
 /// `Activated(cost: ..., ...)`, not `Activated((cost: ...))` — via the
 /// `unwrap_variant_newtypes` extension.
@@ -204,6 +233,8 @@ pub enum Ability {
     Static(Arc<StaticEffect>),
     Activated(Arc<ActivatedAbility>),
     Triggered(Arc<TriggeredAbility>),
+    /// A lowering-classified activated or triggered mana ability.
+    Mana(ManaAbility),
     Spell(Arc<SpellAbility>),
     /// A keyword ability ([CR#702]) — always spelled `Keyword(…)` on cards.
     /// The five intrinsic variants read as themselves (`Keyword(Trample)`);
@@ -248,6 +279,75 @@ impl Ability {
     #[must_use]
     pub fn triggered(ability: TriggeredAbility) -> Self {
         Ability::Triggered(Arc::new(ability))
+    }
+
+    /// View any activated payload, looking through runtime and provenance
+    /// wrappers.
+    #[must_use]
+    pub fn as_activated(&self) -> Option<&ActivatedAbility> {
+        match self {
+            Ability::Activated(ability) | Ability::Mana(ManaAbility::Activated { ability, .. }) => {
+                Some(ability)
+            }
+            Ability::Innate(inner) => inner.as_activated(),
+            Ability::Expanded(expansion) => expansion.value.as_activated(),
+            _ => None,
+        }
+    }
+
+    /// View any triggered payload, looking through runtime and provenance
+    /// wrappers.
+    #[must_use]
+    pub fn as_triggered(&self) -> Option<&TriggeredAbility> {
+        match self {
+            Ability::Triggered(ability) | Ability::Mana(ManaAbility::Triggered(ability)) => {
+                Some(ability)
+            }
+            Ability::Innate(inner) => inner.as_triggered(),
+            Ability::Expanded(expansion) => expansion.value.as_triggered(),
+            _ => None,
+        }
+    }
+
+    /// The compiled mana wrapper, if this is one, looking through wrappers.
+    #[must_use]
+    pub fn as_mana(&self) -> Option<&ManaAbility> {
+        match self {
+            Ability::Mana(mana) => Some(mana),
+            Ability::Innate(inner) => inner.as_mana(),
+            Ability::Expanded(expansion) => expansion.value.as_mana(),
+            _ => None,
+        }
+    }
+
+    /// Instantiate an activated mana profile from announcement-time mode
+    /// indices. Invalid, empty, targeted, library-moving, or non-producing
+    /// selections do not qualify.
+    #[must_use]
+    pub fn mana_profile_for_modes(&self, modes: &[crate::Uint]) -> bool {
+        let Some(ManaAbility::Activated { profile, .. }) = self.as_mana() else {
+            return false;
+        };
+        match profile {
+            ActivatedManaProfile::Always => true,
+            ActivatedManaProfile::ByAnnouncedMode(classes) => {
+                let selected: Option<Vec<ManaModeClass>> = modes
+                    .iter()
+                    .map(|&mode| {
+                        usize::try_from(mode)
+                            .ok()
+                            .and_then(|i| classes.get(i).copied())
+                    })
+                    .collect();
+                selected.is_some_and(|selected| {
+                    !selected.is_empty()
+                        && selected
+                            .iter()
+                            .all(|class| class.targetless && class.library_safe)
+                        && selected.iter().any(|class| class.adds_mana)
+                })
+            }
+        }
     }
 
     /// Build [`Ability::Spell`], boxing the payload.
@@ -622,7 +722,7 @@ mod tests {
     fn sacrifice_this_reads_flat() {
         // Confirms the new flattened Selection (`This`, not `That(This)`).
         let ability = read_ability(
-            "Activated(cost: [Tap, Do(Sacrifice(You, This))], effect: AddMana(You, Literal(1), AnyColor))",
+            "Activated(cost: [Tap, Act(Sacrifice(You, This))], effect: AddMana(You, Literal(1), AnyColor))",
         );
         let Ability::Activated(activated) = ability else {
             panic!("expected an activated ability");
@@ -631,5 +731,37 @@ mod tests {
             activated.cost[1],
             CostComponent::do_action(Action::Sacrifice(Reference::You, Reference::This))
         );
+    }
+
+    #[test]
+    fn modal_mana_profile_is_instantiated_from_announced_modes() {
+        let Ability::Activated(ability) =
+            read_ability("Activated(cost: [], effect: AddMana(You, Literal(1), AnyColor))")
+        else {
+            panic!("fixture must be activated");
+        };
+        let modal = Ability::Mana(ManaAbility::Activated {
+            ability,
+            profile: ActivatedManaProfile::ByAnnouncedMode(
+                vec![
+                    ManaModeClass {
+                        adds_mana: true,
+                        targetless: true,
+                        library_safe: true,
+                    },
+                    ManaModeClass {
+                        adds_mana: true,
+                        targetless: false,
+                        library_safe: true,
+                    },
+                ]
+                .into(),
+            ),
+        });
+        assert!(modal.mana_profile_for_modes(&[0]));
+        assert!(!modal.mana_profile_for_modes(&[1]));
+        assert!(!modal.mana_profile_for_modes(&[0, 1]));
+        assert!(!modal.mana_profile_for_modes(&[]));
+        assert!(!modal.mana_profile_for_modes(&[9]));
     }
 }

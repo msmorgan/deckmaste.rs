@@ -1,7 +1,6 @@
 //! Target-set legality: spec bounds, distinctness, and resolution-time
 //! re-checks ([CR#608.2b]).
 
-use deckmaste_core::Ability;
 use deckmaste_core::Count;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Uint;
@@ -43,10 +42,11 @@ impl GameState {
             } => match created {
                 // The delayed/reflexive body is authoritative ([CR#603.7,603.12]).
                 Some(t) => top_targets(&t.effect).to_vec(),
-                None => match &crate::derive::abilities_of_source(self, *source)[*ability] {
-                    Ability::Triggered(t) => top_targets(&t.effect).to_vec(),
-                    _ => unreachable!(),
-                },
+                None => {
+                    let abilities = crate::derive::abilities_of_source(self, *source);
+                    let t = abilities[*ability].as_triggered().expect("trigger index");
+                    top_targets(&t.effect).to_vec()
+                }
             },
         };
         debug_assert_eq!(

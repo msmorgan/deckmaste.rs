@@ -579,17 +579,20 @@ fn loyalty_macros_expand_to_sorcery_speed_shared_once_per_turn() {
     use deckmaste_core::CounterRef;
     use deckmaste_core::Timing;
     use deckmaste_core::UseLimit;
+    use deckmaste_lowering::Lower;
 
     let plugin = builtin();
 
-    let plus: Ability = plugin
+    let plus: deckmaste_semantics::Ability = plugin
         .macros
         .read_str("LoyaltyPlus(n: 1, effect: Draw(1))")
         .unwrap();
-    let Ability::Expanded(exp) = plus else {
-        panic!("expected a remembered LoyaltyPlus expansion");
-    };
-    let Ability::Activated(a) = exp.value.as_ref() else {
+    assert!(
+        matches!(&plus, deckmaste_semantics::Ability::Expanded(_)),
+        "expected a remembered LoyaltyPlus expansion"
+    );
+    let plus: Ability = plus.lower();
+    let Ability::Activated(a) = plus else {
         panic!("a loyalty ability is an Activated ability ([CR#606.3])");
     };
     assert_eq!(
@@ -606,7 +609,7 @@ fn loyalty_macros_expand_to_sorcery_speed_shared_once_per_turn() {
     assert!(
         components.iter().any(|c| matches!(
             c,
-            CostComponent::Do(action)
+            CostComponent::Act(action)
                 if matches!(
                     action.as_ref(),
                     deckmaste_core::Action::PutCounters(
@@ -619,14 +622,16 @@ fn loyalty_macros_expand_to_sorcery_speed_shared_once_per_turn() {
         "LoyaltyPlus pays with a PutCounters(This, LoyaltyCounter, N) verb, got {components:?}"
     );
 
-    let minus: Ability = plugin
+    let minus: deckmaste_semantics::Ability = plugin
         .macros
         .read_str("LoyaltyMinus(n: 3, effect: Draw(1))")
         .unwrap();
-    let Ability::Expanded(exp) = minus else {
-        panic!("expected a remembered LoyaltyMinus expansion");
-    };
-    let Ability::Activated(a) = exp.value.as_ref() else {
+    assert!(
+        matches!(&minus, deckmaste_semantics::Ability::Expanded(_)),
+        "expected a remembered LoyaltyMinus expansion"
+    );
+    let minus: Ability = minus.lower();
+    let Ability::Activated(a) = minus else {
         panic!("a loyalty ability is an Activated ability ([CR#606.3])");
     };
     assert_eq!(a.window, Some(Timing::SorcerySpeed));
@@ -635,7 +640,7 @@ fn loyalty_macros_expand_to_sorcery_speed_shared_once_per_turn() {
     assert!(
         components.iter().any(|c| matches!(
             c,
-            CostComponent::Do(action)
+            CostComponent::Act(action)
                 if matches!(
                     action.as_ref(),
                     deckmaste_core::Action::RemoveCounters(

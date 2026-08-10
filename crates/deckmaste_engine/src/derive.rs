@@ -360,11 +360,11 @@ fn composite_members(keyword: &deckmaste_core::KeywordAbility) -> Option<&Vec<Ab
 /// what it produces. Keyword wrappers are looked through.
 #[must_use]
 pub fn tap_mana_ability(ability: &Ability) -> Option<(ColorOrColorless, Uint)> {
-    match ability {
-        Ability::Activated(a)
-            if crate::resolve::top_targets(&a.effect).is_empty()
-                && **a.cost == [CostComponent::Tap] =>
-        {
+    match ability.as_mana()? {
+        deckmaste_core::ManaAbility::Activated {
+            ability: a,
+            profile: deckmaste_core::ActivatedManaProfile::Always,
+        } if **a.cost == [CostComponent::Tap] => {
             match &a.effect {
                 // The produced-mana effect is a bare `AddMana` in RON; the
                 // agent is irrelevant for tap-for-mana derivation.
@@ -582,7 +582,7 @@ mod tests {
         assert!(
             !super::abilities_of_source(&state, source)
                 .iter()
-                .any(|a| matches!(a, Ability::Triggered(_))),
+                .any(|a| a.as_triggered().is_some()),
             "front-up permanent sources no triggered ability from its vanilla \
              front face [CR#712.8d]"
         );
@@ -594,7 +594,7 @@ mod tests {
         // Back-up: the trigger scan sources the back face's trigger [CR#712.8e].
         let triggers: Vec<_> = super::abilities_of_source(&state, source)
             .into_iter()
-            .filter(|a| matches!(a, Ability::Triggered(_)))
+            .filter(|a| a.as_triggered().is_some())
             .collect();
         assert_eq!(
             triggers,
@@ -616,7 +616,7 @@ mod tests {
         assert_eq!(
             derived
                 .iter()
-                .filter(|a| matches!(a, Ability::Triggered(_)))
+                .filter(|a| a.as_triggered().is_some())
                 .count(),
             1,
             "the back trigger is enumerated exactly once — neither dropped nor \
