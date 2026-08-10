@@ -907,6 +907,118 @@ fn require_selected(
     })
 }
 
+fn require_projection(
+    construction: &'static str,
+    value: &RelativeClause,
+    selected: impl FnOnce(&RelativeClause) -> bool,
+) -> Result<(), DeclarationViolation> {
+    selected(value).then_some(()).ok_or_else(|| {
+        violation(
+            construction,
+            "the sealed value selects this relative construction",
+        )
+    })
+}
+
+pub(crate) fn checked_parts_relative_object(
+    value: &RelativeClause,
+) -> Result<(NounPhrase, ObjectGapPredicate), DeclarationViolation> {
+    require_projection("relative_object", value, is_relative_object)?;
+    Ok(parts_relative_object(value))
+}
+
+pub(crate) fn checked_parts_relative_object_contracted_subject(
+    value: &RelativeClause,
+) -> Result<(ContractedSubjectAuxiliary, ObjectGapPredicate), DeclarationViolation> {
+    require_projection(
+        "relative_object_contracted_subject",
+        value,
+        is_relative_object_contracted_subject,
+    )?;
+    Ok(parts_relative_object_contracted_subject(value))
+}
+
+pub(crate) fn checked_parts_relative_subject_contracted_auxiliary(
+    value: &RelativeClause,
+) -> Result<(ContractedSubjectAuxiliary, Predicate), DeclarationViolation> {
+    require_projection(
+        "relative_subject_contracted_auxiliary",
+        value,
+        is_relative_subject_contracted_auxiliary,
+    )?;
+    Ok(parts_relative_subject_contracted_auxiliary(value))
+}
+
+pub(crate) fn checked_parts_relative_subject(
+    value: &RelativeClause,
+) -> Result<(RelativeMarker, Predicate), DeclarationViolation> {
+    require_projection("relative_subject", value, is_relative_subject)?;
+    Ok(parts_relative_subject(value))
+}
+
+pub(crate) fn checked_parts_relative_subject_distributive_each(
+    value: &RelativeClause,
+) -> Result<(RelativeMarker, Predicate), DeclarationViolation> {
+    require_projection(
+        "relative_subject_distributive_each",
+        value,
+        is_relative_subject_distributive_each,
+    )?;
+    Ok(parts_relative_subject_distributive_each(value))
+}
+
+macro_rules! checked_contracted_copular_parts {
+    ($checked:ident, $parts:ident, $is:ident, $ty:ty, $id:literal) => {
+        pub(crate) fn $checked(
+            value: &RelativeClause,
+        ) -> Result<(ContractedSubjectAuxiliary, $ty), DeclarationViolation> {
+            require_projection($id, value, $is)?;
+            Ok($parts(value))
+        }
+    };
+}
+
+checked_contracted_copular_parts!(
+    checked_parts_relative_contracted_copular_noun,
+    parts_relative_contracted_copular_noun,
+    is_relative_contracted_copular_noun,
+    NounPhrase,
+    "relative_contracted_copular_noun"
+);
+checked_contracted_copular_parts!(
+    checked_parts_relative_contracted_copular_adjective,
+    parts_relative_contracted_copular_adjective,
+    is_relative_contracted_copular_adjective,
+    AdjectivePhrase,
+    "relative_contracted_copular_adjective"
+);
+checked_contracted_copular_parts!(
+    checked_parts_relative_contracted_copular_prepositional,
+    parts_relative_contracted_copular_prepositional,
+    is_relative_contracted_copular_prepositional,
+    PrepositionalPhrase,
+    "relative_contracted_copular_prepositional"
+);
+
+pub(crate) fn checked_parts_relative_contracted_copular_coordinated_adjective(
+    value: &RelativeClause,
+) -> Result<(ContractedSubjectAuxiliary, CoordinatedAdjectivePhrase), DeclarationViolation> {
+    require_projection(
+        "relative_contracted_copular_coordinated_adjective",
+        value,
+        |value| {
+            is_contracted_copular(value)
+                && matches!(
+                    contracted_copular_parts(value).1,
+                    CopularComplement::CoordinatedAdjective(_)
+                )
+        },
+    )?;
+    Ok(parts_relative_contracted_copular_coordinated_adjective(
+        value,
+    ))
+}
+
 fn public_predicate_features(predicate: &Predicate) -> Result<Features, DeclarationViolation> {
     predicate_parts(predicate)?
         .declaration_core_features()
@@ -916,6 +1028,57 @@ fn public_predicate_features(predicate: &Predicate) -> Result<Features, Declarat
                 "the predicate has one declaration-derived feature state",
             )
         })
+}
+
+fn public_object_gap_features(
+    predicate: &ObjectGapPredicate,
+) -> Result<Features, DeclarationViolation> {
+    object_gap_parts(predicate)?
+        .declaration_core_features()
+        .ok_or_else(|| {
+            violation(
+                "relative_object_gap_predicate",
+                "the object-gap predicate has one declaration-derived feature state",
+            )
+        })
+}
+
+fn contracted_subject_features(
+    subject_auxiliary: &ContractedSubjectAuxiliary,
+) -> Result<Features, DeclarationViolation> {
+    let subject = match subject_auxiliary.subject.0.kind() {
+        NounPhraseKind::Pronoun {
+            pronoun:
+                pronoun @ (crate::word::Pronoun::You
+                | crate::word::Pronoun::They
+                | crate::word::Pronoun::It(_)),
+            case: crate::word::PronounCase::Subject,
+        } => crate::grammar::ContractedSubjectKey::Pronoun(pronoun),
+        NounPhraseKind::Demonstrative(Demonstrative::That) => {
+            crate::grammar::ContractedSubjectKey::Demonstrative(Demonstrative::That)
+        }
+        _ => {
+            return Err(violation(
+                "relative_contracted_subject",
+                "the subject has one declared contracted-auxiliary surface",
+            ));
+        }
+    };
+    let Features::NounPhrase {
+        agreement: Some(agreement),
+        ..
+    } = crate::constructions::noun_phrase::relative_subject_features(&subject_auxiliary.subject.0)
+    else {
+        return Err(violation(
+            "relative_contracted_subject",
+            "the contracted subject has finite agreement",
+        ));
+    };
+    Ok(Features::SubjectAuxiliary {
+        subject,
+        agreement,
+        auxiliary: subject_auxiliary.auxiliary.into(),
+    })
 }
 
 fn contracted_that_features(auxiliary: crate::word::AuxiliaryInstance) -> Features {
@@ -972,6 +1135,16 @@ pub(crate) fn checked_build_relative_object(
     subject: NounPhrase,
     predicate: ObjectGapPredicate,
 ) -> Result<RelativeClause, DeclarationViolation> {
+    reduce_relative_object_features(
+        &crate::constructions::noun_phrase::relative_subject_features(&subject),
+        &public_object_gap_features(&predicate)?,
+    )
+    .ok_or_else(|| {
+        violation(
+            "relative_object",
+            "the supplied subject and object-gap predicate satisfy agreement and valency",
+        )
+    })?;
     require_selected(
         "relative_object",
         build_relative_object(subject, predicate)?,
@@ -987,6 +1160,16 @@ pub(crate) fn checked_build_relative_object_contracted_subject(
         "relative_object_contracted_subject",
         subject_auxiliary.auxiliary,
     )?;
+    reduce_relative_object_contracted_subject_features(
+        &contracted_subject_features(&subject_auxiliary)?,
+        &public_object_gap_features(&predicate)?,
+    )
+    .ok_or_else(|| {
+        violation(
+            "relative_object_contracted_subject",
+            "the supplied subject, auxiliary, and object gap satisfy agreement and valency",
+        )
+    })?;
     require_selected(
         "relative_object_contracted_subject",
         build_relative_object_contracted_subject(subject_auxiliary, predicate)?,
@@ -1061,12 +1244,22 @@ pub(crate) fn checked_build_relative_subject_distributive_each(
 }
 
 macro_rules! checked_contracted_copular {
-    ($checked:ident, $build:ident, $is:ident, $ty:ty, $id:literal) => {
+    ($checked:ident, $build:ident, $is:ident, $reduce:ident, $ty:ty, $id:literal) => {
         pub(crate) fn $checked(
             subject_auxiliary: ContractedSubjectAuxiliary,
             complement: $ty,
         ) -> Result<RelativeClause, DeclarationViolation> {
             require_contracted_copular_auxiliary($id, subject_auxiliary.auxiliary)?;
+            $reduce(
+                &contracted_that_features(subject_auxiliary.auxiliary),
+                &Features::None,
+            )
+            .ok_or_else(|| {
+                violation(
+                    $id,
+                    "the supplied parts satisfy the declared contracted-copular law",
+                )
+            })?;
             require_selected($id, $build(subject_auxiliary, complement)?, $is)
         }
     };
@@ -1076,6 +1269,7 @@ checked_contracted_copular!(
     checked_build_relative_contracted_copular_noun,
     build_relative_contracted_copular_noun,
     is_relative_contracted_copular_noun,
+    reduce_contracted_copular_noun_features,
     NounPhrase,
     "relative_contracted_copular_noun"
 );
@@ -1083,6 +1277,7 @@ checked_contracted_copular!(
     checked_build_relative_contracted_copular_adjective,
     build_relative_contracted_copular_adjective,
     is_relative_contracted_copular_adjective,
+    reduce_contracted_copular_adjective_features,
     AdjectivePhrase,
     "relative_contracted_copular_adjective"
 );
@@ -1090,6 +1285,7 @@ checked_contracted_copular!(
     checked_build_relative_contracted_copular_prepositional,
     build_relative_contracted_copular_prepositional,
     is_relative_contracted_copular_prepositional,
+    reduce_contracted_copular_prepositional_features,
     PrepositionalPhrase,
     "relative_contracted_copular_prepositional"
 );
@@ -1102,6 +1298,20 @@ pub(crate) fn checked_build_relative_contracted_copular_coordinated_adjective(
         "relative_contracted_copular_coordinated_adjective",
         subject_auxiliary.auxiliary,
     )?;
+    crate::grammar::reduce_relative_contracted_copular_coordinated_adjective_features(
+        &contracted_that_features(subject_auxiliary.auxiliary),
+        &Features::CoordinatedModifier {
+            initial_sound: crate::word::InitialSound::Consonant,
+            all_adjectives: true,
+            noun_heads: vec![],
+        },
+    )
+    .ok_or_else(|| {
+        violation(
+            "relative_contracted_copular_coordinated_adjective",
+            "the supplied parts satisfy the handwritten C01 feature law",
+        )
+    })?;
     let value =
         build_relative_contracted_copular_coordinated_adjective(subject_auxiliary, complement)?;
     require_selected(

@@ -53,6 +53,7 @@ pub(crate) use reduction::extend_predicate_features;
 pub(crate) use reduction::fold_auxiliary_passive;
 pub(crate) use reduction::predicate_arguments_complete;
 pub(crate) use reduction::predicate_object_gap_complete;
+pub(crate) use reduction::reduce_relative_contracted_copular_coordinated_adjective_features;
 
 #[cfg(test)]
 pub(crate) mod tests;
