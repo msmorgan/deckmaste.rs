@@ -513,6 +513,38 @@ mod tests {
     }
 
     #[test]
+    fn production_f01_inspect_reports_generated_forms_and_constraints() {
+        let infinitive = verbose_m01("You may choose not to untap this creature.");
+        assert!(
+            infinitive.contains(
+                " infinitive_not_to owner=generated backend=chart form=0 evidence=feature:complete infinitive predicate form and valency"
+            ),
+            "{infinitive}",
+        );
+
+        let gerund = verbose_m01(
+            "You may cast that card by paying life equal to the spell's mana value rather than paying its mana cost.",
+        );
+        for (construction, evidence) in [
+            (
+                "gerund_clause_base",
+                "complete present-participle predicate form and valency",
+            ),
+            (
+                "gerund_clause_subordinate_after",
+                "typed trailing rather-than gerund attachment",
+            ),
+        ] {
+            assert!(
+                gerund.contains(&format!(
+                    " {construction} owner=generated backend=chart form=0 evidence=feature:{evidence}"
+                )),
+                "missing generated F01 evidence for {construction}:\n{gerund}",
+            );
+        }
+    }
+
+    #[test]
     fn normal_output_resolves_spans_while_verbose_output_keeps_them() {
         let cards = [CardFace {
             card_name: "Test Card".to_owned(),

@@ -17,26 +17,6 @@ pub(in crate::grammar) fn add_rules(builder: &mut RuleBuilder) {
     use Nonterminal as N;
 
     builder.add(
-        RuleTag::InfinitiveTo,
-        N::InfinitiveClause,
-        [l(L::To), n(N::VerbPhrase)],
-    );
-    builder.add(
-        RuleTag::InfinitiveNotTo,
-        N::InfinitiveClause,
-        [l(L::Not), l(L::To), n(N::VerbPhrase)],
-    );
-    builder.add(
-        RuleTag::GerundClauseBase,
-        N::GerundClause,
-        [n(N::VerbPhrase)],
-    );
-    builder.add(
-        RuleTag::GerundClauseSubordinateAfter,
-        N::GerundClause,
-        [n(N::GerundClause), l(L::RatherThan), n(N::GerundClause)],
-    );
-    builder.add(
         RuleTag::ClauseCoordination,
         N::Clause,
         [n(N::Clause), l(L::Conjunction), n(N::SimpleClause)],

@@ -7,7 +7,6 @@ use crate::features::Onset as InitialSound;
 use crate::features::Person;
 use crate::grammar::ContractedSubjectAuxiliary as GeneratedContractedSubjectAuxiliary;
 use crate::grammar::CopularRemainder as GeneratedCopularRemainder;
-use crate::grammar::InfinitiveClause as GeneratedInfinitiveClause;
 use crate::grammar::SimpleClause as GeneratedSimpleClause;
 use crate::grammar::VerbAnalysis as GeneratedVerb;
 use crate::grammar::VerbPhrase as GeneratedVerbPhrase;
@@ -987,24 +986,11 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                     self.renderer.prepositional_phrase(prepositional)?
                 }
             }
-            "InfinitiveClause" => {
-                let infinitive = value
-                    .downcast_ref::<GeneratedInfinitiveClause>()
-                    .expect("the predicate infinitive hole preserves its staged type");
-                let (negated, marker, predicate) = infinitive.declaration_parts();
-                if negated {
-                    self.push("not");
-                }
-                if marker == InfinitiveMarker::To {
-                    self.push("to");
-                }
-                Self::accept_generated(
-                    crate::constructions::predicate::linearize_predicate_verb_phrase_with(
-                        predicate, self,
-                    ),
-                )?;
-                return Ok(());
-            }
+            "InfinitiveClause" => self.renderer.infinitive_clause(
+                value
+                    .downcast_ref::<InfinitiveClause>()
+                    .expect("the predicate infinitive hole preserves InfinitiveClause"),
+            )?,
             "Verb" => {
                 Self::accept_generated(
                     crate::constructions::predicate::linearize_predicate_verb_with(

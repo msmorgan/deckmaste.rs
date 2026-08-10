@@ -68,11 +68,7 @@ pub(super) fn reduce(
         | RuleTag::PrepositionalPhraseListComma
         | RuleTag::PrepositionalPhraseSiblingCoordinated
         | RuleTag::PrepositionalObject => reduce_phrase(tag, children)?,
-        RuleTag::InfinitiveTo
-        | RuleTag::InfinitiveNotTo
-        | RuleTag::GerundClauseBase
-        | RuleTag::GerundClauseSubordinateAfter
-        | RuleTag::ClauseCoordination
+        RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
         | RuleTag::ClauseCoordinationCopularNounPrepositional

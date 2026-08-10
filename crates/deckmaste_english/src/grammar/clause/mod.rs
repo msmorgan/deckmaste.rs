@@ -16,13 +16,11 @@ use crate::syntax::CoordinatedPredicateObject;
 use crate::syntax::Coordination;
 use crate::syntax::CoordinationJunction;
 use crate::syntax::DeonticPredicate;
-use crate::syntax::DependentAttachment;
 use crate::syntax::DependentClause;
 use crate::syntax::EllipticalClause;
 use crate::syntax::ExceptionConjunct;
 use crate::syntax::ExceptionRider;
 use crate::syntax::IndependentClause;
-use crate::syntax::InfinitiveMarker;
 #[cfg(test)]
 use crate::syntax::Modal;
 #[cfg(test)]
