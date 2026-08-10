@@ -973,8 +973,8 @@ impl GameState {
             && let GameEvent::Act(Act { verb, .. }) = &act
         {
             self.resolution_contained_act_serial += 1;
-            self.resolution_contained_act_commits
-                .insert(*verb, self.resolution_contained_act_serial);
+            let serial = self.resolution_contained_act_serial;
+            self.resolution_contained_act_commits.insert(*verb, serial);
         }
         if committed && !contained {
             let done: Vec<GameEvent> = match act {
@@ -1196,9 +1196,10 @@ impl GameState {
             .iter()
             .find(|o| o.source == snapshot.source)
             .map(|o| o.id);
-        for key in &self.noting {
+        let noting = self.noting.clone();
+        for key in noting {
             self.noted
-                .entry(*key)
+                .entry(key)
                 .or_default()
                 .push(crate::state::NotedMember {
                     snapshot: snapshot.as_ref().clone(),

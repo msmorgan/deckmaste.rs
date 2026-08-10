@@ -578,6 +578,7 @@ mod tests {
                 state
                     .objects
                     .mint(ObjectSource::Card(card_id), PlayerId(0), Some(Zone::Stack));
+            let source_lki = LkiSnapshot::capture(&state, source);
             state.stack.push(StackEntry {
                 paid_costs: Vec::new(),
                 id: stack_id,
@@ -586,7 +587,7 @@ mod tests {
                     ability: 0,
                     created: None,
                     bindings: TriggerBindings {
-                        this: Some(LkiSnapshot::capture(&state, source)),
+                        this: Some(source_lki),
                         ..Default::default()
                     },
                 },

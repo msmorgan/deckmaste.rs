@@ -4991,8 +4991,9 @@ mod tests {
         put_on_field(&mut state, "Gladecover Scout", PlayerId(1));
 
         let objects_before = state.objects.iter().count();
+        let source = state.objects.obj(pinger).source;
         state.pending_triggers.push(super::NotedTrigger {
-            source: state.objects.obj(pinger).source,
+            source,
             ability: 0,
             created: None,
             controller: PlayerId(0),
@@ -5200,9 +5201,10 @@ mod tests {
         use deckmaste_core::RelationPredicate;
         use deckmaste_core::StatePredicate;
         let (mut state, bear) = bear_on_field();
+        let player = state.players[0].object;
         state
             .objects
-            .obj_mut(state.players[0].object)
+            .obj_mut(player)
             .counters
             .insert("mark".into(), 1);
         let snap = LkiSnapshot::capture(&state, bear);
