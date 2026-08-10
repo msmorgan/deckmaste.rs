@@ -557,6 +557,9 @@ pub(super) fn reduce_simple_clause(
                 gap: GapState::Subject,
                 marker: crate::syntax::RelativeMarker::That,
                 antecedent_agreement: Some(*agreement),
+                contraction: crate::grammar::RelativeContraction::Copular,
+                distributive_each: false,
+                copular: crate::grammar::RelativeCopularClass::CoordinatedAdjective,
                 object_gap_requires_rules_object: false,
                 bare_copular_tail: false,
             })

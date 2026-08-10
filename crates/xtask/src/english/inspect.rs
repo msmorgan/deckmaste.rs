@@ -817,73 +817,90 @@ mod tests {
     }
 
     #[test]
-    fn production_r01_inspect_reports_generated_typed_relative_evidence() {
-        for (source, construction, gap, marker) in [
+    fn production_r01_inspect_reports_decisive_generated_relative_evidence() {
+        for (source, construction, gap, marker, contraction, distributive_each, copular) in [
             (
                 "Each spell you cast costs {1} less to cast.",
                 "relative_object",
                 "Object",
                 "Zero",
+                "Uncontracted",
+                false,
+                "NonCopular",
             ),
             (
                 "Each spell you've cast costs {1} less to cast.",
                 "relative_object_contracted_subject",
                 "Object",
                 "Zero",
-            ),
-            (
-                "A creature that's attacking gets +1/+1.",
-                "relative_subject_contracted_auxiliary",
-                "Subject",
-                "That",
+                "SubjectAuxiliary",
+                false,
+                "NonCopular",
             ),
             (
                 "A creature that attacks gets +1/+1.",
                 "relative_subject",
                 "Subject",
                 "That",
+                "Uncontracted",
+                false,
+                "NonCopular",
             ),
             (
                 "Creature cards that each have a different mana value get +1/+1.",
                 "relative_subject_distributive_each",
                 "Subject",
                 "That",
+                "Uncontracted",
+                true,
+                "NonCopular",
             ),
             (
                 "A card that's a creature is colorless.",
                 "relative_contracted_copular_noun",
                 "Subject",
                 "That",
+                "Copular",
+                false,
+                "Noun",
             ),
             (
                 "A card that's red is colorless.",
                 "relative_contracted_copular_adjective",
                 "Subject",
                 "That",
+                "Copular",
+                false,
+                "Adjective",
             ),
             (
                 "A card that's in exile is colorless.",
                 "relative_contracted_copular_prepositional",
                 "Subject",
                 "That",
+                "Copular",
+                false,
+                "Prepositional",
             ),
         ] {
             let verbose = verbose_m01(source);
             let evidence = format!(
-                "owner=generated backend=chart form=0 evidence=feature:relative gap, marker, and agreement value=gap={gap};marker={marker};agreement="
+                " {construction} owner=generated backend=chart form=0 evidence=feature:decisive relative form signature value=gap={gap};marker={marker};agreement="
             );
-            if construction == "relative_subject_contracted_auxiliary" {
-                assert!(
-                    verbose.contains("alternative relative_subject_contracted_auxiliary#0")
-                        && verbose.contains(&evidence),
-                    "missing packed generated R01 alternative and typed evidence for {source:?}:\n{verbose}",
-                );
-            } else {
-                assert!(
-                    verbose.contains(&format!(" {construction} {evidence}")),
-                    "missing typed R01 evidence for {source:?}:\n{verbose}",
-                );
-            }
+            let evidence_line = verbose
+                .lines()
+                .find(|line| line.contains(&evidence))
+                .unwrap_or_else(|| {
+                    panic!("missing generated R01 evidence line for {source:?}:\n{verbose}")
+                });
+            assert!(
+                evidence_line.contains(&format!("contraction={contraction}"))
+                    && evidence_line.contains(&format!("distributive_each={distributive_each}"))
+                    && evidence_line.contains(&format!("copular={copular}"))
+                    && evidence_line.contains("rules_object=")
+                    && evidence_line.contains("bare_copular_tail="),
+                "missing decisive typed R01 evidence for {source:?}:\n{verbose}",
+            );
             assert!(
                 !verbose.contains(&format!(" {construction} owner=handwritten ")),
                 "R01 retained a handwritten owner for {source:?}:\n{verbose}",

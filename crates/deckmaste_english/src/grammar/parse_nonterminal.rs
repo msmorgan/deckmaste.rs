@@ -723,11 +723,16 @@ fn output_evidence_value(path: &str, feature: &Features) -> Option<String> {
             gap,
             marker,
             antecedent_agreement,
+            contraction,
+            distributive_each,
+            copular,
+            object_gap_requires_rules_object,
+            bare_copular_tail,
             ..
         } = feature
     {
         return Some(format!(
-            "gap={gap:?};marker={marker:?};agreement={antecedent_agreement:?}"
+            "gap={gap:?};marker={marker:?};agreement={antecedent_agreement:?};contraction={contraction:?};distributive_each={distributive_each};copular={copular:?};rules_object={object_gap_requires_rules_object};bare_copular_tail={bare_copular_tail}"
         ));
     }
     if path == "object_category"
@@ -1247,6 +1252,93 @@ mod root_lowering_tests {
         Catalogs::default()
             .with_catalog(CatalogKind::CardType, ["Artifact", "Creature", "Land"])
             .with_catalog(CatalogKind::CreatureType, ["Goblin", "Human"])
+    }
+
+    #[test]
+    fn contracted_relative_exact_alternative_lowers_and_reports_its_own_evidence() {
+        let source = "that's attacking";
+        let catalogs = fixture_catalogs();
+        let surface = lex(source);
+        let grammar = EnglishGrammar::with_opacity_mode(
+            source,
+            &catalogs,
+            Nonterminal::RelativeClause,
+            OpacityMode::Exact,
+            SelfReference::default(),
+        );
+        let chart = parse_chart(&grammar, &surface.tokens).expect("relative chart builds");
+        let mut remaining = 10_000;
+        let mut found = false;
+        for &root in &chart.roots {
+            for selection in chart
+                .forest
+                .enumerate_selections(root, &mut remaining)
+                .expect("relative exact alternatives stay within budget")
+            {
+                let Some(alternative_index) =
+                    crate::forest::AlternativeSelection::alternative(&selection, root)
+                else {
+                    continue;
+                };
+                let Some(rule) = chart.forest.node(root).alternatives[alternative_index].rule
+                else {
+                    continue;
+                };
+                let Some(super::super::rules::RuleImpl::Generated(generated)) =
+                    grammar.impls.get(rule.index()).copied()
+                else {
+                    continue;
+                };
+                let construction = &generated.group.constructions[generated.construction];
+                if construction.id != "relative_subject_contracted_auxiliary" {
+                    continue;
+                }
+                let declaration_evidence = construction
+                    .evidence
+                    .expect("contracted relative declares semantic evidence");
+                assert_eq!(
+                    declaration_evidence.label,
+                    "decisive relative form signature",
+                );
+                assert!(matches!(
+                    declaration_evidence.source,
+                    deckmaste_construction_compiler::runtime::EvidenceSourceData::Output(
+                        "relative_signature",
+                    ),
+                ));
+                assert!(
+                    matches!(
+                        lower(&grammar, &chart.forest, root, &selection),
+                        Some(Lowered::RelativeClause(_)),
+                    ),
+                    "the construction's exact alternative must lower through its own generated builder",
+                );
+                let evidence = output_evidence_value(
+                    "relative_signature",
+                    chart
+                        .forest
+                        .node(root)
+                        .key
+                        .constituent_features()
+                        .expect("relative root retains typed features"),
+                )
+                .expect("relative construction evaluates its output evidence");
+                assert!(evidence.contains("gap=Subject"), "{evidence}");
+                assert!(evidence.contains("marker=That"), "{evidence}");
+                assert!(evidence.contains("agreement=Some("), "{evidence}");
+                assert!(
+                    evidence.contains("contraction=SubjectAuxiliary"),
+                    "{evidence}",
+                );
+                assert!(evidence.contains("distributive_each=false"), "{evidence}");
+                assert!(evidence.contains("copular=NonCopular"), "{evidence}");
+                found = true;
+            }
+        }
+        assert!(
+            found,
+            "the packed contracted-auxiliary construction was not enumerated"
+        );
     }
 
     #[test]

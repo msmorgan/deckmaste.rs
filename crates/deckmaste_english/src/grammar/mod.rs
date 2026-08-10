@@ -1551,6 +1551,22 @@ pub(crate) struct PrepositionalRoleMember {
     pub(crate) nominal_attachment: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum RelativeContraction {
+    Uncontracted,
+    SubjectAuxiliary,
+    Copular,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum RelativeCopularClass {
+    NonCopular,
+    Noun,
+    Adjective,
+    Prepositional,
+    CoordinatedAdjective,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Features {
     None,
@@ -1745,6 +1761,9 @@ pub(crate) enum Features {
         gap: GapState,
         marker: RelativeMarker,
         antecedent_agreement: Option<Agreement>,
+        contraction: RelativeContraction,
+        distributive_each: bool,
+        copular: RelativeCopularClass,
         /// For an object gap, whether the matrix verb requires a rules object
         /// and thus refuses a mass-noun antecedent.
         object_gap_requires_rules_object: bool,
