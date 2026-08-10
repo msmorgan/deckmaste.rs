@@ -3291,6 +3291,7 @@ mod tests {
         };
         assert_eq!(iou.kind, IouKind::ManaPip(ManaPip::Colored(Color::Red)));
 
+        let image_before = format!("{:#?}", state.active());
         let before = prompt;
         assert!(
             state
@@ -3306,6 +3307,11 @@ mod tests {
         assert_eq!(
             after, &before,
             "rejection leaves the active prompt unchanged"
+        );
+        assert_eq!(
+            format!("{:#?}", state.active()),
+            image_before,
+            "rejection leaves the active rules image unchanged"
         );
 
         state

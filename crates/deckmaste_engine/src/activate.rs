@@ -971,11 +971,20 @@ mod tests {
                 CostComponent::Act(action)
                     if matches!(
                         action.as_ref(),
-                        Action::Composite { body, .. }
-                            if !matches!(body.as_ref(), deckmaste_core::OneShotEffect::With(_))
+                        Action::Composite { name, body }
+                            if name.as_str() == "Discard"
+                                && matches!(
+                                    body.as_ref(),
+                                    deckmaste_core::OneShotEffect::Act(Action::Move(
+                                        Reference::This,
+                                        deckmaste_core::Destination::Zone(Zone::Graveyard),
+                                        _,
+                                        _,
+                                    ))
+                                )
                     )
             )),
-            "lowering leaves a runnable, already-bound discard action"
+            "lowering binds the runnable discard action's subject to This"
         );
         assert!(
             cycling.cost.iter().all(|component| !matches!(
@@ -1511,6 +1520,7 @@ mod tests {
         assert_eq!(iou.kind, IouKind::PayLife(2));
 
         let iou = iou.id;
+        let image_before = format!("{:#?}", state.active());
         let before = prompt;
         assert!(
             state
@@ -1527,6 +1537,11 @@ mod tests {
         assert_eq!(
             after, &before,
             "rejection leaves the active prompt unchanged"
+        );
+        assert_eq!(
+            format!("{:#?}", state.active()),
+            image_before,
+            "rejection leaves the active rules image unchanged"
         );
     }
 
@@ -1957,6 +1972,7 @@ mod tests {
             "ManaCostOf locks its blue pip"
         );
 
+        let image_before = format!("{:#?}", state.active());
         let before = prompt;
         assert!(
             state
@@ -1972,6 +1988,11 @@ mod tests {
         assert_eq!(
             after, &before,
             "rejection leaves the active prompt unchanged"
+        );
+        assert_eq!(
+            format!("{:#?}", state.active()),
+            image_before,
+            "rejection leaves the active rules image unchanged"
         );
     }
 
