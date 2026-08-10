@@ -14,6 +14,8 @@ use crate::grammar::ContractedSubjectAuxiliary;
 use crate::grammar::Features;
 use crate::grammar::PredicateForm;
 use crate::grammar::PredicateObjectState;
+use crate::grammar::RelativeContraction;
+use crate::grammar::RelativeCopularClass;
 use crate::grammar::VerbPhrase;
 use crate::grammar::auxiliary_form;
 use crate::grammar::predicate_arguments_complete;
@@ -461,6 +463,9 @@ fn relative_features(
     gap: GapState,
     marker: RelativeMarker,
     antecedent_agreement: Option<crate::grammar::Agreement>,
+    contraction: RelativeContraction,
+    distributive_each: bool,
+    copular: RelativeCopularClass,
     object_gap_requires_rules_object: bool,
     bare_copular_tail: bool,
 ) -> Features {
@@ -468,6 +473,9 @@ fn relative_features(
         gap,
         marker,
         antecedent_agreement,
+        contraction,
+        distributive_each,
+        copular,
         object_gap_requires_rules_object,
         bare_copular_tail,
     }
@@ -506,6 +514,9 @@ fn reduce_relative_object_features(subject: &Features, predicate: &Features) -> 
             GapState::Object,
             RelativeMarker::Zero,
             None,
+            RelativeContraction::Uncontracted,
+            false,
+            RelativeCopularClass::NonCopular,
             *object_gap_requires_rules_object,
             false,
         )
@@ -549,6 +560,9 @@ fn reduce_relative_object_contracted_subject_features(
                 GapState::Object,
                 RelativeMarker::Zero,
                 None,
+                RelativeContraction::SubjectAuxiliary,
+                false,
+                RelativeCopularClass::NonCopular,
                 *object_gap_requires_rules_object,
                 false,
             )
@@ -567,18 +581,38 @@ fn reduce_relative_subject_contracted_auxiliary_features(
     else {
         return None;
     };
-    let Features::VerbPhrase { form, .. } = predicate else {
+    let Features::VerbPhrase {
+        form,
+        passive,
+        object,
+        indirect_object,
+        selected_preposition,
+        frame,
+        ..
+    } = predicate
+    else {
         return None;
     };
     let PredicateForm::Finite(Some(predicate_agreement)) = auxiliary_form(*auxiliary, *form)?
     else {
         return None;
     };
-    (predicate_agreement == *agreement).then(|| {
+    (predicate_agreement == *agreement
+        && predicate_arguments_complete(
+            *frame,
+            *passive,
+            *object,
+            *indirect_object,
+            *selected_preposition,
+        ))
+    .then(|| {
         relative_features(
             GapState::Subject,
             RelativeMarker::That,
             Some(predicate_agreement),
+            RelativeContraction::SubjectAuxiliary,
+            false,
+            RelativeCopularClass::NonCopular,
             false,
             false,
         )
@@ -628,6 +662,9 @@ fn reduce_subject_predicate(
             GapState::Subject,
             marker,
             *antecedent_agreement,
+            RelativeContraction::Uncontracted,
+            distributive_each,
+            RelativeCopularClass::NonCopular,
             false,
             *bare && *head_is_copular,
         )
@@ -648,6 +685,7 @@ fn reduce_relative_subject_distributive_each_features(
 fn reduce_contracted_copular_features(
     subject_auxiliary: &Features,
     _complement: &Features,
+    copular: RelativeCopularClass,
 ) -> Option<Features> {
     let Features::SubjectAuxiliary {
         subject: crate::grammar::ContractedSubjectKey::Demonstrative(Demonstrative::That),
@@ -662,10 +700,42 @@ fn reduce_contracted_copular_features(
             GapState::Subject,
             RelativeMarker::That,
             Some(*agreement),
+            RelativeContraction::Copular,
+            false,
+            copular,
             false,
             false,
         )
     })
+}
+
+fn reduce_contracted_copular_noun_features(
+    subject_auxiliary: &Features,
+    complement: &Features,
+) -> Option<Features> {
+    reduce_contracted_copular_features(subject_auxiliary, complement, RelativeCopularClass::Noun)
+}
+
+fn reduce_contracted_copular_adjective_features(
+    subject_auxiliary: &Features,
+    complement: &Features,
+) -> Option<Features> {
+    reduce_contracted_copular_features(
+        subject_auxiliary,
+        complement,
+        RelativeCopularClass::Adjective,
+    )
+}
+
+fn reduce_contracted_copular_prepositional_features(
+    subject_auxiliary: &Features,
+    complement: &Features,
+) -> Option<Features> {
+    reduce_contracted_copular_features(
+        subject_auxiliary,
+        complement,
+        RelativeCopularClass::Prepositional,
+    )
 }
 
 deckmaste_constructions_macro::constructions! {
@@ -677,7 +747,7 @@ deckmaste_constructions_macro::constructions! {
             predicate: hole ObjectGapPredicate,
         }
         derive features: Features = reduce_relative_object_features(subject, predicate);
-        evidence feature "relative gap, marker, and agreement" from output relative_signature;
+        evidence feature "decisive relative form signature" from output relative_signature;
         form only @ 0 inverse check(is_relative_object) = subject predicate;
         selection unique;
     }
@@ -688,7 +758,7 @@ deckmaste_constructions_macro::constructions! {
             predicate: hole ObjectGapPredicate,
         }
         derive features: Features = reduce_relative_object_contracted_subject_features(subject_auxiliary, predicate);
-        evidence feature "relative gap, marker, and agreement" from output relative_signature;
+        evidence feature "decisive relative form signature" from output relative_signature;
         form only @ 0 inverse check(is_relative_object_contracted_subject) = identity(subject_auxiliary) predicate;
         selection unique;
     }
@@ -699,7 +769,7 @@ deckmaste_constructions_macro::constructions! {
             predicate: hole Predicate,
         }
         derive features: Features = reduce_relative_subject_contracted_auxiliary_features(subject_auxiliary, predicate);
-        evidence feature "relative gap, marker, and agreement" from output relative_signature;
+        evidence feature "decisive relative form signature" from output relative_signature;
         form only @ 0 inverse check(is_relative_subject_contracted_auxiliary) = identity(subject_auxiliary) predicate;
         selection unique;
     }
@@ -710,7 +780,7 @@ deckmaste_constructions_macro::constructions! {
             predicate: hole Predicate,
         }
         derive features: Features = reduce_relative_subject_features(marker, predicate);
-        evidence feature "relative gap, marker, and agreement" from output relative_signature;
+        evidence feature "decisive relative form signature" from output relative_signature;
         form only @ 0 inverse check(is_relative_subject) = identity(marker) predicate;
         dominates relative_object;
         selection unique;
@@ -722,7 +792,7 @@ deckmaste_constructions_macro::constructions! {
             predicate: hole Predicate,
         }
         derive features: Features = reduce_relative_subject_distributive_each_features(marker, predicate);
-        evidence feature "relative gap, marker, and agreement" from output relative_signature;
+        evidence feature "decisive relative form signature" from output relative_signature;
         form only @ 0 inverse check(is_relative_subject_distributive_each) = identity(marker) "each" predicate;
         selection unique;
     }
@@ -732,8 +802,8 @@ deckmaste_constructions_macro::constructions! {
             subject_auxiliary: identity ContractedSubjectAuxiliary via SubjectAuxiliary,
             complement: hole NounPhrase,
         }
-        derive features: Features = reduce_contracted_copular_features(subject_auxiliary, complement);
-        evidence feature "relative gap, marker, and agreement" from output relative_signature;
+        derive features: Features = reduce_contracted_copular_noun_features(subject_auxiliary, complement);
+        evidence feature "decisive relative form signature" from output relative_signature;
         form only @ 0 inverse check(is_relative_contracted_copular_noun) = identity(subject_auxiliary) complement;
         selection unique;
     }
@@ -743,8 +813,8 @@ deckmaste_constructions_macro::constructions! {
             subject_auxiliary: identity ContractedSubjectAuxiliary via SubjectAuxiliary,
             complement: hole AdjectivePhrase,
         }
-        derive features: Features = reduce_contracted_copular_features(subject_auxiliary, complement);
-        evidence feature "relative gap, marker, and agreement" from output relative_signature;
+        derive features: Features = reduce_contracted_copular_adjective_features(subject_auxiliary, complement);
+        evidence feature "decisive relative form signature" from output relative_signature;
         form only @ 0 inverse check(is_relative_contracted_copular_adjective) = identity(subject_auxiliary) complement;
         selection unique;
     }
@@ -754,8 +824,8 @@ deckmaste_constructions_macro::constructions! {
             subject_auxiliary: identity ContractedSubjectAuxiliary via SubjectAuxiliary,
             complement: hole PrepositionalPhrase,
         }
-        derive features: Features = reduce_contracted_copular_features(subject_auxiliary, complement);
-        evidence feature "relative gap, marker, and agreement" from output relative_signature;
+        derive features: Features = reduce_contracted_copular_prepositional_features(subject_auxiliary, complement);
+        evidence feature "decisive relative form signature" from output relative_signature;
         form only @ 0 inverse check(is_relative_contracted_copular_prepositional) = identity(subject_auxiliary) complement;
         selection unique;
     }

@@ -3770,56 +3770,71 @@ fn contracted_subject_auxiliaries_are_structural() {
 }
 
 #[test]
-fn production_r01_forms_lower_with_typed_gap_marker_and_agreement() {
+fn production_r01_forms_lower_with_decisive_typed_relative_evidence() {
     let catalogs = fixture_catalogs();
-    for (source, id, gap, marker) in [
+    for (source, id, gap, marker, contraction, distributive_each, copular) in [
         (
             "each spell you cast",
             "relative_object",
             RelativeGap::Object,
             RelativeMarker::Zero,
+            "Uncontracted",
+            false,
+            "NonCopular",
         ),
         (
             "each spell you've cast",
             "relative_object_contracted_subject",
             RelativeGap::Object,
             RelativeMarker::Zero,
-        ),
-        (
-            "a creature that's attacking",
-            "relative_subject_contracted_auxiliary",
-            RelativeGap::Subject,
-            RelativeMarker::That,
+            "SubjectAuxiliary",
+            false,
+            "NonCopular",
         ),
         (
             "a creature that attacks",
             "relative_subject",
             RelativeGap::Subject,
             RelativeMarker::That,
+            "Uncontracted",
+            false,
+            "NonCopular",
         ),
         (
             "creature cards that each have a different mana value",
             "relative_subject_distributive_each",
             RelativeGap::Subject,
             RelativeMarker::That,
+            "Uncontracted",
+            true,
+            "NonCopular",
         ),
         (
             "a card that's a creature",
             "relative_contracted_copular_noun",
             RelativeGap::Subject,
             RelativeMarker::That,
+            "Copular",
+            false,
+            "Noun",
         ),
         (
             "a card that's red",
             "relative_contracted_copular_adjective",
             RelativeGap::Subject,
             RelativeMarker::That,
+            "Copular",
+            false,
+            "Adjective",
         ),
         (
             "a card that's in exile",
             "relative_contracted_copular_prepositional",
             RelativeGap::Subject,
             RelativeMarker::That,
+            "Copular",
+            false,
+            "Prepositional",
         ),
     ] {
         let parsed = parse_nonterminal(source, &catalogs, Nonterminal::NounPhrase)
@@ -3845,17 +3860,9 @@ fn production_r01_forms_lower_with_typed_gap_marker_and_agreement() {
             .construction_decisions()
             .iter()
             .find(|decision| decision.selected().as_str() == id)
-            .or_else(|| {
-                parsed.construction_decisions().iter().find(|decision| {
-                    decision
-                        .alternatives()
-                        .iter()
-                        .any(|alternative| alternative.id().as_str() == id)
-                })
-            })
             .unwrap_or_else(|| {
                 panic!(
-                    "{source:?} did not retain {id}: {:#?}",
+                    "{source:?} did not select {id}: {:#?}",
                     parsed.construction_decisions()
                 )
             });
@@ -3878,7 +3885,55 @@ fn production_r01_forms_lower_with_typed_gap_marker_and_agreement() {
             "{evidence}"
         );
         assert!(evidence.contains("agreement="), "{evidence}");
+        assert!(
+            evidence.contains(&format!("contraction={contraction}")),
+            "{source:?}: {evidence}",
+        );
+        assert!(
+            evidence.contains(&format!("distributive_each={distributive_each}")),
+            "{source:?}: {evidence}",
+        );
+        assert!(
+            evidence.contains(&format!("copular={copular}")),
+            "{source:?}: {evidence}",
+        );
+        assert!(evidence.contains("rules_object="), "{source:?}: {evidence}");
+        assert!(
+            evidence.contains("bare_copular_tail="),
+            "{source:?}: {evidence}",
+        );
     }
+}
+
+#[test]
+fn contracted_subject_auxiliary_rejects_an_incomplete_transitive_at_chart_time() {
+    let source = "that's affected";
+    let surface = crate::surface::lex(source);
+    let catalogs = fixture_catalogs();
+    let grammar = EnglishGrammar::with_opacity_mode(
+        source,
+        &catalogs,
+        Nonterminal::RelativeClause,
+        OpacityMode::Exact,
+        SelfReference::default(),
+    );
+    let chart = crate::grammar::parse_chart(&grammar, &surface.tokens).expect("chart builds");
+    let admitted = chart.roots.iter().any(|&root| {
+        chart
+            .forest
+            .node(root)
+            .alternatives
+            .iter()
+            .any(|alternative| {
+                alternative.production.is_some_and(|production| {
+                    production.construction.as_str() == "relative_subject_contracted_auxiliary"
+                })
+            })
+    });
+    assert!(
+        !admitted,
+        "incomplete transitive subject relative reached a chart root"
+    );
 }
 
 #[test]
