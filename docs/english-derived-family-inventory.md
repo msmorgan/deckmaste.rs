@@ -27,8 +27,8 @@ comes from the three non-chart entry points documented and dispatched by
 Every one of the 192 chart IDs occurs once in the ledger below: 66 remain
 handwritten, while Q01, D01, J01, M01, V01, F01, F02, S01, N01, and the two
 coordination rows are generated. The three ability IDs occur once in A01. Thus
-the remaining work is 69 rows, with no `later` row. No raw corpus query was needed for this
-accounting; the census is grounded in the registry and the current
+the remaining work is 69 rows, with no `later` row. No raw corpus query was
+needed for this accounting; the census is grounded in the registry and the current
 `FragmentKind` dispatch. Future corpus evidence must use supported faces, and
 normalized-template questions must use the existing English instruments.
 
