@@ -826,7 +826,7 @@ mod tests {
             ))
         );
 
-        let deckmaste_core::CostComponent::Act(action) = cost.lower() else {
+        let deckmaste_core::CostComponent::Act(action) = cost.clone().lower() else {
             panic!("expected a runnable Act cost component");
         };
         assert_eq!(*action, Action::Sacrifice(Reference::You, Reference::This));
