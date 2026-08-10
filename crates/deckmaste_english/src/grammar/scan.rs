@@ -41,7 +41,6 @@ use super::Pronoun;
 use super::PronounCase;
 use super::PronounInstance;
 use super::Punctuation;
-use super::RuleTag;
 use super::SUBJECT_AUXILIARY_FORMS;
 use super::SUBJECT_AUXILIARY_SURFACES;
 use super::SetExceptionState;
@@ -1227,33 +1226,4 @@ pub(super) fn parse_signed_scalar(surface: &str) -> Option<crate::syntax::Signed
         _ => ScalarValue::Integer(body.parse().ok()?),
     };
     Some(crate::syntax::SignedScalar { sign, value })
-}
-
-pub(super) fn noun_phrase_accepts_set_exception(features: &Features) -> bool {
-    matches!(
-        features,
-        Features::NounPhrase {
-            set_exception: SetExceptionState::Host,
-            ..
-        }
-    )
-}
-
-/// Dot-1 gate for recursive noun-phrase set exceptions and the neighbouring
-/// rules. Only an `all`/`each` set may predict `except`; a completed exception
-/// cannot grow another exception.
-pub(super) fn accepts_set_exception_prefix(
-    tag: RuleTag,
-    completed_children: usize,
-    latest_child: &Features,
-) -> bool {
-    if matches!(
-        tag,
-        RuleTag::NounPhraseSetExceptionBare | RuleTag::NounPhraseSetExceptionFor
-    ) && completed_children == 1
-    {
-        return noun_phrase_accepts_set_exception(latest_child);
-    }
-
-    true
 }

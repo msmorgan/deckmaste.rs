@@ -437,6 +437,7 @@ fn engine_category(name: &str) -> Option<Nonterminal> {
         "Adjective" => Nonterminal::Adjective,
         "Noun" | "NounInstance" => Nonterminal::Noun,
         "NounPhrase" => Nonterminal::NounPhrase,
+        "RulesObjectNounPhrase" => Nonterminal::RulesObjectNounPhrase,
         "NominalPhrase" => Nonterminal::Nominal,
         "PossessiveNominal" => Nonterminal::PossessiveNounPhrase,
         "Determiner" => Nonterminal::Determiner,
@@ -554,6 +555,15 @@ pub(super) fn typed_feature_projection(
         }
         ("attachment", "reading_dispreference") => Some(
             crate::constructions::attachment::reduce_attachment_reading_dispreference(
+                construction,
+                fields,
+            ),
+        ),
+        ("noun_phrase", "features") => Some(
+            crate::constructions::noun_phrase::reduce_noun_phrase_features(construction, fields),
+        ),
+        ("noun_phrase", "prefix_admission") => Some(
+            crate::constructions::noun_phrase::reduce_noun_phrase_prefix_admission(
                 construction,
                 fields,
             ),
@@ -708,6 +718,30 @@ fn identity_slot(
         ("ClosedDeterminer", "Determiner") => Ok(EnglishLexicalSlot::Determiner),
         ("NounInstance", "PossessiveNoun") => Ok(EnglishLexicalSlot::PossessiveNoun),
         ("ThisCardForm", "PossessiveThisCard") => Ok(EnglishLexicalSlot::PossessiveThisCard),
+        ("ThisCardForm", "ThisCard") => Ok(EnglishLexicalSlot::ThisCard),
+        ("ThisCardForm", "FullThisCard") => Ok(EnglishLexicalSlot::FullThisCard),
+        ("Pronoun", "SubjectPronoun") => Ok(EnglishLexicalSlot::Pronoun(
+            crate::word::PronounCase::Subject,
+        )),
+        ("Pronoun", "ObjectPronoun") => Ok(EnglishLexicalSlot::Pronoun(
+            crate::word::PronounCase::Object,
+        )),
+        ("Pronoun", "Reciprocal") => Ok(EnglishLexicalSlot::Reciprocal),
+        ("Demonstrative", "Demonstrative") => Ok(EnglishLexicalSlot::Demonstrative),
+        ("PartitiveHead", "PartitiveEach") => Ok(EnglishLexicalSlot::PartitiveHead(
+            crate::syntax::PartitiveHead::Each,
+        )),
+        ("SetExceptionMarker", "SetExceptionMarker") => Ok(EnglishLexicalSlot::SetExceptionMarker(
+            if owner == "noun_phrase_set_exception_bare" {
+                crate::syntax::SetExceptionMarker::Bare
+            } else {
+                crate::syntax::SetExceptionMarker::For
+            },
+        )),
+        ("Rounding", "RoundingUp") => Ok(EnglishLexicalSlot::Rounding(crate::syntax::Rounding::Up)),
+        ("Rounding", "RoundingDown") => {
+            Ok(EnglishLexicalSlot::Rounding(crate::syntax::Rounding::Down))
+        }
         ("CatalogAtom", "AbilityItem") => Ok(EnglishLexicalSlot::AbilityItem),
         ("QuotedAbility", "QuotedAbility") => Ok(EnglishLexicalSlot::QuotedAbility),
         ("OracleSymbol", "OracleSymbol") => Ok(EnglishLexicalSlot::OracleSymbol),

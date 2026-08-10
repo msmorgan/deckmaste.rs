@@ -3,7 +3,6 @@ use super::Expected;
 use super::HashMap;
 use super::Nonterminal;
 use super::ParseCost;
-use super::PronounCase;
 use super::Punctuation;
 use super::Rule;
 use super::RuleId;
@@ -213,119 +212,6 @@ impl RuleBuilder {
         use Expected::Nonterminal as n;
         use Nonterminal as N;
 
-        self.add(RuleTag::NounPhraseNominal, N::NounPhrase, [n(N::Nominal)]);
-        self.add(
-            RuleTag::NounPhraseSubjectPronoun,
-            N::NounPhrase,
-            [l(L::Pronoun(PronounCase::Subject))],
-        );
-        self.add(
-            RuleTag::NounPhraseObjectPronoun,
-            N::NounPhrase,
-            [l(L::Pronoun(PronounCase::Object))],
-        );
-        self.add(
-            RuleTag::NounPhraseReciprocal,
-            N::NounPhrase,
-            [l(L::Reciprocal)],
-        );
-        self.add(RuleTag::NounPhraseQuantity, N::NounPhrase, [n(N::Quantity)]);
-        self.add(RuleTag::NounPhraseThisCard, N::NounPhrase, [l(L::ThisCard)]);
-        self.add(
-            RuleTag::NounPhraseFullThisCard,
-            N::NounPhrase,
-            [l(L::FullThisCard)],
-        );
-        self.add(
-            RuleTag::NounPhrasePossessiveThisCard,
-            N::NounPhrase,
-            [l(L::PossessiveThisCard)],
-        );
-        self.add(
-            RuleTag::NounPhraseDemonstrative,
-            N::NounPhrase,
-            [l(L::Demonstrative)],
-        );
-        self.add(
-            RuleTag::NounPhrasePartitive,
-            N::NounPhrase,
-            [n(N::Quantity), l(L::Of), n(N::NounPhrase)],
-        );
-        self.add(
-            RuleTag::NounPhraseEachPartitive,
-            N::NounPhrase,
-            [l(L::EachDeterminer), l(L::Of), n(N::NounPhrase)],
-        );
-        // `any number of <plural NounPhrase>` — notional plural concord
-        // [`anof` round]. The categorical gate is the dedicated `any` and
-        // `number` lexical slots, which scan nothing but those two literal
-        // words; that gate is already enforced at dot 0/dot 1, before the
-        // recursive `NounPhrase` is even predicted, so no `accepts_prefix`
-        // change is needed. The one remaining condition — the final noun
-        // phrase must be plural — depends on the fourth child and cannot be
-        // hoisted before reduce. Registered with a precedence dispreference:
-        // this is a fallback behind the ordinary formal-singular nominal
-        // analysis of the same surface, not a competing analysis of a
-        // different surface. `precedence` only breaks ties among derivations
-        // that both complete, so the formal-singular reading wins whenever it
-        // completes, and this production is the only parse whenever a plural
-        // predicate makes the singular reading fail to complete. Same idiom
-        // as generated noun-phrase coordination below.
-        self.add_with_cost(
-            RuleTag::NounPhraseAnyNumberOf,
-            N::NounPhrase,
-            [
-                l(L::AnyDeterminer),
-                l(L::NumberNoun),
-                l(L::Of),
-                n(N::NounPhrase),
-            ],
-            ParseCost {
-                precedence: 1,
-                ..ParseCost::default()
-            },
-        );
-        // Arithmetic value expressions. `plus` rides generated noun-phrase
-        // coordination and `twice` the copular precomplement adverb, so only the
-        // subtraction and halving operators are added here as structured value
-        // nodes.
-        self.add_with_cost(
-            RuleTag::NounPhraseMinus,
-            N::NounPhrase,
-            [n(N::NounPhrase), l(L::Minus), n(N::NounPhrase)],
-            ParseCost {
-                precedence: 1,
-                ..ParseCost::default()
-            },
-        );
-        self.add(
-            RuleTag::NounPhraseHalf,
-            N::NounPhrase,
-            [l(L::Half), n(N::NounPhrase)],
-        );
-        self.add(
-            RuleTag::NounPhraseHalfRoundedUp,
-            N::NounPhrase,
-            [
-                l(L::Half),
-                n(N::NounPhrase),
-                l(L::Punctuation(Punctuation::Comma)),
-                l(L::Rounded),
-                l(L::Up),
-            ],
-        );
-        self.add(
-            RuleTag::NounPhraseHalfRoundedDown,
-            N::NounPhrase,
-            [
-                l(L::Half),
-                n(N::NounPhrase),
-                l(L::Punctuation(Punctuation::Comma)),
-                l(L::Rounded),
-                l(L::Down),
-            ],
-        );
-
         self.add(
             RuleTag::PrepositionalPhrase,
             N::PrepositionalPhrase,
@@ -355,55 +241,6 @@ impl RuleBuilder {
 
     pub(super) fn add_clause_rules(&mut self) {
         clause::add_rules(self);
-    }
-
-    /// A noun-phrase-denotation exception (`all creatures except (for)
-    /// Dragons`).
-    /// The completed host is checked at dot 1 before either `except` surface is
-    /// predicted, preventing open noun fragments from launching this recursive
-    /// noun-phrase attachment.
-    pub(super) fn add_set_exception_rules(&mut self) {
-        use EnglishLexicalSlot as L;
-        use Expected::Lexical as l;
-        use Expected::Nonterminal as n;
-        use Nonterminal as N;
-
-        self.add(
-            RuleTag::NounPhraseSetExceptionBare,
-            N::NounPhrase,
-            [n(N::NounPhrase), l(L::Except), n(N::NounPhrase)],
-        );
-        self.add(
-            RuleTag::NounPhraseSetExceptionFor,
-            N::NounPhrase,
-            [
-                n(N::NounPhrase),
-                l(L::Except),
-                l(L::ForWord),
-                n(N::NounPhrase),
-            ],
-        );
-        self.add(
-            RuleTag::NounPhraseSetExceptionBare,
-            N::NounPhrase,
-            [
-                n(N::NounPhrase),
-                l(L::Punctuation(Punctuation::Comma)),
-                l(L::Except),
-                n(N::NounPhrase),
-            ],
-        );
-        self.add(
-            RuleTag::NounPhraseSetExceptionFor,
-            N::NounPhrase,
-            [
-                n(N::NounPhrase),
-                l(L::Punctuation(Punctuation::Comma)),
-                l(L::Except),
-                l(L::ForWord),
-                n(N::NounPhrase),
-            ],
-        );
     }
 
     /// A narrow subject-shared copular continuation for additive type
@@ -655,25 +492,6 @@ impl RuleBuilder {
             },
         );
     }
-
-    /// Selectionally constrained relative attachment inside coordinated PP
-    /// objects. The grammar constructor registers these last so the dedicated
-    /// categories cannot renumber or perturb prior rules.
-    pub(super) fn add_rules_object_attachment_rules(&mut self) {
-        use Expected::Nonterminal as n;
-        use Nonterminal as N;
-
-        self.add(
-            RuleTag::RulesObjectNounPhrase,
-            N::RulesObjectNounPhrase,
-            [n(N::RulesObjectNominal)],
-        );
-        self.add(
-            RuleTag::RulesObjectNounPhrase,
-            N::RulesObjectNounPhrase,
-            [n(N::RulesObjectFollowupNominal)],
-        );
-    }
 }
 
 fn reorder_registrations(registrations: &mut [RuleRegistration], order: RegistrationOrder) {
@@ -743,17 +561,17 @@ mod tests {
     fn interleaved_builder() -> RuleBuilder {
         let mut builder = RuleBuilder::default();
         builder.add(
-            RuleTag::NounPhraseNominal,
+            RuleTag::PrepositionalObject,
             Nonterminal::Determiner,
             [Expected::Lexical(EnglishLexicalSlot::Determiner)],
         );
         builder.add(
-            RuleTag::NounPhraseNominal,
+            RuleTag::PrepositionalObject,
             Nonterminal::Determiner,
             [Expected::Lexical(EnglishLexicalSlot::Determiner)],
         );
         builder.add(
-            RuleTag::NounPhraseThisCard,
+            RuleTag::PrepositionalPhrase,
             Nonterminal::Determiner,
             [Expected::Lexical(EnglishLexicalSlot::DeterminerTarget)],
         );

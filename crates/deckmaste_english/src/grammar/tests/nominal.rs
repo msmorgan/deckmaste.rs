@@ -1474,6 +1474,94 @@ mod tests {
     }
 
     #[test]
+    fn production_p01_direct_shapes_preserve_identity_and_arithmetic() {
+        use crate::syntax::ArithmeticValue;
+        use crate::syntax::PartitiveHead;
+        use crate::syntax::Rounding;
+        use crate::syntax::ThisCardForm;
+
+        let assert_generated = |parsed: &ParsedNonterminal, construction: &str| {
+            let decision = parsed
+                .construction_decisions()
+                .iter()
+                .find(|decision| decision.selected().as_str() == construction)
+                .unwrap_or_else(|| panic!("missing {construction}: {:#?}", parsed.noun_phrase()));
+            assert_eq!(decision.owner(), crate::ConstructionOwner::Generated);
+        };
+
+        for (source, pronoun, case) in [
+            ("they", Pronoun::They, PronounCase::Subject),
+            ("them", Pronoun::They, PronounCase::Object),
+            ("each other", Pronoun::EachOther, PronounCase::Object),
+        ] {
+            let parsed = parse(source);
+            assert!(matches!(
+                parsed.noun_phrase(),
+                Some(NounPhrase::Pronoun { pronoun: actual_pronoun, case: actual_case })
+                    if *actual_pronoun == pronoun && *actual_case == case
+            ));
+            assert_generated(
+                &parsed,
+                if case == PronounCase::Subject {
+                    "noun_phrase_subject_pronoun"
+                } else if pronoun == Pronoun::EachOther {
+                    "noun_phrase_reciprocal"
+                } else {
+                    "noun_phrase_object_pronoun"
+                },
+            );
+        }
+
+        assert!(matches!(
+            parse_self("Nissa").noun_phrase(),
+            Some(NounPhrase::ThisCard(ThisCardForm::AbbreviatedName))
+        ));
+        assert!(matches!(
+            parse_self("Nissa Revane").noun_phrase(),
+            Some(NounPhrase::ThisCard(ThisCardForm::FullName))
+        ));
+        assert!(matches!(
+            parse_self("Nissa's").noun_phrase(),
+            Some(NounPhrase::Possessive(_))
+        ));
+
+        assert!(matches!(
+            parse("one of them").noun_phrase(),
+            Some(NounPhrase::Partitive(crate::syntax::PartitiveNounPhrase {
+                head: PartitiveHead::Quantity(_),
+                ..
+            }))
+        ));
+        assert!(matches!(
+            parse("each of them").noun_phrase(),
+            Some(NounPhrase::Partitive(crate::syntax::PartitiveNounPhrase {
+                head: PartitiveHead::Each,
+                ..
+            }))
+        ));
+        assert!(matches!(
+            parse("any number of target players").noun_phrase(),
+            Some(NounPhrase::Nominal(_))
+        ));
+
+        assert!(matches!(
+            parse("3 minus 1").noun_phrase(),
+            Some(NounPhrase::Arithmetic(ArithmeticValue::Minus { .. }))
+        ));
+        for (source, expected) in [
+            ("half 3", None),
+            ("half 3, rounded up", Some(Rounding::Up)),
+            ("half 3, rounded down", Some(Rounding::Down)),
+        ] {
+            assert!(matches!(
+                parse(source).noun_phrase(),
+                Some(NounPhrase::Arithmetic(ArithmeticValue::Half { rounding, .. }))
+                    if *rounding == expected
+            ));
+        }
+    }
+
+    #[test]
     fn nominal_fixtures_parse_structurally_and_render_without_source() {
         for source in [
             "a card",

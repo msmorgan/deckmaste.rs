@@ -959,7 +959,7 @@ pub enum ArithmeticValue {
 /// The rounding rider on a `half` value expression. Magic rounds a fractional
 /// result up or down as the surface directs; the direction is carried so the
 /// renderer replays it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Rounding {
     Up,
     Down,
@@ -974,7 +974,7 @@ pub struct PartitiveNounPhrase {
 /// The quantifier heading a partitive `<head> of <whole>`. `Quantity` covers
 /// the counted partitives (`one of them`, `more than one of X`); `Each` is the
 /// distributive `each of X`, whose determiner is not a count quantity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum PartitiveHead {
     Quantity(Quantity),
     Each,
@@ -1669,7 +1669,7 @@ pub enum NominalComplement {
     KeywordArgument(super::KeywordArgument),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum SetExceptionMarker {
     Bare,
     For,

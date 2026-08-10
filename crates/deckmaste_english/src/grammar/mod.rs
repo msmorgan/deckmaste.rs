@@ -52,13 +52,11 @@ use reduction::reduce;
 use rules::RegistrationOrder;
 use rules::RuleBuilder;
 use rules::RuleImpl;
-use scan::accepts_set_exception_prefix;
 pub(crate) use scan::adjective_comparison_state;
 pub(crate) use scan::adjective_features;
 use scan::copula_agreement;
 use scan::lexical_word_matches;
 use scan::literal_match;
-use scan::noun_phrase_accepts_set_exception;
 use scan::parse_power_toughness;
 use scan::parse_symbol_sequence;
 use scan::possessive_this_card_match;
@@ -146,7 +144,6 @@ use crate::syntax::RelativeClause;
 use crate::syntax::RelativeMarker;
 use crate::syntax::Sentence;
 use crate::syntax::SetExceptionMarker;
-use crate::syntax::SetExceptionNounPhrase;
 use crate::syntax::Subject;
 use crate::syntax::ThisCardForm;
 use crate::syntax::VerbParticle;
@@ -1012,6 +1009,9 @@ pub(crate) enum EnglishLexicalSlot {
     AnyCoinResult,
     Frequency,
     Pronoun(PronounCase),
+    SetExceptionMarker(SetExceptionMarker),
+    PartitiveHead(crate::syntax::PartitiveHead),
+    Rounding(crate::syntax::Rounding),
     Auxiliary,
     AbilityItem,
     AbilityWord,
@@ -1122,6 +1122,12 @@ impl EnglishLexicalSlot {
             Self::EachDeterminer => &["each"],
             Self::AnyDeterminer => &["any"],
             Self::Reciprocal => &["each", "other"],
+            Self::SetExceptionMarker(SetExceptionMarker::Bare) => &["except"],
+            Self::SetExceptionMarker(SetExceptionMarker::For) => &["except", "for"],
+            Self::PartitiveHead(crate::syntax::PartitiveHead::Each) => &["each"],
+            Self::PartitiveHead(crate::syntax::PartitiveHead::Quantity(_)) => &[],
+            Self::Rounding(crate::syntax::Rounding::Up) => &["up"],
+            Self::Rounding(crate::syntax::Rounding::Down) => &["down"],
             Self::RatherThan => &["rather", "than"],
             Self::Plus => &["plus"],
             Self::Minus => &["minus"],
@@ -1201,6 +1207,11 @@ impl EnglishLexicalSlot {
         Self::EachDeterminer,
         Self::AnyDeterminer,
         Self::Reciprocal,
+        Self::SetExceptionMarker(SetExceptionMarker::Bare),
+        Self::SetExceptionMarker(SetExceptionMarker::For),
+        Self::PartitiveHead(crate::syntax::PartitiveHead::Each),
+        Self::Rounding(crate::syntax::Rounding::Up),
+        Self::Rounding(crate::syntax::Rounding::Down),
         Self::RatherThan,
         Self::Plus,
         Self::Minus,
@@ -1215,7 +1226,13 @@ impl EnglishLexicalSlot {
     /// opacity known-word invariant. Indexing avoids a second spelling table.
     const fn reserves_literal_for_opacity(self, surface_index: usize) -> bool {
         match self {
-            Self::Plus | Self::Except | Self::Not | Self::Up | Self::Down | Self::Minus => true,
+            Self::Plus
+            | Self::Except
+            | Self::SetExceptionMarker(SetExceptionMarker::Bare)
+            | Self::Not
+            | Self::Up
+            | Self::Down
+            | Self::Minus => true,
             // Reserve `who` but not determiner-known `that`, and measured
             // `there` but not the still-unaudited contraction `there's`.
             Self::RelativeMarker | Self::Existential => surface_index == 0,
@@ -1257,6 +1274,9 @@ impl EnglishLexicalSlot {
             | Self::CoinResult(_)
             | Self::Frequency
             | Self::Pronoun(_)
+            | Self::SetExceptionMarker(SetExceptionMarker::For)
+            | Self::PartitiveHead(_)
+            | Self::Rounding(_)
             | Self::Auxiliary
             | Self::AbilityItem
             | Self::AbilityWord
@@ -1316,14 +1336,14 @@ pub(crate) enum NounForm {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct QuantityFeatures {
     pub(crate) cardinality: NounCardinality,
-    standalone_number: Number,
-    is_one: bool,
+    pub(crate) standalone_number: Number,
+    pub(crate) is_one: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct Agreement {
-    person: Person,
-    number: Number,
+    pub(crate) person: Person,
+    pub(crate) number: Number,
 }
 
 impl Agreement {
@@ -1930,6 +1950,9 @@ pub(crate) enum MeaningKey {
     CoinResult(crate::syntax::CoinSide),
     Frequency(FrequencyPhrase),
     Pronoun(PronounInstance),
+    SetExceptionMarker(SetExceptionMarker),
+    PartitiveHead(crate::syntax::PartitiveHead),
+    Rounding(crate::syntax::Rounding),
     Auxiliary(AuxiliaryFeatures),
     Verb(VerbAnalysis),
     Catalog(crate::catalog::CatalogAtom),
@@ -2006,30 +2029,6 @@ pub(crate) struct SubjectAuxiliaryKey {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, strum::EnumIter, strum::IntoStaticStr)]
 #[strum(serialize_all = "snake_case")]
 enum RuleTag {
-    NounPhraseSetExceptionBare,
-    NounPhraseSetExceptionFor,
-    NounPhraseNominal,
-    RulesObjectNounPhrase,
-    NounPhraseSubjectPronoun,
-    NounPhraseObjectPronoun,
-    NounPhraseReciprocal,
-    NounPhraseQuantity,
-    NounPhraseThisCard,
-    NounPhraseFullThisCard,
-    NounPhrasePossessiveThisCard,
-    NounPhraseDemonstrative,
-    NounPhrasePartitive,
-    NounPhraseEachPartitive,
-    /// `NounPhrase -> AnyDeterminer NumberNoun Of NounPhrase` — notional
-    /// plural concord for `any number of <plural NounPhrase>` [`anof` round].
-    /// Registered as a fallback (`add_with_cost`, `precedence: 1`) alongside
-    /// the ordinary formal-singular nominal path; see the registration site
-    /// for the full rationale.
-    NounPhraseAnyNumberOf,
-    NounPhraseMinus,
-    NounPhraseHalf,
-    NounPhraseHalfRoundedUp,
-    NounPhraseHalfRoundedDown,
     PrepositionalPhrase,
     PrepositionalObject,
     ClauseCoordination,
@@ -2176,14 +2175,11 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         builder.add_coordination_consumer_rules();
         // This rule's dot-1 gate (`Features::Subordinator(While)`) is likewise
         // categorical.
-        // This widens `NounPhrase`, but its dot-1 host gate is categorical.
-        builder.add_set_exception_rules();
         // The subject-shared copular continuation also has a categorical dot-1
         // host gate.
         builder.add_shared_copular_coordination_rules();
         // These scoped categories retain the final member of coordinated PP
         // objects; family order does not decide their selection.
-        builder.add_rules_object_attachment_rules();
         if let Some(groups) = activation.groups() {
             if !activation.is_production() {
                 builder.replace_handwritten_families_for_generated_test(groups);
@@ -3053,6 +3049,45 @@ impl Grammar for EnglishGrammar<'_, '_> {
             EnglishLexicalSlot::Pronoun(case) => {
                 self.word_matches(tokens, start, LexicalSlot::Pronoun(case))
             }
+            slot @ EnglishLexicalSlot::SetExceptionMarker(marker) => self
+                .literal_words_match(tokens, start, slot)
+                .map(|end| LexicalMatch {
+                    end,
+                    features: Features::None,
+                    meaning: MeaningKey::SetExceptionMarker(marker),
+                    local_cost: ParseCost::default(),
+                })
+                .into_iter()
+                .collect(),
+            slot @ EnglishLexicalSlot::PartitiveHead(head @ crate::syntax::PartitiveHead::Each) => {
+                self.literal_token_match(tokens, start, slot)
+                    .map(|end| LexicalMatch {
+                        end,
+                        features: Features::Determiner {
+                            cardinality: NounCardinality::SingularCount,
+                            article: None,
+                            demonstrative_this: false,
+                            set_exception_host: true,
+                        },
+                        meaning: MeaningKey::PartitiveHead(head),
+                        local_cost: ParseCost::default(),
+                    })
+                    .into_iter()
+                    .collect()
+            }
+            EnglishLexicalSlot::PartitiveHead(crate::syntax::PartitiveHead::Quantity(_)) => {
+                Vec::new()
+            }
+            slot @ EnglishLexicalSlot::Rounding(rounding) => self
+                .literal_token_match(tokens, start, slot)
+                .map(|end| LexicalMatch {
+                    end,
+                    features: Features::None,
+                    meaning: MeaningKey::Rounding(rounding),
+                    local_cost: ParseCost::default(),
+                })
+                .into_iter()
+                .collect(),
             EnglishLexicalSlot::Auxiliary => {
                 self.word_matches(tokens, start, LexicalSlot::Auxiliary)
             }
@@ -3357,8 +3392,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
     ) -> bool {
         match self.impls.get(rule.index()).copied() {
             Some(RuleImpl::Handwritten(tag)) => {
-                accepts_set_exception_prefix(tag, completed_children, latest_child)
-                    && clause::accepts_predicate_prefix(tag, completed_children, latest_child)
+                clause::accepts_predicate_prefix(tag, completed_children, latest_child)
             }
             Some(RuleImpl::Generated(generated)) => {
                 reduction::generated_accepts_prefix(generated, completed_children, latest_child)

@@ -3437,6 +3437,7 @@ mod tests {
             noun::GROUPS[0],
             crate::constructions::determiner::GROUPS[0],
             crate::constructions::nominal::GROUPS[0],
+            crate::constructions::noun_phrase::GROUPS[0],
             coordination::GROUPS[0],
         ];
         let activation = GeneratedActivation::Groups(GROUPS);

@@ -31,7 +31,7 @@ fn family(tag: RuleTag) -> ConstructionFamily {
     )
 }
 
-fn dominance_edges() -> [DominanceEdge; 3] {
+fn dominance_edges() -> [DominanceEdge; 1] {
     let edge = |dominant, subordinate| {
         DominanceEdge::new(construction_id(dominant), construction_id(subordinate))
     };
@@ -39,11 +39,6 @@ fn dominance_edges() -> [DominanceEdge; 3] {
         // These relationships make the grammar's former insertion-order
         // preferences explicit. They were censused against the full English
         // suite when construction identity replaced numeric rule order.
-        edge(RuleTag::NounPhraseNominal, RuleTag::NounPhraseMinus),
-        edge(
-            RuleTag::NounPhraseSubjectPronoun,
-            RuleTag::NounPhraseObjectPronoun,
-        ),
         edge(RuleTag::RelativeSubject, RuleTag::RelativeObject),
     ]
 }
@@ -199,6 +194,70 @@ mod tests {
                 .expect("generated coordination family is registered");
             assert_eq!(family.owner(), ConstructionOwner::Generated);
             assert_eq!(family.backend(), ConstructionBackend::Chart);
+        }
+    }
+
+    #[test]
+    fn production_noun_phrase_families_are_generated_only() {
+        let ids = [
+            "noun_phrase_set_exception_bare",
+            "noun_phrase_set_exception_for",
+            "noun_phrase_nominal",
+            "rules_object_noun_phrase",
+            "noun_phrase_subject_pronoun",
+            "noun_phrase_object_pronoun",
+            "noun_phrase_reciprocal",
+            "noun_phrase_quantity",
+            "noun_phrase_this_card",
+            "noun_phrase_full_this_card",
+            "noun_phrase_possessive_this_card",
+            "noun_phrase_demonstrative",
+            "noun_phrase_partitive",
+            "noun_phrase_each_partitive",
+            "noun_phrase_any_number_of",
+            "noun_phrase_minus",
+            "noun_phrase_half",
+            "noun_phrase_half_rounded_up",
+            "noun_phrase_half_rounded_down",
+        ];
+
+        for name in ids {
+            let id = ConstructionId::new(name);
+            assert!(
+                handwritten_registry().family(id).is_none(),
+                "{name} still has a handwritten owner"
+            );
+            let family = registry()
+                .family(id)
+                .unwrap_or_else(|| panic!("{name} is absent from production"));
+            assert_eq!(family.owner(), ConstructionOwner::Generated, "{name}");
+            assert_eq!(family.backend(), ConstructionBackend::Chart, "{name}");
+        }
+
+        let expected = [
+            ("noun_phrase_nominal", "noun_phrase_minus"),
+            ("noun_phrase_subject_pronoun", "noun_phrase_object_pronoun"),
+            ("noun_phrase_nominal", "noun_phrase_coordination"),
+        ];
+        for (winner, loser) in expected {
+            assert!(
+                registry().dominates(ConstructionId::new(winner), ConstructionId::new(loser)),
+                "missing P01 dominance edge {winner}>{loser}"
+            );
+        }
+        for &winner in &ids {
+            for &loser in &ids {
+                let expected = matches!(
+                    (winner, loser),
+                    ("noun_phrase_nominal", "noun_phrase_minus")
+                        | ("noun_phrase_subject_pronoun", "noun_phrase_object_pronoun")
+                );
+                assert_eq!(
+                    registry().dominates(ConstructionId::new(winner), ConstructionId::new(loser)),
+                    expected,
+                    "unexpected P01-to-P01 dominance relation {winner}>{loser}"
+                );
+            }
         }
     }
 
@@ -398,8 +457,8 @@ mod tests {
             .iter()
             .filter(|family| family.owner() == ConstructionOwner::Generated)
             .count();
-        assert_eq!(handwritten, 50, "handwritten chart families");
-        assert_eq!(generated, 142, "generated chart families");
+        assert_eq!(handwritten, 31, "handwritten chart families");
+        assert_eq!(generated, 161, "generated chart families");
         assert_eq!(families.len(), 192, "all chart families");
 
         let chart_fragment_entries = [FragmentKind::Nominal, FragmentKind::Sentence];
@@ -410,7 +469,7 @@ mod tests {
         ];
         assert_eq!(chart_fragment_entries.len(), 2);
         assert_eq!(ability_fragment_entries.len(), 3);
-        assert_eq!(handwritten + ability_fragment_entries.len(), 53);
+        assert_eq!(handwritten + ability_fragment_entries.len(), 34);
         assert_eq!(families.len() + ability_fragment_entries.len(), 195);
 
         for id in [
@@ -554,7 +613,7 @@ mod tests {
             );
         }
         assert!(registry().dominates(
-            construction_id(RuleTag::NounPhraseNominal),
+            ConstructionId::new("noun_phrase_nominal"),
             ConstructionId::new("noun_phrase_coordination"),
         ));
     }
