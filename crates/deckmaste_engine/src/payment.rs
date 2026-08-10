@@ -62,7 +62,7 @@ pub enum PaymentPurpose {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PaymentSubject {
     Spell(ObjectId),
-    Activated { source: ObjectId, ability: usize },
+    Activated { ability: ObjectId, source: ObjectId },
     Effect { source: ObjectId },
 }
 
@@ -131,8 +131,7 @@ impl LockedPayment {
             .collect()
     }
 
-    #[cfg(test)]
-    fn image_only(payer: PlayerId, subject: PaymentSubject, frame: Frame) -> Self {
+    fn proposal_placeholder(payer: PlayerId, subject: PaymentSubject, frame: Frame) -> Self {
         Self {
             payer,
             subject,
@@ -150,10 +149,6 @@ impl LockedPayment {
 #[derive(Debug, Clone)]
 pub struct PaymentFrame {
     pub(crate) working: GameImage,
-    #[expect(
-        dead_code,
-        reason = "the transaction base is consumed by payment integration and replay tasks"
-    )]
     pub(crate) payment_base: Option<GameImage>,
     pub payer: PlayerId,
     pub subject: PaymentSubject,
@@ -187,19 +182,55 @@ impl PaymentFrame {
         }
     }
 
-    /// Task-5 compatibility constructor for tests that exercise only active
-    /// image isolation, before a real payment has been opened.
-    #[cfg(test)]
-    pub(crate) fn image_only(working: GameImage) -> Self {
-        let payer = working.turn.active_player;
+    /// Start an isolated announcement before its total cost has locked. The
+    /// placeholder is never exposed as a payment prompt; [`Self::initialize`]
+    /// replaces it when `OpenPayment` runs.
+    pub(crate) fn proposal(working: GameImage, payer: PlayerId) -> Self {
         let source = working.players[payer.index()].object;
         let subject = PaymentSubject::Effect { source };
         let frame = Frame::bare(source, payer);
         Self::new(
             working,
             PaymentPurpose::Announcement,
-            LockedPayment::image_only(payer, subject, frame),
+            LockedPayment::proposal_placeholder(payer, subject, frame),
         )
+    }
+
+    pub(crate) fn initialize(&mut self, locked: LockedPayment) {
+        self.payment_base =
+            (locked.stage != PaymentStage::PrePayment).then(|| self.working.clone());
+        self.payer = locked.payer;
+        self.subject = locked.subject;
+        self.stage = locked.stage;
+        self.locked = locked;
+        self.coverage = None;
+        self.fulfilled.clear();
+    }
+
+    #[must_use]
+    pub(crate) fn prompt(&self) -> PaymentPrompt {
+        let fulfilled: Vec<IouId> = self.fulfilled.iter().map(|(iou, _)| *iou).collect();
+        let fulfilled_set: std::collections::HashSet<IouId> = fulfilled.iter().copied().collect();
+        PaymentPrompt {
+            payer: self.payer,
+            subject: self.subject,
+            stage: self.stage,
+            outstanding: self
+                .locked
+                .ious
+                .iter()
+                .filter(|iou| !fulfilled_set.contains(&iou.id))
+                .cloned()
+                .collect(),
+            fulfilled,
+            floating_mana: self.working.players[self.payer.index()]
+                .mana_pool
+                .units()
+                .to_vec(),
+            coverage: self.coverage.clone(),
+            mana_abilities: Vec::new(),
+            rescindable: Vec::new(),
+        }
     }
 }
 
@@ -208,6 +239,122 @@ impl PaymentFrame {
 #[derive(Debug, Clone, Default)]
 pub struct PaymentController {
     pub(crate) frames: Vec<PaymentFrame>,
+}
+
+impl GameState {
+    /// Clone the active image before any proposal mutation and route ordinary
+    /// engine field access into that isolated working image.
+    pub(crate) fn begin_payment_proposal(&mut self, payer: PlayerId) {
+        let working = self.active().clone();
+        let controller = self.payment.get_or_insert_with(PaymentController::default);
+        controller
+            .frames
+            .push(PaymentFrame::proposal(working, payer));
+    }
+
+    /// Install a just-locked IOU graph on the top proposal frame and surface
+    /// its first payment prompt.
+    pub(crate) fn open_locked_payment(&mut self, locked: LockedPayment) {
+        let controller = self
+            .payment
+            .as_mut()
+            .expect("OpenPayment runs inside an isolated proposal");
+        let frame = controller
+            .frames
+            .last_mut()
+            .expect("OpenPayment has a proposal frame");
+        frame.initialize(locked);
+        let prompt = frame.prompt();
+        frame.working.pending = Some(crate::decide::PendingDecision::Payment(prompt));
+    }
+
+    /// Apply one payment-protocol command. Every rejection occurs before any
+    /// frame or image mutation, preserving the pending prompt verbatim.
+    pub(crate) fn submit_payment_command(
+        &mut self,
+        command: PaymentCommand,
+    ) -> Result<(), crate::decide::DecisionError> {
+        match command {
+            PaymentCommand::BeginPayment(coverage) => self.begin_payment(coverage),
+            PaymentCommand::SubmitPayment => self.commit_payment(),
+            PaymentCommand::DeclinePayment => {
+                // Root announcement decline: the outer committed image still
+                // contains the untouched priority prompt. Purpose-sensitive
+                // optional/nested reconstruction is added in later tasks.
+                self.payment = None;
+                Ok(())
+            }
+            PaymentCommand::ActivateManaAbility { .. }
+            | PaymentCommand::Fulfill { .. }
+            | PaymentCommand::RescindFulfillment(_) => Err(crate::decide::DecisionError::Illegal {
+                reason: "that payment operation is not available in this implementation slice"
+                    .into(),
+            }),
+        }
+    }
+
+    fn begin_payment(
+        &mut self,
+        coverage: ManaCoverage,
+    ) -> Result<(), crate::decide::DecisionError> {
+        let controller = self
+            .payment
+            .as_ref()
+            .expect("a Payment decision has a controller");
+        let frame = controller
+            .frames
+            .last()
+            .expect("a Payment decision has a frame");
+        if frame.stage != PaymentStage::PrePayment {
+            return Err(crate::decide::DecisionError::Illegal {
+                reason: "BeginPayment is legal only during PrePayment".into(),
+            });
+        }
+        frame.locked.validate_coverage(self, &coverage)?;
+
+        // Validation above is read-only. From here on the command cannot fail.
+        self.pending = None;
+        let payment_base = self.active().clone();
+        let controller = self.payment.as_mut().expect("controller remains live");
+        let frame = controller.frames.last_mut().expect("frame remains live");
+        frame.payment_base = Some(payment_base);
+        frame.coverage = Some(coverage);
+        frame.stage = if frame.locked.ious.is_empty() {
+            PaymentStage::Ready
+        } else {
+            PaymentStage::Paying
+        };
+        let prompt = frame.prompt();
+        frame.working.pending = Some(crate::decide::PendingDecision::Payment(prompt));
+        Ok(())
+    }
+
+    fn commit_payment(&mut self) -> Result<(), crate::decide::DecisionError> {
+        let controller = self
+            .payment
+            .as_ref()
+            .expect("a Payment decision has a controller");
+        let frame = controller
+            .frames
+            .last()
+            .expect("a Payment decision has a frame");
+        if frame.stage != PaymentStage::Ready {
+            return Err(crate::decide::DecisionError::Illegal {
+                reason: "SubmitPayment requires every IOU to be fulfilled".into(),
+            });
+        }
+        if controller.frames.len() != 1 {
+            return Err(crate::decide::DecisionError::Illegal {
+                reason: "nested payment submission is not available yet".into(),
+            });
+        }
+
+        self.pending = None;
+        let mut controller = self.payment.take().expect("controller remains live");
+        let frame = controller.frames.pop().expect("root frame remains live");
+        self.committed = frame.working;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]

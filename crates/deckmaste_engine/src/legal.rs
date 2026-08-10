@@ -1975,7 +1975,7 @@ mod tests {
         use deckmaste_core::ManaProduction;
         use deckmaste_core::ManaSpec;
         use deckmaste_core::OneShotEffect;
-        Ability::activated(ActivatedAbility {
+        let ability = ActivatedAbility {
             ability_word: None,
             from: None,
             cost: Arc::<[CostComponent]>::from(vec![CostComponent::Tap]).into(),
@@ -1987,6 +1987,10 @@ mod tests {
                 Count::Literal(1),
                 ManaProduction::Bare(ManaSpec::Specific(ColorOrColorless::Colorless)),
             )),
+        };
+        Ability::Mana(deckmaste_core::ManaAbility::Activated {
+            ability: Arc::new(ability),
+            profile: deckmaste_core::ActivatedManaProfile::Always,
         })
     }
 

@@ -492,7 +492,7 @@ pub struct GameImage {
 /// `Deref`, always reaching the top active image when payment is in flight.
 #[derive(Debug, Clone)]
 pub struct GameState {
-    committed: GameImage,
+    pub(crate) committed: GameImage,
     pub(crate) payment: Option<crate::payment::PaymentController>,
 }
 
@@ -672,10 +672,11 @@ impl GameState {
     #[cfg(test)]
     pub(crate) fn begin_test_frame(&mut self) {
         let working = self.active().clone();
+        let payer = working.turn.active_player;
         self.payment
             .get_or_insert_with(crate::payment::PaymentController::default)
             .frames
-            .push(crate::payment::PaymentFrame::image_only(working));
+            .push(crate::payment::PaymentFrame::proposal(working, payer));
     }
 
     /// Mints a fresh [`crate::stack::Payment`] id ([CR#118.10]) — call
