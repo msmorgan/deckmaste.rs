@@ -105,12 +105,12 @@ fn legacy_noun_phrase_view(value: &NounPhrase) -> LegacyNounPhraseView<'_> {
     }
 }
 
-fn parsed_noun_phrase(source: &str) -> NounPhrase {
+fn parsed_noun_phrase_with_identity(source: &str, identity: &str) -> NounPhrase {
     let fragment = parse_fragment(
         source,
         &Catalogs::default(),
         FragmentKind::Nominal,
-        "Nissa Revane",
+        identity,
         true,
     )
     .into_fragment()
@@ -121,8 +121,12 @@ fn parsed_noun_phrase(source: &str) -> NounPhrase {
     noun_phrase
 }
 
-fn parsed_relative_clause(source: &str) -> RelativeClause {
-    let phrase = parsed_noun_phrase(source);
+fn parsed_noun_phrase(source: &str) -> NounPhrase {
+    parsed_noun_phrase_with_identity(source, "Nissa Revane")
+}
+
+fn parsed_relative_clause_with_identity(source: &str, identity: &str) -> RelativeClause {
+    let phrase = parsed_noun_phrase_with_identity(source, identity);
     let NounPhraseKind::Nominal(nominal) = phrase.kind() else {
         panic!("fixture must parse as a nominal noun phrase: {source:?}")
     };
@@ -134,6 +138,10 @@ fn parsed_relative_clause(source: &str) -> RelativeClause {
             _ => None,
         })
         .unwrap_or_else(|| panic!("fixture must contain a relative clause: {source:?}"))
+}
+
+fn parsed_relative_clause(source: &str) -> RelativeClause {
+    parsed_relative_clause_with_identity(source, "Nissa Revane")
 }
 
 fn checked_prepositional_phrase(preposition: Preposition, object: Phrase) -> PrepositionalPhrase {
@@ -1713,6 +1721,28 @@ fn public_relative_object_builders_reject_subject_agreement_mismatches() {
 }
 
 #[test]
+fn public_relative_object_builder_preserves_self_reference_agreement() {
+    use deckmaste_english::clause as clause_api;
+
+    for (source, identity) in [
+        ("each spell Nissa Revane controls", "Nissa Revane"),
+        ("each spell Aang and Katara control", "Aang and Katara"),
+    ] {
+        let value = parsed_relative_clause_with_identity(source, identity);
+        let (subject, predicate) = clause_api::parts_relative_object(&value).unwrap();
+        assert!(matches!(
+            subject.kind(),
+            NounPhraseKind::ThisCard(ThisCardForm::FullName),
+        ));
+        assert_eq!(
+            clause_api::build_relative_object(subject, predicate).unwrap(),
+            value,
+            "{source:?}",
+        );
+    }
+}
+
+#[test]
 fn public_contracted_object_relative_builder_rejects_subject_agreement_mismatches() {
     use deckmaste_english::clause as clause_api;
 
@@ -1749,22 +1779,54 @@ fn public_contracted_object_relative_builder_rejects_subject_agreement_mismatche
 }
 
 #[test]
-fn public_relative_parts_reject_a_different_valid_form_without_panicking() {
+fn public_relative_parts_exhaustively_cross_feed_without_panicking() {
     use deckmaste_english::clause as clause_api;
+    use deckmaste_english::predicate as predicate_api;
 
-    macro_rules! assert_rejected {
-        ($projection:expr, $label:literal) => {
-            let projection = std::panic::catch_unwind(|| $projection);
-            assert!(
-                matches!(projection, Ok(Err(_))),
-                "{} must return Err without panicking",
-                $label,
-            );
+    macro_rules! assert_cross_feed {
+        ($projection:path, $accepted:ident, $forms:ident, $label:literal) => {
+            for (form, value) in $forms {
+                let projection = std::panic::catch_unwind(|| $projection(value));
+                if std::ptr::eq(value, &$accepted) {
+                    assert!(
+                        matches!(projection, Ok(Ok(_))),
+                        "{} must accept its own {form} form without panicking",
+                        $label,
+                    );
+                } else {
+                    assert!(
+                        matches!(projection, Ok(Err(_))),
+                        "{} must reject the different {form} form without panicking",
+                        $label,
+                    );
+                }
+            }
         };
     }
 
     let object = parsed_relative_clause("each spell you cast");
     let contracted_object = parsed_relative_clause("each spell you've cast");
+    let progressive = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Attack),
+            slot: VerbSlot::PresentParticiple,
+        },
+        predicate_api::PredicateFrameChoice::Intransitive,
+    )
+    .and_then(predicate_api::finish_predicate)
+    .unwrap();
+    let contracted_subject = clause_api::build_relative_subject_contracted_auxiliary(
+        AuxiliaryInstance {
+            auxiliary: Auxiliary::Be,
+            inflection: AuxiliaryInflection::Present {
+                person: deckmaste_english::features::Person::Third,
+                number: deckmaste_english::features::Number::Singular,
+            },
+            contracted_negation: deckmaste_english::features::Contraction::Full,
+        },
+        progressive,
+    )
+    .unwrap();
     let subject_relative = parsed_relative_clause("a creature that attacks");
     let distributive =
         parsed_relative_clause("creature cards that each have a different mana value");
@@ -1773,40 +1835,73 @@ fn public_relative_parts_reject_a_different_valid_form_without_panicking() {
     let copular_prepositional = parsed_relative_clause("a card that's in exile");
     let copular_coordinated_adjective = parsed_relative_clause("a card that's red or green");
 
-    assert_rejected!(
-        clause_api::parts_relative_object(&subject_relative),
+    let forms = [
+        ("object", &object),
+        ("contracted object", &contracted_object),
+        ("contracted subject", &contracted_subject),
+        ("subject", &subject_relative),
+        ("distributive subject", &distributive),
+        ("copular noun", &copular_noun),
+        ("copular adjective", &copular_adjective),
+        ("copular prepositional", &copular_prepositional),
+        (
+            "copular coordinated adjective",
+            &copular_coordinated_adjective,
+        ),
+    ];
+
+    assert_cross_feed!(
+        clause_api::parts_relative_object,
+        object,
+        forms,
         "relative_object"
     );
-    assert_rejected!(
-        clause_api::parts_relative_object_contracted_subject(&object),
+    assert_cross_feed!(
+        clause_api::parts_relative_object_contracted_subject,
+        contracted_object,
+        forms,
         "relative_object_contracted_subject"
     );
-    assert_rejected!(
-        clause_api::parts_relative_subject_contracted_auxiliary(&contracted_object),
+    assert_cross_feed!(
+        clause_api::parts_relative_subject_contracted_auxiliary,
+        contracted_subject,
+        forms,
         "relative_subject_contracted_auxiliary"
     );
-    assert_rejected!(
-        clause_api::parts_relative_subject(&distributive),
+    assert_cross_feed!(
+        clause_api::parts_relative_subject,
+        subject_relative,
+        forms,
         "relative_subject"
     );
-    assert_rejected!(
-        clause_api::parts_relative_subject_distributive_each(&subject_relative),
+    assert_cross_feed!(
+        clause_api::parts_relative_subject_distributive_each,
+        distributive,
+        forms,
         "relative_subject_distributive_each"
     );
-    assert_rejected!(
-        clause_api::parts_relative_contracted_copular_noun(&copular_adjective),
+    assert_cross_feed!(
+        clause_api::parts_relative_contracted_copular_noun,
+        copular_noun,
+        forms,
         "relative_contracted_copular_noun"
     );
-    assert_rejected!(
-        clause_api::parts_relative_contracted_copular_adjective(&copular_prepositional),
+    assert_cross_feed!(
+        clause_api::parts_relative_contracted_copular_adjective,
+        copular_adjective,
+        forms,
         "relative_contracted_copular_adjective"
     );
-    assert_rejected!(
-        clause_api::parts_relative_contracted_copular_prepositional(&copular_coordinated_adjective,),
+    assert_cross_feed!(
+        clause_api::parts_relative_contracted_copular_prepositional,
+        copular_prepositional,
+        forms,
         "relative_contracted_copular_prepositional"
     );
-    assert_rejected!(
-        clause_api::parts_relative_contracted_copular_coordinated_adjective(&copular_noun),
+    assert_cross_feed!(
+        clause_api::parts_relative_contracted_copular_coordinated_adjective,
+        copular_coordinated_adjective,
+        forms,
         "relative_contracted_copular_coordinated_adjective"
     );
 }

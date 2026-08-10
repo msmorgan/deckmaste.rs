@@ -1043,9 +1043,9 @@ fn public_object_gap_features(
         })
 }
 
-fn contracted_subject_features(
+fn contracted_subject_feature_candidates(
     subject_auxiliary: &ContractedSubjectAuxiliary,
-) -> Result<Features, DeclarationViolation> {
+) -> Result<Vec<Features>, DeclarationViolation> {
     let subject = match subject_auxiliary.subject.0.kind() {
         NounPhraseKind::Pronoun {
             pronoun:
@@ -1064,21 +1064,32 @@ fn contracted_subject_features(
             ));
         }
     };
-    let Features::NounPhrase {
-        agreement: Some(agreement),
-        ..
-    } = crate::constructions::noun_phrase::relative_subject_features(&subject_auxiliary.subject.0)
-    else {
+    let candidates = crate::constructions::noun_phrase::relative_subject_feature_candidates(
+        &subject_auxiliary.subject.0,
+    )
+    .into_iter()
+    .filter_map(|candidate| {
+        let Features::NounPhrase {
+            agreement: Some(agreement),
+            ..
+        } = candidate
+        else {
+            return None;
+        };
+        Some(Features::SubjectAuxiliary {
+            subject,
+            agreement,
+            auxiliary: subject_auxiliary.auxiliary.into(),
+        })
+    })
+    .collect::<Vec<_>>();
+    if candidates.is_empty() {
         return Err(violation(
             "relative_contracted_subject",
             "the contracted subject has finite agreement",
         ));
-    };
-    Ok(Features::SubjectAuxiliary {
-        subject,
-        agreement,
-        auxiliary: subject_auxiliary.auxiliary.into(),
-    })
+    }
+    Ok(candidates)
 }
 
 fn contracted_that_features(auxiliary: crate::word::AuxiliaryInstance) -> Features {
@@ -1135,16 +1146,19 @@ pub(crate) fn checked_build_relative_object(
     subject: NounPhrase,
     predicate: ObjectGapPredicate,
 ) -> Result<RelativeClause, DeclarationViolation> {
-    reduce_relative_object_features(
-        &crate::constructions::noun_phrase::relative_subject_features(&subject),
-        &public_object_gap_features(&predicate)?,
-    )
-    .ok_or_else(|| {
-        violation(
-            "relative_object",
-            "the supplied subject and object-gap predicate satisfy agreement and valency",
-        )
-    })?;
+    let predicate_features = public_object_gap_features(&predicate)?;
+    crate::constructions::noun_phrase::relative_subject_feature_candidates(&subject)
+        .iter()
+        .any(|subject_features| {
+            reduce_relative_object_features(subject_features, &predicate_features).is_some()
+        })
+        .then_some(())
+        .ok_or_else(|| {
+            violation(
+                "relative_object",
+                "the supplied subject and object-gap predicate satisfy agreement and valency",
+            )
+        })?;
     require_selected(
         "relative_object",
         build_relative_object(subject, predicate)?,
@@ -1160,16 +1174,23 @@ pub(crate) fn checked_build_relative_object_contracted_subject(
         "relative_object_contracted_subject",
         subject_auxiliary.auxiliary,
     )?;
-    reduce_relative_object_contracted_subject_features(
-        &contracted_subject_features(&subject_auxiliary)?,
-        &public_object_gap_features(&predicate)?,
-    )
-    .ok_or_else(|| {
-        violation(
-            "relative_object_contracted_subject",
-            "the supplied subject, auxiliary, and object gap satisfy agreement and valency",
-        )
-    })?;
+    let predicate_features = public_object_gap_features(&predicate)?;
+    contracted_subject_feature_candidates(&subject_auxiliary)?
+        .iter()
+        .any(|subject_features| {
+            reduce_relative_object_contracted_subject_features(
+                subject_features,
+                &predicate_features,
+            )
+            .is_some()
+        })
+        .then_some(())
+        .ok_or_else(|| {
+            violation(
+                "relative_object_contracted_subject",
+                "the supplied subject, auxiliary, and object gap satisfy agreement and valency",
+            )
+        })?;
     require_selected(
         "relative_object_contracted_subject",
         build_relative_object_contracted_subject(subject_auxiliary, predicate)?,
