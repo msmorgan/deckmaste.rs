@@ -165,27 +165,15 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         }
     }
 
-    // Activated abilities of permanents you control: mana abilities are
-    // stackless ([CR#605.3a]) and skip the full gate, but their {T} is still
-    // physical — a tapped object can't pay it, and [CR#602.5a] blocks a
-    // summoning-sick creature's {T} even for mana (haste = the kw-haste
-    // seam); the rest run the full [CR#602.5] gate ([CR#602.2]: only the
-    // controller activates).
+    // Activated abilities of permanents you control: lowering-classified mana
+    // abilities use the mana-specific [CR#605] gate; every other activation
+    // uses the ordinary [CR#602.5] gate.
     for &object in &state.zones.battlefield {
-        let obj = state.objects.obj(object);
         // Derived controller ([CR#613.1b]): only the current controller may
         // activate ([CR#602.2]); a control-change effect moves this.
         if view.controller(object) != player {
             continue;
         }
-        // [CR#602.5a]: a `{T}` mana ability is offered only when the object's
-        // conferred `Cant(Activate(cost: IncludesTapSymbol))` rows permit it —
-        // the summoning-sickness tap gate a `Creature` type confers (haste-
-        // exempt). Keyed on the capability, not a `Type::Creature` literal.
-        // `blanket_applies: false` — a blanket split-second-style row must
-        // NOT block a mana ability ([CR#702.61b]); only a cost-scoped row
-        // (the sickness tap gate) can forbid it here.
-        let tap_forbidden = cant_activate(state, &view, object, player, true, false);
         // Index the SAME Innate-PEELED list resolution reads ([CR#113.12]):
         // `begin_activate`, `decide`'s `ActivateAbility` arm, and `render`'s
         // `activated_ability`/`mana_ability` all index
@@ -195,18 +183,18 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         // ability) activatable by its controller while the indices stay
         // aligned.
         for (ability, a) in derive::usable_abilities(state, object).iter().enumerate() {
-            // `tap_mana_ability` is the authoritative classifier here: its
-            // subset scope (cost=[Tap], specific mana, no targets) defines
-            // which abilities take the stackless path ([CR#605.3b]); widen it
-            // and this routing together.
-            if derive::tap_mana_ability(a).is_some() {
-                if !obj.tapped && !tap_forbidden {
+            if let Some(act) = crate::activate::as_activated(a) {
+                let permitted = if matches!(
+                    a.as_mana(),
+                    Some(deckmaste_core::ManaAbility::Activated { .. })
+                ) {
+                    state.can_activate_mana(&view, player, object, ability, act)
+                } else {
+                    state.can_activate(&view, player, object, ability, act)
+                };
+                if permitted {
                     legal.push(Action::ActivateAbility { object, ability });
                 }
-            } else if let Some(act) = crate::activate::as_activated(a)
-                && state.can_activate(&view, player, object, ability, act)
-            {
-                legal.push(Action::ActivateAbility { object, ability });
             }
         }
     }

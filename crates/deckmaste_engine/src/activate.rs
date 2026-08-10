@@ -276,6 +276,33 @@ impl GameState {
         index: usize,
         ability: &ActivatedAbility,
     ) -> bool {
+        self.can_activate_with_blanket(view, player, object, index, ability, true)
+    }
+
+    /// The ordinary activation gate with blanket `Cant(Activate)` effects
+    /// disabled. Cost-scoped prohibitions such as summoning sickness still
+    /// apply to mana abilities ([CR#602.5a,702.61b]).
+    #[must_use]
+    pub(crate) fn can_activate_mana(
+        &self,
+        view: &crate::layer::LayeredView,
+        player: PlayerId,
+        object: ObjectId,
+        index: usize,
+        ability: &ActivatedAbility,
+    ) -> bool {
+        self.can_activate_with_blanket(view, player, object, index, ability, false)
+    }
+
+    fn can_activate_with_blanket(
+        &self,
+        view: &crate::layer::LayeredView,
+        player: PlayerId,
+        object: ObjectId,
+        index: usize,
+        ability: &ActivatedAbility,
+        blanket_applies: bool,
+    ) -> bool {
         // Structural cost validation remains a proposal gate; whether its
         // resources can actually be supplied is discovered only by the
         // explicit payment protocol.
@@ -297,7 +324,7 @@ impl GameState {
             object,
             player,
             summary.tap || summary.untap,
-            true,
+            blanket_applies,
         ) {
             return false;
         }

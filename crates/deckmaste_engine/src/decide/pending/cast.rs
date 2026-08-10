@@ -418,6 +418,15 @@ impl DecisionHandler for ChooseModes {
                 reason: "illegal mode selection".into(),
             });
         }
+        if matches!(
+            g.choice,
+            Some(crate::state::ChoiceContinuation::AnnounceModes)
+        ) && !g.payment_mana_modes_legal(&picks)
+        {
+            return Err(DecisionError::Illegal {
+                reason: "that mode selection does not produce a legal mana ability".into(),
+            });
+        }
         g.pending = None;
         let continuation = g
             .choice

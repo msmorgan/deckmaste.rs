@@ -173,6 +173,31 @@ pub enum WorkItem {
     /// Resume the payment command boundary after every event and ordinary
     /// subdecision produced by one fulfillment has completed.
     FinishPaymentFulfillment(crate::payment::IouId),
+    /// Resolve a submitted activated mana ability without putting it on the
+    /// stack, using the ordinary announced modes, targets, and effect runner.
+    BeginManaAction(crate::player::ManaActionId),
+    /// Close a stackless mana action after its effect and caused immediate
+    /// work have drained, then restore its containing payment prompt.
+    FinishManaAction(crate::player::ManaActionId),
+    /// Resolve a lowering-classified triggered mana ability at the causing
+    /// event's immediate queue rather than noting it for stack placement.
+    ResolveTriggeredMana {
+        source: crate::object::ObjectSource,
+        ability: usize,
+        triggered: Arc<deckmaste_core::TriggeredAbility>,
+        controller: crate::player::PlayerId,
+        bindings: crate::trigger::TriggerBindings,
+    },
+    /// Emit the aggregate production fact for one stackless triggered mana
+    /// action after its effect drains.
+    FinishTriggeredMana {
+        action: crate::player::ManaActionId,
+        source: crate::lki::LkiSnapshot,
+        controller: crate::player::PlayerId,
+    },
+    /// Close a triggered mana action after its production fact and anything it
+    /// immediately caused have drained.
+    CompleteTriggeredMana(crate::player::ManaActionId),
     /// [CR#705.1]: a resolving `FlipCoins` — draw `count` coins for `player`
     /// from the seeded rng and emit the `CoinFlipped` batch. `called`
     /// ([CR#705.2]) routes each coin through a `CallFlip` decision first

@@ -10,6 +10,7 @@ use crate::event::AbilityCountered;
 use crate::event::AbilityUsed;
 use crate::event::Copied;
 use crate::event::GameEvent;
+use crate::event::ManaAbilityActivated;
 use crate::object::ObjectId;
 use crate::stack::StackEntry;
 use crate::stack::StackObject;
@@ -118,6 +119,20 @@ impl EventApply for AbilityActivated {
             GameEvent::AbilityUsed(AbilityUsed {
                 object: used_object,
                 ability: Uint::try_from(ability).expect("ability index fits in Uint"),
+            }),
+        );
+        None
+    }
+}
+
+impl EventApply for ManaAbilityActivated {
+    fn apply(&self, g: &mut GameState) -> Option<GameEvent> {
+        g.record_history_fact(
+            g.turn.turn_number,
+            None,
+            GameEvent::AbilityUsed(AbilityUsed {
+                object: self.source.object,
+                ability: Uint::try_from(self.ability).expect("ability index fits in Uint"),
             }),
         );
         None

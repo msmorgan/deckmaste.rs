@@ -35,8 +35,12 @@ use crate::event::DamageDealt;
 use crate::event::GameEvent;
 use crate::event::LifeGained;
 use crate::event::LifeLost;
+use crate::event::ManaAbilityActivated;
+use crate::event::ManaAdded;
+use crate::event::ManaProduced;
 use crate::event::Occurrence;
 use crate::event::Tapped;
+use crate::event::TappedForMana;
 use crate::event::TriggerFired;
 use crate::event::TurnBegan;
 use crate::event::ZoneChange;
@@ -85,6 +89,8 @@ pub struct TriggerBindings {
     /// The event PATIENT — the acted-upon thing (damage recipient, …),
     /// kind-poly ([CR#120.3]). Read by `Reference::EventPatient`.
     pub that_patient: Option<EventPatient>,
+    /// Types the causing mana-production fact actually added.
+    pub produced_mana: Vec<deckmaste_core::ColorOrColorless>,
     /// The combat DEFENDING player ([CR#506.2,508.5]) — always a player. Read
     /// by `Reference::DefendingPlayer`.
     pub defending_player: Option<PlayerId>,
@@ -596,6 +602,7 @@ impl GameState {
                 that_object: bindings.that_object.clone(),
                 that_player: bindings.that_player,
                 that_patient: bindings.that_patient.clone(),
+                produced_mana: bindings.produced_mana.clone(),
                 crossed: bindings.crossed,
                 ..Anaphora::empty()
             },
@@ -644,6 +651,23 @@ impl GameState {
                 let (agent, _) = self.event_agent(*object);
                 (agent, Some(*to), None)
             }
+            GameEvent::ManaAbilityActivated(ManaAbilityActivated {
+                source, controller, ..
+            }) => (Some(source.clone()), Some(*controller), None),
+            GameEvent::ManaProduced(ManaProduced {
+                source, controller, ..
+            })
+            | GameEvent::TappedForMana(TappedForMana {
+                source, controller, ..
+            }) => (Some(source.clone()), Some(*controller), None),
+            GameEvent::ManaAdded(ManaAdded {
+                player, provenance, ..
+            }) => {
+                let (agent, _) = provenance
+                    .source
+                    .map_or((None, None), |source| self.event_agent(source));
+                (agent, Some(*player), None)
+            }
             // [CR#701]: a committed keyword-action fact — its object SUBJECT
             // (a per-subject fact carries at most one) binds as the agent
             // ("it": Foe-Razer's counters land on THAT fighting creature),
@@ -676,7 +700,12 @@ impl GameState {
         let that_much = match event {
             GameEvent::DamageDealt(DamageDealt { amount, .. })
             | GameEvent::LifeLost(LifeLost { amount, .. })
-            | GameEvent::LifeGained(LifeGained { amount, .. }) => Some(*amount),
+            | GameEvent::LifeGained(LifeGained { amount, .. })
+            | GameEvent::ManaAdded(ManaAdded { amount, .. }) => Some(*amount),
+            GameEvent::ManaProduced(ManaProduced { produced, .. })
+            | GameEvent::TappedForMana(TappedForMana { produced, .. }) => {
+                Some(Uint::try_from(produced.len()).expect("produced mana count fits in Uint"))
+            }
             _ => None,
         };
         // The counter event's before/after totals ([CR#714.2b]) — the
@@ -687,6 +716,16 @@ impl GameState {
             }
             _ => None,
         };
+        let produced_mana = match event {
+            GameEvent::ManaProduced(ManaProduced { produced, .. })
+            | GameEvent::TappedForMana(TappedForMana { produced, .. }) => {
+                produced.iter().map(|unit| unit.kind).collect()
+            }
+            GameEvent::ManaAdded(ManaAdded { mana, amount, .. }) => {
+                vec![*mana; usize::try_from(*amount).expect("mana amount fits in usize")]
+            }
+            _ => Vec::new(),
+        };
         EventRoles {
             that_object,
             that_player,
@@ -694,6 +733,7 @@ impl GameState {
             defending_player,
             that_much,
             crossed,
+            produced_mana,
         }
     }
 
@@ -867,6 +907,7 @@ impl GameState {
                             that_object: bindings.that_object.clone(),
                             that_player: bindings.that_player,
                             that_patient: bindings.that_patient.clone(),
+                            produced_mana: bindings.produced_mana.clone(),
                             crossed: bindings.crossed,
                             ..Anaphora::empty()
                         },
@@ -881,6 +922,21 @@ impl GameState {
                 // independent `TriggerFired` that places its own stack instance
                 // ([CR#603.3]) and chooses its own modes/targets. Multipliers ADD.
                 let extra = self.trigger_multiplier_extra(event, this.object);
+                if matches!(
+                    ability.as_mana(),
+                    Some(deckmaste_core::ManaAbility::Triggered(_))
+                ) {
+                    for _ in 0..=extra {
+                        emits.push(WorkItem::ResolveTriggeredMana {
+                            source,
+                            ability: idx,
+                            triggered: Arc::new(t.clone()),
+                            controller,
+                            bindings: bindings.clone(),
+                        });
+                    }
+                    continue;
+                }
                 // A trigger carries its body BY VALUE — the channel
                 // delayed/reflexive triggers use ([CR#603.7,603.12]) — when the
                 // by-index `(source, idx)` re-read at resolution can't recover it:
@@ -1201,6 +1257,7 @@ pub(crate) struct EventRoles {
     defending_player: Option<PlayerId>,
     that_much: Option<Uint>,
     crossed: Option<(Uint, Uint)>,
+    produced_mana: Vec<deckmaste_core::ColorOrColorless>,
 }
 
 impl EventRoles {
@@ -1216,6 +1273,7 @@ impl EventRoles {
             defending_player: self.defending_player,
             that_much: self.that_much,
             crossed: self.crossed,
+            produced_mana: self.produced_mana.clone(),
         }
     }
 }

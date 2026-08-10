@@ -197,7 +197,10 @@ fn classify_triggered(
 fn triggered_by_mana(event: &deckmaste_core::EventFilter) -> bool {
     use deckmaste_core::EventFilter;
     match event {
-        EventFilter::TapForMana { .. } => true,
+        EventFilter::ManaAbilityActivated { .. }
+        | EventFilter::ManaProduced { .. }
+        | EventFilter::ManaAdded { .. }
+        | EventFilter::TapForMana { .. } => true,
         EventFilter::AllOf(parts) => parts.iter().any(triggered_by_mana),
         EventFilter::OneOf(parts) => !parts.is_empty() && parts.iter().all(triggered_by_mana),
         EventFilter::OneOrMore(inner) => triggered_by_mana(inner),
@@ -712,16 +715,35 @@ mod tests {
     }
 
     #[test]
-    fn classifies_triggered_mana_ability_while_lowering() {
-        let mut triggered = minimal_triggered_ability();
-        triggered.event = deckmaste_semantics::EventFilter::TapForMana {
-            what: deckmaste_semantics::Predicate::Any,
-            by: deckmaste_semantics::Predicate::Any,
-        };
-        triggered.effect = semantic_mana_effect();
-        assert_matches!(
-            deckmaste_semantics::Ability::Triggered(std::sync::Arc::new(triggered)).lower(),
-            deckmaste_core::Ability::Mana(deckmaste_core::ManaAbility::Triggered(_))
-        );
+    fn classifies_each_causal_triggered_mana_ability_while_lowering() {
+        let any = || deckmaste_semantics::Predicate::Any;
+        let causes = [
+            deckmaste_semantics::EventFilter::ManaAbilityActivated {
+                what: any(),
+                by: any(),
+            },
+            deckmaste_semantics::EventFilter::ManaProduced {
+                what: any(),
+                by: any(),
+            },
+            deckmaste_semantics::EventFilter::ManaAdded {
+                what: any(),
+                by: any(),
+            },
+            deckmaste_semantics::EventFilter::TapForMana {
+                what: any(),
+                by: any(),
+            },
+        ];
+        for event in causes {
+            let mut triggered = minimal_triggered_ability();
+            triggered.event = event.clone();
+            triggered.effect = semantic_mana_effect();
+            assert_matches!(
+                deckmaste_semantics::Ability::Triggered(std::sync::Arc::new(triggered)).lower(),
+                deckmaste_core::Ability::Mana(deckmaste_core::ManaAbility::Triggered(_)),
+                "cause {event:?}"
+            );
+        }
     }
 }

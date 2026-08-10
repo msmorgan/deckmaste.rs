@@ -258,6 +258,7 @@ impl GameState {
                         that_object: bindings.that_object.clone(),
                         that_player: bindings.that_player,
                         that_patient: bindings.that_patient.clone(),
+                        produced_mana: bindings.produced_mana.clone(),
                         crossed: bindings.crossed,
                         ..Anaphora::empty()
                     },
@@ -318,6 +319,7 @@ impl GameState {
                             that_object: bindings.that_object.clone(),
                             that_player: bindings.that_player,
                             that_patient: bindings.that_patient.clone(),
+                            produced_mana: bindings.produced_mana.clone(),
                             ..Anaphora::empty()
                         },
                     };

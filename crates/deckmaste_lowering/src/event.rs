@@ -222,6 +222,20 @@ impl Lower for deckmaste_semantics::EventFilter {
                 who: who.lower(),
                 what: what.lower(),
             },
+            Self::ManaAbilityActivated { what, by } => {
+                deckmaste_core::EventFilter::ManaAbilityActivated {
+                    what: what.lower(),
+                    by: by.lower(),
+                }
+            }
+            Self::ManaProduced { what, by } => deckmaste_core::EventFilter::ManaProduced {
+                what: what.lower(),
+                by: by.lower(),
+            },
+            Self::ManaAdded { what, by } => deckmaste_core::EventFilter::ManaAdded {
+                what: what.lower(),
+                by: by.lower(),
+            },
             Self::AttackDeclared { by, against } => deckmaste_core::EventFilter::AttackDeclared {
                 by: by.lower(),
                 against: against.lower(),

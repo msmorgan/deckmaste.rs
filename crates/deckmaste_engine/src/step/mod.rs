@@ -163,6 +163,10 @@ pub enum Progress {
     PaymentOpened,
     /// A suspended cost fulfillment completed and the payment prompt resumed.
     PaymentFulfilled(crate::payment::IouId),
+    /// A submitted mana ability entered stackless resolution.
+    ManaActionBegan(crate::player::ManaActionId),
+    /// A stackless mana ability finished and restored its parent controller.
+    ManaActionFinished(crate::player::ManaActionId),
     /// A resolution step ran (dispatch or one effect node) for this object.
     Resolving(crate::object::ObjectId),
     /// [CR#701.19c]: an instruction-scoped "can't be regenerated" rider was
@@ -263,6 +267,37 @@ impl GameState {
             WorkItem::FinishPaymentFulfillment(iou) => {
                 self.finish_payment_fulfillment(iou);
                 Progress::PaymentFulfilled(iou)
+            }
+            WorkItem::BeginManaAction(action) => {
+                self.begin_mana_action(action);
+                Progress::ManaActionBegan(action)
+            }
+            WorkItem::FinishManaAction(action) => {
+                self.finish_mana_action(action);
+                Progress::ManaActionFinished(action)
+            }
+            WorkItem::ResolveTriggeredMana {
+                source,
+                ability,
+                triggered,
+                controller,
+                bindings,
+            } => {
+                let action = self
+                    .begin_triggered_mana_action(source, ability, triggered, controller, bindings);
+                Progress::ManaActionBegan(action)
+            }
+            WorkItem::FinishTriggeredMana {
+                action,
+                source,
+                controller,
+            } => {
+                self.finish_triggered_mana_action(action, source, controller);
+                Progress::ManaActionFinished(action)
+            }
+            WorkItem::CompleteTriggeredMana(action) => {
+                self.complete_triggered_mana_action(action);
+                Progress::ManaActionFinished(action)
             }
             WorkItem::FlipCoins {
                 player,
@@ -393,6 +428,7 @@ impl GameState {
         let transformed = match &event {
             GameEvent::Copied(e) => e.apply(self),
             GameEvent::AbilityActivated(e) => e.apply(self),
+            GameEvent::ManaAbilityActivated(e) => e.apply(self),
             GameEvent::SpellCast(object) => stack::handle_spell_cast(self, *object),
             GameEvent::DamageDealt(e) => e.apply(self),
             GameEvent::ZoneChange(e) => e.apply(self),

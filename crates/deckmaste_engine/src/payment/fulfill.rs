@@ -448,8 +448,9 @@ impl GameState {
         if frame.fulfilled.len() == frame.locked.ious.len() {
             frame.stage = PaymentStage::Ready;
         }
-        let prompt = frame.prompt();
+        let prompt = frame.prompt(Vec::new());
         frame.working.pending = Some(crate::decide::PendingDecision::Payment(prompt));
+        self.refresh_payment_prompt();
     }
 
     fn validate_binder_witness(

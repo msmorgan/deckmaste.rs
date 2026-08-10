@@ -440,6 +440,30 @@ pub enum EventFilter {
         #[serde(default = "Predicate::any")]
         what: Predicate,
     },
+    /// A lowering-classified activated mana ability was activated. Kept
+    /// distinct from `ActivatedAb` so CR 605.1b classification can prove the
+    /// trigger is caused only by a mana ability.
+    ManaAbilityActivated {
+        #[serde(default = "Predicate::any")]
+        what: Predicate,
+        #[serde(default = "Predicate::any")]
+        by: Predicate,
+    },
+    /// A mana ability finished a concrete production action.
+    ManaProduced {
+        #[serde(default = "Predicate::any")]
+        what: Predicate,
+        #[serde(default = "Predicate::any")]
+        by: Predicate,
+    },
+    /// Mana was added to a player's pool, whether or not its source was a mana
+    /// ability ([CR#605.1b]). `what` filters the producing source when known.
+    ManaAdded {
+        #[serde(default = "Predicate::any")]
+        what: Predicate,
+        #[serde(default = "Predicate::any")]
+        by: Predicate,
+    },
     /// A creature was declared as an attacker ([CR#508.1k] — it becomes an
     /// attacking creature). `against` matches the DEFENDING player
     /// ([CR#506.2,508.5]).

@@ -299,6 +299,9 @@ pub struct Anaphora {
     /// The event PATIENT ([CR#608.2k,120.3]) — the acted-upon thing, kind-poly
     /// (object or player). Read by `Reference::EventPatient`.
     pub that_patient: Option<EventPatient>,
+    /// Mana types carried by the causing production event. Triggered mana
+    /// effects read this for `ManaSpec::ProducedByEvent` ([CR#106.12a]).
+    pub produced_mana: Vec<deckmaste_core::ColorOrColorless>,
     /// The firing counter event's `(before, after)` totals ([CR#714.2b]) —
     /// read by `Condition::Crossed` at the trigger gate and the resolution
     /// recheck ([CR#603.4]). `None` outside a counter-event body.
@@ -336,6 +339,7 @@ impl Anaphora {
             that_object: None,
             that_player: None,
             that_patient: None,
+            produced_mana: Vec::new(),
             crossed: None,
             inherited_replacements: std::collections::HashSet::new(),
             contained_in_batch: false,

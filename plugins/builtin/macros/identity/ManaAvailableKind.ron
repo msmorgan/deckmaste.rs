@@ -1,0 +1,6 @@
+(
+    name: "ManaAvailableKind",
+    kinds: [Count],
+    params: [Any, Any],
+    body: ManaAvailableKind(Param(0), Param(1)),
+)

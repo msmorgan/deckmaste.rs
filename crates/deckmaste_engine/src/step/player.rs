@@ -30,13 +30,20 @@ impl EventApply for Tapped {
 
 impl EventApply for ManaAdded {
     fn apply(&self, g: &mut GameState) -> Option<GameEvent> {
-        g.player_mut(self.player).mana_pool.add_riders(
+        debug_assert!(
+            self.units.is_empty(),
+            "only a pre-apply ManaAdded intent is applied"
+        );
+        let units = g.player_mut(self.player).mana_pool.add_riders(
             self.mana,
             self.amount,
             &self.riders,
             self.provenance,
         );
-        None
+        Some(GameEvent::ManaAdded(ManaAdded {
+            units,
+            ..self.clone()
+        }))
     }
 }
 
