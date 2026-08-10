@@ -633,6 +633,60 @@ mod tests {
     }
 
     #[test]
+    fn ability_is_generated_with_stable_form_ordinals_and_registration_order_neutral() {
+        let fixtures = [
+            ("{T}: Draw a card.", 0),
+            ("{2}: Level 2", 1),
+            ("I — Draw a card.", 2),
+            ("2–9 | Draw a card.", 3),
+            ("Whenever this creature attacks, draw a card.", 6),
+            ("[+1]: Draw a card.", 7),
+            ("Flying", 9),
+            ("Draw a card.", 10),
+        ];
+        let activations = [
+            GeneratedActivation::Groups(crate::constructions::ALL_GROUPS),
+            GeneratedActivation::AbilityGroupsReversed(crate::constructions::ALL_GROUPS),
+            GeneratedActivation::AbilityGroupsFixedShuffle(crate::constructions::ALL_GROUPS),
+        ];
+        for (source, ordinal) in fixtures {
+            let reports = activations.map(|activation| {
+                parse_fragment_with_activation(
+                    source,
+                    &catalogs(),
+                    FragmentKind::Ability,
+                    "Test Card",
+                    false,
+                    activation,
+                )
+            });
+            for report in &reports {
+                let decision = assert_generated(report, "ability");
+                assert_eq!(decision.backend(), crate::ConstructionBackend::Ability);
+                assert_eq!(
+                    decision.selected_production_ordinal(),
+                    ordinal,
+                    "{source}: {:?}",
+                    report.fragment()
+                );
+                assert_eq!(decision.evidence().label(), "decisive ability frame guard");
+            }
+            assert_eq!(reports[0].fragment(), reports[1].fragment());
+            assert_eq!(reports[0].fragment(), reports[2].fragment());
+            assert_eq!(reports[0].diagnostics(), reports[1].diagnostics());
+            assert_eq!(reports[0].diagnostics(), reports[2].diagnostics());
+            assert_eq!(
+                reports[0].construction_decisions(),
+                reports[1].construction_decisions()
+            );
+            assert_eq!(
+                reports[0].construction_decisions(),
+                reports[2].construction_decisions()
+            );
+        }
+    }
+
+    #[test]
     fn cost_ability_assembly_is_group_order_neutral() {
         fn assembled(
             mut groups: Vec<&'static deckmaste_construction_compiler::runtime::GroupData>,
@@ -780,11 +834,10 @@ mod tests {
         );
         assert!(ability.clean(), "{:?}", ability.diagnostics());
         assert_generated(&ability, "verb_phrase_causative");
-        let Some(Fragment::Ability(crate::syntax::Ability {
-            kind: crate::syntax::AbilityKind::Activated(activated),
-            ..
-        })) = ability.fragment()
-        else {
+        let Some(Fragment::Ability(parsed)) = ability.fragment() else {
+            panic!("the ability root returns a semantic activated ability")
+        };
+        let crate::syntax::AbilityKind::Activated(activated) = parsed.kind() else {
             panic!("the ability root returns a semantic activated ability")
         };
         assert!(matches!(

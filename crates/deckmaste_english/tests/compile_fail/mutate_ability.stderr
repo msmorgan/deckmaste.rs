@@ -1,0 +1,5 @@
+error[E0616]: field `kind` of struct `deckmaste_english::syntax::Ability` is private
+  --> tests/compile_fail/mutate_ability.rs:15:13
+   |
+15 |     ability.kind = deckmaste_english::syntax::AbilityKind::Paragraph(
+   |             ^^^^ private field

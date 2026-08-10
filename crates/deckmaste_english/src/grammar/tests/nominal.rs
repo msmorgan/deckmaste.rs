@@ -7,7 +7,6 @@ mod tests {
     use crate::chart::Grammar;
     use crate::forest::ForestSymbol;
     use crate::identity::SelfReference;
-    use crate::syntax::Ability;
     use crate::syntax::AbilityKind;
     use crate::syntax::AdjectiveComplement;
     use crate::syntax::ComparisonMarker;
@@ -3547,10 +3546,10 @@ mod tests {
             "Test Card",
             false,
         );
-        let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Keyword(list) = report.ast.abilities[0].kind() else {
             panic!(
                 "expected a keyword list, got {:#?}",
-                report.ast.abilities[0].kind
+                report.ast.abilities[0].kind()
             );
         };
         assert_eq!(list.abilities().len(), 3);
@@ -3775,36 +3774,39 @@ mod tests {
 
     fn render_fragment_as(noun_phrase: &NounPhrase, name: &str, is_legendary: bool) -> String {
         let ast = OracleText {
-            abilities: vec![Ability {
-                ability_word: None,
-                flavor_header: None,
-                kind: AbilityKind::Paragraph(Paragraph {
-                    flavor_header: None,
-                    sentences: vec![Sentence {
-                        body: SentenceBody::Independent(IndependentClause::Imperative(
-                            Predicate::Transitive(TransitivePredicate {
-                                head: PredicateHead {
-                                    auxiliaries: vec![],
-                                    first_auxiliary_contracted_with_subject:
-                                        crate::features::Contraction::Full,
-                                    preverb_modifiers: vec![],
-                                    verb: VerbInstance {
-                                        verb: Verb::Word(Vocab::Draw),
-                                        slot: VerbSlot::Imperative,
+            abilities: vec![
+                crate::ability::build_ability(
+                    None,
+                    None,
+                    AbilityKind::Paragraph(Paragraph {
+                        flavor_header: None,
+                        sentences: vec![Sentence {
+                            body: SentenceBody::Independent(IndependentClause::Imperative(
+                                Predicate::Transitive(TransitivePredicate {
+                                    head: PredicateHead {
+                                        auxiliaries: vec![],
+                                        first_auxiliary_contracted_with_subject:
+                                            crate::features::Contraction::Full,
+                                        preverb_modifiers: vec![],
+                                        verb: VerbInstance {
+                                            verb: Verb::Word(Vocab::Draw),
+                                            slot: VerbSlot::Imperative,
+                                        },
+                                        frame: Verb::Word(Vocab::Draw).predicate_frames()[0],
+                                        distributive_each: false,
                                     },
-                                    frame: Verb::Word(Vocab::Draw).predicate_frames()[0],
-                                    distributive_each: false,
-                                },
-                                kind: crate::syntax::Transitive {
-                                    pre_object_elements: vec![],
-                                    object: PredicateObject::NounPhrase(noun_phrase.clone()),
-                                },
-                                elements: vec![],
-                            }),
-                        )),
-                    }],
-                }),
-            }],
+                                    kind: crate::syntax::Transitive {
+                                        pre_object_elements: vec![],
+                                        object: PredicateObject::NounPhrase(noun_phrase.clone()),
+                                    },
+                                    elements: vec![],
+                                }),
+                            )),
+                        }],
+                    }),
+                )
+                .expect("nominal render fixture is a valid ability"),
+            ],
         };
         ast.render(name, is_legendary)
             .expect("parsed noun phrase must render")

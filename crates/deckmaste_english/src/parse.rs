@@ -376,12 +376,28 @@ mod tests {
     fn provenance_identifies_selected_rules_without_copying_source() {
         let report = parse("Draw a card.");
         assert!(report.diagnostics.is_empty());
-        assert!(report.provenance.selections.iter().all(|selection| {
-            selection.span == Span::new(0, 12)
-                && selection.rule.is_some()
-                && selection.tied_alternatives.len() == 1
-                && selection.cost == crate::forest::ParseCost::default()
-        }));
+        let ability = report
+            .provenance
+            .selections
+            .iter()
+            .find(|selection| selection.construction == Some(crate::ConstructionId::new("ability")))
+            .expect("the ability root records its generated decision");
+        assert_eq!(ability.span, Span::new(0, 12));
+        assert!(ability.rule.is_none());
+        assert!(ability.tied_alternatives.len() == 1);
+        assert!(ability.cost == crate::forest::ParseCost::default());
+        assert!(
+            report
+                .provenance
+                .selections
+                .iter()
+                .filter(|selection| selection.rule.is_some())
+                .all(|selection| {
+                    selection.span == Span::new(0, 12)
+                        && selection.tied_alternatives.len() == 1
+                        && selection.cost == crate::forest::ParseCost::default()
+                })
+        );
     }
 
     #[test]

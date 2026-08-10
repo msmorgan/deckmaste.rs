@@ -4,7 +4,6 @@ use super::*;
 use crate::catalog::CatalogKind;
 use crate::catalog::Catalogs;
 use crate::identity::SelfReference;
-use crate::syntax::Ability;
 use crate::syntax::AbilityKind;
 use crate::syntax::AdjectiveComplement;
 use crate::syntax::Demonstrative;
@@ -6002,14 +6001,17 @@ fn render_sentence(sentence: &Sentence) -> String {
 
 fn render_sentence_as(sentence: &Sentence, name: &str, is_legendary: bool) -> String {
     OracleText {
-        abilities: vec![Ability {
-            ability_word: None,
-            flavor_header: None,
-            kind: AbilityKind::Paragraph(Paragraph {
-                flavor_header: None,
-                sentences: vec![sentence.clone()],
-            }),
-        }],
+        abilities: vec![
+            crate::ability::build_ability(
+                None,
+                None,
+                AbilityKind::Paragraph(Paragraph {
+                    flavor_header: None,
+                    sentences: vec![sentence.clone()],
+                }),
+            )
+            .expect("sentence fixture is a valid ability"),
+        ],
     }
     .render(name, is_legendary)
     .expect("parsed sentence must render")

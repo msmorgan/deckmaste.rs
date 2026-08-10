@@ -355,6 +355,48 @@ struct Parser<'source, 'catalogs, 'sr> {
     activation: super::GeneratedActivation,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AbilityFrameCandidate {
+    Keyword,
+    Loyalty,
+    Triggered,
+    ClassLevel,
+    Activated,
+    Chapter,
+    RollRow,
+}
+
+impl AbilityFrameCandidate {
+    const ALL: [Self; 7] = [
+        Self::Keyword,
+        Self::Loyalty,
+        Self::Triggered,
+        Self::ClassLevel,
+        Self::Activated,
+        Self::Chapter,
+        Self::RollRow,
+    ];
+
+    const fn guard_rank(self) -> u8 {
+        match self {
+            Self::Keyword => 0,
+            Self::Loyalty => 1,
+            Self::Triggered => 2,
+            Self::ClassLevel => 3,
+            Self::Activated => 4,
+            Self::Chapter => 5,
+            Self::RollRow => 6,
+        }
+    }
+}
+
+struct ParsedAbilityCandidate {
+    frame: AbilityFrameCandidate,
+    kind: AbilityKind,
+    diagnostics: Vec<AbilityDiagnostic>,
+    selections: Vec<AbilitySelection>,
+}
+
 impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     fn new(
         source: &'source str,
@@ -415,7 +457,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 continue;
             }
 
-            if let Some(range) = self.level_band_header(current)
+            if let Some(range) = self.level_band_header(current).filter(valid_level_range)
                 && let Some(stats) = lines
                     .get(line + 1)
                     .and_then(|stat_line| self.bare_power_toughness(stat_line))
@@ -428,14 +470,15 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                     band_end += 1;
                 }
                 let body = lines[line + 2..band_end].to_vec();
-                abilities.push(self.parse_level_band(range, stats, &body));
-                ability_spans.push(lines_span(&lines[line..band_end]));
+                let span = lines_span(&lines[line..band_end]);
+                abilities.push(self.parse_level_band(range, stats, &body, span));
+                ability_spans.push(span);
                 line = band_end;
                 continue;
             }
 
             if station_card && let Some((threshold, body)) = self.station_threshold_frame(current) {
-                abilities.push(self.parse_station_threshold(threshold, body));
+                abilities.push(self.parse_station_threshold(threshold, body, tokens_span(current)));
                 ability_spans.push(tokens_span(current));
                 line += 1;
                 continue;
@@ -450,8 +493,9 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                     .iter()
                     .map(|mode| strip_bullet(mode))
                     .collect::<Vec<_>>();
-                abilities.push(self.parse_modal(current, &modes));
-                ability_spans.push(lines_span(&lines[line..mode_end]));
+                let span = lines_span(&lines[line..mode_end]);
+                abilities.push(self.parse_modal(current, &modes, span));
+                ability_spans.push(span);
                 line = mode_end;
             } else {
                 abilities.push(self.parse_ability(current));
@@ -482,66 +526,139 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 .map_or((None, body), |(header, rest)| (Some(header), rest))
         };
         let kind = self.parse_ability_kind(body);
-        Ability {
-            ability_word,
-            flavor_header,
-            kind,
-        }
+        self.finish_ability(tokens_span(tokens), ability_word, flavor_header, kind)
     }
 
     fn parse_ability_kind(&mut self, tokens: &[Token]) -> AbilityKind {
-        if let Some(keywords) =
-            self.attempt(|parser| parser.parse_keyword_line_construction(tokens))
+        #[cfg_attr(not(test), allow(unused_mut))]
+        let mut frames = AbilityFrameCandidate::ALL;
+        #[cfg(test)]
+        self.activation.reorder_ability_candidates(&mut frames);
+        let mut candidates = frames
+            .into_iter()
+            .filter_map(|frame| self.probe_ability_candidate(frame, tokens))
+            .collect::<Vec<_>>();
+        let best_rank = candidates
+            .iter()
+            .map(|candidate| candidate.frame.guard_rank())
+            .min();
+        candidates.retain(|candidate| Some(candidate.frame.guard_rank()) == best_rank);
+        if let [candidate] = candidates.as_mut_slice() {
+            self.diagnostics.append(&mut candidate.diagnostics);
+            self.selections.append(&mut candidate.selections);
+            return candidate.kind.clone();
+        }
+        if let Some(colon) = find_top_level_punctuation(tokens, Punctuation::Colon)
+            && colon + 1 == tokens.len()
         {
-            return AbilityKind::Keyword(keywords);
-        }
-        if let Some((cost, effect)) = self.loyalty_frame(tokens) {
-            return AbilityKind::Loyalty(LoyaltyAbility {
-                cost,
-                effect: self.parse_paragraph(effect),
-            });
-        }
-        if let Some((conditions, intervening_condition, effect)) =
-            self.attempt(|parser| parser.triggered_ability_frame(tokens))
-        {
-            return AbilityKind::Triggered(TriggeredAbility {
-                conditions,
-                intervening_condition,
-                effect: self.parse_paragraph(effect),
-            });
-        }
-        if let Some(colon) = find_top_level_punctuation(tokens, Punctuation::Colon) {
-            let cost = self.parse_cost(&tokens[..colon]);
-            let effect_tokens = &tokens[colon + 1..];
-            if let Some(level) = self.class_level(effect_tokens) {
-                return AbilityKind::ClassLevel(ClassLevelAbility { cost, level });
-            }
-            if effect_tokens.is_empty() {
-                self.diagnostics.push(AbilityDiagnostic {
-                    kind: AbilityDiagnosticKind::EmptyActivationEffect,
-                    span: tokens
-                        .get(colon)
-                        .map_or_else(|| tokens_span(tokens), |token| token.span),
-                });
-            }
-            return AbilityKind::Activated(ActivatedAbility {
-                cost,
-                effect: self.parse_paragraph(effect_tokens),
-            });
-        }
-        if let Some((chapters, effect)) = self.chapter_frame(tokens) {
-            return AbilityKind::Chapter(ChapterAbility {
-                chapters,
-                body: self.parse_paragraph(effect),
-            });
-        }
-        if let Some((range, body)) = self.roll_row_frame(tokens) {
-            return AbilityKind::RollRow(RollRowAbility {
-                range,
-                body: self.parse_paragraph(body),
+            self.diagnostics.push(AbilityDiagnostic {
+                kind: AbilityDiagnosticKind::EmptyActivationEffect,
+                span: tokens
+                    .get(colon)
+                    .map_or_else(|| tokens_span(tokens), |token| token.span),
             });
         }
         AbilityKind::Paragraph(self.parse_paragraph(tokens))
+    }
+
+    fn probe_ability_candidate(
+        &mut self,
+        frame: AbilityFrameCandidate,
+        tokens: &[Token],
+    ) -> Option<ParsedAbilityCandidate> {
+        let diagnostics = self.diagnostics.len();
+        let selections = self.selections.len();
+        let kind = match frame {
+            AbilityFrameCandidate::Keyword => self
+                .parse_keyword_line_construction(tokens)
+                .map(AbilityKind::Keyword),
+            AbilityFrameCandidate::Loyalty => {
+                self.loyalty_frame(tokens).and_then(|(cost, effect)| {
+                    (!effect.is_empty()).then(|| {
+                        AbilityKind::Loyalty(LoyaltyAbility {
+                            cost,
+                            effect: self.parse_paragraph(effect),
+                        })
+                    })
+                })
+            }
+            AbilityFrameCandidate::Triggered => self.triggered_ability_frame(tokens).and_then(
+                |(conditions, intervening_condition, effect)| {
+                    (!effect.is_empty()).then(|| {
+                        AbilityKind::Triggered(TriggeredAbility {
+                            conditions,
+                            intervening_condition,
+                            effect: self.parse_paragraph(effect),
+                        })
+                    })
+                },
+            ),
+            AbilityFrameCandidate::ClassLevel => {
+                let colon = find_top_level_punctuation(tokens, Punctuation::Colon)?;
+                let level = self.class_level(&tokens[colon + 1..])?;
+                Some(AbilityKind::ClassLevel(ClassLevelAbility {
+                    cost: self.parse_cost(&tokens[..colon]),
+                    level,
+                }))
+            }
+            AbilityFrameCandidate::Activated => {
+                let colon = find_top_level_punctuation(tokens, Punctuation::Colon)?;
+                let effect = &tokens[colon + 1..];
+                if effect.is_empty() || self.class_level(effect).is_some() {
+                    None
+                } else {
+                    Some(AbilityKind::Activated(ActivatedAbility {
+                        cost: self.parse_cost(&tokens[..colon]),
+                        effect: self.parse_paragraph(effect),
+                    }))
+                }
+            }
+            AbilityFrameCandidate::Chapter => {
+                self.chapter_frame(tokens).and_then(|(chapters, body)| {
+                    (!body.is_empty()).then(|| {
+                        AbilityKind::Chapter(ChapterAbility {
+                            chapters,
+                            body: self.parse_paragraph(body),
+                        })
+                    })
+                })
+            }
+            AbilityFrameCandidate::RollRow => {
+                self.roll_row_frame(tokens).and_then(|(range, body)| {
+                    (!body.is_empty()).then(|| {
+                        AbilityKind::RollRow(RollRowAbility {
+                            range,
+                            body: self.parse_paragraph(body),
+                        })
+                    })
+                })
+            }
+        };
+        let candidate_diagnostics = self.diagnostics.split_off(diagnostics);
+        let candidate_selections = self.selections.split_off(selections);
+        kind.filter(crate::constructions::ability::kind_is_valid)
+            .map(|kind| ParsedAbilityCandidate {
+                frame,
+                kind,
+                diagnostics: candidate_diagnostics,
+                selections: candidate_selections,
+            })
+    }
+
+    fn finish_ability(
+        &mut self,
+        span: Span,
+        ability_word: Option<CatalogAtom>,
+        flavor_header: Option<FlavorHeader>,
+        kind: AbilityKind,
+    ) -> Ability {
+        let ability =
+            crate::constructions::ability::build_ability_root(ability_word, flavor_header, kind)
+                .expect("the ability classifier satisfies the declaration");
+        let ordinal = crate::constructions::ability::ability_form_ordinal(&ability)
+            .expect("the declaration assigns every AbilityKind one form");
+        self.record_ability_construction_span(span, "ability", ordinal);
+        ability
     }
 
     /// Splits a die-roll result-table row (`20 | …`, `2—9 | …`, `15+ | …`,
@@ -683,17 +800,19 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         range: LevelRange,
         stats: PowerToughness,
         body: &[&[Token]],
+        span: Span,
     ) -> Ability {
         let abilities = body.iter().map(|line| self.parse_ability(line)).collect();
-        Ability {
-            ability_word: None,
-            flavor_header: None,
-            kind: AbilityKind::LevelBand(LevelBandAbility {
+        self.finish_ability(
+            span,
+            None,
+            None,
+            AbilityKind::LevelBand(LevelBandAbility {
                 range,
                 stats,
                 abilities,
             }),
-        }
+        )
     }
 
     /// Whether this line is the bare `Station` keyword ability [CR#702.184a] —
@@ -763,15 +882,22 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     /// the `Ability` is constructed directly (like [`Self::parse_level_band`]
     /// and [`Self::parse_modal`]) because the row key carries no
     /// ability-word or flavor-word prefix of its own.
-    fn parse_station_threshold(&mut self, threshold: NumberLiteral, body: &[Token]) -> Ability {
-        Ability {
-            ability_word: None,
-            flavor_header: None,
-            kind: AbilityKind::StationThreshold(StationThresholdAbility {
+    fn parse_station_threshold(
+        &mut self,
+        threshold: NumberLiteral,
+        body: &[Token],
+        span: Span,
+    ) -> Ability {
+        let nested = self.parse_ability(body);
+        self.finish_ability(
+            span,
+            None,
+            None,
+            AbilityKind::StationThreshold(StationThresholdAbility {
                 threshold,
-                ability: Box::new(self.parse_ability(body)),
+                ability: Box::new(nested),
             }),
-        }
+        )
     }
 
     /// Splits a saga chapter header (`I — …`, `I, II — …`) into its list of
@@ -827,7 +953,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         })
     }
 
-    fn parse_modal(&mut self, header: &[Token], modes: &[&[Token]]) -> Ability {
+    fn parse_modal(&mut self, header: &[Token], modes: &[&[Token]], span: Span) -> Ability {
         let (ability_word, header) = self
             .ability_word_prefix(header)
             .map_or((None, header), |(word, body)| (Some(word), body));
@@ -866,20 +992,22 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             (ModalFrame::Unframed, header)
         };
 
-        Ability {
+        let modal = ModalAbility {
+            frame,
+            header: self.parse_choice_header(header),
+            header_suffix,
+            modes: modes.iter().map(|mode| self.parse_mode(mode)).collect(),
+        };
+        self.finish_ability(
+            span,
             ability_word,
             // A modal choice header is never peeled as a flavor word: the six
             // known flavor-word faces and the measured residue population are
             // all single-frame abilities, and a modal header's leading ` — `
             // belongs to the `Choose …` instruction, not a label.
-            flavor_header: None,
-            kind: AbilityKind::Modal(ModalAbility {
-                frame,
-                header: self.parse_choice_header(header),
-                header_suffix,
-                modes: modes.iter().map(|mode| self.parse_mode(mode)).collect(),
-            }),
-        }
+            None,
+            AbilityKind::Modal(modal),
+        )
     }
 
     /// Recognizes a bare keyword-ability header (`Tiered`) that stands in for a
@@ -1293,6 +1421,10 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     }
 
     fn record_ability_construction(&mut self, tokens: &[Token], id: &'static str, ordinal: u16) {
+        self.record_ability_construction_span(tokens_span(tokens), id, ordinal);
+    }
+
+    fn record_ability_construction_span(&mut self, span: Span, id: &'static str, ordinal: u16) {
         let Some(groups) = self.activation.ability_groups() else {
             return;
         };
@@ -1334,7 +1466,6 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             ordinal,
         };
         let cost = ParseCost::default();
-        let span = tokens_span(tokens);
         self.selections.push(AbilitySelection {
             span,
             constituent_spans: Vec::new(),
@@ -3079,6 +3210,13 @@ fn arabic_number_literal(text: &str) -> Option<NumberLiteral> {
     })
 }
 
+fn valid_level_range(range: &LevelRange) -> bool {
+    match range {
+        LevelRange::Band { low, high } => low.value <= high.value,
+        LevelRange::AtLeast(_) => true,
+    }
+}
+
 fn starts_with_bullet(tokens: &[Token]) -> bool {
     tokens
         .first()
@@ -3310,7 +3448,7 @@ mod tests {
     #[test]
     fn activated_ability_has_cost_components_and_effect_sentences() {
         let report = parse("{1}{R}, {T}, Sacrifice Nissa: Draw a card. If you do, discard a card.");
-        let AbilityKind::Activated(ability) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Activated(ability) = report.ast.abilities[0].kind() else {
             panic!("expected activated ability");
         };
         assert_eq!(ability.cost.components().len(), 3);
@@ -3343,7 +3481,7 @@ mod tests {
         // multi-symbol run, a single-symbol run, and an imperative cost clause.
         let source = "{1}{R}, {T}, Sacrifice a creature: Draw a card.";
         let report = parse(source);
-        let AbilityKind::Activated(ability) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Activated(ability) = report.ast.abilities[0].kind() else {
             panic!("expected activated ability: {:#?}", report.ast.abilities[0]);
         };
         let [mana, tap, sacrifice] = ability.cost.components() else {
@@ -3364,7 +3502,7 @@ mod tests {
         // raw string; it must reproduce its spelling byte-exactly by
         // concatenation.
         let report = parse("Morph {2}{W}");
-        let AbilityKind::Keyword(keywords) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Keyword(keywords) = report.ast.abilities[0].kind() else {
             panic!("expected keyword ability");
         };
         let KeywordArgument::Costed(KeywordCost::Symbols(symbols)) =
@@ -3390,7 +3528,7 @@ mod tests {
         // and is attributed to the activation-cost role, not the clause role.
         let source = "{T}, Frobnicate a creature: Draw a card.";
         let report = parse(source);
-        let AbilityKind::Activated(ability) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Activated(ability) = report.ast.abilities[0].kind() else {
             panic!("expected activated ability: {:#?}", report.ast.abilities[0]);
         };
         let [tap, frobnicate] = ability.cost.components() else {
@@ -3412,7 +3550,7 @@ mod tests {
     fn class_level_ability_has_a_cost_and_numeric_level() {
         let source = "{1}{R}: Level 2";
         let report = parse(source);
-        let AbilityKind::ClassLevel(level) = &report.ast.abilities[0].kind else {
+        let AbilityKind::ClassLevel(level) = report.ast.abilities[0].kind() else {
             panic!(
                 "expected a class level ability: {:#?}",
                 report.ast.abilities[0]
@@ -3433,12 +3571,11 @@ mod tests {
         let ability = &report.ast.abilities[0];
         assert_eq!(
             ability
-                .ability_word
-                .as_ref()
+                .ability_word()
                 .map(crate::catalog::CatalogAtom::canonical),
             Some("Landfall")
         );
-        let AbilityKind::Triggered(triggered) = &ability.kind else {
+        let AbilityKind::Triggered(triggered) = ability.kind() else {
             panic!("expected triggered ability");
         };
         assert_eq!(triggered.conditions.first.introducer, TriggerWord::Whenever);
@@ -3451,7 +3588,7 @@ mod tests {
     #[test]
     fn condition_in_intervening_position_is_lifted_out_of_the_effect() {
         let report = parse("Whenever Nissa attacks, if you control another creature, draw a card.");
-        let AbilityKind::Triggered(triggered) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Triggered(triggered) = report.ast.abilities[0].kind() else {
             panic!("expected triggered ability");
         };
         assert!(matches!(
@@ -3474,7 +3611,7 @@ mod tests {
             "Choose one or both —\n• Draw two cards.\n• Destroy target artifact or enchantment.",
         );
         assert_eq!(report.ast.abilities.len(), 1);
-        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Modal(modal) = report.ast.abilities[0].kind() else {
             panic!("expected modal ability");
         };
         assert_eq!(modal.frame, ModalFrame::Unframed);
@@ -3521,13 +3658,13 @@ mod tests {
     #[test]
     fn activated_and_triggered_modal_headers_keep_their_outer_frames() {
         let activated = parse("{2}, {T}: Choose one —\n• Draw a card.\n• Create a Treasure token.");
-        let AbilityKind::Modal(modal) = &activated.ast.abilities[0].kind else {
+        let AbilityKind::Modal(modal) = &activated.ast.abilities[0].kind() else {
             panic!("expected activated modal");
         };
         assert!(matches!(modal.frame, ModalFrame::Activated(_)));
 
         let triggered = parse("Whenever Nissa attacks, choose one —\n• Draw a card.\n• Scry 1.");
-        let AbilityKind::Modal(modal) = &triggered.ast.abilities[0].kind else {
+        let AbilityKind::Modal(modal) = &triggered.ast.abilities[0].kind() else {
             panic!("expected triggered modal");
         };
         assert!(matches!(
@@ -3542,7 +3679,7 @@ mod tests {
     #[test]
     fn quoted_granted_ability_does_not_split_its_sentence_or_colon() {
         let report = parse("Create a token with \"{T}: Add {G}.\" Then draw a card.");
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("quoted colon must not create an activated frame");
         };
         assert_eq!(paragraph.sentences.len(), 2);
@@ -3551,7 +3688,7 @@ mod tests {
     #[test]
     fn postposed_condition_preserves_surface_order() {
         let report = parse("Draw two cards if you control an artifact.");
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
         assert!(
@@ -3610,7 +3747,7 @@ mod tests {
     #[test]
     fn loyalty_cost_is_not_mistaken_for_an_activation_cost() {
         let report = parse("[−X]: Exile each nonland permanent with mana value X or less.");
-        let AbilityKind::Loyalty(loyalty) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Loyalty(loyalty) = report.ast.abilities[0].kind() else {
             panic!("expected loyalty ability");
         };
         assert_eq!(loyalty.cost.sign, LoyaltyCostSign::Minus);
@@ -3620,7 +3757,7 @@ mod tests {
     #[test]
     fn target_determiner_is_subject_when_a_later_predicate_exists() {
         let report = parse("Target creature can't block this turn.");
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
         let SentenceBody::Independent(IndependentClause::Deontic(Subject(subject), _, _)) =
@@ -3637,7 +3774,7 @@ mod tests {
     #[test]
     fn shared_subject_predicates_are_coordinated() {
         let report = parse("Other Goblin creatures you control get +1/+1 and have haste.");
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
         assert!(matches!(
@@ -3652,7 +3789,7 @@ mod tests {
     #[test]
     fn conjunction_inside_a_complement_is_not_a_coordinated_predicate() {
         let report = parse("Destroy target artifact and enchantment.");
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
         assert!(
@@ -3670,7 +3807,7 @@ mod tests {
         let report = parse(
             "Each player discards a card, then loses 1 life, then removes a counter, then gets a poison counter.",
         );
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
         let SentenceBody::Independent(IndependentClause::Predicated(
@@ -3694,7 +3831,7 @@ mod tests {
         let report = parse(
             "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
         );
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
         let SentenceBody::Independent(IndependentClause::Predicated(
@@ -3722,7 +3859,7 @@ mod tests {
     #[test]
     fn coordination_preserves_a_new_clause_subject() {
         let report = parse("It becomes a Vehicle, and it gains crew 2.");
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
         let SentenceBody::Independent(IndependentClause::Coordinated(coordination)) =
@@ -3743,7 +3880,7 @@ mod tests {
     fn quoted_granted_rules_are_nested_as_an_ability() {
         let report =
             parse("Target creature gains \"Whenever this creature attacks, draw a card.\"");
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
         let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
@@ -3754,7 +3891,7 @@ mod tests {
         assert!(matches!(
             &predicate.object,
             PredicateObject::QuotedAbility(quoted)
-                if matches!(quoted.ability.kind, AbilityKind::Triggered(_))
+                if matches!(quoted.ability.kind(), AbilityKind::Triggered(_))
         ));
     }
 
@@ -3770,7 +3907,7 @@ mod tests {
             "They have \"Sacrifice this token: Add {C}.\"",
         ] {
             let report = parse(source);
-            let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
                 panic!("{source}: expected paragraph");
             };
             let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
@@ -3795,7 +3932,7 @@ mod tests {
         // The distinct legacy `with "..."` relation stays structured through
         // its ability-owned compatibility door without entering public P02.
         let object = parse("Target creature gains \"Flying.\"");
-        let AbilityKind::Paragraph(object_paragraph) = &object.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(object_paragraph) = &object.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
         let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
@@ -3816,7 +3953,7 @@ mod tests {
         assert_eq!(render(&object), "Target creature gains \"Flying.\"");
 
         let with = parse("Create a Goblin creature token with \"{T}: Add {C}.\"");
-        let AbilityKind::Paragraph(with_paragraph) = &with.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(with_paragraph) = &with.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
         assert!(
@@ -3836,7 +3973,7 @@ mod tests {
     #[test]
     fn quoted_with_compatibility_cannot_enter_nested_p02_or_c01() {
         let parsed = parse("Create a Goblin creature token with \"{T}: Add {C}.\"");
-        let AbilityKind::Paragraph(paragraph) = &parsed.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = &parsed.ast.abilities[0].kind() else {
             panic!("expected paragraph")
         };
         let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
@@ -3925,7 +4062,7 @@ mod tests {
         // recovery, and the whole span round-trips verbatim.
         let source = "It has \"Glarf the wug quux.\"";
         let report = parse(source);
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
         assert!(
@@ -3961,13 +4098,14 @@ mod tests {
         // node appears and the sentence round-trips exactly.
         let source = "Create a token named \"A. B\" and draw a card.";
         let report = parse(source);
+        let [ability] = report.ast.abilities.as_slice() else {
+            panic!("expected one ability: {:#?}", report.ast)
+        };
         assert!(
             matches!(
-                report.ast.abilities.as_slice(),
-                [Ability {
-                    kind: AbilityKind::Paragraph(Paragraph { sentences, .. }),
-                    ..
-                }] if matches!(sentences.as_slice(), [Sentence {
+                ability.kind(),
+                AbilityKind::Paragraph(Paragraph { sentences, .. })
+                    if matches!(sentences.as_slice(), [Sentence {
                     body: SentenceBody::Recovered(_),
                     ..
                 }])
@@ -3982,7 +4120,7 @@ mod tests {
     #[test]
     fn keyword_argument_can_contain_an_embedded_activated_ability() {
         let report = parse("Power-up — {W}{U}{B}{R}{G}: Put a +1/+1 counter on this creature.");
-        let AbilityKind::Keyword(keywords) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Keyword(keywords) = report.ast.abilities[0].kind() else {
             panic!("expected keyword ability");
         };
         assert!(matches!(
@@ -3994,7 +4132,7 @@ mod tests {
     #[test]
     fn contiguous_symbol_keyword_argument_is_a_cost() {
         let report = parse("Morph {2}{W}");
-        let AbilityKind::Keyword(keywords) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Keyword(keywords) = report.ast.abilities[0].kind() else {
             panic!("expected keyword ability");
         };
         assert!(matches!(
@@ -4008,7 +4146,7 @@ mod tests {
     #[test]
     fn punctuation_inside_a_mid_sentence_quote_stays_nested() {
         let report = parse("Create a token named \"A. B\" and draw a card.");
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
         assert_eq!(paragraph.sentences.len(), 1);
@@ -4041,7 +4179,7 @@ mod tests {
     #[test]
     fn scryfall_catalogs_recognize_keyword_lists_actions_and_ability_words() {
         let keywords = parse("Flying, first strike, protection from red");
-        let AbilityKind::Keyword(list) = &keywords.ast.abilities[0].kind else {
+        let AbilityKind::Keyword(list) = &keywords.ast.abilities[0].kind() else {
             panic!("expected keyword list");
         };
         assert_eq!(list.abilities().len(), 3);
@@ -4050,7 +4188,7 @@ mod tests {
         assert_eq!(list.abilities()[2].ability.canonical(), "Protection");
 
         let action = parse("Manifest dread 2.");
-        let AbilityKind::Paragraph(paragraph) = &action.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = &action.ast.abilities[0].kind() else {
             panic!("expected action paragraph");
         };
         let clause = sentence_independent(&paragraph.sentences[0]);
@@ -4062,8 +4200,7 @@ mod tests {
         let ability_word = parse("Void — Whenever Nissa attacks, draw a card.");
         assert_eq!(
             ability_word.ast.abilities[0]
-                .ability_word
-                .as_ref()
+                .ability_word()
                 .map(crate::catalog::CatalogAtom::canonical),
             Some("Void")
         );
@@ -4072,7 +4209,7 @@ mod tests {
     #[test]
     fn exact_catalog_terms_are_recognized_outside_ability_position() {
         let report = parse("Other Goblin creatures you control get +1/+1 and have haste.");
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
         let SentenceBody::Independent(IndependentClause::Predicated(
@@ -4100,7 +4237,7 @@ mod tests {
     fn affinity_accepts_a_for_prepositional_argument() {
         let catalogs = fixture_catalogs().with_catalog(CatalogKind::KeywordAbility, ["Affinity"]);
         let report = parse_with_catalogs("Affinity for artifacts", &catalogs);
-        let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Keyword(list) = report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability: {:#?}", report.ast.abilities[0]);
         };
         assert!(matches!(
@@ -4127,7 +4264,7 @@ mod tests {
         let report = parse(&source);
         assert_eq!(source, "Flying");
         assert!(matches!(
-            report.ast.abilities[0].kind,
+            report.ast.abilities[0].kind(),
             AbilityKind::Keyword(_)
         ));
     }
@@ -4179,7 +4316,7 @@ mod tests {
 
         let aang_source = "Aang has vigilance as long as there's a Lesson card in your graveyard.\nWhenever another creature you control dies, put a +1/+1 counter on Aang.";
         let aang = parse_with_identity(aang_source, &catalogs, "Aang, A Lot to Learn", true);
-        let AbilityKind::Paragraph(aang_static) = &aang.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(aang_static) = &aang.ast.abilities[0].kind() else {
             panic!("expected Aang's first ability to be a paragraph");
         };
         assert!(
@@ -4212,7 +4349,7 @@ mod tests {
 
         let keeper_source = "When this creature enters, you become the monarch.\nAt the beginning of your upkeep, if you're the monarch, creatures you control can't be blocked this turn.";
         let keeper = parse_with_catalogs(keeper_source, &catalogs);
-        let AbilityKind::Triggered(keeper_upkeep) = &keeper.ast.abilities[1].kind else {
+        let AbilityKind::Triggered(keeper_upkeep) = &keeper.ast.abilities[1].kind() else {
             panic!("expected Keeper of Keys' second ability to be triggered");
         };
         assert!(matches!(
@@ -4245,7 +4382,7 @@ mod tests {
 
         let justice_source = "Whenever a spell or ability an opponent controls destroys a noncreature permanent you control, you may destroy target permanent that opponent controls.";
         let justice = parse_with_catalogs(justice_source, &catalogs);
-        let AbilityKind::Triggered(justice_trigger) = &justice.ast.abilities[0].kind else {
+        let AbilityKind::Triggered(justice_trigger) = &justice.ast.abilities[0].kind() else {
             panic!("expected Karmic Justice to be triggered");
         };
         assert!(matches!(
@@ -4274,10 +4411,10 @@ mod tests {
     fn flavor_header_at_ability_start_is_licensed_opacity() {
         let source = "Zorbo Rampage! — Draw a card.";
         let report = parse(source);
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!(
                 "expected paragraph ability, got {:#?}",
-                report.ast.abilities[0].kind
+                report.ast.abilities[0].kind()
             );
         };
         let header = paragraph.flavor_header.as_ref().expect("flavor header");
@@ -4300,7 +4437,7 @@ mod tests {
     fn ellipsis_and_question_flavor_header_round_trips() {
         let source = "Would You Believe...? — Draw a card.";
         let report = parse(source);
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph ability");
         };
         assert_eq!(
@@ -4314,7 +4451,7 @@ mod tests {
     fn internal_periods_flavor_header_round_trips() {
         let source = "I. AM. LOUD! — Draw a card.";
         let report = parse(source);
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph ability");
         };
         assert_eq!(
@@ -4328,10 +4465,10 @@ mod tests {
     fn flavor_header_stacks_inside_a_single_chapter_body() {
         let source = "I — Stampede! — Draw a card.";
         let report = parse(source);
-        let AbilityKind::Chapter(chapter) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Chapter(chapter) = report.ast.abilities[0].kind() else {
             panic!(
                 "expected a single-chapter ability, got {:#?}",
-                report.ast.abilities[0].kind
+                report.ast.abilities[0].kind()
             );
         };
         assert_eq!(chapter.chapters.len(), 1);
@@ -4355,7 +4492,7 @@ mod tests {
     fn flavor_header_inside_a_bulleted_mode_body_round_trips() {
         let source = "I —\n• Stampede! — Draw a card.";
         let report = parse(source);
-        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Modal(modal) = report.ast.abilities[0].kind() else {
             panic!("expected a modal ability");
         };
         assert_eq!(
@@ -4375,22 +4512,21 @@ mod tests {
         let ability = &report.ast.abilities[0];
         assert_eq!(
             ability
-                .ability_word
-                .as_ref()
+                .ability_word()
                 .map(crate::catalog::CatalogAtom::canonical),
             Some("Landfall")
         );
-        let AbilityKind::Paragraph(paragraph) = &ability.kind else {
+        let AbilityKind::Paragraph(paragraph) = ability.kind() else {
             panic!("expected paragraph body under the ability word");
         };
         assert_eq!(paragraph.flavor_header, None);
     }
 
     fn chapter_values(report: &ParseReport) -> Vec<i32> {
-        let AbilityKind::Chapter(chapter) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Chapter(chapter) = report.ast.abilities[0].kind() else {
             panic!(
                 "expected a chapter ability, got {:#?}",
-                report.ast.abilities[0].kind
+                report.ast.abilities[0].kind()
             );
         };
         assert!(
@@ -4407,7 +4543,7 @@ mod tests {
     fn single_chapter_saga_header_lowers_to_a_chapter_ability() {
         let report = parse("I — Draw a card.");
         assert_eq!(chapter_values(&report), vec![1]);
-        let AbilityKind::Chapter(chapter) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Chapter(chapter) = report.ast.abilities[0].kind() else {
             unreachable!();
         };
         assert_eq!(chapter.body.flavor_header, None);
@@ -4454,7 +4590,7 @@ mod tests {
         // ordinary paragraph; nothing becomes a chapter mid-sentence.
         let report = parse("Exile target creature.");
         assert!(matches!(
-            &report.ast.abilities[0].kind,
+            report.ast.abilities[0].kind(),
             AbilityKind::Paragraph(_)
         ));
     }
@@ -4465,16 +4601,16 @@ mod tests {
         // not a chapter list and the line falls through to the paragraph path.
         let report = parse("I, and III — Draw a card.");
         assert!(
-            !matches!(&report.ast.abilities[0].kind, AbilityKind::Chapter(_)),
+            !matches!(report.ast.abilities[0].kind(), AbilityKind::Chapter(_)),
             "a non-Roman header group must not parse as a chapter: {:#?}",
-            report.ast.abilities[0].kind
+            report.ast.abilities[0].kind()
         );
     }
 
     #[test]
     fn modal_choice_header_is_not_eaten_as_a_flavor_header() {
         let report = parse("Choose one —\n• Draw a card.\n• Draw two cards.");
-        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Modal(modal) = report.ast.abilities[0].kind() else {
             panic!("expected a modal ability");
         };
         assert_eq!(modal.modes.len(), 2);
@@ -4494,10 +4630,10 @@ mod tests {
     }
 
     fn modal_header_choice(report: &ParseReport) -> &ChoiceInstruction {
-        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Modal(modal) = report.ast.abilities[0].kind() else {
             panic!(
                 "expected a modal ability: {:#?}",
-                report.ast.abilities[0].kind
+                report.ast.abilities[0].kind()
             );
         };
         let choice = modal
@@ -4551,10 +4687,10 @@ mod tests {
         let source =
             "Whenever Nissa enters or attacks, choose one —\n• Draw a card.\n• Draw two cards.";
         let report = parse(source);
-        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Modal(modal) = report.ast.abilities[0].kind() else {
             panic!(
                 "expected a modal ability: {:#?}",
-                report.ast.abilities[0].kind
+                report.ast.abilities[0].kind()
             );
         };
         let ModalFrame::Triggered(trigger) = &modal.frame else {
@@ -4580,7 +4716,7 @@ mod tests {
         // so it cannot be an outer frame: it is the choice's own trigger prefix.
         let source = "Draw a card. When you do, choose one —\n• Draw a card.\n• Draw two cards.";
         let report = parse(source);
-        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Modal(modal) = report.ast.abilities[0].kind() else {
             panic!("expected a modal ability");
         };
         assert!(matches!(
@@ -4602,7 +4738,7 @@ mod tests {
         let report = parse(source);
         // The trigger is a simple event, so the outer frame absorbs it and the
         // choice header is the bare `choose one or both`.
-        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Modal(modal) = report.ast.abilities[0].kind() else {
             panic!("expected a modal ability");
         };
         assert!(matches!(modal.frame, ModalFrame::Triggered(_)));
@@ -4631,7 +4767,7 @@ mod tests {
         // structural and render as an exact inverse.
         let source = "I, II — Choose one at random —\n• Draw a card.\n• Draw two cards.";
         let report = parse(source);
-        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Modal(modal) = report.ast.abilities[0].kind() else {
             panic!("expected a modal ability");
         };
         let ModalFrame::Chapter(chapters) = &modal.frame else {
@@ -4661,9 +4797,9 @@ mod tests {
         let source = "When Nissa enters, draw a card.";
         let report = parse(source);
         assert!(
-            matches!(&report.ast.abilities[0].kind, AbilityKind::Triggered(_)),
+            matches!(report.ast.abilities[0].kind(), AbilityKind::Triggered(_)),
             "a non-choice When-clause stays a triggered ability: {:#?}",
-            report.ast.abilities[0].kind
+            report.ast.abilities[0].kind()
         );
         assert_eq!(render(&report), source);
     }
@@ -4676,27 +4812,27 @@ mod tests {
     }
 
     fn roll_row(report: &ParseReport) -> &RollRowAbility {
-        let AbilityKind::RollRow(row) = &report.ast.abilities[0].kind else {
+        let AbilityKind::RollRow(row) = report.ast.abilities[0].kind() else {
             panic!(
                 "expected a roll-row ability, got {:#?}",
-                report.ast.abilities[0].kind
+                report.ast.abilities[0].kind()
             );
         };
         row
     }
 
     fn level_band(report: &ParseReport) -> &LevelBandAbility {
-        let AbilityKind::LevelBand(band) = &report.ast.abilities[0].kind else {
+        let AbilityKind::LevelBand(band) = report.ast.abilities[0].kind() else {
             panic!(
                 "expected a level-band ability, got {:#?}",
-                report.ast.abilities[0].kind
+                report.ast.abilities[0].kind()
             );
         };
         band
     }
 
     fn station_threshold(report: &ParseReport, index: usize) -> &StationThresholdAbility {
-        let AbilityKind::StationThreshold(row) = &report.ast.abilities[index].kind else {
+        let AbilityKind::StationThreshold(row) = &report.ast.abilities[index].kind() else {
             panic!(
                 "expected a station threshold: {:#?}",
                 report.ast.abilities[index]
@@ -4712,8 +4848,8 @@ mod tests {
         assert_eq!(report.ast.abilities.len(), 2);
         let row = station_threshold(&report, 1);
         assert_eq!(row.threshold, arabic(8));
-        let AbilityKind::Keyword(list) = &row.ability.kind else {
-            panic!("expected a keyword list body: {:#?}", row.ability.kind);
+        let AbilityKind::Keyword(list) = row.ability.kind() else {
+            panic!("expected a keyword list body: {:#?}", row.ability.kind());
         };
         assert_eq!(list.abilities().len(), 2);
         assert_eq!(render(&report), source);
@@ -4726,8 +4862,8 @@ mod tests {
         let report = parse(source);
         let row = station_threshold(&report, 1);
         assert_eq!(row.threshold, arabic(12));
-        let AbilityKind::Activated(activated) = &row.ability.kind else {
-            panic!("expected an activated body: {:#?}", row.ability.kind);
+        let AbilityKind::Activated(activated) = row.ability.kind() else {
+            panic!("expected an activated body: {:#?}", row.ability.kind());
         };
         let symbol_components = activated
             .cost
@@ -4749,7 +4885,7 @@ mod tests {
         let report = parse(source);
         let row = station_threshold(&report, 1);
         assert_eq!(row.threshold, arabic(10));
-        assert!(matches!(row.ability.kind, AbilityKind::Triggered(_)));
+        assert!(matches!(row.ability.kind(), AbilityKind::Triggered(_)));
     }
 
     #[test]
@@ -4758,8 +4894,8 @@ mod tests {
         let report = parse(source);
         let row = station_threshold(&report, 1);
         assert_eq!(row.threshold, arabic(2));
-        let AbilityKind::Paragraph(paragraph) = &row.ability.kind else {
-            panic!("expected a paragraph body: {:#?}", row.ability.kind);
+        let AbilityKind::Paragraph(paragraph) = row.ability.kind() else {
+            panic!("expected a paragraph body: {:#?}", row.ability.kind());
         };
         assert!(matches!(
             paragraph.sentences[0].body,
@@ -4773,19 +4909,19 @@ mod tests {
         let report = parse(source);
         assert_eq!(report.ast.abilities.len(), 4);
         assert!(matches!(
-            report.ast.abilities[0].kind,
+            report.ast.abilities[0].kind(),
             AbilityKind::Keyword(_)
         ));
         assert!(matches!(
-            report.ast.abilities[1].kind,
+            report.ast.abilities[1].kind(),
             AbilityKind::StationThreshold(_)
         ));
         assert!(matches!(
-            report.ast.abilities[2].kind,
+            report.ast.abilities[2].kind(),
             AbilityKind::StationThreshold(_)
         ));
         assert!(matches!(
-            report.ast.abilities[3].kind,
+            report.ast.abilities[3].kind(),
             AbilityKind::Triggered(_)
         ));
         assert_eq!(render(&report), source);
@@ -4796,12 +4932,12 @@ mod tests {
         let source = "Roll a d20.\n1—14 | Draw a card.\n15+ | Draw two cards.";
         let report = parse(source);
         for ability in &report.ast.abilities {
-            assert!(!matches!(ability.kind, AbilityKind::StationThreshold(_)));
+            assert!(!matches!(ability.kind(), AbilityKind::StationThreshold(_)));
         }
-        let AbilityKind::RollRow(first) = &report.ast.abilities[1].kind else {
+        let AbilityKind::RollRow(first) = &report.ast.abilities[1].kind() else {
             panic!(
                 "expected a roll-row ability, got {:#?}",
-                report.ast.abilities[1].kind
+                report.ast.abilities[1].kind()
             );
         };
         assert_eq!(
@@ -4811,10 +4947,10 @@ mod tests {
                 high: arabic(14)
             }
         );
-        let AbilityKind::RollRow(second) = &report.ast.abilities[2].kind else {
+        let AbilityKind::RollRow(second) = &report.ast.abilities[2].kind() else {
             panic!(
                 "expected a roll-row ability, got {:#?}",
-                report.ast.abilities[2].kind
+                report.ast.abilities[2].kind()
             );
         };
         assert_eq!(second.range, RollRange::OrMore(arabic(15)));
@@ -4824,15 +4960,15 @@ mod tests {
     fn a_station_card_does_not_claim_a_non_plus_pipe_row() {
         let source = "Station\n20 | Draw a card.";
         let report = parse(source);
-        let AbilityKind::RollRow(row) = &report.ast.abilities[1].kind else {
+        let AbilityKind::RollRow(row) = &report.ast.abilities[1].kind() else {
             panic!(
                 "expected a roll-row ability, got {:#?}",
-                report.ast.abilities[1].kind
+                report.ast.abilities[1].kind()
             );
         };
         assert_eq!(row.range, RollRange::Single(arabic(20)));
         for ability in &report.ast.abilities {
-            assert!(!matches!(ability.kind, AbilityKind::StationThreshold(_)));
+            assert!(!matches!(ability.kind(), AbilityKind::StationThreshold(_)));
         }
     }
 
@@ -4841,11 +4977,11 @@ mod tests {
         let source = "15+ | Draw a card.";
         let report = parse(source);
         assert!(matches!(
-            report.ast.abilities[0].kind,
+            report.ast.abilities[0].kind(),
             AbilityKind::RollRow(_)
         ));
         for ability in &report.ast.abilities {
-            assert!(!matches!(ability.kind, AbilityKind::StationThreshold(_)));
+            assert!(!matches!(ability.kind(), AbilityKind::StationThreshold(_)));
         }
     }
 
@@ -4859,7 +4995,7 @@ mod tests {
             false,
         );
         for ability in &report.ast.abilities {
-            assert!(!matches!(ability.kind, AbilityKind::StationThreshold(_)));
+            assert!(!matches!(ability.kind(), AbilityKind::StationThreshold(_)));
         }
     }
 
@@ -4867,10 +5003,10 @@ mod tests {
     fn an_ordinary_activated_ability_keeps_its_cost_frame() {
         let source = "Station\n{3}{W}, {T}: Create a Treasure token.";
         let report = parse(source);
-        let AbilityKind::Activated(activated) = &report.ast.abilities[1].kind else {
+        let AbilityKind::Activated(activated) = &report.ast.abilities[1].kind() else {
             panic!(
                 "expected an activated ability, got {:#?}",
-                report.ast.abilities[1].kind
+                report.ast.abilities[1].kind()
             );
         };
         let symbol_components = activated
@@ -4918,7 +5054,7 @@ mod tests {
         let band = level_band(&report);
         assert_eq!(band.range, LevelRange::AtLeast(arabic(4)));
         assert_eq!(band.abilities.len(), 1);
-        assert!(matches!(band.abilities[0].kind, AbilityKind::Keyword(_)));
+        assert!(matches!(band.abilities[0].kind(), AbilityKind::Keyword(_)));
         assert_eq!(render(&report), source);
     }
 
@@ -4928,25 +5064,25 @@ mod tests {
         let report = parse(source);
         assert_eq!(report.ast.abilities.len(), 3);
         assert!(matches!(
-            report.ast.abilities[0].kind,
+            report.ast.abilities[0].kind(),
             AbilityKind::Keyword(_)
         ));
-        let AbilityKind::LevelBand(first) = &report.ast.abilities[1].kind else {
+        let AbilityKind::LevelBand(first) = &report.ast.abilities[1].kind() else {
             panic!(
                 "expected a level-band ability, got {:#?}",
-                report.ast.abilities[1].kind
+                report.ast.abilities[1].kind()
             );
         };
         assert_eq!(first.abilities.len(), 1);
-        let AbilityKind::LevelBand(second) = &report.ast.abilities[2].kind else {
+        let AbilityKind::LevelBand(second) = &report.ast.abilities[2].kind() else {
             panic!(
                 "expected a level-band ability, got {:#?}",
-                report.ast.abilities[2].kind
+                report.ast.abilities[2].kind()
             );
         };
         assert_eq!(second.abilities.len(), 2);
         assert!(matches!(
-            second.abilities[1].kind,
+            second.abilities[1].kind(),
             AbilityKind::Activated(_)
         ));
         assert_eq!(render(&report), source);
@@ -4957,13 +5093,13 @@ mod tests {
         let source = "LEVEL 1-3";
         let report = parse(source);
         assert!(!matches!(
-            report.ast.abilities[0].kind,
+            report.ast.abilities[0].kind(),
             AbilityKind::LevelBand(_)
         ));
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!(
                 "expected a paragraph ability, got {:#?}",
-                report.ast.abilities[0].kind
+                report.ast.abilities[0].kind()
             );
         };
         assert!(matches!(
@@ -4978,12 +5114,12 @@ mod tests {
         let report = parse(source);
         assert_eq!(report.ast.abilities.len(), 2);
         for ability in &report.ast.abilities {
-            assert!(!matches!(ability.kind, AbilityKind::LevelBand(_)));
+            assert!(!matches!(ability.kind(), AbilityKind::LevelBand(_)));
         }
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[1].kind else {
+        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[1].kind() else {
             panic!(
                 "expected a paragraph ability, got {:#?}",
-                report.ast.abilities[1].kind
+                report.ast.abilities[1].kind()
             );
         };
         assert!(matches!(
@@ -4997,7 +5133,7 @@ mod tests {
         let source = "Level 1-3\n4/4";
         let report = parse(source);
         for ability in &report.ast.abilities {
-            assert!(!matches!(ability.kind, AbilityKind::LevelBand(_)));
+            assert!(!matches!(ability.kind(), AbilityKind::LevelBand(_)));
         }
         assert_eq!(render(&report), source);
     }
@@ -5007,11 +5143,11 @@ mod tests {
         let source = "{1}{R}: Level 2\nCreatures you control have haste.";
         let report = parse(source);
         assert!(matches!(
-            report.ast.abilities[0].kind,
+            report.ast.abilities[0].kind(),
             AbilityKind::ClassLevel(_)
         ));
         for ability in &report.ast.abilities {
-            assert!(!matches!(ability.kind, AbilityKind::LevelBand(_)));
+            assert!(!matches!(ability.kind(), AbilityKind::LevelBand(_)));
         }
     }
 
@@ -5020,7 +5156,7 @@ mod tests {
         let source = "LEVEL 1-3\n4/4.";
         let report = parse(source);
         for ability in &report.ast.abilities {
-            assert!(!matches!(ability.kind, AbilityKind::LevelBand(_)));
+            assert!(!matches!(ability.kind(), AbilityKind::LevelBand(_)));
         }
     }
 
@@ -5029,10 +5165,10 @@ mod tests {
         let source = "Roll a d20.\n20 | Draw a card.";
         let report = parse(source);
         assert_eq!(report.ast.abilities.len(), 2);
-        let AbilityKind::RollRow(row) = &report.ast.abilities[1].kind else {
+        let AbilityKind::RollRow(row) = &report.ast.abilities[1].kind() else {
             panic!(
                 "expected a roll-row ability, got {:#?}",
-                report.ast.abilities[1].kind
+                report.ast.abilities[1].kind()
             );
         };
         assert_eq!(row.range, RollRange::Single(arabic(20)));
@@ -5162,15 +5298,15 @@ mod tests {
         let report = parse(source);
         assert_eq!(report.ast.abilities.len(), 5);
         assert!(
-            matches!(&report.ast.abilities[0].kind, AbilityKind::Activated(_)),
+            matches!(report.ast.abilities[0].kind(), AbilityKind::Activated(_)),
             "the instruction line stays an activated ability: {:#?}",
-            report.ast.abilities[0].kind
+            report.ast.abilities[0].kind()
         );
         let ranges: Vec<RollRange> = report.ast.abilities[1..]
             .iter()
             .map(|ability| {
-                let AbilityKind::RollRow(row) = &ability.kind else {
-                    panic!("expected a roll-row ability, got {:#?}", ability.kind);
+                let AbilityKind::RollRow(row) = ability.kind() else {
+                    panic!("expected a roll-row ability, got {:#?}", ability.kind());
                 };
                 row.range
             })
@@ -5205,9 +5341,9 @@ mod tests {
         // must not become a roll row (it stays an ordinary paragraph).
         let report = parse("2—9 creatures attack.");
         assert!(
-            !matches!(&report.ast.abilities[0].kind, AbilityKind::RollRow(_)),
+            !matches!(report.ast.abilities[0].kind(), AbilityKind::RollRow(_)),
             "an unspaced range with no pipe must not parse as a roll row: {:#?}",
-            report.ast.abilities[0].kind
+            report.ast.abilities[0].kind()
         );
     }
 
@@ -5217,7 +5353,7 @@ mod tests {
         // (a villainous choice), never a flavor header. Its span stays verbatim.
         let source = "Each opponent faces a villainous choice — You draw a card, or that player discards a card.";
         let report = parse(source);
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph ability");
         };
         assert_eq!(paragraph.flavor_header, None);
@@ -5230,7 +5366,7 @@ mod tests {
         // is not peeled; the mode body round-trips verbatim as before.
         let source = "Run and Hide — Prevent all combat damage this turn.";
         let report = parse(source);
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph ability");
         };
         assert_eq!(paragraph.flavor_header, None);
@@ -5251,6 +5387,98 @@ mod tests {
             .ast
             .render(FIXTURE_NAME, true)
             .expect("AST should render")
+    }
+
+    fn parse_with_activation_for_test(
+        source: &str,
+        activation: crate::grammar::GeneratedActivation,
+    ) -> super::AbilityParse {
+        let surface = lex(source);
+        let identity = SelfReference::new(FIXTURE_NAME, true);
+        let tokens =
+            crate::surface::collapse_full_names(source, surface.tokens, identity.full_name());
+        super::Parser::new_with_activation(
+            source,
+            &fixture_catalogs(),
+            &identity,
+            false,
+            activation,
+        )
+        .parse(&tokens)
+    }
+
+    #[test]
+    fn multiline_and_nested_ability_roots_are_registration_order_neutral() {
+        let activations = [
+            crate::grammar::GeneratedActivation::Groups(crate::constructions::ALL_GROUPS),
+            crate::grammar::GeneratedActivation::AbilityGroupsReversed(
+                crate::constructions::ALL_GROUPS,
+            ),
+            crate::grammar::GeneratedActivation::AbilityGroupsFixedShuffle(
+                crate::constructions::ALL_GROUPS,
+            ),
+        ];
+        for (source, expected_ordinals) in [
+            ("LEVEL 1-3\n4/4\nFlying", vec![9, 4]),
+            ("Station\n8+ | Flying", vec![9, 9, 5]),
+            ("Choose one —\n• Draw a card.\n• Gain 1 life.", vec![8]),
+            (
+                "Target creature gains \"Whenever this creature attacks, draw a card.\"",
+                vec![6, 10],
+            ),
+        ] {
+            let reports =
+                activations.map(|activation| parse_with_activation_for_test(source, activation));
+            assert_eq!(reports[0].ast, reports[1].ast, "{source}");
+            assert_eq!(reports[0].ast, reports[2].ast, "{source}");
+            assert_eq!(reports[0].diagnostics, reports[1].diagnostics, "{source}");
+            assert_eq!(reports[0].diagnostics, reports[2].diagnostics, "{source}");
+            assert_eq!(reports[0].selections, reports[1].selections, "{source}");
+            assert_eq!(reports[0].selections, reports[2].selections, "{source}");
+            let ordinals = reports[0]
+                .selections
+                .iter()
+                .flat_map(|selection| &selection.constructions)
+                .filter(|decision| decision.selected().as_str() == "ability")
+                .map(crate::ConstructionDecision::selected_production_ordinal)
+                .collect::<Vec<_>>();
+            assert_eq!(ordinals, expected_ordinals, "{source}");
+        }
+    }
+
+    #[test]
+    fn keyword_cost_and_colon_frame_collision_uses_the_declared_guard_rank() {
+        let source = "Ward—Discard a card: Draw a card.";
+        let catalogs = shape_catalogs();
+        let identity = SelfReference::new(FIXTURE_NAME, true);
+        let surface = lex(source);
+        let tokens =
+            crate::surface::collapse_full_names(source, surface.tokens, identity.full_name());
+        let mut parser = super::Parser::new_with_activation(
+            source,
+            &catalogs,
+            &identity,
+            false,
+            crate::grammar::GeneratedActivation::Production,
+        );
+        let candidates = super::AbilityFrameCandidate::ALL
+            .into_iter()
+            .filter(|candidate| {
+                parser
+                    .probe_ability_candidate(*candidate, &tokens)
+                    .is_some()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            candidates,
+            [
+                super::AbilityFrameCandidate::Keyword,
+                super::AbilityFrameCandidate::Activated,
+            ]
+        );
+
+        let ability = parser.parse_ability(&tokens);
+        assert!(matches!(ability.kind(), AbilityKind::Keyword(_)));
     }
 
     /// A catalog exercising every keyword-argument shape. The keyword names are
@@ -5300,7 +5528,7 @@ mod tests {
 
     fn shape_argument(source: &str) -> KeywordArgument {
         let report = parse_with_catalogs(source, &shape_catalogs());
-        let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Keyword(list) = report.ast.abilities[0].kind() else {
             panic!(
                 "expected a keyword ability for {source:?}: {:#?}",
                 report.ast
@@ -5393,7 +5621,7 @@ mod tests {
         let report = parse_with_catalogs(source, &shape_catalogs());
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
         assert!(
-            !matches!(report.ast.abilities[0].kind, AbilityKind::Keyword(_)),
+            !matches!(report.ast.abilities[0].kind(), AbilityKind::Keyword(_)),
             "a spaced-dash designation header must not become a keyword ability: {:#?}",
             report.ast
         );
@@ -5446,7 +5674,7 @@ mod tests {
         let source = "Escape—{2}{B}, Exile four other cards from your graveyard.";
         let report = parse_with_catalogs(source, &shape_catalogs());
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
-        let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Keyword(list) = report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability: {:#?}", report.ast);
         };
         assert_eq!(list.abilities().len(), 1, "expected one keyword item");
@@ -5474,7 +5702,7 @@ mod tests {
             "{:?}",
             synthetic_report.diagnostics
         );
-        let AbilityKind::Keyword(synthetic_list) = &synthetic_report.ast.abilities[0].kind else {
+        let AbilityKind::Keyword(synthetic_list) = &synthetic_report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability: {:#?}", synthetic_report.ast);
         };
         assert!(matches!(
@@ -5491,7 +5719,7 @@ mod tests {
             "{:?}",
             listed_report.diagnostics
         );
-        let AbilityKind::Keyword(listed_list) = &listed_report.ast.abilities[0].kind else {
+        let AbilityKind::Keyword(listed_list) = &listed_report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability: {:#?}", listed_report.ast);
         };
         assert_eq!(
@@ -5512,7 +5740,7 @@ mod tests {
         // ways, no tight-cost item involved.
         let plain = "Flying, first strike, trample";
         let plain_report = parse_with_catalogs(plain, &shape_catalogs());
-        let AbilityKind::Keyword(plain_list) = &plain_report.ast.abilities[0].kind else {
+        let AbilityKind::Keyword(plain_list) = &plain_report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability: {:#?}", plain_report.ast);
         };
         assert_eq!(plain_list.abilities().len(), 3);
@@ -5528,7 +5756,7 @@ mod tests {
             planeswalkers you control. If you cast this spell this way, X can't be 0.";
         let report = parse_with_catalogs(source, &shape_catalogs());
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
-        let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Keyword(list) = report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability: {:#?}", report.ast);
         };
         assert!(matches!(
@@ -5547,7 +5775,7 @@ mod tests {
             "{:?}",
             armor_report.diagnostics
         );
-        let AbilityKind::Keyword(armor_list) = &armor_report.ast.abilities[0].kind else {
+        let AbilityKind::Keyword(armor_list) = &armor_report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability: {:#?}", armor_report.ast);
         };
         assert!(matches!(
@@ -5572,7 +5800,7 @@ mod tests {
                 "{source:?}: {:?}",
                 report.diagnostics
             );
-            let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind else {
+            let AbilityKind::Keyword(list) = report.ast.abilities[0].kind() else {
                 panic!(
                     "expected a keyword ability for {source:?}: {:#?}",
                     report.ast
@@ -5648,7 +5876,7 @@ mod tests {
                 report.diagnostics
             );
             assert!(matches!(
-                report.ast.abilities[0].kind,
+                report.ast.abilities[0].kind(),
                 AbilityKind::Keyword(_)
             ));
             assert_eq!(report.ast.render("Test Card", false).unwrap(), source);
@@ -5694,7 +5922,7 @@ mod tests {
         let source = "Craft with two that share a card type {6}";
         let report = parse_with_catalogs(source, &shape_catalogs());
         assert!(
-            !matches!(report.ast.abilities[0].kind, AbilityKind::Keyword(_)),
+            !matches!(report.ast.abilities[0].kind(), AbilityKind::Keyword(_)),
             "must remain a whole-clause recovery, not a keyword ability: {:#?}",
             report.ast
         );
@@ -5742,10 +5970,10 @@ mod tests {
         for source in ["Reinforce X—{X}{W}{W}", "Reinforce X—{X}{G}{G}"] {
             let report = parse_with_catalogs(source, &shape_catalogs());
             assert!(
-                !matches!(report.ast.abilities[0].kind, AbilityKind::Keyword(_))
+                !matches!(report.ast.abilities[0].kind(), AbilityKind::Keyword(_))
                     || !matches!(
-                        report.ast.abilities[0].kind,
-                        AbilityKind::Keyword(ref list)
+                        report.ast.abilities[0].kind(),
+                        AbilityKind::Keyword(list)
                             if matches!(
                                 list.abilities().first().map(|ability| &ability.argument),
                                 Some(KeywordArgument::RestrictedCost { .. })
@@ -5842,10 +6070,10 @@ mod tests {
         ] {
             let source = format!("Gift {label}");
             let report = parse_with_catalogs(&source, &shape_catalogs());
-            let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind else {
+            let AbilityKind::Keyword(list) = report.ast.abilities[0].kind() else {
                 panic!(
                     "expected {source:?} to be a keyword ability, got {:#?}",
-                    report.ast.abilities[0].kind
+                    report.ast.abilities[0].kind()
                 );
             };
             assert!(matches!(
@@ -5888,7 +6116,7 @@ mod tests {
             "Gift a food",
         ] {
             let report = parse_with_catalogs(source, &shape_catalogs());
-            if let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind {
+            if let AbilityKind::Keyword(list) = report.ast.abilities[0].kind() {
                 assert!(
                     !matches!(list.abilities()[0].argument, KeywordArgument::Named { .. }),
                     "{source:?} must not license a named label: {:#?}",
@@ -5902,7 +6130,7 @@ mod tests {
         let full_name_clause = "Gift the Trolls deals 3 damage to any target.";
         let report = parse_with_identity(full_name_clause, &shape_catalogs(), full_name, false);
         assert!(matches!(
-            report.ast.abilities[0].kind,
+            report.ast.abilities[0].kind(),
             AbilityKind::Paragraph(_)
         ));
         assert_eq!(
@@ -5913,7 +6141,7 @@ mod tests {
         let foretell = "Whenever you foretell a card, draw a card.";
         let report = parse_with_catalogs(foretell, &shape_catalogs());
         assert!(matches!(
-            report.ast.abilities[0].kind,
+            report.ast.abilities[0].kind(),
             AbilityKind::Triggered(_)
         ));
         assert_eq!(report.ast.render("Test Card", false).unwrap(), foretell);
@@ -5923,7 +6151,7 @@ mod tests {
     fn quoted_symbol_keyword_argument_keeps_terminal_outside_typed_cost() {
         let source = "Target creature gains \"Ward {1}.\"";
         let report = parse_with_catalogs(source, &shape_catalogs());
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected a paragraph: {:#?}", report.ast);
         };
         let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
@@ -5937,7 +6165,7 @@ mod tests {
         let PredicateObject::QuotedAbility(quoted) = &predicate.object else {
             panic!("expected a quoted ability object: {:#?}", predicate.object);
         };
-        let AbilityKind::Keyword(list) = &quoted.ability.kind else {
+        let AbilityKind::Keyword(list) = quoted.ability.kind() else {
             panic!("expected a keyword ability: {:#?}", quoted.ability);
         };
         assert!(matches!(
@@ -5989,7 +6217,7 @@ mod tests {
     fn bare_quality_is_a_predicated_argument_only_inside_a_list() {
         // Inside a list a bare quality (the atom carries the preposition) parses.
         let report = parse_with_catalogs("Reach, hexproof from blue", &shape_catalogs());
-        let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Keyword(list) = report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability: {:#?}", report.ast);
         };
         assert!(matches!(
@@ -6011,7 +6239,7 @@ mod tests {
         // forced into Costed.
         let report =
             parse_with_catalogs("Ward {3}. This ability costs {1} less.", &shape_catalogs());
-        let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Keyword(list) = report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability: {:#?}", report.ast);
         };
         assert!(matches!(
@@ -6035,7 +6263,7 @@ mod tests {
         // must still refuse is an atom that spells its own preposition, whose
         // tail is that preposition's complement rather than an object.
         let report = parse_with_catalogs("Protection creature", &shape_catalogs());
-        let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Keyword(list) = report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability: {:#?}", report.ast);
         };
         assert!(matches!(
@@ -6055,7 +6283,7 @@ mod tests {
         // must not be re-read as an object noun phrase.
         for source in ["Partner with Proud Mentor", "Hexproof from black"] {
             let report = parse_with_catalogs(source, &shape_catalogs());
-            if let AbilityKind::Keyword(list) = &report.ast.abilities[0].kind {
+            if let AbilityKind::Keyword(list) = report.ast.abilities[0].kind() {
                 assert!(
                     !matches!(
                         list.abilities()[0].argument,
@@ -6083,7 +6311,7 @@ mod tests {
         ] {
             let report = parse_with_catalogs(source, &shape_catalogs());
             assert!(
-                matches!(report.ast.abilities[0].kind, AbilityKind::Keyword(_)),
+                matches!(report.ast.abilities[0].kind(), AbilityKind::Keyword(_)),
                 "expected a keyword list for {source:?}: {:#?}",
                 report.ast
             );
@@ -6153,10 +6381,10 @@ mod tests {
                 "failed on '{source}': {:?}",
                 report.diagnostics
             );
-            let AbilityKind::Triggered(triggered) = &report.ast.abilities[0].kind else {
+            let AbilityKind::Triggered(triggered) = report.ast.abilities[0].kind() else {
                 panic!(
                     "expected a triggered ability: {:#?}",
-                    report.ast.abilities[0].kind
+                    report.ast.abilities[0].kind()
                 );
             };
             assert!(matches!(
@@ -6183,10 +6411,10 @@ mod tests {
             true,
         );
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
-        let AbilityKind::Triggered(triggered) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Triggered(triggered) = report.ast.abilities[0].kind() else {
             panic!(
                 "expected a triggered ability: {:#?}",
-                report.ast.abilities[0].kind
+                report.ast.abilities[0].kind()
             );
         };
         assert!(matches!(
@@ -6210,7 +6438,7 @@ mod tests {
         let source = "Attach it to U.S.Agent.";
         let report =
             parse_with_identity(source, &fixture_catalogs(), "U.S.Agent, John Walker", true);
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected a paragraph: {:#?}", report.ast.abilities[0]);
         };
         let [sentence] = paragraph.sentences.as_slice() else {
@@ -6252,7 +6480,7 @@ mod tests {
         let source = "Ms. Marvel's base power is equal to the number of cards in your hand.";
         let report =
             parse_with_identity(source, &fixture_catalogs(), "Ms. Marvel, Kamala Khan", true);
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected a paragraph: {:#?}", report.ast.abilities[0]);
         };
         let [sentence] = paragraph.sentences.as_slice() else {
@@ -6331,10 +6559,10 @@ mod tests {
              • Blade Beam — {1} — Destroy target creature.";
         let report = parse(source);
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
-        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Modal(modal) = report.ast.abilities[0].kind() else {
             panic!(
                 "expected a modal ability: {:#?}",
-                report.ast.abilities[0].kind
+                report.ast.abilities[0].kind()
             );
         };
         let ModalFrame::Keyword(atom) = &modal.frame else {
@@ -6363,7 +6591,7 @@ mod tests {
         let source = "{T}: Draw a card. When you do, target creature can't block this turn.";
         let report = parse(source);
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
-        let AbilityKind::Activated(activated) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Activated(activated) = report.ast.abilities[0].kind() else {
             panic!("expected activated ability: {:#?}", report.ast.abilities[0]);
         };
         let [_, second] = activated.effect.sentences.as_slice() else {
@@ -6383,7 +6611,7 @@ mod tests {
              When you do, target creature can't block this turn.";
         let report = parse(source);
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph ability: {:#?}", report.ast.abilities[0]);
         };
         let [_, second] = paragraph.sentences.as_slice() else {
@@ -6402,7 +6630,7 @@ mod tests {
         let source = "[+1]: Draw a card. When you do, target creature can't block this turn.";
         let report = parse(source);
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
-        let AbilityKind::Loyalty(loyalty) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Loyalty(loyalty) = report.ast.abilities[0].kind() else {
             panic!("expected loyalty ability: {:#?}", report.ast.abilities[0]);
         };
         let [_, second] = loyalty.effect.sentences.as_slice() else {
@@ -6423,7 +6651,7 @@ mod tests {
         let source = "You may exert this creature as it attacks. When you do, copy that spell.";
         let report = parse(source);
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph ability: {:#?}", report.ast.abilities[0]);
         };
         let [_, second] = paragraph.sentences.as_slice() else {
@@ -6450,7 +6678,7 @@ mod tests {
              When you do, target creature can't block this turn.";
         let report = parse(source);
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph ability: {:#?}", report.ast.abilities[0]);
         };
         let [_, second] = paragraph.sentences.as_slice() else {
@@ -6476,7 +6704,7 @@ mod tests {
         // `trigger_prefix`, never migrating to `SentenceBody::Triggered`.
         let source = "Draw a card. When you do, choose one —\n• Draw a card.\n• Draw two cards.";
         let report = parse(source);
-        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Modal(modal) = report.ast.abilities[0].kind() else {
             panic!("expected a modal ability: {:#?}", report.ast.abilities[0]);
         };
         assert!(
@@ -6499,7 +6727,7 @@ mod tests {
         let source = "You may exert this creature as it attacks. \
              When you do, draw a card. Then discard a card.";
         let report = parse(source);
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph ability: {:#?}", report.ast.abilities[0]);
         };
         let [_, second, third] = paragraph.sentences.as_slice() else {
@@ -6530,7 +6758,7 @@ mod tests {
         // single `Clause` attempt; no `Sentence` retry is required.
         let source = "{3}, Sacrifice a creature: Draw a card.";
         let report = parse(source);
-        let AbilityKind::Activated(ability) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Activated(ability) = report.ast.abilities[0].kind() else {
             panic!("expected activated ability: {:#?}", report.ast.abilities[0]);
         };
         let [_, sacrifice] = ability.cost.components() else {
@@ -6555,7 +6783,7 @@ mod tests {
         ] {
             let report = parse(source);
             assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
-            let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+            let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
                 panic!("expected paragraph ability: {:#?}", report.ast.abilities[0]);
             };
             let [_, second] = paragraph.sentences.as_slice() else {
@@ -6582,9 +6810,9 @@ mod tests {
         let report = parse(source);
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
         assert!(
-            matches!(&report.ast.abilities[0].kind, AbilityKind::Triggered(_)),
+            matches!(report.ast.abilities[0].kind(), AbilityKind::Triggered(_)),
             "expected AbilityKind::Triggered, not a paragraph sentence: {:#?}",
-            report.ast.abilities[0].kind
+            report.ast.abilities[0].kind()
         );
     }
 
@@ -6596,7 +6824,7 @@ mod tests {
         // `trigger_prefix`/`TriggerHeader`, never migrate to `SentenceBody::Triggered`.
         let source = "Draw a card. When you do, choose one —\n• Draw a card.\n• Draw two cards.";
         let report = parse(source);
-        let AbilityKind::Modal(modal) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Modal(modal) = report.ast.abilities[0].kind() else {
             panic!("expected a modal ability: {:#?}", report.ast.abilities[0]);
         };
         let choice = modal_header_choice(&report);
@@ -6631,7 +6859,7 @@ mod tests {
         let source = "{T}: Gain control of target creature for as long as you control Merieke Ri Berit. \
              When Merieke Ri Berit leaves the battlefield or becomes untapped, destroy that creature.";
         let report = parse(source);
-        let AbilityKind::Activated(activated) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Activated(activated) = report.ast.abilities[0].kind() else {
             panic!("expected activated ability: {:#?}", report.ast.abilities[0]);
         };
         let [_, second] = activated.effect.sentences.as_slice() else {
@@ -6686,7 +6914,7 @@ mod tests {
         let source = "When there are no creatures on the battlefield, sacrifice this creature.";
         let report = parse(source);
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
-        let AbilityKind::Triggered(triggered) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Triggered(triggered) = report.ast.abilities[0].kind() else {
             panic!(
                 "expected a triggered ability: {:#?}",
                 report.ast.abilities[0]
@@ -6712,7 +6940,7 @@ mod tests {
              a -1/-1 counter on it, draw a card.";
         let report = parse(source);
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
-        let AbilityKind::Triggered(triggered) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Triggered(triggered) = report.ast.abilities[0].kind() else {
             panic!(
                 "expected a triggered ability: {:#?}",
                 report.ast.abilities[0]
@@ -6753,7 +6981,7 @@ mod tests {
              When Merieke Ri Berit leaves the battlefield or becomes untapped, destroy that creature.";
         let report = parse(source);
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
-        let AbilityKind::Activated(activated) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Activated(activated) = report.ast.abilities[0].kind() else {
             panic!("expected activated ability: {:#?}", report.ast.abilities[0]);
         };
         let [_, second] = activated.effect.sentences.as_slice() else {
@@ -6789,7 +7017,7 @@ mod tests {
                 .ast
                 .abilities
                 .iter()
-                .any(|ability| matches!(ability.kind, AbilityKind::Triggered(_))),
+                .any(|ability| matches!(ability.kind(), AbilityKind::Triggered(_))),
             "no ability should have become Triggered: {:#?}",
             report.ast.abilities
         );
@@ -6809,7 +7037,7 @@ mod tests {
         let [ability] = report.ast.abilities.as_slice() else {
             panic!("expected one ability: {:#?}", report.ast.abilities);
         };
-        let AbilityKind::Triggered(triggered) = &ability.kind else {
+        let AbilityKind::Triggered(triggered) = ability.kind() else {
             panic!("expected one triggered ability: {ability:#?}");
         };
         assert!(matches!(
@@ -6837,7 +7065,7 @@ mod tests {
         let source = "When Nissa attacks or when Nissa blocks, draw a card.";
         let report = parse(source);
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
-        let AbilityKind::Triggered(triggered) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Triggered(triggered) = report.ast.abilities[0].kind() else {
             panic!("expected triggered ability: {:#?}", report.ast.abilities[0]);
         };
         assert!(matches!(
@@ -6862,7 +7090,7 @@ mod tests {
         let source = "Whenever Nissa attacks, draw a card.";
         let report = parse(source);
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
-        let AbilityKind::Triggered(triggered) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Triggered(triggered) = report.ast.abilities[0].kind() else {
             panic!("expected triggered ability: {:#?}", report.ast.abilities[0]);
         };
         assert!(triggered.conditions.rest.is_empty());
@@ -6872,7 +7100,14 @@ mod tests {
             .iter()
             .map(|selection| selection.span().text(source).unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(selection_surfaces, ["Nissa attacks", "draw a card."]);
+        assert_eq!(
+            selection_surfaces,
+            [
+                "Nissa attacks",
+                "draw a card.",
+                "Whenever Nissa attacks, draw a card."
+            ]
+        );
         assert_eq!(render(&report), source);
     }
 
@@ -6881,7 +7116,7 @@ mod tests {
         let source = "Whenever Nissa and at least one other creature attack, draw a card.";
         let report = parse(source);
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
-        let AbilityKind::Triggered(triggered) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Triggered(triggered) = report.ast.abilities[0].kind() else {
             panic!("expected triggered ability: {:#?}", report.ast.abilities[0]);
         };
         assert!(triggered.conditions.rest.is_empty());
@@ -6901,7 +7136,7 @@ mod tests {
         let source = "Hexproof from black";
         let report = parse_with_identity(source, &hexproof_from_catalogs(), FIXTURE_NAME, true);
         assert!(report.ast.recoveries().is_empty(), "{:#?}", report.ast);
-        let AbilityKind::Keyword(keywords) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Keyword(keywords) = report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability: {:#?}", report.ast.abilities[0]);
         };
         let [ability] = keywords.abilities() else {
@@ -6929,7 +7164,7 @@ mod tests {
         let source = "Hexproof from monocolored";
         let report = parse_with_identity(source, &hexproof_from_catalogs(), FIXTURE_NAME, true);
         assert!(report.ast.recoveries().is_empty(), "{:#?}", report.ast);
-        let AbilityKind::Keyword(keywords) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Keyword(keywords) = report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability: {:#?}", report.ast.abilities[0]);
         };
         let KeywordArgument::Predicated(argument) = &keywords.abilities()[0].argument else {
@@ -6953,7 +7188,7 @@ mod tests {
         // a `from`-eligible tail.
         let source = "Hexproof from black";
         let report = parse_with_identity(source, &hexproof_from_catalogs(), FIXTURE_NAME, true);
-        let AbilityKind::Keyword(keywords) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Keyword(keywords) = report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability");
         };
         assert_eq!(keywords.abilities()[0].ability.canonical(), "Hexproof from");
@@ -6979,7 +7214,7 @@ mod tests {
         let report = parse_with_identity(source, &hexproof_from_catalogs(), FIXTURE_NAME, true);
         assert!(report.ast.recoveries().is_empty(), "{:#?}", report.ast);
         assert_eq!(report.ast.render(FIXTURE_NAME, true).unwrap(), source);
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!(
                 "expected a paragraph ability: {:#?}",
                 report.ast.abilities[0]

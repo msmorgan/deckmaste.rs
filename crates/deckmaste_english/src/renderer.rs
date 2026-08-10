@@ -13,11 +13,13 @@ use crate::grammar::VerbPhrase as GeneratedVerbPhrase;
 use crate::identity::short_name;
 use crate::syntax::Ability;
 use crate::syntax::AbilityKind;
+use crate::syntax::ActivatedAbility;
 use crate::syntax::AdjectiveComplement;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::AttachmentPosition;
 use crate::syntax::ChapterAbility;
 use crate::syntax::ChoiceInstruction;
+use crate::syntax::ClassLevelAbility;
 use crate::syntax::Clause;
 use crate::syntax::ClauseAttachment;
 use crate::syntax::ClauseAttachmentKind;
@@ -52,6 +54,7 @@ use crate::syntax::KeywordCost;
 use crate::syntax::KeywordListSeparator;
 use crate::syntax::LevelBandAbility;
 use crate::syntax::LevelRange;
+use crate::syntax::LoyaltyAbility;
 use crate::syntax::LoyaltyCost;
 use crate::syntax::LoyaltyCostSign;
 use crate::syntax::LoyaltyCostValue;
@@ -104,6 +107,7 @@ use crate::syntax::TriggerCondition;
 use crate::syntax::TriggerConditionList;
 use crate::syntax::TriggerEvent;
 use crate::syntax::TriggerWord;
+use crate::syntax::TriggeredAbility;
 use crate::syntax::VerbParticle;
 use crate::word::Adjective;
 use crate::word::Auxiliary;
@@ -166,6 +170,8 @@ pub enum RenderError {
     InvalidCostConstruction,
     #[error("keyword-line AST does not match exactly one generated construction")]
     InvalidKeywordLineConstruction,
+    #[error("ability AST does not match exactly one generated construction")]
+    InvalidAbilityConstruction,
     #[error(
         "predicate AST does not match exactly one generated construction: {problem} in {owner}, {first:?}/{second:?}, forms {first_form:?}/{second_form:?}"
     )]
@@ -275,6 +281,14 @@ pub(crate) fn render_keyword_line(
     is_legendary: bool,
 ) -> Result<String, RenderError> {
     Renderer::new(name, is_legendary).keyword_ability_list(list, false)
+}
+
+pub(crate) fn render_ability(
+    ability: &Ability,
+    name: &str,
+    is_legendary: bool,
+) -> Result<String, RenderError> {
+    Renderer::new(name, is_legendary).ability(ability, true, false)
 }
 
 pub(crate) fn render_adjective_phrase(
@@ -683,6 +697,100 @@ struct GeneratedKeywordLineRenderer<'renderer, 'identity> {
     renderer: &'renderer Renderer<'identity>,
     rendered: String,
     suppress_final_period: bool,
+}
+
+struct GeneratedAbilityRenderer<'renderer, 'identity> {
+    renderer: &'renderer Renderer<'identity>,
+    capitalize: bool,
+    suppress_final_period: bool,
+    rendered: String,
+    has_header: bool,
+}
+
+impl GeneratedAbilityRenderer<'_, '_> {
+    fn finish(self) -> String {
+        if self.capitalize { capitalize_first(self.rendered) } else { self.rendered }
+    }
+
+    fn push_kind(&mut self, kind: AbilityKind) -> Result<(), RenderError> {
+        let capitalize = self.has_header || self.capitalize;
+        let rendered = self
+            .renderer
+            .ability_kind(&kind, capitalize, self.suppress_final_period)?;
+        if self.has_header {
+            self.rendered.push_str(&capitalize_first(rendered));
+        } else {
+            self.rendered.push_str(&rendered);
+        }
+        Ok(())
+    }
+}
+
+impl deckmaste_construction_compiler::runtime::LinearizationVisitor
+    for GeneratedAbilityRenderer<'_, '_>
+{
+    type Error = RenderError;
+
+    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
+        self.rendered.push_str(literal);
+        Ok(())
+    }
+
+    fn subtree<T: std::any::Any>(
+        &mut self,
+        category: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        macro_rules! push_kind {
+            ($ty:ty, $variant:path) => {{
+                let value = value
+                    .downcast_ref::<$ty>()
+                    .unwrap_or_else(|| panic!("the ability {category} hole preserves its payload"));
+                self.push_kind($variant(value.clone()))
+            }};
+        }
+        match category {
+            "AbilityHeader" => {
+                let header = value
+                    .downcast_ref::<crate::constructions::ability::AbilityHeader>()
+                    .expect("the ability header hole preserves AbilityHeader");
+                match header {
+                    crate::constructions::ability::AbilityHeader::AbilityWord(word) => {
+                        self.rendered.push_str(word.spelling());
+                    }
+                    crate::constructions::ability::AbilityHeader::Flavor(header) => {
+                        self.rendered.push_str(header.text());
+                    }
+                }
+                self.rendered.push_str(" — ");
+                self.has_header = true;
+                Ok(())
+            }
+            "ActivatedAbility" => push_kind!(ActivatedAbility, AbilityKind::Activated),
+            "ClassLevelAbility" => push_kind!(ClassLevelAbility, AbilityKind::ClassLevel),
+            "ChapterAbility" => push_kind!(ChapterAbility, AbilityKind::Chapter),
+            "RollRowAbility" => push_kind!(RollRowAbility, AbilityKind::RollRow),
+            "LevelBandAbility" => push_kind!(LevelBandAbility, AbilityKind::LevelBand),
+            "StationThresholdAbility" => {
+                push_kind!(StationThresholdAbility, AbilityKind::StationThreshold)
+            }
+            "TriggeredAbility" => push_kind!(TriggeredAbility, AbilityKind::Triggered),
+            "LoyaltyAbility" => push_kind!(LoyaltyAbility, AbilityKind::Loyalty),
+            "ModalAbility" => push_kind!(ModalAbility, AbilityKind::Modal),
+            "KeywordAbilityList" => push_kind!(KeywordAbilityList, AbilityKind::Keyword),
+            "Paragraph" => push_kind!(Paragraph, AbilityKind::Paragraph),
+            other => panic!("unexpected ability subtree category `{other}`"),
+        }
+    }
+
+    fn scalar<T: std::any::Any>(
+        &mut self,
+        _codec: &'static str,
+        _value: &T,
+    ) -> Result<(), Self::Error> {
+        unreachable!("ability has no scalar fields")
+    }
 }
 
 impl deckmaste_construction_compiler::runtime::LinearizationVisitor
@@ -2944,18 +3052,22 @@ impl<'identity> Renderer<'identity> {
         capitalize: bool,
         suppress_final_period: bool,
     ) -> Result<String, RenderError> {
-        let body = self.ability_kind(&ability.kind, capitalize, suppress_final_period)?;
-        let rendered = if let Some(ability_word) = &ability.ability_word {
-            format!("{} — {}", ability_word.spelling(), capitalize_first(body))
-        } else if let Some(flavor_header) = &ability.flavor_header {
-            // A flavor-word label reproduces verbatim before its em dash, the
-            // same shape as an ability word; the body after ` — ` carries its
-            // own capitalization exactly as it was peeled.
-            format!("{} — {}", flavor_header.text(), capitalize_first(body))
-        } else {
-            body
+        let mut visitor = GeneratedAbilityRenderer {
+            renderer: self,
+            capitalize,
+            suppress_final_period,
+            rendered: String::new(),
+            has_header: false,
         };
-        Ok(if capitalize { capitalize_first(rendered) } else { rendered })
+        crate::constructions::ability::linearize_ability_with(ability, &mut visitor).map_err(
+            |error| match error {
+                deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error) => {
+                    error
+                }
+                _ => RenderError::InvalidAbilityConstruction,
+            },
+        )?;
+        Ok(visitor.finish())
     }
 
     fn ability_kind(
@@ -4816,7 +4928,7 @@ impl<'identity> Renderer<'identity> {
         // have a second one appended here.
         if terminal_period
             && matches!(
-                &quoted.ability.kind,
+                quoted.ability.kind(),
                 AbilityKind::Keyword(list)
                     if matches!(
                         list.abilities().last().map(|ability| &ability.argument),
@@ -5884,6 +5996,11 @@ mod tests {
         number: Number::Plural,
     };
 
+    fn checked_ability(kind: AbilityKind) -> Ability {
+        crate::ability::build_ability(None, None, kind)
+            .expect("renderer fixture is a valid ability")
+    }
+
     fn render_degree_measure_scalar(number: NumberLiteral) -> Result<String, RenderError> {
         let renderer = Renderer::new("Test Card", false);
         let mut visitor = GeneratedAdjectiveRenderer::new(&renderer);
@@ -5957,10 +6074,8 @@ mod tests {
     fn keyword_abilities_render_from_canonical_catalog_identity() {
         let catalogs = fixture_catalogs();
         let ast = OracleText {
-            abilities: vec![Ability {
-                ability_word: None,
-                flavor_header: None,
-                kind: AbilityKind::Keyword(KeywordAbilityList::from_parts(
+            abilities: vec![checked_ability(AbilityKind::Keyword(
+                KeywordAbilityList::from_parts(
                     vec![
                         KeywordAbility {
                             preceding_separator: None,
@@ -5974,8 +6089,8 @@ mod tests {
                         },
                     ],
                     None,
-                )),
-            }],
+                ),
+            ))],
         };
 
         assert_eq!(source_free(&ast, "Test Card", false), "Flying, deathtouch");
@@ -6186,7 +6301,7 @@ mod tests {
         let source = "Exile each creature that can't.";
         let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
 
-        let AbilityKind::Paragraph(paragraph) = &ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = ast.abilities[0].kind() else {
             panic!("expected a paragraph ability");
         };
         let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
@@ -6414,7 +6529,7 @@ mod tests {
         let negated = "This creature doesn't affect combat damage.";
         let ast = crate::parse_with_catalogs(negated, &fixture_catalogs()).into_ast();
 
-        let AbilityKind::Paragraph(paragraph) = &ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = ast.abilities[0].kind() else {
             panic!("expected a paragraph ability");
         };
         let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
@@ -6500,7 +6615,7 @@ mod tests {
         let source = "Draw only one card.";
         let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
 
-        let AbilityKind::Paragraph(paragraph) = &ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = ast.abilities[0].kind() else {
             panic!("expected a paragraph ability");
         };
         let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
@@ -6526,7 +6641,7 @@ mod tests {
         let source = "Draw one card only.";
         let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
 
-        let AbilityKind::Paragraph(paragraph) = &ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = ast.abilities[0].kind() else {
             panic!("expected a paragraph ability");
         };
         let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
@@ -6855,26 +6970,22 @@ mod tests {
             }],
         };
         let triggered = OracleText {
-            abilities: vec![Ability {
-                ability_word: None,
-                flavor_header: None,
-                kind: AbilityKind::Triggered(TriggeredAbility {
-                    conditions: TriggerConditionList {
-                        first: TriggerCondition {
-                            introducer: TriggerWord::Whenever,
-                            event: TriggerEvent::Clause(independent(simple(
-                                Some(Subject(NounPhrase::from_this_card_declaration(
-                                    ThisCardForm::AbbreviatedName,
-                                ))),
-                                verb_phrase(Vocab::Attack, THIRD_SINGULAR_PRESENT, vec![]),
+            abilities: vec![checked_ability(AbilityKind::Triggered(TriggeredAbility {
+                conditions: TriggerConditionList {
+                    first: TriggerCondition {
+                        introducer: TriggerWord::Whenever,
+                        event: TriggerEvent::Clause(independent(simple(
+                            Some(Subject(NounPhrase::from_this_card_declaration(
+                                ThisCardForm::AbbreviatedName,
                             ))),
-                        },
-                        rest: Vec::new(),
+                            verb_phrase(Vocab::Attack, THIRD_SINGULAR_PRESENT, vec![]),
+                        ))),
                     },
-                    intervening_condition: None,
-                    effect: draw_effect,
-                }),
-            }],
+                    rest: Vec::new(),
+                },
+                intervening_condition: None,
+                effect: draw_effect,
+            }))],
         };
         assert_eq!(
             source_free(&triggered, "Aang, A Lot to Learn", true),
@@ -6960,62 +7071,62 @@ mod tests {
     #[test]
     fn triggered_modal_headers_render_in_their_enclosing_sentence_context() {
         let ast = OracleText {
-            abilities: vec![Ability {
-                ability_word: None,
-                flavor_header: None,
-                kind: AbilityKind::Modal(ModalAbility {
-                    frame: ModalFrame::Triggered(TriggerHeader {
-                        introducer: TriggerWord::Whenever,
-                        event: TriggerEvent::Clause(independent(simple(
-                            Some(Subject(NounPhrase::from_this_card_declaration(
-                                ThisCardForm::AbbreviatedName,
-                            ))),
-                            verb_phrase(Vocab::Attack, THIRD_SINGULAR_PRESENT, vec![]),
+            abilities: vec![checked_ability(AbilityKind::Modal(ModalAbility {
+                frame: ModalFrame::Triggered(TriggerHeader {
+                    introducer: TriggerWord::Whenever,
+                    event: TriggerEvent::Clause(independent(simple(
+                        Some(Subject(NounPhrase::from_this_card_declaration(
+                            ThisCardForm::AbbreviatedName,
                         ))),
-                        intervening_condition: None,
-                    }),
-                    header: Paragraph {
+                        verb_phrase(Vocab::Attack, THIRD_SINGULAR_PRESENT, vec![]),
+                    ))),
+                    intervening_condition: None,
+                }),
+                header: Paragraph {
+                    flavor_header: None,
+                    // A modal header instruction is a `Choice` body — as the
+                    // real parser produces — so no period is derived; the
+                    // ` —` header suffix follows instead.
+                    sentences: vec![Sentence {
+                        body: SentenceBody::Choice(ChoiceInstruction {
+                            trigger_prefix: None,
+                            imperative: strict_predicate(verb_phrase(
+                                Vocab::Choose,
+                                VerbSlot::Imperative,
+                                vec![VerbDependent::Scalar(Phrase::NumberLiteral(cardinal(1)))],
+                            )),
+                            at_random: false,
+                        }),
+                    }],
+                },
+                header_suffix: ModalHeaderSuffix::SpacedEmDash,
+                modes: vec![Mode {
+                    heading: None,
+                    body: Paragraph {
                         flavor_header: None,
-                        // A modal header instruction is a `Choice` body — as the
-                        // real parser produces — so no period is derived; the
-                        // ` —` header suffix follows instead.
                         sentences: vec![Sentence {
-                            body: SentenceBody::Choice(ChoiceInstruction {
-                                trigger_prefix: None,
-                                imperative: strict_predicate(verb_phrase(
-                                    Vocab::Choose,
-                                    VerbSlot::Imperative,
-                                    vec![VerbDependent::Scalar(Phrase::NumberLiteral(cardinal(1)))],
-                                )),
-                                at_random: false,
-                            }),
+                            body: SentenceBody::Recovered(RecoveredText::new("Draw a card.", 4)),
                         }],
                     },
-                    header_suffix: ModalHeaderSuffix::SpacedEmDash,
-                    modes: vec![],
-                }),
-            }],
+                }],
+            }))],
         };
 
         assert_eq!(
             source_free(&ast, "Aang, A Lot to Learn", true),
-            "Whenever Aang attacks, choose one —"
+            "Whenever Aang attacks, choose one —\n• Draw a card."
         );
     }
 
     #[test]
     fn flavor_header_renders_verbatim_with_its_em_dash_separator() {
         let ast = OracleText {
-            abilities: vec![Ability {
-                ability_word: None,
-                flavor_header: None,
-                kind: AbilityKind::Paragraph(Paragraph {
-                    flavor_header: Some(FlavorHeader::new("Throw ...", 2)),
-                    sentences: vec![Sentence {
-                        body: SentenceBody::Recovered(RecoveredText::new("Draw a card.", 4)),
-                    }],
-                }),
-            }],
+            abilities: vec![checked_ability(AbilityKind::Paragraph(Paragraph {
+                flavor_header: Some(FlavorHeader::new("Throw ...", 2)),
+                sentences: vec![Sentence {
+                    body: SentenceBody::Recovered(RecoveredText::new("Draw a card.", 4)),
+                }],
+            }))],
         };
         assert_eq!(
             source_free(&ast, "Test Card", false),
@@ -7078,19 +7189,15 @@ mod tests {
             numeral: Numeral::Arabic(false),
         };
         let row = |range| OracleText {
-            abilities: vec![Ability {
-                ability_word: None,
-                flavor_header: None,
-                kind: AbilityKind::RollRow(RollRowAbility {
-                    range,
-                    body: Paragraph {
-                        flavor_header: None,
-                        sentences: vec![Sentence {
-                            body: SentenceBody::Recovered(RecoveredText::new("Draw a card.", 4)),
-                        }],
-                    },
-                }),
-            }],
+            abilities: vec![checked_ability(AbilityKind::RollRow(RollRowAbility {
+                range,
+                body: Paragraph {
+                    flavor_header: None,
+                    sentences: vec![Sentence {
+                        body: SentenceBody::Recovered(RecoveredText::new("Draw a card.", 4)),
+                    }],
+                },
+            }))],
         };
         for (range, expected) in [
             (
@@ -7128,18 +7235,14 @@ mod tests {
 
         // ASCII hyphen band range, empty body: no trailing newline.
         let band_only = OracleText {
-            abilities: vec![Ability {
-                ability_word: None,
-                flavor_header: None,
-                kind: AbilityKind::LevelBand(LevelBandAbility {
-                    range: LevelRange::Band {
-                        low: arabic(6),
-                        high: arabic(11),
-                    },
-                    stats: stat(6),
-                    abilities: vec![],
-                }),
-            }],
+            abilities: vec![checked_ability(AbilityKind::LevelBand(LevelBandAbility {
+                range: LevelRange::Band {
+                    low: arabic(6),
+                    high: arabic(11),
+                },
+                stats: stat(6),
+                abilities: vec![],
+            }))],
         };
         assert_eq!(
             source_free(&band_only, "Test Card", false),
@@ -7148,26 +7251,20 @@ mod tests {
 
         // At-least range with one contained keyword ability.
         let band_with_keyword = OracleText {
-            abilities: vec![Ability {
-                ability_word: None,
-                flavor_header: None,
-                kind: AbilityKind::LevelBand(LevelBandAbility {
-                    range: LevelRange::AtLeast(arabic(12)),
-                    stats: stat(9),
-                    abilities: vec![Ability {
-                        ability_word: None,
-                        flavor_header: None,
-                        kind: AbilityKind::Keyword(KeywordAbilityList::from_parts(
-                            vec![KeywordAbility {
-                                preceding_separator: None,
-                                ability: keyword_atom(&catalogs, "flying"),
-                                argument: KeywordArgument::Absent,
-                            }],
-                            None,
-                        )),
-                    }],
-                }),
-            }],
+            abilities: vec![checked_ability(AbilityKind::LevelBand(LevelBandAbility {
+                range: LevelRange::AtLeast(arabic(12)),
+                stats: stat(9),
+                abilities: vec![checked_ability(AbilityKind::Keyword(
+                    KeywordAbilityList::from_parts(
+                        vec![KeywordAbility {
+                            preceding_separator: None,
+                            ability: keyword_atom(&catalogs, "flying"),
+                            argument: KeywordArgument::Absent,
+                        }],
+                        None,
+                    ),
+                ))],
+            }))],
         };
         assert_eq!(
             source_free(&band_with_keyword, "Test Card", false),
@@ -7398,19 +7495,15 @@ mod tests {
 
     fn paragraph_ability(clause: Clause) -> OracleText {
         OracleText {
-            abilities: vec![Ability {
-                ability_word: None,
+            abilities: vec![checked_ability(AbilityKind::Paragraph(Paragraph {
                 flavor_header: None,
-                kind: AbilityKind::Paragraph(Paragraph {
-                    flavor_header: None,
-                    sentences: vec![Sentence {
-                        body: match clause {
-                            Clause::Independent(clause) => SentenceBody::Independent(clause),
-                            Clause::Dependent(_) => panic!("sentence fixture must be independent"),
-                        },
-                    }],
-                }),
-            }],
+                sentences: vec![Sentence {
+                    body: match clause {
+                        Clause::Independent(clause) => SentenceBody::Independent(clause),
+                        Clause::Dependent(_) => panic!("sentence fixture must be independent"),
+                    },
+                }],
+            }))],
         }
     }
 
