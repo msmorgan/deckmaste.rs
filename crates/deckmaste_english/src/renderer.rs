@@ -44,6 +44,7 @@ use crate::syntax::IndefiniteArticle;
 use crate::syntax::IndependentClause;
 use crate::syntax::InfinitiveClause;
 use crate::syntax::InfinitiveMarker;
+use crate::syntax::KeywordAbility;
 use crate::syntax::KeywordAbilityList;
 use crate::syntax::KeywordArgument;
 use crate::syntax::KeywordArgumentSeparator;
@@ -163,6 +164,8 @@ pub enum RenderError {
     InvalidRelativeConstruction,
     #[error("cost AST does not match exactly one generated construction")]
     InvalidCostConstruction,
+    #[error("keyword-line AST does not match exactly one generated construction")]
+    InvalidKeywordLineConstruction,
     #[error(
         "predicate AST does not match exactly one generated construction: {problem} in {owner}, {first:?}/{second:?}, forms {first_form:?}/{second_form:?}"
     )]
@@ -264,6 +267,14 @@ pub(crate) fn render_cost(
     is_legendary: bool,
 ) -> Result<String, RenderError> {
     Renderer::new(name, is_legendary).cost(cost)
+}
+
+pub(crate) fn render_keyword_line(
+    list: &KeywordAbilityList,
+    name: &str,
+    is_legendary: bool,
+) -> Result<String, RenderError> {
+    Renderer::new(name, is_legendary).keyword_ability_list(list, false)
 }
 
 pub(crate) fn render_adjective_phrase(
@@ -666,6 +677,67 @@ struct GeneratedCostRenderer<'renderer, 'identity> {
     renderer: &'renderer Renderer<'identity>,
     rendered: String,
     saw_lexical_component: bool,
+}
+
+struct GeneratedKeywordLineRenderer<'renderer, 'identity> {
+    renderer: &'renderer Renderer<'identity>,
+    rendered: String,
+    suppress_final_period: bool,
+}
+
+impl deckmaste_construction_compiler::runtime::LinearizationVisitor
+    for GeneratedKeywordLineRenderer<'_, '_>
+{
+    type Error = RenderError;
+
+    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
+        self.rendered.push_str(literal);
+        Ok(())
+    }
+
+    fn subtree<T: std::any::Any>(
+        &mut self,
+        category: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        assert_eq!(category, "Paragraph");
+        let paragraph = (value as &dyn std::any::Any)
+            .downcast_ref::<Paragraph>()
+            .expect("the keyword-line trailing hole preserves Paragraph");
+        self.rendered.push(' ');
+        self.rendered.push_str(&self.renderer.paragraph_with_suffix(
+            paragraph,
+            true,
+            self.suppress_final_period,
+        )?);
+        Ok(())
+    }
+
+    fn scalar<T: std::any::Any>(
+        &mut self,
+        _codec: &'static str,
+        _value: &T,
+    ) -> Result<(), Self::Error> {
+        unreachable!("keyword_line has no scalar fields")
+    }
+
+    fn sequence_member(&mut self, field: &'static str, _index: usize) -> Result<(), Self::Error> {
+        assert_eq!(field, "abilities");
+        Ok(())
+    }
+
+    fn bound_value<T: std::any::Any>(
+        &mut self,
+        element: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        assert_eq!(element, "keyword_ability");
+        let ability = (value as &dyn std::any::Any)
+            .downcast_ref::<KeywordAbility>()
+            .expect("the keyword-ability sequence preserves KeywordAbility");
+        self.renderer
+            .render_keyword_ability_into(ability, &mut self.rendered)
+    }
 }
 
 impl deckmaste_construction_compiler::runtime::LinearizationVisitor
@@ -3128,26 +3200,36 @@ impl<'identity> Renderer<'identity> {
         list: &KeywordAbilityList,
         suppress_final_period: bool,
     ) -> Result<String, RenderError> {
-        let mut rendered = String::new();
-        for item in &list.abilities {
-            if let Some(separator) = item.preceding_separator {
-                rendered.push_str(match separator {
-                    KeywordListSeparator::Comma => ", ",
-                    KeywordListSeparator::Semicolon => "; ",
-                });
-            }
-            rendered.push_str(item.ability.spelling());
-            rendered.push_str(&self.keyword_argument(&item.argument)?);
+        let mut visitor = GeneratedKeywordLineRenderer {
+            renderer: self,
+            rendered: String::new(),
+            suppress_final_period,
+        };
+        crate::constructions::ability::linearize_keyword_line_with(list, &mut visitor).map_err(
+            |error| match error {
+                deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error) => {
+                    error
+                }
+                _ => RenderError::InvalidKeywordLineConstruction,
+            },
+        )?;
+        Ok(visitor.rendered)
+    }
+
+    fn render_keyword_ability_into(
+        &self,
+        item: &KeywordAbility,
+        rendered: &mut String,
+    ) -> Result<(), RenderError> {
+        if let Some(separator) = item.preceding_separator {
+            rendered.push_str(match separator {
+                KeywordListSeparator::Comma => ", ",
+                KeywordListSeparator::Semicolon => "; ",
+            });
         }
-        if let Some(trailing) = &list.trailing {
-            rendered.push(' ');
-            rendered.push_str(&self.paragraph_with_suffix(
-                trailing,
-                true,
-                suppress_final_period,
-            )?);
-        }
-        Ok(rendered)
+        rendered.push_str(item.ability.spelling());
+        rendered.push_str(&self.keyword_argument(&item.argument)?);
+        Ok(())
     }
 
     /// Renders a keyword argument, including the leading separator that joins
@@ -4737,7 +4819,7 @@ impl<'identity> Renderer<'identity> {
                 &quoted.ability.kind,
                 AbilityKind::Keyword(list)
                     if matches!(
-                        list.abilities.last().map(|ability| &ability.argument),
+                        list.abilities().last().map(|ability| &ability.argument),
                         Some(
                             KeywordArgument::Costed(KeywordCost::Symbols(_))
                                 | KeywordArgument::Qualified(_)
@@ -5878,8 +5960,8 @@ mod tests {
             abilities: vec![Ability {
                 ability_word: None,
                 flavor_header: None,
-                kind: AbilityKind::Keyword(KeywordAbilityList {
-                    abilities: vec![
+                kind: AbilityKind::Keyword(KeywordAbilityList::from_parts(
+                    vec![
                         KeywordAbility {
                             preceding_separator: None,
                             ability: keyword_atom(&catalogs, "flying"),
@@ -5891,8 +5973,8 @@ mod tests {
                             argument: KeywordArgument::Absent,
                         },
                     ],
-                    trailing: None,
-                }),
+                    None,
+                )),
             }],
         };
 
@@ -7075,14 +7157,14 @@ mod tests {
                     abilities: vec![Ability {
                         ability_word: None,
                         flavor_header: None,
-                        kind: AbilityKind::Keyword(KeywordAbilityList {
-                            abilities: vec![KeywordAbility {
+                        kind: AbilityKind::Keyword(KeywordAbilityList::from_parts(
+                            vec![KeywordAbility {
                                 preceding_separator: None,
                                 ability: keyword_atom(&catalogs, "flying"),
                                 argument: KeywordArgument::Absent,
                             }],
-                            trailing: None,
-                        }),
+                            None,
+                        )),
                     }],
                 }),
             }],

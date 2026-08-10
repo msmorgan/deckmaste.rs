@@ -175,10 +175,10 @@ impl<'syntax> RecoveryWalker<'syntax> {
         list: &'syntax KeywordAbilityList,
         context: Option<RecoveryRole>,
     ) {
-        for keyword in &list.abilities {
+        for keyword in list.abilities() {
             self.keyword_argument(&keyword.argument, context);
         }
-        if let Some(trailing) = &list.trailing {
+        if let Some(trailing) = list.trailing() {
             self.paragraph(trailing, context);
         }
     }
@@ -1053,16 +1053,16 @@ mod tests {
                 Ability {
                     ability_word: None,
                     flavor_header: None,
-                    kind: AbilityKind::Keyword(KeywordAbilityList {
-                        abilities: vec![KeywordAbility {
+                    kind: AbilityKind::Keyword(KeywordAbilityList::from_parts(
+                        vec![KeywordAbility {
                             preceding_separator: None,
                             ability: flying,
                             argument: KeywordArgument::Recovered {
                                 text: recovered("argument"),
                             },
                         }],
-                        trailing: None,
-                    }),
+                        None,
+                    )),
                 },
                 Ability {
                     ability_word: None,

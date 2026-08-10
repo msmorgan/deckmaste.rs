@@ -3553,8 +3553,8 @@ mod tests {
                 report.ast.abilities[0].kind
             );
         };
-        assert_eq!(list.abilities.len(), 3);
-        assert_eq!(list.abilities[1].ability.canonical(), "First strike");
+        assert_eq!(list.abilities().len(), 3);
+        assert_eq!(list.abilities()[1].ability.canonical(), "First strike");
     }
 
     #[test]

@@ -3744,10 +3744,10 @@ impl<'syntax> SyntaxInventory<'syntax> {
                 }
             }
             AbilityKind::Keyword(list) => {
-                for keyword in &list.abilities {
+                for keyword in list.abilities() {
                     self.keyword_argument(&keyword.argument);
                 }
-                if let Some(trailing) = &list.trailing {
+                if let Some(trailing) = list.trailing() {
                     self.paragraph(trailing);
                 }
             }
@@ -5336,6 +5336,179 @@ fn cost_public_facade_preserves_legacy_serde_field_association() {
         deckmaste_english::cost::render(&rebuilt, "Test Card", false).unwrap(),
         "Boast — {2}{R}, Sacrifice an artifact"
     );
+}
+
+// --- Keyword-line round ----------------------------------------------------
+
+fn keyword_line_catalogs() -> Catalogs {
+    cost_catalogs().with_catalog(
+        CatalogKind::KeywordAbility,
+        [
+            "Flying",
+            "First strike",
+            "Ward",
+            "Fabricate",
+            "Suspend",
+            "Protection",
+            "Enchant",
+            "Prototype",
+            "Partner",
+            "Craft",
+            "Cumulative upkeep",
+            "Exhaust",
+        ],
+    )
+}
+
+#[derive(Serialize)]
+#[serde(rename = "KeywordAbilityList")]
+struct LegacyKeywordAbilityListView<'a> {
+    abilities: &'a [deckmaste_english::syntax::KeywordAbility],
+    trailing: Option<&'a Paragraph>,
+}
+
+#[test]
+fn public_keyword_line_family_is_generated_ability_owned_and_nested() {
+    let catalogs = keyword_line_catalogs();
+    for (source, kind) in [
+        ("Flying, first strike", FragmentKind::KeywordLine),
+        ("Flying", FragmentKind::Ability),
+    ] {
+        let report = parse_fragment(source, &catalogs, kind, "Test Card", false);
+        let decision = report
+            .construction_decisions()
+            .iter()
+            .find(|decision| decision.selected().as_str() == "keyword_line")
+            .unwrap_or_else(|| panic!("missing keyword_line decision for {source:?}"));
+        assert_eq!(decision.owner(), ConstructionOwner::Generated);
+        assert_eq!(decision.backend(), ConstructionBackend::Ability);
+        assert_eq!(decision.evidence().label(), "keyword-ability list root");
+    }
+}
+
+#[test]
+fn keyword_line_public_facade_is_checked_exact_and_legacy_serialized() {
+    let source = "Flying; first strike";
+    let parsed = parse_fragment(
+        source,
+        &keyword_line_catalogs(),
+        FragmentKind::KeywordLine,
+        "Test Card",
+        false,
+    );
+    let Some(Fragment::KeywordLine(line)) = parsed.fragment() else {
+        panic!("expected keyword-line fragment")
+    };
+    let rebuilt = deckmaste_english::keyword_line::build_keyword_line(
+        line.abilities().to_vec(),
+        line.trailing().cloned(),
+    )
+    .expect("parsed keyword line rebuilds through the checked door");
+    let (abilities, trailing) =
+        deckmaste_english::keyword_line::parts_keyword_line(&rebuilt).unwrap();
+    assert_eq!(abilities, line.abilities());
+    assert_eq!(trailing.as_ref(), line.trailing());
+    assert_eq!(
+        ron::to_string(&rebuilt).unwrap(),
+        ron::to_string(&LegacyKeywordAbilityListView {
+            abilities: line.abilities(),
+            trailing: line.trailing(),
+        })
+        .unwrap(),
+    );
+    assert_eq!(
+        deckmaste_english::keyword_line::render(&rebuilt, "Test Card", false).unwrap(),
+        source,
+    );
+    assert!(deckmaste_english::keyword_line::build_keyword_line(Vec::new(), None).is_err());
+}
+
+#[test]
+fn keyword_line_preserves_every_argument_and_surface_witness() {
+    let catalogs = keyword_line_catalogs();
+    let mut variants = std::collections::BTreeSet::new();
+    for source in [
+        "Flying",
+        "Fabricate 2",
+        "Ward {2}",
+        "Suspend 4—{1}{U}",
+        "Protection from red",
+        "Enchant creature",
+        "Prototype {2}{G}{G} — 3/3",
+        "Partner—Friends forever",
+        "Craft with artifact {1}{U}",
+        "Cumulative upkeep—Sacrifice a creature.",
+        "Exhaust — {2}{G}: Draw a card.",
+        "Ward {3}. This ability costs {1} less.",
+        "Flying, first strike",
+        "Flying; first strike",
+        "Cumulative upkeep—Sacrifice a creature. Draw a card.",
+    ] {
+        let report = parse_fragment(
+            source,
+            &catalogs,
+            FragmentKind::KeywordLine,
+            "Test Card",
+            false,
+        );
+        let Some(Fragment::KeywordLine(line)) = report.fragment() else {
+            panic!("expected complete keyword line for {source:?}")
+        };
+        assert!(!line.abilities().is_empty());
+        variants.insert(match &line.abilities()[0].argument {
+            KeywordArgument::Absent => "absent",
+            KeywordArgument::Counted(_) => "counted",
+            KeywordArgument::Costed(KeywordCost::Symbols(_)) => "costed-symbols",
+            KeywordArgument::Costed(KeywordCost::Sentence { .. }) => "costed-sentence",
+            KeywordArgument::Costed(KeywordCost::Components { .. }) => "costed-components",
+            KeywordArgument::CountedCost { .. } => "counted-cost",
+            KeywordArgument::Predicated(_) => "predicated",
+            KeywordArgument::Qualified(_) => "qualified",
+            KeywordArgument::Statted { .. } => "statted",
+            KeywordArgument::Named { .. } => "named",
+            KeywordArgument::Recovered { .. } => "recovered",
+            KeywordArgument::RestrictedCost { .. } => "restricted-cost",
+        });
+        assert_eq!(
+            deckmaste_english::keyword_line::render(line, "Test Card", false).unwrap(),
+            source,
+        );
+    }
+    assert_eq!(
+        variants,
+        std::collections::BTreeSet::from([
+            "absent",
+            "counted",
+            "costed-symbols",
+            "costed-sentence",
+            "costed-components",
+            "counted-cost",
+            "predicated",
+            "qualified",
+            "statted",
+            "named",
+            "recovered",
+            "restricted-cost",
+        ]),
+    );
+}
+
+#[test]
+fn malformed_keyword_tails_and_partial_lists_are_not_keyword_lines() {
+    for source in ["Flying,", "Flying, Not a keyword", "Ward."] {
+        let report = parse_fragment(
+            source,
+            &keyword_line_catalogs(),
+            FragmentKind::KeywordLine,
+            "Test Card",
+            false,
+        );
+        assert!(
+            report.fragment().is_none(),
+            "partial root admitted: {source:?}"
+        );
+        assert!(!report.clean(), "malformed root was clean: {source:?}");
+    }
 }
 
 #[test]
