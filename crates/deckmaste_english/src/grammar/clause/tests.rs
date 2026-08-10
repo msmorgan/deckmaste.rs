@@ -3770,6 +3770,118 @@ fn contracted_subject_auxiliaries_are_structural() {
 }
 
 #[test]
+fn production_r01_forms_lower_with_typed_gap_marker_and_agreement() {
+    let catalogs = fixture_catalogs();
+    for (source, id, gap, marker) in [
+        (
+            "each spell you cast",
+            "relative_object",
+            RelativeGap::Object,
+            RelativeMarker::Zero,
+        ),
+        (
+            "each spell you've cast",
+            "relative_object_contracted_subject",
+            RelativeGap::Object,
+            RelativeMarker::Zero,
+        ),
+        (
+            "a creature that's attacking",
+            "relative_subject_contracted_auxiliary",
+            RelativeGap::Subject,
+            RelativeMarker::That,
+        ),
+        (
+            "a creature that attacks",
+            "relative_subject",
+            RelativeGap::Subject,
+            RelativeMarker::That,
+        ),
+        (
+            "creature cards that each have a different mana value",
+            "relative_subject_distributive_each",
+            RelativeGap::Subject,
+            RelativeMarker::That,
+        ),
+        (
+            "a card that's a creature",
+            "relative_contracted_copular_noun",
+            RelativeGap::Subject,
+            RelativeMarker::That,
+        ),
+        (
+            "a card that's red",
+            "relative_contracted_copular_adjective",
+            RelativeGap::Subject,
+            RelativeMarker::That,
+        ),
+        (
+            "a card that's in exile",
+            "relative_contracted_copular_prepositional",
+            RelativeGap::Subject,
+            RelativeMarker::That,
+        ),
+    ] {
+        let parsed = parse_nonterminal(source, &catalogs, Nonterminal::NounPhrase)
+            .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+        let nominal = parsed
+            .noun_phrase()
+            .and_then(|phrase| match phrase.kind() {
+                NounPhraseKind::Nominal(nominal) => Some(nominal),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("{source:?} did not lower to a nominal"));
+        let relative = nominal
+            .complements()
+            .iter()
+            .find_map(|complement| match complement {
+                NominalComplement::Relative(relative) => Some(relative),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("{source:?} did not retain its relative clause"));
+        assert_eq!(relative.gap, gap, "{source:?}");
+        assert_eq!(relative.marker, marker, "{source:?}");
+        let decision = parsed
+            .construction_decisions()
+            .iter()
+            .find(|decision| decision.selected().as_str() == id)
+            .or_else(|| {
+                parsed.construction_decisions().iter().find(|decision| {
+                    decision
+                        .alternatives()
+                        .iter()
+                        .any(|alternative| alternative.id().as_str() == id)
+                })
+            })
+            .unwrap_or_else(|| {
+                panic!(
+                    "{source:?} did not retain {id}: {:#?}",
+                    parsed.construction_decisions()
+                )
+            });
+        assert_eq!(
+            decision.owner(),
+            crate::construction::ConstructionOwner::Generated,
+            "{source:?}",
+        );
+        assert_eq!(
+            decision.backend(),
+            crate::construction::ConstructionBackend::Chart
+        );
+        assert_eq!(decision.selected_production_ordinal(), 0);
+        let evidence = decision
+            .evidence_value()
+            .unwrap_or_else(|| panic!("{source:?} has no typed R01 evidence"));
+        assert!(evidence.contains(&format!("gap={gap:?}")), "{evidence}");
+        assert!(
+            evidence.contains(&format!("marker={marker:?}")),
+            "{evidence}"
+        );
+        assert!(evidence.contains("agreement="), "{evidence}");
+    }
+}
+
+#[test]
 fn rather_than_introduces_a_bare_infinitive_clause() {
     let parsed = parse("You may discard a Plains card rather than pay this spell's mana cost.");
     let SentenceBody::Independent(IndependentClause::Complex(complex)) =

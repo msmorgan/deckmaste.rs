@@ -52,14 +52,6 @@ pub(super) fn reduce(
         | RuleTag::ClauseCoordinationCopularNounPrepositional
         | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
         | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic
-        | RuleTag::RelativeObject
-        | RuleTag::RelativeObjectContractedSubject
-        | RuleTag::RelativeSubjectContractedAuxiliary
-        | RuleTag::RelativeSubject
-        | RuleTag::RelativeSubjectDistributiveEach
-        | RuleTag::RelativeContractedCopularNoun
-        | RuleTag::RelativeContractedCopularAdjective
-        | RuleTag::RelativeContractedCopularPrepositional
         | RuleTag::VerbPhraseCoordinatedAdjective
         | RuleTag::CopularRemainderCoordinatedAdjective
         | RuleTag::RelativeContractedCopularCoordinatedAdjective => {

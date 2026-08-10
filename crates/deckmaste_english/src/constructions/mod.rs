@@ -31,6 +31,7 @@ pub(crate) mod prepositional;
 #[cfg(test)]
 pub(crate) mod probe;
 pub(crate) mod quantity;
+pub(crate) mod relative;
 pub(crate) mod sentence;
 
 use deckmaste_construction_compiler::runtime::GroupData;
@@ -48,5 +49,64 @@ pub(crate) static GROUPS: &[&GroupData] = &[
     predicate::GROUPS[0],
     prepositional::GROUPS[0],
     quantity::GROUPS[0],
+    relative::GROUPS[0],
     sentence::GROUPS[0],
 ];
+
+#[cfg(test)]
+mod tests {
+    use crate::construction::ConstructionBackend;
+    use crate::construction::ConstructionId;
+    use crate::construction::ConstructionOwner;
+
+    const R01_IDS: [&str; 8] = [
+        "relative_object",
+        "relative_object_contracted_subject",
+        "relative_subject_contracted_auxiliary",
+        "relative_subject",
+        "relative_subject_distributive_each",
+        "relative_contracted_copular_noun",
+        "relative_contracted_copular_adjective",
+        "relative_contracted_copular_prepositional",
+    ];
+
+    #[test]
+    fn r01_is_one_generated_group_in_stable_order_with_its_single_dominance_edge() {
+        let group = super::GROUPS
+            .iter()
+            .copied()
+            .find(|group| group.name == "relative")
+            .expect("R01 has one production declaration group");
+        assert_eq!(
+            group
+                .constructions
+                .iter()
+                .map(|construction| construction.id)
+                .collect::<Vec<_>>(),
+            R01_IDS,
+        );
+        let edges = group
+            .constructions
+            .iter()
+            .flat_map(|construction| {
+                construction
+                    .dominates
+                    .iter()
+                    .map(move |subordinate| (construction.id, *subordinate))
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(edges, [("relative_subject", "relative_object")]);
+
+        for id in R01_IDS {
+            let family = crate::construction_family(ConstructionId::new(id))
+                .unwrap_or_else(|| panic!("missing R01 family {id}"));
+            assert_eq!(family.owner(), ConstructionOwner::Generated, "{id}");
+            assert_eq!(family.backend(), ConstructionBackend::Chart, "{id}");
+        }
+        let c01 = crate::construction_family(ConstructionId::new(
+            "relative_contracted_copular_coordinated_adjective",
+        ))
+        .expect("C01 coordinated relative remains registered");
+        assert_eq!(c01.owner(), ConstructionOwner::Handwritten);
+    }
+}

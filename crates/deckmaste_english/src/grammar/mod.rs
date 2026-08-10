@@ -9,6 +9,7 @@ pub(crate) use clause::fixture_catalogs;
 pub(crate) use clause::fold_auxiliary_passive;
 pub(crate) use clause::lowered_nominal_adjunct_kind;
 pub(crate) use clause::predicate_arguments_complete;
+pub(crate) use clause::predicate_object_gap_complete;
 pub(crate) mod construction;
 mod opacity;
 
@@ -1742,6 +1743,7 @@ pub(crate) enum Features {
     CoinResult(crate::syntax::CoinSide),
     RelativeClause {
         gap: GapState,
+        marker: RelativeMarker,
         antecedent_agreement: Option<Agreement>,
         /// For an object gap, whether the matrix verb requires a rules object
         /// and thus refuses a mass-noun antecedent.
@@ -1751,6 +1753,7 @@ pub(crate) enum Features {
         /// the same relative rather than attach as a reduced sibling.
         bare_copular_tail: bool,
     },
+    RelativeMarker(RelativeMarker),
     Auxiliary(AuxiliaryFeatures),
     Conjunction(Conjunction),
     Existential {
@@ -2052,18 +2055,6 @@ enum RuleTag {
     ClauseCoordinationCopularNounPrepositional,
     ClauseCoordinationCopularNounPrepositionalComma,
     ClauseCoordinationCopularNounPrepositionalAsyndetic,
-    RelativeObject,
-    RelativeObjectContractedSubject,
-    RelativeSubjectContractedAuxiliary,
-    RelativeSubject,
-    /// The relative-clause counterpart of the finite-clause distributive
-    /// subject construction (`target creature cards that each have a different
-    /// mana value`): a relative marker, the dedicated `each` lexeme, and a
-    /// completed finite plural verb phrase.
-    RelativeSubjectDistributiveEach,
-    RelativeContractedCopularNoun,
-    RelativeContractedCopularAdjective,
-    RelativeContractedCopularPrepositional,
     /// A coordinable modifier atom built from an adjective phrase.
     ModifierConjunctAdjective,
     /// A coordinable modifier atom built from a bare noun.
@@ -3149,7 +3140,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     self.one_token_match(tokens, start, surface)
                         .map(|end| LexicalMatch {
                             end,
-                            features: Features::None,
+                            features: Features::RelativeMarker(marker),
                             meaning: MeaningKey::RelativeMarker(marker),
                             local_cost: ParseCost::default(),
                         })
