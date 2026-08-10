@@ -261,6 +261,10 @@ impl DecisionHandler for PayMana {
 pub struct ChooseCostOptions {
     pub player: PlayerId,
     pub cost: deckmaste_core::ManaCost,
+    /// Already-concrete nonmana components contributed by an alternative
+    /// cost or the announced modes. These join the Phyrexian-life components
+    /// produced by concretizing `cost`.
+    pub additional: Vec<deckmaste_core::CostComponent>,
     // pre-computed from choosable(&cost); redundancy is intentional so the
     // player's answer can be validated without re-reading the cost.
     pub options: crate::cost_options::ChoosableOptions,
@@ -271,11 +275,15 @@ impl DecisionHandler for ChooseCostOptions {
         let Decision::CostOptions(choices) = answer else {
             return Err(DecisionError::WrongKind);
         };
-        let ChooseCostOptions { cost, .. } = self;
+        let ChooseCostOptions {
+            cost,
+            mut additional,
+            ..
+        } = self;
         // [CR#601.2b]: apply the announced readings to the printed cost.
         // An illegal announce (wrong pick count, or a reading the symbol
         // doesn't offer) is rejected — the decision stays pending.
-        let concrete = match crate::cost_options::concretize(&cost, &choices) {
+        let (mana, mut components) = match crate::cost_options::concretize(&cost, &choices) {
             Ok(c) => c,
             Err(e) => {
                 return Err(DecisionError::Illegal {
@@ -283,12 +291,13 @@ impl DecisionHandler for ChooseCostOptions {
                 });
             }
         };
+        components.append(&mut additional);
         // Stash the concretized (mana, Phyrexian-life verbs) on the
         // announce slot for `PayCost` to consume.
         g.announcing
             .as_mut()
             .expect("an announce is in flight across ChooseCostOptions")
-            .concretized = Some(concrete);
+            .concretized = Some((mana, components));
         g.pending = None;
         Ok(())
     }
@@ -376,6 +385,9 @@ pub struct ChooseModes {
     pub min: Uint,
     pub max: Uint,
     pub repeats: bool,
+    /// An entwine rider offers the additional all-modes alternative outside
+    /// the printed `min..=max` choice.
+    pub entwine: bool,
 }
 
 impl DecisionHandler for ChooseModes {
@@ -388,6 +400,7 @@ impl DecisionHandler for ChooseModes {
             min,
             max,
             repeats,
+            entwine,
             ..
         } = self;
         // [CR#700.2,700.2d]: count in [min,max], each index a real mode,
@@ -397,29 +410,40 @@ impl DecisionHandler for ChooseModes {
             let set: HashSet<_> = picks.iter().copied().collect();
             set.len() == picks.len()
         };
-        let legal = n >= min && n <= max && picks.iter().all(|&i| i < options) && distinct;
+        let normal = n >= min && n <= max && picks.iter().all(|&i| i < options) && distinct;
+        let all_modes = entwine && n == options && picks.iter().copied().eq(0..options);
+        let legal = normal || all_modes;
         if !legal {
             return Err(DecisionError::Illegal {
                 reason: "illegal mode selection".into(),
             });
         }
         g.pending = None;
-        let crate::state::ChoiceContinuation::Modal { modes, frame } = g
+        let continuation = g
             .choice
             .take()
-            .expect("a ChooseModes decision stashed its continuation")
-        else {
-            unreachable!("a ChooseModes decision stashes a Modal continuation");
-        };
-        // [CR#700.2]: apply the chosen modes' effects in pick order.
-        let items = picks
-            .into_iter()
-            .map(|i| WorkItem::RunEffect {
-                effect: Arc::new(modes[i as usize].effect.clone()),
-                frame: frame.clone(),
-            })
-            .collect();
-        g.schedule_front(items);
+            .expect("a ChooseModes decision stashed its continuation");
+        match continuation {
+            crate::state::ChoiceContinuation::AnnounceModes => {
+                g.announcing
+                    .as_mut()
+                    .expect("an announce is in flight across ChooseModes")
+                    .chosen_modes = picks.into();
+            }
+            crate::state::ChoiceContinuation::Modal { modes, frame } => {
+                // [CR#700.2]: a resolution-time modal instruction applies the
+                // chosen modes' effects in pick order.
+                let items = picks
+                    .into_iter()
+                    .map(|i| WorkItem::RunEffect {
+                        effect: Arc::new(modes[i as usize].effect.clone()),
+                        frame: frame.clone(),
+                    })
+                    .collect();
+                g.schedule_front(items);
+            }
+            other => unreachable!("ChooseModes stashed a nonmodal continuation: {other:?}"),
+        }
         Ok(())
     }
 }

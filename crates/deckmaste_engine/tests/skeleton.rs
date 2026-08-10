@@ -853,6 +853,7 @@ fn spell_leaves_the_stack_for_its_owners_graveyard() {
         object: StackObject::Spell(spell),
         controller: PlayerId(0),
         targets: vec![],
+        chosen_modes: std::sync::Arc::from([]),
         x: None,
         copy: false,
     });
@@ -1076,6 +1077,7 @@ fn bolt_on_stack_targeting_bear() -> (GameState, ObjectId, ObjectId) {
         object: StackObject::Spell(bolt),
         controller: PlayerId(0),
         targets: vec![vec![bear]],
+        chosen_modes: std::sync::Arc::from([]),
         x: None,
         copy: false,
     });
@@ -1202,13 +1204,14 @@ fn casting_a_spell_schedules_the_announce_block_and_begin_cast_stages_it() {
     state
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();
-    let front: Vec<WorkItem> = state.agenda.iter().take(10).cloned().collect();
+    let front: Vec<WorkItem> = state.agenda.iter().take(11).cloned().collect();
     assert_eq!(
         front,
         vec![
             WorkItem::BeginCast(bolt),
-            // [CR#601.2b]: optional additional costs (kicker) and X are
-            // announced before targets ([CR#601.2c]).
+            // [CR#601.2b]: modes, optional additional costs (kicker), and X
+            // are announced before targets ([CR#601.2c]).
+            WorkItem::AnnounceModes,
             WorkItem::AnnounceOptionalCosts { index: 0 },
             WorkItem::AnnounceX,
             WorkItem::AnnounceTargets,

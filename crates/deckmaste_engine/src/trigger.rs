@@ -1084,6 +1084,7 @@ impl GameState {
                 },
                 controller: noted.controller,
                 targets: vec![],
+                chosen_modes: std::sync::Arc::from([]),
                 x: None,
                 copy: false,
             });
@@ -1174,6 +1175,7 @@ impl GameState {
             },
             controller: staged.controller,
             targets,
+            chosen_modes: Arc::from([]),
             x: None,
             copy: false,
         });
@@ -5560,6 +5562,7 @@ mod tests {
             },
             controller: noted.controller,
             targets: Vec::new(),
+            chosen_modes: std::sync::Arc::from([]),
             x: None,
             copy: false,
         });

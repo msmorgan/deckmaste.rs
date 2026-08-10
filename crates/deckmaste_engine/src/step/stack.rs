@@ -50,18 +50,9 @@ impl EventApply for Copied {
             }
         };
         let new = g.objects.mint(source, controller, Some(Zone::Stack));
-        // SEAM ([CR#700.2g] — a copy of a modal spell/ability has the SAME
-        // modes chosen for what it copies; the copy's controller can't
-        // choose again): unbuilt. `targets`/`x`/`paid_costs` are announce-
-        // time decisions copied here from `entry`, but there is no
-        // chosen-modes field to copy them from — `OneShotEffect::Modal`
-        // (resolve/effect.rs) opens its `ChooseModes` decision at
-        // RESOLUTION time, not announce/cast time (the announce-time modal
-        // rebuild is `docs/tickets/planned/engine-modal-announce-time.md`).
-        // So a copy of a not-yet-resolved modal spell independently chooses
-        // its OWN modes when it resolves, rather than inheriting the
-        // original's — a documented gap, not a crash: modes stay whatever
-        // this copy's own resolution picks.
+        // [CR#700.2g]: a copy keeps the original spell or ability's announced
+        // modes; its controller cannot choose again. Targets, X, and paid
+        // optional costs are the other announcement-time choices cloned here.
         let copied = StackEntry {
             id: new,
             object: match &entry.object {
@@ -70,6 +61,7 @@ impl EventApply for Copied {
             },
             controller,
             targets: entry.targets.clone(),
+            chosen_modes: entry.chosen_modes.clone(),
             x: entry.x,
             paid_costs: entry.paid_costs.clone(),
             copy: true,

@@ -931,6 +931,7 @@ mod tests {
             object: crate::stack::StackObject::Spell(copy_obj),
             controller: PlayerId(0),
             targets: vec![],
+            chosen_modes: std::sync::Arc::from([]),
             x: None,
             paid_costs: vec![],
             copy: true,

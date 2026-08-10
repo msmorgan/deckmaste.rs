@@ -88,6 +88,10 @@ pub struct StackEntry {
     /// read back by the slot-bound anaphors. One inner set per `TargetSpec`
     /// slot (singleton for a quantity-one slot, several for a plural slot).
     pub targets: Vec<Vec<ObjectId>>,
+    /// [CR#601.2b,700.2]: the modal choices locked during announcement, in
+    /// the order chosen. Empty for a nonmodal object or a modal "up to"
+    /// choice that selected no modes.
+    pub chosen_modes: Arc<[deckmaste_core::Uint]>,
     /// [CR#107.3a]: the announced X — copied from the announce slot at promote.
     /// `None` for triggers and non-X spells.
     pub x: Option<deckmaste_core::Uint>,
@@ -122,6 +126,9 @@ pub struct PendingStackEntry {
     pub origin: Zone,
     /// One inner set per `TargetSpec` slot (see [`StackEntry::targets`]).
     pub targets: Vec<Vec<ObjectId>>,
+    /// [CR#601.2b,700.2]: modal choices locked before X, targets, and payment.
+    /// Empty until `AnnounceModes` completes, and for nonmodal objects.
+    pub chosen_modes: Arc<[deckmaste_core::Uint]>,
     /// [CR#601.2b,107.3a]: the value announced for `{X}` in the cost, or `None`
     /// when the cost has no `{X}`. Chosen at the `AnnounceX` step.
     pub x: Option<deckmaste_core::Uint>,

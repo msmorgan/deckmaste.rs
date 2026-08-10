@@ -170,13 +170,14 @@ impl GameState {
                             cause: None,
                         })
                     };
-                    self.schedule_front(vec![
-                        WorkItem::RunEffect {
-                            effect: Arc::new(effect),
-                            frame,
-                        },
-                        WorkItem::Emit(Occurrence::single(leave)),
-                    ]);
+                    let mut items = crate::cast::announced_effect_items(
+                        &effect,
+                        &frame,
+                        entry.chosen_modes.as_ref(),
+                        &entry.targets,
+                    );
+                    items.push(WorkItem::Emit(Occurrence::single(leave)));
+                    self.schedule_front(items);
                 } else if entry.copy {
                     // [CR#707.10a]: a copy leaves the stack by CEASING to exist
                     // — no zone move, no card. Same shape as a triggered
@@ -320,13 +321,16 @@ impl GameState {
                             ..Anaphora::empty()
                         },
                     };
-                    self.schedule_front(vec![
-                        WorkItem::RunEffect {
-                            effect: Arc::new(ability.effect.clone()),
-                            frame,
-                        },
-                        WorkItem::Emit(Occurrence::single(GameEvent::AbilityResolved(entry.id))),
-                    ]);
+                    let mut items = crate::cast::announced_effect_items(
+                        &ability.effect,
+                        &frame,
+                        entry.chosen_modes.as_ref(),
+                        &entry.targets,
+                    );
+                    items.push(WorkItem::Emit(Occurrence::single(
+                        GameEvent::AbilityResolved(entry.id),
+                    )));
+                    self.schedule_front(items);
                 } else {
                     // [CR#608.2b]: every target illegal — fizzle, vanish.
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
@@ -541,6 +545,7 @@ mod tests {
             object: StackObject::Spell(spell),
             controller: PlayerId(0),
             targets: vec![],
+            chosen_modes: std::sync::Arc::from([]),
             x: None,
             paid_costs: vec![],
             copy: false,
