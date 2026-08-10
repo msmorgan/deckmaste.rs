@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use deckmaste_core::Action;
 use deckmaste_core::Binder;
 use deckmaste_core::Cmp;
 use deckmaste_core::Color;
@@ -8,6 +7,7 @@ use deckmaste_core::Cost;
 use deckmaste_core::PayAct;
 use deckmaste_core::PipClass;
 use deckmaste_core::Predicate;
+use deckmaste_core::RunnableCostAction;
 use deckmaste_core::Stat;
 use deckmaste_core::Uint;
 
@@ -50,7 +50,7 @@ pub enum IouKind {
     PayLife(Uint),
     Tap,
     Untap,
-    Act(Arc<Action>),
+    Act(RunnableCostAction),
     ChooseAndPay {
         binder: Arc<Binder>,
         body: Cost,

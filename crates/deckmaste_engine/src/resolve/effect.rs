@@ -357,12 +357,21 @@ impl GameState {
             return next;
         }
         if let Binder::Existing(Selection::Random(quantity, filter)) = binder {
-            let watcher = Some(self.frame_watcher(frame));
-            let candidates = crate::target::candidates_with(self, filter, watcher);
-            let (_, max) = self.choice_bounds(quantity, candidates.len(), frame);
-            let n = usize::try_from(max).expect("sample count fits usize");
-            let idx = rand::seq::index::sample(&mut self.rng, candidates.len(), n);
-            next.anaphora.chosen = Some(idx.into_iter().map(|i| candidates[i]).collect());
+            let selected =
+                if let Some((recorded, post_sample_rng)) = self.take_replay_random_outcome() {
+                    self.rng.set_stream(post_sample_rng.stream);
+                    self.rng.set_word_pos(post_sample_rng.word_pos);
+                    recorded
+                } else {
+                    let watcher = Some(self.frame_watcher(frame));
+                    let candidates = crate::target::candidates_with(self, filter, watcher);
+                    let (_, max) = self.choice_bounds(quantity, candidates.len(), frame);
+                    let n = usize::try_from(max).expect("sample count fits usize");
+                    let idx = rand::seq::index::sample(&mut self.rng, candidates.len(), n);
+                    idx.into_iter().map(|i| candidates[i]).collect()
+                };
+            self.record_payment_random_outcome(&selected);
+            next.anaphora.chosen = Some(selected);
         }
         next
     }
@@ -403,7 +412,7 @@ impl GameState {
     /// [`can_cast_as_effect`](Self::can_cast_as_effect). `None` for any other
     /// `May` body (the ordinary "you may [do]", offered unconditionally). The
     /// referent id may be null/stale; the gate treats that as uncastable.
-    fn may_cast_referent(
+    pub(crate) fn may_cast_referent(
         &self,
         may: &deckmaste_core::May,
         frame: &Frame,
@@ -892,7 +901,7 @@ impl GameState {
                 // next remint/shuffle).
                 if Self::is_top_of_library_peek(&each.binder) {
                     for &obj in &matches {
-                        self.look_grants.insert((frame.controller, obj));
+                        self.grant_payment_look(frame.controller, obj);
                     }
                 }
                 // [CR#401.4]: if the body puts cards into ordered library
@@ -1166,10 +1175,11 @@ impl GameState {
                     return;
                 }
                 // [CR#608.2g]: "you may cast that card. If you don't, …" — the
-                // "yes" (cast) branch is offered ONLY when a legal, payable cast
-                // of the referent exists; otherwise the offer is empty and the
+                // "yes" (cast) branch is offered when a legal cast proposal
+                // exists; affordability is discovered by its explicit payment
+                // frame. Otherwise the offer is empty and the
                 // `if_not` branch runs (faithful even when the card is
-                // uncastable — a land, an unaffordable cost, no legal target).
+                // uncastable — a land or a spell with no legal target).
                 // Detected structurally: a `May` whose body is a bare `Cast`
                 // verb, gated by `can_cast_as_effect` before surfacing YesNo.
                 if let Some((caster, object, for_cost)) = self.may_cast_referent(&may, frame)

@@ -5,18 +5,6 @@
 //! **Token walking**: every `tokens/**/*.ron` is read as a
 //! [`deckmaste_core::Token`] with the same macro scope and todo-skipping as
 //! cards.
-//!
-//! **Cost-eligibility lint**: for every parsed Card face and Token, every
-//! `CostComponent::Do(action)` must satisfy `Action::is_cost_eligible()`.
-//! Violations surface as [`Validation::lint_failures`] entries with a plain
-//! message, kept separate from the parse-error [`Validation::failures`] vec
-//! because the two are different findings: a `failures` entry means the file
-//! never became a value at all, while a lint failure is a property of a value
-//! that read fine. Callers report them under different headings and a plugin
-//! can have either without the other.
-//!
-//! Earlier lint candidate: degenerate sequences once
-//! `OneShotEffect::Sequentially(Vec<OneShotEffect>)` lands.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -25,9 +13,7 @@ use std::path::PathBuf;
 use anyhow::Context;
 use deckmaste_card::Card;
 use deckmaste_core::Ability;
-use deckmaste_core::CostComponent;
 use deckmaste_core::Ident;
-use deckmaste_core::Normalize;
 use deckmaste_core::Subtype;
 use deckmaste_core::plugin::CARDS_DIR;
 use deckmaste_core::plugin::TOKENS_DIR;
@@ -56,16 +42,16 @@ pub struct Validation {
     pub todos: usize,
     /// Files that failed to parse as the expected type.
     pub failures: Vec<InvalidCard>,
-    /// Cost-eligibility violations: `(path, message)` for every
-    /// `CostComponent::Do(action)` where `!action.is_cost_eligible()`.
+    /// Parsed-value semantic findings, such as undeclared types/subtypes or
+    /// unknown keyword references, as `(path, message)` pairs.
     pub lint_failures: Vec<(PathBuf, String)>,
 }
 
 /// Reads every non-todo `cards/**/*.ron` and `tokens/**/*.ron` in the plugin
 /// — builtin sibling prelude in scope — as a [`Card`] /
 /// [`deckmaste_core::Token`] respectively, collecting failures instead of
-/// stopping at the first. After parsing, each value is linted for
-/// cost-eligibility (see module doc).
+/// stopping at the first. Parsed cards are then checked for declarations and
+/// keyword-reference integrity.
 ///
 /// # Errors
 /// If the plugin (or its prelude) fails to load, or a file isn't readable.
@@ -110,10 +96,7 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
             continue;
         }
         match plugin.token_from_str(&source) {
-            Ok(token) => {
-                lint_card_abilities(&path, &token.core.abilities, &mut validation.lint_failures);
-                validation.valid += 1;
-            }
+            Ok(_) => validation.valid += 1,
             Err(error) => validation.failures.push(InvalidCard { path, error }),
         }
     }
@@ -220,17 +203,14 @@ fn lint_all_card_faces(
 ) {
     match card {
         Card::Normal(face) => {
-            lint_card_abilities(path, &face.abilities, out);
             lint_card_subtypes(path, &face.subtypes, declared_subtypes, out);
             lint_card_types(path, &face.types, declared_types, out);
             lint_keyword_refs(path, &face.abilities, macros, out);
         }
         Card::TwoFaced { front, back, .. } => {
-            lint_card_abilities(path, &front.abilities, out);
             lint_card_subtypes(path, &front.subtypes, declared_subtypes, out);
             lint_card_types(path, &front.types, declared_types, out);
             lint_keyword_refs(path, &front.abilities, macros, out);
-            lint_card_abilities(path, &back.abilities, out);
             lint_card_subtypes(path, &back.subtypes, declared_subtypes, out);
             lint_card_types(path, &back.types, declared_types, out);
             lint_keyword_refs(path, &back.abilities, macros, out);
@@ -274,35 +254,6 @@ fn lint_keyword_refs(
                     format!(
                         "unknown-keyword-reference: Has({name}) names no native keyword or \
                          KeywordAbility-kind macro"
-                    ),
-                ));
-            }
-        }
-    }
-}
-
-/// For each `Activated` ability, check every `Do(action)` cost component;
-/// push a message if `!action.is_cost_eligible()`. A remembered cost macro
-/// (`CostComponent::Expanded`) is looked through to the `Do` it expanded to,
-/// so `SacrificeThis` and friends stay validated. The cost is `normalize`d
-/// first so verbs spliced in via a nested `Cost` (the macro list-splice shape,
-/// e.g. cycling — read is faithful, so it arrives lumpy) are still linted.
-fn lint_card_abilities(path: &Path, abilities: &[Ability], out: &mut Vec<(PathBuf, String)>) {
-    for ability in abilities {
-        let Some(activated) = ability.as_activated() else {
-            continue;
-        };
-        let normalized = activated.cost.clone().normalize();
-        for component in normalized.0.iter() {
-            let Some(action) = cost_action(component) else {
-                continue;
-            };
-            if !action.is_cost_eligible() {
-                out.push((
-                    path.to_owned(),
-                    format!(
-                        "cost-ineligible action in Do(…): {action:?} is not allowed as a cost \
-                         (only Sacrifice/Exile/Tap/Untap/Discard/LoseLife are cost-eligible)"
                     ),
                 ));
             }
@@ -370,57 +321,21 @@ fn lint_card_types(
     }
 }
 
-/// The `Do(action)` a cost component reduces to, looking through any
-/// remembered macro invocation (`CostComponent::Expanded`). `None` for
-/// non-`Do` components (mana, tap, untap).
-fn cost_action(component: &CostComponent) -> Option<&deckmaste_core::Action> {
-    match component {
-        CostComponent::Act(action) => Some(action),
-        CostComponent::Expanded(expansion) => cost_action(&expansion.value),
-        _ => None,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
     use std::path::Path;
     use std::path::PathBuf;
-    use std::sync::Arc;
 
-    use deckmaste_core::Ability;
     use deckmaste_core::Action;
-    use deckmaste_core::ActivatedAbility;
     use deckmaste_core::CostComponent;
-    use deckmaste_core::Count;
-    use deckmaste_core::Deontic;
-    use deckmaste_core::DeonticAction;
-    use deckmaste_core::Expansion;
-    use deckmaste_core::ExpansionArgs;
     use deckmaste_core::Ident;
-    use deckmaste_core::LifeOp;
-    use deckmaste_core::ManaSpec;
-    use deckmaste_core::OneShotEffect;
-    use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
-    use deckmaste_core::StaticEffect;
     use deckmaste_core::Subtype;
-    use deckmaste_core::Token;
     use deckmaste_core::Type;
     use deckmaste_core::TypeDef;
 
-    /// `OneShotEffect::Act(AddMana(You, 1, AnyColor))` — the produced-mana
-    /// effect the test tokens carry.
-    fn add_one_any() -> OneShotEffect {
-        OneShotEffect::Act(Action::AddMana(
-            Reference::You,
-            Count::Literal(1),
-            ManaSpec::AnyColor.into(),
-        ))
-    }
-
     use super::check_against_canon;
-    use super::lint_card_abilities;
     use super::lint_card_subtypes;
     use super::lint_card_types;
 
@@ -428,172 +343,26 @@ mod tests {
         PathBuf::from("test/dummy.ron")
     }
 
-    /// A non-cost-eligible action (`DrawCard`: no printed "draw a card" cost
-    /// exists, [CR#601.2b..601.2c]) in a Do cost is flagged.
+    /// A non-cost-eligible action cannot be assembled into core card data.
     #[test]
-    fn lint_flags_ineligible_action_in_do_cost() {
-        let token = Token {
-            name: None,
-            color_indicator: vec![].into(),
-            supertypes: vec![].into(),
-            types: vec![Type::Artifact.def()].into(),
-            subtypes: vec![].into(),
-            abilities: vec![Ability::activated(ActivatedAbility {
-                ability_word: None,
-                from: None,
-                window: None,
-                cost: Arc::<[CostComponent]>::from(vec![CostComponent::do_action(
-                    Action::DrawCard(Reference::You),
-                )])
-                .into(),
-                condition: None,
-                limits: vec![].into(),
-                effect: add_one_any(),
-            })]
-            .into(),
-            power: None,
-            toughness: None,
-        };
-        let mut failures = Vec::new();
-        lint_card_abilities(&dummy_path(), &token.abilities, &mut failures);
-        assert_eq!(failures.len(), 1, "expected exactly one lint failure");
-        assert!(
-            failures[0].1.contains("DrawCard"),
-            "message should mention the action: {}",
-            failures[0].1
-        );
-    }
-
-    /// [CR#119.7] The whole `ChangeLife` family is cost-eligible — gain-life
-    /// costs are printed (Invigorate: "rather than pay this spell's mana
-    /// cost, you may have an opponent gain 3 life"), not just the losing
-    /// direction (pay-life). Supersedes the former `GainLife`-is-ineligible
-    /// pin: the reshape widened eligibility to the whole consolidated verb.
-    #[test]
-    fn lint_allows_change_life_gain_in_do_cost() {
-        let token = Token {
-            name: None,
-            color_indicator: vec![].into(),
-            supertypes: vec![].into(),
-            types: vec![Type::Artifact.def()].into(),
-            subtypes: vec![].into(),
-            abilities: vec![Ability::activated(ActivatedAbility {
-                ability_word: None,
-                from: None,
-                window: None,
-                cost: Arc::<[CostComponent]>::from(vec![CostComponent::do_action(
-                    Action::ChangeLife(Reference::You, LifeOp::Up(Count::Literal(3))),
-                )])
-                .into(),
-                condition: None,
-                limits: vec![].into(),
-                effect: add_one_any(),
-            })]
-            .into(),
-            power: None,
-            toughness: None,
-        };
-        let mut failures = Vec::new();
-        lint_card_abilities(&dummy_path(), &token.abilities, &mut failures);
-        assert!(
-            failures.is_empty(),
-            "ChangeLife(Up) should not be flagged: {failures:?}"
-        );
-    }
-
-    /// `Sacrifice` in a Do cost is allowed (it is cost-eligible).
-    #[test]
-    fn lint_allows_sacrifice_in_do_cost() {
-        let token = Token {
-            name: None,
-            color_indicator: vec![].into(),
-            supertypes: vec![].into(),
-            types: vec![Type::Artifact.def()].into(),
-            subtypes: vec![].into(),
-            abilities: vec![Ability::activated(ActivatedAbility {
-                ability_word: None,
-                from: None,
-                window: None,
-                cost: Arc::<[CostComponent]>::from(vec![
-                    CostComponent::Tap,
-                    CostComponent::do_action(Action::Sacrifice(Reference::You, Reference::This)),
-                ])
-                .into(),
-                condition: None,
-                limits: vec![].into(),
-                effect: add_one_any(),
-            })]
-            .into(),
-            power: None,
-            toughness: None,
-        };
-        let mut failures = Vec::new();
-        lint_card_abilities(&dummy_path(), &token.abilities, &mut failures);
-        assert!(failures.is_empty(), "Sacrifice should not be flagged");
-    }
-
-    /// An ineligible action hidden inside a remembered cost macro
-    /// (`CostComponent::Expanded`) is still flagged: the lint looks through
-    /// the invocation to the `Do` it expanded to.
-    #[test]
-    fn lint_looks_through_expanded_cost_macros() {
-        let token = Token {
-            name: None,
-            color_indicator: vec![].into(),
-            supertypes: vec![].into(),
-            types: vec![Type::Artifact.def()].into(),
-            subtypes: vec![].into(),
-            abilities: vec![Ability::activated(ActivatedAbility {
-                ability_word: None,
-                from: None,
-                window: None,
-                cost: Arc::<[CostComponent]>::from(vec![CostComponent::Expanded(Expansion {
-                    name: "BadCost".into(),
-                    args: ExpansionArgs::none(),
-                    template: None,
-                    value: Box::new(CostComponent::do_action(Action::DrawCard(Reference::You))),
-                })])
-                .into(),
-                condition: None,
-                limits: vec![].into(),
-                effect: add_one_any(),
-            })]
-            .into(),
-            power: None,
-            toughness: None,
-        };
-        let mut failures = Vec::new();
-        lint_card_abilities(&dummy_path(), &token.abilities, &mut failures);
+    fn core_boundary_rejects_ineligible_action_before_plugin_lint() {
         assert_eq!(
-            failures.len(),
-            1,
-            "expected the inner ineligible action to be flagged"
+            CostComponent::try_do_action(Action::DrawCard(Reference::You)),
+            Err(deckmaste_core::RunnableCostActionError::Ineligible),
         );
-        assert!(failures[0].1.contains("DrawCard"), "{}", failures[0].1);
     }
 
-    /// Non-activated abilities are ignored by the lint.
+    /// The same invariant is checked while reading untrusted core RON.
     #[test]
-    fn lint_ignores_non_activated_abilities() {
-        let token = Token {
-            name: None,
-            color_indicator: vec![].into(),
-            supertypes: vec![].into(),
-            types: vec![Type::Artifact.def()].into(),
-            subtypes: vec![].into(),
-            abilities: vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
-                DeonticAction::Attack {
-                    by: Predicate::Ref(Reference::This),
-                    on: Predicate::Any,
-                },
-            )))]
-            .into(),
-            power: None,
-            toughness: None,
-        };
-        let mut failures = Vec::new();
-        lint_card_abilities(&dummy_path(), &token.abilities, &mut failures);
-        assert!(failures.is_empty());
+    fn core_deserialization_rejects_ineligible_action_cost() {
+        let parsed: Result<CostComponent, _> =
+            deckmaste_core::ron::options().from_str("Act(DrawCard(You))");
+        assert!(
+            parsed
+                .unwrap_err()
+                .to_string()
+                .contains("not eligible to be performed as a cost")
+        );
     }
 
     /// A face with a subtype whose name is not in the declared set produces a

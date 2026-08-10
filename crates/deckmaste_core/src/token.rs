@@ -596,7 +596,7 @@ mod tests {
             types: [TypeDef(name: \"Artifact\", permanent: true)],\
             abilities: [\
                 Activated(\
-                    cost: [Tap, Do(Sacrifice(You, This))],\
+                    cost: [Tap, Act(Sacrifice(You, This))],\
                     effect: AddMana(You, Literal(1), AnyColor),\
                 )\
             ],\

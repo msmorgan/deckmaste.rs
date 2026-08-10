@@ -238,9 +238,15 @@ impl GameState {
                 origin,
                 caster,
                 alternative_cost,
+                resume,
+                if_not,
             } => {
                 // [CR#608.2g]: cast the referenced card from the zone it's in.
+                // A resolution cast owns its own speculative announcement,
+                // even when it occurs inside an enclosing payment/mana action.
+                self.begin_payment_proposal(caster);
                 self.begin_cast_from(object, origin, caster, alternative_cost);
+                self.configure_resolution_cast_decline(&resume, if_not);
                 Progress::Announcing(object)
             }
             WorkItem::BeginActivate { object, ability } => {
@@ -287,9 +293,13 @@ impl GameState {
                 controller,
                 bindings,
             } => {
-                let action = self
+                let (action, began) = self
                     .begin_triggered_mana_action(source, ability, triggered, controller, bindings);
-                Progress::ManaActionBegan(action)
+                if began {
+                    Progress::ManaActionBegan(action)
+                } else {
+                    Progress::ManaActionFinished(action)
+                }
             }
             WorkItem::FinishTriggeredMana {
                 action,
@@ -463,10 +473,27 @@ impl GameState {
             GameEvent::TokenCeased(id) => zone::handle_token_ceased(self, *id),
             GameEvent::PlayerLost(e) => e.apply(self),
             GameEvent::PlayerWon(e) => e.apply(self),
+            GameEvent::Revealed(e) => {
+                let viewers = e.to.clone().unwrap_or_else(|| {
+                    (0..self.players.len())
+                        .map(|index| {
+                            crate::player::PlayerId(
+                                deckmaste_core::Uint::try_from(index)
+                                    .expect("player count fits in Uint"),
+                            )
+                        })
+                        .collect()
+                });
+                for &viewer in &viewers {
+                    for &object in &e.objects {
+                        self.grant_payment_look(viewer, object);
+                    }
+                }
+                None
+            }
             // Pure facts (`TurnBegan`, `StepBegan`, `BecameTarget`,
-            // `AbilityUsed`, `CoinFlipped`, `DieRolled`) and `Revealed` (a
-            // public-information event, not a state mutation) have no real
-            // apply body — nothing to dispatch, unchanged.
+            // `AbilityUsed`, `CoinFlipped`, `DieRolled`) have no real apply
+            // body — nothing to dispatch, unchanged.
             _ => None,
         };
         // `Act` consumes its owned contents (it moves the `Box<ActContents>`),
@@ -1208,6 +1235,12 @@ impl GameState {
     ) {
         let (reversal_barriers, observation_barriers) =
             crate::payment::contextual_barriers_for(self, &event);
+        let observed_rng = observation_barriers
+            .contains(&crate::payment::ObservationBarrier::RandomOutcome)
+            .then(|| crate::payment::RecordedRngState {
+                stream: self.rng.get_stream(),
+                word_pos: self.rng.get_word_pos(),
+            });
         // A pre-evolution intent is shadowed by its downstream fact
         // ([CR#603.6]) — recording a view for BOTH would double-count every
         // `Happened`/`EventCount` zone-move read.
@@ -1224,6 +1257,14 @@ impl GameState {
             .and_then(|c| c.payment);
         self.history
             .record(turn, batch, payment, event.clone(), view);
+        self.note_payment_created_object(&event);
+        if let Some(observed_rng) = observed_rng
+            && let Some(controller) = self.payment.as_mut()
+        {
+            for frame in &mut controller.frames {
+                frame.observed_rng = Some(observed_rng);
+            }
+        }
         if let Some(action) = self
             .payment
             .as_mut()
@@ -1243,6 +1284,7 @@ impl GameState {
             .and_then(|controller| controller.frames.last_mut())
             .and_then(|frame| frame.recording.as_mut())
         {
+            recording.facts.push(event.clone());
             recording.reversal_barriers.extend(reversal_barriers);
             recording.observation_barriers.extend(observation_barriers);
         }

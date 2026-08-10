@@ -12,7 +12,7 @@ impl Lower for deckmaste_semantics::CostComponent {
             Self::ManaCostOf(f0) => deckmaste_core::CostComponent::ManaCostOf(f0.lower()),
             Self::Tap => deckmaste_core::CostComponent::Tap,
             Self::Untap => deckmaste_core::CostComponent::Untap,
-            Self::Do(action) => lower_action_cost(action),
+            Self::Do(action) => lower_action_cost(&action),
             Self::Cost(f0) => deckmaste_core::CostComponent::Cost(f0.lower()),
             Self::TapTotal {
                 stat,
@@ -40,7 +40,7 @@ impl Lower for deckmaste_semantics::CostComponent {
 }
 
 fn lower_action_cost(
-    action: std::sync::Arc<deckmaste_semantics::Action>,
+    action: &std::sync::Arc<deckmaste_semantics::Action>,
 ) -> deckmaste_core::CostComponent {
     use deckmaste_semantics::Action;
     use deckmaste_semantics::OneShotEffect;
@@ -48,7 +48,9 @@ fn lower_action_cost(
     match action.as_ref() {
         Action::Composite { name, body } => {
             let OneShotEffect::With(with) = body.as_ref() else {
-                return deckmaste_core::CostComponent::Act(action.lower());
+                return deckmaste_core::CostComponent::Act(runnable_action(
+                    action.as_ref().clone().lower(),
+                ));
             };
             let lowered_action = deckmaste_core::Action::Composite {
                 name: (*name).lower(),
@@ -57,15 +59,20 @@ fn lower_action_cost(
             deckmaste_core::CostComponent::ChooseAndPay {
                 binder: std::sync::Arc::new(with.binder.clone().lower()),
                 body: deckmaste_core::Cost(
-                    vec![deckmaste_core::CostComponent::Act(std::sync::Arc::new(
+                    vec![deckmaste_core::CostComponent::Act(runnable_action(
                         lowered_action,
                     ))]
                     .into(),
                 ),
             }
         }
-        _ => deckmaste_core::CostComponent::Act(action.lower()),
+        _ => deckmaste_core::CostComponent::Act(runnable_action(action.as_ref().clone().lower())),
     }
+}
+
+fn runnable_action(action: deckmaste_core::Action) -> deckmaste_core::RunnableCostAction {
+    deckmaste_core::RunnableCostAction::try_new(action)
+        .expect("validated semantic cost actions must be eligible and have every choice lifted")
 }
 
 impl Lower for deckmaste_semantics::Cost {
@@ -154,8 +161,12 @@ mod tests {
 
     #[test]
     fn lowers_cost_component_do_to_runnable_act() {
+        let action = deckmaste_semantics::Action::Sacrifice(
+            deckmaste_semantics::Reference::You,
+            deckmaste_semantics::Reference::This,
+        );
         assert_matches!(
-            deckmaste_semantics::CostComponent::Do(std::sync::Arc::new(minimal_action())).lower(),
+            deckmaste_semantics::CostComponent::Do(std::sync::Arc::new(action)).lower(),
             deckmaste_core::CostComponent::Act(_)
         );
     }
@@ -213,7 +224,9 @@ mod tests {
                 name: "Discard".into(),
                 body: std::sync::Arc::new(OneShotEffect::With(With {
                     binder: minimal_binder(),
-                    body: std::sync::Arc::new(minimal_one_shot_effect()),
+                    body: std::sync::Arc::new(OneShotEffect::Act(Action::discard_what(
+                        deckmaste_semantics::Reference::That(deckmaste_semantics::Sort::Card),
+                    ))),
                 })),
             }));
 
@@ -229,6 +242,35 @@ mod tests {
         assert!(
             !matches!(body.as_ref(), deckmaste_core::OneShotEffect::With(_)),
             "the runnable action must not retain the lifted choice"
+        );
+    }
+
+    #[test]
+    fn lifts_action_embedded_random_selection_into_cost_position() {
+        let semantic = deckmaste_semantics::CostComponent::Do(std::sync::Arc::new(
+            deckmaste_semantics::Action::discard(
+                deckmaste_semantics::Reference::You,
+                deckmaste_semantics::Count::Literal(2),
+                true,
+            ),
+        ));
+
+        let deckmaste_core::CostComponent::ChooseAndPay { binder, body } = semantic.lower() else {
+            panic!("an action-embedded random subject must lower into cost position");
+        };
+        assert!(matches!(
+            binder.as_ref(),
+            deckmaste_core::Binder::Existing(deckmaste_core::Selection::Random(..))
+        ));
+        let [deckmaste_core::CostComponent::Act(action)] = body.0.as_ref() else {
+            panic!("the sampled subject must feed one runnable action cost");
+        };
+        let deckmaste_core::Action::Composite { body, .. } = action.as_ref() else {
+            panic!("lowering retains the authored discard action boundary");
+        };
+        assert!(
+            !matches!(body.as_ref(), deckmaste_core::OneShotEffect::With(_)),
+            "the runnable action retains no unresolved random selection"
         );
     }
 

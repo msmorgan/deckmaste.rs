@@ -534,8 +534,46 @@ impl GameState {
         for idx in fired_delayed.into_iter().rev() {
             self.delayed_triggers.remove(idx);
         }
-        if !emits.is_empty() {
-            self.schedule_front(emits);
+        if emits.is_empty() {
+            return;
+        }
+        let (triggered_mana, ordinary): (Vec<_>, Vec<_>) = emits
+            .into_iter()
+            .partition(|item| matches!(item, WorkItem::ResolveTriggeredMana { .. }));
+        if !ordinary.is_empty() {
+            self.schedule_front(ordinary);
+        }
+        if triggered_mana.is_empty() {
+            return;
+        }
+        let deferred = self
+            .resolving_mana_actions
+            .last()
+            .copied()
+            .and_then(|action| {
+                self.agenda.iter().position(|item| {
+                    matches!(item, WorkItem::FinishManaAction(id) if *id == action)
+                        || matches!(item, WorkItem::FinishTriggeredMana { action: id, .. } if *id == action)
+                        || matches!(item, WorkItem::CompleteTriggeredMana(id) if *id == action)
+                })
+            });
+        if let Some(marker) = deferred {
+            let mut insert_at = marker + 1;
+            while matches!(
+                self.agenda.get(insert_at),
+                Some(WorkItem::ResolveTriggeredMana { .. })
+            ) {
+                insert_at += 1;
+            }
+            for item in triggered_mana {
+                self.agenda.insert(insert_at, item);
+                insert_at += 1;
+            }
+        } else {
+            // A mana-added trigger with no active causing mana ability still
+            // resolves in the addition's immediate wake, before the containing
+            // resolution advances.
+            self.schedule_front(triggered_mana);
         }
     }
 

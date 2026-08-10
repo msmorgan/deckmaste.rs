@@ -89,14 +89,6 @@ impl History {
     /// The recorded entries, oldest first — batch-id reads (the
     /// [CR#603.2c] "one occurrence" grouping) go through here; the
     /// fact-only view is [`scan`](History::scan).
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "the batch-id read surface — core-anaphor-surface's product-antecedent \
-                      reads consume it; the batch/fixture tests pin it meanwhile"
-        )
-    )]
     pub(crate) fn entries(&self) -> impl Iterator<Item = &HistEntry> {
         self.0.iter()
     }

@@ -533,6 +533,7 @@ impl GameState {
                 let active = self.active().clone();
                 self.committed = active;
                 self.payment = None;
+                self.clear_payment_metadata();
             }
             self.pending = None;
             self.concede(player);
@@ -995,7 +996,10 @@ impl GameState {
                 self.reset_passes();
                 if matches!(
                     a.as_mana(),
-                    Some(deckmaste_core::ManaAbility::Activated { .. })
+                    Some(deckmaste_core::ManaAbility::Activated {
+                        profile: deckmaste_core::ActivatedManaProfile::Always,
+                        ..
+                    })
                 ) {
                     self.activate_root_mana_ability(*object, *ability);
                 } else {

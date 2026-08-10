@@ -11,9 +11,11 @@ use std::sync::Arc;
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::ActivatedAbility;
+use deckmaste_core::ActivatedManaProfile;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
 use deckmaste_core::LifeOp;
+use deckmaste_core::ManaAbility;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSpec;
 use deckmaste_core::ManaSymbol;
@@ -23,6 +25,7 @@ use deckmaste_core::SimpleManaSymbol;
 use deckmaste_core::Subtype;
 use deckmaste_core::Token;
 use deckmaste_core::Type;
+use deckmaste_lowering::Lower;
 use deckmaste_plugin::plugin::Plugin;
 use macro_ron::Expand;
 
@@ -45,6 +48,13 @@ fn sacrifice_this() -> CostComponent {
     CostComponent::do_action(Action::Sacrifice(Reference::You, Reference::This))
 }
 
+fn mana_ability(ability: ActivatedAbility) -> Ability {
+    Ability::Mana(ManaAbility::Activated {
+        ability: Arc::new(ability),
+        profile: ActivatedManaProfile::Always,
+    })
+}
+
 fn artifact_subtype(name: &str) -> Subtype {
     Subtype {
         name: name.into(),
@@ -65,7 +75,7 @@ fn treasure_token_parses() {
             supertypes: vec![].into(),
             types: vec![Type::Artifact.def()].into(),
             subtypes: vec![artifact_subtype("Treasure")].into(),
-            abilities: vec![Ability::activated(ActivatedAbility {
+            abilities: vec![mana_ability(ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,
@@ -166,7 +176,7 @@ fn gold_token_parses() {
             supertypes: vec![].into(),
             types: vec![Type::Artifact.def()].into(),
             subtypes: vec![artifact_subtype("Gold")].into(),
-            abilities: vec![Ability::activated(ActivatedAbility {
+            abilities: vec![mana_ability(ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,
@@ -196,11 +206,12 @@ fn blood_token_parses() {
     // `DiscardCards(1)` cost macro's `Expanded` wrapper (spec §12), so the
     // loaded token carries its body — matching a fresh read collapsed the
     // same way keeps this robust to macro refactors.
-    let discard_one: CostComponent = builtin()
+    let discard_one = builtin()
         .macros
-        .read_str::<CostComponent>("DiscardCards(1)")
+        .read_str::<deckmaste_semantics::CostComponent>("DiscardCards(1)")
         .unwrap()
-        .expand_all();
+        .expand_all()
+        .lower();
     let token = builtin().token("Blood").unwrap().core;
     assert_eq!(
         token,
@@ -295,7 +306,7 @@ fn vibranium_token_parses() {
             subtypes: vec![artifact_subtype("Vibranium")].into(),
             abilities: vec![
                 indestructible,
-                Ability::activated(ActivatedAbility {
+                mana_ability(ActivatedAbility {
                     ability_word: None,
                     from: None,
                     window: None,

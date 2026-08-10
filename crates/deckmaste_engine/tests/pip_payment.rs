@@ -15,8 +15,14 @@ use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameState;
+use deckmaste_engine::IouKind;
+use deckmaste_engine::ManaCoverage;
+use deckmaste_engine::ManaPayment;
+use deckmaste_engine::ManaPip;
 use deckmaste_engine::ManaProvenance;
 use deckmaste_engine::ObjectId;
+use deckmaste_engine::PaymentCommand;
+use deckmaste_engine::PaymentStage;
 use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
@@ -99,11 +105,11 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
             })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
-                ..
-            })) => {
-                let pay = state.auto_pay_pending();
-                state.submit_decision(Decision::Pay(pay)).unwrap();
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("automatic payment decision");
+                state.submit_decision(decision).unwrap();
             }
             other => panic!("unexpected stop before {player:?} priority in {phase:?}: {other:?}"),
         }
@@ -133,12 +139,60 @@ fn force_into_graveyard(state: &mut GameState, id: ObjectId) {
 }
 
 /// Whether player 0 is offered `Action::CastSpell` for `spell` at its
-/// precombat main priority — i.e. the castability / affordability gate judges
-/// the cast legal right now.
+/// precombat main priority. Payment feasibility is deliberately deferred.
 fn cast_is_offered(state: &mut GameState, spell: ObjectId) -> bool {
     resurface_priority(state);
     let legal = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
     legal.contains(&Action::CastSpell { object: spell })
+}
+
+/// Locks exact coverage for a two-pip spell using one `PayPips` alternative
+/// and one floating unit. Coverage selection itself does not enact either
+/// payment; fulfillment remains explicit in `Paying`.
+fn begin_payment_with_one_pip_alternative(state: &mut GameState, object: ObjectId) {
+    let (_, stop) = step_to_stop(state);
+    let StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) = stop else {
+        panic!("expected the payment protocol after announcement, got {stop:?}");
+    };
+    assert_eq!(prompt.stage, PaymentStage::PrePayment);
+    assert_eq!(
+        prompt.outstanding.len(),
+        2,
+        "the printed two pips stay locked"
+    );
+
+    let alternative_iou = prompt
+        .outstanding
+        .iter()
+        .find(|iou| {
+            matches!(iou.kind, IouKind::ManaPip(ManaPip::Generic)) && !iou.alternatives.is_empty()
+        })
+        .expect("a generic pip with the static PayPips alternative")
+        .id;
+    let floating_iou = prompt
+        .outstanding
+        .iter()
+        .find(|iou| iou.id != alternative_iou)
+        .expect("the other printed pip")
+        .id;
+    let floating = prompt
+        .floating_mana
+        .first()
+        .expect("one exact floating unit for the other pip")
+        .id;
+
+    let mut coverage = ManaCoverage::empty();
+    coverage.insert(
+        alternative_iou,
+        ManaPayment::PayPips {
+            object,
+            alternative: 0,
+        },
+    );
+    coverage.insert(floating_iou, ManaPayment::Floating(floating));
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::BeginPayment(coverage)))
+        .unwrap();
 }
 
 // --- convoke: tap a creature to pay a generic pip ----------------------------
@@ -178,13 +232,11 @@ fn convoke_taps_a_creature_to_pay_a_pip_without_changing_mana_value() {
     let bear = find_in_hand(&state, PlayerId(0), "Grizzly Bears");
     force_onto_battlefield(&mut state, bear);
 
-    // Float enough mana to pay the FULL {1}{G} so the cast is legal regardless
-    // of convoke (the affordability gate is convoke-unaware; the hook still
-    // reduces the actual payment). Convoke then pays the {1} by tapping.
+    // Float {G} for the colored pip; convoke will cover {1} by tapping.
     state
         .player_mut(PlayerId(0))
         .mana_pool
-        .add(green(), 2, ManaProvenance::default());
+        .add(green(), 1, ManaProvenance::default());
     resurface_priority(&mut state);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
@@ -200,21 +252,7 @@ fn convoke_taps_a_creature_to_pay_a_pip_without_changing_mana_value() {
         .submit_decision(Decision::Act(Action::CastSpell { object: spell }))
         .unwrap();
 
-    // First decision after cast: PayMana for the REDUCED cost — convoke covered
-    // the generic pip by tapping, so only {G} remains.
-    let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
-        cost,
-        ..
-    })) = &stop
-    else {
-        panic!("expected PayMana after convoke reduced the cost, got {stop:?}");
-    };
-    assert_eq!(
-        cost.mana_value(),
-        1,
-        "one pip ({{1}}) was paid by tapping; only {{G}} is left to pay with mana"
-    );
+    begin_payment_with_one_pip_alternative(&mut state, bear);
     // [CR#702.51b,202.3]: the spell's printed cost / mana value is untouched —
     // the pip is still IN the cost, just paid a different way.
     assert_eq!(
@@ -222,21 +260,21 @@ fn convoke_taps_a_creature_to_pay_a_pip_without_changing_mana_value() {
         2,
         "convoke must not lower the spell's mana value"
     );
-    // The tap is scheduled in the payment window, behind the mana decision.
+    // Coverage is locked before either covered pip is fulfilled.
     assert!(
         !state.objects.obj(bear).tapped,
         "the convoked creature taps as the cost is paid, not before"
     );
 
-    // Pay {G}, then pass to resolution.
+    // Fulfill both covered pips, submit, then pass to resolution.
     loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
-                ..
-            })) => {
-                let pay = state.auto_pay_pending();
-                state.submit_decision(Decision::Pay(pay)).unwrap();
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("automatic payment decision");
+                state.submit_decision(decision).unwrap();
             }
             StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
                 ..
@@ -296,12 +334,11 @@ fn delve_exiles_a_graveyard_card_to_pay_a_pip_without_changing_mana_value() {
     let fodder = find_in_hand(&state, PlayerId(0), "Island");
     force_into_graveyard(&mut state, fodder);
 
-    // Float the full {2} so the cast is legal; delve then pays one {1} by
-    // exiling the graveyard card.
+    // Float {1}; delve will cover the other generic pip by exiling the card.
     state
         .player_mut(PlayerId(0))
         .mana_pool
-        .add(blue(), 2, ManaProvenance::default());
+        .add(blue(), 1, ManaProvenance::default());
     resurface_priority(&mut state);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
@@ -317,19 +354,7 @@ fn delve_exiles_a_graveyard_card_to_pay_a_pip_without_changing_mana_value() {
         .submit_decision(Decision::Act(Action::CastSpell { object: spell }))
         .unwrap();
 
-    let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
-        cost,
-        ..
-    })) = &stop
-    else {
-        panic!("expected PayMana after delve reduced the cost, got {stop:?}");
-    };
-    assert_eq!(
-        cost.mana_value(),
-        1,
-        "one generic pip was paid by exiling a card; only {{1}} is left to pay with mana"
-    );
+    begin_payment_with_one_pip_alternative(&mut state, fodder);
     assert_eq!(
         printed_mana_value(&state, spell),
         2,
@@ -349,11 +374,11 @@ fn delve_exiles_a_graveyard_card_to_pay_a_pip_without_changing_mana_value() {
     loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
-                ..
-            })) => {
-                let pay = state.auto_pay_pending();
-                state.submit_decision(Decision::Pay(pay)).unwrap();
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("automatic payment decision");
+                state.submit_decision(decision).unwrap();
             }
             StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
                 ..
@@ -395,27 +420,25 @@ fn delve_exiles_a_graveyard_card_to_pay_a_pip_without_changing_mana_value() {
     );
 }
 
-// --- affordability gate: pip payment makes an unaffordable cast legal
-// ---------
+// --- payment resources do not gate spell proposals -----------------------
 
 #[test]
-fn convoke_makes_an_otherwise_unaffordable_cast_legal() {
+fn convoke_resources_do_not_gate_a_spell_proposal() {
     let mut state = convoke_game(1);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     let spell = find_in_hand(&state, PlayerId(0), "Sorcery Convoke Draw");
     let bear = find_in_hand(&state, PlayerId(0), "Grizzly Bears");
 
-    // Float only {G} — one short of {1}{G}. With no creature to convoke, the
-    // affordability gate must judge the cast unpayable ([CR#601.2h]): the pool
-    // covers {G} OR {1}, never both.
+    // Float only {G} — one short of {1}{G}. With no creature to convoke, exact
+    // payment cannot complete, but that does not gate announcement.
     state
         .player_mut(PlayerId(0))
         .mana_pool
         .add(green(), 1, ManaProvenance::default());
     assert!(
-        !cast_is_offered(&mut state, spell),
-        "{{1}}{{G}} is not castable off a single {{G}} with nothing to convoke with"
+        cast_is_offered(&mut state, spell),
+        "payment feasibility is not an announcement gate"
     );
 
     // Put a creature onto the battlefield: convoke can now cover the {1} by
@@ -424,38 +447,38 @@ fn convoke_makes_an_otherwise_unaffordable_cast_legal() {
     force_onto_battlefield(&mut state, bear);
     assert!(
         cast_is_offered(&mut state, spell),
-        "convoke covers the {{1}} by tapping the creature, so {{1}}{{G}} is castable off {{G}}"
+        "the spell remains available when convoke can cover the {{1}} pip"
     );
     // Payment / mana value are untouched — pip payment is not a reduction
     // ([CR#702.51b,202.3]).
     assert_eq!(
         printed_mana_value(&state, spell),
         2,
-        "convoke must not lower the spell's mana value in the gate"
+        "convoke must not lower the spell's mana value"
     );
     assert!(
         !state.objects.obj(bear).tapped,
-        "the affordability gate is read-only: nothing is tapped until payment"
+        "proposal enumeration is read-only: nothing is tapped until payment"
     );
 }
 
 #[test]
-fn delve_makes_an_otherwise_unaffordable_cast_legal() {
+fn delve_resources_do_not_gate_a_spell_proposal() {
     let mut state = delve_game(1);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     let spell = find_in_hand(&state, PlayerId(0), "Sorcery Delve Draw");
     let fodder = find_in_hand(&state, PlayerId(0), "Island");
 
-    // Float only {1} — one short of {2}. With an empty graveyard, delve has no
-    // card to exile, so the cast is unpayable ([CR#601.2h]).
+    // Float only {1} — one short of {2}. With an empty graveyard, exact payment
+    // cannot complete, but that does not gate announcement.
     state
         .player_mut(PlayerId(0))
         .mana_pool
         .add(blue(), 1, ManaProvenance::default());
     assert!(
-        !cast_is_offered(&mut state, spell),
-        "{{2}} is not castable off a single mana with an empty graveyard"
+        cast_is_offered(&mut state, spell),
+        "payment feasibility is not an announcement gate"
     );
 
     // A card in the graveyard lets delve cover one generic pip by exiling it
@@ -463,12 +486,12 @@ fn delve_makes_an_otherwise_unaffordable_cast_legal() {
     force_into_graveyard(&mut state, fodder);
     assert!(
         cast_is_offered(&mut state, spell),
-        "delve covers one {{1}} by exiling the graveyard card, so {{2}} is castable off {{1}}"
+        "the spell remains available when delve can cover one generic pip"
     );
     assert_eq!(
         state.objects.obj(fodder).zone,
         Some(Zone::Graveyard),
-        "the affordability gate is read-only: nothing is exiled until payment"
+        "proposal enumeration is read-only: nothing is exiled until payment"
     );
 }
 
@@ -510,13 +533,12 @@ fn improvise_taps_an_artifact_to_pay_a_pip_without_changing_mana_value() {
     let myr = find_in_hand(&state, PlayerId(0), "Darksteel Myr");
     force_onto_battlefield(&mut state, myr);
 
-    // Float the full {2} so the cast is legal regardless of improvise (the
-    // affordability gate is improvise-unaware; the hook still reduces the actual
-    // payment). Improvise then pays one {1} by tapping the artifact.
+    // Float {1}; improvise will cover the other generic pip by tapping the
+    // artifact.
     state
         .player_mut(PlayerId(0))
         .mana_pool
-        .add(blue(), 2, ManaProvenance::default());
+        .add(blue(), 1, ManaProvenance::default());
     resurface_priority(&mut state);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
@@ -532,21 +554,7 @@ fn improvise_taps_an_artifact_to_pay_a_pip_without_changing_mana_value() {
         .submit_decision(Decision::Act(Action::CastSpell { object: spell }))
         .unwrap();
 
-    // First decision after cast: PayMana for the REDUCED cost — improvise covered
-    // one generic pip by tapping the artifact, so only {1} remains.
-    let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
-        cost,
-        ..
-    })) = &stop
-    else {
-        panic!("expected PayMana after improvise reduced the cost, got {stop:?}");
-    };
-    assert_eq!(
-        cost.mana_value(),
-        1,
-        "one generic pip was paid by tapping the artifact; only {{1}} is left to pay with mana"
-    );
+    begin_payment_with_one_pip_alternative(&mut state, myr);
     // [CR#702.51b,202.3]: the spell's printed cost / mana value is untouched —
     // the pip is still IN the cost, just paid a different way.
     assert_eq!(
@@ -554,21 +562,21 @@ fn improvise_taps_an_artifact_to_pay_a_pip_without_changing_mana_value() {
         2,
         "improvise must not lower the spell's mana value"
     );
-    // The tap is scheduled in the payment window, behind the mana decision.
+    // Coverage is locked before either covered pip is fulfilled.
     assert!(
         !state.objects.obj(myr).tapped,
         "the improvised artifact taps as the cost is paid, not before"
     );
 
-    // Pay {1}, then pass to resolution.
+    // Fulfill both covered pips, submit, then pass to resolution.
     loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
-                ..
-            })) => {
-                let pay = state.auto_pay_pending();
-                state.submit_decision(Decision::Pay(pay)).unwrap();
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("automatic payment decision");
+                state.submit_decision(decision).unwrap();
             }
             StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
                 ..
@@ -594,22 +602,22 @@ fn improvise_taps_an_artifact_to_pay_a_pip_without_changing_mana_value() {
 }
 
 #[test]
-fn improvise_makes_an_otherwise_unaffordable_cast_legal() {
+fn improvise_resources_do_not_gate_a_spell_proposal() {
     let mut state = improvise_game(1);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
     let spell = find_in_hand(&state, PlayerId(0), "Sorcery Improvise Draw");
     let myr = find_in_hand(&state, PlayerId(0), "Darksteel Myr");
 
-    // Float only {1} — one short of {2}. With no artifact to tap, improvise has
-    // no resource, so the cast is unpayable ([CR#601.2h]).
+    // Float only {1} — one short of {2}. With no artifact to tap, exact payment
+    // cannot complete, but that does not gate announcement.
     state
         .player_mut(PlayerId(0))
         .mana_pool
         .add(blue(), 1, ManaProvenance::default());
     assert!(
-        !cast_is_offered(&mut state, spell),
-        "{{2}} is not castable off a single mana with nothing to improvise with"
+        cast_is_offered(&mut state, spell),
+        "payment feasibility is not an announcement gate"
     );
 
     // Put an artifact onto the battlefield: improvise can now cover one generic
@@ -618,10 +626,10 @@ fn improvise_makes_an_otherwise_unaffordable_cast_legal() {
     force_onto_battlefield(&mut state, myr);
     assert!(
         cast_is_offered(&mut state, spell),
-        "improvise covers one {{1}} by tapping the artifact, so {{2}} is castable off {{1}}"
+        "the spell remains available when improvise can cover one generic pip"
     );
     assert!(
         !state.objects.obj(myr).tapped,
-        "the affordability gate is read-only: nothing is tapped until payment"
+        "proposal enumeration is read-only: nothing is tapped until payment"
     );
 }

@@ -414,21 +414,6 @@ impl GameState {
     }
 }
 
-/// The `SpellAbility.targets` of the spell (empty for permanent spells).
-/// Used by the cast checks and `targets_still_legal`. Reads the caller's
-/// derived view — the legality loop checks every hand card against one
-/// view instead of re-deriving the board per card.
-#[must_use]
-pub(crate) fn spell_targets(view: &crate::layer::LayeredView, id: ObjectId) -> Vec<TargetSpec> {
-    // Targets live on a top-level `OneShotEffect::Targeted` wrapper in the spell
-    // ability's effect ([CR#115.1,601.2c]).
-    view.get(id)
-        .abilities
-        .iter()
-        .find_map(spell_ability_effect)
-        .map_or_else(Vec::new, |e| top_targets(e).to_vec())
-}
-
 /// Extracts the `OneShotEffect` from the first `Ability::Spell` arm.
 fn spell_ability_effect(ability: &Ability) -> Option<&OneShotEffect> {
     match ability {

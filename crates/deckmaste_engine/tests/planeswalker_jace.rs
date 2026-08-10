@@ -210,8 +210,8 @@ fn pass_to_stop(state: &mut GameState) -> StepOutcome {
 }
 
 /// Drives to the next `Priority` for `player` in `phase`, passing any other
-/// priority and auto-paying any `PayMana` along the way. Returns the legal
-/// action list at that window.
+/// priority and auto-paying any legacy or obligation-protocol payment along
+/// the way. Returns the legal action list at that window.
 fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) -> Vec<Action> {
     loop {
         let (_, stop) = step_to_stop(state);
@@ -233,6 +233,12 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("a Payment prompt has an automatic runner answer");
+                state.submit_decision(decision).unwrap();
+            }
             other => panic!("unexpected stop before {player:?} priority in {phase:?}: {other:?}"),
         }
     }
@@ -246,8 +252,8 @@ fn loyalty_offered(legal: &[Action], object: ObjectId, ability: usize) -> bool {
 }
 
 /// Activates ability `ability` of `object` at P0's current priority window and
-/// passes it through both players to resolution (mirrors `activate.rs`'s
-/// `activate_loyalty_and_resolve`; the loyalty abilities carry no mana cost).
+/// pays its explicit loyalty obligation, then passes it through both players
+/// to resolution (mirrors `activate.rs`'s `activate_loyalty_and_resolve`).
 fn activate_loyalty_and_resolve(state: &mut GameState, object: ObjectId, ability: usize) {
     let legal = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
     let activate = legal

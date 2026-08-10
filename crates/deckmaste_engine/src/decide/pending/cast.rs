@@ -345,7 +345,7 @@ pub struct ChooseModes {
 
 impl DecisionHandler for ChooseModes {
     fn resolve(self, g: &mut GameState, answer: Decision) -> Result<(), DecisionError> {
-        let Decision::Modes(picks) = answer else {
+        let Decision::Modes(mut picks) = answer else {
             return Err(DecisionError::WrongKind);
         };
         let ChooseModes {
@@ -371,13 +371,17 @@ impl DecisionHandler for ChooseModes {
                 reason: "illegal mode selection".into(),
             });
         }
+        // Chosen modes remain instructions in their printed order. A mode
+        // chosen repeatedly occupies consecutive copies at that printed
+        // position. [CR#608.2c,700.2d]
+        picks.sort_unstable();
         if matches!(
             g.choice,
             Some(crate::state::ChoiceContinuation::AnnounceModes)
-        ) && !g.payment_mana_modes_legal(&picks)
+        ) && !g.announced_mode_selection_is_legal(&picks)
         {
             return Err(DecisionError::Illegal {
-                reason: "that mode selection does not produce a legal mana ability".into(),
+                reason: "that mode selection has no legal announcement completion".into(),
             });
         }
         g.pending = None;
@@ -390,11 +394,12 @@ impl DecisionHandler for ChooseModes {
                 g.announcing
                     .as_mut()
                     .expect("an announce is in flight across ChooseModes")
-                    .chosen_modes = picks.into();
+                    .chosen_modes = picks.clone().into();
+                g.route_root_modal_mana_mode(&picks);
             }
             crate::state::ChoiceContinuation::Modal { modes, frame } => {
-                // [CR#700.2]: a resolution-time modal instruction applies the
-                // chosen modes' effects in pick order.
+                // A resolution-time modal instruction applies the chosen
+                // modes' effects in printed order. [CR#608.2c,700.2d]
                 let items = picks
                     .into_iter()
                     .map(|i| WorkItem::RunEffect {

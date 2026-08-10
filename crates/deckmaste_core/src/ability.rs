@@ -182,7 +182,6 @@ pub struct Mode {
 pub struct ManaModeClass {
     pub adds_mana: bool,
     pub targetless: bool,
-    pub library_safe: bool,
 }
 
 /// How an activated mana ability's lowering-time classification depends on
@@ -321,8 +320,8 @@ impl Ability {
     }
 
     /// Instantiate an activated mana profile from announcement-time mode
-    /// indices. Invalid, empty, targeted, library-moving, or non-producing
-    /// selections do not qualify.
+    /// indices. Invalid, empty, targeted, or non-producing selections do not
+    /// qualify.
     #[must_use]
     pub fn mana_profile_for_modes(&self, modes: &[crate::Uint]) -> bool {
         let Some(ManaAbility::Activated { profile, .. }) = self.as_mana() else {
@@ -341,9 +340,7 @@ impl Ability {
                     .collect();
                 selected.is_some_and(|selected| {
                     !selected.is_empty()
-                        && selected
-                            .iter()
-                            .all(|class| class.targetless && class.library_safe)
+                        && selected.iter().all(|class| class.targetless)
                         && selected.iter().any(|class| class.adds_mana)
                 })
             }
@@ -747,12 +744,10 @@ mod tests {
                     ManaModeClass {
                         adds_mana: true,
                         targetless: true,
-                        library_safe: true,
                     },
                     ManaModeClass {
                         adds_mana: true,
                         targetless: false,
-                        library_safe: true,
                     },
                 ]
                 .into(),

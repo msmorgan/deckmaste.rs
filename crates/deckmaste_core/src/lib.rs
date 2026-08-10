@@ -92,7 +92,10 @@ pub use cost::Cost;
 pub use cost::CostComponent;
 pub use cost::CostTag;
 pub use cost::OptionalCost;
+pub use cost::RunnableCostAction;
+pub use cost::RunnableCostActionError;
 pub use cost::TotalCost;
+pub use cost::cost_binder_is_runnable;
 
 mod counter;
 pub use counter::Counter;
