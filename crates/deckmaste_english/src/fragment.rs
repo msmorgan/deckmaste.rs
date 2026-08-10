@@ -689,9 +689,9 @@ mod tests {
     #[test]
     fn cost_ability_assembly_is_group_order_neutral() {
         fn assembled(
-            mut groups: Vec<&'static deckmaste_construction_compiler::runtime::GroupData>,
+            groups: Vec<&'static deckmaste_construction_compiler::runtime::GroupData>,
         ) -> FragmentReport {
-            let groups = Box::leak(groups.drain(..).collect::<Vec<_>>().into_boxed_slice());
+            let groups = Box::leak(groups.into_boxed_slice());
             parse_fragment_with_activation(
                 "{2}{R} or {T}",
                 &catalogs(),

@@ -1,11 +1,23 @@
-error[E0451]: fields `ability_word`, `flavor_header` and `kind` of struct `deckmaste_english::syntax::Ability` are private
+error[E0560]: struct `deckmaste_english::syntax::Ability` has no field named `ability_word`
  --> tests/compile_fail/construct_ability.rs:7:9
   |
-6 |     let _ = Ability {
-  |             ------- in this type
 7 |         ability_word: None,
-  |         ^^^^^^^^^^^^ private field
+  |         ^^^^^^^^^^^^ `deckmaste_english::syntax::Ability` does not have this field
+  |
+  = note: all struct fields are already assigned
+
+error[E0560]: struct `deckmaste_english::syntax::Ability` has no field named `flavor_header`
+ --> tests/compile_fail/construct_ability.rs:8:9
+  |
 8 |         flavor_header: None,
-  |         ^^^^^^^^^^^^^ private field
+  |         ^^^^^^^^^^^^^ `deckmaste_english::syntax::Ability` does not have this field
+  |
+  = note: all struct fields are already assigned
+
+error[E0560]: struct `deckmaste_english::syntax::Ability` has no field named `kind`
+ --> tests/compile_fail/construct_ability.rs:9:9
+  |
 9 |         kind: AbilityKind::Paragraph(Paragraph::default()),
-  |         ^^^^ private field
+  |         ^^^^ `deckmaste_english::syntax::Ability` does not have this field
+  |
+  = note: all struct fields are already assigned

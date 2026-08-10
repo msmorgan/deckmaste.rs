@@ -9,6 +9,11 @@ use crate::syntax::Paragraph;
 
 /// Builds a nonempty keyword-ability line through the declaration's checked
 /// ingress.
+///
+/// # Errors
+///
+/// Returns an error when `abilities` is empty or the fields otherwise violate
+/// the `keyword_line` declaration.
 pub fn build_keyword_line(
     abilities: Vec<KeywordAbility>,
     trailing: Option<Paragraph>,
@@ -18,13 +23,21 @@ pub fn build_keyword_line(
 
 /// Projects a keyword-ability line through its declaration-owned
 /// representation.
+///
+/// # Errors
+///
+/// Returns an error if `value` does not satisfy the `keyword_line` declaration.
 pub fn parts_keyword_line(
     value: &KeywordAbilityList,
 ) -> Result<(Vec<KeywordAbility>, Option<Paragraph>), BuildError> {
-    Ok(crate::constructions::ability::keyword_list_parts(value))
+    crate::constructions::ability::keyword_list_parts(value)
 }
 
 /// Renders a keyword-ability line through the generated inverse dispatcher.
+///
+/// # Errors
+///
+/// Returns an error if the line or one of its components has no exact inverse.
 pub fn render(
     value: &KeywordAbilityList,
     name: &str,

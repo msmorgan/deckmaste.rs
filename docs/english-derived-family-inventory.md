@@ -23,14 +23,15 @@ census comes from the three non-chart entry points documented and dispatched by
 | source | handwritten / ungenerated | already generated | accounted total |
 |---|---:|---:|---:|
 | chart construction registry | 21 | 171 | 192 |
-| handwritten ability layer | 3 | 0 | 3 |
-| migration inventory | 24 | 171 | 195 |
+| ability construction registry | 0 | 3 | 3 |
+| migration inventory | 21 | 174 | 195 |
 
 Every one of the 192 chart IDs occurs once in the ledger below: 21 remain
 handwritten, while Q01, D01, J01, M01, V01, F01, F02, F03, R01, S01, N01, and
 the two coordination rows, P01, and P02 are generated. The three ability IDs
-occur once in A01. Thus the remaining work is 24 rows (21 chart + 3 ability),
-with no `later` row. No raw corpus query was needed for this accounting; the census is
+occur once in generated A01. Thus the remaining work is 21 chart rows and zero
+ability rows, with no `later` row. No raw corpus query was needed for this
+accounting; the census is
 grounded in the registry and the current `FragmentKind` dispatch. Future corpus
 evidence must use supported faces, and normalized-template questions must use
 the existing English instruments.
@@ -653,21 +654,27 @@ comma, and emitted total own-mode linearizer requirements.
 
 **Stable IDs (3):** `cost`, `keyword_line`, `ability`.
 
-- **Owners and AST:** AR's `parse_cost_fragment`/`parse_cost`,
-  `parse_keyword_line_fragment`/`parse_keyword_list`, and
-  `parse_ability_fragment`/`parse_ability`; REN's `cost`,
-  `keyword_ability_list`, and `ability`; SYN-A's `Cost`,
-  `KeywordAbilityList`, `Ability`, and all frame payloads.
+**Status:** generated.
+
+- **Owners and AST:** the A01 declaration and its generated Ability backend own
+  the three root constructions, their checked build/destructure projections,
+  stable parse provenance, and inverse dispatch for `Cost`,
+  `KeywordAbilityList`, and `Ability`. Declaration-owned typed component and
+  frame callbacks consume the existing clause, noun-phrase, symbol, recovery,
+  keyword-argument, paragraph, and frame payloads. SYN-A seals all three roots
+  behind private storage, manual legacy-shape serialization, and read-only
+  semantic projections; public callers use the `cost`, `keyword_line`, and
+  `ability` checked facades.
 - **Holes and constraints:** heterogeneous clause/NP/symbol/recovery cost
   components and alternatives; keyword item sequences with typed arguments;
   full ability-frame sums containing paragraphs, costs, triggers, modal modes,
   chapters, roll rows, level bands, station thresholds, loyalty, and nested
   abilities. Top-level punctuation, nesting, catalog selection, frame shape,
   and attachment to chart subtrees are required.
-- **Ambiguity/backend:** these rows have no chart productions or registry rows
-  today. C5 supplies one generated ability backend and registers the stable
-  IDs. Frame priority and attempted alternatives become declared dominance or
-  explicit unique guards; parser function order cannot remain semantic.
+- **Ambiguity/backend:** one generated Ability backend registers the three
+  stable IDs and is filtered out of chart assembly. Cost and keyword-line roots
+  select uniquely; ability-frame alternatives use explicit guard ranks, and
+  registration and candidate permutation are semantic-neutral.
 - **Witnesses:** cost components, target/choice structure, keyword arguments,
   headers, ranges, modes, and frame kinds are meaning-bearing. Flavor/ability
   words, separator forms, modal suffix, contractions, punctuation, and

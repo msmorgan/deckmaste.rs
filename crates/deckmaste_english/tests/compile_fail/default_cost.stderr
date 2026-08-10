@@ -1,0 +1,5 @@
+error[E0599]: no associated function or constant named `default` found for struct `deckmaste_english::syntax::Cost` in the current scope
+ --> tests/compile_fail/default_cost.rs:4:19
+  |
+4 |     let _ = Cost::default();
+  |                   ^^^^^^^ associated function or constant not found in `deckmaste_english::syntax::Cost`

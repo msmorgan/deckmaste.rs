@@ -37,9 +37,9 @@ pub(crate) struct AbilityOwner {
 
 const ABILITY_OWNER: AbilityOwner = AbilityOwner { _private: () };
 
-fn violation(requirement: &'static str) -> Violation {
+fn violation(construction: &'static str, requirement: &'static str) -> Violation {
     Violation {
-        construction: "ability",
+        construction,
         requirement,
     }
 }
@@ -48,6 +48,9 @@ fn cost_from_parts(
     flavor_header: Option<FlavorHeader>,
     components: Vec<CostComponent>,
 ) -> Result<Cost, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+    if components.is_empty() {
+        return Err(violation("cost", "at least one cost component"));
+    }
     Ok(Cost::from_parts(flavor_header, components))
 }
 
@@ -59,6 +62,9 @@ fn keyword_line_from_parts(
     abilities: Vec<KeywordAbility>,
     trailing: Option<Paragraph>,
 ) -> Result<KeywordAbilityList, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+    if abilities.is_empty() {
+        return Err(violation("keyword_line", "at least one keyword ability"));
+    }
     Ok(KeywordAbilityList::from_parts(abilities, trailing))
 }
 
@@ -98,7 +104,7 @@ fn ability_from_parts(
     kinds.extend(paragraph.map(AbilityKind::Paragraph));
     let [kind] = kinds
         .try_into()
-        .map_err(|_| violation("exactly one ability kind"))?;
+        .map_err(|_| violation("ability", "exactly one ability kind"))?;
     validate_kind(&kind)?;
     let (ability_word, flavor_header) = match header {
         Some(AbilityHeader::AbilityWord(word)) => (Some(word), None),
@@ -220,7 +226,7 @@ fn validate_kind(kind: &AbilityKind) -> Result<(), Violation> {
     };
     valid
         .then_some(())
-        .ok_or_else(|| violation("valid ability frame payload"))
+        .ok_or_else(|| violation("ability", "valid ability frame payload"))
 }
 
 pub(crate) fn kind_is_valid(kind: &AbilityKind) -> bool {
@@ -238,6 +244,7 @@ deckmaste_constructions_macro::constructions! {
             flavor_header: opt hole FlavorHeader,
             components: seq cost_component,
         }
+        require components.len() >= 1;
         evidence role "activation-cost root" from category;
         form header @ 0 when flavor_header.is_some() = flavor_header "—" components;
         form plain @ 1 otherwise = components;
@@ -297,8 +304,11 @@ pub(crate) fn build(
     build_cost(flavor_header, components)
 }
 
-pub(crate) fn parts(value: &Cost) -> (Option<FlavorHeader>, Vec<CostComponent>) {
-    parts_cost(value)
+pub(crate) fn parts(value: &Cost) -> Result<(Option<FlavorHeader>, Vec<CostComponent>), Violation> {
+    if value.components().is_empty() {
+        return Err(violation("cost", "at least one cost component"));
+    }
+    Ok(parts_cost(value))
 }
 
 pub(crate) fn build_keyword_list(
@@ -310,8 +320,77 @@ pub(crate) fn build_keyword_list(
 
 pub(crate) fn keyword_list_parts(
     value: &KeywordAbilityList,
-) -> (Vec<KeywordAbility>, Option<Paragraph>) {
-    parts_keyword_line(value)
+) -> Result<(Vec<KeywordAbility>, Option<Paragraph>), Violation> {
+    if value.abilities().is_empty() {
+        return Err(violation("keyword_line", "at least one keyword ability"));
+    }
+    Ok(parts_keyword_line(value))
+}
+
+#[derive(Default)]
+struct AbilityKindParts {
+    activated: Option<ActivatedAbility>,
+    class_level: Option<ClassLevelAbility>,
+    chapter: Option<ChapterAbility>,
+    roll_row: Option<RollRowAbility>,
+    level_band: Option<LevelBandAbility>,
+    station_threshold: Option<StationThresholdAbility>,
+    triggered: Option<TriggeredAbility>,
+    loyalty: Option<LoyaltyAbility>,
+    modal: Option<ModalAbility>,
+    keyword: Option<KeywordAbilityList>,
+    paragraph: Option<Paragraph>,
+}
+
+impl From<AbilityKind> for AbilityKindParts {
+    fn from(kind: AbilityKind) -> Self {
+        match kind {
+            AbilityKind::Activated(value) => Self {
+                activated: Some(value),
+                ..Self::default()
+            },
+            AbilityKind::ClassLevel(value) => Self {
+                class_level: Some(value),
+                ..Self::default()
+            },
+            AbilityKind::Chapter(value) => Self {
+                chapter: Some(value),
+                ..Self::default()
+            },
+            AbilityKind::RollRow(value) => Self {
+                roll_row: Some(value),
+                ..Self::default()
+            },
+            AbilityKind::LevelBand(value) => Self {
+                level_band: Some(value),
+                ..Self::default()
+            },
+            AbilityKind::StationThreshold(value) => Self {
+                station_threshold: Some(value),
+                ..Self::default()
+            },
+            AbilityKind::Triggered(value) => Self {
+                triggered: Some(value),
+                ..Self::default()
+            },
+            AbilityKind::Loyalty(value) => Self {
+                loyalty: Some(value),
+                ..Self::default()
+            },
+            AbilityKind::Modal(value) => Self {
+                modal: Some(value),
+                ..Self::default()
+            },
+            AbilityKind::Keyword(value) => Self {
+                keyword: Some(value),
+                ..Self::default()
+            },
+            AbilityKind::Paragraph(value) => Self {
+                paragraph: Some(value),
+                ..Self::default()
+            },
+        }
+    }
 }
 
 pub(crate) fn build_ability_root(
@@ -322,6 +401,7 @@ pub(crate) fn build_ability_root(
     let header = match (ability_word, flavor_header) {
         (Some(_), Some(_)) => {
             return Err(violation(
+                "ability",
                 "ability-word and flavor-word headers are exclusive",
             ));
         }
@@ -329,7 +409,7 @@ pub(crate) fn build_ability_root(
         (None, Some(header)) => Some(AbilityHeader::Flavor(header)),
         (None, None) => None,
     };
-    let (
+    let AbilityKindParts {
         activated,
         class_level,
         chapter,
@@ -341,151 +421,7 @@ pub(crate) fn build_ability_root(
         modal,
         keyword,
         paragraph,
-    ) = match kind {
-        AbilityKind::Activated(value) => (
-            Some(value),
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        ),
-        AbilityKind::ClassLevel(value) => (
-            None,
-            Some(value),
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        ),
-        AbilityKind::Chapter(value) => (
-            None,
-            None,
-            Some(value),
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        ),
-        AbilityKind::RollRow(value) => (
-            None,
-            None,
-            None,
-            Some(value),
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        ),
-        AbilityKind::LevelBand(value) => (
-            None,
-            None,
-            None,
-            None,
-            Some(value),
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        ),
-        AbilityKind::StationThreshold(value) => (
-            None,
-            None,
-            None,
-            None,
-            None,
-            Some(value),
-            None,
-            None,
-            None,
-            None,
-            None,
-        ),
-        AbilityKind::Triggered(value) => (
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            Some(value),
-            None,
-            None,
-            None,
-            None,
-        ),
-        AbilityKind::Loyalty(value) => (
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            Some(value),
-            None,
-            None,
-            None,
-        ),
-        AbilityKind::Modal(value) => (
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            Some(value),
-            None,
-            None,
-        ),
-        AbilityKind::Keyword(value) => (
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            Some(value),
-            None,
-        ),
-        AbilityKind::Paragraph(value) => (
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            Some(value),
-        ),
-    };
+    } = kind.into();
     build_ability(
         header,
         activated,
@@ -508,6 +444,7 @@ pub(crate) fn ability_root_parts(
     validate_kind(value.kind())?;
     if value.ability_word().is_some() && value.flavor_header().is_some() {
         return Err(violation(
+            "ability",
             "ability-word and flavor-word headers are exclusive",
         ));
     }
@@ -559,10 +496,10 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor for FormOrdi
 pub(crate) fn ability_form_ordinal(value: &Ability) -> Result<u16, Violation> {
     let mut visitor = FormOrdinal::default();
     linearize_ability_with(value, &mut visitor)
-        .map_err(|_| violation("exactly one declared ability form"))?;
+        .map_err(|_| violation("ability", "exactly one declared ability form"))?;
     visitor
         .0
-        .ok_or_else(|| violation("exactly one declared ability form"))
+        .ok_or_else(|| violation("ability", "exactly one declared ability form"))
 }
 
 #[cfg(test)]

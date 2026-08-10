@@ -20,13 +20,18 @@ pub struct OracleText {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ability {
+    repr: AbilityRepr,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct AbilityRepr {
     /// A Scryfall ability word ([`CatalogKind::AbilityWord`]) peeled before the
     /// ability frame and reproduced as `<word> — `. An ability word is a
     /// rules-relevant grouping label, so it is a licensed structural header,
     /// not lexical opacity.
     ///
     /// [`CatalogKind::AbilityWord`]: crate::CatalogKind::AbilityWord
-    ability_word: Option<CatalogAtom>,
+    word: Option<CatalogAtom>,
     /// A Scryfall flavor word ([`CatalogKind::FlavorWord`]) peeled before the
     /// ability frame and reproduced as `<label> — `. Unlike an ability word a
     /// flavor word carries no rules meaning: it is licensed lexical opacity
@@ -38,7 +43,7 @@ pub struct Ability {
     ///
     /// [`CatalogKind::FlavorWord`]: crate::CatalogKind::FlavorWord
     /// [`LexicalOpacityKind::FlavorHeader`]: super::LexicalOpacityKind::FlavorHeader
-    flavor_header: Option<FlavorHeader>,
+    flavor: Option<FlavorHeader>,
     kind: AbilityKind,
 }
 
@@ -50,25 +55,30 @@ impl Ability {
         kind: AbilityKind,
     ) -> Self {
         Self {
-            ability_word,
-            flavor_header,
-            kind,
+            repr: AbilityRepr {
+                word: ability_word,
+                flavor: flavor_header,
+                kind,
+            },
         }
     }
 
+    /// Returns the ability-word header, if present.
     #[must_use]
     pub const fn ability_word(&self) -> Option<&CatalogAtom> {
-        self.ability_word.as_ref()
+        self.repr.word.as_ref()
     }
 
+    /// Returns the flavor-word header, if present.
     #[must_use]
     pub const fn flavor_header(&self) -> Option<&FlavorHeader> {
-        self.flavor_header.as_ref()
+        self.repr.flavor.as_ref()
     }
 
+    /// Returns the ability's validated frame.
     #[must_use]
     pub const fn kind(&self) -> &AbilityKind {
-        &self.kind
+        &self.repr.kind
     }
 }
 
@@ -80,9 +90,9 @@ impl serde::Serialize for Ability {
         use serde::ser::SerializeStruct;
 
         let mut state = serializer.serialize_struct("Ability", 3)?;
-        state.serialize_field("ability_word", &self.ability_word)?;
-        state.serialize_field("flavor_header", &self.flavor_header)?;
-        state.serialize_field("kind", &self.kind)?;
+        state.serialize_field("ability_word", &self.repr.word)?;
+        state.serialize_field("flavor_header", &self.repr.flavor)?;
+        state.serialize_field("kind", &self.repr.kind)?;
         state.end()
     }
 }
@@ -237,7 +247,7 @@ pub struct ActivatedAbility {
 /// An activation cost: the comma-separated list of components paid before the
 /// colon. Every cost is a list of typed [`CostComponent`]s; the earlier raw
 /// `SymbolList(String)` and untyped `Components(Vec<Phrase>)` shapes are gone.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cost {
     flavor_header: Option<FlavorHeader>,
     components: Vec<CostComponent>,
@@ -254,11 +264,13 @@ impl Cost {
         }
     }
 
+    /// Returns the cost's optional flavor header.
     #[must_use]
     pub const fn flavor_header(&self) -> Option<&FlavorHeader> {
         self.flavor_header.as_ref()
     }
 
+    /// Returns the cost components in surface order.
     #[must_use]
     pub fn components(&self) -> &[CostComponent] {
         &self.components
@@ -511,11 +523,13 @@ impl KeywordAbilityList {
         }
     }
 
+    /// Returns the keyword abilities in surface order.
     #[must_use]
     pub fn abilities(&self) -> &[KeywordAbility] {
         &self.abilities
     }
 
+    /// Returns the paragraph printed after the keyword list, if present.
     #[must_use]
     pub const fn trailing(&self) -> Option<&Paragraph> {
         self.trailing.as_ref()

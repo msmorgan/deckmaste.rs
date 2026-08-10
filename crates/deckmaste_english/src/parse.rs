@@ -384,8 +384,8 @@ mod tests {
             .expect("the ability root records its generated decision");
         assert_eq!(ability.span, Span::new(0, 12));
         assert!(ability.rule.is_none());
-        assert!(ability.tied_alternatives.len() == 1);
-        assert!(ability.cost == crate::forest::ParseCost::default());
+        assert_eq!(ability.tied_alternatives.len(), 1);
+        assert_eq!(ability.cost, crate::forest::ParseCost::default());
         assert!(
             report
                 .provenance
