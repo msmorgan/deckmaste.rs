@@ -1183,7 +1183,7 @@ fn emit_count(c: &Count) -> R {
         // The floated-mana-pool reader is a data-driven-strategy sensing
         // source ([CR#106.4]); the Idris grammar models card text, not play
         // policy, so it has no counterpart.
-        Count::ManaAvailable(_) => {
+        Count::ManaAvailable(_) | Count::ManaAvailableKind(..) => {
             return Err(gap(
                 "Count::ManaAvailable (floated mana pool) is a strategy-only reader \
                  with no Idris counterpart",

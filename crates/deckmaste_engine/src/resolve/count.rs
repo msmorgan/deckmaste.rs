@@ -405,6 +405,9 @@ impl GameState {
                 self.objects.obj(id).total_damage()
             }
             Count::ManaAvailable(reference) => self.floated_mana(reference, frame),
+            Count::ManaAvailableKind(reference, kind) => self
+                .eval_player_ref(reference, frame)
+                .map_or(0, |player| self.player(player).mana_pool.amount(*kind)),
             // [CR#107.1]: fold the per-element projection over the set —
             // devotion = `Aggregate(SumOf, Project(<your permanents>,
             // CountOf(ManaSymbols(It, CountsAs(Green)))))` ([CR#700.5]); a
@@ -691,6 +694,41 @@ mod tests {
     use crate::test_support::frame_for;
     use crate::test_support::frame_src;
     use crate::test_support::frame_src_targets;
+
+    #[test]
+    fn mana_available_kind_counts_only_the_requested_kind() {
+        use deckmaste_core::Color;
+        use deckmaste_core::ColorOrColorless;
+
+        use crate::player::ManaProvenance;
+
+        let mut state = game();
+        let player = PlayerId(0);
+        state
+            .player_mut(player)
+            .mana_pool
+            .add(Color::Green.into(), 3, ManaProvenance::default());
+        state
+            .player_mut(player)
+            .mana_pool
+            .add(Color::Black.into(), 1, ManaProvenance::default());
+        let frame = frame_for(&state, player);
+
+        assert_eq!(
+            state.eval_count(
+                &Count::ManaAvailableKind(Reference::You, Color::Green.into()),
+                &frame,
+            ),
+            3,
+        );
+        assert_eq!(
+            state.eval_count(
+                &Count::ManaAvailableKind(Reference::You, ColorOrColorless::Colorless,),
+                &frame,
+            ),
+            0,
+        );
+    }
 
     /// History tallies via `EventCount`/`EventSum` — the general primitives
     /// that subsume the old `Count::Query`/`eval_query` scalar family

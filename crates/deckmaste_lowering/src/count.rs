@@ -122,6 +122,9 @@ impl Lower for deckmaste_semantics::Count {
             Self::TimesPaid(f0) => deckmaste_core::Count::TimesPaid(f0.lower()),
             Self::Damage(f0) => deckmaste_core::Count::Damage(f0.lower()),
             Self::ManaAvailable(f0) => deckmaste_core::Count::ManaAvailable(f0.lower()),
+            Self::ManaAvailableKind(f0, f1) => {
+                deckmaste_core::Count::ManaAvailableKind(f0.lower(), f1.lower())
+            }
             Self::Aggregate(f0, f1) => deckmaste_core::Count::Aggregate(f0.lower(), f1.lower()),
             // Invocation provenance does not cross `lower`: the core grammar is
             // a compiled artifact and carries no record of the semantic
@@ -649,6 +652,21 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::Count::ManaAvailable(minimal_reference()).lower(),
             deckmaste_core::Count::ManaAvailable(deckmaste_core::Reference::This)
+        );
+    }
+
+    #[test]
+    fn lowers_count_mana_available_kind() {
+        assert_matches!(
+            deckmaste_semantics::Count::ManaAvailableKind(
+                minimal_reference(),
+                deckmaste_semantics::ColorOrColorless::Colorless,
+            )
+            .lower(),
+            deckmaste_core::Count::ManaAvailableKind(
+                deckmaste_core::Reference::This,
+                deckmaste_core::ColorOrColorless::Colorless,
+            )
         );
     }
 

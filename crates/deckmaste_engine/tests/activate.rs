@@ -40,6 +40,7 @@ use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameEvent;
 use deckmaste_engine::GameState;
 use deckmaste_engine::LifeLost;
+use deckmaste_engine::ManaProvenance;
 use deckmaste_engine::ObjectId;
 use deckmaste_engine::Occurrence;
 use deckmaste_engine::PendingDecision;
@@ -1699,7 +1700,10 @@ fn schedule_activation(
     let _ = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
     // Float the cost's mana now — after the walk, in the window that pays it.
     for &(color, amount) in float {
-        state.player_mut(PlayerId(0)).mana_pool.add(color, amount);
+        state
+            .player_mut(PlayerId(0))
+            .mana_pool
+            .add(color, amount, ManaProvenance::default());
     }
     // Clear the Priority decision `run_to_priority` stopped at; the announce
     // block front-runs the next priority open. (`consecutive_passes` is NOT
@@ -1990,7 +1994,10 @@ fn green() -> ColorOrColorless {
 fn legal_with_float(state: &mut GameState, pool: &[(ColorOrColorless, Uint)]) -> Vec<Action> {
     let _ = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
     for &(color, amount) in pool {
-        state.player_mut(PlayerId(0)).mana_pool.add(color, amount);
+        state
+            .player_mut(PlayerId(0))
+            .mana_pool
+            .add(color, amount, ManaProvenance::default());
     }
     // Re-derive priority so the freshly floated pool is reflected in the list
     // (mirrors x_costs.rs's resurface_priority).
@@ -2104,7 +2111,10 @@ fn two_phyrexian_share_life_correctly() {
     let obj = force_into_play(&mut state, PlayerId(0), NAME);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     state.player_mut(PlayerId(0)).life = 2;
-    state.player_mut(PlayerId(0)).mana_pool.add(white(), 1);
+    state
+        .player_mut(PlayerId(0))
+        .mana_pool
+        .add(white(), 1, ManaProvenance::default());
     state.pending = None;
     state.agenda.push_front(WorkItem::OpenPriority);
     let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);

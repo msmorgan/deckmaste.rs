@@ -2479,10 +2479,11 @@ mod tests {
     /// Grant `player` `n` red mana (enough to cover a `{1}{R}` madness cost
     /// with one Red + one Red-as-generic, or top up as a test needs).
     fn grant_red(state: &mut GameState, player: PlayerId, n: deckmaste_core::Uint) {
-        state
-            .player_mut(player)
-            .mana_pool
-            .add(deckmaste_core::Color::Red.into(), n);
+        state.player_mut(player).mana_pool.add(
+            deckmaste_core::Color::Red.into(),
+            n,
+            crate::player::ManaProvenance::default(),
+        );
     }
 
     /// Whether a COMMITTED discard name-fact of `card` is in the history — what
@@ -2867,10 +2868,11 @@ mod tests {
             // count ([CR#608.2g]). Mana empties at each step boundary.
             if state.player(PlayerId(0)).mana_pool.is_empty() {
                 grant_red(state, PlayerId(0), 2);
-                state
-                    .player_mut(PlayerId(0))
-                    .mana_pool
-                    .add(deckmaste_core::Color::Black.into(), 1);
+                state.player_mut(PlayerId(0)).mana_pool.add(
+                    deckmaste_core::Color::Black.into(),
+                    1,
+                    crate::player::ManaProvenance::default(),
+                );
             }
             match state.step() {
                 StepOutcome::Progress(_) => {}

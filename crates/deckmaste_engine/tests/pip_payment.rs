@@ -15,6 +15,7 @@ use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameState;
+use deckmaste_engine::ManaProvenance;
 use deckmaste_engine::ObjectId;
 use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
@@ -180,7 +181,10 @@ fn convoke_taps_a_creature_to_pay_a_pip_without_changing_mana_value() {
     // Float enough mana to pay the FULL {1}{G} so the cast is legal regardless
     // of convoke (the affordability gate is convoke-unaware; the hook still
     // reduces the actual payment). Convoke then pays the {1} by tapping.
-    state.player_mut(PlayerId(0)).mana_pool.add(green(), 2);
+    state
+        .player_mut(PlayerId(0))
+        .mana_pool
+        .add(green(), 2, ManaProvenance::default());
     resurface_priority(&mut state);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
@@ -294,7 +298,10 @@ fn delve_exiles_a_graveyard_card_to_pay_a_pip_without_changing_mana_value() {
 
     // Float the full {2} so the cast is legal; delve then pays one {1} by
     // exiling the graveyard card.
-    state.player_mut(PlayerId(0)).mana_pool.add(blue(), 2);
+    state
+        .player_mut(PlayerId(0))
+        .mana_pool
+        .add(blue(), 2, ManaProvenance::default());
     resurface_priority(&mut state);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
@@ -402,7 +409,10 @@ fn convoke_makes_an_otherwise_unaffordable_cast_legal() {
     // Float only {G} — one short of {1}{G}. With no creature to convoke, the
     // affordability gate must judge the cast unpayable ([CR#601.2h]): the pool
     // covers {G} OR {1}, never both.
-    state.player_mut(PlayerId(0)).mana_pool.add(green(), 1);
+    state
+        .player_mut(PlayerId(0))
+        .mana_pool
+        .add(green(), 1, ManaProvenance::default());
     assert!(
         !cast_is_offered(&mut state, spell),
         "{{1}}{{G}} is not castable off a single {{G}} with nothing to convoke with"
@@ -439,7 +449,10 @@ fn delve_makes_an_otherwise_unaffordable_cast_legal() {
 
     // Float only {1} — one short of {2}. With an empty graveyard, delve has no
     // card to exile, so the cast is unpayable ([CR#601.2h]).
-    state.player_mut(PlayerId(0)).mana_pool.add(blue(), 1);
+    state
+        .player_mut(PlayerId(0))
+        .mana_pool
+        .add(blue(), 1, ManaProvenance::default());
     assert!(
         !cast_is_offered(&mut state, spell),
         "{{2}} is not castable off a single mana with an empty graveyard"
@@ -500,7 +513,10 @@ fn improvise_taps_an_artifact_to_pay_a_pip_without_changing_mana_value() {
     // Float the full {2} so the cast is legal regardless of improvise (the
     // affordability gate is improvise-unaware; the hook still reduces the actual
     // payment). Improvise then pays one {1} by tapping the artifact.
-    state.player_mut(PlayerId(0)).mana_pool.add(blue(), 2);
+    state
+        .player_mut(PlayerId(0))
+        .mana_pool
+        .add(blue(), 2, ManaProvenance::default());
     resurface_priority(&mut state);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
@@ -587,7 +603,10 @@ fn improvise_makes_an_otherwise_unaffordable_cast_legal() {
 
     // Float only {1} — one short of {2}. With no artifact to tap, improvise has
     // no resource, so the cast is unpayable ([CR#601.2h]).
-    state.player_mut(PlayerId(0)).mana_pool.add(blue(), 1);
+    state
+        .player_mut(PlayerId(0))
+        .mana_pool
+        .add(blue(), 1, ManaProvenance::default());
     assert!(
         !cast_is_offered(&mut state, spell),
         "{{2}} is not castable off a single mana with nothing to improvise with"

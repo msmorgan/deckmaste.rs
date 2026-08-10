@@ -19,6 +19,7 @@ pub struct ChooseManaColor {
     pub options: Vec<deckmaste_core::ColorOrColorless>,
     pub amount: Uint,
     pub riders: Vec<deckmaste_core::ManaRider>,
+    pub provenance: crate::player::ManaProvenance,
 }
 
 impl DecisionHandler for ChooseManaColor {
@@ -32,7 +33,8 @@ impl DecisionHandler for ChooseManaColor {
                 reason: format!("{mana:?} is not one of the offered mana options"),
             });
         }
-        let (player, amount, riders) = (self.player, self.amount, self.riders);
+        let (player, amount, riders, provenance) =
+            (self.player, self.amount, self.riders, self.provenance);
         g.pending = None;
         g.schedule_front(vec![WorkItem::Emit(Occurrence::single(
             GameEvent::ManaAdded(ManaAdded {
@@ -40,6 +42,7 @@ impl DecisionHandler for ChooseManaColor {
                 mana,
                 amount,
                 riders,
+                provenance,
             }),
         ))]);
         Ok(())
@@ -57,6 +60,7 @@ pub struct ChooseManaMode {
     pub options: Vec<Vec<deckmaste_core::ColorOrColorless>>,
     pub amount: Uint,
     pub riders: Vec<deckmaste_core::ManaRider>,
+    pub provenance: crate::player::ManaProvenance,
 }
 
 impl DecisionHandler for ChooseManaMode {
@@ -73,7 +77,8 @@ impl DecisionHandler for ChooseManaMode {
             })?;
         // The whole run's mana lands at once — one `ManaAdded` per
         // symbol in printed order, each carrying the shared riders.
-        let (player, amount, riders) = (self.player, self.amount, self.riders);
+        let (player, amount, riders, provenance) =
+            (self.player, self.amount, self.riders, self.provenance);
         let events = run
             .iter()
             .map(|&mana| {
@@ -82,6 +87,7 @@ impl DecisionHandler for ChooseManaMode {
                     mana,
                     amount,
                     riders: riders.clone(),
+                    provenance,
                 })
             })
             .collect();

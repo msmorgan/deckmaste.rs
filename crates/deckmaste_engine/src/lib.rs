@@ -169,7 +169,12 @@ pub use object::ObjectStore;
 pub use object::Timestamp;
 
 mod player;
+pub use player::FloatingManaId;
+pub use player::ManaActionId;
 pub use player::ManaPool;
+pub use player::ManaPoolError;
+pub use player::ManaProvenance;
+pub use player::ManaUnit;
 pub use player::PlayerId;
 pub use player::PlayerState;
 

@@ -8,6 +8,7 @@ use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameState;
+use deckmaste_engine::ManaProvenance;
 use deckmaste_engine::ObjectId;
 use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
@@ -165,7 +166,10 @@ fn cast_x_draw_announces_pays_and_draws_x() {
     let mut state = x_game(1);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     // Float two generic-payable mana (greens).
-    state.player_mut(PlayerId(0)).mana_pool.add(green(), 2);
+    state
+        .player_mut(PlayerId(0))
+        .mana_pool
+        .add(green(), 2, ManaProvenance::default());
     resurface_priority(&mut state);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
@@ -220,7 +224,10 @@ fn unpayable_x_rewinds_the_cast() {
     let mut state = x_game(1);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     // Only one mana available; announcing X=5 (cost {5}) is unpayable.
-    state.player_mut(PlayerId(0)).mana_pool.add(green(), 1);
+    state
+        .player_mut(PlayerId(0))
+        .mana_pool
+        .add(green(), 1, ManaProvenance::default());
     resurface_priority(&mut state);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
@@ -350,7 +357,10 @@ fn bolt_game(seed: u64) -> GameState {
 fn non_x_cast_surfaces_no_choose_x() {
     let mut state = bolt_game(1);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
-    state.player_mut(PlayerId(0)).mana_pool.add(red(), 1);
+    state
+        .player_mut(PlayerId(0))
+        .mana_pool
+        .add(red(), 1, ManaProvenance::default());
     resurface_priority(&mut state);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     let bolt = find_in_hand(&state, PlayerId(0), "Lightning Bolt");
@@ -407,7 +417,10 @@ fn activate_x_draw_announces_pays_and_draws_x() {
     state.objects.obj_mut(art).zone = Some(Zone::Battlefield);
     state.zones.battlefield.push(art);
     // Float two generic-payable mana, re-derive priority with the artifact in play.
-    state.player_mut(PlayerId(0)).mana_pool.add(red(), 2);
+    state
+        .player_mut(PlayerId(0))
+        .mana_pool
+        .add(red(), 2, ManaProvenance::default());
     resurface_priority(&mut state);
     let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
@@ -499,7 +512,10 @@ fn x_burn_game(seed: u64) -> GameState {
 fn cast_x_burn_announces_x_then_targets_then_deals_x() {
     let mut state = x_burn_game(1);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
-    state.player_mut(PlayerId(0)).mana_pool.add(red(), 3);
+    state
+        .player_mut(PlayerId(0))
+        .mana_pool
+        .add(red(), 3, ManaProvenance::default());
     resurface_priority(&mut state);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 

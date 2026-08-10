@@ -197,6 +197,7 @@ pub enum WorkItem {
         options: Vec<deckmaste_core::ColorOrColorless>,
         amount: deckmaste_core::Uint,
         riders: Vec<deckmaste_core::ManaRider>,
+        provenance: crate::player::ManaProvenance,
     },
     /// [CR#106.1b]: a resolving `AddMana` whose production is a choice among
     /// multi-symbol runs (the filterland "{W}{W}, {W}{U}, or {U}{U}") —
@@ -207,6 +208,7 @@ pub enum WorkItem {
         options: Vec<Vec<deckmaste_core::ColorOrColorless>>,
         amount: deckmaste_core::Uint,
         riders: Vec<deckmaste_core::ManaRider>,
+        provenance: crate::player::ManaProvenance,
     },
     /// [CR#118.12a]: a mid-resolution mana toll — a `MayPayCost`
     /// continuation's `Mana(...)` cost component, paid by `player` from

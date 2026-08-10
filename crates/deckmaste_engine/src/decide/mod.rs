@@ -986,6 +986,10 @@ impl GameState {
                             mana,
                             amount,
                             riders,
+                            provenance: crate::player::ManaProvenance {
+                                source: Some(*object),
+                                action: None,
+                            },
                         }))),
                     ];
                     items.extend(Self::priority_tail());

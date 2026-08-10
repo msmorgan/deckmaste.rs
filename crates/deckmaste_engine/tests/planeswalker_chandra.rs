@@ -22,6 +22,7 @@ use deckmaste_engine::Decision;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameEvent;
 use deckmaste_engine::GameState;
+use deckmaste_engine::ManaProvenance;
 use deckmaste_engine::ObjectId;
 use deckmaste_engine::Occurrence;
 use deckmaste_engine::PendingDecision;
@@ -264,7 +265,10 @@ fn activate_and_drive(state: &mut GameState, object: ObjectId, ability: usize) -
 /// afforded during resolution).
 fn float(state: &mut GameState, player: PlayerId, color: Color, n: u32) {
     for _ in 0..n {
-        state.player_mut(player).mana_pool.add(color.into(), 1);
+        state
+            .player_mut(player)
+            .mana_pool
+            .add(color.into(), 1, ManaProvenance::default());
     }
 }
 

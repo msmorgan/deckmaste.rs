@@ -289,6 +289,11 @@ pub enum Count {
     /// resolves to a player proxy; a non-player reference fizzles to 0
     /// (never-crash), like its `Opponents`/`PlayerStatOf` peers.
     ManaAvailable(Reference),
+    /// The unspent units of exactly one mana kind in a referenced player's
+    /// pool. Riders do not change a unit's kind; this is the color-sensitive
+    /// pool read needed by mana-production effects whose output depends on
+    /// currently floating mana.
+    ManaAvailableKind(Reference, crate::ColorOrColorless),
     /// Fold a [`Projection`] to one value per [`AggregateOp`] ([CR#107.1]):
     /// "the total power of creatures you control" = `Aggregate(SumOf, (of:
     /// Objects(<your creatures>), by: StatOf(It, Power)))`; devotion to green
@@ -590,6 +595,17 @@ mod tests {
             Count::ManaAvailable(Reference::You),
         );
         let value = Count::ManaAvailable(Reference::You);
+        assert_eq!(read(&write(&value)), value);
+    }
+
+    #[test]
+    fn mana_available_kind_reads_and_round_trips() {
+        use crate::Color;
+        assert_eq!(
+            read("ManaAvailableKind(You, Green)"),
+            Count::ManaAvailableKind(Reference::You, Color::Green.into()),
+        );
+        let value = Count::ManaAvailableKind(Reference::You, Color::Green.into());
         assert_eq!(read(&write(&value)), value);
     }
 

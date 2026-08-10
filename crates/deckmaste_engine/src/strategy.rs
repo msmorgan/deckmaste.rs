@@ -778,14 +778,16 @@ mod tests {
             "an empty pool reads 0",
         );
 
-        state
-            .player_mut(PlayerId(0))
-            .mana_pool
-            .add(ColorOrColorless::Color(Color::Green), 2);
-        state
-            .player_mut(PlayerId(0))
-            .mana_pool
-            .add(ColorOrColorless::Colorless, 1);
+        state.player_mut(PlayerId(0)).mana_pool.add(
+            ColorOrColorless::Color(Color::Green),
+            2,
+            crate::player::ManaProvenance::default(),
+        );
+        state.player_mut(PlayerId(0)).mana_pool.add(
+            ColorOrColorless::Colorless,
+            1,
+            crate::player::ManaProvenance::default(),
+        );
         let frame = eval_frame(&state, PlayerId(0), None);
         assert_eq!(
             state.eval_count(&Count::ManaAvailable(Reference::You), &frame),

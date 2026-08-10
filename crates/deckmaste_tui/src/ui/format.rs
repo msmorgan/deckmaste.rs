@@ -313,6 +313,7 @@ mod tests {
             object: StackObject::Spell(id),
             controller: PlayerId(0),
             targets: vec![],
+            chosen_modes: std::sync::Arc::from([]),
             x: None,
             copy: false,
         };
@@ -325,9 +326,21 @@ mod tests {
         use deckmaste_core::ColorOrColorless;
 
         let mut pool = deckmaste_engine::ManaPool::default();
-        pool.add(ColorOrColorless::Color(Color::Green), 1);
-        pool.add(ColorOrColorless::Color(Color::Red), 2);
-        pool.add(ColorOrColorless::Colorless, 1);
+        pool.add(
+            ColorOrColorless::Color(Color::Green),
+            1,
+            deckmaste_engine::ManaProvenance::default(),
+        );
+        pool.add(
+            ColorOrColorless::Color(Color::Red),
+            2,
+            deckmaste_engine::ManaProvenance::default(),
+        );
+        pool.add(
+            ColorOrColorless::Colorless,
+            1,
+            deckmaste_engine::ManaProvenance::default(),
+        );
         // Output is normalized to WUBRG-then-colorless regardless of add order.
         assert_eq!(mana_pool(&pool), "{R}{R}{G}{C}");
         assert_eq!(mana_pool(&deckmaste_engine::ManaPool::default()), "");
@@ -348,6 +361,7 @@ mod tests {
             object: StackObject::Spell(id),
             controller: PlayerId(0),
             targets: vec![vec![target]],
+            chosen_modes: std::sync::Arc::from([]),
             x: None,
             copy: false,
         };

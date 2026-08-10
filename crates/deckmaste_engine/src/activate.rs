@@ -1885,10 +1885,15 @@ mod tests {
 
         // Fund exactly the resolved cost: {1} generic + {U}.
         let pool = &mut state.player_mut(player).mana_pool;
-        pool.add(deckmaste_core::ColorOrColorless::Colorless, 1);
+        pool.add(
+            deckmaste_core::ColorOrColorless::Colorless,
+            1,
+            crate::player::ManaProvenance::default(),
+        );
         pool.add(
             deckmaste_core::ColorOrColorless::from(deckmaste_core::Color::Blue),
             1,
+            crate::player::ManaProvenance::default(),
         );
         let view = state.layers();
         assert!(
