@@ -67,7 +67,6 @@ use crate::syntax::OracleText;
 use crate::syntax::Paragraph;
 use crate::syntax::Phrase;
 use crate::syntax::Polarity;
-use crate::syntax::Possessor;
 use crate::syntax::Predicate;
 use crate::syntax::PredicateAdjunct;
 use crate::syntax::PredicateComplement;
@@ -156,6 +155,8 @@ pub enum RenderError {
     InvalidAdjectiveConstruction,
     #[error("determiner AST does not match exactly one generated construction")]
     InvalidDeterminerConstruction,
+    #[error("noun-phrase AST does not match exactly one generated construction")]
+    InvalidNounPhraseConstruction,
     #[error(
         "predicate AST does not match exactly one generated construction: {problem} in {owner}, {first:?}/{second:?}, forms {first_form:?}/{second_form:?}"
     )]
@@ -306,6 +307,24 @@ pub(crate) fn render_generated_adjective_phrase_law(
         text: visitor.rendered,
         forms: visitor.forms,
     })
+}
+
+#[cfg(test)]
+pub(crate) fn render_generated_rules_object_noun_phrase_law(
+    value: &crate::constructions::noun_phrase::RulesObjectNounPhrase,
+) -> Result<String, RenderError> {
+    let renderer = Renderer::new("this card", false);
+    let mut visitor = GeneratedNounPhraseRenderer::new(&renderer);
+    match crate::constructions::noun_phrase::linearize_rules_object_noun_phrase_with(
+        value,
+        &mut visitor,
+    ) {
+        Ok(()) => Ok(visitor.finish()),
+        Err(deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error)) => {
+            Err(error)
+        }
+        Err(_) => Err(RenderError::InvalidNounPhraseConstruction),
+    }
 }
 
 /// Exercises the declaration-owned predicate inverse without routing through
@@ -614,6 +633,177 @@ struct GeneratedSentenceRenderer<'renderer, 'identity> {
 struct GeneratedNounRenderer<'renderer, 'identity> {
     renderer: &'renderer Renderer<'identity>,
     rendered: Option<String>,
+}
+
+struct GeneratedNounPhraseRenderer<'renderer, 'identity> {
+    renderer: &'renderer Renderer<'identity>,
+    rendered: String,
+}
+
+impl<'renderer, 'identity> GeneratedNounPhraseRenderer<'renderer, 'identity> {
+    fn new(renderer: &'renderer Renderer<'identity>) -> Self {
+        Self {
+            renderer,
+            rendered: String::new(),
+        }
+    }
+
+    fn push(&mut self, part: &str) {
+        if part.is_empty() {
+            return;
+        }
+        if part == "," {
+            self.rendered.push(',');
+        } else {
+            if !self.rendered.is_empty() {
+                self.rendered.push(' ');
+            }
+            self.rendered.push_str(part);
+        }
+    }
+
+    fn finish(self) -> String {
+        self.rendered
+    }
+}
+
+impl deckmaste_construction_compiler::runtime::LinearizationVisitor
+    for GeneratedNounPhraseRenderer<'_, '_>
+{
+    type Error = RenderError;
+
+    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
+        self.push(literal);
+        Ok(())
+    }
+
+    fn subtree<T: std::any::Any>(
+        &mut self,
+        category: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        let rendered = match category {
+            "NominalPhrase" => self.renderer.nominal_phrase(
+                value
+                    .downcast_ref::<NominalPhrase>()
+                    .expect("the P01 nominal hole preserves NominalPhrase"),
+            )?,
+            "RulesObjectFollowupNominal" => self.renderer.nominal_phrase(
+                value
+                    .downcast_ref::<crate::constructions::nominal::RulesObjectFollowupNominal>()
+                    .expect("the P01 rules-object hole preserves its role wrapper")
+                    .as_nominal(),
+            )?,
+            "Quantity" => render_quantity(
+                *value
+                    .downcast_ref::<Quantity>()
+                    .expect("the P01 quantity hole preserves Quantity"),
+            ),
+            "NounPhrase" => self.renderer.noun_phrase(
+                value
+                    .downcast_ref::<NounPhrase>()
+                    .expect("the recursive P01 hole preserves NounPhrase"),
+            )?,
+            other => panic!("unexpected P01 subtree category `{other}`"),
+        };
+        self.push(&rendered);
+        Ok(())
+    }
+
+    fn scalar<T: std::any::Any>(
+        &mut self,
+        codec: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        match codec {
+            "Comma" => {
+                let comma = (value as &dyn std::any::Any)
+                    .downcast_ref::<crate::features::Comma>()
+                    .expect("the P01 comma scalar preserves Comma");
+                if comma.is_present() {
+                    self.push(",");
+                }
+            }
+            other => panic!("unexpected P01 scalar codec `{other}`"),
+        }
+        Ok(())
+    }
+
+    fn identity<T: std::any::Any>(
+        &mut self,
+        provider: &'static str,
+        value_type: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        let rendered = match (value_type, provider) {
+            ("Pronoun", "SubjectPronoun") => self
+                .renderer
+                .vocabulary
+                .render_pronoun(PronounInstance {
+                    pronoun: *value
+                        .downcast_ref::<crate::word::Pronoun>()
+                        .expect("the subject identity preserves Pronoun"),
+                    case: crate::word::PronounCase::Subject,
+                })
+                .map(str::to_owned)
+                .ok_or(RenderError::MissingLexicalForm("pronoun"))?,
+            ("Pronoun", "ObjectPronoun" | "Reciprocal") => self
+                .renderer
+                .vocabulary
+                .render_pronoun(PronounInstance {
+                    pronoun: *value
+                        .downcast_ref::<crate::word::Pronoun>()
+                        .expect("the object identity preserves Pronoun"),
+                    case: crate::word::PronounCase::Object,
+                })
+                .map(str::to_owned)
+                .ok_or(RenderError::MissingLexicalForm("pronoun"))?,
+            ("ThisCardForm", "ThisCard" | "FullThisCard") => self.renderer.this_card(
+                *value
+                    .downcast_ref::<ThisCardForm>()
+                    .expect("the self-reference identity preserves ThisCardForm"),
+            )?,
+            ("ThisCardForm", "PossessiveThisCard") => {
+                let form = *value
+                    .downcast_ref::<ThisCardForm>()
+                    .expect("the possessive identity preserves ThisCardForm");
+                self.renderer
+                    .generated_determiner(&crate::determiner::possessive_this_card(form))?
+            }
+            ("Demonstrative", "Demonstrative") => value
+                .downcast_ref::<crate::syntax::Demonstrative>()
+                .expect("the demonstrative identity preserves Demonstrative")
+                .spelling()
+                .to_owned(),
+            ("PartitiveHead", "PartitiveEach") => {
+                let head = value
+                    .downcast_ref::<crate::syntax::PartitiveHead>()
+                    .expect("the partitive identity preserves PartitiveHead");
+                crate::constructions::noun_phrase::partitive_head_spelling(*head).to_owned()
+            }
+            ("SetExceptionMarker", "SetExceptionMarker") => {
+                crate::constructions::noun_phrase::set_exception_marker_spelling(
+                    *value
+                        .downcast_ref::<SetExceptionMarker>()
+                        .expect("the exception identity preserves SetExceptionMarker"),
+                )
+                .to_owned()
+            }
+            ("Rounding", "RoundingUp" | "RoundingDown") => {
+                crate::constructions::noun_phrase::rounding_spelling(
+                    *value
+                        .downcast_ref::<crate::syntax::Rounding>()
+                        .expect("the rounding identity preserves Rounding"),
+                )
+                .to_owned()
+            }
+            other => panic!("unexpected P01 identity {other:?}"),
+        };
+        self.push(&rendered);
+        Ok(())
+    }
 }
 
 struct GeneratedPredicateRenderer<'renderer, 'identity> {
@@ -3743,68 +3933,29 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn noun_phrase(&self, phrase: &NounPhrase) -> Result<String, RenderError> {
-        match phrase.kind() {
-            crate::syntax::NounPhraseKind::Nominal(nominal) => self.nominal_phrase(nominal),
-            crate::syntax::NounPhraseKind::Pronoun { pronoun, case } => self
-                .vocabulary
-                .render_pronoun(PronounInstance { pronoun, case })
-                .map(str::to_owned)
-                .ok_or(RenderError::MissingLexicalForm("pronoun")),
-            crate::syntax::NounPhraseKind::Possessive(possessor) => self.possessor(possessor),
-            crate::syntax::NounPhraseKind::Demonstrative(demonstrative) => {
-                Ok(demonstrative.spelling().to_owned())
+        let mut visitor = GeneratedNounPhraseRenderer::new(self);
+        match crate::constructions::noun_phrase::linearize_noun_phrase_noun_phrase_with(
+            phrase,
+            &mut visitor,
+        ) {
+            Ok(()) => Ok(visitor.finish()),
+            Err(deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error)) => {
+                Err(error)
             }
-            crate::syntax::NounPhraseKind::Quantity(quantity) => Ok(render_quantity(quantity)),
-            crate::syntax::NounPhraseKind::ThisCard(form) => self.this_card(form),
-            crate::syntax::NounPhraseKind::Partitive(partitive) => Ok(format!(
-                "{} of {}",
-                match partitive.head {
-                    crate::syntax::PartitiveHead::Quantity(quantity) => render_quantity(quantity),
-                    crate::syntax::PartitiveHead::Each => "each".to_owned(),
+            Err(
+                deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
+                    ..
                 },
-                self.noun_phrase(&partitive.whole)?
-            )),
-            crate::syntax::NounPhraseKind::CoordinatedNominal(coordinated) => {
-                self.coordinated_nominal_phrase(coordinated)
-            }
-            crate::syntax::NounPhraseKind::Coordinated(coordinated) => {
-                self.coordinated_noun_phrase(coordinated)
-            }
-            crate::syntax::NounPhraseKind::SetException(exception) => {
-                let mut rendered = self.noun_phrase(&exception.included)?;
-                if exception.comma.is_present() {
-                    rendered.push(',');
+            ) => match phrase.kind() {
+                crate::syntax::NounPhraseKind::CoordinatedNominal(coordinated) => {
+                    self.coordinated_nominal_phrase(coordinated)
                 }
-                rendered.push_str(match exception.marker {
-                    SetExceptionMarker::Bare => " except ",
-                    SetExceptionMarker::For => " except for ",
-                });
-                rendered.push_str(&self.noun_phrase(&exception.excluded)?);
-                Ok(rendered)
-            }
-            crate::syntax::NounPhraseKind::Arithmetic(value) => self.arithmetic_value(value),
-        }
-    }
-
-    fn arithmetic_value(
-        &self,
-        value: &crate::syntax::ArithmeticValue,
-    ) -> Result<String, RenderError> {
-        match value {
-            crate::syntax::ArithmeticValue::Minus { left, right } => Ok(format!(
-                "{} minus {}",
-                self.noun_phrase(left)?,
-                self.noun_phrase(right)?
-            )),
-            crate::syntax::ArithmeticValue::Half { value, rounding } => {
-                let mut rendered = format!("half {}", self.noun_phrase(value)?);
-                match rounding {
-                    Some(crate::syntax::Rounding::Up) => rendered.push_str(", rounded up"),
-                    Some(crate::syntax::Rounding::Down) => rendered.push_str(", rounded down"),
-                    None => {}
+                crate::syntax::NounPhraseKind::Coordinated(coordinated) => {
+                    self.coordinated_noun_phrase(coordinated)
                 }
-                Ok(rendered)
-            }
+                _ => Err(RenderError::InvalidNounPhraseConstruction),
+            },
+            Err(_) => Err(RenderError::InvalidNounPhraseConstruction),
         }
     }
 
@@ -4038,25 +4189,6 @@ impl<'identity> Renderer<'identity> {
             ),
         )?;
         Ok(visitor.finish())
-    }
-
-    fn possessor(&self, possessor: &Possessor) -> Result<String, RenderError> {
-        let determiner = match possessor.kind() {
-            crate::syntax::PossessorKind::Pronoun(pronoun) => {
-                crate::determiner::possessive_pronoun(pronoun)
-                    .map_err(|_| RenderError::InvalidDeterminerConstruction)?
-            }
-            crate::syntax::PossessorKind::NounPhrase(noun_phrase) => match noun_phrase.kind() {
-                crate::syntax::NounPhraseKind::ThisCard(form) => {
-                    crate::determiner::possessive_this_card(form)
-                }
-                crate::syntax::NounPhraseKind::Nominal(nominal) => {
-                    crate::determiner::possessive_nominal(nominal.clone())
-                }
-                _ => return Err(RenderError::InvalidDeterminerConstruction),
-            },
-        };
-        self.generated_determiner(&determiner)
     }
 
     fn adjective_phrase(&self, phrase: &AdjectivePhrase) -> Result<String, RenderError> {

@@ -635,6 +635,29 @@ fn is_set_exception_for(value: &NounPhrase) -> bool {
     matches!(value.kind(), NounPhraseKind::SetException(value) if value.marker == SetExceptionMarker::For)
 }
 
+pub(crate) fn partitive_head_spelling(value: PartitiveHead) -> &'static str {
+    match value {
+        PartitiveHead::Each => "each",
+        PartitiveHead::Quantity(_) => {
+            unreachable!("quantity partitive heads linearize through their Quantity hole")
+        }
+    }
+}
+
+pub(crate) const fn set_exception_marker_spelling(value: SetExceptionMarker) -> &'static str {
+    match value {
+        SetExceptionMarker::Bare => "except",
+        SetExceptionMarker::For => "except for",
+    }
+}
+
+pub(crate) const fn rounding_spelling(value: Rounding) -> &'static str {
+    match value {
+        Rounding::Up => "up",
+        Rounding::Down => "down",
+    }
+}
+
 fn noun_phrase(
     agreement: Option<Agreement>,
     coordination_domain: Option<CoordinationDomain>,
@@ -894,7 +917,7 @@ deckmaste_constructions_macro::constructions! {
         derive features: Features = reduce_set_exception(included, excluded);
         derive prefix_admission: Features = reduce_set_exception_prefix(included);
         form plain @ 0 when comma.is_none() inverse check(is_set_exception_bare) = included identity(marker) excluded;
-        form comma @ 1 otherwise = included lex(comma) identity(marker) excluded;
+        form comma @ 1 inverse check(is_set_exception_bare) otherwise = included lex(comma) identity(marker) excluded;
         selection unique;
     }
 
@@ -908,7 +931,7 @@ deckmaste_constructions_macro::constructions! {
         derive features: Features = reduce_set_exception(included, excluded);
         derive prefix_admission: Features = reduce_set_exception_prefix(included);
         form plain @ 0 when comma.is_none() inverse check(is_set_exception_for) = included identity(marker) excluded;
-        form comma @ 1 otherwise = included lex(comma) identity(marker) excluded;
+        form comma @ 1 inverse check(is_set_exception_for) otherwise = included lex(comma) identity(marker) excluded;
         selection unique;
     }
 
@@ -1164,5 +1187,19 @@ mod tests {
         )
         .expect("the ordinary nominal inverse preserves every modifier");
         assert_eq!(surface, "any large number of players");
+    }
+
+    #[test]
+    fn generated_renderer_covers_the_rules_object_role_wrapper() {
+        let nominal = NominalPhrase::try_from_noun(NounInstance::Singular(Noun::Word(Vocab::Card)))
+            .expect("card is a singular count noun");
+        let value =
+            build_rules_object_noun_phrase(RulesObjectFollowupNominal::from_nominal(nominal))
+                .expect("the rules-object wrapper accepts its typed nominal role");
+        assert_eq!(
+            crate::renderer::render_generated_rules_object_noun_phrase_law(&value)
+                .expect("the P01 rules-object construction linearizes"),
+            "card",
+        );
     }
 }
