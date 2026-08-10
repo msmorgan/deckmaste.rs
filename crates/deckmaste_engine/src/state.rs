@@ -181,20 +181,6 @@ pub enum ChoiceContinuation {
         modes: Vec<deckmaste_core::Mode>,
         frame: crate::stack::Frame,
     },
-    /// A `YesNo` answer for the collapsed `May(Pay(cost))` shape
-    /// ([CR#118.12a,118.12,608.2d]) — the old `Unless`/`MayPay` continuations
-    /// merged into one node (branchless when `if_did`/`if_not` are both
-    /// `None`): yes pays `cost` (each component as `who`'s action, already
-    /// normalized/priced) then runs `if_did` (if any); no runs `if_not` (or
-    /// nothing). `who` is the paying player ([CR#118.12a] — the doer
-    /// decides).
-    MayPayCost {
-        who: deckmaste_core::Reference,
-        cost: Vec<deckmaste_core::CostComponent>,
-        if_did: Option<Arc<deckmaste_core::OneShotEffect>>,
-        if_not: Option<Arc<deckmaste_core::OneShotEffect>>,
-        frame: crate::stack::Frame,
-    },
     /// [CR#401.4]: walking the post-pick arrange decisions — `current` is the
     /// pile whose order choice is open, `remaining` the piles still to arrange.
     /// An `Arranged` answer reorders `current` in its library, then surfaces
@@ -211,6 +197,26 @@ pub enum ChoiceContinuation {
         remaining: deckmaste_core::Uint,
         events: Vec<crate::event::GameEvent>,
     },
+}
+
+/// Transaction-external diagnostics emitted by legal engine recovery paths.
+/// Tournament-policy interpretation belongs to clients and judges, not the
+/// rules engine.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EngineIncident {
+    PaymentDeclined(PaymentDeclined),
+}
+
+/// A spell or activated-ability announcement abandoned before payment was
+/// submitted. Task-local replay metadata records whether CR 733 forced any
+/// speculative operations to survive the recovery.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PaymentDeclined {
+    pub player: crate::player::PlayerId,
+    pub subject: crate::payment::PaymentSubject,
+    pub forced_retained_records: Vec<crate::payment::PaymentRecordId>,
+    pub crossed_reversal_barrier: bool,
+    pub crossed_observation_barrier: bool,
 }
 
 /// The resolution-scoped collector for a post-pick arrangement ([CR#401.4]):
@@ -497,6 +503,9 @@ pub struct GameImage {
 pub struct GameState {
     pub(crate) committed: GameImage,
     pub(crate) payment: Option<crate::payment::PaymentController>,
+    /// Recovery diagnostics survive transaction rollback and never affect
+    /// rules execution directly.
+    pub(crate) incidents: Vec<EngineIncident>,
     /// Transaction-external stable identity source for activated and
     /// triggered mana actions. Declined speculative images never reuse IDs.
     pub(crate) next_mana_action: u64,
@@ -663,6 +672,7 @@ impl GameState {
         Self {
             committed,
             payment: None,
+            incidents: Vec::new(),
             next_mana_action: 0,
         }
     }
@@ -684,6 +694,11 @@ impl GameState {
     #[must_use]
     pub fn active(&self) -> &GameImage {
         self
+    }
+
+    #[must_use]
+    pub fn incidents(&self) -> &[EngineIncident] {
+        &self.incidents
     }
 
     #[cfg(test)]
