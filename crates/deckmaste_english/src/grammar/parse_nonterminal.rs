@@ -2282,6 +2282,7 @@ mod generated_adapter_tests {
         crate::constructions::determiner::GROUPS[0],
         crate::constructions::nominal::GROUPS[0],
         crate::constructions::noun_phrase::GROUPS[0],
+        crate::constructions::prepositional::GROUPS[0],
         coordination::GROUPS[0],
     ];
 

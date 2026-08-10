@@ -1053,6 +1053,29 @@ fn parse_generated_sentence_as(
     Ok(results)
 }
 
+#[cfg(test)]
+pub(crate) fn parse_production_sentence_in_all_registration_orders(
+    source: &str,
+    catalogs: &Catalogs,
+    budget: usize,
+) -> Result<[Vec<ExactParse<GeneratedSentenceParse, EnglishSurfaceWitness>>; 3], ExactParseError> {
+    let parse = |order| {
+        parse_generated_sentence_as(
+            source,
+            catalogs,
+            GeneratedActivation::Production,
+            budget,
+            order,
+        )
+    };
+
+    Ok([
+        parse(RegistrationOrder::Normal)?,
+        parse(RegistrationOrder::Reversed)?,
+        parse(RegistrationOrder::FixedShuffle)?,
+    ])
+}
+
 fn linearize_sentence_exact_form(parse: &GeneratedSentenceParse) -> String {
     assert_eq!(parse.construction, "sentence");
     crate::renderer::render_sentence_form(&parse.value, parse.form_ordinal)

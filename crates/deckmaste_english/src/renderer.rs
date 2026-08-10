@@ -158,6 +158,8 @@ pub enum RenderError {
     InvalidDeterminerConstruction,
     #[error("noun-phrase AST does not match exactly one generated construction")]
     InvalidNounPhraseConstruction,
+    #[error("prepositional AST does not match exactly one generated construction")]
+    InvalidPrepositionalConstruction,
     #[error(
         "predicate AST does not match exactly one generated construction: {problem} in {owner}, {first:?}/{second:?}, forms {first_form:?}/{second_form:?}"
     )]
@@ -647,6 +649,124 @@ struct GeneratedNounRenderer<'renderer, 'identity> {
 struct GeneratedNounPhraseRenderer<'renderer, 'identity> {
     renderer: &'renderer Renderer<'identity>,
     rendered: String,
+}
+
+struct GeneratedPrepositionalRenderer<'renderer, 'identity> {
+    renderer: &'renderer Renderer<'identity>,
+    rendered: String,
+}
+
+impl<'renderer, 'identity> GeneratedPrepositionalRenderer<'renderer, 'identity> {
+    fn new(renderer: &'renderer Renderer<'identity>) -> Self {
+        Self {
+            renderer,
+            rendered: String::new(),
+        }
+    }
+
+    fn push(&mut self, part: &str) {
+        if part.is_empty() {
+            return;
+        }
+        if !self.rendered.is_empty() {
+            self.rendered.push(' ');
+        }
+        self.rendered.push_str(part);
+    }
+
+    fn finish(self) -> String {
+        self.rendered
+    }
+
+    fn accept_generated(
+        result: Result<
+            (),
+            deckmaste_construction_compiler::runtime::LinearizationError<RenderError>,
+        >,
+    ) -> Result<(), RenderError> {
+        result.map_err(|error| match error {
+            deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error) => error,
+            _ => RenderError::InvalidPrepositionalConstruction,
+        })
+    }
+}
+
+impl deckmaste_construction_compiler::runtime::LinearizationVisitor
+    for GeneratedPrepositionalRenderer<'_, '_>
+{
+    type Error = RenderError;
+
+    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
+        self.push(literal);
+        Ok(())
+    }
+
+    fn subtree<T: std::any::Any>(
+        &mut self,
+        category: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        let rendered = match category {
+            "PrepositionalObject" => {
+                Self::accept_generated(
+                    crate::constructions::prepositional::linearize_prepositional_prepositional_object_with(
+                        value
+                            .downcast_ref::<crate::constructions::prepositional::PrepositionalObject>()
+                            .expect("the P02 object hole preserves PrepositionalObject"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "NounPhrase" => self.renderer.noun_phrase(
+                value
+                    .downcast_ref::<NounPhrase>()
+                    .expect("the P02 noun-phrase object preserves NounPhrase"),
+            )?,
+            "PrepositionalPhrase" => self.renderer.prepositional_phrase(
+                value
+                    .downcast_ref::<PrepositionalPhrase>()
+                    .expect("the nested P02 object preserves PrepositionalPhrase"),
+            )?,
+            "GerundClause" => self.renderer.gerund_clause(
+                value
+                    .downcast_ref::<GerundClause>()
+                    .expect("the P02 gerund object preserves GerundClause"),
+            )?,
+            other => panic!("unexpected P02 subtree category `{other}`"),
+        };
+        self.push(&rendered);
+        Ok(())
+    }
+
+    fn scalar<T: std::any::Any>(
+        &mut self,
+        codec: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        assert_eq!(codec, "Adverb");
+        let adverb = (value as &dyn std::any::Any)
+            .downcast_ref::<Vocab>()
+            .expect("the P02 adverb object preserves Vocab");
+        self.push(adverb.spelling());
+        Ok(())
+    }
+
+    fn identity<T: std::any::Any>(
+        &mut self,
+        provider: &'static str,
+        value_type: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        assert_eq!(provider, "Preposition");
+        assert_eq!(value_type, "Preposition");
+        let preposition = (value as &dyn std::any::Any)
+            .downcast_ref::<Preposition>()
+            .expect("the P02 identity preserves Preposition");
+        self.push(render_preposition(*preposition));
+        Ok(())
+    }
 }
 
 impl<'renderer, 'identity> GeneratedNounPhraseRenderer<'renderer, 'identity> {
@@ -4328,13 +4448,22 @@ impl<'identity> Renderer<'identity> {
 
     fn prepositional_phrase(&self, phrase: &PrepositionalPhrase) -> Result<String, RenderError> {
         match phrase.kind() {
-            PrepositionalPhraseKind::Simple(simple) => self.simple_prepositional_phrase(simple),
+            PrepositionalPhraseKind::Simple(_)
+                if crate::constructions::prepositional::is_supported_prepositional_phrase(
+                    phrase,
+                ) =>
+            {
+                self.generated_prepositional_phrase(phrase)
+            }
+            PrepositionalPhraseKind::Simple(simple) => {
+                self.quoted_ability_prepositional_postmodifier(simple)
+            }
             PrepositionalPhraseKind::Coordinated(coordinated) => {
                 // The serial comma is a function of length, never a stored
                 // flag: `A and B` takes none, `A, B, and C` takes one before
                 // every member. See `PrepositionalPhraseCoordination`.
                 let serial_comma = coordinated.rest.len() > 1;
-                let mut rendered = self.simple_prepositional_phrase(&coordinated.first)?;
+                let mut rendered = self.generated_prepositional_member(&coordinated.first)?;
                 for coordination in &coordinated.rest {
                     if serial_comma {
                         rendered.push(',');
@@ -4344,21 +4473,43 @@ impl<'identity> Renderer<'identity> {
                         rendered.push_str(render_nominal_conjunction(conjunction)?);
                         rendered.push(' ');
                     }
-                    rendered.push_str(&self.simple_prepositional_phrase(&coordination.phrase)?);
+                    rendered.push_str(&self.generated_prepositional_member(&coordination.phrase)?);
                 }
                 Ok(rendered)
             }
         }
     }
 
-    fn simple_prepositional_phrase(
+    fn quoted_ability_prepositional_postmodifier(
         &self,
         phrase: &SimplePrepositionalPhrase,
     ) -> Result<String, RenderError> {
-        Ok(format!(
-            "{} {}",
-            render_preposition(phrase.preposition),
-            self.phrase(&phrase.object)?
+        let (Preposition::With, Phrase::QuotedAbility(quoted)) =
+            (phrase.preposition, phrase.object.as_ref())
+        else {
+            return Err(RenderError::InvalidPrepositionalConstruction);
+        };
+        Ok(format!("with {}", self.quoted_ability(quoted)?))
+    }
+
+    fn generated_prepositional_phrase(
+        &self,
+        phrase: &PrepositionalPhrase,
+    ) -> Result<String, RenderError> {
+        let mut visitor = GeneratedPrepositionalRenderer::new(self);
+        GeneratedPrepositionalRenderer::accept_generated(
+            crate::constructions::prepositional::linearize_simple_with(phrase, &mut visitor),
+        )?;
+        Ok(visitor.finish())
+    }
+
+    fn generated_prepositional_member(
+        &self,
+        phrase: &SimplePrepositionalPhrase,
+    ) -> Result<String, RenderError> {
+        self.generated_prepositional_phrase(&PrepositionalPhrase::from_prepositional_declaration(
+            phrase.preposition,
+            phrase.object.as_ref().clone(),
         ))
     }
 

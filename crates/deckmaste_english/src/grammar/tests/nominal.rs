@@ -2883,6 +2883,10 @@ mod tests {
         ));
 
         let nested = parse("cards from among them");
+        assert_eq!(
+            render_fragment(nested.noun_phrase().expect("nested PP noun phrase")),
+            "cards from among them",
+        );
         let Some(NounPhraseKind::Nominal(nested)) = nested.noun_phrase().map(NounPhrase::kind)
         else {
             panic!("expected a nested-preposition nominal");

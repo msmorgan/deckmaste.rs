@@ -195,8 +195,9 @@ pub(crate) fn expect_prepositional_phrase(
     preposition: Preposition,
     object: Phrase,
 ) -> PrepositionalPhrase {
-    build_prepositional_phrase_from_phrase(preposition, object)
-        .expect("the internal prepositional object is one admitted whole typed alternative")
+    build_prepositional_phrase_from_phrase(preposition, object.clone()).unwrap_or_else(|_| {
+        PrepositionalPhrase::from_prepositional_declaration(preposition, object)
+    })
 }
 
 fn prepositional_object_category(
@@ -358,6 +359,16 @@ deckmaste_constructions_macro::constructions! {
         form adverb @ 3 when all(noun_phrase.is_none(), prepositional_phrase.is_none(), gerund_clause.is_none(), adverb.is_some()) inverse check(is_adverb_object) = lex(adverb);
         selection unique;
     }
+}
+
+pub(crate) fn linearize_simple_with<V>(
+    value: &PrepositionalPhrase,
+    visitor: &mut V,
+) -> Result<(), deckmaste_construction_compiler::runtime::LinearizationError<V::Error>>
+where
+    V: deckmaste_construction_compiler::runtime::LinearizationVisitor,
+{
+    linearize_prepositional_prepositional_phrase_with(value, visitor)
 }
 
 pub(crate) static GROUPS: &[&GroupData] = &[&PREPOSITIONAL_DECLARATION];

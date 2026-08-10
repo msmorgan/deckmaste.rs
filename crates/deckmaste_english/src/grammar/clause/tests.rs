@@ -119,6 +119,72 @@ fn sentence_forms_share_one_ast_and_derive_terminal_punctuation() {
 }
 
 #[test]
+fn p02_registration_order_preserves_packed_attachment() {
+    let source = "Destroy target creature with flying.";
+    let orders = crate::grammar::exact::parse_production_sentence_in_all_registration_orders(
+        source,
+        &fixture_catalogs(),
+        100_000,
+    )
+    .unwrap_or_else(|error| panic!("P02 attachment exact parse failed: {error:?}"));
+    let canonical = orders.clone().map(|parses| {
+        parses
+            .into_iter()
+            .map(|parse| {
+                (
+                    parse.ast().construction,
+                    parse.ast().form_ordinal,
+                    ron::to_string(&parse.ast().value).unwrap(),
+                )
+            })
+            .collect::<std::collections::BTreeSet<_>>()
+    });
+    assert_eq!(
+        canonical[1], canonical[0],
+        "reversed registration changed the complete exact set"
+    );
+    assert_eq!(
+        canonical[2], canonical[0],
+        "fixed shuffle changed the complete exact set"
+    );
+
+    let attachment_roles = orders[0]
+        .iter()
+        .filter_map(|parse| {
+            let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+                predicate,
+            ))) = &parse.ast().value.body
+            else {
+                return None;
+            };
+            let nominal = matches!(
+                predicate_object_kind(&predicate.object),
+                Some(NounPhraseKind::Nominal(nominal))
+                    if matches!(nominal.complements(), [NominalComplement::Prepositional(pp)]
+                        if pp.head().preposition == Preposition::With)
+            );
+            let predicate = predicate.elements.iter().any(|element| {
+                matches!(
+                    element,
+                    PredicateElement::Adjunct(PredicateAdjunct::Prepositional(pp))
+                        if pp.head().preposition == Preposition::With
+                )
+            });
+            match (nominal, predicate) {
+                (true, false) => Some("nominal"),
+                (false, true) => Some("predicate-adjunct"),
+                _ => None,
+            }
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(
+        attachment_roles,
+        std::collections::BTreeSet::from(["nominal", "predicate-adjunct"]),
+        "the exact forest must retain both legitimate PP attachment readings",
+    );
+}
+
+#[test]
 fn quote_terminal_sentence_neither_requires_nor_admits_an_outer_period() {
     // Mutation caught: choose the period-consuming sentence form without
     // consulting the terminal quoted-ability structure, producing or
