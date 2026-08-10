@@ -1040,19 +1040,26 @@ mod tests {
                     intransitive(Vocab::Draw),
                 )),
                 checked_ability(AbilityKind::Activated(ActivatedAbility {
-                    cost: Cost::from_parts(None, vec![CostComponent::Recovered(recovered("cost"))]),
+                    cost: crate::cost::build_cost(
+                        None,
+                        vec![CostComponent::Recovered(recovered("cost"))],
+                    )
+                    .expect("nonempty test cost must satisfy the declaration"),
                     effect: valid_test_paragraph(),
                 })),
-                checked_ability(AbilityKind::Keyword(KeywordAbilityList::from_parts(
-                    vec![KeywordAbility {
-                        preceding_separator: None,
-                        ability: flying,
-                        argument: KeywordArgument::Recovered {
-                            text: recovered("argument"),
-                        },
-                    }],
-                    None,
-                ))),
+                checked_ability(AbilityKind::Keyword(
+                    crate::keyword_line::build_keyword_line(
+                        vec![KeywordAbility {
+                            preceding_separator: None,
+                            ability: flying,
+                            argument: KeywordArgument::Recovered {
+                                text: recovered("argument"),
+                            },
+                        }],
+                        None,
+                    )
+                    .expect("well-formed test keyword line must satisfy the declaration"),
+                )),
                 checked_ability(AbilityKind::Modal(ModalAbility {
                     frame: ModalFrame::Unframed,
                     header: paragraph_body(SentenceBody::Recovered(recovered("header"))),
@@ -1330,7 +1337,8 @@ mod tests {
     fn activated_with_cost(components: Vec<CostComponent>) -> OracleText {
         OracleText {
             abilities: vec![checked_ability(AbilityKind::Activated(ActivatedAbility {
-                cost: Cost::from_parts(None, components),
+                cost: crate::cost::build_cost(None, components)
+                    .expect("nonempty test cost must satisfy the declaration"),
                 effect: valid_test_paragraph(),
             }))],
         }

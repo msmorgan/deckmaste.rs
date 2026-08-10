@@ -13,6 +13,8 @@ use crate::syntax::CostComponent;
 use crate::syntax::FlavorHeader;
 use crate::syntax::KeywordAbility;
 use crate::syntax::KeywordAbilityList;
+use crate::syntax::KeywordArgument;
+use crate::syntax::KeywordListSeparator;
 use crate::syntax::LevelBandAbility;
 use crate::syntax::LevelRange;
 use crate::syntax::LoyaltyAbility;
@@ -51,7 +53,7 @@ fn cost_from_parts(
     if components.is_empty() {
         return Err(violation("cost", "at least one cost component"));
     }
-    Ok(Cost::from_parts(flavor_header, components))
+    Ok(Cost::from_parts(&ABILITY_OWNER, flavor_header, components))
 }
 
 fn cost_parts(value: &Cost) -> (Option<FlavorHeader>, Vec<CostComponent>) {
@@ -59,17 +61,51 @@ fn cost_parts(value: &Cost) -> (Option<FlavorHeader>, Vec<CostComponent>) {
 }
 
 fn keyword_line_from_parts(
-    abilities: Vec<KeywordAbility>,
+    first: Vec<KeywordAbility>,
+    rest: Vec<KeywordAbility>,
     trailing: Option<Paragraph>,
 ) -> Result<KeywordAbilityList, deckmaste_construction_compiler::runtime::DeclarationViolation> {
-    if abilities.is_empty() {
-        return Err(violation("keyword_line", "at least one keyword ability"));
+    let mut abilities = Vec::with_capacity(rest.len() + 1);
+    abilities.extend(first);
+    abilities.extend(rest);
+    if !keyword_line_has_valid_separator_topology(&abilities) {
+        return Err(violation(
+            "keyword_line",
+            "first keyword has no separator and every later keyword has one",
+        ));
     }
-    Ok(KeywordAbilityList::from_parts(abilities, trailing))
+    Ok(KeywordAbilityList::from_parts(
+        &ABILITY_OWNER,
+        abilities,
+        trailing,
+    ))
 }
 
-fn keyword_line_parts(value: &KeywordAbilityList) -> (Vec<KeywordAbility>, Option<Paragraph>) {
-    (value.abilities().to_vec(), value.trailing().cloned())
+fn keyword_line_parts(
+    value: &KeywordAbilityList,
+) -> (Vec<KeywordAbility>, Vec<KeywordAbility>, Option<Paragraph>) {
+    let (first, rest) = value
+        .abilities()
+        .split_first()
+        .expect("declaration-owned keyword lines are nonempty");
+    (
+        vec![first.clone()],
+        rest.to_vec(),
+        value.trailing().cloned(),
+    )
+}
+
+fn keyword_line_has_valid_separator_topology(abilities: &[KeywordAbility]) -> bool {
+    let Some((first, rest)) = abilities.split_first() else {
+        return false;
+    };
+    first.preceding_separator.is_none()
+        && rest.iter().all(|ability| {
+            matches!(
+                ability.preceding_separator,
+                Some(KeywordListSeparator::Comma | KeywordListSeparator::Semicolon)
+            )
+        })
 }
 
 #[allow(
@@ -221,7 +257,7 @@ fn validate_kind(kind: &AbilityKind) -> Result<(), Violation> {
                     .iter()
                     .all(|mode| paragraph_is_nonempty(&mode.body))
         }
-        AbilityKind::Keyword(value) => !value.abilities().is_empty(),
+        AbilityKind::Keyword(value) => keyword_line_has_valid_separator_topology(value.abilities()),
         AbilityKind::Paragraph(value) => paragraph_is_nonempty(value),
     };
     valid
@@ -237,7 +273,11 @@ deckmaste_constructions_macro::constructions! {
     group ability backend ability;
 
     element cost_component bind CostComponent {}
-    element keyword_ability bind KeywordAbility {}
+    element keyword_ability bind KeywordAbility {
+        preceding_separator: opt lex KeywordListSeparator,
+        ability: identity CatalogAtom via AbilityItem,
+        argument: hole KeywordArgument,
+    }
 
     construction cost: Cost {
         bind Cost via cost_from_parts, cost_parts {
@@ -253,13 +293,18 @@ deckmaste_constructions_macro::constructions! {
 
     construction keyword_line: KeywordAbilityList {
         bind KeywordAbilityList via keyword_line_from_parts, keyword_line_parts {
-            abilities: seq keyword_ability,
+            first: seq keyword_ability,
+            rest: seq keyword_ability,
             trailing: opt hole Paragraph,
         }
-        require abilities.len() >= 1;
+        require first.len() == 1;
+        require first.first.preceding_separator.is_none();
+        require rest.first.preceding_separator.is_some();
+        require rest.nonfinal.preceding_separator.is_some();
+        require rest.last.preceding_separator.is_some();
         evidence role "keyword-ability list root" from category;
-        form trailing @ 0 when trailing.is_some() = abilities trailing;
-        form plain @ 1 otherwise = abilities;
+        form trailing @ 0 when trailing.is_some() = first rest trailing;
+        form plain @ 1 otherwise = first rest;
         selection unique;
     }
 
@@ -315,16 +360,24 @@ pub(crate) fn build_keyword_list(
     abilities: Vec<KeywordAbility>,
     trailing: Option<Paragraph>,
 ) -> Result<KeywordAbilityList, deckmaste_construction_compiler::runtime::DeclarationViolation> {
-    build_keyword_line(abilities, trailing)
+    let mut abilities = abilities.into_iter();
+    let first = abilities
+        .next()
+        .ok_or_else(|| violation("keyword_line", "at least one keyword ability"))?;
+    build_keyword_line(vec![first], abilities.collect(), trailing)
 }
 
 pub(crate) fn keyword_list_parts(
     value: &KeywordAbilityList,
 ) -> Result<(Vec<KeywordAbility>, Option<Paragraph>), Violation> {
-    if value.abilities().is_empty() {
-        return Err(violation("keyword_line", "at least one keyword ability"));
+    if !keyword_line_has_valid_separator_topology(value.abilities()) {
+        return Err(violation(
+            "keyword_line",
+            "first keyword has no separator and every later keyword has one",
+        ));
     }
-    Ok(parts_keyword_line(value))
+    let (first, rest, trailing) = parts_keyword_line(value);
+    Ok((first.into_iter().chain(rest).collect(), trailing))
 }
 
 #[derive(Default)]
@@ -504,6 +557,61 @@ pub(crate) fn ability_form_ordinal(value: &Ability) -> Result<u16, Violation> {
 
 #[cfg(test)]
 mod tests {
+    fn keyword(spelling: &str) -> crate::catalog::CatalogAtom {
+        let catalogs = crate::catalog::Catalogs::default()
+            .with_catalog(crate::catalog::CatalogKind::KeywordAbility, [spelling]);
+        let matched = catalogs
+            .matches(spelling, crate::catalog::CatalogSlot::AbilityItem)
+            .into_iter()
+            .next()
+            .expect("the test keyword is cataloged");
+        let crate::catalog::CatalogValue::Atom(atom) = matched.value else {
+            panic!("an ability-item catalog match retains an atom")
+        };
+        atom
+    }
+
+    #[test]
+    fn every_raw_ability_root_constructor_requires_the_declaration_owner() {
+        let _: fn(
+            &super::AbilityOwner,
+            Option<crate::syntax::FlavorHeader>,
+            Vec<crate::syntax::CostComponent>,
+        ) -> crate::syntax::Cost = crate::syntax::Cost::from_parts;
+        let _: fn(
+            &super::AbilityOwner,
+            Vec<crate::syntax::KeywordAbility>,
+            Option<crate::syntax::Paragraph>,
+        ) -> crate::syntax::KeywordAbilityList = crate::syntax::KeywordAbilityList::from_parts;
+        let _: fn(
+            &super::AbilityOwner,
+            Option<crate::catalog::CatalogAtom>,
+            Option<crate::syntax::FlavorHeader>,
+            crate::syntax::AbilityKind,
+        ) -> crate::syntax::Ability = crate::syntax::Ability::from_parts;
+    }
+
+    #[test]
+    fn keyword_line_projection_revalidates_separator_topology() {
+        let malformed = crate::syntax::KeywordAbilityList::from_parts(
+            &super::ABILITY_OWNER,
+            vec![
+                crate::syntax::KeywordAbility {
+                    preceding_separator: None,
+                    ability: keyword("Flying"),
+                    argument: crate::syntax::KeywordArgument::Absent,
+                },
+                crate::syntax::KeywordAbility {
+                    preceding_separator: None,
+                    ability: keyword("First strike"),
+                    argument: crate::syntax::KeywordArgument::Absent,
+                },
+            ],
+            None,
+        );
+        assert!(super::keyword_list_parts(&malformed).is_err());
+    }
+
     #[test]
     fn ability_declaration_exposes_stable_family_order() {
         assert_eq!(
