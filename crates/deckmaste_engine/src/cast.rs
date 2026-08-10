@@ -1223,17 +1223,19 @@ impl GameState {
                 ability,
                 created,
                 ..
-            } => match created {
-                Some(t) => crate::resolve::top_targets(&t.effect).to_vec(),
-                None => match &crate::derive::abilities_of_source(self, *source)[*ability] {
-                    deckmaste_core::Ability::Triggered(t) => {
+            } => {
+                match created {
+                    Some(t) => crate::resolve::top_targets(&t.effect).to_vec(),
+                    None => {
+                        let abilities = crate::derive::abilities_of_source(self, *source);
+                        let other = &abilities[*ability];
+                        let t = other.as_triggered().unwrap_or_else(|| {
+                        panic!("a Triggered stack object indexes a Triggered ability, got {other:?}")
+                    });
                         crate::resolve::top_targets(&t.effect).to_vec()
                     }
-                    other => unreachable!(
-                        "a Triggered stack object indexes a Triggered ability, got {other:?}"
-                    ),
-                },
-            },
+                }
+            }
         }
     }
 

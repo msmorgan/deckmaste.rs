@@ -3389,10 +3389,7 @@ mod tests {
             };
             face.abilities
                 .iter()
-                .find_map(|a| match a {
-                    Ability::Triggered(t) => Some(t.effect.clone()),
-                    _ => None,
-                })
+                .find_map(|a| a.as_triggered().map(|t| t.effect.clone()))
                 .expect("Anje's Ravager has an attack trigger")
         };
         let frame = frame_src(anje);

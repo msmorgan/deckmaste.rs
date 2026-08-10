@@ -1944,7 +1944,6 @@ mod tests {
     /// graveyard keywords (Embalm/Eternalize), the ETB Triggered ability's for
     /// Offspring. Proves the macro really produces a copy `Create` at all.
     fn keyword_copy_effect(invocation: &str) -> OneShotEffect {
-        use deckmaste_core::Ability;
         use deckmaste_core::KeywordAbility;
         let kw: KeywordAbility = builtin().macros.read_str(invocation).unwrap();
         let KeywordAbility::Expanded(exp) = kw else {
@@ -1955,10 +1954,10 @@ mod tests {
         };
         abilities
             .iter()
-            .find_map(|a| match a {
-                Ability::Activated(act) => Some(act.effect.clone()),
-                Ability::Triggered(trig) => Some(trig.effect.clone()),
-                _ => None,
+            .find_map(|a| {
+                a.as_activated()
+                    .map(|act| act.effect.clone())
+                    .or_else(|| a.as_triggered().map(|trig| trig.effect.clone()))
             })
             .expect("the copy-minting effect (Activated for Embalm/Eternalize, Triggered for Offspring)")
     }

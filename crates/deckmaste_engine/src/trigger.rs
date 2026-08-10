@@ -823,7 +823,7 @@ impl GameState {
                 o.side == crate::object::Side::Back && o.zone == Some(Zone::Battlefield)
             });
             for (idx, ability) in abilities.iter().enumerate() {
-                let Ability::Triggered(t) = ability else {
+                let Some(t) = ability.as_triggered() else {
                     continue;
                 };
                 // [CR#113.6,113.6b]: the ability triggers only while its source
@@ -896,7 +896,8 @@ impl GameState {
                 //
                 // A front-up printed trigger keeps `created: None` and resolves by
                 // index, unchanged.
-                let created = (idx >= printed_len || showing_back).then(|| t.clone());
+                let created =
+                    (idx >= printed_len || showing_back).then(|| std::sync::Arc::new(t.clone()));
                 let fired = GameEvent::TriggerFired(TriggerFired {
                     source,
                     ability: Uint::try_from(idx).expect("ability index fits in Uint"),
@@ -1142,10 +1143,11 @@ impl GameState {
         if let Some(t) = created {
             return crate::resolve::top_targets(&t.effect).to_vec();
         }
-        match &crate::derive::abilities_of_source(self, source)[ability] {
-            Ability::Triggered(t) => crate::resolve::top_targets(&t.effect).to_vec(),
-            _ => unreachable!("a noted trigger indexes a Triggered ability"),
-        }
+        let ability = &crate::derive::abilities_of_source(self, source)[ability];
+        let t = ability
+            .as_triggered()
+            .expect("a noted trigger indexes a Triggered ability");
+        crate::resolve::top_targets(&t.effect).to_vec()
     }
 
     /// [CR#603.3d]: a placing trigger's targets were chosen — push the

@@ -1,49 +1,24 @@
-//! The write-back identity oracle, on the real loader: every semantic file in
-//! the tree loads through [`Plugin`] and the restricted read API, the two
-//! writers agree on what it stores — the semantics writer's rendering of the
-//! EXPANDED semantic half is byte-identical to the core writer's rendering of
-//! its engine image — and that image is structurally equal to what the
-//! pre-fork CORE-kinded reader produces from the same source, likewise
-//! expanded: "zero behaviour change"
-//! (`docs/decisions/semantics-spelling-lowering.md` §5). Both sides compare
-//! EXPANDED forms because `lower` erases invocation provenance (spec §12,
-//! `runtime-prose-link`) — the core grammar is a compiled artifact and never
-//! carries it, so an unexpanded semantic rendering would disagree with the core
-//! rendering on principle, not by accident.
+//! Corpus gates for the semantic-to-core boundary. Every authored file loads
+//! through [`Plugin`] and lowers successfully, including the generated card
+//! corpus when present. Rules-table sweeps are also checked against the tables
+//! retained by the plugin loader.
 //!
-//! The byte comparison is between the two WRITERS, not against the file on
-//! disk — canon files carry `//` header comments that RON serialization never
-//! emits, so disk equality was never available. What it proves is that a macro
-//! invocation's BODY survives write-back identically through either grammar.
-//!
-//! Moved here from `deckmaste_lowering/tests/corpus.rs`, which hand-rolled the
-//! small part of a plugin loader a round-trip needs precisely to avoid
-//! depending on `deckmaste_plugin`. That constraint is gone — but the arrow
-//! points the other way now (plugin depends on lowering), so the test moved
-//! rather than the dependency being added.
-//!
-//! Inside this crate `lower(loaded.semantic) == loaded.core` is a TAUTOLOGY:
-//! [`Plugin::card_from_str`] builds `core` by lowering `semantic`. The
-//! assertion that still carries information is `loaded.core ==
-//! core_reader.read_str(&source).expand_all()` — the core-kinded reader is
-//! the one the loader used before the repoint, so agreeing with it (once
-//! both sides are expanded down to the same erasure-free shape) is what
-//! proves the repoint changed no engine-side value. It retires with
-//! `core-demacro`.
+//! This module formerly compared lowered values with a second, core-kinded
+//! parse of the same authored RON. That oracle was valid only while the two
+//! grammars were shape-identical. Runnable costs deliberately end that era:
+//! authored `Do`/`With` lower to core `Act`/`ChooseAndPay`, and core must not
+//! accept the author-facing spellings. Variant-level lowering tests are the
+//! divergence ledger; these corpus tests retain the non-tautological coverage
+//! that every real artifact parses and lowers through the production path.
 
-use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
 use deckmaste_lowering::Lower;
 use deckmaste_plugin::layout::CARDS_DIR;
-use deckmaste_plugin::macros::MacroDef;
 use deckmaste_plugin::macros::MacroSet;
-use deckmaste_plugin::macros::ParamTypeSet;
 use deckmaste_plugin::plugin::Plugin;
-use macro_ron::Expand;
-use serde::Serialize;
 use serde::de::DeserializeOwned;
 
 fn workspace_root() -> PathBuf {
@@ -82,154 +57,20 @@ fn ron_files(dir: &Path) -> Vec<PathBuf> {
     found
 }
 
-/// The param types core-kinded macro definitions are checked against, and that
-/// macro-invocation arguments read through them are parsed as. The core-typed
-/// twin of [`deckmaste_semantics::macros::param_types`] — a fork of the
-/// pre-repoint production registry, kept here only as long as the oracle it
-/// feeds (see the module docs).
-fn core_param_types() -> ParamTypeSet {
-    let mut param_types = ParamTypeSet::default();
-    param_types.add_typed::<deckmaste_core::Color>("Color");
-    param_types.add_typed::<Vec<deckmaste_core::CostComponent>>("Cost");
-    param_types.add_typed::<Vec<deckmaste_core::Ability>>("Abilities");
-    param_types.add_typed::<Vec<deckmaste_core::Count>>("Counts");
-    param_types.add_typed::<deckmaste_core::Ability>("Ability");
-    param_types.add_typed::<deckmaste_core::Action>("Action");
-    param_types.add_typed::<deckmaste_core::AsThough>("AsThough");
-    param_types.add_typed::<deckmaste_core::Condition>("Condition");
-    param_types.add_typed::<deckmaste_core::CostComponent>("CostComponent");
-    param_types.add_typed::<deckmaste_core::Count>("Count");
-    param_types.add_typed::<deckmaste_core::CounterRef>("CounterRef");
-    param_types.add_typed::<deckmaste_core::Destination>("Destination");
-    param_types.add_typed::<deckmaste_core::OneShotEffect>("OneShotEffect");
-    param_types.add_typed::<deckmaste_core::EventFilter>("EventFilter");
-    param_types.add_typed::<deckmaste_core::Predicate>("Predicate");
-    param_types.add_typed::<deckmaste_core::Predicate>("CardTypePredicate");
-    param_types.add_typed::<deckmaste_core::KeywordAbility>("KeywordAbility");
-    param_types.add_typed::<deckmaste_core::ManaRider>("ManaRider");
-    param_types.add_typed::<deckmaste_core::Modification>("Modification");
-    param_types.add_typed::<deckmaste_core::NumericOp>("NumericOp");
-    param_types.add_typed::<deckmaste_core::Quantity>("Quantity");
-    param_types.add_typed::<deckmaste_core::Reference>("Reference");
-    param_types.add_typed::<deckmaste_core::Replacement>("Replacement");
-    param_types.add_typed::<deckmaste_core::Selection>("Selection");
-    param_types.add_typed::<deckmaste_core::StaticEffect>("StaticEffect");
-    param_types.add_typed::<deckmaste_core::TargetSpec>("TargetSpec");
-    param_types.add_typed::<deckmaste_core::Subtype>("Subtype");
-    param_types.add_typed::<deckmaste_core::TypeDef>("TypeDef");
-    param_types.add_typed::<deckmaste_core::Zone>("Zone");
-    param_types.add_typed::<deckmaste_core::Uint>("Uint");
-    param_types
-}
-
-/// The corpus macro namespace built at CORE kinds — the oracle side. The
-/// loader itself no longer has one of these (it reads at semantics kinds and
-/// lowers), so this is the last hand-rolled definition walk in the tree; it
-/// dies with `core-demacro`.
-///
-/// A definition may invoke a meta-macro from a file that has not loaded yet, so
-/// failures are retried until a pass stops making progress — the same shape
-/// [`Plugin::load`] uses.
-fn load_core_macros(plugins: &[&str]) -> MacroSet {
-    let root = workspace_root();
-    let mut macros = MacroSet::new(deckmaste_core::ron::kinds())
-        .with_options(deckmaste_core::ron::raw_options())
-        .with_param_types(core_param_types());
-    let mut pending: Vec<(PathBuf, String)> = plugins
-        .iter()
-        .flat_map(|plugin| ron_files(&root.join("plugins").join(plugin).join("macros")))
-        .map(|path| {
-            let source = fs::read_to_string(&path).expect("definition file is readable");
-            (path, source)
-        })
-        .collect();
-
-    // Every kind this oracle declined to register, so the blanket swallow
-    // below can be pinned to the one gap that justifies it.
-    let mut swallowed: BTreeSet<String> = BTreeSet::new();
-    while !pending.is_empty() {
-        let attempted = pending.len();
-        let mut failures = Vec::new();
-        for (path, source) in pending {
-            match macros.read_str::<MacroDef>(&source) {
-                // Later plugins may override an inherited name.
-                // `UnknownKind` alongside a clean `Ok`, not a failure: the
-                // kind this def is for exists at semantics kinds but has no
-                // counterpart in `deckmaste_core::ron::kinds()` yet (a live
-                // core-to-semantics migration gap — `Card` is the standing
-                // case). This oracle only ever reads a real card/token
-                // file's TOP enum tag through `deckmaste_card`'s own native
-                // `Deserialize`, never through the macro layer — see the
-                // module doc — so a def this oracle can't register plays no
-                // role in it either way.
-                Ok(def) => match macros.replace(&def) {
-                    Ok(()) => {}
-                    Err(macro_ron::InsertError::UnknownKind { kind, .. }) => {
-                        swallowed.insert(kind.to_string());
-                    }
-                    Err(e) => panic!("inserting {}: {e}", path.display()),
-                },
-                Err(error) => failures.push((path, source, error)),
-            }
-        }
-        assert!(
-            failures.len() < attempted,
-            "no progress loading definitions; first failure: {} — {}",
-            failures[0].0.display(),
-            failures[0].2,
-        );
-        pending = failures
-            .into_iter()
-            .map(|(path, source, _)| (path, source))
-            .collect();
-    }
-    // Pin the swallow to its one justification: a mistyped `kinds:` would
-    // otherwise drop a definition out of this oracle in silence. Non-empty is
-    // half the assertion — an empty set means the `Card` gap closed and the
-    // swallow should go with it.
-    let expected: BTreeSet<String> = ["Card".to_owned()].into();
-    assert_eq!(
-        swallowed, expected,
-        "definitions were dropped at kinds this oracle does not know",
-    );
-    macros
-}
-
 struct Swept {
     checked: usize,
     unparsed: usize,
     first_error: Option<String>,
 }
 
-/// The stored form of a semantic value: what a round-trip through the
-/// semantics writer produces, to be compared against the same value's engine
-/// image written by the core writer.
-fn semantic_ron<T: Serialize>(value: &T) -> anyhow::Result<String> {
-    Ok(deckmaste_semantics::ron::options().to_string(value)?)
-}
-
-/// One file through the real card API: the semantic half re-serialized, and
-/// the engine image the loader produced from the SAME parse.
-fn load_card(plugin: &Plugin, source: &str) -> anyhow::Result<(String, deckmaste_card::Card)> {
-    let loaded = plugin.card_from_str(source)?;
-    // `before` is the EXPANDED semantic half, not the raw one: `loaded.core`
-    // (below) no longer carries invocation syntax post-erasure, so the
-    // semantic side has to shed the same wrappers to stay comparable —
-    // otherwise this is comparing an invocation spelling against a body on
-    // principle, not by accident.
-    Ok((
-        semantic_ron(&loaded.semantic.clone().expand_all())?,
-        loaded.core,
-    ))
+/// One card through the production semantic reader and lowering boundary.
+fn load_card(plugin: &Plugin, source: &str) -> anyhow::Result<deckmaste_card::Card> {
+    Ok(plugin.card_from_str(source)?.core)
 }
 
 /// The token twin of [`load_card`].
-fn load_token(plugin: &Plugin, source: &str) -> anyhow::Result<(String, deckmaste_core::Token)> {
-    let loaded = plugin.token_from_str(source)?;
-    Ok((
-        semantic_ron(&loaded.semantic.clone().expand_all())?,
-        loaded.core,
-    ))
+fn load_token(plugin: &Plugin, source: &str) -> anyhow::Result<deckmaste_core::Token> {
+    Ok(plugin.token_from_str(source)?.core)
 }
 
 /// One rules-table file, read and lowered exactly as `Plugin`'s
@@ -238,35 +79,19 @@ fn load_token(plugin: &Plugin, source: &str) -> anyhow::Result<(String, deckmast
 /// boundary. Those loaders expose only the concatenated result, so a per-file
 /// sweep has to repeat their two lines; the tables the loader itself built are
 /// checked against this sweep's output in
-/// [`builtin_rules_tables_lower_unchanged`].
-fn load_rules<A>(macros: &MacroSet, source: &str) -> anyhow::Result<(String, A::Target)>
+/// [`builtin_rules_tables_lower`].
+fn load_rules<A>(macros: &MacroSet, source: &str) -> anyhow::Result<A::Target>
 where
-    A: DeserializeOwned + Serialize + Lower + Expand + Clone,
+    A: DeserializeOwned + Lower,
 {
     let semantic: A = macros.read_str(source)?;
-    let before = semantic_ron(&semantic.clone().expand_all())?;
-    Ok((before, semantic.lower()))
+    Ok(semantic.lower())
 }
 
-/// Reads every file in `dir` through `load` (the loader path under test) and
-/// asserts that its engine image both writes to the same bytes the semantic
-/// half does through the semantics writer AND lands on the exact value the core
-/// reader (`core_macros`) produces from the same source — structural equality,
-/// not just matching serialization (which `skip_serializing_if` can hide a
-/// difference behind).
-///
 /// A file that fails to LOAD is counted, not fatal; everything past the load is
 /// always fatal. Every caller asserts the count is zero — see
-/// [`wizards_cards_lower_unchanged`] for why the count exists at all.
-fn sweep<C>(
-    core_macros: &MacroSet,
-    dir: &Path,
-    load: impl Fn(&str) -> anyhow::Result<(String, C)>,
-    expand: impl Fn(C) -> C,
-) -> (Swept, Vec<C>)
-where
-    C: DeserializeOwned + Serialize + PartialEq + std::fmt::Debug,
-{
+/// [`wizards_cards_lower`] for why the count exists at all.
+fn sweep<C>(dir: &Path, load: impl Fn(&str) -> anyhow::Result<C>) -> (Swept, Vec<C>) {
     let mut swept = Swept {
         checked: 0,
         unparsed: 0,
@@ -275,8 +100,8 @@ where
     let mut loaded_all = Vec::new();
     for path in ron_files(dir) {
         let source = fs::read_to_string(&path).expect("corpus file is readable");
-        let (before, core) = match load(&source) {
-            Ok(pair) => pair,
+        let core = match load(&source) {
+            Ok(core) => core,
             Err(error) => {
                 swept.unparsed += 1;
                 swept
@@ -286,70 +111,10 @@ where
             }
         };
 
-        let via_core: C = core_macros
-            .read_str(&source)
-            .unwrap_or_else(|e| panic!("core reader on {}: {e}", path.display()));
-        let after = deckmaste_core::ron::options()
-            .to_string(&core)
-            .unwrap_or_else(|e| panic!("writing the engine image of {}: {e}", path.display()));
-
-        assert_eq!(
-            before,
-            after,
-            "the semantics and core writers disagree on the stored form of {}",
-            path.display()
-        );
-        // Erasure is exactly `Expand`: `lower` drops each invocation wrapper
-        // down to its body, which is what `expand_all` does on the core
-        // side. Comparing against the EXPANDED oracle keeps the gate at full
-        // strength rather than excusing the difference an unexpanded
-        // `Expanded` wrapper would otherwise introduce.
-        assert_eq!(
-            core,
-            expand(via_core),
-            "the loader's engine image diverged from the core reader on {}",
-            path.display()
-        );
         swept.checked += 1;
         loaded_all.push(core);
     }
     (swept, loaded_all)
-}
-
-/// The core-side twin of [`macro_ron::Expand::expand_all`] for a whole card:
-/// `deckmaste_card` does not depend on `macro_ron` at all (its own module
-/// docs), so `Card`/`CardFace` have no derived `Expand` impl to call —
-/// unlike every field type they carry, which does (the grammar leaves, all
-/// the way down to [`deckmaste_core::Ability`], derive it). This recurses
-/// field by field instead, matching what a derived `expand_all` would do.
-fn expand_card(card: deckmaste_card::Card) -> deckmaste_card::Card {
-    fn expand_face(face: deckmaste_card::CardFace) -> deckmaste_card::CardFace {
-        deckmaste_card::CardFace {
-            name: face.name,
-            mana_cost: face.mana_cost.expand_all(),
-            color_indicator: face.color_indicator.expand_all(),
-            supertypes: face.supertypes.expand_all(),
-            types: face.types.expand_all(),
-            subtypes: face.subtypes.expand_all(),
-            abilities: face.abilities.expand_all(),
-            power: face.power.expand_all(),
-            toughness: face.toughness.expand_all(),
-            loyalty: face.loyalty.expand_all(),
-            defense: face.defense.expand_all(),
-        }
-    }
-    match card {
-        deckmaste_card::Card::Normal(face) => deckmaste_card::Card::Normal(expand_face(face)),
-        deckmaste_card::Card::TwoFaced {
-            layout,
-            front,
-            back,
-        } => deckmaste_card::Card::TwoFaced {
-            layout,
-            front: expand_face(front),
-            back: expand_face(back),
-        },
-    }
 }
 
 /// The per-file rules tables concatenated, in the same file order
@@ -360,16 +125,8 @@ fn flatten<T>(per_file: Vec<Vec<T>>) -> Vec<T> {
 
 /// [`sweep`] where failing to load is itself a failure — every corpus but the
 /// generated one.
-fn sweep_strict<C>(
-    core_macros: &MacroSet,
-    dir: &Path,
-    load: impl Fn(&str) -> anyhow::Result<(String, C)>,
-    expand: impl Fn(C) -> C,
-) -> Vec<C>
-where
-    C: DeserializeOwned + Serialize + PartialEq + std::fmt::Debug,
-{
-    let (swept, loaded) = sweep(core_macros, dir, load, expand);
+fn sweep_strict<C>(dir: &Path, load: impl Fn(&str) -> anyhow::Result<C>) -> Vec<C> {
+    let (swept, loaded) = sweep(dir, load);
     assert_eq!(
         swept.unparsed,
         0,
@@ -381,29 +138,20 @@ where
     loaded
 }
 
-/// Each corpus is swept in the scope it is really loaded in, and the oracle is
-/// built over the SAME plugin list — a card must not be read at semantics
-/// kinds under one namespace and at core kinds under a wider one, or a name
-/// canon overrides would be compared against builtin's definition of it.
+/// Each corpus is swept in the macro scope used by its production loader.
 #[test]
-fn canon_and_builtin_cards_lower_unchanged() {
+fn canon_and_builtin_cards_lower() {
     let builtin = Plugin::load_with_sibling_prelude(workspace_root().join("plugins/builtin"))
         .expect("builtin loads");
-    let builtin_cards = sweep_strict(
-        &load_core_macros(&["builtin"]),
-        &plugin_dir("builtin", "cards"),
-        |source| load_card(&builtin, source),
-        expand_card,
-    );
+    let builtin_cards = sweep_strict(&plugin_dir("builtin", "cards"), |source| {
+        load_card(&builtin, source)
+    });
 
     let canon = Plugin::load_with_sibling_prelude(workspace_root().join("plugins/canon"))
         .expect("canon loads over the builtin prelude");
-    let canon_cards = sweep_strict(
-        &load_core_macros(&["builtin", "canon"]),
-        &plugin_dir("canon", "cards"),
-        |source| load_card(&canon, source),
-        expand_card,
-    );
+    let canon_cards = sweep_strict(&plugin_dir("canon", "cards"), |source| {
+        load_card(&canon, source)
+    });
 
     assert!(
         !builtin_cards.is_empty() && !canon_cards.is_empty(),
@@ -412,16 +160,12 @@ fn canon_and_builtin_cards_lower_unchanged() {
 }
 
 #[test]
-fn builtin_tokens_lower_unchanged() {
-    let core_macros = load_core_macros(&["builtin"]);
+fn builtin_tokens_lower() {
     let builtin = Plugin::load_with_sibling_prelude(workspace_root().join("plugins/builtin"))
         .expect("builtin loads");
-    let tokens = sweep_strict(
-        &core_macros,
-        &plugin_dir("builtin", "tokens"),
-        |source| load_token(&builtin, source),
-        |t: deckmaste_core::Token| t.expand_all(),
-    );
+    let tokens = sweep_strict(&plugin_dir("builtin", "tokens"), |source| {
+        load_token(&builtin, source)
+    });
     assert!(!tokens.is_empty(), "no tokens found to check");
 }
 
@@ -430,30 +174,20 @@ fn builtin_tokens_lower_unchanged() {
 /// checked against the table `Plugin` itself built — so this is a statement
 /// about the loader, not about a re-implementation of it.
 #[test]
-fn builtin_rules_tables_lower_unchanged() {
-    let core_macros = load_core_macros(&["builtin"]);
+fn builtin_rules_tables_lower() {
     let builtin = Plugin::load_with_sibling_prelude(workspace_root().join("plugins/builtin"))
         .expect("builtin loads");
     let rules = plugin_dir("builtin", "rules");
 
-    let sba = sweep_strict(
-        &core_macros,
-        &rules.join("sba"),
-        |source| load_rules::<Vec<deckmaste_semantics::SbaRule>>(&builtin.macros, source),
-        |v: Vec<deckmaste_core::SbaRule>| v.expand_all(),
-    );
-    let grant = sweep_strict(
-        &core_macros,
-        &rules.join("grant"),
-        |source| load_rules::<Vec<deckmaste_semantics::ConferralRule>>(&builtin.macros, source),
-        |v: Vec<deckmaste_core::ConferralRule>| v.expand_all(),
-    );
-    let damage = sweep_strict(
-        &core_macros,
-        &rules.join("damage"),
-        |source| load_rules::<Vec<deckmaste_semantics::DamageResultRule>>(&builtin.macros, source),
-        |v: Vec<deckmaste_core::DamageResultRule>| v.expand_all(),
-    );
+    let sba = sweep_strict(&rules.join("sba"), |source| {
+        load_rules::<Vec<deckmaste_semantics::SbaRule>>(&builtin.macros, source)
+    });
+    let grant = sweep_strict(&rules.join("grant"), |source| {
+        load_rules::<Vec<deckmaste_semantics::ConferralRule>>(&builtin.macros, source)
+    });
+    let damage = sweep_strict(&rules.join("damage"), |source| {
+        load_rules::<Vec<deckmaste_semantics::DamageResultRule>>(&builtin.macros, source)
+    });
     assert!(
         !sba.is_empty() && !grant.is_empty() && !damage.is_empty(),
         "no rules tables found to check"
@@ -488,23 +222,14 @@ fn builtin_rules_tables_lower_unchanged() {
     not(wizards_corpus),
     ignore = "needs the generated plugins/wizards corpus (cargo xtask generate)"
 )]
-fn wizards_cards_lower_unchanged() {
-    let core_macros = load_core_macros(&["builtin", "wizards"]);
+fn wizards_cards_lower() {
     let wizards = Plugin::load_with_sibling_prelude(workspace_root().join("plugins/wizards"))
         .expect("wizards loads over the builtin prelude");
     let dir = plugin_dir("wizards", "cards");
-    let (swept, _) = sweep(
-        &core_macros,
-        &dir,
-        |source| load_card(&wizards, source),
-        expand_card,
-    );
+    let (swept, _) = sweep(&dir, |source| load_card(&wizards, source));
 
     let total = swept.checked + swept.unparsed;
-    println!(
-        "wizards: {} of {total} cards lowered unchanged",
-        swept.checked
-    );
+    println!("wizards: {} of {total} cards lowered", swept.checked);
     assert!(total > 0, "no wizards cards found at all");
     assert_eq!(
         swept.unparsed,
@@ -787,6 +512,12 @@ fn core_nested_abilities(ability: &deckmaste_core::Ability) -> Vec<&deckmaste_co
         deckmaste_core::Ability::Static(e) => e.push_abilities(&mut out),
         deckmaste_core::Ability::Activated(a) => a.effect.push_abilities(&mut out),
         deckmaste_core::Ability::Triggered(a) => a.effect.push_abilities(&mut out),
+        deckmaste_core::Ability::Mana(deckmaste_core::ManaAbility::Activated {
+            ability, ..
+        }) => ability.effect.push_abilities(&mut out),
+        deckmaste_core::Ability::Mana(deckmaste_core::ManaAbility::Triggered(ability)) => {
+            ability.effect.push_abilities(&mut out);
+        }
         deckmaste_core::Ability::Spell(a) => a.effect.push_abilities(&mut out),
         deckmaste_core::Ability::Keyword(k) => k.push_abilities(&mut out),
         deckmaste_core::Ability::Innate(a) => out.push(a),
