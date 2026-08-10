@@ -1697,6 +1697,23 @@ mod tests {
     }
 
     #[test]
+    fn production_p01_rejects_wrong_case_number_and_malformed_arithmetic() {
+        for source in ["Them draw a card.", "They draws a card."] {
+            assert!(
+                parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
+                "wrong P01 case/number parsed: {source:?}",
+            );
+        }
+
+        for source in ["3 minus", "minus 1", "half 3 rounded up", "half 3, rounded"] {
+            assert!(
+                parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase).is_err(),
+                "malformed P01 arithmetic parsed: {source:?}",
+            );
+        }
+    }
+
+    #[test]
     fn p01_registration_order_is_semantically_neutral() {
         let self_reference = SelfReference::new("Nissa Revane", true);
         let fixtures = [
@@ -1802,7 +1819,7 @@ mod tests {
                 crate::grammar::exact::parse_production_noun_phrase_in_all_registration_orders(
                     source,
                     &fixture_catalogs(),
-                    self_reference.clone(),
+                    &self_reference,
                     nonterminal,
                     100_000,
                 )
@@ -1840,7 +1857,10 @@ mod tests {
                 "fixed shuffle changed {source:?}"
             );
         }
+    }
 
+    #[test]
+    fn p01_rules_object_registration_order_is_semantically_neutral() {
         let rules_source =
             "This card deals damage to you and creatures you control that are tapped.";
         let parse_rules_object = |order| {

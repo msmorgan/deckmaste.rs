@@ -916,6 +916,7 @@ deckmaste_constructions_macro::constructions! {
         }
         derive features: Features = reduce_set_exception(included, excluded);
         derive prefix_admission: Features = reduce_set_exception_prefix(included);
+        evidence feature "set-exception host eligibility" from category;
         form plain @ 0 when comma.is_none() inverse check(is_set_exception_bare) = included identity(marker) excluded;
         form comma @ 1 inverse check(is_set_exception_bare) otherwise = included lex(comma) identity(marker) excluded;
         selection unique;
@@ -930,6 +931,7 @@ deckmaste_constructions_macro::constructions! {
         }
         derive features: Features = reduce_set_exception(included, excluded);
         derive prefix_admission: Features = reduce_set_exception_prefix(included);
+        evidence feature "set-exception host eligibility" from category;
         form plain @ 0 when comma.is_none() inverse check(is_set_exception_for) = included identity(marker) excluded;
         form comma @ 1 inverse check(is_set_exception_for) otherwise = included lex(comma) identity(marker) excluded;
         selection unique;
@@ -961,6 +963,7 @@ deckmaste_constructions_macro::constructions! {
             pronoun: identity Pronoun via SubjectPronoun,
         }
         derive features: Features = reduce_pronoun(pronoun);
+        evidence feature "pronoun case" from category;
         form only @ 0 inverse check(is_subject_pronoun) = identity(pronoun);
         dominates noun_phrase_object_pronoun;
         selection unique;
@@ -971,6 +974,7 @@ deckmaste_constructions_macro::constructions! {
             pronoun: identity Pronoun via ObjectPronoun,
         }
         derive features: Features = reduce_pronoun(pronoun);
+        evidence feature "pronoun case" from category;
         form only @ 0 inverse check(is_object_pronoun) = identity(pronoun);
         selection unique;
     }
@@ -1055,6 +1059,7 @@ deckmaste_constructions_macro::constructions! {
         }
         derive features: Features = reduce_any_number_of(whole);
         derive base_precedence: Features = mark_generated_cost(whole);
+        evidence feature "notional plural agreement" from category;
         form only @ 0 inverse check(is_any_number_of) = "any" "number" "of" whole;
         selection unique;
     }

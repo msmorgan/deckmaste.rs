@@ -885,7 +885,7 @@ fn parse_generated_noun_phrase_as(
 pub(crate) fn parse_production_noun_phrase_in_all_registration_orders(
     source: &str,
     catalogs: &Catalogs,
-    self_reference: SelfReference,
+    self_reference: &SelfReference,
     nonterminal: Nonterminal,
     budget: usize,
 ) -> Result<[Vec<ExactParse<GeneratedNounPhraseParse, EnglishSurfaceWitness>>; 3], ExactParseError>
