@@ -2406,6 +2406,14 @@ fn declaration_ident(group: &GroupDeclaration) -> proc_macro2::Ident {
 fn declaration_static(group: &GroupDeclaration) -> TokenStream {
     let upper = declaration_ident(group);
     let name = group.name.value.as_str();
+    let backend = match group.backend {
+        crate::model::ConstructionBackend::Chart => quote! {
+            ::deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart
+        },
+        crate::model::ConstructionBackend::Ability => quote! {
+            ::deckmaste_construction_compiler::runtime::ConstructionBackendData::Ability
+        },
+    };
     let elements: Vec<TokenStream> = group
         .elements
         .iter()
@@ -2422,6 +2430,7 @@ fn declaration_static(group: &GroupDeclaration) -> TokenStream {
         pub static #upper: ::deckmaste_construction_compiler::runtime::GroupData =
             ::deckmaste_construction_compiler::runtime::GroupData {
                 name: #name,
+                backend: #backend,
                 elements: &[#(#elements),*],
                 element_data: &[#(#element_data),*],
                 lenses: &[#(#lenses),*],

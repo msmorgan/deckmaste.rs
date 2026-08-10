@@ -3796,7 +3796,7 @@ impl<'syntax> SyntaxInventory<'syntax> {
     }
 
     fn cost(&mut self, cost: &'syntax Cost) {
-        for component in &cost.components {
+        for component in cost.components() {
             self.cost_component(component);
         }
     }
@@ -5228,6 +5228,116 @@ fn cost_catalogs() -> Catalogs {
     Catalogs::default().with_catalog(CatalogKind::CardType, ["Artifact", "Creature"])
 }
 
+#[derive(Serialize)]
+#[serde(rename = "Cost")]
+struct LegacyCostView<'a> {
+    flavor_header: Option<&'a FlavorHeader>,
+    components: &'a [CostComponent],
+}
+
+#[test]
+fn public_cost_family_is_generated_ability_owned_and_nested_everywhere() {
+    for source in [
+        "{T}: Draw a card.",
+        "{1}{R}: Level 2",
+        "{2}: Choose one —\n• Draw a card.\n• Create a Treasure token.",
+    ] {
+        let report = parse_with_catalogs(source, &cost_catalogs());
+        let costs = report
+            .provenance()
+            .selections()
+            .iter()
+            .flat_map(ParseSelection::constructions)
+            .filter(|decision| decision.selected().as_str() == "cost")
+            .collect::<Vec<_>>();
+        assert!(
+            !costs.is_empty(),
+            "missing nested cost provenance: {source}"
+        );
+        assert!(costs.iter().all(|decision| {
+            decision.owner() == ConstructionOwner::Generated
+                && decision.backend() == ConstructionBackend::Ability
+        }));
+    }
+}
+
+#[test]
+fn nested_cost_builds_and_renders_every_component_shape() {
+    for (source, cost_source, expected, index) in [
+        ("{T}: Draw a card.", "{T}", "symbols", 0),
+        (
+            "Sacrifice a creature: Draw a card.",
+            "Sacrifice a creature",
+            "clause",
+            0,
+        ),
+        ("A creature: Draw a card.", "A creature", "noun", 0),
+        ("{T} or {W}: Draw a card.", "{T} or {W}", "alternative", 0),
+        (
+            "{T}, Frobnicate a creature: Draw a card.",
+            "{T}, Frobnicate a creature",
+            "recovered",
+            1,
+        ),
+    ] {
+        let (rendered, ast) = parse_face(source, &cost_catalogs(), "Test Card", false);
+        assert_eq!(rendered, source);
+        let cost = &only_activated(&ast).cost;
+        let actual = match &cost.components()[index] {
+            CostComponent::Symbols(_) => "symbols",
+            CostComponent::Clause(_) => "clause",
+            CostComponent::Noun(_) => "noun",
+            CostComponent::Alternative(..) => "alternative",
+            CostComponent::Recovered(_) => "recovered",
+        };
+        assert_eq!(actual, expected, "{source}");
+        let rebuilt = deckmaste_english::cost::build_cost(
+            cost.flavor_header().cloned(),
+            cost.components().to_vec(),
+        )
+        .expect("nested costs rebuild through their declaration");
+        assert_eq!(
+            deckmaste_english::cost::render(&rebuilt, "Test Card", false).unwrap(),
+            cost_source,
+            "{source}",
+        );
+    }
+}
+
+#[test]
+fn cost_public_facade_preserves_legacy_serde_field_association() {
+    let parsed = parse_fragment(
+        "Boast — {2}{R}, Sacrifice an artifact",
+        &cost_catalogs(),
+        FragmentKind::Cost,
+        "Test Card",
+        false,
+    );
+    let Some(Fragment::Cost(cost)) = parsed.fragment() else {
+        panic!("expected cost fragment")
+    };
+    let rebuilt = deckmaste_english::cost::build_cost(
+        cost.flavor_header().cloned(),
+        cost.components().to_vec(),
+    )
+    .expect("parsed cost rebuilds through the checked public door");
+    let (header, components) = deckmaste_english::cost::parts_cost(&rebuilt).unwrap();
+    assert_eq!(header.as_ref(), cost.flavor_header());
+    assert_eq!(components, cost.components());
+    assert_eq!(
+        ron::to_string(&rebuilt).unwrap(),
+        ron::to_string(&LegacyCostView {
+            flavor_header: cost.flavor_header(),
+            components: cost.components(),
+        })
+        .unwrap()
+    );
+    assert_eq!(
+        deckmaste_english::cost::render(&rebuilt, "Test Card", false).unwrap(),
+        "Boast — {2}{R}, Sacrifice an artifact"
+    );
+}
+
 #[test]
 fn labeled_activation_cost_peels_a_flavor_header() {
     // Boast/Forecast/ability-word shape: an arbitrary label before a spaced
@@ -5238,7 +5348,7 @@ fn labeled_activation_cost_peels_a_flavor_header() {
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     assert!(
-        only_activated(&ast).cost.flavor_header.is_some(),
+        only_activated(&ast).cost.flavor_header().is_some(),
         "AST:\n{ast}"
     );
 }
@@ -5253,7 +5363,7 @@ fn alternative_cost_components_join_with_or() {
     assert_no_recovery(&ast);
     assert!(
         matches!(
-            only_activated(&ast).cost.components.as_slice(),
+            only_activated(&ast).cost.components(),
             [CostComponent::Alternative(..)]
         ),
         "AST:\n{ast}"
@@ -5272,7 +5382,7 @@ fn an_or_inside_a_cost_clause_does_not_split_into_alternatives() {
     assert!(
         only_activated(&ast)
             .cost
-            .components
+            .components()
             .iter()
             .all(|component| !matches!(component, CostComponent::Alternative(..))),
         "AST:\n{ast}"
@@ -5297,7 +5407,7 @@ fn cost_noun_phrases_coordinate_with_and_or() {
     let (rendered, ast) = parse_face(source, &cost_catalogs(), "Test Card", false);
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
-    let [CostComponent::Clause(clause)] = only_activated(&ast).cost.components.as_slice() else {
+    let [CostComponent::Clause(clause)] = only_activated(&ast).cost.components() else {
         panic!("expected one clause cost: {ast}");
     };
     let IndependentClause::Imperative(Predicate::Transitive(predicate)) = clause.as_ref() else {
@@ -5833,7 +5943,7 @@ fn a_cost_flavor_header_with_a_non_member_label_is_unaffected() {
         matches!(
             &ability.kind,
             AbilityKind::Activated(ActivatedAbility { cost, .. })
-                if cost.flavor_header.is_some()
+                if cost.flavor_header().is_some()
         ),
         "a non-member cost label must stay a cost flavor header\nAST:\n{ast}"
     );

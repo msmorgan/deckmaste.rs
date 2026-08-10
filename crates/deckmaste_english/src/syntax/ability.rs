@@ -192,10 +192,46 @@ pub struct ActivatedAbility {
 /// An activation cost: the comma-separated list of components paid before the
 /// colon. Every cost is a list of typed [`CostComponent`]s; the earlier raw
 /// `SymbolList(String)` and untyped `Components(Vec<Phrase>)` shapes are gone.
-#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Cost {
-    pub flavor_header: Option<FlavorHeader>,
-    pub components: Vec<CostComponent>,
+    flavor_header: Option<FlavorHeader>,
+    components: Vec<CostComponent>,
+}
+
+impl Cost {
+    pub(crate) const fn from_parts(
+        flavor_header: Option<FlavorHeader>,
+        components: Vec<CostComponent>,
+    ) -> Self {
+        Self {
+            flavor_header,
+            components,
+        }
+    }
+
+    #[must_use]
+    pub const fn flavor_header(&self) -> Option<&FlavorHeader> {
+        self.flavor_header.as_ref()
+    }
+
+    #[must_use]
+    pub fn components(&self) -> &[CostComponent] {
+        &self.components
+    }
+}
+
+impl serde::Serialize for Cost {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+
+        let mut state = serializer.serialize_struct("Cost", 2)?;
+        state.serialize_field("flavor_header", &self.flavor_header)?;
+        state.serialize_field("components", &self.components)?;
+        state.end()
+    }
 }
 
 /// One component of an activation cost's comma-separated list. A closed sum

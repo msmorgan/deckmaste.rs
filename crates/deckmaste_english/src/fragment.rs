@@ -538,6 +538,114 @@ mod tests {
     }
 
     #[test]
+    fn cost_is_generated_on_the_ability_backend_and_activation_is_explicit() {
+        let report = production_fragment("Exhaust — {2}{R}", FragmentKind::Cost);
+        let decision = assert_generated(&report, "cost");
+        assert_eq!(decision.backend(), crate::ConstructionBackend::Ability);
+        assert_eq!(decision.selected_production_ordinal(), 0);
+        assert_eq!(decision.evidence().label(), "activation-cost root");
+        assert_eq!(decision.span(), Span::new(0, "Exhaust — {2}{R}".len()));
+
+        let inactive = parse_fragment_with_activation(
+            "{T}",
+            &catalogs(),
+            FragmentKind::Cost,
+            "",
+            false,
+            GeneratedActivation::Inactive,
+        );
+        assert!(
+            inactive
+                .construction_decisions()
+                .iter()
+                .all(|decision| decision.selected().as_str() != "cost")
+        );
+
+        let isolated = parse_fragment_with_activation(
+            "{T}",
+            &catalogs(),
+            FragmentKind::Cost,
+            "",
+            false,
+            GeneratedActivation::Groups(crate::constructions::ability::GROUPS),
+        );
+        assert_eq!(
+            assert_generated(&isolated, "cost").backend(),
+            crate::ConstructionBackend::Ability
+        );
+    }
+
+    #[test]
+    fn cost_ability_assembly_is_group_order_neutral() {
+        fn assembled(
+            mut groups: Vec<&'static deckmaste_construction_compiler::runtime::GroupData>,
+        ) -> FragmentReport {
+            let groups = Box::leak(groups.drain(..).collect::<Vec<_>>().into_boxed_slice());
+            parse_fragment_with_activation(
+                "{2}{R} or {T}",
+                &catalogs(),
+                FragmentKind::Cost,
+                "",
+                false,
+                GeneratedActivation::Groups(groups),
+            )
+        }
+
+        let normal = assembled(crate::constructions::ALL_GROUPS.to_vec());
+        let mut reversed_groups = crate::constructions::ALL_GROUPS.to_vec();
+        reversed_groups.reverse();
+        let reversed = assembled(reversed_groups);
+        let mut shuffled_groups = crate::constructions::ALL_GROUPS.to_vec();
+        shuffled_groups.rotate_left(5);
+        shuffled_groups.swap(2, 9);
+        let shuffled = assembled(shuffled_groups);
+
+        assert_eq!(normal.fragment(), reversed.fragment());
+        assert_eq!(normal.fragment(), shuffled.fragment());
+        assert_eq!(
+            normal.construction_decisions(),
+            reversed.construction_decisions()
+        );
+        assert_eq!(
+            normal.construction_decisions(),
+            shuffled.construction_decisions()
+        );
+    }
+
+    #[test]
+    fn cost_facade_builds_and_renders_every_component_shape() {
+        for (source, expected, index) in [
+            ("{2}{R}", "symbols", 0),
+            ("Sacrifice a creature", "clause", 0),
+            ("A creature", "noun", 0),
+            ("{T} or {W}", "alternative", 0),
+            ("{T}, Frobnicate a creature", "recovered", 1),
+        ] {
+            let report = production_fragment(source, FragmentKind::Cost);
+            let Some(Fragment::Cost(cost)) = report.fragment() else {
+                panic!("cost fixture did not produce a root: {source}")
+            };
+            let component = &cost.components()[index];
+            let actual = match component {
+                crate::syntax::CostComponent::Symbols(_) => "symbols",
+                crate::syntax::CostComponent::Clause(_) => "clause",
+                crate::syntax::CostComponent::Noun(_) => "noun",
+                crate::syntax::CostComponent::Alternative(..) => "alternative",
+                crate::syntax::CostComponent::Recovered(_) => "recovered",
+            };
+            assert_eq!(actual, expected, "{source}");
+            let rebuilt =
+                crate::cost::build_cost(cost.flavor_header().cloned(), cost.components().to_vec())
+                    .expect("every parsed Cost inhabits the declaration");
+            assert_eq!(
+                crate::cost::parts_cost(&rebuilt).unwrap().1,
+                cost.components()
+            );
+            assert_eq!(crate::cost::render(&rebuilt, "", false).unwrap(), source);
+        }
+    }
+
+    #[test]
     fn predicate_activation_reaches_every_vertical_fragment_root() {
         // Mutations caught: hardcode production activation in the ability
         // layer; discard nested construction provenance at a fragment seam;
@@ -576,11 +684,8 @@ mod tests {
         assert_eq!(direct.evidence_value(), Some("category=VerbPhrase"));
         assert!(matches!(
             cost.fragment(),
-            Some(Fragment::Cost(crate::syntax::Cost {
-                components,
-                ..
-            })) if matches!(
-                components.as_slice(),
+            Some(Fragment::Cost(cost)) if matches!(
+                cost.components(),
                 [crate::syntax::CostComponent::Clause(clause)]
                     if matches!(clause.as_ref(), crate::syntax::IndependentClause::Imperative(
                         crate::syntax::Predicate::Transitive(_)
@@ -605,7 +710,7 @@ mod tests {
             panic!("the keyword cost retains its typed tight-dash component shape")
         };
         assert!(matches!(
-            cost.components.as_slice(),
+            cost.components(),
             [crate::syntax::CostComponent::Clause(clause)]
                 if matches!(clause.as_ref(), crate::syntax::IndependentClause::Imperative(
                     crate::syntax::Predicate::Transitive(_)

@@ -161,6 +161,8 @@ pub enum RenderError {
     InvalidPrepositionalConstruction,
     #[error("relative-clause AST does not match exactly one generated construction")]
     InvalidRelativeConstruction,
+    #[error("cost AST does not match exactly one generated construction")]
+    InvalidCostConstruction,
     #[error(
         "predicate AST does not match exactly one generated construction: {problem} in {owner}, {first:?}/{second:?}, forms {first_form:?}/{second_form:?}"
     )]
@@ -254,6 +256,14 @@ pub(crate) fn render_fragment(
             .map(capitalize_first),
         Fragment::Ability(ability) => renderer.ability(ability, true, false),
     }
+}
+
+pub(crate) fn render_cost(
+    cost: &Cost,
+    name: &str,
+    is_legendary: bool,
+) -> Result<String, RenderError> {
+    Renderer::new(name, is_legendary).cost(cost)
 }
 
 pub(crate) fn render_adjective_phrase(
@@ -650,6 +660,83 @@ struct GeneratedNounRenderer<'renderer, 'identity> {
 struct GeneratedNounPhraseRenderer<'renderer, 'identity> {
     renderer: &'renderer Renderer<'identity>,
     rendered: String,
+}
+
+struct GeneratedCostRenderer<'renderer, 'identity> {
+    renderer: &'renderer Renderer<'identity>,
+    rendered: String,
+    saw_lexical_component: bool,
+}
+
+impl deckmaste_construction_compiler::runtime::LinearizationVisitor
+    for GeneratedCostRenderer<'_, '_>
+{
+    type Error = RenderError;
+
+    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
+        match literal {
+            "—" => self.rendered.push_str(" — "),
+            other => self.rendered.push_str(other),
+        }
+        Ok(())
+    }
+
+    fn subtree<T: std::any::Any>(
+        &mut self,
+        category: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        match category {
+            "FlavorHeader" => self.rendered.push_str(
+                value
+                    .downcast_ref::<crate::syntax::FlavorHeader>()
+                    .expect("the cost header hole preserves FlavorHeader")
+                    .text(),
+            ),
+            other => panic!("unexpected cost subtree category `{other}`"),
+        }
+        Ok(())
+    }
+
+    fn scalar<T: std::any::Any>(
+        &mut self,
+        _codec: &'static str,
+        _value: &T,
+    ) -> Result<(), Self::Error> {
+        unreachable!("cost has no scalar fields")
+    }
+
+    fn sequence_member(&mut self, field: &'static str, index: usize) -> Result<(), Self::Error> {
+        assert_eq!(field, "components");
+        if index > 0 {
+            self.rendered.push_str(", ");
+        }
+        Ok(())
+    }
+
+    fn bound_value<T: std::any::Any>(
+        &mut self,
+        element: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        assert_eq!(element, "cost_component");
+        let component = (value as &dyn std::any::Any)
+            .downcast_ref::<CostComponent>()
+            .expect("the cost-component sequence preserves CostComponent");
+        let is_symbol = matches!(component, CostComponent::Symbols(_));
+        let starts_action = matches!(
+            component,
+            CostComponent::Clause(clause)
+                if matches!(clause.as_ref(), IndependentClause::Imperative(_))
+        );
+        let capitalize = starts_action || (!self.saw_lexical_component && !is_symbol);
+        let text = self.renderer.cost_component(component)?;
+        self.rendered
+            .push_str(&if capitalize { capitalize_first(text) } else { text });
+        self.saw_lexical_component |= !is_symbol;
+        Ok(())
+    }
 }
 
 struct GeneratedPrepositionalRenderer<'renderer, 'identity> {
@@ -3171,28 +3258,20 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn cost(&self, cost: &Cost) -> Result<String, RenderError> {
-        let mut rendered = String::new();
-        if let Some(header) = &cost.flavor_header {
-            rendered.push_str(header.text());
-            rendered.push_str(" \u{2014} ");
-        }
-        let mut saw_lexical_component = false;
-        for (index, component) in cost.components.iter().enumerate() {
-            if index > 0 {
-                rendered.push_str(", ");
-            }
-            let is_symbol = matches!(component, CostComponent::Symbols(_));
-            let starts_action = matches!(
-                component,
-                CostComponent::Clause(clause)
-                    if matches!(clause.as_ref(), IndependentClause::Imperative(_))
-            );
-            let capitalize = starts_action || (!saw_lexical_component && !is_symbol);
-            let text = self.cost_component(component)?;
-            rendered.push_str(&if capitalize { capitalize_first(text) } else { text });
-            saw_lexical_component |= !is_symbol;
-        }
-        Ok(rendered)
+        let mut visitor = GeneratedCostRenderer {
+            renderer: self,
+            rendered: String::new(),
+            saw_lexical_component: false,
+        };
+        crate::constructions::ability::linearize_cost_with(cost, &mut visitor).map_err(
+            |error| match error {
+                deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error) => {
+                    error
+                }
+                _ => RenderError::InvalidCostConstruction,
+            },
+        )?;
+        Ok(visitor.rendered)
     }
 
     fn cost_component(&self, component: &CostComponent) -> Result<String, RenderError> {

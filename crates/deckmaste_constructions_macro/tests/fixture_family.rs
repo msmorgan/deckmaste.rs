@@ -1152,6 +1152,11 @@ fn assert_construction_declaration_data(
     use deckmaste_construction_compiler::runtime::PredicateData;
     use deckmaste_construction_compiler::runtime::WitnessClassData;
 
+    assert_eq!(
+        data.backend,
+        deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart
+    );
+
     let ids: Vec<&str> = data.constructions.iter().map(|c| c.id).collect();
     assert_eq!(
         ids,

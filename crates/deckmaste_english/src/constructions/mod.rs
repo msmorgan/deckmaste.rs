@@ -1,5 +1,6 @@
 //! Construction-group declarations and test-only compiler scaffolding.
 
+pub(crate) mod ability;
 pub(crate) mod adjective;
 pub(crate) mod attachment;
 pub(crate) mod clause;
@@ -51,6 +52,26 @@ pub(crate) static GROUPS: &[&GroupData] = &[
     quantity::GROUPS[0],
     relative::GROUPS[0],
     sentence::GROUPS[0],
+];
+
+pub(crate) static ABILITY_GROUPS: &[&GroupData] = &[ability::GROUPS[0]];
+
+pub(crate) static ALL_GROUPS: &[&GroupData] = &[
+    adjective::GROUPS[0],
+    attachment::GROUPS[0],
+    clause::GROUPS[0],
+    coordination::GROUPS[0],
+    determiner::GROUPS[0],
+    noun::GROUPS[0],
+    noun_phrase::GROUPS[0],
+    nominal::GROUPS[0],
+    nonfinite::GROUPS[0],
+    predicate::GROUPS[0],
+    prepositional::GROUPS[0],
+    quantity::GROUPS[0],
+    relative::GROUPS[0],
+    sentence::GROUPS[0],
+    ability::GROUPS[0],
 ];
 
 #[cfg(test)]

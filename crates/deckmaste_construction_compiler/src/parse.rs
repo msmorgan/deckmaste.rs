@@ -9,6 +9,7 @@ use syn::parse::ParseStream;
 use crate::model::AstShape;
 use crate::model::BindAdapter;
 use crate::model::Constraint;
+use crate::model::ConstructionBackend;
 use crate::model::ConstructionDeclaration;
 use crate::model::DominanceEdge;
 use crate::model::ElementDeclaration;
@@ -36,6 +37,8 @@ use crate::model::WitnessDeclaration;
 
 mod kw {
     syn::custom_keyword!(group);
+    syn::custom_keyword!(backend);
+    syn::custom_keyword!(ability);
     syn::custom_keyword!(element);
     syn::custom_keyword!(lens);
     syn::custom_keyword!(variant);
@@ -106,6 +109,13 @@ impl Parse for GroupSyntax {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         input.parse::<kw::group>()?;
         let name = spanned_ident(input)?;
+        let backend = if input.peek(kw::backend) {
+            input.parse::<kw::backend>()?;
+            input.parse::<kw::ability>()?;
+            ConstructionBackend::Ability
+        } else {
+            ConstructionBackend::Chart
+        };
         input.parse::<syn::Token![;]>()?;
         let mut elements = Vec::new();
         let mut lenses = Vec::new();
@@ -121,6 +131,7 @@ impl Parse for GroupSyntax {
         }
         Ok(Self(GroupDeclaration {
             name,
+            backend,
             constructions,
             elements,
             lenses,
@@ -868,6 +879,23 @@ fn parse_pred_list(input: ParseStream<'_>) -> syn::Result<Vec<Predicate>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn group_backend_defaults_to_chart_and_accepts_ability() {
+        let chart = parse_group(quote::quote! { group chart_default; }).expect("chart group");
+        assert_eq!(chart.backend, ConstructionBackend::Chart);
+
+        let ability = parse_group(quote::quote! { group ability_group backend ability; })
+            .expect("ability group");
+        assert_eq!(ability.backend, ConstructionBackend::Ability);
+    }
+
+    #[test]
+    fn unknown_group_backend_is_rejected_at_its_name() {
+        let error = parse_group(quote::quote! { group invalid backend pmcfg; })
+            .expect_err("only declared backends parse");
+        assert!(error.to_string().contains("expected `ability`"));
+    }
 
     /// The full fixture family — byte-identical to the DSL text in the plan,
     /// to `tests/golden_real.rs`'s `fixture_family_parses_to_the_handbuilt_ir`,

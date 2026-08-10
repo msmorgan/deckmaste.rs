@@ -106,6 +106,7 @@ fn fixture_elements() -> Vec<ElementDeclaration> {
 pub fn fixture_coordination_group() -> GroupDeclaration {
     GroupDeclaration {
         name: Spanned::call_site("fixture_coordination".to_owned()),
+        backend: deckmaste_construction_compiler::model::ConstructionBackend::Chart,
         elements: fixture_elements(),
         lenses: vec![],
         constructions: vec![
@@ -359,4 +360,14 @@ fn emission_is_byte_stable() {
     // Two independent full pipeline runs; catches any map-ordering or
     // interner nondeterminism anywhere in validate/emit/format.
     assert_eq!(formatted_emission(), formatted_emission());
+}
+
+#[test]
+fn ability_backend_is_emitted_into_stable_runtime_metadata() {
+    let mut group = fixture_coordination_group();
+    group.backend = deckmaste_construction_compiler::model::ConstructionBackend::Ability;
+    let validated = validate(&group).expect("the backend does not change declaration validity");
+    let emitted = emit_group(&validated).to_string();
+    assert!(emitted.contains("ConstructionBackendData :: Ability"));
+    assert_eq!(emitted, emit_group(&validated).to_string());
 }

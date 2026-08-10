@@ -263,12 +263,20 @@ pub fn take_erased<T: std::any::Any>(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GroupData {
     pub name: &'static str,
+    pub backend: ConstructionBackendData,
     pub elements: &'static [&'static str],
     pub element_data: &'static [ElementData],
     /// Typed record rebuild schemas. Lenses are deliberately separate from
     /// semantic elements: they do not mint chart categories or surface atoms.
     pub lenses: &'static [LensData],
     pub constructions: &'static [ConstructionData],
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ConstructionBackendData {
+    #[default]
+    Chart,
+    Ability,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

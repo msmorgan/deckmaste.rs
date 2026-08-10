@@ -33,11 +33,19 @@ impl<T: Eq> Eq for Spanned<T> {}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GroupDeclaration {
     pub name: Spanned<String>,
+    pub backend: ConstructionBackend,
     pub constructions: Vec<ConstructionDeclaration>,
     pub elements: Vec<ElementDeclaration>,
     /// Reusable Rust record layouts addressed by construction-level lens
     /// applications. These are rebuild schemas, not semantic chart elements.
     pub lenses: Vec<LensDeclaration>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ConstructionBackend {
+    #[default]
+    Chart,
+    Ability,
 }
 
 impl GroupDeclaration {
