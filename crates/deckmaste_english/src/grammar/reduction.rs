@@ -43,11 +43,9 @@ pub(super) fn reduce(
         | RuleTag::NominalCoordinatedModifier => {
             reduce_nominal(HandwrittenNominalReduction::from_rule_tag(tag)?, children)?
         }
-        RuleTag::PrepositionalPhrase
-        | RuleTag::PrepositionalPhraseListPair
+        RuleTag::PrepositionalPhraseListPair
         | RuleTag::PrepositionalPhraseListComma
-        | RuleTag::PrepositionalPhraseSiblingCoordinated
-        | RuleTag::PrepositionalObject => reduce_phrase(tag, children)?,
+        | RuleTag::PrepositionalPhraseSiblingCoordinated => reduce_phrase(tag, children)?,
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
@@ -1335,34 +1333,6 @@ pub(super) fn reduce_phrase(
                 nearer_relative_host: *nearer_relative_host,
             })
         }
-        RuleTag::PrepositionalPhrase => {
-            let Features::Preposition(preposition) = children.first()?.features else {
-                return None;
-            };
-            let Features::PrepositionalObject {
-                gerund,
-                shared_determiner,
-            } = children.get(1)?.features
-            else {
-                return None;
-            };
-            Some(Features::PrepositionalPhrase {
-                preposition: *preposition,
-                nominal_attachment: !(*preposition == Preposition::By && *gerund),
-                shared_determiner_object: *shared_determiner,
-                nearer_relative_host: false,
-            })
-        }
-        RuleTag::PrepositionalObject => Some(Features::PrepositionalObject {
-            gerund: matches!(children.first()?.features, Features::GerundClause),
-            shared_determiner: matches!(
-                children.first()?.features,
-                Features::NounPhrase {
-                    coordination: NounPhraseCoordinationState::Shared,
-                    ..
-                }
-            ),
-        }),
         _ => None,
     }
 }

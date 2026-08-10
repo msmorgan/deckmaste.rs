@@ -444,6 +444,7 @@ fn engine_category(name: &str) -> Option<Nonterminal> {
         "AdjectivePhrase" | "ComparisonAdjectivePhrase" => Nonterminal::AdjectivePhrase,
         "CoordinatedAdjectivePhrase" => Nonterminal::CoordinatedModifier,
         "PrepositionalPhrase" => Nonterminal::PrepositionalPhrase,
+        "PrepositionalObject" => Nonterminal::PrepositionalObject,
         "InfinitiveClause" => Nonterminal::InfinitiveClause,
         "GerundClause" => Nonterminal::GerundClause,
         "FrequencyPhrase" => Nonterminal::FrequencyPhrase,
@@ -568,6 +569,12 @@ pub(super) fn typed_feature_projection(
                 fields,
             ),
         ),
+        ("prepositional", "features") => Some(
+            crate::constructions::prepositional::reduce_prepositional_features(
+                construction,
+                fields,
+            ),
+        ),
         _ => None,
     }
 }
@@ -663,7 +670,7 @@ fn typed_scalar_slot(
     codec: &'static str,
     optional: bool,
 ) -> Result<EnglishLexicalSlot, GeneratedAssemblyError> {
-    if optional {
+    if optional && !matches!((value_type, codec), ("Vocab", "Adverb")) {
         return Err(GeneratedAssemblyError::UnsupportedOptionalTypedScalar {
             owner,
             field,
@@ -675,6 +682,7 @@ fn typed_scalar_slot(
         ("NumberLiteral" | "QuantityValue", "Numeral") => Ok(EnglishLexicalSlot::QuantityNumber),
         ("NumberLiteral", "DegreeMeasureNumeral") => Ok(EnglishLexicalSlot::DegreeMeasureNumber),
         ("PowerToughness", "PowerToughness") => Ok(EnglishLexicalSlot::PowerToughness),
+        ("Vocab", "Adverb") => Ok(EnglishLexicalSlot::Adverb),
         _ => Err(GeneratedAssemblyError::UnsupportedTypedScalar {
             owner,
             field,
@@ -708,6 +716,7 @@ fn identity_slot(
             Ok(EnglishLexicalSlot::SubjectAuxiliary)
         }
         ("ExistentialForm", "Existential") => Ok(EnglishLexicalSlot::Existential),
+        ("Preposition", "Preposition") => Ok(EnglishLexicalSlot::Preposition),
         ("Vocab", "Adverb") => Ok(EnglishLexicalSlot::Adverb),
         ("Vocab", "SentenceAdverbial") => Ok(EnglishLexicalSlot::SentenceAdverbial),
         ("Subordinator", "Subordinator") => Ok(EnglishLexicalSlot::Subordinator),

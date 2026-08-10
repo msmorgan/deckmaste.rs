@@ -2939,6 +2939,81 @@ mod tests {
     }
 
     #[test]
+    fn production_p02_object_variants_preserve_whole_subtrees() {
+        let parse_preposition = |source: &str| {
+            parse_nonterminal(
+                source,
+                &fixture_catalogs(),
+                Nonterminal::PrepositionalPhrase,
+            )
+            .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"))
+        };
+        let assert_generated = |parsed: &ParsedNonterminal| {
+            for construction in ["prepositional_phrase", "prepositional_object"] {
+                let decision = parsed
+                    .construction_decisions()
+                    .iter()
+                    .find(|decision| decision.selected().as_str() == construction)
+                    .unwrap_or_else(|| panic!("missing {construction}"));
+                assert_eq!(
+                    decision.owner(),
+                    crate::ConstructionOwner::Generated,
+                    "{construction}"
+                );
+                if construction == "prepositional_object" {
+                    assert_eq!(
+                        decision.evidence().kind(),
+                        crate::ConstructionEvidenceKind::Feature
+                    );
+                    assert_eq!(decision.evidence().label(), "prepositional object category");
+                }
+            }
+        };
+
+        let among = parse_preposition("among all permanents");
+        assert_generated(&among);
+        let among = among.prepositional_phrase().expect("PP root").head();
+        assert_eq!(among.preposition, crate::syntax::Preposition::Among);
+        let crate::syntax::Phrase::NounPhrase(permanents) = among.object.as_ref() else {
+            panic!("expected a whole noun-phrase object: {:#?}", among.object);
+        };
+        assert!(matches!(permanents.kind(), NounPhraseKind::Nominal(_)));
+
+        let nested = parse_preposition("from among them");
+        assert_generated(&nested);
+        let nested = nested.prepositional_phrase().expect("PP root").head();
+        assert_eq!(nested.preposition, crate::syntax::Preposition::From);
+        let crate::syntax::Phrase::PrepositionalPhrase(among) = nested.object.as_ref() else {
+            panic!("expected a whole nested PP object: {:#?}", nested.object);
+        };
+        assert_eq!(among.head().preposition, crate::syntax::Preposition::Among);
+        assert!(matches!(
+            among.head().object.as_ref(),
+            crate::syntax::Phrase::NounPhrase(object)
+                if matches!(object.kind(), NounPhraseKind::Pronoun { pronoun: Pronoun::They, case: PronounCase::Object })
+        ));
+
+        let gerund = parse_preposition("by paying 1 life");
+        assert_generated(&gerund);
+        let gerund = gerund.prepositional_phrase().expect("PP root").head();
+        assert_eq!(gerund.preposition, crate::syntax::Preposition::By);
+        assert!(matches!(
+            gerund.object.as_ref(),
+            crate::syntax::Phrase::Clause(clause)
+                if matches!(clause.as_ref(), crate::syntax::Clause::Dependent(crate::syntax::DependentClause::Gerund(_)))
+        ));
+
+        let anywhere = parse_preposition("from anywhere");
+        assert_generated(&anywhere);
+        let anywhere = anywhere.prepositional_phrase().expect("PP root").head();
+        assert_eq!(anywhere.preposition, crate::syntax::Preposition::From);
+        assert!(matches!(
+            anywhere.object.as_ref(),
+            crate::syntax::Phrase::Adverb(adverb) if adverb.spelling() == "anywhere"
+        ));
+    }
+
+    #[test]
     fn target_candidates_are_requested_by_slot_instead_of_chosen_by_the_lexer() {
         let catalogs = fixture_catalogs();
         let surface = crate::surface::lex("target");
