@@ -6,6 +6,7 @@
 use std::collections::BTreeMap;
 
 use deckmaste_construction_compiler::runtime::AtomData;
+use deckmaste_construction_compiler::runtime::ConstructionBackendData;
 use deckmaste_construction_compiler::runtime::ConstructionData;
 use deckmaste_construction_compiler::runtime::ElementData;
 use deckmaste_construction_compiler::runtime::EvidenceSourceData;
@@ -219,12 +220,35 @@ impl GeneratedActivation {
     )]
     pub(super) fn groups(self) -> Option<&'static [&'static GroupData]> {
         match self {
-            Self::Production => Some(crate::constructions::GROUPS),
+            Self::Production => Some(crate::constructions::ALL_GROUPS),
             #[cfg(test)]
             Self::Inactive => None,
             #[cfg(test)]
             Self::Groups(groups) => Some(groups),
         }
+    }
+
+    pub(super) fn chart_groups(self) -> Option<Vec<&'static GroupData>> {
+        self.groups().map(|groups| {
+            groups
+                .iter()
+                .copied()
+                .filter(|group| group.backend == ConstructionBackendData::Chart)
+                .collect()
+        })
+    }
+
+    pub(super) fn ability_groups(self) -> Option<Vec<&'static GroupData>> {
+        if matches!(self, Self::Production) {
+            return Some(crate::constructions::ABILITY_GROUPS.to_vec());
+        }
+        self.groups().map(|groups| {
+            groups
+                .iter()
+                .copied()
+                .filter(|group| group.backend == ConstructionBackendData::Ability)
+                .collect()
+        })
     }
 
     pub(crate) const fn is_production(self) -> bool {
@@ -234,6 +258,11 @@ impl GeneratedActivation {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum GeneratedAssemblyError {
+    BackendMismatch {
+        group: &'static str,
+        expected: ConstructionBackendData,
+        actual: ConstructionBackendData,
+    },
     /// A non-internal category with no explicit English engine mapping.
     UnknownCategory {
         construction: &'static str,
@@ -1225,6 +1254,16 @@ fn register_generated_with_context_adapters(
     cats: &BTreeMap<&'static str, u16>,
     context_adapters: &[ContextAdapter],
 ) -> Result<(), GeneratedAssemblyError> {
+    if let Some(group) = groups
+        .iter()
+        .find(|group| group.backend != ConstructionBackendData::Chart)
+    {
+        return Err(GeneratedAssemblyError::BackendMismatch {
+            group: group.name,
+            expected: ConstructionBackendData::Chart,
+            actual: group.backend,
+        });
+    }
     for group in groups {
         if let Some(element) = group.element_data.iter().find(|element| {
             !element.fields.is_empty()
@@ -1697,6 +1736,7 @@ fn register_element(
 #[cfg(test)]
 mod tests {
     use deckmaste_construction_compiler::runtime::AtomData;
+    use deckmaste_construction_compiler::runtime::ConstructionBackendData;
     use deckmaste_construction_compiler::runtime::ConstructionData;
     use deckmaste_construction_compiler::runtime::ElementData;
     use deckmaste_construction_compiler::runtime::EvidenceData;
@@ -1721,6 +1761,25 @@ mod tests {
     use super::register_generated;
     use super::register_generated_with_context_adapters;
     use crate::surface::Punctuation;
+
+    #[test]
+    fn chart_assembly_rejects_an_ability_group() {
+        let group = crate::constructions::ability::GROUPS[0];
+        let error = register_generated(
+            &mut RuleBuilder::default(),
+            &[group],
+            &std::collections::BTreeMap::new(),
+        )
+        .expect_err("an ability group cannot enter chart assembly");
+        assert_eq!(
+            error,
+            GeneratedAssemblyError::BackendMismatch {
+                group: "ability",
+                expected: ConstructionBackendData::Chart,
+                actual: ConstructionBackendData::Ability,
+            }
+        );
+    }
 
     const fn construction(
         id: &'static str,
@@ -1816,6 +1875,7 @@ mod tests {
         ];
         const GROUP: GroupData = GroupData {
             name: "adjective_adapter_fixture",
+            backend: deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
             elements: &[],
             element_data: &[],
             lenses: &[],
@@ -2184,6 +2244,7 @@ mod tests {
         let constructions = Box::leak(vec![construction].into_boxed_slice());
         Box::leak(Box::new(GroupData {
             name,
+            backend: deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
             elements: &[],
             element_data: &[],
             lenses: &[],
@@ -2359,6 +2420,7 @@ mod tests {
         )];
         const GROUP: GroupData = GroupData {
             name: "g",
+            backend: deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
             elements: &[],
             element_data: &[],
             lenses: &[],
@@ -2388,6 +2450,7 @@ mod tests {
         }];
         const GROUP: GroupData = GroupData {
             name: "g",
+            backend: deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
             elements: &[],
             element_data: &[],
             lenses: &[],
@@ -2436,6 +2499,7 @@ mod tests {
         )];
         const GROUP: GroupData = GroupData {
             name: "nullable",
+            backend: deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
             elements: &["nullable_member"],
             element_data: ELEMENT_DATA,
             lenses: &[],
@@ -2475,6 +2539,7 @@ mod tests {
         ];
         const GROUP: GroupData = GroupData {
             name: "g",
+            backend: deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
             elements: &[],
             element_data: &[],
             lenses: &[],
@@ -2509,6 +2574,7 @@ mod tests {
             &[construction("lit_and", "Internal", true, &[], FORM)];
         const GROUP: GroupData = GroupData {
             name: "g",
+            backend: deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
             elements: &[],
             element_data: &[],
             lenses: &[],
@@ -2540,6 +2606,7 @@ mod tests {
             &[construction("lit_comma", "Internal", true, &[], FORM)];
         const GROUP: GroupData = GroupData {
             name: "g",
+            backend: deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
             elements: &[],
             element_data: &[],
             lenses: &[],
@@ -2574,6 +2641,7 @@ mod tests {
             &[construction("codec_test", "Internal", true, FIELDS, FORM)];
         const GROUP: GroupData = GroupData {
             name: "g",
+            backend: deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
             elements: &[],
             element_data: &[],
             lenses: &[],
@@ -2616,6 +2684,7 @@ mod tests {
         )];
         const GROUP: GroupData = GroupData {
             name: "g",
+            backend: deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
             elements: &[],
             element_data: &[],
             lenses: &[],
@@ -2663,6 +2732,7 @@ mod tests {
         )];
         const GROUP: GroupData = GroupData {
             name: "g",
+            backend: deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
             elements: &[],
             element_data: &[],
             lenses: &[],
@@ -2712,6 +2782,7 @@ mod tests {
         ];
         const GROUP: GroupData = GroupData {
             name: "g",
+            backend: deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
             elements: &[],
             element_data: &[],
             lenses: &[],
@@ -2761,6 +2832,7 @@ mod tests {
         )];
         const GROUP: GroupData = GroupData {
             name: "g",
+            backend: deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
             elements: &[],
             element_data: &[],
             lenses: &[],
@@ -2807,6 +2879,7 @@ mod tests {
         )];
         const GROUP: GroupData = GroupData {
             name: "g",
+            backend: deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
             elements: &[],
             element_data: &[],
             lenses: &[],
@@ -2857,6 +2930,7 @@ mod tests {
         }];
         const GROUP: GroupData = GroupData {
             name: "g",
+            backend: deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
             elements: &["Foo"],
             element_data: ELEMENTS,
             lenses: &[],
@@ -2903,6 +2977,7 @@ mod tests {
             &[construction("dotted", "Internal", true, &[], FORM)];
         const GROUP: GroupData = GroupData {
             name: "g",
+            backend: deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
             elements: &[],
             element_data: &[],
             lenses: &[],
@@ -2947,6 +3022,7 @@ mod tests {
         }];
         const GROUP: GroupData = GroupData {
             name: "g",
+            backend: deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
             elements: &[],
             element_data: &[],
             lenses: &[],

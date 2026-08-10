@@ -231,14 +231,14 @@ impl<'syntax> RecoveryWalker<'syntax> {
     }
 
     fn cost(&mut self, cost: &'syntax Cost, context: Option<RecoveryRole>) {
-        if let Some(header) = &cost.flavor_header {
+        if let Some(header) = cost.flavor_header() {
             self.lexical_opacity.push(LexicalOpacityRef {
                 kind: LexicalOpacityKind::FlavorHeader,
                 text: header.text(),
                 source_tokens: header.source_tokens(),
             });
         }
-        for component in &cost.components {
+        for component in cost.components() {
             self.cost_component(component, context);
         }
     }
@@ -1043,10 +1043,10 @@ mod tests {
                     ability_word: None,
                     flavor_header: None,
                     kind: AbilityKind::Activated(ActivatedAbility {
-                        cost: Cost {
-                            flavor_header: None,
-                            components: vec![CostComponent::Recovered(recovered("cost"))],
-                        },
+                        cost: Cost::from_parts(
+                            None,
+                            vec![CostComponent::Recovered(recovered("cost"))],
+                        ),
                         effect: Paragraph::default(),
                     }),
                 },
@@ -1349,10 +1349,7 @@ mod tests {
                 ability_word: None,
                 flavor_header: None,
                 kind: AbilityKind::Activated(ActivatedAbility {
-                    cost: Cost {
-                        flavor_header: None,
-                        components,
-                    },
+                    cost: Cost::from_parts(None, components),
                     effect: Paragraph::default(),
                 }),
             }],

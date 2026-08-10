@@ -60,7 +60,9 @@ fn checks(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     check_identity(group, diags);
     check_element_shapes(group, diags);
     check_generated_names(group, diags);
-    check_empty_bound_elements(group, diags);
+    if group.backend == crate::model::ConstructionBackend::Chart {
+        check_empty_bound_elements(group, diags);
+    }
     check_dominance_cycles(group, diags);
     check_paths(group, diags);
     check_typed_feature_callbacks(group, diags);
@@ -764,11 +766,13 @@ fn check_generated_dispatch_names(
     }
 }
 
-/// EC007 — an empty bound mapping is intentionally opaque: the compiler can
-/// prove that its target type exists, but cannot inspect or construct a value.
-/// A direct construction sequence can carry the exact invariant that it is
-/// always empty. Optional sequences and sequences nested in element fields
-/// have no addressable predicate path in today's DSL, so they are rejected.
+/// EC007 — a chart-backend empty bound mapping is intentionally opaque: the
+/// chart compiler can prove that its target type exists, but cannot inspect or
+/// construct a value. A direct construction sequence can carry the exact
+/// invariant that it is always empty. Optional sequences and sequences nested
+/// in element fields have no addressable predicate path in today's DSL, so
+/// they are rejected. Ability backends instead receive typed values from their
+/// owner-local recognizers and do not need this chart invariant.
 fn check_empty_bound_elements(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
     for construction in &group.constructions {
         for binding in construction.ast.fields() {
@@ -2760,6 +2764,7 @@ pub(crate) mod fixtures {
     pub(crate) fn minimal_group() -> GroupDeclaration {
         GroupDeclaration {
             name: Spanned::call_site("noun_coordination".to_owned()),
+            backend: crate::model::ConstructionBackend::Chart,
             elements: vec![],
             lenses: vec![],
             constructions: vec![ConstructionDeclaration {
@@ -3205,6 +3210,13 @@ mod tests {
                 }),
             ));
         validate(&group).expect("the existing direct len-is-zero predicate proves emptiness");
+    }
+
+    #[test]
+    fn ability_backend_admits_nonempty_opaque_bound_element_sequences() {
+        let mut group = group_with_empty_bound_element();
+        group.backend = crate::model::ConstructionBackend::Ability;
+        validate(&group).expect("ability recognizers provide the typed opaque members");
     }
 
     #[test]

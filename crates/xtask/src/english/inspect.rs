@@ -637,6 +637,17 @@ mod tests {
     }
 
     #[test]
+    fn production_cost_inspect_reports_nested_ability_backend_owner() {
+        let verbose = verbose_m01("{2}: Choose one —\n• Draw a card.\n• Create a Treasure token.");
+        assert!(
+            verbose.contains(
+                " cost owner=generated backend=ability form=1 evidence=role:activation-cost root"
+            ),
+            "{verbose}"
+        );
+    }
+
+    #[test]
     fn production_p01_inspect_reports_generated_owners_and_decisive_constraints() {
         for (source, construction, evidence) in [
             (

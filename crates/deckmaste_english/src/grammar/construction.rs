@@ -38,7 +38,7 @@ const fn dominance_edges() -> [DominanceEdge; 0] {
 pub(super) fn registry() -> &'static ConstructionRegistry {
     static REGISTRY: OnceLock<ConstructionRegistry> = OnceLock::new();
     REGISTRY.get_or_init(|| {
-        merged_registry(crate::constructions::GROUPS)
+        merged_registry(crate::constructions::ALL_GROUPS)
             .expect("production construction registry must be valid")
     })
 }
@@ -84,9 +84,12 @@ fn merged_registry_with_replacements(
                 .map(|construction| construction.id)
         })
         .collect::<std::collections::BTreeSet<_>>();
-    let generated_families = groups
-        .iter()
-        .flat_map(|group| group.constructions.iter().map(generated_family));
+    let generated_families = groups.iter().flat_map(|group| {
+        group
+            .constructions
+            .iter()
+            .map(|construction| generated_family(group.backend, construction))
+    });
     let generated_edges = groups.iter().flat_map(|group| {
         group.constructions.iter().flat_map(|construction| {
             construction
@@ -119,12 +122,21 @@ fn merged_registry_with_replacements(
 }
 
 fn generated_family(
+    backend: deckmaste_construction_compiler::runtime::ConstructionBackendData,
     construction: &deckmaste_construction_compiler::runtime::ConstructionData,
 ) -> ConstructionFamily {
+    let backend = match backend {
+        deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart => {
+            ConstructionBackend::Chart
+        }
+        deckmaste_construction_compiler::runtime::ConstructionBackendData::Ability => {
+            ConstructionBackend::Ability
+        }
+    };
     ConstructionFamily::new(
         ConstructionId::new(construction.id),
         ConstructionOwner::Generated,
-        ConstructionBackend::Chart,
+        backend,
         generated_evidence(construction),
     )
 }
@@ -491,15 +503,34 @@ mod tests {
         let families = registry().families();
         let handwritten = families
             .iter()
-            .filter(|family| family.owner() == ConstructionOwner::Handwritten)
+            .filter(|family| {
+                family.backend() == ConstructionBackend::Chart
+                    && family.owner() == ConstructionOwner::Handwritten
+            })
             .count();
         let generated = families
             .iter()
-            .filter(|family| family.owner() == ConstructionOwner::Generated)
+            .filter(|family| {
+                family.backend() == ConstructionBackend::Chart
+                    && family.owner() == ConstructionOwner::Generated
+            })
+            .count();
+        let generated_ability = families
+            .iter()
+            .filter(|family| {
+                family.backend() == ConstructionBackend::Ability
+                    && family.owner() == ConstructionOwner::Generated
+            })
             .count();
         assert_eq!(handwritten, 21, "handwritten chart families");
         assert_eq!(generated, 171, "generated chart families");
-        assert_eq!(families.len(), 192, "all chart families");
+        assert_eq!(handwritten + generated, 192, "all chart families");
+        assert_eq!(generated_ability, 1, "generated ability families");
+        assert_eq!(
+            families.len(),
+            193,
+            "all active families after the cost slice"
+        );
 
         let chart_fragment_entries = [FragmentKind::Nominal, FragmentKind::Sentence];
         let ability_fragment_entries = [
@@ -509,8 +540,14 @@ mod tests {
         ];
         assert_eq!(chart_fragment_entries.len(), 2);
         assert_eq!(ability_fragment_entries.len(), 3);
-        assert_eq!(handwritten + ability_fragment_entries.len(), 24);
-        assert_eq!(families.len() + ability_fragment_entries.len(), 195);
+        assert_eq!(
+            handwritten + ability_fragment_entries.len() - generated_ability,
+            23
+        );
+        assert_eq!(
+            families.len() + ability_fragment_entries.len() - generated_ability,
+            195
+        );
 
         for id in [
             "simple_clause_subject",
@@ -688,6 +725,7 @@ mod tests {
     ) -> deckmaste_construction_compiler::runtime::GroupData {
         deckmaste_construction_compiler::runtime::GroupData {
             name,
+            backend: deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
             elements: &[],
             element_data: &[],
             lenses: &[],

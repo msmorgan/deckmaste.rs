@@ -1,0 +1,9 @@
+error[E0451]: fields `flavor_header` and `components` of struct `deckmaste_english::syntax::Cost` are private
+ --> tests/compile_fail/construct_cost.rs:5:9
+  |
+4 |     Cost {
+  |     ---- in this type
+5 |         flavor_header: source.flavor_header().cloned(),
+  |         ^^^^^^^^^^^^^ private field
+6 |         components: source.components().to_vec(),
+  |         ^^^^^^^^^^ private field

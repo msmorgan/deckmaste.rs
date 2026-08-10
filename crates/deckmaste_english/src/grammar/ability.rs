@@ -944,7 +944,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         }
         let cost = self.parse_cost(cost_tokens);
         if !cost
-            .components
+            .components()
             .iter()
             .all(|component| matches!(component, CostComponent::Symbols(_)))
         {
@@ -1276,16 +1276,68 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     }
 
     fn parse_cost(&mut self, tokens: &[Token]) -> Cost {
+        let all_tokens = tokens;
         let (flavor_header, tokens) = self.peel_cost_flavor_header(tokens);
         let components = split_top_level(tokens, &[Punctuation::Comma])
             .into_iter()
             .filter(|component| !component.is_empty())
             .map(|component| self.parse_cost_component(component))
             .collect();
-        Cost {
-            flavor_header,
-            components,
-        }
+        let form = if flavor_header.is_some() { 0 } else { 1 };
+        let cost = crate::constructions::ability::build(flavor_header, components)
+            .expect("the cost recognizer satisfies the declaration");
+        self.record_ability_construction(all_tokens, "cost", form);
+        cost
+    }
+
+    fn record_ability_construction(&mut self, tokens: &[Token], id: &'static str, ordinal: u16) {
+        let Some(groups) = self.activation.ability_groups() else {
+            return;
+        };
+        let Some(_construction) = groups
+            .iter()
+            .flat_map(|group| group.constructions)
+            .find(|construction| construction.id == id)
+        else {
+            return;
+        };
+        let id = ConstructionId::new(id);
+        let family = if self.activation.is_production() {
+            super::construction::family_by_id(id)
+        } else {
+            super::construction::merged_registry_for_activation(
+                self.activation.groups().expect("active group assembly"),
+            )
+            .ok()
+            .and_then(|registry| registry.family(id))
+        };
+        let Some(family) = family else {
+            return;
+        };
+        let production = ProductionId {
+            construction: id,
+            ordinal,
+        };
+        let cost = ParseCost::default();
+        let span = tokens_span(tokens);
+        self.selections.push(AbilitySelection {
+            span,
+            constituent_spans: Vec::new(),
+            rule: None,
+            construction: Some(id),
+            constructions: vec![ConstructionDecision::new(
+                span,
+                production,
+                family,
+                cost,
+                SelectionReason::Unique,
+                vec![ConstructionAlternative::new(production, cost, false)],
+            )],
+            tied_alternatives: vec![0],
+            cost,
+            chart_stats: ChartStats::default(),
+            forest_stats: ForestStats::default(),
+        });
     }
 
     fn peel_cost_flavor_header<'tokens>(
@@ -3237,7 +3289,7 @@ mod tests {
         let AbilityKind::Activated(ability) = &report.ast.abilities[0].kind else {
             panic!("expected activated ability");
         };
-        assert_eq!(ability.cost.components.len(), 3);
+        assert_eq!(ability.cost.components().len(), 3);
         assert_eq!(ability.effect.sentences.len(), 2);
         assert!(
             matches!(
@@ -3270,7 +3322,7 @@ mod tests {
         let AbilityKind::Activated(ability) = &report.ast.abilities[0].kind else {
             panic!("expected activated ability: {:#?}", report.ast.abilities[0]);
         };
-        let [mana, tap, sacrifice] = ability.cost.components.as_slice() else {
+        let [mana, tap, sacrifice] = ability.cost.components() else {
             panic!("expected three cost components: {:#?}", ability.cost);
         };
         assert!(matches!(mana, CostComponent::Symbols(symbols) if symbols.len() == 2));
@@ -3317,7 +3369,7 @@ mod tests {
         let AbilityKind::Activated(ability) = &report.ast.abilities[0].kind else {
             panic!("expected activated ability: {:#?}", report.ast.abilities[0]);
         };
-        let [tap, frobnicate] = ability.cost.components.as_slice() else {
+        let [tap, frobnicate] = ability.cost.components() else {
             panic!("expected two cost components: {:#?}", ability.cost);
         };
         assert!(matches!(tap, CostComponent::Symbols(_)));
@@ -3345,7 +3397,7 @@ mod tests {
         assert_eq!(level.level.value, 2);
         assert_eq!(level.level.numeral, Numeral::Arabic(false));
         assert!(matches!(
-            level.cost.components.as_slice(),
+            level.cost.components(),
             [CostComponent::Symbols(symbols)] if symbols.len() == 2
         ));
         assert_eq!(report.ast.render("Test Card", false).unwrap(), source);
@@ -4655,7 +4707,7 @@ mod tests {
         };
         let symbol_components = activated
             .cost
-            .components
+            .components()
             .iter()
             .filter(|component| matches!(component, CostComponent::Symbols(_)))
             .count();
@@ -4799,7 +4851,7 @@ mod tests {
         };
         let symbol_components = activated
             .cost
-            .components
+            .components()
             .iter()
             .filter(|component| matches!(component, CostComponent::Symbols(_)))
             .count();
@@ -5384,7 +5436,7 @@ mod tests {
         };
         assert!(*terminal);
         assert!(matches!(
-            cost.components.as_slice(),
+            cost.components(),
             [CostComponent::Symbols(_), CostComponent::Clause(_)]
         ));
         assert_eq!(report.ast.render("Test Card", false).unwrap(), source);
@@ -6271,7 +6323,7 @@ mod tests {
             .expect("first mode carries a heading");
         assert_eq!(heading.label.text(), "Cross-Slash");
         assert!(matches!(
-            heading.cost.components.as_slice(),
+            heading.cost.components(),
             [CostComponent::Symbols(symbols)] if symbols.len() == 1
         ));
         assert!(second.heading.is_some());
@@ -6453,7 +6505,7 @@ mod tests {
         let AbilityKind::Activated(ability) = &report.ast.abilities[0].kind else {
             panic!("expected activated ability: {:#?}", report.ast.abilities[0]);
         };
-        let [_, sacrifice] = ability.cost.components.as_slice() else {
+        let [_, sacrifice] = ability.cost.components() else {
             panic!("expected two cost components: {:#?}", ability.cost);
         };
         assert!(matches!(

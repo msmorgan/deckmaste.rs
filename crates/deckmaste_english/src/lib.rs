@@ -14,6 +14,7 @@
 pub mod adjective;
 pub mod catalog;
 pub mod clause;
+pub mod cost;
 pub mod determiner;
 pub use deckmaste_features as features;
 mod chart;

@@ -2204,12 +2204,12 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         builder.add_shared_copular_coordination_rules();
         // These scoped categories retain the final member of coordinated PP
         // objects; family order does not decide their selection.
-        if let Some(groups) = activation.groups() {
+        if let Some(groups) = activation.chart_groups() {
             if !activation.is_production() {
-                builder.replace_handwritten_families_for_generated_test(groups);
+                builder.replace_handwritten_families_for_generated_test(&groups);
             }
-            let cats = generated::internal_categories(groups);
-            generated::register_generated(&mut builder, groups, &cats)
+            let cats = generated::internal_categories(&groups);
+            generated::register_generated(&mut builder, &groups, &cats)
                 .expect("active generated groups must assemble");
         }
         let rule_book = builder.finish(registration_order);

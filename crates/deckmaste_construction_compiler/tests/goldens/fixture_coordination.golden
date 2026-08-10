@@ -771,6 +771,7 @@ mod __constructions_fixture_coordination {
     }
     pub static FIXTURE_COORDINATION_DECLARATION: ::deckmaste_construction_compiler::runtime::GroupData = ::deckmaste_construction_compiler::runtime::GroupData {
         name: "fixture_coordination",
+        backend: ::deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
         elements: &[
             "fixture_member",
             "bound_fixture_member",

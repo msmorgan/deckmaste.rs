@@ -9,6 +9,7 @@ fn main() {
     // when the `GroupDeclaration` behind it is entirely well-formed.
     let group = GroupDeclaration {
         name: Spanned::call_site(String::new()),
+        backend: deckmaste_construction_compiler::model::ConstructionBackend::Chart,
         constructions: vec![],
         elements: vec![],
         lenses: vec![],

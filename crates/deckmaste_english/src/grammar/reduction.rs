@@ -3172,6 +3172,7 @@ mod generated_tests {
         }];
         const GROUP: GroupData = GroupData {
             name: "reordered",
+            backend: deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
             elements: &["member"],
             element_data: ELEMENTS,
             lenses: &[],
@@ -3251,6 +3252,7 @@ mod generated_tests {
         }];
         const GROUP: GroupData = GroupData {
             name: "quantity_probe",
+            backend: deckmaste_construction_compiler::runtime::ConstructionBackendData::Chart,
             elements: &[],
             element_data: &[],
             lenses: &[],
