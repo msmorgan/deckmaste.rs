@@ -27,6 +27,7 @@ pub(crate) mod nonfinite;
 pub(crate) mod noun;
 pub(crate) mod noun_phrase;
 pub(crate) mod predicate;
+pub(crate) mod prepositional;
 #[cfg(test)]
 pub(crate) mod probe;
 pub(crate) mod quantity;
@@ -45,6 +46,7 @@ pub(crate) static GROUPS: &[&GroupData] = &[
     nominal::GROUPS[0],
     nonfinite::GROUPS[0],
     predicate::GROUPS[0],
+    prepositional::GROUPS[0],
     quantity::GROUPS[0],
     sentence::GROUPS[0],
 ];

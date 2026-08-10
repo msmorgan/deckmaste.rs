@@ -202,43 +202,6 @@ impl RuleBuilder {
         }
     }
 
-    #[allow(
-        clippy::too_many_lines,
-        reason = "nominal rule construction is intentionally broad"
-    )]
-    pub(super) fn add_nominal_rules(&mut self) {
-        use EnglishLexicalSlot as L;
-        use Expected::Lexical as l;
-        use Expected::Nonterminal as n;
-        use Nonterminal as N;
-
-        self.add(
-            RuleTag::PrepositionalPhrase,
-            N::PrepositionalPhrase,
-            [l(L::Preposition), n(N::PrepositionalObject)],
-        );
-        self.add(
-            RuleTag::PrepositionalObject,
-            N::PrepositionalObject,
-            [n(N::NounPhrase)],
-        );
-        self.add(
-            RuleTag::PrepositionalObject,
-            N::PrepositionalObject,
-            [n(N::PrepositionalPhrase)],
-        );
-        self.add(
-            RuleTag::PrepositionalObject,
-            N::PrepositionalObject,
-            [n(N::GerundClause)],
-        );
-        self.add(
-            RuleTag::PrepositionalObject,
-            N::PrepositionalObject,
-            [l(L::Adverb)],
-        );
-    }
-
     pub(super) fn add_clause_rules(&mut self) {
         clause::add_rules(self);
     }
@@ -561,17 +524,17 @@ mod tests {
     fn interleaved_builder() -> RuleBuilder {
         let mut builder = RuleBuilder::default();
         builder.add(
-            RuleTag::PrepositionalObject,
+            RuleTag::PrepositionalPhraseListPair,
             Nonterminal::Determiner,
             [Expected::Lexical(EnglishLexicalSlot::Determiner)],
         );
         builder.add(
-            RuleTag::PrepositionalObject,
+            RuleTag::PrepositionalPhraseListPair,
             Nonterminal::Determiner,
             [Expected::Lexical(EnglishLexicalSlot::Determiner)],
         );
         builder.add(
-            RuleTag::PrepositionalPhrase,
+            RuleTag::PrepositionalPhraseListComma,
             Nonterminal::Determiner,
             [Expected::Lexical(EnglishLexicalSlot::DeterminerTarget)],
         );

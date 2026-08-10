@@ -489,6 +489,14 @@ fn project_generated_category(
         let value = value.downcast::<crate::syntax::GerundClause>().ok()?;
         return Some(Lowered::GerundClause(*value));
     }
+    if construction.category == "PrepositionalPhrase" {
+        let value = value.downcast::<PrepositionalPhrase>().ok()?;
+        return Some(Lowered::PrepositionalPhrase(*value));
+    }
+    if construction.category == "PrepositionalObject" {
+        let value = value.downcast::<Phrase>().ok()?;
+        return Some(Lowered::Phrase(*value));
+    }
     if construction.category == "Verb" {
         let value = value.downcast::<VerbAnalysis>().ok()?;
         return Some(Lowered::Verb(*value));
@@ -595,6 +603,15 @@ fn erased_field(
             provider: "Existential",
         } => {
             let Lowered::Existential(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Identity {
+            value_type: "Preposition",
+            provider: "Preposition",
+        } => {
+            let Lowered::Preposition(value) = value else {
                 return None;
             };
             Some(Box::new(value))
@@ -948,6 +965,7 @@ fn erased_subtree(
             if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
         }
         "PrepositionalPhrase" => typed!(PrepositionalPhrase, value),
+        "PrepositionalObject" => typed!(Phrase, value),
         "ComparisonComplement" => typed!(ComparisonComplement, value),
         "InfinitiveClause" => {
             let Lowered::InfinitiveClause(value) = value else {
@@ -1076,6 +1094,15 @@ fn erased_optional(
             };
             Some(Box::new(Some(value.clone())))
         }
+        K::TypedScalar {
+            value_type: "Vocab",
+            codec: "Adverb",
+        } => {
+            let Lowered::Adverb(value) = value else {
+                return None;
+            };
+            Some(Box::new(Some(*value)))
+        }
         K::Subtree {
             category,
             boxed: false,
@@ -1094,6 +1121,12 @@ fn erased_optional(
             }
             "PrepositionalPhrase" => {
                 let Lowered::PrepositionalPhrase(value) = value else {
+                    return None;
+                };
+                Some(Box::new(Some(value.clone())))
+            }
+            "GerundClause" => {
+                let Lowered::GerundClause(value) = value else {
                     return None;
                 };
                 Some(Box::new(Some(value.clone())))
@@ -1163,6 +1196,10 @@ fn erased_optional_absent(
         K::Scalar {
             codec: "SymbolSequence",
         } => Some(Box::new(None::<Vec<crate::syntax::OracleSymbol>>)),
+        K::TypedScalar {
+            value_type: "Vocab",
+            codec: "Adverb",
+        } => Some(Box::new(None::<crate::word::Vocab>)),
         K::Subtree {
             category: "NounPhrase",
             boxed: false,
@@ -1175,6 +1212,10 @@ fn erased_optional_absent(
             category: "PrepositionalPhrase",
             boxed: false,
         } => Some(Box::new(None::<crate::syntax::PrepositionalPhrase>)),
+        K::Subtree {
+            category: "GerundClause",
+            boxed: false,
+        } => Some(Box::new(None::<crate::syntax::GerundClause>)),
         K::Subtree {
             category: "Clause",
             boxed: false,
@@ -1331,9 +1372,7 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::NominalCoordinatedModifier => lower_nominal(tag, children),
         RuleTag::PrepositionalPhraseListPair
         | RuleTag::PrepositionalPhraseListComma
-        | RuleTag::PrepositionalPhraseSiblingCoordinated
-        | RuleTag::PrepositionalPhrase
-        | RuleTag::PrepositionalObject => lower_phrase(tag, children),
+        | RuleTag::PrepositionalPhraseSiblingCoordinated => lower_phrase(tag, children),
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
@@ -1372,32 +1411,6 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
 /// untouched.
 pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
-        RuleTag::PrepositionalObject => {
-            let phrase = match take(children, 0)? {
-                Lowered::NounPhrase(object) => Phrase::NounPhrase(Box::new(object)),
-                Lowered::PrepositionalPhrase(object) => {
-                    Phrase::PrepositionalPhrase(Box::new(object))
-                }
-                Lowered::GerundClause(object) => Phrase::Clause(Box::new(Clause::Dependent(
-                    crate::syntax::DependentClause::Gerund(object),
-                ))),
-                Lowered::Adverb(object) => Phrase::Adverb(object),
-                _ => return None,
-            };
-            Some(Lowered::Phrase(phrase))
-        }
-        RuleTag::PrepositionalPhrase => {
-            let Lowered::Preposition(preposition) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Phrase(object) = take(children, 1)? else {
-                return None;
-            };
-            Some(Lowered::PrepositionalPhrase(PrepositionalPhrase::simple(
-                preposition,
-                object,
-            )))
-        }
         RuleTag::PrepositionalPhraseListPair
         | RuleTag::PrepositionalPhraseListComma
         | RuleTag::PrepositionalPhraseSiblingCoordinated => {

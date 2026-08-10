@@ -262,6 +262,54 @@ mod tests {
     }
 
     #[test]
+    fn production_p02_families_are_generated_only() {
+        let ids = ["prepositional_phrase", "prepositional_object"];
+        let declarations =
+            crate::constructions::prepositional::PREPOSITIONAL_DECLARATION.constructions;
+        assert_eq!(
+            declarations
+                .iter()
+                .map(|construction| construction.id)
+                .collect::<Vec<_>>(),
+            ids
+        );
+        assert!(declarations.iter().all(|construction| {
+            construction.dominates.is_empty() && construction.dominated_by.is_empty()
+        }));
+
+        for name in ids {
+            let id = ConstructionId::new(name);
+            assert!(
+                handwritten_registry().family(id).is_none(),
+                "{name} still has a handwritten owner"
+            );
+            let family = registry()
+                .family(id)
+                .unwrap_or_else(|| panic!("{name} is absent from production"));
+            assert_eq!(family.owner(), ConstructionOwner::Generated, "{name}");
+            assert_eq!(family.backend(), ConstructionBackend::Chart, "{name}");
+
+            for other in registry().families() {
+                assert!(
+                    !registry().dominates(id, other.id()),
+                    "P02 must declare no outgoing dominance edge: {id} > {}",
+                    other.id()
+                );
+            }
+        }
+
+        for incoming in ["noun_phrase_coordination", "shared_determiner_nominal"] {
+            assert!(
+                registry().dominates(
+                    ConstructionId::new(incoming),
+                    ConstructionId::new("prepositional_phrase")
+                ),
+                "missing C01 incoming edge {incoming} > prepositional_phrase"
+            );
+        }
+    }
+
+    #[test]
     fn production_v01_has_exactly_34_generated_owners_and_declaration_edges() {
         // Mutations caught: leave any V01 ID as a RuleTag-backed handwritten
         // family, activate only part of the declaration group, duplicate an

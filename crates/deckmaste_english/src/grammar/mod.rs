@@ -2026,8 +2026,6 @@ pub(crate) struct SubjectAuxiliaryKey {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, strum::EnumIter, strum::IntoStaticStr)]
 #[strum(serialize_all = "snake_case")]
 enum RuleTag {
-    PrepositionalPhrase,
-    PrepositionalObject,
     ClauseCoordination,
     ClauseCoordinationComma,
     ClauseCoordinationAsyndetic,
@@ -2161,7 +2159,6 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         activation: generated::GeneratedActivation,
     ) -> Self {
         let mut builder = RuleBuilder::default();
-        builder.add_nominal_rules();
         builder.add_clause_rules();
         // The calls below retain their feature-round grouping for authoring
         // locality. `finish` may reorder whole construction families; stable

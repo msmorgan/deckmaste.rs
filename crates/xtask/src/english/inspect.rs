@@ -525,6 +525,57 @@ mod tests {
     }
 
     #[test]
+    fn production_p02_inspect_reports_generated_object_and_attachment_evidence() {
+        let selected = verbose_m01("Look at the top card of your library.");
+        assert!(
+            selected.contains(
+                " prepositional_object owner=generated backend=chart form=0 evidence=feature:prepositional object category value=category=PrepositionalObject"
+            ),
+            "{selected}",
+        );
+        assert!(
+            selected.contains(" verb_phrase_prepositional owner=generated backend=chart "),
+            "selected-complement consumer missing:\n{selected}",
+        );
+        assert!(
+            selected
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
+                .contains("Complement( Prepositional("),
+            "selected PP lost its typed complement role:\n{selected}",
+        );
+
+        let adjunct = verbose_m01("Attack during your turn.");
+        assert!(
+            adjunct.contains(" verb_phrase_prepositional owner=generated backend=chart "),
+            "adjunct consumer missing:\n{adjunct}",
+        );
+        assert!(
+            adjunct
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
+                .contains("Adjunct( Prepositional("),
+            "adjunct PP lost its typed consumer role:\n{adjunct}",
+        );
+
+        let nominal = verbose_m01("Destroy target creature with flying.");
+        assert!(
+            nominal.contains(
+                " nominal_prepositional owner=generated backend=chart form=0 evidence=feature:nominal attachment phase"
+            ),
+            "nominal-attachment consumer missing:\n{nominal}",
+        );
+        for rendered in [&selected, &adjunct, &nominal] {
+            assert!(
+                rendered.contains(" prepositional_phrase owner=generated backend=chart "),
+                "P02 phrase owner missing:\n{rendered}",
+            );
+        }
+    }
+
+    #[test]
     fn production_d01_inspect_reports_generated_owners_and_constraint_evidence() {
         let target = verbose_m01("Target creature gets +1/+1 until end of turn.");
         assert!(
