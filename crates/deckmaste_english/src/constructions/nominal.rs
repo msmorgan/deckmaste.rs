@@ -2801,11 +2801,7 @@ mod tests {
             panic!("draw fixture has a transitive predicate")
         };
         transitive.head.verb.slot = VerbSlot::Infinitive;
-        let infinitive = InfinitiveClause {
-            negated: false,
-            marker: crate::syntax::InfinitiveMarker::To,
-            predicate: Box::new(predicate),
-        };
+        let infinitive = crate::clause::build_infinitive_to(predicate).unwrap();
         let nominal_infinitive = build_nominal_infinitive(card_nominal(), infinitive).unwrap();
         let (nominal, infinitive) = parts_nominal_infinitive(&nominal_infinitive);
         records!(
@@ -3585,17 +3581,19 @@ mod tests {
 
     #[test]
     fn by_gerund_pp_crosses_only_the_partial_chart_door() {
-        let IndependentClause::Imperative(predicate) = parsed_independent("Sacrifice a card.")
+        let IndependentClause::Imperative(mut predicate) = parsed_independent("Sacrifice a card.")
         else {
             panic!("gerund fixture starts from an imperative predicate");
         };
+        let crate::syntax::Predicate::Transitive(transitive) = &mut predicate else {
+            panic!("sacrifice fixture has a transitive predicate")
+        };
+        transitive.head.verb.slot = VerbSlot::PresentParticiple;
+        let gerund = crate::clause::build_gerund_clause_base(predicate).unwrap();
         let by_gerund = PrepositionalPhrase::simple(
             Preposition::By,
             Phrase::Clause(Box::new(crate::syntax::Clause::Dependent(
-                crate::syntax::DependentClause::Gerund(crate::syntax::GerundClause {
-                    predicate: Box::new(predicate),
-                    attachments: Vec::new(),
-                }),
+                crate::syntax::DependentClause::Gerund(gerund),
             ))),
         );
         assert!(build_nominal_prepositional(card_nominal(), by_gerund.clone()).is_err());

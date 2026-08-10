@@ -90,6 +90,22 @@ impl ParsedNonterminal {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) fn infinitive_clause(&self) -> Option<&crate::syntax::InfinitiveClause> {
+        match &self.syntax {
+            Lowered::InfinitiveClause(clause) => Some(clause),
+            _ => None,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn gerund_clause(&self) -> Option<&crate::syntax::GerundClause> {
+        match &self.syntax {
+            Lowered::GerundClause(clause) => Some(clause),
+            _ => None,
+        }
+    }
+
     pub(crate) fn quantity(&self) -> Option<&Quantity> {
         match &self.syntax {
             Lowered::Quantity(quantity) => Some(quantity),

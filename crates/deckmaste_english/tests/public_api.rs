@@ -1032,6 +1032,68 @@ fn public_predicate_facade_rejects_invalid_valency_form_voice_and_order() {
 }
 
 #[test]
+fn public_nonfinite_facade_builds_projects_renders_and_rejects_wrong_forms() {
+    use deckmaste_english::clause as clause_api;
+    use deckmaste_english::predicate as predicate_api;
+
+    let predicate = |verb, slot| {
+        predicate_api::build_predicate_verb(
+            VerbInstance {
+                verb: Verb::Word(verb),
+                slot,
+            },
+            predicate_api::PredicateFrameChoice::Intransitive,
+        )
+        .and_then(predicate_api::finish_predicate)
+        .expect("the predicate declaration accepts the requested complete form")
+    };
+    let attack_infinitive = predicate(Vocab::Attack, VerbSlot::Infinitive);
+    let attack_gerund = predicate(Vocab::Attack, VerbSlot::PresentParticiple);
+    let alternative_gerund = predicate(Vocab::Attack, VerbSlot::PresentParticiple);
+    let imperative = predicate(Vocab::Attack, VerbSlot::Imperative);
+
+    let infinitive = clause_api::build_infinitive_to(attack_infinitive.clone()).unwrap();
+    assert!(!infinitive.negated());
+    assert_eq!(infinitive.marker(), InfinitiveMarker::To);
+    assert_eq!(infinitive.predicate(), &attack_infinitive);
+    assert_eq!(
+        clause_api::parts_infinitive_to(&infinitive),
+        attack_infinitive
+    );
+    assert_eq!(
+        clause_api::render_infinitive(&infinitive, "Test Card", false).unwrap(),
+        "to attack"
+    );
+
+    let negated =
+        clause_api::build_infinitive_not_to(predicate(Vocab::Attack, VerbSlot::Infinitive))
+            .unwrap();
+    assert!(negated.negated());
+    assert_eq!(
+        clause_api::render_infinitive(&negated, "Test Card", false).unwrap(),
+        "not to attack"
+    );
+
+    let matrix = clause_api::build_gerund_clause_base(attack_gerund.clone()).unwrap();
+    let alternative = clause_api::build_gerund_clause_base(alternative_gerund.clone()).unwrap();
+    let attached =
+        clause_api::build_gerund_clause_subordinate_after(matrix.clone(), alternative.clone())
+            .unwrap();
+    assert_eq!(clause_api::parts_gerund_clause_base(&matrix), attack_gerund);
+    assert_eq!(
+        clause_api::parts_gerund_clause_subordinate_after(&attached),
+        (matrix, alternative)
+    );
+    assert_eq!(
+        clause_api::render_gerund(&attached, "Test Card", false).unwrap(),
+        "attacking rather than attacking"
+    );
+
+    assert!(clause_api::build_infinitive_to(imperative.clone()).is_err());
+    assert!(clause_api::build_gerund_clause_base(imperative).is_err());
+}
+
+#[test]
 fn public_predicate_facade_preserves_prepositional_adjunct_role() {
     use deckmaste_english::nominal as nominal_api;
     use deckmaste_english::predicate as predicate_api;
@@ -2154,7 +2216,7 @@ impl<'syntax> SyntaxInventory<'syntax> {
                 self.independent_clause(clause);
             }
             DependentClause::Subordinate(_, SubordinateBody::Infinitive(clause))
-            | DependentClause::Infinitive(clause) => self.predicate(&clause.predicate),
+            | DependentClause::Infinitive(clause) => self.predicate(clause.predicate()),
             DependentClause::Subordinate(_, SubordinateBody::Gerund(clause))
             | DependentClause::Gerund(clause) => self.gerund_clause(clause),
             DependentClause::Subordinate(
@@ -2166,8 +2228,8 @@ impl<'syntax> SyntaxInventory<'syntax> {
     }
 
     fn gerund_clause(&mut self, clause: &'syntax GerundClause) {
-        self.predicate(&clause.predicate);
-        for attachment in &clause.attachments {
+        self.predicate(clause.predicate());
+        for attachment in clause.attachments() {
             self.dependent_clause(&attachment.payload);
         }
     }
@@ -2258,7 +2320,7 @@ impl<'syntax> SyntaxInventory<'syntax> {
                     self.prepositional_phrase(preposition);
                 }
                 PredicateElement::Complement(PredicateComplement::Infinitive(infinitive)) => {
-                    self.predicate(&infinitive.predicate);
+                    self.predicate(infinitive.predicate());
                 }
                 PredicateElement::Adjunct(adjunct) => self.predicate_adjunct(adjunct),
                 PredicateElement::Particle(_) | PredicateElement::CoinResult(_) => {}
@@ -2409,7 +2471,7 @@ impl<'syntax> SyntaxInventory<'syntax> {
                 self.prepositional_phrase(preposition);
             }
             NominalComplement::Infinitive(infinitive) => {
-                self.predicate(&infinitive.predicate);
+                self.predicate(infinitive.predicate());
             }
             NominalComplement::Relative(relative) => self.relative_clause(relative),
             NominalComplement::ReducedRecipientPassive(predicate) => {
@@ -2451,7 +2513,7 @@ impl<'syntax> SyntaxInventory<'syntax> {
                     self.prepositional_phrase(preposition);
                 }
                 AdjectiveComplement::Infinitive(infinitive) => {
-                    self.predicate(&infinitive.predicate);
+                    self.predicate(infinitive.predicate());
                 }
             }
         }

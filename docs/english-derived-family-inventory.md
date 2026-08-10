@@ -13,20 +13,21 @@ The chart census comes from the merged production registry in
 to one fan-out-one row; its generated side contributes the ten Q01 quantity
 rows, the nine D01 determiner/possession rows, the nine J01 adjective rows, the
 37 M01 nominal rows, S01 `sentence`, N01 `noun`/`noun_opaque`, the two generated
-coordination rows, and all 34 V01 predicate rows. The ability census
+coordination rows, all 34 V01 predicate rows, the four F01 nonfinite-clause
+rows, and all 18 F02 finite-clause rows. The ability census
 comes from the three non-chart entry points documented and dispatched by
 `FragmentKind`: `Cost`, `KeywordLine`, and `Ability`.
 
 | source | handwritten / ungenerated | already generated | accounted total |
 |---|---:|---:|---:|
-| chart construction registry | 88 | 104 | 192 |
+| chart construction registry | 66 | 126 | 192 |
 | handwritten ability layer | 3 | 0 | 3 |
-| migration inventory | 91 | 104 | 195 |
+| migration inventory | 69 | 126 | 195 |
 
-Every one of the 192 chart IDs occurs once in the ledger below: 88 remain
-handwritten, while Q01, D01, J01, M01, V01, S01, N01, and the two coordination
-rows are generated. The three ability IDs occur once in A01. Thus the remaining
-work is 91 rows, with no `later` row. No raw corpus query was needed for this
+Every one of the 192 chart IDs occurs once in the ledger below: 66 remain
+handwritten, while Q01, D01, J01, M01, V01, F01, F02, S01, N01, and the two
+coordination rows are generated. The three ability IDs occur once in A01. Thus
+the remaining work is 69 rows, with no `later` row. No raw corpus query was needed for this
 accounting; the census is grounded in the registry and the current
 `FragmentKind` dispatch. Future corpus evidence must use supported faces, and
 normalized-template questions must use the existing English instruments.
@@ -97,8 +98,8 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 | P01 noun phrase | 19 | C3 | `english-derived-noun-phrase-family` | scalar and identity |
 | P02 prepositional phrase | 2 | C3 | `english-derived-prepositional-family` | identity |
 | V01 predicate spine | 34 | C3 | `english-derived-predicate-family` | scalar, identity, lens |
-| F01 nonfinite clause | 4 | C3 | `english-derived-nonfinite-clause-family` | valency and form |
-| F02 finite and copular clause | 18 | C3 | `english-derived-finite-clause-family` | valency and agreement |
+| F01 nonfinite clause | 4 | C3 | `english-derived-nonfinite-clause-family` | generated |
+| F02 finite and copular clause | 18 | C3 | `english-derived-finite-clause-family` | generated |
 | F03 clause attachment | 16 | C3 | `english-derived-clause-attachment-family` | valency, form, and attachment constraints |
 | F04 clause coordination | 6 | C4 | `english-derived-clause-coordination-family` | finite agreement, structural design, tuple yields |
 | R01 relative clause | 8 | C3 | `english-derived-relative-clause-family` | valency and gaps |
@@ -393,22 +394,28 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 
 ## F01 — nonfinite clause
 
+**Status:** generated.
+
 **Stable IDs (4):** `infinitive_to`, `infinitive_not_to`,
 `gerund_clause_base`, `gerund_clause_subordinate_after`.
 
-- **Owners and AST:** CR → `InfinitiveClause` and `GerundClause`; REN and SYN-C
-  own output and ingress.
-- **Holes and constraints:** whole predicate/clause subtree holes plus the
-  negation identity. Bare/infinitive/gerund form and subordinate attachment are
-  required; there is no discontinuity.
+- **Owners and AST:** the F01 declaration and its generated chart, typed-feature,
+  lowering, inverse-render, and checked-build projections are the single
+  authority for sealed `InfinitiveClause` and `GerundClause` values. Public
+  callers use checked builders and read-only semantic projections.
+- **Holes and constraints:** whole predicate/clause subtree holes. Infinitive
+  negation is preserved by the selected typed construction; infinitive/gerund
+  form, lexical valency, and subordinate attachment are required constraints.
+  There is no discontinuity.
 - **Ambiguity/backend:** fan-out one on Chart, no direct dominance edge.
   Predicate valency rather than registration order licenses the complement.
 - **Witnesses:** infinitive negation and subordinate position are
   meaning-bearing; `to` and spacing are derived fixed style.
 - **Consumers and gates:** nominal and predicate complements, PP objects,
   complex clauses, spelling views. Direct AST and inspect fixtures cover both
-  infinitives and gerund attachment; exactness covers `to`/`not to`; negatives
-  reject wrong predicate forms and unlicensed dependent roots.
+  infinitives and gerund attachment; exactness covers `to`/`not to` and nested
+  `rather than`; negatives reject wrong predicate forms, raw construction, and
+  unlicensed dependent roots.
 
 ## F02 — finite and copular clause
 
@@ -670,7 +677,7 @@ one change. It must also run the build-excluding parent/current
 so a family migration cannot hide work growth in failed or abandoned paths.
 It may not defer any of those to completion.
 
-The completion node depends on the remaining thirteen chart tickets and the
+The completion node depends on the remaining twelve chart tickets and the
 existing ability-backend ticket. Its final audit therefore has 190 newly
 migrated plus five already-generated families—195 generated families in
 all—to prove, with no handwritten or unregistered family left to discover.

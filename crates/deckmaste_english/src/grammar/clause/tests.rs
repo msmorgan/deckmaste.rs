@@ -932,12 +932,8 @@ fn as_though_mana_copula_purpose_infinitive_attaches_inside_the_complement_nomin
     assert!(
         matches!(
             any_color.complements(),
-            [NominalComplement::Infinitive(
-                crate::syntax::InfinitiveClause {
-                    marker: InfinitiveMarker::To,
-                    ..
-                }
-            )]
+            [NominalComplement::Infinitive(infinitive)]
+                if infinitive.marker() == InfinitiveMarker::To
         ),
         "expected the purpose infinitive on the inner `any color` nominal: {any_color:#?}"
     );
@@ -2798,12 +2794,8 @@ fn fronted_cost_phrase_is_an_adjunct_with_an_infinitive_complement() {
     ));
     assert!(matches!(
         nominal.complements(),
-        [NominalComplement::Infinitive(
-            crate::syntax::InfinitiveClause {
-                marker: InfinitiveMarker::To,
-                ..
-            }
-        )]
+        [NominalComplement::Infinitive(infinitive)]
+            if infinitive.marker() == InfinitiveMarker::To
     ));
     assert!(matches!(
         complex.matrix.as_ref(),
@@ -3481,12 +3473,9 @@ fn rather_than_introduces_a_bare_infinitive_clause() {
             comma: crate::features::Comma::Absent,
             payload: ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
                 Subordinator::RatherThan,
-                SubordinateBody::Infinitive(crate::syntax::InfinitiveClause {
-                    marker: InfinitiveMarker::Bare,
-                    ..
-                }),
+                SubordinateBody::Infinitive(infinitive),
             ),),
-        }]
+        }] if infinitive.marker() == InfinitiveMarker::Bare
     ));
 }
 
@@ -3520,12 +3509,9 @@ fn rather_than_can_contrast_gerund_clauses() {
     let Clause::Dependent(DependentClause::Gerund(gerund)) = clause.as_ref() else {
         panic!("by should take a gerund clause: {clause:#?}");
     };
+    assert!(matches!(gerund.predicate(), Predicate::Transitive(_)));
     assert!(matches!(
-        gerund.predicate.as_ref(),
-        Predicate::Transitive(_)
-    ));
-    assert!(matches!(
-        gerund.attachments.as_slice(),
+        gerund.attachments(),
         [DependentAttachment {
             position: AttachmentPosition::AfterMatrix,
             comma: crate::features::Comma::Absent,
@@ -3533,7 +3519,7 @@ fn rather_than_can_contrast_gerund_clauses() {
                 Subordinator::RatherThan,
                 SubordinateBody::Gerund(alternative),
             ),
-        }] if matches!(alternative.predicate.as_ref(), Predicate::Transitive(_))
+        }] if matches!(alternative.predicate(), Predicate::Transitive(_))
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -3553,9 +3539,8 @@ fn not_to_negates_an_infinitive_clause() {
     };
     assert!(matches!(
         choose.elements.as_slice(),
-        [PredicateElement::Complement(
-            PredicateComplement::Infinitive(crate::syntax::InfinitiveClause { negated: true, .. })
-        )]
+        [PredicateElement::Complement(PredicateComplement::Infinitive(infinitive))]
+            if infinitive.negated()
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -3590,6 +3575,65 @@ fn production_f01_forms_render_exactly_and_report_generated_owners() {
                 "{id}"
             );
         }
+    }
+}
+
+#[test]
+fn production_f01_direct_roots_are_exact_and_wrong_forms_are_rejected() {
+    for (source, nonterminal, expected) in [
+        ("to attack", Nonterminal::InfinitiveClause, "to attack"),
+        (
+            "not to attack",
+            Nonterminal::InfinitiveClause,
+            "not to attack",
+        ),
+        ("attacking", Nonterminal::GerundClause, "attacking"),
+        (
+            "attacking rather than attacking",
+            Nonterminal::GerundClause,
+            "attacking rather than attacking",
+        ),
+    ] {
+        let parsed = parse_nonterminal(source, &fixture_catalogs(), nonterminal)
+            .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+        let rendered = match nonterminal {
+            Nonterminal::InfinitiveClause => crate::clause::render_infinitive(
+                parsed.infinitive_clause().expect("infinitive root"),
+                "Test Card",
+                false,
+            ),
+            Nonterminal::GerundClause => crate::clause::render_gerund(
+                parsed.gerund_clause().expect("gerund root"),
+                "Test Card",
+                false,
+            ),
+            _ => unreachable!(),
+        }
+        .expect("the generated inverse renders the direct root");
+        assert_eq!(rendered, expected);
+        assert!(parsed.construction_decisions().iter().any(|decision| {
+            matches!(
+                decision.selected().as_str(),
+                "infinitive_to"
+                    | "infinitive_not_to"
+                    | "gerund_clause_base"
+                    | "gerund_clause_subordinate_after"
+            ) && decision.owner() == crate::construction::ConstructionOwner::Generated
+        }));
+    }
+
+    for (source, nonterminal) in [
+        ("to attacking", Nonterminal::InfinitiveClause),
+        ("not attack", Nonterminal::InfinitiveClause),
+        ("attack", Nonterminal::GerundClause),
+        ("rather than attacking", Nonterminal::GerundClause),
+        ("to attack", Nonterminal::GerundClause),
+        ("attacking", Nonterminal::InfinitiveClause),
+    ] {
+        assert!(
+            parse_nonterminal(source, &fixture_catalogs(), nonterminal).is_err(),
+            "{source:?} must not satisfy the {nonterminal:?} root"
+        );
     }
 }
 

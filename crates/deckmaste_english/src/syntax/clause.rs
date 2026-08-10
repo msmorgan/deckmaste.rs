@@ -464,21 +464,80 @@ pub enum FrequencyCount {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct InfinitiveClause {
-    pub negated: bool,
-    pub marker: InfinitiveMarker,
-    pub predicate: Box<Predicate>,
+    negated: bool,
+    marker: InfinitiveMarker,
+    predicate: Box<Predicate>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct GerundClause {
-    pub predicate: Box<Predicate>,
-    pub attachments: Vec<DependentAttachment>,
+    predicate: Box<Predicate>,
+    attachments: Vec<DependentAttachment>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum InfinitiveMarker {
     Bare,
     To,
+}
+
+impl InfinitiveClause {
+    pub(crate) fn from_declaration_parts(
+        negated: bool,
+        marker: InfinitiveMarker,
+        predicate: Predicate,
+    ) -> Self {
+        Self {
+            negated,
+            marker,
+            predicate: Box::new(predicate),
+        }
+    }
+
+    pub(crate) fn declaration_bare(predicate: Predicate) -> Self {
+        Self::from_declaration_parts(false, InfinitiveMarker::Bare, predicate)
+    }
+
+    #[must_use]
+    pub const fn negated(&self) -> bool {
+        self.negated
+    }
+
+    #[must_use]
+    pub const fn marker(&self) -> InfinitiveMarker {
+        self.marker
+    }
+
+    #[must_use]
+    pub fn predicate(&self) -> &Predicate {
+        &self.predicate
+    }
+}
+
+impl GerundClause {
+    pub(crate) fn from_declaration_parts(
+        predicate: Predicate,
+        attachments: Vec<DependentAttachment>,
+    ) -> Self {
+        Self {
+            predicate: Box::new(predicate),
+            attachments,
+        }
+    }
+
+    pub(crate) fn into_declaration_parts(self) -> (Predicate, Vec<DependentAttachment>) {
+        (*self.predicate, self.attachments)
+    }
+
+    #[must_use]
+    pub fn predicate(&self) -> &Predicate {
+        &self.predicate
+    }
+
+    #[must_use]
+    pub fn attachments(&self) -> &[DependentAttachment] {
+        &self.attachments
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
