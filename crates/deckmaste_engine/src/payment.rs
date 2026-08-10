@@ -467,6 +467,10 @@ impl GameState {
     /// Open a resolution-time optional cost as a real payment transaction.
     /// There is no preliminary affordability oracle or Yes/No commitment: the
     /// payer either submits a complete payment or declines the frame.
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "the payment frame owns the optional-cost description at its transaction boundary"
+    )]
     pub(crate) fn begin_optional_payment(
         &mut self,
         payer: PlayerId,
@@ -1094,6 +1098,10 @@ impl GameState {
         legal
     }
 
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "a submitted reversal set is an owned decision payload"
+    )]
     pub(crate) fn submit_mana_reversals(
         &mut self,
         actions: Vec<ManaActionId>,

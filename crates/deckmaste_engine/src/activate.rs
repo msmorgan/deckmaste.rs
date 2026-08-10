@@ -605,9 +605,8 @@ impl GameState {
     /// [CR#601.2h,118.3]: can `player` fully pay every cost-eligible verb in
     /// `verbs`, with `subject` as the cost's source (`~`/`This`)? Each verb's
     /// payment is all-or-nothing, so this is `true` only when *every* verb is
-    /// satisfiable. The frame mirrors the condition gate's: the source is the
-    /// activation's object, the controller is the payer, and no targets are
-    /// chosen yet.
+    /// satisfiable. The test helper's frame uses the activation's object as its
+    /// source, the controller as payer, and no targets.
     #[must_use]
     #[cfg(test)]
     pub(crate) fn can_pay_verbs(
@@ -616,14 +615,12 @@ impl GameState {
         verbs: &[Action],
         subject: ObjectId,
     ) -> bool {
-        // Same anchoring as the condition gate (`can_activate` above): the
-        // payer is the controller, `~`/`This` is the live source.
-        // [CR#601.2b]: X has not been announced yet at the gate, so read it at
-        // its floor of 0 — the cheapest reading, mirroring how the mana gate
-        // "concretizes {X} to 0". A `Count::X` cost verb (a loyalty `−X`) is
-        // then payable for X=0 (remove 0 counters), so the ability is offered;
-        // the actual announced X is bound and paid at `pay_cost`. Without this,
-        // `eval_count(Count::X, …)` on an X-less frame would panic.
+        // The payer is the controller, and `~`/`This` is the live source.
+        // [CR#601.2b]: this test-only helper has no announced X, so it uses an
+        // X binding of 0. A `Count::X` cost verb (a loyalty `−X`) therefore
+        // reads as removing zero counters. The real payment protocol binds and
+        // pays the announced X. Without this binding, `eval_count(Count::X, …)`
+        // on an X-less frame would panic.
         let mut frame = Frame::bare(subject, player);
         frame.anaphora.x = Some(0);
         // TODO(engine-cost-payment / deontics): [CR#119.8] "can't pay life" is

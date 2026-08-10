@@ -512,6 +512,10 @@ impl GameState {
         }
     }
 
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "the caller transfers the triggered ability into this payment action boundary"
+    )]
     pub(crate) fn begin_triggered_mana_action(
         &mut self,
         _source: ObjectSource,

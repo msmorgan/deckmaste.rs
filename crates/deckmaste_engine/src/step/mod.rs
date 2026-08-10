@@ -202,6 +202,10 @@ impl GameState {
     ///
     /// Panics if the agenda is empty while the game is on — an engine
     /// invariant (every handler schedules its successor), not caller input.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the step dispatcher keeps every WorkItem transition in one exhaustive match"
+    )]
     pub fn step(&mut self) -> StepOutcome {
         if let Some(outcome) = self.outcome {
             return StepOutcome::GameOver(outcome);
@@ -1192,6 +1196,10 @@ impl GameState {
     /// ([CR#603.10a]): live card participants are snapshotted NOW, so later
     /// history matching reads them as they were — never the live store
     /// through a stale id.
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "history recording accepts the event ownership transferred by its caller"
+    )]
     pub(crate) fn record_history_fact(
         &mut self,
         turn: Uint,

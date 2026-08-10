@@ -462,7 +462,7 @@ fn submit_tap_mana_action(
         .last()
         .and_then(|record| match record.command {
             deckmaste_engine::ReplayCommand::ManaAbility { action, .. } => Some(action),
-            _ => None,
+            deckmaste_engine::ReplayCommand::Fulfill { .. } => None,
         })
         .expect("the completed child is recorded on its parent")
 }
@@ -846,7 +846,7 @@ fn producer_cannot_reverse_while_a_retained_mana_action_spent_its_mana() {
     let filter = put_named_in_play(&mut state, payer, "Filter");
     announce(&mut state, parent);
     let producer_action = submit_tap_mana_action(&mut state, producer);
-    let produced = state.player(payer).mana_pool.units()[0].id;
+    let produced_unit = state.player(payer).mana_pool.units()[0].id;
 
     state
         .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
@@ -868,7 +868,7 @@ fn producer_cannot_reverse_while_a_retained_mana_action_spent_its_mana() {
         .unwrap()
         .id;
     let mut coverage = ManaCoverage::empty();
-    coverage.insert(pip, ManaPayment::Floating(produced));
+    coverage.insert(pip, ManaPayment::Floating(produced_unit));
     state
         .submit_decision(Decision::Payment(PaymentCommand::BeginPayment(coverage)))
         .unwrap();
@@ -893,7 +893,7 @@ fn producer_cannot_reverse_while_a_retained_mana_action_spent_its_mana() {
     let filter_record = records.last().unwrap();
     let filter_action = match filter_record.command {
         deckmaste_engine::ReplayCommand::ManaAbility { action, .. } => Some(action),
-        _ => None,
+        deckmaste_engine::ReplayCommand::Fulfill { .. } => None,
     }
     .unwrap();
     assert_eq!(filter_record.dependencies, vec![producer_record]);
@@ -970,7 +970,7 @@ fn replay_rebinds_mana_after_an_unrelated_earlier_producer_is_omitted() {
         .last()
         .and_then(|record| match record.command {
             deckmaste_engine::ReplayCommand::ManaAbility { action, .. } => Some(action),
-            _ => None,
+            deckmaste_engine::ReplayCommand::Fulfill { .. } => None,
         })
         .unwrap();
 
@@ -1100,7 +1100,7 @@ fn nested_mana_action_is_an_independently_reversible_unit() {
         .last()
         .and_then(|record| match record.command {
             deckmaste_engine::ReplayCommand::ManaAbility { action, .. } => Some(action),
-            _ => None,
+            deckmaste_engine::ReplayCommand::Fulfill { .. } => None,
         })
         .unwrap();
 
