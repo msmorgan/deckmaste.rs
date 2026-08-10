@@ -516,6 +516,7 @@ impl StrategyEvaluator {
             other @ (PendingDecision::ChooseCostOptions(
                 crate::decide::pending::ChooseCostOptions { .. },
             )
+            | PendingDecision::Payment(_)
             | PendingDecision::OrderReplacements(
                 crate::decide::pending::OrderReplacements { .. },
             )

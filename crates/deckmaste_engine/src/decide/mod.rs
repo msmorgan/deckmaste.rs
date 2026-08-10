@@ -129,6 +129,7 @@ impl PendingDecision {
             PendingDecision::ChooseTargets(h) => h.player,
             PendingDecision::Retarget(h) => h.player,
             PendingDecision::PayMana(h) => h.player,
+            PendingDecision::Payment(h) => h.payer,
             PendingDecision::OrderTriggers(h) => h.player,
             PendingDecision::DeclareAttackers(h) => h.player,
             PendingDecision::DeclareBlockers(h) => h.player,
@@ -159,7 +160,7 @@ impl PendingDecision {
             | PendingDecision::ChooseCostOptions(_)
             | PendingDecision::ChooseXValue(_)
             | PendingDecision::Division(_) => LockPoint::Announce,
-            PendingDecision::PayMana(_) => LockPoint::Payment,
+            PendingDecision::PayMana(_) | PendingDecision::Payment(_) => LockPoint::Payment,
             PendingDecision::OrderTriggers(_) => LockPoint::StackPlacement,
             PendingDecision::DeclareAttackers(_)
             | PendingDecision::DeclareBlockers(_)
@@ -197,6 +198,7 @@ pub enum PendingDecision {
     ChooseTargets(ChooseTargets),
     Retarget(Retarget),
     PayMana(PayMana),
+    Payment(crate::payment::PaymentPrompt),
     OrderTriggers(OrderTriggers),
     DeclareAttackers(DeclareAttackers),
     DeclareBlockers(DeclareBlockers),
@@ -260,6 +262,8 @@ pub enum Decision {
     Targets(Vec<Vec<ObjectId>>),
     /// Answers `PayMana`: how the pool covers the cost.
     Pay(crate::cast::Payment),
+    /// Answers the staged payment-obligation protocol.
+    Payment(crate::payment::PaymentCommand),
     /// Answers `OrderTriggers`: a permutation of `0..triggers.len()` giving the
     /// placement order ([CR#603.3b]).
     Order(Vec<usize>),
@@ -526,7 +530,7 @@ impl GameState {
     /// flight — an engine invariant (the announce slot is open across the
     /// decision), not caller input.
     pub fn submit_decision(&mut self, decision: Decision) -> Result<(), DecisionError> {
-        let Some(pending) = &self.pending else {
+        let Some(pending) = self.pending.clone() else {
             return Err(DecisionError::NothingPending);
         };
         // [CR#104.3a] "at any time": conceding answers EVERY decision —
@@ -538,11 +542,20 @@ impl GameState {
             self.concede(player);
             return Ok(());
         }
+        // Clone the complete image BEFORE a legal spell/non-mana-ability
+        // proposal mutates it. The priority handler then runs unchanged
+        // through `DerefMut`, against the isolated working image.
+        if let (PendingDecision::Priority(priority), Decision::Act(action)) = (&pending, &decision)
+            && priority.legal.contains(action)
+            && self.action_starts_payment_proposal(action)
+        {
+            self.begin_payment_proposal(priority.player);
+        }
         // The whole dispatch: one arm per `PendingDecision` variant, each
         // routing to that kind's `DecisionHandler::resolve`. `.clone()` is
         // needed because `self.pending` can't be moved out of while `self`
         // is passed to `h.resolve` mutably.
-        match self.pending.clone().expect("checked Some") {
+        match pending {
             PendingDecision::Priority(h) => h.resolve(self, decision),
             PendingDecision::DiscardToHandSize(h) => h.resolve(self, decision),
             PendingDecision::DiscardCards(h) => h.resolve(self, decision),
@@ -552,6 +565,7 @@ impl GameState {
             PendingDecision::ChooseTargets(h) => h.resolve(self, decision),
             PendingDecision::Retarget(h) => h.resolve(self, decision),
             PendingDecision::PayMana(h) => h.resolve(self, decision),
+            PendingDecision::Payment(h) => h.resolve(self, decision),
             PendingDecision::OrderTriggers(h) => h.resolve(self, decision),
             PendingDecision::DeclareAttackers(h) => h.resolve(self, decision),
             PendingDecision::DeclareBlockers(h) => h.resolve(self, decision),
@@ -570,6 +584,19 @@ impl GameState {
             PendingDecision::ChooseObjects(h) => h.resolve(self, decision),
             PendingDecision::LegendRule(h) => h.resolve(self, decision),
             PendingDecision::ArrangePile(h) => h.resolve(self, decision),
+        }
+    }
+
+    fn action_starts_payment_proposal(&self, action: &Action) -> bool {
+        match action {
+            Action::CastSpell { .. } => true,
+            Action::ActivateAbility { object, ability } => {
+                let abilities = derive::usable_abilities(self, *object);
+                abilities
+                    .get(*ability)
+                    .is_some_and(|a| derive::tap_mana_ability(a).is_none())
+            }
+            Action::Pass | Action::Concede | Action::Special(_) | Action::PlayLand { .. } => false,
         }
     }
 
@@ -1075,7 +1102,7 @@ impl GameState {
             WorkItem::AnnounceX,
             WorkItem::AnnounceTargets,
             WorkItem::ChooseCostOptions,
-            WorkItem::PayCost,
+            WorkItem::OpenPayment,
             WorkItem::Emit(Occurrence::single(cast_event)),
         ]
     }

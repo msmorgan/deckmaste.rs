@@ -1721,7 +1721,7 @@ fn schedule_activation(
         WorkItem::AnnounceModes,
         WorkItem::AnnounceTargets,
         WorkItem::ChooseCostOptions,
-        WorkItem::PayCost,
+        WorkItem::OpenPayment,
         WorkItem::Emit(Occurrence::single(GameEvent::AbilityActivated(
             AbilityActivated {
                 source: object,

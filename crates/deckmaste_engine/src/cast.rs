@@ -604,12 +604,6 @@ fn partition_alternative_cost(cost: &deckmaste_core::Cost) -> (ManaCost, Vec<Cos
     (ManaCost::from(Arc::from(symbols)), verbs)
 }
 
-/// [CR#118.9]: just the MANA portion of an alternative base cost — the
-/// affordability-gate view ([`GameState::can_cast_as_effect`]).
-fn alternative_cost_mana(cost: &deckmaste_core::Cost) -> ManaCost {
-    partition_alternative_cost(cost).0
-}
-
 /// The target declarations contributed by the already-announced modal
 /// selection. Each chosen mode owns a fresh target scope, so its specs are
 /// appended in choice order; a nonmodal effect contributes its ordinary
@@ -905,8 +899,9 @@ impl GameState {
     /// [CR#601.3,601.2g]: may `player` cast `object` now? Offered iff the
     /// object is in the holder's hand (the caller iterates the hand), the
     /// object is not a land ([CR#305.9]), timing permits (instant → any
-    /// priority; otherwise sorcery-speed), the pool can pay the cost, and
-    /// every target spec has at least one legal candidate.
+    /// priority; otherwise sorcery-speed), and every target spec has at least
+    /// one legal candidate. Resource sufficiency is deliberately deferred to
+    /// the explicit payment protocol.
     #[must_use]
     pub(crate) fn can_cast(
         &self,
@@ -914,19 +909,8 @@ impl GameState {
         player: PlayerId,
         object: ObjectId,
     ) -> bool {
-        // Split into the mana-independent legality (timing, non-empty cost, a
-        // legal target per spec) and the affordability gate. The former yields
-        // the concrete cost to price; a runner-side autotapper reuses it (see
-        // `autotap_for_cast`) to tell "blocked only by unfloated mana" apart
-        // from "illegal regardless of mana".
-        let Some(cost) = self.castable_cost_ignoring_mana(view, player, object) else {
-            return false;
-        };
-        // [CR#601.2b,601.2g,107.3a]: gate mana affordability under all legal
-        // readings (concretizes {X} to 0, then plain or hybrid/Phyrexian path).
-        // The spell's own `PayPips` statics (convoke / delve / improvise) may
-        // cover pips the pool can't, so pass the spell for the pip-payment walk.
-        self.gate_mana_affordable(player, &cost, object, Some(object))
+        self.castable_cost_ignoring_mana(view, player, object)
+            .is_some()
     }
 
     /// The concrete cost `player` must cover to cast `object`, IFF every
@@ -1189,6 +1173,9 @@ impl GameState {
         controller: PlayerId,
         alternative_cost: Option<deckmaste_core::Cost>,
     ) {
+        if self.payment.is_none() {
+            self.begin_payment_proposal(controller);
+        }
         match origin {
             Zone::Hand => self.remove_from_hand(self.objects.obj(object).controller, object),
             Zone::Exile => self.remove_from_exile(object),
@@ -1224,15 +1211,17 @@ impl GameState {
     /// effect grants? The effect SUPPLIES the permission, so this skips the
     /// timing ([CR#307.1]) and zone/hand gates `can_cast` enforces — but the
     /// card must still be castable at all: not a land ([CR#305.9] — lands are
-    /// played, never cast), a non-empty printed mana cost ([CR#118.6]), a legal
-    /// candidate for every target spec ([CR#601.2c]), and a cost the caster's
-    /// pool can cover ([CR#601.2g]). This is the gate on the `May` "yes" branch
-    /// for `Cast(<ref>)`: offered only when it holds, else the `if_not` branch
-    /// runs ([CR#608.2g] — the empty offer defaults to "you don't").
+    /// played, never cast), a non-empty printed mana cost ([CR#118.6]), and a
+    /// legal candidate for every target spec ([CR#601.2c]). Whether its cost
+    /// can actually be paid is deliberately discovered by the payment frame,
+    /// after the proposal has been announced. This is the gate on the `May`
+    /// "yes" branch for `Cast(<ref>)`: offered only when it holds, else the
+    /// `if_not` branch runs ([CR#608.2g] — the empty offer defaults to "you
+    /// don't").
     #[must_use]
     pub(crate) fn can_cast_as_effect(
         &self,
-        caster: PlayerId,
+        _caster: PlayerId,
         object: ObjectId,
         alternative_cost: Option<&deckmaste_core::Cost>,
     ) -> bool {
@@ -1256,22 +1245,19 @@ impl GameState {
         // [CR#118.9,702.35a]: with an alternative base cost (madness), the
         // caster pays THAT rather than the printed mana cost — the "empty
         // printed cost is unpayable" gate ([CR#118.6]) is bypassed (the
-        // permission supplies a payable cost) and affordability is checked
-        // against the alternative's mana. Otherwise the printed mana cost is
-        // the base.
-        let cost = if let Some(alt) = alternative_cost {
-            alternative_cost_mana(alt)
-        } else {
+        // permission supplies a payable cost). Otherwise the printed mana cost
+        // is the base. Affordability is intentionally not checked until the
+        // payment frame is active.
+        if alternative_cost.is_none() {
             // [CR#118.6]: an empty mana cost is "no mana cost" — an unpayable base.
             let face = crate::derive::face(self.def(object));
             if face.mana_cost.is_empty() {
                 return false;
             }
-            let Some(cost) = self.mana_cost(object) else {
+            if self.mana_cost(object).is_none() {
                 return false;
-            };
-            cost
-        };
+            }
+        }
         // [CR#601.2c]: every target spec must have a legal candidate.
         let carrier = Some(self.objects.obj(object).source);
         let specs = crate::resolve::spell_targets(&view, object);
@@ -1282,9 +1268,7 @@ impl GameState {
         if !crate::resolve::announce_satisfiable(&specs, &legal) {
             return false;
         }
-        // [CR#601.2g]: the caster's pool (with the spell's own PayPips statics)
-        // must be able to cover the cost.
-        self.gate_mana_affordable(caster, &cost, object, Some(object))
+        true
     }
 
     /// [CR#608.2g]: the work-item chain that casts `object` from resolution,
@@ -1769,7 +1753,111 @@ impl GameState {
     /// Panics if no announce is in flight, the announce slot was not
     /// concretized (the `ChooseCostOptions` step always populates it), or a
     /// `Triggered` object occupies the slot.
-    pub(crate) fn pay_cost(&mut self) {
+    pub(crate) fn open_payment(&mut self) {
+        fn append_nonmana(cost: &deckmaste_core::Cost, out: &mut Vec<CostComponent>) {
+            for component in cost {
+                match component {
+                    CostComponent::Mana(_) | CostComponent::ManaCostOf(_) => {}
+                    CostComponent::Cost(inner) => append_nonmana(inner, out),
+                    other => out.push(other.clone()),
+                }
+            }
+        }
+
+        fn concretize_component_x(component: &CostComponent, x: Uint) -> CostComponent {
+            match component {
+                CostComponent::Mana(mana) => CostComponent::Mana(concretize_x(mana, x)),
+                CostComponent::Cost(inner) => CostComponent::Cost(deckmaste_core::Cost(
+                    inner
+                        .iter()
+                        .map(|component| concretize_component_x(component, x))
+                        .collect::<Arc<[_]>>(),
+                )),
+                other => other.clone(),
+            }
+        }
+
+        let pending = self
+            .announcing
+            .clone()
+            .expect("an announce in flight when payment opens");
+        let payer = pending.controller;
+        let announced_x = pending.x.unwrap_or(0);
+        let (mana, extra_components) = pending
+            .concretized
+            .clone()
+            .expect("ChooseCostOptions concretized the cost before OpenPayment");
+        let mana = concretize_x(&mana, announced_x);
+
+        let (subject, mut frame, components, pay_pips) = match pending.object {
+            StackObject::Spell(object) => {
+                let mut components = vec![CostComponent::Mana(mana)];
+                components.extend(extra_components);
+                components.extend(
+                    pending
+                        .optional_components
+                        .iter()
+                        .map(|component| concretize_component_x(component, announced_x)),
+                );
+                (
+                    crate::payment::PaymentSubject::Spell(object),
+                    Frame::bare(object, payer),
+                    components,
+                    self.payment_pip_alternatives(object),
+                )
+            }
+            StackObject::Activated {
+                source,
+                ability,
+                bindings,
+            } => {
+                let mut components = vec![CostComponent::Mana(mana)];
+                append_nonmana(&ability.cost, &mut components);
+                components.extend(extra_components);
+                let mut frame = Frame::bare(source, payer);
+                frame.this = bindings.this;
+                (
+                    crate::payment::PaymentSubject::Activated {
+                        ability: pending.id,
+                        source,
+                    },
+                    frame,
+                    components,
+                    Vec::new(),
+                )
+            }
+            StackObject::Triggered { .. } => {
+                unreachable!("a triggered ability never occupies the announce slot")
+            }
+        };
+        frame.anaphora.targets = pending.targets;
+        frame.anaphora.x = pending.x;
+        frame.payment = Some(self.mint_payment());
+        let cost = deckmaste_core::Cost(components.into());
+        let locked = crate::payment::lock_cost(self, payer, subject, &frame, &cost, &pay_pips)
+            .expect("announce-time choices leave a concrete runnable cost");
+        self.open_locked_payment(locked);
+    }
+
+    /// Every alternative-payment action currently functioning on `spell`, in
+    /// derived card order. Resource choice is deliberately absent: the payer's
+    /// later `ManaCoverage` names an exact object and IOU.
+    fn payment_pip_alternatives(&self, spell: ObjectId) -> Vec<(PipClass, PayAct)> {
+        let view = self.layers();
+        let mut alternatives = Vec::new();
+        crate::legal::for_each_static(self, &view, spell, |effect| {
+            if let StaticEffect::PayPips(class, act) = effect {
+                alternatives.push((*class, act.clone()));
+            }
+        });
+        alternatives
+    }
+
+    #[expect(
+        dead_code,
+        reason = "retained temporarily while staged fulfillment replaces each legacy payment arm"
+    )]
+    pub(crate) fn legacy_pay_cost(&mut self) {
         let pending = self.announcing.as_ref().expect("an announce in flight");
         let controller = pending.controller;
         // `announced_x` (defaulted to 0) concretizes `{X}` mana; `x_binding`
@@ -2407,7 +2495,7 @@ impl GameState {
                     item,
                     WorkItem::AnnounceTargets
                         | WorkItem::ChooseCostOptions
-                        | WorkItem::PayCost
+                        | WorkItem::OpenPayment
                         | WorkItem::Emit(_)
                         | WorkItem::CheckSbas
                         | WorkItem::PlaceTriggers

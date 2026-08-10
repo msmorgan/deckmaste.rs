@@ -159,6 +159,8 @@ pub enum Progress {
     /// [CR#601.2f,601.2g,601.2h]: the in-flight cost was paid or a `PayMana` decision
     /// surfaced.
     CostPaid,
+    /// The locked total cost became an explicit payment-obligation prompt.
+    PaymentOpened,
     /// A resolution step ran (dispatch or one effect node) for this object.
     Resolving(crate::object::ObjectId),
     /// [CR#701.19c]: an instruction-scoped "can't be regenerated" rider was
@@ -252,9 +254,9 @@ impl GameState {
                 let surfaced = self.choose_cost_options();
                 Progress::CostOptionsChosen { surfaced }
             }
-            WorkItem::PayCost => {
-                self.pay_cost();
-                Progress::CostPaid
+            WorkItem::OpenPayment => {
+                self.open_payment();
+                Progress::PaymentOpened
             }
             WorkItem::FlipCoins {
                 player,
@@ -2669,7 +2671,7 @@ mod tests {
                 WorkItem::AnnounceX,
                 WorkItem::AnnounceTargets,
                 WorkItem::ChooseCostOptions,
-                WorkItem::PayCost,
+                WorkItem::OpenPayment,
                 WorkItem::Emit(Occurrence::single(event)),
                 WorkItem::CheckSbas,
                 WorkItem::PlaceTriggers,

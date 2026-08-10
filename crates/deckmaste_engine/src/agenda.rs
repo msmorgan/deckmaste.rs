@@ -169,7 +169,7 @@ pub enum WorkItem {
     /// physical components ({T}/{Q}) for activations, mana only for spells.
     /// Surfaces `PayMana` when there is a choice; schedules tap/untap events
     /// for activations alongside it.
-    PayCost,
+    OpenPayment,
     /// [CR#705.1]: a resolving `FlipCoins` — draw `count` coins for `player`
     /// from the seeded rng and emit the `CoinFlipped` batch. `called`
     /// ([CR#705.2]) routes each coin through a `CallFlip` decision first

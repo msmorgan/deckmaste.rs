@@ -152,8 +152,7 @@ pub struct PendingStackEntry {
     /// [CR#118.9,702.35a]: an ALTERNATIVE base cost this cast pays RATHER THAN
     /// the card's mana cost — a resolution-time `Cast(what, [cost])` (madness's
     /// madness cost). `None` (the common case) leaves the printed mana cost as
-    /// the base. `ChooseCostOptions` reads it in place of the printed cost;
-    /// `can_cast_as_effect` gates affordability against it.
+    /// the base. `ChooseCostOptions` reads it in place of the printed cost.
     pub alternative_cost: Option<deckmaste_core::Cost>,
 }
 

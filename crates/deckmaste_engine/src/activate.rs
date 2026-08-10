@@ -276,34 +276,12 @@ impl GameState {
         index: usize,
         ability: &ActivatedAbility,
     ) -> bool {
-        // [CR#601.2g,602.2b,106.6]: the pool must be able to pay the mana cost.
-        // Only mana spendable on this ability's source can fund it — restrict
-        // the affordability check to the spendable sub-pool.
+        // Structural cost validation remains a proposal gate; whether its
+        // resources can actually be supplied is discovered only by the
+        // explicit payment protocol.
         let Some(summary) = cost_summary(&ability.cost) else {
             return false;
         };
-        // [CR#601.2b,601.2g,107.3a]: gate mana affordability under all legal
-        // readings (concretizes {X} to 0, then plain or hybrid/Phyrexian path).
-        // `ManaCostOf` components ([CR#202.1]) are resolved against the live
-        // source here so "pay mana equal to its mana cost" gates on the real
-        // amount, not a free read.
-        let mana = self.resolve_cost_mana(&summary, object, player);
-        // No `PayPips` — convoke / delve / improvise are cast-time spell
-        // statics, never activated-ability costs ([CR#702.51a]) — so pip
-        // payment does not enter the affordability gate here.
-        if !self.gate_mana_affordable(player, &mana, object, None) {
-            return false;
-        }
-
-        let obj = self.objects.obj(object);
-
-        // A tapped object cannot pay {T}; an untapped object cannot pay {Q}.
-        if summary.tap && obj.tapped {
-            return false;
-        }
-        if summary.untap && !obj.tapped {
-            return false;
-        }
 
         // [CR#602.5a,702.61a,702.61b]: a conferred/stack `Cant(Activate)` row
         // forbids this activation — a cost-scoped `Cant(Activate(cost:
@@ -428,33 +406,7 @@ impl GameState {
         if !crate::resolve::announce_satisfiable(specs, &legal) {
             return false;
         }
-
-        // [CR#601.2h,118.3]: the non-mana verb/life costs must be fully
-        // payable too — partial payment is forbidden.
-        if !self.can_pay_verbs(player, &summary.verbs, object) {
-            return false;
-        }
-
-        // [CR#601.2b,601.2h]: every cost-side `With` choose-then-pay step must
-        // have a legal choice — the choose-feasibility that used to live in the
-        // verb ("sacrifice a creature" needs a creature to choose). A directly-
-        // resolved binder (`TheRef`/`Existing`) is always feasible.
-        if !summary
-            .withs
-            .iter()
-            .all(|w| self.with_cost_feasible(w, object, player))
-        {
-            return false;
-        }
-
-        // [CR#601.2h,702.122a]: every aggregate-stat (tap-total) cost must have
-        // a qualifying untapped subset to tap (Crew: enough total power) —
-        // partial payment is forbidden, so an infeasible requirement bars
-        // activation.
-        summary
-            .tap_totals
-            .iter()
-            .all(|req| self.tap_total_subset(req, object, player).is_some())
+        true
     }
 
     /// [CR#500.1]: does the current active player stand in the named
@@ -772,6 +724,9 @@ impl GameState {
         .expect("BeginActivate names an activated ability")
         .clone();
         let controller = self.objects.obj(object).controller;
+        if self.payment.is_none() {
+            self.begin_payment_proposal(controller);
+        }
         // The source's announce-time snapshot: `~` reads it at resolution even
         // if the source is gone ([CR#608.2]). The other bindings stay empty,
         // as for a fresh trigger outside any event context.

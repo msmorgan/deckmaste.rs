@@ -13,6 +13,7 @@ mod cast;
 mod choice;
 mod combat;
 mod mana;
+mod payment;
 mod priority;
 
 pub use cast::ChooseCostOptions;

@@ -1220,7 +1220,7 @@ fn casting_a_spell_schedules_the_announce_block_and_begin_cast_stages_it() {
             WorkItem::AnnounceX,
             WorkItem::AnnounceTargets,
             WorkItem::ChooseCostOptions,
-            WorkItem::PayCost,
+            WorkItem::OpenPayment,
             WorkItem::Emit(Occurrence::single(GameEvent::SpellCast(bolt))),
             WorkItem::CheckSbas,
             WorkItem::PlaceTriggers,
