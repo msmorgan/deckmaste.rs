@@ -841,8 +841,8 @@ fn collect_lowered_coordination_spans(
         if combinator
             == Some(super::generated::GeneratedFeatureCombinator::SharedDeterminerCoordination)
             && let (Some(first), Some(rest)) = (children.get(1), children.get(2))
-            && let Some(Lowered::NounPhrase(NounPhrase::CoordinatedNominal(group))) =
-                lower(grammar, forest, node, best)
+            && let Some(Lowered::NounPhrase(group_phrase)) = lower(grammar, forest, node, best)
+            && let crate::syntax::NounPhraseKind::CoordinatedNominal(group) = group_phrase.kind()
         {
             let core_end = first_group_relative(group.complements())
                 .as_ref()
@@ -968,8 +968,11 @@ fn find_shared_determiner_edit(
     before: &NounPhrase,
     after: &NounPhrase,
 ) -> Option<SharedDeterminerEdit> {
-    match (before, after) {
-        (NounPhrase::Nominal(original), NounPhrase::CoordinatedNominal(group)) => {
+    match (before.kind(), after.kind()) {
+        (
+            crate::syntax::NounPhraseKind::Nominal(original),
+            crate::syntax::NounPhraseKind::CoordinatedNominal(group),
+        ) => {
             let (determiner, first) =
                 crate::constructions::nominal::parts_nominal_determiner(original)?;
             if group.determiner() != &determiner || group.first().as_ref() != &first {
@@ -981,11 +984,13 @@ fn find_shared_determiner_edit(
                 trailing_relative: first_group_relative(group.complements()),
             })
         }
-        (NounPhrase::CoordinatedNominal(original), NounPhrase::CoordinatedNominal(group))
-            if group.determiner() == original.determiner()
-                && group.first() == original.first()
-                && group.rest().len() == original.rest().len() + 1
-                && group.rest().starts_with(original.rest()) =>
+        (
+            crate::syntax::NounPhraseKind::CoordinatedNominal(original),
+            crate::syntax::NounPhraseKind::CoordinatedNominal(group),
+        ) if group.determiner() == original.determiner()
+            && group.first() == original.first()
+            && group.rest().len() == original.rest().len() + 1
+            && group.rest().starts_with(original.rest()) =>
         {
             let determined_first = crate::constructions::nominal::build_nominal_determiner(
                 original.determiner().clone(),
@@ -993,19 +998,21 @@ fn find_shared_determiner_edit(
             )
             .ok()?;
             Some(SharedDeterminerEdit {
-                determined_first: NounPhrase::Nominal(determined_first),
+                determined_first: NounPhrase::from_nominal_declaration(determined_first),
                 determiner: original.determiner().clone(),
                 trailing_relative: first_group_relative(group.complements()),
             })
         }
-        (NounPhrase::Nominal(before), NounPhrase::Nominal(after))
-            if before.determiner() == after.determiner()
-                && before.modifiers() == after.modifiers()
-                && before.head() == after.head()
-                && before.complements().len() == after.complements().len()
-                && !before.complements().is_empty()
-                && before.complements()[..before.complements().len() - 1]
-                    == after.complements()[..after.complements().len() - 1] =>
+        (
+            crate::syntax::NounPhraseKind::Nominal(before),
+            crate::syntax::NounPhraseKind::Nominal(after),
+        ) if before.determiner() == after.determiner()
+            && before.modifiers() == after.modifiers()
+            && before.head() == after.head()
+            && before.complements().len() == after.complements().len()
+            && !before.complements().is_empty()
+            && before.complements()[..before.complements().len() - 1]
+                == after.complements()[..after.complements().len() - 1] =>
         {
             let (
                 super::NominalComplement::Prepositional(before),
@@ -1024,12 +1031,14 @@ fn find_shared_determiner_edit(
             };
             find_shared_determiner_edit(before, after)
         }
-        (NounPhrase::Coordinated(before), NounPhrase::Coordinated(after))
-            if before.first() == after.first()
-                && before.rest().len() == after.rest().len()
-                && !before.rest().is_empty()
-                && before.rest()[..before.rest().len() - 1]
-                    == after.rest()[..after.rest().len() - 1] =>
+        (
+            crate::syntax::NounPhraseKind::Coordinated(before),
+            crate::syntax::NounPhraseKind::Coordinated(after),
+        ) if before.first() == after.first()
+            && before.rest().len() == after.rest().len()
+            && !before.rest().is_empty()
+            && before.rest()[..before.rest().len() - 1]
+                == after.rest()[..after.rest().len() - 1] =>
         {
             let before = before.rest().last()?;
             let after = after.rest().last()?;
@@ -2298,7 +2307,13 @@ mod generated_adapter_tests {
     #[test]
     fn real_generated_binary_coordination_parses() {
         let parsed = generated_coordination("an artifact or a creature");
-        let Some(NounPhrase::Coordinated(coordination)) = parsed.noun_phrase() else {
+        let Some(noun_phrase) = parsed.noun_phrase() else {
+            panic!(
+                "binary coordination lowered to the wrong syntax: {:?}",
+                parsed.syntax
+            );
+        };
+        let crate::syntax::NounPhraseKind::Coordinated(coordination) = noun_phrase.kind() else {
             panic!(
                 "binary coordination lowered to the wrong syntax: {:?}",
                 parsed.syntax
@@ -2314,7 +2329,13 @@ mod generated_adapter_tests {
     #[test]
     fn real_generated_oxford_coordination_parses() {
         let parsed = generated_coordination("an artifact, a creature, and a land");
-        let Some(NounPhrase::Coordinated(coordination)) = parsed.noun_phrase() else {
+        let Some(noun_phrase) = parsed.noun_phrase() else {
+            panic!(
+                "Oxford coordination lowered to the wrong syntax: {:?}",
+                parsed.syntax
+            );
+        };
+        let crate::syntax::NounPhraseKind::Coordinated(coordination) = noun_phrase.kind() else {
             panic!(
                 "Oxford coordination lowered to the wrong syntax: {:?}",
                 parsed.syntax
@@ -2331,18 +2352,26 @@ mod generated_adapter_tests {
     #[test]
     fn real_generated_nested_coordination_parses() {
         let parsed = generated_coordination("an artifact and a creature or a land");
-        let Some(NounPhrase::Coordinated(coordination)) = parsed.noun_phrase() else {
+        let Some(noun_phrase) = parsed.noun_phrase() else {
+            panic!(
+                "nested coordination lowered to the wrong syntax: {:?}",
+                parsed.syntax
+            );
+        };
+        let crate::syntax::NounPhraseKind::Coordinated(coordination) = noun_phrase.kind() else {
             panic!(
                 "nested coordination lowered to the wrong syntax: {:?}",
                 parsed.syntax
             );
         };
         assert!(
-            matches!(coordination.first().as_ref(), NounPhrase::Coordinated(_))
-                || coordination
-                    .rest()
-                    .iter()
-                    .any(|member| matches!(member.phrase, NounPhrase::Coordinated(_))),
+            matches!(
+                coordination.first().kind(),
+                crate::syntax::NounPhraseKind::Coordinated(_)
+            ) || coordination.rest().iter().any(|member| matches!(
+                member.phrase.kind(),
+                crate::syntax::NounPhraseKind::Coordinated(_)
+            )),
             "one binary group must be nested inside the other: {coordination:#?}",
         );
     }
@@ -2350,12 +2379,16 @@ mod generated_adapter_tests {
     #[test]
     fn real_generated_shared_determiner_coordination_parses() {
         let parsed = generated_coordination("target artifact or creature");
-        let Some(NounPhrase::CoordinatedNominal(coordination)) = parsed.noun_phrase() else {
+        let Some(noun_phrase) = parsed.noun_phrase() else {
             panic!(
                 "shared-determiner coordination lowered to the wrong syntax: {:?}\n{:#?}",
                 parsed.syntax,
                 parsed.construction_decisions(),
             );
+        };
+        let crate::syntax::NounPhraseKind::CoordinatedNominal(coordination) = noun_phrase.kind()
+        else {
+            panic!("shared-determiner coordination lowered to the wrong syntax");
         };
         assert_eq!(coordination.determiner(), &crate::determiner::target(None));
         assert_eq!(coordination.rest().len(), 1);

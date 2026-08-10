@@ -145,7 +145,7 @@ fn is_quantity(value: &Determiner) -> bool {
 fn make_possessive_this_card(form: ThisCardForm) -> Result<Determiner, DeclarationViolation> {
     Ok(Determiner {
         repr: DeterminerRepr::Possessive(Possessor {
-            repr: PossessorRepr::NounPhrase(Box::new(NounPhrase::ThisCard(form))),
+            repr: PossessorRepr::NounPhrase(Box::new(NounPhrase::from_this_card_declaration(form))),
         }),
     })
 }
@@ -157,10 +157,10 @@ fn possessive_this_card_parts(value: &Determiner) -> ThisCardForm {
     else {
         unreachable!("determiner_possessive_this_card admits only self-reference possessors")
     };
-    let NounPhrase::ThisCard(form) = noun.as_ref() else {
+    let crate::syntax::NounPhraseKind::ThisCard(form) = noun.kind() else {
         unreachable!("determiner_possessive_this_card admits only self-reference possessors")
     };
-    *form
+    form
 }
 
 fn is_possessive_this_card(value: &Determiner) -> bool {
@@ -169,7 +169,7 @@ fn is_possessive_this_card(value: &Determiner) -> bool {
         DeterminerRepr::Possessive(Possessor {
             repr: PossessorRepr::NounPhrase(noun)
         })
-            if matches!(noun.as_ref(), NounPhrase::ThisCard(_))
+            if matches!(noun.kind(), crate::syntax::NounPhraseKind::ThisCard(_))
     )
 }
 
@@ -284,7 +284,9 @@ fn make_determiner_possessive_noun(
     }
     Ok(Determiner {
         repr: DeterminerRepr::Possessive(Possessor {
-            repr: PossessorRepr::NounPhrase(Box::new(NounPhrase::Nominal(possessor))),
+            repr: PossessorRepr::NounPhrase(Box::new(NounPhrase::from_nominal_declaration(
+                possessor,
+            ))),
         }),
     })
 }
@@ -296,7 +298,7 @@ fn determiner_possessive_noun_parts(value: &Determiner) -> PossessiveNominal {
     else {
         unreachable!("determiner_possessive_noun admits only noun possessors")
     };
-    let NounPhrase::Nominal(nominal) = noun.as_ref() else {
+    let crate::syntax::NounPhraseKind::Nominal(nominal) = noun.kind() else {
         unreachable!("determiner_possessive_noun admits only noun possessors")
     };
     nominal.clone()
@@ -308,7 +310,7 @@ fn is_determiner_possessive_noun(value: &Determiner) -> bool {
         DeterminerRepr::Possessive(Possessor {
             repr: PossessorRepr::NounPhrase(noun)
         })
-            if matches!(noun.as_ref(), NounPhrase::Nominal(nominal) if is_valid_possessive_nominal(nominal))
+            if matches!(noun.kind(), crate::syntax::NounPhraseKind::Nominal(nominal) if is_valid_possessive_nominal(nominal))
     )
 }
 

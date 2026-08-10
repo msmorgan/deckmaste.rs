@@ -1113,21 +1113,19 @@ impl EnglishLexicalSlot {
             Self::FromWord => &["from"],
             Self::DeterminerTarget => &["target"],
             Self::RelativeMarker => &["who", "that"],
-            Self::Up => &["up"],
-            Self::Down => &["down"],
+            Self::Up | Self::Rounding(crate::syntax::Rounding::Up) => &["up"],
+            Self::Down | Self::Rounding(crate::syntax::Rounding::Down) => &["down"],
             Self::Not => &["not"],
             Self::To => &["to"],
             Self::Of => &["of"],
             Self::ForWord => &["for"],
-            Self::EachDeterminer => &["each"],
+            Self::EachDeterminer | Self::PartitiveHead(crate::syntax::PartitiveHead::Each) => {
+                &["each"]
+            }
             Self::AnyDeterminer => &["any"],
             Self::Reciprocal => &["each", "other"],
-            Self::SetExceptionMarker(SetExceptionMarker::Bare) => &["except"],
+            Self::SetExceptionMarker(SetExceptionMarker::Bare) | Self::Except => &["except"],
             Self::SetExceptionMarker(SetExceptionMarker::For) => &["except", "for"],
-            Self::PartitiveHead(crate::syntax::PartitiveHead::Each) => &["each"],
-            Self::PartitiveHead(crate::syntax::PartitiveHead::Quantity(_)) => &[],
-            Self::Rounding(crate::syntax::Rounding::Up) => &["up"],
-            Self::Rounding(crate::syntax::Rounding::Down) => &["down"],
             Self::RatherThan => &["rather", "than"],
             Self::Plus => &["plus"],
             Self::Minus => &["minus"],
@@ -1135,9 +1133,8 @@ impl EnglishLexicalSlot {
             Self::Rounded => &["rounded"],
             Self::Existential => &["there", "there's"],
             Self::SubjectAuxiliary => &SUBJECT_AUXILIARY_SURFACES,
-            Self::Except => &["except"],
-
-            Self::Number(_)
+            Self::PartitiveHead(crate::syntax::PartitiveHead::Quantity(_))
+            | Self::Number(_)
             | Self::QuantityNumber
             | Self::DegreeMeasureNumber
             | Self::ComparativeWord

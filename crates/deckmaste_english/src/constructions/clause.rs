@@ -648,7 +648,7 @@ fn make_clause_variable_value_constraint(
         ));
     }
     Ok(Clause::Independent(IndependentClause::Deontic(
-        Subject(NounPhrase::Quantity(subject)),
+        Subject(NounPhrase::from_quantity_declaration(subject)),
         Modal { auxiliary: modal },
         Some(Predicate::Copular(CopularPredicate {
             copula: Copula {
@@ -658,9 +658,9 @@ fn make_clause_variable_value_constraint(
             negated: false,
             distributive_each: false,
             precomplement_adverbs: Vec::new(),
-            complement: CopularComplement::NounPhrase(NounPhrase::Quantity(Quantity::Exact(
-                number,
-            ))),
+            complement: CopularComplement::NounPhrase(NounPhrase::from_quantity_declaration(
+                Quantity::Exact(number),
+            )),
             adjuncts: Vec::new(),
         })),
     )))
@@ -675,26 +675,31 @@ fn variable_value_constraint_parts(
     NumberLiteral,
 ) {
     let Clause::Independent(IndependentClause::Deontic(
-        Subject(NounPhrase::Quantity(subject)),
+        Subject(subject_phrase),
         Modal { auxiliary: modal },
         Some(Predicate::Copular(predicate)),
     )) = value
     else {
         unreachable!("variable value constraint admits one modal copular shape")
     };
-    let CopularComplement::NounPhrase(NounPhrase::Quantity(quantity)) = &predicate.complement
-    else {
+    let crate::syntax::NounPhraseKind::Quantity(subject) = subject_phrase.kind() else {
+        unreachable!("variable value constraint retains one numeric subject")
+    };
+    let CopularComplement::NounPhrase(quantity_phrase) = &predicate.complement else {
+        unreachable!("variable value constraint retains one numeric complement")
+    };
+    let crate::syntax::NounPhraseKind::Quantity(quantity) = quantity_phrase.kind() else {
         unreachable!("variable value constraint retains one numeric complement")
     };
     let QuantityKind::Exact(number) = quantity.kind() else {
         unreachable!("variable value constraint retains one numeric complement")
     };
-    (*subject, *modal, predicate.copula.auxiliary, number)
+    (subject, *modal, predicate.copula.auxiliary, number)
 }
 
 fn is_clause_variable_value_constraint(value: &Clause) -> bool {
     let Clause::Independent(IndependentClause::Deontic(
-        Subject(NounPhrase::Quantity(subject)),
+        Subject(subject_phrase),
         Modal { auxiliary: modal },
         Some(Predicate::Copular(CopularPredicate {
             copula:
@@ -705,11 +710,17 @@ fn is_clause_variable_value_constraint(value: &Clause) -> bool {
             negated: false,
             distributive_each: false,
             precomplement_adverbs,
-            complement: CopularComplement::NounPhrase(NounPhrase::Quantity(complement)),
+            complement: CopularComplement::NounPhrase(complement_phrase),
             adjuncts,
         })),
     )) = value
     else {
+        return false;
+    };
+    let crate::syntax::NounPhraseKind::Quantity(subject) = subject_phrase.kind() else {
+        return false;
+    };
+    let crate::syntax::NounPhraseKind::Quantity(complement) = complement_phrase.kind() else {
         return false;
     };
     subject.kind() == QuantityKind::X

@@ -25,6 +25,7 @@ mod grammar;
 mod identity;
 mod input;
 pub mod nominal;
+pub mod noun_phrase;
 mod numeral;
 mod parse;
 pub mod predicate;

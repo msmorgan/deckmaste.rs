@@ -83,7 +83,7 @@ const ROMAN_PARTS: [(u32, &str); 13] = [
 ///
 /// Two things block turning this into a safe derivation rather than a
 /// documented refutation: a large residual population where the quantity is
-/// a bare, headless `NounPhrase::Quantity` (a copular complement or modal
+/// a bare, headless `NounPhraseKind::Quantity` (a copular complement or modal
 /// count with no noun in the same phrase) mixes both notations exactly like
 /// [`crate::syntax::ComparativeWord`]'s headless bucket, requiring the same
 /// unimplemented antecedent-tracing across a clause boundary. And Plague of

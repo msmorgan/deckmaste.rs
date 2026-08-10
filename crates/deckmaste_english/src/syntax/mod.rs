@@ -666,19 +666,19 @@ impl<'syntax> RecoveryWalker<'syntax> {
     }
 
     fn noun_phrase(&mut self, phrase: &'syntax NounPhrase, context: Option<RecoveryRole>) {
-        match phrase {
-            NounPhrase::Nominal(nominal) => self.nominal_phrase(nominal, context),
-            NounPhrase::Pronoun { .. }
-            | NounPhrase::Demonstrative(_)
-            | NounPhrase::Quantity(_)
-            | NounPhrase::ThisCard(_) => {}
-            NounPhrase::Possessive(possessor) => {
+        match phrase.kind() {
+            NounPhraseKind::Nominal(nominal) => self.nominal_phrase(nominal, context),
+            NounPhraseKind::Pronoun { .. }
+            | NounPhraseKind::Demonstrative(_)
+            | NounPhraseKind::Quantity(_)
+            | NounPhraseKind::ThisCard(_) => {}
+            NounPhraseKind::Possessive(possessor) => {
                 if let PossessorKind::NounPhrase(possessor) = possessor.kind() {
                     self.noun_phrase(possessor, context);
                 }
             }
-            NounPhrase::Partitive(partitive) => self.noun_phrase(&partitive.whole, context),
-            NounPhrase::CoordinatedNominal(coordinated) => {
+            NounPhraseKind::Partitive(partitive) => self.noun_phrase(&partitive.whole, context),
+            NounPhraseKind::CoordinatedNominal(coordinated) => {
                 if let DeterminerKind::Possessive(possessor) = coordinated.determiner().kind()
                     && let PossessorKind::NounPhrase(possessor) = possessor.kind()
                 {
@@ -692,17 +692,17 @@ impl<'syntax> RecoveryWalker<'syntax> {
                     self.nominal_complement(complement, context);
                 }
             }
-            NounPhrase::Coordinated(coordinated) => {
+            NounPhraseKind::Coordinated(coordinated) => {
                 self.noun_phrase(coordinated.first(), context);
                 for coordination in coordinated.rest() {
                     self.noun_phrase(&coordination.phrase, context);
                 }
             }
-            NounPhrase::SetException(exception) => {
+            NounPhraseKind::SetException(exception) => {
                 self.noun_phrase(&exception.included, context);
                 self.noun_phrase(&exception.excluded, context);
             }
-            NounPhrase::Arithmetic(value) => match value {
+            NounPhraseKind::Arithmetic(value) => match value {
                 ArithmeticValue::Minus { left, right } => {
                     self.noun_phrase(left, context);
                     self.noun_phrase(right, context);
@@ -1024,7 +1024,7 @@ mod tests {
             abilities: vec![
                 paragraph_recovered("clause"),
                 paragraph(IndependentClause::Intransitive(
-                    Subject(NounPhrase::Nominal(
+                    Subject(NounPhrase::from_nominal_declaration(
                         NominalPhrase::test_from_projection_parts(
                             None,
                             vec![NominalModifier::Noun {
@@ -1186,7 +1186,7 @@ mod tests {
                 head,
                 kind: Transitive {
                     pre_object_elements: vec![],
-                    object: PredicateObject::NounPhrase(NounPhrase::Nominal(
+                    object: PredicateObject::NounPhrase(NounPhrase::from_nominal_declaration(
                         NominalPhrase::test_from_projection_parts(
                             None,
                             vec![],
@@ -1221,13 +1221,14 @@ mod tests {
                 vec![],
             )
         };
-        let opaque = NounPhrase::Nominal(NominalPhrase::test_from_projection_parts(
-            None,
-            vec![],
-            NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("blorple"))),
-            vec![],
-        ));
-        let subject = NounPhrase::CoordinatedNominal(
+        let opaque =
+            NounPhrase::from_nominal_declaration(NominalPhrase::test_from_projection_parts(
+                None,
+                vec![],
+                NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("blorple"))),
+                vec![],
+            ));
+        let subject = NounPhrase::from_coordinated_nominal_declaration(
             CoordinatedNominalPhrase::try_new(
                 crate::determiner::any(),
                 Box::new(known_nominal(Vocab::Card)),
