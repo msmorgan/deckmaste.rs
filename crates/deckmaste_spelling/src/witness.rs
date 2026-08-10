@@ -65,7 +65,8 @@ pub const WITNESS_PREFIX: &str = "zz";
 /// Substituted into the frame text in place of the sigil and passed to
 /// [`parse_fragment`](deckmaste_english::parse_fragment) as the card name,
 /// which is what makes the parser build a
-/// [`NounPhrase::ThisCard`](deckmaste_english::syntax::NounPhrase) there.
+/// [`NounPhraseKind::ThisCard`](deckmaste_english::syntax::NounPhraseKind)
+/// there.
 pub const SELF_WITNESS: &str = "Zzframeself";
 
 /// The ordinary count-hole witnesses, one per numeric slot in a frame.
@@ -84,9 +85,9 @@ pub enum WitnessKind {
     /// A numeral. Found in a `NumberLiteral` by semantic value plus notation;
     /// digit witnesses inside power/toughness scalars use their exact text.
     Numeral { value: i32, notation: Numeral },
-    /// The self-reference. Found *structurally* — as a `NounPhrase::ThisCard`
-    /// node — because the card name never survives into the tree as a
-    /// spelling.
+    /// The self-reference. Found *structurally* — as a
+    /// `NounPhraseKind::ThisCard` node — because the card name never
+    /// survives into the tree as a spelling.
     SelfReference,
 }
 

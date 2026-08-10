@@ -60,7 +60,6 @@ use crate::syntax::ModalFrame;
 use crate::syntax::ModalHeaderSuffix;
 use crate::syntax::Mode;
 use crate::syntax::ModeHeading;
-use crate::syntax::NounPhrase;
 use crate::syntax::NumberLiteral;
 use crate::syntax::OracleSymbol;
 use crate::syntax::OracleText;
@@ -2935,7 +2934,10 @@ fn copular_complement_head_is_opaque(clause: &IndependentClause) -> bool {
     else {
         return false;
     };
-    let CopularComplement::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.complement else {
+    let CopularComplement::NounPhrase(noun_phrase) = &predicate.complement else {
+        return false;
+    };
+    let crate::syntax::NounPhraseKind::Nominal(nominal) = noun_phrase.kind() else {
         return false;
     };
     matches!(nominal.head().noun(), Noun::Opaque(_))
@@ -3412,26 +3414,29 @@ mod tests {
                 at_random: false,
                 imperative: Predicate::Transitive(TransitivePredicate {
                     kind: Transitive {
-                        object: PredicateObject::NounPhrase(NounPhrase::Coordinated(
-                            coordinated
-                        )),
+                        object: PredicateObject::NounPhrase(noun_phrase),
                         ..
                     },
                     ..
                 }),
             }) if matches!(
-                coordinated.first().as_ref(),
-                NounPhrase::Quantity(quantity)
+                noun_phrase.kind(),
+                crate::syntax::NounPhraseKind::Coordinated(coordinated)
                     if matches!(
-                        quantity.kind(),
-                        crate::syntax::QuantityKind::Exact(number) if number.value == 1
+                        coordinated.first().kind(),
+                        crate::syntax::NounPhraseKind::Quantity(quantity)
+                            if matches!(
+                                quantity.kind(),
+                                crate::syntax::QuantityKind::Exact(number) if number.value == 1
+                            )
+                    ) && matches!(
+                        coordinated.rest().as_slice(),
+                        [NounPhraseCoordination { phrase, .. }]
+                            if matches!(
+                                phrase.kind(),
+                                crate::syntax::NounPhraseKind::Quantity(Quantity::Both)
+                            )
                     )
-            ) && matches!(
-                coordinated.rest().as_slice(),
-                [NounPhraseCoordination {
-                    phrase: NounPhrase::Quantity(Quantity::Both),
-                    ..
-                }]
             )
         ));
         assert_eq!(
@@ -3545,12 +3550,12 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
             panic!("expected paragraph");
         };
-        let SentenceBody::Independent(IndependentClause::Deontic(
-            Subject(NounPhrase::Nominal(subject)),
-            _,
-            _,
-        )) = &paragraph.sentences[0].body
+        let SentenceBody::Independent(IndependentClause::Deontic(Subject(subject), _, _)) =
+            &paragraph.sentences[0].body
         else {
+            panic!("expected nominal subject");
+        };
+        let crate::syntax::NounPhraseKind::Nominal(subject) = subject.kind() else {
             panic!("expected nominal subject");
         };
         assert_eq!(subject.determiner(), Some(&crate::determiner::target(None)));
@@ -3904,11 +3909,14 @@ mod tests {
             panic!("expected paragraph");
         };
         let SentenceBody::Independent(IndependentClause::Predicated(
-            Some(Subject(NounPhrase::Nominal(subject))),
+            Some(Subject(subject)),
             PredicateExpression::Coordinated(_),
         )) = &paragraph.sentences[0].body
         else {
             panic!("expected coordination");
+        };
+        let crate::syntax::NounPhraseKind::Nominal(subject) = subject.kind() else {
+            panic!("expected nominal subject");
         };
         assert!(matches!(
             subject.modifiers(),
@@ -4351,13 +4359,17 @@ mod tests {
             &choice.imperative,
             Predicate::Transitive(TransitivePredicate {
                 kind: Transitive {
-                    object: PredicateObject::NounPhrase(NounPhrase::Quantity(quantity)),
+                    object: PredicateObject::NounPhrase(noun_phrase),
                     ..
                 },
                 ..
             }) if matches!(
-                quantity.kind(),
-                crate::syntax::QuantityKind::Exact(number) if number.value == 1
+                noun_phrase.kind(),
+                crate::syntax::NounPhraseKind::Quantity(quantity)
+                    if matches!(
+                        quantity.kind(),
+                        crate::syntax::QuantityKind::Exact(number) if number.value == 1
+                    )
             )
         ));
         assert_eq!(render(&report), source);
@@ -4433,11 +4445,14 @@ mod tests {
             &choice.imperative,
             Predicate::Transitive(TransitivePredicate {
                 kind: Transitive {
-                    object: PredicateObject::NounPhrase(NounPhrase::Coordinated(_)),
+                    object: PredicateObject::NounPhrase(noun_phrase),
                     ..
                 },
                 ..
-            })
+            }) if matches!(
+                noun_phrase.kind(),
+                crate::syntax::NounPhraseKind::Coordinated(_)
+            )
         ));
         assert_eq!(render(&report), source);
     }
@@ -5431,7 +5446,7 @@ mod tests {
                 ..
             }
         ));
-        // The headless `NounPhrase::Quantity` restriction retains its
+        // The headless `NounPhraseKind::Quantity` restriction retains its
         // numeral structure rather than forcing an opaque noun.
         let headless = shape_argument("Craft with one or more {5}");
         assert!(matches!(
@@ -5440,8 +5455,8 @@ mod tests {
                 restriction,
                 ..
             } if matches!(
-                *restriction,
-                NounPhrase::Quantity(quantity)
+                restriction.kind(),
+                crate::syntax::NounPhraseKind::Quantity(quantity)
                     if matches!(quantity.kind(), crate::syntax::QuantityKind::OrComparison(..))
             )
         ));
@@ -6045,8 +6060,10 @@ mod tests {
                     ))] if matches!(
                         object.as_ref(),
                         Phrase::NounPhrase(noun_phrase) if matches!(
-                            noun_phrase.as_ref(),
-                            NounPhrase::ThisCard(ThisCardForm::AbbreviatedName)
+                            noun_phrase.kind(),
+                            crate::syntax::NounPhraseKind::ThisCard(
+                                ThisCardForm::AbbreviatedName
+                            )
                         )
                     )
                 )
@@ -6074,21 +6091,27 @@ mod tests {
             matches!(
                 &sentence.body,
                 SentenceBody::Independent(IndependentClause::Intransitive(
-                    Subject(NounPhrase::Nominal(nominal)),
-                    _
+                    Subject(noun_phrase), _
                 )) if matches!(
-                    nominal.determiner(),
+                    noun_phrase.kind(),
+                    crate::syntax::NounPhraseKind::Nominal(nominal)
+                        if matches!(nominal.determiner(),
                     Some(determiner)
                         if matches!(
                             determiner.kind(),
                             crate::syntax::DeterminerKind::Possessive(possessor)
                                 if matches!(
                                     possessor.kind(),
-                                    crate::syntax::PossessorKind::NounPhrase(
-                                        NounPhrase::ThisCard(ThisCardForm::AbbreviatedName)
-                                    )
+                                    crate::syntax::PossessorKind::NounPhrase(possessor)
+                                        if matches!(
+                                            possessor.kind(),
+                                            crate::syntax::NounPhraseKind::ThisCard(
+                                                ThisCardForm::AbbreviatedName
+                                            )
+                                        )
                                 )
                         )
+                    )
                 )
             ),
             "possessive nickname did not reach self-reference disambiguation: {:#?}",
@@ -6793,7 +6816,10 @@ mod tests {
         else {
             panic!("expected a transitive clause");
         };
-        let PredicateObject::NounPhrase(NounPhrase::Nominal(nominal)) = &predicate.object else {
+        let PredicateObject::NounPhrase(noun_phrase) = &predicate.object else {
+            panic!("expected a nominal object: {:?}", predicate.object);
+        };
+        let crate::syntax::NounPhraseKind::Nominal(nominal) = noun_phrase.kind() else {
             panic!("expected a nominal object: {:?}", predicate.object);
         };
         let crate::word::NounInstanceKind::Mass(Noun::Catalog(atom)) = nominal.head().kind() else {

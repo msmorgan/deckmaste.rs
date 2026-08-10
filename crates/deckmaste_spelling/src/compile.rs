@@ -129,8 +129,8 @@ pub enum HoleClass {
     /// a `ScalarValue`, not a phrase, and the `+`/`-` cannot come from it.
     PtHalf,
     /// The hole is the card's self-reference (`~`). Located structurally, by
-    /// the `NounPhrase::ThisCard` node the parser builds, since the witness
-    /// name never survives into the tree as a spelling.
+    /// the `NounPhraseKind::ThisCard` projection the parser exposes, since the
+    /// witness name never survives into the tree as a spelling.
     SelfRef,
 }
 

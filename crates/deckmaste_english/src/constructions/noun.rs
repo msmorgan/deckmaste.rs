@@ -96,7 +96,7 @@ mod tests {
 
     fn render_bare_noun(noun: NounInstance) -> Result<String, crate::renderer::RenderError> {
         render_fragment(
-            &Fragment::Nominal(NounPhrase::Nominal(
+            &Fragment::Nominal(NounPhrase::from_nominal_declaration(
                 NominalPhrase::test_from_projection_parts(None, Vec::new(), noun, Vec::new()),
             )),
             "Test Card",

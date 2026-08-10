@@ -1,0 +1,10 @@
+error[E0624]: associated function `Quantity` is private
+ --> tests/compile_fail/construct_noun_phrase.rs:5:17
+  |
+5 |     NounPhrase::Quantity(quantity)
+  |                 ^^^^^^^^ private associated function
+  |
+ ::: src/syntax/phrase.rs
+  |
+  |     pub(crate) const fn Quantity(value: Quantity) -> Self {
+  |     ----------------------------------------------------- private associated function defined here

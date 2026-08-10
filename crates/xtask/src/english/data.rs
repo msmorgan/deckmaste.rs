@@ -265,7 +265,6 @@ mod tests {
     use deckmaste_english::syntax::AbilityKind;
     use deckmaste_english::syntax::IndependentClause;
     use deckmaste_english::syntax::NominalModifier;
-    use deckmaste_english::syntax::NounPhrase;
     use deckmaste_english::syntax::Predicate;
     use deckmaste_english::syntax::PredicateObject;
     use deckmaste_english::syntax::SentenceBody;
@@ -353,7 +352,11 @@ mod tests {
                     sentence.body()
                 );
             };
-            let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &predicate.object else {
+            let PredicateObject::NounPhrase(noun_phrase) = &predicate.object else {
+                panic!("expected a nominal object: {:#?}", predicate.object);
+            };
+            let deckmaste_english::syntax::NounPhraseKind::Nominal(object) = noun_phrase.kind()
+            else {
                 panic!("expected a nominal object: {:#?}", predicate.object);
             };
             let [NominalModifier::Noun { noun, .. }] = object.modifiers() else {

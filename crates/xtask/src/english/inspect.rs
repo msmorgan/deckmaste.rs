@@ -395,7 +395,6 @@ mod tests {
         use deckmaste_english::Numeral;
         use deckmaste_english::adjective as adjective_api;
         use deckmaste_english::syntax::Clause;
-        use deckmaste_english::syntax::NounPhrase;
         use deckmaste_english::syntax::NumberLiteral;
         use deckmaste_english::syntax::SentenceBody;
         use deckmaste_english::syntax::ThisCardForm;
@@ -430,7 +429,12 @@ mod tests {
 
         let standards = [
             adjective_api::build_comparison_standard(
-                Some(NounPhrase::ThisCard(ThisCardForm::AbbreviatedName)),
+                Some(
+                    deckmaste_english::noun_phrase::build_noun_phrase_this_card(
+                        ThisCardForm::AbbreviatedName,
+                    )
+                    .unwrap(),
+                ),
                 None,
                 None,
             )
@@ -618,13 +622,11 @@ mod tests {
         assert!(!normal.contains("ForestStats"));
         assert!(verbose.contains("Provenance:"));
         assert!(verbose.contains("bytes 0.."));
-        // Mutation caught: restore either handwritten Sentence production.
-        // Inspect is the public provenance surface and must attribute this
-        // root to the generated family, independently of inner handwritten
-        // clause constructions.
+        // Inspect is the public provenance surface and must attribute both
+        // the root and its noun phrase to their generated families.
         assert!(verbose.contains("sentence owner=generated backend=chart"));
         assert!(verbose.contains("noun owner=generated backend=chart"));
-        assert!(verbose.contains("owner=handwritten"));
+        assert!(!verbose.contains("owner=handwritten"));
         assert!(verbose.contains("cost={opaque_words:"));
         assert!(!verbose.contains("Span {"));
         assert!(!verbose.contains("ChartStats"));

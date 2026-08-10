@@ -54,7 +54,6 @@ mod tests {
     use crate::syntax::AbilityKind;
     use crate::syntax::IndependentClause;
     use crate::syntax::NominalModifier;
-    use crate::syntax::NounPhrase;
     use crate::syntax::OracleText;
     use crate::syntax::Paragraph;
     use crate::syntax::Predicate;
@@ -89,7 +88,10 @@ mod tests {
         );
 
         let predicate = transitive(parsed.sentence().unwrap());
-        let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &predicate.object else {
+        let PredicateObject::NounPhrase(noun_phrase) = &predicate.object else {
+            panic!("expected one nominal direct object");
+        };
+        let crate::syntax::NounPhraseKind::Nominal(object) = noun_phrase.kind() else {
             panic!("expected one nominal direct object");
         };
         assert_eq!(object.determiner(), Some(&crate::determiner::indefinite()));
@@ -118,7 +120,10 @@ mod tests {
         let parsed = parse(source);
         assert_eq!(parsed.opacity_mode(), OpacityMode::OpaqueNouns);
         let predicate = transitive(parsed.sentence().expect("sentence root lowers"));
-        let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &predicate.object else {
+        let PredicateObject::NounPhrase(noun_phrase) = &predicate.object else {
+            panic!("expected one nominal direct object")
+        };
+        let crate::syntax::NounPhraseKind::Nominal(object) = noun_phrase.kind() else {
             panic!("expected one nominal direct object")
         };
         assert!(matches!(
@@ -176,7 +181,10 @@ mod tests {
     fn unknown_nominal_words_become_only_opaque_nouns() {
         let parsed = parse("Draw a shiny strange card.");
         let predicate = transitive(parsed.sentence().unwrap());
-        let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &predicate.object else {
+        let PredicateObject::NounPhrase(noun_phrase) = &predicate.object else {
+            panic!("expected one nominal direct object");
+        };
+        let crate::syntax::NounPhraseKind::Nominal(object) = noun_phrase.kind() else {
             panic!("expected one nominal direct object");
         };
         assert!(

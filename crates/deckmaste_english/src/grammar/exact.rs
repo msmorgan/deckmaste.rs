@@ -1451,7 +1451,7 @@ mod tests {
                         kind: crate::syntax::Transitive {
                             pre_object_elements: Vec::new(),
                             object: crate::syntax::PredicateObject::NounPhrase(
-                                crate::syntax::NounPhrase::Nominal(
+                                crate::syntax::NounPhrase::from_nominal_declaration(
                                     crate::syntax::NominalPhrase::test_from_projection_parts(
                                         Some(crate::determiner::indefinite()),
                                         Vec::new(),
@@ -1495,7 +1495,7 @@ mod tests {
     }
 
     fn noun_phrase(head: Vocab) -> NounPhrase {
-        NounPhrase::Nominal(nominal(head))
+        NounPhrase::from_nominal_declaration(nominal(head))
     }
 
     const FIXTURE_READING_BUDGET: usize = 50_000;
@@ -1698,9 +1698,11 @@ mod tests {
         noun_phrase: &'syntax NounPhrase,
         found: &mut Vec<&'syntax crate::syntax::CoordinatedNounPhrase>,
     ) {
-        match noun_phrase {
-            NounPhrase::Nominal(nominal) => collect_nominal_coordinations(nominal, found),
-            NounPhrase::CoordinatedNominal(coordination) => {
+        match noun_phrase.kind() {
+            crate::syntax::NounPhraseKind::Nominal(nominal) => {
+                collect_nominal_coordinations(nominal, found);
+            }
+            crate::syntax::NounPhraseKind::CoordinatedNominal(coordination) => {
                 collect_nominal_coordinations(coordination.first(), found);
                 for member in coordination.rest() {
                     collect_nominal_coordinations(&member.phrase, found);
@@ -1709,32 +1711,38 @@ mod tests {
                     collect_complement_coordinations(complement, found);
                 }
             }
-            NounPhrase::Coordinated(coordination) => {
+            crate::syntax::NounPhraseKind::Coordinated(coordination) => {
                 found.push(coordination);
                 collect_noun_coordinations(coordination.first(), found);
                 for member in coordination.rest() {
                     collect_noun_coordinations(&member.phrase, found);
                 }
             }
-            NounPhrase::Partitive(partitive) => {
+            crate::syntax::NounPhraseKind::Partitive(partitive) => {
                 collect_noun_coordinations(&partitive.whole, found);
             }
-            NounPhrase::SetException(exception) => {
+            crate::syntax::NounPhraseKind::SetException(exception) => {
                 collect_noun_coordinations(&exception.included, found);
                 collect_noun_coordinations(&exception.excluded, found);
             }
-            NounPhrase::Arithmetic(crate::syntax::ArithmeticValue::Minus { left, right }) => {
+            crate::syntax::NounPhraseKind::Arithmetic(crate::syntax::ArithmeticValue::Minus {
+                left,
+                right,
+            }) => {
                 collect_noun_coordinations(left, found);
                 collect_noun_coordinations(right, found);
             }
-            NounPhrase::Arithmetic(crate::syntax::ArithmeticValue::Half { value, .. }) => {
+            crate::syntax::NounPhraseKind::Arithmetic(crate::syntax::ArithmeticValue::Half {
+                value,
+                ..
+            }) => {
                 collect_noun_coordinations(value, found);
             }
-            NounPhrase::Pronoun { .. }
-            | NounPhrase::Possessive(_)
-            | NounPhrase::Demonstrative(_)
-            | NounPhrase::Quantity(_)
-            | NounPhrase::ThisCard(_) => {}
+            crate::syntax::NounPhraseKind::Pronoun { .. }
+            | crate::syntax::NounPhraseKind::Possessive(_)
+            | crate::syntax::NounPhraseKind::Demonstrative(_)
+            | crate::syntax::NounPhraseKind::Quantity(_)
+            | crate::syntax::NounPhraseKind::ThisCard(_) => {}
         }
     }
 
@@ -1834,13 +1842,13 @@ mod tests {
         requires_base: bool,
         requires_value: bool,
     ) -> bool {
-        let NounPhrase::Nominal(power) = coordination.first().as_ref() else {
+        let crate::syntax::NounPhraseKind::Nominal(power) = coordination.first().kind() else {
             return false;
         };
         let [member] = coordination.rest().as_slice() else {
             return false;
         };
-        let NounPhrase::Nominal(toughness) = &member.phrase else {
+        let crate::syntax::NounPhraseKind::Nominal(toughness) = member.phrase.kind() else {
             return false;
         };
         nominal_head_spelling(power) == "power"
@@ -1856,8 +1864,8 @@ mod tests {
 
     fn is_keyword_noun_phrase(noun_phrase: &NounPhrase, keyword: &str) -> bool {
         matches!(
-            noun_phrase,
-            NounPhrase::Nominal(nominal)
+            noun_phrase.kind(),
+            crate::syntax::NounPhraseKind::Nominal(nominal)
                 if nominal_head_spelling(nominal).eq_ignore_ascii_case(keyword)
         )
     }
@@ -1866,10 +1874,9 @@ mod tests {
         coordination: &crate::syntax::CoordinatedNounPhrase,
         keyword: &str,
     ) -> bool {
-        if let (NounPhrase::Coordinated(local), [following]) = (
-            coordination.first().as_ref(),
-            coordination.rest().as_slice(),
-        ) {
+        if let (crate::syntax::NounPhraseKind::Coordinated(local), [following]) =
+            (coordination.first().kind(), coordination.rest().as_slice())
+        {
             return is_local_power_toughness_group(local, true, true)
                 && following.conjunction == Some(Conjunction::And)
                 && is_keyword_noun_phrase(&following.phrase, keyword);
@@ -1881,15 +1888,17 @@ mod tests {
         noun_phrase: &NounPhrase,
         expected: crate::syntax::Preposition,
     ) -> bool {
-        match noun_phrase {
-            NounPhrase::Nominal(nominal) => nominal.complements().iter().any(|complement| {
-                matches!(
-                    complement,
-                    NominalComplement::Prepositional(preposition)
-                        if preposition.head().preposition == expected
-                )
-            }),
-            NounPhrase::Partitive(partitive) => {
+        match noun_phrase.kind() {
+            crate::syntax::NounPhraseKind::Nominal(nominal) => {
+                nominal.complements().iter().any(|complement| {
+                    matches!(
+                        complement,
+                        NominalComplement::Prepositional(preposition)
+                            if preposition.head().preposition == expected
+                    )
+                })
+            }
+            crate::syntax::NounPhraseKind::Partitive(partitive) => {
                 noun_phrase_owns_preposition(&partitive.whole, expected)
             }
             _ => false,
@@ -1915,7 +1924,7 @@ mod tests {
             ),
         ] {
             let parsed = parse_fixture_noun_phrase(source);
-            let NounPhrase::Coordinated(coordination) = parsed else {
+            let crate::syntax::NounPhraseKind::Coordinated(coordination) = parsed.kind() else {
                 panic!("expected one outer Oxford object list for {source:?}: {parsed:#?}");
             };
             let [middle, last] = coordination.rest().as_slice() else {
@@ -1940,12 +1949,13 @@ mod tests {
     #[test]
     fn partitive_whole_coordination_stays_inside_of() {
         let source = "one of target artifact or creature";
-        let NounPhrase::Partitive(partitive) = parse_fixture_noun_phrase(source) else {
+        let parsed = parse_fixture_noun_phrase(source);
+        let crate::syntax::NounPhraseKind::Partitive(partitive) = parsed.kind() else {
             panic!("expected the coordination to remain the partitive whole for {source:?}");
         };
         assert!(matches!(
-            partitive.whole.as_ref(),
-            NounPhrase::CoordinatedNominal(_)
+            partitive.whole.kind(),
+            crate::syntax::NounPhraseKind::CoordinatedNominal(_)
         ));
     }
 
@@ -1991,17 +2001,19 @@ mod tests {
     fn sway_of_the_stars_keeps_one_flat_object_list() {
         let source = "their hand, graveyard, and all permanents they own";
         let parsed = parse_fixture_noun_phrase(source);
-        let NounPhrase::Coordinated(coordination) = parsed else {
+        let crate::syntax::NounPhraseKind::Coordinated(coordination) = parsed.kind() else {
             panic!("expected Sway of the Stars' complete noun-phrase list: {parsed:#?}");
         };
-        let NounPhrase::Nominal(first) = coordination.first().as_ref() else {
+        let crate::syntax::NounPhraseKind::Nominal(first) = coordination.first().kind() else {
             panic!("expected Sway of the Stars' first nominal: {coordination:#?}");
         };
         let [graveyard, permanents] = coordination.rest().as_slice() else {
             panic!("expected Sway of the Stars' flat three-member list: {coordination:#?}");
         };
-        let (NounPhrase::Nominal(graveyard_phrase), NounPhrase::Nominal(permanents_phrase)) =
-            (&graveyard.phrase, &permanents.phrase)
+        let (
+            crate::syntax::NounPhraseKind::Nominal(graveyard_phrase),
+            crate::syntax::NounPhraseKind::Nominal(permanents_phrase),
+        ) = (graveyard.phrase.kind(), permanents.phrase.kind())
         else {
             panic!("expected Sway of the Stars' remaining nominals: {coordination:#?}");
         };
@@ -2042,11 +2054,12 @@ mod tests {
             ),
         ] {
             let parsed = parse_fixture_noun_phrase(source);
-            let NounPhrase::CoordinatedNominal(coordination) = parsed else {
+            let crate::syntax::NounPhraseKind::CoordinatedNominal(coordination) = parsed.kind()
+            else {
                 panic!("{face} did not select one shared target determiner: {parsed:#?}");
             };
             let (determiner, first, rest, _) =
-                coordination::parts_shared_determiner_nominal(&coordination);
+                coordination::parts_shared_determiner_nominal(coordination);
             assert_eq!(determiner, &crate::determiner::target(None), "{face}");
             let [middle, final_member] = rest.as_slice() else {
                 panic!("{face} did not select a flat three-member nominal list: {coordination:#?}");
@@ -2069,17 +2082,19 @@ mod tests {
     fn tale_of_tamiyo_keeps_the_target_scope_flat_through_the_final_member() {
         let source = "target instant, sorcery, and/or Tamiyo planeswalker cards";
         let parsed = parse_fixture_noun_phrase(source);
-        let NounPhrase::Coordinated(coordination) = parsed else {
+        let crate::syntax::NounPhraseKind::Coordinated(coordination) = parsed.kind() else {
             panic!("The Tale of Tamiyo did not select one flat target list: {parsed:#?}");
         };
-        let NounPhrase::Nominal(first) = coordination.first().as_ref() else {
+        let crate::syntax::NounPhraseKind::Nominal(first) = coordination.first().kind() else {
             panic!("The Tale of Tamiyo did not select a nominal first member: {coordination:#?}");
         };
         let [middle, final_member] = coordination.rest().as_slice() else {
             panic!("The Tale of Tamiyo did not select three flat members: {coordination:#?}");
         };
-        let (NounPhrase::Nominal(middle_phrase), NounPhrase::Nominal(final_member_phrase)) =
-            (&middle.phrase, &final_member.phrase)
+        let (
+            crate::syntax::NounPhraseKind::Nominal(middle_phrase),
+            crate::syntax::NounPhraseKind::Nominal(final_member_phrase),
+        ) = (middle.phrase.kind(), final_member.phrase.kind())
         else {
             panic!("The Tale of Tamiyo did not select nominal members: {coordination:#?}");
         };
@@ -2101,16 +2116,17 @@ mod tests {
     #[test]
     fn per_conjunct_postmodifier_stays_on_the_first_member() {
         let source = "each creature with flying and each player";
-        let NounPhrase::Coordinated(coordination) = parse_fixture_noun_phrase(source) else {
+        let parsed = parse_fixture_noun_phrase(source);
+        let crate::syntax::NounPhraseKind::Coordinated(coordination) = parsed.kind() else {
             panic!("expected a complete noun-phrase coordination for {source:?}");
         };
-        let NounPhrase::Nominal(first) = coordination.first().as_ref() else {
+        let crate::syntax::NounPhraseKind::Nominal(first) = coordination.first().kind() else {
             panic!("expected a nominal first member: {coordination:#?}");
         };
         let [second] = coordination.rest().as_slice() else {
             panic!("expected exactly two members: {coordination:#?}");
         };
-        let NounPhrase::Nominal(second) = &second.phrase else {
+        let crate::syntax::NounPhraseKind::Nominal(second) = second.phrase.kind() else {
             panic!("expected a nominal second member: {coordination:#?}");
         };
         assert_eq!(nominal_head_spelling(first), "Creature");
@@ -2122,11 +2138,11 @@ mod tests {
         assert_eq!(nominal_head_spelling(second), "player");
         assert!(second.complements().is_empty());
         assert_eq!(
-            coordination_verdict(&coordination),
+            coordination_verdict(coordination),
             CoordinationVerdict::Admitted
         );
         assert_eq!(
-            linearize_coordinated_noun_phrase(&coordination)
+            linearize_coordinated_noun_phrase(coordination)
                 .expect("the declaration-admitted ownership fixture linearizes"),
             source,
         );
@@ -2135,11 +2151,12 @@ mod tests {
     #[test]
     fn target_artifact_or_creature_is_one_shared_determiner_group() {
         let source = "target artifact or creature";
-        let NounPhrase::CoordinatedNominal(coordination) = parse_fixture_noun_phrase(source) else {
+        let parsed = parse_fixture_noun_phrase(source);
+        let crate::syntax::NounPhraseKind::CoordinatedNominal(coordination) = parsed.kind() else {
             panic!("expected CoordinatedNominal for {source:?}");
         };
         let (determiner, first, rest, complements) =
-            coordination::parts_shared_determiner_nominal(&coordination);
+            coordination::parts_shared_determiner_nominal(coordination);
         assert_eq!(determiner, &crate::determiner::target(None));
         assert_eq!(nominal_head_spelling(first), "Artifact");
         let [second] = rest.as_slice() else {
@@ -2149,11 +2166,11 @@ mod tests {
         assert_eq!(nominal_head_spelling(&second.phrase), "Creature");
         assert!(complements.is_empty());
         assert_eq!(
-            nominal_coordination_verdict(&coordination),
+            nominal_coordination_verdict(coordination),
             CoordinationVerdict::Admitted,
         );
         assert_eq!(
-            linearize_coordinated_nominal_phrase(&coordination)
+            linearize_coordinated_nominal_phrase(coordination)
                 .expect("the declaration-admitted shared-determiner fixture linearizes"),
             source,
         );
@@ -2258,8 +2275,9 @@ mod tests {
                 && groups.iter().any(|group| {
                     is_local_power_toughness_group(group, false, false)
                         && !matches!(
-                            group.first().as_ref(),
-                            NounPhrase::Nominal(power) if has_base_modifier(power)
+                            group.first().kind(),
+                            crate::syntax::NounPhraseKind::Nominal(power)
+                                if has_base_modifier(power)
                         )
                 });
             assert!(
@@ -2320,16 +2338,15 @@ mod tests {
         noun_phrase: &NounPhrase,
         destination_matches: impl Fn(&NounPhrase) -> bool,
     ) -> bool {
-        let NounPhrase::Coordinated(coordination) = noun_phrase else {
+        let crate::syntax::NounPhraseKind::Coordinated(coordination) = noun_phrase.kind() else {
             return false;
         };
-        let (NounPhrase::Nominal(first), [second]) = (
-            coordination.first().as_ref(),
-            coordination.rest().as_slice(),
-        ) else {
+        let (crate::syntax::NounPhraseKind::Nominal(first), [second]) =
+            (coordination.first().kind(), coordination.rest().as_slice())
+        else {
             return false;
         };
-        let NounPhrase::Nominal(second_phrase) = &second.phrase else {
+        let crate::syntax::NounPhraseKind::Nominal(second_phrase) = second.phrase.kind() else {
             return false;
         };
         nominal_is_counter(first)
@@ -2369,21 +2386,24 @@ mod tests {
             SelfReference::new("Arwen, Mortal Queen", true),
         );
         let selected_matches = (|| {
-            let Some(NounPhrase::Coordinated(outer)) = main_transitive_object(&sentence) else {
+            let Some(object) = main_transitive_object(&sentence) else {
                 return false;
             };
-            let (NounPhrase::Coordinated(first), [second]) =
-                (outer.first().as_ref(), outer.rest().as_slice())
+            let crate::syntax::NounPhraseKind::Coordinated(outer) = object.kind() else {
+                return false;
+            };
+            let (crate::syntax::NounPhraseKind::Coordinated(first), [second]) =
+                (outer.first().kind(), outer.rest().as_slice())
             else {
                 return false;
             };
             second.conjunction == Some(Conjunction::And)
                 && counter_pair_has_destination(
-                    &NounPhrase::Coordinated(first.clone()),
+                    &NounPhrase::from_coordination_declaration(first.clone()),
                     |destination| {
                         matches!(
-                            destination,
-                            NounPhrase::Nominal(nominal)
+                            destination.kind(),
+                            crate::syntax::NounPhraseKind::Nominal(nominal)
                                 if nominal.determiner() == Some(&crate::determiner::demonstrative(
                                     crate::syntax::Demonstrative::That
                                 )) && nominal_head_spelling(nominal) == "Creature"
@@ -2391,7 +2411,10 @@ mod tests {
                     },
                 )
                 && counter_pair_has_destination(&second.phrase, |destination| {
-                    matches!(destination, NounPhrase::ThisCard(_))
+                    matches!(
+                        destination.kind(),
+                        crate::syntax::NounPhraseKind::ThisCard(_)
+                    )
                 })
         })();
         assert!(
@@ -2413,23 +2436,23 @@ mod tests {
         );
         let selected_matches = (|| {
             let crate::syntax::SentenceBody::Independent(
-                crate::syntax::IndependentClause::Intransitive(
-                    crate::syntax::Subject(NounPhrase::Coordinated(subject)),
-                    _,
-                ),
+                crate::syntax::IndependentClause::Intransitive(crate::syntax::Subject(subject), _),
             ) = &sentence.body
             else {
                 return false;
             };
-            let (NounPhrase::ThisCard(_), [other]) =
-                (subject.first().as_ref(), subject.rest().as_slice())
+            let crate::syntax::NounPhraseKind::Coordinated(subject) = subject.kind() else {
+                return false;
+            };
+            let (crate::syntax::NounPhraseKind::ThisCard(_), [other]) =
+                (subject.first().kind(), subject.rest().as_slice())
             else {
                 return false;
             };
             if other.conjunction != Some(Conjunction::Or) {
                 return false;
             }
-            let NounPhrase::Nominal(other_nominal) = &other.phrase else {
+            let crate::syntax::NounPhraseKind::Nominal(other_nominal) = other.phrase.kind() else {
                 return false;
             };
             other_nominal.complements().iter().any(|complement| {
@@ -2441,11 +2464,12 @@ mod tests {
                 else {
                     return false;
                 };
-                let NounPhrase::Coordinated(keywords) = noun_phrase.as_ref() else {
+                let crate::syntax::NounPhraseKind::Coordinated(keywords) = noun_phrase.kind()
+                else {
                     return false;
                 };
-                let (NounPhrase::Nominal(flash), [haste]) =
-                    (keywords.first().as_ref(), keywords.rest().as_slice())
+                let (crate::syntax::NounPhraseKind::Nominal(flash), [haste]) =
+                    (keywords.first().kind(), keywords.rest().as_slice())
                 else {
                     return false;
                 };
@@ -2453,8 +2477,8 @@ mod tests {
                     && nominal_head_spelling(flash) == "Flash"
                     && haste.conjunction == Some(Conjunction::Or)
                     && matches!(
-                        &haste.phrase,
-                        NounPhrase::Nominal(haste)
+                        haste.phrase.kind(),
+                        crate::syntax::NounPhraseKind::Nominal(haste)
                             if nominal_head_spelling(haste) == "Haste"
                     )
             })
@@ -2494,7 +2518,10 @@ mod tests {
         let crate::syntax::PredicateObject::NounPhrase(object) = &first_predicate.object else {
             panic!("selected first clause lost its noun-phrase object: {reading:#?}");
         };
-        assert!(matches!(object, NounPhrase::Nominal(_)), "{reading:#?}");
+        assert!(
+            matches!(object.kind(), crate::syntax::NounPhraseKind::Nominal(_)),
+            "{reading:#?}"
+        );
         let mut noun_coordinations = Vec::new();
         collect_noun_coordinations(object, &mut noun_coordinations);
         assert!(noun_coordinations.is_empty(), "{reading:#?}");
@@ -2739,18 +2766,24 @@ mod tests {
     #[test]
     fn noun_coordination_builder_admits_binary_and_derives_its_punctuation() {
         let built = coordination::build_noun_phrase_coordination(
-            Box::new(NounPhrase::Quantity(Quantity::Both)),
+            Box::new(NounPhrase::from_quantity_declaration(Quantity::Both)),
             vec![NounPhraseCoordination {
                 conjunction: Some(Conjunction::And),
-                phrase: NounPhrase::Quantity(Quantity::X),
+                phrase: NounPhrase::from_quantity_declaration(Quantity::X),
             }],
         )
         .expect("a binary noun coordination without an Oxford comma is admitted");
         let (first, rest) = coordination::parts_noun_phrase_coordination(&built);
-        assert_eq!(first, &NounPhrase::Quantity(Quantity::Both));
+        assert_eq!(
+            first,
+            &NounPhrase::from_quantity_declaration(Quantity::Both)
+        );
         assert_eq!(rest.len(), 1);
         assert_eq!(rest[0].conjunction, Some(Conjunction::And));
-        assert_eq!(rest[0].phrase, NounPhrase::Quantity(Quantity::X));
+        assert_eq!(
+            rest[0].phrase,
+            NounPhrase::from_quantity_declaration(Quantity::X)
+        );
         assert_eq!(
             linearize_coordinated_noun_phrase(&built).unwrap(),
             "both and X"
@@ -2783,10 +2816,10 @@ mod tests {
     #[test]
     fn generated_builder_rejects_a_predicate_only_conjunction() {
         let violation = coordination::build_noun_phrase_coordination(
-            Box::new(NounPhrase::Quantity(Quantity::Both)),
+            Box::new(NounPhrase::from_quantity_declaration(Quantity::Both)),
             vec![NounPhraseCoordination {
                 conjunction: Some(Conjunction::Then),
-                phrase: NounPhrase::Quantity(Quantity::X),
+                phrase: NounPhrase::from_quantity_declaration(Quantity::X),
             }],
         )
         .expect_err("predicate-only conjunctions are not nominal coordination");
@@ -2982,8 +3015,8 @@ mod tests {
             let readings = noun_phrase_readings(source);
             let expected = readings
                 .iter()
-                .filter_map(|reading| match reading {
-                    NounPhrase::Coordinated(coordination) => Some(coordination),
+                .filter_map(|reading| match reading.kind() {
+                    crate::syntax::NounPhraseKind::Coordinated(coordination) => Some(coordination),
                     _ => None,
                 })
                 .collect::<Vec<_>>();
@@ -3019,8 +3052,10 @@ mod tests {
             let readings = noun_phrase_readings(source);
             let expected = readings
                 .iter()
-                .filter_map(|reading| match reading {
-                    NounPhrase::CoordinatedNominal(coordination) => Some(coordination),
+                .filter_map(|reading| match reading.kind() {
+                    crate::syntax::NounPhraseKind::CoordinatedNominal(coordination) => {
+                        Some(coordination)
+                    }
                     _ => None,
                 })
                 .collect::<Vec<_>>();
@@ -3062,8 +3097,9 @@ mod tests {
             let readings = noun_phrase_readings(source);
             assert!(
                 readings.iter().all(|reading| !matches!(
-                    reading,
-                    NounPhrase::Coordinated(_) | NounPhrase::CoordinatedNominal(_)
+                    reading.kind(),
+                    crate::syntax::NounPhraseKind::Coordinated(_)
+                        | crate::syntax::NounPhraseKind::CoordinatedNominal(_)
                 )),
                 "illegal binary Oxford surface acquired a coordinated reading: {readings:#?}",
             );
@@ -3071,8 +3107,8 @@ mod tests {
     }
 
     fn noun_coordination_depth(noun_phrase: &NounPhrase) -> usize {
-        match noun_phrase {
-            NounPhrase::Coordinated(coordination) => {
+        match noun_phrase.kind() {
+            crate::syntax::NounPhraseKind::Coordinated(coordination) => {
                 let child_depth = std::iter::once(coordination.first().as_ref())
                     .chain(coordination.rest().iter().map(|member| &member.phrase))
                     .map(noun_coordination_depth)
@@ -3095,8 +3131,10 @@ mod tests {
         let coordinated = enumeration
             .readings
             .iter()
-            .filter_map(|reading| match reading {
-                NounPhrase::Coordinated(coordination) => Some((reading, coordination)),
+            .filter_map(|reading| match reading.kind() {
+                crate::syntax::NounPhraseKind::Coordinated(coordination) => {
+                    Some((reading, coordination))
+                }
                 _ => None,
             })
             .collect::<Vec<_>>();
@@ -3182,9 +3220,12 @@ mod tests {
     fn parsed_nominal_member(index: usize) -> NominalPhrase {
         const SOURCES: &[&str] = &["artifact", "creature", "land", "planeswalker"];
         let source = SOURCES[index];
-        match parse_fixture_noun_phrase(source) {
-            NounPhrase::Nominal(nominal) if nominal.determiner().is_none() => nominal,
-            reading => panic!(
+        let reading = parse_fixture_noun_phrase(source);
+        match reading.kind() {
+            crate::syntax::NounPhraseKind::Nominal(nominal) if nominal.determiner().is_none() => {
+                nominal.clone()
+            }
+            _ => panic!(
                 "strict nominal member ground was not a bare nominal for {source:?}: {reading:#?}"
             ),
         }
@@ -3225,7 +3266,7 @@ mod tests {
                 .expect("a built noun coordination linearizes");
             let reparsed = noun_phrase_readings(&bytes);
             prop_assert!(
-                reparsed.contains(&NounPhrase::Coordinated(built.clone())),
+                reparsed.contains(&NounPhrase::from_coordination_declaration(built.clone())),
                 "generated bytes did not recover the built noun value: bytes={bytes:?}, built={built:#?}, reparsed={reparsed:#?}",
             );
         }
@@ -3276,7 +3317,7 @@ mod tests {
                 .expect("a built shared-determiner coordination linearizes");
             let reparsed = noun_phrase_readings(&bytes);
             prop_assert!(
-                reparsed.contains(&NounPhrase::CoordinatedNominal(built.clone())),
+                reparsed.contains(&NounPhrase::from_coordinated_nominal_declaration(built.clone())),
                 "generated bytes did not recover the built nominal value: bytes={bytes:?}, built={built:#?}, reparsed={reparsed:#?}",
             );
         }
@@ -3460,11 +3501,11 @@ mod tests {
                     panic!("no exact {construction} reading for {source:?}: {normal:#?}")
                 });
             assert_eq!(expected.ast().form_ordinal, 0);
-            let rendered = match &expected.ast().value {
-                NounPhrase::Coordinated(value) => {
+            let rendered = match expected.ast().value.kind() {
+                crate::syntax::NounPhraseKind::Coordinated(value) => {
                     linearize_coordinated_noun_phrase(value).expect("generated noun linearizes")
                 }
-                NounPhrase::CoordinatedNominal(value) => {
+                crate::syntax::NounPhraseKind::CoordinatedNominal(value) => {
                     linearize_coordinated_nominal_phrase(value)
                         .expect("generated shared determiner linearizes")
                 }
@@ -3492,7 +3533,7 @@ mod tests {
     fn linearize_nominal_exact_form(parse: &GeneratedNominalParse) -> String {
         assert_eq!(parse.form_ordinal, 0, "all M01 fixture forms are @ 0");
         crate::render_fragment(
-            &crate::Fragment::Nominal(NounPhrase::Nominal(parse.value.clone())),
+            &crate::Fragment::Nominal(NounPhrase::from_nominal_declaration(parse.value.clone())),
             "Test Card",
             false,
         )

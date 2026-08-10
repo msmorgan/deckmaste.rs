@@ -21,6 +21,102 @@ use deckmaste_english::word::*;
 use serde::Serialize;
 use serde::ser;
 
+fn nominal_noun_phrase(nominal: NominalPhrase) -> NounPhrase {
+    deckmaste_english::noun_phrase::build_noun_phrase_nominal(nominal)
+        .expect("a validated nominal remains a valid noun phrase")
+}
+
+fn this_card_noun_phrase(form: ThisCardForm) -> NounPhrase {
+    match form {
+        ThisCardForm::AbbreviatedName => {
+            deckmaste_english::noun_phrase::build_noun_phrase_this_card(form)
+        }
+        ThisCardForm::FullName => {
+            deckmaste_english::noun_phrase::build_noun_phrase_full_this_card(form)
+        }
+    }
+    .expect("the matching self-reference declaration accepts its form")
+}
+
+fn is_this_card_form(noun_phrase: &NounPhrase, expected: ThisCardForm) -> bool {
+    matches!(noun_phrase.kind(), NounPhraseKind::ThisCard(form) if form == expected)
+}
+
+#[derive(Serialize)]
+enum LegacyNounPhraseView<'a> {
+    Nominal(&'a NominalPhrase),
+    Pronoun { pronoun: Pronoun, case: PronounCase },
+    Possessive(&'a Possessor),
+    Demonstrative(Demonstrative),
+    Quantity(Quantity),
+    ThisCard(ThisCardForm),
+    Partitive(&'a PartitiveNounPhrase),
+    CoordinatedNominal(&'a CoordinatedNominalPhrase),
+    Coordinated(&'a CoordinatedNounPhrase),
+    SetException(&'a SetExceptionNounPhrase),
+    Arithmetic(&'a ArithmeticValue),
+}
+
+fn legacy_noun_phrase_view(value: &NounPhrase) -> LegacyNounPhraseView<'_> {
+    match value.kind() {
+        NounPhraseKind::Nominal(value) => LegacyNounPhraseView::Nominal(value),
+        NounPhraseKind::Pronoun { pronoun, case } => {
+            LegacyNounPhraseView::Pronoun { pronoun, case }
+        }
+        NounPhraseKind::Possessive(value) => LegacyNounPhraseView::Possessive(value),
+        NounPhraseKind::Demonstrative(value) => LegacyNounPhraseView::Demonstrative(value),
+        NounPhraseKind::Quantity(value) => LegacyNounPhraseView::Quantity(value),
+        NounPhraseKind::ThisCard(value) => LegacyNounPhraseView::ThisCard(value),
+        NounPhraseKind::Partitive(value) => LegacyNounPhraseView::Partitive(value),
+        NounPhraseKind::CoordinatedNominal(value) => {
+            LegacyNounPhraseView::CoordinatedNominal(value)
+        }
+        NounPhraseKind::Coordinated(value) => LegacyNounPhraseView::Coordinated(value),
+        NounPhraseKind::SetException(value) => LegacyNounPhraseView::SetException(value),
+        NounPhraseKind::Arithmetic(value) => LegacyNounPhraseView::Arithmetic(value),
+    }
+}
+
+fn parsed_noun_phrase(source: &str) -> NounPhrase {
+    let fragment = parse_fragment(
+        source,
+        &Catalogs::default(),
+        FragmentKind::Nominal,
+        "Nissa Revane",
+        true,
+    )
+    .into_fragment()
+    .unwrap_or_else(|| panic!("fixture noun phrase must parse: {source:?}"));
+    let Fragment::Nominal(noun_phrase) = fragment else {
+        panic!("requested a nominal fragment for {source:?}")
+    };
+    noun_phrase
+}
+
+#[test]
+fn sealed_noun_phrase_serialization_matches_the_legacy_enum_schema() {
+    for source in [
+        "card",
+        "they",
+        "Nissa's",
+        "those",
+        "1",
+        "Nissa",
+        "one of them",
+        "target artifact or land",
+        "card or cards",
+        "all cards except them",
+        "3 minus 1",
+    ] {
+        let value = parsed_noun_phrase(source);
+        assert_eq!(
+            ron::to_string(&value).unwrap(),
+            ron::to_string(&legacy_noun_phrase_view(&value)).unwrap(),
+            "legacy noun-phrase serialization changed for {source:?}",
+        );
+    }
+}
+
 #[test]
 fn predicated_keyword_single_pp_keeps_generic_ast_with_declared_dominance() {
     let catalogs = Catalogs::default().with_catalog(CatalogKind::KeywordAbility, ["Protection"]);
@@ -173,7 +269,7 @@ fn public_known_and_opaque_nouns_use_generated_identity_families() {
     ] {
         let nominal = NominalPhrase::try_from_noun(noun)
             .expect("the generated nominal base admits this noun identity");
-        let fragment = Fragment::Nominal(NounPhrase::Nominal(nominal));
+        let fragment = Fragment::Nominal(nominal_noun_phrase(nominal));
         assert_eq!(
             render_fragment(&fragment, "Test Card", false).unwrap(),
             expected
@@ -215,6 +311,314 @@ fn public_invariant_bearing_syntax_uses_checked_constructors() {
     assert_eq!(
         Sentence::try_from_clause(Clause::Independent(clause.clone())).unwrap(),
         parsed,
+    );
+}
+
+#[test]
+#[allow(
+    clippy::too_many_lines,
+    reason = "one contract test deliberately covers every stable P01 shape and rejection"
+)]
+fn public_noun_phrase_facade_builds_projects_and_renders_all_p01_shapes() {
+    use deckmaste_english::features::Comma;
+    use deckmaste_english::nominal as nominal_api;
+    use deckmaste_english::noun_phrase as noun_phrase_api;
+
+    let literal = |value| NumberLiteral {
+        value,
+        numeral: Numeral::Arabic(false),
+    };
+    let nominal = |noun, plural| {
+        let head = if plural {
+            NounInstance::try_plural(Noun::Word(noun)).unwrap()
+        } else {
+            NounInstance::try_singular(Noun::Word(noun)).unwrap()
+        };
+        nominal_api::build_nominal_noun(head).unwrap()
+    };
+    let noun =
+        |noun, plural| noun_phrase_api::build_noun_phrase_nominal(nominal(noun, plural)).unwrap();
+    let render = |value: &NounPhrase| noun_phrase_api::render(value, "Nissa Revane", true).unwrap();
+
+    let card = noun(Vocab::Card, false);
+    let parts = noun_phrase_api::parts_noun_phrase_nominal(&card);
+    assert_eq!(
+        noun_phrase_api::build_noun_phrase_nominal(parts).unwrap(),
+        card
+    );
+    assert_eq!(render(&card), "card");
+
+    let rules_predicate = deckmaste_english::predicate::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Attack),
+            slot: VerbSlot::Present {
+                person: deckmaste_english::features::Person::Third,
+                number: deckmaste_english::features::Number::Singular,
+            },
+        },
+        deckmaste_english::predicate::PredicateFrameChoice::Intransitive,
+    )
+    .and_then(deckmaste_english::predicate::finish_predicate)
+    .unwrap();
+    let rules_relative = RelativeClause {
+        marker: RelativeMarker::That,
+        gap: deckmaste_english::features::GapState::Subject,
+        body: RelativeBody::SubjectGap(rules_predicate),
+    };
+    let rules_base =
+        nominal_api::build_rules_object_nominal_base(nominal(Vocab::Card, false)).unwrap();
+    let rules_followup = nominal_api::build_rules_object_followup_nominal_relative(
+        Some(rules_base),
+        None,
+        rules_relative,
+    )
+    .unwrap();
+    let rules_object = noun_phrase_api::build_rules_object_noun_phrase(rules_followup).unwrap();
+    let rules_parts = noun_phrase_api::parts_rules_object_noun_phrase(&rules_object);
+    let rebuilt_rules = noun_phrase_api::build_rules_object_noun_phrase(rules_parts).unwrap();
+    assert_eq!(rebuilt_rules, rules_object);
+    assert_eq!(render(rebuilt_rules.as_noun_phrase()), "card that attacks");
+
+    let they = noun_phrase_api::build_noun_phrase_subject_pronoun(Pronoun::They).unwrap();
+    assert_eq!(
+        noun_phrase_api::build_noun_phrase_subject_pronoun(
+            noun_phrase_api::parts_noun_phrase_subject_pronoun(&they)
+        )
+        .unwrap(),
+        they
+    );
+    assert_eq!(render(&they), "they");
+
+    let object_they = noun_phrase_api::build_noun_phrase_object_pronoun(Pronoun::They).unwrap();
+    assert_eq!(
+        noun_phrase_api::build_noun_phrase_object_pronoun(
+            noun_phrase_api::parts_noun_phrase_object_pronoun(&object_they)
+        )
+        .unwrap(),
+        object_they
+    );
+    assert_eq!(render(&object_they), "them");
+
+    let reciprocal = noun_phrase_api::build_noun_phrase_reciprocal(Pronoun::EachOther).unwrap();
+    assert_eq!(
+        noun_phrase_api::build_noun_phrase_reciprocal(
+            noun_phrase_api::parts_noun_phrase_reciprocal(&reciprocal)
+        )
+        .unwrap(),
+        reciprocal
+    );
+    assert_eq!(render(&reciprocal), "each other");
+
+    let one = Quantity::try_exact(literal(1)).unwrap();
+    let quantity = noun_phrase_api::build_noun_phrase_quantity(one).unwrap();
+    assert_eq!(
+        noun_phrase_api::build_noun_phrase_quantity(noun_phrase_api::parts_noun_phrase_quantity(
+            &quantity
+        ))
+        .unwrap(),
+        quantity
+    );
+    assert_eq!(render(&quantity), "1");
+
+    let abbreviated =
+        noun_phrase_api::build_noun_phrase_this_card(ThisCardForm::AbbreviatedName).unwrap();
+    assert_eq!(
+        noun_phrase_api::build_noun_phrase_this_card(noun_phrase_api::parts_noun_phrase_this_card(
+            &abbreviated
+        ))
+        .unwrap(),
+        abbreviated
+    );
+    assert_eq!(render(&abbreviated), "Nissa");
+
+    let full = noun_phrase_api::build_noun_phrase_full_this_card(ThisCardForm::FullName).unwrap();
+    assert_eq!(
+        noun_phrase_api::build_noun_phrase_full_this_card(
+            noun_phrase_api::parts_noun_phrase_full_this_card(&full)
+        )
+        .unwrap(),
+        full
+    );
+    assert_eq!(render(&full), "Nissa Revane");
+
+    let possessive =
+        noun_phrase_api::build_noun_phrase_possessive_this_card(ThisCardForm::AbbreviatedName)
+            .unwrap();
+    assert_eq!(
+        noun_phrase_api::build_noun_phrase_possessive_this_card(
+            noun_phrase_api::parts_noun_phrase_possessive_this_card(&possessive)
+        )
+        .unwrap(),
+        possessive
+    );
+    assert_eq!(render(&possessive), "Nissa's");
+
+    let those = noun_phrase_api::build_noun_phrase_demonstrative(Demonstrative::Those).unwrap();
+    assert_eq!(
+        noun_phrase_api::build_noun_phrase_demonstrative(
+            noun_phrase_api::parts_noun_phrase_demonstrative(&those)
+        )
+        .unwrap(),
+        those
+    );
+    assert_eq!(render(&those), "those");
+
+    let counted = noun_phrase_api::build_noun_phrase_partitive(one, object_they.clone()).unwrap();
+    let (head, whole) = noun_phrase_api::parts_noun_phrase_partitive(&counted);
+    assert_eq!(
+        noun_phrase_api::build_noun_phrase_partitive(head, whole).unwrap(),
+        counted
+    );
+    assert_eq!(render(&counted), "1 of them");
+
+    let distributive =
+        noun_phrase_api::build_noun_phrase_each_partitive(PartitiveHead::Each, object_they.clone())
+            .unwrap();
+    let (head, whole) = noun_phrase_api::parts_noun_phrase_each_partitive(&distributive);
+    assert_eq!(
+        noun_phrase_api::build_noun_phrase_each_partitive(head, whole).unwrap(),
+        distributive
+    );
+    assert_eq!(render(&distributive), "each of them");
+
+    let cards = noun(Vocab::Card, true);
+    let any_number = noun_phrase_api::build_noun_phrase_any_number_of(cards.clone()).unwrap();
+    assert_eq!(
+        noun_phrase_api::build_noun_phrase_any_number_of(
+            noun_phrase_api::parts_noun_phrase_any_number_of(&any_number)
+        )
+        .unwrap(),
+        any_number
+    );
+    assert_eq!(render(&any_number), "any number of cards");
+
+    let three =
+        noun_phrase_api::build_noun_phrase_quantity(Quantity::try_exact(literal(3)).unwrap())
+            .unwrap();
+    let minus = noun_phrase_api::build_noun_phrase_minus(three.clone(), quantity.clone()).unwrap();
+    let (left, right) = noun_phrase_api::parts_noun_phrase_minus(&minus);
+    assert_eq!(
+        noun_phrase_api::build_noun_phrase_minus(left, right).unwrap(),
+        minus
+    );
+    assert_eq!(render(&minus), "3 minus 1");
+
+    let half = noun_phrase_api::build_noun_phrase_half(three.clone()).unwrap();
+    assert_eq!(
+        noun_phrase_api::build_noun_phrase_half(noun_phrase_api::parts_noun_phrase_half(&half))
+            .unwrap(),
+        half
+    );
+    assert_eq!(render(&half), "half 3");
+
+    let rounded_up =
+        noun_phrase_api::build_noun_phrase_half_rounded_up(three.clone(), Rounding::Up).unwrap();
+    let (value, rounding) = noun_phrase_api::parts_noun_phrase_half_rounded_up(&rounded_up);
+    assert_eq!(
+        noun_phrase_api::build_noun_phrase_half_rounded_up(value, rounding).unwrap(),
+        rounded_up
+    );
+    assert_eq!(render(&rounded_up), "half 3, rounded up");
+
+    let rounded_down =
+        noun_phrase_api::build_noun_phrase_half_rounded_down(three, Rounding::Down).unwrap();
+    let (value, rounding) = noun_phrase_api::parts_noun_phrase_half_rounded_down(&rounded_down);
+    assert_eq!(
+        noun_phrase_api::build_noun_phrase_half_rounded_down(value, rounding).unwrap(),
+        rounded_down
+    );
+    assert_eq!(render(&rounded_down), "half 3, rounded down");
+
+    let all =
+        deckmaste_english::determiner::build_determiner_closed(ClosedDeterminer::All).unwrap();
+    let all_cards = nominal_api::build_nominal_determiner(all, nominal(Vocab::Card, true)).unwrap();
+    let all_cards = noun_phrase_api::build_noun_phrase_nominal(all_cards).unwrap();
+    for (comma, expected) in [
+        (None, "all cards except them"),
+        (Some(Comma::Present), "all cards, except them"),
+    ] {
+        let exception = noun_phrase_api::build_noun_phrase_set_exception_bare(
+            all_cards.clone(),
+            SetExceptionMarker::Bare,
+            comma,
+            object_they.clone(),
+        )
+        .unwrap();
+        let (included, marker, comma, excluded) =
+            noun_phrase_api::parts_noun_phrase_set_exception_bare(&exception);
+        assert_eq!(
+            noun_phrase_api::build_noun_phrase_set_exception_bare(
+                included, marker, comma, excluded
+            )
+            .unwrap(),
+            exception
+        );
+        assert_eq!(render(&exception), expected);
+    }
+    for (comma, expected) in [
+        (None, "all cards except for them"),
+        (Some(Comma::Present), "all cards, except for them"),
+    ] {
+        let exception = noun_phrase_api::build_noun_phrase_set_exception_for(
+            all_cards.clone(),
+            SetExceptionMarker::For,
+            comma,
+            object_they.clone(),
+        )
+        .unwrap();
+        let (included, marker, comma, excluded) =
+            noun_phrase_api::parts_noun_phrase_set_exception_for(&exception);
+        assert_eq!(
+            noun_phrase_api::build_noun_phrase_set_exception_for(included, marker, comma, excluded)
+                .unwrap(),
+            exception
+        );
+        assert_eq!(render(&exception), expected);
+    }
+
+    let coordinated = noun_phrase_api::build_noun_phrase_coordination(
+        Box::new(card.clone()),
+        vec![NounPhraseCoordination {
+            conjunction: Some(NounPhraseConjunction::Or),
+            phrase: cards.clone(),
+        }],
+    )
+    .unwrap();
+    let (first, rest) = noun_phrase_api::parts_noun_phrase_coordination(&coordinated);
+    assert_eq!(
+        noun_phrase_api::build_noun_phrase_coordination(Box::new(first), rest).unwrap(),
+        coordinated
+    );
+    assert_eq!(render(&coordinated), "card or cards");
+
+    assert!(noun_phrase_api::build_noun_phrase_subject_pronoun(Pronoun::EachOther).is_err());
+    assert!(noun_phrase_api::build_noun_phrase_object_pronoun(Pronoun::EachOther).is_err());
+    assert!(noun_phrase_api::build_noun_phrase_reciprocal(Pronoun::They).is_err());
+    assert!(noun_phrase_api::build_noun_phrase_any_number_of(card.clone()).is_err());
+    let closed = noun_phrase_api::build_noun_phrase_set_exception_bare(
+        all_cards,
+        SetExceptionMarker::Bare,
+        None,
+        object_they.clone(),
+    )
+    .unwrap();
+    assert!(
+        noun_phrase_api::build_noun_phrase_set_exception_for(
+            closed,
+            SetExceptionMarker::For,
+            None,
+            object_they.clone(),
+        )
+        .is_err()
+    );
+    assert!(
+        noun_phrase_api::build_noun_phrase_set_exception_bare(
+            card,
+            SetExceptionMarker::Bare,
+            None,
+            object_they,
+        )
+        .is_err()
     );
 }
 
@@ -276,7 +680,7 @@ fn public_adjective_facade_builds_projects_rebuilds_and_renders_every_shape() {
 
     let standards = [
         adjective_api::build_comparison_standard(
-            Some(NounPhrase::ThisCard(ThisCardForm::AbbreviatedName)),
+            Some(this_card_noun_phrase(ThisCardForm::AbbreviatedName)),
             None,
             None,
         )
@@ -576,7 +980,7 @@ fn abbreviated_self_reference_without_a_short_name_returns_an_error() {
         nominal,
     )
     .unwrap();
-    let fragment = Fragment::Nominal(NounPhrase::Nominal(nominal));
+    let fragment = Fragment::Nominal(nominal_noun_phrase(nominal));
 
     for (name, is_legendary) in [
         ("Progenitus", true),
@@ -657,7 +1061,7 @@ fn public_possessive_nominal_boundary_rejects_non_d01_nominal_shapes() {
         bare(),
         PrepositionalPhrase::simple(
             Preposition::In,
-            Phrase::NounPhrase(Box::new(NounPhrase::Nominal(object))),
+            Phrase::NounPhrase(Box::new(nominal_noun_phrase(object))),
         ),
     )
     .unwrap();
@@ -691,7 +1095,7 @@ fn public_possessive_nominal_boundary_rejects_non_d01_nominal_shapes() {
 
     let pending = adjective_api::build_adjective_phrase(Adjective::Word(Vocab::Greater)).unwrap();
     let comparison = adjective_api::build_comparison_than(
-        adjective_api::build_comparison_standard(Some(NounPhrase::Nominal(bare())), None, None)
+        adjective_api::build_comparison_standard(Some(nominal_noun_phrase(bare())), None, None)
             .unwrap(),
     )
     .unwrap();
@@ -777,7 +1181,7 @@ fn public_predicate_facade_constructs_transitive_and_roundtrips_exact() {
         predicate_api::PredicateFrameChoice::Transitive,
     )
     .and_then(|predicate| {
-        predicate_api::build_predicate_direct_object(predicate, NounPhrase::Nominal(card.clone()))
+        predicate_api::build_predicate_direct_object(predicate, nominal_noun_phrase(card.clone()))
     })
     .and_then(predicate_api::finish_predicate)
     .expect("the declaration accepts draw plus its direct object");
@@ -964,7 +1368,7 @@ fn public_predicate_facade_rejects_invalid_valency_form_voice_and_order() {
         predicate_api::PredicateFrameChoice::Intransitive,
     )
     .and_then(|predicate| {
-        predicate_api::build_predicate_direct_object(predicate, NounPhrase::Nominal(card.clone()))
+        predicate_api::build_predicate_direct_object(predicate, nominal_noun_phrase(card.clone()))
     });
     assert!(illegal_object.is_err(), "intransitive valency is sealed");
 
@@ -995,7 +1399,7 @@ fn public_predicate_facade_rejects_invalid_valency_form_voice_and_order() {
         predicate_api::PredicateFrameChoice::Transitive,
     )
     .and_then(|predicate| {
-        predicate_api::build_predicate_direct_object(predicate, NounPhrase::Nominal(card.clone()))
+        predicate_api::build_predicate_direct_object(predicate, nominal_noun_phrase(card.clone()))
     })
     .and_then(|predicate| {
         predicate_api::build_predicate_auxiliary(
@@ -1026,7 +1430,7 @@ fn public_predicate_facade_rejects_invalid_valency_form_voice_and_order() {
         )
     })
     .and_then(|predicate| {
-        predicate_api::build_predicate_direct_object(predicate, NounPhrase::Nominal(card))
+        predicate_api::build_predicate_direct_object(predicate, nominal_noun_phrase(card))
     });
     assert!(illegal_order.is_err(), "tail dependents close object order");
 }
@@ -1138,7 +1542,7 @@ fn public_predicate_facade_preserves_prepositional_adjunct_role() {
     .unwrap();
     let phrase = PrepositionalPhrase::simple(
         Preposition::During,
-        Phrase::NounPhrase(Box::new(NounPhrase::Nominal(card))),
+        Phrase::NounPhrase(Box::new(nominal_noun_phrase(card))),
     );
     let base = predicate_api::build_predicate_verb(
         VerbInstance {
@@ -1199,7 +1603,7 @@ fn public_predicate_facade_preserves_selected_prepositional_complement_role() {
     .unwrap();
     let phrase = PrepositionalPhrase::simple(
         Preposition::At,
-        Phrase::NounPhrase(Box::new(NounPhrase::Nominal(card))),
+        Phrase::NounPhrase(Box::new(nominal_noun_phrase(card))),
     );
 
     let matched = predicate_api::build_predicate_element(
@@ -1245,7 +1649,7 @@ fn public_nominal_phrase_has_a_complete_read_only_projection() {
     assert_eq!(nominal.head(), &head);
     assert!(nominal.complements().is_empty());
 
-    let fragment = Fragment::Nominal(NounPhrase::Nominal(nominal));
+    let fragment = Fragment::Nominal(nominal_noun_phrase(nominal));
     assert_eq!(
         render_fragment(&fragment, "Test Card", false).expect("checked nominal renders"),
         "card",
@@ -1323,13 +1727,16 @@ fn public_nominal_construction_api_exposes_every_checked_m01_builder() {
     )
     .into_fragment()
     .expect("prepositional nominal parses");
-    let Fragment::Nominal(NounPhrase::Nominal(parsed_pp)) = parsed_pp else {
+    let Fragment::Nominal(parsed_pp) = parsed_pp else {
         panic!("fixture is a nominal noun phrase");
     };
-    let (base, preposition) = nominal_api::parts_nominal_prepositional(&parsed_pp);
+    let NounPhraseKind::Nominal(parsed_pp) = parsed_pp.kind() else {
+        panic!("fixture is a nominal noun phrase");
+    };
+    let (base, preposition) = nominal_api::parts_nominal_prepositional(parsed_pp);
     assert_eq!(
         nominal_api::build_nominal_prepositional(base, preposition).unwrap(),
-        parsed_pp,
+        parsed_pp.clone(),
     );
 
     let rules_object = nominal_api::build_rules_object_nominal_base(card.clone()).unwrap();
@@ -1339,7 +1746,7 @@ fn public_nominal_construction_api_exposes_every_checked_m01_builder() {
         nominal_api::build_nominal_noun(NounInstance::try_mass(Noun::Word(Vocab::Damage)).unwrap())
             .unwrap();
     let reduced_theme = nominal_api::build_reduced_recipient_passive_theme(damage.clone()).unwrap();
-    assert_eq!(reduced_theme.as_noun_phrase(), &NounPhrase::Nominal(damage));
+    assert_eq!(reduced_theme.as_noun_phrase(), &nominal_noun_phrase(damage));
 
     let quality =
         nominal_api::build_predicated_quality_from(Preposition::From, Some(ColorWord::Red), None)
@@ -2410,19 +2817,19 @@ impl<'syntax> SyntaxInventory<'syntax> {
 
     fn noun_phrase(&mut self, phrase: &'syntax NounPhrase) {
         self.noun_phrases.push(phrase);
-        match phrase {
-            NounPhrase::Nominal(nominal) => self.nominal_phrase(nominal),
-            NounPhrase::Pronoun { pronoun, .. } => self.pronouns.push(*pronoun),
-            NounPhrase::Possessive(possessor) => self.possessor(possessor),
-            NounPhrase::Quantity(quantity) => self.quantities.push(*quantity),
-            NounPhrase::ThisCard(form) => self.this_cards.push(*form),
-            NounPhrase::Partitive(partitive) => {
+        match phrase.kind() {
+            NounPhraseKind::Nominal(nominal) => self.nominal_phrase(nominal),
+            NounPhraseKind::Pronoun { pronoun, .. } => self.pronouns.push(pronoun),
+            NounPhraseKind::Possessive(possessor) => self.possessor(possessor),
+            NounPhraseKind::Quantity(quantity) => self.quantities.push(quantity),
+            NounPhraseKind::ThisCard(form) => self.this_cards.push(form),
+            NounPhraseKind::Partitive(partitive) => {
                 if let PartitiveHead::Quantity(quantity) = partitive.head {
                     self.quantities.push(quantity);
                 }
                 self.noun_phrase(&partitive.whole);
             }
-            NounPhrase::CoordinatedNominal(coordinated) => {
+            NounPhraseKind::CoordinatedNominal(coordinated) => {
                 self.determiner(coordinated.determiner());
                 self.nominal_phrase(coordinated.first());
                 for coordination in coordinated.rest() {
@@ -2432,24 +2839,24 @@ impl<'syntax> SyntaxInventory<'syntax> {
                     self.nominal_complement(complement);
                 }
             }
-            NounPhrase::Coordinated(coordinated) => {
+            NounPhraseKind::Coordinated(coordinated) => {
                 self.noun_phrase(coordinated.first());
                 for coordination in coordinated.rest() {
                     self.noun_phrase(&coordination.phrase);
                 }
             }
-            NounPhrase::SetException(exception) => {
+            NounPhraseKind::SetException(exception) => {
                 self.noun_phrase(&exception.included);
                 self.noun_phrase(&exception.excluded);
             }
-            NounPhrase::Arithmetic(ArithmeticValue::Minus { left, right }) => {
+            NounPhraseKind::Arithmetic(ArithmeticValue::Minus { left, right }) => {
                 self.noun_phrase(left);
                 self.noun_phrase(right);
             }
-            NounPhrase::Arithmetic(ArithmeticValue::Half { value, .. }) => {
+            NounPhraseKind::Arithmetic(ArithmeticValue::Half { value, .. }) => {
                 self.noun_phrase(value);
             }
-            NounPhrase::Demonstrative(_) => {}
+            NounPhraseKind::Demonstrative(_) => {}
         }
     }
 
@@ -2865,7 +3272,7 @@ fn last_effect_clause(ast: &OracleText) -> &IndependentClause {
 }
 
 fn is_any_number_of(phrase: &NounPhrase) -> bool {
-    let NounPhrase::Nominal(nominal) = phrase else {
+    let NounPhraseKind::Nominal(nominal) = phrase.kind() else {
         return false;
     };
     if nominal.determiner() != Some(&deckmaste_english::determiner::any()) {
@@ -2991,10 +3398,8 @@ fn single_word_full_name_is_a_full_self_reference() {
     assert!(
         matches!(
             only_independent_clause(&ast),
-            IndependentClause::Intransitive(
-                Subject(NounPhrase::ThisCard(ThisCardForm::FullName)),
-                _
-            )
+            IndependentClause::Intransitive(Subject(subject), _)
+                if is_this_card_form(subject, ThisCardForm::FullName)
         ),
         "AST:\n{ast:#?}"
     );
@@ -3012,10 +3417,8 @@ fn a_nickname_is_an_abbreviated_self_reference() {
     assert!(
         matches!(
             only_independent_clause(&ast),
-            IndependentClause::Intransitive(
-                Subject(NounPhrase::ThisCard(ThisCardForm::AbbreviatedName)),
-                _
-            )
+            IndependentClause::Intransitive(Subject(subject), _)
+                if is_this_card_form(subject, ThisCardForm::AbbreviatedName)
         ),
         "AST:\n{ast:#?}"
     );
@@ -3033,10 +3436,8 @@ fn a_two_word_nickname_is_recognized_as_one_self_reference() {
     assert!(
         matches!(
             only_independent_clause(&ast),
-            IndependentClause::Intransitive(
-                Subject(NounPhrase::ThisCard(ThisCardForm::AbbreviatedName)),
-                _
-            )
+            IndependentClause::Intransitive(Subject(subject), _)
+                if is_this_card_form(subject, ThisCardForm::AbbreviatedName)
         ),
         "AST:\n{ast:#?}"
     );
@@ -3055,10 +3456,8 @@ fn a_roman_numeral_nickname_is_recognized() {
     assert!(
         matches!(
             only_independent_clause(&ast),
-            IndependentClause::Intransitive(
-                Subject(NounPhrase::ThisCard(ThisCardForm::AbbreviatedName)),
-                _
-            )
+            IndependentClause::Intransitive(Subject(subject), _)
+                if is_this_card_form(subject, ThisCardForm::AbbreviatedName)
         ),
         "AST:\n{ast:#?}"
     );
@@ -3085,7 +3484,10 @@ fn sliver_stays_a_creature_type_not_a_self_reference() {
     else {
         panic!("expected a transitive imperative: {ast:#?}");
     };
-    let PredicateObject::NounPhrase(NounPhrase::Nominal(token)) = &predicate.object else {
+    let PredicateObject::NounPhrase(token) = &predicate.object else {
+        panic!("expected a nominal token object: {ast:#?}");
+    };
+    let NounPhraseKind::Nominal(token) = token.kind() else {
         panic!("expected a nominal token object: {ast:#?}");
     };
     assert!(
@@ -3118,10 +3520,8 @@ fn a_nickname_that_is_a_common_noun_keeps_its_capital() {
     assert!(
         matches!(
             only_independent_clause(&ast),
-            IndependentClause::Intransitive(
-                Subject(NounPhrase::ThisCard(ThisCardForm::AbbreviatedName)),
-                _
-            )
+            IndependentClause::Intransitive(Subject(subject), _)
+                if is_this_card_form(subject, ThisCardForm::AbbreviatedName)
         ),
         "AST:\n{ast:#?}"
     );
@@ -3137,10 +3537,8 @@ fn a_nickname_that_is_a_keyword_ability_keeps_its_capital() {
     assert!(
         matches!(
             only_independent_clause(&ast),
-            IndependentClause::Intransitive(
-                Subject(NounPhrase::ThisCard(ThisCardForm::AbbreviatedName)),
-                _
-            )
+            IndependentClause::Intransitive(Subject(subject), _)
+                if is_this_card_form(subject, ThisCardForm::AbbreviatedName)
         ),
         "AST:\n{ast:#?}"
     );
@@ -3171,9 +3569,11 @@ fn a_the_headed_nickname_keeps_its_capital_the() {
                         ))
                             if matches!(
                                 &predicate.object,
-                                PredicateObject::NounPhrase(NounPhrase::ThisCard(
-                                    ThisCardForm::AbbreviatedName
-                                ))
+                                PredicateObject::NounPhrase(noun_phrase)
+                                    if is_this_card_form(
+                                        noun_phrase,
+                                        ThisCardForm::AbbreviatedName,
+                                    )
                             )
                     )
                 )
@@ -3246,12 +3646,10 @@ fn quoted_final_exception_conjunct_stays_inside_oxford_rider() {
                 IndependentClause::Copular(
                     _,
                     CopularPredicate {
-                        complement: CopularComplement::NounPhrase(NounPhrase::ThisCard(
-                            ThisCardForm::FullName
-                        )),
+                        complement: CopularComplement::NounPhrase(noun_phrase),
                         ..
                     }
-                )
+                ) if is_this_card_form(noun_phrase, ThisCardForm::FullName)
             )
             && rider.rest().len() == 2
             && rider.rest()[0].conjunction().is_none()
@@ -3340,12 +3738,10 @@ fn name_exception_on_a_becomes_copy_carries_a_self_reference() {
             IndependentClause::Copular(
                 _,
                 CopularPredicate {
-                    complement: CopularComplement::NounPhrase(NounPhrase::ThisCard(
-                        ThisCardForm::FullName
-                    )),
+                    complement: CopularComplement::NounPhrase(noun_phrase),
                     ..
                 }
-            )
+            ) if is_this_card_form(noun_phrase, ThisCardForm::FullName)
         ) && rider.rest().len() == 1,
         "AST:\n{ast}"
     );
@@ -3443,12 +3839,15 @@ fn base_power_and_toughness_stat_sets_a_characteristic_pair() {
     let (rendered, ast) = parse_face(source, &characteristic_catalogs(), "Test Card", false);
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
-    let Some(PredicateObject::NounPhrase(NounPhrase::Coordinated(coordination))) =
+    let Some(PredicateObject::NounPhrase(noun_phrase)) =
         direct_object(only_independent_clause(&ast))
     else {
         panic!("expected a coordinated characteristic object: {ast}");
     };
-    let NounPhrase::Nominal(first) = coordination.first().as_ref() else {
+    let NounPhraseKind::Coordinated(coordination) = noun_phrase.kind() else {
+        panic!("expected a coordinated characteristic object: {ast}");
+    };
+    let NounPhraseKind::Nominal(first) = coordination.first().kind() else {
         panic!("expected nominal first characteristic: {ast}")
     };
     assert!(matches!(
@@ -3469,10 +3868,13 @@ fn base_power_and_toughness_stat_sets_a_characteristic_pair() {
     let [
         NounPhraseCoordination {
             conjunction: Some(NounPhraseConjunction::And),
-            phrase: NounPhrase::Nominal(second),
+            phrase: second,
         },
     ] = coordination.rest().as_slice()
     else {
+        panic!("expected the coordinated toughness characteristic: {ast}")
+    };
+    let NounPhraseKind::Nominal(second) = second.kind() else {
         panic!("expected the coordinated toughness characteristic: {ast}")
     };
     assert!(matches!(
@@ -3502,18 +3904,24 @@ fn base_power_or_toughness_quantity_bound_rides_the_existing_quantity_complement
     let (rendered, ast) = parse_face(source, &characteristic_catalogs(), "Test Card", false);
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
-    let Some(PredicateObject::NounPhrase(NounPhrase::Coordinated(coordination))) =
+    let Some(PredicateObject::NounPhrase(noun_phrase)) =
         direct_object(only_independent_clause(&ast))
     else {
+        panic!("expected a coordinated characteristic object: {ast}");
+    };
+    let NounPhraseKind::Coordinated(coordination) = noun_phrase.kind() else {
         panic!("expected a coordinated characteristic object: {ast}");
     };
     let [
         NounPhraseCoordination {
             conjunction: Some(NounPhraseConjunction::Or),
-            phrase: NounPhrase::Nominal(toughness),
+            phrase: toughness,
         },
     ] = coordination.rest().as_slice()
     else {
+        panic!("expected the coordinated toughness characteristic: {ast}")
+    };
+    let NounPhraseKind::Nominal(toughness) = toughness.kind() else {
         panic!("expected the coordinated toughness characteristic: {ast}")
     };
     assert!(matches!(
@@ -3616,9 +4024,10 @@ fn cost_noun_phrases_coordinate_with_and_or() {
     let IndependentClause::Imperative(Predicate::Transitive(predicate)) = clause.as_ref() else {
         panic!("expected a transitive imperative cost: {ast}");
     };
-    let PredicateObject::NounPhrase(NounPhrase::CoordinatedNominal(coordinated)) =
-        &predicate.object
-    else {
+    let PredicateObject::NounPhrase(noun_phrase) = &predicate.object else {
+        panic!("expected a coordinated nominal object: {ast}");
+    };
+    let NounPhraseKind::CoordinatedNominal(coordinated) = noun_phrase.kind() else {
         panic!("expected a coordinated nominal object: {ast}");
     };
     assert!(
@@ -4901,13 +5310,17 @@ fn qfloat_core_one_or_two_each_gets_lowers_as_coordinated_np() {
     assert!(
         matches!(
             clause_subject(only_independent_clause(&ast)),
-            Some(NounPhrase::Coordinated(coordinated))
+            Some(noun_phrase)
                 if matches!(
-                    coordinated.first().as_ref(),
-                    NounPhrase::Nominal(nominal)
+                    noun_phrase.kind(),
+                    NounPhraseKind::Coordinated(coordinated)
                         if matches!(
-                            nominal.head().kind(),
-                            NounInstanceKind::Singular(Noun::Word(Vocab::One))
+                            coordinated.first().kind(),
+                            NounPhraseKind::Nominal(nominal)
+                                if matches!(
+                                    nominal.head().kind(),
+                                    NounInstanceKind::Singular(Noun::Word(Vocab::One))
+                                )
                         )
                 )
         ),
@@ -4916,14 +5329,18 @@ fn qfloat_core_one_or_two_each_gets_lowers_as_coordinated_np() {
     assert!(
         !matches!(
             clause_subject(only_independent_clause(&ast)),
-            Some(NounPhrase::Nominal(nominal))
+            Some(noun_phrase)
                 if matches!(
-                    nominal.determiner(),
-                    Some(determiner)
+                    noun_phrase.kind(),
+                    NounPhraseKind::Nominal(nominal)
                         if matches!(
-                            determiner.kind(),
-                            DeterminerKind::Target(Some(quantity))
-                                if matches!(quantity.kind(), QuantityKind::Or(_, _))
+                            nominal.determiner(),
+                            Some(determiner)
+                                if matches!(
+                                    determiner.kind(),
+                                    DeterminerKind::Target(Some(quantity))
+                                        if matches!(quantity.kind(), QuantityKind::Or(_, _))
+                                )
                         )
                 )
         ),
@@ -5320,7 +5737,10 @@ fn multiword_cardinal_plural_lowers_as_one_quantity() {
         false,
     );
     assert!(plural.clean(), "{plural:#?}");
-    let Some(Fragment::Nominal(NounPhrase::Nominal(nominal))) = plural.fragment() else {
+    let Some(Fragment::Nominal(noun_phrase)) = plural.fragment() else {
+        panic!("expected a nominal fragment: {plural:#?}");
+    };
+    let NounPhraseKind::Nominal(nominal) = noun_phrase.kind() else {
         panic!("expected a nominal fragment: {plural:#?}");
     };
     assert!(

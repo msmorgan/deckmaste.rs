@@ -632,8 +632,9 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(actual, COMPARISON_IDS);
 
-        let noun =
-            crate::syntax::NounPhrase::ThisCard(crate::syntax::ThisCardForm::AbbreviatedName);
+        let noun = crate::syntax::NounPhrase::from_this_card_declaration(
+            crate::syntax::ThisCardForm::AbbreviatedName,
+        );
         let adjective =
             AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Target)).unwrap();
         let clause = crate::grammar::parse_nonterminal_with_activation(

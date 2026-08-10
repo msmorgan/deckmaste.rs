@@ -532,7 +532,7 @@ pub enum KeywordArgument {
     /// with a cost — `craft with artifact {1}{U}`, `splice onto Arcane
     /// {W}`. One shape, not a sibling per surface family: the restriction
     /// retains the full noun-phrase tree (including the legitimate headless
-    /// `NounPhrase::Quantity` case, `craft with one or more {5}`), and the
+    /// `NounPhraseKind::Quantity` case, `craft with one or more {5}`), and the
     /// cost is `Symbols` or (composed with the tight em-dash structured cost)
     /// `Components` [CR#702.6c,702.6e,702.47a,702.167a].
     RestrictedCost {

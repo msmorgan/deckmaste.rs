@@ -618,23 +618,23 @@ mod tests {
     }
 
     #[derive(Serialize)]
-    enum NounPhrase {
+    enum FixtureNounPhrase {
         Nominal(NominalPhrase),
     }
 
     #[derive(Serialize)]
     struct NounPhraseCoordination {
-        phrase: NounPhrase,
+        phrase: FixtureNounPhrase,
     }
 
     #[derive(Serialize)]
     struct CoordinatedNounPhrase {
-        first: NounPhrase,
+        first: FixtureNounPhrase,
         rest: Vec<NounPhraseCoordination>,
     }
 
-    fn nominal(determiner: Option<TestDeterminer>, head: Head) -> NounPhrase {
-        NounPhrase::Nominal(NominalPhrase {
+    fn nominal(determiner: Option<TestDeterminer>, head: Head) -> FixtureNounPhrase {
+        FixtureNounPhrase::Nominal(NominalPhrase {
             determiner,
             modifiers: Vec::new(),
             head,
@@ -642,8 +642,8 @@ mod tests {
         })
     }
 
-    fn participial_role(verb: TestVocab, head: Head) -> NounPhrase {
-        NounPhrase::Nominal(NominalPhrase {
+    fn participial_role(verb: TestVocab, head: Head) -> FixtureNounPhrase {
+        FixtureNounPhrase::Nominal(NominalPhrase {
             determiner: None,
             modifiers: vec![TestNominalModifier::Adjective {
                 phrase: TestAdjectivePhrase {
@@ -655,8 +655,8 @@ mod tests {
         })
     }
 
-    fn prepositionally_closed(determiner: TestDeterminer, head: Head) -> NounPhrase {
-        NounPhrase::Nominal(NominalPhrase {
+    fn prepositionally_closed(determiner: TestDeterminer, head: Head) -> FixtureNounPhrase {
+        FixtureNounPhrase::Nominal(NominalPhrase {
             determiner: Some(determiner),
             modifiers: Vec::new(),
             head,
@@ -664,7 +664,7 @@ mod tests {
         })
     }
 
-    fn coordinated(members: Vec<NounPhrase>) -> CoordinatedNounPhrase {
+    fn coordinated(members: Vec<FixtureNounPhrase>) -> CoordinatedNounPhrase {
         let mut members = members.into_iter();
         let first = members.next().expect("a coordination has a first member");
         CoordinatedNounPhrase {

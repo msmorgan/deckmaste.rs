@@ -1260,12 +1260,11 @@ pub(super) fn lower_lexical(
                 return None;
             }
             let subject = match subject_auxiliary.subject {
-                ContractedSubjectKey::Pronoun(pronoun) => NounPhrase::Pronoun {
-                    pronoun,
-                    case: PronounCase::Subject,
-                },
+                ContractedSubjectKey::Pronoun(pronoun) => {
+                    NounPhrase::from_pronoun_declaration(pronoun, PronounCase::Subject)
+                }
                 ContractedSubjectKey::Demonstrative(demonstrative) => {
-                    NounPhrase::Demonstrative(demonstrative)
+                    NounPhrase::from_demonstrative_declaration(demonstrative)
                 }
             };
             Lowered::SubjectAuxiliary(ContractedSubjectAuxiliary {

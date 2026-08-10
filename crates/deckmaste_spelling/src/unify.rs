@@ -32,11 +32,11 @@
 //!   numeral `41`, so every compiled frame claims `Numeral::Arabic` — but "Draw
 //!   three cards" spells its count out. The `numeral` field beside a numeric
 //!   hole is therefore not compared; see [`surface_only_fields`].
-//! - **self-reference form.** `NounPhrase::ThisCard` carries a `ThisCardForm`
-//!   (full vs. abbreviated name) and sits under whichever wrapper its position
-//!   calls for, so two `~` sites in one frame capture structurally *different*
-//!   subtrees for the same referent. The non-linear equality check therefore
-//!   compares self-reference-hood, not raw trees.
+//! - **self-reference form.** `NounPhraseKind::ThisCard` carries a
+//!   `ThisCardForm` (full vs. abbreviated name) and sits under whichever
+//!   wrapper its position calls for, so two `~` sites in one frame capture
+//!   structurally *different* subtrees for the same referent. The non-linear
+//!   equality check therefore compares self-reference-hood, not raw trees.
 //!
 //! # Guards
 //!
@@ -322,9 +322,9 @@ pub(crate) fn recovered_guard_holds(
 /// Two surface forms count, and they are genuinely different trees rather
 /// than two spellings of one:
 ///
-/// - the **`ThisCard` leaf** — `NounPhrase::ThisCard(ThisCardForm)`, what the
-///   parser builds where a card repeats its own printed name ("Lightning Bolt
-///   deals 3 damage …"). This is what the `~` sigil compiles to.
+/// - the **`ThisCard` leaf** — `NounPhraseKind::ThisCard(ThisCardForm)`, what
+///   the parser builds where a card repeats its own printed name ("Lightning
+///   Bolt deals 3 damage …"). This is what the `~` sigil compiles to.
 /// - the **demonstrative nominal** — "this permanent", "this creature": a
 ///   determinerful `NominalPhrase` whose determiner is
 ///   `DeterminerKind::Demonstrative(This)` and which carries no modifiers or
@@ -600,9 +600,9 @@ fn describe_tie(lexicon: &Lexicon, matches: &[Matched], best: usize, rivals: &[u
 /// `Fragment::<kind>(…)`; a target may be a whole fragment too, or — in the
 /// recursive calls — a constituent captured from inside one, wearing whatever
 /// wrapper chain its position gave it
-/// (`Phrase::NounPhrase(NounPhrase::Nominal(…))` in an object slot, nothing
-/// at all for a field slice's partial node). Those chains are pure category
-/// plumbing: they carry no frame material and no argument.
+/// (`Phrase::NounPhrase` containing `NounPhraseKind::Nominal(…)` in an object
+/// slot, nothing at all for a field slice's partial node). Those chains are
+/// pure category plumbing: they carry no frame material and no argument.
 ///
 /// So both sides are peeled through their newtype wrappers and every pair of
 /// depths is tried, preferring the least-peeled alignment that matches.

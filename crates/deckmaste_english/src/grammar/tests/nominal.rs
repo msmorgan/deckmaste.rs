@@ -16,6 +16,7 @@ mod tests {
     use crate::syntax::NominalModifier;
     use crate::syntax::NominalPhrase;
     use crate::syntax::NounPhrase;
+    use crate::syntax::NounPhraseKind;
     use crate::syntax::OracleText;
     use crate::syntax::Paragraph;
     use crate::syntax::Polarity;
@@ -71,7 +72,8 @@ mod tests {
         // `combat damage` uses. Guards that adding the `draw` noun sense did not
         // reshape it into anything verb-flavored.
         let parsed = parse("your draw step");
-        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a nominal for the draw step");
         };
         assert!(
@@ -107,7 +109,8 @@ mod tests {
                 source,
                 "{source}"
             );
-            let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+            else {
                 panic!("expected a nominal for {source}");
             };
             assert!(
@@ -147,7 +150,8 @@ mod tests {
         // to `declare attackers`/`declare blockers`) — it parses, but never
         // through the `CombatStepName` shape.
         let parsed = parse("the attack step");
-        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a nominal for `the attack step`");
         };
         assert!(
@@ -164,7 +168,8 @@ mod tests {
         // Negative armor: `combat` in noun-modifier position must stay a noun
         // modifier of `damage`, unaffected by turn-structure work.
         let parsed = parse("combat damage");
-        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a nominal for combat damage");
         };
         assert!(
@@ -360,7 +365,9 @@ mod tests {
     fn target_coordination_carries_one_shared_determiner() {
         let source = "target artifact or land";
         let parsed = parse(source);
-        let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::CoordinatedNominal(coordinated)) =
+            parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!(
                 "expected nominal coordination under one determiner: {:#?}",
                 parsed.noun_phrase()
@@ -386,7 +393,9 @@ mod tests {
             fixture_catalogs().with_catalog(CatalogKind::CardType, ["Creature", "Enchantment"]);
         let parsed = parse_nonterminal(source, &catalogs, Nonterminal::NounPhrase)
             .expect("modified target alternatives must parse");
-        let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::CoordinatedNominal(coordinated)) =
+            parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!(
                 "expected modified nominals under one target determiner: {:#?}",
                 parsed.noun_phrase()
@@ -409,7 +418,8 @@ mod tests {
         );
         let parsed = parse_nonterminal(source, &catalogs, Nonterminal::NounPhrase)
             .expect("the coordinated counter selection must parse");
-        let Some(NounPhrase::Coordinated(outer)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Coordinated(outer)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!(
                 "expected two coordinated counter selections: {:#?}",
                 parsed.noun_phrase()
@@ -422,7 +432,7 @@ mod tests {
             second.conjunction,
             Some(crate::syntax::NounPhraseConjunction::And)
         );
-        let NounPhrase::Nominal(second) = &second.phrase else {
+        let NounPhraseKind::Nominal(second) = second.phrase.kind() else {
             panic!("expected a nominal second counter: {second:#?}");
         };
         let [
@@ -441,7 +451,7 @@ mod tests {
         let crate::syntax::Phrase::NounPhrase(options) = among.head().object.as_ref() else {
             panic!("expected an `among` option list: {among:#?}");
         };
-        let NounPhrase::Coordinated(options) = options.as_ref() else {
+        let NounPhraseKind::Coordinated(options) = (options.as_ref()).kind() else {
             panic!("expected coordinated keyword options: {options:#?}");
         };
         assert!(matches!(
@@ -482,7 +492,9 @@ mod tests {
             ),
         ] {
             let parsed = parse(source);
-            let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+            let Some(NounPhraseKind::CoordinatedNominal(coordinated)) =
+                parsed.noun_phrase().map(NounPhrase::kind)
+            else {
                 panic!(
                     "expected nominal coordination under one determiner: {:#?}",
                     parsed.noun_phrase()
@@ -505,7 +517,9 @@ mod tests {
     fn trailing_relative_scopes_over_the_completed_shared_group() {
         let source = "another target creature or artifact you control";
         let parsed = parse(source);
-        let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::CoordinatedNominal(coordinated)) =
+            parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!(
                 "expected one shared-determiner group: {:#?}",
                 parsed.noun_phrase()
@@ -544,7 +558,9 @@ mod tests {
     fn generic_coordination_allows_one_recipient_passive_theme() {
         let source = "the damage dealt or the result";
         let parsed = parse(source);
-        let Some(NounPhrase::Coordinated(coordination)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Coordinated(coordination)) =
+            parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!(
                 "expected complete noun-phrase coordination: {:#?}",
                 parsed.noun_phrase()
@@ -571,7 +587,9 @@ mod tests {
             ),
         ] {
             let parsed = parse(source);
-            let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+            let Some(NounPhraseKind::CoordinatedNominal(coordinated)) =
+                parsed.noun_phrase().map(NounPhrase::kind)
+            else {
                 panic!(
                     "expected one shared-determiner group: {:#?}",
                     parsed.noun_phrase()
@@ -588,7 +606,9 @@ mod tests {
     fn parallel_relatives_remain_on_their_own_group_members() {
         let source = "target permanent you control or suspended card you own";
         let parsed = parse(source);
-        let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::CoordinatedNominal(coordinated)) =
+            parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected one target group: {:#?}", parsed.noun_phrase());
         };
         assert!(matches!(
@@ -608,7 +628,9 @@ mod tests {
     fn one_pp_bearing_closing_member_stays_inside_the_shared_group() {
         let source = "the type and amount of mana";
         let parsed = parse(source);
-        let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::CoordinatedNominal(coordinated)) =
+            parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected one definite group: {:#?}", parsed.noun_phrase());
         };
         assert_eq!(*coordinated.determiner(), crate::determiner::the());
@@ -624,7 +646,9 @@ mod tests {
     fn restrictive_with_pp_stays_on_the_closing_shared_member() {
         let source = "target artifact, enchantment, or creature with flying";
         let parsed = parse(source);
-        let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::CoordinatedNominal(coordinated)) =
+            parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected one target group: {:#?}", parsed.noun_phrase());
         };
         assert!(coordinated.complements().is_empty());
@@ -648,7 +672,9 @@ mod tests {
     fn oxford_nominal_list_carries_one_shared_determiner() {
         let source = "target Goblin, Human, Kraken, Leviathan, Octopus, Serpent, or artifact";
         let parsed = parse(source);
-        let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::CoordinatedNominal(coordinated)) =
+            parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!(
                 "expected an Oxford nominal list under one determiner: {:#?}",
                 parsed.noun_phrase()
@@ -670,7 +696,9 @@ mod tests {
     fn adversarial_oxford_group_has_an_inner_coordination_constituent() {
         let source = "an Elf, Orc, or Equipment";
         let parsed = parse(source);
-        let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::CoordinatedNominal(coordinated)) =
+            parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!(
                 "expected the article to scope over one nominal coordination: {:#?}",
                 parsed.noun_phrase()
@@ -705,13 +733,14 @@ mod tests {
     fn adjacent_shared_determiner_groups_do_not_flatten() {
         let source = "target artifact, creature, or planeswalker and target land or battle";
         let parsed = parse(source);
-        let Some(NounPhrase::Coordinated(outer)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Coordinated(outer)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!(
                 "expected coordination between two target groups: {:#?}",
                 parsed.noun_phrase()
             );
         };
-        let NounPhrase::CoordinatedNominal(left) = outer.first().as_ref() else {
+        let NounPhraseKind::CoordinatedNominal(left) = (outer.first().as_ref()).kind() else {
             panic!("expected the Oxford group on the left: {outer:#?}");
         };
         assert_eq!(*left.determiner(), crate::determiner::target(None));
@@ -723,7 +752,7 @@ mod tests {
             right.conjunction,
             Some(crate::syntax::NounPhraseConjunction::And)
         );
-        let NounPhrase::CoordinatedNominal(right) = &right.phrase else {
+        let NounPhraseKind::CoordinatedNominal(right) = right.phrase.kind() else {
             panic!("the repeated determiner must begin a second group: {right:#?}");
         };
         assert_eq!(*right.determiner(), crate::determiner::target(None));
@@ -736,7 +765,10 @@ mod tests {
         let source = "a creature and artifacts";
         let parsed = parse(source);
         assert!(
-            matches!(parsed.noun_phrase(), Some(NounPhrase::Coordinated(_))),
+            matches!(
+                parsed.noun_phrase().map(NounPhrase::kind),
+                Some(NounPhraseKind::Coordinated(_))
+            ),
             "a bare plural needs no shared determiner: {:#?}",
             parsed.noun_phrase()
         );
@@ -753,7 +785,7 @@ mod tests {
             let parsed = parse(source);
             let lowered = parsed.noun_phrase().expect("fixture noun phrase");
             assert_eq!(
-                matches!(lowered, NounPhrase::CoordinatedNominal(_)),
+                matches!(lowered.kind(), NounPhraseKind::CoordinatedNominal(_)),
                 shared,
                 "{source}: {lowered:#?}"
             );
@@ -764,7 +796,8 @@ mod tests {
     fn shared_determiner_coordination_stays_inside_its_preposition() {
         let source = "two counters on up to one target creature or artifact";
         let parsed = parse(source);
-        let Some(NounPhrase::Nominal(counters)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(counters)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!(
                 "the coordination must not attach to the whole counter phrase: {:#?}",
                 parsed.noun_phrase()
@@ -776,7 +809,7 @@ mod tests {
         let crate::syntax::Phrase::NounPhrase(recipient) = recipient.head().object.as_ref() else {
             panic!("expected a noun-phrase recipient: {recipient:#?}");
         };
-        let NounPhrase::CoordinatedNominal(recipient) = recipient.as_ref() else {
+        let NounPhraseKind::CoordinatedNominal(recipient) = (recipient.as_ref()).kind() else {
             panic!("expected shared-determiner recipient heads: {recipient:#?}");
         };
         assert!(
@@ -798,7 +831,8 @@ mod tests {
     fn later_determiner_begins_a_nested_shared_group() {
         let source = "this creature or another creature or artifact";
         let parsed = parse(source);
-        let Some(NounPhrase::Coordinated(outer)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Coordinated(outer)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!(
                 "expected an outer coordination: {:#?}",
                 parsed.noun_phrase()
@@ -807,7 +841,7 @@ mod tests {
         let [group] = outer.rest().as_slice() else {
             panic!("the later determiner must begin one grouped member: {outer:#?}");
         };
-        let NounPhrase::CoordinatedNominal(group) = &group.phrase else {
+        let NounPhraseKind::CoordinatedNominal(group) = group.phrase.kind() else {
             panic!("expected a nested shared-determiner group: {group:#?}");
         };
         assert_eq!(*group.determiner(), crate::determiner::another());
@@ -819,7 +853,8 @@ mod tests {
     fn shared_determiner_oxford_list_stays_inside_its_preposition() {
         let source = "two damage to each artifact, creature, and land";
         let parsed = parse(source);
-        let Some(NounPhrase::Nominal(damage)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(damage)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!(
                 "the list must not attach to the whole damage phrase: {:#?}",
                 parsed.noun_phrase()
@@ -831,7 +866,7 @@ mod tests {
         let crate::syntax::Phrase::NounPhrase(recipient) = recipient.head().object.as_ref() else {
             panic!("expected a noun-phrase recipient: {recipient:#?}");
         };
-        let NounPhrase::CoordinatedNominal(recipient) = recipient.as_ref() else {
+        let NounPhraseKind::CoordinatedNominal(recipient) = (recipient.as_ref()).kind() else {
             panic!("expected shared Oxford recipient heads: {recipient:#?}");
         };
         assert_eq!(*recipient.determiner(), crate::determiner::each());
@@ -848,7 +883,9 @@ mod tests {
             "all creatures and Spacecraft",
         ] {
             let parsed = parse(source);
-            let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+            let Some(NounPhraseKind::CoordinatedNominal(coordinated)) =
+                parsed.noun_phrase().map(NounPhrase::kind)
+            else {
                 panic!(
                     "expected invariant nominal coordination under all: {:#?}",
                     parsed.noun_phrase()
@@ -864,7 +901,10 @@ mod tests {
         let source = "the creature and artifacts";
         let parsed = parse(source);
         assert!(
-            matches!(parsed.noun_phrase(), Some(NounPhrase::Coordinated(_))),
+            matches!(
+                parsed.noun_phrase().map(NounPhrase::kind),
+                Some(NounPhraseKind::Coordinated(_))
+            ),
             "number-neutral `the` does not prove shared scope: {:#?}",
             parsed.noun_phrase()
         );
@@ -875,31 +915,37 @@ mod tests {
     fn plural_shared_scope_does_not_reopen_a_relative_closed_member() {
         let parsed = parse("all creatures you control or colors");
         let lowered = parsed.noun_phrase().expect("fixture noun phrase");
-        assert!(matches!(lowered, NounPhrase::Coordinated(_)));
+        assert!(matches!(lowered.kind(), NounPhraseKind::Coordinated(_)));
     }
 
     #[test]
     fn repeated_target_determiners_coordinate_complete_noun_phrases() {
         let source = "target artifact and target land";
         let parsed = parse(source);
-        let Some(NounPhrase::Coordinated(coordinated)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Coordinated(coordinated)) =
+            parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!(
                 "expected coordination of two complete noun phrases: {:#?}",
                 parsed.noun_phrase()
             );
         };
         assert!(matches!(
-            coordinated.first().as_ref(),
-            NounPhrase::Nominal(first)
+            coordinated.first().kind(),
+            NounPhraseKind::Nominal(first)
                 if first.determiner() == Some(&crate::determiner::target(None))
         ));
+        let [next] = coordinated.rest().as_slice() else {
+            panic!("expected one coordinated member: {coordinated:#?}");
+        };
+        assert_eq!(
+            next.conjunction,
+            Some(crate::syntax::NounPhraseConjunction::And)
+        );
         assert!(matches!(
-            coordinated.rest().as_slice(),
-            [crate::syntax::NounPhraseCoordination {
-                conjunction: Some(crate::syntax::NounPhraseConjunction::And),
-                phrase: NounPhrase::Nominal(next),
-                ..
-            }] if next.determiner() == Some(&crate::determiner::target(None))
+            next.phrase.kind(),
+            NounPhraseKind::Nominal(next)
+                if next.determiner() == Some(&crate::determiner::target(None))
         ));
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
@@ -908,7 +954,8 @@ mod tests {
     fn coordinated_type_modifiers_do_not_become_shared_target_heads() {
         let source = "target artifact or land card";
         let parsed = parse(source);
-        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected one card nominal: {:#?}", parsed.noun_phrase());
         };
         assert_eq!(nominal.determiner(), Some(&crate::determiner::target(None)));
@@ -926,7 +973,8 @@ mod tests {
             "a basic artifact, creature, or land card",
         ] {
             let parsed = parse(source);
-            let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+            else {
                 panic!(
                     "expected one card nominal for {source}: {:#?}",
                     parsed.noun_phrase()
@@ -951,7 +999,8 @@ mod tests {
     fn coordinated_rules_types_keep_a_following_common_head() {
         let source = "an instant or sorcery spell";
         let parsed = parse(source);
-        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected one spell nominal: {:#?}", parsed.noun_phrase());
         };
         assert!(matches!(
@@ -974,7 +1023,8 @@ mod tests {
         );
         let parsed = parse_nonterminal(source, &catalogs, Nonterminal::NounPhrase)
             .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
-        let Some(NounPhrase::Nominal(counter)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(counter)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!(
                 "expected one common-head counter: {:#?}",
                 parsed.noun_phrase()
@@ -995,7 +1045,8 @@ mod tests {
     fn participial_modifier_coordination_keeps_its_common_head() {
         let source = "target attacking or blocking creature";
         let parsed = parse(source);
-        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected one creature nominal: {:#?}", parsed.noun_phrase());
         };
         assert_eq!(nominal.determiner(), Some(&crate::determiner::target(None)));
@@ -1014,7 +1065,9 @@ mod tests {
     fn productive_agent_nouns_remain_shared_determiner_options() {
         let source = "target attacker or blocker";
         let parsed = parse(source);
-        let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::CoordinatedNominal(coordinated)) =
+            parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!(
                 "expected productive agent nouns in one target group: {:#?}",
                 parsed.noun_phrase()
@@ -1039,7 +1092,8 @@ mod tests {
     fn shared_options_do_not_swallow_the_outer_hosts_following_preposition() {
         let source = "their choice of the top or bottom of their library";
         let parsed = parse(source);
-        let Some(NounPhrase::Nominal(choice)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(choice)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected one choice nominal: {:#?}", parsed.noun_phrase());
         };
         let [
@@ -1055,8 +1109,8 @@ mod tests {
             panic!("expected noun-phrase options: {options:#?}");
         };
         assert!(matches!(
-            options.as_ref(),
-            NounPhrase::CoordinatedNominal(coordinated)
+            options.kind(),
+            NounPhraseKind::CoordinatedNominal(coordinated)
                 if *coordinated.determiner() == crate::determiner::the()
         ));
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
@@ -1066,7 +1120,8 @@ mod tests {
     fn shared_determiner_does_not_reopen_a_pp_closed_nominal() {
         let source = "the power to target player or planeswalker";
         let parsed = parse(source);
-        let Some(NounPhrase::Nominal(power)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(power)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!(
                 "the outer determiner must stay on power: {:#?}",
                 parsed.noun_phrase()
@@ -1080,7 +1135,7 @@ mod tests {
         let crate::syntax::Phrase::NounPhrase(recipient) = recipient.head().object.as_ref() else {
             panic!("expected a noun-phrase recipient: {recipient:#?}");
         };
-        let NounPhrase::CoordinatedNominal(recipient) = recipient.as_ref() else {
+        let NounPhraseKind::CoordinatedNominal(recipient) = (recipient.as_ref()).kind() else {
             panic!("target must scope over the recipient coordination: {recipient:#?}");
         };
         assert_eq!(*recipient.determiner(), crate::determiner::target(None));
@@ -1128,20 +1183,22 @@ mod tests {
             ),
         ] {
             let parsed = parse(source);
-            let Some(NounPhrase::SetException(exception)) = parsed.noun_phrase() else {
+            let Some(NounPhraseKind::SetException(exception)) =
+                parsed.noun_phrase().map(NounPhrase::kind)
+            else {
                 panic!("expected a set-exception noun phrase for {source:?}");
             };
             assert_eq!(exception.marker, expected_marker);
             assert_eq!(exception.comma, crate::features::Comma::from(comma));
             assert_eq!(
                 matches!(
-                    exception.included.as_ref(),
-                    NounPhrase::Coordinated(_) | NounPhrase::CoordinatedNominal(_)
+                    exception.included.kind(),
+                    NounPhraseKind::Coordinated(_) | NounPhraseKind::CoordinatedNominal(_)
                 ),
                 included_coordination
             );
             assert_eq!(
-                matches!(exception.excluded.as_ref(), NounPhrase::Coordinated(_)),
+                matches!(exception.excluded.kind(), NounPhraseKind::Coordinated(_)),
                 excluded_coordination
             );
             assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
@@ -1168,7 +1225,9 @@ mod tests {
         // member carries the closing conjunction with its comma — the exact
         // surface the renderer replays.
         let parsed = parse("target artifact, creature, or land");
-        let Some(NounPhrase::CoordinatedNominal(coordinated)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::CoordinatedNominal(coordinated)) =
+            parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!(
                 "expected nominal coordination under one determiner: {:#?}",
                 parsed.noun_phrase()
@@ -1192,7 +1251,8 @@ mod tests {
         // `Goblin` following as a separate ordinary noun modifier — not a
         // per-mechanism list type and not a flattened run of sibling modifiers.
         let parsed = parse("a white and blue Goblin creature");
-        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a nominal");
         };
         let [
@@ -1300,7 +1360,9 @@ mod tests {
         // `RulesBundle` catalog atoms, so the render side can derive the `non-`
         // glyph by category.
         let modified_parse = parse("a modified creature");
-        let Some(NounPhrase::Nominal(modified)) = modified_parse.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(modified)) =
+            modified_parse.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a nominal for a modified creature");
         };
         assert!(matches!(
@@ -1310,7 +1372,9 @@ mod tests {
         ));
 
         let outlaw_parse = parse("an outlaw");
-        let Some(NounPhrase::Nominal(outlaw)) = outlaw_parse.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(outlaw)) =
+            outlaw_parse.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a nominal for an outlaw");
         };
         assert!(matches!(
@@ -1331,16 +1395,19 @@ mod tests {
             phrase: crate::adjective::build_adjective_phrase(Adjective::Color(ColorWord::Black))
                 .unwrap(),
         };
-        let solid_phrase = NounPhrase::Nominal(NominalPhrase::test_from_projection_parts(
-            None,
-            vec![solid_modifier],
-            NounInstance::Singular(Noun::Word(Vocab::Card)),
-            vec![],
-        ));
+        let solid_phrase =
+            NounPhrase::from_nominal_declaration(NominalPhrase::test_from_projection_parts(
+                None,
+                vec![solid_modifier],
+                NounInstance::Singular(Noun::Word(Vocab::Card)),
+                vec![],
+            ));
         assert_eq!(render_fragment(&solid_phrase), "nonblack card");
 
         let parsed = parse("Human creature");
-        let Some(NounPhrase::Nominal(human_creature)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(human_creature)) =
+            parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a nominal for Human creature");
         };
         let hyphenated_modifiers = human_creature
@@ -1355,12 +1422,13 @@ mod tests {
                 other => other,
             })
             .collect();
-        let hyphenated_phrase = NounPhrase::Nominal(NominalPhrase::test_from_projection_parts(
-            human_creature.determiner().cloned(),
-            hyphenated_modifiers,
-            human_creature.head().clone(),
-            human_creature.complements().to_vec(),
-        ));
+        let hyphenated_phrase =
+            NounPhrase::from_nominal_declaration(NominalPhrase::test_from_projection_parts(
+                human_creature.determiner().cloned(),
+                hyphenated_modifiers,
+                human_creature.head().clone(),
+                human_creature.complements().to_vec(),
+            ));
         assert_eq!(render_fragment(&hyphenated_phrase), "non-Human creature");
     }
 
@@ -1385,12 +1453,13 @@ mod tests {
                 polarity: Polarity::Negative,
                 noun,
             };
-            let noun_phrase = NounPhrase::Nominal(NominalPhrase::test_from_projection_parts(
-                None,
-                vec![modifier],
-                NounInstance::Singular(Noun::Word(Vocab::Card)),
-                vec![],
-            ));
+            let noun_phrase =
+                NounPhrase::from_nominal_declaration(NominalPhrase::test_from_projection_parts(
+                    None,
+                    vec![modifier],
+                    NounInstance::Singular(Noun::Word(Vocab::Card)),
+                    vec![],
+                ));
             assert_eq!(render_fragment(&noun_phrase), expected);
         }
     }
@@ -1398,7 +1467,8 @@ mod tests {
     /// The first nominal modifier of a parsed noun phrase, cloned for
     /// polarity-shape comparisons.
     fn first_modifier(parsed: &ParsedNonterminal) -> NominalModifier {
-        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!(
                 "expected a nominal noun phrase: {:#?}",
                 parsed.noun_phrase()
@@ -1446,11 +1516,13 @@ mod tests {
         let each = parse("each of your turns");
         assert!(
             matches!(
-                each.noun_phrase(),
-                Some(NounPhrase::Partitive(crate::syntax::PartitiveNounPhrase {
-                    head: PartitiveHead::Each,
-                    ..
-                }))
+                each.noun_phrase().map(NounPhrase::kind),
+                Some(NounPhraseKind::Partitive(
+                    crate::syntax::PartitiveNounPhrase {
+                        head: PartitiveHead::Each,
+                        ..
+                    }
+                ))
             ),
             "{:#?}",
             each.noun_phrase()
@@ -1462,8 +1534,8 @@ mod tests {
 
         let one = parse("one of them");
         assert!(matches!(
-            one.noun_phrase(),
-            Some(NounPhrase::Partitive(crate::syntax::PartitiveNounPhrase {
+            one.noun_phrase().map(NounPhrase::kind),
+            Some(NounPhraseKind::Partitive(crate::syntax::PartitiveNounPhrase {
                 head: PartitiveHead::Quantity(quantity),
                 ..
             })) if matches!(
@@ -1496,9 +1568,9 @@ mod tests {
         ] {
             let parsed = parse(source);
             assert!(matches!(
-                parsed.noun_phrase(),
-                Some(NounPhrase::Pronoun { pronoun: actual_pronoun, case: actual_case })
-                    if *actual_pronoun == pronoun && *actual_case == case
+                parsed.noun_phrase().map(NounPhrase::kind),
+                Some(NounPhraseKind::Pronoun { pronoun: actual_pronoun, case: actual_case })
+                    if actual_pronoun == pronoun && actual_case == case
             ));
             assert_generated(
                 &parsed,
@@ -1513,44 +1585,52 @@ mod tests {
         }
 
         assert!(matches!(
-            parse_self("Nissa").noun_phrase(),
-            Some(NounPhrase::ThisCard(ThisCardForm::AbbreviatedName))
+            parse_self("Nissa").noun_phrase().map(NounPhrase::kind),
+            Some(NounPhraseKind::ThisCard(ThisCardForm::AbbreviatedName))
         ));
         assert!(matches!(
-            parse_self("Nissa Revane").noun_phrase(),
-            Some(NounPhrase::ThisCard(ThisCardForm::FullName))
+            parse_self("Nissa Revane")
+                .noun_phrase()
+                .map(NounPhrase::kind),
+            Some(NounPhraseKind::ThisCard(ThisCardForm::FullName))
         ));
         let possessive = parse_self("Nissa's");
         assert!(matches!(
-            possessive.noun_phrase(),
-            Some(NounPhrase::Possessive(possessor))
+            possessive.noun_phrase().map(NounPhrase::kind),
+            Some(NounPhraseKind::Possessive(possessor))
                 if matches!(
                     possessor.kind(),
-                    crate::syntax::PossessorKind::NounPhrase(NounPhrase::ThisCard(
-                        ThisCardForm::AbbreviatedName
-                    ))
+                    crate::syntax::PossessorKind::NounPhrase(noun_phrase)
+                        if matches!(
+                            noun_phrase.kind(),
+                            NounPhraseKind::ThisCard(ThisCardForm::AbbreviatedName)
+                        )
                 )
         ));
         assert_generated(&possessive, "noun_phrase_possessive_this_card");
 
         assert!(matches!(
-            parse("one of them").noun_phrase(),
-            Some(NounPhrase::Partitive(crate::syntax::PartitiveNounPhrase {
-                head: PartitiveHead::Quantity(_),
-                ..
-            }))
+            parse("one of them").noun_phrase().map(NounPhrase::kind),
+            Some(NounPhraseKind::Partitive(
+                crate::syntax::PartitiveNounPhrase {
+                    head: PartitiveHead::Quantity(_),
+                    ..
+                }
+            ))
         ));
         assert!(matches!(
-            parse("each of them").noun_phrase(),
-            Some(NounPhrase::Partitive(crate::syntax::PartitiveNounPhrase {
-                head: PartitiveHead::Each,
-                ..
-            }))
+            parse("each of them").noun_phrase().map(NounPhrase::kind),
+            Some(NounPhraseKind::Partitive(
+                crate::syntax::PartitiveNounPhrase {
+                    head: PartitiveHead::Each,
+                    ..
+                }
+            ))
         ));
         let any_number = parse("any number of target players");
         assert!(matches!(
-            any_number.noun_phrase(),
-            Some(NounPhrase::Nominal(nominal))
+            any_number.noun_phrase().map(NounPhrase::kind),
+            Some(NounPhraseKind::Nominal(nominal))
                 if nominal.modifiers().is_empty()
                     && matches!(
                         nominal.determiner().map(|determiner| determiner.kind()),
@@ -1584,8 +1664,8 @@ mod tests {
 
         let modified_number = parse("any large number of players");
         assert!(matches!(
-            modified_number.noun_phrase(),
-            Some(NounPhrase::Nominal(nominal)) if nominal.modifiers().len() == 1
+            modified_number.noun_phrase().map(NounPhrase::kind),
+            Some(NounPhraseKind::Nominal(nominal)) if nominal.modifiers().len() == 1
         ));
         assert_generated(&modified_number, "noun_phrase_nominal");
         assert!(
@@ -1600,8 +1680,8 @@ mod tests {
         );
 
         assert!(matches!(
-            parse("3 minus 1").noun_phrase(),
-            Some(NounPhrase::Arithmetic(ArithmeticValue::Minus { .. }))
+            parse("3 minus 1").noun_phrase().map(NounPhrase::kind),
+            Some(NounPhraseKind::Arithmetic(ArithmeticValue::Minus { .. }))
         ));
         for (source, expected) in [
             ("half 3", None),
@@ -1609,8 +1689,8 @@ mod tests {
             ("half 3, rounded down", Some(Rounding::Down)),
         ] {
             assert!(matches!(
-                parse(source).noun_phrase(),
-                Some(NounPhrase::Arithmetic(ArithmeticValue::Half { rounding, .. }))
+                parse(source).noun_phrase().map(NounPhrase::kind),
+                Some(NounPhraseKind::Arithmetic(ArithmeticValue::Half { rounding, .. }))
                     if *rounding == expected
             ));
         }
@@ -1698,7 +1778,8 @@ mod tests {
         use crate::syntax::DevotionColors;
         use crate::word::ColorWord;
         let single = parse("your devotion to green");
-        let Some(NounPhrase::Nominal(nominal)) = single.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(nominal)) = single.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a devotion nominal");
         };
         assert!(matches!(
@@ -1713,7 +1794,7 @@ mod tests {
         ));
 
         let pair = parse("your devotion to white and black");
-        let Some(NounPhrase::Nominal(pair)) = pair.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(pair)) = pair.noun_phrase().map(NounPhrase::kind) else {
             panic!("expected a devotion pair nominal");
         };
         assert!(matches!(
@@ -1726,7 +1807,8 @@ mod tests {
 
         // `devotion counter` keeps devotion as a plain count-noun modifier.
         let counter = parse("a devotion counter");
-        let Some(NounPhrase::Nominal(counter)) = counter.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(counter)) = counter.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a devotion counter nominal");
         };
         assert!(matches!(
@@ -1775,7 +1857,8 @@ mod tests {
             ("an emblem", "emblem"),
         ] {
             let parsed = parse(source);
-            let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+            else {
                 panic!("expected a nominal phrase for {source:?}");
             };
             assert!(matches!(
@@ -1806,7 +1889,8 @@ mod tests {
         ] {
             let parsed = parse(source);
             assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
-            let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+            else {
                 panic!("expected a nominal phrase for {source:?}");
             };
             let [NominalComplement::Adjective(phrase)] = nominal.complements() else {
@@ -1834,7 +1918,8 @@ mod tests {
     fn self_reference_possessive_is_one_determiner() {
         let parsed = parse_self("Nissa's power");
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
-        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a possessive nominal");
         };
         assert!(
@@ -1844,7 +1929,11 @@ mod tests {
                     if matches!(
                         determiner.kind(),
                         crate::syntax::DeterminerKind::Possessive(possessor)
-                            if matches!(possessor.kind(), crate::syntax::PossessorKind::NounPhrase(NounPhrase::ThisCard(_)))
+                            if matches!(
+                                possessor.kind(),
+                                crate::syntax::PossessorKind::NounPhrase(noun_phrase)
+                                    if matches!(noun_phrase.kind(), NounPhraseKind::ThisCard(_))
+                            )
                     )
             ),
             "{nominal:#?}"
@@ -1871,7 +1960,7 @@ mod tests {
             assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
             let noun_phrase = parsed.noun_phrase().expect("noun-phrase root");
             assert_eq!(render_fragment(noun_phrase), source, "{source}");
-            let NounPhrase::Nominal(nominal) = noun_phrase else {
+            let NounPhraseKind::Nominal(nominal) = (noun_phrase).kind() else {
                 panic!("expected a nominal phrase for {source:?}: {noun_phrase:#?}");
             };
             assert!(nominal.determiner().is_some(), "{source}: {nominal:#?}");
@@ -1911,7 +2000,8 @@ mod tests {
             render_fragment(parsed.noun_phrase().expect("noun-phrase root")),
             "their owners' hands"
         );
-        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a nominal for their owners' hands");
         };
         assert!(
@@ -1933,7 +2023,7 @@ mod tests {
         let crate::syntax::PossessorKind::NounPhrase(possessor) = possessor.kind() else {
             panic!("expected a noun-phrase possessor: {possessor:#?}");
         };
-        let NounPhrase::Nominal(possessor_nominal) = possessor else {
+        let NounPhraseKind::Nominal(possessor_nominal) = (possessor).kind() else {
             panic!("expected a nominal possessor: {possessor:#?}");
         };
         assert!(
@@ -1974,15 +2064,15 @@ mod tests {
     }
 
     fn contains_noun_phrase_possessive(noun_phrase: &NounPhrase) -> bool {
-        match noun_phrase {
-            NounPhrase::Nominal(nominal) => nominal.determiner().is_some_and(|determiner| {
+        match noun_phrase.kind() {
+            NounPhraseKind::Nominal(nominal) => nominal.determiner().is_some_and(|determiner| {
                 matches!(
                     determiner.kind(),
                     crate::syntax::DeterminerKind::Possessive(possessor)
                         if matches!(possessor.kind(), crate::syntax::PossessorKind::NounPhrase(_))
                 )
             }),
-            NounPhrase::Possessive(possessor) => matches!(
+            NounPhraseKind::Possessive(possessor) => matches!(
                 possessor.kind(),
                 crate::syntax::PossessorKind::NounPhrase(_)
             ),
@@ -2053,7 +2143,8 @@ mod tests {
         let source = "the sacrificed creature's power";
         let parsed = parse(source);
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
-        let Some(NounPhrase::Nominal(outer)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(outer)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a nominal phrase for {source:?}");
         };
         assert!(
@@ -2076,7 +2167,7 @@ mod tests {
         let crate::syntax::PossessorKind::NounPhrase(possessor) = possessor.kind() else {
             panic!("expected a noun-phrase possessor: {possessor:#?}");
         };
-        let NounPhrase::Nominal(possessor) = possessor else {
+        let NounPhraseKind::Nominal(possessor) = (possessor).kind() else {
             panic!("expected a nominal possessor: {possessor:#?}");
         };
         assert!(
@@ -2119,7 +2210,8 @@ mod tests {
         ] {
             let parsed = parse(source);
             assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
-            let Some(NounPhrase::Nominal(outer)) = parsed.noun_phrase() else {
+            let Some(NounPhraseKind::Nominal(outer)) = parsed.noun_phrase().map(NounPhrase::kind)
+            else {
                 panic!("expected a nominal phrase for {source:?}");
             };
             assert!(outer.modifiers().is_empty(), "{source}: {outer:#?}");
@@ -2135,7 +2227,7 @@ mod tests {
             let crate::syntax::PossessorKind::NounPhrase(possessor) = possessor.kind() else {
                 panic!("{source}: expected a noun-phrase possessor: {possessor:#?}");
             };
-            let NounPhrase::Nominal(possessor) = possessor else {
+            let NounPhraseKind::Nominal(possessor) = (possessor).kind() else {
                 panic!("{source}: expected a nominal possessor: {possessor:#?}");
             };
             assert_eq!(possessor.modifiers().len(), 1, "{source}: {possessor:#?}");
@@ -2184,7 +2276,8 @@ mod tests {
         let source = "the sacrificed creatures' controllers";
         let parsed = parse(source);
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
-        let Some(NounPhrase::Nominal(outer)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(outer)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a nominal phrase for {source:?}");
         };
         let Some(determiner) = outer.determiner() else {
@@ -2199,7 +2292,7 @@ mod tests {
         let crate::syntax::PossessorKind::NounPhrase(possessor) = possessor.kind() else {
             panic!("expected a noun-phrase possessor: {possessor:#?}");
         };
-        let NounPhrase::Nominal(possessor) = possessor else {
+        let NounPhraseKind::Nominal(possessor) = (possessor).kind() else {
             panic!("expected a nominal possessor: {possessor:#?}");
         };
         assert!(
@@ -2233,9 +2326,13 @@ mod tests {
         let parsed = parse_self("Nissa's");
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         assert!(matches!(
-            parsed.noun_phrase(),
-            Some(NounPhrase::Possessive(possessor))
-                if matches!(possessor.kind(), crate::syntax::PossessorKind::NounPhrase(NounPhrase::ThisCard(_)))
+            parsed.noun_phrase().map(NounPhrase::kind),
+            Some(NounPhraseKind::Possessive(possessor))
+                if matches!(
+                    possessor.kind(),
+                    crate::syntax::PossessorKind::NounPhrase(noun_phrase)
+                        if matches!(noun_phrase.kind(), NounPhraseKind::ThisCard(_))
+                )
         ));
         assert_eq!(
             render_fragment_as(parsed.noun_phrase().unwrap(), "Nissa Revane", true),
@@ -2248,7 +2345,7 @@ mod tests {
         let parsed =
             parse_self("target creature card with mana value less than or equal to Nissa's power");
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
-        let Some(NounPhrase::Nominal(card)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(card)) = parsed.noun_phrase().map(NounPhrase::kind) else {
             panic!("expected a card nominal");
         };
         let [NominalComplement::Prepositional(with)] = card.complements() else {
@@ -2257,7 +2354,7 @@ mod tests {
         let crate::syntax::Phrase::NounPhrase(object) = with.head().object.as_ref() else {
             panic!("with object should be a noun phrase");
         };
-        let NounPhrase::Nominal(value) = object.as_ref() else {
+        let NounPhraseKind::Nominal(value) = (object.as_ref()).kind() else {
             panic!("with object should be nominal");
         };
         assert!(
@@ -2273,7 +2370,8 @@ mod tests {
     #[test]
     fn determiners_quantities_and_reciprocal_pronouns_keep_distinct_meanings() {
         let target = parse("up to three target creatures");
-        let Some(NounPhrase::Nominal(target)) = target.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(target)) = target.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a nominal target phrase");
         };
         assert!(matches!(
@@ -2293,7 +2391,8 @@ mod tests {
         assert!(matches!(target.head().kind(), NounInstanceKind::Plural(_)));
 
         let at_least = parse("one or more creatures");
-        let Some(NounPhrase::Nominal(at_least)) = at_least.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(at_least)) = at_least.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected an at-least quantified nominal");
         };
         assert!(matches!(
@@ -2317,7 +2416,8 @@ mod tests {
         ));
 
         let either = parse("one or two target creatures");
-        let Some(NounPhrase::Nominal(either)) = either.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(either)) = either.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected an either-quantity nominal");
         };
         assert!(matches!(
@@ -2336,7 +2436,9 @@ mod tests {
         assert!(matches!(either.head().kind(), NounInstanceKind::Plural(_)));
 
         let definite_quantity = parse("the top three cards");
-        let Some(NounPhrase::Nominal(definite_quantity)) = definite_quantity.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(definite_quantity)) =
+            definite_quantity.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a definite quantity nominal");
         };
         assert!(matches!(
@@ -2351,7 +2453,9 @@ mod tests {
         ));
 
         let variable_quantity = parse("X cards");
-        let Some(NounPhrase::Nominal(variable_quantity)) = variable_quantity.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(variable_quantity)) =
+            variable_quantity.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a variable quantity nominal");
         };
         assert!(
@@ -2368,7 +2472,7 @@ mod tests {
         );
 
         let value = parse("mana value X");
-        let Some(NounPhrase::Nominal(value)) = value.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(value)) = value.noun_phrase().map(NounPhrase::kind) else {
             panic!("expected a quantified value nominal");
         };
         assert!(matches!(
@@ -2377,7 +2481,7 @@ mod tests {
         ));
 
         let die = parse("a d20");
-        let Some(NounPhrase::Nominal(die)) = die.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(die)) = die.noun_phrase().map(NounPhrase::kind) else {
             panic!("expected a die nominal");
         };
         assert!(matches!(
@@ -2387,8 +2491,8 @@ mod tests {
 
         let partitive = parse("one of them");
         assert!(matches!(
-            partitive.noun_phrase(),
-            Some(NounPhrase::Partitive(crate::syntax::PartitiveNounPhrase {
+            partitive.noun_phrase().map(NounPhrase::kind),
+            Some(NounPhraseKind::Partitive(crate::syntax::PartitiveNounPhrase {
                 head: crate::syntax::PartitiveHead::Quantity(quantity),
                 ..
             })) if matches!(
@@ -2398,7 +2502,7 @@ mod tests {
         ));
 
         let any = parse("any target");
-        let Some(NounPhrase::Nominal(any)) = any.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(any)) = any.noun_phrase().map(NounPhrase::kind) else {
             panic!("expected an any-determined nominal");
         };
         assert_eq!(any.determiner(), Some(&crate::determiner::any()));
@@ -2408,14 +2512,14 @@ mod tests {
         ));
 
         let no = parse("no cards");
-        let Some(NounPhrase::Nominal(no)) = no.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(no)) = no.noun_phrase().map(NounPhrase::kind) else {
             panic!("expected a no-determined nominal");
         };
         assert_eq!(no.determiner(), Some(&crate::determiner::no()));
         assert!(matches!(no.head().kind(), NounInstanceKind::Plural(_)));
 
         let much = parse("that much damage");
-        let Some(NounPhrase::Nominal(much)) = much.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(much)) = much.noun_phrase().map(NounPhrase::kind) else {
             panic!("expected a quantified nominal");
         };
         assert!(matches!(
@@ -2434,8 +2538,8 @@ mod tests {
 
         let reciprocal = parse("each other");
         assert_eq!(
-            reciprocal.noun_phrase(),
-            Some(&NounPhrase::Pronoun {
+            reciprocal.noun_phrase().map(NounPhrase::kind),
+            Some(NounPhraseKind::Pronoun {
                 pronoun: Pronoun::EachOther,
                 case: PronounCase::Object,
             })
@@ -2447,7 +2551,8 @@ mod tests {
         ] {
             let parsed = parse(source);
             assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
-            let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+            else {
                 panic!("expected a bounded quantity nominal for {source:?}");
             };
             assert!(
@@ -2474,8 +2579,8 @@ mod tests {
 
         let partitive = parse("more than one of the same mana symbol in its mana cost");
         assert!(matches!(
-            partitive.noun_phrase(),
-            Some(NounPhrase::Partitive(crate::syntax::PartitiveNounPhrase {
+            partitive.noun_phrase().map(NounPhrase::kind),
+            Some(NounPhraseKind::Partitive(crate::syntax::PartitiveNounPhrase {
                 head: crate::syntax::PartitiveHead::Quantity(quantity),
                 ..
             })) if matches!(
@@ -2495,7 +2600,8 @@ mod tests {
                 && (node.key.start, node.key.end) == (0, 2)
         }));
 
-        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("full phrase should select a nominal");
         };
         assert_eq!(nominal.determiner(), Some(&crate::determiner::each()));
@@ -2509,7 +2615,8 @@ mod tests {
     #[test]
     fn catalogs_and_relative_complements_preserve_their_grammar_slots() {
         let parsed = parse("legendary Goblin creature");
-        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected catalog nominal");
         };
         assert!(matches!(
@@ -2530,7 +2637,9 @@ mod tests {
         ));
 
         let controlled = parse("creature you control");
-        let Some(NounPhrase::Nominal(controlled)) = controlled.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(controlled)) =
+            controlled.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected relative-clause nominal");
         };
         assert!(matches!(
@@ -2539,7 +2648,9 @@ mod tests {
         ));
 
         let graveyard = parse("cards in your graveyard");
-        let Some(NounPhrase::Nominal(graveyard)) = graveyard.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(graveyard)) =
+            graveyard.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected prepositional nominal");
         };
         let [NominalComplement::Prepositional(preposition)] = graveyard.complements() else {
@@ -2548,7 +2659,7 @@ mod tests {
         let crate::syntax::Phrase::NounPhrase(object) = preposition.head().object.as_ref() else {
             panic!("preposition object should be a noun phrase");
         };
-        let NounPhrase::Nominal(object) = object.as_ref() else {
+        let NounPhraseKind::Nominal(object) = (object.as_ref()).kind() else {
             panic!("preposition object should be nominal");
         };
         assert_eq!(
@@ -2560,7 +2671,7 @@ mod tests {
     #[test]
     fn prepositions_can_take_nominal_nested_and_adverbial_objects() {
         let among = parse("cards among all permanents");
-        let Some(NounPhrase::Nominal(among)) = among.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(among)) = among.noun_phrase().map(NounPhrase::kind) else {
             panic!("expected an among nominal");
         };
         assert!(matches!(
@@ -2574,7 +2685,8 @@ mod tests {
         ));
 
         let nested = parse("cards from among them");
-        let Some(NounPhrase::Nominal(nested)) = nested.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(nested)) = nested.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a nested-preposition nominal");
         };
         assert!(matches!(
@@ -2589,7 +2701,8 @@ mod tests {
         ));
 
         let anywhere = parse("cards from anywhere");
-        let Some(NounPhrase::Nominal(anywhere)) = anywhere.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(anywhere)) = anywhere.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected an adverb-object nominal");
         };
         assert!(matches!(
@@ -2613,7 +2726,8 @@ mod tests {
             ),
         ] {
             let parsed = parse(source);
-            let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+            else {
                 panic!("expected a temporal nominal");
             };
             assert!(matches!(
@@ -2760,7 +2874,8 @@ mod tests {
                 source,
                 "{source}"
             );
-            let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+            else {
                 panic!("expected a quantified nominal for {source:?}");
             };
             assert!(
@@ -2818,7 +2933,8 @@ mod tests {
                 source,
                 "{source}"
             );
-            let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+            let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+            else {
                 panic!("expected a quantified nominal for {source:?}");
             };
             assert_eq!(
@@ -2895,7 +3011,8 @@ mod tests {
         // Negative armor 2: an unrelated number `or` coordination is the `Or`
         // quantity, never hijacked into a comparative bound.
         let either = parse("one or two target creatures");
-        let Some(NounPhrase::Nominal(either)) = either.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(either)) = either.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected an either-quantity nominal");
         };
         assert!(
@@ -2919,7 +3036,8 @@ mod tests {
     /// Extracts the quantity bounding the characteristic inside a
     /// `<noun> with <characteristic> …` postmodifier.
     fn characteristic_bound(parsed: &ParsedNonterminal) -> crate::syntax::Quantity {
-        let Some(NounPhrase::Nominal(outer)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(outer)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected an outer nominal");
         };
         let [NominalComplement::Prepositional(with)] = outer.complements() else {
@@ -2928,7 +3046,7 @@ mod tests {
         let crate::syntax::Phrase::NounPhrase(object) = with.head().object.as_ref() else {
             panic!("`with` object should be a noun phrase");
         };
-        let NounPhrase::Nominal(characteristic) = object.as_ref() else {
+        let NounPhraseKind::Nominal(characteristic) = (object.as_ref()).kind() else {
             panic!("`with` object should be nominal");
         };
         let [NominalComplement::Quantity(quantity)] = characteristic.complements() else {
@@ -2943,7 +3061,8 @@ mod tests {
         // noun phrase: a plural head with an Oxford-coordinated run of
         // ordinal adjectives, not a `CoordinatedNounPhrase`/`Opaque` misparse.
         let parsed = parse("your first, second, or third turns of the game");
-        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a nominal, got {:#?}", parsed.noun_phrase());
         };
         assert_eq!(
@@ -3017,7 +3136,8 @@ mod tests {
         // Starting Town's copular complement: same coordinated-modifier
         // shape, but a singular head noun (`turn`) rather than plural.
         let parsed = parse("your first, second, or third turn of the game");
-        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a nominal, got {:#?}", parsed.noun_phrase());
         };
         assert!(matches!(
@@ -3035,7 +3155,8 @@ mod tests {
         // Lady Octopus / Rose Room Treasurer: a two-way (no Oxford comma)
         // ordinal coordination riding `CoordinatedModifierConjoined`.
         let parsed = parse("your first or second card");
-        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a nominal, got {:#?}", parsed.noun_phrase());
         };
         let [NominalModifier::Coordinated(coordinated)] = nominal.modifiers() else {
@@ -3079,7 +3200,8 @@ mod tests {
         // "your first turn" — a single bare ordinal rides the ordinary
         // `NominalModifier::Adjective` path, not `Coordinated`.
         let parsed = parse("your first turn");
-        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a nominal, got {:#?}", parsed.noun_phrase());
         };
         let [NominalModifier::Adjective { phrase, .. }] = nominal.modifiers() else {
@@ -3159,7 +3281,8 @@ mod tests {
         // reparsed as an ordinal adjective): the `Exact` quantity determiner
         // on a plural head.
         let parsed = parse("two cards");
-        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a nominal, got {:#?}", parsed.noun_phrase());
         };
         assert!(
@@ -3191,7 +3314,8 @@ mod tests {
         // A plain adjective + noun run that is not an ordinal run must not
         // spuriously coordinate into `NominalModifier::Coordinated`.
         let parsed = parse("a white creature");
-        let Some(NounPhrase::Nominal(nominal)) = parsed.noun_phrase() else {
+        let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
             panic!("expected a nominal, got {:#?}", parsed.noun_phrase());
         };
         assert!(
@@ -3264,7 +3388,7 @@ mod tests {
             assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
             let noun_phrase = parsed.noun_phrase().expect("noun-phrase root");
             assert_eq!(render_fragment(noun_phrase), source, "{source}");
-            let NounPhrase::Nominal(nominal) = noun_phrase else {
+            let NounPhraseKind::Nominal(nominal) = (noun_phrase).kind() else {
                 panic!("{source}: expected a Nominal noun phrase, got {noun_phrase:?}");
             };
             assert!(
@@ -3323,7 +3447,7 @@ mod tests {
         let effect = "this creature and up to one other target creature you control both gain your choice of first strike or lifelink until end of turn";
         let parsed = parse_nonterminal(effect, &catalogs, Nonterminal::SimpleClause)
             .unwrap_or_else(|error| panic!("{effect}: {error:?}"));
-        let Some(crate::syntax::Subject(NounPhrase::Coordinated(subject))) = parsed
+        let Some(crate::syntax::Subject(subject)) = parsed
             .simple_clause()
             .and_then(|clause| clause.subject.as_ref())
         else {
@@ -3332,12 +3456,15 @@ mod tests {
                 parsed.simple_clause()
             );
         };
+        let NounPhraseKind::Coordinated(subject) = subject.kind() else {
+            panic!("expected coordinated subject: {subject:#?}");
+        };
         let [second] = subject.rest().as_slice() else {
             panic!("expected one second subject member: {subject:#?}");
         };
         assert!(matches!(
-            &second.phrase,
-            NounPhrase::Nominal(nominal)
+            second.phrase.kind(),
+            NounPhraseKind::Nominal(nominal)
                 if matches!(
                     nominal.determiner(),
                     Some(determiner)

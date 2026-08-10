@@ -890,8 +890,8 @@ fn noun_phrase_is_object_case(noun_phrase: &Features) -> bool {
 
 fn noun_phrase_value_is_object_case(noun_phrase: &NounPhrase) -> bool {
     !matches!(
-        noun_phrase,
-        NounPhrase::Pronoun {
+        noun_phrase.kind(),
+        crate::syntax::NounPhraseKind::Pronoun {
             case: crate::features::PronounCase::Subject,
             ..
         }
@@ -1904,7 +1904,7 @@ fn has_shared_determiner_object(preposition: &PrepositionalPhrase) -> bool {
     matches!(
         preposition.as_simple().map(|simple| simple.object.as_ref()),
         Some(Phrase::NounPhrase(object))
-            if matches!(object.as_ref(), NounPhrase::CoordinatedNominal(_))
+            if matches!(object.kind(), crate::syntax::NounPhraseKind::CoordinatedNominal(_))
     )
 }
 
@@ -3514,7 +3514,7 @@ mod tests {
     }
 
     fn this_card() -> NounPhrase {
-        NounPhrase::ThisCard(crate::syntax::ThisCardForm::AbbreviatedName)
+        NounPhrase::from_this_card_declaration(crate::syntax::ThisCardForm::AbbreviatedName)
     }
 
     fn play_base() -> VerbPhrase {
@@ -3974,9 +3974,11 @@ mod tests {
         let base = |vocab, slot, frame| {
             build_verb_phrase_base(verb(vocab, slot, frame)).expect("the witness base builds")
         };
-        let object_it = || NounPhrase::Pronoun {
-            pronoun: crate::word::Pronoun::It(crate::word::Gender::Neuter),
-            case: crate::features::PronounCase::Object,
+        let object_it = || {
+            NounPhrase::from_pronoun_declaration(
+                crate::word::Pronoun::It(crate::word::Gender::Neuter),
+                crate::features::PronounCase::Object,
+            )
         };
         let adjective = crate::adjective::build_adjective_phrase(crate::word::Adjective::Color(
             crate::word::ColorWord::Red,
@@ -5657,10 +5659,10 @@ mod tests {
         )
         .unwrap();
         assert!(build_verb_phrase_direct_object(forbidden_object, this_card()).is_err());
-        let subject_pronoun = NounPhrase::Pronoun {
-            pronoun: crate::word::Pronoun::They,
-            case: crate::features::PronounCase::Subject,
-        };
+        let subject_pronoun = NounPhrase::from_pronoun_declaration(
+            crate::word::Pronoun::They,
+            crate::features::PronounCase::Subject,
+        );
         assert!(build_verb_phrase_direct_object(required_object.clone(), subject_pronoun).is_err());
 
         let adjective = crate::adjective::build_adjective_phrase(crate::word::Adjective::Color(
@@ -6616,7 +6618,7 @@ mod tests {
                 build_verb(lexical_head(Vocab::Have, VerbSlot::Infinitive, 1)).unwrap(),
             )
             .unwrap(),
-            NounPhrase::ThisCard(crate::syntax::ThisCardForm::FullName),
+            NounPhrase::from_this_card_declaration(crate::syntax::ThisCardForm::FullName),
         )
         .expect("the causative host admits its causee");
         let complement = build_verb_phrase_base(

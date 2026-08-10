@@ -557,9 +557,12 @@ fn reduced_recipient_passive_theme_nominal_is_admitted(nominal: &NominalPhrase) 
 }
 
 fn reduced_recipient_passive_theme_is_admitted(theme: &crate::syntax::PredicateObject) -> bool {
+    let crate::syntax::PredicateObject::NounPhrase(noun_phrase) = theme else {
+        return false;
+    };
     matches!(
-        theme,
-        crate::syntax::PredicateObject::NounPhrase(NounPhrase::Nominal(nominal))
+        noun_phrase.kind(),
+        crate::syntax::NounPhraseKind::Nominal(nominal)
             if reduced_recipient_passive_theme_nominal_is_admitted(nominal)
     )
 }
@@ -1081,12 +1084,12 @@ fn make_reduced_recipient_passive_theme(
         ));
     }
     Ok(ReducedRecipientPassiveTheme::from_noun_phrase(
-        NounPhrase::Nominal(nominal),
+        NounPhrase::from_nominal_declaration(nominal),
     ))
 }
 
 fn split_reduced_recipient_passive_theme(value: &ReducedRecipientPassiveTheme) -> NominalPhrase {
-    let NounPhrase::Nominal(nominal) = &value.0 else {
+    let crate::syntax::NounPhraseKind::Nominal(nominal) = value.0.kind() else {
         unreachable!("recipient-passive theme is nominal")
     };
     nominal.clone()
@@ -1102,7 +1105,7 @@ fn make_reduced_recipient_passive_nominal_adjunct(
             "predicate is a reduced recipient-passive participle with a retained theme",
         ));
     }
-    let NounPhrase::Nominal(nominal) = &noun_phrase else {
+    let crate::syntax::NounPhraseKind::Nominal(nominal) = noun_phrase.kind() else {
         return Err(violation(
             "reduced_recipient_passive_nominal_adjunct",
             "adjunct is a nominal noun phrase",
@@ -2569,11 +2572,13 @@ mod tests {
             "Test Card",
             false,
         );
-        let Some(crate::Fragment::Nominal(NounPhrase::Nominal(nominal))) = parsed.into_fragment()
-        else {
+        let Some(crate::Fragment::Nominal(noun_phrase)) = parsed.into_fragment() else {
             panic!("expected a nominal parse for {source:?}")
         };
-        nominal
+        let crate::syntax::NounPhraseKind::Nominal(nominal) = noun_phrase.kind() else {
+            panic!("expected a nominal parse for {source:?}")
+        };
+        nominal.clone()
     }
 
     fn parsed_independent(source: &str) -> IndependentClause {
@@ -2781,7 +2786,9 @@ mod tests {
 
         let preposition = PrepositionalPhrase::simple(
             Preposition::In,
-            Phrase::NounPhrase(Box::new(NounPhrase::Nominal(card_nominal()))),
+            Phrase::NounPhrase(Box::new(NounPhrase::from_nominal_declaration(
+                card_nominal(),
+            ))),
         );
         let nominal_prepositional =
             build_nominal_prepositional(card_nominal(), preposition.clone()).unwrap();
@@ -2855,7 +2862,7 @@ mod tests {
         let predicated_quality_from_noun_phrase = build_predicated_quality_from(
             Preposition::From,
             None,
-            Some(NounPhrase::Nominal(
+            Some(NounPhrase::from_nominal_declaration(
                 build_nominal_determiner(crate::determiner::indefinite(), card_nominal()).unwrap(),
             )),
         )
@@ -2931,7 +2938,7 @@ mod tests {
         let predicated_quality_bare_noun_phrase = build_predicated_quality_bare(
             None,
             None,
-            Some(NounPhrase::Nominal(
+            Some(NounPhrase::from_nominal_declaration(
                 build_nominal_determiner(crate::determiner::indefinite(), card_nominal()).unwrap(),
             )),
         )
@@ -3123,7 +3130,9 @@ mod tests {
                 participle(crate::word::Tense::Past, Vocab::Block),
                 PrepositionalPhrase::simple(
                     Preposition::By,
-                    Phrase::NounPhrase(Box::new(NounPhrase::Nominal(card_nominal()))),
+                    Phrase::NounPhrase(Box::new(NounPhrase::from_nominal_declaration(
+                        card_nominal(),
+                    ))),
                 ),
             )
             .unwrap();
@@ -3196,7 +3205,7 @@ mod tests {
 
         let comparison = crate::adjective::build_comparison_than(
             crate::adjective::build_comparison_standard(
-                Some(NounPhrase::Nominal(card_nominal())),
+                Some(NounPhrase::from_nominal_declaration(card_nominal())),
                 None,
                 None,
             )
@@ -3407,7 +3416,9 @@ mod tests {
         let preposition = || {
             PrepositionalPhrase::simple(
                 Preposition::In,
-                Phrase::NounPhrase(Box::new(NounPhrase::Nominal(card_nominal()))),
+                Phrase::NounPhrase(Box::new(NounPhrase::from_nominal_declaration(
+                    card_nominal(),
+                ))),
             )
         };
         let attached = build_nominal_prepositional(card_nominal(), preposition()).unwrap();
@@ -3443,7 +3454,7 @@ mod tests {
     fn than_a_card() -> ComparisonComplement {
         crate::adjective::build_comparison_than(
             crate::adjective::build_comparison_standard(
-                Some(NounPhrase::Nominal(
+                Some(NounPhrase::from_nominal_declaration(
                     build_nominal_determiner(crate::determiner::indefinite(), card_nominal())
                         .unwrap(),
                 )),
@@ -3497,7 +3508,7 @@ mod tests {
         );
         assert_eq!(
             crate::render_fragment(
-                &crate::Fragment::Nominal(NounPhrase::Nominal(value)),
+                &crate::Fragment::Nominal(NounPhrase::from_nominal_declaration(value)),
                 "Test Card",
                 false,
             )
@@ -3639,17 +3650,22 @@ mod tests {
     fn preposition_with_card(preposition: Preposition) -> PrepositionalPhrase {
         PrepositionalPhrase::simple(
             preposition,
-            Phrase::NounPhrase(Box::new(NounPhrase::Nominal(card_nominal()))),
+            Phrase::NounPhrase(Box::new(NounPhrase::from_nominal_declaration(
+                card_nominal(),
+            ))),
         )
     }
 
     fn reduced_predicate_and_adjunct() -> (TransitivePredicate, NounPhrase) {
-        let IndependentClause::Deontic(crate::syntax::Subject(NounPhrase::Nominal(subject)), _, _) =
+        let IndependentClause::Deontic(crate::syntax::Subject(subject), _, _) =
             parsed_independent("A creature dealt damage this way can't block this turn.")
         else {
             panic!("reduced-passive fixture has a deontic nominal subject")
         };
-        let (_, predicate) = parts_nominal_reduced_recipient_passive(&subject);
+        let crate::syntax::NounPhraseKind::Nominal(subject) = subject.kind() else {
+            panic!("reduced-passive fixture has a deontic nominal subject")
+        };
+        let (_, predicate) = parts_nominal_reduced_recipient_passive(subject);
         parts_reduced_recipient_passive_nominal_adjunct(&predicate)
     }
 
@@ -3699,8 +3715,9 @@ mod tests {
         // passive frame while accepting an arbitrary direct object in the
         // retained-theme slot.
         let (mut predicate, _) = reduced_predicate_and_adjunct();
-        predicate.kind.object =
-            crate::syntax::PredicateObject::NounPhrase(NounPhrase::Nominal(card_nominal()));
+        predicate.kind.object = crate::syntax::PredicateObject::NounPhrase(
+            NounPhrase::from_nominal_declaration(card_nominal()),
+        );
         assert!(build_nominal_reduced_recipient_passive(card_nominal(), predicate).is_err());
     }
 
@@ -3726,7 +3743,7 @@ mod tests {
         );
         assert_eq!(
             crate::render_fragment(
-                &crate::Fragment::Nominal(NounPhrase::Nominal(value)),
+                &crate::Fragment::Nominal(NounPhrase::from_nominal_declaration(value)),
                 "Test Card",
                 false,
             )
@@ -3820,7 +3837,7 @@ mod tests {
         );
         assert_eq!(
             crate::render_fragment(
-                &crate::Fragment::Nominal(NounPhrase::Nominal(value)),
+                &crate::Fragment::Nominal(NounPhrase::from_nominal_declaration(value)),
                 "Test Card",
                 false,
             )
@@ -4002,16 +4019,17 @@ mod tests {
         let Phrase::NounPhrase(object) = of.head_mut().object.as_mut() else {
             panic!("the of complement keeps its noun-phrase object")
         };
-        let NounPhrase::Nominal(times) = object.as_mut() else {
+        let crate::syntax::NounPhraseKind::Nominal(times) = object.kind() else {
             panic!("the of object is the times nominal")
         };
-        *times = NominalPhrase::from_projection_parts(
+        let times = NominalPhrase::from_projection_parts(
             times.determiner().cloned(),
             times.modifiers().to_vec(),
             NounInstance::Plural(Noun::Word(Vocab::Card)),
             times.complements().to_vec(),
         );
-        assert_nominal_inverse_rejects(times);
+        assert_nominal_inverse_rejects(&times);
+        **object = NounPhrase::from_nominal_declaration(times);
 
         let invalid_determined_times = NominalPhrase::from_projection_parts(
             Some(crate::determiner::all()),

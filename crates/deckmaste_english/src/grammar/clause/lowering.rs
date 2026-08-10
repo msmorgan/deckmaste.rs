@@ -1103,7 +1103,7 @@ pub(super) fn lowered_predicate_form(predicate: &VerbPhrase) -> Option<(Predicat
 }
 
 pub(super) fn nominal_adjunct_kind(phrase: &NounPhrase) -> Option<BareNominalAdjunct> {
-    let NounPhrase::Nominal(nominal) = phrase else {
+    let crate::syntax::NounPhraseKind::Nominal(nominal) = phrase.kind() else {
         return None;
     };
     nominal.head().noun().bare_nominal_adjunct()

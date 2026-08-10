@@ -885,8 +885,17 @@ impl serde::Serialize for Possessor {
 /// Compatibility name for the inherent-realization noun-cardinality feature.
 pub use crate::features::NounCardinality;
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-pub enum NounPhrase {
+/// A validated noun phrase with a sealed representation.
+///
+/// Use the checked builders in [`crate::noun_phrase`] to construct values and
+/// [`Self::kind`] to inspect them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NounPhrase {
+    repr: NounPhraseRepr,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum NounPhraseRepr {
     Nominal(NominalPhrase),
     Pronoun {
         pronoun: Pronoun,
@@ -898,9 +907,7 @@ pub enum NounPhrase {
     ThisCard(ThisCardForm),
     Partitive(PartitiveNounPhrase),
     /// Coordination inside one determiner's scope (`target artifact or
-    /// enchantment`). This is one determined selection whose nominal material
-    /// is coordinated, distinct from [`Self::Coordinated`] complete noun
-    /// phrases (`target artifact and target enchantment`).
+    /// enchantment`).
     CoordinatedNominal(CoordinatedNominalPhrase),
     Coordinated(CoordinatedNounPhrase),
     /// A trailing set exclusion over a complete noun phrase. The wrapper can
@@ -908,11 +915,213 @@ pub enum NounPhrase {
     /// any ordinary noun phrase.
     SetException(SetExceptionNounPhrase),
     /// An arithmetic value expression combining value operands into a new
-    /// numeric value: `<value> minus <value>` or `half <value>`. Additive
-    /// `<value> plus <value>` rides the ordinary [`Self::Coordinated`] path
-    /// (conjunction [`NounPhraseConjunction::Plus`]); `twice <value>` rides the
-    /// copular precomplement-adverb path — both already parse.
+    /// numeric value.
     Arithmetic(ArithmeticValue),
+}
+
+/// A read-only projection of a validated [`NounPhrase`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NounPhraseKind<'a> {
+    Nominal(&'a NominalPhrase),
+    Pronoun { pronoun: Pronoun, case: PronounCase },
+    Possessive(&'a Possessor),
+    Demonstrative(Demonstrative),
+    Quantity(Quantity),
+    ThisCard(ThisCardForm),
+    Partitive(&'a PartitiveNounPhrase),
+    CoordinatedNominal(&'a CoordinatedNominalPhrase),
+    Coordinated(&'a CoordinatedNounPhrase),
+    SetException(&'a SetExceptionNounPhrase),
+    Arithmetic(&'a ArithmeticValue),
+}
+
+impl NounPhrase {
+    /// Returns a read-only projection of this noun phrase.
+    #[must_use]
+    pub const fn kind(&self) -> NounPhraseKind<'_> {
+        match &self.repr {
+            NounPhraseRepr::Nominal(value) => NounPhraseKind::Nominal(value),
+            NounPhraseRepr::Pronoun { pronoun, case } => NounPhraseKind::Pronoun {
+                pronoun: *pronoun,
+                case: *case,
+            },
+            NounPhraseRepr::Possessive(value) => NounPhraseKind::Possessive(value),
+            NounPhraseRepr::Demonstrative(value) => NounPhraseKind::Demonstrative(*value),
+            NounPhraseRepr::Quantity(value) => NounPhraseKind::Quantity(*value),
+            NounPhraseRepr::ThisCard(value) => NounPhraseKind::ThisCard(*value),
+            NounPhraseRepr::Partitive(value) => NounPhraseKind::Partitive(value),
+            NounPhraseRepr::CoordinatedNominal(value) => NounPhraseKind::CoordinatedNominal(value),
+            NounPhraseRepr::Coordinated(value) => NounPhraseKind::Coordinated(value),
+            NounPhraseRepr::SetException(value) => NounPhraseKind::SetException(value),
+            NounPhraseRepr::Arithmetic(value) => NounPhraseKind::Arithmetic(value),
+        }
+    }
+
+    pub(crate) const fn from_pronoun_declaration(pronoun: Pronoun, case: PronounCase) -> Self {
+        Self {
+            repr: NounPhraseRepr::Pronoun { pronoun, case },
+        }
+    }
+}
+
+impl NounPhrase {
+    pub(crate) const fn from_nominal_declaration(value: NominalPhrase) -> Self {
+        Self {
+            repr: NounPhraseRepr::Nominal(value),
+        }
+    }
+
+    pub(crate) const fn from_possessive_declaration(value: Possessor) -> Self {
+        Self {
+            repr: NounPhraseRepr::Possessive(value),
+        }
+    }
+
+    pub(crate) const fn from_demonstrative_declaration(value: Demonstrative) -> Self {
+        Self {
+            repr: NounPhraseRepr::Demonstrative(value),
+        }
+    }
+
+    pub(crate) const fn from_quantity_declaration(value: Quantity) -> Self {
+        Self {
+            repr: NounPhraseRepr::Quantity(value),
+        }
+    }
+
+    pub(crate) const fn from_this_card_declaration(value: ThisCardForm) -> Self {
+        Self {
+            repr: NounPhraseRepr::ThisCard(value),
+        }
+    }
+
+    pub(crate) const fn from_partitive_declaration(value: PartitiveNounPhrase) -> Self {
+        Self {
+            repr: NounPhraseRepr::Partitive(value),
+        }
+    }
+
+    pub(crate) const fn from_coordinated_nominal_declaration(
+        value: CoordinatedNominalPhrase,
+    ) -> Self {
+        Self {
+            repr: NounPhraseRepr::CoordinatedNominal(value),
+        }
+    }
+
+    pub(crate) const fn from_coordination_declaration(value: CoordinatedNounPhrase) -> Self {
+        Self {
+            repr: NounPhraseRepr::Coordinated(value),
+        }
+    }
+
+    pub(crate) const fn from_set_exception_declaration(value: SetExceptionNounPhrase) -> Self {
+        Self {
+            repr: NounPhraseRepr::SetException(value),
+        }
+    }
+
+    pub(crate) const fn from_arithmetic_declaration(value: ArithmeticValue) -> Self {
+        Self {
+            repr: NounPhraseRepr::Arithmetic(value),
+        }
+    }
+}
+
+#[allow(
+    dead_code,
+    non_snake_case,
+    reason = "generated projection adapters select these stable declaration variant names"
+)]
+impl NounPhrase {
+    pub(crate) const fn Nominal(value: NominalPhrase) -> Self {
+        Self::from_nominal_declaration(value)
+    }
+
+    pub(crate) const fn Possessive(value: Possessor) -> Self {
+        Self::from_possessive_declaration(value)
+    }
+
+    pub(crate) const fn Demonstrative(value: Demonstrative) -> Self {
+        Self::from_demonstrative_declaration(value)
+    }
+
+    pub(crate) const fn Quantity(value: Quantity) -> Self {
+        Self::from_quantity_declaration(value)
+    }
+
+    pub(crate) const fn ThisCard(value: ThisCardForm) -> Self {
+        Self::from_this_card_declaration(value)
+    }
+
+    pub(crate) const fn Partitive(value: PartitiveNounPhrase) -> Self {
+        Self::from_partitive_declaration(value)
+    }
+
+    pub(crate) const fn CoordinatedNominal(value: CoordinatedNominalPhrase) -> Self {
+        Self::from_coordinated_nominal_declaration(value)
+    }
+
+    pub(crate) const fn Coordinated(value: CoordinatedNounPhrase) -> Self {
+        Self::from_coordination_declaration(value)
+    }
+
+    pub(crate) const fn SetException(value: SetExceptionNounPhrase) -> Self {
+        Self::from_set_exception_declaration(value)
+    }
+
+    pub(crate) const fn Arithmetic(value: ArithmeticValue) -> Self {
+        Self::from_arithmetic_declaration(value)
+    }
+}
+
+impl serde::Serialize for NounPhrase {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStructVariant;
+
+        match self.kind() {
+            NounPhraseKind::Nominal(value) => {
+                serializer.serialize_newtype_variant("NounPhrase", 0, "Nominal", value)
+            }
+            NounPhraseKind::Pronoun { pronoun, case } => {
+                let mut variant =
+                    serializer.serialize_struct_variant("NounPhrase", 1, "Pronoun", 2)?;
+                variant.serialize_field("pronoun", &pronoun)?;
+                variant.serialize_field("case", &case)?;
+                variant.end()
+            }
+            NounPhraseKind::Possessive(value) => {
+                serializer.serialize_newtype_variant("NounPhrase", 2, "Possessive", value)
+            }
+            NounPhraseKind::Demonstrative(value) => {
+                serializer.serialize_newtype_variant("NounPhrase", 3, "Demonstrative", &value)
+            }
+            NounPhraseKind::Quantity(value) => {
+                serializer.serialize_newtype_variant("NounPhrase", 4, "Quantity", &value)
+            }
+            NounPhraseKind::ThisCard(value) => {
+                serializer.serialize_newtype_variant("NounPhrase", 5, "ThisCard", &value)
+            }
+            NounPhraseKind::Partitive(value) => {
+                serializer.serialize_newtype_variant("NounPhrase", 6, "Partitive", value)
+            }
+            NounPhraseKind::CoordinatedNominal(value) => {
+                serializer.serialize_newtype_variant("NounPhrase", 7, "CoordinatedNominal", value)
+            }
+            NounPhraseKind::Coordinated(value) => {
+                serializer.serialize_newtype_variant("NounPhrase", 8, "Coordinated", value)
+            }
+            NounPhraseKind::SetException(value) => {
+                serializer.serialize_newtype_variant("NounPhrase", 9, "SetException", value)
+            }
+            NounPhraseKind::Arithmetic(value) => {
+                serializer.serialize_newtype_variant("NounPhrase", 10, "Arithmetic", value)
+            }
+        }
+    }
 }
 
 /// A binary set exclusion, not a coordination list. The generated bare and
@@ -1679,7 +1888,7 @@ pub enum DevotionColors {
 }
 
 /// A prepositional phrase, simple or coordinated. Coordination is a variant of
-/// the phrase type itself — exactly as [`NounPhrase::Coordinated`] is — so
+/// the phrase type itself — exactly as [`NounPhraseKind::Coordinated`] is — so
 /// every slot that already accepts a prepositional phrase (nominal complements,
 /// clause adjuncts, exception riders, keyword arguments) admits the coordinated
 /// form without opting in. A sibling `Phrase` variant would instead require

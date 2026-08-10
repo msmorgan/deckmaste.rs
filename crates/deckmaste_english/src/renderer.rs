@@ -259,6 +259,14 @@ pub(crate) fn render_adjective_phrase(
     Renderer::new(name, is_legendary).adjective_phrase(phrase)
 }
 
+pub(crate) fn render_noun_phrase(
+    phrase: &NounPhrase,
+    name: &str,
+    is_legendary: bool,
+) -> Result<String, RenderError> {
+    Renderer::new(name, is_legendary).noun_phrase(phrase)
+}
+
 pub(crate) fn render_infinitive_clause(
     value: &InfinitiveClause,
     name: &str,
@@ -531,7 +539,8 @@ impl Determiner {
             crate::syntax::DeterminerKind::Possessive(possessor)
                 if matches!(
                     possessor.kind(),
-                    crate::syntax::PossessorKind::NounPhrase(NounPhrase::ThisCard(_))
+                    crate::syntax::PossessorKind::NounPhrase(noun_phrase)
+                        if matches!(noun_phrase.kind(), crate::syntax::NounPhraseKind::ThisCard(_))
                 )
         ) {
             return Err(RenderError::CardIdentityRequired);
@@ -3734,21 +3743,20 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn noun_phrase(&self, phrase: &NounPhrase) -> Result<String, RenderError> {
-        match phrase {
-            NounPhrase::Nominal(nominal) => self.nominal_phrase(nominal),
-            NounPhrase::Pronoun { pronoun, case } => self
+        match phrase.kind() {
+            crate::syntax::NounPhraseKind::Nominal(nominal) => self.nominal_phrase(nominal),
+            crate::syntax::NounPhraseKind::Pronoun { pronoun, case } => self
                 .vocabulary
-                .render_pronoun(PronounInstance {
-                    pronoun: *pronoun,
-                    case: *case,
-                })
+                .render_pronoun(PronounInstance { pronoun, case })
                 .map(str::to_owned)
                 .ok_or(RenderError::MissingLexicalForm("pronoun")),
-            NounPhrase::Possessive(possessor) => self.possessor(possessor),
-            NounPhrase::Demonstrative(demonstrative) => Ok(demonstrative.spelling().to_owned()),
-            NounPhrase::Quantity(quantity) => Ok(render_quantity(*quantity)),
-            NounPhrase::ThisCard(form) => self.this_card(*form),
-            NounPhrase::Partitive(partitive) => Ok(format!(
+            crate::syntax::NounPhraseKind::Possessive(possessor) => self.possessor(possessor),
+            crate::syntax::NounPhraseKind::Demonstrative(demonstrative) => {
+                Ok(demonstrative.spelling().to_owned())
+            }
+            crate::syntax::NounPhraseKind::Quantity(quantity) => Ok(render_quantity(quantity)),
+            crate::syntax::NounPhraseKind::ThisCard(form) => self.this_card(form),
+            crate::syntax::NounPhraseKind::Partitive(partitive) => Ok(format!(
                 "{} of {}",
                 match partitive.head {
                     crate::syntax::PartitiveHead::Quantity(quantity) => render_quantity(quantity),
@@ -3756,11 +3764,13 @@ impl<'identity> Renderer<'identity> {
                 },
                 self.noun_phrase(&partitive.whole)?
             )),
-            NounPhrase::CoordinatedNominal(coordinated) => {
+            crate::syntax::NounPhraseKind::CoordinatedNominal(coordinated) => {
                 self.coordinated_nominal_phrase(coordinated)
             }
-            NounPhrase::Coordinated(coordinated) => self.coordinated_noun_phrase(coordinated),
-            NounPhrase::SetException(exception) => {
+            crate::syntax::NounPhraseKind::Coordinated(coordinated) => {
+                self.coordinated_noun_phrase(coordinated)
+            }
+            crate::syntax::NounPhraseKind::SetException(exception) => {
                 let mut rendered = self.noun_phrase(&exception.included)?;
                 if exception.comma.is_present() {
                     rendered.push(',');
@@ -3772,7 +3782,7 @@ impl<'identity> Renderer<'identity> {
                 rendered.push_str(&self.noun_phrase(&exception.excluded)?);
                 Ok(rendered)
             }
-            NounPhrase::Arithmetic(value) => self.arithmetic_value(value),
+            crate::syntax::NounPhraseKind::Arithmetic(value) => self.arithmetic_value(value),
         }
     }
 
@@ -4036,15 +4046,15 @@ impl<'identity> Renderer<'identity> {
                 crate::determiner::possessive_pronoun(pronoun)
                     .map_err(|_| RenderError::InvalidDeterminerConstruction)?
             }
-            crate::syntax::PossessorKind::NounPhrase(NounPhrase::ThisCard(form)) => {
-                crate::determiner::possessive_this_card(*form)
-            }
-            crate::syntax::PossessorKind::NounPhrase(NounPhrase::Nominal(nominal)) => {
-                crate::determiner::possessive_nominal(nominal.clone())
-            }
-            crate::syntax::PossessorKind::NounPhrase(_) => {
-                return Err(RenderError::InvalidDeterminerConstruction);
-            }
+            crate::syntax::PossessorKind::NounPhrase(noun_phrase) => match noun_phrase.kind() {
+                crate::syntax::NounPhraseKind::ThisCard(form) => {
+                    crate::determiner::possessive_this_card(form)
+                }
+                crate::syntax::NounPhraseKind::Nominal(nominal) => {
+                    crate::determiner::possessive_nominal(nominal.clone())
+                }
+                _ => return Err(RenderError::InvalidDeterminerConstruction),
+            },
         };
         self.generated_determiner(&determiner)
     }
@@ -4411,7 +4421,7 @@ fn predicate_verb_is_enchant(predicate: &Predicate) -> bool {
 /// of `Enchant <adjective> <type>` that treats the keyword as the subject
 /// noun).
 fn subject_is_enchant_keyword(subject: &Subject) -> bool {
-    let NounPhrase::Nominal(nominal) = &subject.0 else {
+    let crate::syntax::NounPhraseKind::Nominal(nominal) = subject.0.kind() else {
         return false;
     };
     if !nominal.modifiers().is_empty() || nominal.determiner().is_some() {
@@ -4465,10 +4475,13 @@ fn independent_clause_final_self_reference(clause: &IndependentClause) -> Option
     if !predicate.elements.is_empty() {
         return None;
     }
-    match &predicate.object {
-        PredicateObject::NounPhrase(NounPhrase::ThisCard(form)) => Some(*form),
-        _ => None,
-    }
+    let PredicateObject::NounPhrase(noun_phrase) = &predicate.object else {
+        return None;
+    };
+    let crate::syntax::NounPhraseKind::ThisCard(form) = noun_phrase.kind() else {
+        return None;
+    };
+    Some(form)
 }
 
 /// The closed quoted ability that terminates a sentence, if any — the one node
@@ -5642,7 +5655,10 @@ mod tests {
         else {
             panic!("expected an imperative transitive clause");
         };
-        let PredicateObject::NounPhrase(NounPhrase::Nominal(object)) = &predicate.object else {
+        let PredicateObject::NounPhrase(object) = &predicate.object else {
+            panic!("expected a nominal object");
+        };
+        let crate::syntax::NounPhraseKind::Nominal(object) = object.kind() else {
             panic!("expected a nominal object");
         };
         let [NominalComplement::Relative(relative)] = object.complements() else {
@@ -5941,7 +5957,8 @@ mod tests {
     #[test]
     fn noun_modifiers_relative_clauses_and_shared_subjects_keep_their_structure() {
         let catalogs = fixture_catalogs();
-        let NounPhrase::Nominal(creatures) = controlled_creature(&catalogs, false, true) else {
+        let creatures = controlled_creature(&catalogs, false, true);
+        let crate::syntax::NounPhraseKind::Nominal(creatures) = creatures.kind() else {
             panic!("controlled creature fixture must be nominal");
         };
         let first = simple(
@@ -6124,7 +6141,9 @@ mod tests {
                         first: TriggerCondition {
                             introducer: TriggerWord::Whenever,
                             event: TriggerEvent::Clause(independent(simple(
-                                Some(Subject(NounPhrase::ThisCard(ThisCardForm::AbbreviatedName))),
+                                Some(Subject(NounPhrase::from_this_card_declaration(
+                                    ThisCardForm::AbbreviatedName,
+                                ))),
                                 verb_phrase(Vocab::Attack, THIRD_SINGULAR_PRESENT, vec![]),
                             ))),
                         },
@@ -6223,7 +6242,9 @@ mod tests {
                     frame: ModalFrame::Triggered(TriggerHeader {
                         introducer: TriggerWord::Whenever,
                         event: TriggerEvent::Clause(independent(simple(
-                            Some(Subject(NounPhrase::ThisCard(ThisCardForm::AbbreviatedName))),
+                            Some(Subject(NounPhrase::from_this_card_declaration(
+                                ThisCardForm::AbbreviatedName,
+                            ))),
                             verb_phrase(Vocab::Attack, THIRD_SINGULAR_PRESENT, vec![]),
                         ))),
                         intervening_condition: None,
@@ -6569,7 +6590,7 @@ mod tests {
         head: NounInstance,
         complements: Vec<NominalComplement>,
     ) -> NounPhrase {
-        NounPhrase::Nominal(NominalPhrase::test_from_projection_parts(
+        NounPhrase::from_nominal_declaration(NominalPhrase::test_from_projection_parts(
             determiner,
             modifiers,
             head,
@@ -6696,10 +6717,10 @@ mod tests {
                 marker: RelativeMarker::Zero,
                 gap: RelativeGap::Object,
                 body: RelativeBody::ObjectGap {
-                    subject: Subject(NounPhrase::Pronoun {
-                        pronoun: Pronoun::You,
-                        case: PronounCase::Subject,
-                    }),
+                    subject: Subject(NounPhrase::from_pronoun_declaration(
+                        Pronoun::You,
+                        PronounCase::Subject,
+                    )),
                     predicate: ObjectGapPredicate {
                         head: relative_predicate.head,
                         kind: crate::syntax::ObjectGap,
@@ -6756,7 +6777,9 @@ mod tests {
                 phrase.try_attach_compatibility_complement(AdjectiveComplement::Prepositional(
                     PrepositionalPhrase::simple(
                         Preposition::To,
-                        Phrase::NounPhrase(Box::new(NounPhrase::ThisCard(ThisCardForm::FullName))),
+                        Phrase::NounPhrase(Box::new(NounPhrase::from_this_card_declaration(
+                            ThisCardForm::FullName,
+                        ))),
                     ),
                 ))
             })

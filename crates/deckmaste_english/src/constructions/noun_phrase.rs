@@ -26,6 +26,7 @@ use crate::syntax::DeterminerKind;
 use crate::syntax::NominalComplement;
 use crate::syntax::NominalPhrase;
 use crate::syntax::NounPhrase;
+use crate::syntax::NounPhraseKind;
 use crate::syntax::PartitiveHead;
 use crate::syntax::PartitiveNounPhrase;
 use crate::syntax::Phrase;
@@ -44,10 +45,17 @@ use crate::word::Pronoun;
 use crate::word::PronounCase;
 use crate::word::Vocab;
 
+/// A validated noun phrase eligible for rules-object attachment.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct RulesObjectNounPhrase(NounPhrase);
+pub struct RulesObjectNounPhrase(NounPhrase);
 
 impl RulesObjectNounPhrase {
+    /// Returns the validated noun phrase carried by this attachment-role view.
+    #[must_use]
+    pub const fn as_noun_phrase(&self) -> &NounPhrase {
+        &self.0
+    }
+
     pub(crate) fn into_noun_phrase(self) -> NounPhrase {
         self.0
     }
@@ -61,27 +69,27 @@ fn violation(construction: &'static str, requirement: &'static str) -> Declarati
 }
 
 fn make_nominal(nominal: NominalPhrase) -> Result<NounPhrase, DeclarationViolation> {
-    Ok(NounPhrase::Nominal(nominal))
+    Ok(NounPhrase::from_nominal_declaration(nominal))
 }
 
 fn make_rules_object(
     nominal: RulesObjectFollowupNominal,
 ) -> Result<RulesObjectNounPhrase, DeclarationViolation> {
-    Ok(RulesObjectNounPhrase(NounPhrase::Nominal(
+    Ok(RulesObjectNounPhrase(NounPhrase::from_nominal_declaration(
         nominal.into_nominal(),
     )))
 }
 
 fn make_pronoun(pronoun: Pronoun, case: PronounCase) -> Result<NounPhrase, DeclarationViolation> {
-    Ok(NounPhrase::Pronoun { pronoun, case })
+    Ok(NounPhrase::from_pronoun_declaration(pronoun, case))
 }
 
 fn make_quantity(quantity: Quantity) -> Result<NounPhrase, DeclarationViolation> {
-    Ok(NounPhrase::Quantity(quantity))
+    Ok(NounPhrase::from_quantity_declaration(quantity))
 }
 
 fn make_this_card(form: ThisCardForm) -> Result<NounPhrase, DeclarationViolation> {
-    Ok(NounPhrase::ThisCard(form))
+    Ok(NounPhrase::from_this_card_declaration(form))
 }
 
 fn make_possessive_this_card(form: ThisCardForm) -> Result<NounPhrase, DeclarationViolation> {
@@ -89,24 +97,32 @@ fn make_possessive_this_card(form: ThisCardForm) -> Result<NounPhrase, Declarati
     let DeterminerKind::Possessive(possessor) = determiner.kind() else {
         unreachable!("the self-reference determiner builder returns a possessive")
     };
-    Ok(NounPhrase::Possessive(possessor.clone()))
+    Ok(NounPhrase::from_possessive_declaration(possessor.clone()))
 }
 
 fn make_demonstrative(value: Demonstrative) -> Result<NounPhrase, DeclarationViolation> {
-    Ok(NounPhrase::Demonstrative(value))
+    Ok(NounPhrase::from_demonstrative_declaration(value))
 }
 
 fn make_partitive(
     head: PartitiveHead,
     whole: NounPhrase,
 ) -> Result<NounPhrase, DeclarationViolation> {
-    Ok(NounPhrase::Partitive(PartitiveNounPhrase {
-        head,
-        whole: Box::new(whole),
-    }))
+    Ok(NounPhrase::from_partitive_declaration(
+        PartitiveNounPhrase {
+            head,
+            whole: Box::new(whole),
+        },
+    ))
 }
 
 fn make_any_number_of(whole: NounPhrase) -> Result<NounPhrase, DeclarationViolation> {
+    if !noun_phrase_is_plural(&whole) {
+        return Err(violation(
+            "noun_phrase_any_number_of",
+            "whole has plural agreement",
+        ));
+    }
     let determiner = crate::constructions::determiner::build_determiner_closed(
         crate::syntax::ClosedDeterminer::Any,
     )?;
@@ -119,24 +135,28 @@ fn make_any_number_of(whole: NounPhrase) -> Result<NounPhrase, DeclarationViolat
         nominal,
         PrepositionalPhrase::simple(Preposition::Of, Phrase::NounPhrase(Box::new(whole))),
     )?;
-    Ok(NounPhrase::Nominal(nominal))
+    Ok(NounPhrase::from_nominal_declaration(nominal))
 }
 
 fn make_minus(left: NounPhrase, right: NounPhrase) -> Result<NounPhrase, DeclarationViolation> {
-    Ok(NounPhrase::Arithmetic(ArithmeticValue::Minus {
-        left: Box::new(left),
-        right: Box::new(right),
-    }))
+    Ok(NounPhrase::from_arithmetic_declaration(
+        ArithmeticValue::Minus {
+            left: Box::new(left),
+            right: Box::new(right),
+        },
+    ))
 }
 
 fn make_half(
     value: NounPhrase,
     rounding: Option<Rounding>,
 ) -> Result<NounPhrase, DeclarationViolation> {
-    Ok(NounPhrase::Arithmetic(ArithmeticValue::Half {
-        value: Box::new(value),
-        rounding,
-    }))
+    Ok(NounPhrase::from_arithmetic_declaration(
+        ArithmeticValue::Half {
+            value: Box::new(value),
+            rounding,
+        },
+    ))
 }
 
 fn make_set_exception(
@@ -162,68 +182,123 @@ fn make_set_exception(
             "marker matches the declared set-exception surface",
         ));
     }
-    Ok(NounPhrase::SetException(SetExceptionNounPhrase {
-        included: Box::new(included),
-        marker,
-        comma,
-        excluded: Box::new(excluded),
-    }))
+    if !noun_phrase_is_set_exception_host(&included) {
+        return Err(violation(
+            construction,
+            "included noun phrase is an open set-exception host",
+        ));
+    }
+    Ok(NounPhrase::from_set_exception_declaration(
+        SetExceptionNounPhrase {
+            included: Box::new(included),
+            marker,
+            comma,
+            excluded: Box::new(excluded),
+        },
+    ))
+}
+
+fn noun_phrase_is_plural(value: &NounPhrase) -> bool {
+    match value.kind() {
+        NounPhraseKind::Nominal(nominal) => {
+            matches!(nominal.head().kind(), NounInstanceKind::Plural(_))
+                || any_number_of_whole(value).is_some()
+        }
+        NounPhraseKind::Pronoun { pronoun, .. } => pronoun == Pronoun::They,
+        NounPhraseKind::Demonstrative(value) => {
+            matches!(value, Demonstrative::These | Demonstrative::Those)
+        }
+        NounPhraseKind::CoordinatedNominal(_) | NounPhraseKind::Coordinated(_) => true,
+        NounPhraseKind::SetException(exception) => noun_phrase_is_plural(&exception.included),
+        NounPhraseKind::Possessive(_)
+        | NounPhraseKind::Quantity(_)
+        | NounPhraseKind::ThisCard(_)
+        | NounPhraseKind::Partitive(_)
+        | NounPhraseKind::Arithmetic(_) => false,
+    }
+}
+
+fn noun_phrase_is_set_exception_host(value: &NounPhrase) -> bool {
+    match value.kind() {
+        NounPhraseKind::Nominal(nominal) => matches!(
+            nominal.determiner().map(crate::syntax::Determiner::kind),
+            Some(DeterminerKind::All | DeterminerKind::Each)
+        ),
+        NounPhraseKind::CoordinatedNominal(coordinated) => matches!(
+            coordinated.determiner().kind(),
+            DeterminerKind::All | DeterminerKind::Each
+        ),
+        NounPhraseKind::Coordinated(coordinated) => {
+            noun_phrase_is_set_exception_host(coordinated.first())
+        }
+        NounPhraseKind::Pronoun { .. }
+        | NounPhraseKind::Possessive(_)
+        | NounPhraseKind::Demonstrative(_)
+        | NounPhraseKind::Quantity(_)
+        | NounPhraseKind::ThisCard(_)
+        | NounPhraseKind::Partitive(_)
+        | NounPhraseKind::SetException(_)
+        | NounPhraseKind::Arithmetic(_) => false,
+    }
 }
 
 fn nominal_parts(value: &NounPhrase) -> NominalPhrase {
-    let NounPhrase::Nominal(nominal) = value else {
+    let NounPhraseKind::Nominal(nominal) = value.kind() else {
         unreachable!("noun_phrase_nominal admits only Nominal")
     };
     nominal.clone()
 }
 
 fn rules_object_parts(value: &RulesObjectNounPhrase) -> RulesObjectFollowupNominal {
-    let NounPhrase::Nominal(nominal) = &value.0 else {
+    let NounPhraseKind::Nominal(nominal) = value.0.kind() else {
         unreachable!("rules_object_noun_phrase stores a nominal noun phrase")
     };
     RulesObjectFollowupNominal::from_nominal(nominal.clone())
 }
 
 fn pronoun_parts(value: &NounPhrase) -> Pronoun {
-    let NounPhrase::Pronoun { pronoun, .. } = value else {
+    let NounPhraseKind::Pronoun { pronoun, .. } = value.kind() else {
         unreachable!("pronoun families admit only Pronoun")
     };
-    *pronoun
+    pronoun
 }
 
 fn quantity_parts(value: &NounPhrase) -> Quantity {
-    let NounPhrase::Quantity(quantity) = value else {
+    let NounPhraseKind::Quantity(quantity) = value.kind() else {
         unreachable!("noun_phrase_quantity admits only Quantity")
     };
-    *quantity
+    quantity
 }
 
 fn this_card_parts(value: &NounPhrase) -> ThisCardForm {
-    let NounPhrase::ThisCard(form) = value else {
+    let NounPhraseKind::ThisCard(form) = value.kind() else {
         unreachable!("self-reference families admit only ThisCard")
     };
-    *form
+    form
 }
 
 fn possessive_this_card_parts(value: &NounPhrase) -> ThisCardForm {
-    let NounPhrase::Possessive(possessor) = value else {
+    let NounPhraseKind::Possessive(possessor) = value.kind() else {
         unreachable!("possessive self-reference admits only Possessive")
     };
-    let PossessorKind::NounPhrase(NounPhrase::ThisCard(form)) = possessor.kind() else {
+    let PossessorKind::NounPhrase(noun_phrase) = possessor.kind() else {
         unreachable!("possessive self-reference stores ThisCard")
     };
-    *form
+    let NounPhraseKind::ThisCard(form) = noun_phrase.kind() else {
+        unreachable!("possessive self-reference stores ThisCard")
+    };
+    form
 }
 
 fn demonstrative_parts(value: &NounPhrase) -> Demonstrative {
-    let NounPhrase::Demonstrative(value) = value else {
+    let NounPhraseKind::Demonstrative(value) = value.kind() else {
         unreachable!("noun_phrase_demonstrative admits only Demonstrative")
     };
-    *value
+    value
 }
 
 fn partitive_parts(value: &NounPhrase) -> (PartitiveHead, NounPhrase) {
-    let NounPhrase::Partitive(partitive) = value else {
+    let NounPhraseKind::Partitive(partitive) = value.kind() else {
         unreachable!("partitive families admit only Partitive")
     };
     (partitive.head, partitive.whole.as_ref().clone())
@@ -241,7 +316,7 @@ fn each_partitive_parts(value: &NounPhrase) -> (PartitiveHead, NounPhrase) {
 }
 
 fn any_number_of_whole(value: &NounPhrase) -> Option<&NounPhrase> {
-    let NounPhrase::Nominal(nominal) = value else {
+    let NounPhraseKind::Nominal(nominal) = value.kind() else {
         return None;
     };
     if !matches!(
@@ -272,14 +347,14 @@ fn any_number_of_parts(value: &NounPhrase) -> NounPhrase {
 }
 
 fn minus_parts(value: &NounPhrase) -> (NounPhrase, NounPhrase) {
-    let NounPhrase::Arithmetic(ArithmeticValue::Minus { left, right }) = value else {
+    let NounPhraseKind::Arithmetic(ArithmeticValue::Minus { left, right }) = value.kind() else {
         unreachable!("noun_phrase_minus admits only Minus")
     };
     (left.as_ref().clone(), right.as_ref().clone())
 }
 
 fn half_parts(value: &NounPhrase) -> (NounPhrase, Option<Rounding>) {
-    let NounPhrase::Arithmetic(ArithmeticValue::Half { value, rounding }) = value else {
+    let NounPhraseKind::Arithmetic(ArithmeticValue::Half { value, rounding }) = value.kind() else {
         unreachable!("half families admit only Half")
     };
     (value.as_ref().clone(), *rounding)
@@ -302,7 +377,7 @@ fn half_rounded_parts(value: &NounPhrase) -> (NounPhrase, Rounding) {
 fn set_exception_parts(
     value: &NounPhrase,
 ) -> (NounPhrase, SetExceptionMarker, Option<Comma>, NounPhrase) {
-    let NounPhrase::SetException(exception) = value else {
+    let NounPhraseKind::SetException(exception) = value.kind() else {
         unreachable!("set-exception families admit only SetException")
     };
     (
@@ -314,10 +389,25 @@ fn set_exception_parts(
 }
 
 fn make_subject_pronoun(pronoun: Pronoun) -> Result<NounPhrase, DeclarationViolation> {
+    if matches!(
+        pronoun,
+        Pronoun::EachOther | Pronoun::Itself | Pronoun::Himself | Pronoun::YoursAbsolute
+    ) {
+        return Err(violation(
+            "noun_phrase_subject_pronoun",
+            "pronoun has a subject-case surface form",
+        ));
+    }
     make_pronoun(pronoun, PronounCase::Subject)
 }
 
 fn make_object_pronoun(pronoun: Pronoun) -> Result<NounPhrase, DeclarationViolation> {
+    if pronoun == Pronoun::EachOther {
+        return Err(violation(
+            "noun_phrase_object_pronoun",
+            "pronoun is not the dedicated reciprocal",
+        ));
+    }
     make_pronoun(pronoun, PronounCase::Object)
 }
 
@@ -412,13 +502,13 @@ fn make_set_exception_for(
 }
 
 fn is_nominal(value: &NounPhrase) -> bool {
-    matches!(value, NounPhrase::Nominal(_)) && any_number_of_whole(value).is_none()
+    matches!(value.kind(), NounPhraseKind::Nominal(_)) && any_number_of_whole(value).is_none()
 }
 
 fn is_subject_pronoun(value: &NounPhrase) -> bool {
     matches!(
-        value,
-        NounPhrase::Pronoun {
+        value.kind(),
+        NounPhraseKind::Pronoun {
             case: PronounCase::Subject,
             ..
         }
@@ -427,18 +517,18 @@ fn is_subject_pronoun(value: &NounPhrase) -> bool {
 
 fn is_object_pronoun(value: &NounPhrase) -> bool {
     matches!(
-        value,
-        NounPhrase::Pronoun {
+        value.kind(),
+        NounPhraseKind::Pronoun {
             pronoun,
             case: PronounCase::Object,
-        } if *pronoun != Pronoun::EachOther
+        } if pronoun != Pronoun::EachOther
     )
 }
 
 fn is_reciprocal(value: &NounPhrase) -> bool {
     matches!(
-        value,
-        NounPhrase::Pronoun {
+        value.kind(),
+        NounPhraseKind::Pronoun {
             pronoun: Pronoun::EachOther,
             case: PronounCase::Object,
         }
@@ -446,33 +536,43 @@ fn is_reciprocal(value: &NounPhrase) -> bool {
 }
 
 fn is_quantity(value: &NounPhrase) -> bool {
-    matches!(value, NounPhrase::Quantity(_))
+    matches!(value.kind(), NounPhraseKind::Quantity(_))
 }
 
 fn is_abbreviated_this_card(value: &NounPhrase) -> bool {
-    matches!(value, NounPhrase::ThisCard(ThisCardForm::AbbreviatedName))
+    matches!(
+        value.kind(),
+        NounPhraseKind::ThisCard(ThisCardForm::AbbreviatedName)
+    )
 }
 
 fn is_full_this_card(value: &NounPhrase) -> bool {
-    matches!(value, NounPhrase::ThisCard(ThisCardForm::FullName))
+    matches!(
+        value.kind(),
+        NounPhraseKind::ThisCard(ThisCardForm::FullName)
+    )
 }
 
 fn is_possessive_this_card(value: &NounPhrase) -> bool {
     matches!(
-        value,
-        NounPhrase::Possessive(possessor)
-            if matches!(possessor.kind(), PossessorKind::NounPhrase(NounPhrase::ThisCard(_)))
+        value.kind(),
+        NounPhraseKind::Possessive(possessor)
+            if matches!(
+                possessor.kind(),
+                PossessorKind::NounPhrase(noun_phrase)
+                    if matches!(noun_phrase.kind(), NounPhraseKind::ThisCard(_))
+            )
     )
 }
 
 fn is_demonstrative(value: &NounPhrase) -> bool {
-    matches!(value, NounPhrase::Demonstrative(_))
+    matches!(value.kind(), NounPhraseKind::Demonstrative(_))
 }
 
 fn is_quantity_partitive(value: &NounPhrase) -> bool {
     matches!(
-        value,
-        NounPhrase::Partitive(PartitiveNounPhrase {
+        value.kind(),
+        NounPhraseKind::Partitive(PartitiveNounPhrase {
             head: PartitiveHead::Quantity(_),
             ..
         })
@@ -481,8 +581,8 @@ fn is_quantity_partitive(value: &NounPhrase) -> bool {
 
 fn is_each_partitive(value: &NounPhrase) -> bool {
     matches!(
-        value,
-        NounPhrase::Partitive(PartitiveNounPhrase {
+        value.kind(),
+        NounPhraseKind::Partitive(PartitiveNounPhrase {
             head: PartitiveHead::Each,
             ..
         })
@@ -494,20 +594,23 @@ fn is_any_number_of(value: &NounPhrase) -> bool {
 }
 
 fn is_minus(value: &NounPhrase) -> bool {
-    matches!(value, NounPhrase::Arithmetic(ArithmeticValue::Minus { .. }))
+    matches!(
+        value.kind(),
+        NounPhraseKind::Arithmetic(ArithmeticValue::Minus { .. })
+    )
 }
 
 fn is_half(value: &NounPhrase) -> bool {
     matches!(
-        value,
-        NounPhrase::Arithmetic(ArithmeticValue::Half { rounding: None, .. })
+        value.kind(),
+        NounPhraseKind::Arithmetic(ArithmeticValue::Half { rounding: None, .. })
     )
 }
 
 fn is_half_rounded_up(value: &NounPhrase) -> bool {
     matches!(
-        value,
-        NounPhrase::Arithmetic(ArithmeticValue::Half {
+        value.kind(),
+        NounPhraseKind::Arithmetic(ArithmeticValue::Half {
             rounding: Some(Rounding::Up),
             ..
         })
@@ -516,8 +619,8 @@ fn is_half_rounded_up(value: &NounPhrase) -> bool {
 
 fn is_half_rounded_down(value: &NounPhrase) -> bool {
     matches!(
-        value,
-        NounPhrase::Arithmetic(ArithmeticValue::Half {
+        value.kind(),
+        NounPhraseKind::Arithmetic(ArithmeticValue::Half {
             rounding: Some(Rounding::Down),
             ..
         })
@@ -525,11 +628,11 @@ fn is_half_rounded_down(value: &NounPhrase) -> bool {
 }
 
 fn is_set_exception_bare(value: &NounPhrase) -> bool {
-    matches!(value, NounPhrase::SetException(value) if value.marker == SetExceptionMarker::Bare)
+    matches!(value.kind(), NounPhraseKind::SetException(value) if value.marker == SetExceptionMarker::Bare)
 }
 
 fn is_set_exception_for(value: &NounPhrase) -> bool {
-    matches!(value, NounPhrase::SetException(value) if value.marker == SetExceptionMarker::For)
+    matches!(value.kind(), NounPhraseKind::SetException(value) if value.marker == SetExceptionMarker::For)
 }
 
 fn noun_phrase(
@@ -1037,11 +1140,10 @@ mod tests {
             "Test Card",
             false,
         );
-        let Some(crate::Fragment::Nominal(value @ NounPhrase::Nominal(_))) = parsed.into_fragment()
-        else {
+        let Some(crate::Fragment::Nominal(value)) = parsed.into_fragment() else {
             panic!("expected a nominal noun phrase")
         };
-        let NounPhrase::Nominal(nominal) = &value else { unreachable!() };
+        let NounPhraseKind::Nominal(nominal) = value.kind() else { unreachable!() };
         assert_eq!(nominal.modifiers().len(), 1);
         assert!(
             any_number_of_whole(&value).is_none(),

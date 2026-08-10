@@ -719,7 +719,6 @@ mod tests {
     use deckmaste_english::syntax::ComparisonMarker;
     use deckmaste_english::syntax::CoordinationJunction;
     use deckmaste_english::syntax::Demonstrative;
-    use deckmaste_english::syntax::NounPhrase;
     use deckmaste_english::syntax::NounPhraseCoordination;
     use deckmaste_english::syntax::NumberLiteral;
     use deckmaste_english::syntax::OpaqueLexeme;
@@ -1128,7 +1127,10 @@ mod tests {
 
         let nominal = of(&NounPhraseCoordination {
             conjunction: Some(Conjunction::Plus),
-            phrase: NounPhrase::Demonstrative(Demonstrative::This),
+            phrase: deckmaste_english::noun_phrase::build_noun_phrase_demonstrative(
+                Demonstrative::This,
+            )
+            .unwrap(),
         });
         assert_eq!(
             field(&nominal, "conjunction"),

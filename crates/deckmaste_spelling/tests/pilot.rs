@@ -321,14 +321,15 @@ fn controlled_by_you_complement_side_field_slice_compiles() {
 
 /// G5 finding, locked in: `SacrificeThis`'s attempted `~` frame compiles —
 /// `~` is syntactically valid self-reference — but produces a `SelfRef`
-/// hole, which the round's self-reference machinery (`NounPhrase::ThisCard`,
-/// `ThisCardForm::{FullName, AbbreviatedName}`) renders as the card's own
-/// printed NAME, never the type-generic "this permanent"/"this creature"
-/// wording the checked-in `template:` actually uses. This test pins the
-/// *positive* half (it compiles, and the hole really is `SelfRef`); the G5
-/// report carries the render-side evidence (`ThisCardForm`'s two variants,
-/// the legacy `~ => subject` renderer, and the live Clue/Gold/Treasure/
-/// Food/Blood token regression risk) that the wording itself is wrong.
+/// hole, which the round's self-reference machinery
+/// (`NounPhraseKind::ThisCard`, `ThisCardForm::{FullName, AbbreviatedName}`)
+/// renders as the card's own printed NAME, never the type-generic "this
+/// permanent"/"this creature" wording the checked-in `template:` actually uses.
+/// This test pins the *positive* half (it compiles, and the hole really is
+/// `SelfRef`); the G5 report carries the render-side evidence (`ThisCardForm`'s
+/// two variants, the legacy `~ => subject` renderer, and the live
+/// Clue/Gold/Treasure/ Food/Blood token regression risk) that the wording
+/// itself is wrong.
 ///
 /// `SacrificeThis` ended up framed anyway — with the *literal* wording
 /// `"Sacrifice this permanent"` (see
