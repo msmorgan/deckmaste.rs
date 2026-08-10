@@ -362,17 +362,20 @@ fn attributive_adjective_is_admitted(adjective: &AdjectivePhrase) -> bool {
 }
 
 fn prepositional_nominal_attachment_is_admitted(preposition: &PrepositionalPhrase) -> bool {
-    let head = preposition.head();
-    let by_gerund = head.preposition == Preposition::By
-        && matches!(
-            head.object.as_ref(),
-            Phrase::Clause(clause)
-                if matches!(
-                    clause.as_ref(),
-                    crate::syntax::Clause::Dependent(crate::syntax::DependentClause::Gerund(_))
-                )
-        );
-    nominal_prepositional_attachment_is_admitted(!by_gerund)
+    crate::constructions::prepositional::every_prepositional_member(preposition, |member| {
+        let by_gerund = member.preposition() == Preposition::By
+            && matches!(
+                member.object(),
+                Phrase::Clause(clause)
+                    if matches!(
+                        clause.as_ref(),
+                        crate::syntax::Clause::Dependent(
+                            crate::syntax::DependentClause::Gerund(_)
+                        )
+                    )
+            );
+        nominal_prepositional_attachment_is_admitted(!by_gerund)
+    })
 }
 
 fn split_nominal_adjective(value: &NominalPhrase) -> (AdjectivePhrase, NominalPhrase) {
@@ -2445,6 +2448,10 @@ mod tests {
             &Features::PrepositionalPhrase {
                 preposition: Preposition::Of,
                 nominal_attachment: true,
+                role_members: vec![crate::grammar::PrepositionalRoleMember {
+                    preposition: Preposition::Of,
+                    nominal_attachment: true,
+                }],
                 shared_determiner_object: false,
                 nearer_relative_host: true,
             },

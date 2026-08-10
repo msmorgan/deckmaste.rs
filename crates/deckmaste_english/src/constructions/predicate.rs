@@ -196,17 +196,24 @@ fn build_public_prepositional(
     preposition: PrepositionalPhrase,
     requested_role: ComplementRole,
 ) -> Result<VerbPhrase, DeclarationViolation> {
-    if predicate
-        .declaration_frame()
-        .prepositional_role(preposition.head().preposition)
-        != Some(requested_role)
-    {
+    if prepositional_role(predicate.declaration_frame(), &preposition) != Some(requested_role) {
         return Err(violation(
             "verb_phrase_prepositional",
             "the lexical frame preserves the caller-requested prepositional role",
         ));
     }
     build_verb_phrase_prepositional(predicate, preposition)
+}
+
+fn prepositional_role(
+    frame: PredicateFrame,
+    preposition: &PrepositionalPhrase,
+) -> Option<ComplementRole> {
+    let role = frame.prepositional_role(preposition.head().preposition)?;
+    crate::constructions::prepositional::every_prepositional_member(preposition, |member| {
+        frame.prepositional_role(member.preposition()) == Some(role)
+    })
+    .then_some(role)
 }
 
 /// Finishes a checked builder into the sealed public predicate projection.
@@ -976,10 +983,22 @@ fn reduce_verb_phrase_prepositional_features(
     predicate: &Features,
     preposition: &Features,
 ) -> Option<Features> {
-    let Features::PrepositionalPhrase { preposition, .. } = preposition else {
+    let Features::VerbPhrase { frame, .. } = predicate else {
         return None;
     };
-    extend_predicate_features(predicate, PredicateAttachment::Prepositional(*preposition))
+    let Features::PrepositionalPhrase { role_members, .. } = preposition else {
+        return None;
+    };
+    let first = role_members.first()?;
+    let role = frame.prepositional_role(first.preposition)?;
+    role_members
+        .iter()
+        .all(|member| frame.prepositional_role(member.preposition) == Some(role))
+        .then_some(())?;
+    extend_predicate_features(
+        predicate,
+        PredicateAttachment::Prepositional(first.preposition),
+    )
 }
 
 fn reduce_verb_phrase_infinitive_features(
@@ -1261,14 +1280,13 @@ fn reduce_passive_shared_prepositional_features(
         return None;
     };
     let Features::PrepositionalPhrase {
-        preposition,
         shared_determiner_object: true,
         ..
     } = preposition
     else {
         return None;
     };
-    extend_predicate_features(predicate, PredicateAttachment::Prepositional(*preposition))
+    reduce_verb_phrase_prepositional_features(predicate, preposition)
 }
 
 fn reduce_exception_features(predicate: &Features, preposition: &Features) -> Option<Features> {
@@ -1889,10 +1907,7 @@ fn prepositional_dependent(
     predicate: &VerbPhrase,
     preposition: PrepositionalPhrase,
 ) -> Option<VerbDependent> {
-    match predicate
-        .declaration_frame()
-        .prepositional_role(preposition.head().preposition)?
-    {
+    match prepositional_role(predicate.declaration_frame(), &preposition)? {
         crate::features::ComplementRole::SelectedComplement => Some(
             VerbDependent::PredicateComplement(Phrase::PrepositionalPhrase(Box::new(preposition))),
         ),
@@ -2771,10 +2786,7 @@ fn from_prepositional_lens_parts(
     shell: VerbPhrase,
 ) -> VerbPhrase {
     if let Some(preposition) = preposition {
-        let dependent = match shell
-            .declaration_frame()
-            .prepositional_role(preposition.head().preposition)
-        {
+        let dependent = match prepositional_role(shell.declaration_frame(), &preposition) {
             Some(crate::features::ComplementRole::SelectedComplement) => {
                 VerbDependent::PredicateComplement(Phrase::PrepositionalPhrase(Box::new(
                     preposition,

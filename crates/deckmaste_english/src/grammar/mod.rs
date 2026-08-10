@@ -1544,6 +1544,12 @@ pub(crate) enum PrepositionalObjectCategory {
     Adverb,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct PrepositionalRoleMember {
+    pub(crate) preposition: Preposition,
+    pub(crate) nominal_attachment: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Features {
     None,
@@ -1723,6 +1729,9 @@ pub(crate) enum Features {
     PrepositionalPhrase {
         preposition: Preposition,
         nominal_attachment: bool,
+        /// Ordered role facts for every simple member. A simple P02 phrase has
+        /// one entry; C01 concatenates entries without changing their order.
+        role_members: Vec<PrepositionalRoleMember>,
         /// The object was parsed as nominal coordination under one shared
         /// determiner, rather than as coordination of complete noun phrases.
         shared_determiner_object: bool,
