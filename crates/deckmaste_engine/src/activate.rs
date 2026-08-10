@@ -800,6 +800,7 @@ impl GameState {
             // origin — record the source's zone for symmetry.
             origin: Zone::Battlefield,
             targets: vec![],
+            chosen_modes: Arc::from([]),
             x: None,
             // [CR#601.2b]: filled by the `ChooseCostOptions` step before `PayCost`.
             concretized: None,

@@ -1494,6 +1494,7 @@ mod tests {
             },
             controller: PlayerId(0),
             targets: vec![],
+            chosen_modes: std::sync::Arc::from([]),
             x: None,
             copy: false,
         });
@@ -1507,6 +1508,7 @@ mod tests {
             object: StackObject::Spell(spell_id),
             controller: PlayerId(0),
             targets: vec![],
+            chosen_modes: std::sync::Arc::from([]),
             x: None,
             copy: false,
         });
@@ -1564,6 +1566,7 @@ mod tests {
             object: StackObject::Spell(spell),
             controller: PlayerId(0),
             targets: vec![vec![bear]],
+            chosen_modes: std::sync::Arc::from([]),
             x: None,
             copy: false,
         });

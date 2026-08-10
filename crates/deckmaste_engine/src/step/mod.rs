@@ -140,6 +140,9 @@ pub enum Progress {
     Announcing(crate::object::ObjectId),
     /// [CR#601.2b]: the X-announce step ran (a `ChooseXValue` may now be pending).
     XAnnounced,
+    /// [CR#601.2b,700.2]: the modal announce step ran. `options` is zero for
+    /// a nonmodal object; otherwise a `ChooseModes` decision is pending.
+    ModesAnnounced { options: Uint },
     /// [CR#601.2c]: targets were announced for the in-flight spell (a
     /// `ChooseTargets` decision surfaces when `specs > 0`).
     TargetsAnnounced { specs: Uint },
@@ -231,6 +234,10 @@ impl GameState {
             WorkItem::BeginActivate { object, ability } => {
                 self.begin_activate(object, ability);
                 Progress::Announcing(object)
+            }
+            WorkItem::AnnounceModes => {
+                let options = self.announce_modes();
+                Progress::ModesAnnounced { options }
             }
             WorkItem::AnnounceX => {
                 self.announce_x();
@@ -1799,7 +1806,8 @@ impl GameState {
             return Progress::NewTargetsOpened { specs: 0 };
         };
         let view = self.layers();
-        let specs = self.stack_object_target_specs(&view, &found.object);
+        let specs =
+            self.stack_object_target_specs(&view, &found.object, found.chosen_modes.as_ref());
         let current = found.targets.clone();
         if specs.is_empty() {
             return Progress::NewTargetsOpened { specs: 0 };
@@ -2253,6 +2261,7 @@ impl GameState {
             object: pending.object.clone(),
             controller: pending.controller,
             targets: pending.targets.clone(),
+            chosen_modes: pending.chosen_modes.clone(),
             x: pending.x,
             // [CR#601.2b,702.33d]: the announced optional-cost record rides
             // the committed entry for the linked reads.
@@ -2648,6 +2657,7 @@ mod tests {
             GameState::announce_schedule(begin.clone(), event.clone()),
             vec![
                 begin,
+                WorkItem::AnnounceModes,
                 WorkItem::AnnounceOptionalCosts { index: 0 },
                 WorkItem::AnnounceX,
                 WorkItem::AnnounceTargets,
@@ -2684,6 +2694,7 @@ mod tests {
             controller: PlayerId(0),
             origin: Zone::Hand,
             targets: vec![],
+            chosen_modes: std::sync::Arc::from([]),
             x: Some(3),
             concretized: None,
             alternative_cost: None,
@@ -3183,6 +3194,7 @@ mod tests {
             },
             controller: PlayerId(0),
             targets: vec![],
+            chosen_modes: std::sync::Arc::from([]),
             x: None,
             paid_costs: vec![],
             copy: false,

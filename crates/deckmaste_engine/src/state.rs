@@ -158,6 +158,10 @@ pub enum ChoiceContinuation {
         repeatable: bool,
         index: usize,
     },
+    /// A `ChooseModes` answer for the spell or activated ability currently
+    /// being announced ([CR#601.2b,602.2b,700.2]). The answer is retained on
+    /// the announce slot; later target and cost steps derive only from it.
+    AnnounceModes,
     /// A `ChooseObjects` answer ([CR#608.2d]): bind the picks into
     /// `frame.anaphora.chosen`, then re-run `effect` (the action whose
     /// `Choose`/`Random` selection produced the decision).

@@ -518,8 +518,53 @@ fn verb_mentions_cost_x(verb: &CoreAction) -> bool {
         CoreAction::Composite { name, body } if name.as_str() == "Discard" => {
             deckmaste_core::discard_body_count(body).is_some_and(deckmaste_core::Count::mentions_x)
         }
+        CoreAction::Expanded(expansion) => verb_mentions_cost_x(&expansion.value),
         _ => false,
     }
+}
+
+/// Whether a cardinality used by a cost-side choice reads the announced X.
+fn quantity_mentions_cost_x(quantity: &deckmaste_core::Quantity) -> bool {
+    let (lower, upper) = quantity.bounds();
+    lower.is_some_and(deckmaste_core::Count::mentions_x)
+        || upper.is_some_and(deckmaste_core::Count::mentions_x)
+}
+
+/// Whether a cost-side binder's choice cardinality reads the announced X.
+fn binder_mentions_cost_x(binder: &deckmaste_core::Binder) -> bool {
+    match binder {
+        deckmaste_core::Binder::Choose { quantity, .. }
+        | deckmaste_core::Binder::Search { quantity, .. } => quantity_mentions_cost_x(quantity),
+        deckmaste_core::Binder::Produce(action) => verb_mentions_cost_x(action),
+        deckmaste_core::Binder::Expanded(expansion) => binder_mentions_cost_x(&expansion.value),
+        deckmaste_core::Binder::TheRef(_)
+        | deckmaste_core::Binder::ChooseOne { .. }
+        | deckmaste_core::Binder::SearchOne { .. }
+        | deckmaste_core::Binder::Existing(_) => false,
+    }
+}
+
+/// Whether a runnable cost component reads the one X value announced for the
+/// spell or ability. This follows nested/lowered cost structure so modal and
+/// optional additions participate only after they have actually been chosen.
+fn cost_component_mentions_x(component: &CostComponent) -> bool {
+    match component {
+        CostComponent::Mana(mana) => mana
+            .iter()
+            .any(|symbol| matches!(symbol, ManaSymbol::Variable)),
+        CostComponent::Act(action) => verb_mentions_cost_x(action),
+        CostComponent::Cost(nested) => nested.iter().any(cost_component_mentions_x),
+        CostComponent::TapTotal { count, .. } => count.mentions_x(),
+        CostComponent::ChooseAndPay { binder, body } => {
+            binder_mentions_cost_x(binder) || body.iter().any(cost_component_mentions_x)
+        }
+        CostComponent::Expanded(expansion) => cost_component_mentions_x(&expansion.value),
+        CostComponent::ManaCostOf(_) | CostComponent::Tap | CostComponent::Untap => false,
+    }
+}
+
+fn cost_components_mention_x(components: &[CostComponent]) -> bool {
+    components.iter().any(cost_component_mentions_x)
 }
 
 /// Unwrap the `CostComponent::Do(action)` verbs `concretize` produces for
@@ -563,6 +608,110 @@ fn partition_alternative_cost(cost: &deckmaste_core::Cost) -> (ManaCost, Vec<Cos
 /// affordability-gate view ([`GameState::can_cast_as_effect`]).
 fn alternative_cost_mana(cost: &deckmaste_core::Cost) -> ManaCost {
     partition_alternative_cost(cost).0
+}
+
+/// The target declarations contributed by the already-announced modal
+/// selection. Each chosen mode owns a fresh target scope, so its specs are
+/// appended in choice order; a nonmodal effect contributes its ordinary
+/// top-level target wrapper.
+pub(crate) fn announced_target_specs(
+    effect: &OneShotEffect,
+    chosen_modes: &[Uint],
+) -> Vec<TargetSpec> {
+    match effect {
+        OneShotEffect::Modal(modal) => chosen_modes
+            .iter()
+            .flat_map(|&index| {
+                let mode = modal
+                    .modes
+                    .get(index as usize)
+                    .expect("ChooseModes validated every announced index");
+                crate::resolve::top_targets(&mode.effect).iter().cloned()
+            })
+            .collect(),
+        other => crate::resolve::top_targets(other).to_vec(),
+    }
+}
+
+/// Additional cost components contributed by the selected modes and their
+/// modal rider. Per-mode costs follow pick order (and repeat with a repeated
+/// mode); escalate repeats once per pick beyond the first; entwine contributes
+/// once when the all-modes alternative was chosen.
+fn announced_mode_cost_components(
+    effect: &OneShotEffect,
+    chosen_modes: &[Uint],
+) -> Vec<CostComponent> {
+    let OneShotEffect::Modal(modal) = effect else {
+        return Vec::new();
+    };
+    let mut components = Vec::new();
+    for &index in chosen_modes {
+        if let Some(cost) = &modal.modes[index as usize].cost {
+            components.extend(cost.iter().cloned());
+        }
+    }
+    match &modal.choose.rider {
+        Some(deckmaste_core::ModalCostRider::Escalate(cost)) => {
+            for _ in 1..chosen_modes.len() {
+                components.extend(cost.iter().cloned());
+            }
+        }
+        Some(deckmaste_core::ModalCostRider::Entwine(cost))
+            if chosen_modes.len() == modal.modes.len()
+                && chosen_modes
+                    .iter()
+                    .copied()
+                    .eq(0..Uint::try_from(modal.modes.len()).expect("mode count fits Uint")) =>
+        {
+            components.extend(cost.iter().cloned());
+        }
+        Some(deckmaste_core::ModalCostRider::Entwine(_)) | None => {}
+    }
+    components
+}
+
+/// Reify a spell or activated ability's already-announced modal effects.
+/// Every mode owns its own target scope: the flat stack-entry target list is
+/// partitioned by the selected modes' target-spec counts, then each effect is
+/// run with a frame containing only its segment. This keeps each mode's
+/// `Target(0)` local even when several modes were chosen.
+pub(crate) fn announced_effect_items(
+    effect: &OneShotEffect,
+    frame: &Frame,
+    chosen_modes: &[Uint],
+    targets: &[Vec<ObjectId>],
+) -> Vec<WorkItem> {
+    let OneShotEffect::Modal(modal) = effect else {
+        return vec![WorkItem::RunEffect {
+            effect: Arc::new(effect.clone()),
+            frame: frame.clone(),
+        }];
+    };
+
+    let mut offset = 0;
+    let items = chosen_modes
+        .iter()
+        .map(|&index| {
+            let mode = modal
+                .modes
+                .get(index as usize)
+                .expect("ChooseModes validated every announced index");
+            let count = crate::resolve::top_targets(&mode.effect).len();
+            let mut mode_frame = frame.clone();
+            mode_frame.anaphora.targets = targets[offset..offset + count].to_vec();
+            offset += count;
+            WorkItem::RunEffect {
+                effect: Arc::new(mode.effect.clone()),
+                frame: mode_frame,
+            }
+        })
+        .collect();
+    debug_assert_eq!(
+        offset,
+        targets.len(),
+        "announcement stores exactly the selected modes' target slots"
+    );
+    items
 }
 
 impl GameState {
@@ -1054,6 +1203,7 @@ impl GameState {
             controller,
             origin,
             targets: vec![],
+            chosen_modes: Arc::from([]),
             // [CR#601.2b]: filled by the `ChooseXValue` step before `PayCost`.
             x: None,
             // [CR#601.2b]: filled by the `ChooseCostOptions` step before `PayCost`.
@@ -1163,6 +1313,56 @@ impl GameState {
         )
     }
 
+    /// [CR#601.2b,602.2b,700.2]: surface the mode choice for the spell or
+    /// activated ability currently being announced. This runs before X,
+    /// targets, and payment. Nonmodal objects are a uniform no-op.
+    ///
+    /// Returns the number of authored modes (zero when no decision surfaced).
+    #[must_use]
+    pub(crate) fn announce_modes(&mut self) -> Uint {
+        let pending = self.announcing.as_ref().expect("an announce in flight");
+        let controller = pending.controller;
+        let (source, effect) = match &pending.object {
+            StackObject::Spell(object) => (*object, self.spell_effect(*object)),
+            StackObject::Activated {
+                source, ability, ..
+            } => (*source, Some(ability.effect.clone())),
+            StackObject::Triggered { .. } => {
+                unreachable!("triggers do not occupy the announce slot")
+            }
+        };
+        let Some(effect) = effect else {
+            // Permanent spells need no spell-effect payload to be modal.
+            return 0;
+        };
+        let OneShotEffect::Modal(modal) = effect else {
+            return 0;
+        };
+        let options = Uint::try_from(modal.modes.len()).expect("mode count fits Uint");
+        let frame = Frame::bare(source, controller);
+        let (lo, hi) = modal.choose.count.bounds();
+        let lo = lo.map_or(0, |count| self.eval_count(count, &frame));
+        let hi = hi.map_or(options, |count| self.eval_count(count, &frame));
+        let max = if modal.choose.repeats { hi } else { hi.min(options) };
+        let min = if modal.choose.up_to { 0 } else { lo.min(max) };
+        let player = self.acting_player(&modal.choose.chooser, &frame);
+        self.pending = Some(PendingDecision::ChooseModes(
+            crate::decide::pending::ChooseModes {
+                player,
+                options,
+                min,
+                max,
+                repeats: modal.choose.repeats,
+                entwine: matches!(
+                    modal.choose.rider,
+                    Some(deckmaste_core::ModalCostRider::Entwine(_))
+                ),
+            },
+        ));
+        self.choice = Some(crate::state::ChoiceContinuation::AnnounceModes);
+        options
+    }
+
     /// [CR#601.2c]: surface a `ChooseTargets` decision if the in-flight
     /// announce targets. A spell's specs derive from its `Spell` ability; an
     /// activated ability's ride the carried text ([CR#602.2b]). Returns the
@@ -1184,7 +1384,8 @@ impl GameState {
         // COMMITTED entry ([`Self::stack_object_target_specs`],
         // `Retarget`, [CR#707.10c]).
         let view = self.layers();
-        let specs = self.stack_object_target_specs(&view, &pending.object);
+        let specs =
+            self.stack_object_target_specs(&view, &pending.object, pending.chosen_modes.as_ref());
         if specs.is_empty() {
             return 0;
         }
@@ -1212,11 +1413,22 @@ impl GameState {
         &self,
         view: &crate::layer::LayeredView,
         object: &StackObject,
+        chosen_modes: &[Uint],
     ) -> Vec<TargetSpec> {
         match object {
-            StackObject::Spell(o) => crate::resolve::spell_targets(view, *o),
+            StackObject::Spell(o) => view
+                .get(*o)
+                .abilities
+                .iter()
+                .find_map(|ability| match ability {
+                    deckmaste_core::Ability::Spell(spell) => Some(&spell.effect),
+                    _ => None,
+                })
+                .map_or_else(Vec::new, |effect| {
+                    announced_target_specs(effect, chosen_modes)
+                }),
             StackObject::Activated { ability, .. } => {
-                crate::resolve::top_targets(&ability.effect).to_vec()
+                announced_target_specs(&ability.effect, chosen_modes)
             }
             StackObject::Triggered {
                 source,
@@ -1328,10 +1540,19 @@ impl GameState {
     pub(crate) fn announce_x(&mut self) {
         let pending = self.announcing.as_ref().expect("an announce in flight");
         let controller = pending.controller;
-        let has_x = match &pending.object {
-            StackObject::Spell(o) => self
-                .mana_cost(*o)
-                .is_some_and(|c| c.iter().any(|s| matches!(s, ManaSymbol::Variable))),
+        let (base_has_x, effect) = match &pending.object {
+            StackObject::Spell(o) => (
+                pending.alternative_cost.as_ref().map_or_else(
+                    || {
+                        self.mana_cost(*o).is_some_and(|cost| {
+                            cost.iter()
+                                .any(|symbol| matches!(symbol, ManaSymbol::Variable))
+                        })
+                    },
+                    |cost| cost_components_mention_x(cost),
+                ),
+                self.spell_effect(*o),
+            ),
             StackObject::Activated { ability, .. } => {
                 let summary = crate::activate::cost_summary(&ability.cost)
                     .expect("can_activate vetted the cost");
@@ -1339,16 +1560,26 @@ impl GameState {
                 // cost-eligible verb (the loyalty `−X` case) triggers the
                 // announcement — checked together so a cost carrying both
                 // announces X exactly once.
-                summary
-                    .mana
-                    .iter()
-                    .any(|s| matches!(s, ManaSymbol::Variable))
-                    || summary.verbs.iter().any(verb_mentions_cost_x)
+                (
+                    summary
+                        .mana
+                        .iter()
+                        .any(|symbol| matches!(symbol, ManaSymbol::Variable))
+                        || summary.verbs.iter().any(verb_mentions_cost_x)
+                        || cost_components_mention_x(&ability.cost),
+                    Some(ability.effect.clone()),
+                )
             }
             StackObject::Triggered { .. } => {
                 unreachable!("a triggered ability never occupies the announce slot")
             }
         };
+        let mode_components = effect.map_or_else(Vec::new, |effect| {
+            announced_mode_cost_components(&effect, pending.chosen_modes.as_ref())
+        });
+        let has_x = base_has_x
+            || cost_components_mention_x(&pending.optional_components)
+            || cost_components_mention_x(&mode_components);
         if has_x {
             self.pending = Some(PendingDecision::ChooseXValue(
                 crate::decide::pending::ChooseXValue { player: controller },
@@ -1385,15 +1616,19 @@ impl GameState {
         // The base mana cost, plus any extra PAYMENT components an alternative
         // base cost carries ([CR#118.9,702.35a] — madness's non-mana toll, if
         // any; empty for a mana-only madness cost).
-        let (cost, alt_verbs) = match &pending.object {
+        let (mut cost, mut alt_verbs, effect) = match &pending.object {
             StackObject::Spell(o) => match &pending.alternative_cost {
                 // [CR#118.9,702.35a]: this cast pays the alternative cost RATHER
                 // THAN the printed mana cost (madness's madness cost).
-                Some(alt) => partition_alternative_cost(alt),
+                Some(alt) => {
+                    let (mana, components) = partition_alternative_cost(alt);
+                    (mana, components, self.spell_effect(*o))
+                }
                 None => (
                     self.mana_cost(*o)
                         .expect("a castable spell has a printed cost"),
                     vec![],
+                    self.spell_effect(*o),
                 ),
             },
             StackObject::Activated {
@@ -1405,15 +1640,28 @@ impl GameState {
                 // referenced object's mana cost ("equal to its mana cost").
                 let summary = crate::activate::cost_summary(&ability.cost)
                     .expect("can_activate vetted the cost");
+                let effect = ability.effect.clone();
                 (
                     self.resolve_cost_mana(&summary, *source, controller),
                     vec![],
+                    Some(effect),
                 )
             }
             StackObject::Triggered { .. } => {
                 unreachable!("a triggered ability has no cost and never occupies the announce slot")
             }
         };
+        let mode_components = effect.map_or_else(Vec::new, |effect| {
+            announced_mode_cost_components(&effect, pending.chosen_modes.as_ref())
+        });
+        if !mode_components.is_empty() {
+            let (mode_mana, mode_nonmana) =
+                partition_alternative_cost(&deckmaste_core::Cost(mode_components.into()));
+            let mut symbols: Vec<ManaSymbol> = cost.iter().copied().collect();
+            symbols.extend(mode_mana.iter().copied());
+            cost = ManaCost::from(Arc::from(symbols));
+            alt_verbs.extend(mode_nonmana);
+        }
         let options = crate::cost_options::choosable(&cost);
         if options.options.is_empty() {
             // [CR#601.2b]: no multi-way symbol — the cost is already concrete.
@@ -1431,19 +1679,14 @@ impl GameState {
                 .concretized = Some((mana, verbs));
             return false;
         }
-        // A choosable-symbol alternative cost carrying its own non-mana toll is
-        // not wired (no such alternative cost exists — madness's is mana-only);
-        // its toll would be dropped by the `ChooseCostOptions` submission path.
-        debug_assert!(
-            alt_verbs.is_empty(),
-            "an alternative cost with choosable symbols AND a non-mana toll is unwired"
-        );
         // [CR#601.2b]: the player announces each reading; the submission handler
-        // concretizes and stashes.
+        // concretizes and stashes it together with every already-concrete
+        // nonmana component.
         self.pending = Some(PendingDecision::ChooseCostOptions(
             crate::decide::pending::ChooseCostOptions {
                 player: controller,
                 cost,
+                additional: alt_verbs,
                 options,
             },
         ));
@@ -2494,9 +2737,337 @@ mod tests {
         match zone {
             Zone::Battlefield => state.zones.battlefield.push(id),
             Zone::Hand => state.zones.hands[controller.index()].push(id),
+            Zone::Stack => {}
             other => panic!("unsupported test zone {other:?}"),
         }
         id
+    }
+
+    #[test]
+    fn modal_modes_lock_before_x_targets_and_payment() {
+        use deckmaste_core::ChooseSpec;
+        use deckmaste_core::Modal;
+        use deckmaste_core::Mode;
+        use deckmaste_core::Quantity;
+        use deckmaste_core::SpellAbility;
+        use deckmaste_core::Targeted;
+
+        let target = TargetSpec::Target(Quantity::one(), Predicate::r#type(Type::Creature));
+        let card = Card::Normal(CardFace {
+            name: "Modal announcement fixture".into(),
+            mana_cost: "{0}".parse().unwrap(),
+            types: vec![Type::Instant.def()],
+            abilities: vec![Ability::spell(SpellAbility {
+                ability_word: None,
+                effect: OneShotEffect::Modal(Modal {
+                    choose: ChooseSpec {
+                        count: Quantity::one(),
+                        up_to: false,
+                        repeats: false,
+                        chooser: Reference::You,
+                        rider: None,
+                    },
+                    modes: vec![
+                        deckmaste_core::Mode {
+                            effect: OneShotEffect::Act(CoreAction::ChangeLife(
+                                Reference::You,
+                                deckmaste_core::LifeOp::Up(Count::Literal(1)),
+                            )),
+                            cost: None,
+                        },
+                        Mode {
+                            effect: OneShotEffect::Targeted(Targeted::new(
+                                vec![target.clone()].into(),
+                                OneShotEffect::Act(CoreAction::destroy(Reference::Target(0))),
+                            )),
+                            cost: None,
+                        },
+                    ]
+                    .into(),
+                }),
+            })],
+            ..CardFace::default()
+        });
+        let mut state = cm_game();
+        let spell = put_synthetic(&mut state, card, PlayerId(0), Zone::Hand);
+
+        state.begin_cast(spell);
+        assert!(state.announcing.as_ref().unwrap().chosen_modes.is_empty());
+        assert_eq!(state.announce_modes(), 2);
+        assert!(matches!(
+            state.pending,
+            Some(PendingDecision::ChooseModes(_))
+        ));
+
+        state
+            .submit_decision(crate::decide::Decision::Modes(vec![1]))
+            .unwrap();
+        assert_eq!(
+            state.announcing.as_ref().unwrap().chosen_modes.as_ref(),
+            &[1]
+        );
+
+        assert_eq!(state.announce_targets(), 1);
+        let Some(PendingDecision::ChooseTargets(choice)) = &state.pending else {
+            panic!("the selected targeted mode should announce its target");
+        };
+        assert_eq!(choice.spec, vec![target]);
+    }
+
+    #[test]
+    fn announced_modal_modes_resolve_without_reopening_and_keep_target_scopes() {
+        use deckmaste_core::ChooseSpec;
+        use deckmaste_core::Modal;
+        use deckmaste_core::Mode;
+        use deckmaste_core::Quantity;
+        use deckmaste_core::SpellAbility;
+        use deckmaste_core::Targeted;
+
+        let life_mode = |amount| Mode {
+            effect: OneShotEffect::Targeted(Targeted::new(
+                vec![TargetSpec::Target(
+                    Quantity::one(),
+                    Predicate::Kind(deckmaste_core::ObjectKind::Player),
+                )]
+                .into(),
+                OneShotEffect::Act(CoreAction::ChangeLife(
+                    Reference::Target(0),
+                    deckmaste_core::LifeOp::Up(Count::Literal(amount)),
+                )),
+            )),
+            cost: None,
+        };
+        let card = Card::Normal(CardFace {
+            name: "Modal resolution fixture".into(),
+            mana_cost: "{0}".parse().unwrap(),
+            types: vec![Type::Sorcery.def()],
+            abilities: vec![Ability::spell(SpellAbility {
+                ability_word: None,
+                effect: OneShotEffect::Modal(Modal {
+                    choose: ChooseSpec {
+                        count: Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
+                        up_to: false,
+                        repeats: false,
+                        chooser: Reference::You,
+                        rider: None,
+                    },
+                    modes: vec![life_mode(3), life_mode(5)].into(),
+                }),
+            })],
+            ..CardFace::default()
+        });
+        let mut state = cm_game();
+        let p0 = PlayerId(0);
+        let p1 = PlayerId(1);
+        let p0_object = state.player(p0).object;
+        let p1_object = state.player(p1).object;
+        let p0_life = state.player(p0).life;
+        let p1_life = state.player(p1).life;
+        let spell = put_synthetic(&mut state, card, p0, Zone::Stack);
+        state.stack.push(crate::stack::StackEntry {
+            id: spell,
+            object: StackObject::Spell(spell),
+            controller: p0,
+            targets: vec![vec![p0_object], vec![p1_object]],
+            chosen_modes: Arc::from([0, 1]),
+            x: None,
+            paid_costs: Vec::new(),
+            copy: false,
+        });
+        assert!(
+            state.targets_still_legal(&state.stack[0]),
+            "both announced player targets begin legal"
+        );
+
+        state.resolve_object(spell);
+        for _ in 0..5 {
+            let outcome = state.step();
+            assert!(
+                !matches!(outcome, crate::step::StepOutcome::NeedsDecision(_)),
+                "announced modes must not reopen at resolution: {outcome:?}"
+            );
+        }
+        assert_eq!(state.player(p0).life, p0_life + 3);
+        assert_eq!(state.player(p1).life, p1_life + 5);
+    }
+
+    #[test]
+    fn only_selected_modes_contribute_to_the_locked_cost() {
+        use deckmaste_core::ChooseSpec;
+        use deckmaste_core::Modal;
+        use deckmaste_core::Mode;
+        use deckmaste_core::Quantity;
+        use deckmaste_core::SpellAbility;
+
+        let mode = |generic| Mode {
+            effect: OneShotEffect::Act(CoreAction::ChangeLife(
+                Reference::You,
+                deckmaste_core::LifeOp::Up(Count::Literal(1)),
+            )),
+            cost: Some(
+                vec![CostComponent::Mana(
+                    format!("{{{generic}}}").parse().unwrap(),
+                )]
+                .into(),
+            ),
+        };
+        let card = Card::Normal(CardFace {
+            name: "Modal cost fixture".into(),
+            mana_cost: "{1}".parse().unwrap(),
+            types: vec![Type::Sorcery.def()],
+            abilities: vec![Ability::spell(SpellAbility {
+                ability_word: None,
+                effect: OneShotEffect::Modal(Modal {
+                    choose: ChooseSpec {
+                        count: Quantity::one(),
+                        up_to: false,
+                        repeats: false,
+                        chooser: Reference::You,
+                        rider: None,
+                    },
+                    modes: vec![mode(1), mode(2)].into(),
+                }),
+            })],
+            ..CardFace::default()
+        });
+        let mut state = cm_game();
+        let spell = put_synthetic(&mut state, card, PlayerId(0), Zone::Hand);
+
+        state.begin_cast(spell);
+        let _ = state.announce_modes();
+        state
+            .submit_decision(crate::decide::Decision::Modes(vec![1]))
+            .unwrap();
+        assert!(!state.choose_cost_options());
+        let (mana, _) = state
+            .announcing
+            .as_ref()
+            .unwrap()
+            .concretized
+            .as_ref()
+            .unwrap();
+        assert_eq!(mana, &"{1}{2}".parse().unwrap());
+    }
+
+    #[test]
+    fn entwine_all_modes_is_announced_and_added_to_the_cost() {
+        use deckmaste_core::ChooseSpec;
+        use deckmaste_core::Cost;
+        use deckmaste_core::Modal;
+        use deckmaste_core::ModalCostRider;
+        use deckmaste_core::Mode;
+        use deckmaste_core::Quantity;
+        use deckmaste_core::SpellAbility;
+
+        let mode = || Mode {
+            effect: OneShotEffect::Act(CoreAction::ChangeLife(
+                Reference::You,
+                deckmaste_core::LifeOp::Up(Count::Literal(1)),
+            )),
+            cost: None,
+        };
+        let card = Card::Normal(CardFace {
+            name: "Entwine fixture".into(),
+            mana_cost: "{1}".parse().unwrap(),
+            types: vec![Type::Sorcery.def()],
+            abilities: vec![Ability::spell(SpellAbility {
+                ability_word: None,
+                effect: OneShotEffect::Modal(Modal {
+                    choose: ChooseSpec {
+                        count: Quantity::one(),
+                        up_to: false,
+                        repeats: false,
+                        chooser: Reference::You,
+                        rider: Some(ModalCostRider::Entwine(Cost(
+                            vec![CostComponent::Mana("{3}".parse().unwrap())].into(),
+                        ))),
+                    },
+                    modes: vec![mode(), mode()].into(),
+                }),
+            })],
+            ..CardFace::default()
+        });
+        let mut state = cm_game();
+        let spell = put_synthetic(&mut state, card, PlayerId(0), Zone::Hand);
+
+        state.begin_cast(spell);
+        let _ = state.announce_modes();
+        state
+            .submit_decision(crate::decide::Decision::Modes(vec![0, 1]))
+            .unwrap();
+        assert!(!state.choose_cost_options());
+        let (mana, _) = state
+            .announcing
+            .as_ref()
+            .unwrap()
+            .concretized
+            .as_ref()
+            .unwrap();
+        assert_eq!(mana, &"{1}{3}".parse().unwrap());
+    }
+
+    #[test]
+    fn selected_mode_cost_controls_whether_x_is_announced() {
+        use deckmaste_core::ChooseSpec;
+        use deckmaste_core::Modal;
+        use deckmaste_core::Mode;
+        use deckmaste_core::Quantity;
+        use deckmaste_core::SpellAbility;
+
+        let mode = |mana: &str| Mode {
+            effect: OneShotEffect::Act(CoreAction::ChangeLife(
+                Reference::You,
+                deckmaste_core::LifeOp::Up(Count::Literal(1)),
+            )),
+            cost: Some(vec![CostComponent::Mana(mana.parse().unwrap())].into()),
+        };
+        let card = || {
+            Card::Normal(CardFace {
+                name: "Modal X-cost fixture".into(),
+                mana_cost: "{1}".parse().unwrap(),
+                types: vec![Type::Sorcery.def()],
+                abilities: vec![Ability::spell(SpellAbility {
+                    ability_word: None,
+                    effect: OneShotEffect::Modal(Modal {
+                        choose: ChooseSpec {
+                            count: Quantity::one(),
+                            up_to: false,
+                            repeats: false,
+                            chooser: Reference::You,
+                            rider: None,
+                        },
+                        modes: vec![mode("{X}"), mode("{1}")].into(),
+                    }),
+                })],
+                ..CardFace::default()
+            })
+        };
+
+        let mut without_x = cm_game();
+        let spell = put_synthetic(&mut without_x, card(), PlayerId(0), Zone::Hand);
+        without_x.begin_cast(spell);
+        let _ = without_x.announce_modes();
+        without_x
+            .submit_decision(crate::decide::Decision::Modes(vec![1]))
+            .unwrap();
+        without_x.announce_x();
+        assert!(
+            without_x.pending.is_none(),
+            "the unselected X cost is ignored"
+        );
+
+        let mut with_x = cm_game();
+        let spell = put_synthetic(&mut with_x, card(), PlayerId(0), Zone::Hand);
+        with_x.begin_cast(spell);
+        let _ = with_x.announce_modes();
+        with_x
+            .submit_decision(crate::decide::Decision::Modes(vec![0]))
+            .unwrap();
+        with_x.announce_x();
+        assert!(matches!(
+            with_x.pending,
+            Some(PendingDecision::ChooseXValue(_))
+        ));
     }
 
     fn vanilla_artifact(name: &str) -> Card {
@@ -2643,24 +3214,30 @@ mod tests {
     /// mana shape `tap_mana_ability` recognizes, at ability index 0.
     fn mana_land(name: &str, color: ColorOrColorless) -> Card {
         use deckmaste_core::ActivatedAbility;
+        use deckmaste_core::ActivatedManaProfile;
         use deckmaste_core::Cost;
+        use deckmaste_core::ManaAbility;
         use deckmaste_core::ManaSpec;
+        let ability = Arc::new(ActivatedAbility {
+            ability_word: None,
+            cost: Cost(vec![CostComponent::Tap].into()),
+            from: None,
+            window: None,
+            condition: None,
+            limits: vec![].into(),
+            effect: OneShotEffect::Act(CoreAction::AddMana(
+                Reference::You,
+                Count::Literal(1),
+                ManaSpec::Specific(color).into(),
+            )),
+        });
         Card::Normal(CardFace {
             name: name.into(),
             mana_cost: ManaCost::default(),
             types: vec![Type::Land.def()],
-            abilities: vec![Ability::activated(ActivatedAbility {
-                ability_word: None,
-                cost: Cost(vec![CostComponent::Tap].into()),
-                from: None,
-                window: None,
-                condition: None,
-                limits: vec![].into(),
-                effect: OneShotEffect::Act(CoreAction::AddMana(
-                    Reference::You,
-                    Count::Literal(1),
-                    ManaSpec::Specific(color).into(),
-                )),
+            abilities: vec![Ability::Mana(ManaAbility::Activated {
+                ability,
+                profile: ActivatedManaProfile::Always,
             })],
             ..CardFace::default()
         })

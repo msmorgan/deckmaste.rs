@@ -142,6 +142,10 @@ pub enum WorkItem {
         object: crate::object::ObjectId,
         ability: usize,
     },
+    /// [CR#601.2b,602.2b,700.2]: choose a modal spell or ability's modes.
+    /// Runs before optional costs, X, targets, and payment; a nonmodal
+    /// announce is a no-op.
+    AnnounceModes,
     /// [CR#601.2b]: announce the in-flight spell's tagged OPTIONAL
     /// additional costs (kicker/multikicker, [CR#702.33a,702.33c]) — one
     /// `YesNo` per declared `CostOption` row, starting at `index`; a

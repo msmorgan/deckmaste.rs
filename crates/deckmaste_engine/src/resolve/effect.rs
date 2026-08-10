@@ -1314,6 +1314,7 @@ impl GameState {
                         min,
                         max,
                         repeats: modal.choose.repeats,
+                        entwine: false,
                     },
                 ));
                 self.choice = Some(crate::state::ChoiceContinuation::Modal {
@@ -3255,6 +3256,7 @@ mod tests {
             object: StackObject::Spell(spell),
             controller: PlayerId(0),
             targets: vec![],
+            chosen_modes: std::sync::Arc::from([]),
             x: None,
             paid_costs: vec![],
             copy: false,
@@ -4804,12 +4806,16 @@ mod tests {
                 min,
                 max,
                 repeats,
+                entwine,
             },
         )) = state.step()
         else {
             panic!("expected ChooseModes, got {:?}", state.pending);
         };
-        assert_eq!((player, options, min, max, repeats), (p0, 3, 1, 1, false));
+        assert_eq!(
+            (player, options, min, max, repeats, entwine),
+            (p0, 3, 1, 1, false, false)
+        );
         assert!(
             state
                 .submit_decision(Decision::Modes(vec![0, 1]))
@@ -5580,6 +5586,7 @@ mod tests {
             object: StackObject::Spell(spell),
             controller: p0,
             targets: vec![],
+            chosen_modes: std::sync::Arc::from([]),
             x: None,
             copy: false,
         });

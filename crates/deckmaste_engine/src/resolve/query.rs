@@ -129,7 +129,8 @@ impl GameState {
         let id = self.eval_reference(spell, frame);
         let entry = self.stack.iter().find(|e| e.id == id)?;
         let view = self.layers();
-        let specs = self.stack_object_target_specs(&view, &entry.object);
+        let specs =
+            self.stack_object_target_specs(&view, &entry.object, entry.chosen_modes.as_ref());
         let per_slot = self.legal_targets_for_specs(&specs, entry.id);
         let Some((first, rest)) = per_slot.split_first() else {
             return Some(Vec::new());
@@ -1338,6 +1339,7 @@ mod tests {
             object: StackObject::Spell(spell),
             controller: PlayerId(0),
             targets: vec![],
+            chosen_modes: std::sync::Arc::from([]),
             x: None,
             paid_costs: Vec::new(),
             copy: false,
@@ -1348,7 +1350,7 @@ mod tests {
         // the result, proving nothing about the fold. Pin that the land really
         // is legal for slot 1, so a union would demonstrably admit it.
         let view = state.layers();
-        let specs = state.stack_object_target_specs(&view, &StackObject::Spell(spell));
+        let specs = state.stack_object_target_specs(&view, &StackObject::Spell(spell), &[]);
         let per_slot = state.legal_targets_for_specs(&specs, spell);
         assert_eq!(per_slot.len(), 2, "the spell announces two slots");
         assert!(

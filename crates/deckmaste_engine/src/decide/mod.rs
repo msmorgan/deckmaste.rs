@@ -1066,6 +1066,7 @@ impl GameState {
     ) -> Vec<WorkItem> {
         vec![
             begin,
+            WorkItem::AnnounceModes,
             WorkItem::AnnounceOptionalCosts { index: 0 },
             WorkItem::AnnounceX,
             WorkItem::AnnounceTargets,

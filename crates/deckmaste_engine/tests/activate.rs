@@ -1705,15 +1705,16 @@ fn schedule_activation(
     // block front-runs the next priority open. (`consecutive_passes` is NOT
     // reset.)
     state.pending = None;
-    // The full [CR#602.2b] announce block, in order: BeginActivate →
-    // AnnounceTargets → ChooseCostOptions → PayCost → AbilityActivated → SBAs
-    // → triggers → priority. Pushed back-to-front so the front-of-agenda order
-    // is left-to-right.
+    // The full [CR#602.2b] announce block, in order: BeginActivate → modes →
+    // targets → cost options → payment → AbilityActivated → SBAs → triggers →
+    // priority. Pushed back-to-front so the front-of-agenda order is
+    // left-to-right.
     let block = [
         WorkItem::BeginActivate {
             object,
             ability: index,
         },
+        WorkItem::AnnounceModes,
         WorkItem::AnnounceTargets,
         WorkItem::ChooseCostOptions,
         WorkItem::PayCost,
@@ -1751,6 +1752,7 @@ fn activated_ability_hybrid_picks_a_color() {
             player,
             cost,
             options,
+            additional: _,
         },
     )) = stop
     else {
@@ -2208,6 +2210,7 @@ fn x_plus_hybrid_announces_x_concretizes_hybrid_pays_composed_cost() {
             player,
             cost,
             options,
+            additional: _,
         },
     )) = stop
     else {

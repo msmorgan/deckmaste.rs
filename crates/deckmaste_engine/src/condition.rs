@@ -592,6 +592,7 @@ mod tests {
                 },
                 controller: PlayerId(0),
                 targets: Vec::new(),
+                chosen_modes: std::sync::Arc::from([]),
                 x: None,
                 copy: false,
             });
@@ -821,6 +822,7 @@ mod tests {
             controller: PlayerId(0),
             origin: deckmaste_core::Zone::Hand,
             targets: vec![],
+            chosen_modes: std::sync::Arc::from([]),
             x: None,
             concretized: None,
             alternative_cost: None,

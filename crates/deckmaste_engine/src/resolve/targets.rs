@@ -5,7 +5,6 @@ use deckmaste_core::Count;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Uint;
 
-use super::spell_targets;
 use super::top_targets;
 use crate::object::ObjectId;
 use crate::stack::StackEntry;
@@ -29,11 +28,18 @@ impl GameState {
     #[must_use]
     pub(crate) fn targets_still_legal(&self, entry: &StackEntry) -> bool {
         let specs: Vec<TargetSpec> = match &entry.object {
-            StackObject::Spell(o) => spell_targets(&self.layers(), *o),
+            StackObject::Spell(o) => {
+                let effect = self
+                    .spell_effect(*o)
+                    .expect("a spell stack entry has a Spell ability");
+                crate::cast::announced_target_specs(&effect, entry.chosen_modes.as_ref())
+            }
             // The carried text is authoritative — never re-derive from the
             // (possibly gone, possibly changed) source. Targets live on a
             // top-level `OneShotEffect::Targeted` wrapper ([CR#115.1,601.2c]).
-            StackObject::Activated { ability, .. } => top_targets(&ability.effect).to_vec(),
+            StackObject::Activated { ability, .. } => {
+                crate::cast::announced_target_specs(&ability.effect, entry.chosen_modes.as_ref())
+            }
             StackObject::Triggered {
                 source,
                 ability,
