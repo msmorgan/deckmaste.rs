@@ -61,6 +61,7 @@ mod tests {
     use deckmaste_core::TargetSpec;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
+    use deckmaste_lowering::Lower;
 
     use super::*;
 
@@ -812,15 +813,23 @@ mod tests {
                     body: Do(Sacrifice(You, This)),
                 )"#))
             .unwrap();
-        let cost: CostComponent = macros.read_str("SacThis").unwrap();
-        let CostComponent::Expanded(expanded) = cost else {
+        let cost: deckmaste_semantics::CostComponent = macros.read_str("SacThis").unwrap();
+        let deckmaste_semantics::CostComponent::Expanded(expanded) = &cost else {
             panic!("expected a remembered cost component, got {cost:?}");
         };
         assert_eq!(expanded.name, "SacThis");
         assert_eq!(
             *expanded.value,
-            CostComponent::do_action(Action::Sacrifice(Reference::You, Reference::This))
+            deckmaste_semantics::CostComponent::do_action(deckmaste_semantics::Action::Sacrifice(
+                deckmaste_semantics::Reference::You,
+                deckmaste_semantics::Reference::This,
+            ))
         );
+
+        let deckmaste_core::CostComponent::Act(action) = cost.lower() else {
+            panic!("expected a runnable Act cost component");
+        };
+        assert_eq!(*action, Action::Sacrifice(Reference::You, Reference::This));
     }
 
     /// A remembered invocation round-trips as the invocation through the
