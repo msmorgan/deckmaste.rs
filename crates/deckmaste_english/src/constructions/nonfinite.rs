@@ -115,9 +115,7 @@ fn is_infinitive_not_to(value: &InfinitiveClause) -> bool {
 pub(crate) fn is_valid_infinitive(value: &InfinitiveClause) -> bool {
     matches!(
         (value.negated(), value.marker()),
-        (false, InfinitiveMarker::Bare)
-            | (false, InfinitiveMarker::To)
-            | (true, InfinitiveMarker::To)
+        (false, InfinitiveMarker::Bare | InfinitiveMarker::To) | (true, InfinitiveMarker::To)
     ) && predicate_has_complete_form(value.predicate(), PredicateForm::Infinitive)
 }
 

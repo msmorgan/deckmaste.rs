@@ -2801,7 +2801,7 @@ mod tests {
             panic!("draw fixture has a transitive predicate")
         };
         transitive.head.verb.slot = VerbSlot::Infinitive;
-        let infinitive = crate::clause::build_infinitive_to(predicate).unwrap();
+        let infinitive = crate::clause::build_infinitive_to(&predicate).unwrap();
         let nominal_infinitive = build_nominal_infinitive(card_nominal(), infinitive).unwrap();
         let (nominal, infinitive) = parts_nominal_infinitive(&nominal_infinitive);
         records!(
@@ -3589,7 +3589,7 @@ mod tests {
             panic!("sacrifice fixture has a transitive predicate")
         };
         transitive.head.verb.slot = VerbSlot::PresentParticiple;
-        let gerund = crate::clause::build_gerund_clause_base(predicate).unwrap();
+        let gerund = crate::clause::build_gerund_clause_base(&predicate).unwrap();
         let by_gerund = PrepositionalPhrase::simple(
             Preposition::By,
             Phrase::Clause(Box::new(crate::syntax::Clause::Dependent(

@@ -1052,7 +1052,7 @@ fn public_nonfinite_facade_builds_projects_renders_and_rejects_wrong_forms() {
     let alternative_gerund = predicate(Vocab::Attack, VerbSlot::PresentParticiple);
     let imperative = predicate(Vocab::Attack, VerbSlot::Imperative);
 
-    let infinitive = clause_api::build_infinitive_to(attack_infinitive.clone()).unwrap();
+    let infinitive = clause_api::build_infinitive_to(&attack_infinitive).unwrap();
     assert!(!infinitive.negated());
     assert_eq!(infinitive.marker(), InfinitiveMarker::To);
     assert_eq!(infinitive.predicate(), &attack_infinitive);
@@ -1066,7 +1066,7 @@ fn public_nonfinite_facade_builds_projects_renders_and_rejects_wrong_forms() {
     );
 
     let negated =
-        clause_api::build_infinitive_not_to(predicate(Vocab::Attack, VerbSlot::Infinitive))
+        clause_api::build_infinitive_not_to(&predicate(Vocab::Attack, VerbSlot::Infinitive))
             .unwrap();
     assert!(negated.negated());
     assert_eq!(
@@ -1074,8 +1074,8 @@ fn public_nonfinite_facade_builds_projects_renders_and_rejects_wrong_forms() {
         "not to attack"
     );
 
-    let matrix = clause_api::build_gerund_clause_base(attack_gerund.clone()).unwrap();
-    let alternative = clause_api::build_gerund_clause_base(alternative_gerund.clone()).unwrap();
+    let matrix = clause_api::build_gerund_clause_base(&attack_gerund).unwrap();
+    let alternative = clause_api::build_gerund_clause_base(&alternative_gerund).unwrap();
     let attached =
         clause_api::build_gerund_clause_subordinate_after(matrix.clone(), alternative.clone())
             .unwrap();
@@ -1089,8 +1089,8 @@ fn public_nonfinite_facade_builds_projects_renders_and_rejects_wrong_forms() {
         "attacking rather than attacking"
     );
 
-    assert!(clause_api::build_infinitive_to(imperative.clone()).is_err());
-    assert!(clause_api::build_gerund_clause_base(imperative).is_err());
+    assert!(clause_api::build_infinitive_to(&imperative).is_err());
+    assert!(clause_api::build_gerund_clause_base(&imperative).is_err());
 }
 
 #[test]

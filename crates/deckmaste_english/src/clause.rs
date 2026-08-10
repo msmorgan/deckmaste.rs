@@ -29,8 +29,15 @@ fn projected(predicate: crate::grammar::VerbPhrase) -> Predicate {
 }
 
 /// Builds an unnegated `to`-infinitive from a complete infinitive predicate.
-pub fn build_infinitive_to(predicate: Predicate) -> Result<InfinitiveClause, DeclarationViolation> {
-    crate::constructions::nonfinite::build_infinitive_to(staged(&predicate)?)
+///
+/// # Errors
+///
+/// Returns a declaration violation when the predicate is not a complete,
+/// invertible infinitive form.
+pub fn build_infinitive_to(
+    predicate: &Predicate,
+) -> Result<InfinitiveClause, DeclarationViolation> {
+    crate::constructions::nonfinite::build_infinitive_to(staged(predicate)?)
 }
 
 /// Projects the predicate from an unnegated `to`-infinitive.
@@ -40,10 +47,15 @@ pub fn parts_infinitive_to(value: &InfinitiveClause) -> Predicate {
 }
 
 /// Builds a negated `not to` infinitive from a complete infinitive predicate.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the predicate is not a complete,
+/// invertible infinitive form.
 pub fn build_infinitive_not_to(
-    predicate: Predicate,
+    predicate: &Predicate,
 ) -> Result<InfinitiveClause, DeclarationViolation> {
-    crate::constructions::nonfinite::build_infinitive_not_to(staged(&predicate)?)
+    crate::constructions::nonfinite::build_infinitive_not_to(staged(predicate)?)
 }
 
 /// Projects the predicate from a negated `not to` infinitive.
@@ -55,10 +67,15 @@ pub fn parts_infinitive_not_to(value: &InfinitiveClause) -> Predicate {
 }
 
 /// Builds a base gerund clause from a complete present-participle predicate.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the predicate is not a complete,
+/// invertible present-participle form.
 pub fn build_gerund_clause_base(
-    predicate: Predicate,
+    predicate: &Predicate,
 ) -> Result<GerundClause, DeclarationViolation> {
-    crate::constructions::nonfinite::build_gerund_clause_base(staged(&predicate)?)
+    crate::constructions::nonfinite::build_gerund_clause_base(staged(predicate)?)
 }
 
 /// Projects the predicate from a base gerund clause.
@@ -70,6 +87,11 @@ pub fn parts_gerund_clause_base(value: &GerundClause) -> Predicate {
 }
 
 /// Attaches a trailing `rather than` gerund alternative.
+///
+/// # Errors
+///
+/// Returns a declaration violation when either clause is outside the complete
+/// generated gerund domain.
 pub fn build_gerund_clause_subordinate_after(
     matrix: GerundClause,
     alternative: GerundClause,
@@ -84,6 +106,11 @@ pub fn parts_gerund_clause_subordinate_after(value: &GerundClause) -> (GerundCla
 }
 
 /// Renders a checked infinitive through its declaration-generated inverse.
+///
+/// # Errors
+///
+/// Returns an error when a nested lexical item has no surface form or the
+/// value does not match exactly one admitted nonfinite construction.
 pub fn render_infinitive(
     value: &InfinitiveClause,
     name: &str,
@@ -93,6 +120,11 @@ pub fn render_infinitive(
 }
 
 /// Renders a checked gerund through its declaration-generated inverse.
+///
+/// # Errors
+///
+/// Returns an error when a nested lexical item has no surface form or the
+/// value does not match exactly one admitted nonfinite construction.
 pub fn render_gerund(
     value: &GerundClause,
     name: &str,

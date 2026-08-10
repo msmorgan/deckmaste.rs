@@ -6548,7 +6548,7 @@ mod tests {
         let infinitive = AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Able))
             .and_then(|phrase| {
                 phrase.try_attach_compatibility_complement(AdjectiveComplement::Infinitive(
-                    crate::clause::build_infinitive_to(strict_predicate(verb_phrase(
+                    crate::clause::build_infinitive_to(&strict_predicate(verb_phrase(
                         Vocab::Attack,
                         VerbSlot::Infinitive,
                         vec![],
@@ -6688,7 +6688,7 @@ mod tests {
                     let infinitive = match marker {
                         InfinitiveMarker::Bare => InfinitiveClause::declaration_bare(predicate),
                         InfinitiveMarker::To => {
-                            crate::clause::build_infinitive_to(predicate).unwrap()
+                            crate::clause::build_infinitive_to(&predicate).unwrap()
                         }
                     };
                     elements.push(PredicateElement::Complement(
