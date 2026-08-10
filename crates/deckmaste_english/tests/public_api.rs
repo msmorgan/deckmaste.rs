@@ -57,6 +57,34 @@ enum LegacyNounPhraseView<'a> {
     Arithmetic(&'a ArithmeticValue),
 }
 
+#[derive(Serialize)]
+enum LegacyPrepositionalPhraseView<'a> {
+    Simple(LegacySimplePrepositionalPhrase<'a>),
+    Coordinated(&'a CoordinatedPrepositionalPhrase),
+}
+
+#[derive(Serialize)]
+struct LegacySimplePrepositionalPhrase<'a> {
+    preposition: Preposition,
+    object: &'a Phrase,
+}
+
+fn legacy_prepositional_phrase_view(
+    value: &PrepositionalPhrase,
+) -> LegacyPrepositionalPhraseView<'_> {
+    match value.kind() {
+        PrepositionalPhraseKind::Simple(simple) => {
+            LegacyPrepositionalPhraseView::Simple(LegacySimplePrepositionalPhrase {
+                preposition: simple.preposition(),
+                object: simple.object(),
+            })
+        }
+        PrepositionalPhraseKind::Coordinated(value) => {
+            LegacyPrepositionalPhraseView::Coordinated(value)
+        }
+    }
+}
+
 fn legacy_noun_phrase_view(value: &NounPhrase) -> LegacyNounPhraseView<'_> {
     match value.kind() {
         NounPhraseKind::Nominal(value) => LegacyNounPhraseView::Nominal(value),
@@ -93,6 +121,13 @@ fn parsed_noun_phrase(source: &str) -> NounPhrase {
     noun_phrase
 }
 
+fn checked_prepositional_phrase(preposition: Preposition, object: Phrase) -> PrepositionalPhrase {
+    let object = deckmaste_english::prepositional_phrase::build_prepositional_object(object)
+        .expect("the test fixture uses an admitted whole object");
+    deckmaste_english::prepositional_phrase::build_prepositional_phrase(preposition, object)
+        .expect("the test fixture is a checked simple prepositional phrase")
+}
+
 #[test]
 fn sealed_noun_phrase_serialization_matches_the_legacy_enum_schema() {
     for source in [
@@ -113,6 +148,41 @@ fn sealed_noun_phrase_serialization_matches_the_legacy_enum_schema() {
             ron::to_string(&value).unwrap(),
             ron::to_string(&legacy_noun_phrase_view(&value)).unwrap(),
             "legacy noun-phrase serialization changed for {source:?}",
+        );
+    }
+}
+
+#[test]
+fn sealed_prepositional_serialization_matches_legacy_schema() {
+    use deckmaste_english::features::Conjunction;
+    use deckmaste_english::nominal as nominal_api;
+    use deckmaste_english::prepositional_phrase as prepositional_api;
+
+    let card = nominal_api::build_nominal_noun(
+        NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
+    )
+    .unwrap();
+    let simple = prepositional_api::build_prepositional_phrase(
+        Preposition::Of,
+        prepositional_api::build_prepositional_object_noun_phrase(nominal_noun_phrase(card))
+            .unwrap(),
+    )
+    .unwrap();
+    let second = prepositional_api::build_prepositional_phrase(
+        Preposition::From,
+        prepositional_api::build_prepositional_object_adverb(Vocab::Again).unwrap(),
+    )
+    .unwrap();
+    let coordinated = prepositional_api::build_prepositional_phrase_coordination(
+        simple.clone(),
+        vec![(Some(Conjunction::And), second)],
+    )
+    .unwrap();
+
+    for value in [&simple, &coordinated] {
+        assert_eq!(
+            ron::to_string(value).unwrap(),
+            ron::to_string(&legacy_prepositional_phrase_view(value)).unwrap(),
         );
     }
 }
@@ -1077,7 +1147,7 @@ fn public_possessive_nominal_boundary_rejects_non_d01_nominal_shapes() {
     .unwrap();
     let complemented = nominal_api::build_nominal_prepositional(
         bare(),
-        PrepositionalPhrase::simple(
+        checked_prepositional_phrase(
             Preposition::In,
             Phrase::NounPhrase(Box::new(nominal_noun_phrase(object))),
         ),
@@ -1550,6 +1620,165 @@ fn public_attachment_facade_builds_projects_and_rejects_invalid_runs() {
 }
 
 #[test]
+fn public_prepositional_facade_builds_projects_and_rejects_invalid_roles() {
+    use deckmaste_english::adjective as adjective_api;
+    use deckmaste_english::clause as clause_api;
+    use deckmaste_english::features::Conjunction;
+    use deckmaste_english::nominal as nominal_api;
+    use deckmaste_english::predicate as predicate_api;
+    use deckmaste_english::prepositional_phrase as prepositional_api;
+
+    let card = nominal_api::build_nominal_noun(
+        NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
+    )
+    .unwrap();
+    let card = nominal_noun_phrase(card);
+    let noun_object =
+        prepositional_api::build_prepositional_object_noun_phrase(card.clone()).unwrap();
+    assert!(matches!(
+        prepositional_api::parts_prepositional_object(&noun_object),
+        prepositional_api::PrepositionalObjectKind::NounPhrase(value) if value == &card
+    ));
+    let of_card =
+        prepositional_api::build_prepositional_phrase(Preposition::Of, noun_object).unwrap();
+
+    let nested_object =
+        prepositional_api::build_prepositional_object_prepositional_phrase(of_card.clone())
+            .unwrap();
+    assert!(matches!(
+        prepositional_api::parts_prepositional_object(&nested_object),
+        prepositional_api::PrepositionalObjectKind::PrepositionalPhrase(value)
+            if value == &of_card
+    ));
+    let from_of_card =
+        prepositional_api::build_prepositional_phrase(Preposition::From, nested_object).unwrap();
+
+    let attacking = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Attack),
+            slot: VerbSlot::PresentParticiple,
+        },
+        predicate_api::PredicateFrameChoice::Intransitive,
+    )
+    .and_then(predicate_api::finish_predicate)
+    .and_then(|predicate| clause_api::build_gerund_clause_base(&predicate))
+    .unwrap();
+    let gerund_object =
+        prepositional_api::build_prepositional_object_gerund_clause(attacking.clone()).unwrap();
+    assert!(matches!(
+        prepositional_api::parts_prepositional_object(&gerund_object),
+        prepositional_api::PrepositionalObjectKind::GerundClause(value)
+            if value == &attacking
+    ));
+    let by_attacking =
+        prepositional_api::build_prepositional_phrase(Preposition::By, gerund_object).unwrap();
+
+    let adverb_object = prepositional_api::build_prepositional_object_adverb(Vocab::Again).unwrap();
+    assert!(matches!(
+        prepositional_api::parts_prepositional_object(&adverb_object),
+        prepositional_api::PrepositionalObjectKind::Adverb(&Vocab::Again)
+    ));
+    let from_anywhere =
+        prepositional_api::build_prepositional_phrase(Preposition::From, adverb_object).unwrap();
+
+    for (phrase, expected) in [
+        (&of_card, "of card"),
+        (&from_of_card, "from of card"),
+        (&by_attacking, "by attacking"),
+        (&from_anywhere, "from again"),
+    ] {
+        let (preposition, object) = prepositional_api::parts_prepositional_phrase(phrase);
+        assert_eq!(
+            prepositional_api::build_prepositional_phrase(preposition, object).unwrap(),
+            *phrase,
+        );
+        assert_eq!(
+            prepositional_api::render(phrase, "Test Card", false).unwrap(),
+            expected,
+        );
+    }
+
+    let coordinated = prepositional_api::build_prepositional_phrase_coordination(
+        of_card.clone(),
+        vec![(Some(Conjunction::And), from_anywhere.clone())],
+    )
+    .unwrap();
+    let (first, rest) = prepositional_api::parts_prepositional_phrase_coordination(&coordinated);
+    assert_eq!(
+        prepositional_api::build_prepositional_phrase_coordination(first, rest).unwrap(),
+        coordinated,
+    );
+    assert_eq!(
+        prepositional_api::render(&coordinated, "Test Card", false).unwrap(),
+        "of card and from again",
+    );
+
+    let unsupported = adjective_api::build_adjective_phrase(Adjective::Word(Vocab::Target))
+        .map(|value| Phrase::AdjectivePhrase(Box::new(value)))
+        .and_then(prepositional_api::build_prepositional_object);
+    assert!(
+        unsupported.is_err(),
+        "P02 rejects unsupported whole objects"
+    );
+
+    assert!(
+        nominal_api::build_nominal_prepositional(
+            nominal_api::build_nominal_noun(
+                NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
+            )
+            .unwrap(),
+            by_attacking,
+        )
+        .is_err(),
+        "the nominal owner rejects by plus a gerund",
+    );
+
+    let selected = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Look),
+            slot: VerbSlot::Imperative,
+        },
+        predicate_api::PredicateFrameChoice::SelectedPrepositional(Preposition::At),
+    )
+    .unwrap();
+    let at_card = prepositional_api::build_prepositional_phrase(
+        Preposition::At,
+        prepositional_api::build_prepositional_object_noun_phrase(card.clone()).unwrap(),
+    )
+    .unwrap();
+    assert!(
+        predicate_api::build_predicate_element(
+            selected,
+            PredicateElement::Adjunct(PredicateAdjunct::Prepositional(at_card)),
+        )
+        .is_err(),
+        "the predicate owner rejects a selected complement as an adjunct",
+    );
+
+    let adjunct = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Attack),
+            slot: VerbSlot::Imperative,
+        },
+        predicate_api::PredicateFrameChoice::Intransitive,
+    )
+    .unwrap();
+    let during_card = prepositional_api::build_prepositional_phrase(
+        Preposition::During,
+        prepositional_api::build_prepositional_object_noun_phrase(card).unwrap(),
+    )
+    .unwrap();
+    assert!(
+        predicate_api::build_predicate_element(
+            adjunct,
+            PredicateElement::Complement(PredicateComplement::Prepositional(during_card)),
+        )
+        .is_err(),
+        "the predicate owner rejects an adjunct as a selected complement",
+    );
+}
+
+#[test]
 fn public_predicate_facade_preserves_prepositional_adjunct_role() {
     use deckmaste_english::nominal as nominal_api;
     use deckmaste_english::predicate as predicate_api;
@@ -1558,7 +1787,7 @@ fn public_predicate_facade_preserves_prepositional_adjunct_role() {
         NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
     )
     .unwrap();
-    let phrase = PrepositionalPhrase::simple(
+    let phrase = checked_prepositional_phrase(
         Preposition::During,
         Phrase::NounPhrase(Box::new(nominal_noun_phrase(card))),
     );
@@ -1619,7 +1848,7 @@ fn public_predicate_facade_preserves_selected_prepositional_complement_role() {
         NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
     )
     .unwrap();
-    let phrase = PrepositionalPhrase::simple(
+    let phrase = checked_prepositional_phrase(
         Preposition::At,
         Phrase::NounPhrase(Box::new(nominal_noun_phrase(card))),
     );
@@ -2987,8 +3216,8 @@ impl<'syntax> SyntaxInventory<'syntax> {
     }
 
     fn prepositional_phrase(&mut self, phrase: &'syntax PrepositionalPhrase) {
-        self.prepositions.push(phrase.head().preposition);
-        self.phrase(&phrase.head().object);
+        self.prepositions.push(phrase.head().preposition());
+        self.phrase(phrase.head().object());
     }
 
     fn phrase(&mut self, phrase: &'syntax Phrase) {
@@ -3302,12 +3531,8 @@ fn is_any_number_of(phrase: &NounPhrase) -> bool {
     ) && nominal.modifiers().is_empty()
         && matches!(
             nominal.complements().first(),
-            Some(NominalComplement::Prepositional(
-                PrepositionalPhrase::Simple(deckmaste_english::syntax::SimplePrepositionalPhrase {
-                    preposition: Preposition::Of,
-                    ..
-                })
-            ))
+            Some(NominalComplement::Prepositional(preposition))
+                if preposition.head().preposition() == Preposition::Of
         )
 }
 
@@ -3394,10 +3619,8 @@ fn matrix_has_prepositional_adjunct(clause: &IndependentClause, expected: Prepos
     elements.iter().any(|element| {
         matches!(
             element,
-            PredicateElement::Adjunct(PredicateAdjunct::Prepositional(PrepositionalPhrase::Simple(deckmaste_english::syntax::SimplePrepositionalPhrase {
-                preposition,
-                ..
-            }))) if *preposition == expected
+            PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition))
+                if preposition.head().preposition() == expected
         )
     })
 }

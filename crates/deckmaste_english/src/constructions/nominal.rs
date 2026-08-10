@@ -2784,7 +2784,7 @@ mod tests {
             linearize_nominal_determiner_form_with
         );
 
-        let preposition = PrepositionalPhrase::simple(
+        let preposition = crate::constructions::prepositional::expect_prepositional_phrase(
             Preposition::In,
             Phrase::NounPhrase(Box::new(NounPhrase::from_nominal_declaration(
                 card_nominal(),
@@ -3128,7 +3128,7 @@ mod tests {
                 prepositional_base,
                 Conjunction::Or,
                 participle(crate::word::Tense::Past, Vocab::Block),
-                PrepositionalPhrase::simple(
+                crate::constructions::prepositional::expect_prepositional_phrase(
                     Preposition::By,
                     Phrase::NounPhrase(Box::new(NounPhrase::from_nominal_declaration(
                         card_nominal(),
@@ -3414,7 +3414,7 @@ mod tests {
         // become the outer construction, or make the legal prefix-then-PP
         // projection reverse that declared construction order.
         let preposition = || {
-            PrepositionalPhrase::simple(
+            crate::constructions::prepositional::expect_prepositional_phrase(
                 Preposition::In,
                 Phrase::NounPhrase(Box::new(NounPhrase::from_nominal_declaration(
                     card_nominal(),
@@ -3601,7 +3601,7 @@ mod tests {
         };
         transitive.head.verb.slot = VerbSlot::PresentParticiple;
         let gerund = crate::clause::build_gerund_clause_base(&predicate).unwrap();
-        let by_gerund = PrepositionalPhrase::simple(
+        let by_gerund = crate::constructions::prepositional::expect_prepositional_phrase(
             Preposition::By,
             Phrase::Clause(Box::new(crate::syntax::Clause::Dependent(
                 crate::syntax::DependentClause::Gerund(gerund),
@@ -3648,7 +3648,7 @@ mod tests {
     }
 
     fn preposition_with_card(preposition: Preposition) -> PrepositionalPhrase {
-        PrepositionalPhrase::simple(
+        crate::constructions::prepositional::expect_prepositional_phrase(
             preposition,
             Phrase::NounPhrase(Box::new(NounPhrase::from_nominal_declaration(
                 card_nominal(),

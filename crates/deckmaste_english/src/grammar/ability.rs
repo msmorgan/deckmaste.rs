@@ -70,7 +70,7 @@ use crate::syntax::Predicate;
 use crate::syntax::PredicatedArgument;
 use crate::syntax::PredicatedQuality;
 use crate::syntax::Preposition;
-use crate::syntax::PrepositionalPhrase;
+use crate::syntax::PrepositionalPhraseKind;
 use crate::syntax::QuotedAbility;
 use crate::syntax::RecoveredText;
 use crate::syntax::RollRange;
@@ -1839,12 +1839,9 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         Some(sentence)
     }
 
-    /// Attaches a quoted ability as the object of a `with` postmodifier on the
-    /// clause the prefix spells (`create a ... token with "..."`). A
-    /// subjectless imperative prefix, parsed in isolation, resolves its
-    /// base-form verb to the infinitive slot; coerce it to the imperative a
-    /// standalone effect clause is, so `finish_simple_clause` accepts the
-    /// subjectless clause.
+    /// Attempts to attach a quoted ability as a `with` postmodifier. P02 does
+    /// not admit quoted-ability objects, so its checked object door declines
+    /// this legacy shape and the caller recovers the complete sentence.
     fn quoted_with_clause(
         &mut self,
         prefix: &[Token],
@@ -1856,13 +1853,17 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         if clause.subject.is_none() && clause.predicate.verb.slot == VerbSlot::Infinitive {
             clause.predicate.verb.slot = VerbSlot::Imperative;
         }
+        let object = crate::prepositional_phrase::build_prepositional_object(
+            Phrase::QuotedAbility(Box::new(quoted)),
+        )
+        .ok()?;
+        let preposition =
+            crate::prepositional_phrase::build_prepositional_phrase(Preposition::With, object)
+                .ok()?;
         clause
             .predicate
             .dependents
-            .push(VerbDependent::Prepositional(PrepositionalPhrase::simple(
-                Preposition::With,
-                Phrase::QuotedAbility(Box::new(quoted)),
-            )));
+            .push(VerbDependent::Prepositional(preposition));
         finish_simple_clause(clause)
     }
 
@@ -2585,11 +2586,11 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             self.accept_exact(segment, Nonterminal::PrepositionalPhrase, |parsed| {
                 parsed.prepositional_phrase().cloned()
             })
-            && let PrepositionalPhrase::Simple(simple) = prepositional
+            && let PrepositionalPhraseKind::Simple(simple) = prepositional.kind()
         {
             return Some(PredicatedQuality {
-                preposition: Some(simple.preposition),
-                quality: *simple.object,
+                preposition: Some(simple.preposition()),
+                quality: simple.object().clone(),
             });
         }
         // A bare quality with no preposition (`hexproof from blue` → `blue`).
@@ -3717,10 +3718,10 @@ mod tests {
     }
 
     #[test]
-    fn quoted_ability_object_and_with_postmodifier_share_one_slot() {
-        // Causal pair across slot kinds: `gains` takes the quoted ability as a
-        // grant-verb object, `with` as a postmodifier on a created token. Both
-        // are the same generalized quoted-ability slot and both round-trip.
+    fn quoted_ability_object_survives_while_unsupported_with_object_recovers() {
+        // `gains` takes the quoted ability through its typed predicate-object
+        // door. P02 does not admit a quoted ability object, so `with "..."`
+        // must decline that construction and recover without losing text.
         let object = parse("Target creature gains \"Flying.\"");
         let AbilityKind::Paragraph(object_paragraph) = &object.ast.abilities[0].kind else {
             panic!("expected paragraph");
@@ -3736,14 +3737,10 @@ mod tests {
         let AbilityKind::Paragraph(with_paragraph) = &with.ast.abilities[0].kind else {
             panic!("expected paragraph");
         };
-        assert!(
-            matches!(
-                &with_paragraph.sentences[0].body,
-                SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(_)))
-            ),
-            "the with-postmodifier clause should be a parsed imperative, got {:?}",
-            with_paragraph.sentences[0].body
-        );
+        assert!(matches!(
+            &with_paragraph.sentences[0].body,
+            SentenceBody::Recovered(_)
+        ));
         assert_eq!(
             render(&with),
             "Create a Goblin creature token with \"{T}: Add {C}.\""
@@ -6055,17 +6052,20 @@ mod tests {
                     Predicate::Transitive(predicate)
                 )) if matches!(
                     predicate.elements.as_slice(),
-                    [PredicateElement::Adjunct(PredicateAdjunct::Prepositional(
-                        PrepositionalPhrase::Simple(SimplePrepositionalPhrase { object, .. })
-                    ))] if matches!(
-                        object.as_ref(),
-                        Phrase::NounPhrase(noun_phrase) if matches!(
-                            noun_phrase.kind(),
-                            crate::syntax::NounPhraseKind::ThisCard(
-                                ThisCardForm::AbbreviatedName
-                            )
+                    [PredicateElement::Adjunct(PredicateAdjunct::Prepositional(value))]
+                        if matches!(
+                            value.kind(),
+                            PrepositionalPhraseKind::Simple(simple)
+                                if matches!(
+                                    simple.object(),
+                                    Phrase::NounPhrase(noun_phrase) if matches!(
+                                        noun_phrase.kind(),
+                                        crate::syntax::NounPhraseKind::ThisCard(
+                                            ThisCardForm::AbbreviatedName
+                                        )
+                                    )
+                                )
                         )
-                    )
                 )
             ),
             "nickname did not reach self-reference disambiguation: {:#?}",

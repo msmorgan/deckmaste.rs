@@ -78,6 +78,7 @@ use crate::syntax::PredicatedArgument;
 use crate::syntax::PredicatedQuality;
 use crate::syntax::Preposition;
 use crate::syntax::PrepositionalPhrase;
+use crate::syntax::PrepositionalPhraseKind;
 use crate::syntax::PreverbModifier;
 use crate::syntax::Quantity;
 use crate::syntax::QuotedAbility;
@@ -282,6 +283,14 @@ pub(crate) fn render_gerund_clause(
     is_legendary: bool,
 ) -> Result<String, RenderError> {
     Renderer::new(name, is_legendary).gerund_clause(value)
+}
+
+pub(crate) fn render_prepositional_phrase(
+    value: &PrepositionalPhrase,
+    name: &str,
+    is_legendary: bool,
+) -> Result<String, RenderError> {
+    Renderer::new(name, is_legendary).prepositional_phrase(value)
 }
 
 #[cfg(test)]
@@ -4318,9 +4327,9 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn prepositional_phrase(&self, phrase: &PrepositionalPhrase) -> Result<String, RenderError> {
-        match phrase {
-            PrepositionalPhrase::Simple(simple) => self.simple_prepositional_phrase(simple),
-            PrepositionalPhrase::Coordinated(coordinated) => {
+        match phrase.kind() {
+            PrepositionalPhraseKind::Simple(simple) => self.simple_prepositional_phrase(simple),
+            PrepositionalPhraseKind::Coordinated(coordinated) => {
                 // The serial comma is a function of length, never a stored
                 // flag: `A and B` takes none, `A, B, and C` takes one before
                 // every member. See `PrepositionalPhraseCoordination`.
@@ -6209,10 +6218,12 @@ mod tests {
                         NounInstance::Mass(Noun::Word(Vocab::Damage)),
                         vec![],
                     )),
-                    VerbDependent::Prepositional(PrepositionalPhrase::simple(
-                        Preposition::From,
-                        Phrase::NounPhrase(Box::new(target_source)),
-                    )),
+                    VerbDependent::Prepositional(
+                        crate::constructions::prepositional::expect_prepositional_phrase(
+                            Preposition::From,
+                            Phrase::NounPhrase(Box::new(target_source)),
+                        ),
+                    ),
                 ],
             ),
         ));
@@ -6296,7 +6307,7 @@ mod tests {
             vec![],
             NounInstance::Plural(Noun::Word(Vocab::Card)),
             vec![NominalComplement::Prepositional(
-                PrepositionalPhrase::simple(
+                crate::constructions::prepositional::expect_prepositional_phrase(
                     Preposition::In,
                     Phrase::NounPhrase(Box::new(nominal(
                         Some(crate::determiner::possessive_pronoun(Pronoun::You).unwrap()),
@@ -6312,7 +6323,10 @@ mod tests {
             vec![],
             NounInstance::Singular(Noun::Word(Vocab::Number)),
             vec![NominalComplement::Prepositional(
-                PrepositionalPhrase::simple(Preposition::Of, Phrase::NounPhrase(Box::new(cards))),
+                crate::constructions::prepositional::expect_prepositional_phrase(
+                    Preposition::Of,
+                    Phrase::NounPhrase(Box::new(cards)),
+                ),
             )],
         );
         let full_name = paragraph_ability(simple(
@@ -6333,7 +6347,7 @@ mod tests {
                             .and_then(|phrase| {
                                 phrase.try_attach_compatibility_complement(
                                     AdjectiveComplement::Prepositional(
-                                        PrepositionalPhrase::simple(
+                                        crate::constructions::prepositional::expect_prepositional_phrase(
                                             Preposition::To,
                                             Phrase::NounPhrase(Box::new(number)),
                                         ),
@@ -6907,7 +6921,7 @@ mod tests {
         let prepositional = AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Equal))
             .and_then(|phrase| {
                 phrase.try_attach_compatibility_complement(AdjectiveComplement::Prepositional(
-                    PrepositionalPhrase::simple(
+                    crate::constructions::prepositional::expect_prepositional_phrase(
                         Preposition::To,
                         Phrase::NounPhrase(Box::new(NounPhrase::from_this_card_declaration(
                             ThisCardForm::FullName,

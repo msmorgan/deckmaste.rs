@@ -357,10 +357,12 @@ fn lower_generated_construction(
             super::rules::GeneratedRuleContext::SharedPreposition,
             Some(preposition),
             Lowered::NounPhrase(object),
-        ) => Some(Lowered::PrepositionalPhrase(PrepositionalPhrase::simple(
-            preposition,
-            Phrase::NounPhrase(Box::new(object)),
-        ))),
+        ) => Some(Lowered::PrepositionalPhrase(
+            crate::constructions::prepositional::expect_prepositional_phrase(
+                preposition,
+                Phrase::NounPhrase(Box::new(object)),
+            ),
+        )),
         _ => None,
     }
 }
@@ -494,8 +496,10 @@ fn project_generated_category(
         return Some(Lowered::PrepositionalPhrase(*value));
     }
     if construction.category == "PrepositionalObject" {
-        let value = value.downcast::<Phrase>().ok()?;
-        return Some(Lowered::Phrase(*value));
+        let value = value
+            .downcast::<crate::constructions::prepositional::PrepositionalObject>()
+            .ok()?;
+        return Some(Lowered::Phrase(value.into_phrase()));
     }
     if construction.category == "Verb" {
         let value = value.downcast::<VerbAnalysis>().ok()?;
@@ -965,7 +969,15 @@ fn erased_subtree(
             if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
         }
         "PrepositionalPhrase" => typed!(PrepositionalPhrase, value),
-        "PrepositionalObject" => typed!(Phrase, value),
+        "PrepositionalObject" => {
+            let Lowered::Phrase(value) = value else {
+                return None;
+            };
+            let value =
+                crate::constructions::prepositional::PrepositionalObject::try_from_phrase(value)
+                    .ok()?;
+            if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
+        }
         "ComparisonComplement" => typed!(ComparisonComplement, value),
         "InfinitiveClause" => {
             let Lowered::InfinitiveClause(value) = value else {
@@ -1436,25 +1448,20 @@ pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
             let Lowered::PrepositionalPhrase(next) = take(children, next_index)? else {
                 return None;
             };
-            let PrepositionalPhrase::Simple(next) = next else {
+            let Some(next) = next.into_simple() else {
                 return None;
             };
             let coordination = crate::syntax::PrepositionalPhraseCoordination {
                 conjunction,
                 phrase: next,
             };
-            Some(Lowered::PrepositionalPhrase(match first {
-                PrepositionalPhrase::Simple(first) => PrepositionalPhrase::Coordinated(
-                    crate::syntax::CoordinatedPrepositionalPhrase {
-                        first: Box::new(first),
-                        rest: vec![coordination],
-                    },
-                ),
-                PrepositionalPhrase::Coordinated(mut coordinated) => {
-                    coordinated.rest.push(coordination);
-                    PrepositionalPhrase::Coordinated(coordinated)
-                }
-            }))
+            let first = if let Some(first) = first.clone().into_simple() {
+                PrepositionalPhrase::coordinated(first, vec![coordination])
+            } else {
+                let mut first = first;
+                first.push_coordination(coordination).then_some(first)?
+            };
+            Some(Lowered::PrepositionalPhrase(first))
         }
         _ => None,
     }

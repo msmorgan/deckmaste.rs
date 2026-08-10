@@ -1270,18 +1270,15 @@ fn numeral_before_an_or_comparative_stays_attributive() {
                     panic!("expected an intransitive matrix: {sentence:#?}");
                 };
                 predicate.elements.iter().find_map(|element| match element {
-                    PredicateElement::Adjunct(PredicateAdjunct::Prepositional(
-                        PrepositionalPhrase::Simple(crate::syntax::SimplePrepositionalPhrase {
-                            object,
-                            ..
-                        }),
-                    )) => match object.as_ref() {
-                        Phrase::NounPhrase(noun) => match noun.kind() {
-                            NounPhraseKind::Nominal(nominal) => Some(nominal),
+                    PredicateElement::Adjunct(PredicateAdjunct::Prepositional(value)) => {
+                        match value.head().object() {
+                            Phrase::NounPhrase(noun) => match noun.kind() {
+                                NounPhraseKind::Nominal(nominal) => Some(nominal),
+                                _ => None,
+                            },
                             _ => None,
-                        },
-                        _ => None,
-                    },
+                        }
+                    }
                     _ => None,
                 })
             }
@@ -1561,19 +1558,14 @@ fn subject_gap_attachment_remains_governed_by_agreement() {
         matches!(
             toughness.complements(),
             [
-                NominalComplement::Prepositional(PrepositionalPhrase::Simple(
-                    crate::syntax::SimplePrepositionalPhrase {
-                        preposition: Preposition::Among,
-                        ..
-                    }
-                )),
+                NominalComplement::Prepositional(preposition),
                 NominalComplement::Relative(RelativeClause {
                     marker: RelativeMarker::That,
                     gap: RelativeGap::Subject,
                     ..
                 }),
                 ..
-            ]
+            ] if preposition.head().preposition() == Preposition::Among
         ),
         "agreement must keep the relative on the outer singular head: {toughness:#?}"
     );
@@ -1641,18 +1633,13 @@ fn rules_object_gap_ranks_valid_hosts_across_nested_pps() {
     assert!(matches!(
         cards.complements(),
         [
-            NominalComplement::Prepositional(PrepositionalPhrase::Simple(
-                crate::syntax::SimplePrepositionalPhrase {
-                    preposition: Preposition::In,
-                    ..
-                }
-            )),
+            NominalComplement::Prepositional(preposition),
             NominalComplement::Relative(RelativeClause {
                 marker: RelativeMarker::Zero,
                 gap: RelativeGap::Object,
                 ..
             })
-        ]
+        ] if preposition.head().preposition() == Preposition::In
     ));
 }
 
@@ -1667,18 +1654,13 @@ fn invalid_mass_pp_object_falls_back_to_the_outer_count_host() {
     assert!(matches!(
         creature.complements(),
         [
-            NominalComplement::Prepositional(PrepositionalPhrase::Simple(
-                crate::syntax::SimplePrepositionalPhrase {
-                    preposition: Preposition::With,
-                    ..
-                }
-            )),
+            NominalComplement::Prepositional(preposition),
             NominalComplement::Relative(RelativeClause {
                 marker: RelativeMarker::Zero,
                 gap: RelativeGap::Object,
                 ..
             })
-        ]
+        ] if preposition.head().preposition() == Preposition::With
     ));
 }
 
@@ -1795,13 +1777,8 @@ fn coordinated_member_consumes_following_modifiers_before_the_pp_closes() {
                 gap: RelativeGap::Subject,
                 ..
             }),
-            NominalComplement::Prepositional(PrepositionalPhrase::Simple(
-                crate::syntax::SimplePrepositionalPhrase {
-                    preposition: Preposition::With,
-                    ..
-                }
-            ))
-        ]
+            NominalComplement::Prepositional(preposition)
+        ] if preposition.head().preposition() == Preposition::With
     ));
 }
 
@@ -1819,22 +1796,14 @@ fn coordinated_member_refuses_unrelated_following_pps() {
     };
     let [
         NominalComplement::Prepositional(objects),
-        NominalComplement::Prepositional(PrepositionalPhrase::Simple(
-            crate::syntax::SimplePrepositionalPhrase {
-                preposition: Preposition::Until,
-                ..
-            },
-        )),
-        NominalComplement::Prepositional(PrepositionalPhrase::Simple(
-            crate::syntax::SimplePrepositionalPhrase {
-                preposition: Preposition::Of,
-                ..
-            },
-        )),
+        NominalComplement::Prepositional(until),
+        NominalComplement::Prepositional(of),
     ] = control.complements()
     else {
         panic!("the following PPs must remain outside the final member: {control:#?}");
     };
+    assert_eq!(until.head().preposition(), Preposition::Until);
+    assert_eq!(of.head().preposition(), Preposition::Of);
     let Phrase::NounPhrase(objects) = objects.head().object.as_ref() else {
         panic!("expected noun-phrase objects: {objects:#?}");
     };
@@ -2516,10 +2485,8 @@ fn after_preposition_attaches_both_trailing_and_fronted() {
             Some(NounPhraseKind::Nominal(nominal))
                 if nominal.complements().iter().any(|complement| matches!(
                     complement,
-                    NominalComplement::Prepositional(PrepositionalPhrase::Simple(crate::syntax::SimplePrepositionalPhrase {
-                        preposition: Preposition::After,
-                        ..
-                    }))
+                    NominalComplement::Prepositional(preposition)
+                        if preposition.head().preposition() == Preposition::After
                 ))
         ),
         "trailing `after this one` should complement the turn nominal: {predicate:#?}"
@@ -2536,14 +2503,9 @@ fn after_preposition_attaches_both_trailing_and_fronted() {
             attachment,
             ClauseAttachment {
                 position: AttachmentPosition::BeforeMatrix,
-                payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(
-                    PrepositionalPhrase::Simple(crate::syntax::SimplePrepositionalPhrase {
-                        preposition: Preposition::After,
-                        ..
-                    })
-                )),
+                payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(preposition)),
                 ..
-            }
+            } if preposition.head().preposition() == Preposition::After
         )),
         "fronted `After this phase` should carry the After preposition: {complex:#?}"
     );
@@ -4498,14 +4460,9 @@ fn reduced_recipient_passive_keeps_agent_and_temporal_tails() {
     assert!(matches!(
         predicate.elements.as_slice(),
         [
-            PredicateElement::Adjunct(PredicateAdjunct::Prepositional(
-                PrepositionalPhrase::Simple(crate::syntax::SimplePrepositionalPhrase {
-                    preposition: Preposition::By,
-                    ..
-                })
-            )),
+            PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition)),
             PredicateElement::Adjunct(PredicateAdjunct::Temporal(_)),
-        ]
+        ] if preposition.head().preposition() == Preposition::By
     ));
     assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -7098,7 +7055,7 @@ fn sole_coordinated_prepositional_adjunct(
             nominal.complements()
         );
     };
-    let PrepositionalPhrase::Coordinated(coordinated) = pp else {
+    let crate::syntax::PrepositionalPhraseKind::Coordinated(coordinated) = pp.kind() else {
         panic!("expected a coordinated prepositional phrase: {pp:#?}");
     };
     coordinated
