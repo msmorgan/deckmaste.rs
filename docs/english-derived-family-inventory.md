@@ -15,21 +15,22 @@ rows, the nine D01 determiner/possession rows, the nine J01 adjective rows, the
 37 M01 nominal rows, S01 `sentence`, N01 `noun`/`noun_opaque`, the two generated
 coordination rows, all 34 V01 predicate rows, the four F01 nonfinite-clause
 rows, all 18 F02 finite-clause rows, all 16 F03 clause-attachment rows, and all
-19 P01 noun-phrase rows, and both P02 prepositional-phrase rows. The ability
+19 P01 noun-phrase rows, both P02 prepositional-phrase rows, and all eight R01
+relative-clause rows. The ability
 census comes from the three non-chart entry points documented and dispatched by
 `FragmentKind`: `Cost`, `KeywordLine`, and `Ability`.
 
 | source | handwritten / ungenerated | already generated | accounted total |
 |---|---:|---:|---:|
-| chart construction registry | 29 | 163 | 192 |
+| chart construction registry | 21 | 171 | 192 |
 | handwritten ability layer | 3 | 0 | 3 |
-| migration inventory | 32 | 163 | 195 |
+| migration inventory | 24 | 171 | 195 |
 
-Every one of the 192 chart IDs occurs once in the ledger below: 29 remain
-handwritten, while Q01, D01, J01, M01, V01, F01, F02, F03, S01, N01, and the two
-coordination rows, P01, and P02 are generated. The three ability IDs occur once
-in A01. Thus the remaining work is 32 rows (29 chart + 3 ability), with no
-`later` row. No raw corpus query was needed for this accounting; the census is
+Every one of the 192 chart IDs occurs once in the ledger below: 21 remain
+handwritten, while Q01, D01, J01, M01, V01, F01, F02, F03, R01, S01, N01, and
+the two coordination rows, P01, and P02 are generated. The three ability IDs
+occur once in A01. Thus the remaining work is 24 rows (21 chart + 3 ability),
+with no `later` row. No raw corpus query was needed for this accounting; the census is
 grounded in the registry and the current `FragmentKind` dispatch. Future corpus
 evidence must use supported faces, and normalized-template questions must use
 the existing English instruments.
@@ -104,7 +105,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 | F02 finite and copular clause | 18 | C3 | `english-derived-finite-clause-family` | generated |
 | F03 clause attachment | 16 | C3 | `english-derived-clause-attachment-family` | generated |
 | F04 clause coordination | 6 | C4 | `english-derived-clause-coordination-family` | finite agreement, structural design, tuple yields |
-| R01 relative clause | 8 | C3 | `english-derived-relative-clause-family` | valency and gaps |
+| R01 relative clause | 8 | C3 | `english-derived-relative-clause-family` | generated |
 | S01 sentence | 1 | C1 | `english-derived-sentence-family` | generated |
 | C01 phrase coordination | 15 | C4 | `english-derived-phrase-coordination-family` | lens, valency, structural design, tuple yields |
 | A01 ability layer | 3 | C5 | `english-ability-construction-backend` | inventory |
@@ -543,6 +544,8 @@ permanent exception.
 
 ## R01 — relative clause
 
+**Status:** generated.
+
 **Stable IDs (8):** `relative_object`,
 `relative_object_contracted_subject`,
 `relative_subject_contracted_auxiliary`, `relative_subject`,
@@ -550,8 +553,12 @@ permanent exception.
 `relative_contracted_copular_adjective`,
 `relative_contracted_copular_prepositional`.
 
-- **Owners and AST:** CR → `RelativeClause`, relative marker, gap, subject,
-  and predicate/copular forms; REN and SYN-C own output and ingress.
+- **Owners and AST:** the R01 declaration and its generated chart, feature,
+  lowering, inverse-render, and checked-build projections are the single
+  authority for sealed `RelativeClause`, relative marker, gap, subject, and
+  predicate/copular forms. Public callers use checked builders and immutable
+  projections; C01 retains separate ownership of the coordinated-adjective
+  relative construction.
 - **Holes and constraints:** NP, VP, adjective, and PP subtree holes plus
   relative-marker/auxiliary identity. Subject/object gap, relativizer,
   predicate valency, contraction, agreement, and distributive `each` are

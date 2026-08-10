@@ -433,7 +433,7 @@ pub(super) fn internal_categories(groups: &[&'static GroupData]) -> BTreeMap<&'s
 fn engine_category(name: &str) -> Option<Nonterminal> {
     Some(match name {
         "Verb" => Nonterminal::Verb,
-        "VerbPhrase" => Nonterminal::VerbPhrase,
+        "VerbPhrase" | "Predicate" => Nonterminal::VerbPhrase,
         "Adjective" => Nonterminal::Adjective,
         "Noun" | "NounInstance" => Nonterminal::Noun,
         "NounPhrase" => Nonterminal::NounPhrase,
@@ -449,7 +449,6 @@ fn engine_category(name: &str) -> Option<Nonterminal> {
         "GerundClause" => Nonterminal::GerundClause,
         "FrequencyPhrase" => Nonterminal::FrequencyPhrase,
         "RelativeClause" => Nonterminal::RelativeClause,
-        "Predicate" => Nonterminal::VerbPhrase,
         "ObjectGapPredicate" => Nonterminal::ObjectGapVerbPhrase,
         "TransitivePredicate" => Nonterminal::ReducedRecipientPassive,
         "ReducedRecipientPassiveTheme" => Nonterminal::ReducedRecipientPassiveTheme,
