@@ -170,6 +170,9 @@ pub enum WorkItem {
     /// Surfaces `PayMana` when there is a choice; schedules tap/untap events
     /// for activations alongside it.
     OpenPayment,
+    /// Resume the payment command boundary after every event and ordinary
+    /// subdecision produced by one fulfillment has completed.
+    FinishPaymentFulfillment(crate::payment::IouId),
     /// [CR#705.1]: a resolving `FlipCoins` — draw `count` coins for `player`
     /// from the seeded rng and emit the `CoinFlipped` batch. `called`
     /// ([CR#705.2]) routes each coin through a `CallFlip` decision first

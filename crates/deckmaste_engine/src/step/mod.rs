@@ -161,6 +161,8 @@ pub enum Progress {
     CostPaid,
     /// The locked total cost became an explicit payment-obligation prompt.
     PaymentOpened,
+    /// A suspended cost fulfillment completed and the payment prompt resumed.
+    PaymentFulfilled(crate::payment::IouId),
     /// A resolution step ran (dispatch or one effect node) for this object.
     Resolving(crate::object::ObjectId),
     /// [CR#701.19c]: an instruction-scoped "can't be regenerated" rider was
@@ -257,6 +259,10 @@ impl GameState {
             WorkItem::OpenPayment => {
                 self.open_payment();
                 Progress::PaymentOpened
+            }
+            WorkItem::FinishPaymentFulfillment(iou) => {
+                self.finish_payment_fulfillment(iou);
+                Progress::PaymentFulfilled(iou)
             }
             WorkItem::FlipCoins {
                 player,

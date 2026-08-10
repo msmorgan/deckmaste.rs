@@ -130,7 +130,7 @@ impl LockedPayment {
     }
 }
 
-fn pip_accepts_unit(pip: ManaPip, kind: ColorOrColorless, riders: &[ManaRider]) -> bool {
+pub(super) fn pip_accepts_unit(pip: ManaPip, kind: ColorOrColorless, riders: &[ManaRider]) -> bool {
     match pip {
         ManaPip::Generic => true,
         ManaPip::Colored(color) => kind == ColorOrColorless::Color(color),
@@ -139,7 +139,7 @@ fn pip_accepts_unit(pip: ManaPip, kind: ColorOrColorless, riders: &[ManaRider]) 
     }
 }
 
-fn validate_pay_pips_object(
+pub(super) fn validate_pay_pips_object(
     state: &GameState,
     locked: &LockedPayment,
     act: &PayAct,

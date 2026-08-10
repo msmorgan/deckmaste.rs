@@ -4,21 +4,30 @@ use std::sync::Arc;
 use deckmaste_card::Card;
 use deckmaste_card::CardFace;
 use deckmaste_core::Ability;
+use deckmaste_core::Action as CoreAction;
 use deckmaste_core::ActivatedAbility;
+use deckmaste_core::Color;
+use deckmaste_core::ColorOrColorless;
 use deckmaste_core::Cost;
 use deckmaste_core::CostComponent;
+use deckmaste_core::Destination;
 use deckmaste_core::ManaCost;
 use deckmaste_core::OneShotEffect;
+use deckmaste_core::Reference;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
+use deckmaste_engine::FulfillmentWitness;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameState;
 use deckmaste_engine::IouId;
 use deckmaste_engine::IouKind;
 use deckmaste_engine::ManaCoverage;
 use deckmaste_engine::ManaPayment;
+use deckmaste_engine::ManaPip;
+use deckmaste_engine::ManaProvenance;
 use deckmaste_engine::PaymentCommand;
+use deckmaste_engine::PaymentProgress;
 use deckmaste_engine::PaymentStage;
 use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
@@ -110,6 +119,17 @@ fn payment_prompt(state: &GameState) -> deckmaste_engine::PaymentPrompt {
     }
 }
 
+fn submit_and_run_to_payment(state: &mut GameState, command: PaymentCommand) {
+    state.submit_decision(Decision::Payment(command)).unwrap();
+    loop {
+        match state.step() {
+            StepOutcome::Progress(_) => {}
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => return,
+            other => panic!("unexpected stop while completing a fulfillment: {other:?}"),
+        }
+    }
+}
+
 #[test]
 fn tap_cost_opens_paying_without_mutating_committed_image() {
     let (mut state, _, source) = activation_fixture(vec![CostComponent::Tap]);
@@ -123,6 +143,167 @@ fn tap_cost_opens_paying_without_mutating_committed_image() {
     assert!(state.committed().announcing.is_none());
     assert!(!state.objects.obj(source).tapped);
     assert!(!state.committed().objects.obj(source).tapped);
+}
+
+#[test]
+fn tap_cost_requires_fulfill_then_submit() {
+    let (mut state, _, source) = activation_fixture(vec![CostComponent::Tap]);
+    announce_to_payment(&mut state, source);
+    let tap = payment_prompt(&state).outstanding[0].id;
+
+    submit_and_run_to_payment(
+        &mut state,
+        PaymentCommand::Fulfill {
+            iou: tap,
+            witness: FulfillmentWitness::Bound,
+        },
+    );
+    assert!(state.objects.obj(source).tapped);
+    assert_eq!(payment_prompt(&state).stage, PaymentStage::Ready);
+    assert!(!state.committed().objects.obj(source).tapped);
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    assert!(state.committed().objects.obj(source).tapped);
+}
+
+#[test]
+fn fulfillment_stays_in_flight_until_its_finish_sentinel() {
+    let (mut state, _, source) = activation_fixture(vec![CostComponent::Tap]);
+    announce_to_payment(&mut state, source);
+    let tap = payment_prompt(&state).outstanding[0].id;
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: tap,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    assert_eq!(
+        state.payment_progress(),
+        Some(PaymentProgress::Fulfilling {
+            iou: tap,
+            witness: FulfillmentWitness::Bound,
+        })
+    );
+    assert!(state.pending.is_none());
+    assert!(!state.objects.obj(source).tapped);
+
+    assert!(matches!(state.step(), StepOutcome::Progress(_)));
+    assert!(state.objects.obj(source).tapped);
+    assert!(matches!(
+        state.payment_progress(),
+        Some(PaymentProgress::Fulfilling { iou, .. }) if iou == tap
+    ));
+
+    assert!(matches!(state.step(), StepOutcome::Progress(_)));
+    assert_eq!(state.payment_progress(), Some(PaymentProgress::Idle));
+    assert_eq!(payment_prompt(&state).stage, PaymentStage::Ready);
+}
+
+#[test]
+fn deferred_library_iou_waits_for_the_ordinary_tier() {
+    let library_move = CostComponent::Act(Arc::new(CoreAction::Move(
+        Reference::This,
+        Destination::Zone(Zone::Exile),
+        Arc::from([]),
+        Some(Zone::Library),
+    )));
+    let (mut state, _, source) = activation_fixture(vec![CostComponent::Tap, library_move]);
+    announce_to_payment(&mut state, source);
+    let prompt = payment_prompt(&state);
+    let tap = prompt
+        .outstanding
+        .iter()
+        .find(|iou| matches!(iou.kind, IouKind::Tap))
+        .unwrap()
+        .id;
+    let library = prompt
+        .outstanding
+        .iter()
+        .find(|iou| matches!(iou.kind, IouKind::Act(_)))
+        .unwrap()
+        .id;
+    assert_eq!(prompt.fulfillable, vec![tap]);
+
+    let before = payment_prompt(&state);
+    assert!(
+        state
+            .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+                iou: library,
+                witness: FulfillmentWitness::Bound,
+            }))
+            .is_err()
+    );
+    assert_eq!(payment_prompt(&state), before);
+
+    submit_and_run_to_payment(
+        &mut state,
+        PaymentCommand::Fulfill {
+            iou: tap,
+            witness: FulfillmentWitness::Bound,
+        },
+    );
+    assert_eq!(payment_prompt(&state).fulfillable, vec![library]);
+}
+
+#[test]
+fn mana_pips_spend_covered_units_one_at_a_time() {
+    let cost: ManaCost = "{1}{G}".parse().unwrap();
+    let (mut state, payer, source) = activation_fixture(vec![CostComponent::Mana(cost)]);
+    let colorless = state.player_mut(payer).mana_pool.add(
+        ColorOrColorless::Colorless,
+        1,
+        ManaProvenance::default(),
+    )[0];
+    let green = state.player_mut(payer).mana_pool.add(
+        ColorOrColorless::Color(Color::Green),
+        1,
+        ManaProvenance::default(),
+    )[0];
+    announce_to_payment(&mut state, source);
+
+    let prompt = payment_prompt(&state);
+    let generic_iou = prompt
+        .outstanding
+        .iter()
+        .find(|iou| matches!(iou.kind, IouKind::ManaPip(ManaPip::Generic)))
+        .unwrap()
+        .id;
+    let green_iou = prompt
+        .outstanding
+        .iter()
+        .find(|iou| matches!(iou.kind, IouKind::ManaPip(ManaPip::Colored(Color::Green))))
+        .unwrap()
+        .id;
+    let mut coverage = ManaCoverage::empty();
+    coverage.insert(generic_iou, ManaPayment::Floating(colorless));
+    coverage.insert(green_iou, ManaPayment::Floating(green));
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::BeginPayment(coverage)))
+        .unwrap();
+
+    submit_and_run_to_payment(
+        &mut state,
+        PaymentCommand::Fulfill {
+            iou: green_iou,
+            witness: FulfillmentWitness::CoveredMana,
+        },
+    );
+    assert!(state.player(payer).mana_pool.get(green).is_none());
+    assert!(state.player(payer).mana_pool.get(colorless).is_some());
+    assert_eq!(payment_prompt(&state).stage, PaymentStage::Paying);
+
+    submit_and_run_to_payment(
+        &mut state,
+        PaymentCommand::Fulfill {
+            iou: generic_iou,
+            witness: FulfillmentWitness::CoveredMana,
+        },
+    );
+    assert!(state.player(payer).mana_pool.is_empty());
+    assert_eq!(payment_prompt(&state).stage, PaymentStage::Ready);
 }
 
 #[test]
