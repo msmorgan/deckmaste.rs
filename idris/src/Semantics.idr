@@ -504,6 +504,12 @@ namespace EventKind
     -- `[GainControl] [Actor you, Agent creature]`. Verb-name reuse with the `GainControl` MODIFICATION
     -- (type-directed, like `GainLife`). Supplies the permanent (object) + the gainer (actor); no amount.
     GainControl : EventKind
+    -- The three causal forms used to classify and immediately resolve
+    -- triggered mana abilities ([CR#605.1b]): activation, aggregate
+    -- production by one mana action, and each concrete pool addition.
+    ManaAbilityActivated : EventKind
+    ManaProduced : EventKind
+    ManaAdded : EventKind
     -- "whenever a land is tapped for mana" ([CR#106.12]) — the ONE event kind whose `producesMana` cap is
     -- True (it IS a mana ability resolving), gating `ProducedByEvent` ([CR#106.12a]). Object = the tapped
     -- permanent, actor = its controller (the tapper); Vorinclex/Dictate of Karametra read the object's
@@ -551,6 +557,9 @@ eventKindCaps Draw              = MkEventCaps False True  True  Nothing       Fa
 eventKindCaps GainLife          = MkEventCaps False True  True  Nothing       False False
 eventKindCaps LoseLife          = MkEventCaps False True  True  Nothing       False False
 eventKindCaps GainControl       = MkEventCaps True  True  False Nothing       False False
+eventKindCaps ManaAbilityActivated = MkEventCaps True True False Nothing      False False
+eventKindCaps ManaProduced      = MkEventCaps True  True  True  Nothing       False True
+eventKindCaps ManaAdded         = MkEventCaps True  True  True  Nothing       False True
 -- a discard's amount is its card count ([CR#701.9a]; the engine's apply
 -- funnel fixes the batch size) -- Collective Defiance's "then draws that
 -- many cards" reads it.
@@ -1055,6 +1064,9 @@ eventKindObjectSort (Begins _) = Permanent                 -- attacker/blocker/a
 eventKindObjectSort GainLife = Permanent                   -- (no object cap; unused)
 eventKindObjectSort LoseLife = Permanent
 eventKindObjectSort GainControl = Permanent                -- the "of" permanent
+eventKindObjectSort ManaAbilityActivated = Permanent       -- the ability source
+eventKindObjectSort ManaProduced = Permanent               -- the producing source
+eventKindObjectSort ManaAdded = Permanent                  -- the producing source
 eventKindObjectSort TapForMana = Permanent                 -- the tapped land
 eventKindObjectSort RollDice = Permanent                   -- (no object cap; unused)
 eventKindObjectSort (FlipCoin _) = Permanent               -- (no object cap; unused)

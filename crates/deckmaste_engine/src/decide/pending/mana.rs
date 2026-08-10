@@ -43,6 +43,7 @@ impl DecisionHandler for ChooseManaColor {
                 amount,
                 riders,
                 provenance,
+                units: Vec::new(),
             }),
         ))]);
         Ok(())
@@ -88,6 +89,7 @@ impl DecisionHandler for ChooseManaMode {
                     amount,
                     riders: riders.clone(),
                     provenance,
+                    units: Vec::new(),
                 })
             })
             .collect();

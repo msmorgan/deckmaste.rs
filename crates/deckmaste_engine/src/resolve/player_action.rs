@@ -622,7 +622,7 @@ impl GameState {
                 riders.extend(self.snow_provenance(frame.source));
                 let provenance = crate::player::ManaProvenance {
                     source: Some(frame.source),
-                    action: None,
+                    action: self.resolving_mana_actions.last().copied(),
                 };
                 match spec {
                     // A fixed production needs no choice.
@@ -634,6 +634,7 @@ impl GameState {
                                 amount,
                                 riders,
                                 provenance,
+                                units: Vec::new(),
                             },
                         )))]
                     }
@@ -709,16 +710,34 @@ impl GameState {
                             }]
                         }
                     }
-                    // [CR#106.12a]: sound only inside a `TapForMana`-
-                    // triggered body ("of any type that land produced",
-                    // Dictate of Karametra/Vorinclex) — the SAME
-                    // absent-subsystem gap `EventFilter::TapForMana`
-                    // documents in `eval.rs` (no engine fact records which
-                    // permanent produced what). A documented no-op: adding
-                    // zero mana is never-crash-safe and doesn't fabricate a
-                    // plausible-but-wrong color the way falling back to
-                    // colorless would.
-                    ManaSpec::ProducedByEvent => vec![],
+                    ManaSpec::ProducedByEvent => {
+                        let mut options = Vec::new();
+                        for mana in &frame.anaphora.produced_mana {
+                            if !options.contains(mana) {
+                                options.push(*mana);
+                            }
+                        }
+                        match options.as_slice() {
+                            [] => vec![],
+                            [mana] => vec![WorkItem::Emit(Occurrence::Single(
+                                GameEvent::ManaAdded(ManaAdded {
+                                    player: actor,
+                                    mana: *mana,
+                                    amount,
+                                    riders,
+                                    provenance,
+                                    units: Vec::new(),
+                                }),
+                            ))],
+                            _ => vec![WorkItem::ChooseManaColor {
+                                player: actor,
+                                options,
+                                amount,
+                                riders,
+                                provenance,
+                            }],
+                        }
+                    }
                 }
             }
             Action::Create {

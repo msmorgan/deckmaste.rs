@@ -229,6 +229,9 @@ pub struct ManaAdded {
     pub amount: Uint,
     pub riders: Vec<deckmaste_core::ManaRider>,
     pub provenance: crate::player::ManaProvenance,
+    /// Stable identities minted by apply. Intents carry an empty list; the
+    /// occurred fact carries exactly the units it added.
+    pub units: Vec<crate::player::FloatingManaId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -299,6 +302,39 @@ pub struct Copied {
 pub struct AbilityActivated {
     pub source: ObjectId,
     pub ability: usize,
+}
+
+/// A lowering-classified activated mana ability became activated. It is an
+/// activation fact, but unlike [`AbilityActivated`] it never promotes an
+/// announce slot onto the stack ([CR#605.3b]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ManaAbilityActivated {
+    pub source: crate::lki::LkiSnapshot,
+    pub ability: usize,
+    pub controller: PlayerId,
+    pub action: crate::player::ManaActionId,
+}
+
+/// One stackless mana action completed and produced these concrete units.
+/// This is distinct from each lower-level [`ManaAdded`] fact: a single mana
+/// ability may add several kinds of mana in several instructions.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ManaProduced {
+    pub source: crate::lki::LkiSnapshot,
+    pub controller: PlayerId,
+    pub action: crate::player::ManaActionId,
+    pub produced: Vec<crate::player::ManaUnit>,
+}
+
+/// A permanent's `{T}` mana ability finished resolving and actually produced
+/// mana. The produced units are the event-local context used by triggered
+/// mana abilities such as "add one mana of any type it produced."
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TappedForMana {
+    pub source: crate::lki::LkiSnapshot,
+    pub controller: PlayerId,
+    pub action: crate::player::ManaActionId,
+    pub produced: Vec<crate::player::ManaUnit>,
 }
 
 /// [CR#120.3] — damage to a creature (marked) or a player (life loss).
@@ -736,6 +772,9 @@ pub enum GameEvent {
     SpellCast(ObjectId),
     Copied(Copied),
     AbilityActivated(AbilityActivated),
+    ManaAbilityActivated(ManaAbilityActivated),
+    ManaProduced(ManaProduced),
+    TappedForMana(TappedForMana),
     DamageDealt(DamageDealt),
     ZoneChange(ZoneChange),
     LifeLost(LifeLost),

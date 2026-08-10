@@ -472,6 +472,11 @@ pub const IDENTITY_ROWS: &[IdentityRow] = &[
     },
     IdentityRow {
         kind: "Count",
+        variant: "ManaAvailableKind",
+        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }, ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+    },
+    IdentityRow {
+        kind: "Count",
         variant: "Max",
         signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }, ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
     },
@@ -679,6 +684,21 @@ pub const IDENTITY_ROWS: &[IdentityRow] = &[
         kind: "EventFilter",
         variant: "LifeLost",
         signature: "Named([(\"amount\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"who\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] })])",
+    },
+    IdentityRow {
+        kind: "EventFilter",
+        variant: "ManaAbilityActivated",
+        signature: "Named([(\"by\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"what\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] })])",
+    },
+    IdentityRow {
+        kind: "EventFilter",
+        variant: "ManaAdded",
+        signature: "Named([(\"by\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"what\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] })])",
+    },
+    IdentityRow {
+        kind: "EventFilter",
+        variant: "ManaProduced",
+        signature: "Named([(\"by\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] }), (\"what\", ParamType { name: Ident(\"Any\"), default: None, elidable: true, binds: [] })])",
     },
     IdentityRow {
         kind: "EventFilter",

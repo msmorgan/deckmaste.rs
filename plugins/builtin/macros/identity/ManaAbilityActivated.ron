@@ -1,0 +1,6 @@
+(
+    name: "ManaAbilityActivated",
+    kinds: [EventFilter],
+    params: { "what": Elidable(Any), "by": Elidable(Any) },
+    body: ManaAbilityActivated(what: Param(what), by: Param(by)),
+)

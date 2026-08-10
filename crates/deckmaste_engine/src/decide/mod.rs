@@ -507,10 +507,8 @@ use crate::event::Act;
 use crate::event::Cause;
 use crate::event::DamageDealt;
 use crate::event::GameEvent;
-use crate::event::ManaAdded;
 use crate::event::Occurrence;
 use crate::event::PlayerLost;
-use crate::event::Tapped;
 use crate::event::ZoneChange;
 use crate::state::GameState;
 
@@ -609,7 +607,8 @@ impl GameState {
                 let abilities = derive::usable_abilities(self, *object);
                 abilities
                     .get(*ability)
-                    .is_some_and(|a| derive::tap_mana_ability(a).is_none())
+                    .and_then(crate::activate::as_activated)
+                    .is_some()
             }
             Action::Pass | Action::Concede | Action::Special(_) | Action::PlayLand { .. } => false,
         }
@@ -1005,37 +1004,11 @@ impl GameState {
                     "ability index from the legal list is in bounds (state frozen by pending)",
                 );
                 self.reset_passes();
-                if let Some((mana, amount)) = derive::tap_mana_ability(a) {
-                    // [CR#605.3b]: mana abilities skip the stack entirely.
-                    // [CR#107.4h]: mana from a snow source (a snow permanent —
-                    // one with the Snow supertype) is snow mana; tag the unit so
-                    // a later task can pay {S}. The ability text declares no
-                    // riders on this path, so the source's snow-ness is the only
-                    // contribution.
-                    //
-                    // NB: `snow_provenance` does a SECOND `layers()` rebuild
-                    // (the first was the `derive::abilities` call above). Cheap
-                    // per action; revisit if mana activation becomes a profiling
-                    // hotspot (the repo has prior `layers()` perf history).
-                    let riders = self.snow_provenance(*object);
-                    let mut items = vec![
-                        WorkItem::Emit(Occurrence::single(GameEvent::Tapped(Tapped {
-                            object: *object,
-                            cause: Some(Cause::tap(Agency::CostPayment, None)),
-                        }))),
-                        WorkItem::Emit(Occurrence::single(GameEvent::ManaAdded(ManaAdded {
-                            player,
-                            mana,
-                            amount,
-                            riders,
-                            provenance: crate::player::ManaProvenance {
-                                source: Some(*object),
-                                action: None,
-                            },
-                        }))),
-                    ];
-                    items.extend(Self::priority_tail());
-                    self.schedule_front(items);
+                if matches!(
+                    a.as_mana(),
+                    Some(deckmaste_core::ManaAbility::Activated { .. })
+                ) {
+                    self.activate_root_mana_ability(*object, *ability);
                 } else {
                     // [CR#602.2b]: the casting steps, for an ability.
                     let items = Self::announce_schedule(

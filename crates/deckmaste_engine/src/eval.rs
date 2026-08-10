@@ -54,12 +54,15 @@ use crate::event::GameEvent;
 use crate::event::GotDesignation;
 use crate::event::LifeGained;
 use crate::event::LifeLost;
+use crate::event::ManaAbilityActivated;
 use crate::event::ManaAdded;
 use crate::event::ManaEmptied;
+use crate::event::ManaProduced;
 use crate::event::PlayerLost;
 use crate::event::PlayerWon;
 use crate::event::Revealed;
 use crate::event::Tapped;
+use crate::event::TappedForMana;
 use crate::event::TokenCreated;
 use crate::event::TriggerFired;
 use crate::event::TurnBegan;
@@ -198,6 +201,10 @@ pub(crate) enum FactKind {
     Cast,
     Copied,
     ActivatedAb,
+    ManaAbilityActivated,
+    ManaProduced,
+    ManaAdded,
+    TappedForMana,
     AttackDeclared,
     BlockDeclared,
     Attached,
@@ -504,6 +511,54 @@ impl<'a> FactView<'a> {
                 v.object = Some(part(*source));
                 v.actor = controller_of(*source);
             }
+            GameEvent::ManaAbilityActivated(ManaAbilityActivated {
+                source,
+                controller,
+                ..
+            }) => {
+                v = FactView::bare(FactKind::ManaAbilityActivated, state);
+                v.object = Some(Part::Gone(Cow::Borrowed(source)));
+                v.actor = Some(*controller);
+            }
+            GameEvent::ManaProduced(ManaProduced {
+                source,
+                controller,
+                produced,
+                ..
+            }) => {
+                v = FactView::bare(FactKind::ManaProduced, state);
+                v.object = Some(Part::Gone(Cow::Borrowed(source)));
+                v.actor = Some(*controller);
+                v.amount = Some(
+                    Uint::try_from(produced.len()).expect("produced mana count fits in Uint"),
+                );
+            }
+            GameEvent::ManaAdded(ManaAdded {
+                player,
+                provenance,
+                units,
+                ..
+            }) => {
+                v = FactView::bare(FactKind::ManaAdded, state);
+                v.object = provenance.source.map(part);
+                v.actor = Some(*player);
+                v.amount = Some(
+                    Uint::try_from(units.len()).expect("added mana count fits in Uint"),
+                );
+            }
+            GameEvent::TappedForMana(TappedForMana {
+                source,
+                controller,
+                produced,
+                ..
+            }) => {
+                v = FactView::bare(FactKind::TappedForMana, state);
+                v.object = Some(Part::Gone(Cow::Borrowed(source)));
+                v.actor = Some(*controller);
+                v.amount = Some(
+                    Uint::try_from(produced.len()).expect("produced mana count fits in Uint"),
+                );
+            }
             // [CR#508.1k]: the attacker is the object; the thing attacked
             // ([CR#508.1b,506.3]) is the patient — the defending player's
             // proxy (read as a `Player` part, [CR#508.5]) or a planeswalker
@@ -634,7 +689,6 @@ impl<'a> FactView<'a> {
             | GameEvent::EmblemCreated(EmblemCreated { .. })
             | GameEvent::PlayerLost(PlayerLost { .. })
             | GameEvent::PlayerWon(PlayerWon { .. })
-            | GameEvent::ManaAdded(ManaAdded { .. })
             | GameEvent::ManaEmptied(ManaEmptied { .. })
             | GameEvent::Unattached(Unattached { .. })
             | GameEvent::DamageRemoved(DamageRemoved { .. }) => return None,
@@ -951,9 +1005,29 @@ impl GameState {
 
             // [CR#602.2a].
             EventFilter::ActivatedAb { who, what } => {
-                fact.kind == FactKind::ActivatedAb
-                    && self.actor_matches(who, fact.actor, bindings)
+                matches!(
+                    fact.kind,
+                    FactKind::ActivatedAb | FactKind::ManaAbilityActivated
+                ) && self.actor_matches(who, fact.actor, bindings)
                     && self.part_matches(what, fact.object.as_ref(), bindings)
+            }
+
+            EventFilter::ManaAbilityActivated { what, by } => {
+                fact.kind == FactKind::ManaAbilityActivated
+                    && self.part_matches(what, fact.object.as_ref(), bindings)
+                    && self.actor_matches(by, fact.actor, bindings)
+            }
+
+            EventFilter::ManaProduced { what, by } => {
+                fact.kind == FactKind::ManaProduced
+                    && self.part_matches(what, fact.object.as_ref(), bindings)
+                    && self.actor_matches(by, fact.actor, bindings)
+            }
+
+            EventFilter::ManaAdded { what, by } => {
+                fact.kind == FactKind::ManaAdded
+                    && self.part_matches(what, fact.object.as_ref(), bindings)
+                    && self.actor_matches(by, fact.actor, bindings)
             }
 
             // [CR#508.1k]: the defending player rides the record as its
@@ -1113,15 +1187,14 @@ impl GameState {
                 fact.kind == FactKind::DiceRolled && self.actor_matches(by, fact.actor, bindings)
             }
 
-            // [CR#106.12]: no engine fact for "a land was tapped for mana"
-            // exists yet — `PlayerAction::AddMana`'s resolution never
-            // records WHICH permanent produced the mana (a seam, alongside
-            // the coin-flip/dice-roll apply seam below).
-            // [CR#901.9]: nor does the Planechase planar die have one
-            // (Plane cards — a different game-object type — aren't modeled
-            // by this engine at all). Both never match: a documented
-            // absent-subsystem fizzle, not a soundness claim.
-            EventFilter::TapForMana { .. } | EventFilter::RollPlanarDie { .. } => false,
+            EventFilter::TapForMana { what, by } => {
+                fact.kind == FactKind::TappedForMana
+                    && self.part_matches(what, fact.object.as_ref(), bindings)
+                    && self.actor_matches(by, fact.actor, bindings)
+            }
+
+            // [CR#901.9]: Plane cards and the planar die are not modeled.
+            EventFilter::RollPlanarDie { .. } => false,
 
             // [CR#603.2]: refinement conjunction — one occurrence, every
             // sub-pattern.

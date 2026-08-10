@@ -3109,6 +3109,18 @@ fn emit_event_filter(ef: &EventFilter) -> Result<KindsAndFacets, Gap> {
             vec!["(Begins Activate)".to_string()].into(),
             actor_agent_facets(who, what)?,
         ),
+        EventFilter::ManaAbilityActivated { what, by } => (
+            vec!["ManaAbilityActivated".to_string()].into(),
+            actor_agent_facets(by, what)?,
+        ),
+        EventFilter::ManaProduced { what, by } => (
+            vec!["ManaProduced".to_string()].into(),
+            actor_agent_facets(by, what)?,
+        ),
+        EventFilter::ManaAdded { what, by } => (
+            vec!["ManaAdded".to_string()].into(),
+            actor_agent_facets(by, what)?,
+        ),
         EventFilter::AttackDeclared { by, against } => {
             if !matches!(against, Predicate::Any) {
                 return Err(gap(
@@ -3236,8 +3248,7 @@ fn emit_event_filter(ef: &EventFilter) -> Result<KindsAndFacets, Gap> {
             actor_facet(by)?,
         ),
         EventFilter::DiceRolled { by } => (vec!["RollDice".to_string()].into(), actor_facet(by)?),
-        // [CR#106.12,106.12a]: the ONE event kind whose `producesMana` cap
-        // is `True` — the tapped land is the Agent, its controller the
+        // [CR#106.12,106.12a]: the tapped land is the Agent, its controller the
         // Actor (Dictate of Karametra's trigger: `MkEventQuery [TapForMana]
         // [Actor you, Agent (hasType Land)]`).
         EventFilter::TapForMana { what, by } => {

@@ -1,6 +1,7 @@
 mod coverage;
 mod fulfill;
 mod iou;
+mod mana;
 
 use std::sync::Arc;
 
@@ -24,6 +25,7 @@ pub use iou::PaymentIou;
 pub use iou::PaymentRecordId;
 
 use crate::object::ObjectId;
+use crate::player::ManaActionId;
 use crate::player::ManaUnit;
 use crate::player::PlayerId;
 use crate::stack::Frame;
@@ -172,6 +174,9 @@ pub struct PaymentFrame {
     pub coverage: Option<ManaCoverage>,
     pub fulfilled: Vec<(IouId, FulfillmentWitness)>,
     pub progress: PaymentProgress,
+    /// The activated mana action whose announcement this nested frame owns.
+    /// Root announcements and optional payments leave this absent.
+    pub(crate) mana_action: Option<ManaActionId>,
     #[expect(
         dead_code,
         reason = "record ids are minted when the frame-local replay ledger lands"
@@ -194,6 +199,7 @@ impl PaymentFrame {
             coverage: None,
             fulfilled: Vec::new(),
             progress: PaymentProgress::Idle,
+            mana_action: None,
             next_record: 0,
         }
     }
@@ -225,7 +231,7 @@ impl PaymentFrame {
     }
 
     #[must_use]
-    pub(crate) fn prompt(&self) -> PaymentPrompt {
+    pub(crate) fn prompt(&self, mana_abilities: Vec<(ObjectId, usize)>) -> PaymentPrompt {
         let fulfilled: Vec<IouId> = self.fulfilled.iter().map(|(iou, _)| *iou).collect();
         let fulfilled_set: std::collections::HashSet<IouId> = fulfilled.iter().copied().collect();
         let outstanding: Vec<PaymentIou> = self
@@ -251,7 +257,7 @@ impl PaymentFrame {
                 .to_vec(),
             coverage: self.coverage.clone(),
             fulfillable,
-            mana_abilities: Vec::new(),
+            mana_abilities,
             rescindable: Vec::new(),
         }
     }
@@ -262,6 +268,7 @@ impl PaymentFrame {
 #[derive(Debug, Clone, Default)]
 pub struct PaymentController {
     pub(crate) frames: Vec<PaymentFrame>,
+    mana_actions: Vec<mana::ManaAction>,
 }
 
 impl GameState {
@@ -287,8 +294,9 @@ impl GameState {
             .last_mut()
             .expect("OpenPayment has a proposal frame");
         frame.initialize(locked);
-        let prompt = frame.prompt();
+        let prompt = frame.prompt(Vec::new());
         frame.working.pending = Some(crate::decide::PendingDecision::Payment(prompt));
+        self.refresh_payment_prompt();
     }
 
     /// Apply one payment-protocol command. Every rejection occurs before any
@@ -302,18 +310,36 @@ impl GameState {
             PaymentCommand::Fulfill { iou, witness } => self.fulfill_payment_iou(iou, witness),
             PaymentCommand::SubmitPayment => self.commit_payment(),
             PaymentCommand::DeclinePayment => {
-                // Root announcement decline: the outer committed image still
-                // contains the untouched priority prompt. Purpose-sensitive
-                // optional/nested reconstruction is added in later tasks.
-                self.payment = None;
+                let nested = self
+                    .payment
+                    .as_ref()
+                    .is_some_and(|controller| controller.frames.len() > 1);
+                if nested {
+                    let controller = self.payment.as_mut().expect("controller remains live");
+                    let child = controller.frames.pop().expect("nested frame remains live");
+                    let action = child
+                        .mana_action
+                        .expect("the only nested frame kind is a mana action");
+                    let active = controller
+                        .mana_actions
+                        .pop()
+                        .expect("a nested mana frame owns an active action");
+                    assert_eq!(active.id, action);
+                } else {
+                    // Root announcement decline: the outer committed image still
+                    // contains the untouched priority prompt. Purpose-sensitive
+                    // optional reconstruction is added in later tasks.
+                    self.payment = None;
+                }
                 Ok(())
             }
-            PaymentCommand::ActivateManaAbility { .. } | PaymentCommand::RescindFulfillment(_) => {
-                Err(crate::decide::DecisionError::Illegal {
-                    reason: "that payment operation is not available in this implementation slice"
-                        .into(),
-                })
+            PaymentCommand::ActivateManaAbility { source, ability } => {
+                self.activate_payment_mana_ability(source, ability)
             }
+            PaymentCommand::RescindFulfillment(_) => Err(crate::decide::DecisionError::Illegal {
+                reason: "that payment operation is not available in this implementation slice"
+                    .into(),
+            }),
         }
     }
 
@@ -348,8 +374,9 @@ impl GameState {
         } else {
             PaymentStage::Paying
         };
-        let prompt = frame.prompt();
+        let prompt = frame.prompt(Vec::new());
         frame.working.pending = Some(crate::decide::PendingDecision::Payment(prompt));
+        self.refresh_payment_prompt();
         Ok(())
     }
 
@@ -367,16 +394,22 @@ impl GameState {
                 reason: "SubmitPayment requires every IOU to be fulfilled".into(),
             });
         }
-        if controller.frames.len() != 1 {
-            return Err(crate::decide::DecisionError::Illegal {
-                reason: "nested payment submission is not available yet".into(),
-            });
-        }
-
+        let root = controller.frames.len() == 1;
+        let root_mana_action = root && frame.mana_action.is_some();
         self.pending = None;
-        let mut controller = self.payment.take().expect("controller remains live");
-        let frame = controller.frames.pop().expect("root frame remains live");
-        self.committed = frame.working;
+        if root && !root_mana_action {
+            let mut controller = self.payment.take().expect("controller remains live");
+            let frame = controller.frames.pop().expect("root frame remains live");
+            self.committed = frame.working;
+        } else if !root {
+            let controller = self.payment.as_mut().expect("controller remains live");
+            let child = controller.frames.pop().expect("child frame remains live");
+            let parent = controller
+                .frames
+                .last_mut()
+                .expect("parent frame remains live");
+            parent.working = child.working;
+        }
         Ok(())
     }
 
@@ -387,6 +420,15 @@ impl GameState {
             .as_ref()
             .and_then(|controller| controller.frames.last())
             .map(|frame| frame.progress.clone())
+    }
+
+    /// Number of active speculative payment frames, including nested mana
+    /// abilities.
+    #[must_use]
+    pub fn payment_depth(&self) -> usize {
+        self.payment
+            .as_ref()
+            .map_or(0, |controller| controller.frames.len())
     }
 }
 

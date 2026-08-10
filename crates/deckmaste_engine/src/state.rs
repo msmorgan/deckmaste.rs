@@ -485,6 +485,9 @@ pub struct GameImage {
     pub(crate) arrange_scope: Option<crate::state::ArrangeScope>,
     /// Parent rules-control slots suspended beneath a nested payment action.
     pub(crate) control_stack: Vec<crate::control::ControlSnapshot>,
+    /// Stackless mana actions whose effects are currently resolving. The top
+    /// identity is copied into every unit of mana that effect produces.
+    pub(crate) resolving_mana_actions: Vec<crate::player::ManaActionId>,
 }
 
 /// The public game façade: one committed image plus optional transactional
@@ -494,6 +497,9 @@ pub struct GameImage {
 pub struct GameState {
     pub(crate) committed: GameImage,
     pub(crate) payment: Option<crate::payment::PaymentController>,
+    /// Transaction-external stable identity source for activated and
+    /// triggered mana actions. Declined speculative images never reuse IDs.
+    pub(crate) next_mana_action: u64,
 }
 
 impl std::ops::Deref for GameState {
@@ -652,11 +658,22 @@ impl GameState {
             resolution_notes: std::collections::HashMap::new(),
             arrange_scope: None,
             control_stack: Vec::new(),
+            resolving_mana_actions: Vec::new(),
         };
         Self {
             committed,
             payment: None,
+            next_mana_action: 0,
         }
+    }
+
+    pub(crate) fn mint_mana_action(&mut self) -> crate::player::ManaActionId {
+        let id = crate::player::ManaActionId(self.next_mana_action);
+        self.next_mana_action = self
+            .next_mana_action
+            .checked_add(1)
+            .expect("mana action id overflow");
+        id
     }
 
     #[must_use]
