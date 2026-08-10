@@ -1,15 +1,26 @@
-//! Checked construction, projection, and rendering API for nonfinite clauses.
+//! Checked construction, projection, and rendering API for clauses.
 //!
-//! Every builder validates the generated F01 declaration before returning a
-//! sealed syntax value. Matching `parts_*` functions expose immutable inverse
+//! Every builder validates its generated declaration before returning a sealed
+//! syntax value. Matching `parts_*` functions expose immutable inverse
 //! projections without reopening the representation.
 
 use deckmaste_construction_compiler::runtime::DeclarationViolation;
 
 use crate::RenderError;
+use crate::features::Conjunction;
+use crate::syntax::AdjectivePhrase;
+use crate::syntax::Clause;
+use crate::syntax::ExceptionRider;
+use crate::syntax::ExceptionRiderList;
 use crate::syntax::GerundClause;
 use crate::syntax::InfinitiveClause;
+use crate::syntax::NounPhrase;
 use crate::syntax::Predicate;
+use crate::syntax::PrepositionalPhrase;
+use crate::syntax::RestrictionCoordination;
+use crate::syntax::RestrictionMember;
+use crate::syntax::Subordinator;
+use crate::word::Vocab;
 
 fn staged(predicate: &Predicate) -> Result<crate::grammar::VerbPhrase, DeclarationViolation> {
     crate::constructions::predicate::inverse_public_predicate(predicate)
@@ -131,4 +142,361 @@ pub fn render_gerund(
     is_legendary: bool,
 ) -> Result<String, RenderError> {
     crate::renderer::render_gerund_clause(value, name, is_legendary)
+}
+
+/// Builds a fronted ordinary adverb attachment.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the supplied values do not satisfy
+/// this construction.
+pub fn build_clause_adverb_before(
+    adverb: Vocab,
+    host: Clause,
+) -> Result<Clause, DeclarationViolation> {
+    crate::constructions::attachment::build_clause_adverb_before(adverb, host)
+}
+
+/// Projects a fronted ordinary adverb attachment.
+#[must_use]
+pub fn parts_clause_adverb_before(value: &Clause) -> (Vocab, Clause) {
+    crate::constructions::attachment::parts_clause_adverb_before(value)
+}
+
+/// Builds a comma-delimited fronted sentence adverbial.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the supplied values do not satisfy
+/// this construction.
+pub fn build_clause_sentence_adverbial_before(
+    adverb: Vocab,
+    host: Clause,
+) -> Result<Clause, DeclarationViolation> {
+    crate::constructions::attachment::build_clause_sentence_adverbial_before(adverb, host)
+}
+
+/// Projects a fronted sentence adverbial.
+#[must_use]
+pub fn parts_clause_sentence_adverbial_before(value: &Clause) -> (Vocab, Clause) {
+    crate::constructions::attachment::parts_clause_sentence_adverbial_before(value)
+}
+
+/// Builds a comma-delimited fronted prepositional attachment.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the supplied values do not satisfy
+/// this construction.
+pub fn build_clause_prepositional_before(
+    preposition: PrepositionalPhrase,
+    host: Clause,
+) -> Result<Clause, DeclarationViolation> {
+    crate::constructions::attachment::build_clause_prepositional_before(preposition, host)
+}
+
+/// Projects a fronted prepositional attachment.
+#[must_use]
+pub fn parts_clause_prepositional_before(value: &Clause) -> (PrepositionalPhrase, Clause) {
+    crate::constructions::attachment::parts_clause_prepositional_before(value)
+}
+
+/// Builds a comma-delimited fronted finite subordinate clause.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the supplied values do not satisfy
+/// this construction.
+pub fn build_clause_subordinate_before(
+    subordinator: Subordinator,
+    condition: Clause,
+    host: Clause,
+) -> Result<Clause, DeclarationViolation> {
+    crate::constructions::attachment::build_clause_subordinate_before(subordinator, condition, host)
+}
+
+/// Projects a fronted finite subordinate clause.
+#[must_use]
+pub fn parts_clause_subordinate_before(value: &Clause) -> (Subordinator, Clause, Clause) {
+    crate::constructions::attachment::parts_clause_subordinate_before(value)
+}
+
+/// Builds a fronted `while` gerund clause.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the supplied values do not satisfy
+/// this construction.
+pub fn build_clause_subordinate_gerund_before(
+    gerund: GerundClause,
+    host: Clause,
+) -> Result<Clause, DeclarationViolation> {
+    crate::constructions::attachment::build_clause_subordinate_gerund_before(gerund, host)
+}
+
+/// Projects a fronted `while` gerund clause.
+#[must_use]
+pub fn parts_clause_subordinate_gerund_before(value: &Clause) -> (GerundClause, Clause) {
+    crate::constructions::attachment::parts_clause_subordinate_gerund_before(value)
+}
+
+/// Builds a trailing elliptical subordinate clause.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the supplied values do not satisfy
+/// this construction.
+pub fn build_clause_subordinate_after_elliptical(
+    host: Clause,
+    subordinator: Subordinator,
+    adjective: AdjectivePhrase,
+) -> Result<Clause, DeclarationViolation> {
+    crate::constructions::attachment::build_clause_subordinate_after_elliptical(
+        host,
+        subordinator,
+        adjective,
+    )
+}
+
+/// Projects a trailing elliptical subordinate clause.
+#[must_use]
+pub fn parts_clause_subordinate_after_elliptical(
+    value: &Clause,
+) -> (Clause, Subordinator, AdjectivePhrase) {
+    crate::constructions::attachment::parts_clause_subordinate_after_elliptical(value)
+}
+
+/// Builds a trailing finite subordinate clause without a comma.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the supplied values do not satisfy
+/// this construction.
+pub fn build_clause_subordinate_after(
+    host: Clause,
+    subordinator: Subordinator,
+    condition: Clause,
+) -> Result<Clause, DeclarationViolation> {
+    crate::constructions::attachment::build_clause_subordinate_after(host, subordinator, condition)
+}
+
+/// Projects a trailing finite subordinate clause without a comma.
+#[must_use]
+pub fn parts_clause_subordinate_after(value: &Clause) -> (Clause, Subordinator, Clause) {
+    crate::constructions::attachment::parts_clause_subordinate_after(value)
+}
+
+/// Builds a comma-delimited trailing finite subordinate clause.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the supplied values do not satisfy
+/// this construction.
+pub fn build_clause_subordinate_after_comma(
+    host: Clause,
+    subordinator: Subordinator,
+    condition: Clause,
+) -> Result<Clause, DeclarationViolation> {
+    crate::constructions::attachment::build_clause_subordinate_after_comma(
+        host,
+        subordinator,
+        condition,
+    )
+}
+
+/// Projects a comma-delimited trailing finite subordinate clause.
+#[must_use]
+pub fn parts_clause_subordinate_after_comma(value: &Clause) -> (Clause, Subordinator, Clause) {
+    crate::constructions::attachment::parts_clause_subordinate_after_comma(value)
+}
+
+/// Builds a trailing `rather than` bare-infinitive clause.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the supplied values do not satisfy
+/// this construction.
+pub fn build_clause_subordinate_after_infinitive(
+    host: Clause,
+    predicate: &Predicate,
+) -> Result<Clause, DeclarationViolation> {
+    crate::constructions::attachment::build_clause_subordinate_after_infinitive(
+        host,
+        staged(predicate)?,
+    )
+}
+
+/// Projects a trailing `rather than` clause.
+#[must_use]
+pub fn parts_clause_subordinate_after_infinitive(value: &Clause) -> (Clause, Predicate) {
+    let (host, predicate) =
+        crate::constructions::attachment::parts_clause_subordinate_after_infinitive(value);
+    (host, projected(predicate))
+}
+
+/// Builds a one-clause exception rider.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the supplied values do not satisfy
+/// this construction.
+pub fn build_exception_rider_single(
+    clause: Clause,
+) -> Result<ExceptionRider, DeclarationViolation> {
+    crate::constructions::attachment::build_exception_rider_single(clause)
+}
+
+/// Projects the clause from a one-clause exception rider.
+#[must_use]
+pub fn parts_exception_rider_single(value: &ExceptionRider) -> Clause {
+    crate::constructions::attachment::parts_exception_rider_single(value)
+}
+
+/// Appends a bare-conjunction clause to an exception rider.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the supplied values do not satisfy
+/// this construction.
+pub fn build_exception_rider_conjoined(
+    rider: ExceptionRider,
+    conjunction: Conjunction,
+    clause: Clause,
+) -> Result<ExceptionRider, DeclarationViolation> {
+    crate::constructions::attachment::build_exception_rider_conjoined(rider, conjunction, clause)
+}
+
+/// Projects a bare-conjunction exception rider.
+#[must_use]
+pub fn parts_exception_rider_conjoined(
+    value: &ExceptionRider,
+) -> (ExceptionRider, Conjunction, Clause) {
+    crate::constructions::attachment::parts_exception_rider_conjoined(value)
+}
+
+/// Builds or extends a comma-open exception rider.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the supplied values do not satisfy
+/// this construction.
+pub fn build_exception_rider_comma(
+    rider: Option<ExceptionRider>,
+    list: Option<ExceptionRiderList>,
+    clause: Clause,
+) -> Result<ExceptionRiderList, DeclarationViolation> {
+    crate::constructions::attachment::build_exception_rider_comma(rider, list, clause)
+}
+
+/// Projects one comma-open exception-rider step.
+#[must_use]
+pub fn parts_exception_rider_comma(
+    value: &ExceptionRiderList,
+) -> (Option<ExceptionRider>, Option<ExceptionRiderList>, Clause) {
+    crate::constructions::attachment::parts_exception_rider_comma(value)
+}
+
+/// Closes a comma-open exception rider with an Oxford conjunction.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the supplied values do not satisfy
+/// this construction.
+pub fn build_exception_rider_oxford(
+    rider: ExceptionRiderList,
+    conjunction: Conjunction,
+    clause: Clause,
+) -> Result<ExceptionRider, DeclarationViolation> {
+    crate::constructions::attachment::build_exception_rider_oxford(rider, conjunction, clause)
+}
+
+/// Projects an Oxford exception-rider close.
+#[must_use]
+pub fn parts_exception_rider_oxford(
+    value: &ExceptionRider,
+) -> (ExceptionRiderList, Conjunction, Clause) {
+    crate::constructions::attachment::parts_exception_rider_oxford(value)
+}
+
+/// Attaches a complete or comma-open exception rider to a host clause.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the supplied values do not satisfy
+/// this construction.
+pub fn build_clause_excepted(
+    host: Clause,
+    rider: Option<ExceptionRider>,
+    list: Option<ExceptionRiderList>,
+) -> Result<Clause, DeclarationViolation> {
+    crate::constructions::attachment::build_clause_excepted(host, rider, list)
+}
+
+/// Projects an exception rider from its host clause.
+#[must_use]
+pub fn parts_clause_excepted(
+    value: &Clause,
+) -> (Clause, Option<ExceptionRider>, Option<ExceptionRiderList>) {
+    crate::constructions::attachment::parts_clause_excepted(value)
+}
+
+/// Builds one typed restriction member.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the supplied values do not satisfy
+/// this construction.
+pub fn build_clause_restriction_member(
+    preposition: Option<PrepositionalPhrase>,
+    condition: Option<Clause>,
+    temporal: Option<NounPhrase>,
+) -> Result<RestrictionMember, DeclarationViolation> {
+    crate::constructions::attachment::build_clause_restriction_member(
+        preposition,
+        condition,
+        temporal,
+    )
+}
+
+/// Projects one typed restriction member.
+#[must_use]
+pub fn parts_clause_restriction_member(
+    value: &RestrictionMember,
+) -> (
+    Option<PrepositionalPhrase>,
+    Option<Clause>,
+    Option<NounPhrase>,
+) {
+    crate::constructions::attachment::parts_clause_restriction_member(value)
+}
+
+/// Creates one continuation in a validated restriction run.
+#[must_use]
+pub fn restriction_coordination(
+    conjunction: Option<Conjunction>,
+    member: RestrictionMember,
+) -> RestrictionCoordination {
+    RestrictionCoordination::from_declaration_parts(conjunction, member)
+}
+
+/// Builds a two-or-more-member trailing restriction run.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the supplied values do not satisfy
+/// this construction.
+pub fn build_clause_restriction_run(
+    host: Clause,
+    first: RestrictionMember,
+    rest: Vec<RestrictionCoordination>,
+) -> Result<Clause, DeclarationViolation> {
+    crate::constructions::attachment::build_clause_restriction_run(host, first, rest)
+}
+
+/// Projects a trailing restriction run.
+#[must_use]
+pub fn parts_clause_restriction_run(
+    value: &Clause,
+) -> (Clause, RestrictionMember, Vec<RestrictionCoordination>) {
+    crate::constructions::attachment::parts_clause_restriction_run(value)
 }

@@ -1559,14 +1559,14 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             Self::coordinates_with_or(body).then(|| body.clone())
         })?;
         Some(Sentence::from_body(SentenceBody::Independent(
-            IndependentClause::Complex(ComplexClause {
-                matrix: Box::new(matrix),
-                attachments: vec![ClauseAttachment {
-                    position: AttachmentPosition::AfterMatrix,
-                    comma: crate::features::Comma::Absent,
-                    payload: ClauseAttachmentKind::Appositive(Box::new(body)),
-                }],
-            }),
+            IndependentClause::Complex(ComplexClause::from_declaration_parts(
+                matrix,
+                vec![ClauseAttachment::from_declaration_parts(
+                    AttachmentPosition::AfterMatrix,
+                    crate::features::Comma::Absent,
+                    ClauseAttachmentKind::Appositive(Box::new(body)),
+                )],
+            )),
         )))
     }
 

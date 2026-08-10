@@ -14,20 +14,20 @@ to one fan-out-one row; its generated side contributes the ten Q01 quantity
 rows, the nine D01 determiner/possession rows, the nine J01 adjective rows, the
 37 M01 nominal rows, S01 `sentence`, N01 `noun`/`noun_opaque`, the two generated
 coordination rows, all 34 V01 predicate rows, the four F01 nonfinite-clause
-rows, and all 18 F02 finite-clause rows. The ability census
+rows, all 18 F02 finite-clause rows, and all 16 F03 clause-attachment rows. The ability census
 comes from the three non-chart entry points documented and dispatched by
 `FragmentKind`: `Cost`, `KeywordLine`, and `Ability`.
 
 | source | handwritten / ungenerated | already generated | accounted total |
 |---|---:|---:|---:|
-| chart construction registry | 66 | 126 | 192 |
+| chart construction registry | 50 | 142 | 192 |
 | handwritten ability layer | 3 | 0 | 3 |
-| migration inventory | 69 | 126 | 195 |
+| migration inventory | 53 | 142 | 195 |
 
-Every one of the 192 chart IDs occurs once in the ledger below: 66 remain
-handwritten, while Q01, D01, J01, M01, V01, F01, F02, S01, N01, and the two
+Every one of the 192 chart IDs occurs once in the ledger below: 50 remain
+handwritten, while Q01, D01, J01, M01, V01, F01, F02, F03, S01, N01, and the two
 coordination rows are generated. The three ability IDs occur once in A01. Thus
-the remaining work is 69 rows, with no `later` row. No raw corpus query was
+the remaining work is 53 rows, with no `later` row. No raw corpus query was
 needed for this accounting; the census is grounded in the registry and the current
 `FragmentKind` dispatch. Future corpus evidence must use supported faces, and
 normalized-template questions must use the existing English instruments.
@@ -100,7 +100,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 | V01 predicate spine | 34 | C3 | `english-derived-predicate-family` | scalar, identity, lens |
 | F01 nonfinite clause | 4 | C3 | `english-derived-nonfinite-clause-family` | generated |
 | F02 finite and copular clause | 18 | C3 | `english-derived-finite-clause-family` | generated |
-| F03 clause attachment | 16 | C3 | `english-derived-clause-attachment-family` | valency, form, and attachment constraints |
+| F03 clause attachment | 16 | C3 | `english-derived-clause-attachment-family` | generated |
 | F04 clause coordination | 6 | C4 | `english-derived-clause-coordination-family` | finite agreement, structural design, tuple yields |
 | R01 relative clause | 8 | C3 | `english-derived-relative-clause-family` | valency and gaps |
 | S01 sentence | 1 | C1 | `english-derived-sentence-family` | generated |
@@ -435,7 +435,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 - **Owners and AST:** the F02 declaration and generated chart, typed-feature,
   lowering, inverse-render, and checked-build projections own
   `IndependentClause`, staged `SimpleClause`/copular payloads, existential
-  form, and the variable-value constraint. Handwritten F03/F04 consumers keep
+  form, and the variable-value constraint. Generated F03 and handwritten F04 consumers keep
   using the staged categories without recreating F02 productions.
 - **Holes and constraints:** subject, predicate, and copular-complement
   subtrees; auxiliary/modal/negation identities; scalar power/toughness and
@@ -457,6 +457,8 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 
 ## F03 — clause attachment
 
+**Status:** generated.
+
 **Stable IDs (16):** `clause_adverb_before`,
 `clause_sentence_adverbial_before`,
 `clause_prepositional_before`, `clause_subordinate_before`,
@@ -467,10 +469,9 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 `exception_rider_oxford`, `clause_excepted`, `clause_restriction_run`,
 `clause_restriction_member`.
 
-- **Owners and AST:** CR, including late exception/restriction rules and NR's
-  late fronted-gerund registration, → `ComplexClause`, positioned
-  `ClauseAttachment`, exception riders, and restriction runs; REN and SYN-C
-  own output and ingress.
+- **Owners and AST:** the F03 declaration and generated chart, typed-feature,
+  lowering, inverse-render, and checked-build projections own `ComplexClause`,
+  positioned `ClauseAttachment`, exception riders, and restriction runs.
 - **Holes and constraints:** clause/gerund/infinitive/PP/adverb subtrees,
   conjunction identities, member sequences, and lenses into attachment lists.
   Attachment position/owner, subordinator class, finite/nonfinite form,
@@ -677,7 +678,7 @@ one change. It must also run the build-excluding parent/current
 so a family migration cannot hide work growth in failed or abandoned paths.
 It may not defer any of those to completion.
 
-The completion node depends on the remaining twelve chart tickets and the
+The completion node depends on the remaining eleven chart tickets and the
 existing ability-backend ticket. Its final audit therefore has 190 newly
 migrated plus five already-generated families—195 generated families in
 all—to prove, with no handwritten or unregistered family left to discover.

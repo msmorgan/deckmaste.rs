@@ -1,0 +1,29 @@
+error[E0451]: fields `matrix` and `attachments` of struct `ComplexClause` are private
+  --> tests/compile_fail/construct_clause_attachment.rs:10:9
+   |
+ 9 |     let _ = ComplexClause {
+   |             ------------- in this type
+10 |         matrix: Box::new(independent()),
+   |         ^^^^^^ private field
+11 |         attachments: Vec::<ClauseAttachment>::new(),
+   |         ^^^^^^^^^^^ private field
+
+error[E0451]: fields `first` and `rest` of struct `ExceptionRider` are private
+  --> tests/compile_fail/construct_clause_attachment.rs:14:9
+   |
+13 |     let _ = ExceptionRider {
+   |             -------------- in this type
+14 |         first: Box::new(independent()),
+   |         ^^^^^ private field
+15 |         rest: Vec::new(),
+   |         ^^^^ private field
+
+error[E0451]: fields `first` and `rest` of struct `RestrictionRun` are private
+  --> tests/compile_fail/construct_clause_attachment.rs:18:9
+   |
+17 |     let _ = RestrictionRun {
+   |             -------------- in this type
+18 |         first: restriction_member(),
+   |         ^^^^^ private field
+19 |         rest: Vec::new(),
+   |         ^^^^ private field

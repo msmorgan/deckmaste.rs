@@ -656,29 +656,6 @@ impl RuleBuilder {
         );
     }
 
-    /// Registers the fronted `While <gerund clause>, <clause>.` production
-    /// [CR#701.38d] after every other rule, including the coin-result
-    /// predicate. The dot-1 gate in `accepts_predicate_prefix` requires
-    /// `Features::Subordinator(While)` before `GerundClause` is even
-    /// predicted, so this never cascades into a general fronted-gerund
-    /// shape for other subordinators.
-    pub(super) fn add_while_gerund_rules(&mut self) {
-        use Expected::Lexical as l;
-        use Expected::Nonterminal as n;
-        use Nonterminal as N;
-
-        self.add(
-            RuleTag::ClauseSubordinateGerundBefore,
-            N::Clause,
-            [
-                l(EnglishLexicalSlot::Subordinator),
-                n(N::GerundClause),
-                l(EnglishLexicalSlot::Punctuation(Punctuation::Comma)),
-                n(N::Clause),
-            ],
-        );
-    }
-
     /// Selectionally constrained relative attachment inside coordinated PP
     /// objects. The grammar constructor registers these last so the dedicated
     /// categories cannot renumber or perturb prior rules.

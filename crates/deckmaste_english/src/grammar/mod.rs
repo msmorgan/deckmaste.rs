@@ -888,11 +888,7 @@ pub(crate) enum Nonterminal {
     InfinitiveClause,
     GerundClause,
     CopularRemainder,
-    /// A coordinated list of exception clauses under a leading `except` marker,
-    /// trailing a copy (or other) host clause. Reached only through the
-    /// [`ClauseExcepted`](RuleTag::ClauseExcepted) attachment, so its
-    /// finite-clause coordination never competes with the general clause
-    /// coordination.
+    /// A coordinated list of exception clauses under a leading `except` marker.
     ExceptionRider,
     /// An exception rider whose latest member was added by an asyndetic comma
     /// (`except A, B`). It may grow or close with a conjunction; attaching it
@@ -901,10 +897,6 @@ pub(crate) enum Nonterminal {
     /// One `only <adjunct>` restriction-run member. Internal to the run; never
     /// attaches to a clause on its own.
     RestrictionMember,
-    /// A coordinated run of two or more [`Self::RestrictionMember`]s, reached
-    /// only through the [`ClauseRestrictionRun`](RuleTag::ClauseRestrictionRun)
-    /// attachment.
-    RestrictionRun,
     SimpleClause,
     Clause,
     Sentence,
@@ -1431,9 +1423,9 @@ pub(crate) enum AdjectiveComparisonState {
 /// What a scanned copula constrains. `Indicative` carries the exact
 /// person/number the subject must match — the strictness this pathway has
 /// always had. `PastSubjunctive` carries no agreement at all and is licensed
-/// only where `conditional_reduction` consumes the `subjunctive` flag under
-/// `Subordinator::AsThough`; it is not, and must never become, an agreement
-/// bypass for indicative readings.
+/// only where the generated subordinate-attachment feature projection consumes
+/// the `subjunctive` flag under `Subordinator::AsThough`; it is not an
+/// agreement bypass for indicative readings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum CopulaAgreement {
     Indicative(Agreement),
@@ -1668,9 +1660,8 @@ pub(crate) enum Features {
         object_gap_requires_rules_object: bool,
         /// Set only by a `PastSubjunctive` `Be` auxiliary heading this verb
         /// phrase; threaded unchanged by reduces. Licensing gate: only
-        /// `RuleTag::ClauseSubordinateAfter`/`…Comma` may accept a
-        /// subjunctive body, and only under `Subordinator::AsThough` — see
-        /// `Features::Subordinator` and the reduce arm in `clause.rs`.
+        /// a generated subordinate attachment may accept a subjunctive body,
+        /// and only under `Subordinator::AsThough`.
         subjunctive: bool,
     },
     InfinitiveClause,
@@ -1694,10 +1685,9 @@ pub(crate) enum Features {
     },
     Sentence,
     Preposition(Preposition),
-    /// A subordinating conjunction lexeme, carried so `RuleTag::
-    /// ClauseSubordinateAfter`/`…Comma` can identify `Subordinator::AsThough`
-    /// specifically — the only subordinator permitted to host a
-    /// subjunctive body.
+    /// A subordinating conjunction lexeme, carried so attachment declarations
+    /// can identify `Subordinator::AsThough` specifically — the only
+    /// subordinator permitted to host a subjunctive body.
     Subordinator(crate::syntax::Subordinator),
     PrepositionalObject {
         gerund: bool,
@@ -1744,8 +1734,6 @@ pub(crate) enum Features {
     /// One `only …` restriction-run member. Fieldless, mirroring
     /// `ExceptionRider`.
     RestrictionMember,
-    /// A coordinated run of two or more restriction-run members. Fieldless.
-    RestrictionRun,
     /// One quality of a `kwgrant`-round predicated keyword argument (`from
     /// black`, `monocolored`). Fieldless: the reduce/lower distinguish shape
     /// from the child productions, not from this marker, which exists only
@@ -2052,20 +2040,6 @@ enum RuleTag {
     ClauseCoordinationCopularNounPrepositional,
     ClauseCoordinationCopularNounPrepositionalComma,
     ClauseCoordinationCopularNounPrepositionalAsyndetic,
-    ClauseAdverbBefore,
-    ClauseSentenceAdverbialBefore,
-    ClausePrepositionalBefore,
-    ClauseSubordinateBefore,
-    /// `While <gerund clause>, <clause>.` — the fronted-gerund vote/action
-    /// simultaneity frame [CR#701.38d]. Registered late (after every other
-    /// rule, including the coin-result predicate), gated at dot 1 on exactly
-    /// `Features::Subordinator(While)` so no other subordinator gains this
-    /// shape and no generic fronted-gerund production is introduced.
-    ClauseSubordinateGerundBefore,
-    ClauseSubordinateAfterElliptical,
-    ClauseSubordinateAfter,
-    ClauseSubordinateAfterComma,
-    ClauseSubordinateAfterInfinitive,
     RelativeObject,
     RelativeObjectContractedSubject,
     RelativeSubjectContractedAuxiliary,
@@ -2078,29 +2052,6 @@ enum RuleTag {
     RelativeContractedCopularNoun,
     RelativeContractedCopularAdjective,
     RelativeContractedCopularPrepositional,
-    /// A single-conjunct exception rider (`except it isn't legendary`): the
-    /// `except` marker plus one finite clause.
-    ExceptionRiderSingle,
-    /// A two-conjunct exception rider joined by a bare conjunction
-    /// (`except A and B`).
-    ExceptionRiderConjoined,
-    /// An asyndetic exception-rider continuation (`…, A, B`) — a comma-joined
-    /// clause with no conjunction, used for the interior members of an Oxford
-    /// list.
-    ExceptionRiderComma,
-    /// The final Oxford member of an exception rider (`…, and C`).
-    ExceptionRiderOxford,
-    /// The trailing `, except <rider>` attachment on a host clause.
-    ClauseExcepted,
-    /// One `only <adjunct>` restriction-run member, or a `only <adjunct> and
-    /// only <adjunct>` two-member run, or a comma/Oxford growth of an
-    /// existing run, or the trailing attachment of a complete run onto a host
-    /// clause. All these `RestrictionRun`-building and -attaching shapes share
-    /// this tag; see `grammar/clause.rs` for the disambiguating arities.
-    ClauseRestrictionRun,
-    /// The `["only", <adjunct-or-if-clause>]` production building one
-    /// restriction-run member.
-    ClauseRestrictionMember,
     /// A coordinable modifier atom built from an adjective phrase.
     ModifierConjunctAdjective,
     /// A coordinable modifier atom built from a bare noun.
@@ -2225,7 +2176,6 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         builder.add_coordination_consumer_rules();
         // This rule's dot-1 gate (`Features::Subordinator(While)`) is likewise
         // categorical.
-        builder.add_while_gerund_rules();
         // This widens `NounPhrase`, but its dot-1 host gate is categorical.
         builder.add_set_exception_rules();
         // The subject-shared copular continuation also has a categorical dot-1

@@ -621,7 +621,7 @@ struct GeneratedPredicateRenderer<'renderer, 'identity> {
 struct GeneratedClauseRenderer<'renderer, 'identity> {
     renderer: &'renderer Renderer<'identity>,
     rendered: String,
-    quoted_ability_count: usize,
+    quoted_abilities_remaining: usize,
     publish_terminal_quote: bool,
 }
 
@@ -634,19 +634,35 @@ impl<'renderer, 'identity> GeneratedClauseRenderer<'renderer, 'identity> {
         Self {
             renderer,
             rendered: String::new(),
-            quoted_ability_count,
+            quoted_abilities_remaining: quoted_ability_count,
             publish_terminal_quote,
         }
+    }
+
+    fn child_publishes_terminal_quote(&self, quoted_ability_count: usize) -> bool {
+        self.publish_terminal_quote
+            && quoted_ability_count > 0
+            && self.quoted_abilities_remaining == quoted_ability_count
+    }
+
+    fn consume_quoted_abilities(&mut self, quoted_ability_count: usize) {
+        self.quoted_abilities_remaining = self
+            .quoted_abilities_remaining
+            .saturating_sub(quoted_ability_count);
     }
 
     fn push(&mut self, part: &str) {
         if part.is_empty() {
             return;
         }
-        if !self.rendered.is_empty() {
-            self.rendered.push(' ');
+        if part == "," {
+            self.rendered.push(',');
+        } else {
+            if !self.rendered.is_empty() {
+                self.rendered.push(' ');
+            }
+            self.rendered.push_str(part);
         }
-        self.rendered.push_str(part);
     }
 
     fn finish(self) -> String {
@@ -702,16 +718,68 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                 )?;
                 return Ok(());
             }
-            "VerbPhrase" => {
-                let mut predicate = GeneratedPredicateRenderer::new(self.renderer, 0, false, false);
-                predicate
-                    .publish_terminal_quote(self.quoted_ability_count, self.publish_terminal_quote);
-                predicate.render_verb_phrase(
-                    value
-                        .downcast_ref::<GeneratedVerbPhrase>()
-                        .expect("the clause predicate hole preserves VerbPhrase"),
+            "Clause" => {
+                let clause = value
+                    .downcast_ref::<Clause>()
+                    .expect("the attachment hole preserves Clause");
+                let quoted_ability_count = clause_quoted_ability_count(clause);
+                let publish = self.child_publishes_terminal_quote(quoted_ability_count);
+                let previous = self.renderer.terminal_quote.get();
+                if publish {
+                    self.renderer
+                        .terminal_quote
+                        .set(clause_terminal_quote(clause).map(std::ptr::from_ref));
+                }
+                let rendered = self.renderer.clause(clause);
+                self.renderer.terminal_quote.set(previous);
+                self.consume_quoted_abilities(quoted_ability_count);
+                rendered?
+            }
+            "ExceptionRider" => {
+                Self::accept_generated(
+                    crate::constructions::attachment::linearize_attachment_exception_rider_with(
+                        value
+                            .downcast_ref::<ExceptionRider>()
+                            .expect("the attachment hole preserves ExceptionRider"),
+                        self,
+                    ),
                 )?;
-                predicate.finish()
+                return Ok(());
+            }
+            "ExceptionRiderList" => {
+                Self::accept_generated(
+                    crate::constructions::attachment::linearize_attachment_exception_rider_list_with(
+                        value
+                            .downcast_ref::<crate::syntax::ExceptionRiderList>()
+                            .expect("the attachment hole preserves ExceptionRiderList"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "RestrictionMember" => {
+                Self::accept_generated(
+                    crate::constructions::attachment::linearize_attachment_restriction_member_with(
+                        value
+                            .downcast_ref::<crate::syntax::RestrictionMember>()
+                            .expect("the attachment hole preserves RestrictionMember"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "VerbPhrase" => {
+                let value = value
+                    .downcast_ref::<GeneratedVerbPhrase>()
+                    .expect("the clause predicate hole preserves VerbPhrase");
+                let quoted_ability_count = generated_verb_phrase_quoted_ability_count(value);
+                let publish = self.child_publishes_terminal_quote(quoted_ability_count);
+                let mut predicate = GeneratedPredicateRenderer::new(self.renderer, 0, false, false);
+                predicate.publish_terminal_quote(quoted_ability_count, publish);
+                predicate.render_verb_phrase(value)?;
+                let rendered = predicate.finish();
+                self.consume_quoted_abilities(quoted_ability_count);
+                rendered
             }
             "GerundClause" => {
                 Self::accept_generated(
@@ -734,11 +802,24 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                     .downcast_ref::<AdjectivePhrase>()
                     .expect("the clause adjective hole preserves AdjectivePhrase"),
             )?,
-            "PrepositionalPhrase" => self.renderer.prepositional_phrase(
-                value
+            "PrepositionalPhrase" => {
+                let phrase = value
                     .downcast_ref::<PrepositionalPhrase>()
-                    .expect("the clause PP hole preserves PrepositionalPhrase"),
-            )?,
+                    .expect("the clause PP hole preserves PrepositionalPhrase");
+                let terminal_quote = phrase_terminal_quote(&phrase.tail().object);
+                let quoted_ability_count = usize::from(terminal_quote.is_some());
+                let publish = self.child_publishes_terminal_quote(quoted_ability_count);
+                let previous = self.renderer.terminal_quote.get();
+                if publish {
+                    self.renderer
+                        .terminal_quote
+                        .set(terminal_quote.map(std::ptr::from_ref));
+                }
+                let rendered = self.renderer.prepositional_phrase(phrase);
+                self.renderer.terminal_quote.set(previous);
+                self.consume_quoted_abilities(quoted_ability_count);
+                rendered?
+            }
             "Quantity" => render_quantity(
                 *value
                     .downcast_ref::<Quantity>()
@@ -757,6 +838,12 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
     ) -> Result<(), Self::Error> {
         let value = value as &dyn std::any::Any;
         let rendered = match codec {
+            "Conjunction" => render_predicate_conjunction(
+                *value
+                    .downcast_ref::<Conjunction>()
+                    .expect("the attachment scalar preserves Conjunction"),
+            )?
+            .to_owned(),
             "PowerToughness" => {
                 let value = value
                     .downcast_ref::<crate::syntax::PowerToughness>()
@@ -812,9 +899,35 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                 .expect("the clause adverb identity preserves Vocab")
                 .spelling()
                 .to_owned(),
+            "SentenceAdverbial" => value
+                .downcast_ref::<Vocab>()
+                .expect("the sentence-adverbial identity preserves Vocab")
+                .spelling()
+                .to_owned(),
+            "Subordinator" => render_subordinator(
+                *value
+                    .downcast_ref::<Subordinator>()
+                    .expect("the subordinator identity preserves Subordinator"),
+            )
+            .to_owned(),
             other => panic!("unexpected clause identity provider `{other}` for `{value_type}`"),
         };
         self.push(&rendered);
+        Ok(())
+    }
+
+    fn derived_sequence_scalar(
+        &mut self,
+        _field: &'static str,
+        codec: &'static str,
+        _index: usize,
+        len: usize,
+    ) -> Result<(), Self::Error> {
+        match codec {
+            "Comma" if len >= 2 => self.push(","),
+            "Comma" => {}
+            other => panic!("unexpected derived attachment scalar codec `{other}`"),
+        }
         Ok(())
     }
 }
@@ -2841,6 +2954,27 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn independent_clause(&self, clause: &IndependentClause) -> Result<String, RenderError> {
+        let generated = Clause::Independent(clause.clone());
+        let mut attachment_visitor = GeneratedClauseRenderer::new(
+            self,
+            independent_clause_quoted_ability_count(clause),
+            self.terminal_quote_is(independent_clause_terminal_quote(clause)),
+        );
+        match crate::constructions::attachment::linearize_attachment_clause_with(
+            &generated,
+            &mut attachment_visitor,
+        ) {
+            Ok(()) => return Ok(attachment_visitor.finish()),
+            Err(
+                deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
+                    ..
+                },
+            ) => {}
+            Err(error) => {
+                GeneratedClauseRenderer::accept_generated(Err(error))?;
+                unreachable!("generated attachment error is returned above")
+            }
+        }
         let generated_eligible = !matches!(
             clause,
             IndependentClause::Copular(
@@ -2853,7 +2987,6 @@ impl<'identity> Renderer<'identity> {
             )
         );
         if generated_eligible {
-            let generated = Clause::Independent(clause.clone());
             let mut visitor = GeneratedClauseRenderer::new(
                 self,
                 independent_clause_quoted_ability_count(clause),
@@ -3028,6 +3161,10 @@ impl<'identity> Renderer<'identity> {
                 self.deontic_predicate(predicate)?,
             ])),
             Predicate::Attached(predicate) => {
+                if let Some(rendered) = self.generated_attached_predicate(Some(subject), predicate)
+                {
+                    return rendered;
+                }
                 let matrix = self.predicate_with_subject(subject, &predicate.predicate)?;
                 self.clause_with_attachments(&matrix, &predicate.attachments)
             }
@@ -3072,8 +3209,9 @@ impl<'identity> Renderer<'identity> {
         match attachment {
             ClauseAttachmentKind::Dependent(clause) => self.dependent_clause(clause),
             ClauseAttachmentKind::Adjunct(adjunct) => self.predicate_adjunct(adjunct),
-            ClauseAttachmentKind::Exception(rider) => self.exception_rider(rider),
-            ClauseAttachmentKind::Restriction(run) => self.restriction_run(run),
+            ClauseAttachmentKind::Exception(_) | ClauseAttachmentKind::Restriction(_) => {
+                unreachable!("sealed F03 attachments render through their generated Clause owner")
+            }
             ClauseAttachmentKind::Appositive(clause) => {
                 // The spaced ` — ` is fixed for this attachment: the enclosing
                 // clause loop contributes the leading space, and this arm emits
@@ -3086,64 +3224,6 @@ impl<'identity> Renderer<'identity> {
                 ))
             }
         }
-    }
-
-    fn exception_rider(&self, rider: &ExceptionRider) -> Result<String, RenderError> {
-        let mut rendered = String::from("except ");
-        rendered.push_str(&self.independent_clause(&rider.first)?);
-        for conjunct in &rider.rest {
-            // The serial comma is a function of length and connective, never
-            // a stored flag: an asyndetic interior member always takes a
-            // comma, and a member with a connective takes one only in a
-            // three-or-more-member (Oxford) list. See `ExceptionConjunct`.
-            let comma = conjunct.conjunction.is_none() || rider.rest.len() >= 2;
-            if comma {
-                rendered.push(',');
-            }
-            rendered.push(' ');
-            if let Some(conjunction) = conjunct.conjunction {
-                rendered.push_str(render_predicate_conjunction(conjunction)?);
-                rendered.push(' ');
-            }
-            rendered.push_str(&self.independent_clause(&conjunct.clause)?);
-        }
-        Ok(rendered)
-    }
-
-    fn restriction_run(&self, run: &crate::syntax::RestrictionRun) -> Result<String, RenderError> {
-        let mut rendered = String::from("only ");
-        rendered.push_str(&self.restriction_member(&run.first)?);
-        for member in &run.rest {
-            // The serial comma is a function of length and connective, never
-            // a stored flag: an asyndetic interior member always takes a
-            // comma, and a member with a connective takes one only in a
-            // three-or-more-member (Oxford) list. See `RestrictionCoordination`.
-            let comma = member.conjunction.is_none() || run.rest.len() >= 2;
-            if comma {
-                rendered.push(',');
-            }
-            if let Some(conjunction) = member.conjunction {
-                rendered.push(' ');
-                rendered.push_str(render_predicate_conjunction(conjunction)?);
-            }
-            rendered.push_str(" only ");
-            rendered.push_str(&self.restriction_member(&member.adjuncts)?);
-        }
-        Ok(rendered)
-    }
-
-    /// Renders a restriction member's adjunct sequence, space-joined — the
-    /// same spacing the flat `elements` list already uses between adjacent
-    /// adjuncts (e.g. the `once` adverb followed by the `each turn` temporal).
-    fn restriction_member(&self, adjuncts: &[PredicateAdjunct]) -> Result<String, RenderError> {
-        let mut rendered = String::new();
-        for (index, adjunct) in adjuncts.iter().enumerate() {
-            if index > 0 {
-                rendered.push(' ');
-            }
-            rendered.push_str(&self.predicate_adjunct(adjunct)?);
-        }
-        Ok(rendered)
     }
 
     fn subject_with_predicate_head(
@@ -3194,10 +3274,51 @@ impl<'identity> Renderer<'identity> {
             Predicate::Proform(_) => self.generated_predicate_from(predicate, 0, false),
             Predicate::Deontic(predicate) => self.deontic_predicate(predicate),
             Predicate::Attached(predicate) => {
+                if let Some(rendered) = self.generated_attached_predicate(None, predicate) {
+                    return rendered;
+                }
                 let matrix = self.predicate(&predicate.predicate)?;
                 self.clause_with_attachments(&matrix, &predicate.attachments)
             }
         }
+    }
+
+    fn generated_attached_predicate(
+        &self,
+        subject: Option<&Subject>,
+        predicate: &crate::syntax::AttachedPredicate,
+    ) -> Option<Result<String, RenderError>> {
+        predicate
+            .attachments
+            .iter()
+            .any(|attachment| {
+                matches!(
+                    attachment.payload,
+                    ClauseAttachmentKind::Exception(_) | ClauseAttachmentKind::Restriction(_)
+                )
+            })
+            .then(|| {
+                // F04 may move a complete F03 attachment onto the first
+                // predicate of a shared-subject coordination. Reconstitute
+                // that scoped clause so its declaration remains the sole
+                // exception/restriction linearization owner.
+                let clause = IndependentClause::Complex(ComplexClause::from_declaration_parts(
+                    IndependentClause::Predicated(
+                        subject.cloned(),
+                        PredicateExpression::Simple((*predicate.predicate).clone()),
+                    ),
+                    predicate.attachments.clone(),
+                ));
+                let publish = self.terminal_quote_is(attached_predicate_terminal_quote(predicate));
+                let previous = self.terminal_quote.get();
+                if publish {
+                    self.terminal_quote
+                        .set(independent_clause_terminal_quote(&clause).map(std::ptr::from_ref));
+                }
+                let rendered = self.independent_clause(&clause);
+                self.terminal_quote.set(previous);
+                rendered
+            })
     }
 
     fn deontic_predicate(
@@ -4417,15 +4538,7 @@ fn independent_clause_quoted_ability_count(clause: &IndependentClause) -> usize 
                 + value
                     .attachments
                     .iter()
-                    .map(|attachment| match &attachment.payload {
-                        ClauseAttachmentKind::Appositive(clause) => {
-                            independent_clause_quoted_ability_count(clause)
-                        }
-                        ClauseAttachmentKind::Adjunct(_)
-                        | ClauseAttachmentKind::Dependent(_)
-                        | ClauseAttachmentKind::Exception(_)
-                        | ClauseAttachmentKind::Restriction(_) => 0,
-                    })
+                    .map(clause_attachment_quoted_ability_count)
                     .sum::<usize>();
         }
         IndependentClause::Coordinated(value) => {
@@ -4446,6 +4559,105 @@ fn independent_clause_quoted_ability_count(clause: &IndependentClause) -> usize 
         | IndependentClause::Deontic(_, _, None) => return 0,
     };
     predicate_quoted_ability_count(&predicate)
+}
+
+fn clause_quoted_ability_count(clause: &Clause) -> usize {
+    match clause {
+        Clause::Independent(clause) => independent_clause_quoted_ability_count(clause),
+        Clause::Dependent(clause) => dependent_clause_quoted_ability_count(clause),
+    }
+}
+
+fn clause_terminal_quote(clause: &Clause) -> Option<&QuotedAbility> {
+    match clause {
+        Clause::Independent(clause) => independent_clause_terminal_quote(clause),
+        Clause::Dependent(_) => None,
+    }
+}
+
+fn generated_verb_phrase_quoted_ability_count(value: &GeneratedVerbPhrase) -> usize {
+    crate::constructions::predicate::project_public_predicate(value.clone())
+        .map_or(0, |value| predicate_quoted_ability_count(&value.predicate))
+}
+
+fn clause_attachment_quoted_ability_count(attachment: &ClauseAttachment) -> usize {
+    match &attachment.payload {
+        ClauseAttachmentKind::Dependent(clause) => dependent_clause_quoted_ability_count(clause),
+        ClauseAttachmentKind::Adjunct(adjunct) => predicate_adjunct_quoted_ability_count(adjunct),
+        ClauseAttachmentKind::Exception(rider) => {
+            independent_clause_quoted_ability_count(&rider.first)
+                + rider
+                    .rest
+                    .iter()
+                    .map(|member| independent_clause_quoted_ability_count(&member.clause))
+                    .sum::<usize>()
+        }
+        ClauseAttachmentKind::Restriction(run) => {
+            restriction_member_quoted_ability_count(&run.first)
+                + run
+                    .rest
+                    .iter()
+                    .map(|member| restriction_member_quoted_ability_count(&member.member))
+                    .sum::<usize>()
+        }
+        ClauseAttachmentKind::Appositive(clause) => independent_clause_quoted_ability_count(clause),
+    }
+}
+
+fn restriction_member_quoted_ability_count(member: &crate::syntax::RestrictionMember) -> usize {
+    member
+        .adjuncts()
+        .iter()
+        .map(predicate_adjunct_quoted_ability_count)
+        .sum()
+}
+
+fn dependent_clause_quoted_ability_count(clause: &DependentClause) -> usize {
+    match clause {
+        DependentClause::Subordinate(_, body) => match body {
+            SubordinateBody::Finite(clause) => independent_clause_quoted_ability_count(clause),
+            SubordinateBody::Infinitive(clause) => {
+                predicate_quoted_ability_count(clause.predicate())
+            }
+            SubordinateBody::Gerund(clause) => gerund_clause_quoted_ability_count(clause),
+            SubordinateBody::Elliptical(_) => 0,
+        },
+        DependentClause::Infinitive(clause) => predicate_quoted_ability_count(clause.predicate()),
+        DependentClause::Gerund(clause) => gerund_clause_quoted_ability_count(clause),
+        DependentClause::Relative(clause) => match &clause.body {
+            crate::syntax::RelativeBody::SubjectGap(predicate) => {
+                predicate_quoted_ability_count(predicate)
+            }
+            crate::syntax::RelativeBody::ObjectGap { predicate, .. } => predicate
+                .elements()
+                .iter()
+                .map(predicate_element_quoted_ability_count)
+                .sum(),
+        },
+    }
+}
+
+fn gerund_clause_quoted_ability_count(clause: &GerundClause) -> usize {
+    predicate_quoted_ability_count(clause.predicate())
+        + clause
+            .attachments()
+            .iter()
+            .map(|attachment| dependent_clause_quoted_ability_count(attachment.payload()))
+            .sum::<usize>()
+}
+
+fn predicate_adjunct_quoted_ability_count(adjunct: &PredicateAdjunct) -> usize {
+    match adjunct {
+        PredicateAdjunct::Prepositional(prepositional)
+        | PredicateAdjunct::Exception(prepositional) => {
+            usize::from(phrase_terminal_quote(&prepositional.tail().object).is_some())
+        }
+        PredicateAdjunct::Dependent(clause) => dependent_clause_quoted_ability_count(clause),
+        PredicateAdjunct::Adverb(_)
+        | PredicateAdjunct::Frequency(_)
+        | PredicateAdjunct::Temporal(_)
+        | PredicateAdjunct::Manner(_) => 0,
+    }
 }
 
 fn predicate_expression_quoted_ability_count(expression: &PredicateExpression) -> usize {
@@ -4515,7 +4727,14 @@ fn predicate_quoted_ability_count(predicate: &Predicate) -> usize {
             .inner
             .as_deref()
             .map_or(0, predicate_quoted_ability_count),
-        Predicate::Attached(predicate) => predicate_quoted_ability_count(&predicate.predicate),
+        Predicate::Attached(predicate) => {
+            predicate_quoted_ability_count(&predicate.predicate)
+                + predicate
+                    .attachments
+                    .iter()
+                    .map(clause_attachment_quoted_ability_count)
+                    .sum::<usize>()
+        }
         Predicate::Copular(_) | Predicate::Proform(_) => 0,
     }
 }
@@ -4572,13 +4791,7 @@ fn attached_predicate_terminal_quote(
         .rev()
         .find(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
     {
-        Some(attachment) => match &attachment.payload {
-            ClauseAttachmentKind::Adjunct(adjunct) => adjunct_terminal_quote(adjunct),
-            ClauseAttachmentKind::Dependent(_)
-            | ClauseAttachmentKind::Exception(_)
-            | ClauseAttachmentKind::Restriction(_) => None,
-            ClauseAttachmentKind::Appositive(clause) => independent_clause_terminal_quote(clause),
-        },
+        Some(attachment) => clause_attachment_terminal_quote(attachment),
         None => predicate_terminal_quote(&predicate.predicate),
     }
 }
@@ -4639,20 +4852,28 @@ fn complex_terminal_quote(clause: &ComplexClause) -> Option<&QuotedAbility> {
         .rev()
         .find(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
     {
-        Some(attachment) => match &attachment.payload {
-            ClauseAttachmentKind::Adjunct(adjunct) => adjunct_terminal_quote(adjunct),
-            ClauseAttachmentKind::Dependent(_) => None,
-            ClauseAttachmentKind::Exception(rider) => match rider.rest.last() {
-                Some(conjunct) => independent_clause_terminal_quote(&conjunct.clause),
-                None => independent_clause_terminal_quote(&rider.first),
-            },
-            ClauseAttachmentKind::Restriction(run) => match run.rest.last() {
-                Some(member) => member.adjuncts.last().and_then(adjunct_terminal_quote),
-                None => run.first.last().and_then(adjunct_terminal_quote),
-            },
-            ClauseAttachmentKind::Appositive(clause) => independent_clause_terminal_quote(clause),
-        },
+        Some(attachment) => clause_attachment_terminal_quote(attachment),
         None => independent_clause_terminal_quote(&clause.matrix),
+    }
+}
+
+fn clause_attachment_terminal_quote(attachment: &ClauseAttachment) -> Option<&QuotedAbility> {
+    match &attachment.payload {
+        ClauseAttachmentKind::Adjunct(adjunct) => adjunct_terminal_quote(adjunct),
+        ClauseAttachmentKind::Dependent(_) => None,
+        ClauseAttachmentKind::Exception(rider) => match rider.rest.last() {
+            Some(conjunct) => independent_clause_terminal_quote(&conjunct.clause),
+            None => independent_clause_terminal_quote(&rider.first),
+        },
+        ClauseAttachmentKind::Restriction(run) => match run.rest.last() {
+            Some(member) => member
+                .member
+                .adjuncts()
+                .last()
+                .and_then(adjunct_terminal_quote),
+            None => run.first.adjuncts().last().and_then(adjunct_terminal_quote),
+        },
+        ClauseAttachmentKind::Appositive(clause) => independent_clause_terminal_quote(clause),
     }
 }
 

@@ -6,10 +6,7 @@ use super::AuxiliaryInflection;
 use super::AuxiliaryInstance;
 use super::BareNominalAdjunct;
 use super::Clause;
-use super::ClauseAttachment;
-use super::ClauseAttachmentKind;
 use super::ClauseCoordination;
-use super::ComplexClause;
 use super::CoordinatedClauseMember;
 use super::CoordinatedIndependentClause;
 use super::Coordination;
@@ -17,10 +14,6 @@ use super::CoordinationJunction;
 use super::CopularComplement;
 use super::CopularRemainder;
 use super::DeonticPredicate;
-use super::DependentClause;
-use super::EllipticalClause;
-use super::ExceptionConjunct;
-use super::ExceptionRider;
 use super::GapState;
 use super::IndependentClause;
 use super::Lowered;
@@ -34,12 +27,9 @@ use super::PredicateHead;
 use super::RelativeBody;
 use super::RelativeClause;
 use super::RelativeMarker;
-use super::RestrictionCoordination;
-use super::RestrictionRun;
 use super::RuleTag;
 use super::SimpleClause;
 use super::Subject;
-use super::SubordinateBody;
 use super::VerbDependent;
 use super::VerbPhrase;
 use super::VerbSlot;
@@ -71,23 +61,9 @@ pub(in crate::grammar) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -
         | RuleTag::ClauseCoordinationAsyndetic
         | RuleTag::ClauseCoordinationCopularNounPrepositional
         | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
-        | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic
-        | RuleTag::ClauseAdverbBefore
-        | RuleTag::ClauseSentenceAdverbialBefore
-        | RuleTag::ClausePrepositionalBefore
-        | RuleTag::ClauseSubordinateBefore
-        | RuleTag::ClauseSubordinateGerundBefore
-        | RuleTag::ClauseSubordinateAfterElliptical
-        | RuleTag::ClauseSubordinateAfter
-        | RuleTag::ClauseSubordinateAfterComma
-        | RuleTag::ClauseSubordinateAfterInfinitive
-        | RuleTag::ExceptionRiderSingle
-        | RuleTag::ExceptionRiderConjoined
-        | RuleTag::ExceptionRiderComma
-        | RuleTag::ExceptionRiderOxford
-        | RuleTag::ClauseExcepted
-        | RuleTag::ClauseRestrictionMember
-        | RuleTag::ClauseRestrictionRun => lower_composed_clause(tag, children),
+        | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic => {
+            lower_composed_clause(tag, children)
+        }
         _ => None,
     }
 }
@@ -350,352 +326,6 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic => lower_coordination(tag, children),
-        RuleTag::ClauseSubordinateBefore => {
-            let Lowered::Subordinator(subordinator) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Clause(condition) = take(children, 1)? else {
-                return None;
-            };
-            let Lowered::Clause(consequence) = take(children, 3)? else {
-                return None;
-            };
-            conditional(
-                subordinator,
-                AttachmentPosition::BeforeMatrix,
-                true,
-                condition,
-                consequence,
-            )
-        }
-        RuleTag::ClauseSubordinateGerundBefore => {
-            let Lowered::Subordinator(subordinator) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::GerundClause(gerund) = take(children, 1)? else {
-                return None;
-            };
-            let Lowered::Clause(consequence) = take(children, 3)? else {
-                return None;
-            };
-            conditional_body(
-                subordinator,
-                AttachmentPosition::BeforeMatrix,
-                true,
-                SubordinateBody::Gerund(gerund),
-                consequence,
-            )
-        }
-        RuleTag::ClauseAdverbBefore => {
-            let Lowered::Adverb(adverb) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Clause(Clause::Independent(matrix)) = take(children, 1)? else {
-                return None;
-            };
-            Some(Lowered::Clause(Clause::Independent(
-                with_clause_attachment(
-                    matrix,
-                    ClauseAttachment {
-                        position: AttachmentPosition::BeforeMatrix,
-                        comma: crate::features::Comma::Absent,
-                        payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(adverb)),
-                    },
-                ),
-            )))
-        }
-        RuleTag::ClauseSentenceAdverbialBefore => {
-            let Lowered::Adverb(adverb) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Clause(Clause::Independent(matrix)) = take(children, 2)? else {
-                return None;
-            };
-            Some(Lowered::Clause(Clause::Independent(
-                with_clause_attachment(
-                    matrix,
-                    ClauseAttachment {
-                        position: AttachmentPosition::BeforeMatrix,
-                        comma: crate::features::Comma::Present,
-                        payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(adverb)),
-                    },
-                ),
-            )))
-        }
-        RuleTag::ClausePrepositionalBefore => {
-            let Lowered::PrepositionalPhrase(preposition) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Clause(Clause::Independent(matrix)) = take(children, 2)? else {
-                return None;
-            };
-            Some(Lowered::Clause(Clause::Independent(
-                with_clause_attachment(
-                    matrix,
-                    ClauseAttachment {
-                        position: AttachmentPosition::BeforeMatrix,
-                        comma: crate::features::Comma::Present,
-                        payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(
-                            preposition,
-                        )),
-                    },
-                ),
-            )))
-        }
-        RuleTag::ClauseSubordinateAfterElliptical => {
-            let Lowered::Clause(consequence) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Subordinator(subordinator) = take(children, 1)? else {
-                return None;
-            };
-            let Lowered::AdjectivePhrase(condition) = take(children, 2)? else {
-                return None;
-            };
-            conditional_body(
-                subordinator,
-                AttachmentPosition::AfterMatrix,
-                false,
-                SubordinateBody::Elliptical(EllipticalClause::Adjective(condition)),
-                consequence,
-            )
-        }
-        RuleTag::ClauseSubordinateAfter | RuleTag::ClauseSubordinateAfterComma => {
-            let offset = usize::from(tag == RuleTag::ClauseSubordinateAfterComma);
-            let Lowered::Clause(consequence) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Subordinator(subordinator) = take(children, 1 + offset)? else {
-                return None;
-            };
-            let Lowered::Clause(condition) = take(children, 2 + offset)? else {
-                return None;
-            };
-            conditional(
-                subordinator,
-                AttachmentPosition::AfterMatrix,
-                tag == RuleTag::ClauseSubordinateAfterComma,
-                condition,
-                consequence,
-            )
-        }
-        RuleTag::ClauseSubordinateAfterInfinitive => {
-            let Lowered::Clause(consequence) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Subordinator(crate::syntax::Subordinator::RatherThan) = take(children, 1)?
-            else {
-                return None;
-            };
-            let Lowered::VerbPhrase(predicate) = take(children, 2)? else {
-                return None;
-            };
-            let FinishedPredicate {
-                modal, predicate, ..
-            } = finish_predicate(predicate)?;
-            if modal.is_some() {
-                return None;
-            }
-            conditional_body(
-                crate::syntax::Subordinator::RatherThan,
-                AttachmentPosition::AfterMatrix,
-                false,
-                SubordinateBody::Infinitive(crate::syntax::InfinitiveClause::declaration_bare(
-                    predicate,
-                )),
-                consequence,
-            )
-        }
-        RuleTag::ExceptionRiderSingle => {
-            let Lowered::Clause(Clause::Independent(first)) = take(children, 1)? else {
-                return None;
-            };
-            Some(Lowered::ExceptionRider(ExceptionRider {
-                first: Box::new(first),
-                rest: Vec::new(),
-            }))
-        }
-        RuleTag::ExceptionRiderConjoined
-        | RuleTag::ExceptionRiderComma
-        | RuleTag::ExceptionRiderOxford => {
-            let Lowered::ExceptionRider(mut rider) = take(children, 0)? else {
-                return None;
-            };
-            let (conjunction, clause_index) = match tag {
-                RuleTag::ExceptionRiderConjoined => (Some(1), 2),
-                RuleTag::ExceptionRiderComma => (None, 2),
-                RuleTag::ExceptionRiderOxford => (Some(2), 3),
-                _ => return None,
-            };
-            let conjunction = match conjunction {
-                Some(index) => {
-                    let Lowered::Conjunction(conjunction) = take(children, index)? else {
-                        return None;
-                    };
-                    Some(conjunction)
-                }
-                None => None,
-            };
-            let Lowered::Clause(Clause::Independent(clause)) = take(children, clause_index)? else {
-                return None;
-            };
-            rider.rest.push(ExceptionConjunct {
-                conjunction,
-                clause,
-            });
-            Some(Lowered::ExceptionRider(rider))
-        }
-        RuleTag::ClauseExcepted => {
-            let Lowered::Clause(Clause::Independent(matrix)) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::ExceptionRider(rider) = take(children, 2)? else {
-                return None;
-            };
-            Some(Lowered::Clause(Clause::Independent(
-                with_clause_attachment(
-                    matrix,
-                    ClauseAttachment {
-                        position: AttachmentPosition::AfterMatrix,
-                        comma: crate::features::Comma::Present,
-                        payload: ClauseAttachmentKind::Exception(rider),
-                    },
-                ),
-            )))
-        }
-        RuleTag::ClauseRestrictionMember => {
-            let Lowered::Adverb(only) = take(children, 0)? else {
-                return None;
-            };
-            // A bare `only only` (nesting) is unrepresentable: the member
-            // payload is never itself the `only` adverb.
-            if only != crate::word::Vocab::Only {
-                return None;
-            }
-            let adjuncts = match (children.len(), take(children, 1)?) {
-                (2, Lowered::PrepositionalPhrase(preposition)) => {
-                    vec![PredicateAdjunct::Prepositional(preposition)]
-                }
-                (2, Lowered::Adverb(word)) => {
-                    if word.spelling() != "once" {
-                        return None;
-                    }
-                    vec![PredicateAdjunct::Adverb(word)]
-                }
-                (3, Lowered::Subordinator(subordinator)) => {
-                    if subordinator != crate::syntax::Subordinator::If {
-                        return None;
-                    }
-                    let Lowered::Clause(Clause::Independent(condition)) = take(children, 2)? else {
-                        return None;
-                    };
-                    vec![PredicateAdjunct::Dependent(Box::new(
-                        DependentClause::Subordinate(
-                            crate::syntax::Subordinator::If,
-                            SubordinateBody::Finite(Box::new(condition)),
-                        ),
-                    ))]
-                }
-                (3, Lowered::Adverb(word)) => {
-                    if word.spelling() != "once" {
-                        return None;
-                    }
-                    let Lowered::NounPhrase(temporal) = take(children, 2)? else {
-                        return None;
-                    };
-                    vec![
-                        PredicateAdjunct::Adverb(word),
-                        PredicateAdjunct::Temporal(temporal),
-                    ]
-                }
-                _ => return None,
-            };
-            Some(Lowered::RestrictionMember(adjuncts))
-        }
-        RuleTag::ClauseRestrictionRun => match children.len() {
-            2 => {
-                let Lowered::Clause(Clause::Independent(matrix)) = take(children, 0)? else {
-                    return None;
-                };
-                let Lowered::RestrictionRun(run) = take(children, 1)? else {
-                    return None;
-                };
-                Some(Lowered::Clause(Clause::Independent(
-                    with_clause_attachment(
-                        matrix,
-                        ClauseAttachment {
-                            position: AttachmentPosition::AfterMatrix,
-                            comma: crate::features::Comma::Absent,
-                            payload: ClauseAttachmentKind::Restriction(run),
-                        },
-                    ),
-                )))
-            }
-            3 => match (take(children, 0)?, take(children, 1)?) {
-                (Lowered::RestrictionMember(first), Lowered::Conjunction(conjunction)) => {
-                    // Restrictions are cumulative [CR#601.3,602.5]: only a
-                    // bare `and` joins members. `or`/`then`/`and-or` must keep
-                    // failing.
-                    if conjunction != Conjunction::And {
-                        return None;
-                    }
-                    let Lowered::RestrictionMember(next) = take(children, 2)? else {
-                        return None;
-                    };
-                    Some(Lowered::RestrictionRun(RestrictionRun {
-                        first,
-                        rest: vec![RestrictionCoordination {
-                            conjunction: Some(conjunction),
-                            adjuncts: next,
-                        }],
-                    }))
-                }
-                (Lowered::RestrictionMember(first), Lowered::Ignored) => {
-                    // The comma-joined two-member base.
-                    let Lowered::RestrictionMember(next) = take(children, 2)? else {
-                        return None;
-                    };
-                    Some(Lowered::RestrictionRun(RestrictionRun {
-                        first,
-                        rest: vec![RestrictionCoordination {
-                            conjunction: None,
-                            adjuncts: next,
-                        }],
-                    }))
-                }
-                (Lowered::RestrictionRun(mut run), Lowered::Ignored) => {
-                    let Lowered::RestrictionMember(next) = take(children, 2)? else {
-                        return None;
-                    };
-                    run.rest.push(RestrictionCoordination {
-                        conjunction: None,
-                        adjuncts: next,
-                    });
-                    Some(Lowered::RestrictionRun(run))
-                }
-                _ => None,
-            },
-            4 => {
-                let Lowered::RestrictionRun(mut run) = take(children, 0)? else {
-                    return None;
-                };
-                let Lowered::Conjunction(conjunction) = take(children, 2)? else {
-                    return None;
-                };
-                if conjunction != Conjunction::And {
-                    return None;
-                }
-                let Lowered::RestrictionMember(next) = take(children, 3)? else {
-                    return None;
-                };
-                run.rest.push(RestrictionCoordination {
-                    conjunction: Some(conjunction),
-                    adjuncts: next,
-                });
-                Some(Lowered::RestrictionRun(run))
-            }
-            _ => None,
-        },
         _ => None,
     }
 }
@@ -1305,69 +935,6 @@ pub(super) fn accepts_shared_predicate(clause: &IndependentClause) -> bool {
                 })
         }
         IndependentClause::Existential(_) => false,
-    }
-}
-
-pub(super) fn conditional(
-    subordinator: crate::syntax::Subordinator,
-    position: AttachmentPosition,
-    comma: bool,
-    condition: Clause,
-    consequence: Clause,
-) -> Option<Lowered> {
-    let Clause::Independent(condition) = condition else {
-        return None;
-    };
-    conditional_body(
-        subordinator,
-        position,
-        comma,
-        SubordinateBody::Finite(Box::new(condition)),
-        consequence,
-    )
-}
-
-pub(super) fn conditional_body(
-    subordinator: crate::syntax::Subordinator,
-    position: AttachmentPosition,
-    comma: bool,
-    body: SubordinateBody,
-    consequence: Clause,
-) -> Option<Lowered> {
-    let Clause::Independent(matrix) = consequence else {
-        return None;
-    };
-    Some(Lowered::Clause(Clause::Independent(
-        with_clause_attachment(
-            matrix,
-            ClauseAttachment {
-                position,
-                comma: crate::features::Comma::from(comma),
-                payload: ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
-                    subordinator,
-                    body,
-                )),
-            },
-        ),
-    )))
-}
-
-pub(super) fn with_clause_attachment(
-    matrix: IndependentClause,
-    attachment: ClauseAttachment,
-) -> IndependentClause {
-    match matrix {
-        IndependentClause::Complex(mut complex) => {
-            match attachment.position {
-                AttachmentPosition::BeforeMatrix => complex.attachments.insert(0, attachment),
-                AttachmentPosition::AfterMatrix => complex.attachments.push(attachment),
-            }
-            IndependentClause::Complex(complex)
-        }
-        matrix => IndependentClause::Complex(ComplexClause {
-            matrix: Box::new(matrix),
-            attachments: vec![attachment],
-        }),
     }
 }
 

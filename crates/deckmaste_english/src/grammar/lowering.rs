@@ -148,10 +148,10 @@ pub(super) enum Lowered {
     RelativeMarker(RelativeMarker),
     Existential(ExistentialForm),
     ExceptionRider(crate::syntax::ExceptionRider),
+    ExceptionRiderList(crate::syntax::ExceptionRiderList),
     /// One restriction-run member's adjunct sequence (one adjunct for most
     /// members, two for the flat `once each turn` adverb+temporal pair).
-    RestrictionMember(Vec<crate::syntax::PredicateAdjunct>),
-    RestrictionRun(crate::syntax::RestrictionRun),
+    RestrictionMember(crate::syntax::RestrictionMember),
     Generated(GeneratedValue),
     Ignored,
 }
@@ -450,6 +450,18 @@ fn project_generated_category(
         let value = value.downcast::<Clause>().ok()?;
         return Some(Lowered::Clause(*value));
     }
+    if construction.category == "ExceptionRider" {
+        let value = value.downcast::<crate::syntax::ExceptionRider>().ok()?;
+        return Some(Lowered::ExceptionRider(*value));
+    }
+    if construction.category == "ExceptionRiderList" {
+        let value = value.downcast::<crate::syntax::ExceptionRiderList>().ok()?;
+        return Some(Lowered::ExceptionRiderList(*value));
+    }
+    if construction.category == "RestrictionMember" {
+        let value = value.downcast::<crate::syntax::RestrictionMember>().ok()?;
+        return Some(Lowered::RestrictionMember(*value));
+    }
     if construction.category == "SimpleClause" {
         let value = value.downcast::<SimpleClause>().ok()?;
         return Some(Lowered::SimpleClause(*value));
@@ -582,9 +594,18 @@ fn erased_field(
         }
         K::Identity {
             value_type: "Vocab",
-            provider: "Adverb",
+            provider: "Adverb" | "SentenceAdverbial",
         } => {
             let Lowered::Adverb(value) = value else {
+                return None;
+            };
+            Some(Box::new(value))
+        }
+        K::Identity {
+            value_type: "Subordinator",
+            provider: "Subordinator",
+        } => {
+            let Lowered::Subordinator(value) = value else {
                 return None;
             };
             Some(Box::new(value))
@@ -928,6 +949,9 @@ fn erased_subtree(
             };
             if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
         }
+        "ExceptionRider" => typed!(ExceptionRider, value),
+        "ExceptionRiderList" => typed!(ExceptionRiderList, value),
+        "RestrictionMember" => typed!(RestrictionMember, value),
         "SimpleClause" => typed!(SimpleClause, value),
         "CopularRemainder" => typed!(CopularRemainder, value),
         "KeywordArgument" => {
@@ -1013,8 +1037,32 @@ fn erased_optional(
                 };
                 Some(Box::new(Some(value.clone())))
             }
+            "PrepositionalPhrase" => {
+                let Lowered::PrepositionalPhrase(value) = value else {
+                    return None;
+                };
+                Some(Box::new(Some(value.clone())))
+            }
             "Clause" => {
                 let Lowered::Clause(value) = value else {
+                    return None;
+                };
+                Some(Box::new(Some(value.clone())))
+            }
+            "ExceptionRider" => {
+                let Lowered::ExceptionRider(value) = value else {
+                    return None;
+                };
+                Some(Box::new(Some(value.clone())))
+            }
+            "ExceptionRiderList" => {
+                let Lowered::ExceptionRiderList(value) = value else {
+                    return None;
+                };
+                Some(Box::new(Some(value.clone())))
+            }
+            "RestrictionMember" => {
+                let Lowered::RestrictionMember(value) = value else {
                     return None;
                 };
                 Some(Box::new(Some(value.clone())))
@@ -1069,9 +1117,25 @@ fn erased_optional_absent(
             boxed: false,
         } => Some(Box::new(None::<crate::syntax::AdjectivePhrase>)),
         K::Subtree {
+            category: "PrepositionalPhrase",
+            boxed: false,
+        } => Some(Box::new(None::<crate::syntax::PrepositionalPhrase>)),
+        K::Subtree {
             category: "Clause",
             boxed: false,
         } => Some(Box::new(None::<crate::syntax::Clause>)),
+        K::Subtree {
+            category: "ExceptionRider",
+            boxed: false,
+        } => Some(Box::new(None::<crate::syntax::ExceptionRider>)),
+        K::Subtree {
+            category: "ExceptionRiderList",
+            boxed: false,
+        } => Some(Box::new(None::<crate::syntax::ExceptionRiderList>)),
+        K::Subtree {
+            category: "RestrictionMember",
+            boxed: false,
+        } => Some(Box::new(None::<crate::syntax::RestrictionMember>)),
         K::Subtree {
             category: "RulesObjectNominal",
             boxed: false,
@@ -1238,15 +1302,6 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::ClauseCoordinationCopularNounPrepositional
         | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
         | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic
-        | RuleTag::ClauseAdverbBefore
-        | RuleTag::ClauseSentenceAdverbialBefore
-        | RuleTag::ClausePrepositionalBefore
-        | RuleTag::ClauseSubordinateBefore
-        | RuleTag::ClauseSubordinateGerundBefore
-        | RuleTag::ClauseSubordinateAfterElliptical
-        | RuleTag::ClauseSubordinateAfter
-        | RuleTag::ClauseSubordinateAfterComma
-        | RuleTag::ClauseSubordinateAfterInfinitive
         | RuleTag::RelativeObject
         | RuleTag::RelativeObjectContractedSubject
         | RuleTag::RelativeSubjectContractedAuxiliary
@@ -1255,13 +1310,6 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::RelativeContractedCopularNoun
         | RuleTag::RelativeContractedCopularAdjective
         | RuleTag::RelativeContractedCopularPrepositional
-        | RuleTag::ClauseExcepted
-        | RuleTag::ClauseRestrictionRun
-        | RuleTag::ClauseRestrictionMember
-        | RuleTag::ExceptionRiderSingle
-        | RuleTag::ExceptionRiderConjoined
-        | RuleTag::ExceptionRiderComma
-        | RuleTag::ExceptionRiderOxford
         | RuleTag::VerbPhraseCoordinatedAdjective
         | RuleTag::CopularRemainderCoordinatedAdjective
         | RuleTag::RelativeContractedCopularCoordinatedAdjective => {

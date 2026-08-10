@@ -48,23 +48,9 @@ pub(in crate::grammar) fn reduce_clause(
         | RuleTag::ClauseCoordinationAsyndetic
         | RuleTag::ClauseCoordinationCopularNounPrepositional
         | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
-        | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic
-        | RuleTag::ClauseAdverbBefore
-        | RuleTag::ClauseSentenceAdverbialBefore
-        | RuleTag::ClausePrepositionalBefore
-        | RuleTag::ClauseSubordinateBefore
-        | RuleTag::ClauseSubordinateGerundBefore
-        | RuleTag::ClauseSubordinateAfterElliptical
-        | RuleTag::ClauseSubordinateAfter
-        | RuleTag::ClauseSubordinateAfterComma
-        | RuleTag::ClauseSubordinateAfterInfinitive
-        | RuleTag::ExceptionRiderSingle
-        | RuleTag::ExceptionRiderConjoined
-        | RuleTag::ExceptionRiderComma
-        | RuleTag::ExceptionRiderOxford
-        | RuleTag::ClauseExcepted
-        | RuleTag::ClauseRestrictionMember
-        | RuleTag::ClauseRestrictionRun => reduce_composed_clause(tag, children),
+        | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic => {
+            reduce_composed_clause(tag, children)
+        }
         _ => None,
     }
 }
@@ -76,15 +62,6 @@ pub(in crate::grammar) fn accepts_predicate_prefix(
 ) -> bool {
     if completed_children != 1 {
         return true;
-    }
-    // Gate exactly on `Features::Subordinator(While)` before predicting
-    // `GerundClause`: no other subordinator gains this fronted-gerund shape,
-    // so this never cascades into a generic fronted-gerund production.
-    if tag == RuleTag::ClauseSubordinateGerundBefore {
-        return matches!(
-            features,
-            Features::Subordinator(crate::syntax::Subordinator::While)
-        );
     }
     if let Some(accepts) = accepts_shared_copular_coordination_prefix(tag, features) {
         return accepts;
@@ -142,7 +119,6 @@ pub(in crate::grammar) fn reduction_cost(
     tag: RuleTag,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> ParseCost {
-    let precedence = u32::from(tag == RuleTag::ClauseSubordinateAfter);
     // The finite-first shared-predicate reading (a modal/finite clause hosting
     // a subjectless standalone-imperative continuation, asyndetic or
     // `then`/`and`-joined) is a narrow additive allowance layered on top of the
@@ -167,7 +143,7 @@ pub(in crate::grammar) fn reduction_cost(
         })
     );
     ParseCost {
-        precedence,
+        precedence: 0,
         reading_dispreference: u32::from(finite_first_shared_predicate),
         ..ParseCost::default()
     }
@@ -832,8 +808,7 @@ pub(super) fn reduce_composed_clause(
                 return None;
             };
             // A subjunctive-flagged clause never surfaces as a coordinated
-            // member (only `ClauseSubordinateAfter`/`…Comma` under
-            // `as though` may consume one).
+            // member (only a generated `as though` attachment may consume one).
             if *first_subjunctive || *next_subjunctive {
                 return None;
             }
@@ -872,249 +847,6 @@ pub(super) fn reduce_composed_clause(
                 host_modal: *first_host_modal,
                 subjunctive: false,
             })
-        }
-        RuleTag::ClauseSubordinateBefore => {
-            let Features::Subordinator(subordinator) = children.first()?.features else {
-                return None;
-            };
-            conditional_reduction(*subordinator, children.get(1)?, children.get(3)?)
-        }
-        RuleTag::ClauseSubordinateGerundBefore => {
-            // The dot-1 gate already required `Features::Subordinator(While)`
-            // before `GerundClause` was predicted; re-check here rather than
-            // trust it alone, and require a complete gerund and an
-            // independent, non-subjunctive matrix.
-            let Features::Subordinator(crate::syntax::Subordinator::While) =
-                children.first()?.features
-            else {
-                return None;
-            };
-            if !matches!(children.get(1)?.features, Features::GerundClause) {
-                return None;
-            }
-            fronted_attachment_reduction(children.get(3)?)
-        }
-        RuleTag::ClauseAdverbBefore => fronted_attachment_reduction(children.get(1)?),
-        RuleTag::ClauseSentenceAdverbialBefore => fronted_attachment_reduction(children.get(2)?),
-        RuleTag::ClausePrepositionalBefore => {
-            let Features::PrepositionalPhrase { .. } = children.first()?.features else {
-                return None;
-            };
-            fronted_attachment_reduction(children.get(2)?)
-        }
-        RuleTag::ClauseSubordinateAfterElliptical => {
-            let consequence = children.first()?;
-            let Features::Clause {
-                agreement,
-                standalone: true,
-                finite,
-                host_addressee_subject,
-                host_modal,
-                subjunctive,
-            } = consequence.features
-            else {
-                return None;
-            };
-            if *subjunctive {
-                return None;
-            }
-            Some(Features::Clause {
-                agreement: *agreement,
-                standalone: true,
-                finite: *finite,
-                host_addressee_subject: *host_addressee_subject,
-                host_modal: *host_modal,
-                subjunctive: false,
-            })
-        }
-        RuleTag::ClauseSubordinateAfter => {
-            let Features::Subordinator(subordinator) = children.get(1)?.features else {
-                return None;
-            };
-            conditional_reduction(*subordinator, children.get(2)?, children.first()?)
-        }
-        RuleTag::ClauseSubordinateAfterComma => {
-            let Features::Subordinator(subordinator) = children.get(2)?.features else {
-                return None;
-            };
-            conditional_reduction(*subordinator, children.get(3)?, children.first()?)
-        }
-        RuleTag::ClauseSubordinateAfterInfinitive => {
-            let Features::Clause {
-                agreement,
-                standalone: true,
-                finite,
-                host_addressee_subject,
-                host_modal,
-                subjunctive,
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            if *subjunctive {
-                return None;
-            }
-            let Features::VerbPhrase {
-                form: PredicateForm::Infinitive,
-                ..
-            } = children.get(2)?.features
-            else {
-                return None;
-            };
-            Some(Features::Clause {
-                agreement: *agreement,
-                standalone: true,
-                finite: *finite,
-                host_addressee_subject: *host_addressee_subject,
-                host_modal: *host_modal,
-                subjunctive: false,
-            })
-        }
-        RuleTag::ExceptionRiderSingle => {
-            let Features::Clause {
-                standalone: true, ..
-            } = children.get(1)?.features
-            else {
-                return None;
-            };
-            Some(Features::ExceptionRider)
-        }
-        RuleTag::ExceptionRiderConjoined
-        | RuleTag::ExceptionRiderComma
-        | RuleTag::ExceptionRiderOxford => {
-            if !matches!(children.first()?.features, Features::ExceptionRider) {
-                return None;
-            }
-            let Features::Clause {
-                standalone: true, ..
-            } = children.last()?.features
-            else {
-                return None;
-            };
-            if tag != RuleTag::ExceptionRiderComma {
-                let conjunction_index = if tag == RuleTag::ExceptionRiderOxford { 2 } else { 1 };
-                let Features::Conjunction(Conjunction::And | Conjunction::Or | Conjunction::Then) =
-                    children.get(conjunction_index)?.features
-                else {
-                    return None;
-                };
-            }
-            Some(Features::ExceptionRider)
-        }
-        RuleTag::ClauseExcepted => {
-            let Features::Clause {
-                agreement,
-                standalone: true,
-                finite,
-                host_addressee_subject,
-                host_modal,
-                subjunctive,
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            if *subjunctive {
-                return None;
-            }
-            if !matches!(children.get(2)?.features, Features::ExceptionRider) {
-                return None;
-            }
-            Some(Features::Clause {
-                agreement: *agreement,
-                standalone: true,
-                finite: *finite,
-                host_addressee_subject: *host_addressee_subject,
-                host_modal: *host_modal,
-                subjunctive: false,
-            })
-        }
-        RuleTag::ClauseRestrictionMember => {
-            if children.len() == 3 {
-                // `[only, Subordinator, Clause]` — the `if`-clause member.
-                if let Features::Clause {
-                    standalone: true, ..
-                } = children.get(2)?.features
-                {
-                    return Some(Features::RestrictionMember);
-                }
-            }
-            // `[only, Prepositional]`, `[only, Adverb]`, `[only, Adverb,
-            // NounPhrase]` — no cross-child feature agreement needed; the
-            // grammatical shape alone licenses these.
-            Some(Features::RestrictionMember)
-        }
-        RuleTag::ClauseRestrictionRun => {
-            match children.len() {
-                2 => {
-                    // The `[Clause, RestrictionRun]` attachment.
-                    let Features::Clause {
-                        agreement,
-                        standalone: true,
-                        finite,
-                        host_addressee_subject,
-                        host_modal,
-                        subjunctive,
-                    } = children.first()?.features
-                    else {
-                        return None;
-                    };
-                    if *subjunctive {
-                        return None;
-                    }
-                    if !matches!(children.get(1)?.features, Features::RestrictionRun) {
-                        return None;
-                    }
-                    Some(Features::Clause {
-                        agreement: *agreement,
-                        standalone: true,
-                        finite: *finite,
-                        host_addressee_subject: *host_addressee_subject,
-                        host_modal: *host_modal,
-                        subjunctive: false,
-                    })
-                }
-                3 => {
-                    // `[Member, Conjunction, Member]` (base pair) or
-                    // `[Run, Comma, Member]` (asyndetic growth).
-                    let first = children.first()?.features;
-                    let first_ok = matches!(
-                        first,
-                        Features::RestrictionMember | Features::RestrictionRun
-                    );
-                    let last_ok = matches!(children.last()?.features, Features::RestrictionMember);
-                    let conjunction_ok = !matches!(
-                        children.get(1)?.features,
-                        Features::Conjunction(
-                            Conjunction::Or
-                                | Conjunction::Then
-                                | Conjunction::Plus
-                                | Conjunction::AndOr
-                        )
-                    );
-                    if first_ok && last_ok && conjunction_ok {
-                        Some(Features::RestrictionRun)
-                    } else {
-                        None
-                    }
-                }
-                4 => {
-                    // `[Run, Comma, Conjunction, Member]` (Oxford growth).
-                    if !matches!(children.first()?.features, Features::RestrictionRun) {
-                        return None;
-                    }
-                    if !matches!(children.last()?.features, Features::RestrictionMember) {
-                        return None;
-                    }
-                    if !matches!(
-                        children.get(2)?.features,
-                        Features::Conjunction(Conjunction::And)
-                    ) {
-                        return None;
-                    }
-                    Some(Features::RestrictionRun)
-                }
-                _ => None,
-            }
         }
         _ => None,
     }
@@ -1169,81 +901,6 @@ fn reduce_shared_copular_coordination(
         return None;
     }
     Some(propagate(children.first()?))
-}
-
-pub(super) fn fronted_attachment_reduction(
-    matrix: &Child<'_, EnglishGrammar<'_, '_>>,
-) -> Option<Reduced> {
-    let Features::Clause {
-        agreement,
-        standalone: true,
-        finite,
-        host_addressee_subject,
-        host_modal,
-        subjunctive,
-    } = matrix.features
-    else {
-        return None;
-    };
-    if *subjunctive {
-        return None;
-    }
-    Some(Features::Clause {
-        agreement: *agreement,
-        standalone: true,
-        finite: *finite,
-        host_addressee_subject: *host_addressee_subject,
-        host_modal: *host_modal,
-        subjunctive: false,
-    })
-}
-
-pub(super) fn conditional_reduction(
-    subordinator: crate::syntax::Subordinator,
-    condition: &Child<'_, EnglishGrammar<'_, '_>>,
-    consequence: &Child<'_, EnglishGrammar<'_, '_>>,
-) -> Option<Reduced> {
-    let Features::Clause {
-        standalone: true,
-        finite: true,
-        subjunctive: condition_subjunctive,
-        ..
-    } = condition.features
-    else {
-        return None;
-    };
-    // Licensing gate: a past-subjunctive condition clause (`it were ...`) is
-    // only ever well-formed under `as though` — every other subordinator
-    // (`until`, `as long as`, `where`, ...) must reject it outright. See
-    // `Features::Subordinator`/`AuxiliaryInflection::PastSubjunctive`.
-    if *condition_subjunctive && !matches!(subordinator, crate::syntax::Subordinator::AsThough) {
-        return None;
-    }
-    let Features::Clause {
-        agreement,
-        standalone: true,
-        finite,
-        host_addressee_subject,
-        host_modal,
-        subjunctive: consequence_subjunctive,
-    } = consequence.features
-    else {
-        return None;
-    };
-    // The matrix clause itself is never subjunctive in this construction.
-    if *consequence_subjunctive {
-        return None;
-    }
-    Some(Features::Clause {
-        agreement: *agreement,
-        standalone: true,
-        finite: *finite,
-        host_addressee_subject: *host_addressee_subject,
-        host_modal: *host_modal,
-        // The composed clause is not itself subjunctive: the flag is
-        // consumed by this gate, never propagated further.
-        subjunctive: false,
-    })
 }
 
 fn coordination_agrees(first_features: &Features, next_features: &Features) -> bool {
@@ -1355,17 +1012,6 @@ mod feature_identity_tests {
         hasher.finish()
     }
 
-    fn standalone_clause() -> Features {
-        Features::Clause {
-            agreement: None,
-            standalone: true,
-            finite: true,
-            host_addressee_subject: false,
-            host_modal: false,
-            subjunctive: false,
-        }
-    }
-
     #[test]
     fn auxiliary_surface_witness_does_not_change_chart_features() {
         let full = AuxiliaryInstance {
@@ -1397,28 +1043,5 @@ mod feature_identity_tests {
         };
         assert_eq!(full_subject, contracted_subject);
         assert_eq!(hash(&full_subject), hash(&contracted_subject));
-    }
-
-    #[test]
-    fn exception_punctuation_does_not_change_chart_features() {
-        let ignored = Features::None;
-        let clause = standalone_clause();
-        let single = reduce_composed_clause(
-            RuleTag::ExceptionRiderSingle,
-            &[Child { features: &ignored }, Child { features: &clause }],
-        )
-        .expect("single exception rider must reduce");
-        let comma = reduce_composed_clause(
-            RuleTag::ExceptionRiderComma,
-            &[
-                Child { features: &single },
-                Child { features: &ignored },
-                Child { features: &clause },
-            ],
-        )
-        .expect("comma exception rider must reduce");
-
-        assert_eq!(single, comma);
-        assert_eq!(hash(&single), hash(&comma));
     }
 }

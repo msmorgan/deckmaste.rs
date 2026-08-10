@@ -592,8 +592,30 @@ pub enum RelativeBody {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ComplexClause {
-    pub matrix: Box<IndependentClause>,
-    pub attachments: Vec<ClauseAttachment>,
+    pub(crate) matrix: Box<IndependentClause>,
+    pub(crate) attachments: Vec<ClauseAttachment>,
+}
+
+impl ComplexClause {
+    pub(crate) fn from_declaration_parts(
+        matrix: IndependentClause,
+        attachments: Vec<ClauseAttachment>,
+    ) -> Self {
+        Self {
+            matrix: Box::new(matrix),
+            attachments,
+        }
+    }
+
+    #[must_use]
+    pub fn matrix(&self) -> &IndependentClause {
+        &self.matrix
+    }
+
+    #[must_use]
+    pub fn attachments(&self) -> &[ClauseAttachment] {
+        &self.attachments
+    }
 }
 
 /// **Measured, `comma` field KEPT** (surface-fact diet, 2026-07-30
@@ -601,18 +623,44 @@ pub struct ComplexClause {
 /// a host clause, not members of a coordination — there is no `conjunction`
 /// field and the parent holds a flat `Vec<Attachment<T>>`, not a
 /// `first`/`rest` pair whose length could drive a serial-comma rule. Across
-/// its construction sites (`grammar/clause/lowering.rs`, `grammar/ability.rs`)
-/// `comma` takes at least 3 distinct forms: hardcoded `true`, hardcoded
-/// `false`, and a rule-tag-threaded variable (`conditional`/
-/// `conditional_body`'s own `comma: bool` parameter, forwarded from whichever
-/// comma/no-comma subordinate-clause grammar production fired further up the
-/// call chain) — a per-rule-tag constant with no coordination count to derive
-/// from.
+/// its construction sites (generated F03 declarations and `grammar/ability.rs`)
+/// `comma` takes at least 3 distinct forms: fronted/trailing comma witnesses,
+/// no-comma witnesses, and ability-layer attachments. There is no coordination
+/// count from which to derive it.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Attachment<T> {
-    pub position: AttachmentPosition,
-    pub comma: Comma,
-    pub payload: T,
+    pub(crate) position: AttachmentPosition,
+    pub(crate) comma: Comma,
+    pub(crate) payload: T,
+}
+
+impl<T> Attachment<T> {
+    pub(crate) const fn from_declaration_parts(
+        position: AttachmentPosition,
+        comma: Comma,
+        payload: T,
+    ) -> Self {
+        Self {
+            position,
+            comma,
+            payload,
+        }
+    }
+
+    #[must_use]
+    pub const fn position(&self) -> AttachmentPosition {
+        self.position
+    }
+
+    #[must_use]
+    pub const fn comma(&self) -> Comma {
+        self.comma
+    }
+
+    #[must_use]
+    pub const fn payload(&self) -> &T {
+        &self.payload
+    }
 }
 
 pub type ClauseAttachment = Attachment<ClauseAttachmentKind>;
@@ -659,10 +707,29 @@ pub struct RestrictionRun {
     /// elements today — verified by probe, not assumed — so a coordinated
     /// `only once each turn` member must carry both to round-trip). Never
     /// empty.
-    pub first: Vec<PredicateAdjunct>,
+    pub(crate) first: RestrictionMember,
     /// Never empty: the run exists only when a coordinator joins two or more
     /// members. Mirrors [`ExceptionRider::rest`].
-    pub rest: Vec<RestrictionCoordination>,
+    pub(crate) rest: Vec<RestrictionCoordination>,
+}
+
+impl RestrictionRun {
+    pub(crate) fn from_declaration_parts(
+        first: RestrictionMember,
+        rest: Vec<RestrictionCoordination>,
+    ) -> Self {
+        Self { first, rest }
+    }
+
+    #[must_use]
+    pub const fn first(&self) -> &RestrictionMember {
+        &self.first
+    }
+
+    #[must_use]
+    pub fn rest(&self) -> &[RestrictionCoordination] {
+        &self.rest
+    }
 }
 
 /// One non-first member of an `only …` restriction run.
@@ -683,9 +750,56 @@ pub struct RestrictionCoordination {
     /// list; `Some(PredicateConjunction::And)` on a bare `and` member and on
     /// the final Oxford member. Mirrors [`ExceptionConjunct`].
     #[serde(serialize_with = "super::legacy_serde::serialize_optional_predicate_conjunction")]
-    pub conjunction: Option<Conjunction>,
+    pub(crate) conjunction: Option<Conjunction>,
     /// See [`RestrictionRun::first`] for why this is a (non-empty) list.
-    pub adjuncts: Vec<PredicateAdjunct>,
+    pub(crate) member: RestrictionMember,
+}
+
+impl RestrictionCoordination {
+    pub(crate) const fn from_declaration_parts(
+        conjunction: Option<Conjunction>,
+        member: RestrictionMember,
+    ) -> Self {
+        Self {
+            conjunction,
+            member,
+        }
+    }
+
+    #[must_use]
+    pub const fn conjunction(&self) -> Option<Conjunction> {
+        self.conjunction
+    }
+
+    #[must_use]
+    pub const fn member(&self) -> &RestrictionMember {
+        &self.member
+    }
+}
+
+/// One non-empty `only …` member inside a coordinated restriction run.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct RestrictionMember {
+    pub(crate) adjuncts: Vec<PredicateAdjunct>,
+}
+
+impl RestrictionMember {
+    pub(crate) fn from_declaration_parts(adjuncts: Vec<PredicateAdjunct>) -> Option<Self> {
+        (!adjuncts.is_empty()).then_some(Self { adjuncts })
+    }
+
+    #[must_use]
+    pub fn adjuncts(&self) -> &[PredicateAdjunct] {
+        &self.adjuncts
+    }
+}
+
+impl std::ops::Deref for RestrictionMember {
+    type Target = Vec<PredicateAdjunct>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.adjuncts
+    }
 }
 
 /// A coordinated list of exception clauses trailing a host clause under a
@@ -695,8 +809,44 @@ pub struct RestrictionCoordination {
 /// list.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ExceptionRider {
-    pub first: Box<IndependentClause>,
-    pub rest: Vec<ExceptionConjunct>,
+    pub(crate) first: Box<IndependentClause>,
+    pub(crate) rest: Vec<ExceptionConjunct>,
+}
+
+impl ExceptionRider {
+    pub(crate) fn from_declaration_parts(
+        first: IndependentClause,
+        rest: Vec<ExceptionConjunct>,
+    ) -> Self {
+        Self {
+            first: Box::new(first),
+            rest,
+        }
+    }
+
+    #[must_use]
+    pub fn first(&self) -> &IndependentClause {
+        &self.first
+    }
+
+    #[must_use]
+    pub fn rest(&self) -> &[ExceptionConjunct] {
+        &self.rest
+    }
+}
+
+/// A comma-open exception rider awaiting a final conjunct.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ExceptionRiderList(pub(crate) ExceptionRider);
+
+impl ExceptionRiderList {
+    pub(crate) fn into_rider(self) -> ExceptionRider {
+        self.0
+    }
+
+    pub(crate) const fn rider(&self) -> &ExceptionRider {
+        &self.0
+    }
 }
 
 /// One non-first member of an exception-rider coordination.
@@ -714,8 +864,30 @@ pub struct ExceptionRider {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ExceptionConjunct {
     #[serde(serialize_with = "super::legacy_serde::serialize_optional_predicate_conjunction")]
-    pub conjunction: Option<Conjunction>,
-    pub clause: IndependentClause,
+    pub(crate) conjunction: Option<Conjunction>,
+    pub(crate) clause: IndependentClause,
+}
+
+impl ExceptionConjunct {
+    pub(crate) const fn from_declaration_parts(
+        conjunction: Option<Conjunction>,
+        clause: IndependentClause,
+    ) -> Self {
+        Self {
+            conjunction,
+            clause,
+        }
+    }
+
+    #[must_use]
+    pub const fn conjunction(&self) -> Option<Conjunction> {
+        self.conjunction
+    }
+
+    #[must_use]
+    pub const fn clause(&self) -> &IndependentClause {
+        &self.clause
+    }
 }
 
 pub type DependentAttachment = Attachment<DependentClause>;
