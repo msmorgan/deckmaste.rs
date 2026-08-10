@@ -398,8 +398,8 @@ mod tests {
             .iter()
             .filter(|family| family.owner() == ConstructionOwner::Generated)
             .count();
-        assert_eq!(handwritten, 66, "handwritten chart families");
-        assert_eq!(generated, 126, "generated chart families");
+        assert_eq!(handwritten, 50, "handwritten chart families");
+        assert_eq!(generated, 142, "generated chart families");
         assert_eq!(families.len(), 192, "all chart families");
 
         let chart_fragment_entries = [FragmentKind::Nominal, FragmentKind::Sentence];
@@ -410,7 +410,7 @@ mod tests {
         ];
         assert_eq!(chart_fragment_entries.len(), 2);
         assert_eq!(ability_fragment_entries.len(), 3);
-        assert_eq!(handwritten + ability_fragment_entries.len(), 69);
+        assert_eq!(handwritten + ability_fragment_entries.len(), 53);
         assert_eq!(families.len() + ability_fragment_entries.len(), 195);
 
         for id in [
@@ -467,6 +467,49 @@ mod tests {
                 assert!(
                     !registry().dominates(id, other.id()) && !registry().dominates(other.id(), id),
                     "F01 must have no dominance relation: {id} / {}",
+                    other.id()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn production_clause_attachment_families_are_generated_only() {
+        // The sixteen F03 declarations own these families with no remaining
+        // RuleTag-backed handwritten owner.
+        let ids = [
+            "clause_adverb_before",
+            "clause_sentence_adverbial_before",
+            "clause_prepositional_before",
+            "clause_subordinate_before",
+            "clause_subordinate_gerund_before",
+            "clause_subordinate_after_elliptical",
+            "clause_subordinate_after",
+            "clause_subordinate_after_comma",
+            "clause_subordinate_after_infinitive",
+            "exception_rider_single",
+            "exception_rider_conjoined",
+            "exception_rider_comma",
+            "exception_rider_oxford",
+            "clause_excepted",
+            "clause_restriction_run",
+            "clause_restriction_member",
+        ];
+        for name in ids {
+            let id = ConstructionId::new(name);
+            assert!(
+                handwritten_registry().family(id).is_none(),
+                "{name} still has a handwritten owner"
+            );
+            let family = registry()
+                .family(id)
+                .unwrap_or_else(|| panic!("{name} generated declaration is registered"));
+            assert_eq!(family.owner(), ConstructionOwner::Generated, "{name}");
+            assert_eq!(family.backend(), ConstructionBackend::Chart, "{name}");
+            for other in registry().families() {
+                assert!(
+                    !registry().dominates(id, other.id()) && !registry().dominates(other.id(), id),
+                    "F03 must have no dominance relation: {id} / {}",
                     other.id()
                 );
             }

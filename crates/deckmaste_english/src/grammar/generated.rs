@@ -456,6 +456,9 @@ fn engine_category(name: &str) -> Option<Nonterminal> {
         "ManaAmountList" => Nonterminal::ManaAmountList,
         "CoordinatedManaAmount" => Nonterminal::CoordinatedManaAmount,
         "IndependentClause" | "Clause" | "EllipticalClause" => Nonterminal::Clause,
+        "ExceptionRider" => Nonterminal::ExceptionRider,
+        "ExceptionRiderList" => Nonterminal::ExceptionRiderList,
+        "RestrictionMember" => Nonterminal::RestrictionMember,
         "SimpleClause" => Nonterminal::SimpleClause,
         "CopularRemainder" => Nonterminal::CopularRemainder,
         "ComparisonComplement" => Nonterminal::ComparisonComplement,
@@ -545,6 +548,15 @@ pub(super) fn typed_feature_projection(
         )),
         ("nonfinite", "features") => Some(
             crate::constructions::nonfinite::reduce_nonfinite_features(construction, fields),
+        ),
+        ("attachment", "features") => {
+            Some(crate::constructions::attachment::reduce_attachment_features(construction, fields))
+        }
+        ("attachment", "reading_dispreference") => Some(
+            crate::constructions::attachment::reduce_attachment_reading_dispreference(
+                construction,
+                fields,
+            ),
         ),
         _ => None,
     }
@@ -687,6 +699,8 @@ fn identity_slot(
         }
         ("ExistentialForm", "Existential") => Ok(EnglishLexicalSlot::Existential),
         ("Vocab", "Adverb") => Ok(EnglishLexicalSlot::Adverb),
+        ("Vocab", "SentenceAdverbial") => Ok(EnglishLexicalSlot::SentenceAdverbial),
+        ("Subordinator", "Subordinator") => Ok(EnglishLexicalSlot::Subordinator),
         ("PreverbModifier", "PreverbAdverb") => Ok(EnglishLexicalSlot::PreverbAdverb),
         ("VerbParticle", "VerbParticle") => Ok(EnglishLexicalSlot::AnyVerbParticle),
         ("CoinSide", "CoinResult") => Ok(EnglishLexicalSlot::AnyCoinResult),

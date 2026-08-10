@@ -307,6 +307,17 @@ macro_rules! vocabulary {
                 }
             }
 
+            pub(crate) fn from_spelling(spelling: &str) -> Option<Self> {
+                Self::ALL
+                    .iter()
+                    .copied()
+                    .find(|word| word.spelling() == spelling)
+                    .or_else(|| {
+                        regular_definition(spelling)
+                            .map(|definition| Self::Regular(RegularVocab(definition.spelling)))
+                    })
+            }
+
             pub(crate) fn predicate_frames(self) -> &'static [PredicateFrame] {
                 self.definition().predicate_frames
             }

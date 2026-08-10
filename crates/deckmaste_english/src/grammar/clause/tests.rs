@@ -420,10 +420,9 @@ fn while_fronts_a_gerund_clause_before_the_matrix() {
         "a missing comma must not parse"
     );
 
-    // A finite (non-gerund) body after `while` still parses, but through
-    // the pre-existing generic `ClauseSubordinateBefore` production, not
-    // the new gerund-only one — confirming the new production didn't
-    // widen `while`'s existing finite-clause reading.
+    // A finite (non-gerund) body after `while` still parses through the
+    // generic finite-subordinate declaration, not the gerund-only one. This
+    // confirms the gerund form does not widen `while`'s finite reading.
     let finite = parse("While you vote, you may vote an additional time.");
     let SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
         attachments: finite_attachments,
@@ -807,8 +806,8 @@ fn bare_subjunctive_clause_does_not_parse() {
 
 #[test]
 fn subjunctive_under_a_different_subordinator_does_not_parse() {
-    // N2: the licensing gate in `conditional_reduction` checks the
-    // specific subordinator lexeme, not just "some subordinator".
+    // N2: the declaration's licensing gate checks the specific subordinator
+    // lexeme, not just "some subordinator".
     assert!(
         parse_nonterminal(
             "As long as it were blocked, this creature gets +1/+1.",
@@ -2154,9 +2153,50 @@ fn coordinated_only_restrictions_form_one_restriction_attachment() {
     assert_eq!(run.rest.len(), 1);
     assert_eq!(run.rest[0].conjunction, Some(PredicateConjunction::And));
     assert!(matches!(
-        run.rest[0].adjuncts.as_slice(),
+        run.rest[0].member.adjuncts(),
         [PredicateAdjunct::Adverb(_), PredicateAdjunct::Temporal(_),]
     ));
+}
+
+#[test]
+fn restriction_builders_compose_without_chart_erasure() {
+    let catalogs = fixture_catalogs();
+    let host = parse_nonterminal("Activate", &catalogs, Nonterminal::Clause)
+        .expect("imperative host parses")
+        .clause()
+        .expect("Clause root")
+        .clone();
+    let preposition =
+        parse_nonterminal("as a sorcery", &catalogs, Nonterminal::PrepositionalPhrase)
+            .expect("restriction PP parses")
+            .prepositional_phrase()
+            .expect("PP root")
+            .clone();
+    let first = crate::constructions::attachment::build_clause_restriction_member(
+        Some(preposition),
+        None,
+        None,
+    )
+    .expect("prepositional member builds");
+    let next = crate::constructions::attachment::build_clause_restriction_member(None, None, None)
+        .expect("once member builds");
+    let clause = crate::constructions::attachment::build_clause_restriction_run(
+        host,
+        first,
+        vec![RestrictionCoordination {
+            conjunction: Some(Conjunction::And),
+            member: next,
+        }],
+    )
+    .expect("base restriction run builds");
+    let Clause::Independent(IndependentClause::Complex(complex)) = clause else {
+        panic!("expected a complex clause");
+    };
+    let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].payload else {
+        panic!("expected a restriction attachment");
+    };
+    assert_eq!(run.rest.len(), 1);
+    assert_eq!(run.rest[0].conjunction, Some(PredicateConjunction::And));
 }
 
 #[test]
@@ -2194,7 +2234,7 @@ fn restriction_run_admits_an_if_clause_member() {
     assert_eq!(run.rest.len(), 1);
     assert_eq!(run.rest[0].conjunction, Some(PredicateConjunction::And));
     assert!(matches!(
-        run.rest[0].adjuncts.as_slice(),
+        run.rest[0].member.adjuncts(),
         [PredicateAdjunct::Dependent(dependent)]
             if matches!(dependent.as_ref(), DependentClause::Subordinate(Subordinator::If, _))
     ));
@@ -5477,10 +5517,10 @@ fn restriction_run_admits_an_if_clause_member_true_witness() {
     );
     assert_eq!(run.rest.len(), 1);
     assert_eq!(run.rest[0].conjunction, Some(PredicateConjunction::And));
-    let [PredicateAdjunct::Dependent(dependent)] = run.rest[0].adjuncts.as_slice() else {
+    let [PredicateAdjunct::Dependent(dependent)] = run.rest[0].member.adjuncts() else {
         panic!(
             "expected a single Dependent member: {:#?}",
-            run.rest[0].adjuncts
+            run.rest[0].member.adjuncts()
         );
     };
     let DependentClause::Subordinate(Subordinator::If, SubordinateBody::Finite(if_body)) =
@@ -5995,10 +6035,10 @@ fn this_step_is_still_a_temporal_adjunct() {
             complex.attachments[0]
         );
     };
-    let [PredicateAdjunct::Dependent(dependent)] = run.rest[0].adjuncts.as_slice() else {
+    let [PredicateAdjunct::Dependent(dependent)] = run.rest[0].member.adjuncts() else {
         panic!(
             "expected a single Dependent member: {:#?}",
-            run.rest[0].adjuncts
+            run.rest[0].member.adjuncts()
         );
     };
     let DependentClause::Subordinate(Subordinator::If, SubordinateBody::Finite(if_body)) =

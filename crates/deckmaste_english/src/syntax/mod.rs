@@ -380,11 +380,11 @@ impl<'syntax> RecoveryWalker<'syntax> {
                             }
                         }
                         ClauseAttachmentKind::Restriction(run) => {
-                            for adjunct in &run.first {
+                            for adjunct in run.first.adjuncts() {
                                 self.predicate_adjunct(adjunct, context);
                             }
                             for member in &run.rest {
-                                for adjunct in &member.adjuncts {
+                                for adjunct in member.member.adjuncts() {
                                     self.predicate_adjunct(adjunct, context);
                                 }
                             }
@@ -502,11 +502,11 @@ impl<'syntax> RecoveryWalker<'syntax> {
                             }
                         }
                         ClauseAttachmentKind::Restriction(run) => {
-                            for adjunct in &run.first {
+                            for adjunct in run.first.adjuncts() {
                                 self.predicate_adjunct(adjunct, context);
                             }
                             for member in &run.rest {
-                                for adjunct in &member.adjuncts {
+                                for adjunct in member.member.adjuncts() {
                                     self.predicate_adjunct(adjunct, context);
                                 }
                             }

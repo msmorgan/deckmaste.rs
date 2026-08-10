@@ -74,15 +74,6 @@ pub(super) fn reduce(
         | RuleTag::ClauseCoordinationCopularNounPrepositional
         | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
         | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic
-        | RuleTag::ClauseAdverbBefore
-        | RuleTag::ClauseSentenceAdverbialBefore
-        | RuleTag::ClausePrepositionalBefore
-        | RuleTag::ClauseSubordinateBefore
-        | RuleTag::ClauseSubordinateGerundBefore
-        | RuleTag::ClauseSubordinateAfterElliptical
-        | RuleTag::ClauseSubordinateAfter
-        | RuleTag::ClauseSubordinateAfterComma
-        | RuleTag::ClauseSubordinateAfterInfinitive
         | RuleTag::RelativeObject
         | RuleTag::RelativeObjectContractedSubject
         | RuleTag::RelativeSubjectContractedAuxiliary
@@ -91,13 +82,6 @@ pub(super) fn reduce(
         | RuleTag::RelativeContractedCopularNoun
         | RuleTag::RelativeContractedCopularAdjective
         | RuleTag::RelativeContractedCopularPrepositional
-        | RuleTag::ClauseExcepted
-        | RuleTag::ClauseRestrictionRun
-        | RuleTag::ClauseRestrictionMember
-        | RuleTag::ExceptionRiderSingle
-        | RuleTag::ExceptionRiderConjoined
-        | RuleTag::ExceptionRiderComma
-        | RuleTag::ExceptionRiderOxford
         | RuleTag::VerbPhraseCoordinatedAdjective
         | RuleTag::CopularRemainderCoordinatedAdjective
         | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
@@ -1982,6 +1966,17 @@ pub(super) fn reduce_generated(
         Some(Some(_))
     ) {
         local_cost.precedence = local_cost.precedence.saturating_add(1);
+    }
+    if matches!(
+        super::generated::typed_feature_projection(
+            rule.group,
+            rule.construction,
+            "reading_dispreference",
+            &fields,
+        ),
+        Some(Some(_))
+    ) {
+        local_cost.reading_dispreference = local_cost.reading_dispreference.saturating_add(1);
     }
     if rule.context == super::rules::GeneratedRuleContext::SharedPreposition {
         local_cost.attachment_count = 1;

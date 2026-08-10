@@ -165,14 +165,14 @@ fn make_gerund_clause_subordinate_after(
         ));
     }
     let (predicate, mut attachments) = matrix.into_declaration_parts();
-    attachments.push(DependentAttachment {
-        position: AttachmentPosition::AfterMatrix,
-        comma: Comma::Absent,
-        payload: DependentClause::Subordinate(
+    attachments.push(DependentAttachment::from_declaration_parts(
+        AttachmentPosition::AfterMatrix,
+        Comma::Absent,
+        DependentClause::Subordinate(
             Subordinator::RatherThan,
             SubordinateBody::Gerund(alternative),
         ),
-    });
+    ));
     Ok(GerundClause::from_declaration_parts(predicate, attachments))
 }
 

@@ -1094,6 +1094,40 @@ fn public_nonfinite_facade_builds_projects_renders_and_rejects_wrong_forms() {
 }
 
 #[test]
+fn public_attachment_facade_builds_projects_and_rejects_invalid_runs() {
+    use deckmaste_english::clause as clause_api;
+    use deckmaste_english::predicate as predicate_api;
+
+    let predicate = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Attack),
+            slot: VerbSlot::Imperative,
+        },
+        predicate_api::PredicateFrameChoice::Intransitive,
+    )
+    .and_then(predicate_api::finish_predicate)
+    .expect("the imperative host is valid");
+    let host = Clause::Independent(IndependentClause::Imperative(predicate));
+    let attached =
+        clause_api::build_clause_sentence_adverbial_before(Vocab::Otherwise, host.clone())
+            .expect("the sentence adverbial attaches");
+    let (adverb, projected_host) = clause_api::parts_clause_sentence_adverbial_before(&attached);
+    assert_eq!(adverb, Vocab::Otherwise);
+    assert_eq!(projected_host, host);
+
+    let sentence = Sentence::try_from_clause(attached).expect("the attached clause is complete");
+    assert_eq!(
+        render_fragment(&Fragment::Sentence(sentence), "Test Card", false).unwrap(),
+        "Otherwise, attack.",
+    );
+
+    assert!(clause_api::build_clause_excepted(host.clone(), None, None).is_err());
+    let member = clause_api::build_clause_restriction_member(None, None, None)
+        .expect("the declared once member is valid");
+    assert!(clause_api::build_clause_restriction_run(host, member, Vec::new()).is_err());
+}
+
+#[test]
 fn public_predicate_facade_preserves_prepositional_adjunct_role() {
     use deckmaste_english::nominal as nominal_api;
     use deckmaste_english::predicate as predicate_api;
@@ -2164,9 +2198,9 @@ impl<'syntax> SyntaxInventory<'syntax> {
             }
             IndependentClause::Proform(subject, _) => self.subject(subject),
             IndependentClause::Complex(complex) => {
-                self.independent_clause(&complex.matrix);
-                for attachment in &complex.attachments {
-                    self.clause_attachment(&attachment.payload);
+                self.independent_clause(complex.matrix());
+                for attachment in complex.attachments() {
+                    self.clause_attachment(attachment.payload());
                 }
             }
             IndependentClause::Coordinated(coordinated) => {
@@ -2195,15 +2229,15 @@ impl<'syntax> SyntaxInventory<'syntax> {
             ClauseAttachmentKind::Dependent(clause) => self.dependent_clause(clause),
             ClauseAttachmentKind::Adjunct(adjunct) => self.predicate_adjunct(adjunct),
             ClauseAttachmentKind::Exception(rider) => {
-                self.independent_clause(&rider.first);
-                for conjunct in &rider.rest {
-                    self.independent_clause(&conjunct.clause);
+                self.independent_clause(rider.first());
+                for conjunct in rider.rest() {
+                    self.independent_clause(conjunct.clause());
                 }
             }
             ClauseAttachmentKind::Restriction(run) => {
-                self.predicate_adjuncts(&run.first);
-                for member in &run.rest {
-                    self.predicate_adjuncts(&member.adjuncts);
+                self.predicate_adjuncts(run.first());
+                for member in run.rest() {
+                    self.predicate_adjuncts(member.member().adjuncts());
                 }
             }
             ClauseAttachmentKind::Appositive(clause) => self.independent_clause(clause),
@@ -2230,7 +2264,7 @@ impl<'syntax> SyntaxInventory<'syntax> {
     fn gerund_clause(&mut self, clause: &'syntax GerundClause) {
         self.predicate(clause.predicate());
         for attachment in clause.attachments() {
-            self.dependent_clause(&attachment.payload);
+            self.dependent_clause(attachment.payload());
         }
     }
 
@@ -2264,7 +2298,7 @@ impl<'syntax> SyntaxInventory<'syntax> {
             Predicate::Attached(predicate) => {
                 self.predicate(&predicate.predicate);
                 for attachment in &predicate.attachments {
-                    self.clause_attachment(&attachment.payload);
+                    self.clause_attachment(attachment.payload());
                 }
             }
             Predicate::Proform(_) => {}
@@ -2598,12 +2632,14 @@ fn only_independent_clause(ast: &OracleText) -> &IndependentClause {
 
 fn exception_rider(clause: &IndependentClause) -> Option<&ExceptionRider> {
     match clause {
-        IndependentClause::Complex(complex) => complex.attachments.iter().find_map(|attachment| {
-            let ClauseAttachmentKind::Exception(rider) = &attachment.payload else {
-                return None;
-            };
-            Some(rider)
-        }),
+        IndependentClause::Complex(complex) => {
+            complex.attachments().iter().find_map(|attachment| {
+                let ClauseAttachmentKind::Exception(rider) = attachment.payload() else {
+                    return None;
+                };
+                Some(rider)
+            })
+        }
         IndependentClause::Predicated(_, expression) => exception_rider_in_expression(expression),
         IndependentClause::Imperative(predicate) => exception_rider_in_predicate(predicate),
         IndependentClause::Deontic(_, _, predicate) => {
@@ -2638,7 +2674,7 @@ fn exception_rider_in_expression(expression: &PredicateExpression) -> Option<&Ex
 fn exception_rider_in_predicate(predicate: &Predicate) -> Option<&ExceptionRider> {
     match predicate {
         Predicate::Attached(attached) => attached.attachments.iter().find_map(|attachment| {
-            let ClauseAttachmentKind::Exception(rider) = &attachment.payload else {
+            let ClauseAttachmentKind::Exception(rider) = attachment.payload() else {
                 return None;
             };
             Some(rider)
@@ -2657,12 +2693,14 @@ fn exception_rider_in_predicate(predicate: &Predicate) -> Option<&ExceptionRider
 
 fn appositive(clause: &IndependentClause) -> Option<&IndependentClause> {
     match clause {
-        IndependentClause::Complex(complex) => complex.attachments.iter().find_map(|attachment| {
-            let ClauseAttachmentKind::Appositive(appositive) = &attachment.payload else {
-                return None;
-            };
-            Some(appositive.as_ref())
-        }),
+        IndependentClause::Complex(complex) => {
+            complex.attachments().iter().find_map(|attachment| {
+                let ClauseAttachmentKind::Appositive(appositive) = attachment.payload() else {
+                    return None;
+                };
+                Some(appositive.as_ref())
+            })
+        }
         IndependentClause::Predicated(_, expression) => appositive_in_expression(expression),
         IndependentClause::Imperative(predicate) => appositive_in_predicate(predicate),
         IndependentClause::Deontic(_, _, predicate) => {
@@ -2698,7 +2736,7 @@ fn appositive_in_expression(expression: &PredicateExpression) -> Option<&Indepen
 fn appositive_in_predicate(predicate: &Predicate) -> Option<&IndependentClause> {
     match predicate {
         Predicate::Attached(attached) => attached.attachments.iter().find_map(|attachment| {
-            let ClauseAttachmentKind::Appositive(appositive) = &attachment.payload else {
+            let ClauseAttachmentKind::Appositive(appositive) = attachment.payload() else {
                 return None;
             };
             Some(appositive.as_ref())
@@ -2731,7 +2769,7 @@ fn matrix_predicate_head(clause: &IndependentClause) -> Option<&PredicateHead> {
         IndependentClause::Predicated(_, PredicateExpression::Simple(predicate))
         | IndependentClause::Imperative(predicate) => predicate_head(predicate),
         IndependentClause::Deontic(_, _, predicate) => predicate.as_ref().and_then(predicate_head),
-        IndependentClause::Complex(complex) => matrix_predicate_head(&complex.matrix),
+        IndependentClause::Complex(complex) => matrix_predicate_head(complex.matrix()),
         IndependentClause::Copular(..)
         | IndependentClause::Predicated(_, PredicateExpression::Coordinated(_))
         | IndependentClause::Existential(_)
@@ -2749,7 +2787,7 @@ fn clause_subject(clause: &IndependentClause) -> Option<&NounPhrase> {
         | IndependentClause::Deontic(subject, _, _)
         | IndependentClause::Proform(subject, _)
         | IndependentClause::Predicated(Some(subject), _) => Some(&subject.0),
-        IndependentClause::Complex(complex) => clause_subject(&complex.matrix),
+        IndependentClause::Complex(complex) => clause_subject(complex.matrix()),
         IndependentClause::Predicated(None, _)
         | IndependentClause::Imperative(_)
         | IndependentClause::Existential(_)
@@ -2777,7 +2815,7 @@ fn direct_object(clause: &IndependentClause) -> Option<&PredicateObject> {
         IndependentClause::Deontic(_, _, predicate) => {
             predicate.as_ref().and_then(predicate_object)
         }
-        IndependentClause::Complex(complex) => direct_object(&complex.matrix),
+        IndependentClause::Complex(complex) => direct_object(complex.matrix()),
         IndependentClause::Intransitive(..)
         | IndependentClause::Copular(..)
         | IndependentClause::Passive(..)
@@ -2851,15 +2889,15 @@ fn is_any_number_of(phrase: &NounPhrase) -> bool {
 fn has_finite_subordinate(clause: &IndependentClause, expected: Subordinator) -> bool {
     match clause {
         IndependentClause::Complex(complex) => {
-            complex.attachments.iter().any(|attachment| {
+            complex.attachments().iter().any(|attachment| {
                 matches!(
-                    &attachment.payload,
+                    attachment.payload(),
                     ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
                         subordinator,
                         SubordinateBody::Finite(_)
                     )) if *subordinator == expected
                 )
-            }) || has_finite_subordinate(&complex.matrix, expected)
+            }) || has_finite_subordinate(complex.matrix(), expected)
         }
         IndependentClause::Predicated(_, PredicateExpression::Simple(predicate))
         | IndependentClause::Imperative(predicate) => {
@@ -2890,7 +2928,7 @@ fn predicate_has_finite_subordinate(predicate: &Predicate, expected: Subordinato
         Predicate::Attached(attached) => {
             attached.attachments.iter().any(|attachment| {
                 matches!(
-                    &attachment.payload,
+                    attachment.payload(),
                     ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
                         subordinator,
                         SubordinateBody::Finite(_)
@@ -2924,7 +2962,7 @@ fn matrix_has_prepositional_adjunct(clause: &IndependentClause, expected: Prepos
         ) => predicate.elements(),
         IndependentClause::Passive(_, predicate) => predicate.elements(),
         IndependentClause::Complex(complex) => {
-            return matrix_has_prepositional_adjunct(&complex.matrix, expected);
+            return matrix_has_prepositional_adjunct(complex.matrix(), expected);
         }
         _ => return false,
     };
@@ -3173,7 +3211,7 @@ fn single_conjunct_exception_rider_round_trips() {
         .unwrap_or_else(|| panic!("expected an exception rider: {ast}"));
     assert!(
         matches!(
-            rider.first.as_ref(),
+            rider.first(),
             IndependentClause::Copular(
                 _,
                 CopularPredicate {
@@ -3181,7 +3219,7 @@ fn single_conjunct_exception_rider_round_trips() {
                     ..
                 }
             )
-        ) && rider.rest.is_empty(),
+        ) && rider.rest().is_empty(),
         "AST:\n{ast}"
     );
 }
@@ -3204,7 +3242,7 @@ fn quoted_final_exception_conjunct_stays_inside_oxford_rider() {
     assert!(
         !matches!(clause, IndependentClause::Coordinated(_))
             && matches!(
-                rider.first.as_ref(),
+                rider.first(),
                 IndependentClause::Copular(
                     _,
                     CopularPredicate {
@@ -3215,18 +3253,14 @@ fn quoted_final_exception_conjunct_stays_inside_oxford_rider() {
                     }
                 )
             )
+            && rider.rest().len() == 2
+            && rider.rest()[0].conjunction().is_none()
+            && matches!(rider.rest()[0].clause(), IndependentClause::Copular(..))
+            && rider.rest()[1].conjunction() == Some(PredicateConjunction::And)
             && matches!(
-                rider.rest.as_slice(),
-                [
-                    ExceptionConjunct {
-                        conjunction: None,
-                        clause: IndependentClause::Copular(..),
-                    },
-                    ExceptionConjunct {
-                        conjunction: Some(PredicateConjunction::And),
-                        clause: IndependentClause::Transitive(_, predicate),
-                    },
-                ] if matches!(&predicate.object, PredicateObject::QuotedAbility(_))
+                rider.rest()[1].clause(),
+                IndependentClause::Transitive(_, predicate)
+                    if matches!(&predicate.object, PredicateObject::QuotedAbility(_))
             ),
         "AST:\n{ast}"
     );
@@ -3246,7 +3280,7 @@ fn two_member_post_exception_coordination_stays_outside_the_rider() {
     let rider =
         exception_rider(clause).unwrap_or_else(|| panic!("expected an exception rider: {ast}"));
     assert!(
-        rider.rest.is_empty()
+        rider.rest().is_empty()
             && matches!(
                 clause,
                 IndependentClause::Coordinated(CoordinatedIndependentClause {
@@ -3281,10 +3315,10 @@ fn quoted_ability_exception_on_a_token_copy_round_trips() {
         .unwrap_or_else(|| panic!("expected an exception rider: {ast}"));
     assert!(
         matches!(
-            rider.first.as_ref(),
+            rider.first(),
             IndependentClause::Transitive(_, predicate)
                 if matches!(&predicate.object, PredicateObject::QuotedAbility(_))
-        ) && rider.rest.is_empty(),
+        ) && rider.rest().is_empty(),
         "AST:\n{ast}"
     );
 }
@@ -3302,7 +3336,7 @@ fn name_exception_on_a_becomes_copy_carries_a_self_reference() {
         .unwrap_or_else(|| panic!("expected an exception rider: {ast}"));
     assert!(
         matches!(
-            rider.first.as_ref(),
+            rider.first(),
             IndependentClause::Copular(
                 _,
                 CopularPredicate {
@@ -3312,7 +3346,7 @@ fn name_exception_on_a_becomes_copy_carries_a_self_reference() {
                     ..
                 }
             )
-        ) && rider.rest.len() == 1,
+        ) && rider.rest().len() == 1,
         "AST:\n{ast}"
     );
 }

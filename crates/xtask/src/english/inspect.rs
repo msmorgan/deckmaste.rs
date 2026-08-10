@@ -545,6 +545,30 @@ mod tests {
     }
 
     #[test]
+    fn production_f03_inspect_reports_generated_attachment_scope() {
+        let fronted = verbose_m01("Otherwise, draw a card.");
+        assert!(
+            fronted
+                .contains(" clause_sentence_adverbial_before owner=generated backend=chart form=0"),
+            "{fronted}",
+        );
+
+        let subordinate = verbose_m01("If you control a Plains, creatures you control get +1/+1.");
+        assert!(
+            subordinate.contains(" clause_subordinate_before owner=generated backend=chart form=0 evidence=feature:finite subordinate selection and host eligibility"),
+            "{subordinate}",
+        );
+
+        let restriction = verbose_m01("Activate only as a sorcery and only once each turn.");
+        for construction in ["clause_restriction_member", "clause_restriction_run"] {
+            assert!(
+                restriction.contains(&format!(" {construction} owner=generated backend=chart ")),
+                "missing generated F03 owner {construction}:\n{restriction}",
+            );
+        }
+    }
+
+    #[test]
     fn normal_output_resolves_spans_while_verbose_output_keeps_them() {
         let cards = [CardFace {
             card_name: "Test Card".to_owned(),

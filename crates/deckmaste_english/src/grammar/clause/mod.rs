@@ -5,9 +5,12 @@
 use super::*;
 use crate::syntax::AttachedPredicate;
 use crate::syntax::AttachmentPosition;
+#[cfg(test)]
 use crate::syntax::ClauseAttachment;
+#[cfg(test)]
 use crate::syntax::ClauseAttachmentKind;
 use crate::syntax::ClauseCoordination;
+#[cfg(test)]
 use crate::syntax::ComplexClause;
 use crate::syntax::CoordinatedClauseMember;
 use crate::syntax::CoordinatedIndependentClause;
@@ -16,10 +19,10 @@ use crate::syntax::CoordinatedPredicateObject;
 use crate::syntax::Coordination;
 use crate::syntax::CoordinationJunction;
 use crate::syntax::DeonticPredicate;
+#[cfg(test)]
 use crate::syntax::DependentClause;
+#[cfg(test)]
 use crate::syntax::EllipticalClause;
-use crate::syntax::ExceptionConjunct;
-use crate::syntax::ExceptionRider;
 use crate::syntax::IndependentClause;
 #[cfg(test)]
 use crate::syntax::Modal;
@@ -37,8 +40,9 @@ use crate::syntax::PredicateHead;
 use crate::syntax::PredicateObjectCoordination;
 use crate::syntax::RelativeBody;
 use crate::syntax::RelativeMarker;
+#[cfg(test)]
 use crate::syntax::RestrictionCoordination;
-use crate::syntax::RestrictionRun;
+#[cfg(test)]
 use crate::syntax::SubordinateBody;
 
 mod lowering;

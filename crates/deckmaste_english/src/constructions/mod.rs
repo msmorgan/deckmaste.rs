@@ -1,6 +1,7 @@
 //! Construction-group declarations and test-only compiler scaffolding.
 
 pub(crate) mod adjective;
+pub(crate) mod attachment;
 pub(crate) mod clause;
 pub(crate) mod coordination;
 pub(crate) mod determiner {
@@ -34,6 +35,7 @@ use deckmaste_construction_compiler::runtime::GroupData;
 
 pub(crate) static GROUPS: &[&GroupData] = &[
     adjective::GROUPS[0],
+    attachment::GROUPS[0],
     clause::GROUPS[0],
     coordination::GROUPS[0],
     determiner::GROUPS[0],
