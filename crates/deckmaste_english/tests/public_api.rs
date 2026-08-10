@@ -3052,7 +3052,7 @@ fn existential_forms_expose_validated_features_and_keep_legacy_unit_names() {
         ),
     ] {
         let report = parse_with_catalogs(source, &Catalogs::default());
-        let AbilityKind::Paragraph(paragraph) = &report.ast().abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = &report.ast().abilities[0].kind() else {
             panic!("expected a paragraph for {source:?}");
         };
         let SentenceBody::Independent(IndependentClause::Existential(existential)) =
@@ -3516,8 +3516,8 @@ fn public_parser_returns_a_source_independent_grammar_tree() {
 
     assert!(report.diagnostics().is_empty());
     assert!(matches!(
-        report.ast().abilities[0].kind,
-        AbilityKind::Paragraph(ref paragraph)
+        report.ast().abilities[0].kind(),
+        AbilityKind::Paragraph(paragraph)
             if matches!(
                 paragraph.sentences[0].body(),
                 SentenceBody::Independent(IndependentClause::Imperative(
@@ -3700,7 +3700,7 @@ impl<'syntax> SyntaxInventory<'syntax> {
     }
 
     fn ability(&mut self, ability: &'syntax Ability) {
-        match &ability.kind {
+        match ability.kind() {
             AbilityKind::Activated(activated) => {
                 self.cost(&activated.cost);
                 self.paragraph(&activated.effect);
@@ -4299,14 +4299,14 @@ fn only_ability(ast: &OracleText) -> &Ability {
 }
 
 fn only_paragraph(ast: &OracleText) -> &Paragraph {
-    let AbilityKind::Paragraph(paragraph) = &only_ability(ast).kind else {
+    let AbilityKind::Paragraph(paragraph) = only_ability(ast).kind() else {
         panic!("expected a paragraph ability: {ast:#?}");
     };
     paragraph
 }
 
 fn only_activated(ast: &OracleText) -> &ActivatedAbility {
-    let AbilityKind::Activated(activated) = &only_ability(ast).kind else {
+    let AbilityKind::Activated(activated) = only_ability(ast).kind() else {
         panic!("expected an activated ability: {ast:#?}");
     };
     activated
@@ -4533,7 +4533,7 @@ fn first_independent_in_paragraph(paragraph: &Paragraph) -> Option<&IndependentC
 }
 
 fn first_effect_clause(ability: &Ability) -> Option<&IndependentClause> {
-    match &ability.kind {
+    match ability.kind() {
         AbilityKind::Activated(activated) => first_independent_in_paragraph(&activated.effect),
         AbilityKind::Chapter(chapter) => first_independent_in_paragraph(&chapter.body),
         AbilityKind::RollRow(row) => first_independent_in_paragraph(&row.body),
@@ -4837,7 +4837,7 @@ fn a_the_headed_nickname_keeps_its_capital_the() {
     assert_eq!(rendered, "Whenever a creature dies, untap The Beast.");
     assert!(
         matches!(
-            &only_ability(&ast).kind,
+            only_ability(&ast).kind(),
             AbilityKind::Triggered(TriggeredAbility { effect, .. })
                 if matches!(
                     effect.sentences.as_slice(),
@@ -5356,6 +5356,7 @@ fn keyword_line_catalogs() -> Catalogs {
             "Craft",
             "Cumulative upkeep",
             "Exhaust",
+            "Station",
         ],
     )
 }
@@ -5509,6 +5510,197 @@ fn malformed_keyword_tails_and_partial_lists_are_not_keyword_lines() {
         );
         assert!(!report.clean(), "malformed root was clean: {source:?}");
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename = "Ability")]
+struct LegacyAbilityView<'a> {
+    ability_word: Option<&'a deckmaste_english::catalog::CatalogAtom>,
+    flavor_header: Option<&'a deckmaste_english::syntax::FlavorHeader>,
+    kind: &'a AbilityKind,
+}
+
+#[test]
+fn ability_public_facade_is_checked_exact_and_legacy_serialized() {
+    let report = parse_fragment(
+        "Flying",
+        &keyword_line_catalogs(),
+        FragmentKind::Ability,
+        "Test Card",
+        false,
+    );
+    let Some(Fragment::Ability(parsed)) = report.fragment() else {
+        panic!("expected ability fragment")
+    };
+    let rebuilt = deckmaste_english::ability::build_ability(
+        parsed.ability_word().cloned(),
+        parsed.flavor_header().cloned(),
+        parsed.kind().clone(),
+    )
+    .expect("parsed ability rebuilds through the checked door");
+    let (ability_word, flavor_header, kind) =
+        deckmaste_english::ability::parts_ability(&rebuilt).unwrap();
+    assert_eq!(ability_word.as_ref(), parsed.ability_word());
+    assert_eq!(flavor_header.as_ref(), parsed.flavor_header());
+    assert_eq!(&kind, parsed.kind());
+    assert_eq!(
+        ron::to_string(&rebuilt).unwrap(),
+        ron::to_string(&LegacyAbilityView {
+            ability_word: parsed.ability_word(),
+            flavor_header: parsed.flavor_header(),
+            kind: parsed.kind(),
+        })
+        .unwrap(),
+    );
+    assert_eq!(
+        deckmaste_english::ability::render(&rebuilt, "Test Card", false).unwrap(),
+        "Flying",
+    );
+}
+
+fn generated_ability_ordinals(report: &deckmaste_english::ParseReport) -> Vec<u16> {
+    report
+        .provenance()
+        .selections()
+        .iter()
+        .flat_map(ParseSelection::constructions)
+        .filter(|decision| decision.selected().as_str() == "ability")
+        .map(|decision| {
+            assert_eq!(decision.owner(), ConstructionOwner::Generated);
+            assert_eq!(decision.backend(), ConstructionBackend::Ability);
+            assert_eq!(decision.evidence().label(), "decisive ability frame guard");
+            decision.selected_production_ordinal()
+        })
+        .collect()
+}
+
+#[test]
+fn ability_multiline_and_nested_entrypoints_record_generated_roots() {
+    let catalogs = keyword_line_catalogs();
+    for (source, expected) in [
+        ("LEVEL 1-3\n4/4\nFlying", vec![9, 4]),
+        ("Station\n8+ | Flying", vec![9, 9, 5]),
+        ("Choose one —\n• Draw a card.\n• Gain 1 life.", vec![8]),
+        (
+            "Target creature gains \"Whenever this creature attacks, draw a card.\"",
+            vec![6, 10],
+        ),
+        ("{T}: Draw a card.", vec![0]),
+    ] {
+        let report = parse_with_catalogs(source, &catalogs);
+        assert!(
+            report.diagnostics().is_empty(),
+            "{source}: {:?}",
+            report.diagnostics()
+        );
+        assert_eq!(generated_ability_ordinals(&report), expected, "{source}");
+    }
+
+    let activated = parse_with_catalogs("{T}: Draw a card.", &catalogs);
+    let costs = activated
+        .provenance()
+        .selections()
+        .iter()
+        .flat_map(ParseSelection::constructions)
+        .filter(|decision| decision.selected().as_str() == "cost")
+        .count();
+    assert_eq!(costs, 1, "the nested cost owns its generated decision");
+
+    let keyword = parse_with_catalogs("Flying", &catalogs);
+    let keyword_lines = keyword
+        .provenance()
+        .selections()
+        .iter()
+        .flat_map(ParseSelection::constructions)
+        .filter(|decision| decision.selected().as_str() == "keyword_line")
+        .count();
+    assert_eq!(
+        keyword_lines, 1,
+        "the nested keyword line owns its decision"
+    );
+}
+
+#[test]
+fn ability_checked_facade_rejects_collisions_empty_payloads_and_invalid_ranges() {
+    let catalogs = keyword_line_catalogs();
+    let flying = parse_with_catalogs("Flying", &catalogs).into_ast();
+    let AbilityKind::Keyword(keyword) = flying.abilities[0].kind() else {
+        panic!("expected keyword fixture")
+    };
+    let header_atom = keyword.abilities()[0].ability.clone();
+    assert!(
+        deckmaste_english::ability::build_ability(
+            Some(header_atom),
+            Some(FlavorHeader::new("Collision", 1)),
+            flying.abilities[0].kind().clone(),
+        )
+        .is_err()
+    );
+
+    assert!(
+        deckmaste_english::ability::build_ability(
+            None,
+            None,
+            AbilityKind::Paragraph(Paragraph::default()),
+        )
+        .is_err()
+    );
+
+    let activated = parse_with_catalogs("{T}: Draw a card.", &catalogs).into_ast();
+    let AbilityKind::Activated(mut activated) = activated.abilities[0].kind().clone() else {
+        panic!("expected activated fixture")
+    };
+    activated.effect = Paragraph::default();
+    assert!(
+        deckmaste_english::ability::build_ability(None, None, AbilityKind::Activated(activated),)
+            .is_err()
+    );
+
+    let modal = parse_with_catalogs("Choose one —\n• Draw a card.", &catalogs).into_ast();
+    let AbilityKind::Modal(mut modal) = modal.abilities[0].kind().clone() else {
+        panic!("expected modal fixture")
+    };
+    modal.modes.clear();
+    assert!(
+        deckmaste_english::ability::build_ability(None, None, AbilityKind::Modal(modal),).is_err()
+    );
+
+    let row = parse_with_catalogs("2–9 | Draw a card.", &catalogs).into_ast();
+    let AbilityKind::RollRow(mut row) = row.abilities[0].kind().clone() else {
+        panic!("expected roll-row fixture")
+    };
+    row.range = RollRange::Inclusive {
+        low: NumberLiteral {
+            value: 9,
+            numeral: Numeral::Arabic(false),
+        },
+        high: NumberLiteral {
+            value: 2,
+            numeral: Numeral::Arabic(false),
+        },
+    };
+    assert!(
+        deckmaste_english::ability::build_ability(None, None, AbilityKind::RollRow(row),).is_err()
+    );
+
+    let band = parse_with_catalogs("LEVEL 1-3\n4/4", &catalogs).into_ast();
+    let AbilityKind::LevelBand(mut band) = band.abilities[0].kind().clone() else {
+        panic!("expected level-band fixture")
+    };
+    band.range = LevelRange::Band {
+        low: NumberLiteral {
+            value: 4,
+            numeral: Numeral::Arabic(false),
+        },
+        high: NumberLiteral {
+            value: 1,
+            numeral: Numeral::Arabic(false),
+        },
+    };
+    assert!(
+        deckmaste_english::ability::build_ability(None, None, AbilityKind::LevelBand(band),)
+            .is_err()
+    );
 }
 
 #[test]
@@ -5938,14 +6130,16 @@ fn flavor_word_header_before_a_paragraph_peels_as_licensed_opacity() {
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     let header = only_ability(&ast)
-        .flavor_header
-        .as_ref()
+        .flavor_header()
         .unwrap_or_else(|| panic!("expected an ability flavor header: {ast}"));
     assert!(
         header.text() == "Polymorphine" && header.source_tokens() == 1,
         "expected an ability-level flavor-word header\nAST:\n{ast}"
     );
-    assert!(matches!(only_ability(&ast).kind, AbilityKind::Paragraph(_)));
+    assert!(matches!(
+        only_ability(&ast).kind(),
+        AbilityKind::Paragraph(_)
+    ));
 }
 
 #[test]
@@ -5963,14 +6157,10 @@ fn flavor_word_header_before_a_trigger_lets_the_trigger_recover() {
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     assert!(
-        matches!(
-            only_ability(&ast),
-            Ability {
-                flavor_header: Some(header),
-                kind: AbilityKind::Triggered(_),
-                ..
-            } if header.text() == "Chaos"
-        ),
+        matches!(only_ability(&ast).kind(), AbilityKind::Triggered(_))
+            && only_ability(&ast)
+                .flavor_header()
+                .is_some_and(|header| header.text() == "Chaos"),
         "expected the trigger behind the label to recover\nAST:\n{ast}"
     );
 }
@@ -5989,8 +6179,7 @@ fn multi_word_flavor_word_header_peels_the_whole_label() {
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     let header = only_ability(&ast)
-        .flavor_header
-        .as_ref()
+        .flavor_header()
         .unwrap_or_else(|| panic!("expected an ability flavor header: {ast}"));
     assert!(
         header.text() == "Make Them Pay" && header.source_tokens() == 3,
@@ -6011,11 +6200,11 @@ fn flavor_word_header_uncovers_a_villainous_choice_appositive() {
     assert_no_recovery(&ast);
     assert!(
         only_ability(&ast)
-            .flavor_header
+            .flavor_header()
             .as_ref()
             .is_some_and(|header| header.text() == "Chaos")
             && matches!(
-                &only_ability(&ast).kind,
+                only_ability(&ast).kind(),
                 AbilityKind::Paragraph(Paragraph { sentences, .. }) if matches!(
                     sentences.as_slice(),
                     [sentence] if matches!(
@@ -6042,7 +6231,7 @@ fn flavor_word_header_inside_a_saga_chapter_body_peels() {
     assert_no_recovery(&ast);
     assert!(
         matches!(
-            &only_ability(&ast).kind,
+            only_ability(&ast).kind(),
             AbilityKind::Chapter(ChapterAbility { body, .. })
                 if body
                     .flavor_header
@@ -6062,9 +6251,9 @@ fn saga_chapter_roman_header_is_not_a_flavor_word() {
     let (rendered, ast) = parse_face(source, &flavor_catalogs(), "Test Saga", false);
     assert_eq!(rendered, source);
     assert!(
-        only_ability(&ast).flavor_header.is_none()
+        only_ability(&ast).flavor_header().is_none()
             && matches!(
-                &only_ability(&ast).kind,
+                only_ability(&ast).kind(),
                 AbilityKind::Chapter(ChapterAbility { body, .. })
                     if body.flavor_header.is_none()
             ),
@@ -6081,7 +6270,8 @@ fn a_capitalized_non_member_label_stays_recovered() {
     let (rendered, ast) = parse_face(source, &flavor_catalogs(), "Test Card", false);
     assert_eq!(rendered, source);
     assert!(
-        only_ability(&ast).flavor_header.is_none() && only_paragraph(&ast).flavor_header.is_none(),
+        only_ability(&ast).flavor_header().is_none()
+            && only_paragraph(&ast).flavor_header.is_none(),
         "a non-member label must not peel\nAST:\n{ast}"
     );
     assert!(!ast.recoveries().is_empty(), "AST:\n{ast}");
@@ -6098,7 +6288,8 @@ fn a_terminal_punctuation_flavor_member_keeps_the_paragraph_path() {
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     assert!(
-        only_ability(&ast).flavor_header.is_none() && only_paragraph(&ast).flavor_header.is_some(),
+        only_ability(&ast).flavor_header().is_none()
+            && only_paragraph(&ast).flavor_header.is_some(),
         "an exclamation-terminated member must keep the paragraph flavor-header path\nAST:\n{ast}"
     );
 }
@@ -6114,14 +6305,14 @@ fn a_cost_flavor_header_with_a_non_member_label_is_unaffected() {
     let ability = only_ability(&ast);
     assert!(
         matches!(
-            &ability.kind,
+            ability.kind(),
             AbilityKind::Activated(ActivatedAbility { cost, .. })
                 if cost.flavor_header().is_some()
         ),
         "a non-member cost label must stay a cost flavor header\nAST:\n{ast}"
     );
     assert!(
-        ability.ability_word.is_none() && ability.flavor_header.is_none(),
+        ability.ability_word().is_none() && ability.flavor_header().is_none(),
         "the ability-level flavor slot must stay empty for a cost header\nAST:\n{ast}"
     );
 }
@@ -6632,7 +6823,7 @@ fn a_station_face_round_trips_through_its_threshold_rows() {
     assert!(
         ast.abilities
             .iter()
-            .all(|ability| !matches!(ability.kind, AbilityKind::RollRow(_))),
+            .all(|ability| !matches!(ability.kind(), AbilityKind::RollRow(_))),
         "AST:\n{ast}"
     );
 }

@@ -1,0 +1,11 @@
+error[E0451]: fields `ability_word`, `flavor_header` and `kind` of struct `deckmaste_english::syntax::Ability` are private
+ --> tests/compile_fail/construct_ability.rs:7:9
+  |
+6 |     let _ = Ability {
+  |             ------- in this type
+7 |         ability_word: None,
+  |         ^^^^^^^^^^^^ private field
+8 |         flavor_header: None,
+  |         ^^^^^^^^^^^^^ private field
+9 |         kind: AbilityKind::Paragraph(Paragraph::default()),
+  |         ^^^^ private field

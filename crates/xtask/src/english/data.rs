@@ -337,8 +337,8 @@ mod tests {
             let [ability] = report.ast().abilities.as_slice() else {
                 panic!("expected one ability: {:#?}", report.ast());
             };
-            let AbilityKind::Paragraph(paragraph) = &ability.kind else {
-                panic!("expected a paragraph ability: {:#?}", ability.kind);
+            let AbilityKind::Paragraph(paragraph) = ability.kind() else {
+                panic!("expected a paragraph ability: {:#?}", ability.kind());
             };
             let [sentence] = paragraph.sentences.as_slice() else {
                 panic!("expected one sentence: {paragraph:#?}");
@@ -392,8 +392,7 @@ mod tests {
             panic!("expected one ability: {:#?}", report.ast());
         };
         let flavor = ability
-            .flavor_header
-            .as_ref()
+            .flavor_header()
             .expect("a Scryfall flavor word should license the header peel");
         assert_eq!(flavor.text(), "Polymorphine");
         assert_eq!(

@@ -18,7 +18,7 @@ pub struct OracleText {
     pub abilities: Vec<Ability>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ability {
     /// A Scryfall ability word ([`CatalogKind::AbilityWord`]) peeled before the
     /// ability frame and reproduced as `<word> — `. An ability word is a
@@ -26,7 +26,7 @@ pub struct Ability {
     /// not lexical opacity.
     ///
     /// [`CatalogKind::AbilityWord`]: crate::CatalogKind::AbilityWord
-    pub ability_word: Option<CatalogAtom>,
+    ability_word: Option<CatalogAtom>,
     /// A Scryfall flavor word ([`CatalogKind::FlavorWord`]) peeled before the
     /// ability frame and reproduced as `<label> — `. Unlike an ability word a
     /// flavor word carries no rules meaning: it is licensed lexical opacity
@@ -38,8 +38,53 @@ pub struct Ability {
     ///
     /// [`CatalogKind::FlavorWord`]: crate::CatalogKind::FlavorWord
     /// [`LexicalOpacityKind::FlavorHeader`]: super::LexicalOpacityKind::FlavorHeader
-    pub flavor_header: Option<FlavorHeader>,
-    pub kind: AbilityKind,
+    flavor_header: Option<FlavorHeader>,
+    kind: AbilityKind,
+}
+
+impl Ability {
+    pub(crate) const fn from_parts(
+        _owner: &crate::constructions::ability::AbilityOwner,
+        ability_word: Option<CatalogAtom>,
+        flavor_header: Option<FlavorHeader>,
+        kind: AbilityKind,
+    ) -> Self {
+        Self {
+            ability_word,
+            flavor_header,
+            kind,
+        }
+    }
+
+    #[must_use]
+    pub const fn ability_word(&self) -> Option<&CatalogAtom> {
+        self.ability_word.as_ref()
+    }
+
+    #[must_use]
+    pub const fn flavor_header(&self) -> Option<&FlavorHeader> {
+        self.flavor_header.as_ref()
+    }
+
+    #[must_use]
+    pub const fn kind(&self) -> &AbilityKind {
+        &self.kind
+    }
+}
+
+impl serde::Serialize for Ability {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+
+        let mut state = serializer.serialize_struct("Ability", 3)?;
+        state.serialize_field("ability_word", &self.ability_word)?;
+        state.serialize_field("flavor_header", &self.flavor_header)?;
+        state.serialize_field("kind", &self.kind)?;
+        state.end()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]

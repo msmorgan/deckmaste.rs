@@ -180,7 +180,7 @@ fn write_p02_attachment_evidence(mut writer: impl Write, report: &ParseReport) -
         roles.insert("nominal");
     }
     for ability in &report.ast().abilities {
-        if let AbilityKind::Paragraph(paragraph) = &ability.kind {
+        if let AbilityKind::Paragraph(paragraph) = ability.kind() {
             for sentence in &paragraph.sentences {
                 if let SentenceBody::Independent(clause) = sentence.body() {
                     collect_predicate_pp_roles(clause, &mut roles);
@@ -642,6 +642,17 @@ mod tests {
         assert!(
             verbose.contains(
                 " cost owner=generated backend=ability form=1 evidence=role:activation-cost root"
+            ),
+            "{verbose}"
+        );
+    }
+
+    #[test]
+    fn production_ability_inspect_reports_generated_root_and_form() {
+        let verbose = verbose_m01("Choose one —\n• Draw a card.\n• Create a Treasure token.");
+        assert!(
+            verbose.contains(
+                " ability owner=generated backend=ability form=8 evidence=guard:decisive ability frame guard"
             ),
             "{verbose}"
         );

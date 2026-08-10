@@ -100,14 +100,14 @@ impl<'syntax> RecoveryWalker<'syntax> {
     }
 
     fn ability(&mut self, ability: &'syntax Ability, context: Option<RecoveryRole>) {
-        if let Some(header) = &ability.flavor_header {
+        if let Some(header) = ability.flavor_header() {
             self.lexical_opacity.push(LexicalOpacityRef {
                 kind: LexicalOpacityKind::FlavorHeader,
                 text: header.text(),
                 source_tokens: header.source_tokens(),
             });
         }
-        match &ability.kind {
+        match ability.kind() {
             AbilityKind::Activated(activated) => {
                 self.cost(&activated.cost, Some(RecoveryRole::ActivationCost));
                 self.paragraph(&activated.effect, context);
@@ -1039,41 +1039,29 @@ mod tests {
                     )),
                     intransitive(Vocab::Draw),
                 )),
-                Ability {
-                    ability_word: None,
-                    flavor_header: None,
-                    kind: AbilityKind::Activated(ActivatedAbility {
-                        cost: Cost::from_parts(
-                            None,
-                            vec![CostComponent::Recovered(recovered("cost"))],
-                        ),
-                        effect: Paragraph::default(),
-                    }),
-                },
-                Ability {
-                    ability_word: None,
-                    flavor_header: None,
-                    kind: AbilityKind::Keyword(KeywordAbilityList::from_parts(
-                        vec![KeywordAbility {
-                            preceding_separator: None,
-                            ability: flying,
-                            argument: KeywordArgument::Recovered {
-                                text: recovered("argument"),
-                            },
-                        }],
-                        None,
-                    )),
-                },
-                Ability {
-                    ability_word: None,
-                    flavor_header: None,
-                    kind: AbilityKind::Modal(ModalAbility {
-                        frame: ModalFrame::Unframed,
-                        header: paragraph_body(SentenceBody::Recovered(recovered("header"))),
-                        header_suffix: ModalHeaderSuffix::None,
-                        modes: vec![],
-                    }),
-                },
+                checked_ability(AbilityKind::Activated(ActivatedAbility {
+                    cost: Cost::from_parts(None, vec![CostComponent::Recovered(recovered("cost"))]),
+                    effect: valid_test_paragraph(),
+                })),
+                checked_ability(AbilityKind::Keyword(KeywordAbilityList::from_parts(
+                    vec![KeywordAbility {
+                        preceding_separator: None,
+                        ability: flying,
+                        argument: KeywordArgument::Recovered {
+                            text: recovered("argument"),
+                        },
+                    }],
+                    None,
+                ))),
+                checked_ability(AbilityKind::Modal(ModalAbility {
+                    frame: ModalFrame::Unframed,
+                    header: paragraph_body(SentenceBody::Recovered(recovered("header"))),
+                    header_suffix: ModalHeaderSuffix::None,
+                    modes: vec![Mode {
+                        heading: None,
+                        body: valid_test_paragraph(),
+                    }],
+                })),
                 paragraph(IndependentClause::Imperative(Predicate::Transitive(
                     TransitivePredicate {
                         head: predicate_head(Vocab::Draw),
@@ -1328,31 +1316,23 @@ mod tests {
     }
 
     fn paragraph(clause: IndependentClause) -> Ability {
-        Ability {
-            ability_word: None,
-            flavor_header: None,
-            kind: AbilityKind::Paragraph(paragraph_body(SentenceBody::Independent(clause))),
-        }
+        checked_ability(AbilityKind::Paragraph(paragraph_body(
+            SentenceBody::Independent(clause),
+        )))
     }
 
     fn paragraph_recovered(text: &str) -> Ability {
-        Ability {
-            ability_word: None,
-            flavor_header: None,
-            kind: AbilityKind::Paragraph(paragraph_body(SentenceBody::Recovered(recovered(text)))),
-        }
+        checked_ability(AbilityKind::Paragraph(paragraph_body(
+            SentenceBody::Recovered(recovered(text)),
+        )))
     }
 
     fn activated_with_cost(components: Vec<CostComponent>) -> OracleText {
         OracleText {
-            abilities: vec![Ability {
-                ability_word: None,
-                flavor_header: None,
-                kind: AbilityKind::Activated(ActivatedAbility {
-                    cost: Cost::from_parts(None, components),
-                    effect: Paragraph::default(),
-                }),
-            }],
+            abilities: vec![checked_ability(AbilityKind::Activated(ActivatedAbility {
+                cost: Cost::from_parts(None, components),
+                effect: valid_test_paragraph(),
+            }))],
         }
     }
 
@@ -1361,5 +1341,15 @@ mod tests {
             flavor_header: None,
             sentences: vec![Sentence::from_body(body)],
         }
+    }
+
+    fn valid_test_paragraph() -> Paragraph {
+        paragraph_body(SentenceBody::Independent(IndependentClause::Imperative(
+            Predicate::Intransitive(intransitive(Vocab::Draw)),
+        )))
+    }
+
+    fn checked_ability(kind: AbilityKind) -> Ability {
+        crate::ability::build_ability(None, None, kind).expect("syntax fixture is a valid ability")
     }
 }

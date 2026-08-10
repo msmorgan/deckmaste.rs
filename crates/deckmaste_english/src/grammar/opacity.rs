@@ -50,7 +50,6 @@ mod tests {
     use super::super::*;
     use crate::fragment::Fragment;
     use crate::fragment::render_fragment;
-    use crate::syntax::Ability;
     use crate::syntax::AbilityKind;
     use crate::syntax::IndependentClause;
     use crate::syntax::NominalModifier;
@@ -151,7 +150,7 @@ mod tests {
         let catalogs =
             Catalogs::default().with_catalog(crate::catalog::CatalogKind::CardType, ["Creature"]);
         let report = crate::parse_with_catalogs("Target creature frobnitzes a card.", &catalogs);
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph fallback");
         };
         assert!(
@@ -168,7 +167,7 @@ mod tests {
     #[test]
     fn morphologically_ambiguous_unknown_verb_uses_sentence_recovery() {
         let report = crate::parse("You frobnitz a card.");
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph fallback");
         };
         assert!(matches!(
@@ -255,14 +254,17 @@ mod tests {
 
     fn opaque_nouns(sentence: &crate::syntax::Sentence) -> Vec<String> {
         OracleText {
-            abilities: vec![Ability {
-                ability_word: None,
-                flavor_header: None,
-                kind: AbilityKind::Paragraph(Paragraph {
-                    flavor_header: None,
-                    sentences: vec![sentence.clone()],
-                }),
-            }],
+            abilities: vec![
+                crate::ability::build_ability(
+                    None,
+                    None,
+                    AbilityKind::Paragraph(Paragraph {
+                        flavor_header: None,
+                        sentences: vec![sentence.clone()],
+                    }),
+                )
+                .expect("opacity fixture is a valid ability"),
+            ],
         }
         .lexical_opacity()
         .into_iter()
@@ -274,7 +276,7 @@ mod tests {
     fn the_ring_tempts_you_parses_without_structural_recovery() {
         let report = crate::parse("Draw a card. The Ring tempts you.");
         assert_eq!(report.ast.abilities.len(), 1);
-        let AbilityKind::Paragraph(paragraph) = &report.ast.abilities[0].kind else {
+        let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
         assert_eq!(paragraph.sentences.len(), 2);

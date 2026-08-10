@@ -525,11 +525,11 @@ mod tests {
         assert_eq!(handwritten, 21, "handwritten chart families");
         assert_eq!(generated, 171, "generated chart families");
         assert_eq!(handwritten + generated, 192, "all chart families");
-        assert_eq!(generated_ability, 2, "generated ability families");
+        assert_eq!(generated_ability, 3, "generated ability families");
         assert_eq!(
             families.len(),
-            194,
-            "all active families after the keyword-line slice"
+            195,
+            "all active families after the ability slice"
         );
 
         let chart_fragment_entries = [FragmentKind::Nominal, FragmentKind::Sentence];
@@ -542,7 +542,7 @@ mod tests {
         assert_eq!(ability_fragment_entries.len(), 3);
         assert_eq!(
             handwritten + ability_fragment_entries.len() - generated_ability,
-            22
+            21
         );
         assert_eq!(
             families.len() + ability_fragment_entries.len() - generated_ability,

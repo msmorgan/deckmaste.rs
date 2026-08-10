@@ -11,6 +11,7 @@
 //! itself. It does not retain the input string; byte [`Span`] values exist only
 //! in diagnostics and optional parse provenance.
 
+pub mod ability;
 pub mod adjective;
 pub mod catalog;
 pub mod clause;
