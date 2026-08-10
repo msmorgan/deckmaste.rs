@@ -1973,13 +1973,40 @@ mod tests {
     /// Offspring. Proves the macro really produces a copy `Create` at all.
     fn keyword_copy_effect(invocation: &str) -> OneShotEffect {
         use deckmaste_core::KeywordAbility;
-        let kw: KeywordAbility = builtin().macros.read_str(invocation).unwrap();
-        let KeywordAbility::Expanded(exp) = kw else {
-            panic!("expected an Expanded keyword, got {kw:?}");
+        use deckmaste_lowering::Lower;
+
+        let semantic: deckmaste_semantics::KeywordAbility =
+            builtin().macros.read_str(invocation).unwrap();
+        let kw: KeywordAbility = semantic.lower();
+        let KeywordAbility::Composite { abilities, .. } = kw else {
+            panic!("expected a lowered Composite body, got {kw:?}")
         };
-        let KeywordAbility::Composite { abilities, .. } = &*exp.value else {
-            panic!("expected a Composite body");
-        };
+        if let Some(activated) = abilities.iter().find_map(|ability| ability.as_activated()) {
+            assert!(
+                activated.cost.iter().any(|component| matches!(
+                    component,
+                    deckmaste_core::CostComponent::Act(action)
+                        if matches!(
+                            action.as_ref(),
+                            Action::Move(
+                                Reference::This,
+                                deckmaste_core::Destination::Zone(Zone::Exile),
+                                _,
+                                _
+                            )
+                        )
+                )),
+                "the lowered graveyard-keyword cost binds exile to This"
+            );
+            assert!(
+                activated.cost.iter().all(|component| !matches!(
+                    component,
+                    deckmaste_core::CostComponent::Expanded(_)
+                        | deckmaste_core::CostComponent::ChooseAndPay { .. }
+                )),
+                "no semantic expansion or unresolved action-selection wrapper reaches runnable costs"
+            );
+        }
         abilities
             .iter()
             .find_map(|a| {

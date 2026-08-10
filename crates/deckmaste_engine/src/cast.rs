@@ -3252,6 +3252,16 @@ mod tests {
 
     #[test]
     fn autotap_covers_a_single_colored_pip() {
+        use crate::agenda::WorkItem;
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+        use crate::event::GameEvent;
+        use crate::payment::IouKind;
+        use crate::payment::ManaCoverage;
+        use crate::payment::ManaPip;
+        use crate::payment::PaymentCommand;
+        use crate::step::StepOutcome;
+
         let mut state = cm_game();
         let land = put_synthetic(
             &mut state,
@@ -3260,8 +3270,47 @@ mod tests {
             Zone::Battlefield,
         );
         let spell = put_synthetic(&mut state, instant("Bolt", "{R}"), PlayerId(0), Zone::Hand);
-        // No mana floated → the engine does not offer the cast yet.
-        assert!(!state.can_cast(&state.layers(), PlayerId(0), spell));
+        assert!(
+            state.can_cast(&state.layers(), PlayerId(0), spell),
+            "the structurally legal cast is offered before its resources are supplied"
+        );
+
+        state.schedule_front(GameState::announce_schedule(
+            WorkItem::BeginCast(spell),
+            GameEvent::SpellCast(spell),
+        ));
+        let prompt = loop {
+            match state.step() {
+                StepOutcome::Progress(_) => {}
+                StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) => break prompt,
+                other => panic!("expected cast payment, got {other:?}"),
+            }
+        };
+        let [iou] = prompt.outstanding.as_slice() else {
+            panic!("the {{R}} cast locks exactly one IOU: {prompt:?}")
+        };
+        assert_eq!(iou.kind, IouKind::ManaPip(ManaPip::Colored(Color::Red)));
+
+        let before = prompt;
+        assert!(
+            state
+                .submit_decision(Decision::Payment(PaymentCommand::BeginPayment(
+                    ManaCoverage::empty(),
+                )))
+                .is_err(),
+            "empty coverage cannot satisfy the locked red pip"
+        );
+        let Some(PendingDecision::Payment(after)) = state.pending.as_ref() else {
+            panic!("the rejected coverage keeps the payment prompt open")
+        };
+        assert_eq!(
+            after, &before,
+            "rejection leaves the active prompt unchanged"
+        );
+
+        state
+            .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
+            .unwrap();
         let plan = state
             .autotap_for_cast(PlayerId(0), spell)
             .expect("plannable");
