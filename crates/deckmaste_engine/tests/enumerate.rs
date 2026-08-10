@@ -200,9 +200,9 @@ fn step_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
 /// any other priority along the way. Returns the legal action list at that
 /// window.
 ///
-/// When a `PayMana` decision surfaces mid-announce, this function auto-taps it
-/// (via the engine's canonical `auto_pay_pending`) and continues. Tests that
-/// need a *specific* allocation must answer that `PayMana` explicitly before
+/// When a payment decision surfaces mid-announce, this function uses the
+/// engine's deterministic monocolor runner shim and continues. Tests that need
+/// a specific payment transcript must answer the protocol explicitly before
 /// calling this helper.
 fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) -> Vec<Action> {
     loop {
@@ -224,6 +224,23 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
             })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("automatic payment decision");
+                state.submit_decision(decision).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::ChooseManaReversals(choice)) => {
+                let reversals = choice
+                    .legal
+                    .iter()
+                    .max_by_key(|set| set.len())
+                    .cloned()
+                    .expect("a reversal prompt has a legal set");
+                state
+                    .submit_decision(Decision::ManaReversals(reversals))
+                    .unwrap();
             }
             other => panic!("unexpected stop before {player:?} priority in {phase:?}: {other:?}"),
         }
@@ -479,20 +496,23 @@ fn priority_enumerates_pass_concede_activate_and_land() {
 }
 
 #[test]
-fn cast_spell_is_enumerated_once_its_cost_is_payable() {
-    // Build a deck with Bolt + Mountains so we can float {R} then see CastSpell.
+fn cast_spell_is_enumerated_before_payment_is_proven() {
+    // Build a deck with Bolt + Mountains so the same spell can be observed
+    // before and after floating {R}.
     let mut state = bolt_game(2);
     force_into_play(&mut state, PlayerId(0), "Mountain");
     let bolt_id = force_into_hand(&mut state, PlayerId(0), INSTANT);
 
-    // Before floating mana, Bolt's cost isn't payable -> not offered.
+    // Announcing a spell no longer asks an affordability oracle to prove the
+    // eventual payment, so the empty pool does not hide Bolt.
     let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert!(
-        !legal.contains(&Action::CastSpell { object: bolt_id }),
-        "Bolt isn't castable with an empty pool"
+        legal.contains(&Action::CastSpell { object: bolt_id }),
+        "Bolt is a legal proposal with an empty pool"
     );
 
-    // Float {R} via the Mountain's mana ability, then it IS offered.
+    // Floating {R} changes how the later payment can be completed, not whether
+    // the proposal appears in a priority window.
     float_mana(&mut state, PlayerId(0), 1);
     let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
         legal,

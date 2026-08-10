@@ -75,8 +75,8 @@ fn step_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
 }
 
 /// Steps until a `Priority` decision surfaces for `player` in `phase`, passing
-/// any other priority and auto-paying any `PayMana` along the way. Returns the
-/// legal action list at that window.
+/// any other priority and advancing any payment prompt along the way. Returns
+/// the legal action list at that window.
 fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) -> Vec<Action> {
     loop {
         let (_, stop) = step_to_stop(state);
@@ -97,6 +97,23 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
             })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("automatic payment decision");
+                state.submit_decision(decision).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::ChooseManaReversals(prompt)) => {
+                let reversals = prompt
+                    .legal
+                    .iter()
+                    .max_by_key(|set| set.len())
+                    .cloned()
+                    .expect("a reversal prompt has a legal set");
+                state
+                    .submit_decision(Decision::ManaReversals(reversals))
+                    .expect("automatic reversal succeeds");
             }
             other => panic!("unexpected stop before {player:?} priority in {phase:?}: {other:?}"),
         }
@@ -200,6 +217,25 @@ fn cast_x_draw_announces_pays_and_draws_x() {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("automatic payment decision");
+                state
+                    .submit_decision(decision)
+                    .expect("automatic payment succeeds");
+            }
+            StepOutcome::NeedsDecision(PendingDecision::ChooseManaReversals(prompt)) => {
+                let reversals = prompt
+                    .legal
+                    .iter()
+                    .max_by_key(|set| set.len())
+                    .cloned()
+                    .expect("a reversal prompt has a legal set");
+                state
+                    .submit_decision(Decision::ManaReversals(reversals))
+                    .expect("automatic reversal succeeds");
+            }
             StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
                 ..
             })) => {
@@ -220,7 +256,7 @@ fn cast_x_draw_announces_pays_and_draws_x() {
 }
 
 #[test]
-fn unpayable_x_rewinds_the_cast() {
+fn unpayable_x_reaches_payment_and_can_be_declined() {
     let mut state = x_game(1);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     // Only one mana available; announcing X=5 (cost {5}) is unpayable.
@@ -245,8 +281,28 @@ fn unpayable_x_rewinds_the_cast() {
     };
     state.submit_decision(Decision::XValue(5)).unwrap();
 
-    // [CR#733.1]: the spell returned to hand; [CR#733.2]: priority is back with
-    // the caster; the pool is untouched.
+    // Choosing X locks the announced value but does not run an affordability
+    // oracle. The complete five-pip obligation reaches the ordinary payment
+    // protocol, where the player may decline the proposal.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) = stop else {
+        panic!("expected Payment after announcing X, got {stop:?}");
+    };
+    assert_eq!(prompt.stage, deckmaste_engine::PaymentStage::PrePayment);
+    assert_eq!(prompt.outstanding.len(), 5);
+    assert_eq!(
+        state.player(PlayerId(0)).mana_pool.amount(green()),
+        1,
+        "announcing X did not spend the pool"
+    );
+    state
+        .submit_decision(Decision::Payment(
+            deckmaste_engine::PaymentCommand::DeclinePayment,
+        ))
+        .unwrap();
+
+    // Declining returns the spell to hand and gives priority back to the
+    // caster; the pool remains untouched.
     let (_, stop) = step_to_stop(&mut state);
     let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
         player,
@@ -270,14 +326,14 @@ fn unpayable_x_rewinds_the_cast() {
 }
 
 #[test]
-fn x_spell_is_offered_when_x_zero_is_affordable() {
+fn x_spell_is_offered_before_payment_is_proven() {
     let mut state = x_game(1);
-    // No mana floated: {X} at its floor X=0 is {0}, payable with nothing.
+    // No mana is floated, but proposal enumeration defers the eventual payment.
     let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     let xdraw = find_in_hand(&state, PlayerId(0), "Sorcery X Draw");
     assert!(
         legal.contains(&Action::CastSpell { object: xdraw }),
-        "an {{X}} spell is castable at X=0 with an empty pool: {legal:?}"
+        "an {{X}} spell is a legal proposal with an empty pool: {legal:?}"
     );
 }
 
@@ -308,6 +364,25 @@ fn x_zero_draws_nothing_and_resolves() {
             })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("automatic payment decision");
+                state
+                    .submit_decision(decision)
+                    .expect("automatic payment succeeds");
+            }
+            StepOutcome::NeedsDecision(PendingDecision::ChooseManaReversals(prompt)) => {
+                let reversals = prompt
+                    .legal
+                    .iter()
+                    .max_by_key(|set| set.len())
+                    .cloned()
+                    .expect("a reversal prompt has a legal set");
+                state
+                    .submit_decision(Decision::ManaReversals(reversals))
+                    .expect("automatic reversal succeeds");
             }
             StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
                 ..
@@ -457,6 +532,25 @@ fn activate_x_draw_announces_pays_and_draws_x() {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("automatic payment decision");
+                state
+                    .submit_decision(decision)
+                    .expect("automatic payment succeeds");
+            }
+            StepOutcome::NeedsDecision(PendingDecision::ChooseManaReversals(prompt)) => {
+                let reversals = prompt
+                    .legal
+                    .iter()
+                    .max_by_key(|set| set.len())
+                    .cloned()
+                    .expect("a reversal prompt has a legal set");
+                state
+                    .submit_decision(Decision::ManaReversals(reversals))
+                    .expect("automatic reversal succeeds");
+            }
             StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
                 ..
             })) => {
@@ -563,6 +657,25 @@ fn cast_x_burn_announces_x_then_targets_then_deals_x() {
             })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("automatic payment decision");
+                state
+                    .submit_decision(decision)
+                    .expect("automatic payment succeeds");
+            }
+            StepOutcome::NeedsDecision(PendingDecision::ChooseManaReversals(prompt)) => {
+                let reversals = prompt
+                    .legal
+                    .iter()
+                    .max_by_key(|set| set.len())
+                    .cloned()
+                    .expect("a reversal prompt has a legal set");
+                state
+                    .submit_decision(Decision::ManaReversals(reversals))
+                    .expect("automatic reversal succeeds");
             }
             StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
                 ..

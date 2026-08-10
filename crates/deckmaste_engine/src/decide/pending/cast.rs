@@ -304,7 +304,8 @@ impl DecisionHandler for ChooseCostOptions {
 }
 
 /// [CR#601.2b]: announce the value of `{X}` in the in-flight cost. Any value
-/// >= 0 is accepted; an unpayable announcement rewinds the cast ([CR#733]).
+/// at least zero is accepted; whether the resulting locked cost can be
+/// completed is discovered later by the payment protocol ([CR#601.2f..601.2h]).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChooseXValue {
     pub player: PlayerId,
@@ -315,61 +316,13 @@ impl DecisionHandler for ChooseXValue {
         let Decision::XValue(x) = answer else {
             return Err(DecisionError::WrongKind);
         };
-        let ChooseXValue { player } = self;
+        let ChooseXValue { player: _ } = self;
         // [CR#601.2b]: record the announced value in the open slot.
         g.announcing
             .as_mut()
             .expect("an announce in flight for ChooseXValue")
             .x = Some(x);
-        // [CR#601.2h,733]: an unpayable announcement reverses the cast.
-        // Read the kind + base cost immutably, then decide.
-        let pending = g.announcing.as_ref().expect("an announce in flight");
-        // `pip_spell` names the spell whose `PayPips` statics (convoke /
-        // delve / improvise) may cover pips of the X-concretized cost —
-        // `Some` only for a spell; an activated ability has no `PayPips`.
-        let (subject, base, pip_spell) = match &pending.object {
-            crate::stack::StackObject::Spell(o) => (
-                *o,
-                // A face with no mana cost reads as mana value 0 here:
-                // the `mana_cost` seam reserves `None` for a future
-                // no-cost face, and an empty cost concretizes/affords as
-                // a free base. The engine never panics on card data.
-                g.mana_cost(*o).unwrap_or_default(),
-                Some(*o),
-            ),
-            crate::stack::StackObject::Activated {
-                source, ability, ..
-            } => (
-                *source,
-                crate::activate::cost_summary(&ability.cost)
-                    .expect("can_activate vetted the cost")
-                    .mana,
-                None,
-            ),
-            crate::stack::StackObject::Triggered { .. } => {
-                unreachable!("triggers never occupy the announce slot")
-            }
-        };
-        // [CR#601.2b,107.3a,107.4e,107.4f]: with X now fixed to its
-        // announced value, the cost may STILL carry hybrid/Phyrexian
-        // symbols (a `{X}{W/U}`-style cost composing engine-x-costs with
-        // engine-cost-payment). A bare `can_pay` rejects any cost with a
-        // choosable symbol (`requirement` returns `None`), so the
-        // payability check must go through the reading-search gate —
-        // "is SOME hybrid/Phyrexian reading of the X-concretized cost
-        // payable?" — which subsumes `can_pay` for a plain/X-only cost.
-        let payable = g.affordable_concretization(
-            player,
-            &crate::cast::concretize_x(&base, x),
-            subject,
-            pip_spell,
-        );
         g.pending = None;
-        // Writing `x` first is safe: `rewind_announce` discards the
-        // whole announcing slot, including the `x` just written.
-        if !payable {
-            g.rewind_announce();
-        }
         Ok(())
     }
 }

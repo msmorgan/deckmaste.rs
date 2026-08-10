@@ -494,6 +494,46 @@ fn mana_pips_spend_covered_units_one_at_a_time() {
 }
 
 #[test]
+fn automatic_payment_matches_constrained_pips_before_generic_ones() {
+    let cost: ManaCost = "{1}{R}".parse().unwrap();
+    let (mut state, payer, source) = activation_fixture(vec![CostComponent::Mana(cost)]);
+    let red = state.player_mut(payer).mana_pool.add(
+        ColorOrColorless::Color(Color::Red),
+        1,
+        ManaProvenance::default(),
+    )[0];
+    let green = state.player_mut(payer).mana_pool.add(
+        ColorOrColorless::Color(Color::Green),
+        1,
+        ManaProvenance::default(),
+    )[0];
+    announce_to_payment(&mut state, source);
+
+    let prompt = payment_prompt(&state);
+    let generic = prompt
+        .outstanding
+        .iter()
+        .find(|iou| matches!(iou.kind, IouKind::ManaPip(ManaPip::Generic)))
+        .expect("one generic pip")
+        .id;
+    let colored = prompt
+        .outstanding
+        .iter()
+        .find(|iou| matches!(iou.kind, IouKind::ManaPip(ManaPip::Colored(Color::Red))))
+        .expect("one red pip")
+        .id;
+
+    let Decision::Payment(PaymentCommand::BeginPayment(coverage)) = state
+        .auto_payment_pending()
+        .expect("automatic payment decision")
+    else {
+        panic!("a fully funded prepayment prompt begins payment")
+    };
+    assert_eq!(coverage.get(generic), Some(&ManaPayment::Floating(green)));
+    assert_eq!(coverage.get(colored), Some(&ManaPayment::Floating(red)));
+}
+
+#[test]
 fn zero_cost_uses_explicit_empty_coverage_and_commits_only_on_submit() {
     let zero: ManaCost = "{0}".parse().unwrap();
     let (mut state, _, source) = activation_fixture(vec![CostComponent::Mana(zero)]);

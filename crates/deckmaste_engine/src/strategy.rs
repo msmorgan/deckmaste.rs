@@ -420,6 +420,9 @@ impl StrategyEvaluator {
             PendingDecision::PayMana(crate::decide::pending::PayMana { .. }) => {
                 Decision::Pay(state.auto_pay_pending())
             }
+            PendingDecision::Payment(_) => {
+                state.auto_payment_pending().expect("Payment is pending")
+            }
             PendingDecision::ChooseManaReversals(crate::decide::pending::ChooseManaReversals {
                 legal,
                 ..
@@ -526,7 +529,6 @@ impl StrategyEvaluator {
             other @ (PendingDecision::ChooseCostOptions(
                 crate::decide::pending::ChooseCostOptions { .. },
             )
-            | PendingDecision::Payment(_)
             | PendingDecision::OrderReplacements(
                 crate::decide::pending::OrderReplacements { .. },
             )

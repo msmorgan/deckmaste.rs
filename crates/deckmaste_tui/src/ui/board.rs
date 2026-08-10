@@ -377,9 +377,9 @@ mod tests {
         use crate::driver::Stop;
         use crate::interact::Interaction;
 
-        // GreedyDemo develops both boards and casts the demo's burn (Bolt /
-        // Shock / Mogg Fanatic), which surfaces a real targeting choice once
-        // there's more than one legal target.
+        // GreedyDemo develops both boards. Once Mogg Fanatic is active, choose
+        // its nonmana ability explicitly so this UI test reaches a real target
+        // decision instead of depending on an AI's incidental action order.
         let strat = GreedyDemo;
         let mut driver = Driver::new(game::build_game().expect("build"), Box::new(GreedyDemo));
         let mut stop = driver.run_to_decision().expect("first stop");
@@ -423,7 +423,22 @@ mod tests {
                 return;
             }
 
-            let decision = strat.decide(&driver.state, &pending);
+            let decision = match &pending {
+                PendingDecision::Priority(deckmaste_engine::Priority { legal, .. }) => legal
+                    .iter()
+                    .find(|action| {
+                        let view = driver.state.describe_action(action);
+                        view.name == Some("Mogg Fanatic")
+                            && matches!(
+                                view.kind,
+                                deckmaste_engine::ActionViewKind::Activate { mana: false, .. }
+                            )
+                    })
+                    .cloned()
+                    .map(Decision::Act)
+                    .unwrap_or_else(|| strat.decide(&driver.state, &pending)),
+                _ => strat.decide(&driver.state, &pending),
+            };
             stop = driver.submit(decision).expect("legal decision");
         }
         panic!("never reached an interactive targeting step");

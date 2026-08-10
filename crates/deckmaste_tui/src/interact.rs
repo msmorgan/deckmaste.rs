@@ -935,9 +935,9 @@ mod tests {
         ignore = "requires generated plugins/wizards corpus"
     )]
     fn interactive_path_produces_only_legal_decisions() {
-        use deckmaste_engine::Decision;
         use deckmaste_engine::PendingDecision;
         use deckmaste_engine::sim::GreedyCreatures;
+        use deckmaste_engine::sim::Strategy;
 
         use crate::driver::Driver;
         use crate::driver::Stop;
@@ -946,6 +946,7 @@ mod tests {
             game::build_game().expect("build demo game"),
             Box::new(GreedyCreatures),
         );
+        let strategy = GreedyCreatures;
         let mut stop = driver.run_to_decision().expect("first stop");
         // Bound the loop so a logic bug can't hang the test.
         for _ in 0..200_000 {
@@ -954,20 +955,11 @@ mod tests {
                 Stop::Decision(p) => p.clone(),
             };
             let decision = match &pending {
-                // Priority: prefer playing a land, else casting, else pass.
-                PendingDecision::Priority(deckmaste_engine::Priority { legal, .. }) => {
-                    let pick = legal
-                        .iter()
-                        .find(|a| matches!(a, deckmaste_engine::Action::PlayLand { .. }))
-                        .or_else(|| {
-                            legal
-                                .iter()
-                                .find(|a| matches!(a, deckmaste_engine::Action::CastSpell { .. }))
-                        })
-                        .cloned()
-                        .unwrap_or(deckmaste_engine::Action::Pass);
-                    Decision::Act(pick)
-                }
+                // Priority: use the demo's monocolor reach heuristic. The
+                // engine now offers spell proposals before affordability is
+                // proven, so blindly taking the first cast action can loop on
+                // announce/decline when the available sources are insufficient.
+                PendingDecision::Priority(_) => strategy.decide(&driver.state, &pending),
                 // Targets: first candidate per spec, built through Interaction.
                 PendingDecision::ChooseTargets(deckmaste_engine::ChooseTargets { .. }) => {
                     let mut it = Interaction::for_decision(&pending).expect("interactive");

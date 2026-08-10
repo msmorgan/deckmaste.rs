@@ -466,6 +466,7 @@ impl GameState {
     /// own source): "sacrifice ANOTHER creature" is `And([Creature,
     /// Not(Ref(This))])`, which needs a carrier to exclude `source` itself —
     /// engine-frameless-carrier-threading.
+    #[cfg(test)]
     fn with_cost_feasible(
         &self,
         with: &CostComponent,
@@ -608,6 +609,7 @@ impl GameState {
     /// activation's object, the controller is the payer, and no targets are
     /// chosen yet.
     #[must_use]
+    #[cfg(test)]
     pub(crate) fn can_pay_verbs(
         &self,
         player: PlayerId,
@@ -632,9 +634,7 @@ impl GameState {
         // while the mana reading stays available. The deontic layer has no
         // pay-life / lose-life `DeonticAction` variant today (it models only
         // attack/block/target/attach/cast/play/activate), so there is nothing
-        // cheap to query here. When that lock is built, gate the `LoseLife` arm
-        // of `verb_cost_payable` (and the Phyrexian-life sum in
-        // `reading_payable`) on it. See `cant_pay_life_lock_is_a_documented_seam`.
+        // cheap to query here. See `cant_pay_life_lock_is_a_documented_seam`.
         verbs
             .iter()
             .all(|verb| self.verb_cost_payable(verb, player, &frame))

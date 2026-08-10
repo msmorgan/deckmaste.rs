@@ -337,29 +337,43 @@ fn greedy_priority(
     if let Some(a) = legal.iter().find(|a| matches!(a, Action::PlayLand { .. })) {
         return a.clone();
     }
-    // 2. Deploy: cast our spell when the pool already funds it.
-    if let Some(a) = legal
+    let have = pool_total(&state.players[player.index()].mana_pool);
+    let usable_mana_sources = legal
         .iter()
-        .find(|a| matches!(a, Action::CastSpell { object } if has_type(state, *object, want)))
-    {
+        .filter(|action| match action {
+            Action::ActivateAbility { object, ability } => {
+                state.mana_ability(*object, *ability).is_some()
+                    && !state.objects.obj(*object).tapped
+            }
+            _ => false,
+        })
+        .count();
+
+    // 2. Deploy when this deliberately simple monocolor runner can reach the
+    // spell's mana value from its pool plus currently usable mana sources. The
+    // engine intentionally offers the proposal without proving affordability;
+    // avoiding a futile announce/decline loop is strategy policy.
+    if let Some(a) = legal.iter().find(|a| {
+        matches!(a, Action::CastSpell { object }
+                if has_type(state, *object, want)
+                    && have + usable_mana_sources >= mana_value(state, *object) as usize)
+    }) {
         return a.clone();
     }
     // 3. Ramp: float one mana toward the cheapest castable card, but only when the
     //    untapped lands can actually reach its cost.
-    if let Some(mv) = cheapest_in_hand(state, player, want) {
-        let have = pool_total(&state.players[player.index()].mana_pool);
-        let untapped = legal
-            .iter()
-            .filter(|a| matches!(a, Action::ActivateAbility { .. }))
-            .count();
-        if have < mv as usize
-            && have + untapped >= mv as usize
-            && let Some(a) = legal
-                .iter()
-                .find(|a| matches!(a, Action::ActivateAbility { .. }))
-        {
-            return a.clone();
-        }
+    if let Some(mv) = cheapest_in_hand(state, player, want)
+        && have < mv as usize
+        && have + usable_mana_sources >= mv as usize
+        && let Some(a) = legal.iter().find(|action| match action {
+            Action::ActivateAbility { object, ability } => {
+                state.mana_ability(*object, *ability).is_some()
+                    && !state.objects.obj(*object).tapped
+            }
+            _ => false,
+        })
+    {
+        return a.clone();
     }
     Action::Pass
 }
@@ -432,6 +446,17 @@ pub(crate) fn mechanical(state: &GameState, pending: &PendingDecision) -> Decisi
         PendingDecision::PayMana(crate::decide::pending::PayMana { .. }) => {
             Decision::Pay(state.auto_pay_pending())
         }
+        PendingDecision::Payment(_) => state.auto_payment_pending().expect("Payment is pending"),
+        PendingDecision::ChooseManaReversals(crate::decide::pending::ChooseManaReversals {
+            legal,
+            ..
+        }) => Decision::ManaReversals(
+            legal
+                .iter()
+                .max_by_key(|set| set.len())
+                .cloned()
+                .expect("a mana-reversal prompt offers at least one legal set"),
+        ),
         PendingDecision::OrderTriggers(crate::decide::pending::OrderTriggers {
             triggers, ..
         }) => Decision::Order((0..triggers.len()).collect()),
