@@ -474,13 +474,20 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor for Quantity
 }
 
 pub(crate) fn noun_cardinality(value: Quantity) -> NounCardinality {
+    feature_projection(value).cardinality
+}
+
+pub(crate) fn standalone_number(value: Quantity) -> Number {
+    feature_projection(value).standalone_number
+}
+
+fn feature_projection(value: Quantity) -> QuantityFeatureProjection {
     let mut visitor = QuantityFeatureVisitor::default();
     linearize_quantity_group_with(&value, &mut visitor)
         .expect("every Quantity value has exactly one declared inverse construction");
     visitor
         .finish()
         .expect("every quantity declaration derives its feature projection")
-        .cardinality
 }
 
 #[cfg(test)]

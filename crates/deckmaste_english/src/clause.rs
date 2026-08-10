@@ -52,9 +52,14 @@ pub fn build_relative_object(
 }
 
 /// Projects the subject and object-gap predicate of an object relative.
-#[must_use]
-pub fn parts_relative_object(value: &RelativeClause) -> (NounPhrase, ObjectGapPredicate) {
-    crate::constructions::relative::parts_relative_object(value)
+///
+/// # Errors
+///
+/// Returns a declaration violation when `value` selects another relative form.
+pub fn parts_relative_object(
+    value: &RelativeClause,
+) -> Result<(NounPhrase, ObjectGapPredicate), DeclarationViolation> {
+    crate::constructions::relative::checked_parts_relative_object(value)
 }
 
 /// Builds a zero-marker object relative with a subject-contracted auxiliary.
@@ -78,17 +83,20 @@ pub fn build_relative_object_contracted_subject(
 }
 
 /// Projects the subject, contracted auxiliary, and object-gap predicate.
-#[must_use]
+///
+/// # Errors
+///
+/// Returns a declaration violation when `value` selects another relative form.
 pub fn parts_relative_object_contracted_subject(
     value: &RelativeClause,
-) -> (NounPhrase, AuxiliaryInstance, ObjectGapPredicate) {
+) -> Result<(NounPhrase, AuxiliaryInstance, ObjectGapPredicate), DeclarationViolation> {
     let (subject_auxiliary, predicate) =
-        crate::constructions::relative::parts_relative_object_contracted_subject(value);
-    (
+        crate::constructions::relative::checked_parts_relative_object_contracted_subject(value)?;
+    Ok((
         subject_auxiliary.subject.0,
         subject_auxiliary.auxiliary,
         predicate,
-    )
+    ))
 }
 
 /// Builds a `that` relative contracted with its predicate's first auxiliary.
@@ -108,13 +116,16 @@ pub fn build_relative_subject_contracted_auxiliary(
 }
 
 /// Projects the contracted auxiliary and remaining complete predicate.
-#[must_use]
+///
+/// # Errors
+///
+/// Returns a declaration violation when `value` selects another relative form.
 pub fn parts_relative_subject_contracted_auxiliary(
     value: &RelativeClause,
-) -> (AuxiliaryInstance, Predicate) {
+) -> Result<(AuxiliaryInstance, Predicate), DeclarationViolation> {
     let (subject_auxiliary, predicate) =
-        crate::constructions::relative::parts_relative_subject_contracted_auxiliary(value);
-    (subject_auxiliary.auxiliary, predicate)
+        crate::constructions::relative::checked_parts_relative_subject_contracted_auxiliary(value)?;
+    Ok((subject_auxiliary.auxiliary, predicate))
 }
 
 /// Builds an explicit-marker subject relative.
@@ -131,9 +142,14 @@ pub fn build_relative_subject(
 }
 
 /// Projects the explicit marker and predicate of a subject relative.
-#[must_use]
-pub fn parts_relative_subject(value: &RelativeClause) -> (RelativeMarker, Predicate) {
-    crate::constructions::relative::parts_relative_subject(value)
+///
+/// # Errors
+///
+/// Returns a declaration violation when `value` selects another relative form.
+pub fn parts_relative_subject(
+    value: &RelativeClause,
+) -> Result<(RelativeMarker, Predicate), DeclarationViolation> {
+    crate::constructions::relative::checked_parts_relative_subject(value)
 }
 
 /// Builds an explicit-marker plural subject relative with distributive `each`.
@@ -152,15 +168,18 @@ pub fn build_relative_subject_distributive_each(
 }
 
 /// Projects the marker and predicate without its distributive `each` witness.
-#[must_use]
+///
+/// # Errors
+///
+/// Returns a declaration violation when `value` selects another relative form.
 pub fn parts_relative_subject_distributive_each(
     value: &RelativeClause,
-) -> (RelativeMarker, Predicate) {
-    crate::constructions::relative::parts_relative_subject_distributive_each(value)
+) -> Result<(RelativeMarker, Predicate), DeclarationViolation> {
+    crate::constructions::relative::checked_parts_relative_subject_distributive_each(value)
 }
 
 macro_rules! contracted_copular_facade {
-    ($build:ident, $checked:ident, $parts:ident, $ty:ty) => {
+    ($build:ident, $checked:ident, $parts:ident, $checked_parts:ident, $ty:ty) => {
         /// Builds a `that` relative contracted with a copula and the typed
         /// complement.
         ///
@@ -180,10 +199,17 @@ macro_rules! contracted_copular_facade {
         }
 
         /// Projects the contracted copula and typed complement.
-        #[must_use]
-        pub fn $parts(value: &RelativeClause) -> (AuxiliaryInstance, $ty) {
-            let (subject_auxiliary, complement) = crate::constructions::relative::$parts(value);
-            (subject_auxiliary.auxiliary, complement)
+        ///
+        /// # Errors
+        ///
+        /// Returns a declaration violation when `value` selects another
+        /// relative form.
+        pub fn $parts(
+            value: &RelativeClause,
+        ) -> Result<(AuxiliaryInstance, $ty), DeclarationViolation> {
+            let (subject_auxiliary, complement) =
+                crate::constructions::relative::$checked_parts(value)?;
+            Ok((subject_auxiliary.auxiliary, complement))
         }
     };
 }
@@ -192,24 +218,28 @@ contracted_copular_facade!(
     build_relative_contracted_copular_noun,
     checked_build_relative_contracted_copular_noun,
     parts_relative_contracted_copular_noun,
+    checked_parts_relative_contracted_copular_noun,
     NounPhrase
 );
 contracted_copular_facade!(
     build_relative_contracted_copular_adjective,
     checked_build_relative_contracted_copular_adjective,
     parts_relative_contracted_copular_adjective,
+    checked_parts_relative_contracted_copular_adjective,
     AdjectivePhrase
 );
 contracted_copular_facade!(
     build_relative_contracted_copular_prepositional,
     checked_build_relative_contracted_copular_prepositional,
     parts_relative_contracted_copular_prepositional,
+    checked_parts_relative_contracted_copular_prepositional,
     PrepositionalPhrase
 );
 contracted_copular_facade!(
     build_relative_contracted_copular_coordinated_adjective,
     checked_build_relative_contracted_copular_coordinated_adjective,
     parts_relative_contracted_copular_coordinated_adjective,
+    checked_parts_relative_contracted_copular_coordinated_adjective,
     CoordinatedAdjectivePhrase
 );
 

@@ -1501,7 +1501,7 @@ fn public_relative_clause_facade_builds_projects_and_rejects_impossible_shapes()
     use deckmaste_english::predicate as predicate_api;
 
     let value = parsed_relative_clause("each spell you cast");
-    let (subject, predicate) = clause_api::parts_relative_object(&value);
+    let (subject, predicate) = clause_api::parts_relative_object(&value).unwrap();
     assert_eq!(
         clause_api::build_relative_object(subject, predicate).unwrap(),
         value
@@ -1509,7 +1509,7 @@ fn public_relative_clause_facade_builds_projects_and_rejects_impossible_shapes()
 
     let value = parsed_relative_clause("each spell you've cast");
     let (subject, auxiliary, predicate) =
-        clause_api::parts_relative_object_contracted_subject(&value);
+        clause_api::parts_relative_object_contracted_subject(&value).unwrap();
     assert_eq!(
         clause_api::build_relative_object_contracted_subject(subject, auxiliary, predicate)
             .unwrap(),
@@ -1537,7 +1537,8 @@ fn public_relative_clause_facade_builds_projects_and_rejects_impossible_shapes()
         progressive,
     )
     .unwrap();
-    let (auxiliary, predicate) = clause_api::parts_relative_subject_contracted_auxiliary(&value);
+    let (auxiliary, predicate) =
+        clause_api::parts_relative_subject_contracted_auxiliary(&value).unwrap();
     assert!(
         clause_api::build_relative_subject_contracted_auxiliary(
             AuxiliaryInstance {
@@ -1555,7 +1556,7 @@ fn public_relative_clause_facade_builds_projects_and_rejects_impossible_shapes()
     );
 
     let value = parsed_relative_clause("a creature that attacks");
-    let (marker, predicate) = clause_api::parts_relative_subject(&value);
+    let (marker, predicate) = clause_api::parts_relative_subject(&value).unwrap();
     assert_eq!(
         clause_api::build_relative_subject(marker, predicate.clone()).unwrap(),
         value
@@ -1566,7 +1567,7 @@ fn public_relative_clause_facade_builds_projects_and_rejects_impossible_shapes()
     );
 
     let value = parsed_relative_clause("creature cards that each have a different mana value");
-    let (marker, predicate) = clause_api::parts_relative_subject_distributive_each(&value);
+    let (marker, predicate) = clause_api::parts_relative_subject_distributive_each(&value).unwrap();
     assert_eq!(
         clause_api::build_relative_subject_distributive_each(marker, predicate).unwrap(),
         value
@@ -1575,6 +1576,7 @@ fn public_relative_clause_facade_builds_projects_and_rejects_impossible_shapes()
         clause_api::build_relative_subject_distributive_each(
             RelativeMarker::That,
             clause_api::parts_relative_subject(&parsed_relative_clause("a creature that attacks"))
+                .unwrap()
                 .1,
         )
         .is_err(),
@@ -1582,7 +1584,8 @@ fn public_relative_clause_facade_builds_projects_and_rejects_impossible_shapes()
     );
 
     let value = parsed_relative_clause("a card that's a creature");
-    let (auxiliary, complement) = clause_api::parts_relative_contracted_copular_noun(&value);
+    let (auxiliary, complement) =
+        clause_api::parts_relative_contracted_copular_noun(&value).unwrap();
     assert_eq!(
         clause_api::build_relative_contracted_copular_noun(auxiliary, complement.clone()).unwrap(),
         value
@@ -1619,7 +1622,8 @@ fn public_relative_clause_facade_builds_projects_and_rejects_impossible_shapes()
     );
 
     let value = parsed_relative_clause("a card that's red");
-    let (auxiliary, complement) = clause_api::parts_relative_contracted_copular_adjective(&value);
+    let (auxiliary, complement) =
+        clause_api::parts_relative_contracted_copular_adjective(&value).unwrap();
     assert_eq!(
         clause_api::build_relative_contracted_copular_adjective(auxiliary, complement).unwrap(),
         value
@@ -1627,7 +1631,7 @@ fn public_relative_clause_facade_builds_projects_and_rejects_impossible_shapes()
 
     let value = parsed_relative_clause("a card that's in exile");
     let (auxiliary, complement) =
-        clause_api::parts_relative_contracted_copular_prepositional(&value);
+        clause_api::parts_relative_contracted_copular_prepositional(&value).unwrap();
     assert_eq!(
         clause_api::build_relative_contracted_copular_prepositional(auxiliary, complement).unwrap(),
         value
@@ -1635,7 +1639,7 @@ fn public_relative_clause_facade_builds_projects_and_rejects_impossible_shapes()
 
     let value = parsed_relative_clause("a card that's red or green");
     let (auxiliary, complement) =
-        clause_api::parts_relative_contracted_copular_coordinated_adjective(&value);
+        clause_api::parts_relative_contracted_copular_coordinated_adjective(&value).unwrap();
     assert_eq!(
         clause_api::build_relative_contracted_copular_coordinated_adjective(auxiliary, complement)
             .unwrap(),
@@ -1654,7 +1658,13 @@ fn public_relative_clause_facade_builds_projects_and_rejects_impossible_shapes()
     )
     .and_then(predicate_api::finish_object_gap_predicate)
     .expect("a transitive frame with its direct object omitted is an object gap");
-    let object_gap_parts = predicate_api::parts_object_gap_predicate(&object_gap).unwrap();
+    let object_gap_parts =
+        std::panic::catch_unwind(|| predicate_api::parts_object_gap_predicate(&object_gap));
+    assert!(
+        matches!(object_gap_parts, Ok(Ok(_))),
+        "a checked object-gap predicate must project without panicking",
+    );
+    let object_gap_parts = object_gap_parts.unwrap().unwrap();
     assert_eq!(
         predicate_api::finish_object_gap_predicate(object_gap_parts).unwrap(),
         object_gap
@@ -1679,11 +1689,138 @@ fn public_relative_clause_facade_builds_projects_and_rejects_impossible_shapes()
 }
 
 #[test]
+fn public_relative_object_builders_reject_subject_agreement_mismatches() {
+    use deckmaste_english::clause as clause_api;
+
+    let second_person = parsed_relative_clause("each spell you cast");
+    let third_person_plural = parsed_relative_clause("each spell they cast");
+    let (you, cast_second_person) = clause_api::parts_relative_object(&second_person).unwrap();
+    let (they, cast_third_person_plural) =
+        clause_api::parts_relative_object(&third_person_plural).unwrap();
+
+    assert_eq!(
+        clause_api::build_relative_object(you.clone(), cast_second_person.clone()).unwrap(),
+        second_person,
+    );
+    assert_eq!(
+        clause_api::build_relative_object(they.clone(), cast_third_person_plural.clone(),).unwrap(),
+        third_person_plural,
+    );
+    assert!(
+        clause_api::build_relative_object(you, cast_third_person_plural).is_err(),
+        "a second-person subject cannot govern a third-person plural finite predicate",
+    );
+}
+
+#[test]
+fn public_contracted_object_relative_builder_rejects_subject_agreement_mismatches() {
+    use deckmaste_english::clause as clause_api;
+
+    let second_person = parsed_relative_clause("each spell you've cast");
+    let third_person_plural = parsed_relative_clause("each spell they've cast");
+    let (you, have_second_person, cast) =
+        clause_api::parts_relative_object_contracted_subject(&second_person).unwrap();
+    let (they, have_third_person_plural, _) =
+        clause_api::parts_relative_object_contracted_subject(&third_person_plural).unwrap();
+
+    assert_eq!(
+        clause_api::build_relative_object_contracted_subject(
+            you.clone(),
+            have_second_person,
+            cast.clone(),
+        )
+        .unwrap(),
+        second_person,
+    );
+    assert_eq!(
+        clause_api::build_relative_object_contracted_subject(
+            they,
+            have_third_person_plural,
+            cast.clone(),
+        )
+        .unwrap(),
+        third_person_plural,
+    );
+    assert!(
+        clause_api::build_relative_object_contracted_subject(you, have_third_person_plural, cast,)
+            .is_err(),
+        "a second-person subject cannot contract a third-person plural auxiliary",
+    );
+}
+
+#[test]
+fn public_relative_parts_reject_a_different_valid_form_without_panicking() {
+    use deckmaste_english::clause as clause_api;
+
+    macro_rules! assert_rejected {
+        ($projection:expr, $label:literal) => {
+            let projection = std::panic::catch_unwind(|| $projection);
+            assert!(
+                matches!(projection, Ok(Err(_))),
+                "{} must return Err without panicking",
+                $label,
+            );
+        };
+    }
+
+    let object = parsed_relative_clause("each spell you cast");
+    let contracted_object = parsed_relative_clause("each spell you've cast");
+    let subject_relative = parsed_relative_clause("a creature that attacks");
+    let distributive =
+        parsed_relative_clause("creature cards that each have a different mana value");
+    let copular_noun = parsed_relative_clause("a card that's a creature");
+    let copular_adjective = parsed_relative_clause("a card that's red");
+    let copular_prepositional = parsed_relative_clause("a card that's in exile");
+    let copular_coordinated_adjective = parsed_relative_clause("a card that's red or green");
+
+    assert_rejected!(
+        clause_api::parts_relative_object(&subject_relative),
+        "relative_object"
+    );
+    assert_rejected!(
+        clause_api::parts_relative_object_contracted_subject(&object),
+        "relative_object_contracted_subject"
+    );
+    assert_rejected!(
+        clause_api::parts_relative_subject_contracted_auxiliary(&contracted_object),
+        "relative_subject_contracted_auxiliary"
+    );
+    assert_rejected!(
+        clause_api::parts_relative_subject(&distributive),
+        "relative_subject"
+    );
+    assert_rejected!(
+        clause_api::parts_relative_subject_distributive_each(&subject_relative),
+        "relative_subject_distributive_each"
+    );
+    assert_rejected!(
+        clause_api::parts_relative_contracted_copular_noun(&copular_adjective),
+        "relative_contracted_copular_noun"
+    );
+    assert_rejected!(
+        clause_api::parts_relative_contracted_copular_adjective(&copular_prepositional),
+        "relative_contracted_copular_adjective"
+    );
+    assert_rejected!(
+        clause_api::parts_relative_contracted_copular_prepositional(&copular_coordinated_adjective,),
+        "relative_contracted_copular_prepositional"
+    );
+    assert_rejected!(
+        clause_api::parts_relative_contracted_copular_coordinated_adjective(&copular_noun),
+        "relative_contracted_copular_coordinated_adjective"
+    );
+}
+
+#[test]
 fn relative_clause_serialization_keeps_legacy_struct_name_and_field_order() {
     let value = parsed_relative_clause("a creature that attacks");
     assert_eq!(
         serialize_struct_identity(&value),
         ("RelativeClause", vec!["marker", "gap", "body"]),
+    );
+    assert_eq!(
+        ron::ser::to_string(&value).unwrap(),
+        "(marker:That,gap:Subject,body:SubjectGap(Intransitive((head:(auxiliaries:[],first_auxiliary_contracted_with_subject:false,preverb_modifiers:[],verb:(verb:Word(Attack),slot:Present(person:Third,number:Singular)),distributive_each:false),kind:(),elements:[]))))",
     );
 }
 

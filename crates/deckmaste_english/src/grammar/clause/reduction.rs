@@ -532,40 +532,49 @@ pub(super) fn reduce_simple_clause(
             Some(Features::None)
         }
         RuleTag::RelativeContractedCopularCoordinatedAdjective => {
-            let Features::SubjectAuxiliary {
-                subject: ContractedSubjectKey::Demonstrative(Demonstrative::That),
-                agreement,
-                auxiliary,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            if auxiliary.auxiliary != Auxiliary::Be {
-                return None;
-            }
-            if !matches!(
+            reduce_relative_contracted_copular_coordinated_adjective_features(
+                children.first()?.features,
                 children.get(1)?.features,
-                Features::CoordinatedModifier {
-                    all_adjectives: true,
-                    ..
-                }
-            ) {
-                return None;
-            }
-            Some(Features::RelativeClause {
-                gap: GapState::Subject,
-                marker: crate::syntax::RelativeMarker::That,
-                antecedent_agreement: Some(*agreement),
-                contraction: crate::grammar::RelativeContraction::Copular,
-                distributive_each: false,
-                copular: crate::grammar::RelativeCopularClass::CoordinatedAdjective,
-                object_gap_requires_rules_object: false,
-                bare_copular_tail: false,
-            })
+            )
         }
         _ => None,
     }
+}
+
+pub(crate) fn reduce_relative_contracted_copular_coordinated_adjective_features(
+    subject_auxiliary: &Features,
+    complement: &Features,
+) -> Option<Features> {
+    let Features::SubjectAuxiliary {
+        subject: ContractedSubjectKey::Demonstrative(Demonstrative::That),
+        agreement,
+        auxiliary,
+        ..
+    } = subject_auxiliary
+    else {
+        return None;
+    };
+    if auxiliary.auxiliary != Auxiliary::Be
+        || !matches!(
+            complement,
+            Features::CoordinatedModifier {
+                all_adjectives: true,
+                ..
+            }
+        )
+    {
+        return None;
+    }
+    Some(Features::RelativeClause {
+        gap: GapState::Subject,
+        marker: crate::syntax::RelativeMarker::That,
+        antecedent_agreement: Some(*agreement),
+        contraction: crate::grammar::RelativeContraction::Copular,
+        distributive_each: false,
+        copular: crate::grammar::RelativeCopularClass::CoordinatedAdjective,
+        object_gap_requires_rules_object: false,
+        bare_copular_tail: false,
+    })
 }
 
 #[allow(

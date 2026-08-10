@@ -10,6 +10,7 @@ pub(crate) use clause::fold_auxiliary_passive;
 pub(crate) use clause::lowered_nominal_adjunct_kind;
 pub(crate) use clause::predicate_arguments_complete;
 pub(crate) use clause::predicate_object_gap_complete;
+pub(crate) use clause::reduce_relative_contracted_copular_coordinated_adjective_features;
 pub(crate) mod construction;
 mod opacity;
 
