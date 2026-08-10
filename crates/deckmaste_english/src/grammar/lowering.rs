@@ -925,6 +925,30 @@ fn erased_absent(
     }
 }
 
+fn erased_transitive_predicate(
+    boxed: bool,
+    value: Lowered,
+) -> Option<deckmaste_construction_compiler::runtime::ErasedValue> {
+    let value = match value {
+        Lowered::VerbPhrase(value) => Box::new(clause::finish_reduced_recipient_passive(value)?)
+            as deckmaste_construction_compiler::runtime::ErasedValue,
+        Lowered::Generated(GeneratedValue::Typed(value))
+            if value.is::<crate::syntax::TransitivePredicate>() =>
+        {
+            value
+        }
+        _ => return None,
+    };
+    if boxed {
+        let value = value
+            .downcast::<crate::syntax::TransitivePredicate>()
+            .ok()?;
+        Some(Box::new(value))
+    } else {
+        Some(value)
+    }
+}
+
 fn erased_subtree(
     category: &'static str,
     boxed: bool,
@@ -1023,28 +1047,7 @@ fn erased_subtree(
             };
             if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
         }
-        "TransitivePredicate" => {
-            let value = match value {
-                Lowered::VerbPhrase(value) => {
-                    Box::new(clause::finish_reduced_recipient_passive(value)?)
-                        as deckmaste_construction_compiler::runtime::ErasedValue
-                }
-                Lowered::Generated(GeneratedValue::Typed(value))
-                    if value.is::<crate::syntax::TransitivePredicate>() =>
-                {
-                    value
-                }
-                _ => return None,
-            };
-            if boxed {
-                let value = value
-                    .downcast::<crate::syntax::TransitivePredicate>()
-                    .ok()?;
-                Some(Box::new(value))
-            } else {
-                Some(value)
-            }
-        }
+        "TransitivePredicate" => erased_transitive_predicate(boxed, value),
         "IndependentClause" => {
             let Lowered::Clause(Clause::Independent(value)) = value else {
                 return None;

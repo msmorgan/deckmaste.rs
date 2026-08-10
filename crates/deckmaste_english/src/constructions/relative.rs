@@ -169,7 +169,9 @@ fn make_relative_object_contracted_subject(
     subject_auxiliary: ContractedSubjectAuxiliary,
     predicate: ObjectGapPredicate,
 ) -> Result<RelativeClause, DeclarationViolation> {
-    let predicate = object_gap_parts(&predicate)?
+    let predicate_parts = object_gap_parts(&predicate)?;
+    drop(predicate);
+    let predicate = predicate_parts
         .declaration_with_contracted_subject_auxiliary(subject_auxiliary.auxiliary)
         .ok_or_else(|| {
             violation(
@@ -236,14 +238,17 @@ fn make_relative_subject_contracted_auxiliary(
     subject_auxiliary: ContractedSubjectAuxiliary,
     predicate: Predicate,
 ) -> Result<RelativeClause, DeclarationViolation> {
-    if !subject_is_demonstrative_that(&subject_auxiliary.subject) {
+    let ContractedSubjectAuxiliary { subject, auxiliary } = subject_auxiliary;
+    if !subject_is_demonstrative_that(&subject) {
         return Err(violation(
             "relative_subject_contracted_auxiliary",
             "the contracted relative subject is demonstrative that",
         ));
     }
-    let predicate = predicate_parts(&predicate)?
-        .declaration_with_contracted_subject_auxiliary(subject_auxiliary.auxiliary)
+    let predicate_parts = predicate_parts(&predicate)?;
+    drop(predicate);
+    let predicate = predicate_parts
+        .declaration_with_contracted_subject_auxiliary(auxiliary)
         .ok_or_else(|| {
             violation(
                 "relative_subject_contracted_auxiliary",
@@ -334,7 +339,9 @@ fn make_relative_subject_distributive_each(
             "a distributive subject relative has an explicit marker",
         ));
     }
-    let predicate = predicate_parts(&predicate)?
+    let predicate_parts = predicate_parts(&predicate)?;
+    drop(predicate);
+    let predicate = predicate_parts
         .declaration_with_distributive_each()
         .ok_or_else(|| {
             violation(
@@ -392,9 +399,8 @@ fn make_contracted_copular(
     subject_auxiliary: ContractedSubjectAuxiliary,
     complement: CopularComplement,
 ) -> Result<RelativeClause, DeclarationViolation> {
-    if !subject_is_demonstrative_that(&subject_auxiliary.subject)
-        || subject_auxiliary.auxiliary.auxiliary != Auxiliary::Be
-    {
+    let ContractedSubjectAuxiliary { subject, auxiliary } = subject_auxiliary;
+    if !subject_is_demonstrative_that(&subject) || auxiliary.auxiliary != Auxiliary::Be {
         return Err(violation(
             construction,
             "contracted demonstrative that agrees with a be copula",
@@ -405,7 +411,7 @@ fn make_contracted_copular(
         Predicate::Copular(CopularPredicate {
             negated: false,
             copula: Copula {
-                auxiliary: subject_auxiliary.auxiliary,
+                auxiliary,
                 contracted_with_subject: crate::features::Contraction::Contracted,
             },
             distributive_each: false,
@@ -522,7 +528,8 @@ contracted_copular_adapter!(
     "relative_contracted_copular_prepositional"
 );
 
-fn relative_features(
+#[derive(Clone, Copy)]
+struct RelativeFeatureValues {
     gap: GapState,
     marker: RelativeMarker,
     antecedent_agreement: Option<crate::grammar::Agreement>,
@@ -531,7 +538,19 @@ fn relative_features(
     copular: RelativeCopularClass,
     object_gap_requires_rules_object: bool,
     bare_copular_tail: bool,
-) -> Features {
+}
+
+fn relative_features(values: RelativeFeatureValues) -> Features {
+    let RelativeFeatureValues {
+        gap,
+        marker,
+        antecedent_agreement,
+        contraction,
+        distributive_each,
+        copular,
+        object_gap_requires_rules_object,
+        bare_copular_tail,
+    } = values;
     Features::RelativeClause {
         gap,
         marker,
@@ -573,16 +592,16 @@ fn reduce_relative_object_features(subject: &Features, predicate: &Features) -> 
         && predicate_object_gap_complete(*frame, *indirect_object, *selected_preposition)
         && predicate_agreement.is_none_or(|agreement| agreement == *subject_agreement))
     .then(|| {
-        relative_features(
-            GapState::Object,
-            RelativeMarker::Zero,
-            None,
-            RelativeContraction::Uncontracted,
-            false,
-            RelativeCopularClass::NonCopular,
-            *object_gap_requires_rules_object,
-            false,
-        )
+        relative_features(RelativeFeatureValues {
+            gap: GapState::Object,
+            marker: RelativeMarker::Zero,
+            antecedent_agreement: None,
+            contraction: RelativeContraction::Uncontracted,
+            distributive_each: false,
+            copular: RelativeCopularClass::NonCopular,
+            object_gap_requires_rules_object: *object_gap_requires_rules_object,
+            bare_copular_tail: false,
+        })
     })
 }
 
@@ -619,16 +638,16 @@ fn reduce_relative_object_contracted_subject_features(
         && predicate_object_gap_complete(*frame, *indirect_object, *selected_preposition)
         && predicate_agreement == *subject_agreement)
         .then(|| {
-            relative_features(
-                GapState::Object,
-                RelativeMarker::Zero,
-                None,
-                RelativeContraction::SubjectAuxiliary,
-                false,
-                RelativeCopularClass::NonCopular,
-                *object_gap_requires_rules_object,
-                false,
-            )
+            relative_features(RelativeFeatureValues {
+                gap: GapState::Object,
+                marker: RelativeMarker::Zero,
+                antecedent_agreement: None,
+                contraction: RelativeContraction::SubjectAuxiliary,
+                distributive_each: false,
+                copular: RelativeCopularClass::NonCopular,
+                object_gap_requires_rules_object: *object_gap_requires_rules_object,
+                bare_copular_tail: false,
+            })
         })
 }
 
@@ -669,16 +688,16 @@ fn reduce_relative_subject_contracted_auxiliary_features(
             *selected_preposition,
         ))
     .then(|| {
-        relative_features(
-            GapState::Subject,
-            RelativeMarker::That,
-            Some(predicate_agreement),
-            RelativeContraction::SubjectAuxiliary,
-            false,
-            RelativeCopularClass::NonCopular,
-            false,
-            false,
-        )
+        relative_features(RelativeFeatureValues {
+            gap: GapState::Subject,
+            marker: RelativeMarker::That,
+            antecedent_agreement: Some(predicate_agreement),
+            contraction: RelativeContraction::SubjectAuxiliary,
+            distributive_each: false,
+            copular: RelativeCopularClass::NonCopular,
+            object_gap_requires_rules_object: false,
+            bare_copular_tail: false,
+        })
     })
 }
 
@@ -721,16 +740,16 @@ fn reduce_subject_predicate(
         *selected_preposition,
     )
     .then(|| {
-        relative_features(
-            GapState::Subject,
+        relative_features(RelativeFeatureValues {
+            gap: GapState::Subject,
             marker,
-            *antecedent_agreement,
-            RelativeContraction::Uncontracted,
+            antecedent_agreement: *antecedent_agreement,
+            contraction: RelativeContraction::Uncontracted,
             distributive_each,
-            RelativeCopularClass::NonCopular,
-            false,
-            *bare && *head_is_copular,
-        )
+            copular: RelativeCopularClass::NonCopular,
+            object_gap_requires_rules_object: false,
+            bare_copular_tail: *bare && *head_is_copular,
+        })
     })
 }
 
@@ -759,16 +778,16 @@ fn reduce_contracted_copular_features(
         return None;
     };
     (auxiliary.auxiliary() == Auxiliary::Be).then(|| {
-        relative_features(
-            GapState::Subject,
-            RelativeMarker::That,
-            Some(*agreement),
-            RelativeContraction::Copular,
-            false,
+        relative_features(RelativeFeatureValues {
+            gap: GapState::Subject,
+            marker: RelativeMarker::That,
+            antecedent_agreement: Some(*agreement),
+            contraction: RelativeContraction::Copular,
+            distributive_each: false,
             copular,
-            false,
-            false,
-        )
+            object_gap_requires_rules_object: false,
+            bare_copular_tail: false,
+        })
     })
 }
 

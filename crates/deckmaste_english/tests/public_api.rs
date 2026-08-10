@@ -3123,9 +3123,9 @@ impl ser::Error for UnitVariantSerializationError {
 struct UnitVariantSerializer;
 
 macro_rules! unsupported_unit_variant_serialization {
-    ($($name:ident($($argument:ident: $type:ty),*)),+ $(,)?) => {
+    ($($name:ident($($type:ty),*)),+ $(,)?) => {
         $(
-            fn $name(self, $($argument: $type),*) -> Result<Self::Ok, Self::Error> {
+            fn $name(self, $(_: $type),*) -> Result<Self::Ok, Self::Error> {
                 Err(UnitVariantSerializationError)
             }
         )+
