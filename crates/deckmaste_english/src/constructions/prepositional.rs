@@ -5,6 +5,7 @@ use deckmaste_construction_compiler::runtime::GroupData;
 
 use crate::grammar::Features;
 use crate::grammar::NounPhraseCoordinationState;
+use crate::grammar::PrepositionalObjectCategory;
 use crate::syntax::Clause;
 use crate::syntax::DependentClause;
 use crate::syntax::GerundClause;
@@ -15,14 +16,6 @@ use crate::syntax::PrepositionalPhrase;
 use crate::word::Vocab;
 
 type PrepositionalObject = Phrase;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PrepositionalObjectCategory {
-    NounPhrase,
-    PrepositionalPhrase,
-    GerundClause,
-    Adverb,
-}
 
 fn violation(construction: &'static str, requirement: &'static str) -> DeclarationViolation {
     DeclarationViolation {
@@ -145,6 +138,7 @@ fn reduce_prepositional_object_features(
     let category =
         prepositional_object_category(noun_phrase, prepositional_phrase, gerund_clause, adverb)?;
     Some(Features::PrepositionalObject {
+        object_category: category,
         gerund: prepositional_object_is_gerund(category),
         shared_determiner: prepositional_object_has_shared_determiner(category, noun_phrase),
     })
@@ -169,6 +163,7 @@ fn reduce_prepositional_phrase_features(
         return None;
     };
     let Features::PrepositionalObject {
+        object_category: _,
         gerund,
         shared_determiner,
     } = object
@@ -240,7 +235,7 @@ deckmaste_constructions_macro::constructions! {
             all(noun_phrase.is_none(), prepositional_phrase.is_none(), gerund_clause.is_none(), adverb.is_some())
         );
         derive features: Features = reduce_prepositional_object_features(noun_phrase, prepositional_phrase, gerund_clause, adverb);
-        evidence feature "prepositional object category" from category;
+        evidence feature "prepositional object category" from output object_category;
         form noun_phrase @ 0 when all(noun_phrase.is_some(), prepositional_phrase.is_none(), gerund_clause.is_none(), adverb.is_none()) inverse check(is_noun_phrase_object) = noun_phrase;
         form prepositional_phrase @ 1 when all(noun_phrase.is_none(), prepositional_phrase.is_some(), gerund_clause.is_none(), adverb.is_none()) inverse check(is_prepositional_phrase_object) = prepositional_phrase;
         form gerund_clause @ 2 when all(noun_phrase.is_none(), prepositional_phrase.is_none(), gerund_clause.is_some(), adverb.is_none()) inverse check(is_gerund_clause_object) = gerund_clause;

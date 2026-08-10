@@ -1536,6 +1536,14 @@ impl GeneratedSequenceFeatures {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum PrepositionalObjectCategory {
+    NounPhrase,
+    PrepositionalPhrase,
+    GerundClause,
+    Adverb,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Features {
     None,
@@ -1707,6 +1715,7 @@ pub(crate) enum Features {
     /// subordinator permitted to host a subjunctive body.
     Subordinator(crate::syntax::Subordinator),
     PrepositionalObject {
+        object_category: PrepositionalObjectCategory,
         gerund: bool,
         /// The noun-phrase object is coordinated under one shared determiner.
         shared_determiner: bool,

@@ -2948,7 +2948,7 @@ mod tests {
             )
             .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"))
         };
-        let assert_generated = |parsed: &ParsedNonterminal| {
+        let assert_generated = |parsed: &ParsedNonterminal, expected_object_category: &str| {
             for construction in ["prepositional_phrase", "prepositional_object"] {
                 let decision = parsed
                     .construction_decisions()
@@ -2966,12 +2966,17 @@ mod tests {
                         crate::ConstructionEvidenceKind::Feature
                     );
                     assert_eq!(decision.evidence().label(), "prepositional object category");
+                    assert_eq!(
+                        decision.evidence_value(),
+                        Some(expected_object_category),
+                        "prepositional_object"
+                    );
                 }
             }
         };
 
         let among = parse_preposition("among all permanents");
-        assert_generated(&among);
+        assert_generated(&among, "object_category=NounPhrase");
         let among = among.prepositional_phrase().expect("PP root").head();
         assert_eq!(among.preposition, crate::syntax::Preposition::Among);
         let crate::syntax::Phrase::NounPhrase(permanents) = among.object.as_ref() else {
@@ -2980,7 +2985,7 @@ mod tests {
         assert!(matches!(permanents.kind(), NounPhraseKind::Nominal(_)));
 
         let nested = parse_preposition("from among them");
-        assert_generated(&nested);
+        assert_generated(&nested, "object_category=PrepositionalPhrase");
         let nested = nested.prepositional_phrase().expect("PP root").head();
         assert_eq!(nested.preposition, crate::syntax::Preposition::From);
         let crate::syntax::Phrase::PrepositionalPhrase(among) = nested.object.as_ref() else {
@@ -2994,7 +2999,7 @@ mod tests {
         ));
 
         let gerund = parse_preposition("by paying 1 life");
-        assert_generated(&gerund);
+        assert_generated(&gerund, "object_category=GerundClause");
         let gerund = gerund.prepositional_phrase().expect("PP root").head();
         assert_eq!(gerund.preposition, crate::syntax::Preposition::By);
         assert!(matches!(
@@ -3004,7 +3009,7 @@ mod tests {
         ));
 
         let anywhere = parse_preposition("from anywhere");
-        assert_generated(&anywhere);
+        assert_generated(&anywhere, "object_category=Adverb");
         let anywhere = anywhere.prepositional_phrase().expect("PP root").head();
         assert_eq!(anywhere.preposition, crate::syntax::Preposition::From);
         assert!(matches!(

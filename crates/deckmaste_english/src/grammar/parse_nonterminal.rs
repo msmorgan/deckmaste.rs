@@ -718,6 +718,19 @@ fn requirement_evidence_value(
 }
 
 fn output_evidence_value(path: &str, feature: &Features) -> Option<String> {
+    if path == "object_category"
+        && let Features::PrepositionalObject {
+            object_category, ..
+        } = feature
+    {
+        let value = match object_category {
+            super::PrepositionalObjectCategory::NounPhrase => "NounPhrase",
+            super::PrepositionalObjectCategory::PrepositionalPhrase => "PrepositionalPhrase",
+            super::PrepositionalObjectCategory::GerundClause => "GerundClause",
+            super::PrepositionalObjectCategory::Adverb => "Adverb",
+        };
+        return Some(format!("{path}={value}"));
+    }
     let Features::Nominal { attachment, .. } = feature else {
         return None;
     };
