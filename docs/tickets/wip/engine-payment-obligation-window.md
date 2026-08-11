@@ -364,3 +364,6 @@ Cover at least:
 Use synthetic engine fixtures for the verified Oracle behavior of
 Omnath/Rancher/Beledros, Mox/Breya, and Wheel; authoring the six absent cards is
 not part of this ticket.
+
+Post-implementation review seams that should land after the next engine-shape
+pass are tracked in `engine-payment-transaction-hardening`.
