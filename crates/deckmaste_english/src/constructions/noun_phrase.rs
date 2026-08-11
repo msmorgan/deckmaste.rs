@@ -31,7 +31,7 @@ use crate::syntax::NounPhraseKind;
 use crate::syntax::PartitiveHead;
 use crate::syntax::PartitiveNounPhrase;
 use crate::syntax::Phrase;
-use crate::syntax::PossessorKind;
+use crate::syntax::Possessor;
 use crate::syntax::Preposition;
 use crate::syntax::Quantity;
 use crate::syntax::Rounding;
@@ -126,7 +126,7 @@ fn make_any_number_of(whole: NounPhrase) -> Result<NounPhrase, DeclarationViolat
     let determiner = crate::constructions::determiner::build_determiner_closed(
         crate::syntax::ClosedDeterminer::Any,
     )?;
-    let head = NounInstance::Singular(Noun::Word(Vocab::Number));
+    let head = NounInstance::unchecked_singular(Noun::Word(Vocab::Number));
     let nominal = crate::constructions::nominal::build_nominal_determiner(
         determiner,
         NominalPhrase::try_from_noun(head)?,
@@ -422,7 +422,7 @@ fn possessive_this_card_parts(value: &NounPhrase) -> ThisCardForm {
     let NounPhraseKind::Possessive(possessor) = value.kind() else {
         unreachable!("possessive self-reference admits only Possessive")
     };
-    let PossessorKind::NounPhrase(noun_phrase) = possessor.kind() else {
+    let Possessor::NounPhrase(noun_phrase) = possessor else {
         unreachable!("possessive self-reference stores ThisCard")
     };
     let NounPhraseKind::ThisCard(form) = noun_phrase.kind() else {
@@ -461,7 +461,7 @@ fn any_number_of_whole(value: &NounPhrase) -> Option<&NounPhrase> {
         return None;
     };
     if !matches!(
-        nominal.determiner().map(|value| value.kind()),
+        nominal.determiner().map(crate::syntax::Determiner::kind),
         Some(DeterminerKind::Any)
     ) || !nominal.modifiers().is_empty()
         || !matches!(
@@ -699,8 +699,8 @@ fn is_possessive_this_card(value: &NounPhrase) -> bool {
         value.kind(),
         NounPhraseKind::Possessive(possessor)
             if matches!(
-                possessor.kind(),
-                PossessorKind::NounPhrase(noun_phrase)
+                possessor,
+                Possessor::NounPhrase(noun_phrase)
                     if matches!(noun_phrase.kind(), NounPhraseKind::ThisCard(_))
             )
     )
@@ -1337,8 +1337,9 @@ mod tests {
 
     #[test]
     fn generated_renderer_covers_the_rules_object_role_wrapper() {
-        let nominal = NominalPhrase::try_from_noun(NounInstance::Singular(Noun::Word(Vocab::Card)))
-            .expect("card is a singular count noun");
+        let nominal =
+            NominalPhrase::try_from_noun(NounInstance::unchecked_singular(Noun::Word(Vocab::Card)))
+                .expect("card is a singular count noun");
         let value =
             build_rules_object_noun_phrase(RulesObjectFollowupNominal::from_nominal(nominal))
                 .expect("the rules-object wrapper accepts its typed nominal role");

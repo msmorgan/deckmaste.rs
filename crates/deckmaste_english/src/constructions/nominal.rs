@@ -1489,7 +1489,7 @@ fn make_nominal_devotion(
     Ok(NominalPhrase::from_projection_parts(
         None,
         Vec::new(),
-        NounInstance::Singular(Noun::Catalog(head)),
+        NounInstance::unchecked_singular(Noun::Catalog(head)),
         vec![NominalComplement::Devotion(colors)],
     ))
 }
@@ -2526,7 +2526,7 @@ mod tests {
     }
 
     fn card_nominal() -> NominalPhrase {
-        build_nominal_noun(NounInstance::Singular(Noun::Word(Vocab::Card)))
+        build_nominal_noun(NounInstance::unchecked_singular(Noun::Word(Vocab::Card)))
             .expect("the generated head lens admits a renderable card noun")
     }
 
@@ -2677,8 +2677,9 @@ mod tests {
             }};
         }
 
-        let nominal_noun = build_nominal_noun(NounInstance::Singular(Noun::Word(Vocab::Card)))
-            .expect("singular card is an admitted nominal head");
+        let nominal_noun =
+            build_nominal_noun(NounInstance::unchecked_singular(Noun::Word(Vocab::Card)))
+                .expect("singular card is an admitted nominal head");
         let head = parts_nominal_noun(&nominal_noun).expect("head lens projects its sole field");
         records!(
             "nominal_noun",
@@ -2697,7 +2698,7 @@ mod tests {
         );
 
         let nominal_noun_modifier = build_nominal_noun_modifier(
-            NounInstance::Singular(Noun::Word(Vocab::Ability)),
+            NounInstance::unchecked_singular(Noun::Word(Vocab::Ability)),
             card_nominal(),
         )
         .unwrap();
@@ -2710,8 +2711,8 @@ mod tests {
         );
 
         let nominal_combat_step_name = build_nominal_combat_step_name(
-            NounInstance::Plural(Noun::Agentive(crate::word::Verb::Word(Vocab::Attack))),
-            NounInstance::Singular(Noun::Word(Vocab::Step)),
+            NounInstance::unchecked_plural(Noun::Agentive(crate::word::Verb::Word(Vocab::Attack))),
+            NounInstance::unchecked_singular(Noun::Word(Vocab::Step)),
         )
         .unwrap();
         let (participants, head) = parts_nominal_combat_step_name(&nominal_combat_step_name);
@@ -2724,7 +2725,7 @@ mod tests {
 
         let modifier = NominalModifier::Noun {
             polarity: Polarity::Negative,
-            noun: NounInstance::Singular(Noun::Word(Vocab::Ability)),
+            noun: NounInstance::unchecked_singular(Noun::Word(Vocab::Ability)),
         };
         let nominal_negated_modifier =
             build_nominal_negated_modifier(modifier, card_nominal()).unwrap();
@@ -3082,7 +3083,8 @@ mod tests {
             linearize_nominal_reduced_recipient_passive_form_with
         );
 
-        let damage = build_nominal_noun(NounInstance::Mass(Noun::Word(Vocab::Damage))).unwrap();
+        let damage =
+            build_nominal_noun(NounInstance::unchecked_mass(Noun::Word(Vocab::Damage))).unwrap();
         let reduced_recipient_passive_theme =
             build_reduced_recipient_passive_theme(damage).unwrap();
         let nominal = parts_reduced_recipient_passive_theme(&reduced_recipient_passive_theme);
@@ -3262,7 +3264,7 @@ mod tests {
         );
 
         let nominal_times_clause = build_nominal_times_clause(
-            NounInstance::Plural(Noun::Word(Vocab::Time)),
+            NounInstance::unchecked_plural(Noun::Word(Vocab::Time)),
             Box::new(parsed_independent("You draw a card.")),
         )
         .unwrap();
@@ -3312,7 +3314,7 @@ mod tests {
 
         let negative = NominalModifier::Noun {
             polarity: Polarity::Negative,
-            noun: NounInstance::Singular(Noun::Word(Vocab::Ability)),
+            noun: NounInstance::unchecked_singular(Noun::Word(Vocab::Ability)),
         };
         let negative_nominal = build_nominal_negated_modifier(negative, card_nominal()).unwrap();
         assert_eq!(
@@ -3336,7 +3338,7 @@ mod tests {
         let quantified_times = build_nominal_determiner(
             crate::determiner::quantity(three),
             build_nominal_times_clause(
-                NounInstance::Plural(Noun::Word(Vocab::Time)),
+                NounInstance::unchecked_plural(Noun::Word(Vocab::Time)),
                 Box::new(parsed_independent("You draw a card.")),
             )
             .unwrap(),
@@ -3349,9 +3351,9 @@ mod tests {
         );
 
         let modified_times = build_nominal_noun_modifier(
-            NounInstance::Singular(Noun::Word(Vocab::Ability)),
+            NounInstance::unchecked_singular(Noun::Word(Vocab::Ability)),
             build_nominal_times_clause(
-                NounInstance::Plural(Noun::Word(Vocab::Time)),
+                NounInstance::unchecked_plural(Noun::Word(Vocab::Time)),
                 Box::new(parsed_independent("You draw a card.")),
             )
             .unwrap(),
@@ -3375,7 +3377,7 @@ mod tests {
         };
         let negative = || NominalModifier::Noun {
             polarity: Polarity::Negative,
-            noun: NounInstance::Singular(Noun::Word(Vocab::Ability)),
+            noun: NounInstance::unchecked_singular(Noun::Word(Vocab::Ability)),
         };
         let one = || {
             Quantity::try_exact(crate::syntax::NumberLiteral {
@@ -3398,7 +3400,7 @@ mod tests {
         assert!(build_nominal_adjective(red_adjective(), determined()).is_err());
         assert!(
             build_nominal_noun_modifier(
-                NounInstance::Singular(Noun::Word(Vocab::Ability)),
+                NounInstance::unchecked_singular(Noun::Word(Vocab::Ability)),
                 determined(),
             )
             .is_err()
@@ -3424,14 +3426,14 @@ mod tests {
         let attached = build_nominal_prepositional(card_nominal(), preposition()).unwrap();
         assert!(
             build_nominal_noun_modifier(
-                NounInstance::Singular(Noun::Word(Vocab::Ability)),
+                NounInstance::unchecked_singular(Noun::Word(Vocab::Ability)),
                 attached,
             )
             .is_err()
         );
 
         let prefixed = build_nominal_noun_modifier(
-            NounInstance::Singular(Noun::Word(Vocab::Ability)),
+            NounInstance::unchecked_singular(Noun::Word(Vocab::Ability)),
             card_nominal(),
         )
         .unwrap();
@@ -3792,7 +3794,7 @@ mod tests {
         let invalid = NominalPhrase::from_projection_parts(
             None,
             Vec::new(),
-            NounInstance::Singular(Noun::Word(Vocab::Card)),
+            NounInstance::unchecked_singular(Noun::Word(Vocab::Card)),
             vec![NominalComplement::CoordinatedAdjective(
                 CoordinatedAdjectivePhrase {
                     first: Box::new(participle(crate::word::Tense::Present, Vocab::Block)),
@@ -3861,7 +3863,8 @@ mod tests {
                 .unwrap();
         assert!(build_nominal_determiner(crate::determiner::the(), attached).is_err());
 
-        let plural = build_nominal_noun(NounInstance::Plural(Noun::Word(Vocab::Card))).unwrap();
+        let plural =
+            build_nominal_noun(NounInstance::unchecked_plural(Noun::Word(Vocab::Card))).unwrap();
         assert!(build_nominal_determiner(crate::determiner::each(), plural).is_err());
 
         let legal = build_nominal_prepositional(
@@ -3956,7 +3959,7 @@ mod tests {
         // Mutations caught: treat an inverse shape predicate as render-only
         // decoration, or let writable AST fields bypass cardinality, identity,
         // attachment-phase, reduced-passive, and specialized-head gates.
-        let plural_cards = NounInstance::Plural(Noun::Word(Vocab::Card));
+        let plural_cards = NounInstance::unchecked_plural(Noun::Word(Vocab::Card));
         assert_nominal_inverse_rejects(&NominalPhrase::from_projection_parts(
             Some(crate::determiner::each()),
             Vec::new(),
@@ -3979,7 +3982,7 @@ mod tests {
         assert_nominal_inverse_rejects(&NominalPhrase::from_projection_parts(
             None,
             Vec::new(),
-            NounInstance::Singular(Noun::Word(Vocab::Ability)),
+            NounInstance::unchecked_singular(Noun::Word(Vocab::Ability)),
             vec![NominalComplement::KeywordArgument(KeywordArgument::Costed(
                 KeywordCost::Symbols(vec![OracleSymbol::new("{2}").unwrap()]),
             ))],
@@ -3988,9 +3991,9 @@ mod tests {
         assert_nominal_inverse_rejects(&NominalPhrase::from_projection_parts(
             None,
             vec![NominalModifier::CombatStepName {
-                participants: NounInstance::Singular(Noun::Word(Vocab::Card)),
+                participants: NounInstance::unchecked_singular(Noun::Word(Vocab::Card)),
             }],
-            NounInstance::Singular(Noun::Word(Vocab::Step)),
+            NounInstance::unchecked_singular(Noun::Word(Vocab::Step)),
             Vec::new(),
         ));
 
@@ -4005,7 +4008,7 @@ mod tests {
         let invalid_devotion = NominalPhrase::from_projection_parts(
             None,
             modifiers,
-            NounInstance::Singular(Noun::Word(Vocab::Card)),
+            NounInstance::unchecked_singular(Noun::Word(Vocab::Card)),
             complements,
         );
         assert_nominal_inverse_rejects(&invalid_devotion);
@@ -4025,7 +4028,7 @@ mod tests {
         let times = NominalPhrase::from_projection_parts(
             times.determiner().cloned(),
             times.modifiers().to_vec(),
-            NounInstance::Plural(Noun::Word(Vocab::Card)),
+            NounInstance::unchecked_plural(Noun::Word(Vocab::Card)),
             times.complements().to_vec(),
         );
         assert_nominal_inverse_rejects(&times);
@@ -4034,7 +4037,7 @@ mod tests {
         let invalid_determined_times = NominalPhrase::from_projection_parts(
             Some(crate::determiner::all()),
             Vec::new(),
-            NounInstance::Plural(Noun::Word(Vocab::Card)),
+            NounInstance::unchecked_plural(Noun::Word(Vocab::Card)),
             vec![NominalComplement::EventClause(Box::new(
                 parsed_independent("You draw a card."),
             ))],
@@ -4049,14 +4052,14 @@ mod tests {
         // postpositive constructors manufacture the same stored shape.
         assert!(
             build_nominal_combat_step_name(
-                NounInstance::Plural(Noun::Word(Vocab::Card)),
-                NounInstance::Singular(Noun::Word(Vocab::Step)),
+                NounInstance::unchecked_plural(Noun::Word(Vocab::Card)),
+                NounInstance::unchecked_singular(Noun::Word(Vocab::Step)),
             )
             .is_err()
         );
         assert!(
             build_nominal_keyword_symbol_argument(
-                NounInstance::Singular(Noun::Word(Vocab::Ability)),
+                NounInstance::unchecked_singular(Noun::Word(Vocab::Ability)),
                 Some(OracleSymbol::new("{2}").unwrap()),
                 None,
             )
@@ -4082,7 +4085,7 @@ mod tests {
         assert!(build_reduced_recipient_passive_theme(card_nominal()).is_err());
         assert!(
             build_nominal_times_clause(
-                NounInstance::Plural(Noun::Word(Vocab::Card)),
+                NounInstance::unchecked_plural(Noun::Word(Vocab::Card)),
                 Box::new(parsed_independent("You draw a card.")),
             )
             .is_err()

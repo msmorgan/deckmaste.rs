@@ -603,8 +603,8 @@ impl Determiner {
             self.kind(),
             crate::syntax::DeterminerKind::Possessive(possessor)
                 if matches!(
-                    possessor.kind(),
-                    crate::syntax::PossessorKind::NounPhrase(noun_phrase)
+                    possessor,
+                    crate::syntax::Possessor::NounPhrase(noun_phrase)
                         if matches!(noun_phrase.kind(), crate::syntax::NounPhraseKind::ThisCard(_))
                 )
         ) {
@@ -4661,7 +4661,9 @@ impl<'identity> Renderer<'identity> {
                 .ok_or(RenderError::MissingLexicalForm("gerund")),
             Noun::Agentive(verb) => self
                 .vocabulary
-                .render_noun(&NounInstance::Singular(Noun::Agentive(verb.clone())))
+                .render_noun(&NounInstance::unchecked_singular(Noun::Agentive(
+                    verb.clone(),
+                )))
                 .map(|surface| surface_initial_sound(&surface))
                 .ok_or(RenderError::MissingLexicalForm("agent noun")),
             Noun::Opaque(opaque) => Ok(surface_initial_sound(opaque.spelling())),
@@ -4973,9 +4975,7 @@ impl<'identity> Renderer<'identity> {
             Err(deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error)) => {
                 Err(error)
             }
-            Err(error) => {
-                unreachable!("noun belongs to one declared identity domain: {error:?}")
-            }
+            Err(_) => Err(RenderError::InvalidNounPhraseConstruction),
         }
     }
 
@@ -5883,11 +5883,11 @@ mod render_quantity_value_tests {
     #[test]
     fn variable_bounds_render_as_x() {
         assert_eq!(
-            render_quantity(Quantity::UpTo(QuantityValue::Variable)),
+            render_quantity(Quantity::unchecked_up_to(QuantityValue::Variable)),
             "up to X"
         );
         assert_eq!(
-            render_quantity(Quantity::OrComparison(
+            render_quantity(Quantity::unchecked_or_comparison(
                 QuantityValue::Variable,
                 ComparativeWord::Less
             )),
@@ -5897,19 +5897,19 @@ mod render_quantity_value_tests {
         // total even where the corpus is silent, per *Productions ship their
         // inverse*.
         assert_eq!(
-            render_quantity(Quantity::AtLeast(QuantityValue::Variable)),
+            render_quantity(Quantity::unchecked_at_least(QuantityValue::Variable)),
             "at least X"
         );
         assert_eq!(
-            render_quantity(Quantity::MoreThan(QuantityValue::Variable)),
+            render_quantity(Quantity::unchecked_more_than(QuantityValue::Variable)),
             "more than X"
         );
         assert_eq!(
-            render_quantity(Quantity::FewerThan(QuantityValue::Variable)),
+            render_quantity(Quantity::unchecked_fewer_than(QuantityValue::Variable)),
             "fewer than X"
         );
         assert_eq!(
-            render_quantity(Quantity::OrComparison(
+            render_quantity(Quantity::unchecked_or_comparison(
                 QuantityValue::Variable,
                 ComparativeWord::Greater
             )),
@@ -5928,31 +5928,31 @@ mod render_quantity_value_tests {
             (Numeral::Roman, "III"),
         ] {
             assert_eq!(
-                render_quantity(Quantity::Exact(number(3, numeral))),
+                render_quantity(Quantity::unchecked_exact(number(3, numeral))),
                 expected
             );
         }
         let two = QuantityValue::Literal(number(2, Numeral::Cardinal));
         for (quantity, expected) in [
-            (Quantity::AtLeast(two), "at least two"),
+            (Quantity::unchecked_at_least(two), "at least two"),
             (
-                Quantity::OrComparison(two, ComparativeWord::Fewer),
+                Quantity::unchecked_or_comparison(two, ComparativeWord::Fewer),
                 "two or fewer",
             ),
             (
-                Quantity::Or(
+                Quantity::unchecked_or(
                     number(1, Numeral::Cardinal),
                     number(2, Numeral::Arabic(false)),
                 ),
                 "one or 2",
             ),
-            (Quantity::X, "X"),
-            (Quantity::Both, "both"),
-            (Quantity::UpTo(two), "up to two"),
-            (Quantity::ThatMany, "that many"),
-            (Quantity::ThatMuch, "that much"),
-            (Quantity::MoreThan(two), "more than two"),
-            (Quantity::FewerThan(two), "fewer than two"),
+            (Quantity::unchecked_x(), "X"),
+            (Quantity::unchecked_both(), "both"),
+            (Quantity::unchecked_up_to(two), "up to two"),
+            (Quantity::unchecked_that_many(), "that many"),
+            (Quantity::unchecked_that_much(), "that much"),
+            (Quantity::unchecked_more_than(two), "more than two"),
+            (Quantity::unchecked_fewer_than(two), "fewer than two"),
         ] {
             assert_eq!(render_quantity(quantity), expected);
         }
@@ -6710,7 +6710,7 @@ mod tests {
                 vec![VerbDependent::DirectObject(nominal(
                     Some(crate::determiner::indefinite()),
                     vec![],
-                    NounInstance::Singular(Noun::Word(Vocab::Card)),
+                    NounInstance::unchecked_singular(Noun::Word(Vocab::Card)),
                     vec![],
                 ))],
             ),
@@ -6721,7 +6721,7 @@ mod tests {
             Some(Subject(nominal(
                 None,
                 vec![],
-                NounInstance::Plural(Noun::Word(Vocab::Spell)),
+                NounInstance::unchecked_plural(Noun::Word(Vocab::Spell)),
                 vec![],
             ))),
             verb_phrase(
@@ -6749,7 +6749,7 @@ mod tests {
             Some(Subject(nominal(
                 Some(crate::determiner::indefinite()),
                 vec![],
-                NounInstance::Singular(Noun::Word(Vocab::Hour)),
+                NounInstance::unchecked_singular(Noun::Word(Vocab::Hour)),
                 vec![],
             ))),
             vec![AuxiliaryInstance {
@@ -6770,7 +6770,7 @@ mod tests {
         let opponents = nominal(
             Some(crate::determiner::possessive_pronoun(Pronoun::You).unwrap()),
             vec![],
-            NounInstance::Plural(Noun::Word(Vocab::Opponent)),
+            NounInstance::unchecked_plural(Noun::Word(Vocab::Opponent)),
             vec![],
         );
         let cannot_cast = paragraph_ability(simple_with_auxiliaries(
@@ -6786,7 +6786,7 @@ mod tests {
                 vec![VerbDependent::DirectObject(nominal(
                     None,
                     vec![],
-                    NounInstance::Plural(Noun::Word(Vocab::Spell)),
+                    NounInstance::unchecked_plural(Noun::Word(Vocab::Spell)),
                     vec![],
                 ))],
             ),
@@ -6880,13 +6880,13 @@ mod tests {
         let target_player = nominal(
             Some(crate::determiner::target(None)),
             vec![],
-            NounInstance::Singular(Noun::Word(Vocab::Player)),
+            NounInstance::unchecked_singular(Noun::Word(Vocab::Player)),
             vec![],
         );
         let target_source = nominal(
             Some(crate::determiner::target(None)),
             vec![],
-            NounInstance::Singular(Noun::Word(Vocab::Source)),
+            NounInstance::unchecked_singular(Noun::Word(Vocab::Source)),
             vec![],
         );
 
@@ -6902,7 +6902,7 @@ mod tests {
                     VerbDependent::DirectObject(nominal(
                         Some(crate::determiner::indefinite()),
                         vec![],
-                        NounInstance::Singular(Noun::Word(Vocab::Number)),
+                        NounInstance::unchecked_singular(Noun::Word(Vocab::Number)),
                         vec![],
                     )),
                 ],
@@ -6924,7 +6924,7 @@ mod tests {
                     VerbDependent::DirectObject(nominal(
                         Some(crate::determiner::all()),
                         vec![],
-                        NounInstance::Mass(Noun::Word(Vocab::Damage)),
+                        NounInstance::unchecked_mass(Noun::Word(Vocab::Damage)),
                         vec![],
                     )),
                     VerbDependent::Prepositional(
@@ -6977,7 +6977,7 @@ mod tests {
                         vec![VerbDependent::DirectObject(nominal(
                             Some(crate::determiner::indefinite()),
                             vec![],
-                            NounInstance::Singular(Noun::Word(Vocab::Card)),
+                            NounInstance::unchecked_singular(Noun::Word(Vocab::Card)),
                             vec![],
                         ))],
                     ),
@@ -7010,14 +7010,14 @@ mod tests {
         let cards = nominal(
             None,
             vec![],
-            NounInstance::Plural(Noun::Word(Vocab::Card)),
+            NounInstance::unchecked_plural(Noun::Word(Vocab::Card)),
             vec![NominalComplement::Prepositional(
                 crate::constructions::prepositional::expect_prepositional_phrase(
                     Preposition::In,
                     Phrase::NounPhrase(Box::new(nominal(
                         Some(crate::determiner::possessive_pronoun(Pronoun::You).unwrap()),
                         vec![],
-                        NounInstance::Singular(Noun::Word(Vocab::Hand)),
+                        NounInstance::unchecked_singular(Noun::Word(Vocab::Hand)),
                         vec![],
                     ))),
                 ),
@@ -7026,7 +7026,7 @@ mod tests {
         let number = nominal(
             Some(crate::determiner::the()),
             vec![],
-            NounInstance::Singular(Noun::Word(Vocab::Number)),
+            NounInstance::unchecked_singular(Noun::Word(Vocab::Number)),
             vec![NominalComplement::Prepositional(
                 crate::constructions::prepositional::expect_prepositional_phrase(
                     Preposition::Of,
@@ -7040,7 +7040,7 @@ mod tests {
                     ThisCardForm::FullName,
                 )),
                 vec![],
-                NounInstance::Mass(Noun::Word(Vocab::Power)),
+                NounInstance::unchecked_mass(Noun::Word(Vocab::Power)),
                 vec![],
             ))),
             verb_phrase(
@@ -7319,7 +7319,7 @@ mod tests {
             nominal(
                 Some(crate::determiner::indefinite()),
                 vec![],
-                NounInstance::Singular(Noun::Word(Vocab::Card)),
+                NounInstance::unchecked_singular(Noun::Word(Vocab::Card)),
                 vec![],
             )
         };
@@ -7666,7 +7666,7 @@ mod tests {
                     value: power,
                 },
             })],
-            NounInstance::Singular(Noun::Word(Vocab::Token)),
+            NounInstance::unchecked_singular(Noun::Word(Vocab::Token)),
             vec![],
         )
     }
@@ -7755,7 +7755,7 @@ mod tests {
                     object = Some(PredicateObject::OracleSymbol(symbol));
                 }
                 VerbDependent::Scalar(Phrase::NumberLiteral(number)) => {
-                    object = Some(PredicateObject::Quantity(Quantity::Exact(number)));
+                    object = Some(PredicateObject::Quantity(Quantity::unchecked_exact(number)));
                 }
                 VerbDependent::Infinitive(marker, predicate) => {
                     let predicate = strict_predicate(*predicate);

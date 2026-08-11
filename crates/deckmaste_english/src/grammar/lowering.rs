@@ -738,7 +738,7 @@ fn erased_field(
             let crate::syntax::DeterminerKind::Demonstrative(value) = value.kind() else {
                 return None;
             };
-            Some(Box::new(value))
+            Some(Box::new(*value))
         }
         K::Identity {
             value_type: "SetExceptionMarker",
@@ -1383,9 +1383,9 @@ pub(super) fn lower_lexical(
                 OpacitySlot::Noun(form) => {
                     let noun = Noun::Opaque(opaque);
                     Lowered::Noun(match form {
-                        NounForm::Singular => NounInstance::Singular(noun),
-                        NounForm::Plural => NounInstance::Plural(noun),
-                        NounForm::Mass => NounInstance::Mass(noun),
+                        NounForm::Singular => NounInstance::unchecked_singular(noun),
+                        NounForm::Plural => NounInstance::unchecked_plural(noun),
+                        NounForm::Mass => NounInstance::unchecked_mass(noun),
                     })
                 }
             }

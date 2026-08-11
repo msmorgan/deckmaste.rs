@@ -5,20 +5,24 @@ use deckmaste_construction_compiler::runtime::GroupData;
 
 use crate::word::Noun;
 use crate::word::NounInstance;
-use crate::word::NounInstanceRepr;
+use crate::word::NounInstanceKind;
 use crate::word::Vocabulary;
 
 pub(crate) fn is_opaque(value: &NounInstance) -> bool {
     matches!(
-        value.repr(),
-        NounInstanceRepr::Singular(Noun::Opaque(_))
-            | NounInstanceRepr::Plural(Noun::Opaque(_))
-            | NounInstanceRepr::Mass(Noun::Opaque(_))
+        value.kind(),
+        NounInstanceKind::Singular(Noun::Opaque(_))
+            | NounInstanceKind::Plural(Noun::Opaque(_))
+            | NounInstanceKind::Mass(Noun::Opaque(_))
     )
 }
 
+fn is_known(value: &NounInstance) -> bool {
+    !is_opaque(value) && Vocabulary::new().render_noun(value).is_some()
+}
+
 fn known_noun(identity: NounInstance) -> Result<NounInstance, DeclarationViolation> {
-    if is_opaque(&identity) || Vocabulary::new().render_noun(&identity).is_none() {
+    if !is_known(&identity) {
         return Err(DeclarationViolation {
             construction: "noun",
             requirement: "identity is a renderable known noun",
@@ -52,7 +56,7 @@ deckmaste_constructions_macro::constructions! {
         bind NounInstance via known_noun, noun_identity {
             identity: identity NounInstance via KnownNoun,
         }
-        form only @ 0 = identity(identity);
+        form only @ 0 inverse check(is_known) = identity(identity);
         selection unique;
     }
 
@@ -60,7 +64,7 @@ deckmaste_constructions_macro::constructions! {
         bind NounInstance via opaque_noun, noun_identity {
             identity: identity NounInstance via OpaqueNoun,
         }
-        form only @ 0 = identity(identity);
+        form only @ 0 inverse check(is_opaque) = identity(identity);
         selection unique;
     }
 }
@@ -74,11 +78,7 @@ pub(crate) fn linearize_with<V>(
 where
     V: deckmaste_construction_compiler::runtime::LinearizationVisitor,
 {
-    if is_opaque(value) {
-        linearize_noun_opaque_with(value, visitor)
-    } else {
-        linearize_noun_with(value, visitor)
-    }
+    linearize_noun_group_with(value, visitor)
 }
 
 #[cfg(test)]
@@ -106,8 +106,8 @@ mod tests {
 
     #[test]
     fn generated_builders_keep_known_and_opaque_domains_disjoint() {
-        let known = NounInstance::Singular(Noun::Word(Vocab::Card));
-        let opaque = NounInstance::Mass(Noun::Opaque(OpaqueLexeme::new("blorple")));
+        let known = NounInstance::unchecked_singular(Noun::Word(Vocab::Card));
+        let opaque = NounInstance::unchecked_mass(Noun::Opaque(OpaqueLexeme::new("blorple")));
 
         assert_eq!(build_noun(known.clone()).unwrap(), known);
         assert_eq!(build_noun_opaque(opaque.clone()).unwrap(), opaque);
@@ -124,12 +124,12 @@ mod tests {
             numeral: Numeral::Arabic(false),
         };
         for noun in [
-            NounInstance::Plural(Noun::Die(one)),
-            NounInstance::Mass(Noun::Die(one)),
-            NounInstance::Mass(Noun::Agentive(Verb::Word(Vocab::Bid))),
-            NounInstance::Singular(Noun::Word(Vocab::Destroy)),
-            NounInstance::Mass(Noun::Word(Vocab::Card)),
-            NounInstance::Singular(Noun::Word(Vocab::Damage)),
+            NounInstance::unchecked_plural(Noun::Die(one)),
+            NounInstance::unchecked_mass(Noun::Die(one)),
+            NounInstance::unchecked_mass(Noun::Agentive(Verb::Word(Vocab::Bid))),
+            NounInstance::unchecked_singular(Noun::Word(Vocab::Destroy)),
+            NounInstance::unchecked_mass(Noun::Word(Vocab::Card)),
+            NounInstance::unchecked_singular(Noun::Word(Vocab::Damage)),
         ] {
             assert!(
                 render_bare_noun(noun.clone()).is_err(),
@@ -154,9 +154,9 @@ mod tests {
                 Noun::Agentive(Verb::Word(*vocab)),
             ] {
                 candidates.extend([
-                    NounInstance::Singular(noun.clone()),
-                    NounInstance::Plural(noun.clone()),
-                    NounInstance::Mass(noun),
+                    NounInstance::unchecked_singular(noun.clone()),
+                    NounInstance::unchecked_plural(noun.clone()),
+                    NounInstance::unchecked_mass(noun),
                 ]);
             }
         }
@@ -165,9 +165,9 @@ mod tests {
             numeral: Numeral::Arabic(false),
         });
         candidates.extend([
-            NounInstance::Singular(die.clone()),
-            NounInstance::Plural(die.clone()),
-            NounInstance::Mass(die),
+            NounInstance::unchecked_singular(die.clone()),
+            NounInstance::unchecked_plural(die.clone()),
+            NounInstance::unchecked_mass(die),
         ]);
 
         for candidate in candidates {

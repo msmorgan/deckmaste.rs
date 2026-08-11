@@ -9,10 +9,9 @@
 use deckmaste_construction_compiler::runtime::DeclarationViolation;
 use deckmaste_construction_compiler::runtime::GroupData;
 
-use super::DeterminerRepr;
+use super::DeterminerKind;
 use super::NounPhrase;
 use super::Possessor;
-use super::PossessorRepr;
 use crate::features::NounCardinality;
 use crate::grammar::AdjectiveComparisonState;
 use crate::grammar::Features;
@@ -36,18 +35,16 @@ fn violation(construction: &'static str, requirement: &'static str) -> Declarati
 
 fn is_closed(value: &Determiner) -> bool {
     matches!(
-        value.repr,
-        DeterminerRepr::The
-            | DeterminerRepr::Each
-            | DeterminerRepr::Another
-            | DeterminerRepr::Indefinite
-            | DeterminerRepr::Demonstrative(_)
-            | DeterminerRepr::Possessive(Possessor {
-                repr: PossessorRepr::Pronoun(_)
-            })
-            | DeterminerRepr::All
-            | DeterminerRepr::Any
-            | DeterminerRepr::No
+        value.kind(),
+        DeterminerKind::The
+            | DeterminerKind::Each
+            | DeterminerKind::Another
+            | DeterminerKind::Indefinite
+            | DeterminerKind::Demonstrative(_)
+            | DeterminerKind::Possessive(Possessor::Pronoun(_))
+            | DeterminerKind::All
+            | DeterminerKind::Any
+            | DeterminerKind::No
     )
 }
 
@@ -59,102 +56,93 @@ fn make_closed(identity: ClosedDeterminer) -> Result<Determiner, DeclarationViol
             "possessive pronoun has a determiner form",
         ));
     }
-    let repr = match identity {
-        ClosedDeterminer::The => DeterminerRepr::The,
-        ClosedDeterminer::Each => DeterminerRepr::Each,
-        ClosedDeterminer::Another => DeterminerRepr::Another,
-        ClosedDeterminer::Indefinite => DeterminerRepr::Indefinite,
-        ClosedDeterminer::Demonstrative(value) => DeterminerRepr::Demonstrative(value),
-        ClosedDeterminer::PossessivePronoun(value) => DeterminerRepr::Possessive(Possessor {
-            repr: PossessorRepr::Pronoun(value),
-        }),
-        ClosedDeterminer::All => DeterminerRepr::All,
-        ClosedDeterminer::Any => DeterminerRepr::Any,
-        ClosedDeterminer::No => DeterminerRepr::No,
+    let kind = match identity {
+        ClosedDeterminer::The => DeterminerKind::The,
+        ClosedDeterminer::Each => DeterminerKind::Each,
+        ClosedDeterminer::Another => DeterminerKind::Another,
+        ClosedDeterminer::Indefinite => DeterminerKind::Indefinite,
+        ClosedDeterminer::Demonstrative(value) => DeterminerKind::Demonstrative(value),
+        ClosedDeterminer::PossessivePronoun(value) => {
+            DeterminerKind::Possessive(Possessor::Pronoun(value))
+        }
+        ClosedDeterminer::All => DeterminerKind::All,
+        ClosedDeterminer::Any => DeterminerKind::Any,
+        ClosedDeterminer::No => DeterminerKind::No,
     };
-    Ok(Determiner { repr })
+    Ok(Determiner::from_kind(kind))
 }
 
 fn closed_parts(value: &Determiner) -> ClosedDeterminer {
-    match &value.repr {
-        DeterminerRepr::The => ClosedDeterminer::The,
-        DeterminerRepr::Each => ClosedDeterminer::Each,
-        DeterminerRepr::Another => ClosedDeterminer::Another,
-        DeterminerRepr::Indefinite => ClosedDeterminer::Indefinite,
-        DeterminerRepr::Demonstrative(value) => ClosedDeterminer::Demonstrative(*value),
-        DeterminerRepr::Possessive(Possessor {
-            repr: PossessorRepr::Pronoun(value),
-        }) => ClosedDeterminer::PossessivePronoun(*value),
-        DeterminerRepr::All => ClosedDeterminer::All,
-        DeterminerRepr::Any => ClosedDeterminer::Any,
-        DeterminerRepr::No => ClosedDeterminer::No,
-        DeterminerRepr::Target(_)
-        | DeterminerRepr::Quantity(_)
-        | DeterminerRepr::Possessive(Possessor {
-            repr: PossessorRepr::NounPhrase(_),
-        }) => unreachable!("determiner_closed admits only closed identities"),
+    match value.kind() {
+        DeterminerKind::The => ClosedDeterminer::The,
+        DeterminerKind::Each => ClosedDeterminer::Each,
+        DeterminerKind::Another => ClosedDeterminer::Another,
+        DeterminerKind::Indefinite => ClosedDeterminer::Indefinite,
+        DeterminerKind::Demonstrative(value) => ClosedDeterminer::Demonstrative(*value),
+        DeterminerKind::Possessive(Possessor::Pronoun(value)) => {
+            ClosedDeterminer::PossessivePronoun(*value)
+        }
+        DeterminerKind::All => ClosedDeterminer::All,
+        DeterminerKind::Any => ClosedDeterminer::Any,
+        DeterminerKind::No => ClosedDeterminer::No,
+        DeterminerKind::Target(_)
+        | DeterminerKind::Quantity(_)
+        | DeterminerKind::Possessive(Possessor::NounPhrase(_)) => {
+            unreachable!("determiner_closed admits only closed identities")
+        }
     }
 }
 
 fn make_target() -> Result<Determiner, DeclarationViolation> {
-    Ok(Determiner {
-        repr: DeterminerRepr::Target(None),
-    })
+    Ok(Determiner::from_kind(DeterminerKind::Target(None)))
 }
 
 fn no_parts(_: &Determiner) {}
 
 fn is_target(value: &Determiner) -> bool {
-    matches!(value.repr, DeterminerRepr::Target(None))
+    matches!(value.kind(), DeterminerKind::Target(None))
 }
 
 fn make_quantified_target(quantity: Quantity) -> Result<Determiner, DeclarationViolation> {
-    Ok(Determiner {
-        repr: DeterminerRepr::Target(Some(quantity)),
-    })
+    Ok(Determiner::from_kind(DeterminerKind::Target(Some(
+        quantity,
+    ))))
 }
 
 fn quantified_target_parts(value: &Determiner) -> Quantity {
-    let DeterminerRepr::Target(Some(quantity)) = value.repr else {
+    let DeterminerKind::Target(Some(quantity)) = value.kind() else {
         unreachable!("determiner_quantified_target admits only quantified target")
     };
-    quantity
+    *quantity
 }
 
 fn is_quantified_target(value: &Determiner) -> bool {
-    matches!(value.repr, DeterminerRepr::Target(Some(_)))
+    matches!(value.kind(), DeterminerKind::Target(Some(_)))
 }
 
 fn make_quantity(quantity: Quantity) -> Result<Determiner, DeclarationViolation> {
-    Ok(Determiner {
-        repr: DeterminerRepr::Quantity(quantity),
-    })
+    Ok(Determiner::from_kind(DeterminerKind::Quantity(quantity)))
 }
 
 fn quantity_parts(value: &Determiner) -> Quantity {
-    let DeterminerRepr::Quantity(quantity) = value.repr else {
+    let DeterminerKind::Quantity(quantity) = value.kind() else {
         unreachable!("determiner_quantity admits only direct quantity")
     };
-    quantity
+    *quantity
 }
 
 fn is_quantity(value: &Determiner) -> bool {
-    matches!(value.repr, DeterminerRepr::Quantity(_))
+    matches!(value.kind(), DeterminerKind::Quantity(_))
 }
 
 fn make_possessive_this_card(form: ThisCardForm) -> Result<Determiner, DeclarationViolation> {
-    Ok(Determiner {
-        repr: DeterminerRepr::Possessive(Possessor {
-            repr: PossessorRepr::NounPhrase(Box::new(NounPhrase::from_this_card_declaration(form))),
-        }),
-    })
+    Ok(Determiner::from_kind(DeterminerKind::Possessive(
+        Possessor::NounPhrase(Box::new(NounPhrase::from_this_card_declaration(form))),
+    )))
 }
 
 fn possessive_this_card_parts(value: &Determiner) -> ThisCardForm {
-    let DeterminerRepr::Possessive(Possessor {
-        repr: PossessorRepr::NounPhrase(noun),
-    }) = &value.repr
-    else {
+    let DeterminerKind::Possessive(Possessor::NounPhrase(noun)) = value.kind() else {
         unreachable!("determiner_possessive_this_card admits only self-reference possessors")
     };
     let crate::syntax::NounPhraseKind::ThisCard(form) = noun.kind() else {
@@ -165,10 +153,8 @@ fn possessive_this_card_parts(value: &Determiner) -> ThisCardForm {
 
 fn is_possessive_this_card(value: &Determiner) -> bool {
     matches!(
-        &value.repr,
-        DeterminerRepr::Possessive(Possessor {
-            repr: PossessorRepr::NounPhrase(noun)
-        })
+        value.kind(),
+        DeterminerKind::Possessive(Possessor::NounPhrase(noun))
             if matches!(noun.kind(), crate::syntax::NounPhraseKind::ThisCard(_))
     )
 }
@@ -282,20 +268,13 @@ fn make_determiner_possessive_noun(
             "possessor has exactly one D01 inverse",
         ));
     }
-    Ok(Determiner {
-        repr: DeterminerRepr::Possessive(Possessor {
-            repr: PossessorRepr::NounPhrase(Box::new(NounPhrase::from_nominal_declaration(
-                possessor,
-            ))),
-        }),
-    })
+    Ok(Determiner::from_kind(DeterminerKind::Possessive(
+        Possessor::NounPhrase(Box::new(NounPhrase::from_nominal_declaration(possessor))),
+    )))
 }
 
 fn determiner_possessive_noun_parts(value: &Determiner) -> PossessiveNominal {
-    let DeterminerRepr::Possessive(Possessor {
-        repr: PossessorRepr::NounPhrase(noun),
-    }) = &value.repr
-    else {
+    let DeterminerKind::Possessive(Possessor::NounPhrase(noun)) = value.kind() else {
         unreachable!("determiner_possessive_noun admits only noun possessors")
     };
     let crate::syntax::NounPhraseKind::Nominal(nominal) = noun.kind() else {
@@ -306,10 +285,8 @@ fn determiner_possessive_noun_parts(value: &Determiner) -> PossessiveNominal {
 
 fn is_determiner_possessive_noun(value: &Determiner) -> bool {
     matches!(
-        &value.repr,
-        DeterminerRepr::Possessive(Possessor {
-            repr: PossessorRepr::NounPhrase(noun)
-        })
+        value.kind(),
+        DeterminerKind::Possessive(Possessor::NounPhrase(noun))
             if matches!(noun.kind(), crate::syntax::NounPhraseKind::Nominal(nominal) if is_valid_possessive_nominal(nominal))
     )
 }

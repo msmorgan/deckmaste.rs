@@ -90,22 +90,24 @@ impl IndexedWord {
             (Self::Noun { vocab, form }, LexicalSlot::Noun(usage)) if usage.accepts(form) => {
                 let noun = Noun::Word(vocab);
                 Some(WordMatch::Noun(match form {
-                    NounSurface::Singular => NounInstance::Singular(noun),
-                    NounSurface::Plural => NounInstance::Plural(noun),
-                    NounSurface::Mass => NounInstance::Mass(noun),
+                    NounSurface::Singular => NounInstance::unchecked_singular(noun),
+                    NounSurface::Plural => NounInstance::unchecked_plural(noun),
+                    NounSurface::Mass => NounInstance::unchecked_mass(noun),
                 }))
             }
             (Self::Agentive { vocab, form }, LexicalSlot::Noun(usage)) if usage.accepts(form) => {
                 let noun = Noun::Agentive(Verb::Word(vocab));
                 Some(WordMatch::Noun(match form {
-                    NounSurface::Singular => NounInstance::Singular(noun),
-                    NounSurface::Plural => NounInstance::Plural(noun),
+                    NounSurface::Singular => NounInstance::unchecked_singular(noun),
+                    NounSurface::Plural => NounInstance::unchecked_plural(noun),
                     NounSurface::Mass => return None,
                 }))
             }
-            (Self::Gerund(vocab), LexicalSlot::Noun(NounUsage::Mass | NounUsage::Either)) => Some(
-                WordMatch::Noun(NounInstance::Mass(Noun::Gerund(Verb::Word(vocab)))),
-            ),
+            (Self::Gerund(vocab), LexicalSlot::Noun(NounUsage::Mass | NounUsage::Either)) => {
+                Some(WordMatch::Noun(NounInstance::unchecked_mass(Noun::Gerund(
+                    Verb::Word(vocab),
+                ))))
+            }
             (
                 Self::Verb {
                     vocab,
@@ -229,8 +231,12 @@ fn index_vocab(
     if definition.verb.is_some() {
         for form in [NounSurface::Singular, NounSurface::Plural] {
             let noun = match form {
-                NounSurface::Singular => NounInstance::Singular(Noun::Agentive(Verb::Word(vocab))),
-                NounSurface::Plural => NounInstance::Plural(Noun::Agentive(Verb::Word(vocab))),
+                NounSurface::Singular => {
+                    NounInstance::unchecked_singular(Noun::Agentive(Verb::Word(vocab)))
+                }
+                NounSurface::Plural => {
+                    NounInstance::unchecked_plural(Noun::Agentive(Verb::Word(vocab)))
+                }
                 NounSurface::Mass => unreachable!("agent nouns are count-only"),
             };
             let surface = vocabulary

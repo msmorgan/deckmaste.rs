@@ -9,7 +9,7 @@ use crate::numeral::Numeral;
 use crate::syntax::ComparativeWord;
 use crate::syntax::NumberLiteral;
 use crate::syntax::Quantity;
-use crate::syntax::QuantityRepr;
+use crate::syntax::QuantityKind;
 use crate::syntax::QuantityValue;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -118,18 +118,21 @@ fn checked_value(
 }
 
 fn make_exact(number: NumberLiteral) -> Result<Quantity, DeclarationViolation> {
-    Ok(Quantity::Exact(checked_number("quantity_exact", number)?))
+    Ok(Quantity::unchecked_exact(checked_number(
+        "quantity_exact",
+        number,
+    )?))
 }
 
 fn exact_parts(value: &Quantity) -> NumberLiteral {
-    let QuantityRepr::Exact(number) = value.repr() else {
+    let QuantityKind::Exact(number) = value.kind() else {
         unreachable!("quantity_exact dispatcher admits only Exact")
     };
-    *number
+    number
 }
 
 const fn is_exact(value: &Quantity) -> bool {
-    matches!(value.repr(), QuantityRepr::Exact(_))
+    matches!(value.kind(), QuantityKind::Exact(_))
 }
 
 fn make_at_least(
@@ -137,73 +140,83 @@ fn make_at_least(
     comparative: Option<ComparativeWord>,
 ) -> Result<Quantity, DeclarationViolation> {
     let value = checked_value("quantity_at_least", value)?;
-    Ok(comparative.map_or(Quantity::AtLeast(value), |word| {
-        Quantity::OrComparison(value, word)
-    }))
+    Ok(
+        comparative.map_or(Quantity::unchecked_at_least(value), |word| {
+            Quantity::unchecked_or_comparison(value, word)
+        }),
+    )
 }
 
 fn at_least_parts(value: &Quantity) -> (QuantityValue, Option<ComparativeWord>) {
-    match value.repr() {
-        QuantityRepr::AtLeast(value) => (*value, None),
-        QuantityRepr::OrComparison(value, word) => (*value, Some(*word)),
+    match value.kind() {
+        QuantityKind::AtLeast(value) => (value, None),
+        QuantityKind::OrComparison(value, word) => (value, Some(word)),
         _ => unreachable!("quantity_at_least dispatcher admits only its two semantic shapes"),
     }
 }
 
 const fn is_at_least(value: &Quantity) -> bool {
-    matches!(value.repr(), QuantityRepr::AtLeast(_))
+    matches!(value.kind(), QuantityKind::AtLeast(_))
 }
 
 const fn is_or_comparison(value: &Quantity) -> bool {
-    matches!(value.repr(), QuantityRepr::OrComparison(_, _))
+    matches!(value.kind(), QuantityKind::OrComparison(_, _))
 }
 
 fn make_or(first: NumberLiteral, second: NumberLiteral) -> Result<Quantity, DeclarationViolation> {
-    Ok(Quantity::Or(
+    Ok(Quantity::unchecked_or(
         checked_number("quantity_or", first)?,
         checked_number("quantity_or", second)?,
     ))
 }
 
 fn or_parts(value: &Quantity) -> (NumberLiteral, NumberLiteral) {
-    let QuantityRepr::Or(first, second) = value.repr() else {
+    let QuantityKind::Or(first, second) = value.kind() else {
         unreachable!("quantity_or dispatcher admits only Or")
     };
-    (*first, *second)
+    (first, second)
 }
 
 const fn is_or(value: &Quantity) -> bool {
-    matches!(value.repr(), QuantityRepr::Or(_, _))
+    matches!(value.kind(), QuantityKind::Or(_, _))
 }
 
 macro_rules! value_adapter {
-    ($make:ident, $parts:ident, $recognizer:ident, $construction:literal, $variant:ident) => {
+    ($make:ident, $parts:ident, $recognizer:ident, $construction:literal, $builder:ident, $variant:ident) => {
         fn $make(value: QuantityValue) -> Result<Quantity, DeclarationViolation> {
-            Ok(Quantity::$variant(checked_value($construction, value)?))
+            Ok(Quantity::$builder(checked_value($construction, value)?))
         }
 
         fn $parts(value: &Quantity) -> QuantityValue {
-            let QuantityRepr::$variant(value) = value.repr() else {
+            let QuantityKind::$variant(value) = value.kind() else {
                 unreachable!(concat!(
                     $construction,
                     " dispatcher received the wrong variant"
                 ))
             };
-            *value
+            value
         }
 
         const fn $recognizer(value: &Quantity) -> bool {
-            matches!(value.repr(), QuantityRepr::$variant(_))
+            matches!(value.kind(), QuantityKind::$variant(_))
         }
     };
 }
 
-value_adapter!(make_up_to, up_to_parts, is_up_to, "quantity_up_to", UpTo);
+value_adapter!(
+    make_up_to,
+    up_to_parts,
+    is_up_to,
+    "quantity_up_to",
+    unchecked_up_to,
+    UpTo
+);
 value_adapter!(
     make_more_than,
     more_than_parts,
     is_more_than,
     "quantity_more_than",
+    unchecked_more_than,
     MoreThan
 );
 value_adapter!(
@@ -211,33 +224,46 @@ value_adapter!(
     fewer_than_parts,
     is_fewer_than,
     "quantity_fewer_than",
+    unchecked_fewer_than,
     FewerThan
 );
 
 macro_rules! unit_adapter {
-    ($make:ident, $parts:ident, $recognizer:ident, $variant:ident) => {
+    ($make:ident, $parts:ident, $recognizer:ident, $builder:ident, $variant:ident) => {
         #[allow(
             clippy::unnecessary_wraps,
             reason = "adapted bind constructors use the compiler's checked Result interface"
         )]
         fn $make() -> Result<Quantity, DeclarationViolation> {
-            Ok(Quantity::$variant)
+            Ok(Quantity::$builder())
         }
 
         fn $parts(value: &Quantity) {
-            assert!(matches!(value.repr(), QuantityRepr::$variant));
+            assert!(matches!(value.kind(), QuantityKind::$variant));
         }
 
         const fn $recognizer(value: &Quantity) -> bool {
-            matches!(value.repr(), QuantityRepr::$variant)
+            matches!(value.kind(), QuantityKind::$variant)
         }
     };
 }
 
-unit_adapter!(make_x, x_parts, is_x, X);
-unit_adapter!(make_both, both_parts, is_both, Both);
-unit_adapter!(make_that_many, that_many_parts, is_that_many, ThatMany);
-unit_adapter!(make_that_much, that_much_parts, is_that_much, ThatMuch);
+unit_adapter!(make_x, x_parts, is_x, unchecked_x, X);
+unit_adapter!(make_both, both_parts, is_both, unchecked_both, Both);
+unit_adapter!(
+    make_that_many,
+    that_many_parts,
+    is_that_many,
+    unchecked_that_many,
+    ThatMany
+);
+unit_adapter!(
+    make_that_much,
+    that_much_parts,
+    is_that_much,
+    unchecked_that_much,
+    ThatMuch
+);
 
 deckmaste_constructions_macro::constructions! {
     group quantity;
@@ -576,10 +602,13 @@ mod tests {
         let two = number(2, Numeral::Arabic(false));
         let literal = QuantityValue::Literal(two);
 
-        assert_eq!(build_quantity_exact(one).unwrap(), Quantity::Exact(one));
+        assert_eq!(
+            build_quantity_exact(one).unwrap(),
+            Quantity::unchecked_exact(one)
+        );
         assert_eq!(
             build_quantity_at_least(literal, None).unwrap(),
-            Quantity::AtLeast(literal)
+            Quantity::unchecked_at_least(literal)
         );
         for word in [
             ComparativeWord::Fewer,
@@ -589,25 +618,34 @@ mod tests {
         ] {
             assert_eq!(
                 build_quantity_at_least(literal, Some(word)).unwrap(),
-                Quantity::OrComparison(literal, word)
+                Quantity::unchecked_or_comparison(literal, word)
             );
         }
-        assert_eq!(build_quantity_or(one, two).unwrap(), Quantity::Or(one, two));
-        assert_eq!(build_quantity_x().unwrap(), Quantity::X);
-        assert_eq!(build_quantity_both().unwrap(), Quantity::Both);
+        assert_eq!(
+            build_quantity_or(one, two).unwrap(),
+            Quantity::unchecked_or(one, two)
+        );
+        assert_eq!(build_quantity_x().unwrap(), Quantity::unchecked_x());
+        assert_eq!(build_quantity_both().unwrap(), Quantity::unchecked_both());
         assert_eq!(
             build_quantity_up_to(literal).unwrap(),
-            Quantity::UpTo(literal)
+            Quantity::unchecked_up_to(literal)
         );
-        assert_eq!(build_quantity_that_many().unwrap(), Quantity::ThatMany);
-        assert_eq!(build_quantity_that_much().unwrap(), Quantity::ThatMuch);
+        assert_eq!(
+            build_quantity_that_many().unwrap(),
+            Quantity::unchecked_that_many()
+        );
+        assert_eq!(
+            build_quantity_that_much().unwrap(),
+            Quantity::unchecked_that_much()
+        );
         assert_eq!(
             build_quantity_more_than(QuantityValue::Variable).unwrap(),
-            Quantity::MoreThan(QuantityValue::Variable)
+            Quantity::unchecked_more_than(QuantityValue::Variable)
         );
         assert_eq!(
             build_quantity_fewer_than(literal).unwrap(),
-            Quantity::FewerThan(literal)
+            Quantity::unchecked_fewer_than(literal)
         );
     }
 
@@ -619,7 +657,7 @@ mod tests {
         assert!(build_quantity_up_to(QuantityValue::Literal(encoded_x)).is_err());
         assert_eq!(
             build_quantity_up_to(QuantityValue::Variable).unwrap(),
-            Quantity::UpTo(QuantityValue::Variable)
+            Quantity::unchecked_up_to(QuantityValue::Variable)
         );
     }
 }

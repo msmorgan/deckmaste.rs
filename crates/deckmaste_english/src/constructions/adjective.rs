@@ -701,7 +701,8 @@ mod tests {
             assert_eq!(build(standard).expect("the marker rebuilds"), built);
         }
 
-        let unsupported = crate::syntax::Phrase::Quantity(crate::syntax::Quantity::Both);
+        let unsupported =
+            crate::syntax::Phrase::Quantity(crate::syntax::Quantity::unchecked_both());
         let (noun, adjective, clause) = parts_comparison_standard(&unsupported);
         assert!(build_comparison_standard(noun, adjective, clause).is_err());
         assert!(build_comparison_than(unsupported.clone()).is_err());

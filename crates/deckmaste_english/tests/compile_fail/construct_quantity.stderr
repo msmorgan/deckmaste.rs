@@ -1,10 +1,38 @@
-error[E0624]: associated function `Exact` is private
- --> tests/compile_fail/construct_quantity.rs:6:15
-  |
-6 |     Quantity::Exact(NumberLiteral {
-  |               ^^^^^ private associated function
-  |
- ::: src/syntax/phrase.rs
-  |
-  |     pub(crate) const fn Exact(number: NumberLiteral) -> Self {
-  |     -------------------------------------------------------- private associated function defined here
+error[E0423]: cannot initialize a tuple struct which contains private fields
+  --> tests/compile_fail/construct_quantity.rs:7:5
+   |
+ 7 |     Quantity(QuantityKind::Exact(NumberLiteral {
+   |     ^^^^^^^^
+   |
+note: constructor is not visible here due to private fields
+  --> src/syntax/phrase.rs
+   |
+   | pub struct Quantity(QuantityKind);
+   |                     ^^^^^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+   |
+ 7 -     Quantity(QuantityKind::Exact(NumberLiteral {
+ 8 -         value: 10,
+ 9 -         numeral: Numeral::Roman,
+10 -     }))
+ 7 +     Quantity::from_kind(_)
+   |
+ 7 -     Quantity(QuantityKind::Exact(NumberLiteral {
+ 8 -         value: 10,
+ 9 -         numeral: Numeral::Roman,
+10 -     }))
+ 7 +     Quantity::unchecked_exact(_)
+   |
+ 7 -     Quantity(QuantityKind::Exact(NumberLiteral {
+ 8 -         value: 10,
+ 9 -         numeral: Numeral::Roman,
+10 -     }))
+ 7 +     Quantity::unchecked_at_least(_)
+   |
+ 7 -     Quantity(QuantityKind::Exact(NumberLiteral {
+ 8 -         value: 10,
+ 9 -         numeral: Numeral::Roman,
+10 -     }))
+ 7 +     Quantity::unchecked_or_comparison(_, _)
+   |
+   = and 8 other candidates

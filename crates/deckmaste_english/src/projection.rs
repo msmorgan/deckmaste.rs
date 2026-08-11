@@ -29,9 +29,7 @@ use crate::syntax::NumberLiteral;
 use crate::syntax::Phrase;
 use crate::syntax::PowerToughness;
 use crate::syntax::SignedScalar;
-use crate::word::Noun;
 use crate::word::NounInstance;
-use crate::word::NounInstanceKind;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ProjectionError {
@@ -169,12 +167,6 @@ fn project_flat_subtree(
     category: &'static str,
     value: &dyn ProjectionValue,
 ) -> Result<Option<ConstructionProjection>, ProjectionError> {
-    if category == "NounInstance" {
-        return Ok(value
-            .as_any()
-            .downcast_ref::<NounInstance>()
-            .map(project_noun_instance));
-    }
     if category == "PowerToughness" {
         return Ok(value
             .as_any()
@@ -204,6 +196,16 @@ fn project_flat_subtree(
             .transpose();
     }
     Ok(None)
+}
+
+fn project_subtree(
+    category: &'static str,
+    value: &dyn ProjectionValue,
+) -> Result<ConstructionProjection, ProjectionError> {
+    if category == "NounInstance" && value.as_any().is::<NounInstance>() {
+        return project_value("Noun", value);
+    }
+    project_value(category, value)
 }
 
 fn nested_or_flat(
@@ -573,72 +575,6 @@ fn project_keyword_argument(
     ))
 }
 
-fn project_noun_instance(value: &NounInstance) -> ConstructionProjection {
-    let (form, ordinal, noun) = match value.kind() {
-        NounInstanceKind::Singular(noun) => ("singular", 0, noun),
-        NounInstanceKind::Plural(noun) => ("plural", 1, noun),
-        NounInstanceKind::Mass(noun) => ("mass", 2, noun),
-    };
-    flat_projection(
-        "NounInstance",
-        "flat_noun_instance",
-        form,
-        ordinal,
-        BTreeMap::from([(
-            "noun",
-            ProjectedValue::Construction(Box::new(project_noun(noun))),
-        )]),
-    )
-}
-
-fn project_noun(value: &Noun) -> ConstructionProjection {
-    let (form, ordinal, role, projected) = match value {
-        Noun::Word(value) => (
-            "word",
-            0,
-            "word",
-            atom_identity("VocabularyNoun", "Vocab", value),
-        ),
-        Noun::Catalog(value) => (
-            "catalog",
-            1,
-            "catalog",
-            ProjectedValue::Construction(Box::new(project_catalog_atom(value))),
-        ),
-        Noun::Die(value) => (
-            "die",
-            2,
-            "number",
-            ProjectedValue::Construction(Box::new(project_number_literal(*value))),
-        ),
-        Noun::Gerund(value) => (
-            "gerund",
-            3,
-            "verb",
-            atom_identity("GerundNoun", "Verb", value),
-        ),
-        Noun::Agentive(value) => (
-            "agentive",
-            4,
-            "verb",
-            atom_identity("AgentiveNoun", "Verb", value),
-        ),
-        Noun::Opaque(value) => (
-            "opaque",
-            5,
-            "lexeme",
-            atom_identity("OpaqueNoun", "OpaqueLexeme", value),
-        ),
-    };
-    flat_projection(
-        "Noun",
-        "flat_noun",
-        form,
-        ordinal,
-        BTreeMap::from([(role, projected)]),
-    )
-}
-
 fn project_catalog_atom(value: &crate::catalog::CatalogAtom) -> ConstructionProjection {
     let mut projection =
         flat_projection(
@@ -960,7 +896,7 @@ impl ProjectionSink for ProjectionCollector {
         category: &'static str,
         value: &dyn deckmaste_construction_compiler::runtime::ProjectionValue,
     ) -> Result<(), String> {
-        match project_value(category, value) {
+        match project_subtree(category, value) {
             Ok(projection) => self.insert(role, ProjectedValue::Construction(Box::new(projection))),
             Err(ProjectionError::NoConstruction { .. }) => {
                 let projected = project_flat_subtree(category, value)
@@ -1171,10 +1107,45 @@ impl ProjectionSink for ProjectionCollector {
 
 #[cfg(test)]
 mod tests {
+    use deckmaste_construction_compiler::runtime::ConstructionProjection;
+    use deckmaste_construction_compiler::runtime::ProjectedValue;
+
     use crate::CatalogKind;
     use crate::Catalogs;
     use crate::FragmentKind;
     use crate::parse_fragment;
+
+    fn collect_constructions<'a>(
+        projection: &'a ConstructionProjection,
+        constructions: &mut Vec<&'a ConstructionProjection>,
+    ) {
+        constructions.push(projection);
+        for role in projection.roles.values() {
+            collect_value_constructions(role, constructions);
+        }
+    }
+
+    fn collect_value_constructions<'a>(
+        value: &'a ProjectedValue,
+        constructions: &mut Vec<&'a ConstructionProjection>,
+    ) {
+        match value {
+            ProjectedValue::Construction(projection) => {
+                collect_constructions(projection, constructions);
+            }
+            ProjectedValue::Optional(Some(value)) => {
+                collect_value_constructions(value, constructions);
+            }
+            ProjectedValue::Sequence(sequence) => {
+                for member in &sequence.members {
+                    for role in member.roles.values() {
+                        collect_value_constructions(role, constructions);
+                    }
+                }
+            }
+            ProjectedValue::Atom(_) | ProjectedValue::Optional(None) => {}
+        }
+    }
 
     #[test]
     fn projection_uses_stable_construction_form_and_roles() {
@@ -1214,5 +1185,42 @@ mod tests {
         assert_eq!(projection.form, "flat");
         assert!(projection.roles.contains_key("first"));
         assert!(projection.roles.contains_key("rest"));
+    }
+
+    #[test]
+    fn atomic_outputs_project_through_generated_construction_roles() {
+        let catalogs = Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"]);
+        let report = parse_fragment(
+            "up to two target creatures",
+            &catalogs,
+            FragmentKind::Nominal,
+            "",
+            false,
+        );
+        assert!(report.clean(), "{:?}", report.diagnostics());
+        let projection = super::project_fragment(report.fragment().expect("clean fragment"))
+            .expect("atomic families project");
+        let mut constructions = Vec::new();
+        collect_constructions(&projection, &mut constructions);
+
+        for expected in ["quantity_up_to", "determiner_quantified_target", "noun"] {
+            assert!(
+                constructions
+                    .iter()
+                    .any(|construction| construction.construction == expected),
+                "missing generated atomic construction {expected}: {projection:#?}",
+            );
+        }
+        let noun = constructions
+            .iter()
+            .find(|construction| construction.construction == "noun")
+            .expect("known noun uses N01");
+        assert!(noun.roles.contains_key("identity"));
+        assert!(constructions.iter().all(|construction| {
+            !matches!(
+                construction.construction,
+                "flat_noun_instance" | "flat_noun"
+            )
+        }));
     }
 }

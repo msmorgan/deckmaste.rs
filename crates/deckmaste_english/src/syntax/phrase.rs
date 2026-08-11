@@ -292,29 +292,14 @@ impl QuantityValue {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Quantity(QuantityRepr);
+/// A quantity admitted by Q01's generated declarations.
+///
+/// The inner semantic kind is public for inspection, while [`Quantity`]'s
+/// private field keeps construction behind the checked `try_*` functions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
+pub struct Quantity(QuantityKind);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum QuantityRepr {
-    Exact(NumberLiteral),
-    AtLeast(QuantityValue),
-    /// `N or <word>` — a comparative floor (`N or more/greater`) or ceiling
-    /// (`N or fewer/less`); the word is carried structurally.
-    OrComparison(QuantityValue, ComparativeWord),
-    Or(NumberLiteral, NumberLiteral),
-    UpTo(QuantityValue),
-    MoreThan(QuantityValue),
-    FewerThan(QuantityValue),
-    X,
-    Both,
-    ThatMany,
-    ThatMuch,
-}
-
-/// A read-only view of a validated [`Quantity`]. Constructing a view does not
-/// construct a quantity; use the checked `Quantity::try_*` functions for that.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum QuantityKind {
     Exact(NumberLiteral),
     AtLeast(QuantityValue),
@@ -329,110 +314,62 @@ pub enum QuantityKind {
     ThatMuch,
 }
 
-impl serde::Serialize for Quantity {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStructVariant;
-
-        match self.0 {
-            QuantityRepr::Exact(number) => {
-                serializer.serialize_newtype_variant("Quantity", 0, "Exact", &number)
-            }
-            QuantityRepr::AtLeast(value) => {
-                serializer.serialize_newtype_variant("Quantity", 1, "AtLeast", &value)
-            }
-            QuantityRepr::OrComparison(value, comparative) => {
-                let mut variant =
-                    serializer.serialize_struct_variant("Quantity", 2, "OrComparison", 2)?;
-                variant.serialize_field("value", &value)?;
-                variant.serialize_field("comparative", &comparative)?;
-                variant.end()
-            }
-            QuantityRepr::Or(first, second) => {
-                let mut variant = serializer.serialize_struct_variant("Quantity", 3, "Or", 2)?;
-                variant.serialize_field("first", &first)?;
-                variant.serialize_field("second", &second)?;
-                variant.end()
-            }
-            QuantityRepr::UpTo(value) => {
-                serializer.serialize_newtype_variant("Quantity", 4, "UpTo", &value)
-            }
-            QuantityRepr::MoreThan(value) => {
-                serializer.serialize_newtype_variant("Quantity", 5, "MoreThan", &value)
-            }
-            QuantityRepr::FewerThan(value) => {
-                serializer.serialize_newtype_variant("Quantity", 6, "FewerThan", &value)
-            }
-            QuantityRepr::X => serializer.serialize_unit_variant("Quantity", 7, "X"),
-            QuantityRepr::Both => serializer.serialize_unit_variant("Quantity", 8, "Both"),
-            QuantityRepr::ThatMany => serializer.serialize_unit_variant("Quantity", 9, "ThatMany"),
-            QuantityRepr::ThatMuch => serializer.serialize_unit_variant("Quantity", 10, "ThatMuch"),
-        }
-    }
-}
-
-#[allow(
-    non_snake_case,
-    non_upper_case_globals,
-    reason = "private compatibility shims preserve enum-like internal construction sites"
-)]
 impl Quantity {
-    pub(crate) const fn Exact(number: NumberLiteral) -> Self {
-        Self(QuantityRepr::Exact(number))
+    pub(crate) const fn from_kind(kind: QuantityKind) -> Self {
+        Self(kind)
     }
 
-    pub(crate) const fn AtLeast(value: QuantityValue) -> Self {
-        Self(QuantityRepr::AtLeast(value))
+    pub(crate) const fn unchecked_exact(number: NumberLiteral) -> Self {
+        Self::from_kind(QuantityKind::Exact(number))
     }
 
-    pub(crate) const fn OrComparison(value: QuantityValue, word: ComparativeWord) -> Self {
-        Self(QuantityRepr::OrComparison(value, word))
+    pub(crate) const fn unchecked_at_least(value: QuantityValue) -> Self {
+        Self::from_kind(QuantityKind::AtLeast(value))
     }
 
-    pub(crate) const fn Or(first: NumberLiteral, second: NumberLiteral) -> Self {
-        Self(QuantityRepr::Or(first, second))
+    pub(crate) const fn unchecked_or_comparison(
+        value: QuantityValue,
+        word: ComparativeWord,
+    ) -> Self {
+        Self::from_kind(QuantityKind::OrComparison(value, word))
     }
 
-    pub(crate) const fn UpTo(value: QuantityValue) -> Self {
-        Self(QuantityRepr::UpTo(value))
+    pub(crate) const fn unchecked_or(first: NumberLiteral, second: NumberLiteral) -> Self {
+        Self::from_kind(QuantityKind::Or(first, second))
     }
 
-    pub(crate) const fn MoreThan(value: QuantityValue) -> Self {
-        Self(QuantityRepr::MoreThan(value))
+    pub(crate) const fn unchecked_up_to(value: QuantityValue) -> Self {
+        Self::from_kind(QuantityKind::UpTo(value))
     }
 
-    pub(crate) const fn FewerThan(value: QuantityValue) -> Self {
-        Self(QuantityRepr::FewerThan(value))
+    pub(crate) const fn unchecked_more_than(value: QuantityValue) -> Self {
+        Self::from_kind(QuantityKind::MoreThan(value))
     }
 
-    pub(crate) const X: Self = Self(QuantityRepr::X);
-    pub(crate) const Both: Self = Self(QuantityRepr::Both);
-    pub(crate) const ThatMany: Self = Self(QuantityRepr::ThatMany);
-    pub(crate) const ThatMuch: Self = Self(QuantityRepr::ThatMuch);
-
-    pub(crate) const fn repr(&self) -> &QuantityRepr {
-        &self.0
+    pub(crate) const fn unchecked_fewer_than(value: QuantityValue) -> Self {
+        Self::from_kind(QuantityKind::FewerThan(value))
     }
 
-    /// Returns the validated semantic shape without exposing a construction
-    /// path around the generated builders.
+    pub(crate) const fn unchecked_x() -> Self {
+        Self::from_kind(QuantityKind::X)
+    }
+
+    pub(crate) const fn unchecked_both() -> Self {
+        Self::from_kind(QuantityKind::Both)
+    }
+
+    pub(crate) const fn unchecked_that_many() -> Self {
+        Self::from_kind(QuantityKind::ThatMany)
+    }
+
+    pub(crate) const fn unchecked_that_much() -> Self {
+        Self::from_kind(QuantityKind::ThatMuch)
+    }
+
+    /// Returns the validated semantic kind.
     #[must_use]
     pub const fn kind(self) -> QuantityKind {
-        match self.0 {
-            QuantityRepr::Exact(number) => QuantityKind::Exact(number),
-            QuantityRepr::AtLeast(value) => QuantityKind::AtLeast(value),
-            QuantityRepr::OrComparison(value, word) => QuantityKind::OrComparison(value, word),
-            QuantityRepr::Or(first, second) => QuantityKind::Or(first, second),
-            QuantityRepr::UpTo(value) => QuantityKind::UpTo(value),
-            QuantityRepr::MoreThan(value) => QuantityKind::MoreThan(value),
-            QuantityRepr::FewerThan(value) => QuantityKind::FewerThan(value),
-            QuantityRepr::X => QuantityKind::X,
-            QuantityRepr::Both => QuantityKind::Both,
-            QuantityRepr::ThatMany => QuantityKind::ThatMany,
-            QuantityRepr::ThatMuch => QuantityKind::ThatMuch,
-        }
+        self.0
     }
 
     /// Builds an exact quantity through its generated invariant checks.
@@ -570,13 +507,15 @@ impl Quantity {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Determiner {
-    repr: DeterminerRepr,
-}
+/// A determiner admitted by D01's generated declarations.
+///
+/// The semantic kind is inspectable, while the private wrapper keeps invalid
+/// pronoun and possessive-nominal states behind the checked builders.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct Determiner(DeterminerKind);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum DeterminerRepr {
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub enum DeterminerKind {
     The,
     Each,
     Another,
@@ -616,55 +555,6 @@ pub enum ClosedDeterminer {
     No,
 }
 
-/// Read-only semantic projection of a validated [`Determiner`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DeterminerKind<'a> {
-    The,
-    Each,
-    Another,
-    Indefinite,
-    Demonstrative(Demonstrative),
-    Target(Option<Quantity>),
-    Quantity(Quantity),
-    Possessive(&'a Possessor),
-    All,
-    Any,
-    No,
-}
-
-impl serde::Serialize for Determiner {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match &self.repr {
-            DeterminerRepr::The => serializer.serialize_unit_variant("Determiner", 0, "The"),
-            DeterminerRepr::Each => serializer.serialize_unit_variant("Determiner", 1, "Each"),
-            DeterminerRepr::Another => {
-                serializer.serialize_unit_variant("Determiner", 2, "Another")
-            }
-            DeterminerRepr::Indefinite => {
-                serializer.serialize_unit_variant("Determiner", 3, "Indefinite")
-            }
-            DeterminerRepr::Demonstrative(value) => {
-                serializer.serialize_newtype_variant("Determiner", 4, "Demonstrative", value)
-            }
-            DeterminerRepr::Target(value) => {
-                serializer.serialize_newtype_variant("Determiner", 5, "Target", value)
-            }
-            DeterminerRepr::Quantity(value) => {
-                serializer.serialize_newtype_variant("Determiner", 6, "Quantity", value)
-            }
-            DeterminerRepr::Possessive(value) => {
-                serializer.serialize_newtype_variant("Determiner", 7, "Possessive", value)
-            }
-            DeterminerRepr::All => serializer.serialize_unit_variant("Determiner", 8, "All"),
-            DeterminerRepr::Any => serializer.serialize_unit_variant("Determiner", 9, "Any"),
-            DeterminerRepr::No => serializer.serialize_unit_variant("Determiner", 10, "No"),
-        }
-    }
-}
-
 // Grammar lexical meanings are hash-consed. Most determiners are closed,
 // nonrecursive syntax values and hash structurally; noun-phrase possessors are
 // built during lowering rather than scanned, so a shared tag is sufficient for
@@ -672,32 +562,32 @@ impl serde::Serialize for Determiner {
 // still necessarily produce equal hashes.
 impl Hash for Determiner {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        std::mem::discriminant(&self.repr).hash(state);
-        match &self.repr {
-            DeterminerRepr::Demonstrative(demonstrative) => demonstrative.hash(state),
-            DeterminerRepr::Target(quantity) => quantity.hash(state),
-            DeterminerRepr::Quantity(quantity) => quantity.hash(state),
-            DeterminerRepr::Possessive(Possessor {
-                repr: PossessorRepr::Pronoun(pronoun),
-            }) => {
+        std::mem::discriminant(&self.0).hash(state);
+        match &self.0 {
+            DeterminerKind::Demonstrative(demonstrative) => demonstrative.hash(state),
+            DeterminerKind::Target(quantity) => quantity.hash(state),
+            DeterminerKind::Quantity(quantity) => quantity.hash(state),
+            DeterminerKind::Possessive(Possessor::Pronoun(pronoun)) => {
                 0_u8.hash(state);
                 pronoun.hash(state);
             }
-            DeterminerRepr::Possessive(Possessor {
-                repr: PossessorRepr::NounPhrase(_),
-            }) => 1_u8.hash(state),
-            DeterminerRepr::Indefinite
-            | DeterminerRepr::The
-            | DeterminerRepr::Each
-            | DeterminerRepr::Another
-            | DeterminerRepr::All
-            | DeterminerRepr::Any
-            | DeterminerRepr::No => {}
+            DeterminerKind::Possessive(Possessor::NounPhrase(_)) => 1_u8.hash(state),
+            DeterminerKind::Indefinite
+            | DeterminerKind::The
+            | DeterminerKind::Each
+            | DeterminerKind::Another
+            | DeterminerKind::All
+            | DeterminerKind::Any
+            | DeterminerKind::No => {}
         }
     }
 }
 
 impl Determiner {
+    pub(crate) const fn from_kind(kind: DeterminerKind) -> Self {
+        Self(kind)
+    }
+
     const SIMPLE_FORMS: &'static [(ClosedDeterminer, &'static str)] = &[
         (ClosedDeterminer::The, "the"),
         (ClosedDeterminer::Each, "each"),
@@ -725,22 +615,10 @@ impl Determiner {
             })
     }
 
-    /// Returns the semantic shape without exposing writable representation.
+    /// Returns the validated semantic kind.
     #[must_use]
-    pub const fn kind(&self) -> DeterminerKind<'_> {
-        match &self.repr {
-            DeterminerRepr::The => DeterminerKind::The,
-            DeterminerRepr::Each => DeterminerKind::Each,
-            DeterminerRepr::Another => DeterminerKind::Another,
-            DeterminerRepr::Indefinite => DeterminerKind::Indefinite,
-            DeterminerRepr::Demonstrative(value) => DeterminerKind::Demonstrative(*value),
-            DeterminerRepr::Target(value) => DeterminerKind::Target(*value),
-            DeterminerRepr::Quantity(value) => DeterminerKind::Quantity(*value),
-            DeterminerRepr::Possessive(value) => DeterminerKind::Possessive(value),
-            DeterminerRepr::All => DeterminerKind::All,
-            DeterminerRepr::Any => DeterminerKind::Any,
-            DeterminerRepr::No => DeterminerKind::No,
-        }
+    pub const fn kind(&self) -> &DeterminerKind {
+        &self.0
     }
 
     #[must_use]
@@ -837,49 +715,15 @@ impl Demonstrative {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Possessor {
-    repr: PossessorRepr,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum PossessorRepr {
+/// A pronominal or noun-phrase possessor.
+///
+/// Both alternatives are semantically valid on their own. The checked D01
+/// boundary remains responsible for deciding where a possessor may enter a
+/// determiner or noun phrase.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub enum Possessor {
     Pronoun(Pronoun),
     NounPhrase(Box<NounPhrase>),
-}
-
-/// Read-only semantic projection of a validated [`Possessor`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PossessorKind<'a> {
-    Pronoun(Pronoun),
-    NounPhrase(&'a NounPhrase),
-}
-
-impl Possessor {
-    /// Returns the semantic shape without exposing writable representation.
-    #[must_use]
-    pub const fn kind(&self) -> PossessorKind<'_> {
-        match &self.repr {
-            PossessorRepr::Pronoun(value) => PossessorKind::Pronoun(*value),
-            PossessorRepr::NounPhrase(value) => PossessorKind::NounPhrase(value),
-        }
-    }
-}
-
-impl serde::Serialize for Possessor {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match &self.repr {
-            PossessorRepr::Pronoun(value) => {
-                serializer.serialize_newtype_variant("Possessor", 0, "Pronoun", value)
-            }
-            PossessorRepr::NounPhrase(value) => {
-                serializer.serialize_newtype_variant("Possessor", 1, "NounPhrase", value)
-            }
-        }
-    }
 }
 
 /// Compatibility name for the inherent-realization noun-cardinality feature.

@@ -1342,7 +1342,7 @@ mod tests {
     }
 
     #[test]
-    fn determiner_self_reference_exact_laws_preserve_identity_and_serialized_bytes() {
+    fn determiner_self_reference_exact_laws_preserve_identity() {
         use crate::determiner as determiner_api;
         use crate::syntax::ThisCardForm;
 
@@ -1354,7 +1354,6 @@ mod tests {
 
         for (source, form) in fixtures {
             let expected = determiner_api::build_determiner_possessive_this_card(form).unwrap();
-            let expected_bytes = ron::to_string(&expected).unwrap().into_bytes();
             let orders = parse_determiner_with_identity_in_both_orders(
                 source,
                 &fixture_catalogs(),
@@ -1376,11 +1375,6 @@ mod tests {
                     .find(|parse| parse.ast().construction == "determiner_possessive_this_card")
                     .unwrap_or_else(|| panic!("missing self-reference parse: {parses:#?}"));
                 assert_eq!(parse.ast().value, expected, "{source:?}");
-                assert_eq!(
-                    ron::to_string(&parse.ast().value).unwrap().as_bytes(),
-                    expected_bytes,
-                    "{source:?}",
-                );
                 assert_eq!(parse.ast().form_ordinal, 0, "{source:?}");
                 assert_eq!(*parse.surface(), EnglishSurfaceWitness::None, "{source:?}");
             }
@@ -1601,7 +1595,7 @@ mod tests {
                                     crate::syntax::NominalPhrase::test_from_projection_parts(
                                         Some(crate::determiner::indefinite()),
                                         Vec::new(),
-                                        NounInstance::Singular(Noun::Word(Vocab::Card)),
+                                        NounInstance::unchecked_singular(Noun::Word(Vocab::Card)),
                                         Vec::new(),
                                     ),
                                 ),
@@ -1635,7 +1629,7 @@ mod tests {
         NominalPhrase::test_from_projection_parts(
             None,
             Vec::new(),
-            NounInstance::Singular(Noun::Word(head)),
+            NounInstance::unchecked_singular(Noun::Word(head)),
             Vec::new(),
         )
     }
@@ -2170,8 +2164,8 @@ mod tests {
                     determiner.kind(),
                     crate::syntax::DeterminerKind::Possessive(possessor)
                         if matches!(
-                            possessor.kind(),
-                            crate::syntax::PossessorKind::Pronoun(crate::word::Pronoun::They)
+                            possessor,
+                            crate::syntax::Possessor::Pronoun(crate::word::Pronoun::They)
                         )
                 )
         ));
@@ -2912,23 +2906,25 @@ mod tests {
     #[test]
     fn noun_coordination_builder_admits_binary_and_derives_its_punctuation() {
         let built = coordination::build_noun_phrase_coordination(
-            Box::new(NounPhrase::from_quantity_declaration(Quantity::Both)),
+            Box::new(NounPhrase::from_quantity_declaration(
+                Quantity::unchecked_both(),
+            )),
             vec![NounPhraseCoordination {
                 conjunction: Some(Conjunction::And),
-                phrase: NounPhrase::from_quantity_declaration(Quantity::X),
+                phrase: NounPhrase::from_quantity_declaration(Quantity::unchecked_x()),
             }],
         )
         .expect("a binary noun coordination without an Oxford comma is admitted");
         let (first, rest) = coordination::parts_noun_phrase_coordination(&built);
         assert_eq!(
             first,
-            &NounPhrase::from_quantity_declaration(Quantity::Both)
+            &NounPhrase::from_quantity_declaration(Quantity::unchecked_both())
         );
         assert_eq!(rest.len(), 1);
         assert_eq!(rest[0].conjunction, Some(Conjunction::And));
         assert_eq!(
             rest[0].phrase,
-            NounPhrase::from_quantity_declaration(Quantity::X)
+            NounPhrase::from_quantity_declaration(Quantity::unchecked_x())
         );
         assert_eq!(
             linearize_coordinated_noun_phrase(&built).unwrap(),
@@ -2962,10 +2958,12 @@ mod tests {
     #[test]
     fn generated_builder_rejects_a_predicate_only_conjunction() {
         let violation = coordination::build_noun_phrase_coordination(
-            Box::new(NounPhrase::from_quantity_declaration(Quantity::Both)),
+            Box::new(NounPhrase::from_quantity_declaration(
+                Quantity::unchecked_both(),
+            )),
             vec![NounPhraseCoordination {
                 conjunction: Some(Conjunction::Then),
-                phrase: NounPhrase::from_quantity_declaration(Quantity::X),
+                phrase: NounPhrase::from_quantity_declaration(Quantity::unchecked_x()),
             }],
         )
         .expect_err("predicate-only conjunctions are not nominal coordination");
@@ -3017,7 +3015,7 @@ mod tests {
                 conjunction: Some(Conjunction::Or),
                 phrase: nominal(Vocab::Spell),
             }],
-            vec![NominalComplement::Quantity(Quantity::Both)],
+            vec![NominalComplement::Quantity(Quantity::unchecked_both())],
         )
         .expect_err("the exact builder must reject complements its parser cannot recognize");
         assert_eq!(
@@ -3135,7 +3133,7 @@ mod tests {
                 conjunction: Some(Conjunction::Or),
                 phrase: nominal(Vocab::Spell),
             }],
-            vec![NominalComplement::Quantity(Quantity::Both)],
+            vec![NominalComplement::Quantity(Quantity::unchecked_both())],
         )
         .expect_err("an unrecognized group complement violates the exact declaration");
         assert_eq!(

@@ -1,8 +1,8 @@
-//! Checked construction and projection API for determiners and possessors.
+//! Checked construction API for determiners and possessors.
 //!
 //! Every builder validates its D01 declaration before returning a value.
-//! [`Determiner`] and [`Possessor`] expose only immutable semantic views, so
-//! callers cannot bypass the generated construction constraints.
+//! [`Determiner`] keeps raw ingress private, so callers cannot bypass the
+//! generated construction constraints.
 //!
 //! [`Determiner`]: crate::syntax::Determiner
 //! [`Possessor`]: crate::syntax::Possessor
@@ -133,11 +133,6 @@ pub fn build_determiner_closed(
     crate::constructions::determiner::build_determiner_closed(identity)
 }
 
-#[must_use]
-pub fn parts_determiner_closed(value: &Determiner) -> ClosedDeterminer {
-    crate::constructions::determiner::parts_determiner_closed(value)
-}
-
 /// Builds the bare `target` determiner.
 ///
 /// # Errors
@@ -146,10 +141,6 @@ pub fn parts_determiner_closed(value: &Determiner) -> ClosedDeterminer {
 /// form.
 pub fn build_determiner_target() -> Result<Determiner, DeclarationViolation> {
     crate::constructions::determiner::build_determiner_target()
-}
-
-pub fn parts_determiner_target(value: &Determiner) {
-    crate::constructions::determiner::parts_determiner_target(value);
 }
 
 /// Builds a quantified `target` determiner.
@@ -164,11 +155,6 @@ pub fn build_determiner_quantified_target(
     crate::constructions::determiner::build_determiner_quantified_target(quantity)
 }
 
-#[must_use]
-pub fn parts_determiner_quantified_target(value: &Determiner) -> Quantity {
-    crate::constructions::determiner::parts_determiner_quantified_target(value)
-}
-
 /// Builds a direct quantity determiner.
 ///
 /// # Errors
@@ -176,11 +162,6 @@ pub fn parts_determiner_quantified_target(value: &Determiner) -> Quantity {
 /// Returns a declaration violation if `quantity` cannot determine a noun.
 pub fn build_determiner_quantity(quantity: Quantity) -> Result<Determiner, DeclarationViolation> {
     crate::constructions::determiner::build_determiner_quantity(quantity)
-}
-
-#[must_use]
-pub fn parts_determiner_quantity(value: &Determiner) -> Quantity {
-    crate::constructions::determiner::parts_determiner_quantity(value)
 }
 
 /// Builds a self-reference possessive determiner.
@@ -194,11 +175,6 @@ pub fn build_determiner_possessive_this_card(
     crate::constructions::determiner::build_determiner_possessive_this_card(form)
 }
 
-#[must_use]
-pub fn parts_determiner_possessive_this_card(value: &Determiner) -> ThisCardForm {
-    crate::constructions::determiner::parts_determiner_possessive_this_card(value)
-}
-
 /// Starts a possessive-nominal projection from a noun identity.
 ///
 /// # Errors
@@ -208,11 +184,6 @@ pub fn build_possessive_noun_base(
     head: NounInstance,
 ) -> Result<NominalPhrase, DeclarationViolation> {
     crate::constructions::determiner::build_possessive_noun_base(head)
-}
-
-#[must_use]
-pub fn parts_possessive_noun_base(value: &NominalPhrase) -> NounInstance {
-    crate::constructions::determiner::parts_possessive_noun_base(value)
 }
 
 /// Adds a determiner to an undetermined possessive nominal.
@@ -228,11 +199,6 @@ pub fn build_possessive_noun_determined(
     crate::constructions::determiner::build_possessive_noun_determined(determiner, possessor)
 }
 
-#[must_use]
-pub fn parts_possessive_noun_determined(value: &NominalPhrase) -> (Determiner, NominalPhrase) {
-    crate::constructions::determiner::parts_possessive_noun_determined(value)
-}
-
 /// Converts a checked possessive nominal into a determiner.
 ///
 /// # Errors
@@ -243,11 +209,6 @@ pub fn build_determiner_possessive_noun(
     possessor: NominalPhrase,
 ) -> Result<Determiner, DeclarationViolation> {
     crate::constructions::determiner::build_determiner_possessive_noun(possessor)
-}
-
-#[must_use]
-pub fn parts_determiner_possessive_noun(value: &Determiner) -> NominalPhrase {
-    crate::constructions::determiner::parts_determiner_possessive_noun(value)
 }
 
 /// Prefixes an adjective to an undetermined possessive nominal.
@@ -261,9 +222,4 @@ pub fn build_possessive_noun_adjective(
     possessor: NominalPhrase,
 ) -> Result<NominalPhrase, DeclarationViolation> {
     crate::constructions::determiner::build_possessive_noun_adjective(adjective, possessor)
-}
-
-#[must_use]
-pub fn parts_possessive_noun_adjective(value: &NominalPhrase) -> (AdjectivePhrase, NominalPhrase) {
-    crate::constructions::determiner::parts_possessive_noun_adjective(value)
 }
