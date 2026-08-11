@@ -4,6 +4,7 @@ use super::ability::Ability;
 use super::ability::QuotedAbility;
 use super::phrase::AdjectivePhrase;
 use super::phrase::CoordinatedAdjectivePhrase;
+use super::phrase::CountedEnergy;
 use super::phrase::NounPhrase;
 use super::phrase::NumberLiteral;
 use super::phrase::OracleSymbol;
@@ -501,6 +502,7 @@ pub enum PredicateObject {
     NounPhrase(NounPhrase),
     Ability(AbilityObject),
     Quantity(Quantity),
+    CountedEnergy(CountedEnergy),
     OracleSymbol(OracleSymbol),
     SymbolSequence(Vec<OracleSymbol>),
     PowerToughness(PowerToughness),

@@ -2472,6 +2472,188 @@ fn as_fills_the_preposition_slot_after_an_adverb() {
 }
 
 #[test]
+fn put_them_back_in_any_order_keeps_back_as_a_post_object_adverb() {
+    let source = "Put them back in any order.";
+    let parsed = parse(source);
+    assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+    let predicate = imperative_transitive(parsed.sentence().expect("sentence root"));
+    assert!(
+        predicate.elements().iter().any(|element| matches!(
+            element,
+            PredicateElement::Adjunct(PredicateAdjunct::Adverb(Vocab::Back))
+        )),
+        "back must remain a typed post-object adverb"
+    );
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+
+    let orders = crate::grammar::exact::parse_production_sentence_in_all_registration_orders(
+        source,
+        &fixture_catalogs(),
+        100_000,
+    )
+    .unwrap_or_else(|error| panic!("exact search failed for {source:?}: {error:?}"));
+    assert!(!orders[0].is_empty(), "no exact parse for {source:?}");
+    for (order, parses) in [("reversed", &orders[1]), ("fixed shuffle", &orders[2])] {
+        assert_eq!(parses.len(), orders[0].len(), "{order} changed {source:?}");
+        assert!(
+            parses.iter().all(|candidate| {
+                orders[0].iter().any(|normal| {
+                    normal.ast().construction == candidate.ast().construction
+                        && normal.ast().form_ordinal == candidate.ast().form_ordinal
+                        && normal.ast().value == candidate.ast().value
+                })
+            }),
+            "{order} changed the typed exact parses for {source:?}"
+        );
+    }
+    for parses in &orders {
+        assert!(
+            parses
+                .iter()
+                .all(|parse| { render_sentence(&parse.ast().value) == source })
+        );
+    }
+}
+
+#[test]
+fn look_then_put_them_back_in_any_order_parses_and_renders_as_oracle_text() {
+    let source = "Look at the top four cards of your library, then put them back in any order.";
+    let parsed = parse(source);
+    assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+    assert_eq!(
+        render_sentence(parsed.sentence().expect("sentence root")),
+        source
+    );
+}
+
+#[test]
+fn pronominal_destination_resultative_continues_to_a_predicate_control_adjunct() {
+    let source =
+        "Exile this Saga, then return it to the battlefield transformed under your control.";
+    let catalogs = fixture_catalogs().with_catalog(CatalogKind::EnchantmentType, ["Saga"]);
+    let parsed = parse_nonterminal(source, &catalogs, Nonterminal::Sentence)
+        .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+    assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+    let sentence = parsed.sentence().expect("sentence root");
+    let coordination = predicate_coordination(sentence);
+    let [
+        _,
+        PredicateExpression::Simple(Predicate::Transitive(returned)),
+    ] = coordination.conjuncts()
+    else {
+        panic!("expected the second coordinated predicate to be transitive");
+    };
+    assert!(matches!(
+        predicate_object_kind(returned.object()),
+        Some(NounPhraseKind::Pronoun { .. })
+    ));
+    assert!(
+        matches!(
+            returned.elements(),
+            [
+                PredicateElement::Adjunct(PredicateAdjunct::Prepositional(destination)),
+                PredicateElement::Complement(PredicateComplement::Adjective(resultative)),
+                PredicateElement::Adjunct(PredicateAdjunct::Prepositional(control)),
+            ] if destination.head().preposition == Preposition::To
+                && matches!(resultative.head(), Adjective::Participle(Tense::Past, Verb::Word(Vocab::Transform)))
+                && control.head().preposition == Preposition::Under
+        ),
+        "the resultative and control PP must remain predicate dependents"
+    );
+    assert_eq!(render_sentence(sentence), source);
+
+    let orders = crate::grammar::exact::parse_production_sentence_in_all_registration_orders(
+        source, &catalogs, 100_000,
+    )
+    .unwrap_or_else(|error| panic!("exact search failed for {source:?}: {error:?}"));
+    assert!(!orders[0].is_empty(), "no exact parse for {source:?}");
+    for parses in [&orders[1], &orders[2]] {
+        assert_eq!(
+            parses.len(),
+            orders[0].len(),
+            "registration changed {source:?}"
+        );
+        assert!(
+            parses
+                .iter()
+                .all(|candidate| orders[0].iter().any(|normal| {
+                    normal.ast().construction == candidate.ast().construction
+                        && normal.ast().form_ordinal == candidate.ast().form_ordinal
+                        && normal.ast().value == candidate.ast().value
+                }))
+        );
+    }
+}
+
+#[test]
+fn pronominal_destination_resultative_admits_tapped_control_sibling() {
+    let source = "Return it to the battlefield tapped under its owner's control.";
+    let parsed = parse(source);
+    assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+    let returned = imperative_transitive(parsed.sentence().expect("sentence root"));
+    assert!(matches!(
+        returned.elements(),
+        [
+            PredicateElement::Adjunct(PredicateAdjunct::Prepositional(destination)),
+            PredicateElement::Complement(PredicateComplement::Adjective(resultative)),
+            PredicateElement::Adjunct(PredicateAdjunct::Prepositional(control)),
+        ] if destination.head().preposition == Preposition::To
+            && matches!(resultative.head(), Adjective::Participle(Tense::Past, Verb::Word(Vocab::Tap)))
+            && control.head().preposition == Preposition::Under
+    ));
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+}
+
+#[test]
+fn counted_energy_predicate_objects_are_exact_and_registration_neutral() {
+    for source in ["Pay six {E}.", "Pay X {E}."] {
+        let parsed = parse(source);
+        assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+        assert_eq!(
+            render_sentence(parsed.sentence().expect("sentence root")),
+            source
+        );
+        let predicate = imperative_transitive(parsed.sentence().expect("sentence root"));
+        assert!(matches!(
+            predicate.object(),
+            PredicateObject::CountedEnergy(_)
+        ));
+
+        let orders = crate::grammar::exact::parse_production_sentence_in_all_registration_orders(
+            source,
+            &fixture_catalogs(),
+            100_000,
+        )
+        .unwrap_or_else(|error| panic!("exact search failed for {source:?}: {error:?}"));
+        assert!(!orders[0].is_empty(), "no exact parse for {source:?}");
+        for parses in [&orders[1], &orders[2]] {
+            assert_eq!(
+                parses.len(),
+                orders[0].len(),
+                "registration changed {source:?}"
+            );
+            assert!(
+                parses
+                    .iter()
+                    .all(|candidate| orders[0].iter().any(|normal| {
+                        normal.ast().construction == candidate.ast().construction
+                            && normal.ast().form_ordinal == candidate.ast().form_ordinal
+                            && normal.ast().value == candidate.ast().value
+                    }))
+            );
+        }
+    }
+}
+
+#[test]
+fn counted_energy_rejects_arabic_and_non_energy_symbols() {
+    for source in ["Pay 6 {E}.", "Pay six {R}."] {
+        let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence);
+        assert!(parsed.is_err(), "{source:?} must not use counted energy");
+    }
+}
+
+#[test]
 fn temporal_noun_phrases_can_follow_predicate_tail_adverbs() {
     for source in [
         "Activate only once each turn.",

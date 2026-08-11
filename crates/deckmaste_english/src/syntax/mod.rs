@@ -516,6 +516,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 }
             }
             PredicateObject::Quantity(_)
+            | PredicateObject::CountedEnergy(_)
             | PredicateObject::OracleSymbol(_)
             | PredicateObject::SymbolSequence(_)
             | PredicateObject::PowerToughness(_) => {}
@@ -643,7 +644,8 @@ impl<'syntax> RecoveryWalker<'syntax> {
             | NounPhraseKind::Demonstrative(_)
             | NounPhraseKind::Quantity(_)
             | NounPhraseKind::ThisCard(_)
-            | NounPhraseKind::PossessiveThisCard(_) => {}
+            | NounPhraseKind::PossessiveThisCard(_)
+            | NounPhraseKind::TargetsBeyondFirst => {}
             NounPhraseKind::Partitive(partitive) => self.noun_phrase(&partitive.whole, context),
             NounPhraseKind::AnyNumberOf(value) => self.noun_phrase(value.complement(), context),
             NounPhraseKind::CoordinatedNominal(coordinated) => {

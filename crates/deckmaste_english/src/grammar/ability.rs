@@ -5598,6 +5598,97 @@ mod tests {
     }
 
     #[test]
+    fn strive_distributive_target_beyond_ordinal_is_typed_and_order_neutral() {
+        // The canonical Strive rider uses one closed distributive NP as the
+        // object of `for`, not a general `beyond` preposition or a headless
+        // ordinal phrase.
+        let source = "Strive — This spell costs {1} more to cast for each target beyond the first.";
+        let report = parse(source);
+        assert!(report.ast.recoveries().is_empty(), "{source}");
+        assert!(report.ast.lexical_opacity().is_empty(), "{source}");
+        assert!(
+            report
+                .ast
+                .noun_phrases()
+                .iter()
+                .any(|phrase| matches!(phrase.kind(), NounPhraseKind::TargetsBeyondFirst))
+        );
+        assert!(
+            report
+                .provenance
+                .selections
+                .iter()
+                .flat_map(|selection| &selection.constructions)
+                .any(|decision| decision.selected().as_str() == "noun_phrase_targets_beyond_first")
+        );
+        assert_eq!(render(&report), source);
+
+        let activations = [
+            crate::grammar::GeneratedActivation::Groups(crate::constructions::ALL_GROUPS),
+            crate::grammar::GeneratedActivation::GroupsReversed(crate::constructions::ALL_GROUPS),
+            crate::grammar::GeneratedActivation::GroupsFixedShuffle(
+                crate::constructions::ALL_GROUPS,
+            ),
+        ];
+        let reports =
+            activations.map(|activation| parse_with_activation_for_test(source, activation));
+        assert_eq!(reports[0].ast, reports[1].ast);
+        assert_eq!(reports[0].ast, reports[2].ast);
+        assert_eq!(reports[0].diagnostics, reports[1].diagnostics);
+        assert_eq!(reports[0].diagnostics, reports[2].diagnostics);
+        assert_eq!(reports[0].selections, reports[1].selections);
+        assert_eq!(reports[0].selections, reports[2].selections);
+        for ordered in reports {
+            assert!(
+                ordered
+                    .ast
+                    .noun_phrases()
+                    .iter()
+                    .any(|phrase| matches!(phrase.kind(), NounPhraseKind::TargetsBeyondFirst))
+            );
+        }
+    }
+
+    #[test]
+    fn strive_distributive_target_rejects_deceptive_opaque_ordinal_lookalikes() {
+        let opaque = parse("This spell costs {1} more to cast for each target beyond first.");
+        assert!(
+            opaque
+                .ast
+                .noun_phrases()
+                .iter()
+                .all(|phrase| !matches!(phrase.kind(), NounPhraseKind::TargetsBeyondFirst))
+        );
+        assert!(
+            opaque
+                .provenance
+                .selections
+                .iter()
+                .flat_map(|selection| &selection.constructions)
+                .all(|decision| decision.selected().as_str() != "noun_phrase_targets_beyond_first")
+        );
+
+        let wrong_ordinal =
+            parse("This spell costs {1} more to cast for each target beyond the second.");
+        assert!(
+            wrong_ordinal
+                .ast
+                .noun_phrases()
+                .iter()
+                .all(|phrase| !matches!(phrase.kind(), NounPhraseKind::TargetsBeyondFirst))
+        );
+        assert!(
+            wrong_ordinal
+                .provenance
+                .selections
+                .iter()
+                .flat_map(|selection| &selection.constructions)
+                .all(|decision| decision.selected().as_str() != "noun_phrase_targets_beyond_first")
+        );
+        assert!(!wrong_ordinal.ast.recoveries().is_empty());
+    }
+
+    #[test]
     fn keyword_cost_and_colon_frame_collision_uses_the_declared_guard_rank() {
         let source = "Ward—Discard a card: Draw a card.";
         let catalogs = shape_catalogs();
@@ -7486,7 +7577,7 @@ mod tests {
                 CatalogKind::KeywordAction,
                 ["Scry", "Manifest dread", "Fight", "Destroy", "Discard"],
             )
-            .with_catalog(CatalogKind::AbilityWord, ["Landfall", "Void"])
+            .with_catalog(CatalogKind::AbilityWord, ["Landfall", "Void", "Strive"])
             .with_catalog(CatalogKind::CreatureType, ["Goblin"])
             .with_catalog(CatalogKind::ArtifactType, ["Treasure", "Vehicle"])
             .with_catalog(

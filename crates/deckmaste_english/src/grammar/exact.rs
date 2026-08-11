@@ -2103,7 +2103,8 @@ mod tests {
             | crate::syntax::NounPhraseKind::PossessiveThisCard(_)
             | crate::syntax::NounPhraseKind::Demonstrative(_)
             | crate::syntax::NounPhraseKind::Quantity(_)
-            | crate::syntax::NounPhraseKind::ThisCard(_) => {}
+            | crate::syntax::NounPhraseKind::ThisCard(_)
+            | crate::syntax::NounPhraseKind::TargetsBeyondFirst => {}
         }
     }
 

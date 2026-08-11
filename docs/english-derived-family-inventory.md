@@ -13,7 +13,7 @@ The census comes from the generated production registry in
 rows, the ten D01 determiner/possession rows, the 11 J01 adjective rows, the
 37 M01 nominal rows, S01 `sentence`, N01 `noun`/`noun_opaque`, the two earlier
 generated coordination rows plus all 14 stable C01 declarations and nine
-internal C01 support declarations, all 34 V01
+internal C01 support declarations, all 36 V01
 predicate rows, the four F01 nonfinite-clause
 rows, all 20 F02 finite-clause rows, all 16 F03 clause-attachment rows, all six
 F04 clause-coordination rows and the internal `simple_clause_subjectless_attached`,
@@ -25,22 +25,23 @@ F04 clause-coordination rows and the internal `simple_clause_subjectless_attache
 `clause_coordination_shared_grant`,
 `clause_coordination_shared_grant_comma`, and
 `clause_coordination_shared_grant_asyndetic` adapters, and all
-19 P01 noun-phrase rows, both P02 prepositional-phrase rows, and all nine R01
+20 P01 noun-phrase rows, both P02 prepositional-phrase rows, and all nine R01
 relative-clause rows. The ability
 census comes from the three non-chart entry points documented and dispatched by
 `FragmentKind`: `Cost`, `KeywordLine`, and `Ability`.
 
 | backend | registered generated families |
 |---|---:|
-| Chart | 219 |
+| Chart | 223 |
 | Ability | 3 |
-| all production families | 222 |
+| all production families | 226 |
 
-The family ledger below accounts for 195 stable chart IDs. The earlier
+The family ledger below accounts for 198 stable chart IDs. The earlier
 `noun_phrase_coordination` and `shared_determiner_nominal` structural owners
-bring the stable chart total to 197; nine registered internal support
+bring the stable chart total to 200; nine registered internal support
 declarations for phrase coordination and thirteen internal clause-continuation
-adapters bring the active chart registry to 219. Every stable chart row is generated.
+adapters, together with the internal counted-energy carrier, bring the active
+chart registry to 223. Every stable chart row is generated.
 The three ability IDs occur once in the generated ability backend. Thus the
 inventory has no unregistered row. No raw corpus query was needed for this
 accounting; the census is grounded
@@ -98,9 +99,9 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 | J01 adjective and comparison | 11 | C3 | `english-derived-adjective-comparison-family` | scalar, identity, lens |
 | N01 noun identity and opacity | 2 | C2 identity | `english-derived-noun-lexeme-family` | generated |
 | M01 nominal spine | 37 | C2 lens | `english-derived-nominal-family` | generated |
-| P01 noun phrase | 19 | C3 | `english-derived-noun-phrase-family` | generated |
+| P01 noun phrase | 20 | C3 | `english-derived-noun-phrase-family` | generated |
 | P02 prepositional phrase | 2 | C3 | `english-derived-prepositional-family` | generated |
-| V01 predicate spine | 34 | C3 | `english-derived-predicate-family` | scalar, identity, lens |
+| V01 predicate spine | 36 | C3 | `english-derived-predicate-family` | scalar, identity, lens |
 | F01 nonfinite clause | 4 | C3 | `english-derived-nonfinite-clause-family` | generated |
 | F02 finite and copular clause | 20 | C3 | `english-derived-finite-clause-family` | generated |
 | F03 clause attachment | 16 | C3 | `english-derived-clause-attachment-family` | generated |
@@ -288,7 +289,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 
 ## P01 — noun phrase
 
-**Stable IDs (19):** `noun_phrase_set_exception_bare`,
+**Stable IDs (20):** `noun_phrase_set_exception_bare`,
 `noun_phrase_set_exception_for`, `noun_phrase_nominal`,
 `rules_object_noun_phrase`, `noun_phrase_subject_pronoun`,
 `noun_phrase_object_pronoun`, `noun_phrase_reciprocal`,
@@ -296,6 +297,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 `noun_phrase_full_this_card`, `noun_phrase_possessive_this_card`,
 `noun_phrase_demonstrative`, `noun_phrase_partitive`,
 `noun_phrase_each_partitive`, `noun_phrase_any_number_of`,
+`noun_phrase_targets_beyond_first`,
 `noun_phrase_minus`, `noun_phrase_half`, `noun_phrase_half_rounded_up`,
 `noun_phrase_half_rounded_down`.
 
@@ -307,7 +309,9 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
   direct alternatives rather than compatibility nominal spines.
 - **Holes and constraints:** nominal/quantity/NP subtree holes; identity holes
   for pronoun, reciprocal, demonstrative, and self-reference form; scalar and
-  field holes for arithmetic and rounding. Agreement, pronoun case,
+  field holes for arithmetic and rounding. The closed distributive
+  `each target beyond the first` alternative keeps that grammatical boundary
+  typed without admitting `beyond` as an open preposition. Agreement, pronoun case,
   coordination domain, set-exception host, notional plurality, and
   rules-object followup are constraints.
 - **Ambiguity/backend:** fan-out one on Chart. `noun_phrase_nominal` dominates
@@ -358,9 +362,10 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 
 **Status:** generated.
 
-**Stable IDs (34):** `verb`, `verb_phrase_base`, `verb_phrase_auxiliary`,
+**Stable IDs (36):** `verb`, `verb_phrase_base`, `verb_phrase_auxiliary`,
 `verb_phrase_auxiliary_proform`, `verb_phrase_direct_object`,
 `verb_phrase_indirect_object`, `verb_phrase_adjective`,
+`verb_phrase_pronominal_resultative_prepositional`,
 `verb_phrase_prepositional`,
 `verb_phrase_passive_shared_determiner_prepositional`,
 `verb_phrase_except_by`, `verb_phrase_infinitive`, `verb_phrase_adverb`,
@@ -374,6 +379,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 `mana_amount_list_comma`, `mana_amount_coordination`,
 `mana_amount_coordination_oxford`, `verb_phrase_mana_amount_coordination`,
 `verb_phrase_power_toughness`, `verb_phrase_quantity`,
+`verb_phrase_counted_energy`,
 `verb_phrase_causative`.
 
 - **Construction and AST:** the predicate declaration and its generated chart,
@@ -394,6 +400,12 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
   lenses into pre-object and post-object element slices. Lexical valency,
   predicate form, voice, auxiliary agreement, direct/indirect object slots,
   causative frame, selected PP, and attachment phase are required constraints.
+  The counted-energy dependent is a sealed quantity-plus-`{E}` carrier; its
+  internal generated owner admits positive cardinal words and `X` while the
+  existing cost parser continues to consume the resulting imperative clause.
+  The pronominal-resultative row retains a pronoun direct-object distinction
+  long enough to compose a destination PP, past-participle resultative, and
+  trailing PP without matching any verb, adjective, preposition, or card name.
 - **Ambiguity/backend:** fan-out one on Chart. Declaration-owned
   `verb_phrase_auxiliary` dominates
   `verb_phrase_adjective`, `verb_phrase_adverb`, and `verb_phrase_ability`;
@@ -758,6 +770,6 @@ one change. It also runs the build-excluding parent/current
 `english performance --check` audit from `docs/english-parser-performance.md`
 so grammar work cannot hide growth in failed or abandoned paths.
 
-The executable census proves 219 Chart families plus three Ability families:
-222 generated production families in all, with no owner branch or unregistered
+The executable census proves 223 Chart families plus three Ability families:
+226 generated production families in all, with no owner branch or unregistered
 supported family left to discover.

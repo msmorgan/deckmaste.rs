@@ -300,6 +300,36 @@ impl QuantityValue {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct Quantity(QuantityKind);
 
+/// A checked count of energy symbols used as a predicate object.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+pub struct CountedEnergy {
+    quantity: Quantity,
+    symbol: OracleSymbol,
+}
+
+impl CountedEnergy {
+    pub(crate) fn new(quantity: Quantity, symbol: OracleSymbol) -> Option<Self> {
+        (matches!(quantity.kind(), QuantityKind::X)
+            || matches!(
+                quantity.kind(),
+                QuantityKind::Exact(number)
+                    if number.value > 0 && matches!(number.numeral, Numeral::Cardinal)
+            ))
+        .then_some(Self { quantity, symbol })
+        .filter(|value| value.symbol.as_str() == "{E}")
+    }
+
+    #[must_use]
+    pub const fn quantity(&self) -> Quantity {
+        self.quantity
+    }
+
+    #[must_use]
+    pub fn symbol(&self) -> &OracleSymbol {
+        &self.symbol
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum QuantityKind {
     Exact(NumberLiteral),
@@ -746,6 +776,12 @@ pub enum NounPhraseKind {
     Demonstrative(Demonstrative),
     Quantity(Quantity),
     ThisCard(ThisCardForm),
+    /// The closed distributive noun phrase `each target beyond the first`.
+    ///
+    /// Keeping the canonical rider's whole `for` object typed prevents an
+    /// opaque `beyond` noun or a headless ordinal from standing in for this
+    /// grammatical boundary.
+    TargetsBeyondFirst,
     Partitive(PartitiveNounPhrase),
     /// The notional-plural `any number of <complement>` construction.
     AnyNumberOf(AnyNumberOfNounPhrase),
@@ -836,6 +872,10 @@ impl NounPhrase {
 
     pub(crate) const fn from_this_card_declaration(value: ThisCardForm) -> Self {
         Self(NounPhraseKind::ThisCard(value))
+    }
+
+    pub(crate) const fn from_targets_beyond_first_declaration() -> Self {
+        Self(NounPhraseKind::TargetsBeyondFirst)
     }
 
     pub(crate) const fn from_partitive_declaration(value: PartitiveNounPhrase) -> Self {

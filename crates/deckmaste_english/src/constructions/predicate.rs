@@ -28,6 +28,7 @@ use crate::syntax::AbilityObject;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::CoinSide;
 use crate::syntax::CoordinatedPredicateObject;
+use crate::syntax::CountedEnergy;
 use crate::syntax::DeonticPredicate;
 use crate::syntax::FrequencyBound;
 use crate::syntax::FrequencyPhrase;
@@ -35,6 +36,7 @@ use crate::syntax::InfinitiveClause;
 use crate::syntax::InfinitiveMarker;
 use crate::syntax::Modal;
 use crate::syntax::NounPhrase;
+use crate::syntax::NounPhraseKind;
 use crate::syntax::OracleSymbol;
 use crate::syntax::PassivePredicate;
 use crate::syntax::Phrase;
@@ -54,10 +56,12 @@ use crate::syntax::ProPredicate;
 use crate::syntax::Quantity;
 use crate::syntax::QuotedAbility;
 use crate::syntax::VerbParticle;
+use crate::word::Adjective;
 use crate::word::Auxiliary;
 use crate::word::AuxiliaryInflection;
 use crate::word::AuxiliaryInstance;
 use crate::word::PredicateFrame;
+use crate::word::Tense;
 use crate::word::VerbInstance;
 use crate::word::VerbSlot;
 use crate::word::Vocab;
@@ -446,6 +450,9 @@ pub(crate) fn project_public_predicate(
                 }
                 _ => return Err(public_projection_violation()),
             },
+            VerbDependent::CountedEnergy(value) => {
+                attach_public_object(&mut object, PredicateObject::CountedEnergy(value))?;
+            }
             VerbDependent::Statistic(Phrase::PowerToughness(value)) => {
                 attach_public_object(&mut object, PredicateObject::PowerToughness(value))?;
             }
@@ -778,6 +785,9 @@ fn public_object(object: &PredicateObject) -> Result<Vec<VerbDependent>, Declara
         PredicateObject::Quantity(value) => {
             dependents.push(VerbDependent::Scalar(Phrase::Quantity(*value)));
         }
+        PredicateObject::CountedEnergy(value) => {
+            dependents.push(VerbDependent::CountedEnergy(value.clone()));
+        }
         PredicateObject::OracleSymbol(value) => {
             dependents.push(VerbDependent::Scalar(Phrase::OracleSymbol(value.clone())));
         }
@@ -991,6 +1001,13 @@ fn reduce_verb_phrase_direct_object_features(
                 || !frame.direct_object().accepts())
     }) {
         Some(adjunct) => PredicateAttachment::NominalAdjunct(adjunct),
+        None if matches!(
+            pronoun_case,
+            Some(case) if *case != crate::features::PronounCase::Subject
+        ) =>
+        {
+            PredicateAttachment::PronominalDirectObject
+        }
         None => PredicateAttachment::DirectObject,
     };
     extend_predicate_features(predicate, attachment)
@@ -1491,7 +1508,7 @@ fn causative_host_features(host: &Features) -> Option<Features> {
         form: crate::grammar::PredicateForm::Infinitive,
         passive: false,
         dependent_count: 1,
-        object: crate::grammar::PredicateObjectState::Direct,
+        object,
         indirect_object,
         selected_preposition,
         phase: crate::grammar::PredicateAttachmentPhase::Object,
@@ -1501,7 +1518,11 @@ fn causative_host_features(host: &Features) -> Option<Features> {
     else {
         return None;
     };
-    (frame.causative_complement()
+    (matches!(
+        object,
+        crate::grammar::PredicateObjectState::Direct
+            | crate::grammar::PredicateObjectState::PronominalDirect
+    ) && frame.causative_complement()
         && crate::grammar::predicate_features_are_argument_complete(host)
         && frame.indirect_object().is_satisfied_by(*indirect_object)
         && frame
@@ -1806,7 +1827,11 @@ fn attach_nominal_dependent(
                 VerbDependent::Manner(dependent),
             ),
             None => (
-                PredicateAttachment::DirectObject,
+                if matches!(dependent.kind(), NounPhraseKind::Pronoun { .. }) {
+                    PredicateAttachment::PronominalDirectObject
+                } else {
+                    PredicateAttachment::DirectObject
+                },
                 VerbDependent::DirectObject(dependent),
             ),
         };
@@ -2466,6 +2491,49 @@ fn detach_quantity_dependent(predicate: &VerbPhrase, dependent: VerbDependent) -
     Some(quantity)
 }
 
+fn make_counted_energy(
+    quantity: Quantity,
+    symbol: OracleSymbol,
+) -> Result<CountedEnergy, DeclarationViolation> {
+    CountedEnergy::new(quantity, symbol).ok_or_else(|| {
+        violation(
+            "counted_energy",
+            "a positive cardinal or X quantity followed by exactly {E}",
+        )
+    })
+}
+
+fn counted_energy_parts(value: &CountedEnergy) -> (Quantity, OracleSymbol) {
+    (value.quantity(), value.symbol().clone())
+}
+
+fn is_counted_energy(value: &CountedEnergy) -> bool {
+    CountedEnergy::new(value.quantity(), value.symbol().clone()).is_some()
+}
+
+fn attach_counted_energy_dependent(
+    predicate: &VerbPhrase,
+    energy: CountedEnergy,
+) -> Result<VerbDependent, DeclarationViolation> {
+    licensed_attachment(
+        "verb_phrase_counted_energy",
+        predicate,
+        PredicateAttachment::ScalarComplement,
+    )?;
+    Ok(VerbDependent::CountedEnergy(energy))
+}
+
+fn detach_counted_energy_dependent(
+    predicate: &VerbPhrase,
+    dependent: VerbDependent,
+) -> Option<CountedEnergy> {
+    let VerbDependent::CountedEnergy(energy) = dependent else {
+        return None;
+    };
+    attach_counted_energy_dependent(predicate, energy.clone()).ok()?;
+    Some(energy)
+}
+
 fn make_mana_amount_symbol(symbol: OracleSymbol) -> Result<ManaAmount, DeclarationViolation> {
     Ok(PredicateObject::OracleSymbol(symbol))
 }
@@ -2752,6 +2820,12 @@ fn is_verb_phrase_quantity(value: &VerbPhrase) -> bool {
     })
 }
 
+fn is_verb_phrase_counted_energy(value: &VerbPhrase) -> bool {
+    dependent_matches(value, |dependent| {
+        matches!(dependent, VerbDependent::CountedEnergy(_))
+    })
+}
+
 fn is_verb_phrase_direct_object(value: &VerbPhrase) -> bool {
     matches!(
         value.declaration_last_dependent_parts(),
@@ -2892,7 +2966,124 @@ fn is_verb_phrase_prepositional(value: &VerbPhrase) -> bool {
                 | VerbDependent::Prepositional(_)
         ))
     ) && !is_passive_shared_prepositional(value)
+        && !is_pronominal_resultative_prepositional(value)
         && value.declaration_core_features().is_some()
+}
+
+fn pronominal_destination_continuation(predicate: &VerbPhrase) -> bool {
+    let (dependents, _) = predicate.clone().declaration_into_dependent_projection();
+    matches!(
+        dependents.as_slice(),
+        [.., VerbDependent::DirectObject(object),
+            VerbDependent::PredicateComplement(Phrase::PrepositionalPhrase(_))
+                | VerbDependent::Prepositional(_)]
+            if matches!(object.kind(), NounPhraseKind::Pronoun { .. })
+    )
+}
+
+fn past_participle_resultative(adjective: &AdjectivePhrase) -> bool {
+    matches!(adjective.head(), Adjective::Participle(Tense::Past, _))
+}
+
+fn reduce_pronominal_resultative_prepositional_features(
+    predicate: &Features,
+    adjective: &Features,
+    preposition: &Features,
+) -> Option<Features> {
+    if !matches!(
+        predicate,
+        Features::VerbPhrase {
+            object: crate::grammar::PredicateObjectState::PronominalDirect,
+            phase: crate::grammar::PredicateAttachmentPhase::PrepositionalTail,
+            ..
+        }
+    ) || !matches!(
+        adjective,
+        Features::Adjective {
+            past_participle: true,
+            ..
+        }
+    ) {
+        return None;
+    }
+    let predicate = reduce_verb_phrase_adjective_features(predicate, adjective)?;
+    reduce_verb_phrase_prepositional_features(&predicate, preposition)
+}
+
+fn complete_pronominal_resultative_prepositional(
+    predicate: &Features,
+    adjective: &Features,
+    preposition: &Features,
+) -> Option<Features> {
+    admit_argument_complete(reduce_pronominal_resultative_prepositional_features(
+        predicate,
+        adjective,
+        preposition,
+    ))
+}
+
+fn make_pronominal_resultative_prepositional(
+    predicate: VerbPhrase,
+    adjective: AdjectivePhrase,
+    preposition: PrepositionalPhrase,
+) -> Result<VerbPhrase, DeclarationViolation> {
+    if !pronominal_destination_continuation(&predicate) || !past_participle_resultative(&adjective)
+    {
+        return Err(violation(
+            "verb_phrase_pronominal_resultative_prepositional",
+            "the destination follows a pronominal direct object and the resultative is a past participle",
+        ));
+    }
+    let predicate = build_verb_phrase_adjective(predicate, adjective)?;
+    let Some(features) = predicate.declaration_core_features() else {
+        return Err(violation(
+            "verb_phrase_pronominal_resultative_prepositional",
+            "the resultative predicate has valid attachment features",
+        ));
+    };
+    extend_predicate_features(
+        &features,
+        PredicateAttachment::Prepositional(preposition.head().preposition),
+    )
+    .ok_or_else(|| {
+        violation(
+            "verb_phrase_pronominal_resultative_prepositional",
+            "the trailing preposition is licensed after the resultative",
+        )
+    })?;
+    let dependent = prepositional_dependent(&predicate, preposition).ok_or_else(|| {
+        violation(
+            "verb_phrase_pronominal_resultative_prepositional",
+            "the trailing preposition has a selected or adjunct role",
+        )
+    })?;
+    let (mut dependents, shell) = predicate.declaration_into_dependent_projection();
+    dependents.push(dependent);
+    Ok(VerbPhrase::declaration_from_dependent_projection(
+        shell, dependents,
+    ))
+}
+
+fn pronominal_resultative_prepositional_parts(
+    value: &VerbPhrase,
+) -> (VerbPhrase, AdjectivePhrase, PrepositionalPhrase) {
+    let (predicate, preposition) = parts_verb_phrase_prepositional(value)
+        .expect("resultative continuation ends with its trailing preposition");
+    let (predicate, adjective) = parts_verb_phrase_adjective(&predicate)
+        .expect("resultative continuation keeps its adjective immediately before the PP");
+    (predicate, adjective, preposition)
+}
+
+fn is_pronominal_resultative_prepositional(value: &VerbPhrase) -> bool {
+    let Some((predicate, preposition)) = parts_verb_phrase_prepositional(value) else {
+        return false;
+    };
+    let Some((predicate, adjective)) = parts_verb_phrase_adjective(&predicate) else {
+        return false;
+    };
+    pronominal_destination_continuation(&predicate)
+        && past_participle_resultative(&adjective)
+        && make_pronominal_resultative_prepositional(predicate, adjective, preposition).is_ok()
 }
 
 fn is_verb_phrase_adverb(value: &VerbPhrase) -> bool {
@@ -3098,6 +3289,18 @@ deckmaste_constructions_macro::constructions! {
         derive base_precedence_2: Features = reduce_verb_phrase_adjective_features(predicate, adjective);
         evidence feature "predicate local cost" from category;
         form only @ 0 inverse check(is_verb_phrase_adjective) = predicate adjective;
+        selection unique;
+    }
+
+    construction verb_phrase_pronominal_resultative_prepositional: VerbPhrase {
+        bind VerbPhrase via make_pronominal_resultative_prepositional, pronominal_resultative_prepositional_parts {
+            predicate: hole VerbPhrase,
+            adjective: hole AdjectivePhrase,
+            preposition: hole PrepositionalPhrase,
+        }
+        derive features: Features = reduce_pronominal_resultative_prepositional_features(predicate, adjective, preposition);
+        derive argument_complete: Features = complete_pronominal_resultative_prepositional(predicate, adjective, preposition);
+        form only @ 0 inverse check(is_pronominal_resultative_prepositional) = predicate adjective preposition;
         selection unique;
     }
 
@@ -3455,6 +3658,30 @@ deckmaste_constructions_macro::constructions! {
         derive features: Features = reduce_verb_phrase_quantity_features(predicate, quantity);
         derive argument_complete: Features = complete_quantity(predicate, quantity);
         form only @ 0 inverse check(is_verb_phrase_quantity) = predicate quantity;
+        selection unique;
+    }
+
+    internal construction counted_energy: CountedEnergy {
+        bind CountedEnergy via make_counted_energy, counted_energy_parts {
+            quantity: hole Quantity,
+            symbol: identity OracleSymbol via OracleSymbol,
+        }
+        form only @ 0 inverse check(is_counted_energy) = quantity identity(symbol);
+        selection unique;
+    }
+
+    construction verb_phrase_counted_energy: VerbPhrase {
+        bind VerbPhrase {
+            predicate: hole VerbPhrase,
+            energy: hole CountedEnergy,
+        }
+        lens verb_phrase_dependents from predicate {
+            append dependents with energy via attach_counted_energy_dependent, detach_counted_energy_dependent;
+        }
+        derive prefix_admission: Features = admit_scalar_prefix(predicate);
+        derive features: Features = reduce_verb_phrase_scalar_features(predicate, energy);
+        derive argument_complete: Features = complete_scalar(predicate, energy);
+        form only @ 0 inverse check(is_verb_phrase_counted_energy) = predicate energy;
         selection unique;
     }
 
@@ -3978,6 +4205,7 @@ mod tests {
     enum PredicateFamilyWitnessValue {
         Verb(VerbAnalysis),
         VerbPhrase(VerbPhrase),
+        CountedEnergy(CountedEnergy),
         Frequency(FrequencyPhrase),
         ManaAmount(PredicateObject),
         ManaAmountList(PredicateObject),
@@ -3989,6 +4217,7 @@ mod tests {
             match self {
                 Self::Verb(value) => value,
                 Self::VerbPhrase(value) => value,
+                Self::CountedEnergy(value) => value,
                 Self::Frequency(value) => value,
                 Self::ManaAmount(value) | Self::ManaAmountList(value) => value,
                 Self::CoordinatedMana(value) => value,
@@ -4003,6 +4232,9 @@ mod tests {
                 Self::Verb(value) => crate::renderer::render_generated_predicate_verb_law(value),
                 Self::VerbPhrase(value) => {
                     crate::renderer::render_generated_predicate_verb_phrase_law(value)
+                }
+                Self::CountedEnergy(value) => {
+                    crate::renderer::render_generated_predicate_counted_energy_law(value)
                 }
                 Self::Frequency(value) => {
                     crate::renderer::render_generated_predicate_frequency_phrase_law(value)
@@ -4030,9 +4262,9 @@ mod tests {
 
     #[allow(
         clippy::too_many_lines,
-        reason = "the explicit table keeps all 34 stable IDs and their typed witnesses reviewable in declaration order"
+        reason = "the explicit table keeps all 37 declaration rows and their typed witnesses reviewable in declaration order"
     )]
-    fn all_34_predicate_family_witnesses(catalogs: &Catalogs) -> Vec<PredicateFamilyWitness> {
+    fn all_37_predicate_family_witnesses(catalogs: &Catalogs) -> Vec<PredicateFamilyWitness> {
         let verb = |vocab, slot, frame| {
             build_verb(lexical_head(vocab, slot, frame)).expect("the witness verb builds")
         };
@@ -4118,6 +4350,8 @@ mod tests {
             numeral: crate::numeral::Numeral::Cardinal,
         })
         .unwrap();
+        let energy = build_counted_energy(quantity, test_symbol("{E}"))
+            .expect("the counted-energy witness builds");
 
         vec![
             PredicateFamilyWitness {
@@ -4190,6 +4424,31 @@ mod tests {
                     build_verb_phrase_adjective(
                         base(Vocab::Be, VerbSlot::Infinitive, 0),
                         adjective,
+                    )
+                    .unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_pronominal_resultative_prepositional",
+                category: "VerbPhrase",
+                surface: "return it to the battlefield transformed under your control",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_pronominal_resultative_prepositional(
+                        build_verb_phrase_prepositional(
+                            build_verb_phrase_direct_object(
+                                open_predicate(Vocab::Return),
+                                object_it(),
+                            )
+                            .unwrap(),
+                            parsed_preposition("to the battlefield"),
+                        )
+                        .unwrap(),
+                        crate::adjective::build_adjective_phrase(Adjective::Participle(
+                            Tense::Past,
+                            crate::word::Verb::Word(Vocab::Transform),
+                        ))
+                        .unwrap(),
+                        parsed_preposition("under your control"),
                     )
                     .unwrap(),
                 ),
@@ -4480,6 +4739,20 @@ mod tests {
                 ),
             },
             PredicateFamilyWitness {
+                id: "counted_energy",
+                category: "CountedEnergy",
+                surface: "two {E}",
+                value: PredicateFamilyWitnessValue::CountedEnergy(energy.clone()),
+            },
+            PredicateFamilyWitness {
+                id: "verb_phrase_counted_energy",
+                category: "VerbPhrase",
+                surface: "pay two {E}",
+                value: PredicateFamilyWitnessValue::VerbPhrase(
+                    build_verb_phrase_counted_energy(open_predicate(Vocab::Pay), energy).unwrap(),
+                ),
+            },
+            PredicateFamilyWitness {
                 id: "verb_phrase_causative",
                 category: "VerbPhrase",
                 surface: "have it enter",
@@ -4501,7 +4774,7 @@ mod tests {
     #[test]
     #[allow(
         clippy::too_many_lines,
-        reason = "one explicit behavioral law checks all 34 stable declaration rows"
+        reason = "one explicit behavioral law checks all 37 declaration rows"
     )]
     fn every_predicate_row_has_a_typed_generated_inverse_and_exact_reparse() {
         // Mutations caught: omit a row from the category visitor, route any
@@ -4509,8 +4782,8 @@ mod tests {
         // ordinal, lower a row to a sibling typed value, or make registration
         // order choose a different generated construction.
         let catalogs = crate::grammar::fixture_catalogs();
-        let witnesses = all_34_predicate_family_witnesses(&catalogs);
-        assert_eq!(witnesses.len(), 34);
+        let witnesses = all_37_predicate_family_witnesses(&catalogs);
+        assert_eq!(witnesses.len(), 37);
         assert_eq!(
             witnesses
                 .iter()
@@ -4538,6 +4811,9 @@ mod tests {
                 "{} emitted category dispatcher selection",
                 witness.id
             );
+            if witness.category == "CountedEnergy" {
+                continue;
+            }
             let orders = crate::grammar::exact::parse_groups_as_declared_category_in_both_orders(
                 witness.surface,
                 &catalogs,
@@ -6482,7 +6758,7 @@ mod tests {
     }
 
     #[test]
-    fn predicate_family_has_exactly_the_required_34_id_census() {
+    fn predicate_family_has_exactly_the_required_37_id_census() {
         // Mutation caught: omit or rename the final causative declaration, or
         // accidentally admit an extra predicate-family owner while the group
         // is admitted to the production group.
@@ -6500,6 +6776,7 @@ mod tests {
                 "verb_phrase_direct_object",
                 "verb_phrase_indirect_object",
                 "verb_phrase_adjective",
+                "verb_phrase_pronominal_resultative_prepositional",
                 "verb_phrase_prepositional",
                 "verb_phrase_passive_shared_determiner_prepositional",
                 "verb_phrase_except_by",
@@ -6526,6 +6803,8 @@ mod tests {
                 "verb_phrase_mana_amount_coordination",
                 "verb_phrase_power_toughness",
                 "verb_phrase_quantity",
+                "counted_energy",
+                "verb_phrase_counted_energy",
                 "verb_phrase_causative",
             ]
         );
