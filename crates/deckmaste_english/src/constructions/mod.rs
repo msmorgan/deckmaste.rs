@@ -80,7 +80,7 @@ mod tests {
     use crate::construction::ConstructionId;
     use crate::construction::ConstructionOwner;
 
-    const R01_IDS: [&str; 8] = [
+    const R01_IDS: [&str; 9] = [
         "relative_object",
         "relative_object_contracted_subject",
         "relative_subject_contracted_auxiliary",
@@ -88,6 +88,7 @@ mod tests {
         "relative_subject_distributive_each",
         "relative_contracted_copular_noun",
         "relative_contracted_copular_adjective",
+        "relative_contracted_copular_coordinated_adjective",
         "relative_contracted_copular_prepositional",
     ];
 
@@ -124,10 +125,5 @@ mod tests {
             assert_eq!(family.owner(), ConstructionOwner::Generated, "{id}");
             assert_eq!(family.backend(), ConstructionBackend::Chart, "{id}");
         }
-        let c01 = crate::construction_family(ConstructionId::new(
-            "relative_contracted_copular_coordinated_adjective",
-        ))
-        .expect("C01 coordinated relative remains registered");
-        assert_eq!(c01.owner(), ConstructionOwner::Handwritten);
     }
 }

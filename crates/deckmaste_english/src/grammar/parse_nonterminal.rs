@@ -1767,7 +1767,8 @@ mod root_lowering_tests {
             .expect("a lowerable imperative root follows the rejected nominal reading");
         assert!(matches!(
             parsed.clause(),
-            Some(Clause::Independent(IndependentClause::Imperative(_)))
+            Some(Clause::Independent(IndependentClause::Finite(finite)))
+                if finite.subject().is_none()
         ));
     }
 

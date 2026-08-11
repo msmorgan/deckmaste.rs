@@ -1,12 +1,13 @@
 //! Checked construction, projection, and rendering API for clauses.
 //!
 //! Every builder validates its generated declaration before returning a sealed
-//! syntax value. Matching `parts_*` functions expose immutable inverse
-//! projections without reopening the representation.
+//! syntax value. Immutable semantic accessors expose the resulting structure
+//! without reopening construction-specific inverse projections.
 
 use deckmaste_construction_compiler::runtime::DeclarationViolation;
 
 use crate::RenderError;
+pub use crate::constructions::clause::build_clause_existential;
 use crate::features::Conjunction;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::Clause;
@@ -51,17 +52,6 @@ pub fn build_relative_object(
     crate::constructions::relative::checked_build_relative_object(subject, predicate)
 }
 
-/// Projects the subject and object-gap predicate of an object relative.
-///
-/// # Errors
-///
-/// Returns a declaration violation when `value` selects another relative form.
-pub fn parts_relative_object(
-    value: &RelativeClause,
-) -> Result<(NounPhrase, ObjectGapPredicate), DeclarationViolation> {
-    crate::constructions::relative::checked_parts_relative_object(value)
-}
-
 /// Builds a zero-marker object relative with a subject-contracted auxiliary.
 ///
 /// # Errors
@@ -82,23 +72,6 @@ pub fn build_relative_object_contracted_subject(
     )
 }
 
-/// Projects the subject, contracted auxiliary, and object-gap predicate.
-///
-/// # Errors
-///
-/// Returns a declaration violation when `value` selects another relative form.
-pub fn parts_relative_object_contracted_subject(
-    value: &RelativeClause,
-) -> Result<(NounPhrase, AuxiliaryInstance, ObjectGapPredicate), DeclarationViolation> {
-    let (subject_auxiliary, predicate) =
-        crate::constructions::relative::checked_parts_relative_object_contracted_subject(value)?;
-    Ok((
-        subject_auxiliary.subject.0,
-        subject_auxiliary.auxiliary,
-        predicate,
-    ))
-}
-
 /// Builds a `that` relative contracted with its predicate's first auxiliary.
 ///
 /// # Errors
@@ -115,19 +88,6 @@ pub fn build_relative_subject_contracted_auxiliary(
     )
 }
 
-/// Projects the contracted auxiliary and remaining complete predicate.
-///
-/// # Errors
-///
-/// Returns a declaration violation when `value` selects another relative form.
-pub fn parts_relative_subject_contracted_auxiliary(
-    value: &RelativeClause,
-) -> Result<(AuxiliaryInstance, Predicate), DeclarationViolation> {
-    let (subject_auxiliary, predicate) =
-        crate::constructions::relative::checked_parts_relative_subject_contracted_auxiliary(value)?;
-    Ok((subject_auxiliary.auxiliary, predicate))
-}
-
 /// Builds an explicit-marker subject relative.
 ///
 /// # Errors
@@ -139,17 +99,6 @@ pub fn build_relative_subject(
     predicate: Predicate,
 ) -> Result<RelativeClause, DeclarationViolation> {
     crate::constructions::relative::checked_build_relative_subject(marker, predicate)
-}
-
-/// Projects the explicit marker and predicate of a subject relative.
-///
-/// # Errors
-///
-/// Returns a declaration violation when `value` selects another relative form.
-pub fn parts_relative_subject(
-    value: &RelativeClause,
-) -> Result<(RelativeMarker, Predicate), DeclarationViolation> {
-    crate::constructions::relative::checked_parts_relative_subject(value)
 }
 
 /// Builds an explicit-marker plural subject relative with distributive `each`.
@@ -167,19 +116,8 @@ pub fn build_relative_subject_distributive_each(
     )
 }
 
-/// Projects the marker and predicate without its distributive `each` witness.
-///
-/// # Errors
-///
-/// Returns a declaration violation when `value` selects another relative form.
-pub fn parts_relative_subject_distributive_each(
-    value: &RelativeClause,
-) -> Result<(RelativeMarker, Predicate), DeclarationViolation> {
-    crate::constructions::relative::checked_parts_relative_subject_distributive_each(value)
-}
-
 macro_rules! contracted_copular_facade {
-    ($build:ident, $checked:ident, $parts:ident, $checked_parts:ident, $ty:ty) => {
+    ($build:ident, $checked:ident, $ty:ty) => {
         /// Builds a `that` relative contracted with a copula and the typed
         /// complement.
         ///
@@ -197,67 +135,32 @@ macro_rules! contracted_copular_facade {
                 complement,
             )
         }
-
-        /// Projects the contracted copula and typed complement.
-        ///
-        /// # Errors
-        ///
-        /// Returns a declaration violation when `value` selects another
-        /// relative form.
-        pub fn $parts(
-            value: &RelativeClause,
-        ) -> Result<(AuxiliaryInstance, $ty), DeclarationViolation> {
-            let (subject_auxiliary, complement) =
-                crate::constructions::relative::$checked_parts(value)?;
-            Ok((subject_auxiliary.auxiliary, complement))
-        }
     };
 }
 
 contracted_copular_facade!(
     build_relative_contracted_copular_noun,
     checked_build_relative_contracted_copular_noun,
-    parts_relative_contracted_copular_noun,
-    checked_parts_relative_contracted_copular_noun,
     NounPhrase
 );
 contracted_copular_facade!(
     build_relative_contracted_copular_adjective,
     checked_build_relative_contracted_copular_adjective,
-    parts_relative_contracted_copular_adjective,
-    checked_parts_relative_contracted_copular_adjective,
     AdjectivePhrase
 );
 contracted_copular_facade!(
     build_relative_contracted_copular_prepositional,
     checked_build_relative_contracted_copular_prepositional,
-    parts_relative_contracted_copular_prepositional,
-    checked_parts_relative_contracted_copular_prepositional,
     PrepositionalPhrase
 );
 contracted_copular_facade!(
     build_relative_contracted_copular_coordinated_adjective,
     checked_build_relative_contracted_copular_coordinated_adjective,
-    parts_relative_contracted_copular_coordinated_adjective,
-    checked_parts_relative_contracted_copular_coordinated_adjective,
     CoordinatedAdjectivePhrase
 );
 
 fn staged(predicate: &Predicate) -> Result<crate::grammar::VerbPhrase, DeclarationViolation> {
     crate::constructions::predicate::inverse_public_predicate(predicate)
-}
-
-fn projected(predicate: crate::grammar::VerbPhrase) -> Predicate {
-    let crate::constructions::predicate::FinishedPredicate {
-        modal: None,
-        predicate,
-        ..
-    } = crate::constructions::predicate::project_public_predicate(predicate)
-        .expect("a generated nonfinite inverse remains a valid predicate")
-    else {
-        unreachable!("a generated nonfinite inverse has no finite modal")
-    };
-    predicate
 }
 
 /// Builds an unnegated `to`-infinitive from a complete infinitive predicate.
@@ -350,12 +253,6 @@ pub fn build_clause_adverb_before(
     crate::constructions::attachment::build_clause_adverb_before(adverb, host)
 }
 
-/// Projects a fronted ordinary adverb attachment.
-#[must_use]
-pub fn parts_clause_adverb_before(value: &Clause) -> (Vocab, Clause) {
-    crate::constructions::attachment::parts_clause_adverb_before(value)
-}
-
 /// Builds a comma-delimited fronted sentence adverbial.
 ///
 /// # Errors
@@ -369,12 +266,6 @@ pub fn build_clause_sentence_adverbial_before(
     crate::constructions::attachment::build_clause_sentence_adverbial_before(adverb, host)
 }
 
-/// Projects a fronted sentence adverbial.
-#[must_use]
-pub fn parts_clause_sentence_adverbial_before(value: &Clause) -> (Vocab, Clause) {
-    crate::constructions::attachment::parts_clause_sentence_adverbial_before(value)
-}
-
 /// Builds a comma-delimited fronted prepositional attachment.
 ///
 /// # Errors
@@ -386,12 +277,6 @@ pub fn build_clause_prepositional_before(
     host: Clause,
 ) -> Result<Clause, DeclarationViolation> {
     crate::constructions::attachment::build_clause_prepositional_before(preposition, host)
-}
-
-/// Projects a fronted prepositional attachment.
-#[must_use]
-pub fn parts_clause_prepositional_before(value: &Clause) -> (PrepositionalPhrase, Clause) {
-    crate::constructions::attachment::parts_clause_prepositional_before(value)
 }
 
 /// Builds a comma-delimited fronted finite subordinate clause.
@@ -408,12 +293,6 @@ pub fn build_clause_subordinate_before(
     crate::constructions::attachment::build_clause_subordinate_before(subordinator, condition, host)
 }
 
-/// Projects a fronted finite subordinate clause.
-#[must_use]
-pub fn parts_clause_subordinate_before(value: &Clause) -> (Subordinator, Clause, Clause) {
-    crate::constructions::attachment::parts_clause_subordinate_before(value)
-}
-
 /// Builds a fronted `while` gerund clause.
 ///
 /// # Errors
@@ -425,12 +304,6 @@ pub fn build_clause_subordinate_gerund_before(
     host: Clause,
 ) -> Result<Clause, DeclarationViolation> {
     crate::constructions::attachment::build_clause_subordinate_gerund_before(gerund, host)
-}
-
-/// Projects a fronted `while` gerund clause.
-#[must_use]
-pub fn parts_clause_subordinate_gerund_before(value: &Clause) -> (GerundClause, Clause) {
-    crate::constructions::attachment::parts_clause_subordinate_gerund_before(value)
 }
 
 /// Builds a trailing elliptical subordinate clause.
@@ -451,14 +324,6 @@ pub fn build_clause_subordinate_after_elliptical(
     )
 }
 
-/// Projects a trailing elliptical subordinate clause.
-#[must_use]
-pub fn parts_clause_subordinate_after_elliptical(
-    value: &Clause,
-) -> (Clause, Subordinator, AdjectivePhrase) {
-    crate::constructions::attachment::parts_clause_subordinate_after_elliptical(value)
-}
-
 /// Builds a trailing finite subordinate clause without a comma.
 ///
 /// # Errors
@@ -471,12 +336,6 @@ pub fn build_clause_subordinate_after(
     condition: Clause,
 ) -> Result<Clause, DeclarationViolation> {
     crate::constructions::attachment::build_clause_subordinate_after(host, subordinator, condition)
-}
-
-/// Projects a trailing finite subordinate clause without a comma.
-#[must_use]
-pub fn parts_clause_subordinate_after(value: &Clause) -> (Clause, Subordinator, Clause) {
-    crate::constructions::attachment::parts_clause_subordinate_after(value)
 }
 
 /// Builds a comma-delimited trailing finite subordinate clause.
@@ -497,12 +356,6 @@ pub fn build_clause_subordinate_after_comma(
     )
 }
 
-/// Projects a comma-delimited trailing finite subordinate clause.
-#[must_use]
-pub fn parts_clause_subordinate_after_comma(value: &Clause) -> (Clause, Subordinator, Clause) {
-    crate::constructions::attachment::parts_clause_subordinate_after_comma(value)
-}
-
 /// Builds a trailing `rather than` bare-infinitive clause.
 ///
 /// # Errors
@@ -519,14 +372,6 @@ pub fn build_clause_subordinate_after_infinitive(
     )
 }
 
-/// Projects a trailing `rather than` clause.
-#[must_use]
-pub fn parts_clause_subordinate_after_infinitive(value: &Clause) -> (Clause, Predicate) {
-    let (host, predicate) =
-        crate::constructions::attachment::parts_clause_subordinate_after_infinitive(value);
-    (host, projected(predicate))
-}
-
 /// Builds a one-clause exception rider.
 ///
 /// # Errors
@@ -537,12 +382,6 @@ pub fn build_exception_rider_single(
     clause: Clause,
 ) -> Result<ExceptionRider, DeclarationViolation> {
     crate::constructions::attachment::build_exception_rider_single(clause)
-}
-
-/// Projects the clause from a one-clause exception rider.
-#[must_use]
-pub fn parts_exception_rider_single(value: &ExceptionRider) -> Clause {
-    crate::constructions::attachment::parts_exception_rider_single(value)
 }
 
 /// Appends a bare-conjunction clause to an exception rider.
@@ -559,14 +398,6 @@ pub fn build_exception_rider_conjoined(
     crate::constructions::attachment::build_exception_rider_conjoined(rider, conjunction, clause)
 }
 
-/// Projects a bare-conjunction exception rider.
-#[must_use]
-pub fn parts_exception_rider_conjoined(
-    value: &ExceptionRider,
-) -> (ExceptionRider, Conjunction, Clause) {
-    crate::constructions::attachment::parts_exception_rider_conjoined(value)
-}
-
 /// Builds or extends a comma-open exception rider.
 ///
 /// # Errors
@@ -579,14 +410,6 @@ pub fn build_exception_rider_comma(
     clause: Clause,
 ) -> Result<ExceptionRiderList, DeclarationViolation> {
     crate::constructions::attachment::build_exception_rider_comma(rider, list, clause)
-}
-
-/// Projects one comma-open exception-rider step.
-#[must_use]
-pub fn parts_exception_rider_comma(
-    value: &ExceptionRiderList,
-) -> (Option<ExceptionRider>, Option<ExceptionRiderList>, Clause) {
-    crate::constructions::attachment::parts_exception_rider_comma(value)
 }
 
 /// Closes a comma-open exception rider with an Oxford conjunction.
@@ -603,14 +426,6 @@ pub fn build_exception_rider_oxford(
     crate::constructions::attachment::build_exception_rider_oxford(rider, conjunction, clause)
 }
 
-/// Projects an Oxford exception-rider close.
-#[must_use]
-pub fn parts_exception_rider_oxford(
-    value: &ExceptionRider,
-) -> (ExceptionRiderList, Conjunction, Clause) {
-    crate::constructions::attachment::parts_exception_rider_oxford(value)
-}
-
 /// Attaches a complete or comma-open exception rider to a host clause.
 ///
 /// # Errors
@@ -623,14 +438,6 @@ pub fn build_clause_excepted(
     list: Option<ExceptionRiderList>,
 ) -> Result<Clause, DeclarationViolation> {
     crate::constructions::attachment::build_clause_excepted(host, rider, list)
-}
-
-/// Projects an exception rider from its host clause.
-#[must_use]
-pub fn parts_clause_excepted(
-    value: &Clause,
-) -> (Clause, Option<ExceptionRider>, Option<ExceptionRiderList>) {
-    crate::constructions::attachment::parts_clause_excepted(value)
 }
 
 /// Builds one typed restriction member.
@@ -649,18 +456,6 @@ pub fn build_clause_restriction_member(
         condition,
         temporal,
     )
-}
-
-/// Projects one typed restriction member.
-#[must_use]
-pub fn parts_clause_restriction_member(
-    value: &RestrictionMember,
-) -> (
-    Option<PrepositionalPhrase>,
-    Option<Clause>,
-    Option<NounPhrase>,
-) {
-    crate::constructions::attachment::parts_clause_restriction_member(value)
 }
 
 /// Creates one continuation in a validated restriction run.
@@ -684,12 +479,4 @@ pub fn build_clause_restriction_run(
     rest: Vec<RestrictionCoordination>,
 ) -> Result<Clause, DeclarationViolation> {
     crate::constructions::attachment::build_clause_restriction_run(host, first, rest)
-}
-
-/// Projects a trailing restriction run.
-#[must_use]
-pub fn parts_clause_restriction_run(
-    value: &Clause,
-) -> (Clause, RestrictionMember, Vec<RestrictionCoordination>) {
-    crate::constructions::attachment::parts_clause_restriction_run(value)
 }

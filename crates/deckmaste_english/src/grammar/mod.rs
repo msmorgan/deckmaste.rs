@@ -10,7 +10,6 @@ pub(crate) use clause::fold_auxiliary_passive;
 pub(crate) use clause::lowered_nominal_adjunct_kind;
 pub(crate) use clause::predicate_arguments_complete;
 pub(crate) use clause::predicate_object_gap_complete;
-pub(crate) use clause::reduce_relative_contracted_copular_coordinated_adjective_features;
 pub(crate) mod construction;
 mod opacity;
 
@@ -89,8 +88,6 @@ use crate::features::ChartFeatureBundle;
 use crate::features::Conjunction;
 use crate::features::FeatureKind;
 use crate::features::GapState;
-#[cfg(test)]
-use crate::features::GapState as RelativeGap;
 use crate::features::GrammaticalFeature;
 use crate::features::NounCardinality;
 use crate::features::Number;
@@ -2140,13 +2137,6 @@ enum RuleTag {
     /// adjective-complement slot; covers the non-contracted relative (`that
     /// are …`) and matrix copulars.
     VerbPhraseCoordinatedAdjective,
-    /// A coordinated predicative-adjective copular complement (`it's legendary
-    /// and snow`). Consumes the closed coordinated modifier as a copular
-    /// remainder.
-    CopularRemainderCoordinatedAdjective,
-    /// A contracted relative copular with a coordinated adjective complement
-    /// (`that's red or green`, `that's white or blue`).
-    RelativeContractedCopularCoordinatedAdjective,
     /// A power/toughness value complement on a characteristic nominal (`base
     /// power and toughness *X/X*`). The `N/N` token sets the base
     /// characteristic; it rides the final coordinated characteristic of a

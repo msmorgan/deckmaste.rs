@@ -530,13 +530,13 @@ mod tests {
                     && family.owner() == ConstructionOwner::Generated
             })
             .count();
-        assert_eq!(handwritten, 21, "handwritten chart families");
-        assert_eq!(generated, 173, "generated chart families");
-        assert_eq!(handwritten + generated, 194, "all chart families");
+        assert_eq!(handwritten, 19, "handwritten chart families");
+        assert_eq!(generated, 176, "generated chart families");
+        assert_eq!(handwritten + generated, 195, "all chart families");
         assert_eq!(generated_ability, 3, "generated ability families");
         assert_eq!(
             families.len(),
-            197,
+            198,
             "all active families after the ability slice"
         );
 
@@ -550,11 +550,11 @@ mod tests {
         assert_eq!(ability_fragment_entries.len(), 3);
         assert_eq!(
             handwritten + ability_fragment_entries.len() - generated_ability,
-            21
+            19
         );
         assert_eq!(
             families.len() + ability_fragment_entries.len() - generated_ability,
-            197
+            198
         );
 
         for id in [

@@ -43,7 +43,6 @@ use crate::word::Number;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RelativeClause {
     marker: RelativeMarker,
-    gap: GapState,
     body: RelativeBody,
 }
 
@@ -57,7 +56,10 @@ impl RelativeClause {
     /// Returns the grammatical position omitted by the relative clause.
     #[must_use]
     pub const fn gap(&self) -> GapState {
-        self.gap
+        match &self.body {
+            RelativeBody::SubjectGap(_) => GapState::Subject,
+            RelativeBody::ObjectGap { .. } => GapState::Object,
+        }
     }
 
     /// Borrows the typed subject-gap or object-gap clause body.
@@ -72,9 +74,8 @@ impl serde::Serialize for RelativeClause {
     where
         S: serde::Serializer,
     {
-        let mut state = serializer.serialize_struct("RelativeClause", 3)?;
+        let mut state = serializer.serialize_struct("RelativeClause", 2)?;
         state.serialize_field("marker", &self.marker)?;
-        state.serialize_field("gap", &self.gap)?;
         state.serialize_field("body", &self.body)?;
         state.end()
     }
@@ -100,7 +101,11 @@ pub(crate) fn project_predicate_hole(
     Ok(match finished.modal {
         Some(modal) => Predicate::Deontic(DeonticPredicate {
             modal,
-            inner: (!finished.elided).then(|| Box::new(finished.predicate)),
+            inner: (!finished.elided).then(|| {
+                Box::new(crate::syntax::PredicateExpression::Simple(
+                    finished.predicate,
+                ))
+            }),
         }),
         None => finished.predicate,
     })
@@ -143,7 +148,6 @@ fn make_relative_object(
 ) -> Result<RelativeClause, DeclarationViolation> {
     Ok(RelativeClause {
         marker: RelativeMarker::Zero,
-        gap: GapState::Object,
         body: RelativeBody::ObjectGap {
             subject: Subject(subject),
             predicate,
@@ -160,7 +164,6 @@ fn relative_object_parts(value: &RelativeClause) -> (NounPhrase, ObjectGapPredic
 
 fn is_relative_object(value: &RelativeClause) -> bool {
     value.marker() == RelativeMarker::Zero
-        && value.gap() == GapState::Object
         && matches!(value.body(), RelativeBody::ObjectGap { .. })
         && !object_gap_contracted(value)
 }
@@ -181,7 +184,6 @@ fn make_relative_object_contracted_subject(
         })?;
     Ok(RelativeClause {
         marker: RelativeMarker::Zero,
-        gap: GapState::Object,
         body: RelativeBody::ObjectGap {
             subject: subject_auxiliary.subject,
             predicate: project_object_gap_predicate_hole(predicate)?,
@@ -229,9 +231,7 @@ fn object_gap_contracted(value: &RelativeClause) -> bool {
 }
 
 fn is_relative_object_contracted_subject(value: &RelativeClause) -> bool {
-    value.marker() == RelativeMarker::Zero
-        && value.gap() == GapState::Object
-        && object_gap_contracted(value)
+    value.marker() == RelativeMarker::Zero && object_gap_contracted(value)
 }
 
 fn make_relative_subject_contracted_auxiliary(
@@ -293,7 +293,6 @@ fn relative_subject_contracted_auxiliary_parts(
 
 fn is_relative_subject_contracted_auxiliary(value: &RelativeClause) -> bool {
     value.marker() == RelativeMarker::That
-        && value.gap() == GapState::Subject
         && matches!(value.body(), RelativeBody::SubjectGap(predicate)
             if predicate_parts(predicate).is_ok_and(|predicate| predicate
                 .declaration_contracted_subject_auxiliary_parts().is_some()))
@@ -321,7 +320,6 @@ fn relative_subject_parts(value: &RelativeClause) -> (RelativeMarker, Predicate)
 
 fn is_relative_subject(value: &RelativeClause) -> bool {
     value.marker() != RelativeMarker::Zero
-        && value.gap() == GapState::Subject
         && matches!(value.body(), RelativeBody::SubjectGap(predicate)
         if predicate_parts(predicate).is_ok_and(|predicate| {
             !predicate.declaration_has_distributive_each()
@@ -374,7 +372,6 @@ fn relative_subject_distributive_each_parts(value: &RelativeClause) -> (Relative
 
 fn is_relative_subject_distributive_each(value: &RelativeClause) -> bool {
     value.marker() != RelativeMarker::Zero
-        && value.gap() == GapState::Subject
         && matches!(value.body(), RelativeBody::SubjectGap(predicate)
             if predicate_parts(predicate).is_ok_and(|predicate| predicate.declaration_has_distributive_each()))
 }
@@ -382,7 +379,6 @@ fn is_relative_subject_distributive_each(value: &RelativeClause) -> bool {
 fn subject_relative(marker: RelativeMarker, predicate: Predicate) -> RelativeClause {
     RelativeClause {
         marker,
-        gap: GapState::Subject,
         body: RelativeBody::SubjectGap(predicate),
     }
 }
@@ -441,7 +437,6 @@ fn contracted_copular_parts(
 
 fn is_contracted_copular(value: &RelativeClause) -> bool {
     value.marker() == RelativeMarker::That
-        && value.gap() == GapState::Subject
         && matches!(value.body(), RelativeBody::SubjectGap(Predicate::Copular(predicate))
             if !predicate.negated
                 && predicate.copula.auxiliary.auxiliary == Auxiliary::Be
@@ -491,7 +486,7 @@ contracted_copular_adapter!(
     "relative_contracted_copular_noun"
 );
 
-pub(crate) fn build_relative_contracted_copular_coordinated_adjective(
+fn make_relative_contracted_copular_coordinated_adjective(
     subject_auxiliary: ContractedSubjectAuxiliary,
     complement: CoordinatedAdjectivePhrase,
 ) -> Result<RelativeClause, DeclarationViolation> {
@@ -502,7 +497,7 @@ pub(crate) fn build_relative_contracted_copular_coordinated_adjective(
     )
 }
 
-pub(crate) fn parts_relative_contracted_copular_coordinated_adjective(
+fn relative_contracted_copular_coordinated_adjective_parts(
     value: &RelativeClause,
 ) -> (ContractedSubjectAuxiliary, CoordinatedAdjectivePhrase) {
     let (subject_auxiliary, complement) = contracted_copular_parts(value);
@@ -510,6 +505,14 @@ pub(crate) fn parts_relative_contracted_copular_coordinated_adjective(
         unreachable!("coordinated-adjective relative projection requires its C01 shape")
     };
     (subject_auxiliary, complement.clone())
+}
+
+fn is_relative_contracted_copular_coordinated_adjective(value: &RelativeClause) -> bool {
+    is_contracted_copular(value)
+        && matches!(
+            contracted_copular_parts(value).1,
+            CopularComplement::CoordinatedAdjective(_)
+        )
 }
 contracted_copular_adapter!(
     make_relative_contracted_copular_adjective,
@@ -809,6 +812,24 @@ fn reduce_contracted_copular_adjective_features(
     )
 }
 
+fn reduce_contracted_copular_coordinated_adjective_features(
+    subject_auxiliary: &Features,
+    complement: &Features,
+) -> Option<Features> {
+    let Features::CoordinatedModifier {
+        all_adjectives: true,
+        ..
+    } = complement
+    else {
+        return None;
+    };
+    reduce_contracted_copular_features(
+        subject_auxiliary,
+        complement,
+        RelativeCopularClass::CoordinatedAdjective,
+    )
+}
+
 fn reduce_contracted_copular_prepositional_features(
     subject_auxiliary: &Features,
     complement: &Features,
@@ -901,6 +922,17 @@ deckmaste_constructions_macro::constructions! {
         selection unique;
     }
 
+    construction relative_contracted_copular_coordinated_adjective: RelativeClause {
+        bind RelativeClause via make_relative_contracted_copular_coordinated_adjective, relative_contracted_copular_coordinated_adjective_parts {
+            subject_auxiliary: identity ContractedSubjectAuxiliary via SubjectAuxiliary,
+            complement: hole CoordinatedAdjectivePhrase,
+        }
+        derive features: Features = reduce_contracted_copular_coordinated_adjective_features(subject_auxiliary, complement);
+        evidence feature "decisive relative form signature" from output relative_signature;
+        form only @ 0 inverse check(is_relative_contracted_copular_coordinated_adjective) = identity(subject_auxiliary) complement;
+        selection unique;
+    }
+
     construction relative_contracted_copular_prepositional: RelativeClause {
         bind RelativeClause via make_relative_contracted_copular_prepositional, relative_contracted_copular_prepositional_parts {
             subject_auxiliary: identity ContractedSubjectAuxiliary via SubjectAuxiliary,
@@ -924,118 +956,6 @@ fn require_selected(
             "the supplied parts select exactly this relative construction",
         )
     })
-}
-
-fn require_projection(
-    construction: &'static str,
-    value: &RelativeClause,
-    selected: impl FnOnce(&RelativeClause) -> bool,
-) -> Result<(), DeclarationViolation> {
-    selected(value).then_some(()).ok_or_else(|| {
-        violation(
-            construction,
-            "the sealed value selects this relative construction",
-        )
-    })
-}
-
-pub(crate) fn checked_parts_relative_object(
-    value: &RelativeClause,
-) -> Result<(NounPhrase, ObjectGapPredicate), DeclarationViolation> {
-    require_projection("relative_object", value, is_relative_object)?;
-    Ok(parts_relative_object(value))
-}
-
-pub(crate) fn checked_parts_relative_object_contracted_subject(
-    value: &RelativeClause,
-) -> Result<(ContractedSubjectAuxiliary, ObjectGapPredicate), DeclarationViolation> {
-    require_projection(
-        "relative_object_contracted_subject",
-        value,
-        is_relative_object_contracted_subject,
-    )?;
-    Ok(parts_relative_object_contracted_subject(value))
-}
-
-pub(crate) fn checked_parts_relative_subject_contracted_auxiliary(
-    value: &RelativeClause,
-) -> Result<(ContractedSubjectAuxiliary, Predicate), DeclarationViolation> {
-    require_projection(
-        "relative_subject_contracted_auxiliary",
-        value,
-        is_relative_subject_contracted_auxiliary,
-    )?;
-    Ok(parts_relative_subject_contracted_auxiliary(value))
-}
-
-pub(crate) fn checked_parts_relative_subject(
-    value: &RelativeClause,
-) -> Result<(RelativeMarker, Predicate), DeclarationViolation> {
-    require_projection("relative_subject", value, is_relative_subject)?;
-    Ok(parts_relative_subject(value))
-}
-
-pub(crate) fn checked_parts_relative_subject_distributive_each(
-    value: &RelativeClause,
-) -> Result<(RelativeMarker, Predicate), DeclarationViolation> {
-    require_projection(
-        "relative_subject_distributive_each",
-        value,
-        is_relative_subject_distributive_each,
-    )?;
-    Ok(parts_relative_subject_distributive_each(value))
-}
-
-macro_rules! checked_contracted_copular_parts {
-    ($checked:ident, $parts:ident, $is:ident, $ty:ty, $id:literal) => {
-        pub(crate) fn $checked(
-            value: &RelativeClause,
-        ) -> Result<(ContractedSubjectAuxiliary, $ty), DeclarationViolation> {
-            require_projection($id, value, $is)?;
-            Ok($parts(value))
-        }
-    };
-}
-
-checked_contracted_copular_parts!(
-    checked_parts_relative_contracted_copular_noun,
-    parts_relative_contracted_copular_noun,
-    is_relative_contracted_copular_noun,
-    NounPhrase,
-    "relative_contracted_copular_noun"
-);
-checked_contracted_copular_parts!(
-    checked_parts_relative_contracted_copular_adjective,
-    parts_relative_contracted_copular_adjective,
-    is_relative_contracted_copular_adjective,
-    AdjectivePhrase,
-    "relative_contracted_copular_adjective"
-);
-checked_contracted_copular_parts!(
-    checked_parts_relative_contracted_copular_prepositional,
-    parts_relative_contracted_copular_prepositional,
-    is_relative_contracted_copular_prepositional,
-    PrepositionalPhrase,
-    "relative_contracted_copular_prepositional"
-);
-
-pub(crate) fn checked_parts_relative_contracted_copular_coordinated_adjective(
-    value: &RelativeClause,
-) -> Result<(ContractedSubjectAuxiliary, CoordinatedAdjectivePhrase), DeclarationViolation> {
-    require_projection(
-        "relative_contracted_copular_coordinated_adjective",
-        value,
-        |value| {
-            is_contracted_copular(value)
-                && matches!(
-                    contracted_copular_parts(value).1,
-                    CopularComplement::CoordinatedAdjective(_)
-                )
-        },
-    )?;
-    Ok(parts_relative_contracted_copular_coordinated_adjective(
-        value,
-    ))
 }
 
 fn public_predicate_features(predicate: &Predicate) -> Result<Features, DeclarationViolation> {
@@ -1338,7 +1258,7 @@ pub(crate) fn checked_build_relative_contracted_copular_coordinated_adjective(
         "relative_contracted_copular_coordinated_adjective",
         subject_auxiliary.auxiliary,
     )?;
-    crate::grammar::reduce_relative_contracted_copular_coordinated_adjective_features(
+    reduce_contracted_copular_coordinated_adjective_features(
         &contracted_that_features(subject_auxiliary.auxiliary),
         &Features::CoordinatedModifier {
             initial_sound: crate::word::InitialSound::Consonant,

@@ -43,6 +43,7 @@ use crate::syntax::Predicate;
 use crate::syntax::PredicateAdjunct;
 use crate::syntax::PredicateComplement;
 use crate::syntax::PredicateElement;
+use crate::syntax::PredicateExpression;
 use crate::syntax::PredicateHead;
 use crate::syntax::PredicateObject;
 use crate::syntax::PredicateObjectCoordination;
@@ -252,7 +253,7 @@ pub fn finish_predicate(predicate: PredicateBuilder) -> Result<Predicate, Declar
         None => Ok(predicate),
         Some(modal) => Ok(Predicate::Deontic(DeonticPredicate {
             modal,
-            inner: (!elided).then(|| Box::new(predicate)),
+            inner: (!elided).then(|| Box::new(PredicateExpression::Simple(predicate))),
         })),
     }
 }
@@ -675,10 +676,11 @@ pub(crate) fn inverse_public_predicate(
         }
         Predicate::Proform(predicate) => Ok(VerbPhrase::declaration_proform(predicate.auxiliary)),
         Predicate::Deontic(predicate) => {
-            let inner = predicate.inner.as_deref().map_or_else(
-                || Ok(VerbPhrase::declaration_elided_proform()),
-                inverse_public_predicate,
-            )?;
+            let inner = match predicate.inner.as_deref() {
+                None => VerbPhrase::declaration_elided_proform(),
+                Some(PredicateExpression::Simple(inner)) => inverse_public_predicate(inner)?,
+                Some(PredicateExpression::Coordinated(_)) => return Err(invalid()),
+            };
             Ok(VerbPhrase::declaration_with_auxiliary(
                 inner,
                 predicate.modal.auxiliary,
@@ -6171,12 +6173,14 @@ mod tests {
         )
         .expect("an ordered lens preserves the object before the temporal dependent");
         let sentence = parsed.sentence().expect("the generated parse lowers");
-        let crate::syntax::SentenceBody::Independent(crate::syntax::IndependentClause::Imperative(
-            crate::syntax::Predicate::Transitive(predicate),
-        )) = &sentence.body
+        let crate::syntax::SentenceBody::Independent(clause) = &sentence.body else {
+            panic!("expected an independent clause: {sentence:#?}")
+        };
+        let Some(crate::syntax::Predicate::Transitive(predicate)) = clause.simple_predicate()
         else {
             panic!("expected an imperative transitive predicate: {sentence:#?}")
         };
+        assert!(clause.subject().is_none());
         assert!(matches!(
             predicate.object(),
             crate::syntax::PredicateObject::NounPhrase(_)
@@ -6535,18 +6539,20 @@ mod tests {
             decision.selected().as_str() == "verb_phrase_causative"
                 && decision.owner() == crate::construction::ConstructionOwner::Generated
         }));
-        let crate::syntax::SentenceBody::Independent(crate::syntax::IndependentClause::Deontic(
-            _,
-            _,
-            Some(predicate),
-        )) = &parsed
+        let crate::syntax::SentenceBody::Independent(clause) = &parsed
             .sentence()
             .expect("the vertical root lowers a semantic sentence")
             .body
         else {
             panic!("expected the causative sentence's semantic deontic AST")
         };
-        let crate::syntax::Predicate::Transitive(predicate) = predicate else {
+        let Some(crate::syntax::Predicate::Deontic(deontic)) = clause.simple_predicate() else {
+            panic!("expected the causative sentence's semantic deontic AST")
+        };
+        let Some(crate::syntax::PredicateExpression::Simple(crate::syntax::Predicate::Transitive(
+            predicate,
+        ))) = deontic.inner()
+        else {
             panic!("the causative host retains its direct-object causee")
         };
         assert!(matches!(

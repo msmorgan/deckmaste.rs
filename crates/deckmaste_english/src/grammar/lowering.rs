@@ -1415,11 +1415,7 @@ pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
         | RuleTag::ClauseCoordinationCopularNounPrepositional
         | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
         | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic
-        | RuleTag::VerbPhraseCoordinatedAdjective
-        | RuleTag::CopularRemainderCoordinatedAdjective
-        | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
-            clause::lower_clause(tag, children)
-        }
+        | RuleTag::VerbPhraseCoordinatedAdjective => clause::lower_clause(tag, children),
     }
 }
 

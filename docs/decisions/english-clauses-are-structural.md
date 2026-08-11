@@ -5,8 +5,8 @@
 `deckmaste_english` parses Oracle text into strict grammatical clause and
 predicate shapes before any translation into Magic semantics or runnable card
 RON. Clause dependency, clause form, predicate valency, voice, modality, and
-attachment scope remain explicit rather than being inferred later from a
-generic subject plus a list of verb dependents.
+attachment scope remain explicit rather than being inferred later from Rust
+storage layout or an untyped list of verb dependents.
 
 The English parser accepts syntactically valid combinations even when they are
 meaningless as Magic rules or unsupported by semantic lowering. For example,
@@ -24,41 +24,35 @@ pub enum Clause {
 }
 ~~~
 
-Independent clauses expose their construction directly:
+Independent clauses expose four semantic owners. Ordinary finite clauses use
+one canonical subject/predicate-expression representation:
 
 ~~~rust
 pub enum IndependentClause {
-    Transitive(Subject, TransitivePredicate),
-    Intransitive(Subject, IntransitivePredicate),
-    Copular(Subject, CopularPredicate),
-    Imperative(Predicate),
-    Deontic(Subject, Modal, Predicate),
-    Existential(ExistentialForm, NounPhrase),
-    Proform(Subject, ProPredicate),
+    Finite(FiniteClause),
+    Existential(ExistentialClause),
     Complex(ComplexClause),
     Coordinated(CoordinatedIndependentClause),
 }
+
+pub struct FiniteClause {
+    subject: Option<Subject>,
+    predicate: PredicateExpression,
+}
+
+pub enum PredicateExpression {
+    Simple(Predicate),
+    Coordinated(Coordination<PredicateExpression>),
+}
 ~~~
 
-The exact payload structs may gain corpus-motivated fields, but these
-distinctions do not collapse back into `subject: Option<_>` or an unrestricted
-dependent list. An imperative has an implicit second-person subject. A deontic
-clause owns its overt subject and modal while its predicate is in the selected
-bare form. Thus `You may draw a card` has the conceptual shape:
-
-~~~rust
-IndependentClause::Deontic(
-    Subject::You,
-    Modal::May,
-    Predicate::Transitive(TransitivePredicate {
-        verb: Verb::Draw,
-        object: NounPhrase::Indefinite(
-            IndefiniteArticle::A,
-            NounInstance::Singular(Noun::Word(Vocab::Card)),
-        ),
-    }),
-)
-~~~
+`FiniteClause::subject` is `None` for a subjectless imperative and `Some` for
+an overt grammatical subject. Valency and voice live in the simple predicate;
+shared-subject coordination lives in the recursive predicate expression. A
+modal is likewise a predicate-layer scope rather than a parallel finite-clause
+variant. Thus `You may draw a card` is one finite clause whose subject is
+`you` and whose simple predicate is a deontic predicate governing a transitive
+`draw` predicate.
 
 An existential is not a subjectless ordinary verb phrase. It owns the
 existential surface form and its pivot noun phrase. `There is`, `there's`, and
@@ -76,16 +70,20 @@ pub enum Predicate {
     Copular(CopularPredicate),
     Passive(PassivePredicate),
     Proform(ProPredicate),
+    Deontic(DeonticPredicate),
+    Attached(AttachedPredicate),
 }
 ~~~
 
-The same payload structs are reused by direct independent-clause variants and
-by wrappers such as `Imperative` and `Deontic`; their internal representation
-is not duplicated. A transitive predicate requires a direct object. An
-intransitive predicate cannot acquire one through generic dependent recovery.
-A copular complement is distinct from a direct object. Passive voice promotes
-the patient to clause subject and does not masquerade as either an intransitive
-verb or a copular participial adjective.
+The finite owner does not duplicate these complement shapes. A transitive
+predicate requires a direct object. An intransitive predicate cannot acquire
+one through generic dependent recovery. A copular complement is distinct from
+a direct object. Passive voice promotes the patient to clause subject and does
+not masquerade as either an intransitive verb or a copular participial
+adjective. A deontic predicate holds its modal plus an optional recursively
+compositional predicate expression; absence represents verbal ellipsis. An
+attached predicate owns one locally scoped attachment edge whose scope ends
+before the next coordinated predicate member.
 
 A pro-predicate such as `do` in `if you do` remains explicit. It refers to an
 antecedent predicate without claiming that the elided predicate was transitive
@@ -105,11 +103,13 @@ pub enum DependentClause {
     Subordinate(Subordinator, SubordinateBody),
     Relative(RelativeClause),
     Infinitive(InfinitiveClause),
-    // Further forms require supported-corpus evidence.
+    Gerund(GerundClause),
 }
 
 pub enum SubordinateBody {
     Finite(Box<IndependentClause>),
+    Infinitive(InfinitiveClause),
+    Gerund(GerundClause),
     Elliptical(EllipticalClause),
 }
 ~~~
@@ -123,17 +123,36 @@ A dependent clause is never a sentence root by itself. Sentence grammar
 requires an independent clause, possibly a complex one that owns dependent
 attachments.
 
-A complex independent clause owns a matrix clause and one or more positioned
-dependent attachments. Dependents attach at the narrowest owning syntax node:
-clause-level conditions belong to the complex clause, predicate conditions
-belong to the predicate, and relative clauses belong to the noun phrase they
-modify. Position is retained for exact rendering, but a detached `scope` flag
-does not substitute for tree structure.
+A complex independent clause owns exactly one recursive attachment edge:
 
-Relative clauses record their relativizer, including a zero relativizer, and
-their gap. In `target permanent that opponent controls`, `that` is the
-demonstrative determiner of `opponent`; the relative clause has a zero
-relativizer and an object gap.
+~~~rust
+pub struct AttachmentScope<H> {
+    host: Box<H>,
+    attachment: Box<ClauseAttachment>,
+}
+
+pub struct ComplexClause {
+    scope: AttachmentScope<IndependentClause>,
+}
+
+pub struct AttachedPredicate {
+    scope: AttachmentScope<Predicate>,
+}
+~~~
+
+Wrapping another `ComplexClause` records which edge is outermost without a
+flat attachment vector or construction-history rule. The same edge topology
+at a predicate member keeps a trailing condition local when a following
+predicate shares the finite subject. Position and measured punctuation remain
+on the typed attachment for exact rendering. Relative clauses instead belong
+to the noun phrase they modify.
+
+A relative clause stores its relativizer, including a zero relativizer, and a
+typed body. Its gap is derived from whether that body is `SubjectGap` or
+`ObjectGap`; there is no duplicate gap field. In `target permanent that
+opponent controls`, `that` is the demonstrative determiner of `opponent`, so
+the relative clause has a zero relativizer and its object-gap body determines
+the gap.
 
 ## Magic-aware boundaries
 

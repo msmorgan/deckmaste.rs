@@ -16,13 +16,21 @@ use deckmaste_english::ParseReport;
 use deckmaste_english::SelectionReason;
 use deckmaste_english::parse_with_identity;
 use deckmaste_english::syntax::AbilityKind;
+use deckmaste_english::syntax::ClauseAttachment;
+use deckmaste_english::syntax::ClauseAttachmentKind;
+use deckmaste_english::syntax::CoordinatedClauseMember;
+use deckmaste_english::syntax::DependentClause;
+use deckmaste_english::syntax::GerundClause;
+use deckmaste_english::syntax::GerundClauseKind;
 use deckmaste_english::syntax::IndependentClause;
 use deckmaste_english::syntax::Predicate;
 use deckmaste_english::syntax::PredicateAdjunct;
 use deckmaste_english::syntax::PredicateComplement;
 use deckmaste_english::syntax::PredicateElement;
 use deckmaste_english::syntax::PredicateExpression;
+use deckmaste_english::syntax::RelativeBody;
 use deckmaste_english::syntax::SentenceBody;
+use deckmaste_english::syntax::SubordinateBody;
 
 use super::data::CardFace;
 use super::data::OracleDataArgs;
@@ -200,37 +208,91 @@ fn write_p02_attachment_evidence(mut writer: impl Write, report: &ParseReport) -
 
 fn collect_predicate_pp_roles(clause: &IndependentClause, roles: &mut BTreeSet<&'static str>) {
     match clause {
-        IndependentClause::Transitive(_, predicate) => {
-            collect_pp_element_roles(predicate.pre_object_elements(), roles);
-            collect_pp_element_roles(predicate.elements(), roles);
+        IndependentClause::Finite(finite) => {
+            collect_predicate_expression_roles(finite.predicate(), roles);
         }
-        IndependentClause::Intransitive(_, predicate) => {
-            collect_pp_element_roles(predicate.elements(), roles);
+        IndependentClause::Existential(_) => {}
+        IndependentClause::Complex(complex) => {
+            collect_predicate_pp_roles(complex.host(), roles);
+            collect_clause_attachment_pp_roles(complex.attachment(), roles);
         }
-        IndependentClause::Passive(_, predicate) => {
-            collect_pp_element_roles(predicate.elements(), roles);
-        }
-        IndependentClause::Imperative(predicate) => collect_predicate_roles(predicate, roles),
-        IndependentClause::Predicated(_, expression) => {
-            collect_predicate_expression_roles(expression, roles);
-        }
-        IndependentClause::Deontic(_, _, Some(predicate)) => {
-            collect_predicate_roles(predicate, roles);
-        }
-        IndependentClause::Copular(_, predicate) => {
-            if matches!(
-                predicate.complement(),
-                deckmaste_english::syntax::CopularComplement::Prepositional(_)
-            ) {
-                roles.insert("selected-complement");
+        IndependentClause::Coordinated(coordinated) => {
+            collect_predicate_pp_roles(coordinated.first.as_ref(), roles);
+            for coordination in &coordinated.rest {
+                match &coordination.member {
+                    CoordinatedClauseMember::Independent(clause) => {
+                        collect_predicate_pp_roles(clause, roles);
+                    }
+                }
             }
-            collect_pp_adjunct_roles(predicate.adjuncts(), roles);
         }
-        IndependentClause::Deontic(_, _, None)
-        | IndependentClause::Existential(_)
-        | IndependentClause::Proform(_, _)
-        | IndependentClause::Complex(_)
-        | IndependentClause::Coordinated(_) => {}
+    }
+}
+
+fn collect_clause_attachment_pp_roles(
+    attachment: &ClauseAttachment,
+    roles: &mut BTreeSet<&'static str>,
+) {
+    match attachment.payload() {
+        ClauseAttachmentKind::Dependent(clause) => {
+            collect_dependent_clause_pp_roles(clause, roles);
+        }
+        ClauseAttachmentKind::Adjunct(adjunct) => {
+            collect_predicate_adjunct_pp_roles(adjunct, roles);
+        }
+        ClauseAttachmentKind::Exception(rider) => {
+            collect_predicate_pp_roles(rider.first(), roles);
+            for conjunct in rider.rest() {
+                collect_predicate_pp_roles(conjunct.clause(), roles);
+            }
+        }
+        ClauseAttachmentKind::Restriction(run) => {
+            for adjunct in run.first().adjuncts() {
+                collect_predicate_adjunct_pp_roles(adjunct, roles);
+            }
+            for coordination in run.rest() {
+                for adjunct in coordination.member().adjuncts() {
+                    collect_predicate_adjunct_pp_roles(adjunct, roles);
+                }
+            }
+        }
+        ClauseAttachmentKind::Appositive(clause) => collect_predicate_pp_roles(clause, roles),
+    }
+}
+
+fn collect_dependent_clause_pp_roles(clause: &DependentClause, roles: &mut BTreeSet<&'static str>) {
+    match clause {
+        DependentClause::Subordinate(_, body) => match body {
+            SubordinateBody::Finite(clause) => collect_predicate_pp_roles(clause, roles),
+            SubordinateBody::Infinitive(clause) => {
+                collect_predicate_roles(clause.predicate(), roles);
+            }
+            SubordinateBody::Gerund(clause) => collect_gerund_clause_pp_roles(clause, roles),
+            SubordinateBody::Elliptical(_) => {}
+        },
+        DependentClause::Relative(relative) => match relative.body() {
+            RelativeBody::SubjectGap(predicate) => collect_predicate_roles(predicate, roles),
+            RelativeBody::ObjectGap { predicate, .. } => {
+                collect_pp_element_roles(predicate.elements(), roles);
+            }
+        },
+        DependentClause::Infinitive(clause) => {
+            collect_predicate_roles(clause.predicate(), roles);
+        }
+        DependentClause::Gerund(clause) => collect_gerund_clause_pp_roles(clause, roles),
+    }
+}
+
+fn collect_gerund_clause_pp_roles(clause: &GerundClause, roles: &mut BTreeSet<&'static str>) {
+    match clause.kind() {
+        GerundClauseKind::Base { predicate } => collect_predicate_roles(predicate, roles),
+        GerundClauseKind::RatherThan {
+            matrix,
+            alternative,
+        } => {
+            collect_gerund_clause_pp_roles(matrix, roles);
+            collect_gerund_clause_pp_roles(alternative, roles);
+        }
     }
 }
 
@@ -267,10 +329,13 @@ fn collect_predicate_roles(predicate: &Predicate, roles: &mut BTreeSet<&'static 
         }
         Predicate::Deontic(predicate) => {
             if let Some(inner) = predicate.inner() {
-                collect_predicate_roles(inner, roles);
+                collect_predicate_expression_roles(inner, roles);
             }
         }
-        Predicate::Attached(predicate) => collect_predicate_roles(predicate.predicate(), roles),
+        Predicate::Attached(predicate) => {
+            collect_predicate_roles(predicate.predicate(), roles);
+            collect_clause_attachment_pp_roles(predicate.attachment(), roles);
+        }
         Predicate::Proform(_) => {}
     }
 }
@@ -281,13 +346,13 @@ fn collect_pp_element_roles(elements: &[PredicateElement], roles: &mut BTreeSet<
             PredicateElement::Complement(PredicateComplement::Prepositional(_)) => {
                 roles.insert("selected-complement");
             }
-            PredicateElement::Adjunct(
-                PredicateAdjunct::Prepositional(_) | PredicateAdjunct::Exception(_),
-            ) => {
-                roles.insert("adjunct");
+            PredicateElement::Complement(PredicateComplement::Infinitive(clause)) => {
+                collect_predicate_roles(clause.predicate(), roles);
+            }
+            PredicateElement::Adjunct(adjunct) => {
+                collect_predicate_adjunct_pp_roles(adjunct, roles);
             }
             PredicateElement::Complement(_)
-            | PredicateElement::Adjunct(_)
             | PredicateElement::Particle(_)
             | PredicateElement::CoinResult(_) => {}
         }
@@ -295,13 +360,25 @@ fn collect_pp_element_roles(elements: &[PredicateElement], roles: &mut BTreeSet<
 }
 
 fn collect_pp_adjunct_roles(adjuncts: &[PredicateAdjunct], roles: &mut BTreeSet<&'static str>) {
-    if adjuncts.iter().any(|adjunct| {
-        matches!(
-            adjunct,
-            PredicateAdjunct::Prepositional(_) | PredicateAdjunct::Exception(_)
-        )
-    }) {
-        roles.insert("adjunct");
+    for adjunct in adjuncts {
+        collect_predicate_adjunct_pp_roles(adjunct, roles);
+    }
+}
+
+fn collect_predicate_adjunct_pp_roles(
+    adjunct: &PredicateAdjunct,
+    roles: &mut BTreeSet<&'static str>,
+) {
+    match adjunct {
+        PredicateAdjunct::Prepositional(_) | PredicateAdjunct::Exception(_) => {
+            roles.insert("adjunct");
+        }
+        PredicateAdjunct::Dependent(clause) => collect_dependent_clause_pp_roles(clause, roles),
+        PredicateAdjunct::Adverb(_)
+        | PredicateAdjunct::Frequency(_)
+        | PredicateAdjunct::Temporal(_)
+        | PredicateAdjunct::Manner(_)
+        | PredicateAdjunct::AbilityPostmodifier(_) => {}
     }
 }
 

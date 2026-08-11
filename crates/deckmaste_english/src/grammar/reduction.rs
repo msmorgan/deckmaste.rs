@@ -52,11 +52,7 @@ pub(super) fn reduce(
         | RuleTag::ClauseCoordinationCopularNounPrepositional
         | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
         | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic
-        | RuleTag::VerbPhraseCoordinatedAdjective
-        | RuleTag::CopularRemainderCoordinatedAdjective
-        | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
-            clause::reduce_clause(tag, children)?
-        }
+        | RuleTag::VerbPhraseCoordinatedAdjective => clause::reduce_clause(tag, children)?,
     };
     let local_cost = clause::reduction_cost(tag, children);
     Some(Reduction {

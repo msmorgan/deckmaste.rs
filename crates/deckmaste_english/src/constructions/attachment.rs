@@ -61,21 +61,10 @@ fn with_attachment(
     host: Clause,
     attachment: ClauseAttachment,
 ) -> Result<Clause, DeclarationViolation> {
-    let matrix = independent(construction, host)?;
-    let matrix = match matrix {
-        IndependentClause::Complex(mut complex) => {
-            match attachment.position {
-                AttachmentPosition::BeforeMatrix => complex.attachments.insert(0, attachment),
-                AttachmentPosition::AfterMatrix => complex.attachments.push(attachment),
-            }
-            IndependentClause::Complex(complex)
-        }
-        matrix => IndependentClause::Complex(ComplexClause::from_declaration_parts(
-            matrix,
-            vec![attachment],
-        )),
-    };
-    Ok(Clause::Independent(matrix))
+    let host = independent(construction, host)?;
+    Ok(Clause::Independent(IndependentClause::Complex(
+        ComplexClause::from_declaration_parts(host, attachment),
+    )))
 }
 
 fn remove_attachment(
@@ -86,36 +75,14 @@ fn remove_attachment(
     let Clause::Independent(IndependentClause::Complex(complex)) = value else {
         return None;
     };
-    if position == AttachmentPosition::BeforeMatrix
-        && complex
-            .attachments
-            .last()
-            .is_some_and(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
-    {
-        // A trailing attachment is the outermost surface operation. Selecting
-        // it first leaves the fronted prefix on the recursively rendered host
-        // and makes inverse construction choice unique for flat attachment
-        // lists containing both positions.
+    let attachment = complex.attachment();
+    if attachment.position() != position || !predicate(attachment.payload()) {
         return None;
     }
-    let index = match position {
-        AttachmentPosition::BeforeMatrix => 0,
-        AttachmentPosition::AfterMatrix => complex.attachments.len().checked_sub(1)?,
-    };
-    let attachment = complex.attachments.get(index)?;
-    if attachment.position != position || !predicate(&attachment.payload) {
-        return None;
-    }
-    let mut attachments = complex.attachments.clone();
-    let attachment = attachments.remove(index);
-    let host = if attachments.is_empty() {
-        Clause::Independent(complex.matrix.as_ref().clone())
-    } else {
-        Clause::Independent(IndependentClause::Complex(
-            ComplexClause::from_declaration_parts(complex.matrix.as_ref().clone(), attachments),
-        ))
-    };
-    Some((host, attachment))
+    Some((
+        Clause::Independent(complex.host().clone()),
+        attachment.clone(),
+    ))
 }
 
 fn clause_features(features: &Features) -> Option<Features> {
@@ -1088,11 +1055,13 @@ fn restriction_run(value: &Clause) -> Option<&RestrictionRun> {
     let Clause::Independent(IndependentClause::Complex(complex)) = value else {
         return None;
     };
-    let attachment = complex.attachments.last()?;
-    if attachment.position != AttachmentPosition::AfterMatrix || attachment.comma != Comma::Absent {
+    let attachment = complex.attachment();
+    if attachment.position() != AttachmentPosition::AfterMatrix
+        || attachment.comma() != Comma::Absent
+    {
         return None;
     }
-    let ClauseAttachmentKind::Restriction(run) = &attachment.payload else {
+    let ClauseAttachmentKind::Restriction(run) = attachment.payload() else {
         return None;
     };
     Some(run)

@@ -266,6 +266,7 @@ mod tests {
     use deckmaste_english::syntax::IndependentClause;
     use deckmaste_english::syntax::NominalModifier;
     use deckmaste_english::syntax::Predicate;
+    use deckmaste_english::syntax::PredicateExpression;
     use deckmaste_english::syntax::PredicateObject;
     use deckmaste_english::syntax::SentenceBody;
     use deckmaste_english::word::Noun;
@@ -343,14 +344,19 @@ mod tests {
             let [sentence] = paragraph.sentences.as_slice() else {
                 panic!("expected one sentence: {paragraph:#?}");
             };
-            let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
-                predicate,
-            ))) = sentence.body()
+            let SentenceBody::Independent(IndependentClause::Finite(clause)) = sentence.body()
             else {
                 panic!(
                     "expected an imperative create clause: {:#?}",
                     sentence.body()
                 );
+            };
+            let None = clause.subject() else {
+                panic!("expected an implicit imperative subject: {clause:#?}");
+            };
+            let PredicateExpression::Simple(Predicate::Transitive(predicate)) = clause.predicate()
+            else {
+                panic!("expected a transitive create predicate: {clause:#?}");
             };
             let PredicateObject::NounPhrase(noun_phrase) = predicate.object() else {
                 panic!("expected a nominal object: {:#?}", predicate.object());

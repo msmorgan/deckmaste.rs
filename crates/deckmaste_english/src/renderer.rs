@@ -38,7 +38,7 @@ use crate::syntax::DependentClause;
 use crate::syntax::Determiner;
 use crate::syntax::EllipticalClause;
 use crate::syntax::ExceptionRider;
-use crate::syntax::ExistentialClause;
+use crate::syntax::FiniteClause;
 use crate::syntax::FrequencyBound;
 use crate::syntax::FrequencyCount;
 use crate::syntax::FrequencyPhrase;
@@ -932,8 +932,7 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
         let is_symbol = matches!(component, CostComponent::Symbols(_));
         let starts_action = matches!(
             component,
-            CostComponent::Clause(clause)
-                if matches!(clause.as_ref(), IndependentClause::Imperative(_))
+            CostComponent::Clause(clause) if independent_clause_is_imperative(clause)
         );
         let capitalize = starts_action || (!self.saw_lexical_component && !is_symbol);
         let text = self.renderer.cost_component(component)?;
@@ -1028,6 +1027,11 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                 value
                     .downcast_ref::<AdjectivePhrase>()
                     .expect("the R01 adjective hole preserves AdjectivePhrase"),
+            )?,
+            "CoordinatedAdjectivePhrase" => self.renderer.coordinated_adjective_phrase(
+                value
+                    .downcast_ref::<CoordinatedAdjectivePhrase>()
+                    .expect("the R01 coordinated-adjective hole preserves its typed phrase"),
             )?,
             "PrepositionalPhrase" => self.renderer.prepositional_phrase(
                 value
@@ -1552,6 +1556,11 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                 value
                     .downcast_ref::<AdjectivePhrase>()
                     .expect("the clause adjective hole preserves AdjectivePhrase"),
+            )?,
+            "CoordinatedAdjectivePhrase" => self.renderer.coordinated_adjective_phrase(
+                value
+                    .downcast_ref::<CoordinatedAdjectivePhrase>()
+                    .expect("the clause coordinated-adjective hole preserves its typed phrase"),
             )?,
             "PrepositionalPhrase" => self.renderer.prepositional_phrase(
                 value
@@ -3706,95 +3715,36 @@ impl<'identity> Renderer<'identity> {
                 unreachable!("generated attachment error is returned above")
             }
         }
-        let generated_eligible = !matches!(
-            clause,
-            IndependentClause::Copular(_, predicate)
-                if matches!(
-                    predicate.complement(),
-                    CopularComplement::CoordinatedAdjective(_)
-                        | CopularComplement::CatalogAtom(_)
-                )
+        let mut visitor = GeneratedClauseRenderer::new(
+            self,
+            independent_clause_quoted_ability_count(clause),
+            self.terminal_quote_is(independent_clause_terminal_quote(clause)),
         );
-        if generated_eligible {
-            let mut visitor = GeneratedClauseRenderer::new(
-                self,
-                independent_clause_quoted_ability_count(clause),
-                self.terminal_quote_is(independent_clause_terminal_quote(clause)),
-            );
-            match crate::constructions::clause::linearize_clause_clause_with(
-                &generated,
-                &mut visitor,
-            ) {
-                Ok(()) => return Ok(visitor.finish()),
-                Err(
-                    deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
-                        ..
-                    },
-                ) => {}
-                Err(error) => {
-                    GeneratedClauseRenderer::accept_generated(Err(error))?;
-                    unreachable!("generated clause error is returned above")
-                }
+        match crate::constructions::clause::linearize_clause_clause_with(
+            &generated,
+            &mut visitor,
+        ) {
+            Ok(()) => return Ok(visitor.finish()),
+            Err(
+                deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
+                    ..
+                },
+            ) => {}
+            Err(error) => {
+                GeneratedClauseRenderer::accept_generated(Err(error))?;
+                unreachable!("generated clause error is returned above")
             }
         }
         match clause {
-            IndependentClause::Transitive(subject, predicate) => {
-                let (subject, auxiliary_start) =
-                    self.subject_with_predicate_head(subject, predicate.head())?;
-                Ok(join_words(vec![
-                    subject,
-                    self.transitive_predicate_from(predicate, auxiliary_start)?,
-                ]))
+            IndependentClause::Finite(finite) => {
+                self.predicate_expression(finite.subject(), finite.predicate())
             }
-            IndependentClause::Intransitive(subject, predicate) => {
-                let (subject, auxiliary_start) =
-                    self.subject_with_predicate_head(subject, predicate.head())?;
-                Ok(join_words(vec![
-                    subject,
-                    self.intransitive_predicate_from(predicate, auxiliary_start)?,
-                ]))
-            }
-            IndependentClause::Copular(subject, predicate) => {
-                self.copular_clause(subject, predicate)
-            }
-            IndependentClause::Passive(subject, predicate) => {
-                let (subject, auxiliary_start) =
-                    self.subject_with_predicate_head(subject, predicate.head())?;
-                Ok(join_words(vec![
-                    subject,
-                    self.passive_predicate_from(predicate, auxiliary_start)?,
-                ]))
-            }
-            IndependentClause::Predicated(subject, predicate) => {
-                self.predicate_expression(subject.as_ref(), predicate)
-            }
-            IndependentClause::Imperative(predicate) => self.predicate(predicate),
-            IndependentClause::Deontic(subject, modal, predicate) => {
-                let publish_terminal_quote = self.terminal_quote_is(
-                    predicate
-                        .as_ref()
-                        .and_then(|predicate| predicate_terminal_quote(predicate)),
-                );
-                let predicate = crate::syntax::DeonticPredicate {
-                    modal: *modal,
-                    inner: predicate.clone().map(Box::new),
-                };
-                Ok(join_words(vec![
-                    self.subject(subject)?,
-                    self.deontic_predicate_from(&predicate, publish_terminal_quote)?,
-                ]))
-            }
-            IndependentClause::Existential(existential) => self.existential_clause(existential),
-            IndependentClause::Proform(subject, predicate) => {
-                let predicate = Predicate::Proform(*predicate);
-                Ok(join_words(vec![
-                    self.subject(subject)?,
-                    self.generated_predicate_from(&predicate, 0, false)?,
-                ]))
+            IndependentClause::Existential(_) => {
+                unreachable!("sealed existential clauses render through their F02 declaration")
             }
             IndependentClause::Complex(complex) => {
-                let matrix = self.independent_clause(&complex.matrix)?;
-                self.clause_with_attachments(&matrix, &complex.attachments)
+                let host = self.independent_clause(complex.host())?;
+                self.clause_with_attachment(&host, complex.attachment())
             }
             IndependentClause::Coordinated(coordinated) => {
                 let mut rendered = self.independent_clause(&coordinated.first)?;
@@ -3895,7 +3845,7 @@ impl<'identity> Renderer<'identity> {
                     return rendered;
                 }
                 let matrix = self.predicate_with_subject(subject, predicate.predicate())?;
-                self.clause_with_attachments(&matrix, predicate.attachments())
+                self.clause_with_attachment(&matrix, predicate.attachment())
             }
         }
     }
@@ -3904,34 +3854,17 @@ impl<'identity> Renderer<'identity> {
         self.noun_phrase(&subject.0)
     }
 
-    fn clause_with_attachments(
+    fn clause_with_attachment(
         &self,
         matrix: &str,
-        attachments: &[ClauseAttachment],
+        attachment: &ClauseAttachment,
     ) -> Result<String, RenderError> {
-        let mut rendered = String::new();
-        for attachment in attachments
-            .iter()
-            .filter(|attachment| attachment.position == AttachmentPosition::BeforeMatrix)
-        {
-            rendered.push_str(&self.clause_attachment(&attachment.payload)?);
-            if attachment.comma.is_present() {
-                rendered.push(',');
-            }
-            rendered.push(' ');
-        }
-        rendered.push_str(matrix);
-        for attachment in attachments
-            .iter()
-            .filter(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
-        {
-            if attachment.comma.is_present() {
-                rendered.push(',');
-            }
-            rendered.push(' ');
-            rendered.push_str(&self.clause_attachment(&attachment.payload)?);
-        }
-        Ok(rendered)
+        let payload = self.clause_attachment(attachment.payload())?;
+        let comma = if attachment.comma().is_present() { "," } else { "" };
+        Ok(match attachment.position() {
+            AttachmentPosition::BeforeMatrix => format!("{payload}{comma} {matrix}"),
+            AttachmentPosition::AfterMatrix => format!("{matrix}{comma} {payload}"),
+        })
     }
 
     fn clause_attachment(&self, attachment: &ClauseAttachmentKind) -> Result<String, RenderError> {
@@ -4007,7 +3940,7 @@ impl<'identity> Renderer<'identity> {
                     return rendered;
                 }
                 let matrix = self.predicate(predicate.predicate())?;
-                self.clause_with_attachments(&matrix, predicate.attachments())
+                self.clause_with_attachment(&matrix, predicate.attachment())
             }
         }
     }
@@ -4017,45 +3950,44 @@ impl<'identity> Renderer<'identity> {
         subject: Option<&Subject>,
         predicate: &crate::syntax::AttachedPredicate,
     ) -> Option<Result<String, RenderError>> {
-        predicate
-            .attachments()
-            .iter()
-            .any(|attachment| {
-                matches!(
-                    attachment.payload,
-                    ClauseAttachmentKind::Exception(_) | ClauseAttachmentKind::Restriction(_)
-                )
-            })
-            .then(|| {
-                // F04 may move a complete F03 attachment onto the first
-                // predicate of a shared-subject coordination. Reconstitute
-                // that scoped clause so its declaration remains the sole
-                // exception/restriction linearization owner.
-                let clause = IndependentClause::Complex(ComplexClause::from_declaration_parts(
-                    IndependentClause::Predicated(
-                        subject.cloned(),
-                        PredicateExpression::Simple(predicate.predicate().clone()),
-                    ),
-                    predicate.attachments().to_vec(),
-                ));
-                let publish = self.terminal_quote_is(attached_predicate_terminal_quote(predicate));
-                let previous = self.terminal_quote.get();
-                if publish {
-                    self.terminal_quote
-                        .set(independent_clause_terminal_quote(&clause).map(std::ptr::from_ref));
-                }
-                let rendered = self.independent_clause(&clause);
-                self.terminal_quote.set(previous);
-                rendered
-            })
+        (!matches!(
+            predicate.attachment().payload(),
+            ClauseAttachmentKind::Appositive(_)
+        ))
+        .then(|| {
+            // F04 may move a complete F03 attachment onto the first
+            // predicate of a shared-subject coordination. Reconstitute
+            // that scoped clause so its declaration remains the sole F03
+            // linearization owner. Dash appositives are ability-owned and
+            // intentionally retain the handwritten fallback below.
+            let clause = IndependentClause::Complex(ComplexClause::from_declaration_parts(
+                IndependentClause::Finite(FiniteClause::from_declaration_parts(
+                    subject.cloned(),
+                    PredicateExpression::Simple(predicate.predicate().clone()),
+                )),
+                predicate.attachment().clone(),
+            ));
+            let publish = self.terminal_quote_is(attached_predicate_terminal_quote(predicate));
+            let previous = self.terminal_quote.get();
+            if publish {
+                self.terminal_quote
+                    .set(independent_clause_terminal_quote(&clause).map(std::ptr::from_ref));
+            }
+            let rendered = self.independent_clause(&clause);
+            self.terminal_quote.set(previous);
+            rendered
+        })
     }
 
     fn deontic_predicate(
         &self,
         predicate: &crate::syntax::DeonticPredicate,
     ) -> Result<String, RenderError> {
-        let publish_terminal_quote =
-            self.terminal_quote_is(predicate.inner().and_then(predicate_terminal_quote));
+        let publish_terminal_quote = self.terminal_quote_is(
+            predicate
+                .inner()
+                .and_then(predicate_expression_terminal_quote),
+        );
         self.deontic_predicate_from(predicate, publish_terminal_quote)
     }
 
@@ -4064,10 +3996,19 @@ impl<'identity> Renderer<'identity> {
         predicate: &crate::syntax::DeonticPredicate,
         publish_terminal_quote: bool,
     ) -> Result<String, RenderError> {
-        if matches!(predicate.inner(), Some(Predicate::Copular(_))) {
+        if matches!(
+            predicate.inner(),
+            Some(
+                PredicateExpression::Simple(Predicate::Copular(_))
+                    | PredicateExpression::Coordinated(_)
+            )
+        ) {
             return Ok(join_words(vec![
                 self.render_auxiliary(predicate.modal().auxiliary())?,
-                self.predicate(predicate.inner().expect("copular inner is present"))?,
+                self.predicate_expression(
+                    None,
+                    predicate.inner().expect("checked inner is present"),
+                )?,
             ]));
         }
         self.generated_predicate_from(
@@ -4309,15 +4250,6 @@ impl<'identity> Renderer<'identity> {
         }
     }
 
-    fn existential_clause(&self, clause: &ExistentialClause) -> Result<String, RenderError> {
-        let opening = clause.form.spelling();
-        let mut parts = vec![opening.to_owned(), self.noun_phrase(&clause.pivot)?];
-        for adjunct in &clause.adjuncts {
-            parts.push(self.predicate_adjunct(adjunct)?);
-        }
-        Ok(join_words(parts))
-    }
-
     fn generated_elliptical_clause(
         &self,
         clause: &EllipticalClause,
@@ -4378,16 +4310,6 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn relative_clause(&self, clause: &RelativeClause) -> Result<String, RenderError> {
-        if let Ok((auxiliary, complement)) =
-            crate::clause::parts_relative_contracted_copular_coordinated_adjective(clause)
-        {
-            let mut marker = "that".to_owned();
-            marker.push_str(contraction_suffix(auxiliary)?);
-            return Ok(join_words(vec![
-                marker,
-                self.coordinated_adjective_phrase(&complement)?,
-            ]));
-        }
         let mut visitor = GeneratedRelativeRenderer::new(self);
         GeneratedRelativeRenderer::accept_generated(
             crate::constructions::relative::linearize_relative_relative_clause_with(
@@ -4964,17 +4886,21 @@ fn render_level_range(range: LevelRange) -> String {
 /// `this creature enchants a creature` clause (a real subject, real verb)
 /// taking its period.
 fn is_aura_enchant_line(clause: &IndependentClause) -> bool {
-    match clause {
-        IndependentClause::Imperative(predicate) => predicate_verb_is_enchant(predicate),
-        IndependentClause::Transitive(subject, _)
-        | IndependentClause::Intransitive(subject, _)
-        | IndependentClause::Copular(subject, _)
-        | IndependentClause::Passive(subject, _)
-        | IndependentClause::Proform(subject, _)
-        | IndependentClause::Deontic(subject, _, _)
-        | IndependentClause::Predicated(Some(subject), _) => subject_is_enchant_keyword(subject),
-        _ => false,
+    let IndependentClause::Finite(finite) = clause else {
+        return false;
+    };
+    match finite.subject() {
+        None => predicate_expression_verb_is_enchant(finite.predicate()),
+        Some(subject) => subject_is_enchant_keyword(subject),
     }
+}
+
+fn independent_clause_is_imperative(clause: &IndependentClause) -> bool {
+    matches!(clause, IndependentClause::Finite(finite) if finite.subject().is_none())
+}
+
+fn predicate_expression_verb_is_enchant(expression: &PredicateExpression) -> bool {
+    matches!(expression, PredicateExpression::Simple(predicate) if predicate_verb_is_enchant(predicate))
 }
 
 fn predicate_verb_is_enchant(predicate: &Predicate) -> bool {
@@ -5014,39 +4940,71 @@ fn subject_is_enchant_keyword(subject: &Subject) -> bool {
 /// constituent is a self-reference, else `None`. Used to suppress the derived
 /// period when the card's name already ends in terminal punctuation.
 fn independent_clause_final_self_reference(clause: &IndependentClause) -> Option<ThisCardForm> {
-    let predicate = match clause {
-        IndependentClause::Transitive(_, predicate)
-        | IndependentClause::Imperative(Predicate::Transitive(predicate))
-        | IndependentClause::Predicated(
-            _,
-            PredicateExpression::Simple(Predicate::Transitive(predicate)),
-        ) => predicate,
-        IndependentClause::Coordinated(coordination) => {
-            return match coordination.rest.last() {
-                Some(member) => match &member.member {
-                    CoordinatedClauseMember::Independent(clause) => {
+    match clause {
+        IndependentClause::Finite(finite) => {
+            predicate_expression_final_self_reference(finite.predicate())
+        }
+        IndependentClause::Coordinated(coordination) => match coordination.rest.last() {
+            Some(member) => match &member.member {
+                CoordinatedClauseMember::Independent(clause) => {
+                    independent_clause_final_self_reference(clause)
+                }
+            },
+            None => independent_clause_final_self_reference(&coordination.first),
+        },
+        IndependentClause::Complex(complex) => {
+            let attachment = complex.attachment();
+            if attachment.position() == AttachmentPosition::AfterMatrix {
+                match attachment.payload() {
+                    ClauseAttachmentKind::Appositive(clause) => {
                         independent_clause_final_self_reference(clause)
                     }
-                },
-                None => independent_clause_final_self_reference(&coordination.first),
-            };
+                    _ => None,
+                }
+            } else {
+                independent_clause_final_self_reference(complex.host())
+            }
         }
-        IndependentClause::Complex(complex) => {
-            return match complex
-                .attachments
-                .iter()
-                .rev()
-                .find(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
-            {
-                Some(ClauseAttachment {
-                    payload: ClauseAttachmentKind::Appositive(clause),
-                    ..
-                }) => independent_clause_final_self_reference(clause),
-                Some(_) => None,
-                None => independent_clause_final_self_reference(&complex.matrix),
-            };
+        IndependentClause::Existential(_) => None,
+    }
+}
+
+fn predicate_expression_final_self_reference(
+    expression: &PredicateExpression,
+) -> Option<ThisCardForm> {
+    match expression {
+        PredicateExpression::Simple(predicate) => predicate_final_self_reference(predicate),
+        PredicateExpression::Coordinated(coordination) => coordination
+            .conjuncts()
+            .last()
+            .and_then(predicate_expression_final_self_reference),
+    }
+}
+
+fn predicate_final_self_reference(predicate: &Predicate) -> Option<ThisCardForm> {
+    let predicate = match predicate {
+        Predicate::Transitive(predicate) => predicate,
+        Predicate::Deontic(predicate) => {
+            return predicate
+                .inner()
+                .and_then(predicate_expression_final_self_reference);
         }
-        _ => return None,
+        Predicate::Attached(attached) => {
+            let attachment = attached.attachment();
+            if attachment.position() == AttachmentPosition::AfterMatrix {
+                return match attachment.payload() {
+                    ClauseAttachmentKind::Appositive(clause) => {
+                        independent_clause_final_self_reference(clause)
+                    }
+                    _ => None,
+                };
+            }
+            return predicate_final_self_reference(attached.predicate());
+        }
+        Predicate::Intransitive(_)
+        | Predicate::Copular(_)
+        | Predicate::Passive(_)
+        | Predicate::Proform(_) => return None,
     };
     if !predicate.elements().is_empty() {
         return None;
@@ -5092,52 +5050,23 @@ pub(crate) fn sentence_has_structural_terminator(sentence: &Sentence) -> bool {
 /// that recognizes itself in it keeps its interior period.
 fn independent_clause_terminal_quote(clause: &IndependentClause) -> Option<&QuotedAbility> {
     match clause {
-        IndependentClause::Transitive(_, predicate) => transitive_terminal_quote(predicate),
-        IndependentClause::Intransitive(_, predicate) => {
-            last_element_terminal_quote(predicate.elements())
+        IndependentClause::Finite(finite) => {
+            predicate_expression_terminal_quote(finite.predicate())
         }
-        IndependentClause::Passive(_, predicate) => passive_terminal_quote(predicate),
-        IndependentClause::Copular(_, predicate) => copular_terminal_quote(predicate),
-        IndependentClause::Predicated(_, expression) => {
-            predicate_expression_terminal_quote(expression)
-        }
-        IndependentClause::Imperative(predicate)
-        | IndependentClause::Deontic(_, _, Some(predicate)) => predicate_terminal_quote(predicate),
         IndependentClause::Coordinated(clause) => coordinated_terminal_quote(clause),
         IndependentClause::Complex(clause) => complex_terminal_quote(clause),
-        IndependentClause::Existential(_)
-        | IndependentClause::Proform(..)
-        | IndependentClause::Deontic(_, _, None) => None,
+        IndependentClause::Existential(_) => None,
     }
 }
 
 fn independent_clause_quoted_ability_count(clause: &IndependentClause) -> usize {
     match clause {
-        IndependentClause::Transitive(_, predicate) => {
-            transitive_predicate_quoted_ability_count(predicate)
-        }
-        IndependentClause::Intransitive(_, predicate) => predicate
-            .elements()
-            .iter()
-            .map(predicate_element_quoted_ability_count)
-            .sum(),
-        IndependentClause::Passive(_, predicate) => {
-            passive_predicate_quoted_ability_count(predicate)
-        }
-        IndependentClause::Imperative(predicate)
-        | IndependentClause::Deontic(_, _, Some(predicate)) => {
-            predicate_quoted_ability_count(predicate)
-        }
-        IndependentClause::Predicated(_, expression) => {
-            predicate_expression_quoted_ability_count(expression)
+        IndependentClause::Finite(finite) => {
+            predicate_expression_quoted_ability_count(finite.predicate())
         }
         IndependentClause::Complex(value) => {
-            independent_clause_quoted_ability_count(&value.matrix)
-                + value
-                    .attachments
-                    .iter()
-                    .map(clause_attachment_quoted_ability_count)
-                    .sum::<usize>()
+            independent_clause_quoted_ability_count(value.host())
+                + clause_attachment_quoted_ability_count(value.attachment())
         }
         IndependentClause::Coordinated(value) => {
             independent_clause_quoted_ability_count(&value.first)
@@ -5151,10 +5080,7 @@ fn independent_clause_quoted_ability_count(clause: &IndependentClause) -> usize 
                     })
                     .sum::<usize>()
         }
-        IndependentClause::Copular(..)
-        | IndependentClause::Existential(_)
-        | IndependentClause::Proform(..)
-        | IndependentClause::Deontic(_, _, None) => 0,
+        IndependentClause::Existential(_) => 0,
     }
 }
 
@@ -5178,23 +5104,23 @@ fn generated_verb_phrase_quoted_ability_count(value: &GeneratedVerbPhrase) -> us
 }
 
 fn clause_attachment_quoted_ability_count(attachment: &ClauseAttachment) -> usize {
-    match &attachment.payload {
+    match attachment.payload() {
         ClauseAttachmentKind::Dependent(clause) => dependent_clause_quoted_ability_count(clause),
         ClauseAttachmentKind::Adjunct(adjunct) => predicate_adjunct_quoted_ability_count(adjunct),
         ClauseAttachmentKind::Exception(rider) => {
-            independent_clause_quoted_ability_count(&rider.first)
+            independent_clause_quoted_ability_count(rider.first())
                 + rider
-                    .rest
+                    .rest()
                     .iter()
-                    .map(|member| independent_clause_quoted_ability_count(&member.clause))
+                    .map(|member| independent_clause_quoted_ability_count(member.clause()))
                     .sum::<usize>()
         }
         ClauseAttachmentKind::Restriction(run) => {
-            restriction_member_quoted_ability_count(&run.first)
+            restriction_member_quoted_ability_count(run.first())
                 + run
-                    .rest
+                    .rest()
                     .iter()
-                    .map(|member| restriction_member_quoted_ability_count(&member.member))
+                    .map(|member| restriction_member_quoted_ability_count(member.member()))
                     .sum::<usize>()
         }
         ClauseAttachmentKind::Appositive(clause) => independent_clause_quoted_ability_count(clause),
@@ -5290,7 +5216,9 @@ fn predicate_terminal_quote(predicate: &Predicate) -> Option<&QuotedAbility> {
         Predicate::Passive(predicate) => passive_terminal_quote(predicate),
         Predicate::Copular(predicate) => copular_terminal_quote(predicate),
         Predicate::Proform(_) => None,
-        Predicate::Deontic(predicate) => predicate.inner().and_then(predicate_terminal_quote),
+        Predicate::Deontic(predicate) => predicate
+            .inner()
+            .and_then(predicate_expression_terminal_quote),
         Predicate::Attached(predicate) => attached_predicate_terminal_quote(predicate),
     }
 }
@@ -5304,16 +5232,12 @@ fn predicate_quoted_ability_count(predicate: &Predicate) -> usize {
             .map(predicate_element_quoted_ability_count)
             .sum(),
         Predicate::Passive(predicate) => passive_predicate_quoted_ability_count(predicate),
-        Predicate::Deontic(predicate) => {
-            predicate.inner().map_or(0, predicate_quoted_ability_count)
-        }
+        Predicate::Deontic(predicate) => predicate
+            .inner()
+            .map_or(0, predicate_expression_quoted_ability_count),
         Predicate::Attached(predicate) => {
             predicate_quoted_ability_count(predicate.predicate())
-                + predicate
-                    .attachments()
-                    .iter()
-                    .map(clause_attachment_quoted_ability_count)
-                    .sum::<usize>()
+                + clause_attachment_quoted_ability_count(predicate.attachment())
         }
         Predicate::Copular(_) | Predicate::Proform(_) => 0,
     }
@@ -5380,14 +5304,10 @@ fn predicate_object_quoted_ability_count(object: &PredicateObject) -> usize {
 fn attached_predicate_terminal_quote(
     predicate: &crate::syntax::AttachedPredicate,
 ) -> Option<&QuotedAbility> {
-    match predicate
-        .attachments()
-        .iter()
-        .rev()
-        .find(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
-    {
-        Some(attachment) => clause_attachment_terminal_quote(attachment),
-        None => predicate_terminal_quote(predicate.predicate()),
+    let attachment = predicate.attachment();
+    match attachment.position() {
+        AttachmentPosition::AfterMatrix => clause_attachment_terminal_quote(attachment),
+        AttachmentPosition::BeforeMatrix => predicate_terminal_quote(predicate.predicate()),
     }
 }
 
@@ -5434,32 +5354,32 @@ fn coordinated_terminal_quote(clause: &CoordinatedIndependentClause) -> Option<&
 /// A complex clause renders its after-matrix attachments after the matrix, so
 /// the tail is the last such attachment when present, and the matrix otherwise.
 fn complex_terminal_quote(clause: &ComplexClause) -> Option<&QuotedAbility> {
-    match clause
-        .attachments
-        .iter()
-        .rev()
-        .find(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
-    {
-        Some(attachment) => clause_attachment_terminal_quote(attachment),
-        None => independent_clause_terminal_quote(&clause.matrix),
+    let attachment = clause.attachment();
+    match attachment.position() {
+        AttachmentPosition::AfterMatrix => clause_attachment_terminal_quote(attachment),
+        AttachmentPosition::BeforeMatrix => independent_clause_terminal_quote(clause.host()),
     }
 }
 
 fn clause_attachment_terminal_quote(attachment: &ClauseAttachment) -> Option<&QuotedAbility> {
-    match &attachment.payload {
+    match attachment.payload() {
         ClauseAttachmentKind::Adjunct(adjunct) => adjunct_terminal_quote(adjunct),
         ClauseAttachmentKind::Dependent(_) => None,
-        ClauseAttachmentKind::Exception(rider) => match rider.rest.last() {
-            Some(conjunct) => independent_clause_terminal_quote(&conjunct.clause),
-            None => independent_clause_terminal_quote(&rider.first),
+        ClauseAttachmentKind::Exception(rider) => match rider.rest().last() {
+            Some(conjunct) => independent_clause_terminal_quote(conjunct.clause()),
+            None => independent_clause_terminal_quote(rider.first()),
         },
-        ClauseAttachmentKind::Restriction(run) => match run.rest.last() {
+        ClauseAttachmentKind::Restriction(run) => match run.rest().last() {
             Some(member) => member
-                .member
+                .member()
                 .adjuncts()
                 .last()
                 .and_then(adjunct_terminal_quote),
-            None => run.first.adjuncts().last().and_then(adjunct_terminal_quote),
+            None => run
+                .first()
+                .adjuncts()
+                .last()
+                .and_then(adjunct_terminal_quote),
         },
         ClauseAttachmentKind::Appositive(clause) => independent_clause_terminal_quote(clause),
     }
@@ -6214,12 +6134,11 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = ast.abilities[0].kind() else {
             panic!("expected a paragraph ability");
         };
-        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
-            predicate,
-        ))) = &paragraph.sentences[0].body
-        else {
-            panic!("expected an imperative transitive clause");
-        };
+        let (subject, predicate) = transitive_clause(&paragraph.sentences[0].body);
+        assert!(
+            subject.is_none(),
+            "expected an imperative transitive clause"
+        );
         let PredicateObject::NounPhrase(object) = predicate.object() else {
             panic!("expected a nominal object");
         };
@@ -6273,15 +6192,8 @@ mod tests {
         use crate::predicate as predicate_api;
 
         let object = relative_fixture("you cast");
-        let (subject, predicate) = clause_api::parts_relative_object(&object).unwrap();
-        let object = clause_api::build_relative_object(subject, predicate).unwrap();
 
         let contracted_object = relative_fixture("you've cast");
-        let (subject, auxiliary, predicate) =
-            clause_api::parts_relative_object_contracted_subject(&contracted_object).unwrap();
-        let contracted_object =
-            clause_api::build_relative_object_contracted_subject(subject, auxiliary, predicate)
-                .unwrap();
 
         let progressive = predicate_api::build_predicate_verb(
             VerbInstance {
@@ -6306,35 +6218,15 @@ mod tests {
         .unwrap();
 
         let nested_subject = relative_fixture("that attacks a creature you control");
-        let (marker, predicate) = clause_api::parts_relative_subject(&nested_subject).unwrap();
-        let nested_subject = clause_api::build_relative_subject(marker, predicate).unwrap();
 
         let distributive =
             relative_fixture_with_base("creature cards", "that each have a different mana value");
-        let (marker, predicate) =
-            clause_api::parts_relative_subject_distributive_each(&distributive).unwrap();
-        let distributive =
-            clause_api::build_relative_subject_distributive_each(marker, predicate).unwrap();
 
         let copular_noun = relative_fixture("that's a creature");
-        let (auxiliary, complement) =
-            clause_api::parts_relative_contracted_copular_noun(&copular_noun).unwrap();
-        let copular_noun =
-            clause_api::build_relative_contracted_copular_noun(auxiliary, complement).unwrap();
 
         let copular_adjective = relative_fixture("that's red");
-        let (auxiliary, complement) =
-            clause_api::parts_relative_contracted_copular_adjective(&copular_adjective).unwrap();
-        let copular_adjective =
-            clause_api::build_relative_contracted_copular_adjective(auxiliary, complement).unwrap();
 
         let copular_prepositional = relative_fixture("that's in exile");
-        let (auxiliary, complement) =
-            clause_api::parts_relative_contracted_copular_prepositional(&copular_prepositional)
-                .unwrap();
-        let copular_prepositional =
-            clause_api::build_relative_contracted_copular_prepositional(auxiliary, complement)
-                .unwrap();
 
         let renderer = Renderer::new("Test Card", false);
         for (value, expected) in [
@@ -6353,11 +6245,7 @@ mod tests {
 
     #[test]
     fn generated_r01_renderer_distinguishes_zero_marker_demonstrative_that_from_explicit_markers() {
-        use crate::clause as clause_api;
-
         let demonstrative = relative_fixture("that opponent controls");
-        let (subject, predicate) = clause_api::parts_relative_object(&demonstrative).unwrap();
-        let demonstrative = clause_api::build_relative_object(subject, predicate).unwrap();
         assert_eq!(demonstrative.marker(), RelativeMarker::Zero);
         assert!(matches!(
             demonstrative.body(),
@@ -6373,13 +6261,9 @@ mod tests {
         ));
 
         let explicit_that = relative_fixture("that attacks");
-        let (marker, predicate) = clause_api::parts_relative_subject(&explicit_that).unwrap();
-        let explicit_that = clause_api::build_relative_subject(marker, predicate).unwrap();
         assert_eq!(explicit_that.marker(), RelativeMarker::That);
 
         let explicit_who = relative_fixture("who attacks");
-        let (marker, predicate) = clause_api::parts_relative_subject(&explicit_who).unwrap();
-        let explicit_who = clause_api::build_relative_subject(marker, predicate).unwrap();
         assert_eq!(explicit_who.marker(), RelativeMarker::Who);
 
         let renderer = Renderer::new("Test Card", false);
@@ -6398,16 +6282,8 @@ mod tests {
     }
 
     #[test]
-    fn handwritten_c01_relative_renderer_delegates_only_its_coordinated_adjective_tail() {
-        use crate::clause as clause_api;
-
+    fn generated_r01_renderer_owns_its_coordinated_adjective_tail() {
         let value = relative_fixture("that's red or green");
-        let (auxiliary, complement) =
-            clause_api::parts_relative_contracted_copular_coordinated_adjective(&value).unwrap();
-        let value = clause_api::build_relative_contracted_copular_coordinated_adjective(
-            auxiliary, complement,
-        )
-        .unwrap();
         assert_eq!(
             Renderer::new("Test Card", false)
                 .relative_clause(&value)
@@ -6435,14 +6311,8 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = ast.abilities[0].kind() else {
             panic!("expected a paragraph ability");
         };
-        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
-            &paragraph.sentences[0].body
-        else {
-            panic!(
-                "expected a transitive clause: {:#?}",
-                paragraph.sentences[0].body
-            );
-        };
+        let (subject, predicate) = transitive_clause(&paragraph.sentences[0].body);
+        assert!(subject.is_some(), "expected a finite transitive clause");
         assert_eq!(
             predicate.head().verb().verb,
             Verb::Word(Vocab::Affect),
@@ -6521,12 +6391,11 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = ast.abilities[0].kind() else {
             panic!("expected a paragraph ability");
         };
-        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
-            predicate,
-        ))) = &paragraph.sentences[0].body
-        else {
-            panic!("expected an imperative transitive clause");
-        };
+        let (subject, predicate) = transitive_clause(&paragraph.sentences[0].body);
+        assert!(
+            subject.is_none(),
+            "expected an imperative transitive clause"
+        );
         assert!(
             !predicate.pre_object_elements().is_empty(),
             "the adverb must be carried before the object: {predicate:#?}"
@@ -6547,12 +6416,11 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = ast.abilities[0].kind() else {
             panic!("expected a paragraph ability");
         };
-        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
-            predicate,
-        ))) = &paragraph.sentences[0].body
-        else {
-            panic!("expected an imperative transitive clause");
-        };
+        let (subject, predicate) = transitive_clause(&paragraph.sentences[0].body);
+        assert!(
+            subject.is_none(),
+            "expected an imperative transitive clause"
+        );
         assert!(predicate.pre_object_elements().is_empty(), "{predicate:#?}");
         assert!(
             !predicate.elements().is_empty(),
@@ -6742,19 +6610,28 @@ mod tests {
                 keyword_atom(&catalogs, "haste"),
             ))],
         ));
-        let Clause::Independent(IndependentClause::Transitive(subject, first)) = first else {
-            panic!("first coordinated fixture must be a finite transitive clause");
+        let Clause::Independent(IndependentClause::Finite(first)) = first else {
+            panic!("first coordinated fixture must be a finite clause");
         };
-        let ast = paragraph_ability(Clause::Independent(IndependentClause::Predicated(
-            Some(subject),
-            PredicateExpression::Coordinated(crate::syntax::Coordination::new(
-                PredicateExpression::Simple(Predicate::Transitive(first)),
-                crate::syntax::CoordinationJunction {
-                    conjunction: Some(Conjunction::And),
-                    comma: crate::features::Comma::Absent,
-                },
-                PredicateExpression::Simple(second),
-            )),
+        let Some(subject) = first.subject().cloned() else {
+            panic!("first coordinated fixture must have a subject");
+        };
+        let PredicateExpression::Simple(Predicate::Transitive(first)) = first.predicate().clone()
+        else {
+            panic!("first coordinated fixture must be transitive");
+        };
+        let ast = paragraph_ability(Clause::Independent(IndependentClause::Finite(
+            FiniteClause::from_declaration_parts(
+                Some(subject),
+                PredicateExpression::Coordinated(crate::syntax::Coordination::new(
+                    PredicateExpression::Simple(Predicate::Transitive(first)),
+                    crate::syntax::CoordinationJunction {
+                        conjunction: Some(Conjunction::And),
+                        comma: crate::features::Comma::Absent,
+                    },
+                    PredicateExpression::Simple(second),
+                )),
+            ),
         )));
 
         assert_eq!(
@@ -7221,16 +7098,18 @@ mod tests {
             VerbSlot::Infinitive,
             vec![VerbDependent::DirectObject(card())],
         ));
-        let ast = paragraph_ability(Clause::Independent(IndependentClause::Predicated(
-            None,
-            PredicateExpression::Coordinated(Coordination::new(
-                PredicateExpression::Simple(first),
-                CoordinationJunction {
-                    conjunction: Some(Conjunction::Plus),
-                    comma: crate::features::Comma::Absent,
-                },
-                PredicateExpression::Simple(second),
-            )),
+        let ast = paragraph_ability(Clause::Independent(IndependentClause::Finite(
+            FiniteClause::from_declaration_parts(
+                None,
+                PredicateExpression::Coordinated(Coordination::new(
+                    PredicateExpression::Simple(first),
+                    CoordinationJunction {
+                        conjunction: Some(Conjunction::Plus),
+                        comma: crate::features::Comma::Absent,
+                    },
+                    PredicateExpression::Simple(second),
+                )),
+            ),
         )));
 
         assert_eq!(
@@ -7348,31 +7227,22 @@ mod tests {
 
     fn simple(subject: Option<Subject>, predicate: VerbPhrase) -> Clause {
         let predicate = strict_predicate(predicate);
-        let independent = match (subject, predicate) {
-            (None, predicate) => IndependentClause::Imperative(predicate),
-            (Some(subject), Predicate::Transitive(predicate)) => {
-                IndependentClause::Transitive(subject, predicate)
-            }
-            (Some(subject), Predicate::Intransitive(predicate)) => {
-                IndependentClause::Intransitive(subject, predicate)
-            }
-            (Some(subject), Predicate::Copular(predicate)) => {
-                IndependentClause::Copular(subject, predicate)
-            }
-            (Some(subject), Predicate::Passive(predicate)) => {
-                IndependentClause::Passive(subject, predicate)
-            }
-            (Some(subject), Predicate::Proform(predicate)) => {
-                IndependentClause::Proform(subject, predicate)
-            }
-            (Some(subject), Predicate::Deontic(predicate)) => {
-                IndependentClause::Deontic(subject, *predicate.modal(), predicate.inner().cloned())
-            }
-            (Some(subject), predicate @ Predicate::Attached(_)) => {
-                IndependentClause::Predicated(Some(subject), PredicateExpression::Simple(predicate))
-            }
-        };
+        let independent = IndependentClause::Finite(FiniteClause::from_declaration_parts(
+            subject,
+            PredicateExpression::Simple(predicate),
+        ));
         Clause::Independent(independent)
+    }
+
+    fn transitive_clause(body: &SentenceBody) -> (Option<&Subject>, &TransitivePredicate) {
+        let SentenceBody::Independent(IndependentClause::Finite(finite)) = body else {
+            panic!("expected a finite clause: {body:#?}");
+        };
+        let PredicateExpression::Simple(Predicate::Transitive(predicate)) = finite.predicate()
+        else {
+            panic!("expected a simple transitive predicate: {finite:#?}");
+        };
+        (finite.subject(), predicate)
     }
 
     fn simple_with_auxiliaries(

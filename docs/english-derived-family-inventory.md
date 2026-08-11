@@ -14,8 +14,8 @@ to one fan-out-one row; its generated side contributes the ten Q01 quantity
 rows, the nine D01 determiner/possession rows, the 11 J01 adjective rows, the
 37 M01 nominal rows, S01 `sentence`, N01 `noun`/`noun_opaque`, the two generated
 coordination rows, all 34 V01 predicate rows, the four F01 nonfinite-clause
-rows, all 18 F02 finite-clause rows, all 16 F03 clause-attachment rows, and all
-19 P01 noun-phrase rows, both P02 prepositional-phrase rows, and all eight R01
+rows, all 20 F02 finite-clause rows, all 16 F03 clause-attachment rows, and all
+19 P01 noun-phrase rows, both P02 prepositional-phrase rows, and all nine R01
 relative-clause rows. The ability
 census comes from the three non-chart entry points documented and dispatched by
 `FragmentKind`: `Cost`, `KeywordLine`, and `Ability`.
@@ -103,10 +103,10 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 | P02 prepositional phrase | 2 | C3 | `english-derived-prepositional-family` | generated |
 | V01 predicate spine | 34 | C3 | `english-derived-predicate-family` | scalar, identity, lens |
 | F01 nonfinite clause | 4 | C3 | `english-derived-nonfinite-clause-family` | generated |
-| F02 finite and copular clause | 18 | C3 | `english-derived-finite-clause-family` | generated |
+| F02 finite and copular clause | 20 | C3 | `english-derived-finite-clause-family` | generated |
 | F03 clause attachment | 16 | C3 | `english-derived-clause-attachment-family` | generated |
 | F04 clause coordination | 6 | C4 | `english-derived-clause-coordination-family` | finite agreement, structural design, tuple yields |
-| R01 relative clause | 8 | C3 | `english-derived-relative-clause-family` | generated |
+| R01 relative clause | 9 | C3 | `english-derived-relative-clause-family` | generated |
 | S01 sentence | 1 | C1 | `english-derived-sentence-family` | generated |
 | C01 phrase coordination | 15 | C4 | `english-derived-phrase-coordination-family` | lens, valency, structural design, tuple yields |
 | A01 ability layer | 3 | C5 | `english-ability-construction-backend` | inventory |
@@ -452,12 +452,14 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 
 **Status:** generated.
 
-**Stable IDs (18):** `simple_clause_subject`,
+**Stable IDs (20):** `simple_clause_subject`,
 `simple_clause_subject_distributive_each`,
 `simple_clause_contracted_subject`, `simple_clause_subjectless`,
 `clause_simple`, `clause_elliptical`, `clause_existential`,
 `copular_remainder_noun`, `copular_remainder_adjective`,
+`copular_remainder_coordinated_adjective`,
 `copular_remainder_prepositional`, `copular_remainder_power_toughness`,
+`copular_remainder_catalog_atom`,
 `copular_remainder_prepositional_adjunct`, `copular_remainder_adverb`,
 `copular_remainder_negated`, `copular_remainder_distributive_each`,
 `clause_copular`, `clause_contracted_copular`,
@@ -569,19 +571,20 @@ permanent exception.
 
 **Status:** generated.
 
-**Stable IDs (8):** `relative_object`,
+**Stable IDs (9):** `relative_object`,
 `relative_object_contracted_subject`,
 `relative_subject_contracted_auxiliary`, `relative_subject`,
 `relative_subject_distributive_each`, `relative_contracted_copular_noun`,
 `relative_contracted_copular_adjective`,
+`relative_contracted_copular_coordinated_adjective`,
 `relative_contracted_copular_prepositional`.
 
 - **Owners and AST:** the R01 declaration and its generated chart, feature,
   lowering, inverse-render, and checked-build projections are the single
   authority for sealed `RelativeClause`, relative marker, gap, subject, and
   predicate/copular forms. Public callers use checked builders and immutable
-  projections; C01 retains separate ownership of the coordinated-adjective
-  relative construction.
+  semantic accessors; R01 also owns the coordinated-adjective relative while
+  C01 owns only the coordinated adjective phrase that fills its complement.
 - **Holes and constraints:** NP, VP, adjective, and PP subtree holes plus
   relative-marker/auxiliary identity. Subject/object gap, relativizer,
   predicate valency, contraction, agreement, and distributive `each` are
@@ -620,7 +623,7 @@ permanent exception.
 
 ## C01 — phrase coordination
 
-**Stable IDs (15):** `modifier_conjunct_adjective`,
+**Stable IDs (13):** `modifier_conjunct_adjective`,
 `modifier_conjunct_noun`, `modifier_conjunct_negated`,
 `modifier_list_single`, `modifier_list_comma`,
 `coordinated_modifier_conjoined`, `coordinated_modifier_oxford`,
@@ -628,16 +631,14 @@ permanent exception.
 `prepositional_phrase_list_comma`,
 `prepositional_phrase_sibling_coordinated`,
 `verb_phrase_coordinated_adjective`,
-`copular_remainder_coordinated_adjective`,
-`relative_contracted_copular_coordinated_adjective`,
 `nominal_power_toughness_complement`.
 
 - **Owners and AST:** NR registers all fifteen rows and owns substantive
   reduction/lowering for the modifier, PP, and nominal rows. The top-level NR
-  dispatch sends `verb_phrase_coordinated_adjective`,
-  `copular_remainder_coordinated_adjective`, and
-  `relative_contracted_copular_coordinated_adjective` to CR, whose reduction
-  and lowering modules own their substantive handwritten logic. The rows
+  dispatch sends `verb_phrase_coordinated_adjective` to CR, whose reduction
+  and lowering modules own that remaining substantive handwritten logic. F02
+  and R01 now consume the coordinated adjective category through their own
+  generated declarations. The C01 rows
   construct modifier and PP sequences, `AdjectivePhraseCoordination`,
   `PrepositionalPhraseCoordination`, nominal complements, and the consuming
   nominal/predicate/copular/relative variants; REN plus SYN-P/SYN-C own output

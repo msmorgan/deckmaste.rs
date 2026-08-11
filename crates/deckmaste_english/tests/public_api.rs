@@ -19,7 +19,6 @@ use deckmaste_english::render_fragment;
 use deckmaste_english::syntax::*;
 use deckmaste_english::word::*;
 use serde::Serialize;
-use serde::ser;
 
 fn nominal_noun_phrase(nominal: NominalPhrase) -> NounPhrase {
     deckmaste_english::noun_phrase::build_noun_phrase_nominal(nominal)
@@ -75,6 +74,46 @@ fn parsed_relative_clause_with_identity(source: &str, identity: &str) -> Relativ
 
 fn parsed_relative_clause(source: &str) -> RelativeClause {
     parsed_relative_clause_with_identity(source, "Nissa Revane")
+}
+
+fn object_relative_semantics(value: &RelativeClause) -> (&NounPhrase, &ObjectGapPredicate) {
+    let RelativeBody::ObjectGap { subject, predicate } = value.body() else {
+        panic!("expected an object-gap relative: {value:#?}")
+    };
+    (&subject.0, predicate)
+}
+
+fn subject_relative_predicate(value: &RelativeClause) -> &Predicate {
+    let RelativeBody::SubjectGap(predicate) = value.body() else {
+        panic!("expected a subject-gap relative: {value:#?}")
+    };
+    predicate
+}
+
+fn contracted_copular_semantics(value: &RelativeClause) -> (AuxiliaryInstance, &CopularComplement) {
+    let Predicate::Copular(predicate) = subject_relative_predicate(value) else {
+        panic!("expected a contracted copular relative: {value:#?}")
+    };
+    (predicate.copula().auxiliary(), predicate.complement())
+}
+
+fn parsed_independent_clause(source: &str) -> IndependentClause {
+    let fragment = parse_fragment(
+        source,
+        &Catalogs::default(),
+        FragmentKind::Sentence,
+        "Test Card",
+        false,
+    )
+    .into_fragment()
+    .unwrap_or_else(|| panic!("fixture sentence must parse: {source:?}"));
+    let Fragment::Sentence(sentence) = fragment else {
+        panic!("requested a sentence fragment for {source:?}")
+    };
+    let SentenceBody::Independent(clause) = sentence.body() else {
+        panic!("fixture must contain an independent clause: {source:?}")
+    };
+    clause.clone()
 }
 
 fn checked_prepositional_phrase(
@@ -1236,17 +1275,16 @@ fn public_predicate_facade_constructs_transitive_and_matches_parser() {
     let Fragment::Sentence(parsed) = parsed else {
         panic!("requested a sentence fragment")
     };
-    let SentenceBody::Independent(IndependentClause::Imperative(parsed_predicate)) = parsed.body()
-    else {
+    let SentenceBody::Independent(IndependentClause::Finite(finite)) = parsed.body() else {
         panic!("draw fixture is imperative")
     };
+    assert!(finite.subject().is_none());
+    let PredicateExpression::Simple(parsed_predicate) = finite.predicate() else {
+        panic!("draw fixture has one predicate")
+    };
     assert_eq!(parsed_predicate, &transitive);
-    let sentence = Sentence::try_from_clause(Clause::Independent(IndependentClause::Imperative(
-        transitive.clone(),
-    )))
-    .unwrap();
     assert_eq!(
-        render_fragment(&Fragment::Sentence(sentence), "Test Card", false).unwrap(),
+        render_fragment(&Fragment::Sentence(parsed), "Test Card", false).unwrap(),
         "Draw a card.",
     );
 }
@@ -1325,16 +1363,24 @@ fn public_predicate_facade_constructs_representative_shapes() {
     .expect("the declaration accepts a typed adverb dependent");
     assert!(matches!(dependent, Predicate::Intransitive(_)));
 
-    for (source, predicate) in [
+    for (source, _predicate) in [
         ("Attack.", &intransitive),
         ("Be attacking.", &progressive),
         ("Be drawn.", &passive),
         ("Play again.", &dependent),
     ] {
-        let sentence = Sentence::try_from_clause(Clause::Independent(
-            IndependentClause::Imperative(predicate.clone()),
-        ))
-        .unwrap();
+        let parsed = parse_fragment(
+            source,
+            &Catalogs::default(),
+            FragmentKind::Sentence,
+            "Test Card",
+            false,
+        )
+        .into_fragment()
+        .expect("the representative generated sentence parses exactly");
+        let Fragment::Sentence(sentence) = parsed else {
+            panic!("requested a sentence fragment")
+        };
         assert_eq!(
             render_fragment(&Fragment::Sentence(sentence), "Test Card", false).unwrap(),
             source,
@@ -1354,10 +1400,12 @@ fn public_predicate_facade_constructs_representative_shapes() {
         let Fragment::Sentence(parsed) = parsed else {
             panic!("requested a sentence fragment")
         };
-        let SentenceBody::Independent(IndependentClause::Imperative(parsed_predicate)) =
-            parsed.body()
-        else {
+        let SentenceBody::Independent(IndependentClause::Finite(finite)) = parsed.body() else {
             panic!("representative fixture is imperative")
+        };
+        assert!(finite.subject().is_none());
+        let PredicateExpression::Simple(parsed_predicate) = finite.predicate() else {
+            panic!("representative fixture has one predicate")
         };
         assert_eq!(parsed_predicate, predicate);
     }
@@ -1366,25 +1414,46 @@ fn public_predicate_facade_constructs_representative_shapes() {
 #[test]
 #[allow(
     clippy::too_many_lines,
-    reason = "one contract test covers every stable relative-clause facade pair and its rejection boundaries"
+    reason = "one contract test covers every stable relative builder and its rejection boundaries"
 )]
-fn public_relative_clause_facade_builds_projects_and_rejects_impossible_shapes() {
+fn public_relative_builders_preserve_semantics_and_reject_impossible_shapes() {
+    use deckmaste_english::adjective as adjective_api;
     use deckmaste_english::clause as clause_api;
     use deckmaste_english::predicate as predicate_api;
 
     let value = parsed_relative_clause("each spell you cast");
-    let (subject, predicate) = clause_api::parts_relative_object(&value).unwrap();
+    let (subject, predicate) = object_relative_semantics(&value);
     assert_eq!(
-        clause_api::build_relative_object(subject, predicate).unwrap(),
+        clause_api::build_relative_object(subject.clone(), predicate.clone()).unwrap(),
         value
     );
 
     let value = parsed_relative_clause("each spell you've cast");
-    let (subject, auxiliary, predicate) =
-        clause_api::parts_relative_object_contracted_subject(&value).unwrap();
+    let (subject, _) = object_relative_semantics(&value);
+    let predicate = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Cast),
+            slot: VerbSlot::PastParticiple,
+        },
+        predicate_api::PredicateFrameChoice::Transitive,
+    )
+    .and_then(predicate_api::finish_object_gap_predicate)
+    .expect("past-participle cast retains its direct-object gap");
+    let auxiliary = AuxiliaryInstance {
+        auxiliary: Auxiliary::Have,
+        inflection: AuxiliaryInflection::Present {
+            person: deckmaste_english::features::Person::Second,
+            number: deckmaste_english::features::Number::Singular,
+        },
+        contracted_negation: deckmaste_english::features::Contraction::Full,
+    };
     assert_eq!(
-        clause_api::build_relative_object_contracted_subject(subject, auxiliary, predicate)
-            .unwrap(),
+        clause_api::build_relative_object_contracted_subject(
+            subject.clone(),
+            auxiliary,
+            predicate,
+        )
+        .unwrap(),
         value
     );
 
@@ -1397,40 +1466,33 @@ fn public_relative_clause_facade_builds_projects_and_rejects_impossible_shapes()
     )
     .and_then(predicate_api::finish_predicate)
     .unwrap();
-    let value = clause_api::build_relative_subject_contracted_auxiliary(
-        AuxiliaryInstance {
-            auxiliary: Auxiliary::Be,
-            inflection: AuxiliaryInflection::Present {
-                person: deckmaste_english::features::Person::Third,
-                number: deckmaste_english::features::Number::Singular,
-            },
-            contracted_negation: deckmaste_english::features::Contraction::Full,
+    let auxiliary = AuxiliaryInstance {
+        auxiliary: Auxiliary::Be,
+        inflection: AuxiliaryInflection::Present {
+            person: deckmaste_english::features::Person::Third,
+            number: deckmaste_english::features::Number::Singular,
         },
-        progressive,
-    )
-    .unwrap();
-    let (auxiliary, predicate) =
-        clause_api::parts_relative_subject_contracted_auxiliary(&value).unwrap();
+        contracted_negation: deckmaste_english::features::Contraction::Full,
+    };
     assert!(
         clause_api::build_relative_subject_contracted_auxiliary(
             AuxiliaryInstance {
                 contracted_negation: deckmaste_english::features::Contraction::Contracted,
                 ..auxiliary
             },
-            predicate.clone(),
+            progressive.clone(),
         )
         .is_err(),
         "one auxiliary cannot contract with both the subject and negation"
     );
-    assert_eq!(
-        clause_api::build_relative_subject_contracted_auxiliary(auxiliary, predicate).unwrap(),
-        value
-    );
+    let value =
+        clause_api::build_relative_subject_contracted_auxiliary(auxiliary, progressive).unwrap();
+    assert!(matches!(value.body(), RelativeBody::SubjectGap(_)));
 
     let value = parsed_relative_clause("a creature that attacks");
-    let (marker, predicate) = clause_api::parts_relative_subject(&value).unwrap();
+    let predicate = subject_relative_predicate(&value);
     assert_eq!(
-        clause_api::build_relative_subject(marker, predicate.clone()).unwrap(),
+        clause_api::build_relative_subject(value.marker(), predicate.clone()).unwrap(),
         value
     );
     assert!(
@@ -1439,25 +1501,29 @@ fn public_relative_clause_facade_builds_projects_and_rejects_impossible_shapes()
     );
 
     let value = parsed_relative_clause("creature cards that each have a different mana value");
-    let (marker, predicate) = clause_api::parts_relative_subject_distributive_each(&value).unwrap();
+    let without_each = parsed_relative_clause("creature cards that have a different mana value");
     assert_eq!(
-        clause_api::build_relative_subject_distributive_each(marker, predicate).unwrap(),
+        clause_api::build_relative_subject_distributive_each(
+            value.marker(),
+            subject_relative_predicate(&without_each).clone(),
+        )
+        .unwrap(),
         value
     );
     assert!(
         clause_api::build_relative_subject_distributive_each(
             RelativeMarker::That,
-            clause_api::parts_relative_subject(&parsed_relative_clause("a creature that attacks"))
-                .unwrap()
-                .1,
+            subject_relative_predicate(&parsed_relative_clause("a creature that attacks")).clone(),
         )
         .is_err(),
         "distributive each requires plural antecedent agreement"
     );
 
     let value = parsed_relative_clause("a card that's a creature");
-    let (auxiliary, complement) =
-        clause_api::parts_relative_contracted_copular_noun(&value).unwrap();
+    let (auxiliary, complement) = contracted_copular_semantics(&value);
+    let CopularComplement::NounPhrase(complement) = complement else {
+        panic!("expected a noun complement")
+    };
     assert_eq!(
         clause_api::build_relative_contracted_copular_noun(auxiliary, complement.clone()).unwrap(),
         value
@@ -1487,35 +1553,64 @@ fn public_relative_clause_facade_builds_projects_and_rejects_impossible_shapes()
                 },
                 contracted_negation: deckmaste_english::features::Contraction::Full,
             },
-            complement,
+            complement.clone(),
         )
         .is_err(),
         "a contracted copular relative requires be"
     );
 
-    let value = parsed_relative_clause("a card that's red");
-    let (auxiliary, complement) =
-        clause_api::parts_relative_contracted_copular_adjective(&value).unwrap();
-    assert_eq!(
-        clause_api::build_relative_contracted_copular_adjective(auxiliary, complement).unwrap(),
-        value
+    let auxiliary = AuxiliaryInstance {
+        auxiliary: Auxiliary::Be,
+        inflection: AuxiliaryInflection::Present {
+            person: deckmaste_english::features::Person::Third,
+            number: deckmaste_english::features::Number::Singular,
+        },
+        contracted_negation: deckmaste_english::features::Contraction::Full,
+    };
+    let red = adjective_api::build_adjective_phrase(Adjective::Color(ColorWord::Red)).unwrap();
+    let value =
+        clause_api::build_relative_contracted_copular_adjective(auxiliary, red.clone()).unwrap();
+    assert!(
+        matches!(
+            value.body(),
+            RelativeBody::SubjectGap(Predicate::Copular(predicate))
+                if predicate.copula().auxiliary() == auxiliary
+                    && matches!(predicate.complement(), CopularComplement::Adjective(complement) if complement == &red)
+        ),
+        "the builder retains the typed adjective complement"
     );
 
     let value = parsed_relative_clause("a card that's in exile");
-    let (auxiliary, complement) =
-        clause_api::parts_relative_contracted_copular_prepositional(&value).unwrap();
+    let (auxiliary, complement) = contracted_copular_semantics(&value);
+    let CopularComplement::Prepositional(complement) = complement else {
+        panic!("expected a prepositional complement")
+    };
     assert_eq!(
-        clause_api::build_relative_contracted_copular_prepositional(auxiliary, complement).unwrap(),
+        clause_api::build_relative_contracted_copular_prepositional(auxiliary, complement.clone())
+            .unwrap(),
         value
     );
 
-    let value = parsed_relative_clause("a card that's red or green");
-    let (auxiliary, complement) =
-        clause_api::parts_relative_contracted_copular_coordinated_adjective(&value).unwrap();
-    assert_eq!(
-        clause_api::build_relative_contracted_copular_coordinated_adjective(auxiliary, complement)
-            .unwrap(),
-        value
+    let green = adjective_api::build_adjective_phrase(Adjective::Color(ColorWord::Green)).unwrap();
+    let coordinated = CoordinatedAdjectivePhrase {
+        first: Box::new(red),
+        rest: vec![AdjectivePhraseCoordination {
+            conjunction: Some(deckmaste_english::features::Conjunction::Or),
+            phrase: green,
+        }],
+    };
+    let value = clause_api::build_relative_contracted_copular_coordinated_adjective(
+        auxiliary,
+        coordinated.clone(),
+    )
+    .unwrap();
+    assert!(
+        matches!(
+            value.body(),
+            RelativeBody::SubjectGap(Predicate::Copular(predicate))
+                if matches!(predicate.complement(), CopularComplement::CoordinatedAdjective(complement) if complement == &coordinated)
+        ),
+        "the builder retains the typed coordinated-adjective complement"
     );
 
     let object_gap = predicate_api::build_predicate_verb(
@@ -1552,6 +1647,7 @@ fn public_relative_clause_facade_builds_projects_and_rejects_impossible_shapes()
 
 #[test]
 fn public_checked_relative_asts_render_all_r01_forms_and_nested_relatives() {
+    use deckmaste_english::adjective as adjective_api;
     use deckmaste_english::clause as clause_api;
     use deckmaste_english::nominal as nominal_api;
     use deckmaste_english::noun_phrase as noun_phrase_api;
@@ -1575,15 +1671,7 @@ fn public_checked_relative_asts_render_all_r01_forms_and_nested_relatives() {
     };
 
     let object = parsed_relative_clause("a card you cast");
-    let (subject, predicate) = clause_api::parts_relative_object(&object).unwrap();
-    let object = clause_api::build_relative_object(subject, predicate).unwrap();
-
     let contracted_object = parsed_relative_clause("a card you've cast");
-    let (subject, auxiliary, predicate) =
-        clause_api::parts_relative_object_contracted_subject(&contracted_object).unwrap();
-    let contracted_object =
-        clause_api::build_relative_object_contracted_subject(subject, auxiliary, predicate)
-            .unwrap();
 
     let progressive = predicate_api::build_predicate_verb(
         VerbInstance {
@@ -1608,33 +1696,21 @@ fn public_checked_relative_asts_render_all_r01_forms_and_nested_relatives() {
     .unwrap();
 
     let who = parsed_relative_clause("a card who attacks");
-    let (marker, predicate) = clause_api::parts_relative_subject(&who).unwrap();
-    let who = clause_api::build_relative_subject(marker, predicate).unwrap();
-
     let distributive = parsed_relative_clause("cards that each have a different mana value");
-    let (marker, predicate) =
-        clause_api::parts_relative_subject_distributive_each(&distributive).unwrap();
-    let distributive =
-        clause_api::build_relative_subject_distributive_each(marker, predicate).unwrap();
-
     let copular_noun = parsed_relative_clause("a card that's a creature");
-    let (auxiliary, complement) =
-        clause_api::parts_relative_contracted_copular_noun(&copular_noun).unwrap();
-    let copular_noun =
-        clause_api::build_relative_contracted_copular_noun(auxiliary, complement).unwrap();
-
-    let copular_adjective = parsed_relative_clause("a card that's red");
-    let (auxiliary, complement) =
-        clause_api::parts_relative_contracted_copular_adjective(&copular_adjective).unwrap();
-    let copular_adjective =
-        clause_api::build_relative_contracted_copular_adjective(auxiliary, complement).unwrap();
-
+    let copular_adjective = clause_api::build_relative_contracted_copular_adjective(
+        AuxiliaryInstance {
+            auxiliary: Auxiliary::Be,
+            inflection: AuxiliaryInflection::Present {
+                person: deckmaste_english::features::Person::Third,
+                number: deckmaste_english::features::Number::Singular,
+            },
+            contracted_negation: deckmaste_english::features::Contraction::Full,
+        },
+        adjective_api::build_adjective_phrase(Adjective::Color(ColorWord::Red)).unwrap(),
+    )
+    .unwrap();
     let copular_prepositional = parsed_relative_clause("a card that's in exile");
-    let (auxiliary, complement) =
-        clause_api::parts_relative_contracted_copular_prepositional(&copular_prepositional)
-            .unwrap();
-    let copular_prepositional =
-        clause_api::build_relative_contracted_copular_prepositional(auxiliary, complement).unwrap();
 
     for (relative, plural, expected) in [
         (object, false, "card you cast"),
@@ -1654,16 +1730,12 @@ fn public_checked_relative_asts_render_all_r01_forms_and_nested_relatives() {
     }
 
     let nested = parsed_relative_clause("a card that attacks a creature you control");
-    let (marker, predicate) = clause_api::parts_relative_subject(&nested).unwrap();
-    let nested = clause_api::build_relative_subject(marker, predicate).unwrap();
     assert_eq!(
         render_attached(nested, false),
         "card that attacks a creature you control",
     );
 
     let demonstrative = parsed_relative_clause("a card that opponent controls");
-    let (subject, predicate) = clause_api::parts_relative_object(&demonstrative).unwrap();
-    let demonstrative = clause_api::build_relative_object(subject, predicate).unwrap();
     assert_eq!(demonstrative.marker(), RelativeMarker::Zero);
     assert_eq!(
         render_attached(demonstrative, false),
@@ -1677,20 +1749,19 @@ fn public_relative_object_builders_reject_subject_agreement_mismatches() {
 
     let second_person = parsed_relative_clause("each spell you cast");
     let third_person_plural = parsed_relative_clause("each spell they cast");
-    let (you, cast_second_person) = clause_api::parts_relative_object(&second_person).unwrap();
-    let (they, cast_third_person_plural) =
-        clause_api::parts_relative_object(&third_person_plural).unwrap();
+    let (you, cast_second_person) = object_relative_semantics(&second_person);
+    let (they, cast_third_person_plural) = object_relative_semantics(&third_person_plural);
 
     assert_eq!(
         clause_api::build_relative_object(you.clone(), cast_second_person.clone()).unwrap(),
         second_person,
     );
     assert_eq!(
-        clause_api::build_relative_object(they.clone(), cast_third_person_plural.clone(),).unwrap(),
+        clause_api::build_relative_object(they.clone(), cast_third_person_plural.clone()).unwrap(),
         third_person_plural,
     );
     assert!(
-        clause_api::build_relative_object(you, cast_third_person_plural).is_err(),
+        clause_api::build_relative_object(you.clone(), cast_third_person_plural.clone()).is_err(),
         "a second-person subject cannot govern a third-person plural finite predicate",
     );
 }
@@ -1704,13 +1775,13 @@ fn public_relative_object_builder_preserves_self_reference_agreement() {
         ("each spell Aang and Katara control", "Aang and Katara"),
     ] {
         let value = parsed_relative_clause_with_identity(source, identity);
-        let (subject, predicate) = clause_api::parts_relative_object(&value).unwrap();
+        let (subject, predicate) = object_relative_semantics(&value);
         assert!(matches!(
             subject.kind(),
             NounPhraseKind::ThisCard(ThisCardForm::FullName),
         ));
         assert_eq!(
-            clause_api::build_relative_object(subject, predicate).unwrap(),
+            clause_api::build_relative_object(subject.clone(), predicate.clone()).unwrap(),
             value,
             "{source:?}",
         );
@@ -1720,13 +1791,37 @@ fn public_relative_object_builder_preserves_self_reference_agreement() {
 #[test]
 fn public_contracted_object_relative_builder_rejects_subject_agreement_mismatches() {
     use deckmaste_english::clause as clause_api;
+    use deckmaste_english::predicate as predicate_api;
 
     let second_person = parsed_relative_clause("each spell you've cast");
     let third_person_plural = parsed_relative_clause("each spell they've cast");
-    let (you, have_second_person, cast) =
-        clause_api::parts_relative_object_contracted_subject(&second_person).unwrap();
-    let (they, have_third_person_plural, _) =
-        clause_api::parts_relative_object_contracted_subject(&third_person_plural).unwrap();
+    let (you, _) = object_relative_semantics(&second_person);
+    let (they, _) = object_relative_semantics(&third_person_plural);
+    let cast = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Cast),
+            slot: VerbSlot::PastParticiple,
+        },
+        predicate_api::PredicateFrameChoice::Transitive,
+    )
+    .and_then(predicate_api::finish_object_gap_predicate)
+    .expect("past-participle cast retains its direct-object gap");
+    let have_second_person = AuxiliaryInstance {
+        auxiliary: Auxiliary::Have,
+        inflection: AuxiliaryInflection::Present {
+            person: deckmaste_english::features::Person::Second,
+            number: deckmaste_english::features::Number::Singular,
+        },
+        contracted_negation: deckmaste_english::features::Contraction::Full,
+    };
+    let have_third_person_plural = AuxiliaryInstance {
+        auxiliary: Auxiliary::Have,
+        inflection: AuxiliaryInflection::Present {
+            person: deckmaste_english::features::Person::Third,
+            number: deckmaste_english::features::Number::Plural,
+        },
+        contracted_negation: deckmaste_english::features::Contraction::Full,
+    };
 
     assert_eq!(
         clause_api::build_relative_object_contracted_subject(
@@ -1739,7 +1834,7 @@ fn public_contracted_object_relative_builder_rejects_subject_agreement_mismatche
     );
     assert_eq!(
         clause_api::build_relative_object_contracted_subject(
-            they,
+            they.clone(),
             have_third_person_plural,
             cast.clone(),
         )
@@ -1747,137 +1842,13 @@ fn public_contracted_object_relative_builder_rejects_subject_agreement_mismatche
         third_person_plural,
     );
     assert!(
-        clause_api::build_relative_object_contracted_subject(you, have_third_person_plural, cast,)
-            .is_err(),
+        clause_api::build_relative_object_contracted_subject(
+            you.clone(),
+            have_third_person_plural,
+            cast,
+        )
+        .is_err(),
         "a second-person subject cannot contract a third-person plural auxiliary",
-    );
-}
-
-#[test]
-fn public_relative_parts_exhaustively_cross_feed_without_panicking() {
-    use deckmaste_english::clause as clause_api;
-    use deckmaste_english::predicate as predicate_api;
-
-    macro_rules! assert_cross_feed {
-        ($projection:path, $accepted:ident, $forms:ident, $label:literal) => {
-            for (form, value) in $forms {
-                let projection = std::panic::catch_unwind(|| $projection(value));
-                if std::ptr::eq(value, &$accepted) {
-                    assert!(
-                        matches!(projection, Ok(Ok(_))),
-                        "{} must accept its own {form} form without panicking",
-                        $label,
-                    );
-                } else {
-                    assert!(
-                        matches!(projection, Ok(Err(_))),
-                        "{} must reject the different {form} form without panicking",
-                        $label,
-                    );
-                }
-            }
-        };
-    }
-
-    let object = parsed_relative_clause("each spell you cast");
-    let contracted_object = parsed_relative_clause("each spell you've cast");
-    let progressive = predicate_api::build_predicate_verb(
-        VerbInstance {
-            verb: Verb::Word(Vocab::Attack),
-            slot: VerbSlot::PresentParticiple,
-        },
-        predicate_api::PredicateFrameChoice::Intransitive,
-    )
-    .and_then(predicate_api::finish_predicate)
-    .unwrap();
-    let contracted_subject = clause_api::build_relative_subject_contracted_auxiliary(
-        AuxiliaryInstance {
-            auxiliary: Auxiliary::Be,
-            inflection: AuxiliaryInflection::Present {
-                person: deckmaste_english::features::Person::Third,
-                number: deckmaste_english::features::Number::Singular,
-            },
-            contracted_negation: deckmaste_english::features::Contraction::Full,
-        },
-        progressive,
-    )
-    .unwrap();
-    let subject_relative = parsed_relative_clause("a creature that attacks");
-    let distributive =
-        parsed_relative_clause("creature cards that each have a different mana value");
-    let copular_noun = parsed_relative_clause("a card that's a creature");
-    let copular_adjective = parsed_relative_clause("a card that's red");
-    let copular_prepositional = parsed_relative_clause("a card that's in exile");
-    let copular_coordinated_adjective = parsed_relative_clause("a card that's red or green");
-
-    let forms = [
-        ("object", &object),
-        ("contracted object", &contracted_object),
-        ("contracted subject", &contracted_subject),
-        ("subject", &subject_relative),
-        ("distributive subject", &distributive),
-        ("copular noun", &copular_noun),
-        ("copular adjective", &copular_adjective),
-        ("copular prepositional", &copular_prepositional),
-        (
-            "copular coordinated adjective",
-            &copular_coordinated_adjective,
-        ),
-    ];
-
-    assert_cross_feed!(
-        clause_api::parts_relative_object,
-        object,
-        forms,
-        "relative_object"
-    );
-    assert_cross_feed!(
-        clause_api::parts_relative_object_contracted_subject,
-        contracted_object,
-        forms,
-        "relative_object_contracted_subject"
-    );
-    assert_cross_feed!(
-        clause_api::parts_relative_subject_contracted_auxiliary,
-        contracted_subject,
-        forms,
-        "relative_subject_contracted_auxiliary"
-    );
-    assert_cross_feed!(
-        clause_api::parts_relative_subject,
-        subject_relative,
-        forms,
-        "relative_subject"
-    );
-    assert_cross_feed!(
-        clause_api::parts_relative_subject_distributive_each,
-        distributive,
-        forms,
-        "relative_subject_distributive_each"
-    );
-    assert_cross_feed!(
-        clause_api::parts_relative_contracted_copular_noun,
-        copular_noun,
-        forms,
-        "relative_contracted_copular_noun"
-    );
-    assert_cross_feed!(
-        clause_api::parts_relative_contracted_copular_adjective,
-        copular_adjective,
-        forms,
-        "relative_contracted_copular_adjective"
-    );
-    assert_cross_feed!(
-        clause_api::parts_relative_contracted_copular_prepositional,
-        copular_prepositional,
-        forms,
-        "relative_contracted_copular_prepositional"
-    );
-    assert_cross_feed!(
-        clause_api::parts_relative_contracted_copular_coordinated_adjective,
-        copular_coordinated_adjective,
-        forms,
-        "relative_contracted_copular_coordinated_adjective"
     );
 }
 
@@ -2034,26 +2005,30 @@ fn public_nonfinite_facade_builds_projects_renders_and_rejects_wrong_forms() {
 }
 
 #[test]
-fn public_attachment_facade_builds_projects_and_rejects_invalid_runs() {
+fn public_attachment_builder_preserves_semantics_and_rejects_invalid_runs() {
     use deckmaste_english::clause as clause_api;
-    use deckmaste_english::predicate as predicate_api;
 
-    let predicate = predicate_api::build_predicate_verb(
-        VerbInstance {
-            verb: Verb::Word(Vocab::Attack),
-            slot: VerbSlot::Imperative,
-        },
-        predicate_api::PredicateFrameChoice::Intransitive,
-    )
-    .and_then(predicate_api::finish_predicate)
-    .expect("the imperative host is valid");
-    let host = Clause::Independent(IndependentClause::Imperative(predicate));
+    let host = Clause::Independent(parsed_independent_clause("Attack."));
     let attached =
         clause_api::build_clause_sentence_adverbial_before(Vocab::Otherwise, host.clone())
             .expect("the sentence adverbial attaches");
-    let (adverb, projected_host) = clause_api::parts_clause_sentence_adverbial_before(&attached);
-    assert_eq!(adverb, Vocab::Otherwise);
-    assert_eq!(projected_host, host);
+    let (
+        Clause::Independent(IndependentClause::Complex(complex)),
+        Clause::Independent(host_clause),
+    ) = (&attached, &host)
+    else {
+        panic!("the checked builder returns one recursive attachment edge")
+    };
+    assert_eq!(complex.host(), host_clause);
+    assert_eq!(
+        complex.attachment().position(),
+        AttachmentPosition::BeforeMatrix
+    );
+    assert!(complex.attachment().comma().is_present());
+    assert!(matches!(
+        complex.attachment().payload(),
+        ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Otherwise))
+    ));
 
     let sentence = Sentence::try_from_clause(attached).expect("the attached clause is complete");
     assert_eq!(
@@ -2249,10 +2224,14 @@ fn quoted_ability_with_postmodifier_has_a_direct_typed_boundary() {
     let AbilityKind::Paragraph(paragraph) = report.ast().abilities[0].kind() else {
         panic!("fixture must parse as a paragraph")
     };
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
+    let SentenceBody::Independent(IndependentClause::Finite(finite)) =
         paragraph.sentences[0].body()
     else {
         panic!("fixture must retain a structured imperative")
+    };
+    assert!(finite.subject().is_none());
+    let PredicateExpression::Simple(Predicate::Transitive(predicate)) = finite.predicate() else {
+        panic!("fixture must retain a simple transitive predicate")
     };
     let postmodifier = predicate
         .elements()
@@ -2797,19 +2776,16 @@ fn feature_vocabulary() {
     let pronoun_case: deckmaste_english::word::PronounCase =
         deckmaste_english::features::PronounCase::Object;
     let _: deckmaste_english::features::PronounCase = pronoun_case;
-
-    let gap: deckmaste_english::syntax::RelativeGap = deckmaste_english::features::GapState::Object;
-    let _: deckmaste_english::features::GapState = gap;
 }
 
 #[test]
-fn existential_forms_expose_validated_features_and_keep_legacy_unit_names() {
+fn existential_forms_expose_validated_semantics_and_checked_construction() {
     use deckmaste_english::features::Contraction;
     use deckmaste_english::features::Number;
     use deckmaste_english::features::Person;
     use deckmaste_english::features::VerbSlot;
 
-    for (source, slot, contraction, variant) in [
+    for (source, slot, contraction) in [
         (
             "There is a creature.",
             VerbSlot::Present {
@@ -2817,7 +2793,6 @@ fn existential_forms_expose_validated_features_and_keep_legacy_unit_names() {
                 number: Number::Singular,
             },
             Contraction::Full,
-            "Is",
         ),
         (
             "There's a creature.",
@@ -2826,7 +2801,6 @@ fn existential_forms_expose_validated_features_and_keep_legacy_unit_names() {
                 number: Number::Singular,
             },
             Contraction::Contracted,
-            "ContractedIs",
         ),
         (
             "There are creatures.",
@@ -2835,7 +2809,6 @@ fn existential_forms_expose_validated_features_and_keep_legacy_unit_names() {
                 number: Number::Plural,
             },
             Contraction::Full,
-            "Are",
         ),
         (
             "There was a creature.",
@@ -2844,7 +2817,6 @@ fn existential_forms_expose_validated_features_and_keep_legacy_unit_names() {
                 number: Number::Singular,
             },
             Contraction::Full,
-            "Was",
         ),
         (
             "There were creatures.",
@@ -2853,7 +2825,6 @@ fn existential_forms_expose_validated_features_and_keep_legacy_unit_names() {
                 number: Number::Plural,
             },
             Contraction::Full,
-            "Were",
         ),
     ] {
         let report = parse_with_catalogs(source, &Catalogs::default());
@@ -2865,13 +2836,19 @@ fn existential_forms_expose_validated_features_and_keep_legacy_unit_names() {
         else {
             panic!("expected an existential clause for {source:?}");
         };
-        assert_eq!(existential.form.verb_slot(), slot, "{source}");
-        assert_eq!(existential.form.contraction(), contraction, "{source}");
-        assert_eq!(
-            serialize_unit_variant(existential.form),
-            variant,
-            "{source}"
-        );
+        assert_eq!(existential.form().verb_slot(), slot, "{source}");
+        assert_eq!(existential.form().contraction(), contraction, "{source}");
+
+        let rebuilt = deckmaste_english::clause::build_clause_existential(
+            existential.form(),
+            existential.pivot().clone(),
+        )
+        .unwrap_or_else(|error| panic!("checked construction rejected {source:?}: {error:?}"));
+        let Clause::Independent(IndependentClause::Existential(rebuilt)) = rebuilt else {
+            panic!("checked construction returned the wrong clause kind for {source:?}");
+        };
+        assert_eq!(rebuilt.form(), existential.form(), "{source}");
+        assert_eq!(rebuilt.pivot(), existential.pivot(), "{source}");
     }
 
     assert_eq!(
@@ -2887,172 +2864,43 @@ fn existential_forms_expose_validated_features_and_keep_legacy_unit_names() {
 }
 
 #[test]
-fn existential_legacy_value_paths_compile_and_match_as_constants() {
-    const FORMS: [ExistentialForm; 5] = [
-        ExistentialForm::Is,
-        ExistentialForm::ContractedIs,
-        ExistentialForm::Are,
-        ExistentialForm::Was,
-        ExistentialForm::Were,
-    ];
+fn existential_builder_rejects_pivot_number_mismatches() {
+    use deckmaste_english::features::Contraction;
+    use deckmaste_english::features::Number;
+    use deckmaste_english::features::Person;
+    use deckmaste_english::features::VerbSlot;
 
-    let names = FORMS.map(|form| match form {
-        ExistentialForm::Is => "Is",
-        ExistentialForm::ContractedIs => "ContractedIs",
-        ExistentialForm::Are => "Are",
-        ExistentialForm::Was => "Was",
-        ExistentialForm::Were => "Were",
-        _ => unreachable!("validated existential forms have exactly five values"),
-    });
+    let singular =
+        deckmaste_english::noun_phrase::build_noun_phrase_demonstrative(Demonstrative::This)
+            .expect("singular demonstrative construction succeeds");
+    let plural =
+        deckmaste_english::noun_phrase::build_noun_phrase_demonstrative(Demonstrative::These)
+            .expect("plural demonstrative construction succeeds");
+    let singular_form = ExistentialForm::new(
+        VerbSlot::Present {
+            person: Person::Third,
+            number: Number::Singular,
+        },
+        Contraction::Full,
+    )
+    .expect("singular present is an admitted existential form");
+    let plural_form = ExistentialForm::new(
+        VerbSlot::Present {
+            person: Person::Third,
+            number: Number::Plural,
+        },
+        Contraction::Full,
+    )
+    .expect("plural present is an admitted existential form");
 
-    assert_eq!(names, ["Is", "ContractedIs", "Are", "Was", "Were"]);
-    assert_eq!(FORMS.map(serialize_unit_variant), names);
-}
-
-fn serialize_unit_variant(value: impl Serialize) -> &'static str {
-    value
-        .serialize(UnitVariantSerializer)
-        .expect("the value must serialize as a unit variant")
-}
-
-#[derive(Debug, thiserror::Error)]
-#[error("expected a unit-variant serialization")]
-struct UnitVariantSerializationError;
-
-impl ser::Error for UnitVariantSerializationError {
-    fn custom<T: fmt::Display>(_message: T) -> Self {
-        Self
-    }
-}
-
-struct UnitVariantSerializer;
-
-macro_rules! unsupported_unit_variant_serialization {
-    ($($name:ident($($type:ty),*)),+ $(,)?) => {
-        $(
-            fn $name(self, $(_: $type),*) -> Result<Self::Ok, Self::Error> {
-                Err(UnitVariantSerializationError)
-            }
-        )+
-    };
-}
-
-impl ser::Serializer for UnitVariantSerializer {
-    type Ok = &'static str;
-    type Error = UnitVariantSerializationError;
-    type SerializeSeq = ser::Impossible<Self::Ok, Self::Error>;
-    type SerializeTuple = ser::Impossible<Self::Ok, Self::Error>;
-    type SerializeTupleStruct = ser::Impossible<Self::Ok, Self::Error>;
-    type SerializeTupleVariant = ser::Impossible<Self::Ok, Self::Error>;
-    type SerializeMap = ser::Impossible<Self::Ok, Self::Error>;
-    type SerializeStruct = ser::Impossible<Self::Ok, Self::Error>;
-    type SerializeStructVariant = ser::Impossible<Self::Ok, Self::Error>;
-
-    fn serialize_unit_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        variant: &'static str,
-    ) -> Result<Self::Ok, Self::Error> {
-        Ok(variant)
-    }
-
-    #[rustfmt::skip]
-    unsupported_unit_variant_serialization!(
-        serialize_bool(bool),
-        serialize_i8(i8),
-        serialize_i16(i16),
-        serialize_i32(i32),
-        serialize_i64(i64),
-        serialize_i128(i128),
-        serialize_u8(u8),
-        serialize_u16(u16),
-        serialize_u32(u32),
-        serialize_u64(u64),
-        serialize_u128(u128),
-        serialize_f32(f32),
-        serialize_f64(f64),
-        serialize_char(char),
-        serialize_str(&str),
-        serialize_bytes(&[u8]),
-        serialize_none(),
-        serialize_unit(),
-        serialize_unit_struct(&'static str),
+    assert!(
+        deckmaste_english::clause::build_clause_existential(plural_form, singular).is_err(),
+        "a plural existential form cannot select a singular pivot"
     );
-
-    fn serialize_some<T: ?Sized + Serialize>(self, _value: &T) -> Result<Self::Ok, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
-
-    fn serialize_newtype_struct<T: ?Sized + Serialize>(
-        self,
-        _name: &'static str,
-        _value: &T,
-    ) -> Result<Self::Ok, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
-
-    fn serialize_newtype_variant<T: ?Sized + Serialize>(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _value: &T,
-    ) -> Result<Self::Ok, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
-
-    fn serialize_seq(self, _length: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
-
-    fn serialize_tuple(self, _length: usize) -> Result<Self::SerializeTuple, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
-
-    fn serialize_tuple_struct(
-        self,
-        _name: &'static str,
-        _length: usize,
-    ) -> Result<Self::SerializeTupleStruct, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
-
-    fn serialize_tuple_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _length: usize,
-    ) -> Result<Self::SerializeTupleVariant, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
-
-    fn serialize_map(self, _length: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
-
-    fn serialize_struct(
-        self,
-        _name: &'static str,
-        _length: usize,
-    ) -> Result<Self::SerializeStruct, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
-
-    fn serialize_struct_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _length: usize,
-    ) -> Result<Self::SerializeStructVariant, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
-
-    fn collect_str<T: ?Sized + fmt::Display>(self, _value: &T) -> Result<Self::Ok, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
+    assert!(
+        deckmaste_english::clause::build_clause_existential(singular_form, plural).is_err(),
+        "a singular existential form cannot select a plural pivot"
+    );
 }
 
 #[test]
@@ -3066,9 +2914,12 @@ fn public_parser_returns_a_source_independent_grammar_tree() {
         AbilityKind::Paragraph(paragraph)
             if matches!(
                 paragraph.sentences[0].body(),
-                SentenceBody::Independent(IndependentClause::Imperative(
-                    Predicate::Transitive(_)
-                ))
+                SentenceBody::Independent(IndependentClause::Finite(finite))
+                    if finite.subject().is_none()
+                        && matches!(
+                            finite.predicate(),
+                            PredicateExpression::Simple(Predicate::Transitive(_))
+                        )
             )
     ));
 
@@ -3395,51 +3246,18 @@ impl<'syntax> SyntaxInventory<'syntax> {
 
     fn independent_clause(&mut self, clause: &'syntax IndependentClause) {
         match clause {
-            IndependentClause::Transitive(subject, predicate) => {
-                self.subject(subject);
-                self.transitive_predicate(predicate);
-            }
-            IndependentClause::Intransitive(subject, predicate) => {
-                self.subject(subject);
-                self.predicate_head(predicate.head());
-                self.predicate_elements(predicate.elements());
-            }
-            IndependentClause::Copular(subject, predicate) => {
-                self.subject(subject);
-                self.copular_complement(predicate.complement());
-                self.predicate_adjuncts(predicate.adjuncts());
-            }
-            IndependentClause::Passive(subject, predicate) => {
-                self.subject(subject);
-                self.predicate_head(predicate.head());
-                if let Some(object) = predicate.retained_object() {
-                    self.predicate_object(object);
-                }
-                self.predicate_elements(predicate.elements());
-            }
-            IndependentClause::Predicated(subject, expression) => {
-                if let Some(subject) = subject {
+            IndependentClause::Finite(finite) => {
+                if let Some(subject) = finite.subject() {
                     self.subject(subject);
                 }
-                self.predicate_expression(expression);
-            }
-            IndependentClause::Imperative(predicate) => self.predicate(predicate),
-            IndependentClause::Deontic(subject, _, predicate) => {
-                self.subject(subject);
-                if let Some(predicate) = predicate {
-                    self.predicate(predicate);
-                }
+                self.predicate_expression(finite.predicate());
             }
             IndependentClause::Existential(existential) => {
-                self.noun_phrase(&existential.pivot);
-                self.predicate_adjuncts(&existential.adjuncts);
+                self.noun_phrase(existential.pivot());
             }
-            IndependentClause::Proform(subject, _) => self.subject(subject),
             IndependentClause::Complex(complex) => {
-                self.independent_clause(complex.matrix());
-                for attachment in complex.attachments() {
-                    self.clause_attachment(attachment.payload());
-                }
+                self.independent_clause(complex.host());
+                self.clause_attachment(complex.attachment().payload());
             }
             IndependentClause::Coordinated(coordinated) => {
                 self.independent_clause(&coordinated.first);
@@ -3536,14 +3354,12 @@ impl<'syntax> SyntaxInventory<'syntax> {
             }
             Predicate::Deontic(predicate) => {
                 if let Some(inner) = predicate.inner() {
-                    self.predicate(inner);
+                    self.predicate_expression(inner);
                 }
             }
             Predicate::Attached(predicate) => {
                 self.predicate(predicate.predicate());
-                for attachment in predicate.attachments() {
-                    self.clause_attachment(attachment.payload());
-                }
+                self.clause_attachment(predicate.attachment().payload());
             }
             Predicate::Proform(_) => {}
         }
@@ -3890,19 +3706,11 @@ fn only_independent_clause(ast: &OracleText) -> &IndependentClause {
 
 fn exception_rider(clause: &IndependentClause) -> Option<&ExceptionRider> {
     match clause {
-        IndependentClause::Complex(complex) => {
-            complex.attachments().iter().find_map(|attachment| {
-                let ClauseAttachmentKind::Exception(rider) = attachment.payload() else {
-                    return None;
-                };
-                Some(rider)
-            })
-        }
-        IndependentClause::Predicated(_, expression) => exception_rider_in_expression(expression),
-        IndependentClause::Imperative(predicate) => exception_rider_in_predicate(predicate),
-        IndependentClause::Deontic(_, _, predicate) => {
-            predicate.as_ref().and_then(exception_rider_in_predicate)
-        }
+        IndependentClause::Complex(complex) => match complex.attachment().payload() {
+            ClauseAttachmentKind::Exception(rider) => Some(rider),
+            _ => exception_rider(complex.host()),
+        },
+        IndependentClause::Finite(finite) => exception_rider_in_expression(finite.predicate()),
         IndependentClause::Coordinated(coordination) => exception_rider(&coordination.first)
             .or_else(|| {
                 coordination.rest.iter().find_map(|member| {
@@ -3910,12 +3718,7 @@ fn exception_rider(clause: &IndependentClause) -> Option<&ExceptionRider> {
                     exception_rider(clause)
                 })
             }),
-        IndependentClause::Transitive(..)
-        | IndependentClause::Intransitive(..)
-        | IndependentClause::Copular(..)
-        | IndependentClause::Passive(..)
-        | IndependentClause::Existential(..)
-        | IndependentClause::Proform(..) => None,
+        IndependentClause::Existential(..) => None,
     }
 }
 
@@ -3931,13 +3734,11 @@ fn exception_rider_in_expression(expression: &PredicateExpression) -> Option<&Ex
 
 fn exception_rider_in_predicate(predicate: &Predicate) -> Option<&ExceptionRider> {
     match predicate {
-        Predicate::Attached(attached) => attached.attachments().iter().find_map(|attachment| {
-            let ClauseAttachmentKind::Exception(rider) = attachment.payload() else {
-                return None;
-            };
-            Some(rider)
-        }),
-        Predicate::Deontic(deontic) => deontic.inner().and_then(exception_rider_in_predicate),
+        Predicate::Attached(attached) => match attached.attachment().payload() {
+            ClauseAttachmentKind::Exception(rider) => Some(rider),
+            _ => exception_rider_in_predicate(attached.predicate()),
+        },
+        Predicate::Deontic(deontic) => deontic.inner().and_then(exception_rider_in_expression),
         Predicate::Transitive(_)
         | Predicate::Intransitive(_)
         | Predicate::Copular(_)
@@ -3948,19 +3749,11 @@ fn exception_rider_in_predicate(predicate: &Predicate) -> Option<&ExceptionRider
 
 fn appositive(clause: &IndependentClause) -> Option<&IndependentClause> {
     match clause {
-        IndependentClause::Complex(complex) => {
-            complex.attachments().iter().find_map(|attachment| {
-                let ClauseAttachmentKind::Appositive(appositive) = attachment.payload() else {
-                    return None;
-                };
-                Some(appositive.as_ref())
-            })
-        }
-        IndependentClause::Predicated(_, expression) => appositive_in_expression(expression),
-        IndependentClause::Imperative(predicate) => appositive_in_predicate(predicate),
-        IndependentClause::Deontic(_, _, predicate) => {
-            predicate.as_ref().and_then(appositive_in_predicate)
-        }
+        IndependentClause::Complex(complex) => match complex.attachment().payload() {
+            ClauseAttachmentKind::Appositive(appositive) => Some(appositive.as_ref()),
+            _ => appositive(complex.host()),
+        },
+        IndependentClause::Finite(finite) => appositive_in_expression(finite.predicate()),
         IndependentClause::Coordinated(coordination) => {
             appositive(&coordination.first).or_else(|| {
                 coordination.rest.iter().find_map(|member| {
@@ -3969,12 +3762,7 @@ fn appositive(clause: &IndependentClause) -> Option<&IndependentClause> {
                 })
             })
         }
-        IndependentClause::Transitive(..)
-        | IndependentClause::Intransitive(..)
-        | IndependentClause::Copular(..)
-        | IndependentClause::Passive(..)
-        | IndependentClause::Existential(..)
-        | IndependentClause::Proform(..) => None,
+        IndependentClause::Existential(..) => None,
     }
 }
 
@@ -3990,13 +3778,11 @@ fn appositive_in_expression(expression: &PredicateExpression) -> Option<&Indepen
 
 fn appositive_in_predicate(predicate: &Predicate) -> Option<&IndependentClause> {
     match predicate {
-        Predicate::Attached(attached) => attached.attachments().iter().find_map(|attachment| {
-            let ClauseAttachmentKind::Appositive(appositive) = attachment.payload() else {
-                return None;
-            };
-            Some(appositive.as_ref())
-        }),
-        Predicate::Deontic(deontic) => deontic.inner().and_then(appositive_in_predicate),
+        Predicate::Attached(attached) => match attached.attachment().payload() {
+            ClauseAttachmentKind::Appositive(appositive) => Some(appositive.as_ref()),
+            _ => appositive_in_predicate(attached.predicate()),
+        },
+        Predicate::Deontic(deontic) => deontic.inner().and_then(appositive_in_expression),
         Predicate::Transitive(_)
         | Predicate::Intransitive(_)
         | Predicate::Copular(_)
@@ -4011,42 +3797,44 @@ fn predicate_head(predicate: &Predicate) -> Option<&PredicateHead> {
         Predicate::Intransitive(predicate) => Some(predicate.head()),
         Predicate::Passive(predicate) => Some(predicate.head()),
         Predicate::Attached(attached) => predicate_head(attached.predicate()),
-        Predicate::Deontic(deontic) => deontic.inner().and_then(predicate_head),
+        Predicate::Deontic(deontic) => deontic.inner().and_then(predicate_expression_head),
         Predicate::Copular(_) | Predicate::Proform(_) => None,
     }
 }
 
+fn predicate_expression_head(expression: &PredicateExpression) -> Option<&PredicateHead> {
+    let PredicateExpression::Simple(predicate) = expression else {
+        return None;
+    };
+    predicate_head(predicate)
+}
+
 fn matrix_predicate_head(clause: &IndependentClause) -> Option<&PredicateHead> {
     match clause {
-        IndependentClause::Transitive(_, predicate) => Some(predicate.head()),
-        IndependentClause::Intransitive(_, predicate) => Some(predicate.head()),
-        IndependentClause::Passive(_, predicate) => Some(predicate.head()),
-        IndependentClause::Predicated(_, PredicateExpression::Simple(predicate))
-        | IndependentClause::Imperative(predicate) => predicate_head(predicate),
-        IndependentClause::Deontic(_, _, predicate) => predicate.as_ref().and_then(predicate_head),
-        IndependentClause::Complex(complex) => matrix_predicate_head(complex.matrix()),
-        IndependentClause::Copular(..)
-        | IndependentClause::Predicated(_, PredicateExpression::Coordinated(_))
-        | IndependentClause::Existential(_)
-        | IndependentClause::Proform(..)
-        | IndependentClause::Coordinated(_) => None,
+        IndependentClause::Finite(finite) => predicate_expression_head(finite.predicate()),
+        IndependentClause::Complex(complex) => matrix_predicate_head(complex.host()),
+        IndependentClause::Existential(_) | IndependentClause::Coordinated(_) => None,
+    }
+}
+
+fn matrix_simple_predicate(clause: &IndependentClause) -> Option<&Predicate> {
+    match clause {
+        IndependentClause::Finite(finite) => {
+            let PredicateExpression::Simple(predicate) = finite.predicate() else {
+                return None;
+            };
+            Some(predicate)
+        }
+        IndependentClause::Complex(complex) => matrix_simple_predicate(complex.host()),
+        IndependentClause::Existential(_) | IndependentClause::Coordinated(_) => None,
     }
 }
 
 fn clause_subject(clause: &IndependentClause) -> Option<&NounPhrase> {
     match clause {
-        IndependentClause::Transitive(subject, _)
-        | IndependentClause::Intransitive(subject, _)
-        | IndependentClause::Copular(subject, _)
-        | IndependentClause::Passive(subject, _)
-        | IndependentClause::Deontic(subject, _, _)
-        | IndependentClause::Proform(subject, _)
-        | IndependentClause::Predicated(Some(subject), _) => Some(&subject.0),
-        IndependentClause::Complex(complex) => clause_subject(complex.matrix()),
-        IndependentClause::Predicated(None, _)
-        | IndependentClause::Imperative(_)
-        | IndependentClause::Existential(_)
-        | IndependentClause::Coordinated(_) => None,
+        IndependentClause::Finite(finite) => finite.subject().map(|subject| &subject.0),
+        IndependentClause::Complex(complex) => clause_subject(complex.host()),
+        IndependentClause::Existential(_) | IndependentClause::Coordinated(_) => None,
     }
 }
 
@@ -4054,7 +3842,7 @@ fn predicate_object(predicate: &Predicate) -> Option<&PredicateObject> {
     match predicate {
         Predicate::Transitive(predicate) => Some(predicate.object()),
         Predicate::Attached(attached) => predicate_object(attached.predicate()),
-        Predicate::Deontic(deontic) => deontic.inner().and_then(predicate_object),
+        Predicate::Deontic(deontic) => deontic.inner().and_then(predicate_expression_object),
         Predicate::Intransitive(_)
         | Predicate::Copular(_)
         | Predicate::Passive(_)
@@ -4062,22 +3850,18 @@ fn predicate_object(predicate: &Predicate) -> Option<&PredicateObject> {
     }
 }
 
+fn predicate_expression_object(expression: &PredicateExpression) -> Option<&PredicateObject> {
+    let PredicateExpression::Simple(predicate) = expression else {
+        return None;
+    };
+    predicate_object(predicate)
+}
+
 fn direct_object(clause: &IndependentClause) -> Option<&PredicateObject> {
     match clause {
-        IndependentClause::Transitive(_, predicate) => Some(predicate.object()),
-        IndependentClause::Predicated(_, PredicateExpression::Simple(predicate))
-        | IndependentClause::Imperative(predicate) => predicate_object(predicate),
-        IndependentClause::Deontic(_, _, predicate) => {
-            predicate.as_ref().and_then(predicate_object)
-        }
-        IndependentClause::Complex(complex) => direct_object(complex.matrix()),
-        IndependentClause::Intransitive(..)
-        | IndependentClause::Copular(..)
-        | IndependentClause::Passive(..)
-        | IndependentClause::Predicated(_, PredicateExpression::Coordinated(_))
-        | IndependentClause::Existential(_)
-        | IndependentClause::Proform(..)
-        | IndependentClause::Coordinated(_) => None,
+        IndependentClause::Finite(finite) => predicate_expression_object(finite.predicate()),
+        IndependentClause::Complex(complex) => direct_object(complex.host()),
+        IndependentClause::Existential(_) | IndependentClause::Coordinated(_) => None,
     }
 }
 
@@ -4148,23 +3932,17 @@ fn is_ordinary_any_number_of_nominal(phrase: &NounPhrase) -> bool {
 fn has_finite_subordinate(clause: &IndependentClause, expected: Subordinator) -> bool {
     match clause {
         IndependentClause::Complex(complex) => {
-            complex.attachments().iter().any(|attachment| {
-                matches!(
-                    attachment.payload(),
-                    ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
-                        subordinator,
-                        SubordinateBody::Finite(_)
-                    )) if *subordinator == expected
-                )
-            }) || has_finite_subordinate(complex.matrix(), expected)
+            matches!(
+                complex.attachment().payload(),
+                ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                    subordinator,
+                    SubordinateBody::Finite(_)
+                )) if *subordinator == expected
+            ) || has_finite_subordinate(complex.host(), expected)
         }
-        IndependentClause::Predicated(_, PredicateExpression::Simple(predicate))
-        | IndependentClause::Imperative(predicate) => {
-            predicate_has_finite_subordinate(predicate, expected)
+        IndependentClause::Finite(finite) => {
+            expression_has_finite_subordinate(finite.predicate(), expected)
         }
-        IndependentClause::Deontic(_, _, predicate) => predicate
-            .as_ref()
-            .is_some_and(|predicate| predicate_has_finite_subordinate(predicate, expected)),
         IndependentClause::Coordinated(coordination) => {
             has_finite_subordinate(&coordination.first, expected)
                 || coordination.rest.iter().any(|member| {
@@ -4172,32 +3950,39 @@ fn has_finite_subordinate(clause: &IndependentClause, expected: Subordinator) ->
                     has_finite_subordinate(clause, expected)
                 })
         }
-        IndependentClause::Transitive(..)
-        | IndependentClause::Intransitive(..)
-        | IndependentClause::Copular(..)
-        | IndependentClause::Passive(..)
-        | IndependentClause::Predicated(_, PredicateExpression::Coordinated(_))
-        | IndependentClause::Existential(_)
-        | IndependentClause::Proform(..) => false,
+        IndependentClause::Existential(_) => false,
+    }
+}
+
+fn expression_has_finite_subordinate(
+    expression: &PredicateExpression,
+    expected: Subordinator,
+) -> bool {
+    match expression {
+        PredicateExpression::Simple(predicate) => {
+            predicate_has_finite_subordinate(predicate, expected)
+        }
+        PredicateExpression::Coordinated(coordination) => coordination
+            .conjuncts()
+            .iter()
+            .any(|expression| expression_has_finite_subordinate(expression, expected)),
     }
 }
 
 fn predicate_has_finite_subordinate(predicate: &Predicate, expected: Subordinator) -> bool {
     match predicate {
         Predicate::Attached(attached) => {
-            attached.attachments().iter().any(|attachment| {
-                matches!(
-                    attachment.payload(),
-                    ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
-                        subordinator,
-                        SubordinateBody::Finite(_)
-                    )) if subordinator == &expected
-                )
-            }) || predicate_has_finite_subordinate(attached.predicate(), expected)
+            matches!(
+                attached.attachment().payload(),
+                ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                    subordinator,
+                    SubordinateBody::Finite(_)
+                )) if subordinator == &expected
+            ) || predicate_has_finite_subordinate(attached.predicate(), expected)
         }
         Predicate::Deontic(deontic) => deontic
             .inner()
-            .is_some_and(|predicate| predicate_has_finite_subordinate(predicate, expected)),
+            .is_some_and(|expression| expression_has_finite_subordinate(expression, expected)),
         Predicate::Transitive(_)
         | Predicate::Intransitive(_)
         | Predicate::Copular(_)
@@ -4206,23 +3991,35 @@ fn predicate_has_finite_subordinate(predicate: &Predicate, expected: Subordinato
     }
 }
 
-fn matrix_has_prepositional_adjunct(clause: &IndependentClause, expected: Preposition) -> bool {
-    let elements = match clause {
-        IndependentClause::Transitive(_, predicate)
-        | IndependentClause::Predicated(
-            _,
-            PredicateExpression::Simple(Predicate::Transitive(predicate)),
-        ) => predicate.elements(),
-        IndependentClause::Intransitive(_, predicate)
-        | IndependentClause::Predicated(
-            _,
-            PredicateExpression::Simple(Predicate::Intransitive(predicate)),
-        ) => predicate.elements(),
-        IndependentClause::Passive(_, predicate) => predicate.elements(),
-        IndependentClause::Complex(complex) => {
-            return matrix_has_prepositional_adjunct(complex.matrix(), expected);
+fn expression_has_prepositional_adjunct(
+    expression: &PredicateExpression,
+    expected: Preposition,
+) -> bool {
+    match expression {
+        PredicateExpression::Simple(predicate) => {
+            predicate_has_prepositional_adjunct(predicate, expected)
         }
-        _ => return false,
+        PredicateExpression::Coordinated(coordination) => coordination
+            .conjuncts()
+            .iter()
+            .any(|expression| expression_has_prepositional_adjunct(expression, expected)),
+    }
+}
+
+fn predicate_has_prepositional_adjunct(predicate: &Predicate, expected: Preposition) -> bool {
+    let elements = match predicate {
+        Predicate::Transitive(predicate) => predicate.elements(),
+        Predicate::Intransitive(predicate) => predicate.elements(),
+        Predicate::Passive(predicate) => predicate.elements(),
+        Predicate::Attached(attached) => {
+            return predicate_has_prepositional_adjunct(attached.predicate(), expected);
+        }
+        Predicate::Deontic(deontic) => {
+            return deontic.inner().is_some_and(|expression| {
+                expression_has_prepositional_adjunct(expression, expected)
+            });
+        }
+        Predicate::Copular(_) | Predicate::Proform(_) => return false,
     };
     elements.iter().any(|element| {
         matches!(
@@ -4231,6 +4028,18 @@ fn matrix_has_prepositional_adjunct(clause: &IndependentClause, expected: Prepos
                 if preposition.head().preposition() == expected
         )
     })
+}
+
+fn matrix_has_prepositional_adjunct(clause: &IndependentClause, expected: Preposition) -> bool {
+    match clause {
+        IndependentClause::Finite(finite) => {
+            expression_has_prepositional_adjunct(finite.predicate(), expected)
+        }
+        IndependentClause::Complex(complex) => {
+            matrix_has_prepositional_adjunct(complex.host(), expected)
+        }
+        IndependentClause::Existential(_) | IndependentClause::Coordinated(_) => false,
+    }
 }
 
 // --- Self-reference recognition (positives) --------------------------------
@@ -4246,10 +4055,10 @@ fn single_word_full_name_is_a_full_self_reference() {
     assert_eq!(rendered, "Progenitus attacks.");
     assert!(
         matches!(
-            only_independent_clause(&ast),
-            IndependentClause::Intransitive(Subject(subject), _)
-                if is_this_card_form(subject, ThisCardForm::FullName)
-        ),
+            matrix_simple_predicate(only_independent_clause(&ast)),
+            Some(Predicate::Intransitive(_))
+        ) && clause_subject(only_independent_clause(&ast))
+            .is_some_and(|subject| is_this_card_form(subject, ThisCardForm::FullName)),
         "AST:\n{ast:#?}"
     );
 }
@@ -4265,10 +4074,10 @@ fn a_nickname_is_an_abbreviated_self_reference() {
     assert_eq!(rendered, "Ashcoat attacks.");
     assert!(
         matches!(
-            only_independent_clause(&ast),
-            IndependentClause::Intransitive(Subject(subject), _)
-                if is_this_card_form(subject, ThisCardForm::AbbreviatedName)
-        ),
+            matrix_simple_predicate(only_independent_clause(&ast)),
+            Some(Predicate::Intransitive(_))
+        ) && clause_subject(only_independent_clause(&ast))
+            .is_some_and(|subject| is_this_card_form(subject, ThisCardForm::AbbreviatedName)),
         "AST:\n{ast:#?}"
     );
 }
@@ -4284,10 +4093,10 @@ fn a_two_word_nickname_is_recognized_as_one_self_reference() {
     assert_eq!(rendered, "Sidar Jabari attacks.");
     assert!(
         matches!(
-            only_independent_clause(&ast),
-            IndependentClause::Intransitive(Subject(subject), _)
-                if is_this_card_form(subject, ThisCardForm::AbbreviatedName)
-        ),
+            matrix_simple_predicate(only_independent_clause(&ast)),
+            Some(Predicate::Intransitive(_))
+        ) && clause_subject(only_independent_clause(&ast))
+            .is_some_and(|subject| is_this_card_form(subject, ThisCardForm::AbbreviatedName)),
         "AST:\n{ast:#?}"
     );
 }
@@ -4304,10 +4113,10 @@ fn a_roman_numeral_nickname_is_recognized() {
     assert_eq!(rendered, "King Darien attacks.");
     assert!(
         matches!(
-            only_independent_clause(&ast),
-            IndependentClause::Intransitive(Subject(subject), _)
-                if is_this_card_form(subject, ThisCardForm::AbbreviatedName)
-        ),
+            matrix_simple_predicate(only_independent_clause(&ast)),
+            Some(Predicate::Intransitive(_))
+        ) && clause_subject(only_independent_clause(&ast))
+            .is_some_and(|subject| is_this_card_form(subject, ThisCardForm::AbbreviatedName)),
         "AST:\n{ast:#?}"
     );
 }
@@ -4328,12 +4137,8 @@ fn sliver_stays_a_creature_type_not_a_self_reference() {
         true,
     );
     assert_eq!(rendered, "Create a 1/1 colorless Sliver creature token.");
-    let IndependentClause::Imperative(Predicate::Transitive(predicate)) =
-        only_independent_clause(&ast)
+    let Some(PredicateObject::NounPhrase(token)) = direct_object(only_independent_clause(&ast))
     else {
-        panic!("expected a transitive imperative: {ast:#?}");
-    };
-    let PredicateObject::NounPhrase(token) = predicate.object() else {
         panic!("expected a nominal token object: {ast:#?}");
     };
     let NounPhraseKind::Nominal(token) = token.kind() else {
@@ -4368,10 +4173,10 @@ fn a_nickname_that_is_a_common_noun_keeps_its_capital() {
     assert_eq!(rendered, "Carnage attacks.");
     assert!(
         matches!(
-            only_independent_clause(&ast),
-            IndependentClause::Intransitive(Subject(subject), _)
-                if is_this_card_form(subject, ThisCardForm::AbbreviatedName)
-        ),
+            matrix_simple_predicate(only_independent_clause(&ast)),
+            Some(Predicate::Intransitive(_))
+        ) && clause_subject(only_independent_clause(&ast))
+            .is_some_and(|subject| is_this_card_form(subject, ThisCardForm::AbbreviatedName)),
         "AST:\n{ast:#?}"
     );
 }
@@ -4385,10 +4190,10 @@ fn a_nickname_that_is_a_keyword_ability_keeps_its_capital() {
     assert_eq!(rendered, "Prowl attacks.");
     assert!(
         matches!(
-            only_independent_clause(&ast),
-            IndependentClause::Intransitive(Subject(subject), _)
-                if is_this_card_form(subject, ThisCardForm::AbbreviatedName)
-        ),
+            matrix_simple_predicate(only_independent_clause(&ast)),
+            Some(Predicate::Intransitive(_))
+        ) && clause_subject(only_independent_clause(&ast))
+            .is_some_and(|subject| is_this_card_form(subject, ThisCardForm::AbbreviatedName)),
         "AST:\n{ast:#?}"
     );
 }
@@ -4405,27 +4210,13 @@ fn a_the_headed_nickname_keeps_its_capital_the() {
         true,
     );
     assert_eq!(rendered, "Whenever a creature dies, untap The Beast.");
+    let effect = first_effect_clause(only_ability(&ast))
+        .unwrap_or_else(|| panic!("expected a finite trigger effect: {ast:#?}"));
     assert!(
         matches!(
-            only_ability(&ast).kind(),
-            AbilityKind::Triggered(TriggeredAbility { effect, .. })
-                if matches!(
-                    effect.sentences.as_slice(),
-                    [sentence] if matches!(
-                        sentence.body(),
-                        SentenceBody::Independent(IndependentClause::Imperative(
-                            Predicate::Transitive(predicate)
-                        ))
-                            if matches!(
-                                predicate.object(),
-                                PredicateObject::NounPhrase(noun_phrase)
-                                    if is_this_card_form(
-                                        noun_phrase,
-                                        ThisCardForm::AbbreviatedName,
-                                    )
-                            )
-                    )
-                )
+            direct_object(effect),
+            Some(PredicateObject::NounPhrase(noun_phrase))
+                if is_this_card_form(noun_phrase, ThisCardForm::AbbreviatedName)
         ),
         "AST:\n{ast:#?}"
     );
@@ -4460,8 +4251,8 @@ fn single_conjunct_exception_rider_round_trips() {
         .unwrap_or_else(|| panic!("expected an exception rider: {ast}"));
     assert!(
         matches!(
-            rider.first(),
-            IndependentClause::Copular(_, predicate)
+            matrix_simple_predicate(rider.first()),
+            Some(Predicate::Copular(predicate))
                 if matches!(predicate.complement(), CopularComplement::PowerToughness(_))
         ) && rider.rest().is_empty(),
         "AST:\n{ast}"
@@ -4486,8 +4277,8 @@ fn quoted_final_exception_conjunct_stays_inside_oxford_rider() {
     assert!(
         !matches!(clause, IndependentClause::Coordinated(_))
             && matches!(
-                rider.first(),
-                IndependentClause::Copular(_, predicate)
+                matrix_simple_predicate(rider.first()),
+                Some(Predicate::Copular(predicate))
                     if matches!(
                         predicate.complement(),
                         CopularComplement::NounPhrase(noun_phrase)
@@ -4496,11 +4287,14 @@ fn quoted_final_exception_conjunct_stays_inside_oxford_rider() {
             )
             && rider.rest().len() == 2
             && rider.rest()[0].conjunction().is_none()
-            && matches!(rider.rest()[0].clause(), IndependentClause::Copular(..))
+            && matches!(
+                matrix_simple_predicate(rider.rest()[0].clause()),
+                Some(Predicate::Copular(_))
+            )
             && rider.rest()[1].conjunction() == Some(PredicateConjunction::And)
             && matches!(
-                rider.rest()[1].clause(),
-                IndependentClause::Transitive(_, predicate)
+                matrix_simple_predicate(rider.rest()[1].clause()),
+                Some(Predicate::Transitive(predicate))
                     if matches!(predicate.object(), PredicateObject::QuotedAbility(_))
             ),
         "AST:\n{ast}"
@@ -4533,8 +4327,8 @@ fn two_member_post_exception_coordination_stays_outside_the_rider() {
                         member: CoordinatedClauseMember::Independent(clause),
                         ..
                     }] if matches!(
-                        clause.as_ref(),
-                        IndependentClause::Transitive(_, predicate)
+                        matrix_simple_predicate(clause.as_ref()),
+                        Some(Predicate::Transitive(predicate))
                             if matches!(predicate.object(), PredicateObject::QuotedAbility(_))
                     )
                 )
@@ -4556,8 +4350,8 @@ fn quoted_ability_exception_on_a_token_copy_round_trips() {
         .unwrap_or_else(|| panic!("expected an exception rider: {ast}"));
     assert!(
         matches!(
-            rider.first(),
-            IndependentClause::Transitive(_, predicate)
+            matrix_simple_predicate(rider.first()),
+            Some(Predicate::Transitive(predicate))
                 if matches!(predicate.object(), PredicateObject::QuotedAbility(_))
         ) && rider.rest().is_empty(),
         "AST:\n{ast}"
@@ -4577,8 +4371,8 @@ fn name_exception_on_a_becomes_copy_carries_a_self_reference() {
         .unwrap_or_else(|| panic!("expected an exception rider: {ast}"));
     assert!(
         matches!(
-            rider.first(),
-            IndependentClause::Copular(_, predicate)
+            matrix_simple_predicate(rider.first()),
+            Some(Predicate::Copular(predicate))
                 if matches!(
                     predicate.complement(),
                     CopularComplement::NounPhrase(noun_phrase)
@@ -5471,7 +5265,11 @@ fn cost_noun_phrases_coordinate_with_and_or() {
     let [CostComponent::Clause(clause)] = only_activated(&ast).cost.components() else {
         panic!("expected one clause cost: {ast}");
     };
-    let IndependentClause::Imperative(Predicate::Transitive(predicate)) = clause.as_ref() else {
+    let IndependentClause::Finite(finite) = clause.as_ref() else {
+        panic!("expected a transitive imperative cost: {ast}");
+    };
+    assert!(finite.subject().is_none(), "AST:\n{ast}");
+    let PredicateExpression::Simple(Predicate::Transitive(predicate)) = finite.predicate() else {
         panic!("expected a transitive imperative cost: {ast}");
     };
     let PredicateObject::NounPhrase(noun_phrase) = predicate.object() else {

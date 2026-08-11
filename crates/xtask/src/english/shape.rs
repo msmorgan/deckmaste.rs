@@ -25,7 +25,7 @@ use serde::ser;
 pub(super) enum Shape {
     /// A primitive. The value is deliberately dropped — only its type remains.
     Scalar(&'static str),
-    /// A unit variant or unit struct: `Vocab::Damage`, `RelativeGap::Object`.
+    /// A unit variant or unit struct: `Vocab::Damage`, `GapState::Object`.
     /// Lexical identity survives here, which is why it must not be conflated
     /// with `Scalar("str")`.
     Unit {
