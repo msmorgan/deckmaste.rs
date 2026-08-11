@@ -3,36 +3,23 @@
 pub use deckmaste_construction_compiler::runtime::DeclarationViolation as BuildError;
 
 use crate::RenderError;
-use crate::catalog::CatalogAtom;
 use crate::syntax::Ability;
+use crate::syntax::AbilityHeader;
 use crate::syntax::AbilityKind;
-use crate::syntax::FlavorHeader;
 
 /// Builds one ability through the declaration's checked ingress.
 ///
 /// # Errors
 ///
-/// Returns an error for competing headers or an invalid frame payload.
+/// Returns an error for an invalid frame payload.
 pub fn build_ability(
-    ability_word: Option<CatalogAtom>,
-    flavor_header: Option<FlavorHeader>,
+    header: Option<AbilityHeader>,
     kind: AbilityKind,
 ) -> Result<Ability, BuildError> {
-    crate::constructions::ability::build_ability_root(ability_word, flavor_header, kind)
+    crate::constructions::ability::build_ability_root(header, kind)
 }
 
-/// Projects an ability through its declaration-owned representation.
-///
-/// # Errors
-///
-/// Returns an error if `value` does not satisfy the `ability` declaration.
-pub fn parts_ability(
-    value: &Ability,
-) -> Result<(Option<CatalogAtom>, Option<FlavorHeader>, AbilityKind), BuildError> {
-    crate::constructions::ability::ability_root_parts(value)
-}
-
-/// Renders an ability through the generated inverse dispatcher.
+/// Renders a declaration-checked ability from its semantic fields.
 ///
 /// # Errors
 ///

@@ -1,0 +1,42 @@
+error[E0532]: expected unit struct, unit variant or constant, found tuple variant `Choice::Unit`
+  --> tests/compile_fail/bound_enum_unit_variant_shape_drift.rs:5:1
+   |
+ 2 |       Unit(u8),
+   |       -------- `Choice::Unit` defined here
+...
+ 5 | / deckmaste_constructions_macro::constructions! {
+ 6 | |     group unit_shape_drift;
+ 7 | |     element choice bind Choice {
+ 8 | |         variant Unit {},
+ 9 | |     }
+10 | | }
+   | |_^ help: use the tuple variant pattern syntax instead: `Choice::Unit(_)`
+   |
+   = help: consider importing this unit variant instead:
+           crate::ChoiceVariantRef::Unit
+   = note: this error originates in the macro `deckmaste_constructions_macro::constructions` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> tests/compile_fail/bound_enum_unit_variant_shape_drift.rs:5:1
+   |
+ 2 |       Unit(u8),
+   |       ---- `Unit` defines an enum variant constructor here, which should be called
+...
+ 5 | / deckmaste_constructions_macro::constructions! {
+ 6 | |     group unit_shape_drift;
+ 7 | |     element choice bind Choice {
+ 8 | |         variant Unit {},
+ 9 | |     }
+10 | | }
+   | | ^
+   | | |
+   | |_expected `Choice`, found enum constructor
+   |   expected `Choice` because of return type
+   |
+   = note:          expected enum `Choice`
+           found enum constructor `fn(u8) -> Choice {Choice::Unit}`
+   = note: this error originates in the macro `deckmaste_constructions_macro::constructions` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: use parentheses to construct this tuple variant
+   |
+10 | }(/* u8 */)
+   |  ++++++++++

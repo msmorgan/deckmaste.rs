@@ -112,7 +112,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
     }
 
     fn ability(&mut self, ability: &'syntax Ability, context: Option<RecoveryRole>) {
-        if let Some(header) = ability.flavor_header() {
+        if let Some(AbilityHeader::Flavor(header)) = ability.header() {
             self.lexical_opacity.push(LexicalOpacityRef {
                 kind: LexicalOpacityKind::FlavorHeader,
                 text: header.text(),
@@ -1030,13 +1030,12 @@ mod tests {
                 })),
                 checked_ability(AbilityKind::Keyword(
                     crate::keyword_line::build_keyword_line(
-                        vec![KeywordAbility {
-                            preceding_separator: None,
+                        SeparatedNonEmpty::from_first(KeywordAbility {
                             ability: flying,
                             argument: KeywordArgument::Recovered {
                                 text: recovered("argument"),
                             },
-                        }],
+                        }),
                         None,
                     )
                     .expect("well-formed test keyword line must satisfy the declaration"),
@@ -1321,6 +1320,6 @@ mod tests {
     }
 
     fn checked_ability(kind: AbilityKind) -> Ability {
-        crate::ability::build_ability(None, None, kind).expect("syntax fixture is a valid ability")
+        crate::ability::build_ability(None, kind).expect("syntax fixture is a valid ability")
     }
 }

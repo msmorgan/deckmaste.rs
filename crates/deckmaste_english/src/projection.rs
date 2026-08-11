@@ -13,19 +13,17 @@ use deckmaste_construction_compiler::runtime::LinearizationError;
 use deckmaste_construction_compiler::runtime::OwnedProjectionValue;
 use deckmaste_construction_compiler::runtime::ProjectedAtom;
 use deckmaste_construction_compiler::runtime::ProjectedMember;
+use deckmaste_construction_compiler::runtime::ProjectedProduct;
 use deckmaste_construction_compiler::runtime::ProjectedSequence;
 use deckmaste_construction_compiler::runtime::ProjectedValue;
+use deckmaste_construction_compiler::runtime::ProjectedVariant;
 use deckmaste_construction_compiler::runtime::ProjectedWitness;
 use deckmaste_construction_compiler::runtime::ProjectionInput;
 use deckmaste_construction_compiler::runtime::ProjectionSink;
 use deckmaste_construction_compiler::runtime::ProjectionValue;
 
 use crate::Fragment;
-use crate::syntax::Clause;
-use crate::syntax::CostComponent;
-use crate::syntax::KeywordArgument;
 use crate::syntax::NumberLiteral;
-use crate::syntax::Phrase;
 use crate::syntax::PowerToughness;
 use crate::syntax::SignedScalar;
 use crate::word::NounInstance;
@@ -165,36 +163,29 @@ fn flat_projection(
 fn project_flat_subtree(
     category: &'static str,
     value: &dyn ProjectionValue,
-) -> Result<Option<ConstructionProjection>, ProjectionError> {
+) -> Option<ConstructionProjection> {
     if category == "PowerToughness" {
-        return Ok(value
+        return value
             .as_any()
             .downcast_ref::<PowerToughness>()
             .copied()
-            .map(project_power_toughness));
+            .map(project_power_toughness);
     }
     if category == "NumberLiteral" {
-        return Ok(value
+        return value
             .as_any()
             .downcast_ref::<NumberLiteral>()
             .copied()
-            .map(project_number_literal));
+            .map(project_number_literal);
     }
     if category == "SignedScalar" {
-        return Ok(value
+        return value
             .as_any()
             .downcast_ref::<SignedScalar>()
             .copied()
-            .map(project_signed_scalar));
+            .map(project_signed_scalar);
     }
-    if category == "KeywordArgument" {
-        return value
-            .as_any()
-            .downcast_ref::<KeywordArgument>()
-            .map(project_keyword_argument)
-            .transpose();
-    }
-    Ok(None)
+    None
 }
 
 fn project_subtree(
@@ -204,374 +195,35 @@ fn project_subtree(
     if category == "NounInstance" && value.as_any().is::<NounInstance>() {
         return project_value("Noun", value);
     }
+    if category == "Clause"
+        && let Some(value) = value
+            .as_any()
+            .downcast_ref::<crate::syntax::IndependentClause>()
+    {
+        let clause = crate::syntax::Clause::Independent(value.clone());
+        return project_value(category, &clause);
+    }
     project_value(category, value)
 }
 
-fn nested_or_flat(
+fn projected_subtree(
     category: &'static str,
     value: &dyn ProjectionValue,
-) -> Result<ProjectedValue, ProjectionError> {
-    match project_value(category, value) {
+) -> Result<ProjectedValue, String> {
+    match project_subtree(category, value) {
         Ok(projection) => Ok(ProjectedValue::Construction(Box::new(projection))),
-        Err(ProjectionError::NoConstruction { .. }) => {
-            Ok(ProjectedValue::Atom(ProjectedAtom::FlatSubtree {
-                category,
-                value: OwnedProjectionValue::new(value),
-            }))
-        }
-        Err(error) => Err(error),
-    }
-}
-
-fn optional_scalar<T>(codec: &'static str, value: Option<T>) -> ProjectedValue
-where
-    T: ProjectionValue,
-{
-    ProjectedValue::Optional(value.map(|value| Box::new(atom_scalar(codec, &value))))
-}
-
-fn project_phrase(value: &Phrase) -> Result<ConstructionProjection, ProjectionError> {
-    let (form, ordinal, role, projected) = match value {
-        Phrase::Clause(value) => (
-            "clause",
-            0,
-            "clause",
-            nested_or_flat("Clause", value.as_ref())?,
-        ),
-        Phrase::NounPhrase(value) => (
-            "noun_phrase",
-            1,
-            "noun_phrase",
-            nested_or_flat("NounPhrase", value.as_ref())?,
-        ),
-        Phrase::AdjectivePhrase(value) => (
-            "adjective_phrase",
-            2,
-            "adjective_phrase",
-            nested_or_flat("AdjectivePhrase", value.as_ref())?,
-        ),
-        Phrase::PrepositionalPhrase(value) => (
-            "prepositional_phrase",
-            3,
-            "prepositional_phrase",
-            nested_or_flat("PrepositionalPhrase", value.as_ref())?,
-        ),
-        Phrase::Quantity(value) => (
-            "quantity",
-            4,
-            "quantity",
-            nested_or_flat("Quantity", value)?,
-        ),
-        Phrase::Adverb(value) => (
-            "adverb",
-            5,
-            "adverb",
-            atom_identity("Adverb", "Vocab", value),
-        ),
-        Phrase::CatalogAtom(value) => (
-            "catalog_atom",
-            6,
-            "catalog_atom",
-            ProjectedValue::Construction(Box::new(project_catalog_atom(value))),
-        ),
-        Phrase::ColorWord(value) => (
-            "color_word",
-            7,
-            "color_word",
-            atom_identity("ColorWord", "ColorWord", value),
-        ),
-        Phrase::Cost(value) => (
-            "cost",
-            8,
-            "cost",
-            ProjectedValue::Atom(ProjectedAtom::FlatSubtree {
-                category: "Cost",
-                value: OwnedProjectionValue::new(value),
-            }),
-        ),
-        Phrase::ThisCard(value) => (
-            "this_card",
-            9,
-            "form",
-            atom_identity("ThisCard", "ThisCardForm", value),
-        ),
-        Phrase::OracleSymbol(value) => (
-            "oracle_symbol",
-            10,
-            "symbol",
-            atom_identity("OracleSymbol", "OracleSymbol", value),
-        ),
-        Phrase::SymbolSequence(value) => (
-            "symbol_sequence",
-            11,
-            "symbols",
-            ProjectedValue::Atom(ProjectedAtom::FlatSubtree {
-                category: "OracleSymbols",
-                value: OwnedProjectionValue::new(value),
-            }),
-        ),
-        Phrase::NumberLiteral(value) => (
-            "number_literal",
-            12,
-            "number",
-            ProjectedValue::Construction(Box::new(project_number_literal(*value))),
-        ),
-        Phrase::SignedScalar(value) => (
-            "signed_scalar",
-            13,
-            "scalar",
-            ProjectedValue::Construction(Box::new(project_signed_scalar(*value))),
-        ),
-        Phrase::PowerToughness(value) => (
-            "power_toughness",
-            14,
-            "stats",
-            ProjectedValue::Construction(Box::new(project_power_toughness(*value))),
-        ),
-        Phrase::EmbeddedAbility(value) => (
-            "embedded_ability",
-            15,
-            "ability",
-            nested_or_flat("Ability", value.as_ref())?,
-        ),
-        Phrase::QuotedAbility(value) => (
-            "quoted_ability",
-            16,
-            "ability",
-            ProjectedValue::Atom(ProjectedAtom::FlatSubtree {
-                category: "QuotedAbility",
-                value: OwnedProjectionValue::new(value.as_ref()),
-            }),
-        ),
-        Phrase::Recovered(value) => (
-            "recovered",
-            17,
-            "text",
-            atom_identity("RecoveredText", "RecoveredText", value),
-        ),
-    };
-    Ok(flat_projection(
-        "Phrase",
-        "flat_phrase",
-        form,
-        ordinal,
-        BTreeMap::from([(role, projected)]),
-    ))
-}
-
-/// Temporary A01 adapter for the one deliberately opaque bound element in
-/// the current ability declarations. The ability output retrofit will replace
-/// this with declaration-owned sum and nonempty-sequence structure.
-fn project_cost_component(
-    value: &CostComponent,
-) -> Result<ConstructionProjection, ProjectionError> {
-    let (form, ordinal, roles) = match value {
-        CostComponent::Symbols(symbols) => (
-            "symbols",
-            0,
-            BTreeMap::from([(
-                "symbols",
-                ProjectedValue::Atom(ProjectedAtom::FlatSubtree {
-                    category: "OracleSymbols",
-                    value: OwnedProjectionValue::new(symbols),
-                }),
-            )]),
-        ),
-        CostComponent::Clause(clause) => {
-            let clause = Clause::Independent((**clause).clone());
-            (
-                "clause",
-                1,
-                BTreeMap::from([("clause", nested_or_flat("Clause", &clause)?)]),
-            )
-        }
-        CostComponent::Noun(noun_phrase) => (
-            "noun",
-            2,
-            BTreeMap::from([(
-                "noun_phrase",
-                nested_or_flat("NounPhrase", noun_phrase.as_ref())?,
-            )]),
-        ),
-        CostComponent::Alternative(left, right) => (
-            "alternative",
-            3,
-            BTreeMap::from([
-                (
-                    "left",
-                    ProjectedValue::Construction(Box::new(project_cost_component(left)?)),
-                ),
-                (
-                    "right",
-                    ProjectedValue::Construction(Box::new(project_cost_component(right)?)),
-                ),
-            ]),
-        ),
-        CostComponent::Recovered(text) => (
-            "recovered",
-            4,
-            BTreeMap::from([(
-                "text",
-                atom_identity("RecoveredText", "RecoveredText", text),
-            )]),
-        ),
-    };
-    Ok(flat_projection(
-        "CostComponent",
-        "flat_cost_component",
-        form,
-        ordinal,
-        roles,
-    ))
-}
-
-fn project_keyword_argument(
-    value: &KeywordArgument,
-) -> Result<ConstructionProjection, ProjectionError> {
-    let (form, ordinal, roles) = match value {
-        KeywordArgument::Absent => ("absent", 0, BTreeMap::new()),
-        KeywordArgument::Counted(value) => (
-            "counted",
-            1,
-            BTreeMap::from([("count", nested_or_flat("Quantity", value)?)]),
-        ),
-        KeywordArgument::Costed(value) => (
-            "costed",
-            2,
-            BTreeMap::from([(
-                "cost",
-                ProjectedValue::Atom(ProjectedAtom::FlatSubtree {
-                    category: "KeywordCost",
-                    value: OwnedProjectionValue::new(value),
-                }),
-            )]),
-        ),
-        KeywordArgument::CountedCost { count, symbols } => (
-            "counted_cost",
-            3,
-            BTreeMap::from([
-                (
-                    "count",
-                    ProjectedValue::Construction(Box::new(project_number_literal(*count))),
-                ),
-                (
-                    "symbols",
+        Err(ProjectionError::NoConstruction { .. }) => Ok(project_flat_subtree(category, value)
+            .map_or_else(
+                || {
                     ProjectedValue::Atom(ProjectedAtom::FlatSubtree {
-                        category: "OracleSymbols",
-                        value: OwnedProjectionValue::new(symbols),
-                    }),
-                ),
-            ]),
-        ),
-        KeywordArgument::Predicated(value) => {
-            let members = value
-                .qualities
-                .iter()
-                .map(|quality| {
-                    Ok(ProjectedMember {
-                        element: "flat_predicated_quality",
-                        variant: None,
-                        roles: BTreeMap::from([
-                            (
-                                "preposition",
-                                optional_scalar("Preposition", quality.preposition),
-                            ),
-                            (
-                                "quality",
-                                ProjectedValue::Construction(Box::new(project_phrase(
-                                    &quality.quality,
-                                )?)),
-                            ),
-                        ]),
+                        category,
+                        value: OwnedProjectionValue::new(value),
                     })
-                })
-                .collect::<Result<Vec<_>, ProjectionError>>()?;
-            (
-                "predicated",
-                4,
-                BTreeMap::from([(
-                    "qualities",
-                    ProjectedValue::Sequence(ProjectedSequence {
-                        role: "qualities",
-                        members,
-                    }),
-                )]),
-            )
-        }
-        KeywordArgument::Qualified(value) => (
-            "qualified",
-            5,
-            BTreeMap::from([(
-                "quality",
-                ProjectedValue::Construction(Box::new(project_phrase(value)?)),
-            )]),
-        ),
-        KeywordArgument::Statted { symbols, stats } => (
-            "statted",
-            6,
-            BTreeMap::from([
-                (
-                    "symbols",
-                    ProjectedValue::Atom(ProjectedAtom::FlatSubtree {
-                        category: "OracleSymbols",
-                        value: OwnedProjectionValue::new(symbols),
-                    }),
-                ),
-                (
-                    "stats",
-                    ProjectedValue::Construction(Box::new(project_power_toughness(*stats))),
-                ),
-            ]),
-        ),
-        KeywordArgument::Named { separator, label } => (
-            "named",
-            7,
-            BTreeMap::from([
-                (
-                    "separator",
-                    atom_scalar("KeywordArgumentSeparator", separator),
-                ),
-                ("label", atom_identity("KeywordLabel", "String", label)),
-            ]),
-        ),
-        KeywordArgument::Recovered { text } => (
-            "recovered",
-            8,
-            BTreeMap::from([(
-                "text",
-                atom_identity("RecoveredText", "RecoveredText", text),
-            )]),
-        ),
-        KeywordArgument::RestrictedCost {
-            preposition,
-            restriction,
-            cost,
-        } => (
-            "restricted_cost",
-            9,
-            BTreeMap::from([
-                ("preposition", optional_scalar("Preposition", *preposition)),
-                (
-                    "restriction",
-                    nested_or_flat("NounPhrase", restriction.as_ref())?,
-                ),
-                (
-                    "cost",
-                    ProjectedValue::Atom(ProjectedAtom::FlatSubtree {
-                        category: "KeywordCost",
-                        value: OwnedProjectionValue::new(cost),
-                    }),
-                ),
-            ]),
-        ),
-    };
-    Ok(flat_projection(
-        "KeywordArgument",
-        "flat_keyword_argument",
-        form,
-        ordinal,
-        roles,
-    ))
+                },
+                |projection| ProjectedValue::Construction(Box::new(projection)),
+            )),
+        Err(error) => Err(error.to_string()),
+    }
 }
 
 fn project_catalog_atom(value: &crate::catalog::CatalogAtom) -> ConstructionProjection {
@@ -695,6 +347,22 @@ struct OpenSequence {
     role: &'static str,
     expected_len: usize,
     members: Vec<ProjectedMember>,
+    opened_at: usize,
+}
+
+struct OpenVariant {
+    role: &'static str,
+    element: &'static str,
+    variant: &'static str,
+    roles: BTreeMap<&'static str, ProjectedValue>,
+    opened_at: usize,
+}
+
+struct OpenProduct {
+    role: &'static str,
+    element: &'static str,
+    roles: BTreeMap<&'static str, ProjectedValue>,
+    opened_at: usize,
 }
 
 struct ProjectionCollector {
@@ -707,6 +375,9 @@ struct ProjectionCollector {
     witnesses: BTreeMap<&'static str, ProjectedWitness>,
     literals: Vec<&'static str>,
     sequences: Vec<OpenSequence>,
+    variants: Vec<OpenVariant>,
+    products: Vec<OpenProduct>,
+    next_context: usize,
     ended: bool,
 }
 
@@ -722,6 +393,9 @@ impl ProjectionCollector {
             witnesses: BTreeMap::new(),
             literals: Vec::new(),
             sequences: Vec::new(),
+            variants: Vec::new(),
+            products: Vec::new(),
+            next_context: 0,
             ended: false,
         }
     }
@@ -742,6 +416,12 @@ impl ProjectionCollector {
         if !self.sequences.is_empty() {
             return Err(self.invalid("an emitted sequence was not closed"));
         }
+        if !self.variants.is_empty() {
+            return Err(self.invalid("an emitted sum variant was not closed"));
+        }
+        if !self.products.is_empty() {
+            return Err(self.invalid("an emitted product was not closed"));
+        }
         Ok(ConstructionProjection {
             category: self.category,
             construction,
@@ -760,12 +440,36 @@ impl ProjectionCollector {
         }
     }
 
-    fn current_roles(&mut self) -> Result<&mut BTreeMap<&'static str, ProjectedValue>, String> {
-        if let Some(sequence) = self.sequences.last_mut() {
+    fn current_roles(
+        &mut self,
+        role: &'static str,
+    ) -> Result<(&mut BTreeMap<&'static str, ProjectedValue>, &'static str), String> {
+        let sequence_opened_at = self.sequences.last().map(|sequence| sequence.opened_at);
+        let variant_opened_at = self.variants.last().map(|variant| variant.opened_at);
+        let product_opened_at = self.products.last().map(|product| product.opened_at);
+        if product_opened_at > sequence_opened_at && product_opened_at > variant_opened_at {
+            let product = self
+                .products
+                .last_mut()
+                .expect("a product context was observed");
+            return Ok((&mut product.roles, role));
+        }
+        if variant_opened_at > sequence_opened_at && variant_opened_at > product_opened_at {
+            let variant = self
+                .variants
+                .last_mut()
+                .expect("a variant context was observed");
+            return Ok((&mut variant.roles, role));
+        }
+        if sequence_opened_at.is_some() {
+            let sequence = self
+                .sequences
+                .last_mut()
+                .expect("a sequence context was observed");
             return sequence
                 .members
                 .last_mut()
-                .map(|member| &mut member.roles)
+                .map(|member| (&mut member.roles, role))
                 .ok_or_else(|| {
                     format!(
                         "sequence `{}` emitted a value before a member",
@@ -773,11 +477,11 @@ impl ProjectionCollector {
                     )
                 });
         }
-        Ok(&mut self.roles)
+        Ok((&mut self.roles, role))
     }
 
     fn insert(&mut self, role: &'static str, value: ProjectedValue) -> Result<(), String> {
-        let roles = self.current_roles()?;
+        let (roles, role) = self.current_roles(role)?;
         match roles.get_mut(role) {
             Some(ProjectedValue::Optional(slot @ None)) => {
                 *slot = Some(Box::new(value));
@@ -837,24 +541,75 @@ impl ProjectionSink for ProjectionCollector {
         category: &'static str,
         value: &dyn deckmaste_construction_compiler::runtime::ProjectionValue,
     ) -> Result<(), String> {
-        match project_subtree(category, value) {
-            Ok(projection) => self.insert(role, ProjectedValue::Construction(Box::new(projection))),
-            Err(ProjectionError::NoConstruction { .. }) => {
-                let projected = project_flat_subtree(category, value)
-                    .map_err(|error| error.to_string())?
-                    .map_or_else(
-                        || {
-                            ProjectedValue::Atom(ProjectedAtom::FlatSubtree {
-                                category,
-                                value: OwnedProjectionValue::new(value),
-                            })
-                        },
-                        |projection| ProjectedValue::Construction(Box::new(projection)),
-                    );
-                self.insert(role, projected)
-            }
-            Err(error) => Err(error.to_string()),
+        self.insert(role, projected_subtree(category, value)?)
+    }
+
+    fn begin_sum_variant(
+        &mut self,
+        role: &'static str,
+        element: &'static str,
+        variant: &'static str,
+    ) -> Result<(), String> {
+        let opened_at = self.next_context;
+        self.next_context += 1;
+        self.variants.push(OpenVariant {
+            role,
+            element,
+            variant,
+            roles: BTreeMap::new(),
+            opened_at,
+        });
+        Ok(())
+    }
+
+    fn end_sum_variant(&mut self, role: &'static str) -> Result<(), String> {
+        let variant = self
+            .variants
+            .pop()
+            .ok_or_else(|| format!("end_sum_variant `{role}` has no open variant"))?;
+        if variant.role != role {
+            return Err(format!(
+                "end_sum_variant `{role}` closed `{}`",
+                variant.role
+            ));
         }
+        self.insert(
+            role,
+            ProjectedValue::Variant(ProjectedVariant {
+                element: variant.element,
+                variant: variant.variant,
+                roles: variant.roles,
+            }),
+        )
+    }
+
+    fn begin_product(&mut self, role: &'static str, element: &'static str) -> Result<(), String> {
+        let opened_at = self.next_context;
+        self.next_context += 1;
+        self.products.push(OpenProduct {
+            role,
+            element,
+            roles: BTreeMap::new(),
+            opened_at,
+        });
+        Ok(())
+    }
+
+    fn end_product(&mut self, role: &'static str) -> Result<(), String> {
+        let product = self
+            .products
+            .pop()
+            .ok_or_else(|| format!("end_product `{role}` has no open product"))?;
+        if product.role != role {
+            return Err(format!("end_product `{role}` closed `{}`", product.role));
+        }
+        self.insert(
+            role,
+            ProjectedValue::Product(ProjectedProduct {
+                element: product.element,
+                roles: product.roles,
+            }),
+        )
     }
 
     fn scalar(
@@ -896,10 +651,13 @@ impl ProjectionSink for ProjectionCollector {
     }
 
     fn begin_sequence(&mut self, role: &'static str, len: usize) -> Result<(), String> {
+        let opened_at = self.next_context;
+        self.next_context += 1;
         self.sequences.push(OpenSequence {
             role,
             expected_len: len,
             members: Vec::with_capacity(len),
+            opened_at,
         });
         Ok(())
     }
@@ -926,21 +684,8 @@ impl ProjectionSink for ProjectionCollector {
     fn bound_value(
         &mut self,
         element: &'static str,
-        value: &dyn ProjectionInput,
+        _value: &dyn ProjectionInput,
     ) -> Result<(), String> {
-        let opaque = if element == "cost_component" {
-            let component = value
-                .as_any()
-                .downcast_ref::<CostComponent>()
-                .ok_or_else(|| "`cost_component` projected a non-CostComponent value".to_owned())?;
-            Some(
-                project_cost_component(component)
-                    .map(|projection| ProjectedValue::Construction(Box::new(projection)))
-                    .map_err(|error| error.to_string())?,
-            )
-        } else {
-            None
-        };
         let sequence = self
             .sequences
             .last_mut()
@@ -950,9 +695,6 @@ impl ProjectionSink for ProjectionCollector {
             .last_mut()
             .ok_or_else(|| format!("element `{element}` has no current member"))?;
         member.element = element;
-        if let Some(value) = opaque {
-            member.roles.insert("component", value);
-        }
         Ok(())
     }
 
@@ -1050,7 +792,10 @@ impl ProjectionSink for ProjectionCollector {
 mod tests {
     use deckmaste_construction_compiler::runtime::ConstructionProjection;
     use deckmaste_construction_compiler::runtime::ProjectedAtom;
+    use deckmaste_construction_compiler::runtime::ProjectedProduct;
+    use deckmaste_construction_compiler::runtime::ProjectedSequence;
     use deckmaste_construction_compiler::runtime::ProjectedValue;
+    use deckmaste_construction_compiler::runtime::ProjectedVariant;
 
     use crate::CatalogKind;
     use crate::Catalogs;
@@ -1106,6 +851,16 @@ mod tests {
                     }
                 }
             }
+            ProjectedValue::Variant(variant) => {
+                for role in variant.roles.values() {
+                    collect_value_constructions(role, constructions);
+                }
+            }
+            ProjectedValue::Product(product) => {
+                for role in product.roles.values() {
+                    collect_value_constructions(role, constructions);
+                }
+            }
             ProjectedValue::Atom(_) | ProjectedValue::Optional(None) => {}
         }
     }
@@ -1133,6 +888,46 @@ mod tests {
         value
     }
 
+    fn required_sequence_role<'a>(
+        projection: &'a ConstructionProjection,
+        role: &str,
+    ) -> &'a ProjectedSequence {
+        let Some(ProjectedValue::Sequence(value)) = projection.roles.get(role) else {
+            panic!("expected required sequence role {role:?}: {projection:#?}");
+        };
+        value
+    }
+
+    fn required_variant_role<'a>(
+        projection: &'a ConstructionProjection,
+        role: &str,
+    ) -> &'a ProjectedVariant {
+        let Some(ProjectedValue::Variant(value)) = projection.roles.get(role) else {
+            panic!("expected required variant role {role:?}: {projection:#?}");
+        };
+        value
+    }
+
+    fn required_nested_variant<'a>(
+        roles: &'a std::collections::BTreeMap<&'static str, ProjectedValue>,
+        role: &str,
+    ) -> &'a ProjectedVariant {
+        let Some(ProjectedValue::Variant(value)) = roles.get(role) else {
+            panic!("expected nested variant role {role:?}: {roles:#?}");
+        };
+        value
+    }
+
+    fn required_nested_product<'a>(
+        roles: &'a std::collections::BTreeMap<&'static str, ProjectedValue>,
+        role: &str,
+    ) -> &'a ProjectedProduct {
+        let Some(ProjectedValue::Product(value)) = roles.get(role) else {
+            panic!("expected nested product role {role:?}: {roles:#?}");
+        };
+        value
+    }
+
     fn clean_fragment(source: &str, catalogs: &Catalogs, kind: FragmentKind) -> Fragment {
         let report = parse_fragment(source, catalogs, kind, "", false);
         assert!(
@@ -1142,6 +937,42 @@ mod tests {
         report
             .into_fragment()
             .expect("a clean projection fixture has a semantic fragment")
+    }
+
+    fn a01_keyword_catalogs() -> Catalogs {
+        Catalogs::default()
+            .with_catalog(CatalogKind::CardType, ["Artifact", "Creature"])
+            .with_catalog(
+                CatalogKind::KeywordAbility,
+                [
+                    "Flying",
+                    "First strike",
+                    "Ward",
+                    "Fabricate",
+                    "Suspend",
+                    "Protection",
+                    "Enchant",
+                    "Prototype",
+                    "Partner",
+                    "Craft",
+                    "Exhaust",
+                ],
+            )
+    }
+
+    fn a01_keyword_projection(source: &str, catalogs: &Catalogs) -> ConstructionProjection {
+        let report = parse_fragment(
+            source,
+            catalogs,
+            FragmentKind::KeywordLine,
+            "Test Card",
+            false,
+        );
+        let fragment = report
+            .fragment()
+            .unwrap_or_else(|| panic!("keyword fixture did not produce a fragment: {source}"));
+        super::project_fragment(fragment)
+            .unwrap_or_else(|error| panic!("keyword fixture did not project: {source}: {error}"))
     }
 
     fn independent_sentence(fragment: &Fragment) -> &IndependentClause {
@@ -1165,6 +996,316 @@ mod tests {
             panic!("expected exactly one relative complement");
         };
         relative
+    }
+
+    #[test]
+    fn a01_cost_projection_is_a_nonempty_sequence_of_typed_variants() {
+        let catalogs =
+            Catalogs::default().with_catalog(CatalogKind::CardType, ["Artifact", "Creature"]);
+        for (source, form, expected_variants) in [
+            ("{T}", "plain", &["Symbols"][..]),
+            ("Sacrifice a creature", "plain", &["Clause"][..]),
+            ("A creature", "plain", &["Noun"][..]),
+            ("{T} or {W}", "plain", &["Alternative"][..]),
+            ("Frobnicate a creature", "plain", &["Recovered"][..]),
+            (
+                "Boast — {2}{R}, Sacrifice an artifact",
+                "header",
+                &["Symbols", "Clause"][..],
+            ),
+        ] {
+            let report = parse_fragment(source, &catalogs, FragmentKind::Cost, "Test Card", false);
+            let fragment = report
+                .fragment()
+                .unwrap_or_else(|| panic!("cost fixture did not produce a fragment: {source}"));
+            let projection = super::project_fragment(fragment)
+                .unwrap_or_else(|error| panic!("cost fixture did not project: {source}: {error}"));
+            assert_eq!(projection.construction, "cost", "{source}");
+            assert_eq!(projection.form, form, "{source}");
+
+            let components = required_sequence_role(&projection, "components");
+            assert!(!components.members.is_empty(), "{source}");
+            assert_eq!(components.role, "components", "{source}");
+            assert_eq!(
+                components
+                    .members
+                    .iter()
+                    .map(|member| {
+                        assert_eq!(member.element, "cost_component", "{source}");
+                        member.variant.expect("cost components select a variant")
+                    })
+                    .collect::<Vec<_>>(),
+                expected_variants,
+                "{source}",
+            );
+
+            if form == "header" {
+                assert!(
+                    matches!(
+                        projection.roles.get("flavor_header"),
+                        Some(ProjectedValue::Optional(Some(_)))
+                    ),
+                    "{source}: {projection:#?}"
+                );
+            } else {
+                assert!(
+                    !projection.roles.contains_key("flavor_header"),
+                    "the plain cost form has no header role: {source}: {projection:#?}",
+                );
+            }
+
+            if source == "{T} or {W}" {
+                let alternative = &components.members[0];
+                for role in ["cost_component.left", "cost_component.right"] {
+                    let branch = required_nested_variant(&alternative.roles, role);
+                    assert_eq!(branch.element, "cost_component");
+                    assert_eq!(branch.variant, "Symbols");
+                    assert_eq!(
+                        branch.roles.keys().copied().collect::<Vec<_>>(),
+                        ["payload"],
+                        "recursive sum payload roles are local to their variant",
+                    );
+                }
+            }
+            if source == "Sacrifice a creature" {
+                let Some(ProjectedValue::Construction(clause)) =
+                    components.members[0].roles.get("cost_component.payload")
+                else {
+                    panic!(
+                        "a typed clause cost must expose its Clause projection: {projection:#?}"
+                    );
+                };
+                assert_eq!(clause.category, "Clause");
+            }
+        }
+    }
+
+    #[test]
+    fn a01_keyword_projection_preserves_argument_variants_and_nested_typed_payloads() {
+        let catalogs = a01_keyword_catalogs();
+        for (source, expected_argument, expected_cost) in [
+            ("Flying", "Absent", None),
+            ("Fabricate 2", "Counted", None),
+            ("Ward {2}", "Costed", Some("Symbols")),
+            ("Suspend 4—{1}{U}", "CountedCost", None),
+            ("Protection from red", "Predicated", None),
+            ("Enchant creature", "Qualified", None),
+            ("Prototype {2}{G}{G} — 3/3", "Statted", None),
+            ("Partner—Friends forever", "Named", None),
+            (
+                "Craft with artifact {1}{U}",
+                "RestrictedCost",
+                Some("Symbols"),
+            ),
+            ("Exhaust — {2}{G}: Draw a card.", "Costed", Some("Sentence")),
+            ("Ward—Sacrifice a creature.", "Costed", Some("Components")),
+            ("Ward {3}. This ability costs {1} less.", "Recovered", None),
+        ] {
+            let projection = a01_keyword_projection(source, &catalogs);
+            assert_eq!(projection.construction, "keyword_line", "{source}");
+            let abilities = required_sequence_role(&projection, "abilities");
+            assert!(!abilities.members.is_empty(), "{source}");
+            let first = &abilities.members[0];
+            assert_eq!(first.element, "keyword_ability", "{source}");
+            assert!(
+                first.roles.contains_key("keyword_ability.ability"),
+                "{source}"
+            );
+            let argument = required_nested_variant(&first.roles, "keyword_ability.argument");
+            assert_eq!(argument.element, "keyword_argument", "{source}");
+            assert_eq!(argument.variant, expected_argument, "{source}");
+            assert!(
+                argument.roles.keys().all(|role| !role.contains('.')),
+                "variant payload roles must be local: {source}: {argument:#?}",
+            );
+            if expected_argument == "Predicated" {
+                let predicated = required_nested_product(&argument.roles, "payload");
+                assert_eq!(predicated.element, "predicated_argument", "{source}");
+                let Some(ProjectedValue::Sequence(qualities)) = predicated.roles.get("qualities")
+                else {
+                    panic!("predicated argument lost its typed quality sequence: {predicated:#?}");
+                };
+                assert!(!qualities.members.is_empty(), "{source}");
+                assert_eq!(
+                    qualities.members[0].element, "predicated_quality",
+                    "{source}"
+                );
+                let quality = required_nested_variant(
+                    &qualities.members[0].roles,
+                    "predicated_quality.quality",
+                );
+                assert_eq!(quality.element, "phrase_argument", "{source}");
+            }
+            if expected_argument == "Qualified" {
+                let phrase = required_nested_variant(&argument.roles, "payload");
+                assert_eq!(phrase.element, "phrase_argument", "{source}");
+                assert_eq!(phrase.variant, "NounPhrase", "{source}");
+            }
+            if let Some(expected_cost) = expected_cost {
+                let role = if expected_argument == "RestrictedCost" { "cost" } else { "payload" };
+                let cost = required_nested_variant(&argument.roles, role);
+                assert_eq!(cost.element, "keyword_cost", "{source}");
+                assert_eq!(cost.variant, expected_cost, "{source}");
+                assert!(
+                    cost.roles.keys().all(|role| !role.contains('.')),
+                    "nested variant payload roles must be local: {source}: {cost:#?}",
+                );
+                if expected_cost == "Components" {
+                    let Some(ProjectedValue::Construction(cost)) = cost.roles.get("cost") else {
+                        panic!("structured keyword cost lost its nested Cost root: {cost:#?}");
+                    };
+                    assert_eq!(cost.construction, "cost", "{source}");
+                    assert!(
+                        !required_sequence_role(cost, "components")
+                            .members
+                            .is_empty()
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a01_keyword_projection_preserves_separator_edges_and_trailing_form() {
+        let catalogs = a01_keyword_catalogs();
+        let separated = a01_keyword_projection("Flying; first strike", &catalogs);
+        let abilities = required_sequence_role(&separated, "abilities");
+        assert_eq!(abilities.members.len(), 2);
+        assert!(
+            !abilities.members[0]
+                .roles
+                .contains_key("abilities.separator")
+        );
+        assert!(matches!(
+            abilities.members[1].roles.get("abilities.separator"),
+            Some(ProjectedValue::Atom(ProjectedAtom::Scalar {
+                codec: "KeywordListSeparator",
+                ..
+            }))
+        ));
+
+        let trailing = a01_keyword_projection("Ward—Sacrifice a creature. Draw a card.", &catalogs);
+        assert_eq!(trailing.form, "trailing");
+        assert!(matches!(
+            trailing.roles.get("trailing"),
+            Some(ProjectedValue::Optional(Some(_)))
+        ));
+    }
+
+    #[test]
+    fn a01_ability_projection_uses_the_direct_kind_sum_for_every_frame() {
+        let catalogs = Catalogs::default()
+            .with_catalog(CatalogKind::CardType, ["Artifact", "Creature", "Land"])
+            .with_catalog(
+                CatalogKind::KeywordAbility,
+                ["Flying", "First strike", "Station"],
+            );
+        for (source, index, form, variant) in [
+            ("{T}: Draw a card.", 0, "activated", "Activated"),
+            ("{1}{R}: Level 2", 0, "class_level", "ClassLevel"),
+            ("I — Draw a card.", 0, "chapter", "Chapter"),
+            (
+                "20 | Search your library for a card.",
+                0,
+                "roll_row",
+                "RollRow",
+            ),
+            ("LEVEL 1-3\n4/4", 0, "level_band", "LevelBand"),
+            (
+                "Station\n8+ | Flying",
+                1,
+                "station_threshold",
+                "StationThreshold",
+            ),
+            (
+                "Whenever you attack, draw a card.",
+                0,
+                "triggered",
+                "Triggered",
+            ),
+            (
+                "[−X]: Exile each nonland permanent.",
+                0,
+                "loyalty",
+                "Loyalty",
+            ),
+            (
+                "Choose one —\n• Draw a card.\n• Gain 1 life.",
+                0,
+                "modal",
+                "Modal",
+            ),
+            ("Flying", 0, "keyword", "Keyword"),
+            ("Draw a card.", 0, "paragraph", "Paragraph"),
+        ] {
+            let report = crate::parse_with_catalogs(source, &catalogs);
+            let ability = report
+                .ast()
+                .abilities
+                .get(index)
+                .unwrap_or_else(|| panic!("missing ability {index} for {source:?}"));
+            let projection = super::project_value("Ability", ability)
+                .unwrap_or_else(|error| panic!("ability did not project: {source}: {error}"));
+            assert_eq!(projection.construction, "ability", "{source}");
+            assert_eq!(projection.form, form, "{source}");
+            let kind = required_variant_role(&projection, "kind");
+            assert_eq!(kind.element, "ability_kind", "{source}");
+            assert_eq!(kind.variant, variant, "{source}");
+            assert_eq!(
+                kind.roles.keys().copied().collect::<Vec<_>>(),
+                ["payload"],
+                "the selected kind owns one local payload role: {source}",
+            );
+            if variant == "Keyword" {
+                let Some(ProjectedValue::Construction(keyword_line)) = kind.roles.get("payload")
+                else {
+                    panic!("keyword kind lost its nested keyword-line root: {kind:#?}");
+                };
+                assert_eq!(keyword_line.construction, "keyword_line");
+            }
+        }
+    }
+
+    #[test]
+    fn a01_ability_projection_keeps_the_single_optional_header_role() {
+        let catalogs = Catalogs::default().with_catalog(CatalogKind::KeywordAbility, ["Flying"]);
+        let report = parse_fragment(
+            "Flying",
+            &catalogs,
+            FragmentKind::Ability,
+            "Test Card",
+            false,
+        );
+        let Fragment::Ability(plain) = report
+            .fragment()
+            .expect("the keyword ability produces a fragment")
+        else {
+            panic!("expected an ability fragment");
+        };
+        let plain_projection = super::project_value("Ability", plain)
+            .expect("the headerless ability projects through A01");
+        assert!(matches!(
+            plain_projection.roles.get("header"),
+            Some(ProjectedValue::Optional(None))
+        ));
+
+        let labeled = crate::ability::build_ability(
+            Some(crate::syntax::AbilityHeader::Flavor(
+                crate::syntax::FlavorHeader::new("Showcase", 1),
+            )),
+            plain.kind().clone(),
+        )
+        .expect("a flavor header occupies the semantic header slot");
+        let labeled_projection = super::project_value("Ability", &labeled)
+            .expect("the labeled ability projects through A01");
+        assert!(matches!(
+            labeled_projection.roles.get("header"),
+            Some(ProjectedValue::Optional(Some(value)))
+                if matches!(value.as_ref(), ProjectedValue::Atom(ProjectedAtom::FlatSubtree {
+                    category: "AbilityHeader",
+                    ..
+                }))
+        ));
     }
 
     #[test]

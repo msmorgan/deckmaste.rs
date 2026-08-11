@@ -721,41 +721,61 @@ mod tests {
     #[test]
     fn production_cost_inspect_reports_nested_ability_backend_owner() {
         let verbose = verbose_m01("{2}: Choose one —\n• Draw a card.\n• Create a Treasure token.");
+        let cost = verbose
+            .lines()
+            .find(|line| line.contains(" cost owner=generated backend=ability "))
+            .unwrap_or_else(|| panic!("missing generated cost decision:\n{verbose}"));
         assert!(
-            verbose.contains(
-                " cost owner=generated backend=ability form=1 evidence=role:activation-cost root"
-            ),
-            "{verbose}"
+            cost.contains("evidence=role:activation-cost root"),
+            "{cost}"
         );
     }
 
     #[test]
-    fn production_ability_inspect_reports_generated_root_and_form() {
+    fn production_ability_inspect_reports_generated_semantic_root() {
         let verbose = verbose_m01("Choose one —\n• Draw a card.\n• Create a Treasure token.");
+        let ability = verbose
+            .lines()
+            .find(|line| line.contains(" ability owner=generated backend=ability "))
+            .unwrap_or_else(|| panic!("missing generated ability decision:\n{verbose}"));
         assert!(
-            verbose.contains(
-                " ability owner=generated backend=ability form=8 evidence=guard:decisive ability frame guard"
-            ),
-            "{verbose}"
+            ability.contains("evidence=guard:decisive ability frame guard"),
+            "{ability}"
         );
     }
 
     #[test]
     fn ability_collision_inspect_reports_ranked_alternatives_and_decisive_cost() {
         let verbose = verbose_m01("Ward—Discard a card: Draw a card.");
+        let ability = verbose
+            .lines()
+            .find(|line| line.contains(" ability owner=generated backend=ability "))
+            .unwrap_or_else(|| panic!("missing generated ability decision:\n{verbose}"));
         assert!(
-            verbose.contains(
-                " ability owner=generated backend=ability form=9 evidence=guard:decisive ability frame guard reason=cost:precedence cost={opaque_words:0,opaque_lexemes:0,generic_rules:0,reading_dispreference:0,attachment_count:0,attachment_distance:0,attachment_extent:0,precedence:0}"
-            ),
-            "{verbose}"
+            ability.contains("evidence=guard:decisive ability frame guard")
+                && ability.contains("reason=cost:precedence")
+                && ability.ends_with("precedence:0}"),
+            "{ability}"
+        );
+        let alternatives = verbose
+            .lines()
+            .filter(|line| line.trim_start().starts_with("alternative ability#"))
+            .collect::<Vec<_>>();
+        assert_eq!(alternatives.len(), 2, "{verbose}");
+        assert!(
+            alternatives
+                .iter()
+                .all(|line| line.contains("dominated=false")),
+            "{alternatives:#?}"
         );
         assert!(
-            verbose.contains("alternative ability#0 dominated=false cost={opaque_words:0,opaque_lexemes:0,generic_rules:0,reading_dispreference:0,attachment_count:0,attachment_distance:0,attachment_extent:0,precedence:4}"),
-            "{verbose}"
-        );
-        assert!(
-            verbose.contains("alternative ability#9 dominated=false cost={opaque_words:0,opaque_lexemes:0,generic_rules:0,reading_dispreference:0,attachment_count:0,attachment_distance:0,attachment_extent:0,precedence:0}"),
-            "{verbose}"
+            alternatives
+                .iter()
+                .any(|line| line.ends_with("precedence:4}"))
+                && alternatives
+                    .iter()
+                    .any(|line| line.ends_with("precedence:0}")),
+            "{alternatives:#?}"
         );
     }
 

@@ -3544,8 +3544,15 @@ mod tests {
                 report.ast.abilities[0].kind()
             );
         };
-        assert_eq!(list.abilities().len(), 3);
-        assert_eq!(list.abilities()[1].ability.canonical(), "First strike");
+        assert_eq!(list.separated_abilities().len(), 3);
+        assert_eq!(
+            list.abilities()
+                .nth(1)
+                .expect("three keyword abilities include a second member")
+                .ability
+                .canonical(),
+            "First strike"
+        );
     }
 
     #[test]
@@ -3768,7 +3775,6 @@ mod tests {
         let ast = OracleText {
             abilities: vec![
                 crate::ability::build_ability(
-                    None,
                     None,
                     AbilityKind::Paragraph(Paragraph {
                         flavor_header: None,

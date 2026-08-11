@@ -19,6 +19,266 @@ pub struct DeclarationViolation {
     pub requirement: &'static str,
 }
 
+/// An ordered sequence that statically contains at least one value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NonEmpty<T>(Vec<T>);
+
+impl<T> NonEmpty<T> {
+    #[must_use]
+    pub fn from_first(first: T) -> Self {
+        Self(vec![first])
+    }
+
+    #[must_use]
+    ///
+    /// # Panics
+    ///
+    /// Only if the private nonempty invariant has been violated by unsafe
+    /// code; every safe constructor preserves at least one member.
+    pub fn first(&self) -> &T {
+        self.0
+            .first()
+            .expect("NonEmpty construction preserves one member")
+    }
+
+    #[must_use]
+    pub fn rest(&self) -> &[T] {
+        &self.0[1..]
+    }
+
+    #[must_use]
+    ///
+    /// # Panics
+    ///
+    /// Only if the private nonempty invariant has been violated by unsafe
+    /// code; every safe constructor preserves at least one member.
+    pub fn last(&self) -> &T {
+        self.0
+            .last()
+            .expect("NonEmpty construction preserves one member")
+    }
+
+    #[must_use]
+    pub fn as_slice(&self) -> &[T] {
+        &self.0
+    }
+
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        false
+    }
+
+    pub fn iter(&self) -> std::slice::Iter<'_, T> {
+        self.0.iter()
+    }
+
+    #[must_use]
+    pub fn into_vec(self) -> Vec<T> {
+        self.0
+    }
+}
+
+impl<T> TryFrom<Vec<T>> for NonEmpty<T> {
+    type Error = EmptySequence;
+
+    fn try_from(values: Vec<T>) -> Result<Self, Self::Error> {
+        if values.is_empty() { Err(EmptySequence) } else { Ok(Self(values)) }
+    }
+}
+
+impl<T> AsRef<[T]> for NonEmpty<T> {
+    fn as_ref(&self) -> &[T] {
+        self.as_slice()
+    }
+}
+
+impl<T> std::ops::Deref for NonEmpty<T> {
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        self.as_slice()
+    }
+}
+
+impl<T> IntoIterator for NonEmpty<T> {
+    type Item = T;
+    type IntoIter = std::vec::IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a NonEmpty<T> {
+    type Item = &'a T;
+    type IntoIter = std::slice::Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<T: serde::Serialize> serde::Serialize for NonEmpty<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+
+impl<'de, T: serde::Deserialize<'de>> serde::Deserialize<'de> for NonEmpty<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let values = Vec::<T>::deserialize(deserializer)?;
+        Self::try_from(values).map_err(serde::de::Error::custom)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EmptySequence;
+
+impl std::fmt::Display for EmptySequence {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("a nonempty sequence requires at least one member")
+    }
+}
+
+impl std::error::Error for EmptySequence {}
+
+/// One continuation in a separated nonempty sequence.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct Separated<T, S> {
+    separator: S,
+    value: T,
+}
+
+impl<T, S> Separated<T, S> {
+    #[must_use]
+    pub const fn new(separator: S, value: T) -> Self {
+        Self { separator, value }
+    }
+
+    #[must_use]
+    pub const fn separator(&self) -> &S {
+        &self.separator
+    }
+
+    #[must_use]
+    pub const fn value(&self) -> &T {
+        &self.value
+    }
+
+    #[must_use]
+    pub fn into_parts(self) -> (S, T) {
+        (self.separator, self.value)
+    }
+}
+
+/// A nonempty sequence whose first value has no separator and whose every
+/// continuation has exactly one typed separator.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct SeparatedNonEmpty<T, S> {
+    first: T,
+    rest: Vec<Separated<T, S>>,
+}
+
+pub struct SeparatedNonEmptyIter<'a, T, S> {
+    first: Option<&'a T>,
+    rest: std::slice::Iter<'a, Separated<T, S>>,
+}
+
+impl<'a, T, S> Iterator for SeparatedNonEmptyIter<'a, T, S> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.first
+            .take()
+            .or_else(|| self.rest.next().map(Separated::value))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
+}
+
+impl<T, S> ExactSizeIterator for SeparatedNonEmptyIter<'_, T, S> {
+    fn len(&self) -> usize {
+        usize::from(self.first.is_some()) + self.rest.len()
+    }
+}
+
+impl<T, S> std::iter::FusedIterator for SeparatedNonEmptyIter<'_, T, S> {}
+
+impl<T, S> SeparatedNonEmpty<T, S> {
+    #[must_use]
+    pub const fn new(first: T, rest: Vec<Separated<T, S>>) -> Self {
+        Self { first, rest }
+    }
+
+    #[must_use]
+    pub const fn from_first(first: T) -> Self {
+        Self {
+            first,
+            rest: Vec::new(),
+        }
+    }
+
+    #[must_use]
+    pub const fn first(&self) -> &T {
+        &self.first
+    }
+
+    #[must_use]
+    pub fn rest(&self) -> &[Separated<T, S>] {
+        &self.rest
+    }
+
+    #[must_use]
+    pub fn last(&self) -> &T {
+        self.rest.last().map_or(&self.first, Separated::value)
+    }
+
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.rest.len() + 1
+    }
+
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        false
+    }
+
+    pub fn iter(&self) -> SeparatedNonEmptyIter<'_, T, S> {
+        SeparatedNonEmptyIter {
+            first: Some(&self.first),
+            rest: self.rest.iter(),
+        }
+    }
+
+    #[must_use]
+    pub fn into_parts(self) -> (T, Vec<Separated<T, S>>) {
+        (self.first, self.rest)
+    }
+}
+
+impl<'a, T, S> IntoIterator for &'a SeparatedNonEmpty<T, S> {
+    type Item = &'a T;
+    type IntoIter = SeparatedNonEmptyIter<'a, T, S>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum LinearizationError<E> {
     NoMatchingConstruction {
@@ -38,6 +298,20 @@ pub enum LinearizationError<E> {
         second: u16,
     },
     Visitor(E),
+}
+
+/// Failure to select exactly one declared canonical form for a typed value.
+/// This is the visitor-independent half of [`LinearizationError`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FormSelectionError {
+    NoMatchingForm {
+        construction: &'static str,
+    },
+    MultipleMatchingForms {
+        construction: &'static str,
+        first: u16,
+        second: u16,
+    },
 }
 
 /// Structural event sink used by declaration-emitted value linearizers.
@@ -106,6 +380,57 @@ pub trait LinearizationVisitor {
         _category: &'static str,
         _value: &dyn ProjectionValue,
     ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    /// Starts one variant of a declaration-owned sum role. Payload events are
+    /// emitted between this callback and [`Self::end_sum_variant`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the projected sum
+    /// cannot be accepted.
+    fn begin_sum_variant(
+        &mut self,
+        _role: &'static str,
+        _element: &'static str,
+        _variant: &'static str,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    /// Ends the current declaration-owned sum role.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the projected sum
+    /// cannot be closed.
+    fn end_sum_variant(&mut self, _role: &'static str) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    /// Starts one declaration-owned record product. Field-role events are
+    /// emitted between this callback and [`Self::end_product`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the projected
+    /// product cannot be accepted.
+    fn begin_product(
+        &mut self,
+        _role: &'static str,
+        _element: &'static str,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    /// Ends the current declaration-owned record product.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the projected
+    /// product cannot be closed.
+    fn end_product(&mut self, _role: &'static str) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -428,6 +753,24 @@ pub enum ProjectedValue {
     Atom(ProjectedAtom),
     Optional(Option<Box<ProjectedValue>>),
     Sequence(ProjectedSequence),
+    Variant(ProjectedVariant),
+    Product(ProjectedProduct),
+}
+
+/// One selected alternative of a direct declaration-owned sum role.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProjectedVariant {
+    pub element: &'static str,
+    pub variant: &'static str,
+    pub roles: std::collections::BTreeMap<&'static str, ProjectedValue>,
+}
+
+/// One direct declaration-owned record value. Its named roles are structural;
+/// the bound Rust record layout is not part of the projection contract.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProjectedProduct {
+    pub element: &'static str,
+    pub roles: std::collections::BTreeMap<&'static str, ProjectedValue>,
 }
 
 /// One member of a declaration-owned sequence. `element` and `variant` are
@@ -511,6 +854,48 @@ pub trait ProjectionSink {
         category: &'static str,
         value: &dyn ProjectionValue,
     ) -> Result<(), String>;
+    /// Starts one selected alternative of a declaration-owned sum. Payload
+    /// roles arrive through the ordinary role callbacks until
+    /// [`Self::end_sum_variant`].
+    ///
+    /// # Errors
+    ///
+    /// Returns a structural error when the variant payload cannot be projected
+    /// or inserted under `role`.
+    fn begin_sum_variant(
+        &mut self,
+        _role: &'static str,
+        _element: &'static str,
+        _variant: &'static str,
+    ) -> Result<(), String> {
+        Err("projection sink does not support direct sum roles".to_owned())
+    }
+    /// Ends the current declaration-owned sum role.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structural error when `role` is not the open sum.
+    fn end_sum_variant(&mut self, _role: &'static str) -> Result<(), String> {
+        Ok(())
+    }
+    /// Starts one declaration-owned record product. Product fields arrive
+    /// through the ordinary role callbacks until [`Self::end_product`].
+    ///
+    /// # Errors
+    ///
+    /// Returns a structural error when the product cannot be projected or
+    /// inserted under `role`.
+    fn begin_product(&mut self, _role: &'static str, _element: &'static str) -> Result<(), String> {
+        Err("projection sink does not support direct product roles".to_owned())
+    }
+    /// Ends the current declaration-owned record product.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structural error when `role` is not the open product.
+    fn end_product(&mut self, _role: &'static str) -> Result<(), String> {
+        Ok(())
+    }
     /// Records a typed scalar under its declared role and codec.
     ///
     /// # Errors
@@ -658,6 +1043,31 @@ impl LinearizationVisitor for ProjectionSinkAdapter<'_> {
         self.sink.subtree(role, category, value)
     }
 
+    fn begin_sum_variant(
+        &mut self,
+        role: &'static str,
+        element: &'static str,
+        variant: &'static str,
+    ) -> Result<(), Self::Error> {
+        self.sink.begin_sum_variant(role, element, variant)
+    }
+
+    fn end_sum_variant(&mut self, role: &'static str) -> Result<(), Self::Error> {
+        self.sink.end_sum_variant(role)
+    }
+
+    fn begin_product(
+        &mut self,
+        role: &'static str,
+        element: &'static str,
+    ) -> Result<(), Self::Error> {
+        self.sink.begin_product(role, element)
+    }
+
+    fn end_product(&mut self, role: &'static str) -> Result<(), Self::Error> {
+        self.sink.end_product(role)
+    }
+
     fn scalar<T: std::any::Any>(
         &mut self,
         _codec: &'static str,
@@ -798,6 +1208,7 @@ pub fn unavailable_erased_linearizer(
 pub type ErasedValue = Box<dyn std::any::Any>;
 
 pub type ErasedBuilder = fn(Vec<ErasedValue>) -> Result<ErasedValue, ErasedBuildError>;
+pub type ErasedFieldBuilder = fn(Vec<ErasedValue>) -> Result<ErasedValue, ErasedBuildError>;
 pub type ErasedSequenceBuilder = fn(Vec<ErasedValue>) -> Result<ErasedValue, ErasedBuildError>;
 pub type ErasedProjector = fn(ErasedValue) -> Result<ErasedValue, ErasedBuildError>;
 pub type ErasedRecognizer = fn(&dyn std::any::Any) -> bool;
@@ -815,6 +1226,10 @@ pub enum ErasedBuildError {
     },
     ExtraFields {
         owner: &'static str,
+    },
+    EmptySequence {
+        owner: &'static str,
+        field: &'static str,
     },
     Declaration(DeclarationViolation),
 }
@@ -1043,13 +1458,29 @@ pub struct FieldData {
     pub kind: FieldKindData,
 }
 
+#[allow(
+    unpredictable_function_pointer_comparisons,
+    reason = "metadata equality is used for fixture structure; field builders are never selected by address"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FieldKindData {
+    Unit,
+    TupleProduct {
+        fields: &'static [FieldData],
+    },
+    StructProduct {
+        fields: &'static [FieldData],
+    },
     Identity {
         value_type: &'static str,
         provider: &'static str,
     },
     Subtree {
+        category: &'static str,
+        boxed: bool,
+    },
+    TypedSubtree {
+        value_type: &'static str,
         category: &'static str,
         boxed: bool,
     },
@@ -1067,6 +1498,23 @@ pub enum FieldKindData {
     },
     Sequence {
         element: &'static str,
+    },
+    NonEmptySequence {
+        element: &'static str,
+        erased_builder: ErasedFieldBuilder,
+    },
+    SeparatedNonEmptySequence {
+        element: &'static str,
+        separator: &'static str,
+        erased_builder: ErasedFieldBuilder,
+    },
+    Sum {
+        element: &'static str,
+        boxed: bool,
+    },
+    Product {
+        element: &'static str,
+        boxed: bool,
     },
     /// `opt <kind>`; the inner reference is const-promoted in the emitted
     /// static. Non-nesting is a parser guarantee, mirrored here by data.
@@ -1117,4 +1565,35 @@ pub enum AtomData {
     Hole(&'static str),
     Lexeme(&'static str),
     Identity(&'static str),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nonempty_rejects_empty_ingress_and_serializes_as_a_sequence() {
+        assert_eq!(NonEmpty::<u8>::try_from(Vec::new()), Err(EmptySequence));
+        let values = NonEmpty::try_from(vec![1_u8, 2]).unwrap();
+        assert_eq!(values.first(), &1);
+        assert_eq!(values.rest(), &[2]);
+        assert_eq!(serde_json::to_string(&values).unwrap(), "[1,2]");
+        assert!(serde_json::from_str::<NonEmpty<u8>>("[]").is_err());
+    }
+
+    #[test]
+    fn separated_nonempty_preserves_one_separator_per_continuation() {
+        let values = SeparatedNonEmpty::new(
+            "first",
+            vec![Separated::new(',', "second"), Separated::new(';', "third")],
+        );
+        assert_eq!(
+            values.iter().copied().collect::<Vec<_>>(),
+            ["first", "second", "third"]
+        );
+        assert_eq!(values.iter().len(), 3);
+        assert_eq!(values.rest()[0].separator(), &',');
+        assert_eq!(values.rest()[0].value(), &"second");
+        assert_eq!(values.last(), &"third");
+    }
 }

@@ -1,0 +1,9 @@
+error[E0451]: fields `first` and `rest` of struct `SeparatedNonEmpty` are private
+  --> tests/compile_fail/construct_separated_nonempty.rs:9:9
+   |
+ 8 |     SeparatedNonEmpty {
+   |     ----------------- in this type
+ 9 |         first,
+   |         ^^^^^ private field
+10 |         rest: vec![continuation],
+   |         ^^^^ private field

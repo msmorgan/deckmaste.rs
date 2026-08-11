@@ -846,7 +846,10 @@ fn erased_field(
             };
             if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
         }
-        K::Subtree { category, boxed } => erased_subtree(category, boxed, value),
+        K::Subtree { category, boxed }
+        | K::TypedSubtree {
+            category, boxed, ..
+        } => erased_subtree(category, boxed, value),
         K::Scalar {
             codec: "Conjunction" | "NounPhraseConjunction",
         } => {
@@ -901,10 +904,17 @@ fn erased_field(
         }
         K::Optional { inner } => erased_optional(*inner, &value),
         K::Identity { .. }
+        | K::Unit
+        | K::TupleProduct { .. }
+        | K::StructProduct { .. }
+        | K::Product { .. }
         | K::Scalar { .. }
         | K::TypedScalar { .. }
         | K::SurfaceScalar { .. }
-        | K::Sequence { .. } => None,
+        | K::Sequence { .. }
+        | K::NonEmptySequence { .. }
+        | K::SeparatedNonEmptySequence { .. }
+        | K::Sum { .. } => None,
     }
 }
 
@@ -918,11 +928,19 @@ fn erased_absent(
         }
         K::Optional { inner } => erased_optional_absent(*inner),
         K::Identity { .. }
+        | K::Unit
+        | K::TupleProduct { .. }
+        | K::StructProduct { .. }
         | K::Subtree { .. }
+        | K::TypedSubtree { .. }
+        | K::Product { .. }
         | K::Scalar { .. }
         | K::TypedScalar { .. }
         | K::SurfaceScalar { .. }
-        | K::Sequence { .. } => None,
+        | K::Sequence { .. }
+        | K::NonEmptySequence { .. }
+        | K::SeparatedNonEmptySequence { .. }
+        | K::Sum { .. } => None,
     }
 }
 

@@ -1,9 +1,9 @@
 error[E0451]: fields `abilities` and `trailing` of struct `KeywordAbilityList` are private
- --> tests/compile_fail/construct_keyword_ability_list.rs:5:9
+ --> tests/compile_fail/construct_keyword_ability_list.rs:6:9
   |
-4 |     let _ = KeywordAbilityList {
-  |             ------------------ in this type
-5 |         abilities: Vec::new(),
+5 |     KeywordAbilityList {
+  |     ------------------ in this type
+6 |         abilities: SeparatedNonEmpty::from_first(source.separated_abilities().first().clone()),
   |         ^^^^^^^^^ private field
-6 |         trailing: None,
+7 |         trailing: None,
   |         ^^^^^^^^ private field

@@ -13,14 +13,13 @@ use crate::grammar::VerbDependent;
 use crate::grammar::VerbPhrase as GeneratedVerbPhrase;
 use crate::identity::short_name;
 use crate::syntax::Ability;
+use crate::syntax::AbilityHeader;
 use crate::syntax::AbilityKind;
-use crate::syntax::ActivatedAbility;
 use crate::syntax::AdjectiveComplement;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::AttachmentPosition;
 use crate::syntax::ChapterAbility;
 use crate::syntax::ChoiceInstruction;
-use crate::syntax::ClassLevelAbility;
 use crate::syntax::Clause;
 use crate::syntax::ClauseAttachment;
 use crate::syntax::ClauseAttachmentKind;
@@ -54,7 +53,6 @@ use crate::syntax::KeywordCost;
 use crate::syntax::KeywordListSeparator;
 use crate::syntax::LevelBandAbility;
 use crate::syntax::LevelRange;
-use crate::syntax::LoyaltyAbility;
 use crate::syntax::LoyaltyCost;
 use crate::syntax::LoyaltyCostSign;
 use crate::syntax::LoyaltyCostValue;
@@ -107,7 +105,6 @@ use crate::syntax::TriggerCondition;
 use crate::syntax::TriggerConditionList;
 use crate::syntax::TriggerEvent;
 use crate::syntax::TriggerWord;
-use crate::syntax::TriggeredAbility;
 use crate::syntax::VerbParticle;
 use crate::word::Adjective;
 use crate::word::Auxiliary;
@@ -160,12 +157,6 @@ pub enum RenderError {
     InvalidPrepositionalConstruction,
     #[error("relative-clause AST does not match exactly one generated construction")]
     InvalidRelativeConstruction,
-    #[error("cost AST does not match exactly one generated construction")]
-    InvalidCostConstruction,
-    #[error("keyword-line AST does not match exactly one generated construction")]
-    InvalidKeywordLineConstruction,
-    #[error("ability AST does not match exactly one generated construction")]
-    InvalidAbilityConstruction,
     #[error(
         "predicate AST does not match exactly one generated construction: {problem} in {owner}, {first:?}/{second:?}, forms {first_form:?}/{second_form:?}"
     )]
@@ -679,268 +670,6 @@ struct GeneratedNounRenderer<'renderer, 'identity> {
 struct GeneratedNounPhraseRenderer<'renderer, 'identity> {
     renderer: &'renderer Renderer<'identity>,
     rendered: String,
-}
-
-struct GeneratedCostRenderer<'renderer, 'identity> {
-    renderer: &'renderer Renderer<'identity>,
-    rendered: String,
-    saw_lexical_component: bool,
-}
-
-struct GeneratedKeywordLineRenderer<'renderer, 'identity> {
-    renderer: &'renderer Renderer<'identity>,
-    rendered: String,
-    suppress_final_period: bool,
-}
-
-struct GeneratedAbilityRenderer<'renderer, 'identity> {
-    renderer: &'renderer Renderer<'identity>,
-    capitalize: bool,
-    suppress_final_period: bool,
-    rendered: String,
-    has_header: bool,
-}
-
-impl GeneratedAbilityRenderer<'_, '_> {
-    fn finish(self) -> String {
-        if self.capitalize { capitalize_first(self.rendered) } else { self.rendered }
-    }
-
-    fn push_kind(&mut self, kind: &AbilityKind) -> Result<(), RenderError> {
-        let capitalize = self.has_header || self.capitalize;
-        let rendered = self
-            .renderer
-            .ability_kind(kind, capitalize, self.suppress_final_period)?;
-        if self.has_header {
-            self.rendered.push_str(&capitalize_first(rendered));
-        } else {
-            self.rendered.push_str(&rendered);
-        }
-        Ok(())
-    }
-}
-
-impl deckmaste_construction_compiler::runtime::LinearizationVisitor
-    for GeneratedAbilityRenderer<'_, '_>
-{
-    type Error = RenderError;
-
-    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
-        self.rendered.push_str(literal);
-        Ok(())
-    }
-
-    fn subtree<T: std::any::Any>(
-        &mut self,
-        category: &'static str,
-        value: &T,
-    ) -> Result<(), Self::Error> {
-        let value = value as &dyn std::any::Any;
-        macro_rules! push_kind {
-            ($ty:ty, $variant:path) => {{
-                let value = value
-                    .downcast_ref::<$ty>()
-                    .unwrap_or_else(|| panic!("the ability {category} hole preserves its payload"));
-                self.push_kind(&$variant(value.clone()))
-            }};
-        }
-        match category {
-            "AbilityHeader" => {
-                let header = value
-                    .downcast_ref::<crate::constructions::ability::AbilityHeader>()
-                    .expect("the ability header hole preserves AbilityHeader");
-                match header {
-                    crate::constructions::ability::AbilityHeader::AbilityWord(word) => {
-                        self.rendered.push_str(word.spelling());
-                    }
-                    crate::constructions::ability::AbilityHeader::Flavor(header) => {
-                        self.rendered.push_str(header.text());
-                    }
-                }
-                self.rendered.push_str(" — ");
-                self.has_header = true;
-                Ok(())
-            }
-            "ActivatedAbility" => push_kind!(ActivatedAbility, AbilityKind::Activated),
-            "ClassLevelAbility" => push_kind!(ClassLevelAbility, AbilityKind::ClassLevel),
-            "ChapterAbility" => push_kind!(ChapterAbility, AbilityKind::Chapter),
-            "RollRowAbility" => push_kind!(RollRowAbility, AbilityKind::RollRow),
-            "LevelBandAbility" => push_kind!(LevelBandAbility, AbilityKind::LevelBand),
-            "StationThresholdAbility" => {
-                push_kind!(StationThresholdAbility, AbilityKind::StationThreshold)
-            }
-            "TriggeredAbility" => push_kind!(TriggeredAbility, AbilityKind::Triggered),
-            "LoyaltyAbility" => push_kind!(LoyaltyAbility, AbilityKind::Loyalty),
-            "ModalAbility" => push_kind!(ModalAbility, AbilityKind::Modal),
-            "KeywordAbilityList" => push_kind!(KeywordAbilityList, AbilityKind::Keyword),
-            "Paragraph" => push_kind!(Paragraph, AbilityKind::Paragraph),
-            other => panic!("unexpected ability subtree category `{other}`"),
-        }
-    }
-
-    fn scalar<T: std::any::Any>(
-        &mut self,
-        _codec: &'static str,
-        _value: &T,
-    ) -> Result<(), Self::Error> {
-        unreachable!("ability has no scalar fields")
-    }
-}
-
-impl deckmaste_construction_compiler::runtime::LinearizationVisitor
-    for GeneratedKeywordLineRenderer<'_, '_>
-{
-    type Error = RenderError;
-
-    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
-        self.rendered.push_str(literal);
-        Ok(())
-    }
-
-    fn subtree<T: std::any::Any>(
-        &mut self,
-        category: &'static str,
-        value: &T,
-    ) -> Result<(), Self::Error> {
-        match category {
-            "KeywordArgument" => {
-                let argument = (value as &dyn std::any::Any)
-                    .downcast_ref::<KeywordArgument>()
-                    .expect("the keyword-ability argument hole preserves KeywordArgument");
-                self.rendered
-                    .push_str(&self.renderer.keyword_argument(argument)?);
-                Ok(())
-            }
-            "Paragraph" => {
-                let paragraph = (value as &dyn std::any::Any)
-                    .downcast_ref::<Paragraph>()
-                    .expect("the keyword-line trailing hole preserves Paragraph");
-                self.rendered.push(' ');
-                self.rendered.push_str(&self.renderer.paragraph_with_suffix(
-                    paragraph,
-                    true,
-                    self.suppress_final_period,
-                )?);
-                Ok(())
-            }
-            _ => unreachable!("keyword_line has no other subtree fields"),
-        }
-    }
-
-    fn scalar<T: std::any::Any>(
-        &mut self,
-        codec: &'static str,
-        value: &T,
-    ) -> Result<(), Self::Error> {
-        assert_eq!(codec, "KeywordListSeparator");
-        let separator = (value as &dyn std::any::Any)
-            .downcast_ref::<KeywordListSeparator>()
-            .expect("the keyword separator codec preserves KeywordListSeparator");
-        self.rendered.push_str(match separator {
-            KeywordListSeparator::Comma => ", ",
-            KeywordListSeparator::Semicolon => "; ",
-        });
-        Ok(())
-    }
-
-    fn identity<T: std::any::Any>(
-        &mut self,
-        provider: &'static str,
-        value_type: &'static str,
-        value: &T,
-    ) -> Result<(), Self::Error> {
-        assert_eq!(provider, "AbilityItem");
-        assert_eq!(value_type, "CatalogAtom");
-        let ability = (value as &dyn std::any::Any)
-            .downcast_ref::<crate::catalog::CatalogAtom>()
-            .expect("the keyword identity preserves CatalogAtom");
-        self.rendered.push_str(ability.spelling());
-        Ok(())
-    }
-
-    fn sequence_member(&mut self, field: &'static str, _index: usize) -> Result<(), Self::Error> {
-        assert!(matches!(field, "first" | "rest"));
-        Ok(())
-    }
-
-    fn bound_value<T: std::any::Any>(
-        &mut self,
-        element: &'static str,
-        value: &T,
-    ) -> Result<(), Self::Error> {
-        let _ = (element, value);
-        Ok(())
-    }
-}
-
-impl deckmaste_construction_compiler::runtime::LinearizationVisitor
-    for GeneratedCostRenderer<'_, '_>
-{
-    type Error = RenderError;
-
-    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
-        match literal {
-            "—" => self.rendered.push_str(" — "),
-            other => self.rendered.push_str(other),
-        }
-        Ok(())
-    }
-
-    fn subtree<T: std::any::Any>(
-        &mut self,
-        category: &'static str,
-        value: &T,
-    ) -> Result<(), Self::Error> {
-        let value = value as &dyn std::any::Any;
-        match category {
-            "FlavorHeader" => self.rendered.push_str(
-                value
-                    .downcast_ref::<crate::syntax::FlavorHeader>()
-                    .expect("the cost header hole preserves FlavorHeader")
-                    .text(),
-            ),
-            other => panic!("unexpected cost subtree category `{other}`"),
-        }
-        Ok(())
-    }
-
-    fn scalar<T: std::any::Any>(
-        &mut self,
-        _codec: &'static str,
-        _value: &T,
-    ) -> Result<(), Self::Error> {
-        unreachable!("cost has no scalar fields")
-    }
-
-    fn sequence_member(&mut self, field: &'static str, index: usize) -> Result<(), Self::Error> {
-        assert_eq!(field, "components");
-        if index > 0 {
-            self.rendered.push_str(", ");
-        }
-        Ok(())
-    }
-
-    fn bound_value<T: std::any::Any>(
-        &mut self,
-        element: &'static str,
-        value: &T,
-    ) -> Result<(), Self::Error> {
-        assert_eq!(element, "cost_component");
-        let component = (value as &dyn std::any::Any)
-            .downcast_ref::<CostComponent>()
-            .expect("the cost-component sequence preserves CostComponent");
-        let is_symbol = matches!(component, CostComponent::Symbols(_));
-        let starts_action = matches!(
-            component,
-            CostComponent::Clause(clause) if independent_clause_is_imperative(clause)
-        );
-        let capitalize = starts_action || (!self.saw_lexical_component && !is_symbol);
-        let text = self.renderer.cost_component(component)?;
-        self.rendered
-            .push_str(&if capitalize { capitalize_first(text) } else { text });
-        self.saw_lexical_component |= !is_symbol;
-        Ok(())
-    }
 }
 
 struct GeneratedPrepositionalRenderer<'renderer, 'identity> {
@@ -3076,22 +2805,25 @@ impl<'identity> Renderer<'identity> {
         capitalize: bool,
         suppress_final_period: bool,
     ) -> Result<String, RenderError> {
-        let mut visitor = GeneratedAbilityRenderer {
-            renderer: self,
-            capitalize,
+        let mut rendered = String::new();
+        if let Some(header) = ability.header() {
+            match header {
+                AbilityHeader::AbilityWord(word) => rendered.push_str(word.spelling()),
+                AbilityHeader::Flavor(header) => rendered.push_str(header.text()),
+            }
+            rendered.push_str(" — ");
+        }
+        let kind = self.ability_kind(
+            ability.kind(),
+            capitalize || ability.header().is_some(),
             suppress_final_period,
-            rendered: String::new(),
-            has_header: false,
-        };
-        crate::constructions::ability::linearize_ability_with(ability, &mut visitor).map_err(
-            |error| match error {
-                deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error) => {
-                    error
-                }
-                _ => RenderError::InvalidAbilityConstruction,
-            },
         )?;
-        Ok(visitor.finish())
+        if ability.header().is_some() {
+            rendered.push_str(&capitalize_first(kind));
+        } else {
+            rendered.push_str(&kind);
+        }
+        Ok(if capitalize { capitalize_first(rendered) } else { rendered })
     }
 
     fn ability_kind(
@@ -3336,20 +3068,27 @@ impl<'identity> Renderer<'identity> {
         list: &KeywordAbilityList,
         suppress_final_period: bool,
     ) -> Result<String, RenderError> {
-        let mut visitor = GeneratedKeywordLineRenderer {
-            renderer: self,
-            rendered: String::new(),
-            suppress_final_period,
-        };
-        crate::constructions::ability::linearize_keyword_line_with(list, &mut visitor).map_err(
-            |error| match error {
-                deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error) => {
-                    error
-                }
-                _ => RenderError::InvalidKeywordLineConstruction,
-            },
-        )?;
-        Ok(visitor.rendered)
+        let abilities = list.separated_abilities();
+        let mut rendered = abilities.first().ability.spelling().to_owned();
+        rendered.push_str(&self.keyword_argument(&abilities.first().argument)?);
+        for continuation in abilities.rest() {
+            rendered.push_str(match continuation.separator() {
+                KeywordListSeparator::Comma => ", ",
+                KeywordListSeparator::Semicolon => "; ",
+            });
+            let ability = continuation.value();
+            rendered.push_str(ability.ability.spelling());
+            rendered.push_str(&self.keyword_argument(&ability.argument)?);
+        }
+        if let Some(paragraph) = list.trailing() {
+            rendered.push(' ');
+            rendered.push_str(&self.paragraph_with_suffix(
+                paragraph,
+                true,
+                suppress_final_period,
+            )?);
+        }
+        Ok(rendered)
     }
 
     /// Renders a keyword argument, including the leading separator that joins
@@ -3460,20 +3199,27 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn cost(&self, cost: &Cost) -> Result<String, RenderError> {
-        let mut visitor = GeneratedCostRenderer {
-            renderer: self,
-            rendered: String::new(),
-            saw_lexical_component: false,
-        };
-        crate::constructions::ability::linearize_cost_with(cost, &mut visitor).map_err(
-            |error| match error {
-                deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error) => {
-                    error
-                }
-                _ => RenderError::InvalidCostConstruction,
-            },
-        )?;
-        Ok(visitor.rendered)
+        let mut rendered = String::new();
+        if let Some(header) = cost.flavor_header() {
+            rendered.push_str(header.text());
+            rendered.push_str(" — ");
+        }
+        let mut saw_lexical_component = false;
+        for (index, component) in cost.components().iter().enumerate() {
+            if index > 0 {
+                rendered.push_str(", ");
+            }
+            let is_symbol = matches!(component, CostComponent::Symbols(_));
+            let starts_action = matches!(
+                component,
+                CostComponent::Clause(clause) if independent_clause_is_imperative(clause)
+            );
+            let capitalize = starts_action || (!saw_lexical_component && !is_symbol);
+            let component = self.cost_component(component)?;
+            rendered.push_str(&if capitalize { capitalize_first(component) } else { component });
+            saw_lexical_component |= !is_symbol;
+        }
+        Ok(rendered)
     }
 
     fn cost_component(&self, component: &CostComponent) -> Result<String, RenderError> {
@@ -5826,8 +5572,7 @@ mod tests {
     };
 
     fn checked_ability(kind: AbilityKind) -> Ability {
-        crate::ability::build_ability(None, None, kind)
-            .expect("renderer fixture is a valid ability")
+        crate::ability::build_ability(None, kind).expect("renderer fixture is a valid ability")
     }
 
     fn render_degree_measure_scalar(number: NumberLiteral) -> Result<String, RenderError> {
@@ -5905,18 +5650,19 @@ mod tests {
         let ast = OracleText {
             abilities: vec![checked_ability(AbilityKind::Keyword(
                 crate::keyword_line::build_keyword_line(
-                    vec![
+                    crate::syntax::SeparatedNonEmpty::new(
                         KeywordAbility {
-                            preceding_separator: None,
                             ability: keyword_atom(&catalogs, "flying"),
                             argument: KeywordArgument::Absent,
                         },
-                        KeywordAbility {
-                            preceding_separator: Some(KeywordListSeparator::Comma),
-                            ability: keyword_atom(&catalogs, "deathtouch"),
-                            argument: KeywordArgument::Absent,
-                        },
-                    ],
+                        vec![crate::syntax::Separated::new(
+                            KeywordListSeparator::Comma,
+                            KeywordAbility {
+                                ability: keyword_atom(&catalogs, "deathtouch"),
+                                argument: KeywordArgument::Absent,
+                            },
+                        )],
+                    ),
                     None,
                 )
                 .expect("well-formed keyword line must satisfy the declaration"),
@@ -7036,11 +6782,13 @@ mod tests {
                 stats: stat(9),
                 abilities: vec![checked_ability(AbilityKind::Keyword(
                     crate::keyword_line::build_keyword_line(
-                        vec![KeywordAbility {
-                            preceding_separator: None,
-                            ability: keyword_atom(&catalogs, "flying"),
-                            argument: KeywordArgument::Absent,
-                        }],
+                        crate::syntax::SeparatedNonEmpty::new(
+                            KeywordAbility {
+                                ability: keyword_atom(&catalogs, "flying"),
+                                argument: KeywordArgument::Absent,
+                            },
+                            Vec::new(),
+                        ),
                         None,
                     )
                     .expect("well-formed keyword line must satisfy the declaration"),

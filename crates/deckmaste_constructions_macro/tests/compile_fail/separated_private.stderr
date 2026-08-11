@@ -1,0 +1,9 @@
+error[E0451]: fields `separator` and `value` of struct `Separated` are private
+ --> tests/compile_fail/separated_private.rs:5:9
+  |
+4 |     let _ = Separated {
+  |             --------- in this type
+5 |         separator: ',',
+  |         ^^^^^^^^^ private field
+6 |         value: 1_u8,
+  |         ^^^^^ private field

@@ -659,6 +659,8 @@ fn spell(
         ProjectionTree::Sequence { .. } => format!("{own}[{}]", parts.join(", ")),
         ProjectionTree::Construction(_)
         | ProjectionTree::Element(_)
+        | ProjectionTree::Variant(_)
+        | ProjectionTree::Product(_)
         | ProjectionTree::Optional(None) => format!("{own}{{{}}}", parts.join(", ")),
         ProjectionTree::Atom(_) | ProjectionTree::Hole { .. } => own,
     }
@@ -674,6 +676,8 @@ fn label(tree: &ProjectionTree) -> String {
             || node.element.to_string(),
             |variant| format!("{}::{variant}", node.element),
         ),
+        ProjectionTree::Variant(node) => format!("{}::{}", node.element, node.variant),
+        ProjectionTree::Product(node) => node.element.to_string(),
         ProjectionTree::Atom(ProjectedAtom::FlatSubtree { category, .. }) => {
             format!("flat:{category}")
         }
@@ -1299,6 +1303,8 @@ fn drill_label(tree: &ProjectionTree, budget: usize) -> String {
     let own = match tree {
         ProjectionTree::Construction(node) => node.construction.to_string(),
         ProjectionTree::Element(node) => node.variant.unwrap_or(node.element).to_string(),
+        ProjectionTree::Variant(node) => node.variant.to_string(),
+        ProjectionTree::Product(node) => node.element.to_string(),
         ProjectionTree::Atom(_) => label(tree),
         ProjectionTree::Sequence { role, .. } => (*role).to_string(),
         ProjectionTree::Optional(_) => "Residual".to_string(),

@@ -41,6 +41,7 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
         .iter()
         .filter_map(|c| own_construction(group, c))
         .collect();
+    let (sum_linearizers, product_linearizers) = structural_linearizers(group);
     let bind_constructions: Vec<TokenStream> = group
         .constructions
         .iter()
@@ -59,6 +60,11 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
         .elements
         .iter()
         .map(|element| erased_element_builders(group, element))
+        .collect();
+    let erased_field_builders: Vec<TokenStream> = group
+        .constructions
+        .iter()
+        .flat_map(|construction| construction_field_builders(group, construction))
         .collect();
     let erased_construction_builders: Vec<TokenStream> = group
         .constructions
@@ -139,6 +145,8 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
             )]
             use super::*;
             #(#elements)*
+            #(#sum_linearizers)*
+            #(#product_linearizers)*
             #(#constructions)*
             #(#bind_constructions)*
             #(#linearizers)*
@@ -146,6 +154,7 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
             #(#category_linearizers)*
             #(#target_linearizers)*
             #(#typed_feature_reducers)*
+            #(#erased_field_builders)*
             #(#erased_element_builders)*
             #(#erased_construction_builders)*
             #(#erased_construction_projectors)*
@@ -157,6 +166,24 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
         }
         #(#reexports)*
     }
+}
+
+fn structural_linearizers(group: &GroupDeclaration) -> (Vec<TokenStream>, Vec<TokenStream>) {
+    let sum_reached = sum_reached_elements(group);
+    let sum = group
+        .elements
+        .iter()
+        .filter(|element| sum_reached.contains(&element.name.value))
+        .map(|element| sum_element_linearizer(group, element))
+        .collect();
+    let product_reached = product_reached_elements(group);
+    let product = group
+        .elements
+        .iter()
+        .filter(|element| product_reached.contains(&element.name.value))
+        .map(|element| product_element_linearizer(group, element))
+        .collect();
+    (sum, product)
 }
 
 fn typed_feature_reducers(group: &GroupDeclaration) -> Vec<TokenStream> {
@@ -460,7 +487,7 @@ fn erased_form_recognizers(construction: &ConstructionDeclaration) -> Vec<TokenS
         .collect()
 }
 
-/// BFS over `seq` fields reached from selected own constructions.
+/// BFS over declared structural fields reached from selected own constructions.
 /// Membership-only: element **emission** order stays declaration order in
 /// `emit_group`, unaffected by `sort_unstable()` below.
 fn trait_reached_elements(
@@ -474,7 +501,7 @@ fn trait_reached_elements(
             continue;
         }
         for binding in construction.ast.fields() {
-            enqueue_sequences(&binding.kind, &mut queue);
+            enqueue_trait_elements(&binding.kind, &mut queue);
         }
     }
     while let Some(name) = queue.pop() {
@@ -484,7 +511,10 @@ fn trait_reached_elements(
         reached.push(name.to_owned());
         if let Some(element) = group.elements.iter().find(|e| e.name.value == name) {
             for binding in &element.fields {
-                enqueue_sequences(&binding.kind, &mut queue);
+                enqueue_trait_elements(&binding.kind, &mut queue);
+            }
+            for variant in &element.variants {
+                enqueue_trait_elements(&variant.payload, &mut queue);
             }
         }
     }
@@ -492,12 +522,111 @@ fn trait_reached_elements(
     reached
 }
 
-fn enqueue_sequences<'g>(kind: &'g FieldKind, queue: &mut Vec<&'g str>) {
+fn sum_reached_elements(group: &GroupDeclaration) -> Vec<String> {
+    let mut reached = Vec::new();
+    for construction in &group.constructions {
+        for field in construction.ast.fields() {
+            collect_sum_references(&field.kind, &mut reached);
+        }
+    }
+    for element in &group.elements {
+        for field in &element.fields {
+            collect_sum_references(&field.kind, &mut reached);
+        }
+        for variant in &element.variants {
+            collect_sum_references(&variant.payload, &mut reached);
+        }
+    }
+    reached.sort_unstable();
+    reached.dedup();
+    reached
+}
+
+fn product_reached_elements(group: &GroupDeclaration) -> Vec<String> {
+    let mut reached = Vec::new();
+    for construction in &group.constructions {
+        for field in construction.ast.fields() {
+            collect_product_references(&field.kind, &mut reached);
+        }
+    }
+    for element in &group.elements {
+        for field in &element.fields {
+            collect_product_references(&field.kind, &mut reached);
+        }
+        for variant in &element.variants {
+            collect_product_references(&variant.payload, &mut reached);
+        }
+    }
+    reached.sort_unstable();
+    reached.dedup();
+    reached
+}
+
+fn collect_sum_references(kind: &FieldKind, reached: &mut Vec<String>) {
     match kind {
-        FieldKind::Sequence { element } => queue.push(element.value.as_str()),
-        FieldKind::Optional { inner } => enqueue_sequences(inner, queue),
-        FieldKind::Identity { .. }
+        FieldKind::Sum { element, .. } => reached.push(element.value.clone()),
+        FieldKind::Optional { inner } => collect_sum_references(inner, reached),
+        FieldKind::TupleProduct { fields } | FieldKind::StructProduct { fields } => {
+            for field in fields {
+                collect_sum_references(&field.kind, reached);
+            }
+        }
+        FieldKind::Unit
+        | FieldKind::Identity { .. }
         | FieldKind::Subtree { .. }
+        | FieldKind::TypedSubtree { .. }
+        | FieldKind::Scalar { .. }
+        | FieldKind::TypedScalar { .. }
+        | FieldKind::SurfaceScalar { .. }
+        | FieldKind::Sequence { .. }
+        | FieldKind::NonEmptySequence { .. }
+        | FieldKind::SeparatedNonEmptySequence { .. }
+        | FieldKind::Product { .. } => {}
+    }
+}
+
+fn collect_product_references(kind: &FieldKind, reached: &mut Vec<String>) {
+    match kind {
+        FieldKind::Product { element, .. } => reached.push(element.value.clone()),
+        FieldKind::Optional { inner } => collect_product_references(inner, reached),
+        FieldKind::TupleProduct { fields } | FieldKind::StructProduct { fields } => {
+            for field in fields {
+                collect_product_references(&field.kind, reached);
+            }
+        }
+        FieldKind::Unit
+        | FieldKind::Identity { .. }
+        | FieldKind::Subtree { .. }
+        | FieldKind::TypedSubtree { .. }
+        | FieldKind::Scalar { .. }
+        | FieldKind::TypedScalar { .. }
+        | FieldKind::SurfaceScalar { .. }
+        | FieldKind::Sequence { .. }
+        | FieldKind::NonEmptySequence { .. }
+        | FieldKind::SeparatedNonEmptySequence { .. }
+        | FieldKind::Sum { .. } => {}
+    }
+}
+
+fn enqueue_trait_elements<'g>(kind: &'g FieldKind, queue: &mut Vec<&'g str>) {
+    match kind {
+        FieldKind::Sequence { element }
+        | FieldKind::NonEmptySequence { element }
+        | FieldKind::SeparatedNonEmptySequence { element, .. }
+        | FieldKind::Sum { element, .. }
+        | FieldKind::Product { element, .. } => {
+            queue.push(element.value.as_str());
+        }
+        FieldKind::Optional { inner } => enqueue_trait_elements(inner, queue),
+        FieldKind::TupleProduct { fields } | FieldKind::StructProduct { fields } => {
+            for field in fields {
+                enqueue_trait_elements(&field.kind, queue);
+            }
+        }
+        FieldKind::Unit
+        | FieldKind::Identity { .. }
+        | FieldKind::Subtree { .. }
+        | FieldKind::TypedSubtree { .. }
         | FieldKind::Scalar { .. }
         | FieldKind::TypedScalar { .. }
         | FieldKind::SurfaceScalar { .. } => {}
@@ -554,14 +683,31 @@ fn bound_enum_element(
         "{}VariantRef",
         crate::model::pascal_case(&element.name.value)
     );
+    let borrows_payload = element
+        .variants
+        .iter()
+        .any(|variant| !matches!(variant.payload, FieldKind::Unit));
     let parts = quote::format_ident!("parts_{}", element.name.value);
     let view_variants: Vec<TokenStream> = element
         .variants
         .iter()
         .map(|variant| {
             let name = quote::format_ident!("{}", variant.name.value);
-            let payload = field_type(group, &variant.payload);
-            quote! { #name(&'a #payload), }
+            match &variant.payload {
+                FieldKind::Unit => quote! { #name, },
+                FieldKind::TupleProduct { fields } | FieldKind::StructProduct { fields } => {
+                    let fields = fields.iter().map(|field| {
+                        let field_name = quote::format_ident!("{}", field.field.value);
+                        let field_type = field_type(group, &field.kind);
+                        quote! { #field_name: &'a #field_type }
+                    });
+                    quote! { #name { #(#fields),* }, }
+                }
+                payload => {
+                    let payload = field_type(group, payload);
+                    quote! { #name(&'a #payload), }
+                }
+            }
         })
         .collect();
     let match_arms: Vec<TokenStream> = element
@@ -569,7 +715,28 @@ fn bound_enum_element(
         .iter()
         .map(|variant| {
             let name = quote::format_ident!("{}", variant.name.value);
-            quote! { #target::#name(payload) => #view::#name(payload), }
+            match &variant.payload {
+                FieldKind::Unit => quote! { #target::#name => #view::#name, },
+                FieldKind::TupleProduct { fields } => {
+                    let fields = fields
+                        .iter()
+                        .map(|field| quote::format_ident!("{}", field.field.value))
+                        .collect::<Vec<_>>();
+                    quote! {
+                        #target::#name(#(#fields),*) => #view::#name { #(#fields),* },
+                    }
+                }
+                FieldKind::StructProduct { fields } => {
+                    let fields = fields
+                        .iter()
+                        .map(|field| quote::format_ident!("{}", field.field.value))
+                        .collect::<Vec<_>>();
+                    quote! {
+                        #target::#name { #(#fields),* } => #view::#name { #(#fields),* },
+                    }
+                }
+                _ => quote! { #target::#name(payload) => #view::#name(payload), },
+            }
         })
         .collect();
     let builders: Vec<TokenStream> = element
@@ -582,20 +749,75 @@ fn bound_enum_element(
                 element.name.value,
                 crate::model::snake_case(&variant.name.value),
             );
-            let payload = field_type(group, &variant.payload);
-            quote! {
-                pub fn #builder(payload: #payload) -> #target {
-                    #target::#variant_name(payload)
+            match &variant.payload {
+                FieldKind::Unit => quote! {
+                    pub fn #builder() -> #target {
+                        #target::#variant_name
+                    }
+                },
+                FieldKind::TupleProduct { fields } => {
+                    let args = fields.iter().map(|field| {
+                        let field_name = quote::format_ident!("{}", field.field.value);
+                        let field_type = field_type(group, &field.kind);
+                        quote! { #field_name: #field_type }
+                    });
+                    let fields = fields
+                        .iter()
+                        .map(|field| quote::format_ident!("{}", field.field.value));
+                    quote! {
+                        pub fn #builder(#(#args),*) -> #target {
+                            #target::#variant_name(#(#fields),*)
+                        }
+                    }
+                }
+                FieldKind::StructProduct { fields } => {
+                    let args = fields.iter().map(|field| {
+                        let field_name = quote::format_ident!("{}", field.field.value);
+                        let field_type = field_type(group, &field.kind);
+                        quote! { #field_name: #field_type }
+                    });
+                    let fields = fields
+                        .iter()
+                        .map(|field| quote::format_ident!("{}", field.field.value));
+                    quote! {
+                        pub fn #builder(#(#args),*) -> #target {
+                            #target::#variant_name { #(#fields),* }
+                        }
+                    }
+                }
+                payload => {
+                    let payload = field_type(group, payload);
+                    quote! {
+                        pub fn #builder(payload: #payload) -> #target {
+                            #target::#variant_name(payload)
+                        }
+                    }
                 }
             }
         })
         .collect();
-    quote! {
-        pub enum #view<'a> {
-            #(#view_variants)*
+    let view_declaration = if borrows_payload {
+        quote! {
+            pub enum #view<'a> {
+                #(#view_variants)*
+            }
         }
+    } else {
+        quote! {
+            pub enum #view {
+                #(#view_variants)*
+            }
+        }
+    };
+    let view_return = if borrows_payload {
+        quote! { #view<'_> }
+    } else {
+        quote! { #view }
+    };
+    quote! {
+        #view_declaration
 
-        pub fn #parts(value: &#target) -> #view<'_> {
+        pub fn #parts(value: &#target) -> #view_return {
             match value {
                 #(#match_arms)*
             }
@@ -674,6 +896,110 @@ fn erased_field_reads(
         .collect()
 }
 
+fn construction_field_builders(
+    group: &GroupDeclaration,
+    construction: &ConstructionDeclaration,
+) -> Vec<TokenStream> {
+    let owner = construction.id.value.as_str();
+    construction
+        .ast
+        .fields()
+        .iter()
+        .filter_map(|binding| {
+            let field = binding.field.value.as_str();
+            let function = quote::format_ident!(
+                "__erased_field_{}_{}",
+                construction.id.value,
+                binding.field.value,
+            );
+            match &binding.kind {
+                FieldKind::NonEmptySequence { element } => {
+                    let member = element_type(group, element);
+                    Some(quote! {
+                        fn #function(
+                            values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+                        ) -> Result<
+                            ::deckmaste_construction_compiler::runtime::ErasedValue,
+                            ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+                        > {
+                            let mut members = Vec::<#member>::with_capacity(values.len());
+                            for value in values {
+                                members.push(*value.downcast::<#member>().map_err(|_| {
+                                    ::deckmaste_construction_compiler::runtime::ErasedBuildError::WrongFieldType {
+                                        owner: #owner,
+                                        field: #field,
+                                        expected: stringify!(#member),
+                                    }
+                                })?);
+                            }
+                            let sequence = ::deckmaste_construction_compiler::runtime::NonEmpty::try_from(members)
+                                .map_err(|_| ::deckmaste_construction_compiler::runtime::ErasedBuildError::EmptySequence {
+                                    owner: #owner,
+                                    field: #field,
+                                })?;
+                            Ok(Box::new(sequence))
+                        }
+                    })
+                }
+                FieldKind::SeparatedNonEmptySequence { element, separator } => {
+                    let member = element_type(group, element);
+                    let separator = parse_type(&separator.value);
+                    Some(quote! {
+                        fn #function(
+                            values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+                        ) -> Result<
+                            ::deckmaste_construction_compiler::runtime::ErasedValue,
+                            ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+                        > {
+                            let mut values = values.into_iter();
+                            let first: #member = ::deckmaste_construction_compiler::runtime::take_erased(
+                                &mut values,
+                                #owner,
+                                #field,
+                                stringify!(#member),
+                            ).map_err(|error| match error {
+                                ::deckmaste_construction_compiler::runtime::ErasedBuildError::MissingField { .. } =>
+                                    ::deckmaste_construction_compiler::runtime::ErasedBuildError::EmptySequence {
+                                        owner: #owner,
+                                        field: #field,
+                                    },
+                                other => other,
+                            })?;
+                            let mut rest = Vec::new();
+                            while let Some(separator_value) = values.next() {
+                                let separator = *separator_value.downcast::<#separator>().map_err(|_| {
+                                    ::deckmaste_construction_compiler::runtime::ErasedBuildError::WrongFieldType {
+                                        owner: #owner,
+                                        field: #field,
+                                        expected: stringify!(#separator),
+                                    }
+                                })?;
+                                let value: #member = ::deckmaste_construction_compiler::runtime::take_erased(
+                                    &mut values,
+                                    #owner,
+                                    #field,
+                                    stringify!(#member),
+                                )?;
+                                rest.push(::deckmaste_construction_compiler::runtime::Separated::new(
+                                    separator,
+                                    value,
+                                ));
+                            }
+                            Ok(Box::new(
+                                ::deckmaste_construction_compiler::runtime::SeparatedNonEmpty::new(
+                                    first,
+                                    rest,
+                                ),
+                            ))
+                        }
+                    })
+                }
+                _ => None,
+            }
+        })
+        .collect()
+}
+
 fn erased_element_builders(group: &GroupDeclaration, element: &ElementDeclaration) -> TokenStream {
     let owner = element.name.value.as_str();
     let target = element.bind_path.as_ref().map_or_else(
@@ -712,7 +1038,36 @@ fn erased_element_builders(group: &GroupDeclaration, element: &ElementDeclaratio
             let suffix = crate::model::snake_case(&variant.name.value);
             let function = quote::format_ident!("__erased_build_{}_{}", owner, suffix);
             let variant_name = quote::format_ident!("{}", variant.name.value);
-            let payload = field_type(group, &variant.payload);
+            let (reads, construct) = match &variant.payload {
+                FieldKind::Unit => (Vec::new(), quote! { #target::#variant_name }),
+                FieldKind::TupleProduct { fields } => {
+                    let reads = erased_field_reads(owner, fields, group);
+                    let names = fields
+                        .iter()
+                        .map(|field| quote::format_ident!("{}", field.field.value));
+                    (reads, quote! { #target::#variant_name(#(#names),*) })
+                }
+                FieldKind::StructProduct { fields } => {
+                    let reads = erased_field_reads(owner, fields, group);
+                    let names = fields
+                        .iter()
+                        .map(|field| quote::format_ident!("{}", field.field.value));
+                    (reads, quote! { #target::#variant_name { #(#names),* } })
+                }
+                payload => {
+                    let payload = field_type(group, payload);
+                    let read = quote! {
+                        let payload: #payload =
+                            ::deckmaste_construction_compiler::runtime::take_erased(
+                                &mut values,
+                                #owner,
+                                "payload",
+                                stringify!(#payload),
+                            )?;
+                    };
+                    (vec![read], quote! { #target::#variant_name(payload) })
+                }
+            };
             quote! {
                 fn #function(
                     values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
@@ -721,19 +1076,13 @@ fn erased_element_builders(group: &GroupDeclaration, element: &ElementDeclaratio
                     ::deckmaste_construction_compiler::runtime::ErasedBuildError,
                 > {
                     let mut values = values.into_iter();
-                    let payload: #payload =
-                        ::deckmaste_construction_compiler::runtime::take_erased(
-                            &mut values,
-                            #owner,
-                            "payload",
-                            stringify!(#payload),
-                        )?;
+                    #(#reads)*
                     if values.next().is_some() {
                         return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
                             owner: #owner,
                         });
                     }
-                    Ok(Box::new(#target::#variant_name(payload)))
+                    Ok(Box::new(#construct))
                 }
             }
         });
@@ -1644,6 +1993,13 @@ fn linearizer(group: &GroupDeclaration, construction: &ConstructionDeclaration) 
     let id = construction.id.value.as_str();
     let function = quote::format_ident!("linearize_{}_with", construction.id.value);
     let form_function = quote::format_ident!("linearize_{}_form_with", construction.id.value);
+    let selected_form_function = quote::format_ident!("selected_{}_form", construction.id.value);
+    let declaration = declaration_ident(group);
+    let construction_index = group
+        .constructions
+        .iter()
+        .position(|candidate| std::ptr::eq(candidate, construction))
+        .expect("the emitted construction belongs to its group");
     let (target, fields) = match &construction.ast {
         AstShape::Own { name, fields } => {
             let target = quote::format_ident!("{}", name.value);
@@ -1658,8 +2014,9 @@ fn linearizer(group: &GroupDeclaration, construction: &ConstructionDeclaration) 
     let selections: Vec<TokenStream> = construction
         .forms
         .iter()
-        .filter(|form| !form.fallback)
-        .map(|form| {
+        .enumerate()
+        .filter(|(_, form)| !form.fallback)
+        .map(|(form_index, form)| {
             let field_guard = form
                 .guard
                 .as_ref()
@@ -1678,16 +2035,16 @@ fn linearizer(group: &GroupDeclaration, construction: &ConstructionDeclaration) 
             let ordinal = proc_macro2::Literal::u16_unsuffixed(form.ordinal.value);
             quote! {
                 if #condition {
-                    if let Some(first) = selected_form {
+                    if let Some((first, _)) = selected_form {
                         return Err(
-                            ::deckmaste_construction_compiler::runtime::LinearizationError::MultipleMatchingForms {
+                            ::deckmaste_construction_compiler::runtime::FormSelectionError::MultipleMatchingForms {
                                 construction: #id,
                                 first,
                                 second: #ordinal,
                             },
                         );
                     }
-                    selected_form = Some(#ordinal);
+                    selected_form = Some((#ordinal, #form_index));
                 }
             }
         })
@@ -1695,12 +2052,13 @@ fn linearizer(group: &GroupDeclaration, construction: &ConstructionDeclaration) 
     let fallback_selection = construction
         .forms
         .iter()
-        .find(|form| form.fallback)
-        .map(|form| {
+        .enumerate()
+        .find(|(_, form)| form.fallback)
+        .map(|(form_index, form)| {
             let ordinal = proc_macro2::Literal::u16_unsuffixed(form.ordinal.value);
             quote! {
                 if selected_form.is_none() {
-                    selected_form = Some(#ordinal);
+                    selected_form = Some((#ordinal, #form_index));
                 }
             }
         });
@@ -1826,7 +2184,7 @@ fn linearizer(group: &GroupDeclaration, construction: &ConstructionDeclaration) 
             let parts = quote::format_ident!("parts_{}", construction.id.value);
             quote! {
                 let Some((#(#field_names),*)) = #parts(value) else {
-                    return Err(::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
+                    return Err(::deckmaste_construction_compiler::runtime::FormSelectionError::NoMatchingForm {
                         construction: #id,
                     });
                 };
@@ -1851,6 +2209,26 @@ fn linearizer(group: &GroupDeclaration, construction: &ConstructionDeclaration) 
         }
     };
     quote! {
+        pub fn #selected_form_function(
+            value: &#target,
+        ) -> Result<
+            &'static ::deckmaste_construction_compiler::runtime::FormData,
+            ::deckmaste_construction_compiler::runtime::FormSelectionError,
+        > {
+            #selection_prepare_fields
+            let mut selected_form: Option<(u16, usize)> = None;
+            #(#selections)*
+            #fallback_selection
+            let Some((_, selected_form)) = selected_form else {
+                return Err(
+                    ::deckmaste_construction_compiler::runtime::FormSelectionError::NoMatchingForm {
+                        construction: #id,
+                    },
+                );
+            };
+            Ok(&#declaration.constructions[#construction_index].forms[selected_form])
+        }
+
         pub fn #function<V>(
             value: &#target,
             visitor: &mut V,
@@ -1858,18 +2236,23 @@ fn linearizer(group: &GroupDeclaration, construction: &ConstructionDeclaration) 
         where
             V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor,
         {
-            #selection_prepare_fields
-            let mut selected_form: Option<u16> = None;
-            #(#selections)*
-            #fallback_selection
-            let Some(selected_form) = selected_form else {
-                return Err(
-                    ::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
-                        construction: #id,
-                    },
-                );
-            };
-            #form_function(value, selected_form, visitor)
+            let selected_form = #selected_form_function(value).map_err(|error| match error {
+                ::deckmaste_construction_compiler::runtime::FormSelectionError::NoMatchingForm {
+                    construction,
+                } => ::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
+                    construction,
+                },
+                ::deckmaste_construction_compiler::runtime::FormSelectionError::MultipleMatchingForms {
+                    construction,
+                    first,
+                    second,
+                } => ::deckmaste_construction_compiler::runtime::LinearizationError::MultipleMatchingForms {
+                    construction,
+                    first,
+                    second,
+                },
+            })?;
+            #form_function(value, selected_form.ordinal, visitor)
         }
 
         pub fn #form_function<V>(
@@ -1969,6 +2352,10 @@ fn linearize_path_value(
     }
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "one closed field-kind dispatch emits every structural visitor protocol"
+)]
 fn visit_kind(
     group: &GroupDeclaration,
     accessor: &TokenStream,
@@ -1976,6 +2363,9 @@ fn visit_kind(
     kind: &FieldKind,
 ) -> TokenStream {
     match kind {
+        FieldKind::Unit | FieldKind::TupleProduct { .. } | FieldKind::StructProduct { .. } => {
+            unreachable!("variant products are visited by their bound-enum owner")
+        }
         FieldKind::Identity {
             value_type,
             provider,
@@ -1996,7 +2386,10 @@ fn visit_kind(
                     .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
             }
         }
-        FieldKind::Subtree { category, boxed } => {
+        FieldKind::Subtree { category, boxed }
+        | FieldKind::TypedSubtree {
+            category, boxed, ..
+        } => {
             let category = category.value.as_str();
             let value = if *boxed {
                 quote! { (#accessor).as_ref() }
@@ -2034,7 +2427,7 @@ fn visit_kind(
         FieldKind::SurfaceScalar { .. } => {
             unreachable!("surface-only scalars are emitted with sequence position context")
         }
-        FieldKind::Sequence { element } => {
+        FieldKind::Sequence { element } | FieldKind::NonEmptySequence { element } => {
             let element_declaration = group
                 .elements
                 .iter()
@@ -2062,6 +2455,62 @@ fn visit_kind(
                     .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
             }
         }
+        FieldKind::SeparatedNonEmptySequence { element, separator } => {
+            let element_declaration = group
+                .elements
+                .iter()
+                .find(|candidate| candidate.name.value == element.value)
+                .expect("validated: EC003 rejects a sequence naming an undeclared element");
+            let first = visit_element(
+                group,
+                element_declaration,
+                &quote! { (#accessor).first() },
+                &quote! { 0usize },
+                &quote! { (#accessor).len() },
+            );
+            let continuation = visit_element(
+                group,
+                element_declaration,
+                &quote! { continuation.value() },
+                &quote! { index },
+                &quote! { (#accessor).len() },
+            );
+            let separator_codec = separator.value.as_str();
+            let separator_role = format!("{label}.separator");
+            quote! {
+                visitor
+                    .begin_sequence(#label, (#accessor).len())
+                    .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+                visitor
+                    .sequence_member(#label, 0usize)
+                    .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+                #first
+                for (offset, continuation) in (#accessor).rest().iter().enumerate() {
+                    let index = offset + 1;
+                    visitor
+                        .sequence_member(#label, index)
+                        .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+                    visitor
+                        .scalar(#separator_codec, continuation.separator())
+                        .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+                    visitor
+                        .projected_scalar(
+                            #separator_role,
+                            #separator_codec,
+                            ::deckmaste_construction_compiler::runtime::projection_value(
+                                continuation.separator(),
+                            ),
+                        )
+                        .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+                    #continuation
+                }
+                visitor
+                    .end_sequence(#label)
+                    .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+            }
+        }
+        FieldKind::Sum { element, boxed } => visit_sum(group, accessor, label, element, *boxed),
+        FieldKind::Product { element, boxed } => visit_product(accessor, label, element, *boxed),
         FieldKind::Optional { inner } => {
             let inner = visit_kind(group, &quote! { present }, label, inner);
             quote! {
@@ -2072,6 +2521,193 @@ fn visit_kind(
                     #inner
                 }
             }
+        }
+    }
+}
+
+fn visit_product(
+    accessor: &TokenStream,
+    label: &str,
+    element_name: &crate::model::Spanned<String>,
+    boxed: bool,
+) -> TokenStream {
+    let function = quote::format_ident!("__linearize_product_{}_with", element_name.value);
+    let value = if boxed {
+        quote! { (#accessor).as_ref() }
+    } else {
+        quote! { #accessor }
+    };
+    quote! {
+        #function(#value, #label, visitor)?;
+    }
+}
+
+fn visit_sum(
+    _group: &GroupDeclaration,
+    accessor: &TokenStream,
+    label: &str,
+    element_name: &crate::model::Spanned<String>,
+    boxed: bool,
+) -> TokenStream {
+    let function = quote::format_ident!("__linearize_sum_{}_with", element_name.value);
+    let value = if boxed {
+        quote! { (#accessor).as_ref() }
+    } else {
+        quote! { #accessor }
+    };
+    quote! {
+        #function(#value, #label, visitor)?;
+    }
+}
+
+fn sum_element_linearizer(group: &GroupDeclaration, element: &ElementDeclaration) -> TokenStream {
+    let function = quote::format_ident!("__linearize_sum_{}_with", element.name.value);
+    let target = parse_type(
+        &element
+            .bind_path
+            .as_ref()
+            .expect("validated: sums require a bound enum element")
+            .value,
+    );
+    let element_label = element.name.value.as_str();
+    let arms = element.variants.iter().map(|variant| {
+        let variant_ident = quote::format_ident!("{}", variant.name.value);
+        let variant_label = variant.name.value.as_str();
+        let (pattern, payload) = match &variant.payload {
+            FieldKind::Unit => (quote! { #target::#variant_ident }, quote! {}),
+            FieldKind::TupleProduct { fields } => {
+                let names = fields
+                    .iter()
+                    .map(|field| quote::format_ident!("{}", field.field.value))
+                    .collect::<Vec<_>>();
+                let visits = fields.iter().zip(&names).map(|(field, name)| {
+                    let role = field.field.value.as_str();
+                    visit_kind(group, &quote! { #name }, role, &field.kind)
+                });
+                (
+                    quote! { #target::#variant_ident(#(#names),*) },
+                    quote! { #(#visits)* },
+                )
+            }
+            FieldKind::StructProduct { fields } => {
+                let names = fields
+                    .iter()
+                    .map(|field| quote::format_ident!("{}", field.field.value))
+                    .collect::<Vec<_>>();
+                let visits = fields.iter().zip(&names).map(|(field, name)| {
+                    let role = field.field.value.as_str();
+                    visit_kind(group, &quote! { #name }, role, &field.kind)
+                });
+                (
+                    quote! { #target::#variant_ident { #(#names),* } },
+                    quote! { #(#visits)* },
+                )
+            }
+            payload => {
+                let visit = visit_kind(group, &quote! { payload }, "payload", payload);
+                (
+                    quote! { #target::#variant_ident(payload) },
+                    quote! { #visit },
+                )
+            }
+        };
+        quote! {
+            #pattern => {
+                visitor
+                    .begin_sum_variant(role, #element_label, #variant_label)
+                    .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+                #payload
+                visitor
+                    .end_sum_variant(role)
+                    .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+            }
+        }
+    });
+    quote! {
+        fn #function<V>(
+            value: &#target,
+            role: &'static str,
+            visitor: &mut V,
+        ) -> Result<(), ::deckmaste_construction_compiler::runtime::LinearizationError<V::Error>>
+        where
+            V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor,
+        {
+            visitor
+                .bound_value(#element_label, value)
+                .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+            match value {
+                #(#arms),*
+            }
+            Ok(())
+        }
+    }
+}
+
+fn product_element_linearizer(
+    group: &GroupDeclaration,
+    element: &ElementDeclaration,
+) -> TokenStream {
+    let function = quote::format_ident!("__linearize_product_{}_with", element.name.value);
+    let target = element.bind_path.as_ref().map_or_else(
+        || {
+            let owned = pascal_ident(&element.name.value);
+            quote! { #owned }
+        },
+        |path| parse_type(&path.value),
+    );
+    let element_label = element.name.value.as_str();
+    let fields = element
+        .fields
+        .iter()
+        .filter(|field| !matches!(field.kind, FieldKind::SurfaceScalar { .. }))
+        .collect::<Vec<_>>();
+    let field_names = fields
+        .iter()
+        .map(|field| quote::format_ident!("__product_{}", field.field.value))
+        .collect::<Vec<_>>();
+    let prepare = if element.bind_path.is_some() {
+        let parts = quote::format_ident!("__parts_{}", element.name.value);
+        if let [field_name] = field_names.as_slice() {
+            quote! {
+                let #field_name = #parts(value);
+            }
+        } else {
+            quote! {
+                let (#(#field_names),*) = #parts(value);
+            }
+        }
+    } else {
+        let reads = fields.iter().zip(&field_names).map(|(field, name)| {
+            let member = quote::format_ident!("{}", field.field.value);
+            quote! { let #name = &value.#member; }
+        });
+        quote! { #(#reads)* }
+    };
+    let visits = fields.iter().zip(&field_names).map(|(field, name)| {
+        let role = field.field.value.as_str();
+        visit_kind(group, &quote! { #name }, role, &field.kind)
+    });
+    quote! {
+        fn #function<V>(
+            value: &#target,
+            role: &'static str,
+            visitor: &mut V,
+        ) -> Result<(), ::deckmaste_construction_compiler::runtime::LinearizationError<V::Error>>
+        where
+            V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor,
+        {
+            visitor
+                .bound_value(#element_label, value)
+                .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+            visitor
+                .begin_product(role, #element_label)
+                .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+            #prepare
+            #(#visits)*
+            visitor
+                .end_product(role)
+                .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+            Ok(())
         }
     }
 }
@@ -2122,11 +2758,48 @@ fn visit_element(
             .iter()
             .map(|variant| {
                 let name = quote::format_ident!("{}", variant.name.value);
-                let label = format!("{}::{}", element.name.value, variant.name.value);
-                let payload = visit_kind(group, &quote! { payload }, &label, &variant.payload);
                 let variant_name = variant.name.value.as_str();
+                let (pattern, payload) = match &variant.payload {
+                    FieldKind::Unit => (quote! { #target::#name }, quote! {}),
+                    FieldKind::TupleProduct { fields } => {
+                        let names = fields
+                            .iter()
+                            .map(|field| quote::format_ident!("{}", field.field.value))
+                            .collect::<Vec<_>>();
+                        let visits = fields.iter().zip(&names).map(|(field, name)| {
+                            let label = format!("{}.{}", element.name.value, field.field.value);
+                            visit_kind(group, &quote! { #name }, &label, &field.kind)
+                        });
+                        (
+                            quote! { #target::#name(#(#names),*) },
+                            quote! { #(#visits)* },
+                        )
+                    }
+                    FieldKind::StructProduct { fields } => {
+                        let names = fields
+                            .iter()
+                            .map(|field| quote::format_ident!("{}", field.field.value))
+                            .collect::<Vec<_>>();
+                        let visits = fields.iter().zip(&names).map(|(field, name)| {
+                            let label = format!("{}.{}", element.name.value, field.field.value);
+                            visit_kind(group, &quote! { #name }, &label, &field.kind)
+                        });
+                        (
+                            quote! { #target::#name { #(#names),* } },
+                            quote! { #(#visits)* },
+                        )
+                    }
+                    payload => {
+                        let label = format!("{}.payload", element.name.value);
+                        let visit = visit_kind(group, &quote! { payload }, &label, payload);
+                        (
+                            quote! { #target::#name(payload) },
+                            quote! { #visit },
+                        )
+                    }
+                };
                 quote! {
-                    #target::#name(payload) => {
+                    #pattern => {
                         visitor
                             .element_variant(#element_name, #variant_name)
                             .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
@@ -2267,9 +2940,27 @@ fn deserialize_impl(
 
 fn field_type(group: &GroupDeclaration, kind: &FieldKind) -> TokenStream {
     match kind {
+        FieldKind::Unit => quote! { () },
+        FieldKind::TupleProduct { fields } => {
+            let fields = fields.iter().map(|field| field_type(group, &field.kind));
+            quote! { (#(#fields),*) }
+        }
+        FieldKind::StructProduct { .. } => {
+            unreachable!("a struct-variant product has no standalone Rust type")
+        }
         FieldKind::Identity { value_type, .. } => parse_type(&value_type.value),
         FieldKind::Subtree { category, boxed } => {
             let ty = parse_type(&category.value);
+            if *boxed {
+                quote! { Box<#ty> }
+            } else {
+                quote! { #ty }
+            }
+        }
+        FieldKind::TypedSubtree {
+            value_type, boxed, ..
+        } => {
+            let ty = parse_type(&value_type.value);
             if *boxed {
                 quote! { Box<#ty> }
             } else {
@@ -2304,11 +2995,45 @@ fn field_type(group: &GroupDeclaration, kind: &FieldKind) -> TokenStream {
                 );
             quote! { Vec<#ty> }
         }
+        FieldKind::NonEmptySequence { element } => {
+            let ty = element_type(group, element);
+            quote! { ::deckmaste_construction_compiler::runtime::NonEmpty<#ty> }
+        }
+        FieldKind::SeparatedNonEmptySequence { element, separator } => {
+            let ty = element_type(group, element);
+            let separator = parse_type(&separator.value);
+            quote! {
+                ::deckmaste_construction_compiler::runtime::SeparatedNonEmpty<#ty, #separator>
+            }
+        }
+        FieldKind::Sum { element, boxed } | FieldKind::Product { element, boxed } => {
+            let ty = element_type(group, element);
+            if *boxed {
+                quote! { Box<#ty> }
+            } else {
+                ty
+            }
+        }
         FieldKind::Optional { inner } => {
             let ty = field_type(group, inner);
             quote! { Option<#ty> }
         }
     }
+}
+
+fn element_type(group: &GroupDeclaration, element: &crate::model::Spanned<String>) -> TokenStream {
+    group
+        .elements
+        .iter()
+        .find(|declaration| declaration.name.value == element.value)
+        .and_then(|declaration| declaration.bind_path.as_ref())
+        .map_or_else(
+            || {
+                let owned = pascal_ident(&element.value);
+                quote! { #owned }
+            },
+            |path| parse_type(&path.value),
+        )
 }
 
 fn require_check(
@@ -2363,7 +3088,7 @@ fn predicate_tokens(
                     let seq_field = quote::format_ident!("{}", seq.value);
                     let element = element_of_sequence_field(group, fields, &seq.value);
                     let inner = if elem_field.value == "variant" {
-                        bound_variant_check(element, predicate)
+                        bound_variant_check(element, predicate, &quote! { member })
                     } else {
                         let field_ident = quote::format_ident!("{}", elem_field.value);
                         single_field_check(
@@ -2394,6 +3119,27 @@ fn predicate_tokens(
                         ),
                     }
                 }
+                [sum, variant] if variant.value == "variant" => {
+                    let accessor = quote::format_ident!("{}", sum.value);
+                    let binding = fields
+                        .iter()
+                        .find(|binding| binding.field.value == sum.value)
+                        .expect("validated: EC010 rejects a sum path naming a nonexistent field");
+                    let FieldKind::Sum { element, boxed } = &binding.kind else {
+                        unreachable!("validated: `.variant` opens only a sum field")
+                    };
+                    let element = group
+                        .elements
+                        .iter()
+                        .find(|candidate| candidate.name.value == element.value)
+                        .expect("validated: EC003 rejects a sum naming an undeclared element");
+                    let accessor = if *boxed {
+                        quote! { (#accessor).as_ref() }
+                    } else {
+                        quote! { #accessor }
+                    };
+                    bound_variant_check(element, predicate, &accessor)
+                }
                 _ => unreachable!(
                     "validated: EC032 admits only a single-field path or exactly seq.(last|nonfinal).field"
                 ),
@@ -2416,7 +3162,11 @@ fn predicate_tokens(
     }
 }
 
-fn bound_variant_check(element: &ElementDeclaration, predicate: &Predicate) -> TokenStream {
+fn bound_variant_check(
+    element: &ElementDeclaration,
+    predicate: &Predicate,
+    accessor: &TokenStream,
+) -> TokenStream {
     let Predicate::In { allowed, .. } = predicate else {
         unreachable!("validated: a variant discriminant is constrained only by `in [...]`")
     };
@@ -2428,10 +3178,19 @@ fn bound_variant_check(element: &ElementDeclaration, predicate: &Predicate) -> T
             .value,
     );
     let variants = allowed.iter().map(|variant| {
-        let variant = quote::format_ident!("{}", variant);
-        quote! { #target::#variant(..) }
+        let variant_ident = quote::format_ident!("{}", variant);
+        let declaration = element
+            .variants
+            .iter()
+            .find(|candidate| candidate.name.value == *variant)
+            .expect("the bound enum declaration maps every predicate variant");
+        match declaration.payload {
+            FieldKind::Unit => quote! { #target::#variant_ident },
+            FieldKind::StructProduct { .. } => quote! { #target::#variant_ident { .. } },
+            _ => quote! { #target::#variant_ident(..) },
+        }
     });
-    quote! { matches!(member, #(#variants)|*) }
+    quote! { matches!(#accessor, #(#variants)|*) }
 }
 
 /// The single-field check body shared between a direct field access
@@ -2541,9 +3300,17 @@ fn codec_of(fields: &[FieldBinding], field_name: &str) -> TokenStream {
                 "validated: EC015 guarantees an In-predicate path resolves to a scalar kind"
             ),
         },
-        FieldKind::Subtree { .. }
+        FieldKind::Unit
+        | FieldKind::TupleProduct { .. }
+        | FieldKind::StructProduct { .. }
+        | FieldKind::Subtree { .. }
+        | FieldKind::TypedSubtree { .. }
         | FieldKind::Identity { .. }
         | FieldKind::Sequence { .. }
+        | FieldKind::NonEmptySequence { .. }
+        | FieldKind::SeparatedNonEmptySequence { .. }
+        | FieldKind::Sum { .. }
+        | FieldKind::Product { .. }
         | FieldKind::SurfaceScalar { .. } => {
             unreachable!(
                 "validated: EC015 guarantees an In-predicate path resolves to a scalar kind"
@@ -2662,13 +3429,17 @@ fn element_row(element: &ElementDeclaration) -> TokenStream {
             quote! { Some(#path) }
         },
     );
-    let fields: Vec<TokenStream> = element.fields.iter().map(field_row).collect();
+    let fields: Vec<TokenStream> = element
+        .fields
+        .iter()
+        .map(|field| field_row(field, None))
+        .collect();
     let variants: Vec<TokenStream> = element
         .variants
         .iter()
         .map(|variant| {
             let name = variant.name.value.as_str();
-            let payload = field_kind_row(&variant.payload);
+            let payload = field_kind_row(&variant.payload, None, "payload");
             quote! {
                 ::deckmaste_construction_compiler::runtime::ElementVariantData {
                     name: #name,
@@ -2902,7 +3673,12 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
             quote! { #winner }
         })
         .collect();
-    let fields: Vec<TokenStream> = construction.ast.fields().iter().map(field_row).collect();
+    let fields: Vec<TokenStream> = construction
+        .ast
+        .fields()
+        .iter()
+        .map(|field| field_row(field, Some(construction.id.value.as_str())))
+        .collect();
     let witnesses = construction_witness_rows(construction);
     let forms = construction_form_rows(construction);
     let feature_combinators: Vec<TokenStream> = construction
@@ -3068,16 +3844,35 @@ fn predicate_row(predicate: &Predicate) -> TokenStream {
     }
 }
 
-fn field_row(binding: &FieldBinding) -> TokenStream {
+fn field_row(binding: &FieldBinding, owner: Option<&str>) -> TokenStream {
     let name = binding.field.value.as_str();
-    let kind = field_kind_row(&binding.kind);
+    let kind = field_kind_row(&binding.kind, owner, name);
     quote! {
         ::deckmaste_construction_compiler::runtime::FieldData { name: #name, kind: #kind }
     }
 }
 
-fn field_kind_row(kind: &FieldKind) -> TokenStream {
+fn field_kind_row(kind: &FieldKind, owner: Option<&str>, field: &str) -> TokenStream {
     match kind {
+        FieldKind::Unit => {
+            quote! { ::deckmaste_construction_compiler::runtime::FieldKindData::Unit }
+        }
+        FieldKind::TupleProduct { fields } => {
+            let fields = fields.iter().map(|field| field_row(field, None));
+            quote! {
+                ::deckmaste_construction_compiler::runtime::FieldKindData::TupleProduct {
+                    fields: &[#(#fields),*],
+                }
+            }
+        }
+        FieldKind::StructProduct { fields } => {
+            let fields = fields.iter().map(|field| field_row(field, None));
+            quote! {
+                ::deckmaste_construction_compiler::runtime::FieldKindData::StructProduct {
+                    fields: &[#(#fields),*],
+                }
+            }
+        }
         FieldKind::Identity {
             value_type,
             provider,
@@ -3089,6 +3884,21 @@ fn field_kind_row(kind: &FieldKind) -> TokenStream {
         FieldKind::Subtree { category, boxed } => {
             let category = category.value.as_str();
             quote! { ::deckmaste_construction_compiler::runtime::FieldKindData::Subtree { category: #category, boxed: #boxed } }
+        }
+        FieldKind::TypedSubtree {
+            value_type,
+            category,
+            boxed,
+        } => {
+            let value_type = value_type.value.as_str();
+            let category = category.value.as_str();
+            quote! {
+                ::deckmaste_construction_compiler::runtime::FieldKindData::TypedSubtree {
+                    value_type: #value_type,
+                    category: #category,
+                    boxed: #boxed,
+                }
+            }
         }
         FieldKind::Scalar { codec } => {
             let codec = codec.value.as_str();
@@ -3107,8 +3917,50 @@ fn field_kind_row(kind: &FieldKind) -> TokenStream {
             let element = element.value.as_str();
             quote! { ::deckmaste_construction_compiler::runtime::FieldKindData::Sequence { element: #element } }
         }
+        FieldKind::NonEmptySequence { element } => {
+            let element = element.value.as_str();
+            let owner = owner.expect("validated nonempty sequences are construction fields");
+            let builder = quote::format_ident!("__erased_field_{}_{}", owner, field);
+            quote! {
+                ::deckmaste_construction_compiler::runtime::FieldKindData::NonEmptySequence {
+                    element: #element,
+                    erased_builder: #builder,
+                }
+            }
+        }
+        FieldKind::SeparatedNonEmptySequence { element, separator } => {
+            let element = element.value.as_str();
+            let separator = separator.value.as_str();
+            let owner = owner.expect("validated separated sequences are construction fields");
+            let builder = quote::format_ident!("__erased_field_{}_{}", owner, field);
+            quote! {
+                ::deckmaste_construction_compiler::runtime::FieldKindData::SeparatedNonEmptySequence {
+                    element: #element,
+                    separator: #separator,
+                    erased_builder: #builder,
+                }
+            }
+        }
+        FieldKind::Sum { element, boxed } => {
+            let element = element.value.as_str();
+            quote! {
+                ::deckmaste_construction_compiler::runtime::FieldKindData::Sum {
+                    element: #element,
+                    boxed: #boxed,
+                }
+            }
+        }
+        FieldKind::Product { element, boxed } => {
+            let element = element.value.as_str();
+            quote! {
+                ::deckmaste_construction_compiler::runtime::FieldKindData::Product {
+                    element: #element,
+                    boxed: #boxed,
+                }
+            }
+        }
         FieldKind::Optional { inner } => {
-            let inner = field_kind_row(inner);
+            let inner = field_kind_row(inner, owner, field);
             quote! { ::deckmaste_construction_compiler::runtime::FieldKindData::Optional { inner: &#inner } }
         }
     }
@@ -3152,6 +4004,10 @@ fn reexports(group: &GroupDeclaration) -> Vec<TokenStream> {
         ));
         items.push(quote::format_ident!(
             "linearize_{}_form_with",
+            construction.id.value
+        ));
+        items.push(quote::format_ident!(
+            "selected_{}_form",
             construction.id.value
         ));
     }

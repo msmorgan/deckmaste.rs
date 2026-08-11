@@ -262,6 +262,7 @@ mod tests {
     use std::sync::mpsc::sync_channel;
     use std::time::Duration;
 
+    use deckmaste_english::syntax::AbilityHeader;
     use deckmaste_english::syntax::AbilityKind;
     use deckmaste_english::syntax::IndependentClause;
     use deckmaste_english::syntax::NominalModifier;
@@ -397,9 +398,9 @@ mod tests {
         let [ability] = report.ast().abilities.as_slice() else {
             panic!("expected one ability: {:#?}", report.ast());
         };
-        let flavor = ability
-            .flavor_header()
-            .expect("a Scryfall flavor word should license the header peel");
+        let Some(AbilityHeader::Flavor(flavor)) = ability.header() else {
+            panic!("a Scryfall flavor word should license the header peel: {ability:#?}");
+        };
         assert_eq!(flavor.text(), "Polymorphine");
         assert_eq!(
             report

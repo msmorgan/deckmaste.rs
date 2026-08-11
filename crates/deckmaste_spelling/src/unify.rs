@@ -871,6 +871,12 @@ fn roots_align(pattern: &ProjectionTree, target: &ProjectionTree) -> bool {
         (ProjectionTree::Element(pattern), ProjectionTree::Element(target)) => {
             pattern.element == target.element && pattern.variant == target.variant
         }
+        (ProjectionTree::Variant(pattern), ProjectionTree::Variant(target)) => {
+            pattern.element == target.element && pattern.variant == target.variant
+        }
+        (ProjectionTree::Product(pattern), ProjectionTree::Product(target)) => {
+            pattern.element == target.element
+        }
         _ => false,
     }
 }
@@ -922,7 +928,6 @@ fn constructions_compatible(pattern: &ConstructionNode, target: &ConstructionNod
     if pattern.category == target.category
         && pattern.construction == target.construction
         && pattern.form == target.form
-        && pattern.ordinal == target.ordinal
     {
         return true;
     }
@@ -992,6 +997,20 @@ fn match_node(pattern: &ProjectionTree, target: &ProjectionTree, attempt: &mut A
         }
         (ProjectionTree::Element(pattern), ProjectionTree::Element(target)) => {
             if pattern.element != target.element || pattern.variant != target.variant {
+                return false;
+            }
+            attempt.claimed += 1;
+            match_roles(&pattern.roles, &target.roles, None, attempt)
+        }
+        (ProjectionTree::Variant(pattern), ProjectionTree::Variant(target)) => {
+            if pattern.element != target.element || pattern.variant != target.variant {
+                return false;
+            }
+            attempt.claimed += 1;
+            match_roles(&pattern.roles, &target.roles, None, attempt)
+        }
+        (ProjectionTree::Product(pattern), ProjectionTree::Product(target)) => {
+            if pattern.element != target.element {
                 return false;
             }
             attempt.claimed += 1;

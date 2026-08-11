@@ -128,6 +128,41 @@ mod __constructions_fixture_coordination {
             &self.alt
         }
     }
+    pub fn selected_fixture_pair_form(
+        value: &FixturePairNode,
+    ) -> Result<
+        &'static ::deckmaste_construction_compiler::runtime::FormData,
+        ::deckmaste_construction_compiler::runtime::FormSelectionError,
+    > {
+        let FixturePairNode { members: _, conjunction } = value;
+        let mut selected_form: Option<(u16, usize)> = None;
+        if matches!(conjunction, Conjunction::And) {
+            if let Some((first, _)) = selected_form {
+                return Err(::deckmaste_construction_compiler::runtime::FormSelectionError::MultipleMatchingForms {
+                    construction: "fixture_pair",
+                    first,
+                    second: 0,
+                });
+            }
+            selected_form = Some((0, 0usize));
+        }
+        if matches!(conjunction, Conjunction::Or) {
+            if let Some((first, _)) = selected_form {
+                return Err(::deckmaste_construction_compiler::runtime::FormSelectionError::MultipleMatchingForms {
+                    construction: "fixture_pair",
+                    first,
+                    second: 1,
+                });
+            }
+            selected_form = Some((1, 1usize));
+        }
+        let Some((_, selected_form)) = selected_form else {
+            return Err(::deckmaste_construction_compiler::runtime::FormSelectionError::NoMatchingForm {
+                construction: "fixture_pair",
+            });
+        };
+        Ok(&FIXTURE_COORDINATION_DECLARATION.constructions[0usize].forms[selected_form])
+    }
     pub fn linearize_fixture_pair_with<V>(
         value: &FixturePairNode,
         visitor: &mut V,
@@ -138,34 +173,28 @@ mod __constructions_fixture_coordination {
     where
         V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor,
     {
-        let FixturePairNode { members: _, conjunction } = value;
-        let mut selected_form: Option<u16> = None;
-        if matches!(conjunction, Conjunction::And) {
-            if let Some(first) = selected_form {
-                return Err(::deckmaste_construction_compiler::runtime::LinearizationError::MultipleMatchingForms {
-                    construction: "fixture_pair",
+        let selected_form = selected_fixture_pair_form(value)
+            .map_err(|error| match error {
+                ::deckmaste_construction_compiler::runtime::FormSelectionError::NoMatchingForm {
+                    construction,
+                } => {
+                    ::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
+                        construction,
+                    }
+                }
+                ::deckmaste_construction_compiler::runtime::FormSelectionError::MultipleMatchingForms {
+                    construction,
                     first,
-                    second: 0,
-                });
-            }
-            selected_form = Some(0);
-        }
-        if matches!(conjunction, Conjunction::Or) {
-            if let Some(first) = selected_form {
-                return Err(::deckmaste_construction_compiler::runtime::LinearizationError::MultipleMatchingForms {
-                    construction: "fixture_pair",
-                    first,
-                    second: 1,
-                });
-            }
-            selected_form = Some(1);
-        }
-        let Some(selected_form) = selected_form else {
-            return Err(::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
-                construction: "fixture_pair",
-            });
-        };
-        linearize_fixture_pair_form_with(value, selected_form, visitor)
+                    second,
+                } => {
+                    ::deckmaste_construction_compiler::runtime::LinearizationError::MultipleMatchingForms {
+                        construction,
+                        first,
+                        second,
+                    }
+                }
+            })?;
+        linearize_fixture_pair_form_with(value, selected_form.ordinal, visitor)
     }
     pub fn linearize_fixture_pair_form_with<V>(
         value: &FixturePairNode,
@@ -438,6 +467,31 @@ mod __constructions_fixture_coordination {
             }
         }
     }
+    pub fn selected_fixture_solo_form(
+        value: &FixtureSoloNode,
+    ) -> Result<
+        &'static ::deckmaste_construction_compiler::runtime::FormData,
+        ::deckmaste_construction_compiler::runtime::FormSelectionError,
+    > {
+        let FixtureSoloNode { phrase: _, alt: _ } = value;
+        let mut selected_form: Option<(u16, usize)> = None;
+        if true {
+            if let Some((first, _)) = selected_form {
+                return Err(::deckmaste_construction_compiler::runtime::FormSelectionError::MultipleMatchingForms {
+                    construction: "fixture_solo",
+                    first,
+                    second: 0,
+                });
+            }
+            selected_form = Some((0, 0usize));
+        }
+        let Some((_, selected_form)) = selected_form else {
+            return Err(::deckmaste_construction_compiler::runtime::FormSelectionError::NoMatchingForm {
+                construction: "fixture_solo",
+            });
+        };
+        Ok(&FIXTURE_COORDINATION_DECLARATION.constructions[1usize].forms[selected_form])
+    }
     pub fn linearize_fixture_solo_with<V>(
         value: &FixtureSoloNode,
         visitor: &mut V,
@@ -448,24 +502,28 @@ mod __constructions_fixture_coordination {
     where
         V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor,
     {
-        let FixtureSoloNode { phrase: _, alt: _ } = value;
-        let mut selected_form: Option<u16> = None;
-        if true {
-            if let Some(first) = selected_form {
-                return Err(::deckmaste_construction_compiler::runtime::LinearizationError::MultipleMatchingForms {
-                    construction: "fixture_solo",
+        let selected_form = selected_fixture_solo_form(value)
+            .map_err(|error| match error {
+                ::deckmaste_construction_compiler::runtime::FormSelectionError::NoMatchingForm {
+                    construction,
+                } => {
+                    ::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
+                        construction,
+                    }
+                }
+                ::deckmaste_construction_compiler::runtime::FormSelectionError::MultipleMatchingForms {
+                    construction,
                     first,
-                    second: 0,
-                });
-            }
-            selected_form = Some(0);
-        }
-        let Some(selected_form) = selected_form else {
-            return Err(::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
-                construction: "fixture_solo",
-            });
-        };
-        linearize_fixture_solo_form_with(value, selected_form, visitor)
+                    second,
+                } => {
+                    ::deckmaste_construction_compiler::runtime::LinearizationError::MultipleMatchingForms {
+                        construction,
+                        first,
+                        second,
+                    }
+                }
+            })?;
+        linearize_fixture_solo_form_with(value, selected_form.ordinal, visitor)
     }
     pub fn linearize_fixture_solo_form_with<V>(
         value: &FixtureSoloNode,
@@ -1228,7 +1286,9 @@ pub use __constructions_fixture_coordination::build_bound_variant_boxed;
 pub use __constructions_fixture_coordination::FixturePairNode;
 pub use __constructions_fixture_coordination::linearize_fixture_pair_with;
 pub use __constructions_fixture_coordination::linearize_fixture_pair_form_with;
+pub use __constructions_fixture_coordination::selected_fixture_pair_form;
 pub use __constructions_fixture_coordination::FixtureSoloNode;
 pub use __constructions_fixture_coordination::linearize_fixture_solo_with;
 pub use __constructions_fixture_coordination::linearize_fixture_solo_form_with;
+pub use __constructions_fixture_coordination::selected_fixture_solo_form;
 pub use __constructions_fixture_coordination::FIXTURE_COORDINATION_DECLARATION;

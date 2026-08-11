@@ -1,0 +1,30 @@
+error[E0308]: mismatched types
+  --> tests/compile_fail/bound_typed_subtree_value_mistyped.rs:8:1
+   |
+ 8 | / deckmaste_constructions_macro::constructions! {
+ 9 | |     group typed_subtree_mistyped;
+10 | |     element record bind BoundRecord {
+11 | |         clause: hole DeclaredClause via Clause,
+12 | |     }
+13 | | }
+   | | ^
+   | | |
+   | |_expected `&DeclaredClause`, found `&StoredClause`
+   |   expected `&DeclaredClause` because of return type
+   |
+   = note: expected reference `&DeclaredClause`
+              found reference `&StoredClause`
+   = note: this error originates in the macro `deckmaste_constructions_macro::constructions` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> tests/compile_fail/bound_typed_subtree_value_mistyped.rs:8:1
+   |
+ 8 | / deckmaste_constructions_macro::constructions! {
+ 9 | |     group typed_subtree_mistyped;
+10 | |     element record bind BoundRecord {
+11 | |         clause: hole DeclaredClause via Clause,
+12 | |     }
+13 | | }
+   | |_^ expected `StoredClause`, found `DeclaredClause`
+   |
+   = note: this error originates in the macro `deckmaste_constructions_macro::constructions` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -20,16 +20,7 @@ pub fn build_cost(
     crate::constructions::ability::build(flavor_header, components)
 }
 
-/// Projects a cost through its declaration-owned representation.
-///
-/// # Errors
-///
-/// Returns an error if `value` does not satisfy the `cost` declaration.
-pub fn parts_cost(value: &Cost) -> Result<(Option<FlavorHeader>, Vec<CostComponent>), BuildError> {
-    crate::constructions::ability::parts(value)
-}
-
-/// Renders a cost through the generated inverse dispatcher.
+/// Renders a declaration-checked cost from its semantic components.
 ///
 /// # Errors
 ///
