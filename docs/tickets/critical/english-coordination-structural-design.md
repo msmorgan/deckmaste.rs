@@ -2,7 +2,7 @@
 needs: [english-coordination-residue, english-ability-output-retrofit]
 design: true
 ---
-**Design the remaining heterogeneous and member-scoped coordination forms.**
+**Close the remaining heterogeneous and member-scoped coordination design.**
 This resumes only after the construction-output retrofit. The English tree is
 not a legacy compatibility surface: it is the exact, compiler-owned
 construction tree consumed through a typed spelling projection, while RON
