@@ -223,4 +223,5 @@ payload instead of weakening the grammar.
 ## Tracked references
 
 - [Authored card surface](authored-card-surface.md)
+- [English coordination is structural](english-coordination-is-structural.md)
 - [Macro templates are bidirectional](macro-templates-are-bidirectional.md)

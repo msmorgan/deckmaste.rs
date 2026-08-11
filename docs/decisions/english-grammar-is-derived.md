@@ -150,6 +150,13 @@ generated backend before the program is complete. "PMCFG-style" names the
 logical linearization formalism, not a claim that the single-span chart
 already implements PMCFG.
 
+The remaining English coordination families do not meet that criterion.
+After their shared determiner, head, subject, copula, or preposition is owned
+explicitly, every coordinated member is contiguous and compiles to the
+fan-out-one Chart backend. [English coordination is
+structural](english-coordination-is-structural.md) records that boundary and
+the test that a future tuple-yield proposal must satisfy.
+
 ## Hierarchy, spelling seam, and corpus
 
 Shared packaging uses a small monotonic, SBCG-style type lattice;
@@ -227,6 +234,7 @@ match this grammar.
 ## Tracked references
 
 - [English clauses are structural](english-clauses-are-structural.md)
+- [English coordination is structural](english-coordination-is-structural.md)
 - [English productions ship their inverse](english-productions-ship-their-inverse.md)
 - [Macro templates are bidirectional](macro-templates-are-bidirectional.md)
 - [Semantics, spelling, lowering](semantics-spelling-lowering.md)

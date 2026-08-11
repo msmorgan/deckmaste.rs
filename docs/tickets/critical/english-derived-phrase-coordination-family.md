@@ -11,27 +11,48 @@ Migrate C01 from `docs/english-derived-family-inventory.md`:
 `prepositional_phrase_list_comma`,
 `prepositional_phrase_sibling_coordinated`,
 `verb_phrase_coordinated_adjective`,
-`copular_remainder_coordinated_adjective`,
-`relative_contracted_copular_coordinated_adjective`, and
 `nominal_power_toughness_complement`.
 
-Land the earliest compatible C4 backend: tuple-valued yields or an explicitly
-measured CFG approximation plus filtering. Close the pilot's sequence-member
-quantification, typed sum/variant mapping, presence-valued comma, and emitted
-total own-mode linearizer requirements. Implement the structural-design output
-here: heterogeneous keyword/quoted `with` lists, the appositive quantity
-postmodifier, and principled common-head versus heterogeneous head-list
-selection. None remains an exception.
+Use the ordinary fan-out-one Chart backend required by
+[`english-coordination-is-structural`](../../decisions/english-coordination-is-structural.md).
+Shared determiners, nominal heads, and prepositions are explicit owners; each
+member and its attachments are contiguous. Use the compiler's direct sums,
+products, nonempty/separated sequences, typed subtree aliases, and generated
+projection. Add only still-missing generic feature flow, named sequence-member
+predicates, presence-valued comma, lenses, and total own-mode linearization.
+Do not add tuple-valued yields or a coordination-only compiler callback.
+
+Implement the structural-design output here. Add a dedicated `with`-attribute
+member sum containing nominal and quoted-ability members, admitted only under
+`with` and only for a genuinely mixed list; do not widen `PredicateObject` or
+generic P02 objects. Add the typed attributive coordination class and head
+modifier frame that distinguish common-head from shared-determiner head-list
+readings. Uniform subtype, card-type, basic-land-type, keyword-name, and
+adjectival/participial controls keep their common head; incompatible member
+classes and repeated overt heads select the head list. Repair generated P01
+admission/selection for `that many cards minus one` as the independent
+Sycorax acceptance prerequisite; arithmetic does not become a coordination
+member. None remains an exception.
 
 Land declarations and generated parse/reduction/lowering, total render, and
 validated build projections; Nominal/Sentence/Ability plus every spelling/view
 consumer; direct-AST and `inspect` grouping/attachment fixtures; exact comma/
-conjunction replay and illegal-list negatives; all 15 registry flips; and
-deletion of every NR registration and phrase-side reducer/lowerer arm, the CR
-reducer/lowerer arms for `verb_phrase_coordinated_adjective`,
-`copular_remainder_coordinated_adjective`, and
-`relative_contracted_copular_coordinated_adjective`, every renderer mirror,
-and every constructor bypass. Update the inventory. No consumer or deletion
-work is deferred.
+conjunction replay and illegal-list negatives; and all 13 handwritten registry
+flips. Delete every NR registration and phrase-side reducer/lowerer arm, the CR
+reducer/lowerer arm for `verb_phrase_coordinated_adjective`, every renderer
+mirror, and every constructor bypass. The already-generated F02
+`copular_remainder_coordinated_adjective` and R01
+`relative_contracted_copular_coordinated_adjective` rows remain owned by those
+families; migrate their typed consumer boundary only if the coordinated
+adjective carrier changes. Update the inventory. No consumer or deletion work
+is deferred.
+
+Acceptance fixtures include Alien Invasion, Basilica Shepherd, and Blink;
+Abzan Monument or Deceptive Landscape; Grassland Crusader; Open the Gates or
+District Guide; and the synthetic `an Elf, Orc, or enchantment creature you
+control` grouping control. Negative fixtures reject the heterogeneous member
+sum after non-`with` prepositions, mixed attributive classes under one common
+head, binary Oxford punctuation, and a group-level relative captured by the
+final member.
 
 Standard constraints apply.
