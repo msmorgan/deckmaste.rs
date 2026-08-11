@@ -225,8 +225,13 @@ pub(crate) struct VerbPhrase {
     distributive_each: bool,
 }
 
+/// The typed lexical identity carried by V01's declared `verb` construction.
+///
+/// Its fields remain sealed; spelling consumers may inspect the inflected
+/// instance and request the declaration's citation form without depending on
+/// predicate storage layout.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct VerbAnalysis {
+pub struct VerbAnalysis {
     instance: VerbInstance,
     frame: PredicateFrame,
 }
@@ -268,16 +273,40 @@ impl VerbAnalysis {
         Self { instance, frame }
     }
 
-    pub(crate) const fn instance(&self) -> &VerbInstance {
+    /// Returns the inflected lexical verb selected by the declaration.
+    #[must_use]
+    pub const fn instance(&self) -> &VerbInstance {
         &self.instance
     }
 
-    pub(crate) const fn frame(&self) -> &PredicateFrame {
-        &self.frame
+    /// Returns the same lexical identity in third-person singular present
+    /// citation form when the surface form is finite present.
+    #[must_use]
+    pub fn citation_form(&self) -> Self {
+        let mut normalized = self.clone();
+        if matches!(normalized.instance.slot, VerbSlot::Present { .. }) {
+            normalized.instance.slot = VerbSlot::Present {
+                person: Person::Third,
+                number: Number::Singular,
+            };
+        }
+        normalized
     }
 }
 
 impl VerbPhrase {
+    pub(crate) const fn declaration_verb_slot(&self) -> VerbSlot {
+        self.verb.slot
+    }
+
+    pub(crate) fn declaration_as_imperative(mut self) -> Option<Self> {
+        if self.verb.slot != VerbSlot::Infinitive {
+            return None;
+        }
+        self.verb.slot = VerbSlot::Imperative;
+        Some(self)
+    }
+
     pub(crate) fn declaration_with_distributive_each(mut self) -> Option<Self> {
         if self.distributive_each || self.first_auxiliary_contracted_with_subject {
             return None;

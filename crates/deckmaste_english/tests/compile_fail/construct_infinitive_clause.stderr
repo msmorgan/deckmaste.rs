@@ -1,0 +1,11 @@
+error[E0451]: fields `negated`, `marker` and `predicate` of struct `InfinitiveClause` are private
+ --> tests/compile_fail/construct_infinitive_clause.rs:7:9
+  |
+6 |     InfinitiveClause {
+  |     ---------------- in this type
+7 |         negated: false,
+  |         ^^^^^^^ private field
+8 |         marker: InfinitiveMarker::To,
+  |         ^^^^^^ private field
+9 |         predicate: Box::new(predicate),
+  |         ^^^^^^^^^ private field

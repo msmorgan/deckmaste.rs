@@ -137,12 +137,6 @@ pub enum RenderError {
     /// round.
     #[error("keyword argument shape is not licensed in nominal-complement position")]
     InvalidKeywordArgumentNominal,
-    /// A hand-built `PredicateHead` claims both `distributive_each` and
-    /// `first_auxiliary_contracted_with_subject`: the floating-`each`
-    /// grammar can never construct that surface, since `each` intervenes
-    /// between the subject and the first auxiliary — `qfloat` round.
-    #[error("a distributive-each predicate head cannot also contract its first auxiliary")]
-    InvalidDistributiveEachContraction,
     /// A predicate, modifier, or clause carrier contains the nominal-only
     /// `plus` conjunction. This can be constructed only through the widened
     /// canonical compatibility alias, never by the grammar.
@@ -3714,14 +3708,12 @@ impl<'identity> Renderer<'identity> {
         }
         let generated_eligible = !matches!(
             clause,
-            IndependentClause::Copular(
-                _,
-                CopularPredicate {
-                    complement: CopularComplement::CoordinatedAdjective(_)
-                        | CopularComplement::CatalogAtom(_),
-                    ..
-                }
-            )
+            IndependentClause::Copular(_, predicate)
+                if matches!(
+                    predicate.complement(),
+                    CopularComplement::CoordinatedAdjective(_)
+                        | CopularComplement::CatalogAtom(_)
+                )
         );
         if generated_eligible {
             let mut visitor = GeneratedClauseRenderer::new(
@@ -3748,7 +3740,7 @@ impl<'identity> Renderer<'identity> {
         match clause {
             IndependentClause::Transitive(subject, predicate) => {
                 let (subject, auxiliary_start) =
-                    self.subject_with_predicate_head(subject, &predicate.head)?;
+                    self.subject_with_predicate_head(subject, predicate.head())?;
                 Ok(join_words(vec![
                     subject,
                     self.transitive_predicate_from(predicate, auxiliary_start)?,
@@ -3756,7 +3748,7 @@ impl<'identity> Renderer<'identity> {
             }
             IndependentClause::Intransitive(subject, predicate) => {
                 let (subject, auxiliary_start) =
-                    self.subject_with_predicate_head(subject, &predicate.head)?;
+                    self.subject_with_predicate_head(subject, predicate.head())?;
                 Ok(join_words(vec![
                     subject,
                     self.intransitive_predicate_from(predicate, auxiliary_start)?,
@@ -3767,7 +3759,7 @@ impl<'identity> Renderer<'identity> {
             }
             IndependentClause::Passive(subject, predicate) => {
                 let (subject, auxiliary_start) =
-                    self.subject_with_predicate_head(subject, &predicate.head)?;
+                    self.subject_with_predicate_head(subject, predicate.head())?;
                 Ok(join_words(vec![
                     subject,
                     self.passive_predicate_from(predicate, auxiliary_start)?,
@@ -3866,7 +3858,7 @@ impl<'identity> Renderer<'identity> {
         match predicate {
             Predicate::Transitive(predicate) => {
                 let (subject, auxiliary_start) =
-                    self.subject_with_predicate_head(subject, &predicate.head)?;
+                    self.subject_with_predicate_head(subject, predicate.head())?;
                 Ok(join_words(vec![
                     subject,
                     self.transitive_predicate_from(predicate, auxiliary_start)?,
@@ -3874,7 +3866,7 @@ impl<'identity> Renderer<'identity> {
             }
             Predicate::Intransitive(predicate) => {
                 let (subject, auxiliary_start) =
-                    self.subject_with_predicate_head(subject, &predicate.head)?;
+                    self.subject_with_predicate_head(subject, predicate.head())?;
                 Ok(join_words(vec![
                     subject,
                     self.intransitive_predicate_from(predicate, auxiliary_start)?,
@@ -3883,7 +3875,7 @@ impl<'identity> Renderer<'identity> {
             Predicate::Copular(predicate) => self.copular_clause(subject, predicate),
             Predicate::Passive(predicate) => {
                 let (subject, auxiliary_start) =
-                    self.subject_with_predicate_head(subject, &predicate.head)?;
+                    self.subject_with_predicate_head(subject, predicate.head())?;
                 Ok(join_words(vec![
                     subject,
                     self.passive_predicate_from(predicate, auxiliary_start)?,
@@ -3902,8 +3894,8 @@ impl<'identity> Renderer<'identity> {
                 {
                     return rendered;
                 }
-                let matrix = self.predicate_with_subject(subject, &predicate.predicate)?;
-                self.clause_with_attachments(&matrix, &predicate.attachments)
+                let matrix = self.predicate_with_subject(subject, predicate.predicate())?;
+                self.clause_with_attachments(&matrix, predicate.attachments())
             }
         }
     }
@@ -3997,12 +3989,12 @@ impl<'identity> Renderer<'identity> {
             Predicate::Transitive(predicate) => self.transitive_predicate(predicate),
             Predicate::Intransitive(predicate) => self.intransitive_predicate(predicate),
             Predicate::Copular(predicate) => {
-                let mut parts = vec![self.render_auxiliary(predicate.copula.auxiliary)?];
-                if predicate.distributive_each {
+                let mut parts = vec![self.render_auxiliary(predicate.copula().auxiliary())?];
+                if predicate.distributive_each() {
                     parts.push("each".to_owned());
                 }
-                parts.push(self.copular_complement(&predicate.complement)?);
-                for adjunct in &predicate.adjuncts {
+                parts.push(self.copular_complement(predicate.complement())?);
+                for adjunct in predicate.adjuncts() {
                     parts.push(self.predicate_adjunct(adjunct)?);
                 }
                 Ok(join_words(parts))
@@ -4014,8 +4006,8 @@ impl<'identity> Renderer<'identity> {
                 if let Some(rendered) = self.generated_attached_predicate(None, predicate) {
                     return rendered;
                 }
-                let matrix = self.predicate(&predicate.predicate)?;
-                self.clause_with_attachments(&matrix, &predicate.attachments)
+                let matrix = self.predicate(predicate.predicate())?;
+                self.clause_with_attachments(&matrix, predicate.attachments())
             }
         }
     }
@@ -4026,7 +4018,7 @@ impl<'identity> Renderer<'identity> {
         predicate: &crate::syntax::AttachedPredicate,
     ) -> Option<Result<String, RenderError>> {
         predicate
-            .attachments
+            .attachments()
             .iter()
             .any(|attachment| {
                 matches!(
@@ -4042,9 +4034,9 @@ impl<'identity> Renderer<'identity> {
                 let clause = IndependentClause::Complex(ComplexClause::from_declaration_parts(
                     IndependentClause::Predicated(
                         subject.cloned(),
-                        PredicateExpression::Simple((*predicate.predicate).clone()),
+                        PredicateExpression::Simple(predicate.predicate().clone()),
                     ),
-                    predicate.attachments.clone(),
+                    predicate.attachments().to_vec(),
                 ));
                 let publish = self.terminal_quote_is(attached_predicate_terminal_quote(predicate));
                 let previous = self.terminal_quote.get();
@@ -4062,12 +4054,8 @@ impl<'identity> Renderer<'identity> {
         &self,
         predicate: &crate::syntax::DeonticPredicate,
     ) -> Result<String, RenderError> {
-        let publish_terminal_quote = self.terminal_quote_is(
-            predicate
-                .inner
-                .as_deref()
-                .and_then(predicate_terminal_quote),
-        );
+        let publish_terminal_quote =
+            self.terminal_quote_is(predicate.inner().and_then(predicate_terminal_quote));
         self.deontic_predicate_from(predicate, publish_terminal_quote)
     }
 
@@ -4076,15 +4064,10 @@ impl<'identity> Renderer<'identity> {
         predicate: &crate::syntax::DeonticPredicate,
         publish_terminal_quote: bool,
     ) -> Result<String, RenderError> {
-        if matches!(predicate.inner.as_deref(), Some(Predicate::Copular(_))) {
+        if matches!(predicate.inner(), Some(Predicate::Copular(_))) {
             return Ok(join_words(vec![
-                self.render_auxiliary(predicate.modal.auxiliary)?,
-                self.predicate(
-                    predicate
-                        .inner
-                        .as_deref()
-                        .expect("copular inner is present"),
-                )?,
+                self.render_auxiliary(predicate.modal().auxiliary())?,
+                self.predicate(predicate.inner().expect("copular inner is present"))?,
             ]));
         }
         self.generated_predicate_from(
@@ -4128,7 +4111,7 @@ impl<'identity> Renderer<'identity> {
         self.generated_predicate_from(
             &Predicate::Intransitive(predicate.clone()),
             auxiliary_start,
-            self.terminal_quote_is(last_element_terminal_quote(&predicate.elements)),
+            self.terminal_quote_is(last_element_terminal_quote(predicate.elements())),
         )
     }
 
@@ -4166,16 +4149,8 @@ impl<'identity> Renderer<'identity> {
             | Predicate::Deontic(_)
             | Predicate::Proform(_) => None,
         };
-        if head.is_some_and(|head| {
-            head.distributive_each()
-                && head
-                    .first_auxiliary_contracted_with_subject()
-                    .is_contracted()
-        }) {
-            return Err(RenderError::InvalidDistributiveEachContraction);
-        }
         let distributive_each = head.is_some_and(PredicateHead::distributive_each);
-        let ellipsis = matches!(predicate, Predicate::Deontic(value) if value.inner.is_none());
+        let ellipsis = matches!(predicate, Predicate::Deontic(value) if value.inner().is_none());
         let value = crate::constructions::predicate::inverse_public_predicate(predicate).map_err(
             |error| RenderError::InvalidPredicateConstruction {
                 problem: error.requirement,
@@ -4202,13 +4177,6 @@ impl<'identity> Renderer<'identity> {
         skipped_auxiliaries: usize,
     ) -> Result<String, RenderError> {
         let head = predicate.head();
-        if head.distributive_each()
-            && head
-                .first_auxiliary_contracted_with_subject()
-                .is_contracted()
-        {
-            return Err(RenderError::InvalidDistributiveEachContraction);
-        }
         let value = crate::constructions::predicate::inverse_public_object_gap_predicate(predicate)
             .map_err(|error| RenderError::InvalidPredicateConstruction {
                 problem: error.requirement,
@@ -4294,31 +4262,31 @@ impl<'identity> Renderer<'identity> {
         predicate: &CopularPredicate,
     ) -> Result<String, RenderError> {
         let subject = self.subject(subject)?;
-        let complement = self.copular_complement(&predicate.complement)?;
-        let mut parts = Vec::with_capacity(predicate.adjuncts.len() + 2);
-        if predicate.copula.contracted_with_subject.is_contracted() {
+        let complement = self.copular_complement(predicate.complement())?;
+        let mut parts = Vec::with_capacity(predicate.adjuncts().len() + 2);
+        if predicate.copula().contracted_with_subject().is_contracted() {
             parts.push(format!(
                 "{subject}{}",
-                contraction_suffix(predicate.copula.auxiliary)?
+                contraction_suffix(predicate.copula().auxiliary())?
             ));
         } else {
             parts.push(subject);
-            parts.push(self.render_auxiliary(predicate.copula.auxiliary)?);
+            parts.push(self.render_auxiliary(predicate.copula().auxiliary())?);
         }
-        if predicate.negated {
+        if predicate.negated() {
             parts.push("not".to_owned());
         }
-        if predicate.distributive_each {
+        if predicate.distributive_each() {
             parts.push("each".to_owned());
         }
         parts.extend(
             predicate
-                .precomplement_adverbs
+                .precomplement_adverbs()
                 .iter()
                 .map(|adverb| adverb.spelling().to_owned()),
         );
         parts.push(complement);
-        for adjunct in &predicate.adjuncts {
+        for adjunct in predicate.adjuncts() {
             parts.push(self.predicate_adjunct(adjunct)?);
         }
         Ok(join_words(parts))
@@ -5011,18 +4979,18 @@ fn is_aura_enchant_line(clause: &IndependentClause) -> bool {
 
 fn predicate_verb_is_enchant(predicate: &Predicate) -> bool {
     if let Predicate::Attached(predicate) = predicate {
-        return predicate_verb_is_enchant(&predicate.predicate);
+        return predicate_verb_is_enchant(predicate.predicate());
     }
     let head = match predicate {
-        Predicate::Transitive(predicate) => &predicate.head,
-        Predicate::Intransitive(predicate) => &predicate.head,
-        Predicate::Passive(predicate) => &predicate.head,
+        Predicate::Transitive(predicate) => predicate.head(),
+        Predicate::Intransitive(predicate) => predicate.head(),
+        Predicate::Passive(predicate) => predicate.head(),
         Predicate::Copular(_)
         | Predicate::Proform(_)
         | Predicate::Deontic(_)
         | Predicate::Attached(_) => return false,
     };
-    head.verb.verb == Verb::Word(Vocab::Enchant)
+    head.verb().verb == Verb::Word(Vocab::Enchant)
 }
 
 /// Whether a subject is the bare `Enchant` keyword-ability atom (the misparse
@@ -5080,10 +5048,10 @@ fn independent_clause_final_self_reference(clause: &IndependentClause) -> Option
         }
         _ => return None,
     };
-    if !predicate.elements.is_empty() {
+    if !predicate.elements().is_empty() {
         return None;
     }
-    let PredicateObject::NounPhrase(noun_phrase) = &predicate.object else {
+    let PredicateObject::NounPhrase(noun_phrase) = predicate.object() else {
         return None;
     };
     let crate::syntax::NounPhraseKind::ThisCard(form) = noun_phrase.kind() else {
@@ -5126,7 +5094,7 @@ fn independent_clause_terminal_quote(clause: &IndependentClause) -> Option<&Quot
     match clause {
         IndependentClause::Transitive(_, predicate) => transitive_terminal_quote(predicate),
         IndependentClause::Intransitive(_, predicate) => {
-            last_element_terminal_quote(&predicate.elements)
+            last_element_terminal_quote(predicate.elements())
         }
         IndependentClause::Passive(_, predicate) => passive_terminal_quote(predicate),
         IndependentClause::Copular(_, predicate) => copular_terminal_quote(predicate),
@@ -5144,26 +5112,35 @@ fn independent_clause_terminal_quote(clause: &IndependentClause) -> Option<&Quot
 }
 
 fn independent_clause_quoted_ability_count(clause: &IndependentClause) -> usize {
-    let predicate = match clause {
-        IndependentClause::Transitive(_, value) => Predicate::Transitive(value.clone()),
-        IndependentClause::Intransitive(_, value) => Predicate::Intransitive(value.clone()),
-        IndependentClause::Passive(_, value) => Predicate::Passive(value.clone()),
-        IndependentClause::Imperative(value) | IndependentClause::Deontic(_, _, Some(value)) => {
-            value.clone()
+    match clause {
+        IndependentClause::Transitive(_, predicate) => {
+            transitive_predicate_quoted_ability_count(predicate)
+        }
+        IndependentClause::Intransitive(_, predicate) => predicate
+            .elements()
+            .iter()
+            .map(predicate_element_quoted_ability_count)
+            .sum(),
+        IndependentClause::Passive(_, predicate) => {
+            passive_predicate_quoted_ability_count(predicate)
+        }
+        IndependentClause::Imperative(predicate)
+        | IndependentClause::Deontic(_, _, Some(predicate)) => {
+            predicate_quoted_ability_count(predicate)
         }
         IndependentClause::Predicated(_, expression) => {
-            return predicate_expression_quoted_ability_count(expression);
+            predicate_expression_quoted_ability_count(expression)
         }
         IndependentClause::Complex(value) => {
-            return independent_clause_quoted_ability_count(&value.matrix)
+            independent_clause_quoted_ability_count(&value.matrix)
                 + value
                     .attachments
                     .iter()
                     .map(clause_attachment_quoted_ability_count)
-                    .sum::<usize>();
+                    .sum::<usize>()
         }
         IndependentClause::Coordinated(value) => {
-            return independent_clause_quoted_ability_count(&value.first)
+            independent_clause_quoted_ability_count(&value.first)
                 + value
                     .rest
                     .iter()
@@ -5172,14 +5149,13 @@ fn independent_clause_quoted_ability_count(clause: &IndependentClause) -> usize 
                             independent_clause_quoted_ability_count(clause)
                         }
                     })
-                    .sum::<usize>();
+                    .sum::<usize>()
         }
         IndependentClause::Copular(..)
         | IndependentClause::Existential(_)
         | IndependentClause::Proform(..)
-        | IndependentClause::Deontic(_, _, None) => return 0,
-    };
-    predicate_quoted_ability_count(&predicate)
+        | IndependentClause::Deontic(_, _, None) => 0,
+    }
 }
 
 fn clause_quoted_ability_count(clause: &Clause) -> usize {
@@ -5259,12 +5235,18 @@ fn dependent_clause_quoted_ability_count(clause: &DependentClause) -> usize {
 }
 
 fn gerund_clause_quoted_ability_count(clause: &GerundClause) -> usize {
-    predicate_quoted_ability_count(clause.predicate())
-        + clause
-            .attachments()
-            .iter()
-            .map(|attachment| dependent_clause_quoted_ability_count(attachment.payload()))
-            .sum::<usize>()
+    match clause.kind() {
+        crate::syntax::GerundClauseKind::Base { predicate } => {
+            predicate_quoted_ability_count(predicate)
+        }
+        crate::syntax::GerundClauseKind::RatherThan {
+            matrix,
+            alternative,
+        } => {
+            gerund_clause_quoted_ability_count(matrix)
+                + gerund_clause_quoted_ability_count(alternative)
+        }
+    }
 }
 
 fn predicate_adjunct_quoted_ability_count(adjunct: &PredicateAdjunct) -> usize {
@@ -5304,59 +5286,58 @@ fn predicate_expression_terminal_quote(expression: &PredicateExpression) -> Opti
 fn predicate_terminal_quote(predicate: &Predicate) -> Option<&QuotedAbility> {
     match predicate {
         Predicate::Transitive(predicate) => transitive_terminal_quote(predicate),
-        Predicate::Intransitive(predicate) => last_element_terminal_quote(&predicate.elements),
+        Predicate::Intransitive(predicate) => last_element_terminal_quote(predicate.elements()),
         Predicate::Passive(predicate) => passive_terminal_quote(predicate),
         Predicate::Copular(predicate) => copular_terminal_quote(predicate),
         Predicate::Proform(_) => None,
-        Predicate::Deontic(predicate) => predicate
-            .inner
-            .as_deref()
-            .and_then(predicate_terminal_quote),
+        Predicate::Deontic(predicate) => predicate.inner().and_then(predicate_terminal_quote),
         Predicate::Attached(predicate) => attached_predicate_terminal_quote(predicate),
     }
 }
 
 fn predicate_quoted_ability_count(predicate: &Predicate) -> usize {
     match predicate {
-        Predicate::Transitive(predicate) => {
-            predicate_object_quoted_ability_count(&predicate.object)
-                + predicate
-                    .pre_object_elements
-                    .iter()
-                    .chain(predicate.elements.iter())
-                    .map(predicate_element_quoted_ability_count)
-                    .sum::<usize>()
-        }
+        Predicate::Transitive(predicate) => transitive_predicate_quoted_ability_count(predicate),
         Predicate::Intransitive(predicate) => predicate
-            .elements
+            .elements()
             .iter()
             .map(predicate_element_quoted_ability_count)
             .sum(),
-        Predicate::Passive(predicate) => {
-            predicate
-                .retained_object
-                .as_ref()
-                .map_or(0, predicate_object_quoted_ability_count)
-                + predicate
-                    .elements
-                    .iter()
-                    .map(predicate_element_quoted_ability_count)
-                    .sum::<usize>()
+        Predicate::Passive(predicate) => passive_predicate_quoted_ability_count(predicate),
+        Predicate::Deontic(predicate) => {
+            predicate.inner().map_or(0, predicate_quoted_ability_count)
         }
-        Predicate::Deontic(predicate) => predicate
-            .inner
-            .as_deref()
-            .map_or(0, predicate_quoted_ability_count),
         Predicate::Attached(predicate) => {
-            predicate_quoted_ability_count(&predicate.predicate)
+            predicate_quoted_ability_count(predicate.predicate())
                 + predicate
-                    .attachments
+                    .attachments()
                     .iter()
                     .map(clause_attachment_quoted_ability_count)
                     .sum::<usize>()
         }
         Predicate::Copular(_) | Predicate::Proform(_) => 0,
     }
+}
+
+fn transitive_predicate_quoted_ability_count(predicate: &TransitivePredicate) -> usize {
+    predicate_object_quoted_ability_count(predicate.object())
+        + predicate
+            .pre_object_elements()
+            .iter()
+            .chain(predicate.elements().iter())
+            .map(predicate_element_quoted_ability_count)
+            .sum::<usize>()
+}
+
+fn passive_predicate_quoted_ability_count(predicate: &crate::syntax::PassivePredicate) -> usize {
+    predicate
+        .retained_object()
+        .map_or(0, predicate_object_quoted_ability_count)
+        + predicate
+            .elements()
+            .iter()
+            .map(predicate_element_quoted_ability_count)
+            .sum::<usize>()
 }
 
 fn predicate_element_quoted_ability_count(element: &PredicateElement) -> usize {
@@ -5400,13 +5381,13 @@ fn attached_predicate_terminal_quote(
     predicate: &crate::syntax::AttachedPredicate,
 ) -> Option<&QuotedAbility> {
     match predicate
-        .attachments
+        .attachments()
         .iter()
         .rev()
         .find(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
     {
         Some(attachment) => clause_attachment_terminal_quote(attachment),
-        None => predicate_terminal_quote(&predicate.predicate),
+        None => predicate_terminal_quote(predicate.predicate()),
     }
 }
 
@@ -5414,10 +5395,10 @@ fn attached_predicate_terminal_quote(
 /// when it has none — with its object (`this creature gains "…"` leaves the
 /// quoted ability as the object with no trailing element).
 fn transitive_terminal_quote(predicate: &TransitivePredicate) -> Option<&QuotedAbility> {
-    if predicate.elements.is_empty() {
-        predicate_object_terminal_quote(&predicate.object)
+    if predicate.elements().is_empty() {
+        predicate_object_terminal_quote(predicate.object())
     } else {
-        last_element_terminal_quote(&predicate.elements)
+        last_element_terminal_quote(predicate.elements())
     }
 }
 
@@ -5426,18 +5407,17 @@ fn transitive_terminal_quote(predicate: &TransitivePredicate) -> Option<&QuotedA
 /// fallback; ordinary passives (no retained object, no elements) never end in a
 /// closed quote here.
 fn passive_terminal_quote(predicate: &crate::syntax::PassivePredicate) -> Option<&QuotedAbility> {
-    if predicate.elements.is_empty() {
+    if predicate.elements().is_empty() {
         predicate
-            .retained_object
-            .as_ref()
+            .retained_object()
             .and_then(predicate_object_terminal_quote)
     } else {
-        last_element_terminal_quote(&predicate.elements)
+        last_element_terminal_quote(predicate.elements())
     }
 }
 
 fn copular_terminal_quote(predicate: &CopularPredicate) -> Option<&QuotedAbility> {
-    predicate.adjuncts.last().and_then(adjunct_terminal_quote)
+    predicate.adjuncts().last().and_then(adjunct_terminal_quote)
 }
 
 fn coordinated_terminal_quote(clause: &CoordinatedIndependentClause) -> Option<&QuotedAbility> {
@@ -6240,7 +6220,7 @@ mod tests {
         else {
             panic!("expected an imperative transitive clause");
         };
-        let PredicateObject::NounPhrase(object) = &predicate.object else {
+        let PredicateObject::NounPhrase(object) = predicate.object() else {
             panic!("expected a nominal object");
         };
         let crate::syntax::NounPhraseKind::Nominal(object) = object.kind() else {
@@ -6249,17 +6229,10 @@ mod tests {
         let [NominalComplement::Relative(relative)] = object.complements() else {
             panic!("expected one relative complement: {object:#?}");
         };
-        assert!(
-            matches!(
-                relative.body(),
-                RelativeBody::SubjectGap(Predicate::Deontic(crate::syntax::DeonticPredicate {
-                    inner: None,
-                    ..
-                }))
-            ),
-            "{:#?}",
-            relative.body()
-        );
+        let RelativeBody::SubjectGap(Predicate::Deontic(predicate)) = relative.body() else {
+            panic!("expected a deontic subject gap: {:#?}", relative.body());
+        };
+        assert!(predicate.inner().is_none(), "{predicate:#?}");
         assert_eq!(source_free(&ast, "Test Card", false), source);
     }
 
@@ -6471,7 +6444,7 @@ mod tests {
             );
         };
         assert_eq!(
-            predicate.head.verb.verb,
+            predicate.head().verb().verb,
             Verb::Word(Vocab::Affect),
             "affect must parse as the transitive verb, not an opaque noun"
         );
@@ -6555,10 +6528,10 @@ mod tests {
             panic!("expected an imperative transitive clause");
         };
         assert!(
-            !predicate.pre_object_elements.is_empty(),
+            !predicate.pre_object_elements().is_empty(),
             "the adverb must be carried before the object: {predicate:#?}"
         );
-        assert!(predicate.elements.is_empty(), "{predicate:#?}");
+        assert!(predicate.elements().is_empty(), "{predicate:#?}");
 
         for source in ["Draw only one card.", "Draw again one card."] {
             let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
@@ -6580,9 +6553,9 @@ mod tests {
         else {
             panic!("expected an imperative transitive clause");
         };
-        assert!(predicate.pre_object_elements.is_empty(), "{predicate:#?}");
+        assert!(predicate.pre_object_elements().is_empty(), "{predicate:#?}");
         assert!(
-            !predicate.elements.is_empty(),
+            !predicate.elements().is_empty(),
             "the adverb must be carried after the object: {predicate:#?}"
         );
 
@@ -7392,11 +7365,9 @@ mod tests {
             (Some(subject), Predicate::Proform(predicate)) => {
                 IndependentClause::Proform(subject, predicate)
             }
-            (Some(subject), Predicate::Deontic(predicate)) => IndependentClause::Deontic(
-                subject,
-                predicate.modal,
-                predicate.inner.map(|inner| *inner),
-            ),
+            (Some(subject), Predicate::Deontic(predicate)) => {
+                IndependentClause::Deontic(subject, *predicate.modal(), predicate.inner().cloned())
+            }
             (Some(subject), predicate @ Predicate::Attached(_)) => {
                 IndependentClause::Predicated(Some(subject), PredicateExpression::Simple(predicate))
             }
@@ -7836,47 +7807,6 @@ mod tests {
         assert_eq!(
             renderer.predicate(&generated_add_object(object)).unwrap(),
             "add {U} or {C}{U}"
-        );
-    }
-
-    // --- qfloat: finite verbal quantifier float ------------------------------
-
-    #[test]
-    fn distributive_each_renders_before_the_verb_and_rejects_contraction() {
-        let head = PredicateHead {
-            auxiliaries: vec![],
-            first_auxiliary_contracted_with_subject: crate::features::Contraction::Full,
-            preverb_modifiers: vec![],
-            verb: VerbInstance {
-                verb: Verb::Word(Vocab::Draw),
-                slot: THIRD_PLURAL_PRESENT,
-            },
-            frame: Verb::Word(Vocab::Draw).predicate_frames()[0],
-            distributive_each: true,
-        };
-        let renderer = Renderer::new("Test Card", false);
-        let predicate = |head| {
-            Predicate::Intransitive(crate::syntax::HeadedPredicate {
-                head,
-                kind: crate::syntax::Intransitive,
-                elements: vec![],
-            })
-        };
-        assert_eq!(
-            renderer.predicate(&predicate(head.clone())).unwrap(),
-            "each draw"
-        );
-
-        let contracted = PredicateHead {
-            first_auxiliary_contracted_with_subject: crate::features::Contraction::Contracted,
-            ..head
-        };
-        assert_eq!(
-            renderer.predicate(&predicate(contracted)),
-            Err(RenderError::InvalidDistributiveEachContraction),
-            "the floating-`each` grammar never constructs a contracted-subject \
-             surface, since `each` intervenes between the subject and the first \
-             auxiliary"
         );
     }
 }

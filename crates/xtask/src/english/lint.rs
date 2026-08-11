@@ -19,18 +19,18 @@ use anyhow::Result;
 use clap::Args;
 use clap::ValueEnum;
 use deckmaste_english::parse_with_identity;
+use deckmaste_english::syntax::NominalComplement;
+use deckmaste_english::syntax::NounPhraseKind;
+use deckmaste_english::syntax::ObjectGapPredicate;
+use deckmaste_english::syntax::RelativeBody;
+use deckmaste_english::word::NounInstanceKind;
+use deckmaste_english::word::Verb;
+use deckmaste_english::word::Vocab;
 
 use crate::english::data::OracleDataArgs;
 use crate::english::data::map_supported_faces;
 use crate::english::shape;
 use crate::english::shape::Shape;
-
-/// Verbs whose object must be an object in the rules sense [CR#109.1]. Damage
-/// is not among the things rule 109.1 lists; it is what objects *deal*
-/// [CR#120.1], so no amount of damage can be the gap of `… that X controls`.
-/// A relative clause headed by one of these verbs attached to a mass-noun host
-/// is therefore misattached, whatever the card means.
-const OBJECT_TAKING_VERBS: &[&str] = &["Control", "Own"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum Check {
@@ -240,57 +240,56 @@ fn determinerless_singular_requires_determiner(nominal: &Shape) -> bool {
     !contains_opacity
 }
 
-/// The matrix verb of a headed predicate, if it is a lexicon word.
-fn matrix_verb(predicate: &Shape) -> Option<&'static str> {
-    predicate
-        .field("head")?
-        .field("verb")?
-        .field("verb")?
-        .unwrapped()
-        .variant()
-}
-
 /// **Sound by table.** An object-gap relative attaches its gap to the host
 /// noun. When the verb filling that gap can only take an object in the rules
 /// sense [CR#109.1] and the host is a mass noun such as `damage` — which rule
 /// 109.1 does not list, because damage is what objects *deal* [CR#120.1] — the
 /// clause cannot belong to this host and has been misattached. Round-trip
 /// cannot see this: the tokens render back unchanged.
-fn uncontrollable_host(shape: &Shape, card: &str, found: &mut Vec<Finding>) {
-    shape.walk(&mut |node| {
-        if node.type_name() != Some("NominalPhrase") {
-            return;
+fn uncontrollable_host(
+    ast: &deckmaste_english::syntax::OracleText,
+    card: &str,
+    found: &mut Vec<Finding>,
+) {
+    for phrase in ast.noun_phrases() {
+        let NounPhraseKind::Nominal(nominal) = phrase.kind() else {
+            continue;
+        };
+        if !matches!(nominal.head().kind(), NounInstanceKind::Mass(_)) {
+            continue;
         }
-        if node.field("head").and_then(Shape::variant) != Some("Mass") {
-            return;
-        }
-        for complement in elements(node, "complements") {
-            if complement.variant() != Some("Relative") {
-                continue;
-            }
-            let relative = complement.unwrapped();
-            if relative.field("gap").and_then(Shape::variant) != Some("Object") {
-                continue;
-            }
-            let Some(body) = relative.field("body") else {
+        for complement in nominal.complements() {
+            let NominalComplement::Relative(relative) = complement else {
                 continue;
             };
-            let Some(predicate) = body.field("predicate") else {
+            let RelativeBody::ObjectGap { predicate, .. } = relative.body() else {
                 continue;
             };
-            if let Some(verb) = matrix_verb(predicate)
-                && OBJECT_TAKING_VERBS.contains(&verb)
-            {
-                found.push(Finding {
-                    check: "uncontrollable-host",
-                    card: card.to_string(),
-                    detail: format!(
-                        "an object-gap relative headed by `{verb}` attaches to a mass-noun host"
-                    ),
-                });
-            }
+            let Some(verb) = object_taking_verb(predicate) else {
+                continue;
+            };
+            found.push(Finding {
+                check: "uncontrollable-host",
+                card: card.to_string(),
+                detail: format!(
+                    "an object-gap relative headed by `{verb}` attaches to a mass-noun host"
+                ),
+            });
         }
-    });
+    }
+}
+
+/// Verbs whose object must be an object in the rules sense [CR#109.1]. Damage
+/// is not among the things rule 109.1 lists; it is what objects *deal*
+/// [CR#120.1], so no amount of damage can be the gap of `… that X controls`.
+/// The table is deliberately expressed in typed lexical identities rather
+/// than serialized enum names.
+fn object_taking_verb(predicate: &ObjectGapPredicate) -> Option<&'static str> {
+    match predicate.head().verb().verb {
+        Verb::Word(Vocab::Control) => Some("Control"),
+        Verb::Word(Vocab::Own) => Some("Own"),
+        Verb::Word(_) | Verb::KeywordAction(_) => None,
+    }
 }
 
 /// One ability's text paired with the shape it parsed to.
@@ -394,21 +393,22 @@ pub(super) fn run(args: &LintArgs) -> Result<()> {
             card.printed_name(),
             card.is_legendary,
         );
-        let ast = shape::of(report.ast());
+        let ast = report.ast();
+        let ast_shape = shape::of(ast);
         let name = card.printed_name();
 
         let mut found = Vec::new();
         if wants(Check::MixedConjunction) {
-            mixed_conjunction(&ast, name, &mut found);
+            mixed_conjunction(&ast_shape, name, &mut found);
         }
         if wants(Check::BareSingularConjunct) {
-            bare_singular_conjunct(&ast, name, &mut found);
+            bare_singular_conjunct(&ast_shape, name, &mut found);
         }
         if wants(Check::UncontrollableHost) {
-            uncontrollable_host(&ast, name, &mut found);
+            uncontrollable_host(ast, name, &mut found);
         }
         let parses = if wants(Check::DivergentParse) {
-            ability_parses(name, &card.oracle_text, card.is_legendary, &ast)
+            ability_parses(name, &card.oracle_text, card.is_legendary, &ast_shape)
         } else {
             Vec::new()
         };
@@ -540,6 +540,55 @@ mod tests {
             found.is_empty(),
             "an Oxford list's comma-only member carries no conjunction"
         );
+    }
+
+    #[test]
+    fn uncontrollable_host_queries_typed_relative_and_predicate_semantics() {
+        let report = deckmaste_english::parse_with_identity(
+            "Destroy target creature you control.",
+            &deckmaste_english::Catalogs::default(),
+            "Fixture",
+            false,
+        );
+        let deckmaste_english::syntax::AbilityKind::Paragraph(paragraph) =
+            report.ast().abilities[0].kind()
+        else {
+            panic!("expected a paragraph ability");
+        };
+        let deckmaste_english::syntax::SentenceBody::Independent(
+            deckmaste_english::syntax::IndependentClause::Imperative(
+                deckmaste_english::syntax::Predicate::Transitive(predicate),
+            ),
+        ) = paragraph.sentences[0].body()
+        else {
+            panic!("expected an imperative transitive clause");
+        };
+        let deckmaste_english::syntax::PredicateObject::NounPhrase(noun) = predicate.object()
+        else {
+            panic!("expected a noun-phrase object");
+        };
+        let NounPhraseKind::Nominal(nominal) = noun.kind() else {
+            panic!("expected a nominal object");
+        };
+        let [NominalComplement::Relative(relative)] = nominal.complements() else {
+            panic!("expected one relative complement");
+        };
+        let RelativeBody::ObjectGap { predicate, .. } = relative.body() else {
+            panic!("expected an object-gap relative");
+        };
+        assert_eq!(object_taking_verb(predicate), Some("Control"));
+        assert!(
+            report
+                .ast()
+                .noun_phrases()
+                .iter()
+                .any(|candidate| std::ptr::eq(*candidate, noun)),
+            "the shared semantic traversal must reach the predicate object"
+        );
+
+        let mut found = Vec::new();
+        uncontrollable_host(report.ast(), "Fixture", &mut found);
+        assert!(found.is_empty(), "a singular creature host is valid");
     }
 
     #[derive(Serialize)]

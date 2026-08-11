@@ -21,7 +21,6 @@ use deckmaste_construction_compiler::runtime::ProjectionSink;
 use deckmaste_construction_compiler::runtime::ProjectionValue;
 
 use crate::Fragment;
-use crate::features::VerbSlot;
 use crate::syntax::Clause;
 use crate::syntax::CostComponent;
 use crate::syntax::KeywordArgument;
@@ -683,71 +682,13 @@ fn project_signed_scalar(value: SignedScalar) -> ConstructionProjection {
 }
 
 fn project_flat_identity(
-    provider: &'static str,
+    _provider: &'static str,
     value: &dyn ProjectionValue,
 ) -> Option<ConstructionProjection> {
     if let Some(value) = value.as_any().downcast_ref::<crate::catalog::CatalogAtom>() {
         return Some(project_catalog_atom(value));
     }
-    if provider == "LexicalVerb" {
-        return value
-            .as_any()
-            .downcast_ref::<crate::grammar::VerbAnalysis>()
-            .map(project_verb_analysis);
-    }
     None
-}
-
-fn project_verb_analysis(value: &crate::grammar::VerbAnalysis) -> ConstructionProjection {
-    flat_projection(
-        "VerbAnalysis",
-        "flat_verb_analysis",
-        "only",
-        0,
-        BTreeMap::from([
-            (
-                "verb",
-                atom_identity("Verb", "Verb", &value.instance().verb),
-            ),
-            (
-                "slot",
-                ProjectedValue::Construction(Box::new(project_verb_slot(value.instance().slot))),
-            ),
-            (
-                "frame",
-                ProjectedValue::Atom(ProjectedAtom::FlatSubtree {
-                    category: "PredicateFrame",
-                    value: OwnedProjectionValue::new(value.frame()),
-                }),
-            ),
-        ]),
-    )
-}
-
-fn project_verb_slot(value: VerbSlot) -> ConstructionProjection {
-    let (form, ordinal, roles) = match value {
-        VerbSlot::Infinitive => ("infinitive", 0, BTreeMap::new()),
-        VerbSlot::Imperative => ("imperative", 1, BTreeMap::new()),
-        VerbSlot::Present { person, number } => (
-            "present",
-            2,
-            BTreeMap::from([
-                ("person", atom_scalar("Person", &person)),
-                ("number", atom_scalar("Number", &number)),
-            ]),
-        ),
-        VerbSlot::Past { person, number } => (
-            "past",
-            3,
-            BTreeMap::from([
-                ("person", atom_scalar("Person", &person)),
-                ("number", atom_scalar("Number", &number)),
-            ]),
-        ),
-        VerbSlot::PresentParticiple => ("present_participle", 4, BTreeMap::new()),
-        VerbSlot::PastParticiple => ("past_participle", 5, BTreeMap::new()),
-    };
-    flat_projection("VerbSlot", "flat_verb_slot", form, ordinal, roles)
 }
 
 struct OpenSequence {
@@ -1395,5 +1336,166 @@ mod tests {
         );
         let noun_phrase = optional_construction_role(inner, "noun_phrase");
         assert_eq!(noun_phrase.category, "NounPhrase");
+    }
+
+    fn projected_verb_analysis(
+        projection: &ConstructionProjection,
+    ) -> &crate::predicate::VerbAnalysis {
+        let predicate = required_construction_role(projection, "predicate");
+        assert_eq!(predicate.construction, "verb_phrase_base");
+        let verb = required_construction_role(predicate, "head");
+        assert_eq!((verb.category, verb.construction), ("Verb", "verb"));
+        let Some(ProjectedValue::Atom(ProjectedAtom::Identity {
+            provider,
+            value_type,
+            value,
+        })) = verb.roles.get("head")
+        else {
+            panic!("declared verb lost its typed lexical identity: {verb:#?}");
+        };
+        assert_eq!((*provider, *value_type), ("LexicalVerb", "VerbAnalysis"));
+        value
+            .downcast_ref::<crate::predicate::VerbAnalysis>()
+            .expect("LexicalVerb projects its public sealed analysis")
+    }
+
+    #[test]
+    fn v01_projection_exposes_declared_roles_and_typed_lexical_identity() {
+        let sentence = parse_fragment(
+            "Draw a card.",
+            &Catalogs::default(),
+            FragmentKind::Sentence,
+            "",
+            false,
+        )
+        .into_fragment()
+        .expect("predicate fixture parses");
+        let projection =
+            super::project_fragment(&sentence).expect("predicate fixture projects through V01");
+        let mut constructions = Vec::new();
+        collect_constructions(&projection, &mut constructions);
+        let direct_object = constructions
+            .iter()
+            .copied()
+            .find(|candidate| candidate.construction == "verb_phrase_direct_object")
+            .expect("the selected V01 direct-object construction remains visible");
+        assert_eq!(
+            direct_object.roles.keys().copied().collect::<Vec<_>>(),
+            ["object", "predicate"]
+        );
+        assert_eq!(
+            required_construction_role(direct_object, "object").category,
+            "NounPhrase"
+        );
+        let analysis = projected_verb_analysis(direct_object);
+        assert_eq!(
+            analysis.instance(),
+            &crate::word::VerbInstance {
+                verb: crate::word::Verb::Word(crate::word::Vocab::Draw),
+                slot: crate::features::VerbSlot::Imperative,
+            }
+        );
+        assert_eq!(analysis.citation_form().instance(), analysis.instance());
+        assert!(constructions.iter().all(|candidate| !matches!(
+            candidate.construction,
+            "flat_verb_analysis" | "flat_verb_slot"
+        )));
+    }
+
+    #[test]
+    fn f01_projection_exposes_infinitive_and_recursive_gerund_roles() {
+        let predicate = |verb, slot| {
+            crate::predicate::build_predicate_verb(
+                crate::word::VerbInstance {
+                    verb: crate::word::Verb::Word(verb),
+                    slot,
+                },
+                crate::predicate::PredicateFrameChoice::Intransitive,
+            )
+            .and_then(crate::predicate::finish_predicate)
+            .expect("the F01 fixture predicate builds")
+        };
+        let infinitive_predicate = predicate(
+            crate::word::Vocab::Attack,
+            crate::features::VerbSlot::Infinitive,
+        );
+        let infinitive = crate::clause::build_infinitive_to(&infinitive_predicate)
+            .expect("positive infinitive fixture builds");
+        let negated = crate::clause::build_infinitive_not_to(&infinitive_predicate)
+            .expect("negated infinitive fixture builds");
+        for (value, construction, literals) in [
+            (&infinitive, "infinitive_to", &["to"][..]),
+            (&negated, "infinitive_not_to", &["not", "to"][..]),
+        ] {
+            let projection = super::project_value("InfinitiveClause", value)
+                .expect("the declared infinitive projects");
+            assert_eq!(
+                (
+                    projection.category,
+                    projection.construction,
+                    projection.form,
+                    projection.ordinal,
+                ),
+                ("InfinitiveClause", construction, "only", 0)
+            );
+            assert_eq!(projection.literals, literals);
+            assert_eq!(
+                projected_verb_analysis(&projection).instance().verb,
+                crate::word::Verb::Word(crate::word::Vocab::Attack)
+            );
+        }
+
+        let predicate = crate::predicate::build_predicate_verb(
+            crate::word::VerbInstance {
+                verb: crate::word::Verb::Word(crate::word::Vocab::Attack),
+                slot: crate::features::VerbSlot::PresentParticiple,
+            },
+            crate::predicate::PredicateFrameChoice::Intransitive,
+        )
+        .and_then(crate::predicate::finish_predicate)
+        .expect("gerund fixture predicate builds");
+        let alternative = crate::predicate::build_predicate_verb(
+            crate::word::VerbInstance {
+                verb: crate::word::Verb::Word(crate::word::Vocab::Block),
+                slot: crate::features::VerbSlot::PresentParticiple,
+            },
+            crate::predicate::PredicateFrameChoice::Intransitive,
+        )
+        .and_then(crate::predicate::finish_predicate)
+        .expect("alternative gerund fixture predicate builds");
+        let matrix = crate::clause::build_gerund_clause_base(&predicate)
+            .expect("matrix gerund fixture builds");
+        let alternative = crate::clause::build_gerund_clause_base(&alternative)
+            .expect("alternative gerund fixture builds");
+        let relation = crate::clause::build_gerund_clause_subordinate_after(matrix, alternative)
+            .expect("rather-than fixture builds");
+        let relation =
+            super::project_value("GerundClause", &relation).expect("rather-than fixture projects");
+        assert_eq!(
+            (
+                relation.category,
+                relation.construction,
+                relation.form,
+                relation.ordinal,
+            ),
+            ("GerundClause", "gerund_clause_subordinate_after", "only", 0,)
+        );
+        assert_eq!(relation.literals, ["rather", "than"]);
+        assert_eq!(
+            relation.roles.keys().copied().collect::<Vec<_>>(),
+            ["alternative", "matrix"]
+        );
+        let matrix = required_construction_role(&relation, "matrix");
+        let alternative = required_construction_role(&relation, "alternative");
+        assert_eq!(matrix.construction, "gerund_clause_base");
+        assert_eq!(alternative.construction, "gerund_clause_base");
+        assert_eq!(
+            projected_verb_analysis(matrix).instance().verb,
+            crate::word::Verb::Word(crate::word::Vocab::Attack)
+        );
+        assert_eq!(
+            projected_verb_analysis(alternative).instance().verb,
+            crate::word::Verb::Word(crate::word::Vocab::Block)
+        );
     }
 }

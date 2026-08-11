@@ -54,6 +54,18 @@ impl OracleText {
         walker.oracle_text(self);
         walker.lexical_opacity
     }
+
+    /// Returns every noun phrase in this syntax tree in depth-first order.
+    ///
+    /// This semantic traversal is independent of serialization layout. It is
+    /// intended for consumers that need to inspect noun-phrase relationships
+    /// without maintaining a second exhaustive AST walker.
+    #[must_use]
+    pub fn noun_phrases(&self) -> Vec<&NounPhrase> {
+        let mut walker = RecoveryWalker::default();
+        walker.oracle_text(self);
+        walker.noun_phrases
+    }
 }
 
 impl crate::fragment::Fragment {
@@ -89,6 +101,7 @@ impl crate::fragment::Fragment {
 struct RecoveryWalker<'syntax> {
     phrases: Vec<RecoveryRef<'syntax>>,
     lexical_opacity: Vec<LexicalOpacityRef<'syntax>>,
+    noun_phrases: Vec<&'syntax NounPhrase>,
 }
 
 impl<'syntax> RecoveryWalker<'syntax> {
@@ -328,21 +341,21 @@ impl<'syntax> RecoveryWalker<'syntax> {
             }
             IndependentClause::Intransitive(subject, predicate) => {
                 self.subject(subject, context);
-                Self::predicate_head(&predicate.head, context);
-                self.predicate_elements(&predicate.elements, context);
+                Self::predicate_head(predicate.head(), context);
+                self.predicate_elements(predicate.elements(), context);
             }
             IndependentClause::Copular(subject, predicate) => {
                 self.subject(subject, context);
-                self.copular_complement(&predicate.complement, context);
-                self.predicate_adjuncts(&predicate.adjuncts, context);
+                self.copular_complement(predicate.complement(), context);
+                self.predicate_adjuncts(predicate.adjuncts(), context);
             }
             IndependentClause::Passive(subject, predicate) => {
                 self.subject(subject, context);
-                Self::predicate_head(&predicate.head, context);
-                if let Some(retained_object) = &predicate.retained_object {
+                Self::predicate_head(predicate.head(), context);
+                if let Some(retained_object) = predicate.retained_object() {
                     self.predicate_object(retained_object, context);
                 }
-                self.predicate_elements(&predicate.elements, context);
+                self.predicate_elements(predicate.elements(), context);
             }
             IndependentClause::Predicated(subject, expression) => {
                 if let Some(subject) = subject {
@@ -435,9 +448,15 @@ impl<'syntax> RecoveryWalker<'syntax> {
     }
 
     fn gerund_clause(&mut self, clause: &'syntax GerundClause, context: Option<RecoveryRole>) {
-        self.predicate(clause.predicate(), context);
-        for attachment in clause.attachments() {
-            self.dependent_clause(&attachment.payload, context);
+        match clause.kind() {
+            GerundClauseKind::Base { predicate } => self.predicate(predicate, context),
+            GerundClauseKind::RatherThan {
+                matrix,
+                alternative,
+            } => {
+                self.gerund_clause(matrix, context);
+                self.gerund_clause(alternative, context);
+            }
         }
     }
 
@@ -464,29 +483,29 @@ impl<'syntax> RecoveryWalker<'syntax> {
         match predicate {
             Predicate::Transitive(predicate) => self.transitive_predicate(predicate, context),
             Predicate::Intransitive(predicate) => {
-                Self::predicate_head(&predicate.head, context);
-                self.predicate_elements(&predicate.elements, context);
+                Self::predicate_head(predicate.head(), context);
+                self.predicate_elements(predicate.elements(), context);
             }
             Predicate::Copular(predicate) => {
-                self.copular_complement(&predicate.complement, context);
-                self.predicate_adjuncts(&predicate.adjuncts, context);
+                self.copular_complement(predicate.complement(), context);
+                self.predicate_adjuncts(predicate.adjuncts(), context);
             }
             Predicate::Passive(predicate) => {
-                Self::predicate_head(&predicate.head, context);
-                if let Some(retained_object) = &predicate.retained_object {
+                Self::predicate_head(predicate.head(), context);
+                if let Some(retained_object) = predicate.retained_object() {
                     self.predicate_object(retained_object, context);
                 }
-                self.predicate_elements(&predicate.elements, context);
+                self.predicate_elements(predicate.elements(), context);
             }
             Predicate::Proform(_) => {}
             Predicate::Deontic(predicate) => {
-                if let Some(inner) = &predicate.inner {
+                if let Some(inner) = predicate.inner() {
                     self.predicate(inner, context);
                 }
             }
             Predicate::Attached(predicate) => {
-                self.predicate(&predicate.predicate, context);
-                for attachment in &predicate.attachments {
+                self.predicate(predicate.predicate(), context);
+                for attachment in predicate.attachments() {
                     match &attachment.payload {
                         ClauseAttachmentKind::Dependent(clause) => {
                             self.dependent_clause(clause, context);
@@ -524,10 +543,10 @@ impl<'syntax> RecoveryWalker<'syntax> {
         predicate: &'syntax TransitivePredicate,
         context: Option<RecoveryRole>,
     ) {
-        Self::predicate_head(&predicate.head, context);
-        self.predicate_elements(&predicate.pre_object_elements, context);
-        self.predicate_object(&predicate.object, context);
-        self.predicate_elements(&predicate.elements, context);
+        Self::predicate_head(predicate.head(), context);
+        self.predicate_elements(predicate.pre_object_elements(), context);
+        self.predicate_object(predicate.object(), context);
+        self.predicate_elements(predicate.elements(), context);
     }
 
     fn predicate_head(head: &'syntax PredicateHead, context: Option<RecoveryRole>) {
@@ -664,13 +683,14 @@ impl<'syntax> RecoveryWalker<'syntax> {
             RelativeBody::SubjectGap(predicate) => self.predicate(predicate, context),
             RelativeBody::ObjectGap { subject, predicate } => {
                 self.subject(subject, context);
-                Self::predicate_head(&predicate.head, context);
-                self.predicate_elements(&predicate.elements, context);
+                Self::predicate_head(predicate.head(), context);
+                self.predicate_elements(predicate.elements(), context);
             }
         }
     }
 
     fn noun_phrase(&mut self, phrase: &'syntax NounPhrase, context: Option<RecoveryRole>) {
+        self.noun_phrases.push(phrase);
         match phrase.kind() {
             NounPhraseKind::Nominal(nominal) => self.nominal_phrase(nominal, context),
             NounPhraseKind::Pronoun { .. }

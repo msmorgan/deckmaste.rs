@@ -384,7 +384,9 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
   `FrequencyPhrase`, and typed mana sequences. The production renderer
   reconstructs the exact retained lexical frame through the sealed ingress
   and invokes the generated inverse; no handwritten V01 element renderer or
-  writable public construction path remains. The three A01 ability-layer
+  writable public construction path remains. Public construction-in-progress
+  is opaque and can only be advanced through checked builders; finished
+  payloads expose read-only semantic accessors. The three A01 ability-layer
   entry points remain handwritten consumers, not predicate owners.
 - **Holes and constraints:** identity holes for verbs, auxiliaries, particles,
   coin results, adverbs, and symbols; scalar holes for quantities and
@@ -406,6 +408,10 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 - **Consumers and gates:** Sentence, Cost, KeywordLine, and Ability entry
   points all report generated V01 provenance; spelling frames, serialized
   views, verbose inspect, and recovery traverse the same production owner.
+  Spelling agreement addresses the declared `verb` construction's `head`
+  identity and its sealed `VerbAnalysis` citation operation; no flat
+  predicate/verb-slot projection or serialized field path is part of that
+  contract.
   Direct ASTs cover
   every valency and element position; inspect pins dominance, role, and cost;
   exactness covers pre/post-object order, mixed ability objects, mana lists,
@@ -422,15 +428,20 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 - **Owners and AST:** the F01 declaration and its generated chart, typed-feature,
   lowering, inverse-render, and checked-build projections are the single
   authority for sealed `InfinitiveClause` and `GerundClause` values. Public
-  callers use checked builders and read-only semantic projections.
+  callers use checked builders and read-only semantic projections. A gerund is
+  exactly `GerundClauseKind::Base` or the binary recursive
+  `GerundClauseKind::RatherThan { matrix, alternative }`; it has no generic
+  attachment vector.
 - **Holes and constraints:** whole predicate/clause subtree holes. Infinitive
   negation is preserved by the selected typed construction; infinitive/gerund
   form, lexical valency, and subordinate attachment are required constraints.
   There is no discontinuity.
 - **Ambiguity/backend:** fan-out one on Chart, no direct dominance edge.
   Predicate valency rather than registration order licenses the complement.
-- **Witnesses:** infinitive negation and subordinate position are
-  meaning-bearing; `to` and spacing are derived fixed style.
+- **Witnesses:** infinitive negation and recursive left/right association are
+  meaning-bearing, while
+  the fixed after-matrix position, absent comma, `rather than` subordinator,
+  `to`, and spacing are derived fixed style.
 - **Consumers and gates:** nominal and predicate complements, PP objects,
   complex clauses, spelling views. Direct AST and inspect fixtures cover both
   infinitives and gerund attachment; exactness covers `to`/`not to` and nested

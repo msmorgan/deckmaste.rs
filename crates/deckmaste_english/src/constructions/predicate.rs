@@ -176,12 +176,14 @@ pub fn build_predicate_element(
         PredicateElement::CoinResult(value) => {
             build_verb_phrase_coin_result(predicate.phrase, value)?
         }
+        PredicateElement::Adjunct(PredicateAdjunct::AbilityPostmodifier(value)) => {
+            build_verb_phrase_ability_postmodifier(predicate.phrase, value)?
+        }
         PredicateElement::Complement(PredicateComplement::CoordinatedAdjective(_))
         | PredicateElement::Adjunct(
             PredicateAdjunct::Temporal(_)
             | PredicateAdjunct::Manner(_)
-            | PredicateAdjunct::Dependent(_)
-            | PredicateAdjunct::AbilityPostmodifier(_),
+            | PredicateAdjunct::Dependent(_),
         ) => {
             return Err(violation(
                 "predicate",
@@ -204,6 +206,22 @@ fn build_public_prepositional(
         ));
     }
     build_verb_phrase_prepositional(predicate, preposition)
+}
+
+pub(crate) fn build_verb_phrase_ability_postmodifier(
+    predicate: VerbPhrase,
+    postmodifier: crate::syntax::AbilityPostmodifier,
+) -> Result<VerbPhrase, DeclarationViolation> {
+    licensed_attachment(
+        "verb_phrase_ability_postmodifier",
+        &predicate,
+        PredicateAttachment::Adjunct,
+    )?;
+    let (mut dependents, shell) = predicate.declaration_into_dependent_projection();
+    dependents.push(VerbDependent::AbilityPostmodifier(postmodifier));
+    Ok(VerbPhrase::declaration_from_dependent_projection(
+        shell, dependents,
+    ))
 }
 
 fn prepositional_role(
@@ -251,42 +269,6 @@ pub fn finish_object_gap_predicate(
 ) -> Result<crate::syntax::ObjectGapPredicate, DeclarationViolation> {
     ensure_object_gap_complete(&predicate.phrase)?;
     crate::constructions::relative::project_object_gap_predicate_hole(predicate.phrase)
-}
-
-/// Projects the checked builder parts of an object-gap predicate.
-///
-/// # Errors
-///
-/// Returns a declaration violation when the predicate cannot be inverted to
-/// a complete object-gap construction.
-pub fn parts_object_gap_predicate(
-    predicate: &crate::syntax::ObjectGapPredicate,
-) -> Result<PredicateBuilder, DeclarationViolation> {
-    let phrase = inverse_public_object_gap_predicate(predicate)?;
-    ensure_object_gap_complete(&phrase)?;
-    Ok(PredicateBuilder { phrase })
-}
-
-/// Projects immutable checked construction parts from a sealed predicate.
-///
-/// # Errors
-///
-/// Returns a declaration violation when the public predicate is outside the
-/// generated family or does not satisfy the declaration's completion rules.
-pub fn parts_predicate(predicate: &Predicate) -> Result<PredicateBuilder, DeclarationViolation> {
-    let phrase = inverse_public_predicate(predicate)?;
-    ensure_complete(&phrase)?;
-    Ok(PredicateBuilder { phrase })
-}
-
-/// Rebuilds a sealed predicate from its immutable checked parts.
-///
-/// # Errors
-///
-/// Returns a declaration violation when the parts are incomplete or cannot
-/// project to one sealed public predicate shape.
-pub fn rebuild_predicate(parts: PredicateBuilder) -> Result<Predicate, DeclarationViolation> {
-    finish_predicate(parts)
 }
 
 fn select_public_frame(
@@ -5293,30 +5275,28 @@ mod tests {
                 &self_reference,
                 GeneratedActivation::Groups(all_groups_with_predicate()),
             );
-            let production_shape = format!(
-                "{:#?}",
-                production[0]
-                    .sentence()
-                    .unwrap_or_else(|| panic!("production root is not a sentence for {source:?}"))
-            );
-            let generated_shape = format!(
-                "{:#?}",
-                generated[0]
-                    .sentence()
-                    .unwrap_or_else(|| panic!("generated root is not a sentence for {source:?}"))
-            );
+            let production_sentence = production[0]
+                .sentence()
+                .unwrap_or_else(|| panic!("production root is not a sentence for {source:?}"));
+            let generated_sentence = generated[0]
+                .sentence()
+                .unwrap_or_else(|| panic!("generated root is not a sentence for {source:?}"));
             assert_eq!(
-                format!("{:#?}", production[1].sentence().unwrap()),
-                production_shape,
+                production[1].sentence().unwrap_or_else(|| panic!(
+                    "reversed production root is not a sentence for {source:?}"
+                )),
+                production_sentence,
                 "production reversal changed {source:?}"
             );
             assert_eq!(
-                format!("{:#?}", generated[1].sentence().unwrap()),
-                generated_shape,
+                generated[1].sentence().unwrap_or_else(|| panic!(
+                    "reversed generated root is not a sentence for {source:?}"
+                )),
+                generated_sentence,
                 "generated reversal changed {source:?}"
             );
             assert_eq!(
-                generated_shape, production_shape,
+                generated_sentence, production_sentence,
                 "AST mismatch for {source:?}"
             );
             assert_eq!(generated[0].cost(), production[0].cost(), "{source:?}");
@@ -6198,11 +6178,11 @@ mod tests {
             panic!("expected an imperative transitive predicate: {sentence:#?}")
         };
         assert!(matches!(
-            predicate.object,
+            predicate.object(),
             crate::syntax::PredicateObject::NounPhrase(_)
         ));
         assert!(matches!(
-            predicate.elements.as_slice(),
+            predicate.elements(),
             [crate::syntax::PredicateElement::Adjunct(
                 crate::syntax::PredicateAdjunct::Temporal(_)
             )]
@@ -6570,7 +6550,7 @@ mod tests {
             panic!("the causative host retains its direct-object causee")
         };
         assert!(matches!(
-            predicate.elements.as_slice(),
+            predicate.elements(),
             [crate::syntax::PredicateElement::Complement(
                 crate::syntax::PredicateComplement::Infinitive(infinitive)
             )] if infinitive.marker() == crate::syntax::InfinitiveMarker::Bare

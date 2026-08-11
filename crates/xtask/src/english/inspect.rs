@@ -201,6 +201,7 @@ fn write_p02_attachment_evidence(mut writer: impl Write, report: &ParseReport) -
 fn collect_predicate_pp_roles(clause: &IndependentClause, roles: &mut BTreeSet<&'static str>) {
     match clause {
         IndependentClause::Transitive(_, predicate) => {
+            collect_pp_element_roles(predicate.pre_object_elements(), roles);
             collect_pp_element_roles(predicate.elements(), roles);
         }
         IndependentClause::Intransitive(_, predicate) => {
@@ -218,12 +219,12 @@ fn collect_predicate_pp_roles(clause: &IndependentClause, roles: &mut BTreeSet<&
         }
         IndependentClause::Copular(_, predicate) => {
             if matches!(
-                predicate.complement,
+                predicate.complement(),
                 deckmaste_english::syntax::CopularComplement::Prepositional(_)
             ) {
                 roles.insert("selected-complement");
             }
-            collect_pp_adjunct_roles(&predicate.adjuncts, roles);
+            collect_pp_adjunct_roles(predicate.adjuncts(), roles);
         }
         IndependentClause::Deontic(_, _, None)
         | IndependentClause::Existential(_)
@@ -249,24 +250,27 @@ fn collect_predicate_expression_roles(
 
 fn collect_predicate_roles(predicate: &Predicate, roles: &mut BTreeSet<&'static str>) {
     match predicate {
-        Predicate::Transitive(predicate) => collect_pp_element_roles(predicate.elements(), roles),
+        Predicate::Transitive(predicate) => {
+            collect_pp_element_roles(predicate.pre_object_elements(), roles);
+            collect_pp_element_roles(predicate.elements(), roles);
+        }
         Predicate::Intransitive(predicate) => collect_pp_element_roles(predicate.elements(), roles),
         Predicate::Passive(predicate) => collect_pp_element_roles(predicate.elements(), roles),
         Predicate::Copular(predicate) => {
             if matches!(
-                predicate.complement,
+                predicate.complement(),
                 deckmaste_english::syntax::CopularComplement::Prepositional(_)
             ) {
                 roles.insert("selected-complement");
             }
-            collect_pp_adjunct_roles(&predicate.adjuncts, roles);
+            collect_pp_adjunct_roles(predicate.adjuncts(), roles);
         }
         Predicate::Deontic(predicate) => {
-            if let Some(inner) = &predicate.inner {
+            if let Some(inner) = predicate.inner() {
                 collect_predicate_roles(inner, roles);
             }
         }
-        Predicate::Attached(predicate) => collect_predicate_roles(&predicate.predicate, roles),
+        Predicate::Attached(predicate) => collect_predicate_roles(predicate.predicate(), roles),
         Predicate::Proform(_) => {}
     }
 }

@@ -1,0 +1,23 @@
+error[E0423]: cannot initialize a tuple struct which contains private fields
+ --> tests/compile_fail/construct_gerund_clause.rs:6:5
+  |
+6 |     GerundClause(GerundClauseKind::Base {
+  |     ^^^^^^^^^^^^
+  |
+note: constructor is not visible here due to private fields
+ --> src/syntax/clause.rs
+  |
+  | pub struct GerundClause(GerundClauseKind);
+  |                         ^^^^^^^^^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+  |
+6 -     GerundClause(GerundClauseKind::Base {
+7 -         predicate: Box::new(predicate),
+8 -     })
+6 +     GerundClause::from_base_declaration(_)
+  |
+6 -     GerundClause(GerundClauseKind::Base {
+7 -         predicate: Box::new(predicate),
+8 -     })
+6 +     GerundClause::from_rather_than_declaration(_, _)
+  |
