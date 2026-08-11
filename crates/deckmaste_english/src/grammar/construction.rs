@@ -251,7 +251,7 @@ mod tests {
         for (winner, loser) in expected {
             assert!(
                 registry().dominates(ConstructionId::new(winner), ConstructionId::new(loser)),
-                "missing P01 dominance edge {winner}>{loser}"
+                "missing noun-phrase dominance edge {winner}>{loser}"
             );
         }
         for &winner in &ids {
@@ -267,7 +267,7 @@ mod tests {
                 assert_eq!(
                     registry().dominates(ConstructionId::new(winner), ConstructionId::new(loser)),
                     expected,
-                    "unexpected P01-to-P01 dominance relation {winner}>{loser}"
+                    "unexpected intra-family noun-phrase dominance relation {winner}>{loser}"
                 );
             }
         }
@@ -316,7 +316,7 @@ mod tests {
                     ConstructionId::new(incoming),
                     ConstructionId::new("prepositional_phrase")
                 ),
-                "missing C01 incoming edge {incoming} > prepositional_phrase"
+                "missing phrase-coordination incoming edge {incoming} > prepositional_phrase"
             );
         }
     }
@@ -530,15 +530,11 @@ mod tests {
                     && family.owner() == ConstructionOwner::Generated
             })
             .count();
-        assert_eq!(handwritten, 19, "handwritten chart families");
-        assert_eq!(generated, 176, "generated chart families");
-        assert_eq!(handwritten + generated, 195, "all chart families");
+        assert_eq!(handwritten, 6, "handwritten chart families");
+        assert_eq!(generated, 199, "generated chart families");
+        assert_eq!(handwritten + generated, 205, "all chart families");
         assert_eq!(generated_ability, 3, "generated ability families");
-        assert_eq!(
-            families.len(),
-            198,
-            "all active families after the ability slice"
-        );
+        assert_eq!(families.len(), 208, "all active construction families");
 
         let chart_fragment_entries = [FragmentKind::Nominal, FragmentKind::Sentence];
         let ability_fragment_entries = [
@@ -550,11 +546,11 @@ mod tests {
         assert_eq!(ability_fragment_entries.len(), 3);
         assert_eq!(
             handwritten + ability_fragment_entries.len() - generated_ability,
-            19
+            6
         );
         assert_eq!(
             families.len() + ability_fragment_entries.len() - generated_ability,
-            198
+            208
         );
 
         for id in [
@@ -585,6 +581,38 @@ mod tests {
                 ConstructionOwner::Generated,
                 "{id} must have generated production ownership",
             );
+        }
+    }
+
+    #[test]
+    fn production_phrase_coordination_has_exactly_the_generated_owners() {
+        let ids = [
+            "modifier_conjunct_adjective",
+            "modifier_conjunct_noun",
+            "modifier_conjunct_negated",
+            "modifier_list_single",
+            "modifier_list_comma",
+            "coordinated_modifier_conjoined",
+            "coordinated_modifier_oxford",
+            "nominal_coordinated_modifier",
+            "prepositional_phrase_list_pair",
+            "prepositional_phrase_list_comma",
+            "prepositional_phrase_sibling_coordinated",
+            "verb_phrase_coordinated_adjective",
+            "nominal_power_toughness_complement",
+            "nominal_with_attributes",
+        ];
+        for name in ids {
+            let id = ConstructionId::new(name);
+            assert!(
+                handwritten_registry().family(id).is_none(),
+                "{name} still has a handwritten owner"
+            );
+            let family = registry()
+                .family(id)
+                .unwrap_or_else(|| panic!("{name} generated declaration is registered"));
+            assert_eq!(family.owner(), ConstructionOwner::Generated, "{name}");
+            assert_eq!(family.backend(), ConstructionBackend::Chart, "{name}");
         }
     }
 

@@ -1426,7 +1426,7 @@ mod tests {
                     .map(move |subordinate| (construction.id, *subordinate))
             })
             .collect::<Vec<_>>();
-        assert_eq!(edges, [("clause_simple", "clause_copular")]);
+        assert_eq!(edges, [("clause_simple", "clause_copular"),]);
     }
 
     #[test]

@@ -152,6 +152,12 @@ pub fn build_predicate_element(
         PredicateElement::Complement(PredicateComplement::Adjective(value)) => {
             build_verb_phrase_adjective(predicate.phrase, value)?
         }
+        PredicateElement::Complement(PredicateComplement::CoordinatedAdjective(value)) => {
+            crate::constructions::coordination::build_verb_phrase_coordinated_adjective(
+                predicate.phrase,
+                value,
+            )?
+        }
         PredicateElement::Complement(PredicateComplement::Prepositional(value)) => {
             build_public_prepositional(predicate.phrase, value, ComplementRole::SelectedComplement)?
         }
@@ -180,8 +186,7 @@ pub fn build_predicate_element(
         PredicateElement::Adjunct(PredicateAdjunct::AbilityPostmodifier(value)) => {
             build_verb_phrase_ability_postmodifier(predicate.phrase, value)?
         }
-        PredicateElement::Complement(PredicateComplement::CoordinatedAdjective(_))
-        | PredicateElement::Adjunct(
+        PredicateElement::Adjunct(
             PredicateAdjunct::Temporal(_)
             | PredicateAdjunct::Manner(_)
             | PredicateAdjunct::Dependent(_),

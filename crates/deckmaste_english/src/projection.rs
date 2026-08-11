@@ -807,7 +807,6 @@ mod tests {
     use crate::parse_fragment;
     use crate::syntax::AttachmentPosition;
     use crate::syntax::ClauseAttachmentKind;
-    use crate::syntax::CoordinatedAdjectivePhrase;
     use crate::syntax::CopularComplement;
     use crate::syntax::DependentClause;
     use crate::syntax::IndependentClause;
@@ -862,6 +861,79 @@ mod tests {
                 }
             }
             ProjectedValue::Atom(_) | ProjectedValue::Optional(None) => {}
+        }
+    }
+
+    fn required_named_construction<'a>(
+        projection: &'a ConstructionProjection,
+        construction: &str,
+    ) -> &'a ConstructionProjection {
+        let mut constructions = Vec::new();
+        collect_constructions(projection, &mut constructions);
+        constructions
+            .into_iter()
+            .find(|candidate| candidate.construction == construction)
+            .unwrap_or_else(|| panic!("missing construction {construction:?}: {projection:#?}"))
+    }
+
+    fn assert_projection_identity(
+        projection: &ConstructionProjection,
+        category: &'static str,
+        construction: &'static str,
+        form: &'static str,
+        ordinal: u16,
+        roles: &[&'static str],
+    ) {
+        assert_eq!(
+            (
+                projection.category,
+                projection.construction,
+                projection.form,
+                projection.ordinal,
+            ),
+            (category, construction, form, ordinal),
+            "{projection:#?}"
+        );
+        assert_eq!(
+            projection.roles.keys().copied().collect::<Vec<_>>(),
+            roles,
+            "{projection:#?}"
+        );
+    }
+
+    fn assert_no_flat_subtrees(projection: &ConstructionProjection) {
+        fn visit(value: &ProjectedValue) {
+            match value {
+                ProjectedValue::Atom(ProjectedAtom::FlatSubtree { category, .. }) => {
+                    panic!("projection retained a layout-erased {category} subtree")
+                }
+                ProjectedValue::Construction(projection) => {
+                    assert_no_flat_subtrees(projection);
+                }
+                ProjectedValue::Optional(Some(value)) => visit(value),
+                ProjectedValue::Sequence(sequence) => {
+                    for member in &sequence.members {
+                        for value in member.roles.values() {
+                            visit(value);
+                        }
+                    }
+                }
+                ProjectedValue::Variant(variant) => {
+                    for value in variant.roles.values() {
+                        visit(value);
+                    }
+                }
+                ProjectedValue::Product(product) => {
+                    for value in product.roles.values() {
+                        visit(value);
+                    }
+                }
+                ProjectedValue::Atom(_) | ProjectedValue::Optional(None) => {}
+            }
+        }
+
+        for value in projection.roles.values() {
+            visit(value);
         }
     }
 
@@ -1386,7 +1458,7 @@ mod tests {
     }
 
     #[test]
-    fn direct_p01_special_forms_project_their_semantic_roles() {
+    fn direct_noun_phrase_special_forms_project_their_semantic_roles() {
         let catalogs = Catalogs::default();
         let possessive_report = parse_fragment(
             "Nissa's",
@@ -2257,6 +2329,390 @@ mod tests {
     }
 
     #[test]
+    fn phrase_coordination_projection_covers_modifier_and_power_toughness_owners() {
+        use crate::coordination as coordination_api;
+        use crate::features::Conjunction;
+        use crate::syntax::NominalModifier;
+        use crate::syntax::Polarity;
+        use crate::syntax::ScalarSign;
+        use crate::syntax::ScalarValue;
+        use crate::word::Adjective;
+        use crate::word::ColorWord;
+        use crate::word::Noun;
+        use crate::word::NounInstance;
+        use crate::word::Vocab;
+
+        let red = crate::adjective::build_adjective_phrase(Adjective::Color(ColorWord::Red))
+            .expect("red is a declared adjective phrase");
+        let green = crate::adjective::build_adjective_phrase(Adjective::Color(ColorWord::Green))
+            .expect("green is a declared adjective phrase");
+        let adjective = coordination_api::build_modifier_adjective(red)
+            .expect("an adjective fills the modifier member sum");
+        let negated = coordination_api::build_modifier_negated(NominalModifier::Adjective {
+            polarity: Polarity::Negative,
+            phrase: green,
+        })
+        .expect("a negative adjective fills the negated member alternative");
+        let noun = coordination_api::build_modifier_noun(
+            NounInstance::try_singular(Noun::Word(Vocab::Ability))
+                .expect("ability is a singular count noun"),
+        )
+        .expect("a noun fills the modifier member sum");
+        let binary = coordination_api::build_coordinated_modifier(
+            adjective.clone(),
+            Vec::new(),
+            Conjunction::Or,
+            noun.clone(),
+        )
+        .expect("the binary coordination is checked");
+        let binary = super::project_value("CoordinatedModifier", &binary)
+            .expect("the binary coordinated modifier projects");
+        assert_projection_identity(
+            &binary,
+            "CoordinatedModifier",
+            "coordinated_modifier_conjoined",
+            "only",
+            0,
+            &["conjunction", "list", "modifier"],
+        );
+        assert_no_flat_subtrees(&binary);
+
+        let coordinated = coordination_api::build_coordinated_modifier(
+            adjective,
+            vec![negated],
+            Conjunction::And,
+            noun,
+        )
+        .expect("the three-member Oxford coordination is checked");
+        let projection = super::project_value("CoordinatedModifier", &coordinated)
+            .expect("the coordinated modifier projects");
+
+        for (category, construction, roles) in [
+            (
+                "CoordinatedModifier",
+                "coordinated_modifier_oxford",
+                &["conjunction", "list", "modifier"][..],
+            ),
+            (
+                "ModifierList",
+                "modifier_list_comma",
+                &["list", "modifier"][..],
+            ),
+            ("ModifierList", "modifier_list_single", &["first"][..]),
+            (
+                "ModifierConjunct",
+                "modifier_conjunct_adjective",
+                &["adjective"][..],
+            ),
+            (
+                "ModifierConjunct",
+                "modifier_conjunct_negated",
+                &["modifier"][..],
+            ),
+            ("ModifierConjunct", "modifier_conjunct_noun", &["noun"][..]),
+        ] {
+            assert_projection_identity(
+                required_named_construction(&projection, construction),
+                category,
+                construction,
+                "only",
+                0,
+                roles,
+            );
+        }
+        assert_no_flat_subtrees(&projection);
+
+        let card = crate::nominal::build_nominal_noun(
+            NounInstance::try_singular(Noun::Word(Vocab::Card))
+                .expect("card is a singular count noun"),
+        )
+        .expect("card is a declared nominal");
+        let owned = coordination_api::build_nominal_coordinated_modifier(coordinated, card)
+            .expect("the modifier can share the nominal head");
+        let projection =
+            super::project_value("NominalPhrase", &owned).expect("the nominal owner projects");
+        assert_projection_identity(
+            &projection,
+            "NominalPhrase",
+            "nominal_coordinated_modifier",
+            "only",
+            0,
+            &["coordinated", "nominal"],
+        );
+        assert_no_flat_subtrees(&projection);
+
+        let stats = crate::syntax::PowerToughness {
+            power: crate::syntax::SignedScalar {
+                sign: ScalarSign::None,
+                value: ScalarValue::X,
+            },
+            toughness: crate::syntax::SignedScalar {
+                sign: ScalarSign::None,
+                value: ScalarValue::X,
+            },
+        };
+        let toughness = crate::nominal::build_nominal_noun(
+            NounInstance::try_mass(Noun::Word(Vocab::Toughness)).expect("toughness is a mass noun"),
+        )
+        .expect("toughness is a declared nominal");
+        let toughness =
+            coordination_api::build_nominal_power_toughness_complement(toughness, stats)
+                .expect("a power/toughness value fills the characteristic complement");
+        let projection = super::project_value("NominalPhrase", &toughness)
+            .expect("the power/toughness owner projects");
+        assert_projection_identity(
+            &projection,
+            "NominalPhrase",
+            "nominal_power_toughness_complement",
+            "only",
+            0,
+            &["nominal", "stats"],
+        );
+        assert_eq!(
+            required_construction_role(&projection, "stats").construction,
+            "flat_power_toughness"
+        );
+        assert_no_flat_subtrees(&projection);
+    }
+
+    #[test]
+    fn phrase_coordination_projection_preserves_prepositional_topology() {
+        use crate::features::Conjunction;
+        use crate::syntax::Preposition;
+        use crate::word::Noun;
+        use crate::word::NounInstance;
+        use crate::word::Vocab;
+
+        fn simple(preposition: Preposition) -> crate::syntax::PrepositionalPhrase {
+            let nominal = crate::nominal::build_nominal_noun(
+                NounInstance::try_singular(Noun::Word(Vocab::Card))
+                    .expect("card is a singular count noun"),
+            )
+            .expect("card is a declared nominal");
+            let noun = crate::noun_phrase::build_noun_phrase_nominal(nominal)
+                .expect("the nominal fills a noun phrase");
+            let object = crate::prepositional_phrase::build_prepositional_object_noun_phrase(noun)
+                .expect("the noun phrase fills a prepositional object");
+            crate::prepositional_phrase::build_prepositional_phrase(preposition, object)
+                .expect("the simple prepositional phrase is checked")
+        }
+
+        let first = simple(Preposition::From);
+        let second = simple(Preposition::In);
+        let pair = crate::prepositional_phrase::build_prepositional_phrase_coordination(
+            first.clone(),
+            vec![(Some(Conjunction::And), second.clone())],
+        )
+        .expect("a binary sibling coordination is checked");
+        let pair = super::project_value("PrepositionalPhrase", &pair)
+            .expect("the binary sibling coordination projects");
+        assert_projection_identity(
+            &pair,
+            "PrepositionalPhrase",
+            "prepositional_phrase_sibling_coordinated",
+            "pair",
+            0,
+            &["conjunction", "first", "next"],
+        );
+        assert_no_flat_subtrees(&pair);
+
+        let oxford = crate::prepositional_phrase::build_prepositional_phrase_coordination(
+            first,
+            vec![
+                (None, second),
+                (None, simple(Preposition::On)),
+                (Some(Conjunction::Or), simple(Preposition::Under)),
+            ],
+        )
+        .expect("a four-member sibling coordination is checked");
+        let oxford = super::project_value("PrepositionalPhrase", &oxford)
+            .expect("the Oxford sibling coordination projects");
+        assert_projection_identity(
+            &oxford,
+            "PrepositionalPhrase",
+            "prepositional_phrase_sibling_coordinated",
+            "oxford",
+            1,
+            &["comma", "conjunction", "list", "next"],
+        );
+        assert_projection_identity(
+            required_named_construction(&oxford, "prepositional_phrase_list_comma"),
+            "PrepositionalPhraseList",
+            "prepositional_phrase_list_comma",
+            "only",
+            0,
+            &["list", "next"],
+        );
+        assert_projection_identity(
+            required_named_construction(&oxford, "prepositional_phrase_list_pair"),
+            "PrepositionalPhraseList",
+            "prepositional_phrase_list_pair",
+            "only",
+            0,
+            &["first", "second"],
+        );
+        assert_no_flat_subtrees(&oxford);
+    }
+
+    #[test]
+    fn phrase_coordination_projection_exposes_predicative_adjective_members() {
+        let green = crate::adjective::build_adjective_phrase(crate::word::Adjective::Color(
+            crate::word::ColorWord::Green,
+        ))
+        .expect("green is a declared adjective phrase");
+        let white = crate::adjective::build_adjective_phrase(crate::word::Adjective::Color(
+            crate::word::ColorWord::White,
+        ))
+        .expect("white is a declared adjective phrase");
+        let complement = crate::coordination::build_coordinated_adjective_phrase(
+            green,
+            Vec::new(),
+            crate::features::Conjunction::AndOr,
+            white,
+        )
+        .expect("the coordinated adjective carrier is checked");
+        let head = crate::grammar::VerbAnalysis::new(
+            crate::word::VerbInstance {
+                verb: crate::word::Verb::Word(crate::word::Vocab::Be),
+                slot: crate::features::VerbSlot::Infinitive,
+            },
+            crate::word::Vocab::Be.predicate_frames()[0],
+        );
+        let predicate = crate::constructions::predicate::build_verb_phrase_base(head)
+            .expect("the declared be frame builds");
+        let predicate =
+            crate::constructions::coordination::build_verb_phrase_coordinated_adjective(
+                predicate, complement,
+            )
+            .expect("the be frame admits the coordinated adjective complement");
+        let predicate = super::project_value("VerbPhrase", &predicate)
+            .expect("the adjective coordination projects");
+        assert_projection_identity(
+            &predicate,
+            "VerbPhrase",
+            "verb_phrase_coordinated_adjective",
+            "only",
+            0,
+            &["complement", "predicate"],
+        );
+        let complement = required_construction_role(&predicate, "complement");
+        assert_projection_identity(
+            complement,
+            "CoordinatedAdjectivePhrase",
+            "coordinated_adjective_phrase",
+            "only",
+            0,
+            &["first", "rest"],
+        );
+        let rest = required_sequence_role(complement, "rest");
+        let [member] = rest.members.as_slice() else {
+            panic!("a binary adjective coordination has one continuation")
+        };
+        assert_eq!(
+            (member.element, member.variant),
+            ("adjective_phrase_member", None)
+        );
+        assert_eq!(
+            member.roles.keys().copied().collect::<Vec<_>>(),
+            [
+                "adjective_phrase_member.comma",
+                "adjective_phrase_member.conjunction",
+                "adjective_phrase_member.phrase",
+            ]
+        );
+        assert_no_flat_subtrees(&predicate);
+    }
+
+    #[test]
+    fn phrase_coordination_projection_preserves_mixed_with_member_and_list_forms() {
+        let catalogs = Catalogs::default()
+            .with_catalog(CatalogKind::CardType, ["Creature"])
+            .with_catalog(CatalogKind::CreatureType, ["Goblin"])
+            .with_catalog(
+                CatalogKind::KeywordAbility,
+                ["First strike", "Vigilance", "Toxic"],
+            );
+        let oxford = clean_fragment(
+            "a 1/1 red Goblin creature token with first strike, vigilance, and \"Draw a card.\"",
+            &catalogs,
+            FragmentKind::Nominal,
+        );
+        let oxford = super::project_fragment(&oxford).expect("the mixed Oxford list projects");
+        for (category, construction, roles) in [
+            (
+                "NominalPhrase",
+                "nominal_with_attributes",
+                &["attributes", "nominal"][..],
+            ),
+            (
+                "WithAttributeList",
+                "with_attribute_list_oxford",
+                &["conjunction", "list", "member"][..],
+            ),
+            (
+                "WithAttributeList",
+                "with_attribute_list_comma",
+                &["list", "member"][..],
+            ),
+            (
+                "WithAttributeList",
+                "with_attribute_list_single",
+                &["first"][..],
+            ),
+            (
+                "WithAttributeMember",
+                "with_attribute_member_keyword",
+                &["keyword"][..],
+            ),
+            (
+                "WithAttributeMember",
+                "with_attribute_member_quoted",
+                &["quoted"][..],
+            ),
+            (
+                "WithAttributeKeyword",
+                "with_attribute_keyword_bare",
+                &["ability"][..],
+            ),
+        ] {
+            assert_projection_identity(
+                required_named_construction(&oxford, construction),
+                category,
+                construction,
+                "only",
+                0,
+                roles,
+            );
+        }
+        assert_no_flat_subtrees(&oxford);
+
+        let counted = clean_fragment(
+            "a 1/1 red Goblin creature token with toxic 1 and \"Draw a card.\"",
+            &catalogs,
+            FragmentKind::Nominal,
+        );
+        let counted =
+            super::project_fragment(&counted).expect("the mixed counted-keyword list projects");
+        assert_projection_identity(
+            required_named_construction(&counted, "with_attribute_list_conjoined"),
+            "WithAttributeList",
+            "with_attribute_list_conjoined",
+            "only",
+            0,
+            &["conjunction", "list", "member"],
+        );
+        assert_projection_identity(
+            required_named_construction(&counted, "with_attribute_keyword_counted"),
+            "WithAttributeKeyword",
+            "with_attribute_keyword_counted",
+            "only",
+            0,
+            &["ability", "count"],
+        );
+        assert_no_flat_subtrees(&counted);
+    }
+
+    #[test]
     fn r01_projection_derives_gap_from_body_without_a_duplicate_role() {
         let catalogs = Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"]);
         let fragment = clean_fragment(
@@ -2445,13 +2901,15 @@ mod tests {
             projection.roles.keys().copied().collect::<Vec<_>>(),
             ["complement", "subject_auxiliary"]
         );
-        let Some(ProjectedValue::Atom(ProjectedAtom::FlatSubtree { category, value })) =
-            projection.roles.get("complement")
-        else {
-            panic!("the specialized owner must expose its coordinated complement");
-        };
-        assert_eq!(*category, "CoordinatedAdjectivePhrase");
-        assert!(value.downcast_ref::<CoordinatedAdjectivePhrase>().is_some());
+        assert_projection_identity(
+            required_construction_role(&projection, "complement"),
+            "CoordinatedAdjectivePhrase",
+            "coordinated_adjective_phrase",
+            "only",
+            0,
+            &["first", "rest"],
+        );
+        assert_no_flat_subtrees(&projection);
         assert!(!projection.roles.contains_key("gap"));
     }
 

@@ -360,9 +360,9 @@ fn public_invariant_bearing_syntax_uses_checked_constructors() {
 #[test]
 #[allow(
     clippy::too_many_lines,
-    reason = "one contract test deliberately covers every stable P01 shape and rejection"
+    reason = "one contract test deliberately covers every stable noun-phrase shape and rejection"
 )]
-fn public_noun_phrase_builders_expose_and_render_all_p01_shapes() {
+fn public_noun_phrase_builders_expose_and_render_all_declared_shapes() {
     use deckmaste_english::features::Comma;
     use deckmaste_english::nominal as nominal_api;
     use deckmaste_english::noun_phrase as noun_phrase_api;
@@ -1591,13 +1591,13 @@ fn public_relative_builders_preserve_semantics_and_reject_impossible_shapes() {
     );
 
     let green = adjective_api::build_adjective_phrase(Adjective::Color(ColorWord::Green)).unwrap();
-    let coordinated = CoordinatedAdjectivePhrase {
-        first: Box::new(red),
-        rest: vec![AdjectivePhraseCoordination {
-            conjunction: Some(deckmaste_english::features::Conjunction::Or),
-            phrase: green,
-        }],
-    };
+    let coordinated = deckmaste_english::coordination::build_coordinated_adjective_phrase(
+        red,
+        Vec::new(),
+        deckmaste_english::features::Conjunction::Or,
+        green,
+    )
+    .unwrap();
     let value = clause_api::build_relative_contracted_copular_coordinated_adjective(
         auxiliary,
         coordinated.clone(),
@@ -2044,7 +2044,7 @@ fn public_attachment_builder_preserves_semantics_and_rejects_invalid_runs() {
 #[test]
 #[expect(
     clippy::too_many_lines,
-    reason = "one contract test keeps all P02 object variants and role rejections together"
+    reason = "one contract test keeps all prepositional object variants and role rejections together"
 )]
 fn public_prepositional_builders_expose_semantics_and_reject_invalid_roles() {
     use deckmaste_english::clause as clause_api;
@@ -2120,7 +2120,7 @@ fn public_prepositional_builders_expose_semantics_and_reject_invalid_roles() {
         (&from_anywhere, Preposition::From, "from again"),
     ] {
         let PrepositionalPhraseKind::Simple(simple) = phrase.kind() else {
-            panic!("a P02 builder must expose a direct simple phrase")
+            panic!("a prepositional builder must expose a direct simple phrase")
         };
         assert_eq!(simple.preposition(), preposition);
         assert_eq!(
@@ -2135,7 +2135,7 @@ fn public_prepositional_builders_expose_semantics_and_reject_invalid_roles() {
     )
     .unwrap();
     let PrepositionalPhraseKind::Coordinated(semantics) = coordinated.kind() else {
-        panic!("a C01 builder must expose direct coordinated semantics")
+        panic!("the builder must expose direct coordinated semantics")
     };
     assert_eq!(semantics.first().preposition(), Preposition::Of);
     assert!(matches!(
@@ -2208,6 +2208,99 @@ fn public_prepositional_builders_expose_semantics_and_reject_invalid_roles() {
         )
         .is_err(),
         "the predicate owner rejects an adjunct as a selected complement",
+    );
+}
+
+#[test]
+fn public_prepositional_coordination_builder_enforces_declared_list_topology() {
+    use deckmaste_english::features::Conjunction;
+    use deckmaste_english::prepositional_phrase as prepositional_api;
+
+    let card = nominal_noun_phrase(public_card_nominal());
+    let phrase = |preposition| checked_prepositional_phrase(preposition, card.clone());
+
+    let binary = prepositional_api::build_prepositional_phrase_coordination(
+        phrase(Preposition::Of),
+        vec![(Some(Conjunction::And), phrase(Preposition::From))],
+    )
+    .expect("a binary sibling coordination uses the generated pair form");
+    assert_eq!(
+        prepositional_api::render(&binary, "Test Card", false).unwrap(),
+        "of card and from card",
+    );
+
+    let oxford = prepositional_api::build_prepositional_phrase_coordination(
+        phrase(Preposition::Of),
+        vec![
+            (None, phrase(Preposition::Under)),
+            (None, phrase(Preposition::From)),
+            (Some(Conjunction::Or), phrase(Preposition::During)),
+        ],
+    )
+    .expect("a longer sibling coordination folds through the generated list forms");
+    let PrepositionalPhraseKind::Coordinated(coordination) = oxford.kind() else {
+        panic!("the generated coordination builder returns coordinated semantics")
+    };
+    assert!(matches!(
+        coordination.rest(),
+        [second, third, fourth]
+            if second.conjunction().is_none()
+                && third.conjunction().is_none()
+                && fourth.conjunction() == Some(Conjunction::Or)
+    ));
+    assert_eq!(
+        prepositional_api::render(&oxford, "Test Card", false).unwrap(),
+        "of card, under card, from card, or during card",
+    );
+
+    assert!(
+        prepositional_api::build_prepositional_phrase_coordination(
+            phrase(Preposition::Of),
+            Vec::new(),
+        )
+        .is_err(),
+        "a coordination needs a remaining member",
+    );
+    assert!(
+        prepositional_api::build_prepositional_phrase_coordination(
+            phrase(Preposition::Of),
+            vec![(None, phrase(Preposition::From))],
+        )
+        .is_err(),
+        "the final member must carry the conjunction",
+    );
+    assert!(
+        prepositional_api::build_prepositional_phrase_coordination(
+            phrase(Preposition::Of),
+            vec![
+                (Some(Conjunction::And), phrase(Preposition::Under)),
+                (Some(Conjunction::Or), phrase(Preposition::From)),
+            ],
+        )
+        .is_err(),
+        "a nonfinal member cannot close the coordination",
+    );
+    assert!(
+        prepositional_api::build_prepositional_phrase_coordination(
+            phrase(Preposition::Of),
+            vec![(Some(Conjunction::Then), phrase(Preposition::From))],
+        )
+        .is_err(),
+        "the generated builder rejects a sequencing conjunction",
+    );
+
+    let nested = prepositional_api::build_prepositional_phrase_coordination(
+        phrase(Preposition::Of),
+        vec![(Some(Conjunction::And), phrase(Preposition::Under))],
+    )
+    .unwrap();
+    assert!(
+        prepositional_api::build_prepositional_phrase_coordination(
+            nested,
+            vec![(Some(Conjunction::Or), phrase(Preposition::From))],
+        )
+        .is_err(),
+        "the generated builder rejects a coordinated phrase as a sibling member",
     );
 }
 
@@ -3560,9 +3653,9 @@ impl<'syntax> SyntaxInventory<'syntax> {
         match complement {
             NominalComplement::Adjective(adjective) => self.adjective_phrase(adjective),
             NominalComplement::CoordinatedAdjective(coordinated) => {
-                self.adjective_phrase(&coordinated.first);
-                for member in &coordinated.rest {
-                    self.adjective_phrase(&member.phrase);
+                self.adjective_phrase(coordinated.first());
+                for member in coordinated.rest() {
+                    self.adjective_phrase(member.phrase());
                 }
             }
             NominalComplement::Prepositional(preposition) => {
@@ -3578,6 +3671,21 @@ impl<'syntax> SyntaxInventory<'syntax> {
             NominalComplement::Quantity(quantity) => self.quantities.push(*quantity),
             NominalComplement::PowerToughness(stats) => self.power_toughness.push(*stats),
             NominalComplement::EventClause(clause) => self.independent_clause(clause),
+            NominalComplement::WithAttributes(attributes) => {
+                for member in std::iter::once(attributes.first()).chain(
+                    attributes
+                        .rest()
+                        .iter()
+                        .map(WithAttributeCoordination::member),
+                ) {
+                    match member {
+                        WithAttributeMember::Keyword(keyword) => {
+                            self.keyword_argument(&keyword.argument);
+                        }
+                        WithAttributeMember::Quoted(quoted) => self.ability(&quoted.ability),
+                    }
+                }
+            }
             NominalComplement::KeywordArgument(argument) => self.keyword_argument(argument),
             NominalComplement::Devotion(_) => {}
         }
@@ -3591,9 +3699,9 @@ impl<'syntax> SyntaxInventory<'syntax> {
             NominalModifier::PowerToughness(stats) => self.power_toughness.push(*stats),
             NominalModifier::CombatStepName { participants } => self.nouns.push(participants),
             NominalModifier::Coordinated(coordinated) => {
-                self.nominal_modifier(&coordinated.first);
-                for coordination in &coordinated.rest {
-                    self.nominal_modifier(&coordination.modifier);
+                self.nominal_modifier(coordinated.first());
+                for coordination in coordinated.rest() {
+                    self.nominal_modifier(coordination.modifier());
                 }
             }
         }
@@ -3619,9 +3727,9 @@ impl<'syntax> SyntaxInventory<'syntax> {
 
     fn coordinated_adjective_phrase(&mut self, phrase: &'syntax CoordinatedAdjectivePhrase) {
         self.coordinated_adjectives += 1;
-        self.adjective_phrase(&phrase.first);
-        for coordination in &phrase.rest {
-            self.adjective_phrase(&coordination.phrase);
+        self.adjective_phrase(phrase.first());
+        for coordination in phrase.rest() {
+            self.adjective_phrase(coordination.phrase());
         }
     }
 
@@ -4396,9 +4504,9 @@ fn name_exception_on_a_becomes_copy_carries_a_self_reference() {
     );
 }
 
-// --- Family C: predicative-adjective coordination ---------------------------
+// --- Predicative-adjective coordination -------------------------------------
 
-/// Catalogs naming the card types and supertypes the Family C witnesses use;
+/// Catalogs naming the card types and supertypes these witnesses use;
 /// colors are built-in adjectives and need no catalog entry.
 fn predicative_catalogs() -> Catalogs {
     Catalogs::default()
@@ -7098,4 +7206,280 @@ fn anof_cardinal_number_literal_one_still_wins_gate_stays_green() {
         !inventory.has_noun_lexeme(|noun| matches!(noun, Noun::Word(Vocab::One))),
         "`one` must not reduce as a fused-head noun in quantity position\nAST:\n{ast}"
     );
+}
+
+#[test]
+fn public_coordination_builders_preserve_typed_members_and_shared_owners() {
+    use deckmaste_english::coordination as coordination_api;
+    use deckmaste_english::features::Conjunction;
+
+    let red =
+        deckmaste_english::adjective::build_adjective_phrase(Adjective::Color(ColorWord::Red))
+            .unwrap();
+    let green =
+        deckmaste_english::adjective::build_adjective_phrase(Adjective::Color(ColorWord::Green))
+            .unwrap();
+    let ability = NounInstance::try_singular(Noun::Word(Vocab::Ability)).unwrap();
+
+    let adjective = coordination_api::build_modifier_adjective(red.clone()).unwrap();
+    let noun = coordination_api::build_modifier_noun(ability.clone()).unwrap();
+    let negated = coordination_api::build_modifier_negated(NominalModifier::Adjective {
+        polarity: Polarity::Negative,
+        phrase: green.clone(),
+    })
+    .unwrap();
+    assert!(matches!(
+        &adjective,
+        NominalModifier::Adjective {
+            polarity: Polarity::Positive,
+            phrase,
+        } if phrase == &red
+    ));
+    assert!(matches!(
+        &noun,
+        NominalModifier::Noun {
+            polarity: Polarity::Positive,
+            noun,
+        } if noun == &ability
+    ));
+    assert!(matches!(
+        &negated,
+        NominalModifier::Adjective {
+            polarity: Polarity::Negative,
+            phrase,
+        } if phrase == &green
+    ));
+
+    let coordinated = coordination_api::build_coordinated_modifier(
+        adjective.clone(),
+        vec![negated.clone()],
+        Conjunction::And,
+        noun.clone(),
+    )
+    .unwrap();
+    assert_eq!(coordinated.first(), &adjective);
+    assert_eq!(coordinated.rest().len(), 2);
+    assert_eq!(coordinated.rest()[0].conjunction(), None);
+    assert_eq!(coordinated.rest()[0].modifier(), &negated);
+    assert_eq!(coordinated.rest()[1].conjunction(), Some(Conjunction::And));
+    assert_eq!(coordinated.rest()[1].modifier(), &noun);
+
+    let nominal = coordination_api::build_nominal_coordinated_modifier(
+        coordinated.clone(),
+        public_card_nominal(),
+    )
+    .unwrap();
+    assert!(matches!(
+        nominal.modifiers(),
+        [NominalModifier::Coordinated(value)] if value == &coordinated
+    ));
+    assert_eq!(
+        nominal.head().kind(),
+        &NounInstanceKind::Singular(Noun::Word(Vocab::Card))
+    );
+
+    let quantity = Quantity::try_exact(NumberLiteral {
+        value: 1,
+        numeral: Numeral::Cardinal,
+    })
+    .unwrap();
+    assert!(
+        coordination_api::build_coordinated_modifier(
+            NominalModifier::Quantity(quantity),
+            Vec::new(),
+            Conjunction::And,
+            adjective,
+        )
+        .is_err(),
+        "a quantity is not a member of the closed modifier-conjunct sum"
+    );
+    assert!(
+        coordination_api::build_coordinated_adjective_phrase(
+            red,
+            Vec::new(),
+            Conjunction::Then,
+            green,
+        )
+        .is_err(),
+        "a sequencing conjunction cannot coordinate adjective phrases"
+    );
+}
+
+#[test]
+fn public_mixed_with_list_is_closed_mixed_and_owned_by_the_nominal() {
+    use deckmaste_english::coordination as coordination_api;
+    use deckmaste_english::features::Conjunction;
+
+    let catalogs = Catalogs::default()
+        .with_catalog(CatalogKind::CardType, ["Creature"])
+        .with_catalog(CatalogKind::CreatureType, ["Goblin"])
+        .with_catalog(CatalogKind::KeywordAbility, ["Haste"]);
+    let fragment = parse_fragment(
+        "a Goblin creature token with haste and \"Draw a card.\"",
+        &catalogs,
+        FragmentKind::Nominal,
+        "Test Card",
+        false,
+    )
+    .into_fragment()
+    .expect("the mixed-with fixture parses");
+    let Fragment::Nominal(noun_phrase) = fragment else {
+        panic!("the fixture is nominal")
+    };
+    let NounPhraseKind::Nominal(nominal) = noun_phrase.kind() else {
+        panic!("the fixture has a nominal owner")
+    };
+    let [NominalComplement::WithAttributes(parsed)] = nominal.complements() else {
+        panic!("the fixture has one typed with-attribute complement")
+    };
+    let WithAttributeMember::Keyword(keyword) = parsed.first() else {
+        panic!("the first member is the keyword alternative")
+    };
+    let Some(WithAttributeMember::Quoted(quoted)) =
+        parsed.rest().last().map(WithAttributeCoordination::member)
+    else {
+        panic!("the final member is the quoted-ability alternative")
+    };
+    let unchecked_keyword = WithAttributeMember::Keyword(KeywordAbility {
+        ability: keyword.ability.clone(),
+        argument: KeywordArgument::Costed(KeywordCost::Symbols(vec![
+            OracleSymbol::new("{1}").unwrap(),
+        ])),
+    });
+
+    let keyword = coordination_api::build_with_attribute_keyword(keyword.clone()).unwrap();
+    let quoted = coordination_api::build_with_attribute_quoted(quoted.clone()).unwrap();
+    let list = coordination_api::build_with_attribute_list(
+        keyword.clone(),
+        Vec::new(),
+        Conjunction::And,
+        quoted.clone(),
+    )
+    .unwrap();
+    assert!(matches!(list.first(), WithAttributeMember::Keyword(_)));
+    let [continuation] = list.rest() else {
+        panic!("a binary mixed list has one continuation")
+    };
+    assert_eq!(continuation.conjunction(), Some(Conjunction::And));
+    assert!(matches!(
+        continuation.member(),
+        WithAttributeMember::Quoted(_)
+    ));
+
+    let owned =
+        coordination_api::build_nominal_with_attributes(public_card_nominal(), list.clone())
+            .unwrap();
+    assert!(matches!(
+        owned.complements(),
+        [NominalComplement::WithAttributes(attributes)] if attributes == &list
+    ));
+
+    assert!(
+        coordination_api::build_with_attribute_list(
+            keyword.clone(),
+            Vec::new(),
+            Conjunction::And,
+            keyword,
+        )
+        .is_err(),
+        "the dedicated list must contain both exact sum alternatives"
+    );
+    assert!(
+        coordination_api::build_with_attribute_list(
+            unchecked_keyword,
+            Vec::new(),
+            Conjunction::And,
+            quoted.clone(),
+        )
+        .is_err(),
+        "direct enum wrapping cannot bypass the closed keyword-member check"
+    );
+    assert!(
+        coordination_api::build_with_attribute_list(
+            quoted.clone(),
+            Vec::new(),
+            Conjunction::Then,
+            quoted,
+        )
+        .is_err(),
+        "the list closes only with an admitted coordinating conjunction"
+    );
+}
+
+#[test]
+fn public_predicative_and_power_toughness_consumers_use_checked_values() {
+    use deckmaste_english::coordination as coordination_api;
+    use deckmaste_english::features::Conjunction;
+    use deckmaste_english::predicate as predicate_api;
+
+    let red =
+        deckmaste_english::adjective::build_adjective_phrase(Adjective::Color(ColorWord::Red))
+            .unwrap();
+    let green =
+        deckmaste_english::adjective::build_adjective_phrase(Adjective::Color(ColorWord::Green))
+            .unwrap();
+    let adjectives = coordination_api::build_coordinated_adjective_phrase(
+        red.clone(),
+        Vec::new(),
+        Conjunction::Or,
+        green.clone(),
+    )
+    .unwrap();
+    assert_eq!(adjectives.first(), &red);
+    let [continuation] = adjectives.rest() else {
+        panic!("a binary adjective coordination has one continuation")
+    };
+    assert_eq!(continuation.conjunction(), Some(Conjunction::Or));
+    assert_eq!(continuation.phrase(), &green);
+
+    let predicate = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Be),
+            slot: VerbSlot::Present {
+                person: deckmaste_english::features::Person::Third,
+                number: deckmaste_english::features::Number::Singular,
+            },
+        },
+        predicate_api::PredicateFrameChoice::Intransitive,
+    )
+    .and_then(|predicate| {
+        predicate_api::build_predicate_element(
+            predicate,
+            PredicateElement::Complement(PredicateComplement::CoordinatedAdjective(
+                adjectives.clone(),
+            )),
+        )
+    })
+    .and_then(predicate_api::finish_predicate)
+    .expect("the selected be frame admits a coordinated adjective complement");
+    assert!(matches!(
+        predicate,
+        Predicate::Intransitive(ref value)
+            if matches!(
+                value.elements(),
+                [PredicateElement::Complement(PredicateComplement::CoordinatedAdjective(found))]
+                    if found == &adjectives
+            )
+    ));
+
+    let stats = PowerToughness {
+        power: SignedScalar {
+            sign: ScalarSign::None,
+            value: ScalarValue::X,
+        },
+        toughness: SignedScalar {
+            sign: ScalarSign::None,
+            value: ScalarValue::X,
+        },
+    };
+    let toughness = deckmaste_english::nominal::build_nominal_noun(
+        NounInstance::try_mass(Noun::Word(Vocab::Toughness)).unwrap(),
+    )
+    .unwrap();
+    let toughness =
+        coordination_api::build_nominal_power_toughness_complement(toughness, stats).unwrap();
+    assert!(matches!(
+        toughness.complements(),
+        [NominalComplement::PowerToughness(found)] if *found == stats
+    ));
 }

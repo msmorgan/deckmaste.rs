@@ -15,6 +15,7 @@ pub mod ability;
 pub mod adjective;
 pub mod catalog;
 pub mod clause;
+pub mod coordination;
 pub mod cost;
 pub mod determiner;
 pub mod keyword_line;

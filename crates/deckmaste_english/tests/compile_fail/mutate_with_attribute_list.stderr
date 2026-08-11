@@ -1,0 +1,5 @@
+error[E0616]: field `first` of struct `WithAttributeList` is private
+ --> tests/compile_fail/mutate_with_attribute_list.rs:5:10
+  |
+5 |     list.first = first;
+  |          ^^^^^ private field

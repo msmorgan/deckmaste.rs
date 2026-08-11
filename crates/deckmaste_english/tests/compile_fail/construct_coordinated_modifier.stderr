@@ -1,0 +1,7 @@
+error[E0451]: fields `first` and `rest` of struct `CoordinatedModifier` are private
+ --> tests/compile_fail/construct_coordinated_modifier.rs:9:27
+  |
+9 |     CoordinatedModifier { first, rest }
+  |                           ^^^^^  ^^^^ private field
+  |                           |
+  |                           private field

@@ -12,8 +12,10 @@ The chart census comes from the merged production registry in
 `grammar/construction.rs`. Its handwritten side maps each remaining `RuleTag`
 to one fan-out-one row; its generated side contributes the ten Q01 quantity
 rows, the nine D01 determiner/possession rows, the 11 J01 adjective rows, the
-37 M01 nominal rows, S01 `sentence`, N01 `noun`/`noun_opaque`, the two generated
-coordination rows, all 34 V01 predicate rows, the four F01 nonfinite-clause
+37 M01 nominal rows, S01 `sentence`, N01 `noun`/`noun_opaque`, the two earlier
+generated coordination rows plus all 14 stable C01 declarations and nine
+internal C01 support declarations, all 34 V01
+predicate rows, the four F01 nonfinite-clause
 rows, all 20 F02 finite-clause rows, all 16 F03 clause-attachment rows, and all
 19 P01 noun-phrase rows, both P02 prepositional-phrase rows, and all nine R01
 relative-clause rows. The ability
@@ -22,16 +24,18 @@ census comes from the three non-chart entry points documented and dispatched by
 
 | source | handwritten / ungenerated | already generated | accounted total |
 |---|---:|---:|---:|
-| chart construction registry | 19 | 176 | 195 |
+| chart construction registry | 6 | 199 | 205 |
 | ability construction registry | 0 | 3 | 3 |
-| migration inventory | 19 | 179 | 198 |
+| migration inventory | 6 | 202 | 208 |
 
-Every one of the 195 chart IDs occurs once in the ledger below: 19 remain
-handwritten, while Q01, D01, J01, M01, V01, F01, F02, F03, R01, S01, N01, and
-the two coordination rows, P01, and P02 are generated. The three ability IDs
-occur once in generated A01. Thus the remaining work is 19 chart rows and zero
-ability rows, with no `later` row. No raw corpus query was needed for this
-accounting; the census is
+The family ledger below accounts for 194 stable chart IDs. The earlier
+`noun_phrase_coordination` and `shared_determiner_nominal` structural owners
+bring the stable chart total to 196; nine registered internal support
+declarations for phrase coordination bring the active chart registry to 205.
+Six stable chart rows remain handwritten, while all other chart rows are
+generated. The three ability IDs occur once in the generated ability backend.
+Thus the remaining work is six chart rows and zero ability rows, with no
+`later` row. No raw corpus query was needed for this accounting; the census is
 grounded in the registry and the current `FragmentKind` dispatch. Future corpus
 evidence must use supported faces, and normalized-template questions must use
 the existing English instruments.
@@ -109,7 +113,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 | F04 clause coordination | 6 | C4 | `english-derived-clause-coordination-family` | finite agreement, recursive grouping, member scope |
 | R01 relative clause | 9 | C3 | `english-derived-relative-clause-family` | generated |
 | S01 sentence | 1 | C1 | `english-derived-sentence-family` | generated |
-| C01 phrase coordination | 13 | C4 | `english-derived-phrase-coordination-family` | typed member sums, sequence predicates, head/member selection |
+| C01 phrase coordination | 14 | C4 | `english-derived-phrase-coordination-family` | typed member sums, sequence predicates, head/member selection |
 | A01 ability layer | 3 | C5 | `english-ability-construction-backend` | inventory |
 
 ## Q01 — quantity
@@ -623,7 +627,7 @@ permanent exception.
 
 ## C01 — phrase coordination
 
-**Stable IDs (13):** `modifier_conjunct_adjective`,
+**Stable IDs (14):** `modifier_conjunct_adjective`,
 `modifier_conjunct_noun`, `modifier_conjunct_negated`,
 `modifier_list_single`, `modifier_list_comma`,
 `coordinated_modifier_conjoined`, `coordinated_modifier_oxford`,
@@ -631,45 +635,63 @@ permanent exception.
 `prepositional_phrase_list_comma`,
 `prepositional_phrase_sibling_coordinated`,
 `verb_phrase_coordinated_adjective`,
-`nominal_power_toughness_complement`.
+`nominal_power_toughness_complement`, `nominal_with_attributes`.
 
-- **Owners and AST:** NR registers all thirteen rows and owns substantive
-  reduction/lowering for the modifier, PP, and nominal rows. The top-level NR
-  dispatch sends `verb_phrase_coordinated_adjective` to CR, whose reduction
-  and lowering modules own that remaining substantive handwritten logic. F02
-  and R01 now consume the coordinated adjective category through their own
-  generated declarations. The C01 rows
+- **Owners and AST:** generated C01 declarations own all fourteen rows and
+  their Chart reduction/lowering for the modifier, PP, nominal, and predicate
+  carriers. F02 and R01 consume the coordinated adjective category through
+  their own generated declarations. The C01 rows
   construct modifier and PP sequences, `AdjectivePhraseCoordination`,
   `PrepositionalPhraseCoordination`, nominal complements, and the consuming
-  nominal and predicate variants; REN plus SYN-P/SYN-C own output and ingress.
+  nominal and predicate variants; the dedicated generated
+  `WithAttributeMember`/`WithAttributeList` sum and `nominal_with_attributes`
+  construction own mixed keyword/quoted-ability `with` complements. REN plus
+  SYN-P/SYN-C own output and ingress.
 - **Holes and constraints:** typed sum members, field lenses, scalar
   power/toughness, conjunction/comma identity, recursive sequences, and
   member-specific attachments. Adjective-only predicative position,
   nominal attachment phase, repeated versus shared preposition, minimum
   arity, heterogeneous member type, and common-head versus head-list selection
-  are required.
+  are required. Common-head selection is constructional: each modifier must
+  independently fill the trailing head's attributive slot. It does not require
+  a shared MTG semantic class. A head list is selected when the members each
+  carry their own complete head; the determiner and outer complements stay on
+  the resulting owner.
 - **Ambiguity/backend:** fan-out one on Chart. Shared context belongs to an
   explicit nominal, prepositional phrase, finite clause, or predicate owner;
   members and their local attachments are contiguous. Heterogeneous slots use
   a construction-local closed sum. `nominal_prepositional` dominates
-  `nominal_coordinated_modifier`; common-head eligibility additionally
-  requires a uniform typed attributive class accepted by the trailing head.
-  Other equally viable readings remain packed.
+  `nominal_coordinated_modifier`. Common-head eligibility is based on
+  recursive constructional substitutability, not a uniform semantic or
+  catalog class. Other equally viable readings remain packed.
 - **Witnesses:** member grouping, conjunction, repeated preposition, and
-  per-member attachment are semantic. Oxford/asyndetic punctuation is house
-  style and remains stored until exactness proves it derivable (style guide
-  §§3 and 10).
+  per-member attachment are semantic. The checked modifier, adjective, and
+  mixed-`with` carriers derive Oxford/asyndetic punctuation from arity,
+  position, and conjunction; exact replay tests prove that topology is
+  sufficient (style guide §§3 and 10).
 - **Consumers and gates:** Nominal/Sentence/Ability fragments, spelling views,
   inspect. Direct ASTs cover every member type, two/three-plus arity, shared and
-  repeated prepositions, predicative coordination, and local P/T grouping;
-  inspect pins common-head/head-list and attachment choices; exactness covers
-  all comma/conjunction spellings; negatives reject binary Oxford commas,
-  bare comma runs, non-adjective predicatives, and illegal mixed members.
+  repeated prepositions, predicative coordination, local P/T grouping, and the
+  dedicated mixed `with` member sum; inspect pins common-head/head-list,
+  mixed-`with`, and attachment choices; exactness covers all comma/conjunction
+  spellings; negatives reject binary Oxford commas, bare comma runs,
+  non-adjective predicatives, and mixed members outside attributive `with`.
+  Corpus acceptance fixtures include Alien Invasion, Basilica Shepherd, and
+  Blink for mixed `with`; Abzan Monument or Deceptive Landscape, Grassland
+  Crusader, Open the Gates or District Guide, Monument to Perfection,
+  Banishing Slash or Summon: Yojimbo, and Cowabunga! or Kirri, Talented Sprout
+  for common-head and complete-head-list coverage.
 
 The phrase-side outputs of `english-coordination-structural-design` enter this
-unit at their first compatible site: a dedicated mixed keyword/quoted `with`
-member sum and principled common-head versus heterogeneous head-list
-selection. Sycorax Commander's outer `then`/`or` grouping belongs to F04; its
+unit at their first compatible site: `with_attribute_member_keyword`,
+`with_attribute_member_quoted`, the recursive `with_attribute_list_*`
+declarations, and `nominal_with_attributes` form a dedicated mixed
+keyword/quoted `with` member sum. Common-head versus head-list selection is
+principled and constructional: `an Elf, Orc, or enchantment creature you
+control`, `basic, Sphere, or Locus land card`, and `Mutant, Ninja, Turtle, or
+land card` are common-head modifier coordinations, while `a basic land card or
+Gate card` is a complete-head list. Sycorax Commander's outer `then`/`or`
+grouping belongs to F04; its
 `that many cards minus one` subtree is a supporting P01 admission/selection
 repair, not a coordination variant. These are acceptance scope, not deferred
 residue. The compiler work is limited to any still-missing generic feature

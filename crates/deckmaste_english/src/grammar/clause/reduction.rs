@@ -26,18 +26,7 @@ pub(in crate::grammar) fn reduce_clause(
     tag: RuleTag,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> Option<Reduced> {
-    match tag {
-        RuleTag::VerbPhraseCoordinatedAdjective => reduce_predicate(tag, children),
-        RuleTag::ClauseCoordination
-        | RuleTag::ClauseCoordinationComma
-        | RuleTag::ClauseCoordinationAsyndetic
-        | RuleTag::ClauseCoordinationCopularNounPrepositional
-        | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
-        | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic => {
-            reduce_composed_clause(tag, children)
-        }
-        _ => None,
-    }
+    reduce_composed_clause(tag, children)
 }
 
 pub(in crate::grammar) fn accepts_predicate_prefix(
@@ -51,18 +40,7 @@ pub(in crate::grammar) fn accepts_predicate_prefix(
     if let Some(accepts) = accepts_shared_copular_coordination_prefix(tag, features) {
         return accepts;
     }
-    if tag != RuleTag::VerbPhraseCoordinatedAdjective {
-        return true;
-    }
-    let Features::VerbPhrase { frame, phase, .. } = features else {
-        return false;
-    };
-    // The exception tail is a closed terminal phase: once reached, reject
-    // every other predicate-extension tag, not only a second exception tail.
-    if *phase == PredicateAttachmentPhase::ExceptionTail {
-        return false;
-    }
-    frame.licenses_complement(PredicateComplementKind::Adjective)
+    true
 }
 
 pub(crate) fn reduce_generated_recipient_passive_nominal_adjunct_features(
@@ -132,45 +110,6 @@ pub(in crate::grammar) fn reduction_cost(
         reading_dispreference: u32::from(finite_first_shared_predicate),
         ..ParseCost::default()
     }
-}
-
-#[allow(
-    clippy::too_many_lines,
-    reason = "grammar reduction rule set is intentionally long"
-)]
-pub(super) fn reduce_predicate(
-    tag: RuleTag,
-    children: &[Child<'_, EnglishGrammar<'_, '_>>],
-) -> Option<Reduced> {
-    match tag {
-        RuleTag::VerbPhraseCoordinatedAdjective => {
-            // Only a coordinated run whose every conjunct is an adjective
-            // predicates as an adjective complement. A bare coordinated *noun*
-            // pair after a verb (`Enchant creature or Vehicle`) keeps its
-            // ordinary coordinated-noun-object parse rather than reducing here
-            // and then failing to lower.
-            let Features::CoordinatedModifier {
-                all_adjectives: true,
-                ..
-            } = children.get(1)?.features
-            else {
-                return None;
-            };
-            extend_predicate(children.first()?, PredicateAttachment::AdjectiveComplement)
-        }
-        _ => None,
-    }
-}
-
-#[allow(
-    clippy::too_many_lines,
-    reason = "one exhaustive match per predicate-attachment variant is intentionally verbose"
-)]
-pub(super) fn extend_predicate(
-    predicate: &Child<'_, EnglishGrammar<'_, '_>>,
-    attachment: PredicateAttachment,
-) -> Option<Reduced> {
-    extend_predicate_features(predicate.features, attachment)
 }
 
 #[allow(
@@ -592,7 +531,6 @@ pub(super) fn reduce_composed_clause(
                 subjunctive: false,
             })
         }
-        _ => None,
     }
 }
 

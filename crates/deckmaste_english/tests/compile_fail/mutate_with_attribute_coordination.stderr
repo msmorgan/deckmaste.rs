@@ -1,0 +1,5 @@
+error[E0616]: field `member` of struct `WithAttributeCoordination` is private
+ --> tests/compile_fail/mutate_with_attribute_coordination.rs:8:18
+  |
+8 |     continuation.member = member;
+  |                  ^^^^^^ private field

@@ -1,0 +1,9 @@
+error[E0451]: fields `conjunction` and `member` of struct `WithAttributeCoordination` are private
+  --> tests/compile_fail/construct_with_attribute_coordination.rs:10:9
+   |
+ 9 |     WithAttributeCoordination {
+   |     ------------------------- in this type
+10 |         conjunction,
+   |         ^^^^^^^^^^^ private field
+11 |         member,
+   |         ^^^^^^ private field

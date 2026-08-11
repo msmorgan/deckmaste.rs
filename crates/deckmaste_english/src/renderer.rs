@@ -94,7 +94,6 @@ use crate::syntax::Sentence;
 use crate::syntax::SentenceBody;
 use crate::syntax::SetExceptionMarker;
 use crate::syntax::SignedScalar;
-use crate::syntax::SimplePrepositionalPhrase;
 use crate::syntax::StationThresholdAbility;
 use crate::syntax::Subject;
 use crate::syntax::SubordinateBody;
@@ -636,6 +635,8 @@ struct GeneratedCoordinationRenderer<'renderer, 'identity> {
     rendered: String,
     pending_determiner: Option<Determiner>,
     skip_payload_subtrees: usize,
+    quoted_abilities_remaining: usize,
+    publish_last_identity_quote: bool,
 }
 
 struct GeneratedAdjectiveRenderer<'renderer, 'identity> {
@@ -670,6 +671,8 @@ struct GeneratedNounRenderer<'renderer, 'identity> {
 struct GeneratedNounPhraseRenderer<'renderer, 'identity> {
     renderer: &'renderer Renderer<'identity>,
     rendered: String,
+    quoted_abilities_remaining: usize,
+    publish_last_identity_quote: bool,
 }
 
 struct GeneratedPrepositionalRenderer<'renderer, 'identity> {
@@ -737,37 +740,37 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
             "NounPhrase" => self.renderer.noun_phrase(
                 value
                     .downcast_ref::<NounPhrase>()
-                    .expect("the R01 noun-phrase hole preserves NounPhrase"),
+                    .expect("the relative noun-phrase hole preserves NounPhrase"),
             )?,
             "ObjectGapPredicate" => self.renderer.generated_object_gap_predicate_from(
                 value
                     .downcast_ref::<crate::syntax::ObjectGapPredicate>()
-                    .expect("the R01 object-gap hole preserves ObjectGapPredicate"),
+                    .expect("the relative object-gap hole preserves ObjectGapPredicate"),
                 0,
             )?,
             "Predicate" => self.renderer.generated_predicate_from(
                 value
                     .downcast_ref::<Predicate>()
-                    .expect("the R01 predicate hole preserves Predicate"),
+                    .expect("the relative predicate hole preserves Predicate"),
                 0,
                 false,
             )?,
             "AdjectivePhrase" => self.renderer.adjective_phrase(
                 value
                     .downcast_ref::<AdjectivePhrase>()
-                    .expect("the R01 adjective hole preserves AdjectivePhrase"),
+                    .expect("the relative adjective hole preserves AdjectivePhrase"),
             )?,
             "CoordinatedAdjectivePhrase" => self.renderer.coordinated_adjective_phrase(
                 value
                     .downcast_ref::<CoordinatedAdjectivePhrase>()
-                    .expect("the R01 coordinated-adjective hole preserves its typed phrase"),
+                    .expect("the relative coordinated-adjective hole preserves its typed phrase"),
             )?,
             "PrepositionalPhrase" => self.renderer.prepositional_phrase(
                 value
                     .downcast_ref::<PrepositionalPhrase>()
-                    .expect("the R01 prepositional hole preserves PrepositionalPhrase"),
+                    .expect("the relative prepositional hole preserves PrepositionalPhrase"),
             )?,
-            other => panic!("unexpected R01 subtree category `{other}`"),
+            other => panic!("unexpected relative subtree category `{other}`"),
         };
         self.push(&rendered);
         Ok(())
@@ -791,7 +794,7 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
         let rendered = match (provider, value_type) {
             ("RelativeMarker", "RelativeMarker") => match value
                 .downcast_ref::<RelativeMarker>()
-                .expect("the R01 marker identity preserves RelativeMarker")
+                .expect("the relative marker identity preserves RelativeMarker")
             {
                 RelativeMarker::That => "that".to_owned(),
                 RelativeMarker::Who => "who".to_owned(),
@@ -800,12 +803,12 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
             ("SubjectAuxiliary", "ContractedSubjectAuxiliary") => {
                 let subject_auxiliary = value
                     .downcast_ref::<crate::grammar::ContractedSubjectAuxiliary>()
-                    .expect("the R01 contraction identity preserves SubjectAuxiliary");
+                    .expect("the relative contraction identity preserves SubjectAuxiliary");
                 let mut rendered = self.renderer.subject(&subject_auxiliary.subject)?;
                 rendered.push_str(contraction_suffix(subject_auxiliary.auxiliary)?);
                 rendered
             }
-            other => panic!("unexpected R01 identity {other:?}"),
+            other => panic!("unexpected relative identity {other:?}"),
         };
         self.push(&rendered);
         Ok(())
@@ -869,7 +872,7 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                     crate::constructions::prepositional::linearize_prepositional_prepositional_object_with(
                         value
                             .downcast_ref::<crate::constructions::prepositional::PrepositionalObject>()
-                            .expect("the P02 object hole preserves PrepositionalObject"),
+                            .expect("the prepositional object hole preserves PrepositionalObject"),
                         self,
                     ),
                 )?;
@@ -878,19 +881,19 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
             "NounPhrase" => self.renderer.noun_phrase(
                 value
                     .downcast_ref::<NounPhrase>()
-                    .expect("the P02 noun-phrase object preserves NounPhrase"),
+                    .expect("the prepositional noun-phrase object preserves NounPhrase"),
             )?,
             "PrepositionalPhrase" => self.renderer.prepositional_phrase(
                 value
                     .downcast_ref::<PrepositionalPhrase>()
-                    .expect("the nested P02 object preserves PrepositionalPhrase"),
+                    .expect("the nested prepositional object preserves PrepositionalPhrase"),
             )?,
             "GerundClause" => self.renderer.gerund_clause(
                 value
                     .downcast_ref::<GerundClause>()
-                    .expect("the P02 gerund object preserves GerundClause"),
+                    .expect("the prepositional gerund object preserves GerundClause"),
             )?,
-            other => panic!("unexpected P02 subtree category `{other}`"),
+            other => panic!("unexpected prepositional subtree category `{other}`"),
         };
         self.push(&rendered);
         Ok(())
@@ -904,7 +907,7 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
         assert_eq!(codec, "Adverb");
         let adverb = (value as &dyn std::any::Any)
             .downcast_ref::<Vocab>()
-            .expect("the P02 adverb object preserves Vocab");
+            .expect("the prepositional adverb object preserves Vocab");
         self.push(adverb.spelling());
         Ok(())
     }
@@ -919,7 +922,7 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
         assert_eq!(value_type, "Preposition");
         let preposition = (value as &dyn std::any::Any)
             .downcast_ref::<Preposition>()
-            .expect("the P02 identity preserves Preposition");
+            .expect("the prepositional identity preserves Preposition");
         self.push(render_preposition(*preposition));
         Ok(())
     }
@@ -930,6 +933,8 @@ impl<'renderer, 'identity> GeneratedNounPhraseRenderer<'renderer, 'identity> {
         Self {
             renderer,
             rendered: String::new(),
+            quoted_abilities_remaining: 0,
+            publish_last_identity_quote: false,
         }
     }
 
@@ -950,6 +955,11 @@ impl<'renderer, 'identity> GeneratedNounPhraseRenderer<'renderer, 'identity> {
     fn finish(self) -> String {
         self.rendered
     }
+
+    fn publish_terminal_quote(&mut self, count: usize, publish_last: bool) {
+        self.quoted_abilities_remaining = count;
+        self.publish_last_identity_quote = publish_last;
+    }
 }
 
 impl deckmaste_construction_compiler::runtime::LinearizationVisitor
@@ -969,28 +979,59 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
     ) -> Result<(), Self::Error> {
         let value = value as &dyn std::any::Any;
         let rendered = match category {
-            "NominalPhrase" => self.renderer.nominal_phrase(
-                value
+            "NominalPhrase" => {
+                let nominal = value
                     .downcast_ref::<NominalPhrase>()
-                    .expect("the P01 nominal hole preserves NominalPhrase"),
-            )?,
+                    .expect("the noun-phrase nominal hole preserves NominalPhrase");
+                let quoted_count = nominal_with_attribute_quoted_ability_count(nominal);
+                let publish = self.publish_last_identity_quote
+                    && quoted_count > 0
+                    && self.quoted_abilities_remaining == quoted_count;
+                let previous = self.renderer.terminal_quote.get();
+                if publish {
+                    self.renderer.terminal_quote.set(
+                        nominal_with_attribute_terminal_quote(nominal).map(std::ptr::from_ref),
+                    );
+                }
+                let rendered = self.renderer.nominal_phrase(nominal);
+                self.renderer.terminal_quote.set(previous);
+                self.quoted_abilities_remaining =
+                    self.quoted_abilities_remaining.saturating_sub(quoted_count);
+                rendered?
+            }
             "RulesObjectFollowupNominal" => self.renderer.nominal_phrase(
                 value
                     .downcast_ref::<crate::constructions::nominal::RulesObjectFollowupNominal>()
-                    .expect("the P01 rules-object hole preserves its role wrapper")
+                    .expect("the noun-phrase rules-object hole preserves its role wrapper")
                     .as_nominal(),
             )?,
             "Quantity" => render_quantity(
                 *value
                     .downcast_ref::<Quantity>()
-                    .expect("the P01 quantity hole preserves Quantity"),
+                    .expect("the noun-phrase quantity hole preserves Quantity"),
             ),
-            "NounPhrase" => self.renderer.noun_phrase(
-                value
+            "NounPhrase" => {
+                let noun_phrase = value
                     .downcast_ref::<NounPhrase>()
-                    .expect("the recursive P01 hole preserves NounPhrase"),
-            )?,
-            other => panic!("unexpected P01 subtree category `{other}`"),
+                    .expect("the recursive noun-phrase hole preserves NounPhrase");
+                let quoted_count = noun_phrase_with_attribute_quoted_ability_count(noun_phrase);
+                let publish = self.publish_last_identity_quote
+                    && quoted_count > 0
+                    && self.quoted_abilities_remaining == quoted_count;
+                let previous = self.renderer.terminal_quote.get();
+                if publish {
+                    self.renderer.terminal_quote.set(
+                        noun_phrase_with_attribute_terminal_quote(noun_phrase)
+                            .map(std::ptr::from_ref),
+                    );
+                }
+                let rendered = self.renderer.noun_phrase(noun_phrase);
+                self.renderer.terminal_quote.set(previous);
+                self.quoted_abilities_remaining =
+                    self.quoted_abilities_remaining.saturating_sub(quoted_count);
+                rendered?
+            }
+            other => panic!("unexpected noun-phrase subtree category `{other}`"),
         };
         self.push(&rendered);
         Ok(())
@@ -1005,12 +1046,12 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
             "Comma" => {
                 let comma = (value as &dyn std::any::Any)
                     .downcast_ref::<crate::features::Comma>()
-                    .expect("the P01 comma scalar preserves Comma");
+                    .expect("the noun-phrase comma scalar preserves Comma");
                 if comma.is_present() {
                     self.push(",");
                 }
             }
-            other => panic!("unexpected P01 scalar codec `{other}`"),
+            other => panic!("unexpected noun-phrase scalar codec `{other}`"),
         }
         Ok(())
     }
@@ -1084,7 +1125,7 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                 )
                 .to_owned()
             }
-            other => panic!("unexpected P01 identity {other:?}"),
+            other => panic!("unexpected noun-phrase identity {other:?}"),
         };
         self.push(&rendered);
         Ok(())
@@ -1464,27 +1505,28 @@ impl<'renderer, 'identity> GeneratedPredicateRenderer<'renderer, 'identity> {
     }
 
     fn render_verb_phrase(&mut self, value: &GeneratedVerbPhrase) -> Result<(), RenderError> {
-        if let Some((predicate, dependent)) = value.declaration_last_dependent_parts() {
-            match dependent {
-                VerbDependent::CoordinatedAdjective(adjective) => {
-                    self.render_verb_phrase(&predicate)?;
-                    let adjective = self.renderer.coordinated_adjective_phrase(&adjective)?;
-                    self.push(&adjective);
-                    return Ok(());
-                }
-                VerbDependent::AbilityPostmodifier(postmodifier) => {
-                    self.render_verb_phrase(&predicate)?;
-                    self.push("with");
-                    let quoted = self.render_identity_quote(postmodifier.ability())?;
-                    self.push(&quoted);
-                    return Ok(());
-                }
-                _ => {}
-            }
+        if let Some((predicate, VerbDependent::AbilityPostmodifier(postmodifier))) =
+            value.declaration_last_dependent_parts()
+        {
+            self.render_verb_phrase(&predicate)?;
+            self.push("with");
+            let quoted = self.render_identity_quote(postmodifier.ability())?;
+            self.push(&quoted);
+            return Ok(());
         }
-        Self::accept_generated(
-            crate::constructions::predicate::linearize_predicate_verb_phrase_with(value, self),
-        )
+        match crate::constructions::predicate::linearize_predicate_verb_phrase_with(value, self) {
+            Err(
+                deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
+                    ..
+                },
+            ) => Self::accept_generated(
+                crate::constructions::coordination::linearize_verb_phrase_coordinated_adjective_with(
+                    value,
+                    self,
+                ),
+            ),
+            result => Self::accept_generated(result),
+        }
     }
 
     fn accept_generated(
@@ -1593,11 +1635,27 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
     ) -> Result<(), Self::Error> {
         let value = value as &dyn std::any::Any;
         let rendered = match category {
-            "NounPhrase" => self.renderer.noun_phrase(
-                value
+            "NounPhrase" => {
+                let noun_phrase = value
                     .downcast_ref::<NounPhrase>()
-                    .expect("the predicate noun-phrase hole preserves NounPhrase"),
-            )?,
+                    .expect("the predicate noun-phrase hole preserves NounPhrase");
+                let quoted_count = noun_phrase_with_attribute_quoted_ability_count(noun_phrase);
+                let publish = self.publish_last_identity_quote
+                    && quoted_count > 0
+                    && self.quoted_abilities_remaining == quoted_count;
+                let previous = self.renderer.terminal_quote.get();
+                if publish {
+                    self.renderer.terminal_quote.set(
+                        noun_phrase_with_attribute_terminal_quote(noun_phrase)
+                            .map(std::ptr::from_ref),
+                    );
+                }
+                let rendered = self.renderer.noun_phrase(noun_phrase);
+                self.renderer.terminal_quote.set(previous);
+                self.quoted_abilities_remaining =
+                    self.quoted_abilities_remaining.saturating_sub(quoted_count);
+                rendered?
+            }
             "AdjectivePhrase" => self.renderer.adjective_phrase(
                 value
                     .downcast_ref::<AdjectivePhrase>()
@@ -1643,6 +1701,11 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                 )?;
                 return Ok(());
             }
+            "CoordinatedAdjectivePhrase" => self.renderer.coordinated_adjective_phrase(
+                value
+                    .downcast_ref::<CoordinatedAdjectivePhrase>()
+                    .expect("the coordinated-adjective hole preserves its typed value"),
+            )?,
             "Quantity" => render_quantity(
                 *value
                     .downcast_ref::<Quantity>()
@@ -1958,6 +2021,8 @@ impl<'renderer, 'identity> GeneratedCoordinationRenderer<'renderer, 'identity> {
             rendered: String::new(),
             pending_determiner: None,
             skip_payload_subtrees: 0,
+            quoted_abilities_remaining: 0,
+            publish_last_identity_quote: false,
         }
     }
 
@@ -1979,6 +2044,35 @@ impl<'renderer, 'identity> GeneratedCoordinationRenderer<'renderer, 'identity> {
         debug_assert!(self.pending_determiner.is_none());
         debug_assert_eq!(self.skip_payload_subtrees, 0);
         self.rendered
+    }
+
+    fn accept_generated(
+        result: Result<
+            (),
+            deckmaste_construction_compiler::runtime::LinearizationError<RenderError>,
+        >,
+    ) -> Result<(), RenderError> {
+        result.map_err(|error| match error {
+            deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error) => error,
+            _ => RenderError::InvalidNominalConstruction,
+        })
+    }
+
+    fn publish_terminal_quote(&mut self, count: usize, publish_last: bool) {
+        self.quoted_abilities_remaining = count;
+        self.publish_last_identity_quote = publish_last;
+    }
+
+    fn child_publishes_terminal_quote(&self, quoted_ability_count: usize) -> bool {
+        self.publish_last_identity_quote
+            && quoted_ability_count > 0
+            && self.quoted_abilities_remaining == quoted_ability_count
+    }
+
+    fn consume_quoted_abilities(&mut self, quoted_ability_count: usize) {
+        self.quoted_abilities_remaining = self
+            .quoted_abilities_remaining
+            .saturating_sub(quoted_ability_count);
     }
 }
 
@@ -2630,6 +2724,10 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
         Ok(())
     }
 
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the generated phrase-coordination category dispatcher is intentionally exhaustive"
+    )]
     fn subtree<T: std::any::Any>(
         &mut self,
         category: &'static str,
@@ -2651,12 +2749,32 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                 let noun_phrase = value
                     .downcast_ref::<NounPhrase>()
                     .expect("the declaration's NounPhrase hole preserves its Rust type");
-                self.push(&self.renderer.noun_phrase(noun_phrase)?);
+                let quoted_count = noun_phrase_with_attribute_quoted_ability_count(noun_phrase);
+                let publish = self.child_publishes_terminal_quote(quoted_count);
+                let previous = self.renderer.terminal_quote.get();
+                if publish {
+                    self.renderer.terminal_quote.set(
+                        noun_phrase_with_attribute_terminal_quote(noun_phrase)
+                            .map(std::ptr::from_ref),
+                    );
+                }
+                let rendered = self.renderer.noun_phrase(noun_phrase);
+                self.renderer.terminal_quote.set(previous);
+                self.consume_quoted_abilities(quoted_count);
+                self.push(&rendered?);
             }
             "NominalPhrase" => {
                 let nominal = value
                     .downcast_ref::<NominalPhrase>()
                     .expect("the declaration's NominalPhrase hole preserves its Rust type");
+                let quoted_count = nominal_with_attribute_quoted_ability_count(nominal);
+                let publish = self.child_publishes_terminal_quote(quoted_count);
+                let previous = self.renderer.terminal_quote.get();
+                if publish {
+                    self.renderer.terminal_quote.set(
+                        nominal_with_attribute_terminal_quote(nominal).map(std::ptr::from_ref),
+                    );
+                }
                 if let Some(determiner) = self.pending_determiner.take() {
                     let determiner =
                         if matches!(determiner.kind(), crate::syntax::DeterminerKind::Indefinite) {
@@ -2667,7 +2785,127 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                         };
                     self.push(&determiner);
                 }
-                self.push(&self.renderer.nominal_phrase(nominal)?);
+                let rendered = self.renderer.nominal_phrase(nominal);
+                self.renderer.terminal_quote.set(previous);
+                self.consume_quoted_abilities(quoted_count);
+                self.push(&rendered?);
+            }
+            "AdjectivePhrase" => {
+                let adjective = value
+                    .downcast_ref::<AdjectivePhrase>()
+                    .expect("the coordination adjective hole preserves AdjectivePhrase");
+                self.push(&self.renderer.adjective_phrase(adjective)?);
+            }
+            "NounInstance" => {
+                let noun = value
+                    .downcast_ref::<NounInstance>()
+                    .expect("the coordination noun hole preserves NounInstance");
+                self.push(&self.renderer.render_noun(noun)?);
+            }
+            "ModifierConjunct" => {
+                let modifier = value
+                    .downcast_ref::<NominalModifier>()
+                    .expect("the modifier-conjunct hole preserves NominalModifier");
+                Self::accept_generated(
+                    crate::constructions::coordination::linearize_noun_coordination_modifier_conjunct_with(
+                        modifier,
+                        self,
+                    ),
+                )?;
+            }
+            "ModifierList" => {
+                let list = value
+                    .downcast_ref::<crate::syntax::CoordinatedModifier>()
+                    .expect("the modifier-list hole preserves CoordinatedModifier");
+                Self::accept_generated(
+                    crate::constructions::coordination::linearize_noun_coordination_modifier_list_with(
+                        list,
+                        self,
+                    ),
+                )?;
+            }
+            "CoordinatedModifier" => {
+                let coordinated = value
+                    .downcast_ref::<crate::syntax::CoordinatedModifier>()
+                    .expect("the coordinated-modifier hole preserves its typed value");
+                Self::accept_generated(
+                    crate::constructions::coordination::linearize_noun_coordination_coordinated_modifier_with(
+                        coordinated,
+                        self,
+                    ),
+                )?;
+            }
+            "CoordinatedAdjectivePhrase" => {
+                let coordinated = value
+                    .downcast_ref::<CoordinatedAdjectivePhrase>()
+                    .expect("the coordinated-adjective hole preserves its typed value");
+                self.push(&self.renderer.coordinated_adjective_phrase(coordinated)?);
+            }
+            "PrepositionalPhrase" => {
+                let preposition = value
+                    .downcast_ref::<PrepositionalPhrase>()
+                    .expect("the coordination PP hole preserves PrepositionalPhrase");
+                self.push(&self.renderer.prepositional_phrase(preposition)?);
+            }
+            "PrepositionalPhraseList" => {
+                let list = value
+                    .downcast_ref::<PrepositionalPhrase>()
+                    .expect("the PP-list hole preserves PrepositionalPhrase");
+                Self::accept_generated(
+                    crate::constructions::coordination::linearize_noun_coordination_prepositional_phrase_list_with(
+                        list,
+                        self,
+                    ),
+                )?;
+            }
+            "PowerToughness" => {
+                let value = value
+                    .downcast_ref::<crate::syntax::PowerToughness>()
+                    .expect("the coordination stats hole preserves PowerToughness");
+                self.push(&format!(
+                    "{}/{}",
+                    render_signed_scalar(value.power),
+                    render_signed_scalar(value.toughness),
+                ));
+            }
+            "Quantity" => {
+                let quantity = value
+                    .downcast_ref::<Quantity>()
+                    .expect("the counted keyword hole preserves Quantity");
+                self.push(&render_quantity(*quantity));
+            }
+            "WithAttributeKeyword" => {
+                let keyword = value
+                    .downcast_ref::<crate::syntax::KeywordAbility>()
+                    .expect("the with-attribute keyword hole preserves KeywordAbility");
+                Self::accept_generated(
+                    crate::constructions::coordination::linearize_noun_coordination_with_attribute_keyword_with(
+                        keyword,
+                        self,
+                    ),
+                )?;
+            }
+            "WithAttributeMember" => {
+                let member = value
+                    .downcast_ref::<crate::syntax::WithAttributeMember>()
+                    .expect("the with-attribute member hole preserves its closed sum");
+                Self::accept_generated(
+                    crate::constructions::coordination::linearize_noun_coordination_with_attribute_member_with(
+                        member,
+                        self,
+                    ),
+                )?;
+            }
+            "WithAttributeList" => {
+                let list = value
+                    .downcast_ref::<crate::syntax::WithAttributeList>()
+                    .expect("the with-attribute list hole preserves its typed value");
+                Self::accept_generated(
+                    crate::constructions::coordination::linearize_noun_coordination_with_attribute_list_with(
+                        list,
+                        self,
+                    ),
+                )?;
             }
             other => panic!("unexpected coordination subtree category `{other}`"),
         }
@@ -2686,6 +2924,14 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                     .downcast_ref::<Conjunction>()
                     .expect("the declaration's Conjunction scalar preserves its Rust type");
                 self.push(render_nominal_conjunction(*conjunction)?);
+            }
+            "Comma" => {
+                let comma = value
+                    .downcast_ref::<crate::features::Comma>()
+                    .expect("the coordination comma scalar preserves Comma");
+                if comma.is_present() {
+                    self.push(",");
+                }
             }
             other => panic!("unexpected coordination scalar codec `{other}`"),
         }
@@ -2714,8 +2960,64 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
     ) -> Result<(), Self::Error> {
         if let Some(complement) = (value as &dyn std::any::Any).downcast_ref::<NominalComplement>()
         {
-            self.push(&self.renderer.nominal_complement(complement)?);
+            let quoted_count = nominal_complement_with_attribute_quoted_ability_count(complement);
+            let publish = self.child_publishes_terminal_quote(quoted_count);
+            let previous = self.renderer.terminal_quote.get();
+            if publish {
+                self.renderer.terminal_quote.set(
+                    nominal_complement_with_attribute_terminal_quote(complement)
+                        .map(std::ptr::from_ref),
+                );
+            }
+            let rendered = self.renderer.nominal_complement(complement);
+            self.renderer.terminal_quote.set(previous);
+            self.consume_quoted_abilities(quoted_count);
+            self.push(&rendered?);
             self.skip_payload_subtrees += 1;
+        }
+        Ok(())
+    }
+
+    fn identity<T: std::any::Any>(
+        &mut self,
+        provider: &'static str,
+        value_type: &'static str,
+        value: &T,
+    ) -> Result<(), Self::Error> {
+        let value = value as &dyn std::any::Any;
+        match (provider, value_type) {
+            ("NegatedModifier", "NominalModifier") => {
+                let modifier = value
+                    .downcast_ref::<NominalModifier>()
+                    .expect("the negated-modifier identity preserves NominalModifier");
+                let (prefix, trailing) = self.renderer.render_nominal_modifier(modifier)?;
+                debug_assert!(trailing.is_empty());
+                self.push(&prefix);
+            }
+            ("AbilityItem", "CatalogAtom") => {
+                let ability = value
+                    .downcast_ref::<crate::catalog::CatalogAtom>()
+                    .expect("the ability identity preserves CatalogAtom");
+                self.push(ability.spelling());
+            }
+            ("QuotedAbility", "QuotedAbility") => {
+                let quoted = value
+                    .downcast_ref::<QuotedAbility>()
+                    .expect("the quoted identity preserves QuotedAbility");
+                let publish =
+                    self.publish_last_identity_quote && self.quoted_abilities_remaining == 1;
+                self.quoted_abilities_remaining = self.quoted_abilities_remaining.saturating_sub(1);
+                let previous = self.renderer.terminal_quote.get();
+                if publish {
+                    self.renderer
+                        .terminal_quote
+                        .set(Some(std::ptr::from_ref(quoted)));
+                }
+                let rendered = self.renderer.quoted_ability(quoted);
+                self.renderer.terminal_quote.set(previous);
+                self.push(&rendered?);
+            }
+            other => panic!("unexpected coordination identity {other:?}"),
         }
         Ok(())
     }
@@ -2752,6 +3054,10 @@ impl<'identity> Renderer<'identity> {
         value: &crate::syntax::CoordinatedNounPhrase,
     ) -> Result<String, RenderError> {
         let mut visitor = GeneratedCoordinationRenderer::new(self);
+        visitor.publish_terminal_quote(
+            coordinated_noun_phrase_with_attribute_quoted_ability_count(value),
+            self.terminal_quote_is(coordinated_noun_phrase_with_attribute_terminal_quote(value)),
+        );
         let result = crate::constructions::coordination::linearize_noun_phrase_coordination_with(
             value,
             &mut visitor,
@@ -2764,6 +3070,10 @@ impl<'identity> Renderer<'identity> {
         value: &crate::syntax::CoordinatedNominalPhrase,
     ) -> Result<String, RenderError> {
         let mut visitor = GeneratedCoordinationRenderer::new(self);
+        visitor.publish_terminal_quote(
+            coordinated_nominal_with_attribute_quoted_ability_count(value),
+            self.terminal_quote_is(coordinated_nominal_with_attribute_terminal_quote(value)),
+        );
         let result = crate::constructions::coordination::linearize_shared_determiner_nominal_with(
             value,
             &mut visitor,
@@ -3486,7 +3796,7 @@ impl<'identity> Renderer<'identity> {
                 self.predicate_expression(finite.subject(), finite.predicate())
             }
             IndependentClause::Existential(_) => {
-                unreachable!("sealed existential clauses render through their F02 declaration")
+                unreachable!("sealed existential clauses render through their declaration")
             }
             IndependentClause::Complex(complex) => {
                 let host = self.independent_clause(complex.host())?;
@@ -3618,7 +3928,7 @@ impl<'identity> Renderer<'identity> {
             ClauseAttachmentKind::Dependent(clause) => self.dependent_clause(clause),
             ClauseAttachmentKind::Adjunct(adjunct) => self.predicate_adjunct(adjunct),
             ClauseAttachmentKind::Exception(_) | ClauseAttachmentKind::Restriction(_) => {
-                unreachable!("sealed F03 attachments render through their generated Clause owner")
+                unreachable!("sealed attachments render through their generated Clause owner")
             }
             ClauseAttachmentKind::Appositive(clause) => {
                 // The spaced ` — ` is fixed for this attachment: the enclosing
@@ -3701,10 +4011,10 @@ impl<'identity> Renderer<'identity> {
             ClauseAttachmentKind::Appositive(_)
         ))
         .then(|| {
-            // F04 may move a complete F03 attachment onto the first
+            // Clause coordination may move a complete attachment onto the first
             // predicate of a shared-subject coordination. Reconstitute
-            // that scoped clause so its declaration remains the sole F03
-            // linearization owner. Dash appositives are ability-owned and
+            // that scoped clause so its declaration remains the sole linearization
+            // owner. Dash appositives are ability-owned and
             // intentionally retain the handwritten fallback below.
             let clause = IndependentClause::Complex(ComplexClause::from_declaration_parts(
                 IndependentClause::Finite(FiniteClause::from_declaration_parts(
@@ -4068,6 +4378,10 @@ impl<'identity> Renderer<'identity> {
 
     fn noun_phrase(&self, phrase: &NounPhrase) -> Result<String, RenderError> {
         let mut visitor = GeneratedNounPhraseRenderer::new(self);
+        visitor.publish_terminal_quote(
+            noun_phrase_with_attribute_quoted_ability_count(phrase),
+            self.terminal_quote_is(noun_phrase_with_attribute_terminal_quote(phrase)),
+        );
         match crate::constructions::noun_phrase::linearize_noun_phrase_noun_phrase_with(
             phrase,
             &mut visitor,
@@ -4107,36 +4421,21 @@ impl<'identity> Renderer<'identity> {
                 deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
                     ..
                 },
-            ) => self.non_m01_nominal_remainder(phrase),
+            ) => {
+                let mut visitor = GeneratedCoordinationRenderer::new(self);
+                let quoted_count = nominal_with_attribute_quoted_ability_count(phrase);
+                visitor.publish_terminal_quote(
+                    quoted_count,
+                    self.terminal_quote_is(nominal_with_attribute_terminal_quote(phrase)),
+                );
+                let result = crate::constructions::coordination::linearize_noun_coordination_nominal_phrase_with(
+                    phrase,
+                    &mut visitor,
+                );
+                finish_generated_coordination(result, visitor)
+            }
             Err(_) => Err(RenderError::InvalidNominalConstruction),
         }
-    }
-
-    /// Linearizes the two still-handwritten nominal transforms that are
-    /// explicitly outside M01, then recurses immediately back through the
-    /// generated nominal family for the residual owner.
-    fn non_m01_nominal_remainder(&self, phrase: &NominalPhrase) -> Result<String, RenderError> {
-        if let Some((nominal, value)) =
-            crate::constructions::nominal::project_nominal_power_toughness_remainder(phrase)
-        {
-            return Ok(format!(
-                "{} {}/{}",
-                self.nominal_phrase(&nominal)?,
-                render_signed_scalar(value.power),
-                render_signed_scalar(value.toughness),
-            ));
-        }
-
-        if let Some((modifier, nominal)) =
-            crate::constructions::nominal::project_nominal_coordinated_modifier_remainder(phrase)
-        {
-            let (prefix, trailing) = self.render_nominal_modifier(&modifier)?;
-            let mut parts = vec![prefix, self.nominal_phrase(&nominal)?];
-            parts.extend(trailing);
-            return Ok(join_words(parts));
-        }
-
-        Err(RenderError::InvalidNominalConstruction)
     }
 
     fn nominal_complement(&self, complement: &NominalComplement) -> Result<String, RenderError> {
@@ -4163,6 +4462,22 @@ impl<'identity> Renderer<'identity> {
                 format!("to {}", self.generated_devotion_colors(*colors)?)
             }
             NominalComplement::EventClause(clause) => self.independent_clause(clause)?,
+            NominalComplement::WithAttributes(attributes) => {
+                let mut visitor = GeneratedCoordinationRenderer::new(self);
+                let quoted_count =
+                    nominal_complement_with_attribute_quoted_ability_count(complement);
+                visitor.publish_terminal_quote(
+                    quoted_count,
+                    self.terminal_quote_is(nominal_complement_with_attribute_terminal_quote(
+                        complement,
+                    )),
+                );
+                let result = crate::constructions::coordination::linearize_noun_coordination_with_attribute_list_with(
+                    attributes,
+                    &mut visitor,
+                );
+                finish_generated_coordination(result, visitor)?
+            }
             NominalComplement::KeywordArgument(argument) => match argument {
                 KeywordArgument::Costed(KeywordCost::Symbols(symbols)) => {
                     render_symbol_sequence(symbols)
@@ -4213,29 +4528,12 @@ impl<'identity> Renderer<'identity> {
                 Vec::new(),
             )),
             NominalModifier::Coordinated(coordinated) => {
-                let (first, mut trailing) = self.render_nominal_modifier(&coordinated.first)?;
-                let mut rendered = first;
-                for coordination in &coordinated.rest {
-                    // The serial comma is a function of length and connective,
-                    // never a stored flag: an asyndetic interior member always
-                    // takes a comma, and a member with a connective takes one
-                    // only in a three-or-more-member (Oxford) list. See
-                    // `ModifierCoordination`.
-                    let comma = coordination.conjunction.is_none() || coordinated.rest.len() >= 2;
-                    if comma {
-                        rendered.push(',');
-                    }
-                    rendered.push(' ');
-                    if let Some(conjunction) = coordination.conjunction {
-                        rendered.push_str(render_predicate_conjunction(conjunction)?);
-                        rendered.push(' ');
-                    }
-                    let (member, member_trailing) =
-                        self.render_nominal_modifier(&coordination.modifier)?;
-                    rendered.push_str(&member);
-                    trailing.extend(member_trailing);
-                }
-                Ok((rendered, trailing))
+                let mut visitor = GeneratedCoordinationRenderer::new(self);
+                let result = crate::constructions::coordination::linearize_noun_coordination_coordinated_modifier_with(
+                    coordinated,
+                    &mut visitor,
+                );
+                Ok((finish_generated_coordination(result, visitor)?, Vec::new()))
             }
         }
     }
@@ -4272,7 +4570,7 @@ impl<'identity> Renderer<'identity> {
             NominalModifier::PowerToughness(value) => Ok(value.initial_sound()),
             // A coordinated slot's leading surface is its first conjunct's.
             NominalModifier::Coordinated(coordinated) => {
-                self.modifier_initial_sound(&coordinated.first)
+                self.modifier_initial_sound(coordinated.first())
             }
         }
     }
@@ -4338,31 +4636,17 @@ impl<'identity> Renderer<'identity> {
         Ok(visitor.rendered)
     }
 
-    /// Renders a coordinated run of predicative adjective phrases, replaying
-    /// the exact comma/connective surface recorded between the conjuncts.
     fn coordinated_adjective_phrase(
         &self,
         coordinated: &CoordinatedAdjectivePhrase,
     ) -> Result<String, RenderError> {
-        let mut rendered = self.adjective_phrase(&coordinated.first)?;
-        for coordination in &coordinated.rest {
-            // The serial comma is a function of length and connective, never
-            // a stored flag: an asyndetic interior member always takes a
-            // comma, and a member with a connective takes one only in a
-            // three-or-more-member (Oxford) list. See
-            // `AdjectivePhraseCoordination`.
-            let comma = coordination.conjunction.is_none() || coordinated.rest.len() >= 2;
-            if comma {
-                rendered.push(',');
-            }
-            rendered.push(' ');
-            if let Some(conjunction) = coordination.conjunction {
-                rendered.push_str(render_predicate_conjunction(conjunction)?);
-                rendered.push(' ');
-            }
-            rendered.push_str(&self.adjective_phrase(&coordination.phrase)?);
-        }
-        Ok(rendered)
+        let mut visitor = GeneratedCoordinationRenderer::new(self);
+        let result =
+            crate::constructions::coordination::linearize_coordinated_adjective_phrase_with(
+                coordinated,
+                &mut visitor,
+            );
+        finish_generated_coordination(result, visitor)
     }
 
     fn nominal_modifier_adjective(
@@ -4424,24 +4708,13 @@ impl<'identity> Renderer<'identity> {
     fn prepositional_phrase(&self, phrase: &PrepositionalPhrase) -> Result<String, RenderError> {
         match phrase.kind() {
             PrepositionalPhraseKind::Simple(_) => self.generated_prepositional_phrase(phrase),
-            PrepositionalPhraseKind::Coordinated(coordinated) => {
-                // The serial comma is a function of length, never a stored
-                // flag: `A and B` takes none, `A, B, and C` takes one before
-                // every member. See `PrepositionalPhraseCoordination`.
-                let serial_comma = coordinated.rest.len() > 1;
-                let mut rendered = self.generated_prepositional_member(&coordinated.first)?;
-                for coordination in &coordinated.rest {
-                    if serial_comma {
-                        rendered.push(',');
-                    }
-                    rendered.push(' ');
-                    if let Some(conjunction) = coordination.conjunction {
-                        rendered.push_str(render_nominal_conjunction(conjunction)?);
-                        rendered.push(' ');
-                    }
-                    rendered.push_str(&self.generated_prepositional_member(&coordination.phrase)?);
-                }
-                Ok(rendered)
+            PrepositionalPhraseKind::Coordinated(_) => {
+                let mut visitor = GeneratedCoordinationRenderer::new(self);
+                let result = crate::constructions::coordination::linearize_noun_coordination_prepositional_phrase_with(
+                    phrase,
+                    &mut visitor,
+                );
+                finish_generated_coordination(result, visitor)
             }
         }
     }
@@ -4455,16 +4728,6 @@ impl<'identity> Renderer<'identity> {
             crate::constructions::prepositional::linearize_simple_with(phrase, &mut visitor),
         )?;
         Ok(visitor.finish())
-    }
-
-    fn generated_prepositional_member(
-        &self,
-        phrase: &SimplePrepositionalPhrase,
-    ) -> Result<String, RenderError> {
-        self.generated_prepositional_phrase(&PrepositionalPhrase::from_prepositional_declaration(
-            phrase.preposition,
-            phrase.object.clone(),
-        ))
     }
 
     fn phrase(&self, phrase: &Phrase) -> Result<String, RenderError> {
@@ -5026,6 +5289,9 @@ fn predicate_element_quoted_ability_count(element: &PredicateElement) -> usize {
 fn predicate_object_quoted_ability_count(object: &PredicateObject) -> usize {
     match object {
         PredicateObject::QuotedAbility(_) => 1,
+        PredicateObject::NounPhrase(noun_phrase) => {
+            noun_phrase_with_attribute_quoted_ability_count(noun_phrase)
+        }
         PredicateObject::Ability(ability) => ability
             .argument
             .as_deref()
@@ -5038,13 +5304,106 @@ fn predicate_object_quoted_ability_count(object: &PredicateObject) -> usize {
                     .map(|member| predicate_object_quoted_ability_count(&member.object))
                     .sum::<usize>()
         }
-        PredicateObject::NounPhrase(_)
-        | PredicateObject::Quantity(_)
+        PredicateObject::Quantity(_)
         | PredicateObject::OracleSymbol(_)
         | PredicateObject::SymbolSequence(_)
         | PredicateObject::PowerToughness(_)
         | PredicateObject::EmbeddedAbility(_) => 0,
     }
+}
+
+fn noun_phrase_with_attribute_quoted_ability_count(noun_phrase: &NounPhrase) -> usize {
+    match noun_phrase.kind() {
+        crate::syntax::NounPhraseKind::Nominal(nominal) => {
+            nominal_with_attribute_quoted_ability_count(nominal)
+        }
+        crate::syntax::NounPhraseKind::Partitive(partitive) => {
+            noun_phrase_with_attribute_quoted_ability_count(&partitive.whole)
+        }
+        crate::syntax::NounPhraseKind::AnyNumberOf(value) => {
+            noun_phrase_with_attribute_quoted_ability_count(value.complement())
+        }
+        crate::syntax::NounPhraseKind::CoordinatedNominal(value) => {
+            coordinated_nominal_with_attribute_quoted_ability_count(value)
+        }
+        crate::syntax::NounPhraseKind::Coordinated(value) => {
+            coordinated_noun_phrase_with_attribute_quoted_ability_count(value)
+        }
+        crate::syntax::NounPhraseKind::SetException(value) => {
+            noun_phrase_with_attribute_quoted_ability_count(&value.included)
+                + noun_phrase_with_attribute_quoted_ability_count(&value.excluded)
+        }
+        crate::syntax::NounPhraseKind::Arithmetic(crate::syntax::ArithmeticValue::Minus {
+            left,
+            right,
+        }) => {
+            noun_phrase_with_attribute_quoted_ability_count(left)
+                + noun_phrase_with_attribute_quoted_ability_count(right)
+        }
+        crate::syntax::NounPhraseKind::Arithmetic(crate::syntax::ArithmeticValue::Half {
+            value,
+            ..
+        }) => noun_phrase_with_attribute_quoted_ability_count(value),
+        crate::syntax::NounPhraseKind::Pronoun { .. }
+        | crate::syntax::NounPhraseKind::PossessiveThisCard(_)
+        | crate::syntax::NounPhraseKind::Demonstrative(_)
+        | crate::syntax::NounPhraseKind::Quantity(_)
+        | crate::syntax::NounPhraseKind::ThisCard(_) => 0,
+    }
+}
+
+fn coordinated_nominal_with_attribute_quoted_ability_count(
+    value: &crate::syntax::CoordinatedNominalPhrase,
+) -> usize {
+    nominal_with_attribute_quoted_ability_count(value.first())
+        + value
+            .rest()
+            .iter()
+            .map(|member| nominal_with_attribute_quoted_ability_count(&member.phrase))
+            .sum::<usize>()
+        + value
+            .complements()
+            .iter()
+            .map(nominal_complement_with_attribute_quoted_ability_count)
+            .sum::<usize>()
+}
+
+fn coordinated_noun_phrase_with_attribute_quoted_ability_count(
+    value: &crate::syntax::CoordinatedNounPhrase,
+) -> usize {
+    noun_phrase_with_attribute_quoted_ability_count(value.first())
+        + value
+            .rest()
+            .iter()
+            .map(|member| noun_phrase_with_attribute_quoted_ability_count(&member.phrase))
+            .sum::<usize>()
+}
+
+fn nominal_with_attribute_quoted_ability_count(nominal: &NominalPhrase) -> usize {
+    nominal
+        .complements()
+        .iter()
+        .map(nominal_complement_with_attribute_quoted_ability_count)
+        .sum()
+}
+
+fn nominal_complement_with_attribute_quoted_ability_count(complement: &NominalComplement) -> usize {
+    let NominalComplement::WithAttributes(attributes) = complement else {
+        return 0;
+    };
+    usize::from(matches!(
+        attributes.first(),
+        crate::syntax::WithAttributeMember::Quoted(_)
+    )) + attributes
+        .rest()
+        .iter()
+        .filter(|continuation| {
+            matches!(
+                continuation.member(),
+                crate::syntax::WithAttributeMember::Quoted(_)
+            )
+        })
+        .count()
 }
 
 fn attached_predicate_terminal_quote(
@@ -5172,8 +5531,95 @@ fn adjunct_terminal_quote(adjunct: &PredicateAdjunct) -> Option<&QuotedAbility> 
 fn predicate_object_terminal_quote(object: &PredicateObject) -> Option<&QuotedAbility> {
     match object {
         PredicateObject::QuotedAbility(quoted) => Some(quoted),
+        PredicateObject::NounPhrase(noun_phrase) => {
+            noun_phrase_with_attribute_terminal_quote(noun_phrase)
+        }
         PredicateObject::Coordinated(coordinated) => coordinated_object_terminal_quote(coordinated),
         _ => None,
+    }
+}
+
+/// Finds a mixed-`with` quote only along the noun phrase's final rendered
+/// constituent. The quoted-ability count walks every child; this walk follows
+/// the corresponding surface tail, stopping before a trailing rounding rider.
+fn noun_phrase_with_attribute_terminal_quote(noun_phrase: &NounPhrase) -> Option<&QuotedAbility> {
+    match noun_phrase.kind() {
+        crate::syntax::NounPhraseKind::Nominal(nominal) => {
+            nominal_with_attribute_terminal_quote(nominal)
+        }
+        crate::syntax::NounPhraseKind::Partitive(partitive) => {
+            noun_phrase_with_attribute_terminal_quote(&partitive.whole)
+        }
+        crate::syntax::NounPhraseKind::AnyNumberOf(value) => {
+            noun_phrase_with_attribute_terminal_quote(value.complement())
+        }
+        crate::syntax::NounPhraseKind::CoordinatedNominal(value) => {
+            coordinated_nominal_with_attribute_terminal_quote(value)
+        }
+        crate::syntax::NounPhraseKind::Coordinated(value) => {
+            coordinated_noun_phrase_with_attribute_terminal_quote(value)
+        }
+        crate::syntax::NounPhraseKind::SetException(value) => {
+            noun_phrase_with_attribute_terminal_quote(&value.excluded)
+        }
+        crate::syntax::NounPhraseKind::Arithmetic(crate::syntax::ArithmeticValue::Minus {
+            right,
+            ..
+        }) => noun_phrase_with_attribute_terminal_quote(right),
+        crate::syntax::NounPhraseKind::Arithmetic(crate::syntax::ArithmeticValue::Half {
+            value,
+            rounding: None,
+        }) => noun_phrase_with_attribute_terminal_quote(value),
+        crate::syntax::NounPhraseKind::Arithmetic(crate::syntax::ArithmeticValue::Half {
+            rounding: Some(_),
+            ..
+        })
+        | crate::syntax::NounPhraseKind::Pronoun { .. }
+        | crate::syntax::NounPhraseKind::PossessiveThisCard(_)
+        | crate::syntax::NounPhraseKind::Demonstrative(_)
+        | crate::syntax::NounPhraseKind::Quantity(_)
+        | crate::syntax::NounPhraseKind::ThisCard(_) => None,
+    }
+}
+
+fn coordinated_nominal_with_attribute_terminal_quote(
+    value: &crate::syntax::CoordinatedNominalPhrase,
+) -> Option<&QuotedAbility> {
+    if let Some(complement) = value.complements().last() {
+        return nominal_complement_with_attribute_terminal_quote(complement);
+    }
+    match value.rest().last() {
+        Some(member) => nominal_with_attribute_terminal_quote(&member.phrase),
+        None => nominal_with_attribute_terminal_quote(value.first()),
+    }
+}
+
+fn coordinated_noun_phrase_with_attribute_terminal_quote(
+    value: &crate::syntax::CoordinatedNounPhrase,
+) -> Option<&QuotedAbility> {
+    match value.rest().last() {
+        Some(member) => noun_phrase_with_attribute_terminal_quote(&member.phrase),
+        None => noun_phrase_with_attribute_terminal_quote(value.first()),
+    }
+}
+
+fn nominal_with_attribute_terminal_quote(nominal: &NominalPhrase) -> Option<&QuotedAbility> {
+    nominal_complement_with_attribute_terminal_quote(nominal.complements().last()?)
+}
+
+fn nominal_complement_with_attribute_terminal_quote(
+    complement: &NominalComplement,
+) -> Option<&QuotedAbility> {
+    let NominalComplement::WithAttributes(attributes) = complement else {
+        return None;
+    };
+    let member = attributes
+        .rest()
+        .last()
+        .map_or(attributes.first(), |continuation| continuation.member());
+    match member {
+        crate::syntax::WithAttributeMember::Quoted(quoted) => Some(quoted),
+        crate::syntax::WithAttributeMember::Keyword(_) => None,
     }
 }
 
@@ -5645,6 +6091,54 @@ mod tests {
     }
 
     #[test]
+    fn mixed_with_attributes_round_trip_with_terminal_quote_punctuation() {
+        let catalogs = fixture_catalogs()
+            .with_catalog(
+                CatalogKind::KeywordAbility,
+                ["Haste", "Toxic", "First strike", "Vigilance"],
+            )
+            .with_catalog(
+                CatalogKind::CreatureType,
+                ["Goblin", "Alien", "Angel", "Phyrexian", "Mite"],
+            )
+            .with_catalog(CatalogKind::CardType, ["Creature", "Artifact"]);
+        for source in [
+            "Create a 1/1 red Alien creature token with haste and \"This token attacks each combat if able.\"",
+            "Create two 1/1 colorless Phyrexian Mite artifact creature tokens with toxic 1 and \"This token can't block.\"",
+            "Create a 2/2 black Alien Angel artifact creature token with first strike, vigilance, and \"Whenever an opponent casts a creature spell, this token isn't a creature until end of turn.\"",
+        ] {
+            let report = crate::parse_with_catalogs(source, &catalogs);
+            assert!(
+                report.diagnostics().is_empty(),
+                "{source}: {:?}",
+                report.diagnostics(),
+            );
+            assert!(report.ast().recoveries().is_empty(), "{source}");
+            let ast = report.into_ast();
+            assert_eq!(source_free(&ast, "Test Card", false), source);
+        }
+    }
+
+    #[test]
+    fn mixed_with_attributes_keep_terminal_punctuation_through_any_number_of() {
+        let catalogs = fixture_catalogs()
+            .with_catalog(CatalogKind::KeywordAbility, ["Haste"])
+            .with_catalog(CatalogKind::CreatureType, ["Goblin"])
+            .with_catalog(CatalogKind::CardType, ["Creature"]);
+        let source = "Create any number of 1/1 red Goblin creature tokens with haste and \"This token can't block.\"";
+
+        let report = crate::parse_with_catalogs(source, &catalogs);
+        assert!(
+            report.diagnostics().is_empty(),
+            "{source}: {:?}",
+            report.diagnostics(),
+        );
+        assert!(report.ast().recoveries().is_empty(), "{source}");
+        let ast = report.into_ast();
+        assert_eq!(source_free(&ast, "Test Card", false), source);
+    }
+
+    #[test]
     fn keyword_abilities_render_from_canonical_catalog_identity() {
         let catalogs = fixture_catalogs();
         let ast = OracleText {
@@ -5933,7 +6427,7 @@ mod tests {
     }
 
     #[test]
-    fn generated_r01_renderer_linearizes_direct_ast_for_every_form_and_nested_relatives() {
+    fn generated_relative_renderer_linearizes_direct_ast_for_every_form_and_nested_relatives() {
         use crate::clause as clause_api;
         use crate::predicate as predicate_api;
 
@@ -5990,7 +6484,7 @@ mod tests {
     }
 
     #[test]
-    fn generated_r01_renderer_distinguishes_zero_marker_demonstrative_that_from_explicit_markers() {
+    fn generated_relative_renderer_distinguishes_zero_marker_that_from_explicit_markers() {
         let demonstrative = relative_fixture("that opponent controls");
         assert_eq!(demonstrative.marker(), RelativeMarker::Zero);
         assert!(matches!(
@@ -6028,7 +6522,7 @@ mod tests {
     }
 
     #[test]
-    fn generated_r01_renderer_owns_its_coordinated_adjective_tail() {
+    fn generated_relative_renderer_owns_its_coordinated_adjective_tail() {
         let value = relative_fixture("that's red or green");
         assert_eq!(
             Renderer::new("Test Card", false)
@@ -6108,7 +6602,7 @@ mod tests {
 
     #[test]
     fn premodified_possessors_round_trip_both_genitive_markers() {
-        // Whole-AST inverse for round `opqposs`: proves the generated D01
+        // Whole-AST inverse for possessive determiners: proves the generated
         // inverse is total for a premodified possessor, singular and plural.
         let singular = "This creature deals damage equal to the sacrificed creature's power.";
         let ast = crate::parse_with_catalogs(singular, &fixture_catalogs()).into_ast();
@@ -6875,10 +7369,10 @@ mod tests {
     }
 
     #[test]
-    fn predicated_keyword_rendering_rejects_shapes_outside_the_generated_m01_family() {
+    fn predicated_keyword_rendering_rejects_shapes_outside_the_declared_family() {
         // Mutation caught: route `PredicatedArgument` through the handwritten
         // renderer, which accepts arbitrary prepositions instead of requiring
-        // one of the two declared M01 argument families.
+        // one of the two declared keyword-argument families.
         let argument = KeywordArgument::Predicated(PredicatedArgument {
             qualities: vec![PredicatedQuality {
                 preposition: Some(Preposition::To),
@@ -7104,7 +7598,7 @@ mod tests {
     }
 
     #[test]
-    fn j01_renders_declared_prepositional_and_infinitival_complements() {
+    fn adjective_renderer_handles_declared_prepositional_and_infinitival_complements() {
         let renderer = Renderer::new("Test Card", false);
         let prepositional = crate::adjective::build_adjective_phrase_prepositional(
             crate::adjective::build_adjective_phrase(Adjective::Word(Vocab::Equal)).unwrap(),

@@ -9,6 +9,9 @@ pub use phrase::*;
 
 pub use crate::constructions::coordination::CoordinatedNominalPhrase;
 pub use crate::constructions::coordination::CoordinatedNounPhrase;
+pub use crate::constructions::coordination::WithAttributeCoordination;
+pub use crate::constructions::coordination::WithAttributeList;
+pub use crate::constructions::coordination::WithAttributeMember;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum RecoveryRole {
@@ -647,7 +650,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 if let DeterminerKind::Possessive(possessor) = coordinated.determiner().kind()
                     && let Possessor::NounPhrase(possessor) = possessor
                 {
-                    self.noun_phrase(possessor, context);
+                    self.noun_phrase(possessor.as_ref(), context);
                 }
                 self.nominal_phrase(coordinated.first(), context);
                 for coordination in coordinated.rest() {
@@ -728,12 +731,33 @@ impl<'syntax> RecoveryWalker<'syntax> {
             NominalComplement::EventClause(clause) => {
                 self.independent_clause(clause, context);
             }
+            NominalComplement::WithAttributes(attributes) => {
+                self.with_attribute_member(attributes.first(), context);
+                for continuation in attributes.rest() {
+                    self.with_attribute_member(continuation.member(), context);
+                }
+            }
             NominalComplement::KeywordArgument(argument) => {
                 self.keyword_argument(argument, context);
             }
             NominalComplement::Quantity(_)
             | NominalComplement::PowerToughness(_)
             | NominalComplement::Devotion(_) => {}
+        }
+    }
+
+    fn with_attribute_member(
+        &mut self,
+        member: &'syntax WithAttributeMember,
+        context: Option<RecoveryRole>,
+    ) {
+        match member {
+            WithAttributeMember::Keyword(keyword) => {
+                self.keyword_argument(&keyword.argument, context);
+            }
+            WithAttributeMember::Quoted(quoted) => {
+                self.ability(&quoted.ability, Some(RecoveryRole::EmbeddedRules));
+            }
         }
     }
 
@@ -747,9 +771,9 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 self.adjective_phrase(phrase, RecoveryRole::NominalComplement, context);
             }
             NominalModifier::Coordinated(coordinated) => {
-                self.nominal_modifier(&coordinated.first, context);
-                for coordination in &coordinated.rest {
-                    self.nominal_modifier(&coordination.modifier, context);
+                self.nominal_modifier(coordinated.first(), context);
+                for coordination in coordinated.rest() {
+                    self.nominal_modifier(coordination.modifier(), context);
                 }
             }
             NominalModifier::Noun { noun, .. } => {
@@ -795,9 +819,9 @@ impl<'syntax> RecoveryWalker<'syntax> {
         role: RecoveryRole,
         context: Option<RecoveryRole>,
     ) {
-        self.adjective_phrase(&coordinated.first, role, context);
-        for coordination in &coordinated.rest {
-            self.adjective_phrase(&coordination.phrase, role, context);
+        self.adjective_phrase(coordinated.first(), role, context);
+        for coordination in coordinated.rest() {
+            self.adjective_phrase(coordination.phrase(), role, context);
         }
     }
 

@@ -1593,6 +1593,16 @@ pub(crate) enum RelativeCopularClass {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Features {
     None,
+    WithAttributeMember {
+        keyword: bool,
+        quoted: bool,
+    },
+    WithAttributeList {
+        keyword: bool,
+        quoted: bool,
+        len: usize,
+        closed: bool,
+    },
     Number {
         is_one: bool,
     },
@@ -2088,6 +2098,10 @@ pub(crate) struct SubjectAuxiliaryKey {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, strum::EnumIter, strum::IntoStaticStr)]
 #[strum(serialize_all = "snake_case")]
+#[allow(
+    clippy::enum_variant_names,
+    reason = "each tag names a distinct clause-coordination topology"
+)]
 enum RuleTag {
     ClauseCoordination,
     ClauseCoordinationComma,
@@ -2097,52 +2111,6 @@ enum RuleTag {
     ClauseCoordinationCopularNounPrepositional,
     ClauseCoordinationCopularNounPrepositionalComma,
     ClauseCoordinationCopularNounPrepositionalAsyndetic,
-    /// A coordinable modifier atom built from an adjective phrase.
-    ModifierConjunctAdjective,
-    /// A coordinable modifier atom built from a bare noun.
-    ModifierConjunctNoun,
-    /// A coordinable modifier atom built from a `non-` negated modifier.
-    ModifierConjunctNegated,
-    /// The single-atom base of an open comma-separated modifier run.
-    ModifierListSingle,
-    /// An asyndetic comma continuation of a modifier run (`artifact,
-    /// creature`).
-    ModifierListComma,
-    /// A coordinated modifier closed by a bare conjunction (`white and blue`,
-    /// `artifact, creature and land`) — covers the simple two-way pair and the
-    /// non-Oxford list.
-    CoordinatedModifierConjoined,
-    /// A coordinated modifier closed by an Oxford `, and`/`, or`/`, and/or`
-    /// member (`artifact, creature, and land`).
-    CoordinatedModifierOxford,
-    /// The nominal prepend of a coordinated modifier as one modifier slot.
-    NominalCoordinatedModifier,
-    /// The two-member comma base of a sibling prepositional run. Requiring a
-    /// pair keeps a comma out of two-member coordinations (see the rule).
-    PrepositionalPhraseListPair,
-    /// An asyndetic comma continuation of a sibling prepositional run (`from
-    /// Vampires, from Werewolves`).
-    PrepositionalPhraseListComma,
-    /// Prepositional phrases coordinated as siblings, each repeating its own
-    /// preposition (`from blue and from black`). Distinct from
-    /// generated noun coordination inside one prepositional object, which
-    /// shares one preposition across coordinated objects (`from artifacts,
-    /// creatures, and enchantments`).
-    PrepositionalPhraseSiblingCoordinated,
-    // --- Coordination-consumer rules (appended after `add_coordination_rules`)
-    // ---
-    /// A coordinated predicative-adjective complement on an intransitive-`be`
-    /// verb phrase (`are green and white`, `are green and/or white`). Consumes
-    /// the closed [`Nonterminal::CoordinatedModifier`] in the
-    /// adjective-complement slot; covers the non-contracted relative (`that
-    /// are …`) and matrix copulars.
-    VerbPhraseCoordinatedAdjective,
-    /// A power/toughness value complement on a characteristic nominal (`base
-    /// power and toughness *X/X*`). The `N/N` token sets the base
-    /// characteristic; it rides the final coordinated characteristic of a
-    /// `power and toughness` pair. Mirrors
-    /// `nominal_quantity_complement` for the P/T token.
-    NominalPowerToughnessComplement,
 }
 
 pub(crate) struct EnglishGrammar<'source, 'catalogs> {
@@ -2204,13 +2172,6 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
     ) -> Self {
         let mut builder = RuleBuilder::default();
         builder.add_clause_rules();
-        // The calls below retain their feature-round grouping for authoring
-        // locality. `finish` may reorder whole construction families; stable
-        // production identity and declared dominance own selection semantics.
-        builder.add_coordination_rules();
-        // Coordination *consumers* are kept beside the list constructions they
-        // read, independent of their eventual numeric lookup IDs.
-        builder.add_coordination_consumer_rules();
         // This rule's dot-1 gate (`Features::Subordinator(While)`) is likewise
         // categorical.
         // The subject-shared copular continuation also has a categorical dot-1
