@@ -11,7 +11,7 @@ row; production declarations and Rust types remain authoritative.
 The chart census comes from the merged production registry in
 `grammar/construction.rs`. Its handwritten side maps each remaining `RuleTag`
 to one fan-out-one row; its generated side contributes the ten Q01 quantity
-rows, the nine D01 determiner/possession rows, the nine J01 adjective rows, the
+rows, the nine D01 determiner/possession rows, the 11 J01 adjective rows, the
 37 M01 nominal rows, S01 `sentence`, N01 `noun`/`noun_opaque`, the two generated
 coordination rows, all 34 V01 predicate rows, the four F01 nonfinite-clause
 rows, all 18 F02 finite-clause rows, all 16 F03 clause-attachment rows, and all
@@ -22,11 +22,11 @@ census comes from the three non-chart entry points documented and dispatched by
 
 | source | handwritten / ungenerated | already generated | accounted total |
 |---|---:|---:|---:|
-| chart construction registry | 21 | 171 | 192 |
+| chart construction registry | 21 | 173 | 194 |
 | ability construction registry | 0 | 3 | 3 |
-| migration inventory | 21 | 174 | 195 |
+| migration inventory | 21 | 176 | 197 |
 
-Every one of the 192 chart IDs occurs once in the ledger below: 21 remain
+Every one of the 194 chart IDs occurs once in the ledger below: 21 remain
 handwritten, while Q01, D01, J01, M01, V01, F01, F02, F03, R01, S01, N01, and
 the two coordination rows, P01, and P02 are generated. The three ability IDs
 occur once in generated A01. Thus the remaining work is 21 chart rows and zero
@@ -96,7 +96,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 |---|---:|---|---|---|
 | Q01 quantity | 10 | C2 scalar | `english-derived-quantity-family` | generated |
 | D01 determiner and possession | 9 | C3 | `english-derived-determiner-possession-family` | generated |
-| J01 adjective and comparison | 9 | C3 | `english-derived-adjective-comparison-family` | scalar, identity, lens |
+| J01 adjective and comparison | 11 | C3 | `english-derived-adjective-comparison-family` | scalar, identity, lens |
 | N01 noun identity and opacity | 2 | C2 identity | `english-derived-noun-lexeme-family` | generated |
 | M01 nominal spine | 37 | C2 lens | `english-derived-nominal-family` | generated |
 | P01 noun phrase | 19 | C3 | `english-derived-noun-phrase-family` | generated |
@@ -175,29 +175,32 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 
 **Status:** generated.
 
-**Stable IDs (9):** `adjective`, `adjective_phrase`,
+**Stable IDs (11):** `adjective`, `adjective_phrase`,
 `adjective_phrase_face_up`, `adjective_phrase_face_down`,
 `adjective_phrase_comparison`, `adjective_phrase_degree_measure`,
 `comparison_standard`, `comparison_than`,
-`comparison_than_or_equal_to`.
+`comparison_than_or_equal_to`, `adjective_phrase_prepositional`,
+`adjective_phrase_infinitive`.
 
 - **Owners and AST:** NR → `AdjectivePhrase`, `AdjectiveComplement`,
   `ComparisonComplement`, and `ComparisonMarker`; REN owns adjective and
   comparison linearization; SYN-P owns constructors.
 - **Holes and constraints:** adjective identity, numeric scalar, complement
-  subtree/sum, and complement-vector lens. Comparison class/state, card
-  orientation, onset, and predicative-only degree measure are selection
-  constraints.
+  subtree/sum, and complement-vector lens. The declared recursive owner roles
+  cover the whole lexical prepositional/infinitival posthead chain. Comparison
+  class/state, card orientation, onset, and predicative-only degree measure are
+  selection constraints.
 - **Ambiguity/backend:** fan-out one on Chart, no direct registry dominance
   edge. Competing noun/adjective/clause standards remain packed when viable.
 - **Witnesses:** face orientation, comparison marker, and standard are
   meaning-bearing. Capitalization and compound spelling are vocabulary/style
   realizations; comparison number spelling follows style guide §4.
 - **Consumers and gates:** Nominal/Sentence fragments and spelling frames.
-  Direct-AST fixtures cover every complement sum and degree measure; inspect
-  pins selected standard and comparison-state rejection; exactness covers
-  face-up/down and both comparison markers; negatives reject a completed or
-  wrong-class comparison and attributive degree measures.
+  Direct-AST fixtures cover every complement sum, the recursive declared
+  posthead chain, and degree measure; inspect pins selected standard and
+  comparison-state rejection; exactness covers face-up/down and both
+  comparison markers; negatives reject a completed or wrong-class comparison
+  and attributive degree measures.
 
 ## N01 — noun identity and lexical opacity
 
@@ -700,6 +703,6 @@ so a family migration cannot hide work growth in failed or abandoned paths.
 It may not defer any of those to completion.
 
 The completion node depends on the remaining eleven chart tickets and the
-existing ability-backend ticket. Its final audit therefore has 190 newly
-migrated plus five already-generated families—195 generated families in
+existing ability-backend ticket. Its final audit therefore has 192 newly
+migrated plus five already-generated families—197 generated families in
 all—to prove, with no handwritten or unregistered family left to discover.

@@ -2550,6 +2550,16 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                     .downcast_ref::<Clause>()
                     .expect("the comparison standard preserves Clause"),
             )?,
+            "PrepositionalPhrase" => self.renderer.prepositional_phrase(
+                value
+                    .downcast_ref::<PrepositionalPhrase>()
+                    .expect("the adjective complement preserves PrepositionalPhrase"),
+            )?,
+            "InfinitiveClause" => self.renderer.infinitive_clause(
+                value
+                    .downcast_ref::<InfinitiveClause>()
+                    .expect("the adjective complement preserves InfinitiveClause"),
+            )?,
             other => panic!("unexpected adjective subtree category `{other}`"),
         };
         self.push(&rendered);
@@ -4697,46 +4707,14 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn adjective_phrase(&self, phrase: &AdjectivePhrase) -> Result<String, RenderError> {
-        if let Some(rendered) = self.generated_adjective_phrase(phrase)? {
-            return Ok(rendered);
-        }
-        self.legacy_adjective_phrase(phrase)
-    }
-
-    fn generated_adjective_phrase(
-        &self,
-        phrase: &AdjectivePhrase,
-    ) -> Result<Option<String>, RenderError> {
         let mut visitor = GeneratedAdjectiveRenderer::new(self);
-        match crate::constructions::adjective::linearize_adjective_adjective_phrase_with(
-            phrase,
-            &mut visitor,
-        ) {
-            Ok(()) => Ok(Some(visitor.rendered)),
-            Err(
-                deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
-                    ..
-                },
-            ) if phrase.is_explicit_non_j01_compatibility() => Ok(None),
-            Err(deckmaste_construction_compiler::runtime::LinearizationError::Visitor(error)) => {
-                Err(error)
-            }
-            Err(_) => Err(RenderError::InvalidAdjectiveConstruction),
-        }
-    }
-
-    /// Compatibility renderer for adjective shapes outside the nine-row J01
-    /// declaration (prepositional and infinitival complements). Checked J01
-    /// values never reach this path.
-    fn legacy_adjective_phrase(&self, phrase: &AdjectivePhrase) -> Result<String, RenderError> {
-        let mut parts = adjective_degree(phrase.degree())
-            .into_iter()
-            .collect::<Vec<_>>();
-        parts.push(self.adjective_head(phrase.head())?);
-        for complement in phrase.complements() {
-            parts.push(self.adjective_complement(complement)?);
-        }
-        Ok(join_words(parts))
+        GeneratedAdjectiveRenderer::accept_generated(
+            crate::constructions::adjective::linearize_adjective_adjective_phrase_with(
+                phrase,
+                &mut visitor,
+            ),
+        )?;
+        Ok(visitor.rendered)
     }
 
     /// Renders a coordinated run of predicative adjective phrases, replaying
@@ -5865,10 +5843,6 @@ fn capitalize_first(text: String) -> String {
         return text;
     };
     first.to_uppercase().chain(characters).collect()
-}
-
-fn adjective_degree(degree: Option<&NumberLiteral>) -> Option<String> {
-    degree.map(|number| number.numeral.format(number.value))
 }
 
 #[cfg(test)]
@@ -7050,12 +7024,10 @@ mod tests {
                     Box::new(
                         AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Equal))
                             .and_then(|phrase| {
-                                phrase.try_attach_compatibility_complement(
-                                    AdjectiveComplement::Prepositional(
-                                        crate::constructions::prepositional::expect_prepositional_phrase(
-                                            Preposition::To,
-                                            Phrase::NounPhrase(Box::new(number)),
-                                        ),
+                                phrase.try_attach_declared_prepositional(
+                                    crate::constructions::prepositional::expect_prepositional_phrase(
+                                        Preposition::To,
+                                        Phrase::NounPhrase(Box::new(number)),
                                     ),
                                 )
                             })
@@ -7600,37 +7572,33 @@ mod tests {
     }
 
     #[test]
-    fn explicit_non_j01_adjective_complements_keep_read_compatibility() {
+    fn j01_renders_declared_prepositional_and_infinitival_complements() {
         let renderer = Renderer::new("Test Card", false);
-        let prepositional = AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Equal))
-            .and_then(|phrase| {
-                phrase.try_attach_compatibility_complement(AdjectiveComplement::Prepositional(
-                    crate::constructions::prepositional::expect_prepositional_phrase(
-                        Preposition::To,
-                        Phrase::NounPhrase(Box::new(NounPhrase::from_this_card_declaration(
-                            ThisCardForm::FullName,
-                        ))),
-                    ),
-                ))
-            })
-            .unwrap();
+        let prepositional = crate::adjective::build_adjective_phrase_prepositional(
+            crate::adjective::build_adjective_phrase(Adjective::Word(Vocab::Equal)).unwrap(),
+            crate::constructions::prepositional::expect_prepositional_phrase(
+                Preposition::To,
+                Phrase::NounPhrase(Box::new(NounPhrase::from_this_card_declaration(
+                    ThisCardForm::FullName,
+                ))),
+            ),
+        )
+        .unwrap();
         assert_eq!(
             renderer.adjective_phrase(&prepositional).unwrap(),
             "equal to Test Card"
         );
 
-        let infinitive = AdjectivePhrase::try_from_lexical_head(Adjective::Word(Vocab::Able))
-            .and_then(|phrase| {
-                phrase.try_attach_compatibility_complement(AdjectiveComplement::Infinitive(
-                    crate::clause::build_infinitive_to(&strict_predicate(verb_phrase(
-                        Vocab::Attack,
-                        VerbSlot::Infinitive,
-                        vec![],
-                    )))
-                    .unwrap(),
-                ))
-            })
-            .unwrap();
+        let infinitive = crate::adjective::build_adjective_phrase_infinitive(
+            crate::adjective::build_adjective_phrase(Adjective::Word(Vocab::Able)).unwrap(),
+            crate::clause::build_infinitive_to(&strict_predicate(verb_phrase(
+                Vocab::Attack,
+                VerbSlot::Infinitive,
+                vec![],
+            )))
+            .unwrap(),
+        )
+        .unwrap();
         assert_eq!(
             renderer.adjective_phrase(&infinitive).unwrap(),
             "able to attack"

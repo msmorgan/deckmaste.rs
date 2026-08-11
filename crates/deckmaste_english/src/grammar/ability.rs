@@ -4156,7 +4156,7 @@ mod tests {
         let projection_rejected =
             crate::prepositional_phrase::parts_prepositional_phrase(&compatibility).is_err();
 
-        let card = crate::nominal::build_nominal_noun(
+        let card = crate::constructions::nominal::build_nominal_noun(
             NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
         )
         .and_then(crate::noun_phrase::build_noun_phrase_nominal)

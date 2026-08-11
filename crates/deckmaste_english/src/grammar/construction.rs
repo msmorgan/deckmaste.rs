@@ -363,14 +363,14 @@ mod tests {
     }
 
     #[test]
-    fn production_j01_has_exactly_nine_generated_owners_without_dominance() {
+    fn production_j01_has_exactly_eleven_generated_owners_without_dominance() {
         let declarations = crate::constructions::adjective::ADJECTIVE_DECLARATION.constructions;
-        assert_eq!(declarations.len(), 9, "required J01 declarations");
+        assert_eq!(declarations.len(), 11, "required J01 declarations");
         let ids = declarations
             .iter()
             .map(|construction| ConstructionId::new(construction.id))
             .collect::<std::collections::BTreeSet<_>>();
-        assert_eq!(ids.len(), 9, "J01 IDs are unique");
+        assert_eq!(ids.len(), 11, "J01 IDs are unique");
 
         for construction in declarations {
             let id = ConstructionId::new(construction.id);
@@ -527,12 +527,12 @@ mod tests {
             })
             .count();
         assert_eq!(handwritten, 21, "handwritten chart families");
-        assert_eq!(generated, 171, "generated chart families");
-        assert_eq!(handwritten + generated, 192, "all chart families");
+        assert_eq!(generated, 173, "generated chart families");
+        assert_eq!(handwritten + generated, 194, "all chart families");
         assert_eq!(generated_ability, 3, "generated ability families");
         assert_eq!(
             families.len(),
-            195,
+            197,
             "all active families after the ability slice"
         );
 
@@ -550,7 +550,7 @@ mod tests {
         );
         assert_eq!(
             families.len() + ability_fragment_entries.len() - generated_ability,
-            195
+            197
         );
 
         for id in [

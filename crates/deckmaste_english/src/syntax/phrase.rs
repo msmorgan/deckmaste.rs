@@ -1027,7 +1027,6 @@ pub enum PartitiveHead {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct NominalPhraseCoordination {
-    #[serde(serialize_with = "super::legacy_serde::serialize_optional_noun_phrase_conjunction")]
     pub conjunction: Option<Conjunction>,
     pub phrase: NominalPhrase,
 }
@@ -1038,7 +1037,6 @@ pub struct NounPhraseCoordination {
     /// comma-separated interior members of an Oxford head list (`enchantment,`
     /// in `artifact, enchantment, or land`); `Some` on a bare `and`/`or`/`plus`
     /// member and on the final Oxford member.
-    #[serde(serialize_with = "super::legacy_serde::serialize_optional_noun_phrase_conjunction")]
     pub conjunction: Option<Conjunction>,
     pub phrase: NounPhrase,
 }
@@ -1263,7 +1261,6 @@ pub struct ModifierCoordination {
     /// The connective introducing this member: `None` on the asyndetic
     /// comma-separated members of an Oxford list (`artifact,` in `artifact,
     /// creature, and land`); `Some` on the final `and`/`or`/`and/or` member.
-    #[serde(serialize_with = "super::legacy_serde::serialize_optional_predicate_conjunction")]
     pub conjunction: Option<Conjunction>,
     pub modifier: NominalModifier,
 }
@@ -1273,6 +1270,7 @@ mod adjective_storage {
     use super::AdjectiveComparisonClass;
     use super::AdjectiveComplement;
     use super::CardOrientation;
+    use super::InfinitiveClause;
     use super::NumberLiteral;
     use super::Phrase;
     #[cfg(test)]
@@ -1454,25 +1452,33 @@ mod adjective_storage {
             Some((self, comparison))
         }
 
-        /// Extends only the explicit non-J01 compatibility family. Declared
-        /// degree, orientation, and comparison shapes cannot cross this seam.
+        /// Extends the J01 post-head complement family with a prepositional
+        /// complement. Degree, orientation, and comparison shapes cannot
+        /// cross this construction boundary.
         #[must_use]
-        pub(crate) fn try_attach_compatibility_complement(
+        pub(crate) fn try_attach_declared_prepositional(
             mut self,
-            complement: AdjectiveComplement,
+            preposition: PrepositionalPhrase,
         ) -> Option<Self> {
-            if self.degree.is_some()
-                || matches!(self.head, Adjective::CardOrientation(_))
-                || Vocabulary::new().render_adjective(&self.head).is_none()
-                || !self
-                    .complements
-                    .iter()
-                    .all(Self::is_compatibility_complement)
-                || !Self::is_compatibility_complement(&complement)
-            {
+            if !self.accepts_declared_posthead_complement() {
                 return None;
             }
-            self.complements.push(complement);
+            self.complements
+                .push(AdjectiveComplement::Prepositional(preposition));
+            Some(self)
+        }
+
+        /// Extends the J01 post-head complement family with an infinitive.
+        #[must_use]
+        pub(crate) fn try_attach_declared_infinitive(
+            mut self,
+            infinitive: InfinitiveClause,
+        ) -> Option<Self> {
+            if !self.accepts_declared_posthead_complement() {
+                return None;
+            }
+            self.complements
+                .push(AdjectiveComplement::Infinitive(infinitive));
             Some(self)
         }
 
@@ -1482,41 +1488,48 @@ mod adjective_storage {
             self,
             recovery: RecoveredText,
         ) -> Option<Self> {
-            self.try_attach_compatibility_complement(AdjectiveComplement::Prepositional(
+            self.try_attach_declared_prepositional(
                 PrepositionalPhrase::from_prepositional_declaration(
                     Preposition::With,
                     Phrase::Recovered(recovery),
                 ),
-            ))
+            )
         }
 
         #[must_use]
-        pub(crate) fn try_split_trailing_prepositional(
+        pub(crate) fn try_split_declared_prepositional(
             mut self,
         ) -> Option<(Self, PrepositionalPhrase)> {
-            if !self.is_explicit_non_j01_compatibility() {
-                return None;
-            }
             let Some(AdjectiveComplement::Prepositional(preposition)) = self.complements.pop()
             else {
                 return None;
             };
+            self.clone()
+                .try_attach_declared_prepositional(preposition.clone())?;
             Some((self, preposition))
         }
 
         #[must_use]
-        pub(crate) fn is_explicit_non_j01_compatibility(&self) -> bool {
+        pub(crate) fn try_split_declared_infinitive(mut self) -> Option<(Self, InfinitiveClause)> {
+            let Some(AdjectiveComplement::Infinitive(infinitive)) = self.complements.pop() else {
+                return None;
+            };
+            self.clone()
+                .try_attach_declared_infinitive(infinitive.clone())?;
+            Some((self, infinitive))
+        }
+
+        fn accepts_declared_posthead_complement(&self) -> bool {
             self.degree.is_none()
                 && !matches!(self.head, Adjective::CardOrientation(_))
                 && Vocabulary::new().render_adjective(&self.head).is_some()
-                && !self.complements.is_empty()
                 && self
                     .complements
                     .iter()
-                    .all(Self::is_compatibility_complement)
+                    .all(Self::is_declared_posthead_complement)
         }
 
-        const fn is_compatibility_complement(complement: &AdjectiveComplement) -> bool {
+        const fn is_declared_posthead_complement(complement: &AdjectiveComplement) -> bool {
             matches!(
                 complement,
                 AdjectiveComplement::Prepositional(_) | AdjectiveComplement::Infinitive(_)
@@ -1677,7 +1690,6 @@ pub struct AdjectivePhraseCoordination {
     /// `and`/`or`/`and/or` member and on the final Oxford member. The
     /// disjunctive-or-conjunctive `and/or` is admitted here because a supported
     /// copular witness (Glistening Deluge) attests it.
-    #[serde(serialize_with = "super::legacy_serde::serialize_optional_predicate_conjunction")]
     pub conjunction: Option<Conjunction>,
     pub phrase: AdjectivePhrase,
 }
@@ -1969,7 +1981,6 @@ impl CoordinatedPrepositionalPhrase {
 /// `non-` hyphen is derived rather than stored.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct PrepositionalPhraseCoordination {
-    #[serde(serialize_with = "super::legacy_serde::serialize_optional_noun_phrase_conjunction")]
     pub(crate) conjunction: Option<Conjunction>,
     pub(crate) phrase: SimplePrepositionalPhrase,
 }

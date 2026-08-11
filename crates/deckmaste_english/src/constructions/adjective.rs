@@ -12,9 +12,11 @@ use crate::syntax::AdjectivePhrase;
 use crate::syntax::Clause;
 use crate::syntax::ComparisonComplement;
 use crate::syntax::ComparisonMarker;
+use crate::syntax::InfinitiveClause;
 use crate::syntax::NounPhrase;
 use crate::syntax::NumberLiteral;
 use crate::syntax::Phrase;
+use crate::syntax::PrepositionalPhrase;
 use crate::word::Adjective;
 use crate::word::AdjectiveComparisonClass;
 use crate::word::CardOrientation;
@@ -123,6 +125,77 @@ fn adjective_phrase_head(value: &AdjectivePhrase) -> Adjective {
 
 fn is_base_adjective_phrase(value: &AdjectivePhrase) -> bool {
     value.degree().is_none() && value.complements().is_empty() && is_lexical_adjective(value.head())
+}
+
+fn make_adjective_phrase_prepositional(
+    owner: AdjectivePhrase,
+    preposition: PrepositionalPhrase,
+) -> Result<AdjectivePhrase, DeclarationViolation> {
+    owner
+        .try_attach_declared_prepositional(preposition)
+        .ok_or_else(|| {
+            violation(
+                "adjective_phrase_prepositional",
+                "the owner is a lexical adjective phrase with only declared post-head complements",
+            )
+        })
+}
+
+fn adjective_phrase_prepositional_parts(
+    value: &AdjectivePhrase,
+) -> (AdjectivePhrase, PrepositionalPhrase) {
+    value
+        .clone()
+        .try_split_declared_prepositional()
+        .expect("the prepositional dispatcher admits one checked trailing complement")
+}
+
+fn is_adjective_phrase_prepositional(value: &AdjectivePhrase) -> bool {
+    value.clone().try_split_declared_prepositional().is_some()
+}
+
+fn make_adjective_phrase_infinitive(
+    owner: AdjectivePhrase,
+    infinitive: InfinitiveClause,
+) -> Result<AdjectivePhrase, DeclarationViolation> {
+    owner
+        .try_attach_declared_infinitive(infinitive)
+        .ok_or_else(|| {
+            violation(
+                "adjective_phrase_infinitive",
+                "the owner is a lexical adjective phrase with only declared post-head complements",
+            )
+        })
+}
+
+fn adjective_phrase_infinitive_parts(
+    value: &AdjectivePhrase,
+) -> (AdjectivePhrase, InfinitiveClause) {
+    value
+        .clone()
+        .try_split_declared_infinitive()
+        .expect("the infinitive dispatcher admits one checked trailing complement")
+}
+
+fn is_adjective_phrase_infinitive(value: &AdjectivePhrase) -> bool {
+    value.clone().try_split_declared_infinitive().is_some()
+}
+
+fn reduce_posthead_features(owner: &Features, complement: &Features) -> Option<Features> {
+    let projection = feature_projection(owner)?;
+    if projection.card_orientation
+        || matches!(
+            projection.comparison,
+            AdjectiveComparisonState::Complete | AdjectiveComparisonState::Measured
+        )
+        || !matches!(
+            complement,
+            Features::PrepositionalPhrase { .. } | Features::InfinitiveClause
+        )
+    {
+        return None;
+    }
+    Some(owner.clone())
 }
 
 fn orientation_phrase(orientation: CardOrientation) -> AdjectivePhrase {
@@ -501,6 +574,26 @@ deckmaste_constructions_macro::constructions! {
         form only @ 0 inverse check(is_adjective_phrase_degree_measure) = lex(measure) adjective;
         selection unique;
     }
+
+    internal construction adjective_phrase_prepositional: AdjectivePhrase {
+        bind AdjectivePhrase via make_adjective_phrase_prepositional, adjective_phrase_prepositional_parts {
+            owner: hole AdjectivePhrase,
+            preposition: hole PrepositionalPhrase,
+        }
+        derive features: Features = reduce_posthead_features(owner, preposition);
+        form only @ 0 inverse check(is_adjective_phrase_prepositional) = owner preposition;
+        selection unique;
+    }
+
+    internal construction adjective_phrase_infinitive: AdjectivePhrase {
+        bind AdjectivePhrase via make_adjective_phrase_infinitive, adjective_phrase_infinitive_parts {
+            owner: hole AdjectivePhrase,
+            infinitive: hole InfinitiveClause,
+        }
+        derive features: Features = reduce_posthead_features(owner, infinitive);
+        form only @ 0 inverse check(is_adjective_phrase_infinitive) = owner infinitive;
+        selection unique;
+    }
 }
 
 pub(crate) static GROUPS: &[&GroupData] = &[&ADJECTIVE_DECLARATION];
@@ -540,6 +633,8 @@ mod tests {
         "comparison_than_or_equal_to",
         "adjective_phrase_comparison",
         "adjective_phrase_degree_measure",
+        "adjective_phrase_prepositional",
+        "adjective_phrase_infinitive",
     ];
 
     const WRONG_COMPARISON_CLASS: &str = "WRONG_COMPARISON_CLASS";
@@ -782,7 +877,7 @@ mod tests {
     }
 
     #[test]
-    fn all_nine_rows_build_project_and_rebuild_their_exact_values() {
+    fn all_eleven_rows_build_project_and_rebuild_their_exact_values() {
         let actual = GROUPS[0]
             .constructions
             .iter()
@@ -819,6 +914,54 @@ mod tests {
         assert_eq!(
             build_adjective_phrase_face_down().unwrap(),
             orientation_phrase(CardOrientation::FaceDown)
+        );
+
+        let preposition = crate::constructions::prepositional::expect_prepositional_phrase(
+            crate::syntax::Preposition::With,
+            Phrase::NounPhrase(Box::new(
+                crate::syntax::NounPhrase::from_this_card_declaration(
+                    crate::syntax::ThisCardForm::FullName,
+                ),
+            )),
+        );
+        let prepositional = build_adjective_phrase_prepositional(
+            build_adjective_phrase(Adjective::Word(Vocab::Able)).unwrap(),
+            preposition,
+        )
+        .unwrap();
+        let (owner, preposition) = parts_adjective_phrase_prepositional(&prepositional);
+        assert_eq!(
+            build_adjective_phrase_prepositional(owner, preposition).unwrap(),
+            prepositional,
+        );
+
+        let infinitive = crate::grammar::parse_nonterminal_with_activation(
+            "to attack",
+            &Catalogs::default(),
+            crate::grammar::Nonterminal::InfinitiveClause,
+            crate::grammar::GeneratedActivation::Production,
+        )
+        .expect("the production grammar supplies a representative infinitive")
+        .infinitive_clause()
+        .expect("the representative lowers as an infinitive")
+        .clone();
+        let chain = build_adjective_phrase_infinitive(prepositional.clone(), infinitive).unwrap();
+        let (owner, infinitive) = parts_adjective_phrase_infinitive(&chain);
+        assert_eq!(owner, prepositional);
+        assert_eq!(
+            build_adjective_phrase_infinitive(owner, infinitive).unwrap(),
+            chain,
+        );
+        assert_eq!(
+            crate::renderer::render_generated_adjective_phrase_law(&chain)
+                .unwrap()
+                .forms,
+            [
+                ("adjective_phrase_infinitive", 0),
+                ("adjective_phrase_prepositional", 0),
+                ("adjective_phrase", 0),
+                ("adjective", 0),
+            ],
         );
     }
 

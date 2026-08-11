@@ -669,10 +669,24 @@ fn category_nonterminal(
     construction: &'static ConstructionData,
     category: &'static str,
 ) -> Result<Nonterminal, GeneratedAssemblyError> {
+    // An internal construction may deliberately share an engine category's
+    // name to contribute checked build/projection/inverse ownership without
+    // widening that public chart category. Only its self-reference belongs
+    // to the internal category; ordinary holes in every other construction
+    // must continue to predict the engine nonterminal.
+    if construction.internal
+        && construction.category == category
+        && let Some(&id) = cats.get(category)
+    {
+        return Ok(Nonterminal::Generated(id));
+    }
+    if let Some(engine) = engine_category(category) {
+        return Ok(engine);
+    }
     if let Some(&id) = cats.get(category) {
         return Ok(Nonterminal::Generated(id));
     }
-    engine_category(category).ok_or(GeneratedAssemblyError::UnknownCategory {
+    Err(GeneratedAssemblyError::UnknownCategory {
         construction: construction.id,
         category,
     })

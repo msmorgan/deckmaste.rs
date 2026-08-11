@@ -10,11 +10,11 @@
 // (`crates/deckmaste_core/src/filter.rs`) are the exact pairing
 // `OtherCreatureYouControl.ron`/`CreatureOpponentControls.ron` already use.
 //
-// The frame `<Param(0)> you control` claims the nominal's `complements`
-// field (the frame's own "you control"), leaving the hole with
-// `modifiers`+`head` — the mirror image of `target <Param(0)>` (frame
-// claims `determiner`, hole takes the rest). See `field_slice()` in
-// `crates/deckmaste_spelling/src/compile.rs`.
+// In `<Param(0)> you control`, the hole aligns with M01's recursive
+// `nominal` role while the surrounding relative complement remains frame
+// material. `target <Param(0)>` uses the same named role beneath its
+// determiner construction; neither frame depends on NominalPhrase storage
+// fields.
 //
 // Named distinctly from the existing `Condition`-kind `YouControl`
 // (`plugins/builtin/macros/condition/YouControl.ron`, "you control ${0}",

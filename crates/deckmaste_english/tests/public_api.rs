@@ -712,39 +712,25 @@ fn public_noun_phrase_facade_builds_projects_and_renders_all_p01_shapes() {
 }
 
 #[test]
-fn public_adjective_facade_builds_projects_rebuilds_and_renders_every_shape() {
+fn public_adjective_builders_preserve_semantic_shapes_and_rendering() {
     use deckmaste_english::adjective as adjective_api;
 
     let target = adjective_api::build_adjective(Adjective::Word(Vocab::Target)).unwrap();
-    assert_eq!(adjective_api::parts_adjective(&target), target);
-
     let target_phrase = adjective_api::build_adjective_phrase(target.clone()).unwrap();
     assert_eq!(target_phrase.degree(), None);
     assert_eq!(target_phrase.head(), &target);
     assert!(target_phrase.complements().is_empty());
-    assert_eq!(
-        adjective_api::build_adjective_phrase(adjective_api::parts_adjective_phrase(
-            &target_phrase,
-        ))
-        .unwrap(),
-        target_phrase,
-    );
 
-    for (build, parts, expected) in [
+    for (phrase, expected) in [
         (
-            adjective_api::build_adjective_phrase_face_up as fn() -> Result<_, _>,
-            adjective_api::parts_adjective_phrase_face_up as fn(&AdjectivePhrase),
+            adjective_api::build_adjective_phrase_face_up().unwrap(),
             "face up",
         ),
         (
-            adjective_api::build_adjective_phrase_face_down,
-            adjective_api::parts_adjective_phrase_face_down,
+            adjective_api::build_adjective_phrase_face_down().unwrap(),
             "face down",
         ),
     ] {
-        let phrase = build().unwrap();
-        parts(&phrase);
-        assert_eq!(build().unwrap(), phrase);
         assert_eq!(
             adjective_api::render(&phrase, "Test Card", false).unwrap(),
             expected
@@ -782,42 +768,32 @@ fn public_adjective_facade_builds_projects_rebuilds_and_renders_every_shape() {
         )
         .unwrap(),
     ];
-    for standard in &standards {
-        let parts = adjective_api::parts_comparison_standard(standard);
-        assert_eq!(
-            adjective_api::build_comparison_standard(parts.0, parts.1, parts.2).unwrap(),
-            *standard,
-        );
-    }
+    assert!(matches!(standards[0], Phrase::NounPhrase(_)));
+    assert!(matches!(standards[1], Phrase::AdjectivePhrase(_)));
+    assert!(matches!(standards[2], Phrase::Clause(_)));
 
     let greater =
         || adjective_api::build_adjective_phrase(Adjective::Word(Vocab::Greater)).unwrap();
-    for (build, parts, marker, expected) in [
+    for (comparison, marker, expected) in [
         (
-            adjective_api::build_comparison_than as fn(Phrase) -> Result<_, _>,
-            adjective_api::parts_comparison_than as fn(&ComparisonComplement) -> Phrase,
+            adjective_api::build_comparison_than(standards[1].clone()).unwrap(),
             ComparisonMarker::Than,
             "greater than target",
         ),
         (
-            adjective_api::build_comparison_than_or_equal_to,
-            adjective_api::parts_comparison_than_or_equal_to,
+            adjective_api::build_comparison_than_or_equal_to(standards[1].clone()).unwrap(),
             ComparisonMarker::ThanOrEqualTo,
             "greater than or equal to target",
         ),
     ] {
-        let comparison = build(standards[1].clone()).unwrap();
         assert_eq!(comparison.marker(), marker);
         assert_eq!(comparison.standard(), &standards[1]);
-        assert_eq!(build(parts(&comparison)).unwrap(), comparison);
-
         let phrase = adjective_api::build_adjective_phrase_comparison(greater(), comparison)
             .expect("a matching pending comparative accepts its standard");
-        let (owner, comparison) = adjective_api::parts_adjective_phrase_comparison(&phrase);
-        assert_eq!(
-            adjective_api::build_adjective_phrase_comparison(owner, comparison).unwrap(),
-            phrase,
-        );
+        assert!(matches!(
+            phrase.complements(),
+            [AdjectiveComplement::Comparison(comparison)] if comparison.marker() == marker
+        ));
         assert_eq!(
             adjective_api::render(&phrase, "Test Card", false).unwrap(),
             expected
@@ -828,21 +804,66 @@ fn public_adjective_facade_builds_projects_rebuilds_and_renders_every_shape() {
         (Numeral::Arabic(false), "2 greater"),
         (Numeral::Cardinal, "two greater"),
     ] {
+        let measure = NumberLiteral { value: 2, numeral };
         let phrase = adjective_api::build_adjective_phrase_degree_measure(
-            NumberLiteral { value: 2, numeral },
+            measure,
             Adjective::Word(Vocab::Greater),
         )
         .unwrap();
-        let (measure, head) = adjective_api::parts_adjective_phrase_degree_measure(&phrase);
-        assert_eq!(
-            adjective_api::build_adjective_phrase_degree_measure(measure, head).unwrap(),
-            phrase,
-        );
+        assert_eq!(phrase.degree(), Some(&measure));
+        assert_eq!(phrase.head(), &Adjective::Word(Vocab::Greater));
         assert_eq!(
             adjective_api::render(&phrase, "Test Card", false).unwrap(),
             expected
         );
     }
+}
+
+#[test]
+fn public_adjective_posthead_builders_preserve_semantics_and_rendering() {
+    use deckmaste_english::adjective as adjective_api;
+    use deckmaste_english::predicate as predicate_api;
+
+    let prepositional = adjective_api::build_adjective_phrase_prepositional(
+        adjective_api::build_adjective_phrase(Adjective::Word(Vocab::Equal)).unwrap(),
+        checked_prepositional_phrase(
+            Preposition::To,
+            Phrase::NounPhrase(Box::new(this_card_noun_phrase(ThisCardForm::FullName))),
+        ),
+    )
+    .unwrap();
+    assert!(matches!(
+        prepositional.complements(),
+        [AdjectiveComplement::Prepositional(_)]
+    ));
+    assert_eq!(
+        adjective_api::render(&prepositional, "Test Card", false).unwrap(),
+        "equal to Test Card"
+    );
+
+    let attacking = predicate_api::build_predicate_verb(
+        VerbInstance {
+            verb: Verb::Word(Vocab::Attack),
+            slot: VerbSlot::Infinitive,
+        },
+        predicate_api::PredicateFrameChoice::Intransitive,
+    )
+    .and_then(predicate_api::finish_predicate)
+    .unwrap();
+    let infinitive = deckmaste_english::clause::build_infinitive_to(&attacking).unwrap();
+    let able = adjective_api::build_adjective_phrase_infinitive(
+        adjective_api::build_adjective_phrase(Adjective::Word(Vocab::Able)).unwrap(),
+        infinitive,
+    )
+    .unwrap();
+    assert!(matches!(
+        able.complements(),
+        [AdjectiveComplement::Infinitive(_)]
+    ));
+    assert_eq!(
+        adjective_api::render(&able, "Test Card", false).unwrap(),
+        "able to attack"
+    );
 
     for measure in [
         NumberLiteral {
@@ -864,7 +885,7 @@ fn public_adjective_facade_builds_projects_rebuilds_and_renders_every_shape() {
                 Adjective::Word(Vocab::Greater),
             )
             .is_err(),
-            "the public facade admitted non-degree notation {measure:?}",
+            "the public builder admitted non-degree notation {measure:?}",
         );
     }
 }
@@ -2361,9 +2382,11 @@ fn public_nominal_consumer_validates_every_coordinated_pp_member() {
     );
     let attached = nominal_api::build_nominal_prepositional(public_card_nominal(), legitimate)
         .expect("both coordinated members are nominal-attachment eligible");
-    let (_, attached_pp) = nominal_api::parts_nominal_prepositional(&attached);
+    let [NominalComplement::Prepositional(attached_pp)] = attached.complements() else {
+        panic!("the checked builder appends one prepositional complement")
+    };
     assert_eq!(
-        coordinated_prepositions(&attached_pp),
+        coordinated_prepositions(attached_pp),
         Some(vec![Preposition::With, Preposition::With]),
     );
 
@@ -2616,52 +2639,8 @@ fn public_nominal_phrase_has_a_complete_read_only_projection() {
 }
 
 #[test]
-fn public_nominal_construction_api_exposes_every_checked_m01_builder() {
+fn public_nominal_builders_preserve_semantic_shapes() {
     use deckmaste_english::nominal as nominal_api;
-
-    // This tuple is an external-crate visibility census of all 37 M01
-    // construction doors. Representative calls below then prove that the
-    // opaque staged types compose across the major nominal subfamilies.
-    let all_builders = (
-        nominal_api::build_nominal_noun,
-        nominal_api::build_nominal_adjective,
-        nominal_api::build_nominal_noun_modifier,
-        nominal_api::build_nominal_combat_step_name,
-        nominal_api::build_nominal_negated_modifier,
-        nominal_api::build_nominal_quantity_modifier,
-        nominal_api::build_nominal_power_toughness_modifier,
-        nominal_api::build_nominal_determiner,
-        nominal_api::build_nominal_prepositional,
-        nominal_api::build_nominal_infinitive,
-        nominal_api::build_nominal_quantity_complement,
-        nominal_api::build_nominal_keyword_symbol_argument,
-        nominal_api::build_predicated_quality_from,
-        nominal_api::build_predicated_argument_from_single,
-        nominal_api::build_predicated_argument_from_extend,
-        nominal_api::build_nominal_keyword_predicated_argument,
-        nominal_api::build_predicated_quality_bare,
-        nominal_api::build_predicated_argument_bare_single,
-        nominal_api::build_predicated_argument_bare_extend,
-        nominal_api::build_nominal_keyword_atom_carried_predicated_argument,
-        nominal_api::build_nominal_relative,
-        nominal_api::build_rules_object_nominal_base,
-        nominal_api::build_rules_object_followup_nominal_relative,
-        nominal_api::build_rules_object_followup_nominal_prepositional,
-        nominal_api::build_nominal_reduced_recipient_passive,
-        nominal_api::build_reduced_recipient_passive_theme,
-        nominal_api::build_reduced_recipient_passive_nominal_adjunct,
-        nominal_api::build_nominal_postpositive_adjective,
-        nominal_api::build_nominal_postpositive_adjective_conjoined_prepositional,
-        nominal_api::build_nominal_postpositive_adjective_conjoined,
-        nominal_api::build_nominal_postpositive_adjective_asyndetic,
-        nominal_api::build_nominal_postpositive_adjective_oxford,
-        nominal_api::build_nominal_comparison,
-        nominal_api::build_nominal_devotion,
-        nominal_api::build_devotion_color_single,
-        nominal_api::build_devotion_color_pair,
-        nominal_api::build_nominal_times_clause,
-    );
-    std::hint::black_box(all_builders);
 
     let card = nominal_api::build_nominal_noun(
         NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
@@ -2670,12 +2649,17 @@ fn public_nominal_construction_api_exposes_every_checked_m01_builder() {
     let red =
         deckmaste_english::adjective::build_adjective_phrase(Adjective::Color(ColorWord::Red))
             .unwrap();
-    let red_card = nominal_api::build_nominal_adjective(red, card.clone()).unwrap();
-    let (adjective, adjective_base) = nominal_api::parts_nominal_adjective(&red_card);
-    assert_eq!(
-        nominal_api::build_nominal_adjective(adjective, adjective_base).unwrap(),
-        red_card,
-    );
+    let red_card = nominal_api::build_nominal_adjective(red.clone(), card.clone()).unwrap();
+    assert_eq!(red_card.determiner(), None);
+    assert!(matches!(
+        red_card.modifiers(),
+        [NominalModifier::Adjective {
+            polarity: Polarity::Positive,
+            phrase,
+        }] if phrase == &red
+    ));
+    assert_eq!(red_card.head(), card.head());
+    assert!(red_card.complements().is_empty());
 
     let parsed_pp = parse_fragment(
         "card in a graveyard",
@@ -2692,11 +2676,14 @@ fn public_nominal_construction_api_exposes_every_checked_m01_builder() {
     let NounPhraseKind::Nominal(parsed_pp) = parsed_pp.kind() else {
         panic!("fixture is a nominal noun phrase");
     };
-    let (base, preposition) = nominal_api::parts_nominal_prepositional(parsed_pp);
-    assert_eq!(
-        nominal_api::build_nominal_prepositional(base, preposition).unwrap(),
-        parsed_pp.clone(),
-    );
+    let [NominalComplement::Prepositional(preposition)] = parsed_pp.complements() else {
+        panic!("the parsed nominal carries one prepositional complement")
+    };
+    assert!(matches!(
+        preposition.kind(),
+        PrepositionalPhraseKind::Simple(simple)
+            if simple.preposition() == Preposition::In
+    ));
 
     let rules_object = nominal_api::build_rules_object_nominal_base(card.clone()).unwrap();
     assert_eq!(rules_object.as_nominal(), &card);
@@ -2710,12 +2697,13 @@ fn public_nominal_construction_api_exposes_every_checked_m01_builder() {
     let quality =
         nominal_api::build_predicated_quality_from(Preposition::From, Some(ColorWord::Red), None)
             .unwrap();
-    let argument = nominal_api::build_predicated_argument_from_single(quality).unwrap();
-    let quality = nominal_api::parts_predicated_argument_from_single(&argument);
-    assert_eq!(
-        nominal_api::build_predicated_argument_from_single(quality).unwrap(),
-        argument,
-    );
+    let argument = nominal_api::build_predicated_argument_from_single(quality.clone()).unwrap();
+    assert_eq!(argument.qualities, vec![quality]);
+    assert_eq!(argument.qualities[0].preposition, Some(Preposition::From));
+    assert!(matches!(
+        argument.qualities[0].quality,
+        Phrase::ColorWord(ColorWord::Red)
+    ));
 
     let colors = nominal_api::build_devotion_color_pair(
         ColorWord::White,
@@ -2724,12 +2712,8 @@ fn public_nominal_construction_api_exposes_every_checked_m01_builder() {
     )
     .unwrap();
     assert_eq!(
-        nominal_api::parts_devotion_color_pair(&colors),
-        (
-            ColorWord::White,
-            deckmaste_english::features::Conjunction::And,
-            ColorWord::Black,
-        ),
+        colors,
+        DevotionColors::Pair(ColorWord::White, ColorWord::Black)
     );
 
     let sentence = parse_fragment(
@@ -2747,16 +2731,15 @@ fn public_nominal_construction_api_exposes_every_checked_m01_builder() {
     let SentenceBody::Independent(clause) = sentence.body() else {
         panic!("fixture has an independent clause");
     };
-    let times = nominal_api::build_nominal_times_clause(
-        NounInstance::try_plural(Noun::Word(Vocab::Time)).unwrap(),
-        Box::new(clause.clone()),
-    )
-    .unwrap();
-    let (head, clause) = nominal_api::parts_nominal_times_clause(&times);
-    assert_eq!(
-        nominal_api::build_nominal_times_clause(head, clause).unwrap(),
-        times,
-    );
+    let times_head = NounInstance::try_plural(Noun::Word(Vocab::Time)).unwrap();
+    let times =
+        nominal_api::build_nominal_times_clause(times_head.clone(), Box::new(clause.clone()))
+            .unwrap();
+    assert_eq!(times.head(), &times_head);
+    assert!(matches!(
+        times.complements(),
+        [NominalComplement::EventClause(event)] if event.as_ref() == clause
+    ));
 }
 
 #[test]
@@ -2924,11 +2907,6 @@ fn feature_vocabulary() {
 
     let gap: deckmaste_english::syntax::RelativeGap = deckmaste_english::features::GapState::Object;
     let _: deckmaste_english::features::GapState = gap;
-
-    let canonical: deckmaste_english::features::Conjunction =
-        deckmaste_english::syntax::PredicateConjunction::And;
-    let nominal: deckmaste_english::syntax::NounPhraseConjunction = canonical;
-    assert_eq!(nominal, deckmaste_english::features::Conjunction::And);
 }
 
 #[test]
