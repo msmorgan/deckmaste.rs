@@ -1108,12 +1108,17 @@ impl ProjectionSink for ProjectionCollector {
 #[cfg(test)]
 mod tests {
     use deckmaste_construction_compiler::runtime::ConstructionProjection;
+    use deckmaste_construction_compiler::runtime::ProjectedAtom;
     use deckmaste_construction_compiler::runtime::ProjectedValue;
 
     use crate::CatalogKind;
     use crate::Catalogs;
+    use crate::Fragment;
     use crate::FragmentKind;
+    use crate::features::Number;
     use crate::parse_fragment;
+    use crate::syntax::NounPhraseKind;
+    use crate::syntax::ThisCardForm;
 
     fn collect_constructions<'a>(
         projection: &'a ConstructionProjection,
@@ -1145,6 +1150,29 @@ mod tests {
             }
             ProjectedValue::Atom(_) | ProjectedValue::Optional(None) => {}
         }
+    }
+
+    fn required_construction_role<'a>(
+        projection: &'a ConstructionProjection,
+        role: &str,
+    ) -> &'a ConstructionProjection {
+        let Some(ProjectedValue::Construction(value)) = projection.roles.get(role) else {
+            panic!("expected required construction role {role:?}: {projection:#?}");
+        };
+        value
+    }
+
+    fn optional_construction_role<'a>(
+        projection: &'a ConstructionProjection,
+        role: &str,
+    ) -> &'a ConstructionProjection {
+        let Some(ProjectedValue::Optional(Some(value))) = projection.roles.get(role) else {
+            panic!("expected present optional role {role:?}: {projection:#?}");
+        };
+        let ProjectedValue::Construction(value) = value.as_ref() else {
+            panic!("expected optional construction role {role:?}: {projection:#?}");
+        };
+        value
     }
 
     #[test]
@@ -1222,5 +1250,150 @@ mod tests {
                 "flat_noun_instance" | "flat_noun"
             )
         }));
+    }
+
+    #[test]
+    fn direct_p01_special_forms_project_their_semantic_roles() {
+        let catalogs = Catalogs::default();
+        let possessive_report = parse_fragment(
+            "Nissa's",
+            &catalogs,
+            FragmentKind::Nominal,
+            "Nissa Revane",
+            true,
+        );
+        assert!(
+            possessive_report.clean(),
+            "{:?}",
+            possessive_report.diagnostics()
+        );
+        let possessive_fragment = possessive_report.fragment().expect("clean fragment");
+        let Fragment::Nominal(possessive) = possessive_fragment else {
+            panic!("nominal fragment changed category: {possessive_fragment:#?}");
+        };
+        assert!(matches!(
+            possessive.kind(),
+            NounPhraseKind::PossessiveThisCard(ThisCardForm::AbbreviatedName)
+        ));
+        let possessive_projection = super::project_fragment(possessive_fragment)
+            .expect("direct possessive self-reference projects");
+        assert_eq!(
+            (
+                possessive_projection.category,
+                possessive_projection.construction,
+                possessive_projection.form,
+                possessive_projection.ordinal,
+            ),
+            ("NounPhrase", "noun_phrase_possessive_this_card", "only", 0,)
+        );
+        let Some(ProjectedValue::Atom(ProjectedAtom::Identity {
+            provider,
+            value_type,
+            value,
+        })) = possessive_projection.roles.get("form")
+        else {
+            panic!("possessive form lost its typed identity: {possessive_projection:#?}");
+        };
+        assert_eq!(
+            (*provider, *value_type),
+            ("PossessiveThisCard", "ThisCardForm")
+        );
+        assert_eq!(
+            value.downcast_ref::<ThisCardForm>(),
+            Some(&ThisCardForm::AbbreviatedName)
+        );
+
+        let any_number_report = parse_fragment(
+            "any number of target players",
+            &catalogs,
+            FragmentKind::Nominal,
+            "",
+            false,
+        );
+        assert!(
+            any_number_report.clean(),
+            "{:?}",
+            any_number_report.diagnostics()
+        );
+        let any_number_fragment = any_number_report.fragment().expect("clean fragment");
+        let Fragment::Nominal(any_number) = any_number_fragment else {
+            panic!("nominal fragment changed category: {any_number_fragment:#?}");
+        };
+        let NounPhraseKind::AnyNumberOf(value) = any_number.kind() else {
+            panic!("any-number phrase reconstructed a nominal spine: {any_number:#?}");
+        };
+        assert_eq!(value.plurality(), Number::Plural);
+        let any_number_projection = super::project_fragment(any_number_fragment)
+            .expect("direct any-number phrase projects");
+        assert_eq!(
+            (
+                any_number_projection.category,
+                any_number_projection.construction,
+                any_number_projection.form,
+                any_number_projection.ordinal,
+            ),
+            ("NounPhrase", "noun_phrase_any_number_of", "only", 0,)
+        );
+        assert_eq!(any_number_projection.literals, ["any", "number", "of"]);
+        assert_eq!(
+            any_number_projection
+                .roles
+                .keys()
+                .copied()
+                .collect::<Vec<_>>(),
+            ["whole"]
+        );
+        let whole = required_construction_role(&any_number_projection, "whole");
+        assert_eq!(whole.category, "NounPhrase");
+    }
+
+    #[test]
+    fn nested_p02_projection_preserves_each_typed_object_boundary() {
+        let report = parse_fragment(
+            "cards from among them",
+            &Catalogs::default(),
+            FragmentKind::Nominal,
+            "",
+            false,
+        );
+        assert!(report.clean(), "{:?}", report.diagnostics());
+        let projection = super::project_fragment(report.fragment().expect("clean fragment"))
+            .expect("nested typed prepositional objects project");
+        let mut constructions = Vec::new();
+        collect_constructions(&projection, &mut constructions);
+        let objects = constructions
+            .into_iter()
+            .filter(|projection| projection.construction == "prepositional_object")
+            .collect::<Vec<_>>();
+        assert_eq!(objects.len(), 2, "{projection:#?}");
+
+        let outer = objects
+            .iter()
+            .copied()
+            .find(|projection| projection.form == "prepositional_phrase")
+            .expect("outer object retains its nested-PP alternative");
+        assert_eq!(outer.ordinal, 1);
+        assert_eq!(
+            outer.roles.keys().copied().collect::<Vec<_>>(),
+            ["prepositional_phrase"]
+        );
+        let nested = optional_construction_role(outer, "prepositional_phrase");
+        assert_eq!(
+            (nested.category, nested.construction),
+            ("PrepositionalPhrase", "prepositional_phrase")
+        );
+
+        let inner = objects
+            .iter()
+            .copied()
+            .find(|projection| projection.form == "noun_phrase")
+            .expect("inner object retains its noun-phrase alternative");
+        assert_eq!(inner.ordinal, 0);
+        assert_eq!(
+            inner.roles.keys().copied().collect::<Vec<_>>(),
+            ["noun_phrase"]
+        );
+        let noun_phrase = optional_construction_role(inner, "noun_phrase");
+        assert_eq!(noun_phrase.category, "NounPhrase");
     }
 }

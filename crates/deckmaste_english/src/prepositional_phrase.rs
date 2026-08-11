@@ -1,53 +1,23 @@
-//! Checked prepositional-phrase construction, projection, and rendering.
+//! Checked prepositional-phrase construction, semantic inspection, and
+//! rendering.
 
 use deckmaste_construction_compiler::runtime::DeclarationViolation;
 
 use crate::RenderError;
-pub use crate::constructions::prepositional::PrepositionalObject;
-pub use crate::constructions::prepositional::PrepositionalObjectKind;
 use crate::features::Conjunction;
-use crate::syntax::Clause;
-use crate::syntax::DependentClause;
 use crate::syntax::GerundClause;
 use crate::syntax::NounPhrase;
-use crate::syntax::Phrase;
 use crate::syntax::Preposition;
+pub use crate::syntax::PrepositionalObject;
+pub use crate::syntax::PrepositionalObjectKind;
 use crate::syntax::PrepositionalPhrase;
 use crate::syntax::PrepositionalPhraseCoordination;
-use crate::syntax::PrepositionalPhraseKind;
 use crate::word::Vocab;
 
 fn violation(construction: &'static str, requirement: &'static str) -> DeclarationViolation {
     DeclarationViolation {
         construction,
         requirement,
-    }
-}
-
-/// Builds a checked P02 prepositional object from a legacy whole [`Phrase`].
-///
-/// # Errors
-///
-/// Returns a declaration violation unless `value` is a noun phrase, nested
-/// prepositional phrase, gerund clause, or adverb.
-pub fn build_prepositional_object(
-    value: Phrase,
-) -> Result<PrepositionalObject, DeclarationViolation> {
-    match value {
-        Phrase::NounPhrase(value) => build_prepositional_object_noun_phrase(*value),
-        Phrase::PrepositionalPhrase(value) => {
-            build_prepositional_object_prepositional_phrase(*value)
-        }
-        Phrase::Clause(value) => match *value {
-            Clause::Dependent(DependentClause::Gerund(value)) => {
-                build_prepositional_object_gerund_clause(value)
-            }
-            value => crate::constructions::prepositional::build_prepositional_object_from_phrase(
-                Phrase::Clause(Box::new(value)),
-            ),
-        },
-        Phrase::Adverb(value) => build_prepositional_object_adverb(value),
-        value => crate::constructions::prepositional::build_prepositional_object_from_phrase(value),
     }
 }
 
@@ -67,8 +37,8 @@ pub fn build_prepositional_object_noun_phrase(
 ///
 /// # Errors
 ///
-/// Returns a declaration violation if `value` contains an object not
-/// recursively admitted by P02.
+/// Returns a declaration violation if the typed nested phrase fails P02's
+/// construction constraints.
 pub fn build_prepositional_object_prepositional_phrase(
     value: PrepositionalPhrase,
 ) -> Result<PrepositionalObject, DeclarationViolation> {
@@ -99,12 +69,6 @@ pub fn build_prepositional_object_adverb(
     crate::constructions::prepositional::build_prepositional_object(None, None, None, Some(value))
 }
 
-/// Returns a checked P02 object's borrowed typed alternative.
-#[must_use]
-pub fn parts_prepositional_object(value: &PrepositionalObject) -> PrepositionalObjectKind<'_> {
-    value.kind()
-}
-
 /// Builds a simple P02 prepositional phrase.
 ///
 /// # Errors
@@ -118,50 +82,17 @@ pub fn build_prepositional_phrase(
     crate::constructions::prepositional::build_prepositional_phrase(preposition, object)
 }
 
-/// Returns a simple P02 phrase's owned declaration parts.
-///
-/// # Errors
-///
-/// Returns a declaration violation if `value` is coordinated or its object is
-/// not admitted by P02. The latter includes the ability-owned quoted `with`
-/// compatibility relation.
-pub fn parts_prepositional_phrase(
-    value: &PrepositionalPhrase,
-) -> Result<(Preposition, PrepositionalObject), DeclarationViolation> {
-    let PrepositionalPhraseKind::Simple(value) = value.kind() else {
-        return Err(violation(
-            "prepositional_phrase",
-            "the projected value is one simple P02 phrase",
-        ));
-    };
-    let object = crate::constructions::prepositional::build_prepositional_object_from_phrase(
-        value.object().clone(),
-    )?;
-    Ok((value.preposition(), object))
-}
-
 /// Builds a complete C01 sibling coordination from checked simple P02 members.
 ///
 /// # Errors
 ///
-/// Returns a declaration violation if any member is not recursively admitted
-/// by P02 or is already coordinated, if there is no remaining member, if a
-/// nonfinal member has a conjunction, or if the final conjunction is not
-/// nominal.
+/// Returns a declaration violation if any member is already coordinated, if
+/// there is no remaining member, if a nonfinal member has a conjunction, or
+/// if the final conjunction is not nominal.
 pub fn build_prepositional_phrase_coordination(
     first: PrepositionalPhrase,
     rest: Vec<(Option<Conjunction>, PrepositionalPhrase)>,
 ) -> Result<PrepositionalPhrase, DeclarationViolation> {
-    if !crate::constructions::prepositional::is_supported_prepositional_phrase(&first)
-        || rest.iter().any(|(_, phrase)| {
-            !crate::constructions::prepositional::is_supported_prepositional_phrase(phrase)
-        })
-    {
-        return Err(violation(
-            "prepositional_phrase_sibling_coordinated",
-            "every member is recursively admitted by P02",
-        ));
-    }
     let Some(first) = first.into_simple() else {
         return Err(violation(
             "prepositional_phrase_sibling_coordinated",
@@ -201,43 +132,6 @@ pub fn build_prepositional_phrase_coordination(
         })
         .collect::<Result<Vec<_>, _>>()?;
     Ok(PrepositionalPhrase::coordinated(first, rest))
-}
-
-/// Returns a C01 sibling coordination's owned checked phrase members.
-///
-/// # Panics
-///
-/// Panics when `value` is a simple P02 phrase rather than a C01 coordination.
-#[must_use]
-pub fn parts_prepositional_phrase_coordination(
-    value: &PrepositionalPhrase,
-) -> (
-    PrepositionalPhrase,
-    Vec<(Option<Conjunction>, PrepositionalPhrase)>,
-) {
-    let PrepositionalPhraseKind::Coordinated(value) = value.kind() else {
-        panic!("prepositional_phrase_sibling_coordinated admits only Coordinated")
-    };
-    let first = crate::constructions::prepositional::build_prepositional_phrase_from_phrase(
-        value.first().preposition(),
-        value.first().object().clone(),
-    )
-    .expect("a coordinated member remains a checked simple phrase");
-    let rest = value
-        .rest()
-        .iter()
-        .map(|member| {
-            (
-                member.conjunction(),
-                crate::constructions::prepositional::build_prepositional_phrase_from_phrase(
-                    member.phrase().preposition(),
-                    member.phrase().object().clone(),
-                )
-                .expect("a coordinated member remains a checked simple phrase"),
-            )
-        })
-        .collect();
-    (first, rest)
 }
 
 /// Renders a checked simple or coordinated prepositional phrase.

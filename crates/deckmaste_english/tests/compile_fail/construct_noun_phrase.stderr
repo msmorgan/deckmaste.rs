@@ -1,10 +1,26 @@
-error[E0624]: associated function `Quantity` is private
- --> tests/compile_fail/construct_noun_phrase.rs:5:17
+error[E0423]: cannot initialize a tuple struct which contains private fields
+ --> tests/compile_fail/construct_noun_phrase.rs:5:5
   |
-5 |     NounPhrase::Quantity(quantity)
-  |                 ^^^^^^^^ private associated function
+5 |     NounPhrase(kind)
+  |     ^^^^^^^^^^
   |
- ::: src/syntax/phrase.rs
+note: constructor is not visible here due to private fields
+ --> src/syntax/phrase.rs
   |
-  |     pub(crate) const fn Quantity(value: Quantity) -> Self {
-  |     ----------------------------------------------------- private associated function defined here
+  | pub struct NounPhrase(NounPhraseKind);
+  |                       ^^^^^^^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+  |
+5 -     NounPhrase(kind)
+5 +     NounPhrase::from_pronoun_declaration(_, _)
+  |
+5 -     NounPhrase(kind)
+5 +     NounPhrase::from_nominal_declaration(_)
+  |
+5 -     NounPhrase(kind)
+5 +     NounPhrase::from_possessive_this_card_declaration(_)
+  |
+5 -     NounPhrase(kind)
+5 +     NounPhrase::from_demonstrative_declaration(_)
+  |
+  = and 8 other candidates

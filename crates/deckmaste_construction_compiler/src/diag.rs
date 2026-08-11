@@ -63,7 +63,7 @@ pub enum DiagCode {
     DuplicateOrdinal,
     UnknownElement,
     DuplicateName,
-    DeserializeRequiresOwn,
+    SerdeRequiresOwn,
     GeneratedNameCollision,
     BoundElementMustBeEmpty,
     InvalidElementShape,
@@ -102,7 +102,7 @@ impl DiagCode {
             Self::DuplicateOrdinal => "EC002",
             Self::UnknownElement => "EC003",
             Self::DuplicateName => "EC004",
-            Self::DeserializeRequiresOwn => "EC005",
+            Self::SerdeRequiresOwn => "EC005",
             Self::GeneratedNameCollision => "EC006",
             Self::BoundElementMustBeEmpty => "EC007",
             Self::InvalidElementShape => "EC008",
@@ -170,7 +170,7 @@ mod tests {
     #[test]
     fn new_codes_render_stable_strings() {
         assert_eq!(DiagCode::DuplicateName.as_str(), "EC004");
-        assert_eq!(DiagCode::DeserializeRequiresOwn.as_str(), "EC005");
+        assert_eq!(DiagCode::SerdeRequiresOwn.as_str(), "EC005");
         assert_eq!(DiagCode::GeneratedNameCollision.as_str(), "EC006");
         assert_eq!(DiagCode::BoundElementMustBeEmpty.as_str(), "EC007");
         assert_eq!(DiagCode::InvalidElementShape.as_str(), "EC008");

@@ -1861,6 +1861,9 @@ mod tests {
             crate::syntax::NounPhraseKind::Partitive(partitive) => {
                 collect_noun_coordinations(&partitive.whole, found);
             }
+            crate::syntax::NounPhraseKind::AnyNumberOf(value) => {
+                collect_noun_coordinations(value.complement(), found);
+            }
             crate::syntax::NounPhraseKind::SetException(exception) => {
                 collect_noun_coordinations(&exception.included, found);
                 collect_noun_coordinations(&exception.excluded, found);
@@ -1879,7 +1882,7 @@ mod tests {
                 collect_noun_coordinations(value, found);
             }
             crate::syntax::NounPhraseKind::Pronoun { .. }
-            | crate::syntax::NounPhraseKind::Possessive(_)
+            | crate::syntax::NounPhraseKind::PossessiveThisCard(_)
             | crate::syntax::NounPhraseKind::Demonstrative(_)
             | crate::syntax::NounPhraseKind::Quantity(_)
             | crate::syntax::NounPhraseKind::ThisCard(_) => {}
@@ -1903,7 +1906,9 @@ mod tests {
             return;
         };
         for member in preposition.members() {
-            if let crate::syntax::Phrase::NounPhrase(noun_phrase) = member.object.as_ref() {
+            if let crate::syntax::PrepositionalObjectKind::NounPhrase(noun_phrase) =
+                member.object().kind()
+            {
                 collect_noun_coordinations(noun_phrase, found);
             }
         }
@@ -2034,12 +2039,15 @@ mod tests {
                     matches!(
                         complement,
                         NominalComplement::Prepositional(preposition)
-                            if preposition.head().preposition == expected
+                            if preposition.head().preposition() == expected
                     )
                 })
             }
             crate::syntax::NounPhraseKind::Partitive(partitive) => {
                 noun_phrase_owns_preposition(&partitive.whole, expected)
+            }
+            crate::syntax::NounPhraseKind::AnyNumberOf(value) => {
+                noun_phrase_owns_preposition(value.complement(), expected)
             }
             _ => false,
         }
@@ -2198,8 +2206,9 @@ mod tests {
             else {
                 panic!("{face} did not select one shared target determiner: {parsed:#?}");
             };
-            let (determiner, first, rest, _) =
-                coordination::parts_shared_determiner_nominal(coordination);
+            let determiner = coordination.determiner();
+            let first = coordination.first().as_ref();
+            let rest = coordination.rest();
             assert_eq!(determiner, &crate::determiner::target(None), "{face}");
             let [middle, final_member] = rest.as_slice() else {
                 panic!("{face} did not select a flat three-member nominal list: {coordination:#?}");
@@ -2273,7 +2282,7 @@ mod tests {
         assert!(matches!(
             first.complements(),
             [NominalComplement::Prepositional(preposition)]
-                if preposition.head().preposition == crate::syntax::Preposition::With
+                if preposition.head().preposition() == crate::syntax::Preposition::With
         ));
         assert_eq!(nominal_head_spelling(second), "player");
         assert!(second.complements().is_empty());
@@ -2295,8 +2304,10 @@ mod tests {
         let crate::syntax::NounPhraseKind::CoordinatedNominal(coordination) = parsed.kind() else {
             panic!("expected CoordinatedNominal for {source:?}");
         };
-        let (determiner, first, rest, complements) =
-            coordination::parts_shared_determiner_nominal(coordination);
+        let determiner = coordination.determiner();
+        let first = coordination.first().as_ref();
+        let rest = coordination.rest();
+        let complements = coordination.complements();
         assert_eq!(determiner, &crate::determiner::target(None));
         assert_eq!(nominal_head_spelling(first), "Artifact");
         let [second] = rest.as_slice() else {
@@ -2496,10 +2507,10 @@ mod tests {
                 matches!(
                     complement,
                     NominalComplement::Prepositional(preposition)
-                        if preposition.head().preposition == crate::syntax::Preposition::On
+                        if preposition.head().preposition() == crate::syntax::Preposition::On
                             && matches!(
-                                preposition.head().object.as_ref(),
-                                crate::syntax::Phrase::NounPhrase(destination)
+                                preposition.head().object().kind(),
+                                crate::syntax::PrepositionalObjectKind::NounPhrase(destination)
                                     if destination_matches(destination)
                             )
                 )
@@ -2599,8 +2610,8 @@ mod tests {
                 let NominalComplement::Prepositional(preposition) = complement else {
                     return false;
                 };
-                let crate::syntax::Phrase::NounPhrase(noun_phrase) =
-                    preposition.head().object.as_ref()
+                let crate::syntax::PrepositionalObjectKind::NounPhrase(noun_phrase) =
+                    preposition.head().object().kind()
                 else {
                     return false;
                 };
@@ -2613,7 +2624,7 @@ mod tests {
                 else {
                     return false;
                 };
-                preposition.head().preposition == crate::syntax::Preposition::With
+                preposition.head().preposition() == crate::syntax::Preposition::With
                     && nominal_head_spelling(flash) == "Flash"
                     && haste.conjunction == Some(Conjunction::Or)
                     && matches!(
@@ -2915,7 +2926,8 @@ mod tests {
             }],
         )
         .expect("a binary noun coordination without an Oxford comma is admitted");
-        let (first, rest) = coordination::parts_noun_phrase_coordination(&built);
+        let first = built.first().as_ref();
+        let rest = built.rest();
         assert_eq!(
             first,
             &NounPhrase::from_quantity_declaration(Quantity::unchecked_both())
@@ -3000,8 +3012,10 @@ mod tests {
             Vec::new(),
         )
         .expect("a binary shared-determiner nominal with no complement is admitted");
-        let (determiner, first, rest, complements) =
-            coordination::parts_shared_determiner_nominal(&built);
+        let determiner = built.determiner();
+        let first = built.first().as_ref();
+        let rest = built.rest();
+        let complements = built.complements();
         assert_eq!(determiner, &crate::determiner::any());
         assert_eq!(first, &nominal(Vocab::Card));
         assert_eq!(rest.len(), 1);
@@ -3080,7 +3094,9 @@ mod tests {
             linearize_coordinated_nominal_phrase(&binary).expect("binary nominals render"),
             "any card or spell",
         );
-        let (_, first, rest, complements) = coordination::parts_shared_determiner_nominal(&binary);
+        let first = binary.first().as_ref();
+        let rest = binary.rest();
+        let complements = binary.complements();
         assert_eq!(first.determiner(), None);
         assert_eq!(rest[0].phrase.determiner(), None);
         assert!(complements.is_empty());

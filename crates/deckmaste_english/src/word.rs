@@ -329,9 +329,14 @@ macro_rules! vocabulary {
                 self.definition().comparison
             }
 
+            /// Whether this vocabulary item is licensed in an adverb slot.
+            pub(crate) fn is_adverb(self) -> bool {
+                self.definition().adverb
+            }
+
             #[allow(
                 dead_code,
-                reason = "mirrors comparison()/adverb() accessor precedent; unused until a semantic-IR consumer (ticket english-semantic-ir) reads it"
+                reason = "mirrors comparison()/is_adverb() accessor precedent; unused until a semantic-IR consumer (ticket english-semantic-ir) reads it"
             )]
             pub(crate) fn sentence_adverbial(self) -> bool {
                 self.definition().sentence_adverbial

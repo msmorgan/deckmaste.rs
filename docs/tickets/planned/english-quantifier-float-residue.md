@@ -20,14 +20,21 @@ opacity 964.
 
 ## 1. Stage 3 landed — scope it by predicate shape, not by a verb regex
 
-`any number of <plural NP>` built an ordinary nominal headed by the **singular**
-noun `Number` with the referent in an `of`-complement, so it agreed singular and
-every plural finite verb failed. Fixed with one appended `NounPhrase`
+At the time of round `anof`, `any number of <plural NP>` built an ordinary
+nominal headed by the **singular** noun `Number` with the referent in an
+`of`-complement, so it agreed singular and every plural finite verb failed.
+Fixed with one appended `NounPhrase`
 production, `AnyDeterminer NumberNoun Of NounPhrase`, gated categorically by
 dedicated lexical slots (so the gate sits at scan, not reduce) and registered
 with `precedence: 1` so the formal-singular reading still wins wherever it
-completes. It lowers to the byte-identical ordinary nominal shape; only the
-parse features differ.
+completes. That round initially lowered to the byte-identical ordinary nominal
+shape and changed only the parse features. The later
+`english-phrase-output-retrofit` retained the same P01 construction, replaced
+that compatibility lowering with direct `NounPhraseKind::AnyNumberOf` storage
+carrying `Number::Plural` and the selected complement explicitly, and removed
+the compatibility precedence penalty. The direct construction now explicitly
+dominates `noun_phrase_nominal` when both readings complete, so a standalone
+noun-phrase fragment and a clause subject select the same semantic shape.
 
 **The plan predicted 29 rows and 37 cleared.** Every extra was the same
 construction on a predicate no verb regex covered — `phase out` (Clever
@@ -94,7 +101,8 @@ was correct about where the *gain* lives; it said nothing about where the
   + relative-clause attachment), `Phantasmal Form` (a `have ..., gain ..., and
   become ...` predicate run — belongs with
   `english-predicate-coordination-redesign`).
-- **Inside the `any number of` nominal, `target` lowers as an ordinary positive
-  `Adjective` modifier** rather than the `Determiner::Target` that the `up to
-  two target creatures` path builds. Unchanged by `anof`; a nominal-internal
-  category question, not a concord one.
+- **Inside the `any number of` complement, `target` lowers as an ordinary
+  positive `Adjective` modifier** rather than the `Determiner::Target` that the
+  `up to two target creatures` path builds. Unchanged by `anof` or the later
+  direct P01 output; a complement-internal category question, not a concord
+  one.

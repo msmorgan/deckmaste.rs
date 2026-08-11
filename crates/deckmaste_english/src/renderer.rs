@@ -9,6 +9,7 @@ use crate::grammar::ContractedSubjectAuxiliary as GeneratedContractedSubjectAuxi
 use crate::grammar::CopularRemainder as GeneratedCopularRemainder;
 use crate::grammar::SimpleClause as GeneratedSimpleClause;
 use crate::grammar::VerbAnalysis as GeneratedVerb;
+use crate::grammar::VerbDependent;
 use crate::grammar::VerbPhrase as GeneratedVerbPhrase;
 use crate::identity::short_name;
 use crate::syntax::Ability;
@@ -1558,24 +1559,11 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                     .downcast_ref::<AdjectivePhrase>()
                     .expect("the clause adjective hole preserves AdjectivePhrase"),
             )?,
-            "PrepositionalPhrase" => {
-                let phrase = value
+            "PrepositionalPhrase" => self.renderer.prepositional_phrase(
+                value
                     .downcast_ref::<PrepositionalPhrase>()
-                    .expect("the clause PP hole preserves PrepositionalPhrase");
-                let terminal_quote = phrase_terminal_quote(&phrase.tail().object);
-                let quoted_ability_count = usize::from(terminal_quote.is_some());
-                let publish = self.child_publishes_terminal_quote(quoted_ability_count);
-                let previous = self.renderer.terminal_quote.get();
-                if publish {
-                    self.renderer
-                        .terminal_quote
-                        .set(terminal_quote.map(std::ptr::from_ref));
-                }
-                let rendered = self.renderer.prepositional_phrase(phrase);
-                self.renderer.terminal_quote.set(previous);
-                self.consume_quoted_abilities(quoted_ability_count);
-                rendered?
-            }
+                    .expect("the clause PP hole preserves PrepositionalPhrase"),
+            )?,
             "Quantity" => render_quantity(
                 *value
                     .downcast_ref::<Quantity>()
@@ -1726,12 +1714,41 @@ impl<'renderer, 'identity> GeneratedPredicateRenderer<'renderer, 'identity> {
         self.publish_last_identity_quote = publish_last;
     }
 
+    fn render_identity_quote(&mut self, quoted: &QuotedAbility) -> Result<String, RenderError> {
+        let publish = self.publish_identity_quotes
+            || (self.publish_last_identity_quote && self.quoted_abilities_remaining == 1);
+        self.quoted_abilities_remaining = self.quoted_abilities_remaining.saturating_sub(1);
+        if publish {
+            let previous = self
+                .renderer
+                .terminal_quote
+                .replace(Some(std::ptr::from_ref(quoted)));
+            let rendered = self.renderer.quoted_ability(quoted);
+            self.renderer.terminal_quote.set(previous);
+            rendered
+        } else {
+            self.renderer.quoted_ability(quoted)
+        }
+    }
+
     fn render_verb_phrase(&mut self, value: &GeneratedVerbPhrase) -> Result<(), RenderError> {
-        if let Some((predicate, adjective)) = value.declaration_coordinated_adjective_parts() {
-            self.render_verb_phrase(&predicate)?;
-            let adjective = self.renderer.coordinated_adjective_phrase(&adjective)?;
-            self.push(&adjective);
-            return Ok(());
+        if let Some((predicate, dependent)) = value.declaration_last_dependent_parts() {
+            match dependent {
+                VerbDependent::CoordinatedAdjective(adjective) => {
+                    self.render_verb_phrase(&predicate)?;
+                    let adjective = self.renderer.coordinated_adjective_phrase(&adjective)?;
+                    self.push(&adjective);
+                    return Ok(());
+                }
+                VerbDependent::AbilityPostmodifier(postmodifier) => {
+                    self.render_verb_phrase(&predicate)?;
+                    self.push("with");
+                    let quoted = self.render_identity_quote(postmodifier.ability())?;
+                    self.push(&quoted);
+                    return Ok(());
+                }
+                _ => {}
+            }
         }
         Self::accept_generated(
             crate::constructions::predicate::linearize_predicate_verb_phrase_with(value, self),
@@ -1854,34 +1871,11 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                     .downcast_ref::<AdjectivePhrase>()
                     .expect("the predicate adjective hole preserves AdjectivePhrase"),
             )?,
-            "PrepositionalPhrase" => {
-                let prepositional = value
+            "PrepositionalPhrase" => self.renderer.prepositional_phrase(
+                value
                     .downcast_ref::<PrepositionalPhrase>()
-                    .expect("the predicate PP hole preserves PrepositionalPhrase");
-                // Predicate inverse parts are owned values, so the quote in a
-                // generated PP is not pointer-identical to the sealed public
-                // predicate's quote. Remap the sentence-tail publication to
-                // the declaration-owned PP value while rendering that hole.
-                let terminal = phrase_terminal_quote(&prepositional.tail().object);
-                let publish = self.publish_last_identity_quote
-                    && terminal.is_some()
-                    && self.quoted_abilities_remaining == 1;
-                if terminal.is_some() {
-                    self.quoted_abilities_remaining =
-                        self.quoted_abilities_remaining.saturating_sub(1);
-                }
-                if publish {
-                    let previous = self
-                        .renderer
-                        .terminal_quote
-                        .replace(terminal.map(std::ptr::from_ref));
-                    let rendered = self.renderer.prepositional_phrase(prepositional);
-                    self.renderer.terminal_quote.set(previous);
-                    rendered?
-                } else {
-                    self.renderer.prepositional_phrase(prepositional)?
-                }
-            }
+                    .expect("the predicate PP hole preserves PrepositionalPhrase"),
+            )?,
             "InfinitiveClause" => self.renderer.infinitive_clause(
                 value
                     .downcast_ref::<InfinitiveClause>()
@@ -2081,20 +2075,7 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                 let quoted = value
                     .downcast_ref::<QuotedAbility>()
                     .expect("the quoted identity preserves QuotedAbility");
-                let publish = self.publish_identity_quotes
-                    || (self.publish_last_identity_quote && self.quoted_abilities_remaining == 1);
-                self.quoted_abilities_remaining = self.quoted_abilities_remaining.saturating_sub(1);
-                if publish {
-                    let previous = self
-                        .renderer
-                        .terminal_quote
-                        .replace(Some(std::ptr::from_ref(quoted)));
-                    let rendered = self.renderer.quoted_ability(quoted);
-                    self.renderer.terminal_quote.set(previous);
-                    rendered?
-                } else {
-                    self.renderer.quoted_ability(quoted)?
-                }
+                self.render_identity_quote(quoted)?
             }
             "OracleSymbol" => value
                 .downcast_ref::<OracleSymbol>()
@@ -4299,6 +4280,10 @@ impl<'identity> Renderer<'identity> {
             PredicateAdjunct::Exception(phrase) => {
                 Ok(format!("except {}", self.prepositional_phrase(phrase)?))
             }
+            PredicateAdjunct::AbilityPostmodifier(postmodifier) => Ok(format!(
+                "with {}",
+                self.quoted_ability(postmodifier.ability())?
+            )),
             PredicateAdjunct::Dependent(clause) => self.dependent_clause(clause),
         }
     }
@@ -4802,16 +4787,7 @@ impl<'identity> Renderer<'identity> {
 
     fn prepositional_phrase(&self, phrase: &PrepositionalPhrase) -> Result<String, RenderError> {
         match phrase.kind() {
-            PrepositionalPhraseKind::Simple(_)
-                if crate::constructions::prepositional::is_supported_prepositional_phrase(
-                    phrase,
-                ) =>
-            {
-                self.generated_prepositional_phrase(phrase)
-            }
-            PrepositionalPhraseKind::Simple(simple) => {
-                self.quoted_ability_prepositional_postmodifier(simple)
-            }
+            PrepositionalPhraseKind::Simple(_) => self.generated_prepositional_phrase(phrase),
             PrepositionalPhraseKind::Coordinated(coordinated) => {
                 // The serial comma is a function of length, never a stored
                 // flag: `A and B` takes none, `A, B, and C` takes one before
@@ -4834,18 +4810,6 @@ impl<'identity> Renderer<'identity> {
         }
     }
 
-    fn quoted_ability_prepositional_postmodifier(
-        &self,
-        phrase: &SimplePrepositionalPhrase,
-    ) -> Result<String, RenderError> {
-        let (Preposition::With, Phrase::QuotedAbility(quoted)) =
-            (phrase.preposition, phrase.object.as_ref())
-        else {
-            return Err(RenderError::InvalidPrepositionalConstruction);
-        };
-        Ok(format!("with {}", self.quoted_ability(quoted)?))
-    }
-
     fn generated_prepositional_phrase(
         &self,
         phrase: &PrepositionalPhrase,
@@ -4863,7 +4827,7 @@ impl<'identity> Renderer<'identity> {
     ) -> Result<String, RenderError> {
         self.generated_prepositional_phrase(&PrepositionalPhrase::from_prepositional_declaration(
             phrase.preposition,
-            phrase.object.as_ref().clone(),
+            phrase.object.clone(),
         ))
     }
 
@@ -5125,7 +5089,7 @@ fn independent_clause_final_self_reference(clause: &IndependentClause) -> Option
     let crate::syntax::NounPhraseKind::ThisCard(form) = noun_phrase.kind() else {
         return None;
     };
-    Some(form)
+    Some(*form)
 }
 
 /// The closed quoted ability that terminates a sentence, if any — the one node
@@ -5305,15 +5269,14 @@ fn gerund_clause_quoted_ability_count(clause: &GerundClause) -> usize {
 
 fn predicate_adjunct_quoted_ability_count(adjunct: &PredicateAdjunct) -> usize {
     match adjunct {
-        PredicateAdjunct::Prepositional(prepositional)
-        | PredicateAdjunct::Exception(prepositional) => {
-            usize::from(phrase_terminal_quote(&prepositional.tail().object).is_some())
-        }
         PredicateAdjunct::Dependent(clause) => dependent_clause_quoted_ability_count(clause),
+        PredicateAdjunct::AbilityPostmodifier(_) => 1,
         PredicateAdjunct::Adverb(_)
         | PredicateAdjunct::Frequency(_)
         | PredicateAdjunct::Temporal(_)
-        | PredicateAdjunct::Manner(_) => 0,
+        | PredicateAdjunct::Manner(_)
+        | PredicateAdjunct::Prepositional(_)
+        | PredicateAdjunct::Exception(_) => 0,
     }
 }
 
@@ -5401,13 +5364,7 @@ fn predicate_element_quoted_ability_count(element: &PredicateElement) -> usize {
         PredicateElement::Complement(PredicateComplement::Infinitive(infinitive)) => {
             predicate_quoted_ability_count(infinitive.predicate())
         }
-        PredicateElement::Complement(PredicateComplement::Prepositional(prepositional)) => {
-            usize::from(phrase_terminal_quote(&prepositional.tail().object).is_some())
-        }
-        PredicateElement::Adjunct(
-            PredicateAdjunct::Prepositional(prepositional)
-            | PredicateAdjunct::Exception(prepositional),
-        ) => usize::from(phrase_terminal_quote(&prepositional.tail().object).is_some()),
+        PredicateElement::Adjunct(PredicateAdjunct::AbilityPostmodifier(_)) => 1,
         PredicateElement::Complement(_)
         | PredicateElement::Adjunct(_)
         | PredicateElement::Particle(_)
@@ -5480,13 +5437,7 @@ fn passive_terminal_quote(predicate: &crate::syntax::PassivePredicate) -> Option
 }
 
 fn copular_terminal_quote(predicate: &CopularPredicate) -> Option<&QuotedAbility> {
-    if let Some(adjunct) = predicate.adjuncts.last() {
-        adjunct_terminal_quote(adjunct)
-    } else if let CopularComplement::Prepositional(prepositional) = &predicate.complement {
-        phrase_terminal_quote(&prepositional.tail().object)
-    } else {
-        None
-    }
+    predicate.adjuncts.last().and_then(adjunct_terminal_quote)
 }
 
 fn coordinated_terminal_quote(clause: &CoordinatedIndependentClause) -> Option<&QuotedAbility> {
@@ -5548,10 +5499,8 @@ fn predicate_element_terminal_quote(element: &PredicateElement) -> Option<&Quote
 
 fn complement_terminal_quote(complement: &PredicateComplement) -> Option<&QuotedAbility> {
     match complement {
-        PredicateComplement::Prepositional(prepositional) => {
-            phrase_terminal_quote(&prepositional.tail().object)
-        }
-        PredicateComplement::IndirectObject(_)
+        PredicateComplement::Prepositional(_)
+        | PredicateComplement::IndirectObject(_)
         | PredicateComplement::Adjective(_)
         | PredicateComplement::CoordinatedAdjective(_)
         | PredicateComplement::Infinitive(_) => None,
@@ -5560,14 +5509,13 @@ fn complement_terminal_quote(complement: &PredicateComplement) -> Option<&Quoted
 
 fn adjunct_terminal_quote(adjunct: &PredicateAdjunct) -> Option<&QuotedAbility> {
     match adjunct {
-        PredicateAdjunct::Prepositional(prepositional)
-        | PredicateAdjunct::Exception(prepositional) => {
-            phrase_terminal_quote(&prepositional.tail().object)
-        }
+        PredicateAdjunct::AbilityPostmodifier(postmodifier) => Some(postmodifier.ability()),
         PredicateAdjunct::Adverb(_)
         | PredicateAdjunct::Frequency(_)
         | PredicateAdjunct::Temporal(_)
         | PredicateAdjunct::Manner(_)
+        | PredicateAdjunct::Prepositional(_)
+        | PredicateAdjunct::Exception(_)
         | PredicateAdjunct::Dependent(_) => None,
     }
 }
@@ -5589,13 +5537,6 @@ fn coordinated_object_terminal_quote(
     match coordinated.rest.last() {
         Some(coordination) => predicate_object_terminal_quote(&coordination.object),
         None => predicate_object_terminal_quote(&coordinated.first),
-    }
-}
-
-fn phrase_terminal_quote(phrase: &Phrase) -> Option<&QuotedAbility> {
-    match phrase {
-        Phrase::QuotedAbility(quoted) => Some(quoted),
-        _ => None,
     }
 }
 
@@ -6904,7 +6845,9 @@ mod tests {
                     VerbDependent::Prepositional(
                         crate::constructions::prepositional::expect_prepositional_phrase(
                             Preposition::From,
-                            Phrase::NounPhrase(Box::new(target_source)),
+                            crate::syntax::PrepositionalObjectKind::NounPhrase(Box::new(
+                                target_source,
+                            )),
                         ),
                     ),
                 ],
@@ -6988,7 +6931,7 @@ mod tests {
             vec![NominalComplement::Prepositional(
                 crate::constructions::prepositional::expect_prepositional_phrase(
                     Preposition::In,
-                    Phrase::NounPhrase(Box::new(nominal(
+                    crate::syntax::PrepositionalObjectKind::NounPhrase(Box::new(nominal(
                         Some(crate::determiner::possessive_pronoun(Pronoun::You).unwrap()),
                         vec![],
                         NounInstance::unchecked_singular(Noun::Word(Vocab::Hand)),
@@ -7004,7 +6947,7 @@ mod tests {
             vec![NominalComplement::Prepositional(
                 crate::constructions::prepositional::expect_prepositional_phrase(
                     Preposition::Of,
-                    Phrase::NounPhrase(Box::new(cards)),
+                    crate::syntax::PrepositionalObjectKind::NounPhrase(Box::new(cards)),
                 ),
             )],
         );
@@ -7027,7 +6970,7 @@ mod tests {
                                 phrase.try_attach_declared_prepositional(
                                     crate::constructions::prepositional::expect_prepositional_phrase(
                                         Preposition::To,
-                                        Phrase::NounPhrase(Box::new(number)),
+                                        crate::syntax::PrepositionalObjectKind::NounPhrase(Box::new(number)),
                                     ),
                                 )
                             })
@@ -7578,9 +7521,9 @@ mod tests {
             crate::adjective::build_adjective_phrase(Adjective::Word(Vocab::Equal)).unwrap(),
             crate::constructions::prepositional::expect_prepositional_phrase(
                 Preposition::To,
-                Phrase::NounPhrase(Box::new(NounPhrase::from_this_card_declaration(
-                    ThisCardForm::FullName,
-                ))),
+                crate::syntax::PrepositionalObjectKind::NounPhrase(Box::new(
+                    NounPhrase::from_this_card_declaration(ThisCardForm::FullName),
+                )),
             ),
         )
         .unwrap();

@@ -74,6 +74,7 @@ mod kw {
     syn::custom_keyword!(selection);
     syn::custom_keyword!(packed);
     syn::custom_keyword!(unique);
+    syn::custom_keyword!(serialize);
     syn::custom_keyword!(deserialize);
     syn::custom_keyword!(opt);
     syn::custom_keyword!(hole);
@@ -414,6 +415,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
     let mut forms = Vec::new();
     let mut dominance = Vec::new();
     let mut selection = SelectionPromise::Packed;
+    let mut serialize = false;
     let mut deserialize = false;
     while !content.is_empty() {
         if content.peek(kw::project) {
@@ -532,13 +534,17 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
                 selection = SelectionPromise::Packed;
             }
             content.parse::<syn::Token![;]>()?;
+        } else if content.peek(kw::serialize) {
+            content.parse::<kw::serialize>()?;
+            content.parse::<syn::Token![;]>()?;
+            serialize = true;
         } else if content.peek(kw::deserialize) {
             content.parse::<kw::deserialize>()?;
             content.parse::<syn::Token![;]>()?;
             deserialize = true;
         } else {
             return Err(content.error(
-                "expected project / lens / recognize require / require / derive / evidence / witness / form / dominates / dominated by / selection / deserialize",
+                "expected project / lens / recognize require / require / derive / evidence / witness / form / dominates / dominated by / selection / serialize / deserialize",
             ));
         }
     }
@@ -557,6 +563,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
         forms,
         dominance,
         selection,
+        serialize,
         deserialize,
     })
 }
@@ -958,6 +965,35 @@ mod tests {
                 deserialize;
             }
         }
+    }
+
+    #[test]
+    fn serde_capabilities_are_independent_opt_ins() {
+        let parsed = parse_group(quote::quote! {
+            group serde_capabilities;
+
+            construction serializable: Phrase {
+                own Serializable {}
+                serialize;
+            }
+
+            construction deserializable: Phrase {
+                own Deserializable {}
+                deserialize;
+            }
+
+            construction plain: Phrase {
+                own Plain {}
+            }
+        })
+        .expect("serde capability declarations parse");
+
+        assert!(parsed.constructions[0].serialize);
+        assert!(!parsed.constructions[0].deserialize);
+        assert!(!parsed.constructions[1].serialize);
+        assert!(parsed.constructions[1].deserialize);
+        assert!(!parsed.constructions[2].serialize);
+        assert!(!parsed.constructions[2].deserialize);
     }
 
     #[test]

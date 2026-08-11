@@ -21,28 +21,28 @@ use crate::grammar::NounForm;
 use crate::grammar::NounPhraseCoordinationState;
 use crate::grammar::QuantityFeatures;
 use crate::grammar::SetExceptionState;
+use crate::syntax::AnyNumberOfNounPhrase;
 use crate::syntax::ArithmeticValue;
 use crate::syntax::Demonstrative;
 use crate::syntax::DeterminerKind;
-use crate::syntax::NominalComplement;
 use crate::syntax::NominalPhrase;
 use crate::syntax::NounPhrase;
 use crate::syntax::NounPhraseKind;
 use crate::syntax::PartitiveHead;
 use crate::syntax::PartitiveNounPhrase;
-use crate::syntax::Phrase;
-use crate::syntax::Possessor;
-use crate::syntax::Preposition;
 use crate::syntax::Quantity;
 use crate::syntax::Rounding;
 use crate::syntax::SetExceptionMarker;
 use crate::syntax::SetExceptionNounPhrase;
 use crate::syntax::ThisCardForm;
+#[cfg(test)]
 use crate::word::Noun;
+#[cfg(test)]
 use crate::word::NounInstance;
 use crate::word::NounInstanceKind;
 use crate::word::Pronoun;
 use crate::word::PronounCase;
+#[cfg(test)]
 use crate::word::Vocab;
 
 /// A validated noun phrase eligible for rules-object attachment.
@@ -93,11 +93,7 @@ fn make_this_card(form: ThisCardForm) -> Result<NounPhrase, DeclarationViolation
 }
 
 fn make_possessive_this_card(form: ThisCardForm) -> Result<NounPhrase, DeclarationViolation> {
-    let determiner = crate::constructions::determiner::build_determiner_possessive_this_card(form)?;
-    let DeterminerKind::Possessive(possessor) = determiner.kind() else {
-        unreachable!("the self-reference determiner builder returns a possessive")
-    };
-    Ok(NounPhrase::from_possessive_declaration(possessor.clone()))
+    Ok(NounPhrase::from_possessive_this_card_declaration(form))
 }
 
 fn make_demonstrative(value: Demonstrative) -> Result<NounPhrase, DeclarationViolation> {
@@ -123,22 +119,9 @@ fn make_any_number_of(whole: NounPhrase) -> Result<NounPhrase, DeclarationViolat
             "whole has plural agreement",
         ));
     }
-    let determiner = crate::constructions::determiner::build_determiner_closed(
-        crate::syntax::ClosedDeterminer::Any,
-    )?;
-    let head = NounInstance::unchecked_singular(Noun::Word(Vocab::Number));
-    let nominal = crate::constructions::nominal::build_nominal_determiner(
-        determiner,
-        NominalPhrase::try_from_noun(head)?,
-    )?;
-    let nominal = crate::constructions::nominal::build_nominal_prepositional(
-        nominal,
-        crate::constructions::prepositional::expect_prepositional_phrase(
-            Preposition::Of,
-            Phrase::NounPhrase(Box::new(whole)),
-        ),
-    )?;
-    Ok(NounPhrase::from_nominal_declaration(nominal))
+    Ok(NounPhrase::from_any_number_of_declaration(
+        AnyNumberOfNounPhrase::from_declaration(Number::Plural, Box::new(whole)),
+    ))
 }
 
 fn make_minus(left: NounPhrase, right: NounPhrase) -> Result<NounPhrase, DeclarationViolation> {
@@ -205,15 +188,15 @@ fn noun_phrase_is_plural(value: &NounPhrase) -> bool {
     match value.kind() {
         NounPhraseKind::Nominal(nominal) => {
             matches!(nominal.head().kind(), NounInstanceKind::Plural(_))
-                || any_number_of_whole(value).is_some()
         }
-        NounPhraseKind::Pronoun { pronoun, .. } => pronoun == Pronoun::They,
+        NounPhraseKind::Pronoun { pronoun, .. } => *pronoun == Pronoun::They,
         NounPhraseKind::Demonstrative(value) => {
             matches!(value, Demonstrative::These | Demonstrative::Those)
         }
+        NounPhraseKind::AnyNumberOf(value) => value.plurality() == Number::Plural,
         NounPhraseKind::CoordinatedNominal(_) | NounPhraseKind::Coordinated(_) => true,
         NounPhraseKind::SetException(exception) => noun_phrase_is_plural(&exception.included),
-        NounPhraseKind::Possessive(_)
+        NounPhraseKind::PossessiveThisCard(_)
         | NounPhraseKind::Quantity(_)
         | NounPhraseKind::ThisCard(_)
         | NounPhraseKind::Partitive(_)
@@ -249,14 +232,7 @@ fn coordinated_agreements(
 
 fn public_agreements(value: &NounPhrase) -> Vec<Agreement> {
     match value.kind() {
-        NounPhraseKind::Nominal(nominal) => vec![if any_number_of_whole(value).is_some() {
-            Agreement {
-                person: Person::Third,
-                number: Number::Plural,
-            }
-        } else {
-            nominal_agreement(nominal)
-        }],
+        NounPhraseKind::Nominal(nominal) => vec![nominal_agreement(nominal)],
         NounPhraseKind::Pronoun { pronoun, .. } => match pronoun {
             Pronoun::You => vec![Agreement {
                 person: Person::Second,
@@ -275,7 +251,7 @@ fn public_agreements(value: &NounPhrase) -> Vec<Agreement> {
             }
         },
         NounPhraseKind::Demonstrative(Demonstrative::This | Demonstrative::That)
-        | NounPhraseKind::Possessive(_)
+        | NounPhraseKind::PossessiveThisCard(_)
         | NounPhraseKind::Arithmetic(_) => vec![Agreement {
             person: Person::Third,
             number: Number::Singular,
@@ -288,7 +264,7 @@ fn public_agreements(value: &NounPhrase) -> Vec<Agreement> {
         }
         NounPhraseKind::Quantity(quantity) => vec![Agreement {
             person: Person::Third,
-            number: crate::constructions::quantity::standalone_number(quantity),
+            number: crate::constructions::quantity::standalone_number(*quantity),
         }],
         NounPhraseKind::ThisCard(_) => vec![
             Agreement {
@@ -308,6 +284,10 @@ fn public_agreements(value: &NounPhrase) -> Vec<Agreement> {
                     crate::constructions::quantity::standalone_number(quantity)
                 }
             },
+        }],
+        NounPhraseKind::AnyNumberOf(value) => vec![Agreement {
+            person: Person::Third,
+            number: value.plurality(),
         }],
         NounPhraseKind::CoordinatedNominal(coordinated) => {
             let Some(last) = coordinated.rest().last() else {
@@ -341,7 +321,7 @@ fn public_agreements(value: &NounPhrase) -> Vec<Agreement> {
 
 pub(crate) fn relative_subject_feature_candidates(value: &NounPhrase) -> Vec<Features> {
     let pronoun_case = match value.kind() {
-        NounPhraseKind::Pronoun { case, .. } => Some(case),
+        NounPhraseKind::Pronoun { case, .. } => Some(*case),
         _ => None,
     };
     public_agreements(value)
@@ -373,11 +353,12 @@ fn noun_phrase_is_set_exception_host(value: &NounPhrase) -> bool {
             noun_phrase_is_set_exception_host(coordinated.first())
         }
         NounPhraseKind::Pronoun { .. }
-        | NounPhraseKind::Possessive(_)
+        | NounPhraseKind::PossessiveThisCard(_)
         | NounPhraseKind::Demonstrative(_)
         | NounPhraseKind::Quantity(_)
         | NounPhraseKind::ThisCard(_)
         | NounPhraseKind::Partitive(_)
+        | NounPhraseKind::AnyNumberOf(_)
         | NounPhraseKind::SetException(_)
         | NounPhraseKind::Arithmetic(_) => false,
     }
@@ -401,41 +382,35 @@ fn pronoun_parts(value: &NounPhrase) -> Pronoun {
     let NounPhraseKind::Pronoun { pronoun, .. } = value.kind() else {
         unreachable!("pronoun families admit only Pronoun")
     };
-    pronoun
+    *pronoun
 }
 
 fn quantity_parts(value: &NounPhrase) -> Quantity {
     let NounPhraseKind::Quantity(quantity) = value.kind() else {
         unreachable!("noun_phrase_quantity admits only Quantity")
     };
-    quantity
+    *quantity
 }
 
 fn this_card_parts(value: &NounPhrase) -> ThisCardForm {
     let NounPhraseKind::ThisCard(form) = value.kind() else {
         unreachable!("self-reference families admit only ThisCard")
     };
-    form
+    *form
 }
 
 fn possessive_this_card_parts(value: &NounPhrase) -> ThisCardForm {
-    let NounPhraseKind::Possessive(possessor) = value.kind() else {
-        unreachable!("possessive self-reference admits only Possessive")
+    let NounPhraseKind::PossessiveThisCard(form) = value.kind() else {
+        unreachable!("possessive self-reference admits only PossessiveThisCard")
     };
-    let Possessor::NounPhrase(noun_phrase) = possessor else {
-        unreachable!("possessive self-reference stores ThisCard")
-    };
-    let NounPhraseKind::ThisCard(form) = noun_phrase.kind() else {
-        unreachable!("possessive self-reference stores ThisCard")
-    };
-    form
+    *form
 }
 
 fn demonstrative_parts(value: &NounPhrase) -> Demonstrative {
     let NounPhraseKind::Demonstrative(value) = value.kind() else {
         unreachable!("noun_phrase_demonstrative admits only Demonstrative")
     };
-    value
+    *value
 }
 
 fn partitive_parts(value: &NounPhrase) -> (PartitiveHead, NounPhrase) {
@@ -456,35 +431,11 @@ fn each_partitive_parts(value: &NounPhrase) -> (PartitiveHead, NounPhrase) {
     partitive_parts(value)
 }
 
-fn any_number_of_whole(value: &NounPhrase) -> Option<&NounPhrase> {
-    let NounPhraseKind::Nominal(nominal) = value.kind() else {
-        return None;
-    };
-    if !matches!(
-        nominal.determiner().map(crate::syntax::Determiner::kind),
-        Some(DeterminerKind::Any)
-    ) || !nominal.modifiers().is_empty()
-        || !matches!(
-            nominal.head().kind(),
-            NounInstanceKind::Singular(Noun::Word(Vocab::Number))
-        )
-    {
-        return None;
-    }
-    let [NominalComplement::Prepositional(preposition)] = nominal.complements() else {
-        return None;
-    };
-    let simple = preposition.as_simple()?;
-    let Phrase::NounPhrase(whole) = simple.object.as_ref() else {
-        return None;
-    };
-    (simple.preposition == Preposition::Of).then_some(whole.as_ref())
-}
-
 fn any_number_of_parts(value: &NounPhrase) -> NounPhrase {
-    any_number_of_whole(value)
-        .expect("noun_phrase_any_number_of admits only its nominal spine")
-        .clone()
+    let NounPhraseKind::AnyNumberOf(value) = value.kind() else {
+        unreachable!("noun_phrase_any_number_of admits only AnyNumberOf")
+    };
+    value.complement().clone()
 }
 
 fn minus_parts(value: &NounPhrase) -> (NounPhrase, NounPhrase) {
@@ -643,7 +594,7 @@ fn make_set_exception_for(
 }
 
 fn is_nominal(value: &NounPhrase) -> bool {
-    matches!(value.kind(), NounPhraseKind::Nominal(_)) && any_number_of_whole(value).is_none()
+    matches!(value.kind(), NounPhraseKind::Nominal(_))
 }
 
 fn is_subject_pronoun(value: &NounPhrase) -> bool {
@@ -662,7 +613,7 @@ fn is_object_pronoun(value: &NounPhrase) -> bool {
         NounPhraseKind::Pronoun {
             pronoun,
             case: PronounCase::Object,
-        } if pronoun != Pronoun::EachOther
+        } if *pronoun != Pronoun::EachOther
     )
 }
 
@@ -695,15 +646,7 @@ fn is_full_this_card(value: &NounPhrase) -> bool {
 }
 
 fn is_possessive_this_card(value: &NounPhrase) -> bool {
-    matches!(
-        value.kind(),
-        NounPhraseKind::Possessive(possessor)
-            if matches!(
-                possessor,
-                Possessor::NounPhrase(noun_phrase)
-                    if matches!(noun_phrase.kind(), NounPhraseKind::ThisCard(_))
-            )
-    )
+    matches!(value.kind(), NounPhraseKind::PossessiveThisCard(_))
 }
 
 fn is_demonstrative(value: &NounPhrase) -> bool {
@@ -731,7 +674,12 @@ fn is_each_partitive(value: &NounPhrase) -> bool {
 }
 
 fn is_any_number_of(value: &NounPhrase) -> bool {
-    any_number_of_whole(value).is_some()
+    matches!(
+        value.kind(),
+        NounPhraseKind::AnyNumberOf(value)
+            if value.plurality() == Number::Plural
+                && noun_phrase_is_plural(value.complement())
+    )
 }
 
 fn is_minus(value: &NounPhrase) -> bool {
@@ -1199,9 +1147,9 @@ deckmaste_constructions_macro::constructions! {
             whole: hole NounPhrase,
         }
         derive features: Features = reduce_any_number_of(whole);
-        derive base_precedence: Features = mark_generated_cost(whole);
         evidence feature "notional plural agreement" from category;
         form only @ 0 inverse check(is_any_number_of) = "any" "number" "of" whole;
+        dominates noun_phrase_nominal;
         selection unique;
     }
 
@@ -1314,10 +1262,6 @@ mod tests {
         };
         let NounPhraseKind::Nominal(nominal) = value.kind() else { unreachable!() };
         assert_eq!(nominal.modifiers().len(), 1);
-        assert!(
-            any_number_of_whole(&value).is_none(),
-            "only the unmodified literal spine belongs to noun_phrase_any_number_of"
-        );
 
         let mut ordinary = ConstructionRecorder::default();
         linearize_noun_phrase_nominal_with(&value, &mut ordinary)
@@ -1333,6 +1277,29 @@ mod tests {
         )
         .expect("the ordinary nominal inverse preserves every modifier");
         assert_eq!(surface, "any large number of players");
+    }
+
+    #[test]
+    fn special_p01_outputs_store_their_semantics_directly() {
+        let cards = build_noun_phrase_nominal(
+            NominalPhrase::try_from_noun(NounInstance::unchecked_plural(Noun::Word(Vocab::Card)))
+                .expect("cards is a plural nominal"),
+        )
+        .expect("the nominal enters P01");
+        let any_number = build_noun_phrase_any_number_of(cards.clone())
+            .expect("a plural complement enters any-number-of");
+        let NounPhraseKind::AnyNumberOf(value) = any_number.kind() else {
+            panic!("any number of has a direct semantic alternative")
+        };
+        assert_eq!(value.plurality(), Number::Plural);
+        assert_eq!(value.complement(), &cards);
+
+        let possessive = build_noun_phrase_possessive_this_card(ThisCardForm::FullName)
+            .expect("named self-reference genitive is admitted");
+        assert!(matches!(
+            possessive.kind(),
+            NounPhraseKind::PossessiveThisCard(ThisCardForm::FullName)
+        ));
     }
 
     #[test]

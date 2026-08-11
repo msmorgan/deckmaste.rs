@@ -918,7 +918,7 @@ mod tests {
 
         let preposition = crate::constructions::prepositional::expect_prepositional_phrase(
             crate::syntax::Preposition::With,
-            Phrase::NounPhrase(Box::new(
+            crate::syntax::PrepositionalObjectKind::NounPhrase(Box::new(
                 crate::syntax::NounPhrase::from_this_card_declaration(
                     crate::syntax::ThisCardForm::FullName,
                 ),

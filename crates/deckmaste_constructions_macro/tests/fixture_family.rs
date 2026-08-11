@@ -285,6 +285,12 @@ deckmaste_constructions_macro::constructions! {
     }
 }
 
+impl From<FixturePairNode> for FixturePair {
+    fn from(value: FixturePairNode) -> Self {
+        Self::Pair(value)
+    }
+}
+
 deckmaste_constructions_macro::constructions! {
     group generated_dispatch;
 

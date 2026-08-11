@@ -1,9 +1,8 @@
-use deckmaste_english::syntax::Phrase;
-use deckmaste_english::syntax::Preposition;
 use deckmaste_english::syntax::PrepositionalPhrase;
+use deckmaste_english::syntax::PrepositionalPhraseKind;
 
-fn bypass(object: Phrase) -> PrepositionalPhrase {
-    PrepositionalPhrase::simple(Preposition::Of, object)
+fn bypass(kind: PrepositionalPhraseKind) -> PrepositionalPhrase {
+    PrepositionalPhrase(kind)
 }
 
 fn main() {}

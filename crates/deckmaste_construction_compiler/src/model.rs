@@ -240,6 +240,10 @@ pub struct ConstructionDeclaration {
     /// A reversible projection/rebuild over the bound owner. Kept outside
     /// `AstShape::fields` because lens ownership is not another semantic hole.
     pub lens: Option<LensApplication>,
+    /// Optional semantic projection label. The label remains declaration
+    /// metadata; generated forward projection crosses the typed
+    /// `From<Owner> for Category` boundary instead of assuming that the
+    /// category exposes an enum-shaped constructor with this spelling.
     pub projection: Option<Spanned<String>>,
     /// Optional borrowed inverse for a projected owner:
     /// `fn(&Category) -> Option<&Owner>`. This lets construction projection
@@ -254,6 +258,12 @@ pub struct ConstructionDeclaration {
     pub forms: Vec<FormDeclaration>,
     pub dominance: Vec<DominanceEdge>,
     pub selection: SelectionPromise,
+    /// Emit structural `Serialize` for an owned semantic output. Bind-mode
+    /// constructions have no generated type and therefore cannot opt in.
+    pub serialize: bool,
+    /// Emit validating `Deserialize` for an owned semantic output. The raw
+    /// structural payload is always routed through the generated checked
+    /// constructor; this is independent from [`Self::serialize`].
     pub deserialize: bool,
 }
 

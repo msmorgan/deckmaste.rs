@@ -2184,8 +2184,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         Some(sentence)
     }
 
-    /// Attaches the ability owner's legacy quoted `with` postmodifier without
-    /// admitting quoted abilities through the public P02 object facade.
+    /// Attaches the ability owner's typed quoted `with` postmodifier.
     fn quoted_with_clause(
         &mut self,
         prefix: &[Token],
@@ -2197,12 +2196,12 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         if clause.subject.is_none() && clause.predicate.verb.slot == VerbSlot::Infinitive {
             clause.predicate.verb.slot = VerbSlot::Imperative;
         }
-        let preposition =
-            crate::syntax::PrepositionalPhrase::from_quoted_ability_postmodifier(quoted);
         clause
             .predicate
             .dependents
-            .push(VerbDependent::Prepositional(preposition));
+            .push(VerbDependent::AbilityPostmodifier(
+                crate::syntax::AbilityPostmodifier::from_quoted_ability(quoted),
+            ));
         finish_simple_clause(clause)
     }
 
@@ -2939,7 +2938,20 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         {
             return Some(PredicatedQuality {
                 preposition: Some(simple.preposition()),
-                quality: simple.object().clone(),
+                quality: match simple.object().kind() {
+                    crate::syntax::PrepositionalObjectKind::NounPhrase(value) => {
+                        Phrase::NounPhrase(value.clone())
+                    }
+                    crate::syntax::PrepositionalObjectKind::PrepositionalPhrase(value) => {
+                        Phrase::PrepositionalPhrase(value.clone())
+                    }
+                    crate::syntax::PrepositionalObjectKind::GerundClause(value) => {
+                        Phrase::Clause(Box::new(crate::syntax::Clause::Dependent(
+                            crate::syntax::DependentClause::Gerund(value.as_ref().clone()),
+                        )))
+                    }
+                    crate::syntax::PrepositionalObjectKind::Adverb(value) => Phrase::Adverb(*value),
+                },
             });
         }
         // A bare quality with no preposition (`hexproof from blue` → `blue`).
@@ -3590,8 +3602,6 @@ mod tests {
     use crate::syntax::*;
     use crate::word::ColorWord;
     use crate::word::Noun;
-    use crate::word::NounInstance;
-    use crate::word::Vocab;
 
     #[test]
     fn activated_ability_has_cost_components_and_effect_sentences() {
@@ -4076,10 +4086,10 @@ mod tests {
     }
 
     #[test]
-    fn quoted_ability_object_and_with_postmodifier_keep_structured_slots() {
+    fn quoted_ability_object_and_with_postmodifier_keep_distinct_typed_slots() {
         // `gains` takes the quote through its typed predicate-object door.
-        // The distinct legacy `with "..."` relation stays structured through
-        // its ability-owned compatibility door without entering public P02.
+        // The distinct `with "..."` relation has its own typed adjunct and
+        // never masquerades as a P02 object.
         let object = parse("Target creature gains \"Flying.\"");
         let AbilityKind::Paragraph(object_paragraph) = &object.ast.abilities[0].kind() else {
             panic!("expected paragraph");
@@ -4092,114 +4102,29 @@ mod tests {
         let PredicateObject::QuotedAbility(quoted) = &predicate.object else {
             panic!("the grant quote should occupy the quoted-object slot")
         };
-        assert!(
-            crate::prepositional_phrase::build_prepositional_object(Phrase::QuotedAbility(
-                quoted.clone(),
-            ))
-            .is_err(),
-            "the ability-owned compatibility door must not widen public P02",
-        );
+        let _ = quoted;
         assert_eq!(render(&object), "Target creature gains \"Flying.\"");
 
         let with = parse("Create a Goblin creature token with \"{T}: Add {C}.\"");
         let AbilityKind::Paragraph(with_paragraph) = &with.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
-        assert!(
-            matches!(
-                &with_paragraph.sentences[0].body,
-                SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(_)))
-            ),
-            "the with-postmodifier clause should remain a structured imperative, got {:?}",
-            with_paragraph.sentences[0].body
-        );
+        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
+            predicate,
+        ))) = &with_paragraph.sentences[0].body
+        else {
+            panic!(
+                "the with-postmodifier clause should remain a structured imperative, got {:?}",
+                with_paragraph.sentences[0].body
+            )
+        };
+        assert!(predicate.elements().iter().any(|element| matches!(
+            element,
+            PredicateElement::Adjunct(PredicateAdjunct::AbilityPostmodifier(_))
+        )));
         assert_eq!(
             render(&with),
             "Create a Goblin creature token with \"{T}: Add {C}.\""
-        );
-    }
-
-    #[test]
-    fn quoted_with_compatibility_cannot_enter_nested_p02_or_c01() {
-        let parsed = parse("Create a Goblin creature token with \"{T}: Add {C}.\"");
-        let AbilityKind::Paragraph(paragraph) = &parsed.ast.abilities[0].kind() else {
-            panic!("expected paragraph")
-        };
-        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
-            predicate,
-        ))) = &paragraph.sentences[0].body
-        else {
-            panic!("expected structured imperative")
-        };
-        let compatibility = predicate
-            .elements()
-            .iter()
-            .find_map(|element| match element {
-                PredicateElement::Adjunct(PredicateAdjunct::Prepositional(value)) => Some(value),
-                _ => None,
-            })
-            .expect("the quoted with relation remains a prepositional adjunct")
-            .clone();
-
-        let direct_rejected =
-            crate::prepositional_phrase::build_prepositional_object_prepositional_phrase(
-                compatibility.clone(),
-            )
-            .is_err();
-        let outer = PrepositionalPhrase::from_prepositional_declaration(
-            Preposition::From,
-            Phrase::PrepositionalPhrase(Box::new(compatibility.clone())),
-        );
-        let recursively_rejected =
-            crate::prepositional_phrase::build_prepositional_object_prepositional_phrase(outer)
-                .is_err();
-        let projection_rejected =
-            crate::prepositional_phrase::parts_prepositional_phrase(&compatibility).is_err();
-
-        let card = crate::constructions::nominal::build_nominal_noun(
-            NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
-        )
-        .and_then(crate::noun_phrase::build_noun_phrase_nominal)
-        .unwrap();
-        let valid = crate::prepositional_phrase::build_prepositional_phrase(
-            Preposition::Of,
-            crate::prepositional_phrase::build_prepositional_object_noun_phrase(card).unwrap(),
-        )
-        .unwrap();
-        let valid_nested =
-            crate::prepositional_phrase::build_prepositional_object_prepositional_phrase(
-                valid.clone(),
-            )
-            .and_then(|object| {
-                crate::prepositional_phrase::build_prepositional_phrase(Preposition::From, object)
-            })
-            .and_then(crate::prepositional_phrase::build_prepositional_object_prepositional_phrase);
-        let first_rejected = crate::prepositional_phrase::build_prepositional_phrase_coordination(
-            compatibility.clone(),
-            vec![(Some(Conjunction::And), valid.clone())],
-        )
-        .is_err();
-        let later_rejected = crate::prepositional_phrase::build_prepositional_phrase_coordination(
-            valid,
-            vec![(Some(Conjunction::And), compatibility)],
-        )
-        .is_err();
-
-        assert!(
-            direct_rejected && recursively_rejected,
-            "compatibility PP leaked through nested P02: direct={direct_rejected}, recursive={recursively_rejected}",
-        );
-        assert!(
-            projection_rejected,
-            "compatibility PP projected as public P02"
-        );
-        assert!(
-            valid_nested.is_ok(),
-            "a recursively valid nested P02 remains admitted"
-        );
-        assert!(
-            first_rejected && later_rejected,
-            "C01 accepted a compatibility member: first={first_rejected}, later={later_rejected}",
         );
     }
 
@@ -6665,8 +6590,8 @@ mod tests {
                             value.kind(),
                             PrepositionalPhraseKind::Simple(simple)
                                 if matches!(
-                                    simple.object(),
-                                    Phrase::NounPhrase(noun_phrase) if matches!(
+                                    simple.object().kind(),
+                                    crate::syntax::PrepositionalObjectKind::NounPhrase(noun_phrase) if matches!(
                                         noun_phrase.kind(),
                                         crate::syntax::NounPhraseKind::ThisCard(
                                             ThisCardForm::AbbreviatedName

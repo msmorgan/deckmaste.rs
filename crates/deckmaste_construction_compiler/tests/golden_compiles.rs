@@ -39,6 +39,12 @@ use deckmaste_features::Conjunction;
 
 include!("goldens/fixture_coordination.golden");
 
+impl From<FixturePairNode> for FixturePair {
+    fn from(value: FixturePairNode) -> Self {
+        Self::Pair(value)
+    }
+}
+
 #[test]
 fn golden_compiles_and_seals() {
     let node = FixtureSoloNode::try_new(FixturePhrase, None).expect("valid solo");

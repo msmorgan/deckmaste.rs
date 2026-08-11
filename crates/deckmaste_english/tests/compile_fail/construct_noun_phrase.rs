@@ -1,8 +1,8 @@
 use deckmaste_english::syntax::NounPhrase;
-use deckmaste_english::syntax::Quantity;
+use deckmaste_english::syntax::NounPhraseKind;
 
-fn bypass(quantity: Quantity) -> NounPhrase {
-    NounPhrase::Quantity(quantity)
+fn bypass(kind: NounPhraseKind) -> NounPhrase {
+    NounPhrase(kind)
 }
 
 fn main() {}

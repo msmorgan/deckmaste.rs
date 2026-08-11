@@ -1072,7 +1072,7 @@ fn contracted_subject_feature_candidates(
                 | crate::word::Pronoun::They
                 | crate::word::Pronoun::It(_)),
             case: crate::word::PronounCase::Subject,
-        } => crate::grammar::ContractedSubjectKey::Pronoun(pronoun),
+        } => crate::grammar::ContractedSubjectKey::Pronoun(*pronoun),
         NounPhraseKind::Demonstrative(Demonstrative::That) => {
             crate::grammar::ContractedSubjectKey::Demonstrative(Demonstrative::That)
         }
