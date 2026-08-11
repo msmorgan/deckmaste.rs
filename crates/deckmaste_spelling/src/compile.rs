@@ -48,6 +48,7 @@ use deckmaste_english::ProjectedAtom;
 use deckmaste_english::features::Number;
 use deckmaste_english::features::Person;
 use deckmaste_english::parse_fragment;
+use deckmaste_english::predicate::VerbAnalysis;
 use deckmaste_english::project_fragment;
 use deckmaste_english::syntax::ScalarValue;
 use deckmaste_english::word::Noun;
@@ -1060,14 +1061,24 @@ fn agreement_deps(tree: &ProjectionTree, placed: &[PlacedHole]) -> Vec<Agreement
         let Some(predicate_tree) = predicate.resolve(tree) else {
             continue;
         };
-        let Some((relative_slot, _)) = predicate_tree.walk().into_iter().find(|(_, candidate)| {
-            candidate
-                .construction()
-                .is_some_and(|candidate| candidate.construction == "flat_verb_slot")
+        let Some((relative_verb, _)) = predicate_tree.walk().into_iter().find(|(_, candidate)| {
+            candidate.construction().is_some_and(|candidate| {
+                candidate.construction == "verb"
+                    && candidate.roles.get("head").is_some_and(|head| {
+                        matches!(
+                            head.atom(),
+                            Some(ProjectedAtom::Identity {
+                                provider: "LexicalVerb",
+                                value_type: "VerbAnalysis",
+                                ..
+                            })
+                        )
+                    })
+            })
         }) else {
             continue;
         };
-        let site = join_paths(&predicate, &relative_slot);
+        let site = join_paths(&predicate, &relative_verb).then(ProjectionStep::Role("head"));
         for hole in placed {
             if hole.sites.iter().any(|at| subject.is_prefix_of(at)) {
                 deps.push(AgreementDep {
@@ -1150,29 +1161,31 @@ fn normalize_citation(
     };
     match kind {
         AgreeKind::VerbWithHole(_) => {
-            let Some(slot) = node.construction_mut() else {
+            let ProjectionTree::Atom(ProjectedAtom::Identity {
+                provider: "LexicalVerb",
+                value_type: "VerbAnalysis",
+                value,
+            }) = node
+            else {
                 return applied;
             };
-            if slot.construction != "flat_verb_slot" || slot.form != "present" {
+            let Some(analysis) = value.downcast_ref::<VerbAnalysis>() else {
                 return applied;
-            }
-            let mut was = (Person::Third, Number::Singular);
-            if let Some(current) = projected_scalar::<Person>(slot.roles.get("person")) {
-                was.0 = *current;
-            }
-            if let Some(current) = projected_scalar::<Number>(slot.roles.get("number")) {
-                was.1 = *current;
-            }
+            };
+            let deckmaste_english::features::VerbSlot::Present { person, number } =
+                analysis.instance().slot
+            else {
+                return applied;
+            };
+            let was = (person, number);
+            let citation = analysis.citation_form();
             if was != (Person::Third, Number::Singular) {
                 applied.push(Normalization::VerbAgreement {
                     person: was.0,
                     number: was.1,
                 });
             }
-            slot.roles
-                .insert("person", projected_scalar_node("Person", &Person::Third));
-            slot.roles
-                .insert("number", projected_scalar_node("Number", &Number::Singular));
+            *value = deckmaste_english::OwnedProjectionValue::new(&citation);
         }
         AgreeKind::NounNumberFromHole(_) => {
             let Some(instance) = projected_noun_instance(node) else {
@@ -1209,19 +1222,10 @@ fn normalize_citation(
     applied
 }
 
+#[cfg(test)]
 fn projected_scalar<T: std::any::Any>(node: Option<&ProjectionTree>) -> Option<&T> {
     let atom = node?.atom()?;
     atom_value(atom)?.downcast_ref::<T>()
-}
-
-fn projected_scalar_node<T>(codec: &'static str, value: &T) -> ProjectionTree
-where
-    T: deckmaste_english::ProjectionValue,
-{
-    ProjectionTree::Atom(ProjectedAtom::Scalar {
-        codec,
-        value: deckmaste_english::OwnedProjectionValue::new(value),
-    })
 }
 
 #[cfg(test)]
@@ -1665,8 +1669,11 @@ mod tests {
             let construction = node.construction();
             let (actual, expected) = match dep.kind {
                 AgreeKind::VerbWithHole(_) => (
-                    construction.map(|construction| construction.construction),
-                    "flat_verb_slot",
+                    node.atom().and_then(|atom| match atom {
+                        ProjectedAtom::Identity { provider, .. } => Some(*provider),
+                        _ => None,
+                    }),
+                    "LexicalVerb",
                 ),
                 AgreeKind::NounNumberFromHole(_) => (
                     construction.map(|construction| construction.category),

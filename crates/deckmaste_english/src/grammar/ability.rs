@@ -1,6 +1,5 @@
 use super::Nonterminal;
 use super::ParsedNonterminal;
-use super::VerbDependent;
 use super::clause::finish_simple_clause;
 use super::parse_nonterminal_with_self_reference;
 use super::parse_symbol_sequence;
@@ -2190,19 +2189,20 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         prefix: &[Token],
         quoted: QuotedAbility,
     ) -> Option<IndependentClause> {
-        let mut clause = self.accept_exact(prefix, Nonterminal::SimpleClause, |parsed| {
+        let clause = self.accept_exact(prefix, Nonterminal::SimpleClause, |parsed| {
             parsed.simple_clause().cloned()
         })?;
-        if clause.subject.is_none() && clause.predicate.verb.slot == VerbSlot::Infinitive {
-            clause.predicate.verb.slot = VerbSlot::Imperative;
+        let subject = clause.subject;
+        let mut predicate = clause.predicate;
+        if subject.is_none() && predicate.declaration_verb_slot() == VerbSlot::Infinitive {
+            predicate = predicate.declaration_as_imperative()?;
         }
-        clause
-            .predicate
-            .dependents
-            .push(VerbDependent::AbilityPostmodifier(
-                crate::syntax::AbilityPostmodifier::from_quoted_ability(quoted),
-            ));
-        finish_simple_clause(clause)
+        let predicate = crate::constructions::predicate::build_verb_phrase_ability_postmodifier(
+            predicate,
+            crate::syntax::AbilityPostmodifier::from_quoted_ability(quoted),
+        )
+        .ok()?;
+        finish_simple_clause(super::SimpleClause { subject, predicate })
     }
 
     /// Attaches a quoted ability as the direct object of a grant verb
@@ -2226,7 +2226,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         {
             return None;
         }
-        let mut clause = if let Some(clause) =
+        let clause = if let Some(clause) =
             self.accept_exact(prefix, Nonterminal::SimpleClause, |parsed| {
                 parsed.simple_clause().cloned()
             }) {
@@ -2237,7 +2237,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             // prefix parses, then drop it — the quoted ability takes the freed
             // object slot.
             let probe = format!("{} {GRANT_OBJECT_SENTINEL}", self.tokens_text(prefix));
-            let mut clause = parse_nonterminal_with_self_reference(
+            let clause = parse_nonterminal_with_self_reference(
                 &probe,
                 self.catalogs,
                 Nonterminal::SimpleClause,
@@ -2246,16 +2246,25 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             .ok()?
             .simple_clause()?
             .clone();
-            clause.predicate.dependents.pop();
-            clause
+            let (predicate, sentinel) =
+                crate::constructions::predicate::parts_verb_phrase_ability(&clause.predicate)?;
+            if sentinel.spelling() != GRANT_OBJECT_SENTINEL {
+                return None;
+            }
+            super::SimpleClause {
+                subject: clause.subject,
+                predicate,
+            }
         };
-        clause
-            .predicate
-            .dependents
-            .push(VerbDependent::PredicateComplement(Phrase::QuotedAbility(
-                Box::new(quoted),
-            )));
-        finish_simple_clause(clause)
+        let predicate = crate::constructions::predicate::build_verb_phrase_quoted_ability(
+            clause.predicate,
+            quoted,
+        )
+        .ok()?;
+        finish_simple_clause(super::SimpleClause {
+            subject: clause.subject,
+            predicate,
+        })
     }
 
     fn parse_keyword_line_construction(&mut self, tokens: &[Token]) -> Option<KeywordAbilityList> {

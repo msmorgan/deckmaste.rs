@@ -9,19 +9,14 @@
 use deckmaste_construction_compiler::runtime::DeclarationViolation;
 use deckmaste_construction_compiler::runtime::GroupData;
 
-use crate::features::Comma;
 use crate::grammar::Features;
 use crate::grammar::PredicateForm;
 use crate::grammar::VerbPhrase;
-use crate::syntax::AttachmentPosition;
-use crate::syntax::DependentAttachment;
-use crate::syntax::DependentClause;
 use crate::syntax::GerundClause;
+use crate::syntax::GerundClauseKind;
 use crate::syntax::InfinitiveClause;
 use crate::syntax::InfinitiveMarker;
 use crate::syntax::Predicate;
-use crate::syntax::SubordinateBody;
-use crate::syntax::Subordinator;
 
 fn violation(construction: &'static str, requirement: &'static str) -> DeclarationViolation {
     DeclarationViolation {
@@ -120,20 +115,15 @@ pub(crate) fn is_valid_infinitive(value: &InfinitiveClause) -> bool {
 }
 
 fn valid_gerund(value: &GerundClause) -> bool {
-    predicate_has_complete_form(value.predicate(), PredicateForm::PresentParticiple)
-        && value.attachments().iter().all(|attachment| {
-            matches!(
-                attachment,
-                DependentAttachment {
-                    position: AttachmentPosition::AfterMatrix,
-                    comma: Comma::Absent,
-                    payload: DependentClause::Subordinate(
-                        Subordinator::RatherThan,
-                        SubordinateBody::Gerund(alternative),
-                    ),
-                } if valid_gerund(alternative)
-            )
-        })
+    match value.kind() {
+        GerundClauseKind::Base { predicate } => {
+            predicate_has_complete_form(predicate, PredicateForm::PresentParticiple)
+        }
+        GerundClauseKind::RatherThan {
+            matrix,
+            alternative,
+        } => valid_gerund(matrix) && valid_gerund(alternative),
+    }
 }
 
 fn make_gerund_clause_base(predicate: VerbPhrase) -> Result<GerundClause, DeclarationViolation> {
@@ -142,16 +132,19 @@ fn make_gerund_clause_base(predicate: VerbPhrase) -> Result<GerundClause, Declar
         predicate,
         PredicateForm::PresentParticiple,
     )?;
-    Ok(GerundClause::from_declaration_parts(predicate, Vec::new()))
+    Ok(GerundClause::from_base_declaration(predicate))
 }
 
 fn gerund_clause_base_parts(value: &GerundClause) -> VerbPhrase {
-    crate::constructions::predicate::inverse_public_predicate(value.predicate())
+    let GerundClauseKind::Base { predicate } = value.kind() else {
+        unreachable!("the base gerund recognizer admits only a base predicate")
+    };
+    crate::constructions::predicate::inverse_public_predicate(predicate)
         .expect("the gerund recognizer admits an invertible predicate")
 }
 
 fn is_gerund_clause_base(value: &GerundClause) -> bool {
-    value.attachments().is_empty() && valid_gerund(value)
+    matches!(value.kind(), GerundClauseKind::Base { .. }) && valid_gerund(value)
 }
 
 fn make_gerund_clause_subordinate_after(
@@ -164,49 +157,25 @@ fn make_gerund_clause_subordinate_after(
             "both sides are complete generated gerund clauses",
         ));
     }
-    let (predicate, mut attachments) = matrix.into_declaration_parts();
-    attachments.push(DependentAttachment::from_declaration_parts(
-        AttachmentPosition::AfterMatrix,
-        Comma::Absent,
-        DependentClause::Subordinate(
-            Subordinator::RatherThan,
-            SubordinateBody::Gerund(alternative),
-        ),
-    ));
-    Ok(GerundClause::from_declaration_parts(predicate, attachments))
+    Ok(GerundClause::from_rather_than_declaration(
+        matrix,
+        alternative,
+    ))
 }
 
 fn gerund_clause_subordinate_after_parts(value: &GerundClause) -> (GerundClause, GerundClause) {
-    let (predicate, mut attachments) = value.clone().into_declaration_parts();
-    let DependentAttachment {
-        payload:
-            DependentClause::Subordinate(Subordinator::RatherThan, SubordinateBody::Gerund(alternative)),
-        ..
-    } = attachments
-        .pop()
-        .expect("the subordinate recognizer admits one trailing attachment")
-    else {
-        unreachable!("the subordinate recognizer admits a rather-than gerund")
-    };
-    (
-        GerundClause::from_declaration_parts(predicate, attachments),
+    let GerundClauseKind::RatherThan {
+        matrix,
         alternative,
-    )
+    } = value.kind()
+    else {
+        unreachable!("the subordinate gerund recognizer admits only a rather-than relation")
+    };
+    (matrix.as_ref().clone(), alternative.as_ref().clone())
 }
 
 fn is_gerund_clause_subordinate_after(value: &GerundClause) -> bool {
-    valid_gerund(value)
-        && matches!(
-            value.attachments().last(),
-            Some(DependentAttachment {
-                position: AttachmentPosition::AfterMatrix,
-                comma: Comma::Absent,
-                payload: DependentClause::Subordinate(
-                    Subordinator::RatherThan,
-                    SubordinateBody::Gerund(_),
-                ),
-            })
-        )
+    matches!(value.kind(), GerundClauseKind::RatherThan { .. }) && valid_gerund(value)
 }
 
 fn reduce_infinitive_features(predicate: &Features) -> Option<Features> {

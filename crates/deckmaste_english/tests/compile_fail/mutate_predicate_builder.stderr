@@ -1,0 +1,5 @@
+error[E0616]: field `phrase` of struct `PredicateBuilder` is private
+ --> tests/compile_fail/mutate_predicate_builder.rs:4:13
+  |
+4 |     builder.phrase = replacement();
+  |             ^^^^^^ private field

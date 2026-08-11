@@ -104,14 +104,42 @@ pub enum PredicateExpression {
 /// case.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct DeonticPredicate {
-    pub modal: Modal,
-    pub inner: Option<Box<Predicate>>,
+    pub(crate) modal: Modal,
+    pub(crate) inner: Option<Box<Predicate>>,
+}
+
+impl DeonticPredicate {
+    /// Returns the modal auxiliary governing this predicate.
+    #[must_use]
+    pub const fn modal(&self) -> &Modal {
+        &self.modal
+    }
+
+    /// Returns the governed predicate, or `None` for verbal ellipsis.
+    #[must_use]
+    pub fn inner(&self) -> Option<&Predicate> {
+        self.inner.as_deref()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct AttachedPredicate {
-    pub predicate: Box<Predicate>,
-    pub attachments: Vec<ClauseAttachment>,
+    pub(crate) predicate: Box<Predicate>,
+    pub(crate) attachments: Vec<ClauseAttachment>,
+}
+
+impl AttachedPredicate {
+    /// Returns the predicate whose local scope owns the trailing attachments.
+    #[must_use]
+    pub fn predicate(&self) -> &Predicate {
+        self.predicate.as_ref()
+    }
+
+    /// Returns the locally scoped attachments in surface order.
+    #[must_use]
+    pub fn attachments(&self) -> &[ClauseAttachment] {
+        &self.attachments
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -229,8 +257,22 @@ impl<K> Deref for HeadedPredicate<K> {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Transitive {
-    pub pre_object_elements: Vec<PredicateElement>,
-    pub object: PredicateObject,
+    pub(crate) pre_object_elements: Vec<PredicateElement>,
+    pub(crate) object: PredicateObject,
+}
+
+impl Transitive {
+    /// Returns dependents that precede the direct object in surface order.
+    #[must_use]
+    pub fn pre_object_elements(&self) -> &[PredicateElement] {
+        &self.pre_object_elements
+    }
+
+    /// Returns the checked direct object.
+    #[must_use]
+    pub const fn object(&self) -> &PredicateObject {
+        &self.object
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -243,7 +285,15 @@ pub struct Passive {
     /// ordinary passive, where the promoted subject IS the theme. Licensed
     /// only by a frame whose `is_recipient_passive()` holds, so the field can
     /// never be populated by a verb that does not lexically take a recipient.
-    pub retained_object: Option<PredicateObject>,
+    pub(crate) retained_object: Option<PredicateObject>,
+}
+
+impl Passive {
+    /// Returns the postverbal theme retained by a recipient passive.
+    #[must_use]
+    pub const fn retained_object(&self) -> Option<&PredicateObject> {
+        self.retained_object.as_ref()
+    }
 }
 
 pub type TransitivePredicate = HeadedPredicate<Transitive>;
@@ -252,7 +302,7 @@ pub type PassivePredicate = HeadedPredicate<Passive>;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct CopularPredicate {
-    pub copula: Copula,
+    pub(crate) copula: Copula,
     /// Whether the predication is negated by a free-standing `not`
     /// (`it's not your turn`). Negation is normally spelled on the copula
     /// itself (`isn't` — `AuxiliaryInstance::contracted_negation`), but when
@@ -261,7 +311,7 @@ pub struct CopularPredicate {
     /// the predication, not an adverb: `precomplement_adverbs` holds `Vocab`
     /// adverbs (`still`), and `not` has its own structural home elsewhere
     /// (`PreverbModifier::Not`).
-    pub negated: bool,
+    pub(crate) negated: bool,
     /// The distributive floating quantifier `each` sitting between the copula
     /// and the complement (`Rosie's power and toughness are *each* equal to
     /// …`). It quantifies the coordinated subject but surfaces
@@ -269,15 +319,53 @@ pub struct CopularPredicate {
     /// [`PartitiveHead::Each`](crate::syntax::PartitiveHead) of `each of
     /// X`; carried here as a flag and replayed by the renderer in its fixed
     /// slot rather than synthesized from the subject's shape.
-    pub distributive_each: bool,
-    pub precomplement_adverbs: Vec<Vocab>,
-    pub complement: CopularComplement,
-    pub adjuncts: Vec<PredicateAdjunct>,
+    pub(crate) distributive_each: bool,
+    pub(crate) precomplement_adverbs: Vec<Vocab>,
+    pub(crate) complement: CopularComplement,
+    pub(crate) adjuncts: Vec<PredicateAdjunct>,
+}
+
+impl CopularPredicate {
+    /// Returns the checked copular head.
+    #[must_use]
+    pub const fn copula(&self) -> &Copula {
+        &self.copula
+    }
+
+    /// Whether negation is realized as a free-standing `not`.
+    #[must_use]
+    pub const fn negated(&self) -> bool {
+        self.negated
+    }
+
+    /// Whether the post-copular distributive `each` is present.
+    #[must_use]
+    pub const fn distributive_each(&self) -> bool {
+        self.distributive_each
+    }
+
+    /// Returns adverbs between the copula and complement.
+    #[must_use]
+    pub fn precomplement_adverbs(&self) -> &[Vocab] {
+        &self.precomplement_adverbs
+    }
+
+    /// Returns the selected copular complement.
+    #[must_use]
+    pub const fn complement(&self) -> &CopularComplement {
+        &self.complement
+    }
+
+    /// Returns trailing copular adjuncts in surface order.
+    #[must_use]
+    pub fn adjuncts(&self) -> &[PredicateAdjunct] {
+        &self.adjuncts
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub struct Copula {
-    pub auxiliary: AuxiliaryInstance,
+    pub(crate) auxiliary: AuxiliaryInstance,
     /// **Measured, field KEPT** (surface-fact diet, 2026-07-30 measurement
     /// round): the ticket's construction-kind hypothesis — copular positions
     /// always contract — is FALSIFIED, more heavily than the sibling
@@ -295,7 +383,21 @@ pub struct Copula {
     /// **subject pronominality**, not copular position, predicts contraction
     /// — and even that is not exact (`it's` 1132 vs `it is` 73 on the
     /// supported corpus). Field stays stored.
-    pub contracted_with_subject: Contraction,
+    pub(crate) contracted_with_subject: Contraction,
+}
+
+impl Copula {
+    /// Returns the inflected copular auxiliary.
+    #[must_use]
+    pub const fn auxiliary(&self) -> AuxiliaryInstance {
+        self.auxiliary
+    }
+
+    /// Whether the copula contracts with its subject.
+    #[must_use]
+    pub const fn contracted_with_subject(&self) -> Contraction {
+        self.contracted_with_subject
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -318,12 +420,28 @@ pub enum CopularComplement {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub struct Modal {
-    pub auxiliary: AuxiliaryInstance,
+    pub(crate) auxiliary: AuxiliaryInstance,
+}
+
+impl Modal {
+    /// Returns the checked modal auxiliary.
+    #[must_use]
+    pub const fn auxiliary(&self) -> AuxiliaryInstance {
+        self.auxiliary
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub struct ProPredicate {
-    pub auxiliary: AuxiliaryInstance,
+    pub(crate) auxiliary: AuxiliaryInstance,
+}
+
+impl ProPredicate {
+    /// Returns the checked proform auxiliary.
+    #[must_use]
+    pub const fn auxiliary(&self) -> AuxiliaryInstance {
+        self.auxiliary
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -346,8 +464,22 @@ pub enum PredicateObject {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct CoordinatedPredicateObject {
-    pub first: Box<PredicateObject>,
-    pub rest: Vec<PredicateObjectCoordination>,
+    pub(crate) first: Box<PredicateObject>,
+    pub(crate) rest: Vec<PredicateObjectCoordination>,
+}
+
+impl CoordinatedPredicateObject {
+    /// Returns the first coordinated object.
+    #[must_use]
+    pub fn first(&self) -> &PredicateObject {
+        self.first.as_ref()
+    }
+
+    /// Returns the remaining coordinated objects in surface order.
+    #[must_use]
+    pub fn rest(&self) -> &[PredicateObjectCoordination] {
+        &self.rest
+    }
 }
 
 /// One non-first member of a predicate-object coordination.
@@ -368,14 +500,42 @@ pub struct PredicateObjectCoordination {
     /// list; `Some` on a bare `and`/`or` member and on the final Oxford
     /// member. Mirrors
     /// [`NounPhraseCoordination`](super::phrase::NounPhraseCoordination).
-    pub conjunction: Option<Conjunction>,
-    pub object: PredicateObject,
+    pub(crate) conjunction: Option<Conjunction>,
+    pub(crate) object: PredicateObject,
+}
+
+impl PredicateObjectCoordination {
+    /// Returns the connective introducing this member, when present.
+    #[must_use]
+    pub const fn conjunction(&self) -> Option<Conjunction> {
+        self.conjunction
+    }
+
+    /// Returns the coordinated object.
+    #[must_use]
+    pub const fn object(&self) -> &PredicateObject {
+        &self.object
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct AbilityObject {
-    pub ability: CatalogAtom,
-    pub argument: Option<Box<PredicateObject>>,
+    pub(crate) ability: CatalogAtom,
+    pub(crate) argument: Option<Box<PredicateObject>>,
+}
+
+impl AbilityObject {
+    /// Returns the keyword-ability identity.
+    #[must_use]
+    pub const fn ability(&self) -> &CatalogAtom {
+        &self.ability
+    }
+
+    /// Returns the checked ability argument, when present.
+    #[must_use]
+    pub fn argument(&self) -> Option<&PredicateObject> {
+        self.argument.as_deref()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -469,8 +629,22 @@ impl AbilityPostmodifier {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct FrequencyPhrase {
-    pub bound: FrequencyBound,
-    pub count: FrequencyCount,
+    pub(crate) bound: FrequencyBound,
+    pub(crate) count: FrequencyCount,
+}
+
+impl FrequencyPhrase {
+    /// Returns the frequency bound selected by the construction.
+    #[must_use]
+    pub const fn bound(&self) -> FrequencyBound {
+        self.bound
+    }
+
+    /// Returns the number of admitted occurrences.
+    #[must_use]
+    pub const fn count(&self) -> FrequencyCount {
+        self.count
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
@@ -493,10 +667,24 @@ pub struct InfinitiveClause {
     predicate: Box<Predicate>,
 }
 
+/// A checked gerund clause with no generic attachment escape hatch.
+///
+/// F01 admits either one complete present-participle predicate or the recursive
+/// `matrix rather than alternative` relation. Position, punctuation, and
+/// subordinator are fixed by that relation and therefore are not stored.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-pub struct GerundClause {
-    predicate: Box<Predicate>,
-    attachments: Vec<DependentAttachment>,
+pub struct GerundClause(GerundClauseKind);
+
+/// The direct semantic alternatives of a checked [`GerundClause`].
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub enum GerundClauseKind {
+    Base {
+        predicate: Box<Predicate>,
+    },
+    RatherThan {
+        matrix: Box<GerundClause>,
+        alternative: Box<GerundClause>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -539,28 +727,26 @@ impl InfinitiveClause {
 }
 
 impl GerundClause {
-    pub(crate) fn from_declaration_parts(
-        predicate: Predicate,
-        attachments: Vec<DependentAttachment>,
-    ) -> Self {
-        Self {
+    pub(crate) fn from_base_declaration(predicate: Predicate) -> Self {
+        Self(GerundClauseKind::Base {
             predicate: Box::new(predicate),
-            attachments,
-        }
+        })
     }
 
-    pub(crate) fn into_declaration_parts(self) -> (Predicate, Vec<DependentAttachment>) {
-        (*self.predicate, self.attachments)
+    pub(crate) fn from_rather_than_declaration(
+        matrix: GerundClause,
+        alternative: GerundClause,
+    ) -> Self {
+        Self(GerundClauseKind::RatherThan {
+            matrix: Box::new(matrix),
+            alternative: Box::new(alternative),
+        })
     }
 
+    /// Returns the validated base or recursive `rather than` relation.
     #[must_use]
-    pub fn predicate(&self) -> &Predicate {
-        &self.predicate
-    }
-
-    #[must_use]
-    pub fn attachments(&self) -> &[DependentAttachment] {
-        &self.attachments
+    pub const fn kind(&self) -> &GerundClauseKind {
+        &self.0
     }
 }
 

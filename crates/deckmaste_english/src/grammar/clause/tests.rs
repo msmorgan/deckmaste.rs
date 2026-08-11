@@ -7,7 +7,6 @@ use crate::identity::SelfReference;
 use crate::syntax::AbilityKind;
 use crate::syntax::AdjectiveComplement;
 use crate::syntax::Demonstrative;
-use crate::syntax::DependentAttachment;
 use crate::syntax::FrequencyBound;
 use crate::syntax::FrequencyCount;
 use crate::syntax::InfinitiveMarker;
@@ -132,7 +131,7 @@ fn imperative_has_coordinated_pp_role(
     else {
         return false;
     };
-    predicate.elements.iter().any(|element| {
+    predicate.elements().iter().any(|element| {
         let ((
             crate::features::ComplementRole::SelectedComplement,
             PredicateElement::Complement(PredicateComplement::Prepositional(phrase)),
@@ -282,12 +281,12 @@ fn p02_registration_order_preserves_packed_attachment() {
                 return None;
             };
             let nominal = matches!(
-                predicate_object_kind(&predicate.object),
+                predicate_object_kind(predicate.object()),
                 Some(NounPhraseKind::Nominal(nominal))
                     if matches!(nominal.complements(), [NominalComplement::Prepositional(pp)]
                         if pp.head().preposition == Preposition::With)
             );
-            let predicate = predicate.elements.iter().any(|element| {
+            let predicate = predicate.elements().iter().any(|element| {
                 matches!(
                     element,
                     PredicateElement::Adjunct(PredicateAdjunct::Prepositional(pp))
@@ -426,8 +425,8 @@ fn singular_demonstratives_determine_mass_nouns() {
     else {
         panic!("expected an imperative transitive clause");
     };
-    let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(&predicate.object) else {
-        panic!("expected a nominal object, got {:?}", predicate.object);
+    let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(predicate.object()) else {
+        panic!("expected a nominal object, got {:?}", predicate.object());
     };
     assert_eq!(
         nominal.determiner(),
@@ -477,8 +476,8 @@ fn flip_is_a_count_noun_alongside_its_irregular_verb() {
     let IndependentClause::Transitive(_, predicate) = condition.as_ref() else {
         panic!("expected a transitive condition clause");
     };
-    let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(&predicate.object) else {
-        panic!("expected a nominal object, got {:?}", predicate.object);
+    let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(predicate.object()) else {
+        panic!("expected a nominal object, got {:?}", predicate.object());
     };
     assert_eq!(nominal.determiner(), Some(&crate::determiner::the()));
     assert!(matches!(
@@ -506,9 +505,12 @@ fn flip_is_a_count_noun_alongside_its_irregular_verb() {
     else {
         panic!("expected an imperative transitive clause");
     };
-    assert!(matches!(predicate.head.verb.verb, Verb::Word(Vocab::Flip)));
-    let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(&predicate.object) else {
-        panic!("expected a nominal object, got {:?}", predicate.object);
+    assert!(matches!(
+        predicate.head().verb().verb,
+        Verb::Word(Vocab::Flip)
+    ));
+    let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(predicate.object()) else {
+        panic!("expected a nominal object, got {:?}", predicate.object());
     };
     assert_eq!(nominal.determiner(), Some(&crate::determiner::indefinite()));
     assert!(matches!(
@@ -525,7 +527,10 @@ fn ensue_is_a_regular_intransitive_verb() {
     else {
         panic!("expected an intransitive clause");
     };
-    assert!(matches!(predicate.head.verb.verb, Verb::Word(Vocab::Ensue)));
+    assert!(matches!(
+        predicate.head().verb().verb,
+        Verb::Word(Vocab::Ensue)
+    ));
 
     // Reject a direct object after `ensue`.
     assert!(
@@ -569,9 +574,12 @@ fn coin_result_is_a_closed_two_word_predicate_tail() {
     let IndependentClause::Intransitive(_, predicate) = condition.as_ref() else {
         panic!("expected an intransitive condition clause");
     };
-    assert!(matches!(predicate.head.verb.verb, Verb::Word(Vocab::Come)));
+    assert!(matches!(
+        predicate.head().verb().verb,
+        Verb::Word(Vocab::Come)
+    ));
     assert_eq!(
-        predicate.elements.as_slice(),
+        predicate.elements(),
         [PredicateElement::CoinResult(CoinSide::Heads)]
     );
 
@@ -584,11 +592,11 @@ fn coin_result_is_a_closed_two_word_predicate_tail() {
         panic!("expected an intransitive clause");
     };
     assert!(matches!(
-        past_predicate.head.verb.slot,
+        past_predicate.head().verb().slot,
         VerbSlot::Past { .. }
     ));
     assert_eq!(
-        past_predicate.elements.as_slice(),
+        past_predicate.elements(),
         [PredicateElement::CoinResult(CoinSide::Heads)]
     );
 
@@ -599,7 +607,7 @@ fn coin_result_is_a_closed_two_word_predicate_tail() {
         panic!("expected an intransitive clause");
     };
     assert_eq!(
-        tails_predicate.elements.as_slice(),
+        tails_predicate.elements(),
         [PredicateElement::CoinResult(CoinSide::Tails)]
     );
 
@@ -625,7 +633,7 @@ fn coin_result_is_a_closed_two_word_predicate_tail() {
         panic!("expected an intransitive clause");
     };
     assert_eq!(
-        phase_predicate.elements.as_slice(),
+        phase_predicate.elements(),
         [PredicateElement::Particle(VerbParticle::Out)]
     );
 
@@ -638,7 +646,7 @@ fn coin_result_is_a_closed_two_word_predicate_tail() {
     else {
         panic!("expected an imperative transitive clause");
     };
-    assert!(flip_predicate.elements.is_empty());
+    assert!(flip_predicate.elements().is_empty());
 
     // Render/reparse both hand-constructed `CoinResult` values and
     // compare the structured subtrees.
@@ -745,7 +753,7 @@ fn receive_is_a_regular_verb_with_a_required_object() {
         panic!("expected a transitive clause");
     };
     assert!(matches!(
-        predicate.head.verb.verb,
+        predicate.head().verb().verb,
         Verb::Word(Vocab::Receive)
     ));
 
@@ -1198,7 +1206,7 @@ fn as_though_mana_copula_purpose_infinitive_attaches_inside_the_complement_nomin
     let IndependentClause::Copular(_, predicate) = body.as_ref() else {
         panic!("expected a copular as-though body: {body:#?}");
     };
-    let crate::syntax::CopularComplement::NounPhrase(complement) = &predicate.complement else {
+    let crate::syntax::CopularComplement::NounPhrase(complement) = predicate.complement() else {
         panic!("expected a noun-phrase complement: {predicate:#?}");
     };
     let NounPhraseKind::Nominal(mana) = (complement).kind() else {
@@ -1250,14 +1258,14 @@ fn as_though_mana_copula_structural_shape() {
     let IndependentClause::Copular(_, predicate) = body.as_ref() else {
         panic!("expected a copular as-though body: {body:#?}");
     };
-    assert_eq!(predicate.copula.auxiliary.auxiliary, Auxiliary::Be);
+    assert_eq!(predicate.copula().auxiliary().auxiliary, Auxiliary::Be);
     assert_eq!(
-        predicate.copula.auxiliary.inflection,
+        predicate.copula().auxiliary().inflection,
         AuxiliaryInflection::PastSubjunctive
     );
-    assert!(!predicate.copula.contracted_with_subject.is_contracted());
+    assert!(!predicate.copula().contracted_with_subject().is_contracted());
     assert!(matches!(
-        predicate.complement,
+        predicate.complement(),
         CopularComplement::NounPhrase(_)
     ));
 }
@@ -1301,10 +1309,10 @@ fn as_though_indicative_copula_reading_survives_the_subjunctive_copula_filter() 
             // — either way the `Be` auxiliary must keep its ordinary
             // indicative inflection, never `PastSubjunctive`.
             let auxiliary = match body.as_ref() {
-                IndependentClause::Copular(_, predicate) => predicate.copula.auxiliary,
+                IndependentClause::Copular(_, predicate) => predicate.copula().auxiliary(),
                 IndependentClause::Passive(_, predicate) => *predicate
-                    .head
-                    .auxiliaries
+                    .head()
+                    .auxiliaries()
                     .first()
                     .expect("passive `be` auxiliary"),
                 other => panic!("expected a copular or passive as-though body: {other:#?}"),
@@ -1443,12 +1451,12 @@ fn degree_measured_comparative_structural_shape() {
     let IndependentClause::Copular(_, predicate) = body.as_ref() else {
         panic!("expected a copular as-though body: {body:#?}");
     };
-    assert_eq!(predicate.copula.auxiliary.auxiliary, Auxiliary::Be);
+    assert_eq!(predicate.copula().auxiliary().auxiliary, Auxiliary::Be);
     assert_eq!(
-        predicate.copula.auxiliary.inflection,
+        predicate.copula().auxiliary().inflection,
         AuxiliaryInflection::PastSubjunctive
     );
-    let CopularComplement::Adjective(adjective) = &predicate.complement else {
+    let CopularComplement::Adjective(adjective) = predicate.complement() else {
         panic!("expected an adjective complement: {predicate:#?}");
     };
     assert_eq!(
@@ -1483,7 +1491,7 @@ fn numeral_before_a_than_only_adjective_is_not_a_degree_phrase() {
         panic!("expected an imperative body: {:#?}", parsed.sentence());
     };
     let object = match predicate {
-        crate::syntax::Predicate::Transitive(predicate) => &predicate.object,
+        crate::syntax::Predicate::Transitive(predicate) => predicate.object(),
         other => panic!("expected a transitive predicate: {other:#?}"),
     };
     let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(object) else {
@@ -1522,20 +1530,23 @@ fn numeral_before_an_or_comparative_stays_attributive() {
         let nominal = match &sentence.body {
             SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
                 predicate,
-            ))) => predicate.elements.iter().find_map(|element| match element {
-                PredicateElement::Adjunct(PredicateAdjunct::Temporal(noun_phrase)) => {
-                    match noun_phrase.kind() {
-                        NounPhraseKind::Nominal(nominal) => Some(nominal),
-                        _ => None,
+            ))) => predicate
+                .elements()
+                .iter()
+                .find_map(|element| match element {
+                    PredicateElement::Adjunct(PredicateAdjunct::Temporal(noun_phrase)) => {
+                        match noun_phrase.kind() {
+                            NounPhraseKind::Nominal(nominal) => Some(nominal),
+                            _ => None,
+                        }
                     }
-                }
-                _ => None,
-            }),
+                    _ => None,
+                }),
             SentenceBody::Independent(IndependentClause::Deontic(
                 _,
                 _,
                 Some(Predicate::Transitive(predicate)),
-            )) => match predicate_object_kind(&predicate.object) {
+            )) => match predicate_object_kind(predicate.object()) {
                 Some(NounPhraseKind::Nominal(nominal)) => Some(nominal),
                 _ => None,
             },
@@ -1543,18 +1554,21 @@ fn numeral_before_an_or_comparative_stays_attributive() {
                 let IndependentClause::Intransitive(_, predicate) = complex.matrix.as_ref() else {
                     panic!("expected an intransitive matrix: {sentence:#?}");
                 };
-                predicate.elements.iter().find_map(|element| match element {
-                    PredicateElement::Adjunct(PredicateAdjunct::Prepositional(value)) => {
-                        match value.head().object().kind() {
-                            PrepositionalObjectKind::NounPhrase(noun) => match noun.kind() {
-                                NounPhraseKind::Nominal(nominal) => Some(nominal),
+                predicate
+                    .elements()
+                    .iter()
+                    .find_map(|element| match element {
+                        PredicateElement::Adjunct(PredicateAdjunct::Prepositional(value)) => {
+                            match value.head().object().kind() {
+                                PrepositionalObjectKind::NounPhrase(noun) => match noun.kind() {
+                                    NounPhraseKind::Nominal(nominal) => Some(nominal),
+                                    _ => None,
+                                },
                                 _ => None,
-                            },
-                            _ => None,
+                            }
                         }
-                    }
-                    _ => None,
-                })
+                        _ => None,
+                    })
             }
             _ => None,
         }
@@ -1621,18 +1635,18 @@ fn finite_verbs_agree_with_their_subjects() {
             if matches!(nominal.head().kind(), NounInstanceKind::Plural(Noun::Word(Vocab::Spell)))
     ));
     assert_eq!(
-        plural.verb.slot,
+        plural.verb().slot,
         VerbSlot::Present {
             person: Person::Third,
             number: Number::Plural,
         }
     );
-    assert!(matches!(plural.verb.verb, Verb::Word(Vocab::Cost)));
+    assert!(matches!(plural.verb().verb, Verb::Word(Vocab::Cost)));
 
     let singular_parse = parse("This creature costs {1} less to cast.");
     let (_, singular) = finite(singular_parse.sentence().unwrap());
     assert_eq!(
-        singular.verb.slot,
+        singular.verb().slot,
         VerbSlot::Present {
             person: Person::Third,
             number: Number::Singular,
@@ -1653,7 +1667,7 @@ fn exact_quantities_can_measure_mass_nouns() {
             panic!("expected a transitive clause for {source:?}");
         };
         assert!(matches!(
-            predicate_object_kind(&predicate.object),
+            predicate_object_kind(predicate.object()),
             Some(NounPhraseKind::Nominal(nominal))
                 if matches!(
                     nominal.determiner(),
@@ -1680,8 +1694,11 @@ fn bonfire_recipient_is_full_coordination_with_a_shared_target_member() {
     else {
         panic!("expected a transitive clause");
     };
-    let Some(NounPhraseKind::Nominal(damage)) = predicate_object_kind(&predicate.object) else {
-        panic!("expected a nominal damage object: {:#?}", predicate.object);
+    let Some(NounPhraseKind::Nominal(damage)) = predicate_object_kind(predicate.object()) else {
+        panic!(
+            "expected a nominal damage object: {:#?}",
+            predicate.object()
+        );
     };
     assert!(matches!(
         damage.head().kind(),
@@ -1738,7 +1755,7 @@ fn adversarial_shared_subject_keeps_damage_and_recipient_coordinations_nested() 
     else {
         panic!("expected coordinated `gets` and `deals` predicates: {predicates:#?}");
     };
-    let Some(NounPhraseKind::Coordinated(damage)) = predicate_object_kind(&deals.object) else {
+    let Some(NounPhraseKind::Coordinated(damage)) = predicate_object_kind(deals.object()) else {
         panic!("expected two independently quantified damage nominals: {deals:#?}");
     };
     let NounPhraseKind::Nominal(first_damage) = (damage.first().as_ref()).kind() else {
@@ -2044,7 +2061,7 @@ fn coordinated_member_refuses_unrelated_following_pps() {
     else {
         panic!("expected a transitive imperative");
     };
-    let Some(NounPhraseKind::Nominal(control)) = predicate_object_kind(&predicate.object) else {
+    let Some(NounPhraseKind::Nominal(control)) = predicate_object_kind(predicate.object()) else {
         panic!("expected a nominal control object: {predicate:#?}");
     };
     let [
@@ -2096,7 +2113,7 @@ fn verb_homograph_does_not_close_a_shared_determiner_group() {
     else {
         panic!("`copy` must remain the second predicate: {coordination:#?}");
     };
-    assert!(matches!(copy.head.verb.verb, Verb::Word(Vocab::Copy)));
+    assert!(matches!(copy.head().verb().verb, Verb::Word(Vocab::Copy)));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
 
@@ -2124,7 +2141,7 @@ fn common_head_object_survives_following_finite_clause_coordination() {
     let Predicate::Transitive(cast) = first_predicate else {
         panic!("expected a transitive cast predicate: {first_predicate:#?}");
     };
-    let Some(NounPhraseKind::Nominal(card)) = predicate_object_kind(&cast.object) else {
+    let Some(NounPhraseKind::Nominal(card)) = predicate_object_kind(cast.object()) else {
         panic!("expected one common-head card object: {cast:#?}");
     };
     assert!(matches!(
@@ -2155,10 +2172,10 @@ fn later_relative_consumes_its_temporal_adjunct_before_the_pp_closes() {
         panic!("expected a transitive imperative");
     };
     assert!(
-        predicate.elements.is_empty(),
+        predicate.elements().is_empty(),
         "the temporal adjunct belongs to the later relative: {predicate:#?}"
     );
-    let Some(NounPhraseKind::Nominal(counter)) = predicate_object_kind(&predicate.object) else {
+    let Some(NounPhraseKind::Nominal(counter)) = predicate_object_kind(predicate.object()) else {
         panic!("expected a counter nominal: {predicate:#?}");
     };
     let [NominalComplement::Prepositional(objects)] = counter.complements() else {
@@ -2187,7 +2204,7 @@ fn later_relative_consumes_its_temporal_adjunct_before_the_pp_closes() {
         panic!("the later relative must retain its transitive predicate: {subject_relative:#?}")
     };
     assert!(matches!(
-        entered.elements.as_slice(),
+        entered.elements(),
         [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -2202,11 +2219,11 @@ fn repeated_damage_themes_coordinate_as_complete_noun_phrases() {
     else {
         panic!("expected a transitive clause");
     };
-    let Some(NounPhraseKind::Coordinated(objects)) = predicate_object_kind(&predicate.object)
+    let Some(NounPhraseKind::Coordinated(objects)) = predicate_object_kind(predicate.object())
     else {
         panic!(
             "expected coordinated damage objects: {:#?}",
-            predicate.object
+            predicate.object()
         );
     };
     assert!(matches!(
@@ -2241,25 +2258,22 @@ fn passive_to_shared_target_stays_inside_the_relative_predicate() {
     else {
         panic!("expected a transitive imperative");
     };
-    let Some(NounPhraseKind::Nominal(damage)) = predicate_object_kind(&predicate.object) else {
+    let Some(NounPhraseKind::Nominal(damage)) = predicate_object_kind(predicate.object()) else {
         panic!("expected a nominal damage object");
     };
     let [NominalComplement::Relative(relative)] = damage.complements() else {
         panic!("damage must own one complete relative: {damage:#?}");
     };
-    let RelativeBody::SubjectGap(Predicate::Deontic(DeonticPredicate {
-        inner: Some(inner), ..
-    })) = relative.body()
-    else {
+    let RelativeBody::SubjectGap(Predicate::Deontic(deontic)) = relative.body() else {
         panic!("damage must retain a modal subject relative: {relative:#?}")
     };
-    let Predicate::Passive(passive) = inner.as_ref() else {
-        panic!("expected a passive predicate inside the relative: {inner:#?}");
+    let Some(Predicate::Passive(passive)) = deontic.inner() else {
+        panic!("expected a passive predicate inside the relative: {deontic:#?}");
     };
     let [
         PredicateElement::Adjunct(PredicateAdjunct::Prepositional(to)),
         PredicateElement::Adjunct(PredicateAdjunct::Temporal(_)),
-    ] = passive.elements.as_slice()
+    ] = passive.elements()
     else {
         panic!("the passive must retain its recipient and temporal adjunct: {passive:#?}");
     };
@@ -2284,7 +2298,7 @@ fn as_fills_the_preposition_slot_after_an_adverb() {
     };
     assert!(
         matches!(
-            predicate.elements.as_slice(),
+            predicate.elements(),
             [
                 PredicateElement::Adjunct(PredicateAdjunct::Adverb(Vocab::Only)),
                 PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition)),
@@ -2333,14 +2347,14 @@ fn activation_restriction_clauses_parse_and_render_structurally() {
     };
     assert!(
         matches!(
-            predicate.elements.as_slice(),
+            predicate.elements(),
             [
                 PredicateElement::Adjunct(PredicateAdjunct::Adverb(Vocab::Only)),
                 PredicateElement::Adjunct(PredicateAdjunct::Prepositional(_)),
             ]
         ),
         "{:#?}",
-        predicate.elements
+        predicate.elements()
     );
     assert_eq!(complex.attachments.len(), 1);
     assert!(
@@ -2368,9 +2382,9 @@ fn coordinated_only_restrictions_form_one_restriction_attachment() {
         panic!("expected an imperative intransitive matrix");
     };
     assert!(
-        predicate.elements.is_empty(),
+        predicate.elements().is_empty(),
         "matrix elements must be empty: {:#?}",
-        predicate.elements
+        predicate.elements()
     );
     assert_eq!(complex.attachments.len(), 1);
     let attachment = &complex.attachments[0];
@@ -2541,21 +2555,21 @@ fn single_only_restriction_keeps_its_flat_elements() {
         };
         assert!(
             predicate
-                .elements
+                .elements()
                 .iter()
                 .all(|element| matches!(element, PredicateElement::Adjunct(_))),
             "{source}: {:#?}",
-            predicate.elements
+            predicate.elements()
         );
         assert!(
             matches!(
-                predicate.elements.first(),
+                predicate.elements().first(),
                 Some(PredicateElement::Adjunct(PredicateAdjunct::Adverb(
                     Vocab::Only
                 )))
             ),
             "{source}: {:#?}",
-            predicate.elements
+            predicate.elements()
         );
     }
 }
@@ -2574,7 +2588,7 @@ fn single_only_if_restriction_keeps_its_dependent_attachment() {
         panic!("expected an imperative intransitive matrix");
     };
     assert!(matches!(
-        predicate.elements.as_slice(),
+        predicate.elements(),
         [PredicateElement::Adjunct(PredicateAdjunct::Adverb(
             Vocab::Only
         ))]
@@ -2601,7 +2615,7 @@ fn juxtaposed_only_restrictions_stay_uncoordinated() {
     // `only as a sorcery only once each turn` stays five flat elements
     // (`Only`, `Prepositional(As …)`, `Only`, `Adverb(once)`,
     // `Temporal(each turn)`) — no coordinator, so no `Restriction` run.
-    assert_eq!(predicate.elements.len(), 5, "{:#?}", predicate.elements);
+    assert_eq!(predicate.elements().len(), 5, "{:#?}", predicate.elements());
 }
 
 #[test]
@@ -2691,7 +2705,7 @@ fn extra_and_additional_keep_their_distinct_printed_adjectives() {
     else {
         panic!("expected an imperative transitive: {:?}", extra.sentence());
     };
-    let Some(NounPhraseKind::Nominal(turn)) = predicate_object_kind(&predicate.object) else {
+    let Some(NounPhraseKind::Nominal(turn)) = predicate_object_kind(predicate.object()) else {
         panic!("expected an `extra turn` object: {predicate:#?}");
     };
     assert_eq!(turn_head_spelling(turn), "turn");
@@ -2725,7 +2739,7 @@ fn after_preposition_attaches_both_trailing_and_fronted() {
     };
     assert!(
         matches!(
-            predicate_object_kind(&predicate.object),
+            predicate_object_kind(predicate.object()),
             Some(NounPhraseKind::Nominal(nominal))
                 if nominal.complements().iter().any(|complement| matches!(
                     complement,
@@ -2766,7 +2780,7 @@ fn draw_noun_sense_does_not_capture_the_imperative_draw_verb() {
         panic!("expected an imperative transitive: {:?}", parsed.sentence());
     };
     assert!(matches!(
-        predicate.head.verb,
+        predicate.head().verb(),
         VerbInstance {
             verb: Verb::Word(Vocab::Draw),
             slot: VerbSlot::Imperative,
@@ -2803,17 +2817,17 @@ fn bounded_frequency_phrases_are_predicate_adjuncts() {
                 _,
                 _,
                 Some(Predicate::Transitive(predicate)),
-            )) => &predicate.elements,
+            )) => predicate.elements(),
             SentenceBody::Independent(IndependentClause::Imperative(Predicate::Intransitive(
                 predicate,
-            ))) => &predicate.elements,
+            ))) => predicate.elements(),
             clause => panic!("expected a bounded-frequency predicate: {clause:#?}"),
         };
         assert!(
             elements.iter().any(|element| matches!(
                 element,
                 PredicateElement::Adjunct(PredicateAdjunct::Frequency(frequency))
-                    if frequency.bound == expected_bound && frequency.count == expected_count
+                    if frequency.bound() == expected_bound && frequency.count() == expected_count
             )),
             "{source}: {elements:#?}"
         );
@@ -2840,8 +2854,8 @@ fn subject_relative_differential_comparisons_are_structural() {
         else {
             panic!("expected an imperative choice: {:#?}", parsed.sentence());
         };
-        let Some(NounPhraseKind::Nominal(opponent)) = predicate_object_kind(&choose.object) else {
-            panic!("expected an opponent object: {:#?}", choose.object);
+        let Some(NounPhraseKind::Nominal(opponent)) = predicate_object_kind(choose.object()) else {
+            panic!("expected an opponent object: {:#?}", choose.object());
         };
         let [NominalComplement::Relative(relative)] = opponent.complements() else {
             panic!("expected one relative clause: {opponent:#?}");
@@ -2850,8 +2864,8 @@ fn subject_relative_differential_comparisons_are_structural() {
         let RelativeBody::SubjectGap(Predicate::Transitive(have)) = relative.body() else {
             panic!("expected a subject-gap transitive relative: {relative:#?}");
         };
-        let Some(NounPhraseKind::Nominal(cards)) = predicate_object_kind(&have.object) else {
-            panic!("expected a compared card count: {:#?}", have.object);
+        let Some(NounPhraseKind::Nominal(cards)) = predicate_object_kind(have.object()) else {
+            panic!("expected a compared card count: {:#?}", have.object());
         };
         let adjective = cards
             .modifiers()
@@ -2897,7 +2911,7 @@ fn plural_temporal_heads_do_not_become_late_objects() {
                 _,
                 Some(Predicate::Intransitive(predicate)),
             )) if matches!(
-                predicate.elements.as_slice(),
+                predicate.elements(),
                 [PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition))]
                     if preposition.head().preposition == crate::syntax::Preposition::During
             )
@@ -2921,7 +2935,7 @@ fn temporal_noun_phrases_can_follow_direct_objects() {
         panic!("expected a deontic transitive clause");
     };
     assert!(matches!(
-        predicate.elements.as_slice(),
+        predicate.elements(),
         [PredicateElement::Adjunct(PredicateAdjunct::Temporal(
             turn,
         ))] if matches!(
@@ -2951,7 +2965,7 @@ fn selected_preposition_precedes_a_temporal_adjunct() {
     };
     assert!(
         matches!(
-            predicate.elements.as_slice(),
+            predicate.elements(),
             [
                 PredicateElement::Complement(PredicateComplement::Prepositional(_)),
                 PredicateElement::Adjunct(PredicateAdjunct::Temporal(time)),
@@ -2983,12 +2997,12 @@ fn ditransitive_frame_builds_an_indirect_object_complement() {
         panic!("expected a transitive imperative: {:#?}", parsed.sentence());
     };
     assert!(matches!(
-        predicate_object_kind(&predicate.object),
+        predicate_object_kind(predicate.object()),
         Some(NounPhraseKind::Nominal(number))
             if matches!(number.head().kind(), NounInstanceKind::Singular(Noun::Word(Vocab::Number)))
     ));
     assert!(matches!(
-        predicate.pre_object_elements.as_slice(),
+        predicate.pre_object_elements(),
         [PredicateElement::Complement(PredicateComplement::IndirectObject(
             player,
         ))] if matches!(
@@ -3110,7 +3124,7 @@ fn this_way_is_a_manner_adjunct_inside_a_condition() {
         panic!("expected a transitive search condition: {condition:#?}");
     };
     assert!(matches!(
-        condition.elements.as_slice(),
+        condition.elements(),
         [PredicateElement::Adjunct(PredicateAdjunct::Manner(
             way,
         ))] if matches!(
@@ -3428,7 +3442,7 @@ fn participle_position_distinguishes_modifier_from_passive_predicate() {
             )
     ));
     assert!(matches!(
-        predicate.head.auxiliaries.as_slice(),
+        predicate.head().auxiliaries(),
         [auxiliary]
             if auxiliary.auxiliary == Auxiliary::Be
                 && auxiliary.inflection == (AuxiliaryInflection::Present {
@@ -3436,8 +3450,11 @@ fn participle_position_distinguishes_modifier_from_passive_predicate() {
                     number: Number::Singular,
                 })
     ));
-    assert!(matches!(predicate.head.verb.verb, Verb::Word(Vocab::Deal)));
-    assert_eq!(predicate.head.verb.slot, VerbSlot::PastParticiple);
+    assert!(matches!(
+        predicate.head().verb().verb,
+        Verb::Word(Vocab::Deal)
+    ));
+    assert_eq!(predicate.head().verb().slot, VerbSlot::PastParticiple);
 }
 
 #[test]
@@ -3464,17 +3481,17 @@ fn subject_copula_contractions_are_structural() {
                 case: PronounCase::Subject,
             }
         ));
-        assert_eq!(predicate.copula.auxiliary.auxiliary, Auxiliary::Be);
+        assert_eq!(predicate.copula().auxiliary().auxiliary, Auxiliary::Be);
         assert_eq!(
-            predicate.copula.auxiliary.inflection,
+            predicate.copula().auxiliary().inflection,
             AuxiliaryInflection::Present {
                 person: Person::Second,
                 number: Number::Singular,
             }
         );
-        assert_eq!(predicate.copula.contracted_with_subject, contraction);
+        assert_eq!(predicate.copula().contracted_with_subject(), contraction);
         assert!(matches!(
-            predicate.complement,
+            predicate.complement(),
             crate::syntax::CopularComplement::NounPhrase(_)
         ));
     }
@@ -3503,11 +3520,11 @@ fn copular_adverbs_precede_the_complement() {
                 case: PronounCase::Subject,
             }
         ));
-        assert_eq!(predicate.copula.contracted_with_subject, contraction);
-        assert_eq!(predicate.precomplement_adverbs.len(), 1);
-        assert_eq!(predicate.precomplement_adverbs[0].spelling(), "still");
+        assert_eq!(predicate.copula().contracted_with_subject(), contraction);
+        assert_eq!(predicate.precomplement_adverbs().len(), 1);
+        assert_eq!(predicate.precomplement_adverbs()[0].spelling(), "still");
         assert!(matches!(
-            predicate.complement,
+            predicate.complement(),
             crate::syntax::CopularComplement::NounPhrase(_)
         ));
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -3537,9 +3554,9 @@ fn contracted_copular_predications_carry_a_free_standing_negation() {
         else {
             panic!("expected a copular clause: {:#?}", parsed.sentence());
         };
-        assert_eq!(predicate.negated, negated, "{source}");
+        assert_eq!(predicate.negated(), negated, "{source}");
         assert!(
-            predicate.copula.contracted_with_subject.is_contracted(),
+            predicate.copula().contracted_with_subject().is_contracted(),
             "{source}"
         );
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -3564,9 +3581,9 @@ fn negated_copular_predications_compose_with_precomplement_adverbs() {
         else {
             panic!("expected a copular clause: {:#?}", parsed.sentence());
         };
-        assert!(predicate.negated, "{source}");
-        assert_eq!(predicate.precomplement_adverbs.len(), 1, "{source}");
-        assert_eq!(predicate.precomplement_adverbs[0].spelling(), "still");
+        assert!(predicate.negated(), "{source}");
+        assert_eq!(predicate.precomplement_adverbs().len(), 1, "{source}");
+        assert_eq!(predicate.precomplement_adverbs()[0].spelling(), "still");
         let rendered = render_sentence(parsed.sentence().unwrap());
         if round_trips {
             assert_eq!(rendered, source);
@@ -3587,8 +3604,8 @@ fn negated_copular_renderer_inverse_orders_not_before_each() {
     else {
         panic!("expected a copular clause: {:#?}", parsed.sentence());
     };
-    assert!(predicate.negated, "{source}");
-    assert!(predicate.distributive_each, "{source}");
+    assert!(predicate.negated(), "{source}");
+    assert!(predicate.distributive_each(), "{source}");
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
 
@@ -3611,17 +3628,17 @@ fn negation_spellings_do_not_both_fire_on_one_predication() {
     };
     assert!(
         predicate
-            .copula
-            .auxiliary
+            .copula()
+            .auxiliary()
             .contracted_negation
             .is_contracted(),
         "{source}"
     );
     assert!(
-        !predicate.copula.contracted_with_subject.is_contracted(),
+        !predicate.copula().contracted_with_subject().is_contracted(),
         "{source}"
     );
-    assert!(!predicate.negated, "{source}");
+    assert!(!predicate.negated(), "{source}");
 }
 
 #[test]
@@ -3667,15 +3684,15 @@ fn contracted_subject_auxiliaries_are_structural() {
     ));
     assert!(
         predicate
-            .head
-            .first_auxiliary_contracted_with_subject
+            .head()
+            .first_auxiliary_contracted_with_subject()
             .is_contracted()
     );
     assert!(matches!(
-        predicate.head.auxiliaries.as_slice(),
+        predicate.head().auxiliaries(),
         [auxiliary] if auxiliary.auxiliary == Auxiliary::Have
     ));
-    assert_eq!(predicate.head.verb.slot, VerbSlot::PastParticiple);
+    assert_eq!(predicate.head().verb().slot, VerbSlot::PastParticiple);
 
     let parsed = parse_nonterminal("it's put into exile", &catalogs, Nonterminal::Clause)
         .expect("contracted passive should parse");
@@ -3695,12 +3712,12 @@ fn contracted_subject_auxiliaries_are_structural() {
     ));
     assert!(
         predicate
-            .head
-            .first_auxiliary_contracted_with_subject
+            .head()
+            .first_auxiliary_contracted_with_subject()
             .is_contracted()
     );
     assert!(matches!(
-        predicate.head.auxiliaries.as_slice(),
+        predicate.head().auxiliaries(),
         [auxiliary] if auxiliary.auxiliary == Auxiliary::Be
     ));
 
@@ -3717,7 +3734,7 @@ fn contracted_subject_auxiliaries_are_structural() {
         subject.0.kind(),
         NounPhraseKind::Demonstrative(Demonstrative::That)
     ));
-    assert!(predicate.copula.contracted_with_subject.is_contracted());
+    assert!(predicate.copula().contracted_with_subject().is_contracted());
 
     let parsed = parse_nonterminal(
         "a spell that's one or more colors",
@@ -3734,7 +3751,7 @@ fn contracted_subject_auxiliaries_are_structural() {
             [NominalComplement::Relative(relative)]
                 if relative_has(relative, RelativeMarker::That, RelativeGap::Subject)
                     && matches!(relative.body(), RelativeBody::SubjectGap(Predicate::Copular(predicate))
-                        if predicate.copula.contracted_with_subject.is_contracted())
+                        if predicate.copula().contracted_with_subject().is_contracted())
         ),
         "{nominal:#?}"
     );
@@ -4079,7 +4096,7 @@ fn rather_than_can_contrast_gerund_clauses() {
         panic!("expected a deontic cast clause: {:#?}", parsed.sentence());
     };
     let Some(PredicateElement::Adjunct(PredicateAdjunct::Prepositional(by))) =
-        cast.elements.iter().find(|element| {
+        cast.elements().iter().find(|element| {
             matches!(
                 element,
                 PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition))
@@ -4092,19 +4109,95 @@ fn rather_than_can_contrast_gerund_clauses() {
     let PrepositionalObjectKind::GerundClause(gerund) = by.head().object().kind() else {
         panic!("by should take a clause: {by:#?}");
     };
-    assert!(matches!(gerund.predicate(), Predicate::Transitive(_)));
+    let crate::syntax::GerundClauseKind::RatherThan {
+        matrix,
+        alternative,
+    } = gerund.kind()
+    else {
+        panic!("by should preserve the direct rather-than relation: {gerund:#?}");
+    };
     assert!(matches!(
-        gerund.attachments(),
-        [DependentAttachment {
-            position: AttachmentPosition::AfterMatrix,
-            comma: crate::features::Comma::Absent,
-            payload: DependentClause::Subordinate(
-                Subordinator::RatherThan,
-                SubordinateBody::Gerund(alternative),
-            ),
-        }] if matches!(alternative.predicate(), Predicate::Transitive(_))
+        matrix.kind(),
+        crate::syntax::GerundClauseKind::Base { predicate }
+            if matches!(predicate.as_ref(), Predicate::Transitive(_))
+    ));
+    assert!(matches!(
+        alternative.kind(),
+        crate::syntax::GerundClauseKind::Base { predicate }
+            if matches!(predicate.as_ref(), Predicate::Transitive(_))
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+}
+
+#[test]
+fn gerund_rather_than_kind_preserves_both_recursive_groupings() {
+    let base = parse_nonterminal("attacking", &fixture_catalogs(), Nonterminal::GerundClause)
+        .expect("a complete present participle is a base gerund")
+        .gerund_clause()
+        .expect("gerund root")
+        .clone();
+    assert!(matches!(
+        base.kind(),
+        crate::syntax::GerundClauseKind::Base { .. }
+    ));
+
+    let left_pair = crate::constructions::nonfinite::build_gerund_clause_subordinate_after(
+        base.clone(),
+        base.clone(),
+    )
+    .expect("two checked gerunds form a rather-than relation");
+    let left = crate::constructions::nonfinite::build_gerund_clause_subordinate_after(
+        left_pair,
+        base.clone(),
+    )
+    .expect("a relation remains a checked matrix gerund");
+
+    let right_pair = crate::constructions::nonfinite::build_gerund_clause_subordinate_after(
+        base.clone(),
+        base.clone(),
+    )
+    .expect("two checked gerunds form a rather-than relation");
+    let right = crate::constructions::nonfinite::build_gerund_clause_subordinate_after(
+        base.clone(),
+        right_pair,
+    )
+    .expect("a relation remains a checked alternative gerund");
+
+    assert!(matches!(
+        left.kind(),
+        crate::syntax::GerundClauseKind::RatherThan {
+            matrix,
+            alternative,
+        } if matches!(
+            matrix.kind(),
+            crate::syntax::GerundClauseKind::RatherThan { .. }
+        ) && matches!(
+            alternative.kind(),
+            crate::syntax::GerundClauseKind::Base { .. }
+        )
+    ));
+    assert!(matches!(
+        right.kind(),
+        crate::syntax::GerundClauseKind::RatherThan {
+            matrix,
+            alternative,
+        } if matches!(
+            matrix.kind(),
+            crate::syntax::GerundClauseKind::Base { .. }
+        ) && matches!(
+            alternative.kind(),
+            crate::syntax::GerundClauseKind::RatherThan { .. }
+        )
+    ));
+    assert_ne!(left, right, "recursive grouping is semantic");
+
+    for grouped in [&left, &right] {
+        assert_eq!(
+            crate::clause::render_gerund(grouped, "Test Card", false)
+                .expect("each recursive grouping has a total inverse"),
+            "attacking rather than attacking rather than attacking",
+        );
+    }
 }
 
 #[test]
@@ -4121,7 +4214,7 @@ fn not_to_negates_an_infinitive_clause() {
         panic!("expected a deontic choose clause: {:#?}", parsed.sentence());
     };
     assert!(matches!(
-        choose.elements.as_slice(),
+        choose.elements(),
         [PredicateElement::Complement(PredicateComplement::Infinitive(infinitive))]
             if infinitive.negated()
     ));
@@ -4176,6 +4269,11 @@ fn production_f01_direct_roots_are_exact_and_wrong_forms_are_rejected() {
             Nonterminal::GerundClause,
             "attacking rather than attacking",
         ),
+        (
+            "attacking rather than attacking rather than attacking",
+            Nonterminal::GerundClause,
+            "attacking rather than attacking rather than attacking",
+        ),
     ] {
         let parsed = parse_nonterminal(source, &fixture_catalogs(), nonterminal)
             .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
@@ -4210,6 +4308,11 @@ fn production_f01_direct_roots_are_exact_and_wrong_forms_are_rejected() {
         ("not attack", Nonterminal::InfinitiveClause),
         ("attack", Nonterminal::GerundClause),
         ("rather than attacking", Nonterminal::GerundClause),
+        (
+            "attacking, rather than attacking",
+            Nonterminal::GerundClause,
+        ),
+        ("attacking rather than affecting", Nonterminal::GerundClause),
         ("to attack", Nonterminal::GerundClause),
         ("attacking", Nonterminal::InfinitiveClause),
     ] {
@@ -4234,7 +4337,7 @@ fn directional_particle_completes_an_intransitive_predicate() {
         );
     };
     assert!(matches!(
-        predicate.elements.as_slice(),
+        predicate.elements(),
         [PredicateElement::Particle(VerbParticle::Out)]
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -4253,7 +4356,7 @@ fn directional_particle_requires_a_licensed_verb_pair() {
     assert!(!matches!(
         &parsed.sentence().expect("sentence root").body,
         SentenceBody::Independent(IndependentClause::Intransitive(_, predicate))
-            if matches!(predicate.elements.as_slice(), [PredicateElement::Particle(_)])
+            if matches!(predicate.elements(), [PredicateElement::Particle(_)])
     ));
 }
 
@@ -4271,7 +4374,7 @@ fn face_down_is_a_secondary_adjective_predicate() {
         );
     };
     assert!(matches!(
-        predicate.elements.as_slice(),
+        predicate.elements(),
         [PredicateElement::Complement(PredicateComplement::Adjective(
             phrase
         ))] if phrase.degree().is_none()
@@ -4294,8 +4397,12 @@ fn plus_coordinates_additive_noun_phrases() {
             parsed.sentence()
         );
     };
-    let Some(NounPhraseKind::Coordinated(object)) = predicate_object_kind(&predicate.object) else {
-        panic!("expected an additive noun phrase: {:#?}", predicate.object);
+    let Some(NounPhraseKind::Coordinated(object)) = predicate_object_kind(predicate.object())
+    else {
+        panic!(
+            "expected an additive noun phrase: {:#?}",
+            predicate.object()
+        );
     };
     assert!(matches!(
         object.rest().as_slice(),
@@ -4353,15 +4460,15 @@ fn variable_value_constraint_parses_as_a_modal_copular_clause() {
         NounPhraseKind::Quantity(quantity)
             if quantity.kind() == crate::syntax::QuantityKind::X
     ));
-    assert_eq!(predicate.copula.auxiliary.auxiliary, Auxiliary::Be);
+    assert_eq!(predicate.copula().auxiliary().auxiliary, Auxiliary::Be);
     assert_eq!(
-        predicate.copula.auxiliary.inflection,
+        predicate.copula().auxiliary().inflection,
         AuxiliaryInflection::Base
     );
-    assert!(predicate.adjuncts.is_empty());
-    assert!(!predicate.distributive_each);
+    assert!(predicate.adjuncts().is_empty());
+    assert!(!predicate.distributive_each());
     assert!(matches!(
-        &predicate.complement,
+        predicate.complement(),
         CopularComplement::NounPhrase(noun_phrase)
             if matches!(
                 noun_phrase.kind(),
@@ -4464,7 +4571,7 @@ fn passive_blocking_treats_this_turn_as_a_temporal_adjunct() {
         panic!("expected a deontic passive clause");
     };
     assert!(matches!(
-        predicate.elements.as_slice(),
+        predicate.elements(),
         [PredicateElement::Adjunct(PredicateAdjunct::Temporal(
             turn,
         ))] if matches!(
@@ -4531,10 +4638,10 @@ fn target_and_relative_clauses_keep_their_nominal_roles() {
         [NominalComplement::Relative(relative)]
             if relative.gap() == crate::syntax::RelativeGap::Object
     ));
-    let Some(NounPhraseKind::Nominal(object)) = predicate_object_kind(&fight.object) else {
+    let Some(NounPhraseKind::Nominal(object)) = predicate_object_kind(fight.object()) else {
         panic!(
             "expected one direct-object nominal, got {:#?}",
-            fight.object
+            fight.object()
         );
     };
     assert!(matches!(
@@ -4558,7 +4665,7 @@ fn goblin_chieftain_stat_change_remains_one_magic_atom() {
     else {
         panic!("expected two predicate conjuncts");
     };
-    assert!(matches!(first.object, PredicateObject::PowerToughness(_)));
+    assert!(matches!(first.object(), PredicateObject::PowerToughness(_)));
 }
 
 #[test]
@@ -4572,7 +4679,7 @@ fn contiguous_oracle_symbols_are_one_scalar_object() {
         panic!("expected a transitive imperative: {:#?}", parsed.sentence());
     };
     assert!(matches!(
-        &predicate.object,
+        predicate.object(),
         PredicateObject::SymbolSequence(symbols)
             if symbols.iter().map(crate::syntax::OracleSymbol::as_str).collect::<String>()
                 == "{C}{C}"
@@ -4590,14 +4697,18 @@ fn oracle_symbol_alternatives_are_a_coordinated_object() {
     else {
         panic!("expected a transitive imperative: {:#?}", parsed.sentence());
     };
+    let PredicateObject::Coordinated(coordination) = predicate.object() else {
+        panic!("expected a coordinated object: {:#?}", predicate.object());
+    };
     assert!(matches!(
-        &predicate.object,
-        PredicateObject::Coordinated(CoordinatedPredicateObject { first, rest })
-            if matches!(first.as_ref(), PredicateObject::OracleSymbol(symbol) if symbol.as_str() == "{R}")
-                && matches!(rest.as_slice(), [PredicateObjectCoordination {
-                    conjunction: Some(crate::syntax::PredicateConjunction::Or),
-                    object: PredicateObject::OracleSymbol(symbol),
-                }] if symbol.as_str() == "{G}")
+        coordination.first(),
+        PredicateObject::OracleSymbol(symbol) if symbol.as_str() == "{R}"
+    ));
+    assert!(matches!(
+        coordination.rest(),
+        [member]
+            if member.conjunction() == Some(crate::syntax::PredicateConjunction::Or)
+                && matches!(member.object(), PredicateObject::OracleSymbol(symbol) if symbol.as_str() == "{G}")
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -4612,20 +4723,28 @@ fn mana_amount_oxford_list_is_three_scalar_members() {
     else {
         panic!("expected a transitive imperative: {:#?}", parsed.sentence());
     };
+    let PredicateObject::Coordinated(coordination) = predicate.object() else {
+        panic!("expected a coordinated object: {:#?}", predicate.object());
+    };
     assert!(matches!(
-        &predicate.object,
-        PredicateObject::Coordinated(CoordinatedPredicateObject { first, rest })
-            if matches!(first.as_ref(), PredicateObject::OracleSymbol(symbol) if symbol.as_str() == "{W}")
-                && matches!(rest.as_slice(), [
-                    PredicateObjectCoordination {
-                        conjunction: None,
-                        object: PredicateObject::OracleSymbol(b),
-                    },
-                    PredicateObjectCoordination {
-                        conjunction: Some(crate::syntax::PredicateConjunction::Or),
-                        object: PredicateObject::OracleSymbol(g),
-                    },
-                ] if b.as_str() == "{B}" && g.as_str() == "{G}")
+        coordination.first(),
+        PredicateObject::OracleSymbol(symbol) if symbol.as_str() == "{W}"
+    ));
+    let [middle, last] = coordination.rest() else {
+        panic!("expected two coordinated continuations: {coordination:#?}");
+    };
+    assert_eq!(middle.conjunction(), None);
+    assert!(matches!(
+        middle.object(),
+        PredicateObject::OracleSymbol(symbol) if symbol.as_str() == "{B}"
+    ));
+    assert_eq!(
+        last.conjunction(),
+        Some(crate::syntax::PredicateConjunction::Or)
+    );
+    assert!(matches!(
+        last.object(),
+        PredicateObject::OracleSymbol(symbol) if symbol.as_str() == "{G}"
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -4644,10 +4763,8 @@ fn filter_land_mana_list_members_are_symbol_groups() {
     else {
         panic!("expected a transitive imperative: {:#?}", parsed.sentence());
     };
-    let PredicateObject::Coordinated(CoordinatedPredicateObject { first, rest }) =
-        &predicate.object
-    else {
-        panic!("expected a coordinated object: {:#?}", predicate.object);
+    let PredicateObject::Coordinated(coordination) = predicate.object() else {
+        panic!("expected a coordinated object: {:#?}", predicate.object());
     };
     fn joined(object: &PredicateObject) -> String {
         let PredicateObject::SymbolSequence(symbols) = object else {
@@ -4658,18 +4775,14 @@ fn filter_land_mana_list_members_are_symbol_groups() {
             .map(crate::syntax::OracleSymbol::as_str)
             .collect::<String>()
     }
-    assert_eq!(joined(first), "{U}{U}");
-    let [
-        PredicateObjectCoordination { object: second, .. },
-        PredicateObjectCoordination { object: third, .. },
-    ] = rest.as_slice()
-    else {
-        panic!("expected exactly three members: {rest:#?}");
+    assert_eq!(joined(coordination.first()), "{U}{U}");
+    let [second, third] = coordination.rest() else {
+        panic!("expected exactly three members: {coordination:#?}");
     };
-    assert_eq!(joined(second), "{U}{R}");
-    assert_eq!(joined(third), "{R}{R}");
-    let PredicateObject::SymbolSequence(symbols) = first.as_ref() else {
-        panic!("expected a symbol sequence: {first:#?}");
+    assert_eq!(joined(second.object()), "{U}{R}");
+    assert_eq!(joined(third.object()), "{R}{R}");
+    let PredicateObject::SymbolSequence(symbols) = coordination.first() else {
+        panic!("expected a symbol sequence: {coordination:#?}");
     };
     assert_eq!(symbols.len(), 2);
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -4685,17 +4798,22 @@ fn mixed_symbol_group_alternative_is_one_member() {
     else {
         panic!("expected a transitive imperative: {:#?}", parsed.sentence());
     };
-    let PredicateObject::Coordinated(CoordinatedPredicateObject { first, rest }) =
-        &predicate.object
-    else {
-        panic!("expected a coordinated object: {:#?}", predicate.object);
+    let PredicateObject::Coordinated(coordination) = predicate.object() else {
+        panic!("expected a coordinated object: {:#?}", predicate.object());
     };
     assert!(
-        matches!(first.as_ref(), PredicateObject::OracleSymbol(symbol) if symbol.as_str() == "{U}")
+        matches!(coordination.first(), PredicateObject::OracleSymbol(symbol) if symbol.as_str() == "{U}")
     );
-    assert_eq!(rest.len(), 1, "expected exactly one member: {rest:#?}");
-    let PredicateObject::SymbolSequence(symbols) = &rest[0].object else {
-        panic!("expected a symbol sequence: {:#?}", rest[0].object);
+    assert_eq!(
+        coordination.rest().len(),
+        1,
+        "expected exactly one member: {coordination:#?}"
+    );
+    let PredicateObject::SymbolSequence(symbols) = coordination.rest()[0].object() else {
+        panic!(
+            "expected a symbol sequence: {:#?}",
+            coordination.rest()[0].object()
+        );
     };
     assert_eq!(
         symbols
@@ -4718,17 +4836,19 @@ fn mana_amount_and_list_is_five_members() {
     else {
         panic!("expected a transitive imperative: {:#?}", parsed.sentence());
     };
-    let PredicateObject::Coordinated(CoordinatedPredicateObject { first: _, rest }) =
-        &predicate.object
-    else {
-        panic!("expected a coordinated object: {:#?}", predicate.object);
+    let PredicateObject::Coordinated(coordination) = predicate.object() else {
+        panic!("expected a coordinated object: {:#?}", predicate.object());
     };
-    assert_eq!(rest.len(), 4, "expected five members total: {rest:#?}");
-    for interior in &rest[..3] {
-        assert_eq!(interior.conjunction, None);
+    assert_eq!(
+        coordination.rest().len(),
+        4,
+        "expected five members total: {coordination:#?}"
+    );
+    for interior in &coordination.rest()[..3] {
+        assert_eq!(interior.conjunction(), None);
     }
     assert_eq!(
-        rest[3].conjunction,
+        coordination.rest()[3].conjunction(),
         Some(crate::syntax::PredicateConjunction::And)
     );
     // The serial comma is derived from `conjunction`/`rest.len()`, not stored
@@ -4765,13 +4885,11 @@ fn passive_temporal_adjunct_is_not_a_direct_object() {
     assert!(
         matches!(
             &parsed.sentence().expect("sentence root").body,
-            SentenceBody::Independent(IndependentClause::Passive(_, PassivePredicate {
-                elements,
-                ..
-            })) if matches!(
-                elements.as_slice(),
-                [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
-            )
+            SentenceBody::Independent(IndependentClause::Passive(_, predicate))
+                if matches!(
+                    predicate.elements(),
+                    [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
+                )
         ),
         "{:#?}",
         parsed.sentence()
@@ -4804,15 +4922,12 @@ fn recipient_passive_retains_the_theme_object() {
         panic!("expected a passive clause under the subordinate `if`");
     };
     assert!(matches!(
-        predicate
-            .retained_object
-            .as_ref()
-            .and_then(predicate_object_kind),
+        predicate.retained_object().and_then(predicate_object_kind),
         Some(NounPhraseKind::Nominal(damage))
             if matches!(damage.head().kind(), NounInstanceKind::Mass(Noun::Word(Vocab::Damage)))
     ));
     assert!(matches!(
-        predicate.elements.as_slice(),
+        predicate.elements(),
         [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -4832,15 +4947,12 @@ fn recipient_passive_temporal_adjunct_is_not_a_retained_object() {
         panic!("expected a passive clause");
     };
     assert!(matches!(
-        predicate
-            .retained_object
-            .as_ref()
-            .and_then(predicate_object_kind),
+        predicate.retained_object().and_then(predicate_object_kind),
         Some(NounPhraseKind::Nominal(damage))
             if matches!(damage.head().kind(), NounInstanceKind::Mass(Noun::Word(Vocab::Damage)))
     ));
     assert!(matches!(
-        predicate.elements.as_slice(),
+        predicate.elements(),
         [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -4867,7 +4979,7 @@ fn ordinary_passive_has_no_retained_object() {
     else {
         panic!("expected a passive clause");
     };
-    assert!(predicate.retained_object.is_none());
+    assert!(predicate.retained_object().is_none());
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
 
@@ -4880,7 +4992,7 @@ fn subject_gap_relative_carries_a_recipient_passive() {
     else {
         panic!("expected a transitive imperative");
     };
-    let Some(NounPhraseKind::Nominal(object)) = predicate_object_kind(&matrix.object) else {
+    let Some(NounPhraseKind::Nominal(object)) = predicate_object_kind(matrix.object()) else {
         panic!("expected a nominal object");
     };
     assert!(matches!(
@@ -4888,7 +5000,7 @@ fn subject_gap_relative_carries_a_recipient_passive() {
         [NominalComplement::Relative(relative)]
             if relative_has(relative, RelativeMarker::That, RelativeGap::Subject)
                 && matches!(relative.body(), RelativeBody::SubjectGap(Predicate::Passive(passive))
-                    if passive.retained_object.is_some())
+                    if passive.retained_object().is_some())
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -4908,10 +5020,10 @@ fn postnominal_participial_phrase_reduces_only_with_a_retained_object() {
     assert!(matches!(
         subject.complements(),
         [NominalComplement::ReducedRecipientPassive(predicate)]
-            if predicate.head.auxiliaries.is_empty()
-                && predicate.head.verb.slot == VerbSlot::PastParticiple
+            if predicate.head().auxiliaries().is_empty()
+                && predicate.head().verb().slot == VerbSlot::PastParticiple
                 && matches!(
-                    predicate_object_kind(&predicate.object),
+                    predicate_object_kind(predicate.object()),
                     Some(NounPhraseKind::Nominal(damage))
                         if matches!(
                             damage.head().kind(),
@@ -5008,7 +5120,7 @@ fn reduced_recipient_passive_keeps_agent_and_temporal_tails() {
         panic!("expected one reduced recipient-passive complement");
     };
     assert!(matches!(
-        predicate.elements.as_slice(),
+        predicate.elements(),
         [
             PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition)),
             PredicateElement::Adjunct(PredicateAdjunct::Temporal(_)),
@@ -5040,15 +5152,12 @@ fn contracted_subject_recipient_passive_parses() {
     };
     assert!(
         predicate
-            .head
-            .first_auxiliary_contracted_with_subject
+            .head()
+            .first_auxiliary_contracted_with_subject()
             .is_contracted()
     );
     assert!(matches!(
-        predicate
-            .retained_object
-            .as_ref()
-            .and_then(predicate_object_kind),
+        predicate.retained_object().and_then(predicate_object_kind),
         Some(NounPhraseKind::Nominal(damage))
             if matches!(damage.head().kind(), NounInstanceKind::Mass(Noun::Word(Vocab::Damage)))
     ));
@@ -5148,29 +5257,28 @@ fn modal_subject_relative_keeps_its_passive_temporal_adjunct() {
     else {
         panic!("expected a transitive imperative");
     };
-    let Some(NounPhraseKind::Nominal(object)) = predicate_object_kind(&matrix.object) else {
+    let Some(NounPhraseKind::Nominal(object)) = predicate_object_kind(matrix.object()) else {
         panic!("expected a nominal object");
     };
-    assert!(matrix.elements.is_empty(), "{matrix:#?}");
+    assert!(matrix.elements().is_empty(), "{matrix:#?}");
+    let [NominalComplement::Relative(relative)] = object.complements() else {
+        panic!("expected one relative complement: {object:#?}");
+    };
+    assert!(relative_has(
+        relative,
+        RelativeMarker::That,
+        RelativeGap::Subject
+    ));
+    let RelativeBody::SubjectGap(Predicate::Deontic(deontic)) = relative.body() else {
+        panic!("expected a deontic subject gap: {relative:#?}");
+    };
+    assert_eq!(deontic.modal().auxiliary().auxiliary, Auxiliary::Would);
+    let Some(Predicate::Passive(passive)) = deontic.inner() else {
+        panic!("expected a passive deontic body: {deontic:#?}");
+    };
     assert!(matches!(
-        object.complements(),
-        [NominalComplement::Relative(relative)]
-            if relative_has(relative, RelativeMarker::That, RelativeGap::Subject)
-                && matches!(relative.body(), RelativeBody::SubjectGap(Predicate::Deontic(DeonticPredicate {
-                    modal: Modal {
-                        auxiliary: AuxiliaryInstance {
-                            auxiliary: Auxiliary::Would,
-                            ..
-                        },
-                    },
-                    inner: Some(predicate),
-                })) if matches!(
-                    predicate.as_ref(),
-                    Predicate::Passive(PassivePredicate { elements, .. }) if matches!(
-                        elements.as_slice(),
-                        [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
-                    )
-                ))
+        passive.elements(),
+        [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -5274,10 +5382,10 @@ fn distributive_each_copular_carries_each_and_binds_the_standard() {
             );
         };
         assert!(
-            predicate.distributive_each,
+            predicate.distributive_each(),
             "each must be carried: {predicate:#?}"
         );
-        let crate::syntax::CopularComplement::Adjective(adjective) = &predicate.complement else {
+        let crate::syntax::CopularComplement::Adjective(adjective) = predicate.complement() else {
             panic!("expected an adjective complement: {predicate:#?}");
         };
         assert_eq!(adjective.head(), &Adjective::Word(Vocab::Equal));
@@ -5290,7 +5398,7 @@ fn distributive_each_copular_carries_each_and_binds_the_standard() {
             "the `to`-standard must bind to `equal`: {adjective:#?}"
         );
         assert!(
-            predicate.adjuncts.is_empty(),
+            predicate.adjuncts().is_empty(),
             "the standard must not float as a clause adjunct: {predicate:#?}"
         );
         assert_eq!(
@@ -5377,9 +5485,9 @@ fn quoted_ability_is_a_coordinated_grant_predicate_object() {
         panic!("expected one shared-predicate conjunct: {coordination:#?}");
     };
     assert!(
-        matches!(&shared.object, PredicateObject::QuotedAbility(_)),
+        matches!(shared.object(), PredicateObject::QuotedAbility(_)),
         "the shared predicate's object is the quoted ability: {:#?}",
-        shared.object
+        shared.object()
     );
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -5399,25 +5507,21 @@ fn two_quoted_abilities_are_a_coordinated_object() {
     else {
         panic!("expected a transitive clause: {:#?}", parsed.sentence());
     };
-    let PredicateObject::Coordinated(CoordinatedPredicateObject { first, rest }) =
-        &predicate.object
-    else {
-        panic!("expected a coordinated object: {:#?}", predicate.object);
+    let PredicateObject::Coordinated(coordination) = predicate.object() else {
+        panic!("expected a coordinated object: {:#?}", predicate.object());
     };
     assert!(
-        matches!(first.as_ref(), PredicateObject::QuotedAbility(_)),
-        "the non-final conjunct is a quoted ability: {first:#?}"
+        matches!(coordination.first(), PredicateObject::QuotedAbility(_)),
+        "the non-final conjunct is a quoted ability: {coordination:#?}"
     );
     assert!(
         matches!(
-            rest.as_slice(),
-            [PredicateObjectCoordination {
-                conjunction: Some(crate::syntax::PredicateConjunction::And),
-                object: PredicateObject::QuotedAbility(_),
-                ..
-            }]
+            coordination.rest(),
+            [member]
+                if member.conjunction() == Some(crate::syntax::PredicateConjunction::And)
+                    && matches!(member.object(), PredicateObject::QuotedAbility(_))
         ),
-        "the final conjunct is a quoted ability too: {rest:#?}"
+        "the final conjunct is a quoted ability too: {coordination:#?}"
     );
     // The period placement the two conjuncts differ on lives only here now:
     // `card" and "` for the non-final one, `card."` for the sentence-final one.
@@ -5436,24 +5540,19 @@ fn keyword_and_quoted_ability_are_a_coordinated_object() {
     else {
         panic!("expected a transitive clause: {:#?}", parsed.sentence());
     };
-    let PredicateObject::Coordinated(CoordinatedPredicateObject { first, rest }) =
-        &predicate.object
-    else {
-        panic!("expected a coordinated object: {:#?}", predicate.object);
+    let PredicateObject::Coordinated(coordination) = predicate.object() else {
+        panic!("expected a coordinated object: {:#?}", predicate.object());
     };
     assert!(
-        matches!(first.as_ref(), PredicateObject::Ability(ability) if ability.argument.is_none()),
-        "the first conjunct is the keyword-ability object: {first:#?}"
+        matches!(coordination.first(), PredicateObject::Ability(ability) if ability.argument().is_none()),
+        "the first conjunct is the keyword-ability object: {coordination:#?}"
     );
     assert!(
         matches!(
-            rest.as_slice(),
-            [PredicateObjectCoordination {
-                object: PredicateObject::QuotedAbility(_),
-                ..
-            }]
+            coordination.rest(),
+            [member] if matches!(member.object(), PredicateObject::QuotedAbility(_))
         ),
-        "the second conjunct is the quoted ability: {rest:#?}"
+        "the second conjunct is the quoted ability: {coordination:#?}"
     );
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -5476,13 +5575,16 @@ fn quoted_ability_interior_period_is_derived_from_sentence_final_position() {
         else {
             panic!("expected a transitive clause: {sentence:#?}");
         };
-        let PredicateObject::QuotedAbility(quoted) = &predicate.object else {
-            panic!("expected a quoted-ability object: {:#?}", predicate.object);
+        let PredicateObject::QuotedAbility(quoted) = predicate.object() else {
+            panic!(
+                "expected a quoted-ability object: {:#?}",
+                predicate.object()
+            );
         };
         (
             (**quoted).clone(),
             render_sentence(sentence),
-            !predicate.elements.is_empty(),
+            !predicate.elements().is_empty(),
         )
     }
 
@@ -5645,8 +5747,8 @@ fn keyword_grant_symbol_cost_after_keyword_nominal() {
     else {
         panic!("expected a transitive clause");
     };
-    let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(&predicate.object) else {
-        panic!("expected a nominal object, got {:?}", predicate.object);
+    let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(predicate.object()) else {
+        panic!("expected a nominal object, got {:?}", predicate.object());
     };
     let (canonical, symbols) = keyword_symbol_cost(nominal);
     assert_eq!(canonical, "Ward");
@@ -5667,9 +5769,12 @@ fn keyword_grant_symbol_cost_coordinated_with_bare_keyword() {
     else {
         panic!("expected a transitive clause");
     };
-    let Some(NounPhraseKind::Coordinated(coordinated)) = predicate_object_kind(&predicate.object)
+    let Some(NounPhraseKind::Coordinated(coordinated)) = predicate_object_kind(predicate.object())
     else {
-        panic!("expected a coordinated object, got {:?}", predicate.object);
+        panic!(
+            "expected a coordinated object, got {:?}",
+            predicate.object()
+        );
     };
     let NounPhraseKind::Nominal(flying) = (coordinated.first().as_ref()).kind() else {
         panic!("expected the first conjunct to be a bare nominal");
@@ -5703,8 +5808,8 @@ fn keyword_grant_incidental_equip_symbol_cost() {
     else {
         panic!("expected a transitive clause");
     };
-    let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(&predicate.object) else {
-        panic!("expected a nominal object, got {:?}", predicate.object);
+    let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(predicate.object()) else {
+        panic!("expected a nominal object, got {:?}", predicate.object());
     };
     let (canonical, symbols) = keyword_symbol_cost(nominal);
     assert_eq!(canonical, "Equip");
@@ -5721,8 +5826,8 @@ fn keyword_grant_symbol_sequence_cost() {
     else {
         panic!("expected a transitive clause");
     };
-    let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(&predicate.object) else {
-        panic!("expected a nominal object, got {:?}", predicate.object);
+    let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(predicate.object()) else {
+        panic!("expected a nominal object, got {:?}", predicate.object());
     };
     let (canonical, symbols) = keyword_symbol_cost(nominal);
     assert_eq!(canonical, "Ward");
@@ -5745,7 +5850,7 @@ fn keyword_grant_annihilator_quantity_control_unchanged() {
     else {
         panic!("expected a transitive clause");
     };
-    let Some(NounPhraseKind::Coordinated(coordinated)) = predicate_object_kind(&predicate.object)
+    let Some(NounPhraseKind::Coordinated(coordinated)) = predicate_object_kind(predicate.object())
     else {
         panic!("expected a coordinated object");
     };
@@ -5822,8 +5927,8 @@ fn keyword_grant_predicated_single_from_quality() {
     else {
         panic!("expected a transitive clause");
     };
-    let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(&predicate.object) else {
-        panic!("expected a nominal object, got {:?}", predicate.object);
+    let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(predicate.object()) else {
+        panic!("expected a nominal object, got {:?}", predicate.object());
     };
     let (canonical, qualities) = keyword_predicated_argument(nominal);
     assert_eq!(canonical, "Protection");
@@ -5847,8 +5952,8 @@ fn keyword_grant_predicated_coordinated_from_qualities() {
     else {
         panic!("expected a transitive clause");
     };
-    let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(&predicate.object) else {
-        panic!("expected a nominal object, got {:?}", predicate.object);
+    let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(predicate.object()) else {
+        panic!("expected a nominal object, got {:?}", predicate.object());
     };
     let (canonical, qualities) = keyword_predicated_argument(nominal);
     assert_eq!(canonical, "Protection");
@@ -5887,8 +5992,8 @@ fn keyword_grant_predicated_noun_phrase_quality_is_a_known_ambiguity() {
     else {
         panic!("expected a transitive clause");
     };
-    let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(&predicate.object) else {
-        panic!("expected a nominal object, got {:?}", predicate.object);
+    let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(predicate.object()) else {
+        panic!("expected a nominal object, got {:?}", predicate.object());
     };
     // Pins the currently-observed (ambiguous, generic) tree so a future
     // fix's regression is visible here rather than silently reverting.
@@ -5974,9 +6079,9 @@ fn finite(sentence: &Sentence) -> (&Subject, &crate::syntax::PredicateHead) {
         panic!("expected an independent clause, got {:?}", sentence.body);
     };
     match clause {
-        IndependentClause::Transitive(subject, predicate) => (subject, &predicate.head),
-        IndependentClause::Intransitive(subject, predicate) => (subject, &predicate.head),
-        IndependentClause::Passive(subject, predicate) => (subject, &predicate.head),
+        IndependentClause::Transitive(subject, predicate) => (subject, predicate.head()),
+        IndependentClause::Intransitive(subject, predicate) => (subject, predicate.head()),
+        IndependentClause::Passive(subject, predicate) => (subject, predicate.head()),
         other => panic!("expected a finite lexical predicate, got {other:?}"),
     }
 }
@@ -6106,10 +6211,10 @@ fn restriction_run_admits_an_if_clause_member_true_witness() {
         &[PredicateElement],
     ) = match if_body.as_ref() {
         IndependentClause::Intransitive(subject, predicate) => {
-            (subject, &predicate.head, predicate.elements.as_slice())
+            (subject, predicate.head(), predicate.elements())
         }
         IndependentClause::Passive(subject, predicate) => {
-            (subject, &predicate.head, predicate.elements.as_slice())
+            (subject, predicate.head(), predicate.elements())
         }
         other => panic!("expected a `you've been attacked` clause: {other:#?}"),
     };
@@ -6123,12 +6228,12 @@ fn restriction_run_admits_an_if_clause_member_true_witness() {
     );
     assert!(
         predicate_head
-            .first_auxiliary_contracted_with_subject
+            .first_auxiliary_contracted_with_subject()
             .is_contracted(),
         "{predicate_head:#?}"
     );
     let auxiliaries: Vec<crate::word::Auxiliary> = predicate_head
-        .auxiliaries
+        .auxiliaries()
         .iter()
         .map(|instance| instance.auxiliary)
         .collect();
@@ -6137,9 +6242,9 @@ fn restriction_run_admits_an_if_clause_member_true_witness() {
         vec![crate::word::Auxiliary::Have, crate::word::Auxiliary::Be],
         "{predicate_head:#?}"
     );
-    assert_eq!(predicate_head.verb.slot, VerbSlot::PastParticiple);
+    assert_eq!(predicate_head.verb().slot, VerbSlot::PastParticiple);
     assert!(
-        matches!(predicate_head.verb.verb, crate::word::Verb::Word(_)),
+        matches!(predicate_head.verb().verb, crate::word::Verb::Word(_)),
         "{predicate_head:#?}"
     );
     let temporal_adjuncts: Vec<&NounPhrase> = predicate_elements
@@ -6212,7 +6317,7 @@ fn the_tie_is_broken_is_not_a_predicate_nominal() {
                 clause.as_ref(),
                 IndependentClause::Passive(_, predicate)
                     if matches!(
-                        predicate.head.verb,
+                        predicate.head().verb(),
                         VerbInstance {
                             verb: Verb::Word(Vocab::Break),
                             slot: VerbSlot::PastParticiple,
@@ -6335,17 +6440,17 @@ fn no_stray_temporal_adjunct(elements: &[PredicateElement]) -> bool {
 fn clause_elements(clause: &IndependentClause) -> &[PredicateElement] {
     fn predicate_elements(predicate: &Predicate) -> &[PredicateElement] {
         match predicate {
-            Predicate::Transitive(predicate) => predicate.elements.as_slice(),
-            Predicate::Intransitive(predicate) => predicate.elements.as_slice(),
-            Predicate::Passive(predicate) => predicate.elements.as_slice(),
+            Predicate::Transitive(predicate) => predicate.elements(),
+            Predicate::Intransitive(predicate) => predicate.elements(),
+            Predicate::Passive(predicate) => predicate.elements(),
             other => panic!("expected a transitive/intransitive/passive predicate: {other:#?}"),
         }
     }
     match clause {
         IndependentClause::Imperative(predicate) => predicate_elements(predicate),
-        IndependentClause::Transitive(_, predicate) => predicate.elements.as_slice(),
-        IndependentClause::Intransitive(_, predicate) => predicate.elements.as_slice(),
-        IndependentClause::Passive(_, predicate) => predicate.elements.as_slice(),
+        IndependentClause::Transitive(_, predicate) => predicate.elements(),
+        IndependentClause::Intransitive(_, predicate) => predicate.elements(),
+        IndependentClause::Passive(_, predicate) => predicate.elements(),
         other => panic!("expected a clause with predicate elements: {other:#?}"),
     }
 }
@@ -6394,10 +6499,10 @@ fn intransitive_or_passive(
 ) -> (&Subject, &crate::syntax::PredicateHead, &[PredicateElement]) {
     match clause {
         IndependentClause::Intransitive(subject, predicate) => {
-            (subject, &predicate.head, predicate.elements.as_slice())
+            (subject, predicate.head(), predicate.elements())
         }
         IndependentClause::Passive(subject, predicate) => {
-            (subject, &predicate.head, predicate.elements.as_slice())
+            (subject, predicate.head(), predicate.elements())
         }
         other => panic!("expected an intransitive or passive clause: {other:#?}"),
     }
@@ -6621,7 +6726,7 @@ fn this_step_is_still_a_temporal_adjunct() {
     );
     assert!(
         predicate_head
-            .first_auxiliary_contracted_with_subject
+            .first_auxiliary_contracted_with_subject()
             .is_contracted()
     );
     let temporal_adjuncts: Vec<&NounPhrase> = predicate_elements
@@ -6703,7 +6808,7 @@ fn transitive_predicate_head(clause: &Clause) -> &PredicateHead {
     let Clause::Independent(IndependentClause::Transitive(_, predicate)) = clause else {
         panic!("expected an independent transitive clause: {clause:#?}");
     };
-    &predicate.head
+    predicate.head()
 }
 
 /// The trigger-clause shape (Chandra, the Firebrand's "you next cast a
@@ -6716,11 +6821,11 @@ fn preverbal_next_attaches_to_the_predicate_head() {
     let without_next = parse_clause("you cast a creature spell this turn");
     let with_head = transitive_predicate_head(&with_next);
     let without_head = transitive_predicate_head(&without_next);
-    assert_eq!(with_head.preverb_modifiers, [PreverbModifier::Next]);
-    assert_eq!(without_head.preverb_modifiers, []);
+    assert_eq!(with_head.preverb_modifiers(), [PreverbModifier::Next]);
+    assert_eq!(without_head.preverb_modifiers(), []);
     // Everything besides the preverb modifier (verb, object, adjunct) is
     // unchanged from the minus-`next` twin.
-    assert_eq!(with_head.verb, without_head.verb);
+    assert_eq!(with_head.verb(), without_head.verb());
     let Clause::Independent(IndependentClause::Transitive(_, with_predicate)) = &with_next else {
         panic!("expected transitive");
     };
@@ -6728,8 +6833,8 @@ fn preverbal_next_attaches_to_the_predicate_head() {
     else {
         panic!("expected transitive");
     };
-    assert_eq!(with_predicate.object, without_predicate.object);
-    assert_eq!(with_predicate.elements, without_predicate.elements);
+    assert_eq!(with_predicate.object(), without_predicate.object());
+    assert_eq!(with_predicate.elements(), without_predicate.elements());
 }
 
 /// Renders back to the exact source string, with `next` before the verb —
@@ -6756,18 +6861,18 @@ fn preverb_adverb_slot_admits_only_next() {
             continue;
         };
         let head = match clause {
-            IndependentClause::Transitive(_, predicate) => Some(&predicate.head),
-            IndependentClause::Intransitive(_, predicate) => Some(&predicate.head),
+            IndependentClause::Transitive(_, predicate) => Some(predicate.head()),
+            IndependentClause::Intransitive(_, predicate) => Some(predicate.head()),
             IndependentClause::Imperative(predicate) => match predicate {
-                Predicate::Transitive(p) => Some(&p.head),
-                Predicate::Intransitive(p) => Some(&p.head),
+                Predicate::Transitive(p) => Some(p.head()),
+                Predicate::Intransitive(p) => Some(p.head()),
                 _ => None,
             },
             _ => None,
         };
         if let Some(head) = head {
             assert!(
-                head.preverb_modifiers.is_empty(),
+                head.preverb_modifiers().is_empty(),
                 "unexpected preverb modifier in fixture {source:?}: {head:#?}"
             );
         }
@@ -6884,12 +6989,10 @@ fn passive_deontic_in(clause: &IndependentClause) -> &PassivePredicate {
 }
 
 fn sole_exception_pp(predicate: &PassivePredicate) -> &PrepositionalPhrase {
-    let [PredicateElement::Adjunct(PredicateAdjunct::Exception(pp))] =
-        predicate.elements.as_slice()
-    else {
+    let [PredicateElement::Adjunct(PredicateAdjunct::Exception(pp))] = predicate.elements() else {
         panic!(
             "expected exactly one Exception adjunct, got {:?}",
-            predicate.elements
+            predicate.elements()
         );
     };
     pp
@@ -6917,11 +7020,11 @@ fn except_by_follows_temporal_adjunct() {
     let [
         PredicateElement::Adjunct(PredicateAdjunct::Temporal(_)),
         PredicateElement::Adjunct(PredicateAdjunct::Exception(pp)),
-    ] = predicate.elements.as_slice()
+    ] = predicate.elements()
     else {
         panic!(
             "expected [Temporal, Exception] in that order, got {:?}",
-            predicate.elements
+            predicate.elements()
         );
     };
     assert_eq!(pp.head().preposition, Preposition::By);
@@ -6967,12 +7070,12 @@ fn except_by_survives_complex_hosts() {
         let sentence = parsed.sentence().expect("sentence root");
         let predicate = passive_deontic(sentence);
         assert!(
-            predicate.elements.iter().any(|element| matches!(
+            predicate.elements().iter().any(|element| matches!(
                 element,
                 PredicateElement::Adjunct(PredicateAdjunct::Exception(_))
             )),
             "expected an Exception adjunct for {source}: {:?}",
-            predicate.elements
+            predicate.elements()
         );
         assert_eq!(render_sentence(sentence), source, "{source}");
     }
@@ -7035,7 +7138,7 @@ fn bare_by_blocking_controls_are_unchanged() {
     let sentence = parsed.sentence().expect("sentence root");
     let predicate = passive_deontic(sentence);
     assert!(matches!(
-        predicate.elements.as_slice(),
+        predicate.elements(),
         [PredicateElement::Adjunct(PredicateAdjunct::Prepositional(
             _
         ))]
@@ -7081,19 +7184,16 @@ fn shared_deontic_active_modal_coordinates_with_a_transitive_first_conjunct() {
     let source = "Enchanted creature gets +2/+2 and can't attack.";
     let parsed = parse(source);
     let coordination = predicate_coordination(parsed.sentence().expect("sentence root"));
-    let [
-        _,
-        PredicateExpression::Simple(Predicate::Deontic(DeonticPredicate {
-            modal,
-            inner: Some(predicate),
-        })),
-    ] = coordination.conjuncts()
+    let [_, PredicateExpression::Simple(Predicate::Deontic(deontic))] = coordination.conjuncts()
     else {
         panic!("expected one shared-deontic conjunct: {coordination:#?}");
     };
-    assert_eq!(modal.auxiliary.auxiliary, Auxiliary::Can);
+    assert_eq!(deontic.modal().auxiliary().auxiliary, Auxiliary::Can);
+    let Some(predicate) = deontic.inner() else {
+        panic!("expected a governed predicate: {deontic:#?}");
+    };
     assert!(
-        matches!(predicate.as_ref(), Predicate::Intransitive(_)),
+        matches!(predicate, Predicate::Intransitive(_)),
         "`attack` under the modal stays intransitive: {predicate:#?}"
     );
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -7108,7 +7208,7 @@ fn shared_predicates_receive_the_finite_subject_agreement() {
         panic!("expected a transitive `have` conjunct: {coordination:#?}");
     };
     assert_eq!(
-        have.head.verb.slot,
+        have.head().verb().slot,
         VerbSlot::Present {
             person: Person::Third,
             number: Number::Plural,
@@ -7122,7 +7222,7 @@ fn shared_predicates_receive_the_finite_subject_agreement() {
         panic!("expected a transitive `has` conjunct: {coordination:#?}");
     };
     assert_eq!(
-        has.head.verb.slot,
+        has.head().verb().slot,
         VerbSlot::Present {
             person: Person::Third,
             number: Number::Singular,
@@ -7149,19 +7249,16 @@ fn shared_deontic_passive_modal_coordinates_with_a_transitive_first_conjunct() {
     let source = "Enchanted creature gets +1/+0 and can't be blocked.";
     let parsed = parse(source);
     let coordination = predicate_coordination(parsed.sentence().expect("sentence root"));
-    let [
-        _,
-        PredicateExpression::Simple(Predicate::Deontic(DeonticPredicate {
-            modal,
-            inner: Some(predicate),
-        })),
-    ] = coordination.conjuncts()
+    let [_, PredicateExpression::Simple(Predicate::Deontic(deontic))] = coordination.conjuncts()
     else {
         panic!("expected one shared-deontic conjunct: {coordination:#?}");
     };
-    assert_eq!(modal.auxiliary.auxiliary, Auxiliary::Can);
+    assert_eq!(deontic.modal().auxiliary().auxiliary, Auxiliary::Can);
+    let Some(predicate) = deontic.inner() else {
+        panic!("expected a governed predicate: {deontic:#?}");
+    };
     assert!(
-        matches!(predicate.as_ref(), Predicate::Passive(_)),
+        matches!(predicate, Predicate::Passive(_)),
         "`be blocked` under the modal is passive: {predicate:#?}"
     );
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -7173,22 +7270,22 @@ fn shared_deontic_composes_with_a_modal_first_clause() {
     let parsed = parse(source);
     let coordination = predicate_coordination(parsed.sentence().expect("sentence root"));
     let [
-        PredicateExpression::Simple(Predicate::Deontic(DeonticPredicate {
-            inner: Some(first),
-            ..
-        })),
-        PredicateExpression::Simple(Predicate::Deontic(DeonticPredicate {
-            modal,
-            inner: Some(predicate),
-        })),
+        PredicateExpression::Simple(Predicate::Deontic(first_deontic)),
+        PredicateExpression::Simple(Predicate::Deontic(deontic)),
     ] = coordination.conjuncts()
     else {
         panic!("expected two deontic predicate conjuncts: {coordination:#?}");
     };
-    assert!(matches!(first.as_ref(), Predicate::Intransitive(_)));
-    assert_eq!(modal.auxiliary.auxiliary, Auxiliary::Can);
+    assert!(matches!(
+        first_deontic.inner(),
+        Some(Predicate::Intransitive(_))
+    ));
+    assert_eq!(deontic.modal().auxiliary().auxiliary, Auxiliary::Can);
+    let Some(predicate) = deontic.inner() else {
+        panic!("expected a governed predicate: {deontic:#?}");
+    };
     assert!(
-        matches!(predicate.as_ref(), Predicate::Passive(_)),
+        matches!(predicate, Predicate::Passive(_)),
         "`be blocked` under the modal is passive: {predicate:#?}"
     );
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -7200,27 +7297,21 @@ fn shared_deontic_passive_composes_with_an_exception_tail() {
         "Enchanted creature gets +1/+1 and can't be blocked except by creatures with flying.";
     let parsed = parse(source);
     let coordination = predicate_coordination(parsed.sentence().expect("sentence root"));
-    let [
-        _,
-        PredicateExpression::Simple(Predicate::Deontic(DeonticPredicate {
-            modal,
-            inner: Some(predicate),
-        })),
-    ] = coordination.conjuncts()
+    let [_, PredicateExpression::Simple(Predicate::Deontic(deontic))] = coordination.conjuncts()
     else {
         panic!("expected one shared-deontic conjunct: {coordination:#?}");
     };
-    assert_eq!(modal.auxiliary.auxiliary, Auxiliary::Can);
-    let Predicate::Passive(passive) = predicate.as_ref() else {
-        panic!("expected a passive predicate under the modal: {predicate:#?}");
+    assert_eq!(deontic.modal().auxiliary().auxiliary, Auxiliary::Can);
+    let Some(Predicate::Passive(passive)) = deontic.inner() else {
+        panic!("expected a passive predicate under the modal: {deontic:#?}");
     };
     assert!(
         matches!(
-            passive.elements.as_slice(),
+            passive.elements(),
             [PredicateElement::Adjunct(PredicateAdjunct::Exception(_))]
         ),
         "expected a single exception-tail adjunct: {:#?}",
-        passive.elements
+        passive.elements()
     );
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -7266,19 +7357,17 @@ fn shared_deontic_with_vp_ellipsis_preserves_the_first_deontic_ellipsis() {
         panic!("expected coordinated predicates in the `if` body: {if_body:#?}");
     };
     let [
-        PredicateExpression::Simple(Predicate::Proform(crate::syntax::ProPredicate { auxiliary })),
-        PredicateExpression::Simple(Predicate::Deontic(DeonticPredicate {
-            modal,
-            inner: Some(predicate),
-        })),
+        PredicateExpression::Simple(Predicate::Proform(proform)),
+        PredicateExpression::Simple(Predicate::Deontic(deontic)),
     ] = coordination.conjuncts()
     else {
         panic!("expected proform and deontic predicate conjuncts: {coordination:#?}");
     };
+    let auxiliary = proform.auxiliary();
     assert_eq!(auxiliary.auxiliary, Auxiliary::Do);
     assert!(auxiliary.contracted_negation.is_contracted());
-    assert_eq!(modal.auxiliary.auxiliary, Auxiliary::Can);
-    assert!(matches!(predicate.as_ref(), Predicate::Intransitive(_)));
+    assert_eq!(deontic.modal().auxiliary().auxiliary, Auxiliary::Can);
+    assert!(matches!(deontic.inner(), Some(Predicate::Intransitive(_))));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
 
@@ -7467,7 +7556,7 @@ fn coordinated_postpositive_participles_share_the_creature_head() {
     else {
         panic!("expected a transitive imperative: {:#?}", parsed.sentence());
     };
-    let Some(NounPhraseKind::Nominal(counter)) = predicate_object_kind(&put.object) else {
+    let Some(NounPhraseKind::Nominal(counter)) = predicate_object_kind(put.object()) else {
         panic!("expected a counter object: {put:#?}");
     };
     let [NominalComplement::Prepositional(on)] = counter.complements() else {
@@ -7531,11 +7620,11 @@ fn additive_type_copular_continuations_share_the_finite_subject() {
             panic!("expected a shared copular continuation: {coordination:#?}");
         };
         assert!(matches!(
-            &copular.complement,
+            copular.complement(),
             CopularComplement::NounPhrase(noun_phrase)
                 if matches!(noun_phrase.kind(), NounPhraseKind::Nominal(_))
         ));
-        let [PredicateAdjunct::Prepositional(preposition)] = copular.adjuncts.as_slice() else {
+        let [PredicateAdjunct::Prepositional(preposition)] = copular.adjuncts() else {
             panic!("expected one additive prepositional adjunct: {copular:#?}");
         };
         assert_eq!(preposition.head().preposition, Preposition::In);
@@ -7596,9 +7685,8 @@ fn sole_coordinated_prepositional_adjunct(
     };
     // The run attaches to the direct object's nominal, not to the verb:
     // `target card from your graveyard and from your hand`.
-    let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(&predicate.kind.object)
-    else {
-        panic!("expected a nominal direct object: {:#?}", predicate.kind);
+    let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(predicate.object()) else {
+        panic!("expected a nominal direct object: {:#?}", predicate.kind());
     };
     let [NominalComplement::Prepositional(pp)] = nominal.complements() else {
         panic!(

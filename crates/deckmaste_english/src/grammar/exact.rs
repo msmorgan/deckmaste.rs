@@ -505,6 +505,20 @@ fn lowered_matches_expected(
             (lowered, expected.downcast_ref::<VerbPhrase>()),
             (Lowered::VerbPhrase(actual), Some(expected)) if actual == expected
         ),
+        "InfinitiveClause" => matches!(
+            (
+                lowered,
+                expected.downcast_ref::<crate::syntax::InfinitiveClause>(),
+            ),
+            (Lowered::InfinitiveClause(actual), Some(expected)) if actual == expected
+        ),
+        "GerundClause" => matches!(
+            (
+                lowered,
+                expected.downcast_ref::<crate::syntax::GerundClause>(),
+            ),
+            (Lowered::GerundClause(actual), Some(expected)) if actual == expected
+        ),
         "TransitivePredicate" => {
             let Lowered::Generated(value) = lowered else {
                 return false;
@@ -1433,6 +1447,142 @@ mod tests {
         );
     }
 
+    #[test]
+    fn production_f01_exact_roots_are_stable_in_both_registration_orders() {
+        let catalogs = fixture_catalogs();
+        let activation = GeneratedActivation::Production;
+
+        for (source, expected_id) in [
+            ("to attack", "infinitive_to"),
+            ("not to attack", "infinitive_not_to"),
+        ] {
+            let parsed = super::super::parse_nonterminal_with_activation(
+                source,
+                &catalogs,
+                Nonterminal::InfinitiveClause,
+                activation,
+            )
+            .unwrap_or_else(|error| panic!("production did not parse {source:?}: {error:?}"));
+            let expected = parsed
+                .infinitive_clause()
+                .unwrap_or_else(|| panic!("{source:?} did not lower an infinitive clause"));
+            let orders = parse_production_as_declared_category_in_both_orders(
+                source,
+                &catalogs,
+                "InfinitiveClause",
+                expected,
+                100_000,
+            )
+            .unwrap_or_else(|error| panic!("exact F01 parse failed for {source:?}: {error:?}"));
+            assert_eq!(
+                orders[0], orders[1],
+                "registration order changed {source:?}"
+            );
+            for parses in orders {
+                assert_eq!(parses.len(), 1, "unexpected exact set for {source:?}");
+                assert_eq!(parses[0].ast().construction, expected_id, "{source:?}");
+                assert_eq!(parses[0].ast().form_ordinal, 0, "{source:?}");
+                assert_eq!(
+                    *parses[0].surface(),
+                    EnglishSurfaceWitness::None,
+                    "{source:?}"
+                );
+            }
+        }
+
+        let gerund_rows = [
+            ("attacking", "gerund_clause_base"),
+            (
+                "attacking rather than attacking",
+                "gerund_clause_subordinate_after",
+            ),
+        ];
+        for (source, expected_id) in gerund_rows {
+            let parsed = super::super::parse_nonterminal_with_activation(
+                source,
+                &catalogs,
+                Nonterminal::GerundClause,
+                activation,
+            )
+            .unwrap_or_else(|error| panic!("production did not parse {source:?}: {error:?}"));
+            let expected = parsed
+                .gerund_clause()
+                .unwrap_or_else(|| panic!("{source:?} did not lower a gerund clause"));
+            let orders = parse_production_as_declared_category_in_both_orders(
+                source,
+                &catalogs,
+                "GerundClause",
+                expected,
+                100_000,
+            )
+            .unwrap_or_else(|error| panic!("exact F01 parse failed for {source:?}: {error:?}"));
+            assert_eq!(
+                orders[0], orders[1],
+                "registration order changed {source:?}"
+            );
+            for parses in orders {
+                assert_eq!(parses.len(), 1, "unexpected exact set for {source:?}");
+                assert_eq!(parses[0].ast().construction, expected_id, "{source:?}");
+                assert_eq!(parses[0].ast().form_ordinal, 0, "{source:?}");
+                assert_eq!(
+                    *parses[0].surface(),
+                    EnglishSurfaceWitness::None,
+                    "{source:?}"
+                );
+            }
+        }
+
+        let base = super::super::parse_nonterminal_with_activation(
+            "attacking",
+            &catalogs,
+            Nonterminal::GerundClause,
+            activation,
+        )
+        .expect("production parses the base gerund")
+        .gerund_clause()
+        .expect("the base gerund lowers semantically")
+        .clone();
+        let pair = crate::constructions::nonfinite::build_gerund_clause_subordinate_after(
+            base.clone(),
+            base.clone(),
+        )
+        .expect("two checked gerunds form a relation");
+        let left = crate::constructions::nonfinite::build_gerund_clause_subordinate_after(
+            pair.clone(),
+            base.clone(),
+        )
+        .expect("a relation remains a checked matrix gerund");
+        let right =
+            crate::constructions::nonfinite::build_gerund_clause_subordinate_after(base, pair)
+                .expect("a relation remains a checked alternative gerund");
+        assert_ne!(left, right, "recursive rather-than grouping is semantic");
+
+        let source = "attacking rather than attacking rather than attacking";
+        for expected in [&left, &right] {
+            let orders = parse_production_as_declared_category_in_both_orders(
+                source,
+                &catalogs,
+                "GerundClause",
+                expected,
+                100_000,
+            )
+            .unwrap_or_else(|error| panic!("recursive exact F01 parse failed: {error:?}"));
+            assert_eq!(
+                orders[0], orders[1],
+                "registration order changed {source:?}"
+            );
+            for parses in orders {
+                assert_eq!(parses.len(), 1, "unexpected exact set for {source:?}");
+                assert_eq!(
+                    parses[0].ast().construction,
+                    "gerund_clause_subordinate_after"
+                );
+                assert_eq!(parses[0].ast().form_ordinal, 0);
+                assert_eq!(*parses[0].surface(), EnglishSurfaceWitness::None);
+            }
+        }
+    }
+
     /// Order-insensitive set equality — permutations may reorder discovery.
     fn same_exact_set(
         left: &[ExactParse<GeneratedParse, EnglishSurfaceWitness>],
@@ -1939,7 +2089,7 @@ mod tests {
             }
             _ => return None,
         };
-        let crate::syntax::PredicateObject::NounPhrase(noun_phrase) = &predicate.object else {
+        let crate::syntax::PredicateObject::NounPhrase(noun_phrase) = predicate.object() else {
             return None;
         };
         Some(noun_phrase)
@@ -2666,7 +2816,7 @@ mod tests {
         else {
             panic!("selected first clause lost its deontic predicate: {reading:#?}");
         };
-        let crate::syntax::PredicateObject::NounPhrase(object) = &first_predicate.object else {
+        let crate::syntax::PredicateObject::NounPhrase(object) = first_predicate.object() else {
             panic!("selected first clause lost its noun-phrase object: {reading:#?}");
         };
         assert!(

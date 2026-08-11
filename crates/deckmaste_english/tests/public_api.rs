@@ -1199,7 +1199,7 @@ fn public_determiner_provenance_exposes_the_complete_stable_d01_id_order() {
 }
 
 #[test]
-fn public_predicate_facade_constructs_transitive_and_roundtrips_exact() {
+fn public_predicate_facade_constructs_transitive_and_matches_parser() {
     use deckmaste_english::nominal as nominal_api;
     use deckmaste_english::predicate as predicate_api;
 
@@ -1224,10 +1224,6 @@ fn public_predicate_facade_constructs_transitive_and_roundtrips_exact() {
     .expect("the declaration accepts draw plus its direct object");
 
     assert!(matches!(transitive, Predicate::Transitive(_)));
-    let parts = predicate_api::parts_predicate(&transitive)
-        .expect("the generated inverse projects immutable checked parts");
-    assert_eq!(predicate_api::rebuild_predicate(parts).unwrap(), transitive);
-
     let parsed = parse_fragment(
         "Draw a card.",
         &Catalogs::default(),
@@ -1245,11 +1241,6 @@ fn public_predicate_facade_constructs_transitive_and_roundtrips_exact() {
         panic!("draw fixture is imperative")
     };
     assert_eq!(parsed_predicate, &transitive);
-    let parsed_parts = predicate_api::parts_predicate(parsed_predicate).unwrap();
-    assert_eq!(
-        predicate_api::rebuild_predicate(parsed_parts).unwrap(),
-        *parsed_predicate,
-    );
     let sentence = Sentence::try_from_clause(Clause::Independent(IndependentClause::Imperative(
         transitive.clone(),
     )))
@@ -1334,12 +1325,6 @@ fn public_predicate_facade_constructs_representative_shapes() {
     .expect("the declaration accepts a typed adverb dependent");
     assert!(matches!(dependent, Predicate::Intransitive(_)));
 
-    for predicate in [&intransitive, &progressive, &passive, &dependent] {
-        let parts = predicate_api::parts_predicate(predicate)
-            .expect("every representative public shape has generated inverse parts");
-        assert_eq!(predicate_api::rebuild_predicate(parts).unwrap(), *predicate);
-    }
-
     for (source, predicate) in [
         ("Attack.", &intransitive),
         ("Be attacking.", &progressive),
@@ -1375,12 +1360,6 @@ fn public_predicate_facade_constructs_representative_shapes() {
             panic!("representative fixture is imperative")
         };
         assert_eq!(parsed_predicate, predicate);
-        let parsed_parts = predicate_api::parts_predicate(parsed_predicate)
-            .expect("grammar-lowered public AST has the same generated inverse");
-        assert_eq!(
-            predicate_api::rebuild_predicate(parsed_parts).unwrap(),
-            *parsed_predicate,
-        );
     }
 }
 
@@ -1551,17 +1530,7 @@ fn public_relative_clause_facade_builds_projects_and_rejects_impossible_shapes()
     )
     .and_then(predicate_api::finish_object_gap_predicate)
     .expect("a transitive frame with its direct object omitted is an object gap");
-    let object_gap_parts =
-        std::panic::catch_unwind(|| predicate_api::parts_object_gap_predicate(&object_gap));
-    assert!(
-        matches!(object_gap_parts, Ok(Ok(_))),
-        "a checked object-gap predicate must project without panicking",
-    );
-    let object_gap_parts = object_gap_parts.unwrap().unwrap();
-    assert_eq!(
-        predicate_api::finish_object_gap_predicate(object_gap_parts).unwrap(),
-        object_gap
-    );
+    assert_eq!(object_gap.head().verb().verb, Verb::Word(Vocab::Cast));
 
     let not_an_object_gap = predicate_api::build_predicate_verb(
         VerbInstance {
@@ -1913,19 +1882,6 @@ fn public_relative_parts_exhaustively_cross_feed_without_panicking() {
 }
 
 #[test]
-fn relative_clause_serialization_keeps_legacy_struct_name_and_field_order() {
-    let value = parsed_relative_clause("a creature that attacks");
-    assert_eq!(
-        serialize_struct_identity(&value),
-        ("RelativeClause", vec!["marker", "gap", "body"]),
-    );
-    assert_eq!(
-        ron::ser::to_string(&value).unwrap(),
-        "(marker:That,gap:Subject,body:SubjectGap(Intransitive((head:(auxiliaries:[],first_auxiliary_contracted_with_subject:false,preverb_modifiers:[],verb:(verb:Word(Attack),slot:Present(person:Third,number:Singular)),distributive_each:false),kind:(),elements:[]))))",
-    );
-}
-
-#[test]
 fn public_predicate_facade_rejects_invalid_valency_form_voice_and_order() {
     use deckmaste_english::nominal as nominal_api;
     use deckmaste_english::predicate as predicate_api;
@@ -2039,10 +1995,6 @@ fn public_nonfinite_facade_builds_projects_renders_and_rejects_wrong_forms() {
     assert_eq!(infinitive.marker(), InfinitiveMarker::To);
     assert_eq!(infinitive.predicate(), &attack_infinitive);
     assert_eq!(
-        clause_api::parts_infinitive_to(&infinitive),
-        attack_infinitive
-    );
-    assert_eq!(
         clause_api::render_infinitive(&infinitive, "Test Card", false).unwrap(),
         "to attack"
     );
@@ -2061,11 +2013,17 @@ fn public_nonfinite_facade_builds_projects_renders_and_rejects_wrong_forms() {
     let attached =
         clause_api::build_gerund_clause_subordinate_after(matrix.clone(), alternative.clone())
             .unwrap();
-    assert_eq!(clause_api::parts_gerund_clause_base(&matrix), attack_gerund);
-    assert_eq!(
-        clause_api::parts_gerund_clause_subordinate_after(&attached),
-        (matrix, alternative)
-    );
+    assert!(matches!(
+        matrix.kind(),
+        GerundClauseKind::Base { predicate } if predicate.as_ref() == &attack_gerund
+    ));
+    assert!(matches!(
+        attached.kind(),
+        GerundClauseKind::RatherThan {
+            matrix: projected_matrix,
+            alternative: projected_alternative,
+        } if projected_matrix.as_ref() == &matrix && projected_alternative.as_ref() == &alternative
+    ));
     assert_eq!(
         clause_api::render_gerund(&attached, "Test Card", false).unwrap(),
         "attacking rather than attacking"
@@ -2500,12 +2458,6 @@ fn public_predicate_facade_preserves_prepositional_adjunct_role() {
             _
         ))]
     ));
-    let parts = predicate_api::parts_predicate(&Predicate::Intransitive(matched.clone())).unwrap();
-    assert_eq!(
-        predicate_api::rebuild_predicate(parts).unwrap(),
-        Predicate::Intransitive(matched.clone()),
-    );
-
     let mismatched = predicate_api::build_predicate_element(
         base,
         PredicateElement::Complement(PredicateComplement::Prepositional(phrase)),
@@ -2550,12 +2502,6 @@ fn public_predicate_facade_preserves_selected_prepositional_complement_role() {
             PredicateComplement::Prepositional(_)
         )]
     ));
-    let parts = predicate_api::parts_predicate(&Predicate::Intransitive(matched.clone())).unwrap();
-    assert_eq!(
-        predicate_api::rebuild_predicate(parts).unwrap(),
-        Predicate::Intransitive(matched.clone()),
-    );
-
     let mismatched = predicate_api::build_predicate_element(
         base,
         PredicateElement::Adjunct(PredicateAdjunct::Prepositional(phrase)),
@@ -3109,149 +3055,6 @@ impl ser::Serializer for UnitVariantSerializer {
     }
 }
 
-fn serialize_struct_identity(value: impl Serialize) -> (&'static str, Vec<&'static str>) {
-    value
-        .serialize(StructIdentitySerializer)
-        .expect("the value must serialize as a struct")
-}
-
-struct StructIdentitySerializer;
-
-struct StructIdentityCollector {
-    name: &'static str,
-    fields: Vec<&'static str>,
-}
-
-impl ser::SerializeStruct for StructIdentityCollector {
-    type Ok = (&'static str, Vec<&'static str>);
-    type Error = UnitVariantSerializationError;
-
-    fn serialize_field<T: ?Sized + Serialize>(
-        &mut self,
-        key: &'static str,
-        _value: &T,
-    ) -> Result<(), Self::Error> {
-        self.fields.push(key);
-        Ok(())
-    }
-
-    fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok((self.name, self.fields))
-    }
-}
-
-impl ser::Serializer for StructIdentitySerializer {
-    type Ok = (&'static str, Vec<&'static str>);
-    type Error = UnitVariantSerializationError;
-    type SerializeSeq = ser::Impossible<Self::Ok, Self::Error>;
-    type SerializeTuple = ser::Impossible<Self::Ok, Self::Error>;
-    type SerializeTupleStruct = ser::Impossible<Self::Ok, Self::Error>;
-    type SerializeTupleVariant = ser::Impossible<Self::Ok, Self::Error>;
-    type SerializeMap = ser::Impossible<Self::Ok, Self::Error>;
-    type SerializeStruct = StructIdentityCollector;
-    type SerializeStructVariant = ser::Impossible<Self::Ok, Self::Error>;
-
-    fn serialize_struct(
-        self,
-        name: &'static str,
-        length: usize,
-    ) -> Result<Self::SerializeStruct, Self::Error> {
-        Ok(StructIdentityCollector {
-            name,
-            fields: Vec::with_capacity(length),
-        })
-    }
-
-    unsupported_unit_variant_serialization!(
-        serialize_bool(bool),
-        serialize_i8(i8),
-        serialize_i16(i16),
-        serialize_i32(i32),
-        serialize_i64(i64),
-        serialize_i128(i128),
-        serialize_u8(u8),
-        serialize_u16(u16),
-        serialize_u32(u32),
-        serialize_u64(u64),
-        serialize_u128(u128),
-        serialize_f32(f32),
-        serialize_f64(f64),
-        serialize_char(char),
-        serialize_str(&str),
-        serialize_bytes(&[u8]),
-        serialize_none(),
-        serialize_unit(),
-        serialize_unit_struct(&'static str),
-        serialize_unit_variant(&'static str, u32, &'static str),
-    );
-
-    fn serialize_some<T: ?Sized + Serialize>(self, _value: &T) -> Result<Self::Ok, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
-
-    fn serialize_newtype_struct<T: ?Sized + Serialize>(
-        self,
-        _name: &'static str,
-        _value: &T,
-    ) -> Result<Self::Ok, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
-
-    fn serialize_newtype_variant<T: ?Sized + Serialize>(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _value: &T,
-    ) -> Result<Self::Ok, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
-
-    fn serialize_seq(self, _length: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
-
-    fn serialize_tuple(self, _length: usize) -> Result<Self::SerializeTuple, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
-
-    fn serialize_tuple_struct(
-        self,
-        _name: &'static str,
-        _length: usize,
-    ) -> Result<Self::SerializeTupleStruct, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
-
-    fn serialize_tuple_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _length: usize,
-    ) -> Result<Self::SerializeTupleVariant, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
-
-    fn serialize_map(self, _length: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
-
-    fn serialize_struct_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _length: usize,
-    ) -> Result<Self::SerializeStructVariant, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
-
-    fn collect_str<T: ?Sized + fmt::Display>(self, _value: &T) -> Result<Self::Ok, Self::Error> {
-        Err(UnitVariantSerializationError)
-    }
-}
-
 #[test]
 fn public_parser_returns_a_source_independent_grammar_tree() {
     let source = String::from("Draw a card.");
@@ -3603,13 +3406,13 @@ impl<'syntax> SyntaxInventory<'syntax> {
             }
             IndependentClause::Copular(subject, predicate) => {
                 self.subject(subject);
-                self.copular_complement(&predicate.complement);
-                self.predicate_adjuncts(&predicate.adjuncts);
+                self.copular_complement(predicate.complement());
+                self.predicate_adjuncts(predicate.adjuncts());
             }
             IndependentClause::Passive(subject, predicate) => {
                 self.subject(subject);
                 self.predicate_head(predicate.head());
-                if let Some(object) = &predicate.retained_object {
+                if let Some(object) = predicate.retained_object() {
                     self.predicate_object(object);
                 }
                 self.predicate_elements(predicate.elements());
@@ -3697,9 +3500,15 @@ impl<'syntax> SyntaxInventory<'syntax> {
     }
 
     fn gerund_clause(&mut self, clause: &'syntax GerundClause) {
-        self.predicate(clause.predicate());
-        for attachment in clause.attachments() {
-            self.dependent_clause(attachment.payload());
+        match clause.kind() {
+            GerundClauseKind::Base { predicate } => self.predicate(predicate),
+            GerundClauseKind::RatherThan {
+                matrix,
+                alternative,
+            } => {
+                self.gerund_clause(matrix);
+                self.gerund_clause(alternative);
+            }
         }
     }
 
@@ -3715,24 +3524,24 @@ impl<'syntax> SyntaxInventory<'syntax> {
                 self.predicate_elements(predicate.elements());
             }
             Predicate::Copular(predicate) => {
-                self.copular_complement(&predicate.complement);
-                self.predicate_adjuncts(&predicate.adjuncts);
+                self.copular_complement(predicate.complement());
+                self.predicate_adjuncts(predicate.adjuncts());
             }
             Predicate::Passive(predicate) => {
                 self.predicate_head(predicate.head());
-                if let Some(object) = &predicate.retained_object {
+                if let Some(object) = predicate.retained_object() {
                     self.predicate_object(object);
                 }
                 self.predicate_elements(predicate.elements());
             }
             Predicate::Deontic(predicate) => {
-                if let Some(inner) = &predicate.inner {
+                if let Some(inner) = predicate.inner() {
                     self.predicate(inner);
                 }
             }
             Predicate::Attached(predicate) => {
-                self.predicate(&predicate.predicate);
-                for attachment in &predicate.attachments {
+                self.predicate(predicate.predicate());
+                for attachment in predicate.attachments() {
                     self.clause_attachment(attachment.payload());
                 }
             }
@@ -3742,8 +3551,8 @@ impl<'syntax> SyntaxInventory<'syntax> {
 
     fn transitive_predicate(&mut self, predicate: &'syntax TransitivePredicate) {
         self.predicate_head(predicate.head());
-        self.predicate_elements(&predicate.pre_object_elements);
-        self.predicate_object(&predicate.object);
+        self.predicate_elements(predicate.pre_object_elements());
+        self.predicate_object(predicate.object());
         self.predicate_elements(predicate.elements());
     }
 
@@ -3755,7 +3564,7 @@ impl<'syntax> SyntaxInventory<'syntax> {
         match object {
             PredicateObject::NounPhrase(noun) => self.noun_phrase(noun),
             PredicateObject::Ability(ability) => {
-                if let Some(argument) = &ability.argument {
+                if let Some(argument) = ability.argument() {
                     self.predicate_object(argument);
                 }
             }
@@ -3764,9 +3573,9 @@ impl<'syntax> SyntaxInventory<'syntax> {
             PredicateObject::EmbeddedAbility(ability) => self.ability(ability),
             PredicateObject::QuotedAbility(quoted) => self.ability(&quoted.ability),
             PredicateObject::Coordinated(coordinated) => {
-                self.predicate_object(&coordinated.first);
-                for coordination in &coordinated.rest {
-                    self.predicate_object(&coordination.object);
+                self.predicate_object(coordinated.first());
+                for coordination in coordinated.rest() {
+                    self.predicate_object(coordination.object());
                 }
             }
             PredicateObject::OracleSymbol(_) | PredicateObject::SymbolSequence(_) => {}
@@ -4122,16 +3931,13 @@ fn exception_rider_in_expression(expression: &PredicateExpression) -> Option<&Ex
 
 fn exception_rider_in_predicate(predicate: &Predicate) -> Option<&ExceptionRider> {
     match predicate {
-        Predicate::Attached(attached) => attached.attachments.iter().find_map(|attachment| {
+        Predicate::Attached(attached) => attached.attachments().iter().find_map(|attachment| {
             let ClauseAttachmentKind::Exception(rider) = attachment.payload() else {
                 return None;
             };
             Some(rider)
         }),
-        Predicate::Deontic(deontic) => deontic
-            .inner
-            .as_deref()
-            .and_then(exception_rider_in_predicate),
+        Predicate::Deontic(deontic) => deontic.inner().and_then(exception_rider_in_predicate),
         Predicate::Transitive(_)
         | Predicate::Intransitive(_)
         | Predicate::Copular(_)
@@ -4184,13 +3990,13 @@ fn appositive_in_expression(expression: &PredicateExpression) -> Option<&Indepen
 
 fn appositive_in_predicate(predicate: &Predicate) -> Option<&IndependentClause> {
     match predicate {
-        Predicate::Attached(attached) => attached.attachments.iter().find_map(|attachment| {
+        Predicate::Attached(attached) => attached.attachments().iter().find_map(|attachment| {
             let ClauseAttachmentKind::Appositive(appositive) = attachment.payload() else {
                 return None;
             };
             Some(appositive.as_ref())
         }),
-        Predicate::Deontic(deontic) => deontic.inner.as_deref().and_then(appositive_in_predicate),
+        Predicate::Deontic(deontic) => deontic.inner().and_then(appositive_in_predicate),
         Predicate::Transitive(_)
         | Predicate::Intransitive(_)
         | Predicate::Copular(_)
@@ -4204,8 +4010,8 @@ fn predicate_head(predicate: &Predicate) -> Option<&PredicateHead> {
         Predicate::Transitive(predicate) => Some(predicate.head()),
         Predicate::Intransitive(predicate) => Some(predicate.head()),
         Predicate::Passive(predicate) => Some(predicate.head()),
-        Predicate::Attached(attached) => predicate_head(&attached.predicate),
-        Predicate::Deontic(deontic) => deontic.inner.as_deref().and_then(predicate_head),
+        Predicate::Attached(attached) => predicate_head(attached.predicate()),
+        Predicate::Deontic(deontic) => deontic.inner().and_then(predicate_head),
         Predicate::Copular(_) | Predicate::Proform(_) => None,
     }
 }
@@ -4246,9 +4052,9 @@ fn clause_subject(clause: &IndependentClause) -> Option<&NounPhrase> {
 
 fn predicate_object(predicate: &Predicate) -> Option<&PredicateObject> {
     match predicate {
-        Predicate::Transitive(predicate) => Some(&predicate.object),
-        Predicate::Attached(attached) => predicate_object(&attached.predicate),
-        Predicate::Deontic(deontic) => deontic.inner.as_deref().and_then(predicate_object),
+        Predicate::Transitive(predicate) => Some(predicate.object()),
+        Predicate::Attached(attached) => predicate_object(attached.predicate()),
+        Predicate::Deontic(deontic) => deontic.inner().and_then(predicate_object),
         Predicate::Intransitive(_)
         | Predicate::Copular(_)
         | Predicate::Passive(_)
@@ -4258,7 +4064,7 @@ fn predicate_object(predicate: &Predicate) -> Option<&PredicateObject> {
 
 fn direct_object(clause: &IndependentClause) -> Option<&PredicateObject> {
     match clause {
-        IndependentClause::Transitive(_, predicate) => Some(&predicate.object),
+        IndependentClause::Transitive(_, predicate) => Some(predicate.object()),
         IndependentClause::Predicated(_, PredicateExpression::Simple(predicate))
         | IndependentClause::Imperative(predicate) => predicate_object(predicate),
         IndependentClause::Deontic(_, _, predicate) => {
@@ -4379,19 +4185,18 @@ fn has_finite_subordinate(clause: &IndependentClause, expected: Subordinator) ->
 fn predicate_has_finite_subordinate(predicate: &Predicate, expected: Subordinator) -> bool {
     match predicate {
         Predicate::Attached(attached) => {
-            attached.attachments.iter().any(|attachment| {
+            attached.attachments().iter().any(|attachment| {
                 matches!(
                     attachment.payload(),
                     ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
                         subordinator,
                         SubordinateBody::Finite(_)
-                    )) if *subordinator == expected
+                    )) if subordinator == &expected
                 )
-            }) || predicate_has_finite_subordinate(&attached.predicate, expected)
+            }) || predicate_has_finite_subordinate(attached.predicate(), expected)
         }
         Predicate::Deontic(deontic) => deontic
-            .inner
-            .as_deref()
+            .inner()
             .is_some_and(|predicate| predicate_has_finite_subordinate(predicate, expected)),
         Predicate::Transitive(_)
         | Predicate::Intransitive(_)
@@ -4528,7 +4333,7 @@ fn sliver_stays_a_creature_type_not_a_self_reference() {
     else {
         panic!("expected a transitive imperative: {ast:#?}");
     };
-    let PredicateObject::NounPhrase(token) = &predicate.object else {
+    let PredicateObject::NounPhrase(token) = predicate.object() else {
         panic!("expected a nominal token object: {ast:#?}");
     };
     let NounPhraseKind::Nominal(token) = token.kind() else {
@@ -4612,7 +4417,7 @@ fn a_the_headed_nickname_keeps_its_capital_the() {
                             Predicate::Transitive(predicate)
                         ))
                             if matches!(
-                                &predicate.object,
+                                predicate.object(),
                                 PredicateObject::NounPhrase(noun_phrase)
                                     if is_this_card_form(
                                         noun_phrase,
@@ -4656,13 +4461,8 @@ fn single_conjunct_exception_rider_round_trips() {
     assert!(
         matches!(
             rider.first(),
-            IndependentClause::Copular(
-                _,
-                CopularPredicate {
-                    complement: CopularComplement::PowerToughness(_),
-                    ..
-                }
-            )
+            IndependentClause::Copular(_, predicate)
+                if matches!(predicate.complement(), CopularComplement::PowerToughness(_))
         ) && rider.rest().is_empty(),
         "AST:\n{ast}"
     );
@@ -4687,13 +4487,12 @@ fn quoted_final_exception_conjunct_stays_inside_oxford_rider() {
         !matches!(clause, IndependentClause::Coordinated(_))
             && matches!(
                 rider.first(),
-                IndependentClause::Copular(
-                    _,
-                    CopularPredicate {
-                        complement: CopularComplement::NounPhrase(noun_phrase),
-                        ..
-                    }
-                ) if is_this_card_form(noun_phrase, ThisCardForm::FullName)
+                IndependentClause::Copular(_, predicate)
+                    if matches!(
+                        predicate.complement(),
+                        CopularComplement::NounPhrase(noun_phrase)
+                            if is_this_card_form(noun_phrase, ThisCardForm::FullName)
+                    )
             )
             && rider.rest().len() == 2
             && rider.rest()[0].conjunction().is_none()
@@ -4702,7 +4501,7 @@ fn quoted_final_exception_conjunct_stays_inside_oxford_rider() {
             && matches!(
                 rider.rest()[1].clause(),
                 IndependentClause::Transitive(_, predicate)
-                    if matches!(&predicate.object, PredicateObject::QuotedAbility(_))
+                    if matches!(predicate.object(), PredicateObject::QuotedAbility(_))
             ),
         "AST:\n{ast}"
     );
@@ -4736,7 +4535,7 @@ fn two_member_post_exception_coordination_stays_outside_the_rider() {
                     }] if matches!(
                         clause.as_ref(),
                         IndependentClause::Transitive(_, predicate)
-                            if matches!(&predicate.object, PredicateObject::QuotedAbility(_))
+                            if matches!(predicate.object(), PredicateObject::QuotedAbility(_))
                     )
                 )
             ),
@@ -4759,7 +4558,7 @@ fn quoted_ability_exception_on_a_token_copy_round_trips() {
         matches!(
             rider.first(),
             IndependentClause::Transitive(_, predicate)
-                if matches!(&predicate.object, PredicateObject::QuotedAbility(_))
+                if matches!(predicate.object(), PredicateObject::QuotedAbility(_))
         ) && rider.rest().is_empty(),
         "AST:\n{ast}"
     );
@@ -4779,13 +4578,12 @@ fn name_exception_on_a_becomes_copy_carries_a_self_reference() {
     assert!(
         matches!(
             rider.first(),
-            IndependentClause::Copular(
-                _,
-                CopularPredicate {
-                    complement: CopularComplement::NounPhrase(noun_phrase),
-                    ..
-                }
-            ) if is_this_card_form(noun_phrase, ThisCardForm::FullName)
+            IndependentClause::Copular(_, predicate)
+                if matches!(
+                    predicate.complement(),
+                    CopularComplement::NounPhrase(noun_phrase)
+                        if is_this_card_form(noun_phrase, ThisCardForm::FullName)
+                )
         ) && rider.rest().len() == 1,
         "AST:\n{ast}"
     );
@@ -5676,7 +5474,7 @@ fn cost_noun_phrases_coordinate_with_and_or() {
     let IndependentClause::Imperative(Predicate::Transitive(predicate)) = clause.as_ref() else {
         panic!("expected a transitive imperative cost: {ast}");
     };
-    let PredicateObject::NounPhrase(noun_phrase) = &predicate.object else {
+    let PredicateObject::NounPhrase(noun_phrase) = predicate.object() else {
         panic!("expected a coordinated nominal object: {ast}");
     };
     let NounPhraseKind::CoordinatedNominal(coordinated) = noun_phrase.kind() else {
