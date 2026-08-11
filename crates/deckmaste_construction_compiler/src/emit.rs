@@ -67,6 +67,11 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
         .iter()
         .filter_map(erased_construction_projector)
         .collect();
+    let erased_construction_linearizers: Vec<TokenStream> = group
+        .constructions
+        .iter()
+        .map(|construction| erased_construction_linearizer(group, construction))
+        .collect();
     let erased_form_recognizers: Vec<TokenStream> = group
         .constructions
         .iter()
@@ -141,6 +146,7 @@ pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
             #(#erased_element_builders)*
             #(#erased_construction_builders)*
             #(#erased_construction_projectors)*
+            #(#erased_construction_linearizers)*
             #(#erased_form_recognizers)*
             #witness_assertions
             #(#deserialize_impls)*
@@ -301,83 +307,7 @@ fn inverse_family_linearizer(
         .map(|(index, construction)| {
             let id = construction.id.value.as_str();
             let index = proc_macro2::Literal::usize_unsuffixed(index);
-            let condition = match family.kind {
-                InverseDispatchKind::ValueGuard => {
-                    let conditions = construction.forms.iter().map(|form| {
-                        let predicate = parse_type(
-                            &form
-                                .inverse_guard
-                                .as_ref()
-                                .or(form.value_guard.as_ref())
-                                .expect("inverse-dispatch forms carry recognizers")
-                                .value,
-                        );
-                        quote! { #predicate(value) }
-                    });
-                    conditions.fold(quote! { false }, |condition, next| {
-                        quote! { #condition || #next }
-                    })
-                }
-                InverseDispatchKind::LensParts => {
-                    let parts = quote::format_ident!("parts_{}", construction.id.value);
-                    let value_guards = construction.forms.iter().map(|form| {
-                        form.inverse_guard.as_ref().or(form.value_guard.as_ref()).map(|guard| {
-                            let predicate = parse_type(&guard.value);
-                            quote! { #predicate(value) }
-                        })
-                    });
-                    let guarded_domain = value_guards
-                        .clone()
-                        .collect::<Option<Vec<_>>>()
-                        .filter(|_| construction.forms.iter().all(|form| !form.fallback))
-                        .map_or_else(|| quote! { true }, |conditions| {
-                            conditions
-                                .into_iter()
-                                .fold(quote! { false }, |condition, next| {
-                                    quote! { #condition || #next }
-                                })
-                        });
-                    quote! { #parts(value).is_some() && (#guarded_domain) }
-                }
-                InverseDispatchKind::Mixed => {
-                    if construction.lens.is_some() {
-                        let parts = quote::format_ident!("parts_{}", construction.id.value);
-                        let guarded_domain = construction
-                            .forms
-                            .iter()
-                            .map(|form| {
-                                form.inverse_guard.as_ref().or(form.value_guard.as_ref()).map(|guard| {
-                                    let predicate = parse_type(&guard.value);
-                                    quote! { #predicate(value) }
-                                })
-                            })
-                            .collect::<Option<Vec<_>>>()
-                            .filter(|_| construction.forms.iter().all(|form| !form.fallback))
-                            .map_or_else(|| quote! { true }, |conditions| {
-                                conditions.into_iter().fold(
-                                    quote! { false },
-                                    |condition, next| quote! { #condition || #next },
-                                )
-                            });
-                        quote! { #parts(value).is_some() && (#guarded_domain) }
-                    } else {
-                        let conditions = construction.forms.iter().map(|form| {
-                            let predicate = parse_type(
-                                &form
-                                    .inverse_guard
-                                    .as_ref()
-                                    .or(form.value_guard.as_ref())
-                                    .expect("mixed inverse-dispatch adapters carry recognizers")
-                                    .value,
-                            );
-                            quote! { #predicate(value) }
-                        });
-                        conditions.fold(quote! { false }, |condition, next| {
-                            quote! { #condition || #next }
-                        })
-                    }
-                }
-            };
+            let condition = inverse_selection_condition(family, construction);
             quote! {
                 if #condition {
                     if let Some((_, first)) = selected_construction {
@@ -427,6 +357,79 @@ fn inverse_family_linearizer(
             }
         }
     }
+}
+
+fn inverse_selection_condition(
+    family: crate::model::InverseDispatchFamily<'_>,
+    construction: &ConstructionDeclaration,
+) -> TokenStream {
+    match family.kind {
+        InverseDispatchKind::ValueGuard => {
+            let conditions = construction.forms.iter().map(|form| {
+                let predicate = parse_type(
+                    &form
+                        .inverse_guard
+                        .as_ref()
+                        .or(form.value_guard.as_ref())
+                        .expect("inverse-dispatch forms carry recognizers")
+                        .value,
+                );
+                quote! { #predicate(value) }
+            });
+            conditions.fold(quote! { false }, |condition, next| {
+                quote! { #condition || #next }
+            })
+        }
+        InverseDispatchKind::LensParts => inverse_lens_selection_condition(construction),
+        InverseDispatchKind::Mixed if construction.lens.is_some() => {
+            inverse_lens_selection_condition(construction)
+        }
+        InverseDispatchKind::Mixed => {
+            let conditions = construction.forms.iter().map(|form| {
+                let predicate = parse_type(
+                    &form
+                        .inverse_guard
+                        .as_ref()
+                        .or(form.value_guard.as_ref())
+                        .expect("mixed inverse-dispatch adapters carry recognizers")
+                        .value,
+                );
+                quote! { #predicate(value) }
+            });
+            conditions.fold(quote! { false }, |condition, next| {
+                quote! { #condition || #next }
+            })
+        }
+    }
+}
+
+fn inverse_lens_selection_condition(construction: &ConstructionDeclaration) -> TokenStream {
+    let parts = quote::format_ident!("parts_{}", construction.id.value);
+    let guarded_domain = construction
+        .forms
+        .iter()
+        .map(|form| {
+            form.inverse_guard
+                .as_ref()
+                .or(form.value_guard.as_ref())
+                .map(|guard| {
+                    let predicate = parse_type(&guard.value);
+                    quote! { #predicate(value) }
+                })
+        })
+        .collect::<Option<Vec<_>>>()
+        .filter(|_| construction.forms.iter().all(|form| !form.fallback))
+        .map_or_else(
+            || quote! { true },
+            |conditions| {
+                conditions
+                    .into_iter()
+                    .fold(quote! { false }, |condition, next| {
+                        quote! { #condition || #next }
+                    })
+            },
+        );
+    quote! { #parts(value).is_some() && (#guarded_domain) }
 }
 
 fn erased_form_recognizers(construction: &ConstructionDeclaration) -> Vec<TokenStream> {
@@ -883,6 +886,96 @@ fn erased_construction_projector(construction: &ConstructionDeclaration) -> Opti
             Ok(Box::new(#category::#variant(*value)))
         }
     })
+}
+
+fn erased_construction_linearizer(
+    group: &GroupDeclaration,
+    construction: &ConstructionDeclaration,
+) -> TokenStream {
+    let owner = construction.id.value.as_str();
+    let group_name = group.name.value.as_str();
+    let function = quote::format_ident!("__erased_linearize_{}", construction.id.value);
+    let linearizer = quote::format_ident!("linearize_{}_with", construction.id.value);
+    let source = match &construction.ast {
+        AstShape::Own { name, .. } => parse_type(&name.value),
+        AstShape::Bind { path, .. } => parse_type(&path.value),
+    };
+    let value_binding = construction.projection_inverse.as_ref().map_or_else(
+        || {
+            quote! {
+                let value = value.as_any().downcast_ref::<#source>().ok_or(
+                    ::deckmaste_construction_compiler::runtime::ErasedLinearizationError::WrongValueType {
+                        construction: #owner,
+                        expected: stringify!(#source),
+                    },
+                )?;
+            }
+        },
+        |inverse| {
+            let inverse = parse_type(&inverse.value);
+            let category = parse_type(&construction.category.value);
+            quote! {
+                let value = if let Some(value) = value.as_any().downcast_ref::<#source>() {
+                    value
+                } else {
+                    let category = value.as_any().downcast_ref::<#category>().ok_or(
+                        ::deckmaste_construction_compiler::runtime::ErasedLinearizationError::WrongValueType {
+                            construction: #owner,
+                            expected: stringify!(#category),
+                        },
+                    )?;
+                    let Some(value) = #inverse(category) else {
+                        return Err(
+                            ::deckmaste_construction_compiler::runtime::ErasedLinearizationError::Linearization(
+                                ::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
+                                    group: #group_name,
+                                },
+                            ),
+                        );
+                    };
+                    value
+                };
+            }
+        },
+    );
+    let family = group
+        .inverse_dispatch_families()
+        .into_iter()
+        .find(|family| family.contains(construction));
+    let recognition = family.map_or_else(
+        || quote! {},
+        |family| {
+            let condition = inverse_selection_condition(family, construction);
+            quote! {
+                if !(#condition) {
+                    return Err(
+                        ::deckmaste_construction_compiler::runtime::ErasedLinearizationError::Linearization(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
+                                group: #group_name,
+                            },
+                        ),
+                    );
+                }
+            }
+        },
+    );
+    quote! {
+        fn #function(
+            value: &dyn ::deckmaste_construction_compiler::runtime::ProjectionInput,
+            sink: &mut dyn ::deckmaste_construction_compiler::runtime::ProjectionSink,
+        ) -> Result<
+            (),
+            ::deckmaste_construction_compiler::runtime::ErasedLinearizationError,
+        > {
+            #value_binding
+            #recognition
+            let mut visitor =
+                ::deckmaste_construction_compiler::runtime::ProjectionSinkAdapter::new(sink);
+            #linearizer(value, &mut visitor).map_err(
+                ::deckmaste_construction_compiler::runtime::ErasedLinearizationError::Linearization,
+            )
+        }
+    }
 }
 
 fn own_construction(
@@ -1874,6 +1967,14 @@ fn visit_kind(
                 visitor
                     .identity(#provider, #value_type, #accessor)
                     .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+                visitor
+                    .projected_identity(
+                        #label,
+                        #provider,
+                        #value_type,
+                        ::deckmaste_construction_compiler::runtime::projection_value(#accessor),
+                    )
+                    .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
             }
         }
         FieldKind::Subtree { category, boxed } => {
@@ -1887,6 +1988,13 @@ fn visit_kind(
                 visitor
                     .subtree(#category, #value)
                     .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+                visitor
+                    .projected_subtree(
+                        #label,
+                        #category,
+                        ::deckmaste_construction_compiler::runtime::projection_value(#value),
+                    )
+                    .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
             }
         }
         FieldKind::Scalar { codec } | FieldKind::TypedScalar { codec, .. } => {
@@ -1894,6 +2002,13 @@ fn visit_kind(
             quote! {
                 visitor
                     .scalar(#codec, #accessor)
+                    .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+                visitor
+                    .projected_scalar(
+                        #label,
+                        #codec,
+                        ::deckmaste_construction_compiler::runtime::projection_value(#accessor),
+                    )
                     .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
             }
         }
@@ -1990,7 +2105,15 @@ fn visit_element(
                 let name = quote::format_ident!("{}", variant.name.value);
                 let label = format!("{}::{}", element.name.value, variant.name.value);
                 let payload = visit_kind(group, &quote! { payload }, &label, &variant.payload);
-                quote! { #target::#name(payload) => { #payload } }
+                let variant_name = variant.name.value.as_str();
+                quote! {
+                    #target::#name(payload) => {
+                        visitor
+                            .element_variant(#element_name, #variant_name)
+                            .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+                        #payload
+                    }
+                }
             })
             .collect();
         quote! {
@@ -2002,6 +2125,12 @@ fn visit_element(
     quote! {
         visitor
             .bound_value(#element_name, #accessor)
+            .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+        visitor
+            .projected_bound_value(
+                #element_name,
+                ::deckmaste_construction_compiler::runtime::projection_input(#accessor),
+            )
             .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
         #structural_visit
     }
@@ -2021,6 +2150,13 @@ fn linearize_stored_witness(
                 visitor
                     .stored_witness(#name, #dotted, #field)
                     .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+                visitor
+                    .projected_stored_witness(
+                        #name,
+                        #dotted,
+                        ::deckmaste_construction_compiler::runtime::projection_value(#field),
+                    )
+                    .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
             }
         }
         [sequence, selector, element_field] => {
@@ -2038,6 +2174,15 @@ fn linearize_stored_witness(
                 if let Some(member) = #sequence.last() {
                     visitor
                         .stored_witness(#name, #dotted, &member.#element_field)
+                        .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
+                    visitor
+                        .projected_stored_witness(
+                            #name,
+                            #dotted,
+                            ::deckmaste_construction_compiler::runtime::projection_value(
+                                &member.#element_field,
+                            ),
+                        )
                         .map_err(::deckmaste_construction_compiler::runtime::LinearizationError::Visitor)?;
                 }
             }
@@ -2803,6 +2948,7 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
     let erased_partial_builder =
         quote::format_ident!("__erased_partial_build_{}", construction.id.value);
     let erased_builder = quote::format_ident!("__erased_build_{}", construction.id.value);
+    let erased_linearizer = quote::format_ident!("__erased_linearize_{}", construction.id.value);
     quote! {
         ::deckmaste_construction_compiler::runtime::ConstructionData {
             id: #id,
@@ -2826,6 +2972,7 @@ fn construction_row(construction: &ConstructionDeclaration) -> TokenStream {
             erased_partial_builder: Some(#erased_partial_builder),
             erased_builder: Some(#erased_builder),
             erased_projector: #erased_projector,
+            erased_linearizer: #erased_linearizer,
         }
     }
 }

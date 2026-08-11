@@ -1,23 +1,20 @@
 //! The render path: a [`Recovered`] invocation in, English text out.
 //!
 //! This is the mirror of [`crate::unify`]. Where `unify` walks a target
-//! [`View`] against every lexicon entry and reads the winner's holes back out
-//! as arguments, [`render_invocation`] starts from those arguments and
+//! [`ProjectionTree`] against every lexicon entry and reads the winner's holes
+//! back out as arguments, [`render_invocation`] starts from those arguments and
 //! rebuilds the text a frame would print for them: pick the most specific
 //! frame whose guards the arguments satisfy (D8), substitute each hole's
 //! filler, and hand the result to [`render_fragment`].
 //!
 //! # Why substitution is textual, not tree surgery
 //!
-//! [`crate::compile::CompiledFrame::tree`] is a [`View`] — the frame's parse
-//! with holes punched in. It is tempting to substitute fillers into that tree
-//! directly and hand the patched [`View`] to a renderer. That path does not
-//! exist: [`View`] is a one-way projection ([`crate::view::of`] drives a
-//! `Serialize` impl; nothing drives the reverse), and
-//! `deckmaste_english::syntax`'s node types carry no `Deserialize` impl at
-//! all — nor may this task add one, since `deckmaste_english` is corpus-gated
-//! and must not be modified. So there is no way back from a patched `View` to
-//! the typed [`Fragment`](deckmaste_english::Fragment) that
+//! [`crate::compile::CompiledFrame::tree`] is a [`ProjectionTree`] — the
+//! frame's parse with holes punched in. It is tempting to substitute fillers
+//! into that tree directly and hand the patched [`ProjectionTree`] to a
+//! renderer. That path does not exist: the construction projection is
+//! intentionally transient and one-way. There is no way back from a patched
+//! projection to the typed [`Fragment`](deckmaste_english::Fragment) that
 //! [`render_fragment`] requires.
 //!
 //! What *is* available, and is the actual mechanism here, is the frame's own
@@ -56,7 +53,7 @@
 //! # Residual fillers
 //!
 //! A hole whose filler recovered as [`Recovered::Residual`] carries a
-//! captured [`View`] subtree with no lexicon entry behind it — by
+//! captured [`ProjectionTree`] subtree with no lexicon entry behind it — by
 //! definition, nothing rendered it into existence, so there is no frame text
 //! to substitute *from*. [`render_residual_text`] recovers what it honestly
 //! can: a bare nominal (no determiner, no modifiers, no complements) whose
@@ -67,8 +64,8 @@
 //! vocabulary word whose spelling lives only in a lookup table this crate must
 //! not duplicate — is refused with an error rather than guessed at. This is a
 //! real, intentional boundary, not an oversight: rendering it in full
-//! generality is exactly the `View → Fragment` problem the module doc above
-//! explains has no solution available to this crate.
+//! generality is exactly the `ProjectionTree → Fragment` problem the module doc
+//! above explains has no solution available to this crate.
 
 use std::collections::BTreeSet;
 use std::collections::HashMap;
@@ -77,15 +74,17 @@ use deckmaste_english::Catalogs;
 use deckmaste_english::FragmentKind;
 use deckmaste_english::Numeral;
 use deckmaste_english::parse_fragment;
+use deckmaste_english::project_fragment;
 use deckmaste_english::render_fragment;
 use macro_ron::frames::FramePosition;
 
 use crate::AgreeKind;
 use crate::Hole;
 use crate::HoleClass;
-use crate::View;
 use crate::lexicon::Entry;
 use crate::lexicon::Lexicon;
+use crate::projection::ConstructionNode;
+use crate::projection::ProjectionTree;
 use crate::unify::Recovered;
 
 /// The substituted text parsed back into a *different* tree than the frame
@@ -226,15 +225,12 @@ pub fn render_invocation_with(
     let fragment = report
         .into_fragment()
         .expect("a clean fragment report has a fragment");
+    let projection = project_fragment(&fragment)
+        .map(ProjectionTree::from_projection)
+        .map_err(|error| anyhow::anyhow!("rendering `{entry}`: cannot project result: {error}"))?;
     // The frame's own constituency, re-checked. Parsing cleanly is not the
     // same as parsing *back*: see `ReassembledDifferently`.
-    if !crate::unify::frame_reassembles(
-        chosen,
-        args,
-        lexicon,
-        position,
-        &crate::view::of(&fragment),
-    ) {
+    if !crate::unify::frame_reassembles(chosen, args, lexicon, position, &projection) {
         return Err(ReassembledDifferently {
             entry: entry.clone(),
             frame_index: chosen.frame_index,
@@ -381,8 +377,8 @@ fn select_frame<'lexicon>(
     // to be the most specific match for these arguments, and no order is
     // more "assembled first" than semantic. (A narrower carve-out than
     // keying on equal guard-param sets alone: a one-off pair of frames
-    // differing only in surface casing — fixed a different way, see
-    // `crate::unify::surface_only_fields` — would have been wrongly
+    // differing only in declaration-owned surface casing — fixed by witness
+    // matching — would have been wrongly
     // swallowed by an equal-guard-set-only check; keying on frame identity
     // catches exactly the same-authored-frame case and nothing broader.)
     let (first, _) = maximal[0];
@@ -631,56 +627,47 @@ fn substitute(
 /// If `view` is not (after unwrapping newtype wrappers) a `NominalPhrase`
 /// with a vacuous determiner, modifiers and complements, or its head's
 /// spelling is not recoverable — see the module doc.
-pub fn render_residual_text(view: &View) -> anyhow::Result<String> {
-    match view {
-        View::Newtype { inner, .. } => render_residual_text(inner),
-        View::Node {
-            name: "NominalPhrase",
-            fields,
-            ..
-        } => render_nominal_phrase(fields),
-        other => anyhow::bail!(
-            "cannot render this residual shape (no lexicon entry covers it, and it is not a \
-             bare nominal this module can reconstruct by hand): {other:?}"
-        ),
-    }
-}
-
-fn find_field<'a>(fields: &'a [(&'static str, View)], wanted: &str) -> Option<&'a View> {
-    fields
-        .iter()
-        .find_map(|(name, value)| (*name == wanted).then_some(value))
-}
-
-fn render_nominal_phrase(fields: &[(&'static str, View)]) -> anyhow::Result<String> {
-    for field in ["determiner", "modifiers", "complements"] {
-        if let Some(value) = find_field(fields, field) {
-            anyhow::ensure!(
-                value.is_vacuous(),
-                "cannot render a residual nominal with a non-empty `{field}` \
-                 ({value:?}) — only a bare head is reconstructed by hand"
-            );
+pub fn render_residual_text(tree: &ProjectionTree) -> anyhow::Result<String> {
+    let mut node = tree;
+    loop {
+        if node
+            .construction()
+            .is_some_and(|construction| construction.construction == "flat_noun_instance")
+        {
+            return render_noun_instance(node);
         }
+        let mut occupied = node
+            .children()
+            .into_iter()
+            .map(|(_, child)| child)
+            .filter(|child| !child.is_vacuous());
+        let Some(only) = occupied.next() else {
+            break;
+        };
+        if occupied.next().is_some() {
+            break;
+        }
+        node = only;
     }
-    let head = find_field(fields, "head")
-        .ok_or_else(|| anyhow::anyhow!("a residual NominalPhrase has no `head` field"))?;
-    render_noun_instance(head)
+    anyhow::bail!(
+        "cannot render this residual construction (no lexicon entry covers it, and it is not a \
+         bare nominal this module can reconstruct): {tree:?}"
+    )
 }
 
-fn render_noun_instance(view: &View) -> anyhow::Result<String> {
-    let View::Newtype {
-        name: "NounInstance",
-        variant: Some(number),
-        inner,
-    } = view
-    else {
-        anyhow::bail!("expected a `NounInstance` head, got {view:?}");
+fn render_noun_instance(view: &ProjectionTree) -> anyhow::Result<String> {
+    let Some(instance) = view.construction() else {
+        anyhow::bail!("expected a projected noun instance, got {view:?}");
     };
-    let spelling = render_noun(inner)?;
-    match *number {
-        "Singular" | "Mass" => Ok(spelling),
+    let noun = instance
+        .roles
+        .get("noun")
+        .ok_or_else(|| anyhow::anyhow!("a projected noun instance has no `noun` role"))?;
+    let spelling = render_noun(noun)?;
+    match instance.form {
+        "singular" | "mass" => Ok(spelling),
         // English regular plural: every noun this reconstruction reaches
-        // (D7's field-slice residuals, table-driven or opaque common nouns)
+        // (named-role residuals, table-driven or opaque common nouns)
         // pluralizes this way in the pilot corpus. An irregular plural would
         // render wrong rather than erroring — a real limitation, not
         // silently masked: `crate::unify` never compares this rendering
@@ -688,24 +675,19 @@ fn render_noun_instance(view: &View) -> anyhow::Result<String> {
         // never fed back through `unify`), and G3/G4 would surface a wrong
         // spelling as a diff/divergence if the pilot corpus ever exercised
         // one, which it does not today.
-        "Plural" => Ok(format!("{spelling}s")),
+        "plural" => Ok(format!("{spelling}s")),
         other => anyhow::bail!("unknown `NounInstance` number {other:?}"),
     }
 }
 
-fn render_noun(view: &View) -> anyhow::Result<String> {
-    let View::Newtype {
-        name: "Noun",
-        variant: Some(kind),
-        inner,
-    } = view
-    else {
-        anyhow::bail!("expected a `Noun`, got {view:?}");
+fn render_noun(view: &ProjectionTree) -> anyhow::Result<String> {
+    let Some(noun) = view.construction() else {
+        anyhow::bail!("expected a projected noun, got {view:?}");
     };
-    match *kind {
-        "Word" => render_vocab(inner),
-        "Opaque" => render_scalar_str(inner, "OpaqueLexeme"),
-        "Catalog" => render_catalog_atom(inner),
+    match noun.form {
+        "word" => render_vocab(required_role(noun, "word")?),
+        "opaque" => render_opaque(required_role(noun, "lexeme")?),
+        "catalog" => render_catalog_atom(required_role(noun, "catalog")?),
         other => {
             anyhow::bail!("cannot recover the spelling of a `{other}`-kind noun from a residual")
         }
@@ -717,65 +699,50 @@ fn render_noun(view: &View) -> anyhow::Result<String> {
 /// from `regular-vocabulary.tsv`); every other `Vocab` variant is a
 /// hardcoded, fieldless enum case whose spelling lives only in
 /// [`Vocab::spelling`](deckmaste_english::word::Vocab::spelling), a
-/// compile-time lookup keyed by the variant itself, not by anything the
-/// `View` carries. Rather than duplicate that table by hand (which would
-/// drift the moment a new vocabulary word is added), this recovers the
-/// variant the honest way: `Vocab::ALL` is the *complete*, public
-/// enumeration of every hardcoded case, and `Vocab` derives `Debug` as
-/// exactly its variant name (a fieldless variant's `Debug` output has no
-/// other content to include) — which is precisely
-/// [`View::variant_name`]'s own spelling of it. So the variant is found by
-/// scanning `Vocab::ALL` for the one whose `Debug` matches, and its real
-/// spelling is read off `.spelling()` — the same accessor the renderer
-/// itself uses, never re-derived.
-fn render_vocab(view: &View) -> anyhow::Result<String> {
-    match view {
-        View::Newtype {
-            name: "Vocab",
-            variant: Some("Regular"),
-            inner,
-        } => render_scalar_str(inner, "RegularVocab"),
-        View::Unit {
-            name: "Vocab",
-            variant: Some(name),
-        } => deckmaste_english::word::Vocab::ALL
-            .iter()
-            .find(|vocab| format!("{vocab:?}") == *name)
-            .map(|vocab| vocab.spelling().to_string())
-            .ok_or_else(|| {
-                anyhow::anyhow!("no `Vocab` variant named `{name}` was found in `Vocab::ALL`")
-            }),
-        other => anyhow::bail!("expected a `Vocab`, got {other:?}"),
-    }
+/// compile-time lookup keyed by the typed variant itself. The projection
+/// retains that typed identity, so residual rendering calls the same
+/// `Vocab::spelling` accessor as the English renderer without reproducing its
+/// lookup table.
+fn render_vocab(view: &ProjectionTree) -> anyhow::Result<String> {
+    projected_value(view)
+        .and_then(|value| value.downcast_ref::<deckmaste_english::word::Vocab>())
+        .map(|vocab| vocab.spelling().to_owned())
+        .ok_or_else(|| anyhow::anyhow!("expected a projected vocabulary noun, got {view:?}"))
 }
 
-/// A `CatalogAtom`'s `spelling` field, straight off the tree (it derives
-/// `Serialize` with no custom impl, so its private field still appears —
-/// serde derive does not respect Rust field visibility).
-fn render_catalog_atom(view: &View) -> anyhow::Result<String> {
-    let View::Node {
-        name: "CatalogAtom",
-        fields,
-        ..
-    } = view
-    else {
-        anyhow::bail!("expected a `CatalogAtom`, got {view:?}");
-    };
-    let spelling = find_field(fields, "spelling")
-        .ok_or_else(|| anyhow::anyhow!("a `CatalogAtom` view has no `spelling` field"))?;
-    render_scalar_str(spelling, "CatalogAtom.spelling")
+/// A catalog noun's declaration-surface spelling witness.
+fn render_catalog_atom(view: &ProjectionTree) -> anyhow::Result<String> {
+    view.construction()
+        .and_then(|catalog| {
+            catalog
+                .witnesses
+                .get("noun_spelling")
+                .or_else(|| catalog.witnesses.get("spelling"))
+        })
+        .and_then(|witness| witness.value.downcast_ref::<String>())
+        .cloned()
+        .ok_or_else(|| anyhow::anyhow!("expected a projected catalog spelling, got {view:?}"))
 }
 
-/// Unwraps one newtype layer (if `view` is one) down to a `str` scalar,
-/// naming what was expected in the error.
-fn render_scalar_str(view: &View, expected: &str) -> anyhow::Result<String> {
-    let scalar = match view {
-        View::Newtype { inner, .. } => inner.as_ref(),
-        other => other,
-    };
-    match scalar {
-        View::Scalar { kind: "str", repr } => Ok(repr.clone()),
-        other => anyhow::bail!("expected a `{expected}` string, got {other:?}"),
+fn render_opaque(view: &ProjectionTree) -> anyhow::Result<String> {
+    projected_value(view)
+        .and_then(|value| value.downcast_ref::<deckmaste_english::syntax::OpaqueLexeme>())
+        .map(|lexeme| lexeme.spelling().to_owned())
+        .ok_or_else(|| anyhow::anyhow!("expected a projected opaque noun, got {view:?}"))
+}
+
+fn required_role<'a>(node: &'a ConstructionNode, role: &str) -> anyhow::Result<&'a ProjectionTree> {
+    node.roles
+        .get(role)
+        .ok_or_else(|| anyhow::anyhow!("construction `{}` has no `{role}` role", node.construction))
+}
+
+fn projected_value(view: &ProjectionTree) -> Option<&deckmaste_english::OwnedProjectionValue> {
+    match view.atom()? {
+        deckmaste_english::ProjectedAtom::Scalar { value, .. }
+        | deckmaste_english::ProjectedAtom::Identity { value, .. }
+        | deckmaste_english::ProjectedAtom::FlatSubtree { value, .. } => Some(value),
+        deckmaste_english::ProjectedAtom::DerivedSequenceScalar { .. } => None,
     }
 }
 
@@ -793,7 +760,6 @@ mod tests {
     use macro_ron::frames::load_constructor_frames;
 
     use super::*;
-    use crate::view;
 
     fn plugin_dir() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")
@@ -859,11 +825,12 @@ mod tests {
             "fixture text {text:?} must parse cleanly at {kind:?}: {:?}",
             report.diagnostics()
         );
-        let target = view::of(
-            &report
-                .into_fragment()
-                .expect("a clean report has a fragment"),
-        );
+        let fragment = report
+            .into_fragment()
+            .expect("a clean report has a fragment");
+        let target = project_fragment(&fragment)
+            .map(ProjectionTree::from_projection)
+            .expect("a clean fixture fragment projects");
         crate::unify(&target, &fixture().lexicon, FramePosition::Main)
     }
 
@@ -974,9 +941,8 @@ mod tests {
     /// text is *never* the lowercase citation spelling the test above feeds
     /// back in (that only round-trips the frame's own convention) — a solo
     /// keyword line is always capitalized, line-initial, on a real card.
-    /// `CatalogAtom.spelling` preserves the matched text's own case, so
-    /// without `unify::surface_only_fields`'s `CatalogAtom.spelling` entry
-    /// (excluding that field from the match so case can't sink it) this
+    /// The catalog projection preserves the matched text as a witness while
+    /// matching keys on typed catalog identity, so this
     /// recovers as a residual (`unify` never reaches an `Invocation` at
     /// all), exactly the gap that made every canon `Keyword(Flying)` line
     /// silently invisible to G3/G4.

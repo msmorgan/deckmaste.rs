@@ -13,8 +13,6 @@ use std::fmt;
 use serde::Serialize;
 use serde::ser;
 
-use crate::compile::HoleClass;
-
 /// One node of a `Serialize` value's tree, with scalar values preserved.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum View {
@@ -46,11 +44,6 @@ pub enum View {
     Map(Vec<(View, View)>),
     /// `Option::None`.
     Absent,
-    /// A typed hole: the one node kind [`of`] never produces. The frame
-    /// compiler puts these in by *relocation* — replacing the witness it
-    /// substituted into a frame's text with the hole that witness stood
-    /// for. See [`mod@crate::compile`].
-    Hole { index: usize, class: HoleClass },
 }
 
 /// Build a [`View`] from anything that derives `Serialize`.
@@ -221,9 +214,7 @@ impl View {
                     ]
                 })
                 .collect(),
-            View::Scalar { .. } | View::Unit { .. } | View::Absent | View::Hole { .. } => {
-                Vec::new()
-            }
+            View::Scalar { .. } | View::Unit { .. } | View::Absent => Vec::new(),
         }
     }
 
@@ -706,103 +697,10 @@ impl ser::SerializeStructVariant for NodeBuilder {
 
 #[cfg(test)]
 mod tests {
-    use deckmaste_english::Catalogs;
-    use deckmaste_english::FragmentKind;
-    use deckmaste_english::Numeral;
-    use deckmaste_english::features::Comma;
-    use deckmaste_english::features::Conjunction;
-    use deckmaste_english::features::GapState;
-    use deckmaste_english::features::Onset;
-    use deckmaste_english::features::PronounCase;
-    use deckmaste_english::features::PronounClass;
-    use deckmaste_english::syntax::ComparativeWord;
-    use deckmaste_english::syntax::ComparisonMarker;
-    use deckmaste_english::syntax::CoordinationJunction;
-    use deckmaste_english::syntax::Demonstrative;
-    use deckmaste_english::syntax::NounPhraseCoordination;
-    use deckmaste_english::syntax::NumberLiteral;
-    use deckmaste_english::syntax::OpaqueLexeme;
-    use deckmaste_english::syntax::Quantity;
-    use deckmaste_english::syntax::QuantityValue;
-    use deckmaste_english::word::Adjective;
-    use deckmaste_english::word::Noun;
-    use deckmaste_english::word::NounInstance;
-    use deckmaste_english::word::Pronoun;
-    use deckmaste_english::word::PronounInstance;
-    use deckmaste_english::word::Vocab;
-
     use super::*;
-
-    fn field<'a>(view: &'a View, wanted: &str) -> &'a View {
-        let View::Node { fields, .. } = view else {
-            panic!("expected a field-bearing View, got {view:#?}");
-        };
-        fields
-            .iter()
-            .find_map(|(name, value)| (*name == wanted).then_some(value))
-            .unwrap_or_else(|| panic!("missing field {wanted:?} in {view:#?}"))
-    }
-
-    fn has_variant(view: &View, wanted: &str) -> bool {
-        let own = match view {
-            View::Unit { variant, .. }
-            | View::Newtype { variant, .. }
-            | View::Node { variant, .. } => *variant == Some(wanted),
-            View::Scalar { .. }
-            | View::Seq(_)
-            | View::Map(_)
-            | View::Absent
-            | View::Hole { .. } => false,
-        };
-        own || view
-            .children()
-            .into_iter()
-            .any(|(_, child)| has_variant(child, wanted))
-    }
-
-    #[test]
-    fn causative_fragment_serde_view_retains_causee_and_bare_complement() {
-        // Mutation caught: lower the causative through a declaration-local
-        // parallel IR that does not implement the ordinary semantic serde
-        // traversal consumed by spelling frames.
-        let report = deckmaste_english::parse_fragment(
-            "You may have this creature enter.",
-            &Catalogs::default()
-                .with_catalog(deckmaste_english::CatalogKind::CardType, ["Creature"]),
-            FragmentKind::Sentence,
-            "",
-            false,
-        );
-        assert!(report.clean(), "{:?}", report.diagnostics());
-        let decision = report
-            .construction_decisions()
-            .iter()
-            .find(|decision| decision.selected().as_str() == "verb_phrase_causative")
-            .expect("the spelling parse reports its causative owner");
-        assert_eq!(
-            decision.owner(),
-            deckmaste_english::ConstructionOwner::Generated,
-            "spelling must consume the production-generated predicate path"
-        );
-        let fragment = report.fragment().expect("the causative fragment lowers");
-        let deckmaste_english::Fragment::Sentence(sentence) = fragment else {
-            panic!("the spelling fixture remains a semantic Sentence")
-        };
-        assert!(matches!(
-            sentence.body(),
-            deckmaste_english::syntax::SentenceBody::Independent(
-                deckmaste_english::syntax::IndependentClause::Deontic(_, _, Some(_))
-            )
-        ));
-        let view = of(fragment);
-        assert!(has_variant(&view, "Transitive"), "{view:#?}");
-        assert!(has_variant(&view, "Infinitive"), "{view:#?}");
-        assert!(has_variant(&view, "Bare"), "{view:#?}");
-    }
 
     #[test]
     fn scalar_values_survive() {
-        // shape.rs drops values; View must keep them — Count recovery depends on it.
         let a = of(&3u32);
         let b = of(&4u32);
         assert_ne!(a, b);
@@ -810,7 +708,7 @@ mod tests {
             a,
             View::Scalar {
                 kind: "u32",
-                repr: "3".into()
+                repr: "3".into(),
             }
         );
     }
@@ -827,317 +725,13 @@ mod tests {
             x: E,
             y: Option<u8>,
         }
-        let v = of(&S { x: E::A, y: None });
-        let View::Node { name, fields, .. } = &v else { panic!() };
+        let view = of(&S { x: E::A, y: None });
+        let View::Node { name, fields, .. } = &view else {
+            panic!("expected a field-bearing diagnostic view")
+        };
         assert_eq!(*name, "S");
         assert_eq!(fields[0].0, "x");
         assert_eq!(fields[1].1, View::Absent);
         assert_ne!(of(&E::A), of(&E::B(0)));
-    }
-
-    #[test]
-    fn generated_determiner_facade_preserves_legacy_semantic_view_shape() {
-        use deckmaste_english::determiner as determiner_api;
-
-        assert_eq!(
-            of(&determiner_api::the()),
-            View::Unit {
-                name: "Determiner",
-                variant: Some("The"),
-            },
-        );
-
-        let possessive = of(&determiner_api::possessive_pronoun(Pronoun::You).unwrap());
-        let View::Newtype {
-            name: "Determiner",
-            variant: Some("Possessive"),
-            inner,
-        } = possessive
-        else {
-            panic!("possessive determiner lost its legacy outer shape: {possessive:#?}")
-        };
-        let View::Newtype {
-            name: "Possessor",
-            variant: Some("Pronoun"),
-            inner,
-        } = *inner
-        else {
-            panic!("possessor identity lost its legacy wrapper")
-        };
-        assert!(has_variant(&inner, "You"), "{inner:#?}");
-
-        let target = of(&determiner_api::target(Some(
-            Quantity::try_exact(NumberLiteral {
-                value: 2,
-                numeral: Numeral::Cardinal,
-            })
-            .unwrap(),
-        )));
-        let View::Newtype {
-            name: "Determiner",
-            variant: Some("Target"),
-            inner,
-        } = target
-        else {
-            panic!("quantified target lost its legacy wrapper: {target:#?}")
-        };
-        assert!(has_variant(&inner, "Exact"), "{inner:#?}");
-    }
-
-    #[test]
-    fn generated_noun_projection_keeps_typed_identity_and_opaque_bytes() {
-        // The parser's generated noun builders still project the public
-        // NounInstance value, so the generic spelling view must retain both
-        // its identity variant and an opaque lexeme's exact source spelling.
-        let known = of(&NounInstance::try_singular(Noun::Word(Vocab::Card))
-            .expect("card has a validated singular form"));
-        let opaque = of(
-            &NounInstance::try_mass(Noun::Opaque(OpaqueLexeme::new("BlOrPlE")))
-                .expect("opaque identities have a validated mass form"),
-        );
-
-        assert!(matches!(
-            known,
-            View::Newtype {
-                name: "NounInstance",
-                variant: Some("Singular"),
-                ..
-            }
-        ));
-        let View::Newtype {
-            name: "NounInstance",
-            variant: Some("Mass"),
-            inner,
-        } = opaque
-        else {
-            panic!("opaque noun form was erased")
-        };
-        let View::Newtype {
-            name: "Noun",
-            variant: Some("Opaque"),
-            inner,
-        } = *inner
-        else {
-            panic!("opaque identity was erased")
-        };
-        let View::Newtype {
-            name: "OpaqueLexeme",
-            variant: None,
-            inner,
-        } = *inner
-        else {
-            panic!("opaque spelling wrapper was erased")
-        };
-        assert_eq!(
-            *inner,
-            View::Scalar {
-                kind: "str",
-                repr: "BlOrPlE".to_owned(),
-            }
-        );
-    }
-
-    #[test]
-    fn quantity_view_keeps_tuple_variant_notation_and_comparative_identity() {
-        let number = NumberLiteral {
-            value: 3,
-            numeral: Numeral::Roman,
-        };
-        let comparison = of(&Quantity::try_or_comparison(
-            QuantityValue::Literal(number),
-            ComparativeWord::Greater,
-        )
-        .expect("a literal comparative quantity is valid"));
-        let View::Node {
-            name: "Quantity",
-            variant: Some("OrComparison"),
-            fields,
-        } = comparison
-        else {
-            panic!("quantity comparison variant identity was erased")
-        };
-        assert_eq!(fields[0].0, "value");
-        assert!(matches!(
-            fields[0].1,
-            View::Newtype {
-                name: "QuantityValue",
-                variant: Some("Literal"),
-                ..
-            }
-        ));
-        assert_eq!(
-            fields[1],
-            (
-                "comparative",
-                View::Unit {
-                    name: "ComparativeWord",
-                    variant: Some("Greater"),
-                },
-            )
-        );
-
-        let disjunction =
-            of(&Quantity::try_or(number, number).expect("a literal disjunction quantity is valid"));
-        assert!(matches!(
-            disjunction,
-            View::Node {
-                name: "Quantity",
-                variant: Some("Or"),
-                ..
-            }
-        ));
-        assert_ne!(
-            of(
-                &Quantity::try_or_comparison(
-                    QuantityValue::Literal(number),
-                    ComparativeWord::More,
-                )
-                .expect("a literal comparative quantity is valid"),
-            ),
-            disjunction,
-            "the two binary quantity families must remain frame-distinguishable"
-        );
-    }
-
-    #[test]
-    fn adjective_view_keeps_checked_face_degree_marker_and_standard_shapes() {
-        use deckmaste_english::adjective as adjective_api;
-
-        let face = adjective_api::build_adjective_phrase_face_up().unwrap();
-        let measured = adjective_api::build_adjective_phrase_degree_measure(
-            NumberLiteral {
-                value: 2,
-                numeral: Numeral::Cardinal,
-            },
-            Adjective::Word(Vocab::Greater),
-        )
-        .unwrap();
-        let target = adjective_api::build_adjective_phrase(Adjective::Word(Vocab::Target)).unwrap();
-        let standard = adjective_api::build_comparison_standard(None, Some(target), None).unwrap();
-        let comparison = adjective_api::build_comparison_than(standard).unwrap();
-
-        for (value, head) in [(of(&face), "CardOrientation"), (of(&measured), "Word")] {
-            let View::Node { name, fields, .. } = value else {
-                panic!("checked adjective phrase must remain a structural node")
-            };
-            assert_eq!(name, "AdjectivePhrase");
-            assert_eq!(
-                fields.iter().map(|(name, _)| *name).collect::<Vec<_>>(),
-                ["degree", "head", "complements"]
-            );
-            assert!(format!("{:?}", fields[1].1).contains(head));
-        }
-        let View::Node { name, fields, .. } = of(&comparison) else {
-            panic!("checked comparison must remain a structural node")
-        };
-        assert_eq!(name, "ComparisonComplement");
-        assert_eq!(
-            fields.iter().map(|(name, _)| *name).collect::<Vec<_>>(),
-            ["marker", "standard"]
-        );
-        assert_eq!(comparison.marker(), ComparisonMarker::Than);
-        assert!(matches!(
-            comparison.standard(),
-            deckmaste_english::syntax::Phrase::AdjectivePhrase(_)
-        ));
-    }
-
-    #[test]
-    fn production_j01_spelling_parse_selects_generated_owners() {
-        let report = deckmaste_english::parse_fragment(
-            "black creature",
-            &Catalogs::default()
-                .with_catalog(deckmaste_english::CatalogKind::CardType, ["Creature"]),
-            FragmentKind::Nominal,
-            "",
-            false,
-        );
-        assert!(report.clean(), "{:?}", report.diagnostics());
-        for construction in ["adjective", "adjective_phrase"] {
-            let decision = report
-                .construction_decisions()
-                .iter()
-                .find(|decision| decision.selected().as_str() == construction)
-                .unwrap_or_else(|| {
-                    panic!(
-                        "missing {construction}: {:#?}",
-                        report.construction_decisions()
-                    )
-                });
-            assert_eq!(
-                decision.owner(),
-                deckmaste_english::ConstructionOwner::Generated,
-                "spelling must consume production-generated J01 ownership"
-            );
-        }
-        assert!(matches!(
-            of(report.fragment().expect("the nominal fragment lowers")),
-            View::Newtype {
-                name: "Fragment",
-                variant: Some("Nominal"),
-                ..
-            }
-        ));
-    }
-
-    #[test]
-    fn canonical_feature_aliases_keep_legacy_view_names() {
-        assert_eq!(
-            of(&Onset::Vowel),
-            View::Unit {
-                name: "InitialSound",
-                variant: Some("Vowel"),
-            }
-        );
-        assert_eq!(
-            field(
-                &of(&PronounInstance {
-                    pronoun: PronounClass::They,
-                    case: PronounCase::Object,
-                }),
-                "pronoun",
-            ),
-            &View::Unit {
-                name: "Pronoun",
-                variant: Some("They"),
-            }
-        );
-        assert_eq!(
-            of(&GapState::Object),
-            View::Unit {
-                name: "RelativeGap",
-                variant: Some("Object"),
-            }
-        );
-    }
-
-    #[test]
-    fn conjunction_fields_keep_context_specific_legacy_view_names() {
-        let predicate = of(&CoordinationJunction {
-            conjunction: Some(Conjunction::Then),
-            comma: Comma::Present,
-        });
-        assert_eq!(
-            field(&predicate, "conjunction"),
-            &View::Unit {
-                name: "PredicateConjunction",
-                variant: Some("Then"),
-            }
-        );
-
-        let nominal = of(&NounPhraseCoordination {
-            conjunction: Some(Conjunction::Plus),
-            phrase: deckmaste_english::noun_phrase::build_noun_phrase_demonstrative(
-                Demonstrative::This,
-            )
-            .unwrap(),
-        });
-        assert_eq!(
-            field(&nominal, "conjunction"),
-            &View::Unit {
-                name: "NounPhraseConjunction",
-                variant: Some("Plus"),
-            }
-        );
     }
 }

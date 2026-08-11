@@ -20,9 +20,9 @@
 //!    half-parses is a build error naming the frame, never a silently degraded
 //!    lexicon entry.
 //! 3. **Relocate.** Walk the tree, find where each witness landed, and put a
-//!    [`View::Hole`] back in its place. Which node the hole replaces is not the
-//!    leaf the witness lexed to but the largest subtree that came *only* from
-//!    that witness (see [`HoleClass`]).
+//!    [`ProjectionTree::Hole`] back in its place. Which node the hole replaces
+//!    is not the leaf the witness lexed to but the largest subtree that came
+//!    *only* from that witness (see [`HoleClass`]).
 //! 4. **Normalize and record.** The same content authored with different
 //!    agreement — `"<Param(0)> draw <Param(1)> card"` against `"<Param(0)>
 //!    draws <Param(1)> cards"` — parses to structurally different trees. Where
@@ -44,17 +44,21 @@
 use deckmaste_english::Catalogs;
 use deckmaste_english::FragmentKind;
 use deckmaste_english::Numeral;
+use deckmaste_english::ProjectedAtom;
 use deckmaste_english::features::Number;
 use deckmaste_english::features::Person;
 use deckmaste_english::parse_fragment;
+use deckmaste_english::project_fragment;
+use deckmaste_english::syntax::OpaqueLexeme;
+use deckmaste_english::syntax::ScalarValue;
 use macro_ron::MacroSet;
 use macro_ron::frames::FrameSpec;
 
 use crate::View;
 use crate::guard;
-use crate::view;
-use crate::view::PathStep;
-use crate::view::TreePath;
+use crate::projection::ProjectionPath;
+use crate::projection::ProjectionStep;
+use crate::projection::ProjectionTree;
 use crate::witness;
 use crate::witness::SELF_WITNESS;
 use crate::witness::Witness;
@@ -71,49 +75,6 @@ pub enum HoleClass {
     /// The hole is a whole subtree: everything at its path came from the
     /// witness. The ordinary case.
     Subtree,
-    /// The hole is a **field subset of a flat node**, not a subtree.
-    ///
-    /// The hole-constituency audit's central finding, and 57 of the corpus's
-    /// 128 holes: `syntax::NominalPhrase` is flat
-    /// (`determiner`/`modifiers`/`head`/`complements`) because lowering
-    /// erases the N-bar the parse forest had, so a frame that supplies part
-    /// of a nominal leaves the hole covering the rest. There is no single
-    /// node to point at, so the hole's [`Hole::path`] addresses the owning
-    /// `NominalPhrase` and `claimed` names the fields the hole takes.
-    ///
-    /// # `claimed` is variable — read it, never assume it
-    ///
-    /// Two frame shapes are supported, and they claim **different** field
-    /// sets:
-    ///
-    /// | frame | frame owns | `claimed` |
-    /// |---|---|---|
-    /// | `target <Param(0)>` | `determiner` | `["modifiers", "head", "complements"]` |
-    /// | `<Param(0)> you control` | `complements` | `["modifiers", "head"]` |
-    ///
-    /// A consumer must bind exactly the fields `claimed` names. Assuming the
-    /// three-field set — matching on it, or indexing past it — silently
-    /// mis-binds the second shape, taking a postmodifier that belongs to the
-    /// frame. `claimed` is always a contiguous run of the node's declaration
-    /// order, and always contains `"head"`.
-    ///
-    /// # How to read one
-    ///
-    /// `View::Hole` appears **once per claimed field** — so three times for
-    /// the determiner-owning shape and twice for the complement-owning one —
-    /// each carrying the same `index` and the same `class`. The owning node
-    /// therefore keeps its exact arity and field names, and whatever the
-    /// frame owns sits *beside* the holes rather than being spliced around
-    /// them.
-    ///
-    /// So a consumer walking the two trees in lockstep needs no special case:
-    /// at a `Hole`-valued field it binds the card node's same-named field,
-    /// at any other field it compares. The claimed fields are one hole, not
-    /// several — **treat them as a unit**: bind all of `claimed` or none, and
-    /// do not treat a per-field match as a hole match on its own. `claimed`
-    /// is the authority on the grouping; the repetition is a convenience for
-    /// the walk, not independent bindings.
-    FieldSlice { claimed: Vec<&'static str> },
     /// The hole is a bare number: the `value` of a `NumberLiteral`. The
     /// sibling `numeral` field (Arabic vs. spelled-out) is surface-only, not
     /// the filler's, so relocation normalizes a synthetic retry notation to
@@ -138,7 +99,7 @@ pub enum HoleClass {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Hole {
     /// This hole's slot in [`CompiledFrame::holes`], and the `index` its
-    /// [`View::Hole`] nodes carry — `holes[h.index] == h`, always.
+    /// [`ProjectionTree::Hole`] nodes carry — `holes[h.index] == h`, always.
     ///
     /// **It is not the param index**, and a consumer that assumes it is will
     /// bind the wrong argument. The two coincide only when every declared
@@ -159,18 +120,16 @@ pub struct Hole {
     /// stands for the card rather than for an argument.
     pub param: Option<usize>,
     pub class: HoleClass,
-    /// Where the hole sits in [`CompiledFrame::tree`]: the node it replaced,
-    /// except for [`HoleClass::FieldSlice`], where it is the owning node
-    /// whose fields the hole claims.
+    /// Where the hole sits in [`CompiledFrame::tree`]: the node it replaced.
     ///
     /// **One path, even when the hole has several sites.** Every `~` in a
     /// frame is the same referent and shares one hole, so a frame saying `~`
-    /// twice puts two `View::Hole` nodes in the tree and `path` keeps only
-    /// the first. A consumer that must visit every occurrence — a renderer
-    /// substituting a filler back — scans the tree for
-    /// `View::Hole { index, .. }` rather than trusting `path`, which is a
-    /// convenience for the single-site case and for diagnostics.
-    pub path: TreePath,
+    /// twice puts two `ProjectionTree::Hole` nodes in the tree and `path` keeps
+    /// only the first. A consumer that must visit every occurrence — a
+    /// renderer substituting a filler back — scans the tree for
+    /// `ProjectionTree::Hole { index, .. }` rather than trusting `path`, which
+    /// is a convenience for the single-site case and for diagnostics.
+    pub path: ProjectionPath,
     /// What was substituted into the frame text to find this hole. Kept for
     /// diagnostics — nothing downstream should need it.
     pub witness: Witness,
@@ -187,7 +146,7 @@ pub struct AgreementDep {
     /// The node that was normalized — a `VerbInstance` for
     /// [`AgreeKind::VerbWithHole`], a `NominalPhrase` for
     /// [`AgreeKind::NounNumberFromHole`].
-    pub site: TreePath,
+    pub site: ProjectionPath,
     pub kind: AgreeKind,
     /// What citation normalization actually changed at `site`, in the order
     /// applied. Empty when the authoring was already in citation form.
@@ -195,7 +154,7 @@ pub struct AgreementDep {
 }
 
 /// Which feature flows from which hole.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub enum AgreeKind {
     /// A verb whose subject position is (or contains) the hole with this
     /// index: its person and number come from the filler.
@@ -245,9 +204,9 @@ pub struct CompiledGuard {
 pub struct CompiledFrame {
     /// The English category the frame was parsed at.
     pub kind: FragmentKind,
-    /// The frame's tree, with [`View::Hole`] where the witnesses were and
-    /// hole-driven inflection normalized to citation form.
-    pub tree: View,
+    /// The frame's tree, with [`ProjectionTree::Hole`] where the witnesses were
+    /// and hole-driven inflection normalized to citation form.
+    pub tree: ProjectionTree,
     /// One entry per hole: param holes first, in ascending param order, then
     /// the `~` hole if there is one.
     pub holes: Vec<Hole>,
@@ -346,6 +305,7 @@ pub fn compile(
 
     let mut agreement = agreement_deps(&tree, &placed);
     relocate(&mut tree, &placed);
+    clear_hole_dependent_witnesses(&mut tree);
     normalize_all(&mut tree, &mut agreement, Side::Frame);
 
     let holes = placed
@@ -637,7 +597,11 @@ fn plan_holes_with_singular(
 // Step 2 — parse
 // ---------------------------------------------------------------------------
 
-fn parse_witnessed(text: &str, kind: FragmentKind, catalogs: &Catalogs) -> anyhow::Result<View> {
+fn parse_witnessed(
+    text: &str,
+    kind: FragmentKind,
+    catalogs: &Catalogs,
+) -> anyhow::Result<ProjectionTree> {
     let report = parse_fragment(text, catalogs, kind, SELF_WITNESS, false);
     if !report.clean() {
         anyhow::bail!(
@@ -654,7 +618,9 @@ fn parse_witnessed(text: &str, kind: FragmentKind, catalogs: &Catalogs) -> anyho
     let fragment = report
         .into_fragment()
         .expect("a clean fragment report has a fragment");
-    Ok(view::of(&fragment))
+    let projection = project_fragment(&fragment)
+        .map_err(|error| anyhow::anyhow!("cannot project witnessed frame {text:?}: {error}"))?;
+    Ok(ProjectionTree::from_projection(projection))
 }
 
 // ---------------------------------------------------------------------------
@@ -667,12 +633,12 @@ struct PlacedHole {
     planned: PlannedHole,
     class: HoleClass,
     /// Where each occurrence sits. One entry unless the frame said `~` twice.
-    sites: Vec<TreePath>,
+    sites: Vec<ProjectionPath>,
 }
 
 impl PlacedHole {
-    fn hole_node(&self) -> View {
-        View::Hole {
+    fn hole_node(&self) -> ProjectionTree {
+        ProjectionTree::Hole {
             index: self.planned.index,
             class: self.class.clone(),
         }
@@ -681,29 +647,24 @@ impl PlacedHole {
     /// The final record, with the path re-derived from the finished tree —
     /// citation normalization moves nodes around, so a path taken before it
     /// ran cannot be trusted.
-    fn finish(self, tree: &View) -> anyhow::Result<Hole> {
+    fn finish(self, tree: &ProjectionTree) -> anyhow::Result<Hole> {
         let index = self.planned.index;
-        let found: Vec<TreePath> = tree
+        let found: Vec<ProjectionPath> = tree
             .walk()
             .into_iter()
-            .filter(|(_, node)| matches!(node, View::Hole { index: at, .. } if *at == index))
+            .filter(
+                |(_, node)| matches!(node, ProjectionTree::Hole { index: at, .. } if *at == index),
+            )
             .map(|(path, _)| path)
             .collect();
         let first = found.first().cloned().ok_or_else(|| {
             anyhow::anyhow!("hole {index} vanished from the tree during normalization")
         })?;
-        // A field-slice hole is spelled once per claimed field; its path is
-        // the owning node, one step above any of them.
-        let path = if matches!(self.class, HoleClass::FieldSlice { .. }) {
-            TreePath(first.0[..first.0.len().saturating_sub(1)].to_vec())
-        } else {
-            first
-        };
         Ok(Hole {
             index,
             param: self.planned.param,
             class: self.class,
-            path,
+            path: first,
             witness: self.planned.witness,
         })
     }
@@ -711,12 +672,15 @@ impl PlacedHole {
 
 /// Locates one planned hole in the parsed tree and decides its class.
 #[cfg(test)]
-fn place(tree: &View, planned: PlannedHole) -> anyhow::Result<PlacedHole> {
+fn place(tree: &ProjectionTree, planned: PlannedHole) -> anyhow::Result<PlacedHole> {
     let markers = select_markers(tree, &planned)?;
-    place_at_markers(tree, planned, markers)
+    Ok(place_at_markers(tree, planned, markers))
 }
 
-fn select_markers(tree: &View, planned: &PlannedHole) -> anyhow::Result<Vec<TreePath>> {
+fn select_markers(
+    tree: &ProjectionTree,
+    planned: &PlannedHole,
+) -> anyhow::Result<Vec<ProjectionPath>> {
     let witness = &planned.witness;
     let markers = tree
         .walk()
@@ -755,10 +719,10 @@ fn select_markers(tree: &View, planned: &PlannedHole) -> anyhow::Result<Vec<Tree
 }
 
 fn place_at_markers(
-    tree: &View,
+    tree: &ProjectionTree,
     planned: PlannedHole,
-    markers: Vec<TreePath>,
-) -> anyhow::Result<PlacedHole> {
+    markers: Vec<ProjectionPath>,
+) -> PlacedHole {
     let witness = &planned.witness;
 
     // Every site of one hole necessarily gets the same class: the only hole
@@ -770,18 +734,18 @@ fn place_at_markers(
     let mut class = None;
     for marker in markers {
         let site = hoist(tree, &marker, witness);
-        let (site_class, site) = classify(tree, site, witness)?;
+        let (site_class, site) = classify(tree, site, witness);
         class.get_or_insert(site_class);
         sites.push(site);
     }
-    Ok(PlacedHole {
+    PlacedHole {
         class: class.expect("at least one occurrence"),
         planned,
         sites,
-    })
+    }
 }
 
-fn place_all(tree: &View, planned: Vec<PlannedHole>) -> anyhow::Result<Vec<PlacedHole>> {
+fn place_all(tree: &ProjectionTree, planned: Vec<PlannedHole>) -> anyhow::Result<Vec<PlacedHole>> {
     let mut claimed_markers = Vec::new();
     let mut placed = Vec::with_capacity(planned.len());
     for hole in planned {
@@ -796,72 +760,93 @@ fn place_all(tree: &View, planned: Vec<PlannedHole>) -> anyhow::Result<Vec<Place
             );
         }
         claimed_markers.extend(markers.iter().cloned());
-        placed.push(place_at_markers(tree, hole, markers)?);
+        placed.push(place_at_markers(tree, hole, markers));
     }
     Ok(placed)
 }
 
-fn number_literal_notation_matches(tree: &View, path: &TreePath, expected: Numeral) -> bool {
-    if path.0.last() != Some(&PathStep::Field("value")) {
-        return false;
+fn atom_value(atom: &ProjectedAtom) -> Option<&deckmaste_english::OwnedProjectionValue> {
+    match atom {
+        ProjectedAtom::Scalar { value, .. }
+        | ProjectedAtom::Identity { value, .. }
+        | ProjectedAtom::FlatSubtree { value, .. } => Some(value),
+        ProjectedAtom::DerivedSequenceScalar { .. } => None,
     }
-    let parent = TreePath(path.0[..path.0.len().saturating_sub(1)].to_vec());
-    let Some(View::Node {
-        name: "NumberLiteral",
-        fields,
-        ..
-    }) = parent.resolve(tree)
-    else {
-        return false;
-    };
-    let Some((_, notation)) = fields.iter().find(|(field, _)| *field == "numeral") else {
-        return false;
-    };
-    notation == &view::of(&expected)
 }
 
-fn is_number_literal_value(tree: &View, path: &TreePath) -> bool {
-    if path.0.last() != Some(&PathStep::Field("value")) {
-        return false;
+fn numeric_scalar_value(node: &ProjectionTree) -> Option<i32> {
+    let value = node.atom().and_then(atom_value)?;
+    if let Some(value) = value.downcast_ref::<i32>() {
+        return Some(*value);
     }
-    let parent = TreePath(path.0[..path.0.len().saturating_sub(1)].to_vec());
-    parent.resolve(tree).and_then(View::type_name) == Some("NumberLiteral")
+    if let Some(value) = value.downcast_ref::<u32>() {
+        return i32::try_from(*value).ok();
+    }
+    match value.downcast_ref::<ScalarValue>() {
+        Some(ScalarValue::Integer(value)) => i32::try_from(*value).ok(),
+        Some(ScalarValue::X | ScalarValue::Star) | None => None,
+    }
 }
 
-fn numeric_scalar_value(node: &View) -> Option<i32> {
-    let View::Scalar { kind, repr } = node else {
-        return None;
+fn number_literal_notation_matches(
+    tree: &ProjectionTree,
+    path: &ProjectionPath,
+    expected: Numeral,
+) -> bool {
+    if path.0.last() != Some(&ProjectionStep::Role("value")) {
+        return false;
+    }
+    let Some(parent) = path.parent().and_then(|parent| parent.resolve(tree)) else {
+        return false;
     };
-    matches!(
-        *kind,
-        "u8" | "u16" | "u32" | "u64" | "i8" | "i16" | "i32" | "i64"
-    )
-    .then(|| repr.parse().ok())
-    .flatten()
+    let Some(construction) = parent.construction() else {
+        return false;
+    };
+    if construction.construction != "flat_number_literal" {
+        return false;
+    }
+    construction
+        .roles
+        .get("notation")
+        .and_then(ProjectionTree::atom)
+        .and_then(atom_value)
+        .and_then(|value| value.downcast_ref::<Numeral>())
+        .is_some_and(|notation| *notation == expected)
+}
+
+fn is_number_literal_value(tree: &ProjectionTree, path: &ProjectionPath) -> bool {
+    path.0.last() == Some(&ProjectionStep::Role("value"))
+        && path
+            .parent()
+            .and_then(|parent| parent.resolve(tree))
+            .and_then(ProjectionTree::construction)
+            .is_some_and(|construction| construction.construction == "flat_number_literal")
 }
 
 /// Whether this node is where a witness bottomed out.
-fn is_marker_at(tree: &View, path: &TreePath, node: &View, witness: &Witness) -> bool {
+fn is_marker_at(
+    tree: &ProjectionTree,
+    path: &ProjectionPath,
+    node: &ProjectionTree,
+    witness: &Witness,
+) -> bool {
     match witness.kind {
-        WitnessKind::Lexeme => {
-            matches!(node, View::Scalar { kind: "str", repr } if *repr == witness.text)
-        }
+        WitnessKind::Lexeme => node
+            .atom()
+            .and_then(atom_value)
+            .and_then(|value| value.downcast_ref::<OpaqueLexeme>())
+            .is_some_and(|lexeme| lexeme.spelling() == witness.text),
         WitnessKind::Numeral { value, notation } => {
-            if numeric_scalar_value(node) != Some(value) {
-                return false;
-            }
-            if is_number_literal_value(tree, path) {
-                number_literal_notation_matches(tree, path, notation)
-            } else {
-                matches!(node, View::Scalar { repr, .. } if *repr == witness.text)
-            }
+            numeric_scalar_value(node) == Some(value)
+                && (!is_number_literal_value(tree, path)
+                    || number_literal_notation_matches(tree, path, notation))
         }
-        // The face name is consumed by the parser's identity machinery and
-        // never reaches the tree as a spelling, so the self-reference is
-        // recognized by the node the parser builds for it instead.
-        WitnessKind::SelfReference => {
-            node.type_name() == Some("NounPhrase") && node.variant_name() == Some("ThisCard")
-        }
+        WitnessKind::SelfReference => node.construction().is_some_and(|construction| {
+            matches!(
+                construction.construction,
+                "noun_phrase_this_card" | "noun_phrase_full_this_card"
+            ) || construction.construction == "flat_phrase" && construction.form == "this_card"
+        }),
     }
 }
 
@@ -870,10 +855,10 @@ fn is_marker_at(tree: &View, path: &TreePath, node: &View, witness: &Witness) ->
 /// Walking up stops at the first ancestor that holds frame material, and
 /// never reaches the root, so `tree` itself never becomes a bare hole and
 /// keeps its `Fragment::<kind>` wrapper.
-fn hoist(tree: &View, marker: &TreePath, witness: &Witness) -> TreePath {
+fn hoist(tree: &ProjectionTree, marker: &ProjectionPath, witness: &Witness) -> ProjectionPath {
     let mut best = marker.clone();
-    for depth in (1..marker.0.len()).rev() {
-        let ancestor = TreePath(marker.0[..depth].to_vec());
+    for depth in (0..marker.0.len()).rev() {
+        let ancestor = ProjectionPath(marker.0[..depth].to_vec());
         let Some(node) = ancestor.resolve(tree) else {
             break;
         };
@@ -888,24 +873,31 @@ fn hoist(tree: &View, marker: &TreePath, witness: &Witness) -> TreePath {
 
 /// Whether every non-empty part of `node` came from `witness`.
 ///
-/// "Non-empty" is [`View::is_vacuous`]: a `None` determiner and an empty
-/// modifier list are not frame material, so a hole grows through them, while
-/// a `DeterminerKind::Target` — which is what `target <Param(0)>` contributes —
-/// stops it. That single distinction is what separates a
-/// [`HoleClass::Subtree`] hole from a [`HoleClass::FieldSlice`] one without
-/// any per-category table.
-fn witness_only(node: &View, witness: &Witness) -> bool {
+/// "Non-empty" is [`ProjectionTree::is_vacuous`]: absent optional roles and
+/// empty sequences are not frame material, while an occupied grammatical role
+/// contributed by the frame stops the hoist.
+fn witness_only(node: &ProjectionTree, witness: &Witness) -> bool {
     let is_marker_value = match witness.kind {
         WitnessKind::Numeral { value, .. } => numeric_scalar_value(node) == Some(value),
-        WitnessKind::Lexeme => {
-            matches!(node, View::Scalar { kind: "str", repr } if *repr == witness.text)
-        }
-        WitnessKind::SelfReference => {
-            node.type_name() == Some("NounPhrase") && node.variant_name() == Some("ThisCard")
-        }
+        WitnessKind::Lexeme => node
+            .atom()
+            .and_then(atom_value)
+            .and_then(|value| value.downcast_ref::<OpaqueLexeme>())
+            .is_some_and(|lexeme| lexeme.spelling() == witness.text),
+        WitnessKind::SelfReference => node.construction().is_some_and(|construction| {
+            matches!(
+                construction.construction,
+                "noun_phrase_full_this_card" | "noun_phrase_abbreviated_this_card"
+            )
+        }),
     };
     if is_marker_value {
         return true;
+    }
+    if node.construction().is_some_and(|construction| {
+        !construction.literals.is_empty() || !construction.witnesses.is_empty()
+    }) {
+        return false;
     }
     let children = node.children();
     if children.is_empty() {
@@ -925,137 +917,106 @@ fn witness_only(node: &View, witness: &Witness) -> bool {
     found
 }
 
-/// Decides what kind of hole the node at `site` is, adjusting `site` when the
-/// hole turns out to be a field slice of the node above.
+/// Decides what kind of hole the node at `site` is.
 fn classify(
-    tree: &View,
-    site: TreePath,
+    tree: &ProjectionTree,
+    site: ProjectionPath,
     witness: &Witness,
-) -> anyhow::Result<(HoleClass, TreePath)> {
+) -> (HoleClass, ProjectionPath) {
     if witness.kind == WitnessKind::SelfReference {
-        return Ok((HoleClass::SelfRef, site));
+        return (HoleClass::SelfRef, site);
     }
     let last = site.0.last().copied();
-    let parent = TreePath(site.0[..site.0.len().saturating_sub(1)].to_vec());
-    let parent_name = parent.resolve(tree).and_then(View::type_name);
+    let parent = site.parent().unwrap_or_default();
+    let parent_construction = parent
+        .resolve(tree)
+        .and_then(ProjectionTree::construction)
+        .map(|construction| construction.construction);
 
-    if parent_name == Some("SignedScalar") && last == Some(PathStep::Field("value")) {
-        return Ok((HoleClass::PtHalf, site));
+    if parent_construction == Some("flat_signed_scalar")
+        && last == Some(ProjectionStep::Role("value"))
+    {
+        return (HoleClass::PtHalf, site);
     }
     if matches!(witness.kind, WitnessKind::Numeral { .. }) {
-        return Ok((HoleClass::Numeral, site));
+        return (HoleClass::Numeral, site);
     }
-    if parent_name == Some("NominalPhrase") && last == Some(PathStep::Field("head")) {
-        return Ok((field_slice(tree, &parent, &site)?, parent));
-    }
-    Ok((HoleClass::Subtree, site))
-}
-
-/// Decides which fields of a flat `NominalPhrase` a hole at its `head`
-/// claims, from which of the sibling fields the frame filled in.
-///
-/// Reaching here at all means the nominal is not witness-only, so at least
-/// one sibling holds frame material — otherwise the hoist would have taken
-/// the whole node and the hole would be a [`HoleClass::Subtree`].
-///
-/// Two asymmetries are supported, and they are the two the pilot lexicon
-/// attests. Both leave the hole a **contiguous** run of the flat node:
-///
-/// | frame owns | example frame | hole claims |
-/// |---|---|---|
-/// | `determiner` | `target <Param(0)>` | `modifiers`, `head`, `complements` |
-/// | `complements` | `<Param(0)> you control` | `modifiers`, `head` |
-///
-/// The first is spec D7 and 57 of the corpus's 128 holes. The second is its
-/// mirror: `creature you control` really does lower to a `NominalPhrase`
-/// whose `complements` carry a zero-marked object-gap `RelativeClause`
-/// (`grammar/lowering.rs`), so the postmodifier is the frame's and the hole
-/// is the premodifiers plus the head.
-///
-/// Note the deliberate asymmetry between the two rows: the determiner case
-/// claims the empty `complements` (so a filler may bring its own
-/// postmodifier) while the complement case does **not** claim the empty
-/// `determiner`. A filter predicate is determinerless by construction — the
-/// determiner is the *enclosing* frame's to supply — so handing it to the
-/// filler would let an argument smuggle in a determiner the frame never
-/// licensed.
-///
-/// Anything else refuses. A frame owning both ends (`target <Param(0)> you
-/// control`) would leave the hole a discontinuous slice, which the
-/// all-or-none binding contract cannot express; a frame owning only
-/// `modifiers` (`white <Param(0)>`) is a coherent third shape that was
-/// considered and deliberately left out of scope.
-fn field_slice(tree: &View, parent: &TreePath, site: &TreePath) -> anyhow::Result<HoleClass> {
-    let occupied = |field| {
-        !parent
-            .then(PathStep::Field(field))
-            .resolve(tree)
-            .is_some_and(View::is_vacuous)
-    };
-    let claimed: &[&'static str] = match (
-        occupied("determiner"),
-        occupied("modifiers"),
-        occupied("complements"),
-    ) {
-        (true, false, false) => &["modifiers", "head", "complements"],
-        (false, false, true) => &["modifiers", "head"],
-        (determiner, modifiers, complements) => {
-            let held: Vec<&str> = [
-                ("determiner", determiner),
-                ("modifiers", modifiers),
-                ("complements", complements),
-            ]
-            .into_iter()
-            .filter_map(|(name, occupied)| occupied.then_some(name))
-            .collect();
-            anyhow::bail!(
-                "puts frame material in a nominal's {held:?} beside the hole at {site}; \
-                 a field-slice hole must claim a contiguous run, so the frame may own the \
-                 determiner alone (the hole claiming [\"modifiers\", \"head\", \"complements\"]) \
-                 or the complements alone (the hole claiming [\"modifiers\", \"head\"]), \
-                 but not this combination"
-            );
-        }
-    };
-    Ok(HoleClass::FieldSlice {
-        claimed: claimed.to_vec(),
-    })
+    (HoleClass::Subtree, site)
 }
 
 /// Puts every hole into the tree, replacing what the witnesses left.
-fn relocate(tree: &mut View, placed: &[PlacedHole]) {
+fn relocate(tree: &mut ProjectionTree, placed: &[PlacedHole]) {
     for hole in placed {
         let node = hole.hole_node();
         for site in &hole.sites {
             match &hole.class {
-                HoleClass::FieldSlice { claimed } => {
-                    for field in claimed {
-                        if let Some(slot) = site.then(PathStep::Field(field)).resolve_mut(tree) {
-                            *slot = node.clone();
-                        }
-                    }
-                }
                 HoleClass::Numeral => {
-                    if site.0.last() == Some(&PathStep::Field("value")) {
-                        let parent = TreePath(site.0[..site.0.len().saturating_sub(1)].to_vec());
-                        if parent.resolve(tree).and_then(View::type_name) == Some("NumberLiteral")
-                            && let Some(notation) =
-                                parent.then(PathStep::Field("numeral")).resolve_mut(tree)
-                        {
-                            *notation = view::of(&Numeral::Arabic(false));
-                        }
+                    if site.0.last() == Some(&ProjectionStep::Role("value"))
+                        && let Some(parent) = site.parent()
+                        && parent
+                            .resolve(tree)
+                            .and_then(ProjectionTree::construction)
+                            .is_some_and(|construction| {
+                                construction.construction == "flat_number_literal"
+                            })
+                        && let Some(notation) = parent
+                            .then(ProjectionStep::Role("notation"))
+                            .resolve_mut(tree)
+                    {
+                        let citation = Numeral::Arabic(false);
+                        *notation = ProjectionTree::Atom(ProjectedAtom::Scalar {
+                            codec: "Numeral",
+                            value: deckmaste_english::OwnedProjectionValue::new(&citation),
+                        });
                     }
                     if let Some(slot) = site.resolve_mut(tree) {
                         *slot = node.clone();
                     }
                 }
-                _ => {
+                HoleClass::Subtree | HoleClass::PtHalf | HoleClass::SelfRef => {
                     if let Some(slot) = site.resolve_mut(tree) {
                         *slot = node.clone();
                     }
                 }
             }
         }
+    }
+}
+
+/// Drops synthetic parse witnesses from any construction whose projected
+/// value now contains a frame hole. Such a witness described the temporary
+/// token used to compile the frame, not frame identity.
+fn clear_hole_dependent_witnesses(tree: &mut ProjectionTree) -> bool {
+    match tree {
+        ProjectionTree::Construction(construction) => {
+            let mut contains_hole = false;
+            for role in construction.roles.values_mut() {
+                contains_hole |= clear_hole_dependent_witnesses(role);
+            }
+            if contains_hole {
+                construction.witnesses.clear();
+            }
+            contains_hole
+        }
+        ProjectionTree::Element(element) => {
+            let mut contains_hole = false;
+            for role in element.roles.values_mut() {
+                contains_hole |= clear_hole_dependent_witnesses(role);
+            }
+            contains_hole
+        }
+        ProjectionTree::Optional(value) => value
+            .as_deref_mut()
+            .is_some_and(clear_hole_dependent_witnesses),
+        ProjectionTree::Sequence { members, .. } => {
+            let mut contains_hole = false;
+            for member in members {
+                contains_hole |= clear_hole_dependent_witnesses(member);
+            }
+            contains_hole
+        }
+        ProjectionTree::Hole { .. } => true,
+        ProjectionTree::Atom(_) => false,
     }
 }
 
@@ -1067,76 +1028,91 @@ fn relocate(tree: &mut View, placed: &[PlacedHole]) {
 /// tree, before relocation, because the role markers it keys off — a
 /// `Subject` beside a `HeadedPredicate` — are exactly the wrappers a hole may
 /// be about to swallow.
-fn agreement_deps(tree: &View, placed: &[PlacedHole]) -> Vec<AgreementDep> {
+fn agreement_deps(tree: &ProjectionTree, placed: &[PlacedHole]) -> Vec<AgreementDep> {
     let mut deps = Vec::new();
     for (path, node) in tree.walk() {
-        match node {
-            View::Seq(items) => {
-                let role =
-                    |name: &str| items.iter().position(|item| item.type_name() == Some(name));
-                let (Some(subject), Some(predicate)) = (role("Subject"), role("HeadedPredicate"))
-                else {
-                    continue;
-                };
-                let subject = path.then(PathStep::Index(subject));
-                let site = path
-                    .then(PathStep::Index(predicate))
-                    .then(PathStep::Field("head"))
-                    .then(PathStep::Field("verb"));
-                if site.resolve(tree).and_then(View::type_name) != Some("VerbInstance") {
-                    continue;
-                }
-                for hole in placed {
-                    if hole.sites.iter().any(|at| subject.is_prefix_of(at)) {
-                        deps.push(AgreementDep {
-                            site: site.clone(),
-                            kind: AgreeKind::VerbWithHole(hole.planned.index),
-                            normalized: Vec::new(),
-                        });
-                    }
-                }
+        let Some(construction) = node.construction() else {
+            continue;
+        };
+        if construction.construction != "simple_clause_subject" {
+            continue;
+        }
+        let subject = path.then(ProjectionStep::Role("subject"));
+        let predicate = path.then(ProjectionStep::Role("predicate"));
+        let Some(predicate_tree) = predicate.resolve(tree) else {
+            continue;
+        };
+        let Some((relative_slot, _)) = predicate_tree.walk().into_iter().find(|(_, candidate)| {
+            candidate
+                .construction()
+                .is_some_and(|candidate| candidate.construction == "flat_verb_slot")
+        }) else {
+            continue;
+        };
+        let site = join_paths(&predicate, &relative_slot);
+        for hole in placed {
+            if hole.sites.iter().any(|at| subject.is_prefix_of(at)) {
+                deps.push(AgreementDep {
+                    site: site.clone(),
+                    kind: AgreeKind::VerbWithHole(hole.planned.index),
+                    normalized: Vec::new(),
+                });
             }
-            View::Node { name, .. } if *name == "NominalPhrase" => {
-                // A mass head has no number to take from anything — `41 life`
-                // puts the count in the determiner exactly as `41 cards`
-                // does, but there is no `lifes`. Recording a dependency here
-                // would tell a renderer to inflect a noun that does not
-                // inflect.
-                let inflects = matches!(
-                    path.then(PathStep::Field("head")).resolve(tree),
-                    Some(head) if matches!(head.variant_name(), Some("Singular" | "Plural"))
-                );
-                if !inflects {
-                    continue;
-                }
-                for hole in placed {
-                    if hole.class != HoleClass::Numeral {
-                        continue;
-                    }
-                    let counts = ["determiner", "modifiers"].iter().any(|field| {
-                        let field = path.then(PathStep::Field(field));
-                        hole.sites.iter().any(|at| field.is_prefix_of(at))
-                    });
-                    if counts {
-                        deps.push(AgreementDep {
-                            site: path.clone(),
-                            kind: AgreeKind::NounNumberFromHole(hole.planned.index),
-                            normalized: Vec::new(),
-                        });
-                    }
-                }
-            }
-            _ => {}
         }
     }
+
+    for hole in placed
+        .iter()
+        .filter(|hole| hole.class == HoleClass::Numeral)
+    {
+        for marker in &hole.sites {
+            let Some(owner) = nearest_category_ancestor(tree, marker, "NominalPhrase") else {
+                continue;
+            };
+            let Some(owner_tree) = owner.resolve(tree) else {
+                continue;
+            };
+            for (relative_head, head) in owner_tree.walk() {
+                let Some(head) = head.construction() else {
+                    continue;
+                };
+                if head.construction == "flat_noun_instance"
+                    && matches!(head.form, "singular" | "plural")
+                    && relative_head.0.last() == Some(&ProjectionStep::Role("head"))
+                {
+                    deps.push(AgreementDep {
+                        site: join_paths(&owner, &relative_head),
+                        kind: AgreeKind::NounNumberFromHole(hole.planned.index),
+                        normalized: Vec::new(),
+                    });
+                }
+            }
+        }
+    }
+    deps.sort_by(|left, right| left.site.cmp(&right.site).then(left.kind.cmp(&right.kind)));
+    deps.dedup_by(|left, right| left.site == right.site && left.kind == right.kind);
     deps
 }
 
-/// A sequence element that citation normalization took out, so every
-/// recorded path running through a later sibling can be renumbered.
-struct Removal {
-    sequence: TreePath,
-    index: usize,
+fn join_paths(parent: &ProjectionPath, child: &ProjectionPath) -> ProjectionPath {
+    let mut steps = parent.0.clone();
+    steps.extend_from_slice(&child.0);
+    ProjectionPath(steps)
+}
+
+fn nearest_category_ancestor(
+    tree: &ProjectionTree,
+    path: &ProjectionPath,
+    category: &str,
+) -> Option<ProjectionPath> {
+    (0..=path.0.len()).rev().find_map(|len| {
+        let ancestor = ProjectionPath(path.0[..len].to_vec());
+        ancestor
+            .resolve(tree)
+            .and_then(ProjectionTree::construction)
+            .is_some_and(|construction| construction.category == category)
+            .then_some(ancestor)
+    })
 }
 
 /// Which tree citation normalization is being applied to.
@@ -1149,7 +1125,7 @@ struct Removal {
 /// holes, so there it is "the one and only quantity modifier".
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Side {
-    /// A compiled frame's tree, with [`View::Hole`] nodes in it.
+    /// A compiled frame's tree, with [`ProjectionTree::Hole`] nodes in it.
     Frame,
     /// A card-side tree being neutralized before comparison.
     Card,
@@ -1167,179 +1143,79 @@ pub(crate) enum Side {
 /// start pointing at its neighbour: `normalize_citation` would find the wrong
 /// node shape, bail, record nothing, and two authorings of the same frame
 /// would compile to different trees with no error raised.
-pub(crate) fn normalize_all(tree: &mut View, agreement: &mut [AgreementDep], side: Side) {
-    for index in 0..agreement.len() {
-        let at = agreement[index].site.clone();
-        let kind = agreement[index].kind;
-        let (applied, removal) = normalize_citation(tree, &at, kind, side);
-        agreement[index].normalized = applied;
-        if let Some(removal) = removal {
-            for dep in agreement.iter_mut() {
-                dep.site
-                    .shift_after_removal(&removal.sequence, removal.index);
-            }
-        }
+pub(crate) fn normalize_all(tree: &mut ProjectionTree, agreement: &mut [AgreementDep], side: Side) {
+    for dep in agreement {
+        dep.normalized = normalize_citation(tree, &dep.site, dep.kind, side);
     }
 }
 
 /// Rewrites one agreement site to citation form, returning what it changed
 /// and any sequence element it removed.
 fn normalize_citation(
-    tree: &mut View,
-    at: &TreePath,
+    tree: &mut ProjectionTree,
+    at: &ProjectionPath,
     kind: AgreeKind,
-    side: Side,
-) -> (Vec<Normalization>, Option<Removal>) {
+    _side: Side,
+) -> Vec<Normalization> {
     let mut applied = Vec::new();
-    let mut removal = None;
     let Some(node) = at.resolve_mut(tree) else {
-        return (applied, None);
+        return applied;
     };
     match kind {
         AgreeKind::VerbWithHole(_) => {
-            let View::Node { fields, .. } = node else {
-                return (applied, None);
+            let Some(slot) = node.construction_mut() else {
+                return applied;
             };
-            let Some((_, View::Node { fields: slot, .. })) =
-                fields.iter_mut().find(|(name, _)| *name == "slot")
-            else {
-                return (applied, None);
-            };
+            if slot.construction != "flat_verb_slot" || slot.form != "present" {
+                return applied;
+            }
             let mut was = (Person::Third, Number::Singular);
-            let mut changed = false;
-            if let Some((_, View::Unit { variant, .. })) =
-                slot.iter_mut().find(|(field, _)| *field == "person")
-                && let Some(current) = variant.and_then(person_from_variant)
-            {
-                was.0 = current;
-                changed |= current != Person::Third;
-                *variant = Some(person_variant(Person::Third));
+            if let Some(current) = projected_scalar::<Person>(slot.roles.get("person")) {
+                was.0 = *current;
             }
-            if let Some((_, View::Unit { variant, .. })) =
-                slot.iter_mut().find(|(field, _)| *field == "number")
-                && let Some(current) = variant.and_then(number_from_variant)
-            {
-                was.1 = current;
-                changed |= current != Number::Singular;
-                *variant = Some(number_variant(Number::Singular));
+            if let Some(current) = projected_scalar::<Number>(slot.roles.get("number")) {
+                was.1 = *current;
             }
-            if changed {
+            if was != (Person::Third, Number::Singular) {
                 applied.push(Normalization::VerbAgreement {
                     person: was.0,
                     number: was.1,
                 });
             }
+            slot.roles
+                .insert("person", projected_scalar_node("Person", &Person::Third));
+            slot.roles
+                .insert("number", projected_scalar_node("Number", &Number::Singular));
         }
-        AgreeKind::NounNumberFromHole(hole) => {
-            let View::Node { fields, .. } = node else {
-                return (applied, None);
+        AgreeKind::NounNumberFromHole(_) => {
+            let Some(head) = node.construction_mut() else {
+                return applied;
             };
-            if let Some((moved, at_index)) = take_quantity_modifier(fields, hole, side) {
-                set_field(fields, "determiner", moved);
-                applied.push(Normalization::QuantityToDeterminer);
-                removal = Some(Removal {
-                    sequence: at.then(PathStep::Field("modifiers")),
-                    index: at_index,
-                });
-            }
-            if let Some((_, head)) = fields.iter_mut().find(|(name, _)| *name == "head")
-                && let View::Newtype {
-                    name: "NounInstance",
-                    variant: Some(variant),
-                    ..
-                } = head
-                && number_from_variant(variant) == Some(Number::Plural)
-            {
-                *variant = number_variant(Number::Singular);
+            if head.construction == "flat_noun_instance" && head.form == "plural" {
+                head.form = "singular";
+                head.ordinal = 0;
                 applied.push(Normalization::NounNumber {
                     from: Number::Plural,
                 });
             }
         }
     }
-    (applied, removal)
+    applied
 }
 
-fn person_from_variant(variant: &str) -> Option<Person> {
-    match variant {
-        "Second" => Some(Person::Second),
-        "Third" => Some(Person::Third),
-        _ => None,
-    }
+fn projected_scalar<T: std::any::Any>(node: Option<&ProjectionTree>) -> Option<&T> {
+    let atom = node?.atom()?;
+    atom_value(atom)?.downcast_ref::<T>()
 }
 
-const fn person_variant(person: Person) -> &'static str {
-    match person {
-        Person::Second => "Second",
-        Person::Third => "Third",
-    }
-}
-
-fn number_from_variant(variant: &str) -> Option<Number> {
-    match variant {
-        "Singular" => Some(Number::Singular),
-        "Plural" => Some(Number::Plural),
-        _ => None,
-    }
-}
-
-const fn number_variant(number: Number) -> &'static str {
-    match number {
-        Number::Singular => "Singular",
-        Number::Plural => "Plural",
-    }
-}
-
-/// Takes the sole hole-bearing `NominalModifier::Quantity` out of a nominal's
-/// `modifiers`, if its `determiner` is empty, and returns it re-wrapped as a
-/// `DeterminerKind::Quantity`, with the index it came from.
-///
-/// On [`Side::Card`] there is no hole to key off — a card's tree is holeless
-/// by construction — so the modifier is identified by being a quantity at
-/// all. The two readings coincide on every frame the compiler produces: a
-/// nominal whose number is hole-driven has exactly one count in it, which is
-/// precisely why the agreement dependency was recorded for it.
-fn take_quantity_modifier(
-    fields: &mut [(&'static str, View)],
-    hole: usize,
-    side: Side,
-) -> Option<(View, usize)> {
-    let determiner_is_empty = fields
-        .iter()
-        .any(|(name, value)| *name == "determiner" && value.is_vacuous());
-    if !determiner_is_empty {
-        return None;
-    }
-    let (_, modifiers) = fields.iter_mut().find(|(name, _)| *name == "modifiers")?;
-    let View::Seq(items) = modifiers else {
-        return None;
-    };
-    let at = items.iter().position(|item| {
-        item.type_name() == Some("NominalModifier")
-            && item.variant_name() == Some("Quantity")
-            && (side == Side::Card
-                || item
-                    .walk()
-                    .iter()
-                    .any(|(_, node)| matches!(node, View::Hole { index, .. } if *index == hole)))
-    })?;
-    let View::Newtype { inner, .. } = items.remove(at) else {
-        return None;
-    };
-    Some((
-        View::Newtype {
-            name: "Determiner",
-            variant: Some("Quantity"),
-            inner,
-        },
-        at,
-    ))
-}
-
-fn set_field(fields: &mut [(&'static str, View)], name: &str, value: View) {
-    if let Some((_, slot)) = fields.iter_mut().find(|(field, _)| *field == name) {
-        *slot = value;
-    }
+fn projected_scalar_node<T>(codec: &'static str, value: &T) -> ProjectionTree
+where
+    T: deckmaste_english::ProjectionValue,
+{
+    ProjectionTree::Atom(ProjectedAtom::Scalar {
+        codec,
+        value: deckmaste_english::OwnedProjectionValue::new(value),
+    })
 }
 
 #[cfg(test)]
@@ -1362,11 +1238,11 @@ mod tests {
         FrameSpec::bare(text)
     }
 
-    fn holes_in(tree: &View) -> Vec<usize> {
+    fn holes_in(tree: &ProjectionTree) -> Vec<usize> {
         tree.walk()
             .into_iter()
             .filter_map(|(_, node)| match node {
-                View::Hole { index, .. } => Some(*index),
+                ProjectionTree::Hole { index, .. } => Some(*index),
                 _ => None,
             })
             .collect()
@@ -1400,7 +1276,7 @@ mod tests {
         for hole in &frame.holes {
             let at = hole.path.resolve(&frame.tree).expect("hole path resolves");
             assert!(
-                matches!(at, View::Hole { index, .. } if *index == hole.index),
+                matches!(at, ProjectionTree::Hole { index, .. } if *index == hole.index),
                 "hole {} at {} resolved to {at:?}",
                 hole.index,
                 hole.path
@@ -1409,7 +1285,7 @@ mod tests {
     }
 
     #[test]
-    fn filter_hole_is_a_field_slice() {
+    fn filter_hole_uses_the_declared_nominal_role() {
         let frame = compile(
             &bare("target <Param(0)>"),
             FragmentKind::Nominal,
@@ -1418,35 +1294,21 @@ mod tests {
             &reader(),
         )
         .unwrap();
-        assert!(
-            matches!(frame.holes[0].class, HoleClass::FieldSlice { .. }),
-            "target <P> claims the determiner; the hole is the nominal core (spec D7): {:?}",
-            frame.holes[0].class
-        );
-        let HoleClass::FieldSlice { claimed } = &frame.holes[0].class else {
-            unreachable!()
-        };
-        assert_eq!(claimed, &["modifiers", "head", "complements"]);
-        // The owning node keeps its shape: the frame's determiner sits beside
-        // three hole-valued fields.
-        let owner = frame.holes[0].path.resolve(&frame.tree).unwrap();
-        assert_eq!(owner.type_name(), Some("NominalPhrase"));
-        let View::Node { fields, .. } = owner else { panic!("{owner:?}") };
-        assert_eq!(fields.len(), 4);
-        assert_eq!(fields[0].0, "determiner");
-        assert_eq!(fields[0].1.variant_name(), Some("Target"));
-        for (name, value) in &fields[1..] {
-            assert!(
-                matches!(value, View::Hole { index: 0, .. }),
-                "{name} should be part of the slice, got {value:?}"
-            );
-        }
+        assert_eq!(frame.holes[0].class, HoleClass::Subtree);
+        assert!(matches!(
+            frame.holes[0].path.0.last(),
+            Some(ProjectionStep::Role("nominal"))
+        ));
+        assert!(matches!(
+            frame.holes[0].path.resolve(&frame.tree),
+            Some(ProjectionTree::Hole { index: 0, .. })
+        ));
     }
 
     /// A bare `<Param(0)>` at the same category has no frame determiner, so
     /// the hole grows past the nominal and is an ordinary subtree — the
-    /// control that shows the field-slice promotion is triggered by the
-    /// frame's material and not by the category.
+    /// control that shows the hoist is determined by grammatical frame
+    /// material rather than by the category alone.
     #[test]
     fn a_determinerless_nominal_hole_is_a_whole_subtree() {
         let frame = compile(
@@ -1525,19 +1387,23 @@ mod tests {
         assert_eq!(frame.holes[2].param, None, "`~` stands for no param");
         // The sign is frame material and stays put; only the value is holed.
         let power = frame.holes[0].path.resolve(&frame.tree).unwrap();
-        assert!(matches!(power, View::Hole { .. }));
-        let owner = TreePath(frame.holes[0].path.0[..frame.holes[0].path.0.len() - 1].to_vec());
+        assert!(matches!(power, ProjectionTree::Hole { .. }));
+        let owner = frame.holes[0].path.parent().unwrap();
         assert_eq!(
-            owner.resolve(&frame.tree).and_then(View::type_name),
-            Some("SignedScalar")
+            owner
+                .resolve(&frame.tree)
+                .and_then(ProjectionTree::construction)
+                .map(|construction| construction.construction),
+            Some("flat_signed_scalar")
         );
     }
 
     /// Every `~` in one frame is the same referent, so they share **one**
-    /// hole — which means `View::Hole` appears once per occurrence while
-    /// `holes` gains a single entry, and `Hole::path` keeps only the first
-    /// site. A consumer that must visit every occurrence scans the tree for
-    /// `View::Hole { index }` rather than trusting the path.
+    /// hole — which means `ProjectionTree::Hole` appears once per occurrence
+    /// while `holes` gains a single entry, and `Hole::path` keeps only the
+    /// first site. A consumer that must visit every occurrence scans the
+    /// tree for `ProjectionTree::Hole { index }` rather than trusting the
+    /// path.
     #[test]
     fn repeated_self_reference_sigils_share_one_hole() {
         let frame = compile(
@@ -1558,7 +1424,11 @@ mod tests {
             .into_iter()
             .filter(|index| *index == self_ref.index)
             .collect();
-        assert_eq!(sites.len(), 2, "one `View::Hole` per `~` occurrence");
+        assert_eq!(
+            sites.len(),
+            2,
+            "one `ProjectionTree::Hole` per `~` occurrence"
+        );
         assert_eq!(
             frame
                 .holes
@@ -1571,7 +1441,7 @@ mod tests {
         // The stored path is the first site and resolves there.
         assert!(matches!(
             self_ref.path.resolve(&frame.tree),
-            Some(View::Hole { .. })
+            Some(ProjectionTree::Hole { .. })
         ));
     }
 
@@ -1779,7 +1649,7 @@ mod tests {
     }
 
     /// Every recorded agreement site must still address the node kind its
-    /// dependency is about — the promise `TreePath`'s own documentation
+    /// dependency is about — the promise [`ProjectionPath`]'s own documentation
     /// makes. Cheap, so every successful compile in this module asserts it.
     fn assert_sites_resolve(frame: &CompiledFrame) {
         for dep in &frame.agreement {
@@ -1787,11 +1657,12 @@ mod tests {
                 panic!("{:?} site {} does not resolve at all", dep.kind, dep.site)
             });
             let expected = match dep.kind {
-                AgreeKind::VerbWithHole(_) => "VerbInstance",
-                AgreeKind::NounNumberFromHole(_) => "NominalPhrase",
+                AgreeKind::VerbWithHole(_) => "flat_verb_slot",
+                AgreeKind::NounNumberFromHole(_) => "flat_noun_instance",
             };
             assert_eq!(
-                node.type_name(),
+                node.construction()
+                    .map(|construction| construction.construction),
                 Some(expected),
                 "{:?} site {} resolved to {node:?}",
                 dep.kind,
@@ -1855,127 +1726,6 @@ mod tests {
         );
     }
 
-    // -----------------------------------------------------------------
-    // Citation normalization must keep the side table's own paths valid
-    // -----------------------------------------------------------------
-
-    /// Lifting a count out of `modifiers` renumbers every later sibling, so
-    /// any agreement site recorded *through* one of them has to be repaired.
-    ///
-    /// Driven through the real normalization entry point on a hand-built
-    /// tree, because English puts nothing that is itself an agreement site
-    /// inside an attributive modifier (`NominalModifier` reaches no
-    /// `NominalPhrase` or `VerbInstance`), so the shape cannot be reached by
-    /// parsing — see `a_second_modifier_survives_the_count_being_lifted` for
-    /// the closest authorable analogue. Without the repair the second
-    /// dependency's site addresses its neighbour, `normalize_citation` finds
-    /// the wrong node shape, bails, and records nothing — a silently
-    /// unnormalized tree with no error raised.
-    #[test]
-    fn a_removed_modifier_repairs_later_agreement_sites() {
-        let plural_head = || View::Newtype {
-            name: "NounInstance",
-            variant: Some("Plural"),
-            inner: Box::new(View::Unit {
-                name: "Vocab",
-                variant: Some("Card"),
-            }),
-        };
-        let nested = View::Node {
-            name: "NominalPhrase",
-            variant: None,
-            fields: vec![
-                ("determiner", View::Absent),
-                ("modifiers", View::Seq(vec![])),
-                ("head", plural_head()),
-                ("complements", View::Seq(vec![])),
-            ],
-        };
-        let mut tree = View::Node {
-            name: "NominalPhrase",
-            variant: None,
-            fields: vec![
-                ("determiner", View::Absent),
-                (
-                    "modifiers",
-                    View::Seq(vec![
-                        View::Newtype {
-                            name: "NominalModifier",
-                            variant: Some("Quantity"),
-                            inner: Box::new(View::Newtype {
-                                name: "Quantity",
-                                variant: Some("Exact"),
-                                inner: Box::new(View::Hole {
-                                    index: 0,
-                                    class: HoleClass::Numeral,
-                                }),
-                            }),
-                        },
-                        View::Newtype {
-                            name: "NominalModifier",
-                            variant: Some("Adjective"),
-                            inner: Box::new(nested),
-                        },
-                    ]),
-                ),
-                ("head", plural_head()),
-                ("complements", View::Seq(vec![])),
-            ],
-        };
-        let inner_site = TreePath(vec![
-            PathStep::Field("modifiers"),
-            PathStep::Index(1),
-            PathStep::Inner,
-        ]);
-        let mut agreement = vec![
-            AgreementDep {
-                site: TreePath::default(),
-                kind: AgreeKind::NounNumberFromHole(0),
-                normalized: Vec::new(),
-            },
-            AgreementDep {
-                site: inner_site,
-                kind: AgreeKind::NounNumberFromHole(1),
-                normalized: Vec::new(),
-            },
-        ];
-
-        normalize_all(&mut tree, &mut agreement, Side::Frame);
-
-        // The outer nominal normalized: count lifted, head singularized.
-        assert!(
-            agreement[0]
-                .normalized
-                .contains(&Normalization::QuantityToDeterminer),
-            "{:?}",
-            agreement[0]
-        );
-        // The inner one still found its node, and its stored path is still
-        // valid against the finished tree.
-        assert!(
-            agreement[1]
-                .normalized
-                .contains(&Normalization::NounNumber {
-                    from: Number::Plural,
-                }),
-            "the later site was not normalized: {:?}",
-            agreement[1]
-        );
-        let node = agreement[1]
-            .site
-            .resolve(&tree)
-            .expect("the repaired site resolves");
-        assert_eq!(node.type_name(), Some("NominalPhrase"));
-        assert_eq!(
-            node.children()
-                .iter()
-                .find_map(|(step, child)| (*step == PathStep::Field("head"))
-                    .then(|| child.variant_name()))
-                .flatten(),
-            Some("Singular")
-        );
-    }
-
     /// A second modifier after a singular count survives the singular-witness
     /// retry, and every relocated path remains valid in the normalized tree.
     #[test]
@@ -2003,7 +1753,7 @@ mod tests {
                     panic!("hole {} at {} does not resolve", hole.index, hole.path)
                 });
                 assert!(
-                    matches!(at, View::Hole { index, .. } if *index == hole.index),
+                    matches!(at, ProjectionTree::Hole { index, .. } if *index == hole.index),
                     "hole {} at {} resolved to {at:?}",
                     hole.index,
                     hole.path
@@ -2195,10 +1945,7 @@ mod tests {
                 .tree
                 .walk()
                 .iter()
-                .filter(|(_, node)| matches!(
-                    node,
-                    View::Scalar { kind: "i32", repr } if repr == "1"
-                ))
+                .filter(|(_, node)| numeric_scalar_value(node) == Some(1))
                 .count(),
             1,
             "the authored `1 card` must remain in the normalized tree"
@@ -2207,8 +1954,6 @@ mod tests {
 
     #[test]
     fn singular_witness_does_not_count_a_grouped_arabic_prefix_as_an_occurrence() {
-        use deckmaste_english::syntax::NumberLiteral;
-
         let params = ["Count".to_string()];
         let compile_one = |text: &str| {
             compile(
@@ -2229,16 +1974,23 @@ mod tests {
         assert_eq!(singular.holes[0].witness.text, "1");
         assert_eq!(holes_in(&singular.tree), [0]);
 
-        let authored = view::of(&NumberLiteral {
-            value: 1_000,
-            numeral: Numeral::Arabic(true),
-        });
         assert_eq!(
             singular
                 .tree
                 .walk()
                 .iter()
-                .filter(|(_, node)| *node == &authored)
+                .filter(|(_, node)| {
+                    node.construction().is_some_and(|construction| {
+                        construction.construction == "flat_number_literal"
+                            && construction
+                                .roles
+                                .get("value")
+                                .and_then(numeric_scalar_value)
+                                == Some(1_000)
+                            && projected_scalar::<Numeral>(construction.roles.get("notation"))
+                                == Some(&Numeral::Arabic(true))
+                    })
+                })
                 .count(),
             1,
             "the authored grouped-Arabic numeral must remain untouched"
@@ -2362,109 +2114,22 @@ mod tests {
         )
     }
 
-    /// The complement-side asymmetry: `<Param(0)> you control` is the mirror
-    /// of `target <Param(0)>`, and the pilot lexicon needs both.
-    ///
-    /// `creature you control` lowers to a `NominalPhrase` whose `complements`
-    /// hold a zero-marked object-gap `RelativeClause` — the postmodifier is
-    /// the frame's — so the hole claims the premodifiers and the head only.
-    /// The determiner stays outside the hole: a filter predicate is
-    /// determinerless by construction, and the enclosing frame supplies it.
+    /// A postmodified filter exposes the base nominal as a named role while
+    /// retaining the relative-clause construction beside it.
     #[test]
-    fn a_postmodified_filter_hole_claims_only_the_premodifiers_and_head() {
+    fn a_postmodified_filter_holes_the_declared_nominal_role() {
         let frame = compile_filter("<Param(0)> you control").expect("a real constituent");
         assert_eq!(frame.holes.len(), 1);
-        assert_eq!(
-            frame.holes[0].class,
-            HoleClass::FieldSlice {
-                claimed: vec!["modifiers", "head"],
-            }
-        );
+        assert_eq!(frame.holes[0].class, HoleClass::Subtree);
         assert_sites_resolve(&frame);
-
-        let owner = frame.holes[0].path.resolve(&frame.tree).unwrap();
-        assert_eq!(owner.type_name(), Some("NominalPhrase"));
-        let View::Node { fields, .. } = owner else { panic!("{owner:?}") };
-        assert_eq!(fields.len(), 4);
-        // determiner: outside the hole, and still the frame's empty slot.
-        assert_eq!(fields[0].0, "determiner");
-        assert!(fields[0].1.is_vacuous());
-        // modifiers + head: the hole.
-        for (name, value) in &fields[1..3] {
-            assert!(
-                matches!(value, View::Hole { index: 0, .. }),
-                "{name} should be part of the slice, got {value:?}"
-            );
-        }
-        // complements: the frame's relative clause, untouched.
-        assert_eq!(fields[3].0, "complements");
-        assert!(
-            !fields[3].1.is_vacuous(),
-            "the frame's postmodifier must survive: {:?}",
-            fields[3].1
-        );
-        assert!(
-            !holes_in(&fields[3].1).contains(&0),
-            "the hole must not have swallowed the frame's complement"
-        );
-    }
-
-    /// The two supported asymmetries claim *different* field sets — the
-    /// contract a consumer of a `FieldSlice` hole must read rather than
-    /// assume.
-    #[test]
-    fn the_two_supported_asymmetries_claim_different_sets() {
-        let determiner_side = compile_filter("target <Param(0)>").unwrap();
-        let complement_side = compile_filter("<Param(0)> you control").unwrap();
-        let claimed = |frame: &CompiledFrame| match &frame.holes[0].class {
-            HoleClass::FieldSlice { claimed } => claimed.clone(),
-            other => panic!("{other:?}"),
-        };
-        assert_eq!(
-            claimed(&determiner_side),
-            ["modifiers", "head", "complements"]
-        );
-        assert_eq!(claimed(&complement_side), ["modifiers", "head"]);
-        assert_ne!(claimed(&determiner_side), claimed(&complement_side));
-    }
-
-    /// The field-slice guard still refuses everything outside the two
-    /// supported asymmetries. These are each one edit away from a legal shape
-    /// and must not be confused with them:
-    ///
-    /// - `target <Param(0)> you control` differs from the newly-legal
-    ///   `<Param(0)> you control` **only** by the determiner — and that is
-    ///   exactly what makes it illegal, since the hole would be a discontinuous
-    ///   slice with frame material on both sides.
-    /// - `white <Param(0)>` is the coherent third shape (frame owns `modifiers`
-    ///   alone, hole would claim `["head", "complements"]`). It was considered
-    ///   and deliberately left out of scope, so it must keep refusing rather
-    ///   than quietly start working.
-    #[test]
-    fn frame_material_beside_a_field_slice_hole_is_refused() {
-        for (text, held) in [
-            // Frame owns both ends: discontinuous, refused.
-            (
-                "target <Param(0)> you control",
-                vec!["determiner", "complements"],
-            ),
-            ("target white <Param(0)>", vec!["determiner", "modifiers"]),
-            // Frame owns the premodifier alone: out of scope, refused.
-            ("white <Param(0)>", vec!["modifiers"]),
-        ] {
-            let error = compile_filter(text).unwrap_err();
-            let message = format!("{error:#}");
-            // Assert on the exact list the error reports as frame material,
-            // not on a bare field name: the message's explanatory suffix
-            // names every field while spelling out the two legal claims, so a
-            // substring test for `modifiers` would pass for any of these and
-            // could not tell the three refusals apart.
-            assert!(
-                message.contains(&format!("{held:?}")),
-                "{text:?} should report frame material in exactly {held:?}: {message}"
-            );
-            assert!(message.contains(text), "and name the frame: {message}");
-        }
+        assert!(matches!(
+            frame.holes[0].path.0.last(),
+            Some(ProjectionStep::Role("nominal"))
+        ));
+        assert!(frame.tree.walk().into_iter().any(|(_, node)| {
+            node.construction()
+                .is_some_and(|construction| construction.category == "RelativeClause")
+        }));
     }
 
     /// The frame catalog's own entries have to compile, or there is nothing

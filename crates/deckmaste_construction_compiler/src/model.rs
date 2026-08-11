@@ -241,6 +241,10 @@ pub struct ConstructionDeclaration {
     /// `AstShape::fields` because lens ownership is not another semantic hole.
     pub lens: Option<LensApplication>,
     pub projection: Option<Spanned<String>>,
+    /// Optional borrowed inverse for a projected owner:
+    /// `fn(&Category) -> Option<&Owner>`. This lets construction projection
+    /// start from the sealed category value without exposing its storage.
+    pub projection_inverse: Option<Spanned<String>>,
     pub constraints: Vec<Constraint>,
     /// Authored provenance for the semantic fact that makes this
     /// construction's selected chart edge meaningful. The source is kept in

@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct FixturePhrase;
 use deckmaste_features::Comma;
 use deckmaste_features::Conjunction;

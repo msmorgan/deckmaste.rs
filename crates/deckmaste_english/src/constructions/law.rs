@@ -9,7 +9,7 @@ use crate::features::Conjunction;
 
 /// The holed internal category's own-mode type. Declaration metadata now
 /// references it through an erased builder; chart lowering is still staged.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LawItem;
 
 deckmaste_constructions_macro::constructions! {

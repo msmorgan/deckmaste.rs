@@ -14,8 +14,7 @@ use deckmaste_english::Catalogs;
 use deckmaste_english::FragmentKind;
 use deckmaste_plugin::plugin::Plugin;
 use deckmaste_spelling::CompiledFrame;
-use deckmaste_spelling::HoleClass;
-use deckmaste_spelling::View;
+use deckmaste_spelling::ProjectionTree;
 use deckmaste_spelling::lexicon::macro_fragment_kind;
 use macro_ron::MacroDef;
 use macro_ron::Params;
@@ -290,12 +289,9 @@ fn declared_kinds(def: &MacroDef) -> String {
 /// can capture the output into a `Vec<u8>` instead of scraping stdout — the
 /// same shape `crate::english::inspect::write_cards` already uses.
 ///
-/// Reads holes from [`CompiledFrame::holes`] — already one entry per hole
-/// (a `HoleClass::FieldSlice` claims several tree fields but is still one
-/// `Hole`, never three) — and reports each hole's *site count* by scanning
-/// the tree for `View::Hole { index, .. }` rather than trusting
-/// `Hole::path` alone, since a multi-occurrence `~` keeps only its first
-/// site there.
+/// Reads holes from [`CompiledFrame::holes`] and reports each hole's site
+/// count by scanning the construction tree rather than trusting `Hole::path`
+/// alone, since a multi-occurrence `~` keeps only its first site there.
 fn write_compiled(mut writer: impl io::Write, frame: &CompiledFrame) -> io::Result<()> {
     writeln!(writer, "holes:")?;
     for hole in &frame.holes {
@@ -303,12 +299,11 @@ fn write_compiled(mut writer: impl io::Write, frame: &CompiledFrame) -> io::Resu
             .tree
             .walk()
             .into_iter()
-            .filter(|(_, node)| matches!(node, View::Hole { index, .. } if *index == hole.index))
+            .filter(|(_, node)| {
+                matches!(node, ProjectionTree::Hole { index, .. } if *index == hole.index)
+            })
             .count();
-        let class = match &hole.class {
-            HoleClass::FieldSlice { claimed } => format!("FieldSlice {claimed:?}"),
-            other => format!("{other:?}"),
-        };
+        let class = format!("{:?}", hole.class);
         writeln!(
             writer,
             "  [{}] param={:?} class={class} path={} site(s)={sites}",
@@ -589,19 +584,13 @@ mod tests {
     }
 
     // -----------------------------------------------------------------
-    // `write_compiled` — the two cross-task-risk contracts the brief's
-    // interface corrections singled out: a `FieldSlice` hole must render as
-    // ONE claimed-fields entry (never three), and a hole's true site count
-    // must come from a tree scan, not from trusting `Hole::path` (which
-    // keeps only the first site of a repeated `~`).
+    // `write_compiled` — nominal holes use named roles, and a hole's true site
+    // count comes from a tree scan rather than `Hole::path` (which keeps only
+    // the first site of a repeated `~`).
     // -----------------------------------------------------------------
 
     #[test]
-    fn write_compiled_renders_a_field_slice_hole_as_one_claimed_group() {
-        // The catalog's own `Target` shape: `target <Param(0)>` at `Nominal`
-        // claims `modifiers`/`head`/`complements` as one hole — three tree
-        // sites, one `Hole` entry (`crate::deckmaste_spelling::compile`'s
-        // `HoleClass::FieldSlice` doc).
+    fn write_compiled_reports_the_named_nominal_role() {
         let frame = deckmaste_spelling::compile(
             &FrameSpec::bare("target <Param(0)>"),
             FragmentKind::Nominal,
@@ -615,19 +604,9 @@ mod tests {
         write_compiled(&mut out, &frame).unwrap();
         let text = String::from_utf8(out).unwrap();
 
-        assert_eq!(
-            text.matches("class=FieldSlice").count(),
-            1,
-            "the three claimed fields must render as one hole line, not three: {text}"
-        );
-        assert!(
-            text.contains(r#"class=FieldSlice ["modifiers", "head", "complements"]"#),
-            "{text}"
-        );
-        assert!(
-            text.contains("site(s)=3"),
-            "three tree sites for the one claimed-field hole: {text}"
-        );
+        assert!(text.contains("class=Subtree"), "{text}");
+        assert!(text.contains("path=.nominal"), "{text}");
+        assert!(text.contains("site(s)=1"), "{text}");
     }
 
     #[test]

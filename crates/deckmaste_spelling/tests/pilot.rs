@@ -4,11 +4,8 @@
 //! regression tests, so a later change to the compiler's behavior on either
 //! shape shows up here rather than only in prose:
 //!
-//! - `ControlledByYou`'s complement-side `FieldSlice` frame — a finding that
-//!   was **resolved** rather than merely recorded: `classify()`'s field-slice
-//!   decision covers `<Param(0)> you control`, the macro is framed, and
-//!   `controlled_by_you_complement_side_field_slice_compiles` pins the positive
-//!   outcome.
+//! - `ControlledByYou`'s complement-side nominal frame, now represented by a
+//!   named construction role rather than a serialized field slice.
 //! - `SacrificeThis`'s attempted `~` frame — still a genuine negative finding:
 //!   `~` compiles (a `SelfRef` hole) but is the wrong self-reference tool for
 //!   this position. The macro is now framed with the *literal* wording instead
@@ -270,9 +267,8 @@ fn controlled_by_you_and_sacrifice_this_carry_their_resolved_wording() {
 
 /// The G5 finding this test was minted to lock in is **resolved**:
 /// `<Param(0)> you control` — the frame directed for `ControlledByYou`,
-/// exercising `FieldSlice` from the side `target <Param(0)>` doesn't reach —
-/// compiles, with the hole claiming `modifiers`+`head` and the frame keeping
-/// its `complements`.
+/// compiles, with the frame keeping its postmodifier outside the named nominal
+/// role occupied by the hole.
 ///
 /// The test is inverted rather than deleted, and this is what its previous
 /// self asked for: it recorded that if the shape ever compiled, "the compiler
@@ -289,7 +285,7 @@ fn controlled_by_you_and_sacrifice_this_carry_their_resolved_wording() {
 /// regression in `classify()` itself, not just in the `.ron` file's content.
 #[test]
 #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
-fn controlled_by_you_complement_side_field_slice_compiles() {
+fn controlled_by_you_complement_side_named_role_compiles() {
     let plugin = Plugin::load_with_sibling_prelude(plugin_dir())
         .unwrap_or_else(|error| panic!("loading plugin: {error:#}"));
     let def = unique_defs(&plugin)
@@ -310,13 +306,11 @@ fn controlled_by_you_complement_side_field_slice_compiles() {
     });
 
     assert_eq!(frame.holes.len(), 1);
-    assert_eq!(
-        frame.holes[0].class,
-        deckmaste_spelling::HoleClass::FieldSlice {
-            claimed: vec!["modifiers", "head"],
-        },
-        "the frame owns the postmodifier; the hole is the premodifiers and head"
-    );
+    assert_eq!(frame.holes[0].class, deckmaste_spelling::HoleClass::Subtree);
+    assert!(matches!(
+        frame.holes[0].path.0.last(),
+        Some(deckmaste_spelling::ProjectionStep::Role("nominal"))
+    ));
 }
 
 /// G5 finding, locked in: `SacrificeThis`'s attempted `~` frame compiles —

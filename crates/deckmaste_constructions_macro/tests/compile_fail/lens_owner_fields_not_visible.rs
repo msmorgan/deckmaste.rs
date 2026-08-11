@@ -1,10 +1,10 @@
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Token;
 
 mod model {
     use super::Token;
 
-    #[derive(Clone)]
+    #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct Owner {
         head: Token,
     }
