@@ -49,8 +49,10 @@ use deckmaste_english::features::Number;
 use deckmaste_english::features::Person;
 use deckmaste_english::parse_fragment;
 use deckmaste_english::project_fragment;
-use deckmaste_english::syntax::OpaqueLexeme;
 use deckmaste_english::syntax::ScalarValue;
+use deckmaste_english::word::Noun;
+use deckmaste_english::word::NounInstance;
+use deckmaste_english::word::NounInstanceKind;
 use macro_ron::MacroSet;
 use macro_ron::frames::FrameSpec;
 
@@ -774,6 +776,34 @@ fn atom_value(atom: &ProjectedAtom) -> Option<&deckmaste_english::OwnedProjectio
     }
 }
 
+fn projected_noun_instance(node: &ProjectionTree) -> Option<&NounInstance> {
+    let construction = node.construction()?;
+    if construction.category != "Noun" {
+        return None;
+    }
+    construction
+        .roles
+        .get("identity")?
+        .atom()
+        .and_then(atom_value)?
+        .downcast_ref()
+}
+
+fn projected_noun_number(node: &ProjectionTree) -> Option<Number> {
+    match projected_noun_instance(node)?.kind() {
+        NounInstanceKind::Singular(_) => Some(Number::Singular),
+        NounInstanceKind::Plural(_) => Some(Number::Plural),
+        NounInstanceKind::Mass(_) => None,
+    }
+}
+
+fn projected_opaque_noun_spelling(node: &ProjectionTree) -> Option<&str> {
+    let Noun::Opaque(lexeme) = projected_noun_instance(node)?.noun() else {
+        return None;
+    };
+    Some(lexeme.spelling())
+}
+
 fn numeric_scalar_value(node: &ProjectionTree) -> Option<i32> {
     let value = node.atom().and_then(atom_value)?;
     if let Some(value) = value.downcast_ref::<i32>() {
@@ -831,11 +861,9 @@ fn is_marker_at(
     witness: &Witness,
 ) -> bool {
     match witness.kind {
-        WitnessKind::Lexeme => node
-            .atom()
-            .and_then(atom_value)
-            .and_then(|value| value.downcast_ref::<OpaqueLexeme>())
-            .is_some_and(|lexeme| lexeme.spelling() == witness.text),
+        WitnessKind::Lexeme => {
+            projected_opaque_noun_spelling(node).is_some_and(|spelling| spelling == witness.text)
+        }
         WitnessKind::Numeral { value, notation } => {
             numeric_scalar_value(node) == Some(value)
                 && (!is_number_literal_value(tree, path)
@@ -879,11 +907,9 @@ fn hoist(tree: &ProjectionTree, marker: &ProjectionPath, witness: &Witness) -> P
 fn witness_only(node: &ProjectionTree, witness: &Witness) -> bool {
     let is_marker_value = match witness.kind {
         WitnessKind::Numeral { value, .. } => numeric_scalar_value(node) == Some(value),
-        WitnessKind::Lexeme => node
-            .atom()
-            .and_then(atom_value)
-            .and_then(|value| value.downcast_ref::<OpaqueLexeme>())
-            .is_some_and(|lexeme| lexeme.spelling() == witness.text),
+        WitnessKind::Lexeme => {
+            projected_opaque_noun_spelling(node).is_some_and(|spelling| spelling == witness.text)
+        }
         WitnessKind::SelfReference => node.construction().is_some_and(|construction| {
             matches!(
                 construction.construction,
@@ -1073,11 +1099,7 @@ fn agreement_deps(tree: &ProjectionTree, placed: &[PlacedHole]) -> Vec<Agreement
                 continue;
             };
             for (relative_head, head) in owner_tree.walk() {
-                let Some(head) = head.construction() else {
-                    continue;
-                };
-                if head.construction == "flat_noun_instance"
-                    && matches!(head.form, "singular" | "plural")
+                if projected_noun_number(head).is_some()
                     && relative_head.0.last() == Some(&ProjectionStep::Role("head"))
                 {
                     deps.push(AgreementDep {
@@ -1188,16 +1210,35 @@ fn normalize_citation(
                 .insert("number", projected_scalar_node("Number", &Number::Singular));
         }
         AgreeKind::NounNumberFromHole(_) => {
-            let Some(head) = node.construction_mut() else {
+            let Some(instance) = projected_noun_instance(node) else {
                 return applied;
             };
-            if head.construction == "flat_noun_instance" && head.form == "plural" {
-                head.form = "singular";
-                head.ordinal = 0;
-                applied.push(Normalization::NounNumber {
-                    from: Number::Plural,
-                });
-            }
+            let NounInstanceKind::Plural(noun) = instance.kind() else {
+                return applied;
+            };
+            let Ok(singular) = NounInstance::try_singular(noun.clone()) else {
+                return applied;
+            };
+            let Some(identity) = node.role_mut("identity") else {
+                return applied;
+            };
+            let Some(ProjectedAtom::Identity {
+                provider,
+                value_type,
+                ..
+            }) = identity.atom()
+            else {
+                return applied;
+            };
+            let (provider, value_type) = (*provider, *value_type);
+            *identity = ProjectionTree::Atom(ProjectedAtom::Identity {
+                provider,
+                value_type,
+                value: deckmaste_english::OwnedProjectionValue::new(&singular),
+            });
+            applied.push(Normalization::NounNumber {
+                from: Number::Plural,
+            });
         }
     }
     applied
@@ -1656,13 +1697,19 @@ mod tests {
             let node = dep.site.resolve(&frame.tree).unwrap_or_else(|| {
                 panic!("{:?} site {} does not resolve at all", dep.kind, dep.site)
             });
-            let expected = match dep.kind {
-                AgreeKind::VerbWithHole(_) => "flat_verb_slot",
-                AgreeKind::NounNumberFromHole(_) => "flat_noun_instance",
+            let construction = node.construction();
+            let (actual, expected) = match dep.kind {
+                AgreeKind::VerbWithHole(_) => (
+                    construction.map(|construction| construction.construction),
+                    "flat_verb_slot",
+                ),
+                AgreeKind::NounNumberFromHole(_) => (
+                    construction.map(|construction| construction.category),
+                    "Noun",
+                ),
             };
             assert_eq!(
-                node.construction()
-                    .map(|construction| construction.construction),
+                actual,
                 Some(expected),
                 "{:?} site {} resolved to {node:?}",
                 dep.kind,

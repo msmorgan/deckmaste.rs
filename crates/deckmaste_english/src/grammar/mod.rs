@@ -2463,7 +2463,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
                     CatalogValue::Atom(atom) => {
                         if slot == CatalogSlot::KeywordAbilityNoun {
                             lexical_word_matches(
-                                WordMatch::Noun(NounInstance::Mass(Noun::Catalog(atom))),
+                                WordMatch::Noun(NounInstance::unchecked_mass(Noun::Catalog(atom))),
                                 end,
                             )
                         } else {
@@ -2785,7 +2785,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     && value > 0
                 {
                     matches.extend(lexical_word_matches(
-                        WordMatch::Noun(NounInstance::Singular(Noun::Die(
+                        WordMatch::Noun(NounInstance::unchecked_singular(Noun::Die(
                             crate::syntax::NumberLiteral {
                                 value,
                                 numeral: Numeral::Arabic(false),
@@ -2935,7 +2935,9 @@ impl Grammar for EnglishGrammar<'_, '_> {
                         opaque: false,
                         recipient_passive_theme: false,
                     },
-                    meaning: MeaningKey::Noun(NounInstance::Plural(Noun::Word(Vocab::Time))),
+                    meaning: MeaningKey::Noun(NounInstance::unchecked_plural(Noun::Word(
+                        Vocab::Time,
+                    ))),
                     local_cost: ParseCost::default(),
                 })
                 .into_iter()
@@ -2953,7 +2955,9 @@ impl Grammar for EnglishGrammar<'_, '_> {
                         opaque: false,
                         recipient_passive_theme: false,
                     },
-                    meaning: MeaningKey::Noun(NounInstance::Singular(Noun::Word(Vocab::Number))),
+                    meaning: MeaningKey::Noun(NounInstance::unchecked_singular(Noun::Word(
+                        Vocab::Number,
+                    ))),
                     local_cost: ParseCost::default(),
                 })
                 .into_iter()

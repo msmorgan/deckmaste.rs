@@ -1,11 +1,11 @@
-error[E0616]: field `repr` of struct `Determiner` is private
+error[E0616]: field `0` of struct `Determiner` is private
  --> tests/compile_fail/mutate_determiner.rs:4:16
   |
-4 |     determiner.repr = replacement.repr;
-  |                ^^^^ private field
+4 |     determiner.0 = replacement.0;
+  |                ^ private field
 
-error[E0616]: field `repr` of struct `Determiner` is private
- --> tests/compile_fail/mutate_determiner.rs:4:35
+error[E0616]: field `0` of struct `Determiner` is private
+ --> tests/compile_fail/mutate_determiner.rs:4:32
   |
-4 |     determiner.repr = replacement.repr;
-  |                                   ^^^^ private field
+4 |     determiner.0 = replacement.0;
+  |                                ^ private field

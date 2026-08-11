@@ -140,9 +140,9 @@ impl CatalogAtom {
     pub fn render_noun(&self, plural: bool) -> String {
         let linked = self.vocab.and_then(|vocab| {
             let noun = if plural {
-                NounInstance::Plural(Noun::Word(vocab))
+                NounInstance::unchecked_plural(Noun::Word(vocab))
             } else {
-                NounInstance::Singular(Noun::Word(vocab))
+                NounInstance::unchecked_singular(Noun::Word(vocab))
             };
             Vocabulary::new().render_noun(&noun)
         });
@@ -592,15 +592,15 @@ impl Catalogs {
                 if surface_equals(surface, &atom.render_noun(false), kind.case_policy()) {
                     matches.push(CatalogMatch {
                         length,
-                        value: CatalogValue::Word(WordMatch::Noun(NounInstance::Singular(
-                            Noun::Catalog(atom.clone()),
-                        ))),
+                        value: CatalogValue::Word(WordMatch::Noun(
+                            NounInstance::unchecked_singular(Noun::Catalog(atom.clone())),
+                        )),
                     });
                 }
                 if surface_equals(surface, &atom.render_noun(true), kind.case_policy()) {
                     matches.push(CatalogMatch {
                         length,
-                        value: CatalogValue::Word(WordMatch::Noun(NounInstance::Plural(
+                        value: CatalogValue::Word(WordMatch::Noun(NounInstance::unchecked_plural(
                             Noun::Catalog(atom),
                         ))),
                     });
@@ -782,15 +782,15 @@ fn bundle_matches(text: &str, slot: CatalogSlot) -> Vec<CatalogMatch> {
                 if let Some(length) = lowercase_word_prefix(text, &atom.render_noun(false)) {
                     matches.push(CatalogMatch {
                         length,
-                        value: CatalogValue::Word(WordMatch::Noun(NounInstance::Singular(
-                            Noun::Catalog(atom.clone()),
-                        ))),
+                        value: CatalogValue::Word(WordMatch::Noun(
+                            NounInstance::unchecked_singular(Noun::Catalog(atom.clone())),
+                        )),
                     });
                 }
                 if let Some(length) = lowercase_word_prefix(text, &atom.render_noun(true)) {
                     matches.push(CatalogMatch {
                         length,
-                        value: CatalogValue::Word(WordMatch::Noun(NounInstance::Plural(
+                        value: CatalogValue::Word(WordMatch::Noun(NounInstance::unchecked_plural(
                             Noun::Catalog(atom),
                         ))),
                     });
@@ -1027,8 +1027,9 @@ mod tests {
         assert_eq!(goblin_atom.render_noun(false), "Goblin");
         assert_eq!(goblin_atom.render_noun(true), "Goblins");
         assert_eq!(
-            crate::word::Vocabulary::new()
-                .render_noun(&NounInstance::Plural(Noun::Catalog(goblin_atom.clone()),)),
+            crate::word::Vocabulary::new().render_noun(&NounInstance::unchecked_plural(
+                Noun::Catalog(goblin_atom.clone()),
+            )),
             Some("Goblins".to_owned())
         );
         assert!(

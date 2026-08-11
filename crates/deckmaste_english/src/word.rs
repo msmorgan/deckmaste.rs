@@ -32,7 +32,6 @@ pub use noun::NounDeclension;
 pub use noun::NounDefinition;
 pub use noun::NounInstance;
 pub use noun::NounInstanceKind;
-pub(crate) use noun::NounInstanceRepr;
 #[cfg(test)]
 use noun::NounSurface;
 pub(crate) use noun::regular_plural;
@@ -865,9 +864,9 @@ mod tests {
 
         assert_eq!(
             vocabulary.matches("cost", LexicalSlot::Noun(NounUsage::Count)),
-            vec![WordMatch::Noun(NounInstance::Singular(Noun::Word(
-                Vocab::Cost,
-            )))]
+            vec![WordMatch::Noun(NounInstance::unchecked_singular(
+                Noun::Word(Vocab::Cost)
+            ))]
         );
         assert_eq!(
             vocabulary.matches("cost", LexicalSlot::Verb(THIRD_PLURAL_PRESENT)),
@@ -882,9 +881,9 @@ mod tests {
         );
         assert_eq!(
             vocabulary.matches("target", LexicalSlot::Noun(NounUsage::Count)),
-            vec![WordMatch::Noun(NounInstance::Singular(Noun::Word(
-                Vocab::Target,
-            )))]
+            vec![WordMatch::Noun(NounInstance::unchecked_singular(
+                Noun::Word(Vocab::Target)
+            ))]
         );
         assert_eq!(
             vocabulary.matches("targets", LexicalSlot::Verb(THIRD_SINGULAR_PRESENT)),
@@ -908,16 +907,18 @@ mod tests {
 
         assert_eq!(upkeep.spelling(), "upkeep");
         assert_eq!(
-            vocabulary.render_noun(&NounInstance::Singular(Noun::Word(*upkeep))),
+            vocabulary.render_noun(&NounInstance::unchecked_singular(Noun::Word(*upkeep))),
             Some("upkeep".to_owned())
         );
         assert_eq!(
-            vocabulary.render_noun(&NounInstance::Plural(Noun::Word(*upkeep))),
+            vocabulary.render_noun(&NounInstance::unchecked_plural(Noun::Word(*upkeep))),
             Some("upkeeps".to_owned())
         );
         assert_eq!(
             vocabulary.matches("upkeeps", LexicalSlot::Noun(NounUsage::Count)),
-            vec![WordMatch::Noun(NounInstance::Plural(Noun::Word(*upkeep)))]
+            vec![WordMatch::Noun(NounInstance::unchecked_plural(Noun::Word(
+                *upkeep
+            )))]
         );
     }
 
@@ -934,7 +935,7 @@ mod tests {
 
         assert_eq!(knowledge.spelling(), "knowledge");
         assert_eq!(
-            vocabulary.render_noun(&NounInstance::Mass(Noun::Word(*knowledge))),
+            vocabulary.render_noun(&NounInstance::unchecked_mass(Noun::Word(*knowledge))),
             Some("knowledge".to_owned())
         );
         assert!(
@@ -1012,9 +1013,9 @@ mod tests {
 
         assert_eq!(
             vocabulary.matches("attack", LexicalSlot::Noun(NounUsage::Count)),
-            vec![WordMatch::Noun(NounInstance::Singular(Noun::Word(
-                Vocab::Attack,
-            )))]
+            vec![WordMatch::Noun(NounInstance::unchecked_singular(
+                Noun::Word(Vocab::Attack)
+            ))]
         );
         assert_eq!(
             vocabulary.matches("attack", LexicalSlot::Verb(VerbSlot::Infinitive)),
@@ -1129,12 +1130,12 @@ mod tests {
         );
         assert_eq!(
             vocabulary.matches("drawing", LexicalSlot::Noun(NounUsage::Mass)),
-            vec![WordMatch::Noun(NounInstance::Mass(Noun::Gerund(
+            vec![WordMatch::Noun(NounInstance::unchecked_mass(Noun::Gerund(
                 draw.clone(),
             )))]
         );
         assert_eq!(
-            vocabulary.render_noun(&NounInstance::Mass(Noun::Gerund(draw))),
+            vocabulary.render_noun(&NounInstance::unchecked_mass(Noun::Gerund(draw))),
             Some("drawing".to_owned())
         );
         assert!(
@@ -1156,8 +1157,8 @@ mod tests {
             ("chooser", "choosers", Vocab::Choose),
         ] {
             let verb = Verb::Word(verb);
-            let singular_noun = NounInstance::Singular(Noun::Agentive(verb.clone()));
-            let plural_noun = NounInstance::Plural(Noun::Agentive(verb));
+            let singular_noun = NounInstance::unchecked_singular(Noun::Agentive(verb.clone()));
+            let plural_noun = NounInstance::unchecked_plural(Noun::Agentive(verb));
             assert_eq!(
                 vocabulary.matches(singular, LexicalSlot::Noun(NounUsage::Count)),
                 vec![WordMatch::Noun(singular_noun.clone())]
@@ -1189,14 +1190,14 @@ mod tests {
         let matches = vocabulary.matches("player", LexicalSlot::Noun(NounUsage::Count));
         assert_eq!(matches.len(), 2);
         assert!(
-            matches.contains(&WordMatch::Noun(NounInstance::Singular(Noun::Word(
-                Vocab::Player,
-            ))))
+            matches.contains(&WordMatch::Noun(NounInstance::unchecked_singular(
+                Noun::Word(Vocab::Player)
+            )))
         );
         assert!(
-            matches.contains(&WordMatch::Noun(NounInstance::Singular(Noun::Agentive(
-                Verb::Word(Vocab::Play),
-            ))))
+            matches.contains(&WordMatch::Noun(NounInstance::unchecked_singular(
+                Noun::Agentive(Verb::Word(Vocab::Play))
+            )))
         );
     }
 
@@ -1223,14 +1224,14 @@ mod tests {
         let counter = vocabulary.matches("counter", LexicalSlot::Noun(NounUsage::Count));
         assert_eq!(counter.len(), 2);
         assert!(
-            counter.contains(&WordMatch::Noun(NounInstance::Singular(Noun::Word(
-                Vocab::Counter,
-            ))))
+            counter.contains(&WordMatch::Noun(NounInstance::unchecked_singular(
+                Noun::Word(Vocab::Counter)
+            )))
         );
         assert!(
-            counter.contains(&WordMatch::Noun(NounInstance::Singular(Noun::Agentive(
-                Verb::Word(Vocab::Count),
-            ))))
+            counter.contains(&WordMatch::Noun(NounInstance::unchecked_singular(
+                Noun::Agentive(Verb::Word(Vocab::Count))
+            )))
         );
     }
 
@@ -1239,7 +1240,7 @@ mod tests {
         let vocabulary = Vocabulary::new();
 
         for (surface, vocab) in [("libraries", Vocab::Library), ("copies", Vocab::Copy)] {
-            let noun = NounInstance::Plural(Noun::Word(vocab));
+            let noun = NounInstance::unchecked_plural(Noun::Word(vocab));
             assert_eq!(
                 vocabulary.matches(surface, LexicalSlot::Noun(NounUsage::Count)),
                 vec![WordMatch::Noun(noun.clone())]
@@ -1248,8 +1249,8 @@ mod tests {
         }
 
         for noun in [
-            NounInstance::Singular(Noun::Word(Vocab::Merfolk)),
-            NounInstance::Plural(Noun::Word(Vocab::Merfolk)),
+            NounInstance::unchecked_singular(Noun::Word(Vocab::Merfolk)),
+            NounInstance::unchecked_plural(Noun::Word(Vocab::Merfolk)),
         ] {
             assert_eq!(vocabulary.render_noun(&noun), Some("Merfolk".to_owned()));
         }
@@ -1401,9 +1402,11 @@ mod tests {
                         continue;
                     }
                     let noun = match form {
-                        NounSurface::Singular => NounInstance::Singular(Noun::Word(vocab)),
-                        NounSurface::Plural => NounInstance::Plural(Noun::Word(vocab)),
-                        NounSurface::Mass => NounInstance::Mass(Noun::Word(vocab)),
+                        NounSurface::Singular => {
+                            NounInstance::unchecked_singular(Noun::Word(vocab))
+                        }
+                        NounSurface::Plural => NounInstance::unchecked_plural(Noun::Word(vocab)),
+                        NounSurface::Mass => NounInstance::unchecked_mass(Noun::Word(vocab)),
                     };
                     let surface = vocabulary.render_noun(&noun).unwrap();
                     let usage = match form {

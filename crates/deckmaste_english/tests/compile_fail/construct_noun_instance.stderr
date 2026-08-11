@@ -1,10 +1,22 @@
-error[E0624]: associated function `Mass` is private
- --> tests/compile_fail/construct_noun_instance.rs:6:19
+error[E0423]: cannot initialize a tuple struct which contains private fields
+ --> tests/compile_fail/construct_noun_instance.rs:7:5
   |
-6 |     NounInstance::Mass(Noun::Word(Vocab::Card))
-  |                   ^^^^ private associated function
+7 |     NounInstance(NounInstanceKind::Mass(Noun::Word(Vocab::Card)))
+  |     ^^^^^^^^^^^^
   |
- ::: src/word/noun.rs
+note: constructor is not visible here due to private fields
+ --> src/word/noun.rs
   |
-  |     pub(crate) const fn Mass(noun: Noun) -> Self {
-  |     -------------------------------------------- private associated function defined here
+  | pub struct NounInstance(NounInstanceKind);
+  |                         ^^^^^^^^^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+  |
+7 -     NounInstance(NounInstanceKind::Mass(Noun::Word(Vocab::Card)))
+7 +     NounInstance::unchecked_singular(_)
+  |
+7 -     NounInstance(NounInstanceKind::Mass(Noun::Word(Vocab::Card)))
+7 +     NounInstance::unchecked_plural(_)
+  |
+7 -     NounInstance(NounInstanceKind::Mass(Noun::Word(Vocab::Card)))
+7 +     NounInstance::unchecked_mass(_)
+  |

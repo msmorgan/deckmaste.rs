@@ -629,7 +629,7 @@ fn make_clause_variable_value_constraint(
     copula: AuxiliaryInstance,
     number: NumberLiteral,
 ) -> Result<Clause, DeclarationViolation> {
-    if subject != Quantity::X {
+    if subject != Quantity::unchecked_x() {
         return Err(violation(
             "clause_variable_value_constraint",
             "the constrained subject is the variable X",
@@ -659,7 +659,7 @@ fn make_clause_variable_value_constraint(
             distributive_each: false,
             precomplement_adverbs: Vec::new(),
             complement: CopularComplement::NounPhrase(NounPhrase::from_quantity_declaration(
-                Quantity::Exact(number),
+                Quantity::unchecked_exact(number),
             )),
             adjuncts: Vec::new(),
         })),
@@ -1446,7 +1446,7 @@ mod tests {
 
     #[test]
     fn variable_value_builder_rejects_each_closed_domain_violation() {
-        let x = Quantity::X;
+        let x = Quantity::unchecked_x();
         let one = Quantity::try_exact(NumberLiteral {
             value: 1,
             numeral: crate::numeral::Numeral::Arabic(false),

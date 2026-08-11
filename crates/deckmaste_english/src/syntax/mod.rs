@@ -673,14 +673,14 @@ impl<'syntax> RecoveryWalker<'syntax> {
             | NounPhraseKind::Quantity(_)
             | NounPhraseKind::ThisCard(_) => {}
             NounPhraseKind::Possessive(possessor) => {
-                if let PossessorKind::NounPhrase(possessor) = possessor.kind() {
+                if let Possessor::NounPhrase(possessor) = possessor {
                     self.noun_phrase(possessor, context);
                 }
             }
             NounPhraseKind::Partitive(partitive) => self.noun_phrase(&partitive.whole, context),
             NounPhraseKind::CoordinatedNominal(coordinated) => {
                 if let DeterminerKind::Possessive(possessor) = coordinated.determiner().kind()
-                    && let PossessorKind::NounPhrase(possessor) = possessor.kind()
+                    && let Possessor::NounPhrase(possessor) = possessor
                 {
                     self.noun_phrase(possessor, context);
                 }
@@ -715,7 +715,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
     fn nominal_phrase(&mut self, nominal: &'syntax NominalPhrase, context: Option<RecoveryRole>) {
         if let Some(determiner) = nominal.determiner()
             && let DeterminerKind::Possessive(possessor) = determiner.kind()
-            && let PossessorKind::NounPhrase(possessor) = possessor.kind()
+            && let Possessor::NounPhrase(possessor) = possessor
         {
             self.noun_phrase(possessor, context);
         }
@@ -940,17 +940,19 @@ mod tests {
             NounCardinality::SingularOrMass
         );
         assert_eq!(
-            crate::determiner::target(Some(Quantity::UpTo(QuantityValue::Literal(one))))
+            crate::determiner::target(Some(Quantity::unchecked_up_to(QuantityValue::Literal(one))))
                 .noun_cardinality(),
             NounCardinality::SingularCount
         );
         assert_eq!(
-            crate::determiner::target(Some(Quantity::UpTo(QuantityValue::Literal(three))))
-                .noun_cardinality(),
+            crate::determiner::target(Some(Quantity::unchecked_up_to(QuantityValue::Literal(
+                three
+            ))))
+            .noun_cardinality(),
             NounCardinality::PluralCount
         );
         assert_eq!(
-            crate::determiner::quantity(Quantity::ThatMuch).noun_cardinality(),
+            crate::determiner::quantity(Quantity::unchecked_that_much()).noun_cardinality(),
             NounCardinality::Mass
         );
         assert_eq!(
@@ -960,38 +962,40 @@ mod tests {
             NounCardinality::Unconstrained
         );
         assert_eq!(
-            crate::determiner::quantity(Quantity::AtLeast(QuantityValue::Literal(one)))
+            crate::determiner::quantity(Quantity::unchecked_at_least(QuantityValue::Literal(one)))
                 .noun_cardinality(),
             NounCardinality::SingularOrMass
         );
         assert_eq!(
-            crate::determiner::quantity(Quantity::AtLeast(QuantityValue::Literal(three)))
-                .noun_cardinality(),
+            crate::determiner::quantity(Quantity::unchecked_at_least(QuantityValue::Literal(
+                three
+            )))
+            .noun_cardinality(),
             NounCardinality::PluralOrMass
         );
         assert_eq!(
-            crate::determiner::quantity(Quantity::Exact(three)).noun_cardinality(),
+            crate::determiner::quantity(Quantity::unchecked_exact(three)).noun_cardinality(),
             NounCardinality::PluralOrMass
         );
         assert_eq!(
-            crate::determiner::target(Some(Quantity::UpTo(QuantityValue::Variable)))
+            crate::determiner::target(Some(Quantity::unchecked_up_to(QuantityValue::Variable)))
                 .noun_cardinality(),
             NounCardinality::PluralCount
         );
         assert_eq!(
-            Quantity::UpTo(QuantityValue::Variable).noun_cardinality(),
+            Quantity::unchecked_up_to(QuantityValue::Variable).noun_cardinality(),
             NounCardinality::PluralOrMass
         );
         assert_eq!(
-            Quantity::UpTo(QuantityValue::Literal(one)).noun_cardinality(),
+            Quantity::unchecked_up_to(QuantityValue::Literal(one)).noun_cardinality(),
             NounCardinality::SingularOrMass
         );
         assert_eq!(
-            Quantity::AtLeast(QuantityValue::Variable).noun_cardinality(),
+            Quantity::unchecked_at_least(QuantityValue::Variable).noun_cardinality(),
             NounCardinality::PluralOrMass
         );
         assert_eq!(
-            Quantity::OrComparison(QuantityValue::Variable, ComparativeWord::Less)
+            Quantity::unchecked_or_comparison(QuantityValue::Variable, ComparativeWord::Less)
                 .noun_cardinality(),
             NounCardinality::PluralOrMass
         );
@@ -1029,11 +1033,13 @@ mod tests {
                             None,
                             vec![NominalModifier::Noun {
                                 polarity: Polarity::Positive,
-                                noun: NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new(
-                                    "flimflam",
-                                ))),
+                                noun: NounInstance::unchecked_singular(Noun::Opaque(
+                                    OpaqueLexeme::new("flimflam"),
+                                )),
                             }],
-                            NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("blorple"))),
+                            NounInstance::unchecked_singular(Noun::Opaque(OpaqueLexeme::new(
+                                "blorple",
+                            ))),
                             vec![],
                         ),
                     )),
@@ -1180,7 +1186,9 @@ mod tests {
                         NominalPhrase::test_from_projection_parts(
                             None,
                             vec![],
-                            NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("blorple"))),
+                            NounInstance::unchecked_singular(Noun::Opaque(OpaqueLexeme::new(
+                                "blorple",
+                            ))),
                             vec![],
                         ),
                     )),
@@ -1207,7 +1215,7 @@ mod tests {
             NominalPhrase::test_from_projection_parts(
                 None,
                 vec![],
-                NounInstance::Singular(Noun::Word(head)),
+                NounInstance::unchecked_singular(Noun::Word(head)),
                 vec![],
             )
         };
@@ -1215,7 +1223,7 @@ mod tests {
             NounPhrase::from_nominal_declaration(NominalPhrase::test_from_projection_parts(
                 None,
                 vec![],
-                NounInstance::Singular(Noun::Opaque(OpaqueLexeme::new("blorple"))),
+                NounInstance::unchecked_singular(Noun::Opaque(OpaqueLexeme::new("blorple"))),
                 vec![],
             ));
         let mut relative_head = predicate_head(Vocab::Draw);

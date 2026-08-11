@@ -57,12 +57,8 @@
 //! definition, nothing rendered it into existence, so there is no frame text
 //! to substitute *from*. [`render_residual_text`] recovers what it honestly
 //! can: a bare nominal (no determiner, no modifiers, no complements) whose
-//! head is a table-driven regular word
-//! ([`deckmaste_english::word::Vocab::Regular`]) or an opaque/catalog lexeme,
-//! both of which carry their own spelling *inside* the captured tree. Anything
-//! else — a determiner, a modifier, a complement, or a hardcoded (non-table)
-//! vocabulary word whose spelling lives only in a lookup table this crate must
-//! not duplicate — is refused with an error rather than guessed at. This is a
+//! generated N01 `identity` role retains a checked noun identity and form.
+//! Anything else is refused with an error rather than guessed at. This is a
 //! real, intentional boundary, not an oversight: rendering it in full
 //! generality is exactly the `ProjectionTree → Fragment` problem the module doc
 //! above explains has no solution available to this crate.
@@ -83,7 +79,6 @@ use crate::Hole;
 use crate::HoleClass;
 use crate::lexicon::Entry;
 use crate::lexicon::Lexicon;
-use crate::projection::ConstructionNode;
 use crate::projection::ProjectionTree;
 use crate::unify::Recovered;
 
@@ -632,7 +627,7 @@ pub fn render_residual_text(tree: &ProjectionTree) -> anyhow::Result<String> {
     loop {
         if node
             .construction()
-            .is_some_and(|construction| construction.construction == "flat_noun_instance")
+            .is_some_and(|construction| construction.category == "Noun")
         {
             return render_noun_instance(node);
         }
@@ -659,82 +654,20 @@ fn render_noun_instance(view: &ProjectionTree) -> anyhow::Result<String> {
     let Some(instance) = view.construction() else {
         anyhow::bail!("expected a projected noun instance, got {view:?}");
     };
-    let noun = instance
+    let identity = instance
         .roles
-        .get("noun")
-        .ok_or_else(|| anyhow::anyhow!("a projected noun instance has no `noun` role"))?;
-    let spelling = render_noun(noun)?;
-    match instance.form {
-        "singular" | "mass" => Ok(spelling),
-        // English regular plural: every noun this reconstruction reaches
-        // (named-role residuals, table-driven or opaque common nouns)
-        // pluralizes this way in the pilot corpus. An irregular plural would
-        // render wrong rather than erroring — a real limitation, not
-        // silently masked: `crate::unify` never compares this rendering
-        // against anything (it is the render *direction*'s own reconstruction,
-        // never fed back through `unify`), and G3/G4 would surface a wrong
-        // spelling as a diff/divergence if the pilot corpus ever exercised
-        // one, which it does not today.
-        "plural" => Ok(format!("{spelling}s")),
-        other => anyhow::bail!("unknown `NounInstance` number {other:?}"),
-    }
-}
-
-fn render_noun(view: &ProjectionTree) -> anyhow::Result<String> {
-    let Some(noun) = view.construction() else {
-        anyhow::bail!("expected a projected noun, got {view:?}");
-    };
-    match noun.form {
-        "word" => render_vocab(required_role(noun, "word")?),
-        "opaque" => render_opaque(required_role(noun, "lexeme")?),
-        "catalog" => render_catalog_atom(required_role(noun, "catalog")?),
-        other => {
-            anyhow::bail!("cannot recover the spelling of a `{other}`-kind noun from a residual")
-        }
-    }
-}
-
-/// [`deckmaste_english::word::Vocab::Regular`] carries its English spelling
-/// *in* the tree directly (a `RegularVocab(&'static str)` newtype, generated
-/// from `regular-vocabulary.tsv`); every other `Vocab` variant is a
-/// hardcoded, fieldless enum case whose spelling lives only in
-/// [`Vocab::spelling`](deckmaste_english::word::Vocab::spelling), a
-/// compile-time lookup keyed by the typed variant itself. The projection
-/// retains that typed identity, so residual rendering calls the same
-/// `Vocab::spelling` accessor as the English renderer without reproducing its
-/// lookup table.
-fn render_vocab(view: &ProjectionTree) -> anyhow::Result<String> {
-    projected_value(view)
-        .and_then(|value| value.downcast_ref::<deckmaste_english::word::Vocab>())
-        .map(|vocab| vocab.spelling().to_owned())
-        .ok_or_else(|| anyhow::anyhow!("expected a projected vocabulary noun, got {view:?}"))
-}
-
-/// A catalog noun's declaration-surface spelling witness.
-fn render_catalog_atom(view: &ProjectionTree) -> anyhow::Result<String> {
-    view.construction()
-        .and_then(|catalog| {
-            catalog
-                .witnesses
-                .get("noun_spelling")
-                .or_else(|| catalog.witnesses.get("spelling"))
-        })
-        .and_then(|witness| witness.value.downcast_ref::<String>())
-        .cloned()
-        .ok_or_else(|| anyhow::anyhow!("expected a projected catalog spelling, got {view:?}"))
-}
-
-fn render_opaque(view: &ProjectionTree) -> anyhow::Result<String> {
-    projected_value(view)
-        .and_then(|value| value.downcast_ref::<deckmaste_english::syntax::OpaqueLexeme>())
-        .map(|lexeme| lexeme.spelling().to_owned())
-        .ok_or_else(|| anyhow::anyhow!("expected a projected opaque noun, got {view:?}"))
-}
-
-fn required_role<'a>(node: &'a ConstructionNode, role: &str) -> anyhow::Result<&'a ProjectionTree> {
-    node.roles
-        .get(role)
-        .ok_or_else(|| anyhow::anyhow!("construction `{}` has no `{role}` role", node.construction))
+        .get("identity")
+        .and_then(projected_value)
+        .and_then(|value| value.downcast_ref::<deckmaste_english::word::NounInstance>())
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "N01 construction `{}` has no typed `identity` role",
+                instance.construction
+            )
+        })?;
+    deckmaste_english::word::Vocabulary::new()
+        .render_noun(identity)
+        .ok_or_else(|| anyhow::anyhow!("N01 identity has no noun spelling: {identity:?}"))
 }
 
 fn projected_value(view: &ProjectionTree) -> Option<&deckmaste_english::OwnedProjectionValue> {
@@ -832,6 +765,23 @@ mod tests {
             .map(ProjectionTree::from_projection)
             .expect("a clean fixture fragment projects");
         crate::unify(&target, &fixture().lexicon, FramePosition::Main)
+    }
+
+    #[test]
+    fn generated_noun_identity_preserves_irregular_residual_spelling() {
+        let report = parse_fragment(
+            "dice",
+            &Catalogs::default(),
+            FragmentKind::Nominal,
+            "",
+            false,
+        );
+        assert!(report.clean(), "{:?}", report.diagnostics());
+        let projection = project_fragment(report.fragment().expect("clean nominal"))
+            .map(ProjectionTree::from_projection)
+            .expect("bare noun projects through N01");
+
+        assert_eq!(render_residual_text(&projection).unwrap(), "dice");
     }
 
     /// The brief's Step 1 witness pair: guard selection (the `You`-guarded

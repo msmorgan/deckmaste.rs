@@ -956,7 +956,8 @@ fn trailing_where_clause_binds_a_variable_definition() {
     // fresh variable kind.
     assert!(matches!(
         subject.kind(),
-        NounPhraseKind::Quantity(Quantity::X)
+        NounPhraseKind::Quantity(quantity)
+            if quantity.kind() == crate::syntax::QuantityKind::X
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -4326,7 +4327,8 @@ fn variable_quantity_has_singular_standalone_agreement() {
     };
     assert!(matches!(
         subject.kind(),
-        NounPhraseKind::Quantity(Quantity::X)
+        NounPhraseKind::Quantity(quantity)
+            if quantity.kind() == crate::syntax::QuantityKind::X
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -4349,7 +4351,8 @@ fn variable_value_constraint_parses_as_a_modal_copular_clause() {
     };
     assert!(matches!(
         subject.kind(),
-        NounPhraseKind::Quantity(Quantity::X)
+        NounPhraseKind::Quantity(quantity)
+            if quantity.kind() == crate::syntax::QuantityKind::X
     ));
     assert_eq!(predicate.copula.auxiliary.auxiliary, Auxiliary::Be);
     assert_eq!(
@@ -4382,7 +4385,11 @@ fn variable_value_constraint_composes_under_a_fronted_conditional() {
     assert!(matches!(
         matrix.as_ref(),
         IndependentClause::Deontic(Subject(subject), _, Some(Predicate::Copular(_)))
-            if matches!(subject.kind(), NounPhraseKind::Quantity(Quantity::X))
+            if matches!(
+                subject.kind(),
+                NounPhraseKind::Quantity(quantity)
+                    if quantity.kind() == crate::syntax::QuantityKind::X
+            )
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }

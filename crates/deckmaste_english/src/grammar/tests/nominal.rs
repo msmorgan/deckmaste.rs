@@ -482,7 +482,7 @@ mod tests {
             ),
             (
                 "up to one other target creature or spell",
-                crate::determiner::quantity(crate::syntax::Quantity::UpTo(
+                crate::determiner::quantity(crate::syntax::Quantity::unchecked_up_to(
                     crate::syntax::QuantityValue::Literal(crate::syntax::NumberLiteral {
                         value: 1,
                         numeral: crate::numeral::Numeral::Cardinal,
@@ -1396,7 +1396,7 @@ mod tests {
             NounPhrase::from_nominal_declaration(NominalPhrase::test_from_projection_parts(
                 None,
                 vec![solid_modifier],
-                NounInstance::Singular(Noun::Word(Vocab::Card)),
+                NounInstance::unchecked_singular(Noun::Word(Vocab::Card)),
                 vec![],
             ));
         assert_eq!(render_fragment(&solid_phrase), "nonblack card");
@@ -1438,11 +1438,11 @@ mod tests {
         // the hyphen, not a stray default.
         for (noun, expected) in [
             (
-                NounInstance::Singular(Noun::Catalog(RulesNominal::Outlaw.atom())),
+                NounInstance::unchecked_singular(Noun::Catalog(RulesNominal::Outlaw.atom())),
                 "non-outlaw card",
             ),
             (
-                NounInstance::Mass(Noun::Word(Vocab::Combat)),
+                NounInstance::unchecked_mass(Noun::Word(Vocab::Combat)),
                 "noncombat card",
             ),
         ] {
@@ -1454,7 +1454,7 @@ mod tests {
                 NounPhrase::from_nominal_declaration(NominalPhrase::test_from_projection_parts(
                     None,
                     vec![modifier],
-                    NounInstance::Singular(Noun::Word(Vocab::Card)),
+                    NounInstance::unchecked_singular(Noun::Word(Vocab::Card)),
                     vec![],
                 ));
             assert_eq!(render_fragment(&noun_phrase), expected);
@@ -1596,8 +1596,8 @@ mod tests {
             possessive.noun_phrase().map(NounPhrase::kind),
             Some(NounPhraseKind::Possessive(possessor))
                 if matches!(
-                    possessor.kind(),
-                    crate::syntax::PossessorKind::NounPhrase(noun_phrase)
+                    possessor,
+                    crate::syntax::Possessor::NounPhrase(noun_phrase)
                         if matches!(
                             noun_phrase.kind(),
                             NounPhraseKind::ThisCard(ThisCardForm::AbbreviatedName)
@@ -1630,7 +1630,7 @@ mod tests {
             Some(NounPhraseKind::Nominal(nominal))
                 if nominal.modifiers().is_empty()
                     && matches!(
-                        nominal.determiner().map(|determiner| determiner.kind()),
+                        nominal.determiner().map(crate::syntax::Determiner::kind),
                         Some(crate::syntax::DeterminerKind::Any)
                     )
                     && matches!(
@@ -2127,8 +2127,8 @@ mod tests {
                         determiner.kind(),
                         crate::syntax::DeterminerKind::Possessive(possessor)
                             if matches!(
-                                possessor.kind(),
-                                crate::syntax::PossessorKind::NounPhrase(noun_phrase)
+                                possessor,
+                                crate::syntax::Possessor::NounPhrase(noun_phrase)
                                     if matches!(noun_phrase.kind(), NounPhraseKind::ThisCard(_))
                             )
                     )
@@ -2217,7 +2217,7 @@ mod tests {
         let crate::syntax::DeterminerKind::Possessive(possessor) = determiner.kind() else {
             panic!("expected a possessive determiner: {determiner:#?}");
         };
-        let crate::syntax::PossessorKind::NounPhrase(possessor) = possessor.kind() else {
+        let crate::syntax::Possessor::NounPhrase(possessor) = possessor else {
             panic!("expected a noun-phrase possessor: {possessor:#?}");
         };
         let NounPhraseKind::Nominal(possessor_nominal) = (possessor).kind() else {
@@ -2230,7 +2230,7 @@ mod tests {
                     if matches!(
                         determiner.kind(),
                         crate::syntax::DeterminerKind::Possessive(possessor)
-                            if matches!(possessor.kind(), crate::syntax::PossessorKind::Pronoun(Pronoun::They))
+                            if matches!(possessor, crate::syntax::Possessor::Pronoun(Pronoun::They))
                     )
             ),
             "{possessor_nominal:#?}"
@@ -2266,13 +2266,12 @@ mod tests {
                 matches!(
                     determiner.kind(),
                     crate::syntax::DeterminerKind::Possessive(possessor)
-                        if matches!(possessor.kind(), crate::syntax::PossessorKind::NounPhrase(_))
+                        if matches!(possessor, crate::syntax::Possessor::NounPhrase(_))
                 )
             }),
-            NounPhraseKind::Possessive(possessor) => matches!(
-                possessor.kind(),
-                crate::syntax::PossessorKind::NounPhrase(_)
-            ),
+            NounPhraseKind::Possessive(possessor) => {
+                matches!(possessor, crate::syntax::Possessor::NounPhrase(_))
+            }
             _ => false,
         }
     }
@@ -2361,7 +2360,7 @@ mod tests {
         let crate::syntax::DeterminerKind::Possessive(possessor) = determiner.kind() else {
             panic!("expected a possessive determiner: {determiner:#?}");
         };
-        let crate::syntax::PossessorKind::NounPhrase(possessor) = possessor.kind() else {
+        let crate::syntax::Possessor::NounPhrase(possessor) = possessor else {
             panic!("expected a noun-phrase possessor: {possessor:#?}");
         };
         let NounPhraseKind::Nominal(possessor) = (possessor).kind() else {
@@ -2421,7 +2420,7 @@ mod tests {
             let crate::syntax::DeterminerKind::Possessive(possessor) = determiner.kind() else {
                 panic!("{source}: expected a possessive determiner: {determiner:#?}");
             };
-            let crate::syntax::PossessorKind::NounPhrase(possessor) = possessor.kind() else {
+            let crate::syntax::Possessor::NounPhrase(possessor) = possessor else {
                 panic!("{source}: expected a noun-phrase possessor: {possessor:#?}");
             };
             let NounPhraseKind::Nominal(possessor) = (possessor).kind() else {
@@ -2486,7 +2485,7 @@ mod tests {
         let crate::syntax::DeterminerKind::Possessive(possessor) = determiner.kind() else {
             panic!("expected a possessive determiner: {determiner:#?}");
         };
-        let crate::syntax::PossessorKind::NounPhrase(possessor) = possessor.kind() else {
+        let crate::syntax::Possessor::NounPhrase(possessor) = possessor else {
             panic!("expected a noun-phrase possessor: {possessor:#?}");
         };
         let NounPhraseKind::Nominal(possessor) = (possessor).kind() else {
@@ -2526,8 +2525,8 @@ mod tests {
             parsed.noun_phrase().map(NounPhrase::kind),
             Some(NounPhraseKind::Possessive(possessor))
                 if matches!(
-                    possessor.kind(),
-                    crate::syntax::PossessorKind::NounPhrase(noun_phrase)
+                    possessor,
+                    crate::syntax::Possessor::NounPhrase(noun_phrase)
                         if matches!(noun_phrase.kind(), NounPhraseKind::ThisCard(_))
                 )
         ));
@@ -2674,7 +2673,8 @@ mod tests {
         };
         assert!(matches!(
             value.complements(),
-            [NominalComplement::Quantity(crate::syntax::Quantity::X)]
+            [NominalComplement::Quantity(quantity)]
+                if quantity.kind() == crate::syntax::QuantityKind::X
         ));
 
         let die = parse("a d20");
@@ -3190,18 +3190,18 @@ mod tests {
         for (source, expected) in [
             (
                 "up to X target creatures",
-                Quantity::UpTo(QuantityValue::Variable),
+                Quantity::unchecked_up_to(QuantityValue::Variable),
             ),
             (
                 "up to ten target creatures",
-                Quantity::UpTo(QuantityValue::Literal(crate::syntax::NumberLiteral {
+                Quantity::unchecked_up_to(QuantityValue::Literal(crate::syntax::NumberLiteral {
                     value: 10,
                     numeral: crate::numeral::Numeral::Cardinal,
                 })),
             ),
             (
                 "up to three target creatures",
-                Quantity::UpTo(QuantityValue::Literal(crate::syntax::NumberLiteral {
+                Quantity::unchecked_up_to(QuantityValue::Literal(crate::syntax::NumberLiteral {
                     value: 3,
                     numeral: crate::numeral::Numeral::Cardinal,
                 })),
@@ -3265,7 +3265,7 @@ mod tests {
             let bound = characteristic_bound(&parsed);
             assert_eq!(
                 bound,
-                Quantity::OrComparison(value, word),
+                Quantity::unchecked_or_comparison(value, word),
                 "{source}: {bound:?}"
             );
         }
@@ -3394,7 +3394,7 @@ mod tests {
         ));
         assert_eq!(
             nominal.head(),
-            &NounInstance::Plural(Noun::Word(Vocab::Turn))
+            &NounInstance::unchecked_plural(Noun::Word(Vocab::Turn))
         );
         let [NominalComplement::Prepositional(of)] = nominal.complements() else {
             panic!(
@@ -3427,7 +3427,7 @@ mod tests {
         ));
         assert_eq!(
             nominal.head(),
-            &NounInstance::Singular(Noun::Word(Vocab::Turn))
+            &NounInstance::unchecked_singular(Noun::Word(Vocab::Turn))
         );
     }
 
@@ -3465,7 +3465,7 @@ mod tests {
         ));
         assert_eq!(
             nominal.head(),
-            &NounInstance::Singular(Noun::Word(Vocab::Card))
+            &NounInstance::unchecked_singular(Noun::Word(Vocab::Card))
         );
         // The serial comma is derived from `conjunction`/`rest.len()`, not
         // stored (see `ModifierCoordination`); this round-trip is what pins
@@ -3494,7 +3494,7 @@ mod tests {
         assert_eq!(phrase.head(), &Adjective::Ordinal(1));
         assert_eq!(
             nominal.head(),
-            &NounInstance::Singular(Noun::Word(Vocab::Turn))
+            &NounInstance::unchecked_singular(Noun::Word(Vocab::Turn))
         );
     }
 

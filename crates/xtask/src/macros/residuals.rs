@@ -1440,7 +1440,7 @@ mod tests {
             first.residuals[0]
                 .signature
                 .key
-                .contains("flat_catalog_atom"),
+                .contains("Noun::noun::only{identity: identity:KnownNoun:NounInstance}"),
             "the shared key must still spell the shape it groups: {}",
             first.residuals[0].signature.key,
         );

@@ -2799,7 +2799,8 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     /// dash, and only when it is tight (no surrounding whitespace) and the
     /// left side carries an *explicit* `onto`/`with` preposition — the
     /// requirement that keeps `Reinforce X—[cost]` (whose left side is a
-    /// bare `Quantity::X` with no preposition at all) outside this shape.
+    /// bare `Quantity::unchecked_x()` with no preposition at all) outside this
+    /// shape.
     fn parse_restricted_tight_cost(
         &mut self,
         left: &[Token],
@@ -3791,7 +3792,8 @@ mod tests {
                         [NounPhraseCoordination { phrase, .. }]
                             if matches!(
                                 phrase.kind(),
-                                crate::syntax::NounPhraseKind::Quantity(Quantity::Both)
+                                crate::syntax::NounPhraseKind::Quantity(quantity)
+                                    if quantity.kind() == crate::syntax::QuantityKind::Both
                             )
                     )
             )
@@ -6166,7 +6168,7 @@ mod tests {
     #[test]
     fn reinforce_x_stays_outside_restricted_cost() {
         // Negative control: `Reinforce X—[cost]`'s left side is a bare
-        // `Quantity::X` with no preposition at all, so
+        // `Quantity::unchecked_x()` with no preposition at all, so
         // `parse_restricted_tight_cost`'s explicit-preposition requirement
         // rejects it — it must not become `RestrictedCost` even though the
         // shape (internal tight dash, symbol-run cost) otherwise resembles
@@ -6707,8 +6709,8 @@ mod tests {
                             determiner.kind(),
                             crate::syntax::DeterminerKind::Possessive(possessor)
                                 if matches!(
-                                    possessor.kind(),
-                                    crate::syntax::PossessorKind::NounPhrase(possessor)
+                                    possessor,
+                                    crate::syntax::Possessor::NounPhrase(possessor)
                                         if matches!(
                                             possessor.kind(),
                                             crate::syntax::NounPhraseKind::ThisCard(

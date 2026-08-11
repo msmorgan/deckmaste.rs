@@ -1460,43 +1460,43 @@ mod root_lowering_tests {
         let fixtures = [
             (
                 "three",
-                Quantity::Exact(number(3, Numeral::Cardinal)),
+                Quantity::unchecked_exact(number(3, Numeral::Cardinal)),
                 "quantity_exact",
                 0,
             ),
             (
                 "third",
-                Quantity::Exact(number(3, Numeral::Ordinal)),
+                Quantity::unchecked_exact(number(3, Numeral::Ordinal)),
                 "quantity_exact",
                 0,
             ),
             (
                 "3",
-                Quantity::Exact(number(3, Numeral::Arabic(false))),
+                Quantity::unchecked_exact(number(3, Numeral::Arabic(false))),
                 "quantity_exact",
                 0,
             ),
             (
                 "1,000",
-                Quantity::Exact(number(1_000, Numeral::Arabic(true))),
+                Quantity::unchecked_exact(number(1_000, Numeral::Arabic(true))),
                 "quantity_exact",
                 0,
             ),
             (
                 "III",
-                Quantity::Exact(number(3, Numeral::Roman)),
+                Quantity::unchecked_exact(number(3, Numeral::Roman)),
                 "quantity_exact",
                 0,
             ),
             (
                 "at least two",
-                Quantity::AtLeast(literal(number(2, Numeral::Cardinal))),
+                Quantity::unchecked_at_least(literal(number(2, Numeral::Cardinal))),
                 "quantity_at_least",
                 0,
             ),
             (
                 "two or fewer",
-                Quantity::OrComparison(
+                Quantity::unchecked_or_comparison(
                     literal(number(2, Numeral::Cardinal)),
                     ComparativeWord::Fewer,
                 ),
@@ -1505,7 +1505,7 @@ mod root_lowering_tests {
             ),
             (
                 "2 or greater",
-                Quantity::OrComparison(
+                Quantity::unchecked_or_comparison(
                     literal(number(2, Numeral::Arabic(false))),
                     ComparativeWord::Greater,
                 ),
@@ -1514,7 +1514,7 @@ mod root_lowering_tests {
             ),
             (
                 "two or less",
-                Quantity::OrComparison(
+                Quantity::unchecked_or_comparison(
                     literal(number(2, Numeral::Cardinal)),
                     ComparativeWord::Less,
                 ),
@@ -1523,7 +1523,7 @@ mod root_lowering_tests {
             ),
             (
                 "2 or more",
-                Quantity::OrComparison(
+                Quantity::unchecked_or_comparison(
                     literal(number(2, Numeral::Arabic(false))),
                     ComparativeWord::More,
                 ),
@@ -1532,32 +1532,42 @@ mod root_lowering_tests {
             ),
             (
                 "one or 2",
-                Quantity::Or(
+                Quantity::unchecked_or(
                     number(1, Numeral::Cardinal),
                     number(2, Numeral::Arabic(false)),
                 ),
                 "quantity_or",
                 0,
             ),
-            ("X", Quantity::X, "quantity_x", 0),
-            ("both", Quantity::Both, "quantity_both", 0),
+            ("X", Quantity::unchecked_x(), "quantity_x", 0),
+            ("both", Quantity::unchecked_both(), "quantity_both", 0),
             (
                 "up to X",
-                Quantity::UpTo(QuantityValue::Variable),
+                Quantity::unchecked_up_to(QuantityValue::Variable),
                 "quantity_up_to",
                 0,
             ),
-            ("that many", Quantity::ThatMany, "quantity_that_many", 0),
-            ("that much", Quantity::ThatMuch, "quantity_that_much", 0),
+            (
+                "that many",
+                Quantity::unchecked_that_many(),
+                "quantity_that_many",
+                0,
+            ),
+            (
+                "that much",
+                Quantity::unchecked_that_much(),
+                "quantity_that_much",
+                0,
+            ),
             (
                 "more than X",
-                Quantity::MoreThan(QuantityValue::Variable),
+                Quantity::unchecked_more_than(QuantityValue::Variable),
                 "quantity_more_than",
                 0,
             ),
             (
                 "fewer than two",
-                Quantity::FewerThan(literal(number(2, Numeral::Cardinal))),
+                Quantity::unchecked_fewer_than(literal(number(2, Numeral::Cardinal))),
                 "quantity_fewer_than",
                 0,
             ),

@@ -43,21 +43,6 @@ fn is_this_card_form(noun_phrase: &NounPhrase, expected: ThisCardForm) -> bool {
 }
 
 #[derive(Serialize)]
-enum LegacyNounPhraseView<'a> {
-    Nominal(&'a NominalPhrase),
-    Pronoun { pronoun: Pronoun, case: PronounCase },
-    Possessive(&'a Possessor),
-    Demonstrative(Demonstrative),
-    Quantity(Quantity),
-    ThisCard(ThisCardForm),
-    Partitive(&'a PartitiveNounPhrase),
-    CoordinatedNominal(&'a CoordinatedNominalPhrase),
-    Coordinated(&'a CoordinatedNounPhrase),
-    SetException(&'a SetExceptionNounPhrase),
-    Arithmetic(&'a ArithmeticValue),
-}
-
-#[derive(Serialize)]
 enum LegacyPrepositionalPhraseView<'a> {
     Simple(LegacySimplePrepositionalPhrase<'a>),
     Coordinated(&'a CoordinatedPrepositionalPhrase),
@@ -85,26 +70,6 @@ fn legacy_prepositional_phrase_view(
     }
 }
 
-fn legacy_noun_phrase_view(value: &NounPhrase) -> LegacyNounPhraseView<'_> {
-    match value.kind() {
-        NounPhraseKind::Nominal(value) => LegacyNounPhraseView::Nominal(value),
-        NounPhraseKind::Pronoun { pronoun, case } => {
-            LegacyNounPhraseView::Pronoun { pronoun, case }
-        }
-        NounPhraseKind::Possessive(value) => LegacyNounPhraseView::Possessive(value),
-        NounPhraseKind::Demonstrative(value) => LegacyNounPhraseView::Demonstrative(value),
-        NounPhraseKind::Quantity(value) => LegacyNounPhraseView::Quantity(value),
-        NounPhraseKind::ThisCard(value) => LegacyNounPhraseView::ThisCard(value),
-        NounPhraseKind::Partitive(value) => LegacyNounPhraseView::Partitive(value),
-        NounPhraseKind::CoordinatedNominal(value) => {
-            LegacyNounPhraseView::CoordinatedNominal(value)
-        }
-        NounPhraseKind::Coordinated(value) => LegacyNounPhraseView::Coordinated(value),
-        NounPhraseKind::SetException(value) => LegacyNounPhraseView::SetException(value),
-        NounPhraseKind::Arithmetic(value) => LegacyNounPhraseView::Arithmetic(value),
-    }
-}
-
 fn parsed_noun_phrase_with_identity(source: &str, identity: &str) -> NounPhrase {
     let fragment = parse_fragment(
         source,
@@ -119,10 +84,6 @@ fn parsed_noun_phrase_with_identity(source: &str, identity: &str) -> NounPhrase 
         panic!("requested a nominal fragment for {source:?}")
     };
     noun_phrase
-}
-
-fn parsed_noun_phrase(source: &str) -> NounPhrase {
-    parsed_noun_phrase_with_identity(source, "Nissa Revane")
 }
 
 fn parsed_relative_clause_with_identity(source: &str, identity: &str) -> RelativeClause {
@@ -183,30 +144,6 @@ fn public_card_nominal() -> NominalPhrase {
         NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
     )
     .expect("card is a declared singular nominal")
-}
-
-#[test]
-fn sealed_noun_phrase_serialization_matches_the_legacy_enum_schema() {
-    for source in [
-        "card",
-        "they",
-        "Nissa's",
-        "those",
-        "1",
-        "Nissa",
-        "one of them",
-        "target artifact or land",
-        "card or cards",
-        "all cards except them",
-        "3 minus 1",
-    ] {
-        let value = parsed_noun_phrase(source);
-        assert_eq!(
-            ron::to_string(&value).unwrap(),
-            ron::to_string(&legacy_noun_phrase_view(&value)).unwrap(),
-            "legacy noun-phrase serialization changed for {source:?}",
-        );
-    }
 }
 
 #[test]
@@ -933,7 +870,7 @@ fn public_adjective_facade_builds_projects_rebuilds_and_renders_every_shape() {
 }
 
 #[test]
-fn public_determiner_facade_builds_projects_and_rebuilds_every_d01_shape() {
+fn public_determiner_builders_preserve_every_d01_semantic_shape() {
     use deckmaste_english::adjective as adjective_api;
     use deckmaste_english::determiner as determiner_api;
 
@@ -954,53 +891,68 @@ fn public_determiner_facade_builds_projects_and_rebuilds_every_d01_shape() {
     ];
     for identity in closed {
         let determiner = determiner_api::build_determiner_closed(identity).unwrap();
-        assert_eq!(
-            determiner_api::parts_determiner_closed(&determiner),
-            identity
-        );
-        assert_eq!(
-            determiner_api::build_determiner_closed(determiner_api::parts_determiner_closed(
-                &determiner
-            ),)
-            .unwrap(),
-            determiner,
-        );
+        assert!(matches!(
+            (identity, determiner.kind()),
+            (ClosedDeterminer::The, DeterminerKind::The)
+                | (ClosedDeterminer::Each, DeterminerKind::Each)
+                | (ClosedDeterminer::Another, DeterminerKind::Another)
+                | (ClosedDeterminer::Indefinite, DeterminerKind::Indefinite)
+                | (
+                    ClosedDeterminer::Demonstrative(Demonstrative::This),
+                    DeterminerKind::Demonstrative(Demonstrative::This)
+                )
+                | (
+                    ClosedDeterminer::Demonstrative(Demonstrative::That),
+                    DeterminerKind::Demonstrative(Demonstrative::That)
+                )
+                | (
+                    ClosedDeterminer::Demonstrative(Demonstrative::These),
+                    DeterminerKind::Demonstrative(Demonstrative::These)
+                )
+                | (
+                    ClosedDeterminer::Demonstrative(Demonstrative::Those),
+                    DeterminerKind::Demonstrative(Demonstrative::Those)
+                )
+                | (
+                    ClosedDeterminer::PossessivePronoun(Pronoun::You),
+                    DeterminerKind::Possessive(Possessor::Pronoun(Pronoun::You))
+                )
+                | (
+                    ClosedDeterminer::PossessivePronoun(Pronoun::They),
+                    DeterminerKind::Possessive(Possessor::Pronoun(Pronoun::They))
+                )
+                | (ClosedDeterminer::All, DeterminerKind::All)
+                | (ClosedDeterminer::Any, DeterminerKind::Any)
+                | (ClosedDeterminer::No, DeterminerKind::No)
+        ));
     }
 
     let target = determiner_api::build_determiner_target().unwrap();
-    determiner_api::parts_determiner_target(&target);
-    assert_eq!(determiner_api::build_determiner_target().unwrap(), target);
+    assert!(matches!(target.kind(), DeterminerKind::Target(None)));
 
     let two = Quantity::try_exact(NumberLiteral {
         value: 2,
         numeral: Numeral::Cardinal,
     })
     .unwrap();
-    for (determiner, parts, rebuild) in [
-        (
-            determiner_api::build_determiner_quantified_target(two).unwrap(),
-            determiner_api::parts_determiner_quantified_target as fn(&Determiner) -> Quantity,
-            determiner_api::build_determiner_quantified_target as fn(Quantity) -> Result<_, _>,
-        ),
-        (
-            determiner_api::build_determiner_quantity(two).unwrap(),
-            determiner_api::parts_determiner_quantity,
-            determiner_api::build_determiner_quantity,
-        ),
-    ] {
-        assert_eq!(rebuild(parts(&determiner)).unwrap(), determiner);
-    }
+    let quantified_target = determiner_api::build_determiner_quantified_target(two).unwrap();
+    assert!(matches!(
+        quantified_target.kind(),
+        DeterminerKind::Target(Some(quantity)) if *quantity == two
+    ));
+    let quantity = determiner_api::build_determiner_quantity(two).unwrap();
+    assert!(matches!(
+        quantity.kind(),
+        DeterminerKind::Quantity(quantity) if *quantity == two
+    ));
 
     for form in [ThisCardForm::FullName, ThisCardForm::AbbreviatedName] {
         let determiner = determiner_api::build_determiner_possessive_this_card(form).unwrap();
-        assert_eq!(
-            determiner_api::parts_determiner_possessive_this_card(&determiner),
-            form,
-        );
-        assert_eq!(
-            determiner_api::build_determiner_possessive_this_card(form).unwrap(),
-            determiner,
-        );
+        assert!(matches!(
+            determiner.kind(),
+            DeterminerKind::Possessive(Possessor::NounPhrase(noun))
+                if matches!(noun.kind(), NounPhraseKind::ThisCard(actual) if actual == form)
+        ));
     }
 
     let creature = Noun::Word(Vocab::Card);
@@ -1009,14 +961,10 @@ fn public_determiner_facade_builds_projects_and_rebuilds_every_d01_shape() {
         NounInstance::try_plural(creature).unwrap(),
     ] {
         let possessor = determiner_api::build_possessive_noun_base(head.clone()).unwrap();
-        assert_eq!(determiner_api::parts_possessive_noun_base(&possessor), head);
-        assert_eq!(
-            determiner_api::build_possessive_noun_base(determiner_api::parts_possessive_noun_base(
-                &possessor
-            ),)
-            .unwrap(),
-            possessor,
-        );
+        assert_eq!(possessor.head(), &head);
+        assert!(possessor.determiner().is_none());
+        assert!(possessor.modifiers().is_empty());
+        assert!(possessor.complements().is_empty());
     }
 
     let base = determiner_api::build_possessive_noun_base(
@@ -1026,27 +974,20 @@ fn public_determiner_facade_builds_projects_and_rebuilds_every_d01_shape() {
     let the = determiner_api::build_determiner_closed(ClosedDeterminer::The).unwrap();
     let determined =
         determiner_api::build_possessive_noun_determined(the.clone(), base.clone()).unwrap();
-    let (projected_determiner, projected_base) =
-        determiner_api::parts_possessive_noun_determined(&determined);
-    assert_eq!(projected_determiner, the);
-    assert_eq!(projected_base, base);
-    assert_eq!(
-        determiner_api::build_possessive_noun_determined(projected_determiner, projected_base)
-            .unwrap(),
-        determined,
-    );
+    assert_eq!(determined.determiner(), Some(&the));
+    assert_eq!(determined.head(), base.head());
 
     let possessive = determiner_api::build_determiner_possessive_noun(determined.clone()).unwrap();
-    let projected = determiner_api::parts_determiner_possessive_noun(&possessive);
-    assert_eq!(projected, determined);
-    assert_eq!(
-        determiner_api::build_determiner_possessive_noun(projected).unwrap(),
-        possessive,
-    );
     let DeterminerKind::Possessive(possessor) = possessive.kind() else {
         panic!("noun possessor remains a semantic possessive determiner")
     };
-    assert!(matches!(possessor.kind(), PossessorKind::NounPhrase(_)));
+    let Possessor::NounPhrase(noun_phrase) = possessor else {
+        panic!("noun possessor remains a noun phrase")
+    };
+    assert!(matches!(
+        noun_phrase.kind(),
+        NounPhraseKind::Nominal(nominal) if nominal == &determined
+    ));
 
     let base = determiner_api::build_possessive_noun_base(
         NounInstance::try_singular(Noun::Word(Vocab::Card)).unwrap(),
@@ -1055,15 +996,8 @@ fn public_determiner_facade_builds_projects_and_rebuilds_every_d01_shape() {
     let adjective = adjective_api::build_adjective_phrase(Adjective::Word(Vocab::Target)).unwrap();
     let modified =
         determiner_api::build_possessive_noun_adjective(adjective.clone(), base.clone()).unwrap();
-    let (projected_adjective, projected_base) =
-        determiner_api::parts_possessive_noun_adjective(&modified);
-    assert_eq!(projected_adjective, adjective);
-    assert_eq!(projected_base, base);
-    assert_eq!(
-        determiner_api::build_possessive_noun_adjective(projected_adjective, projected_base)
-            .unwrap(),
-        modified,
-    );
+    assert_eq!(modified.head(), base.head());
+    assert_eq!(modified.modifiers().len(), 1);
 
     assert!(
         determiner_api::build_possessive_noun_determined(
@@ -4148,16 +4082,16 @@ impl<'syntax> SyntaxInventory<'syntax> {
     }
 
     fn possessor(&mut self, possessor: &'syntax Possessor) {
-        match possessor.kind() {
-            PossessorKind::Pronoun(pronoun) => self.pronouns.push(pronoun),
-            PossessorKind::NounPhrase(noun) => self.noun_phrase(noun),
+        match possessor {
+            Possessor::Pronoun(pronoun) => self.pronouns.push(*pronoun),
+            Possessor::NounPhrase(noun) => self.noun_phrase(noun),
         }
     }
 
     fn determiner(&mut self, determiner: &'syntax Determiner) {
         match determiner.kind() {
             DeterminerKind::Target(Some(quantity)) | DeterminerKind::Quantity(quantity) => {
-                self.quantities.push(quantity);
+                self.quantities.push(*quantity);
             }
             DeterminerKind::Possessive(possessor) => self.possessor(possessor),
             DeterminerKind::The
