@@ -883,11 +883,9 @@ fn roots_align(pattern: &ProjectionTree, target: &ProjectionTree) -> bool {
 /// dropping the stable named-role prefix. A site outside the peeled pattern
 /// does not address anything inside it and is dropped.
 ///
-/// The rewrite itself is [`crate::compile`]'s, called with its card-side
-/// flag: the target has no holes for the quantity-lift rule to key off, so it
-/// keys off "the sole quantity modifier" instead. Reusing the compiler's own
-/// function is the point — a second implementation here would drift from the
-/// citation form frames are actually compiled to.
+/// The rewrite itself is [`crate::compile`]'s. Reusing the compiler's own
+/// function keeps card-side comparison aligned with the citation form frames
+/// are actually compiled to.
 fn neutralize_agreement(
     target: &mut ProjectionTree,
     agreement: &[AgreementDep],
@@ -906,7 +904,7 @@ fn neutralize_agreement(
                 })
         })
         .collect::<Vec<_>>();
-    crate::compile::normalize_all(target, &mut rebased, crate::compile::Side::Card);
+    crate::compile::normalize_all(target, &mut rebased);
 }
 
 fn projected_atom_value(
@@ -1493,7 +1491,7 @@ mod tests {
     /// is itself matched by the nullary `Creature` entry.
     #[test]
     #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
-    fn filter_slice_hole_matches_inside_target() {
+    fn named_nominal_role_matches_inside_target() {
         let target = parse("target creature", FragmentKind::Nominal, "");
         let recovered = unify(&target, &fixture().lexicon, FramePosition::Main);
         let (entry, args) = invocation(&recovered);

@@ -175,14 +175,6 @@ pub enum Normalization {
     VerbAgreement { person: Person, number: Number },
     /// A plural head noun was reset to singular.
     NounNumber { from: Number },
-    /// A hole-bearing `NominalModifier::Quantity` was moved into the empty
-    /// `determiner` slot as `DeterminerKind::Quantity`.
-    ///
-    /// Not cosmetic: English puts a count *modifier* before a singular head
-    /// (`41 card`) but a count *determiner* before a plural one (`41 cards`),
-    /// so the two authorings of a `Count`-holed nominal differ by which field
-    /// the number lands in. Citation form is the determiner.
-    QuantityToDeterminer,
 }
 
 /// A guard's constant, in the canonical form guard satisfaction is defined on.
@@ -308,7 +300,7 @@ pub fn compile(
     let mut agreement = agreement_deps(&tree, &placed);
     relocate(&mut tree, &placed);
     clear_hole_dependent_witnesses(&mut tree);
-    normalize_all(&mut tree, &mut agreement, Side::Frame);
+    normalize_all(&mut tree, &mut agreement);
 
     let holes = placed
         .into_iter()
@@ -1137,47 +1129,20 @@ fn nearest_category_ancestor(
     })
 }
 
-/// Which tree citation normalization is being applied to.
-///
-/// The rewrites are the same on both sides — that is the whole point of
-/// sharing this code with the unifier rather than letting it grow its own
-/// copy — but one rule needs to know where it is. Lifting a count out of a
-/// nominal's `modifiers` has to identify *which* modifier is the count, and
-/// on a frame that is "the one bearing this hole". A card-side tree has no
-/// holes, so there it is "the one and only quantity modifier".
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Side {
-    /// A compiled frame's tree, with [`ProjectionTree::Hole`] nodes in it.
-    Frame,
-    /// A card-side tree being neutralized before comparison.
-    Card,
-}
-
-/// Runs citation normalization over every agreement site, keeping the whole
-/// side table's paths valid as it goes.
-///
-/// One of the rewrites removes an element from a nominal's `modifiers`, which
-/// renumbers its later siblings. [`PlacedHole::finish`] re-derives hole paths
-/// from the finished tree afterwards and so is immune, but an
-/// [`AgreementDep::site`] has no marker in the tree to re-find it by — so
-/// each removal is reported back here and every site is repaired against it
-/// immediately. Without that, a site addressing a later sibling would quietly
-/// start pointing at its neighbour: `normalize_citation` would find the wrong
-/// node shape, bail, record nothing, and two authorings of the same frame
-/// would compile to different trees with no error raised.
-pub(crate) fn normalize_all(tree: &mut ProjectionTree, agreement: &mut [AgreementDep], side: Side) {
+/// Runs citation normalization over every agreement site. The same rewrite is
+/// shared by frame compilation and card-side unification so both compare in
+/// one canonical person/number form.
+pub(crate) fn normalize_all(tree: &mut ProjectionTree, agreement: &mut [AgreementDep]) {
     for dep in agreement {
-        dep.normalized = normalize_citation(tree, &dep.site, dep.kind, side);
+        dep.normalized = normalize_citation(tree, &dep.site, dep.kind);
     }
 }
 
-/// Rewrites one agreement site to citation form, returning what it changed
-/// and any sequence element it removed.
+/// Rewrites one agreement site to citation form and returns what changed.
 fn normalize_citation(
     tree: &mut ProjectionTree,
     at: &ProjectionPath,
     kind: AgreeKind,
-    _side: Side,
 ) -> Vec<Normalization> {
     let mut applied = Vec::new();
     let Some(node) = at.resolve_mut(tree) else {

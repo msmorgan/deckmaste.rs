@@ -148,7 +148,7 @@ mod predicate_family_laws {
 #[cfg(test)]
 mod adjective_family_laws {
     #[test]
-    fn all_nine_adjective_rows_expose_checked_declaration_laws() {
+    fn all_eleven_adjective_rows_expose_checked_declaration_laws() {
         let required = [
             ("adjective", "Adjective", 1),
             ("adjective_phrase", "AdjectivePhrase", 1),
@@ -159,6 +159,8 @@ mod adjective_family_laws {
             ("comparison_than_or_equal_to", "ComparisonComplement", 1),
             ("adjective_phrase_comparison", "AdjectivePhrase", 1),
             ("adjective_phrase_degree_measure", "AdjectivePhrase", 1),
+            ("adjective_phrase_prepositional", "AdjectivePhrase", 1),
+            ("adjective_phrase_infinitive", "AdjectivePhrase", 1),
         ];
         let declaration = &crate::constructions::adjective::ADJECTIVE_DECLARATION;
         assert_eq!(declaration.constructions.len(), required.len());

@@ -1210,7 +1210,7 @@ fn make_nominal_postpositive_adjective_conjoined_prepositional(
     }
     let conjunction = noun_phrase_conjunction(conjunction)?;
     let adjective = adjective
-        .try_attach_compatibility_complement(AdjectiveComplement::Prepositional(preposition))
+        .try_attach_declared_prepositional(preposition)
         .ok_or_else(|| {
             violation(
                 "nominal_postpositive_adjective_conjoined_prepositional",
@@ -1230,7 +1230,7 @@ fn split_nominal_postpositive_adjective_conjoined_prepositional(
 ) {
     let (nominal, conjunction, adjective) = split_postpositive(value, true);
     let (adjective, preposition) = adjective
-        .try_split_trailing_prepositional()
+        .try_split_declared_prepositional()
         .expect("conjoined participle carries its checked by phrase");
     (
         nominal,
@@ -3801,11 +3801,9 @@ mod tests {
                     rest: vec![AdjectivePhraseCoordination {
                         conjunction: Some(Conjunction::Or),
                         phrase: red_adjective()
-                            .try_attach_compatibility_complement(
-                                AdjectiveComplement::Prepositional(preposition_with_card(
-                                    Preposition::By,
-                                )),
-                            )
+                            .try_attach_declared_prepositional(preposition_with_card(
+                                Preposition::By,
+                            ))
                             .unwrap(),
                     }],
                 },

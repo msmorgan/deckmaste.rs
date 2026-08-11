@@ -25,7 +25,6 @@ use crate::grammar::auxiliary_form;
 use crate::grammar::finish_simple_clause;
 use crate::grammar::fold_auxiliary_passive;
 use crate::grammar::predicate_arguments_complete;
-use crate::syntax::AdjectiveComplement;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::Clause;
 use crate::syntax::Copula;
@@ -463,7 +462,7 @@ fn make_copular_remainder_distributive_each(
     standard: PrepositionalPhrase,
 ) -> Result<CopularRemainder, DeclarationViolation> {
     let adjective = adjective
-        .try_attach_compatibility_complement(AdjectiveComplement::Prepositional(standard))
+        .try_attach_declared_prepositional(standard)
         .ok_or_else(|| {
             violation(
                 "copular_remainder_distributive_each",
@@ -484,7 +483,7 @@ fn copular_remainder_distributive_each_parts(
     };
     adjective
         .clone()
-        .try_split_trailing_prepositional()
+        .try_split_declared_prepositional()
         .expect("distributive copular adjective retains its standard")
 }
 
@@ -496,7 +495,7 @@ fn is_copular_remainder_distributive_each(value: &CopularRemainder) -> bool {
         && matches!(
             &value.complement,
             CopularComplement::Adjective(adjective)
-                if adjective.clone().try_split_trailing_prepositional().is_some()
+                if adjective.clone().try_split_declared_prepositional().is_some()
         )
 }
 

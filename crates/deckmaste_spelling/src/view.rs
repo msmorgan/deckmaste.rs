@@ -116,29 +116,6 @@ impl TreePath {
         other.0.starts_with(&self.0)
     }
 
-    /// Repairs this path after the element at `removed` was taken out of the
-    /// [`View::Seq`] at `sequence`.
-    ///
-    /// Removing a sequence element renumbers every later sibling, so any
-    /// recorded path that runs *through* one of them silently starts
-    /// addressing its neighbour. That is not hypothetical here: citation
-    /// normalization lifts a count out of a nominal's `modifiers`
-    /// ([`Normalization::QuantityToDeterminer`](crate::Normalization)), and
-    /// `41 <Param> card` really does park a second modifier after it. A path
-    /// that does not pass through the sequence, or passes through an earlier
-    /// sibling, is left alone.
-    pub fn shift_after_removal(&mut self, sequence: &TreePath, removed: usize) {
-        let depth = sequence.0.len();
-        if self.0.len() <= depth || !self.0.starts_with(&sequence.0) {
-            return;
-        }
-        if let PathStep::Index(index) = &mut self.0[depth]
-            && *index > removed
-        {
-            *index -= 1;
-        }
-    }
-
     /// The node this path addresses, or `None` if it does not resolve.
     #[must_use]
     pub fn resolve<'tree>(&self, root: &'tree View) -> Option<&'tree View> {

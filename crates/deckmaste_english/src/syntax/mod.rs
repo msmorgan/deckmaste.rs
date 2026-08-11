@@ -1,6 +1,5 @@
 mod ability;
 mod clause;
-mod legacy_serde;
 mod phrase;
 
 pub use ability::*;

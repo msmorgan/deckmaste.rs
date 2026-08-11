@@ -368,7 +368,6 @@ pub struct PredicateObjectCoordination {
     /// list; `Some` on a bare `and`/`or` member and on the final Oxford
     /// member. Mirrors
     /// [`NounPhraseCoordination`](super::phrase::NounPhraseCoordination).
-    #[serde(serialize_with = "super::legacy_serde::serialize_optional_predicate_conjunction")]
     pub conjunction: Option<Conjunction>,
     pub object: PredicateObject,
 }
@@ -742,7 +741,6 @@ pub struct RestrictionCoordination {
     /// `None` on the asyndetic comma-separated interior members of an Oxford
     /// list; `Some(PredicateConjunction::And)` on a bare `and` member and on
     /// the final Oxford member. Mirrors [`ExceptionConjunct`].
-    #[serde(serialize_with = "super::legacy_serde::serialize_optional_predicate_conjunction")]
     pub(crate) conjunction: Option<Conjunction>,
     /// See [`RestrictionRun::first`] for why this is a (non-empty) list.
     pub(crate) member: RestrictionMember,
@@ -856,7 +854,6 @@ impl ExceptionRiderList {
 /// and [`TriggerConditionCoordination`](crate::syntax::TriggerConditionCoordination).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ExceptionConjunct {
-    #[serde(serialize_with = "super::legacy_serde::serialize_optional_predicate_conjunction")]
     pub(crate) conjunction: Option<Conjunction>,
     pub(crate) clause: IndependentClause,
 }
@@ -912,7 +909,6 @@ pub enum AttachmentPosition {
 pub struct CoordinationJunction {
     /// `None` records an asyndetic comma junction; coordinated junctions carry
     /// their overt connective.
-    #[serde(serialize_with = "super::legacy_serde::serialize_optional_predicate_conjunction")]
     pub conjunction: Option<Conjunction>,
     pub comma: Comma,
 }
@@ -993,7 +989,6 @@ pub struct CoordinatedIndependentClause {
 /// the parser can recover, so the bit stays stored.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ClauseCoordination {
-    #[serde(serialize_with = "super::legacy_serde::serialize_optional_predicate_conjunction")]
     pub conjunction: Option<Conjunction>,
     pub comma: Comma,
     pub member: CoordinatedClauseMember,
