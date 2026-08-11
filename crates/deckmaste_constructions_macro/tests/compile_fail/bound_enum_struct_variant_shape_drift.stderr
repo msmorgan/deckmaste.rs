@@ -1,0 +1,66 @@
+error[E0769]: tuple variant `Choice::Named` written as struct variant
+  --> tests/compile_fail/bound_enum_struct_variant_shape_drift.rs:5:1
+   |
+ 5 | / deckmaste_constructions_macro::constructions! {
+ 6 | |     group struct_shape_drift;
+ 7 | |     element choice bind Choice {
+ 8 | |         variant Named { left: lex u8, right: lex u8 },
+ 9 | |     }
+10 | | }
+   | |_^
+   |
+   = note: this error originates in the macro `deckmaste_constructions_macro::constructions` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: use the tuple variant pattern syntax instead
+   |
+10 ~ }(deckmaste_constructions_macro::constructions! {
+11 +     group struct_shape_drift;
+12 +     element choice bind Choice {
+13 +         variant Named { left: lex u8, right: lex u8 },
+14 +     }
+15 + }, deckmaste_constructions_macro::constructions! {
+16 +     group struct_shape_drift;
+17 +     element choice bind Choice {
+18 +         variant Named { left: lex u8, right: lex u8 },
+19 +     }
+20 + })
+   |
+
+error[E0559]: variant `Choice::Named` has no field named `left`
+  --> tests/compile_fail/bound_enum_struct_variant_shape_drift.rs:5:1
+   |
+ 2 |       Named(u8, u8),
+   |       ----- `Choice::Named` defined here
+...
+ 5 | / deckmaste_constructions_macro::constructions! {
+ 6 | |     group struct_shape_drift;
+ 7 | |     element choice bind Choice {
+ 8 | |         variant Named { left: lex u8, right: lex u8 },
+ 9 | |     }
+10 | | }
+   | |_^ field does not exist
+   |
+   = note: this error originates in the macro `deckmaste_constructions_macro::constructions` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: `Choice::Named` is a tuple variant, use the appropriate syntax
+   |
+10 | }(/* u8 */, /* u8 */)
+   |  ++++++++++++++++++++
+
+error[E0559]: variant `Choice::Named` has no field named `right`
+  --> tests/compile_fail/bound_enum_struct_variant_shape_drift.rs:5:1
+   |
+ 2 |       Named(u8, u8),
+   |       ----- `Choice::Named` defined here
+...
+ 5 | / deckmaste_constructions_macro::constructions! {
+ 6 | |     group struct_shape_drift;
+ 7 | |     element choice bind Choice {
+ 8 | |         variant Named { left: lex u8, right: lex u8 },
+ 9 | |     }
+10 | | }
+   | |_^ field does not exist
+   |
+   = note: this error originates in the macro `deckmaste_constructions_macro::constructions` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: `Choice::Named` is a tuple variant, use the appropriate syntax
+   |
+10 | }(/* u8 */, /* u8 */)
+   |  ++++++++++++++++++++

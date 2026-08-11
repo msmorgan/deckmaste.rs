@@ -4,8 +4,7 @@ use deckmaste_english::syntax::Paragraph;
 
 fn main() {
     let _ = Ability {
-        ability_word: None,
-        flavor_header: None,
+        header: None,
         kind: AbilityKind::Paragraph(Paragraph::default()),
     };
 }

@@ -1024,6 +1024,20 @@ fn clear_hole_dependent_witnesses(tree: &mut ProjectionTree) -> bool {
             }
             contains_hole
         }
+        ProjectionTree::Variant(variant) => {
+            let mut contains_hole = false;
+            for role in variant.roles.values_mut() {
+                contains_hole |= clear_hole_dependent_witnesses(role);
+            }
+            contains_hole
+        }
+        ProjectionTree::Product(product) => {
+            let mut contains_hole = false;
+            for role in product.roles.values_mut() {
+                contains_hole |= clear_hole_dependent_witnesses(role);
+            }
+            contains_hole
+        }
         ProjectionTree::Optional(value) => value
             .as_deref_mut()
             .is_some_and(clear_hole_dependent_witnesses),

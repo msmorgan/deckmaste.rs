@@ -82,6 +82,10 @@ mod kw {
     syn::custom_keyword!(identity);
     syn::custom_keyword!(surface);
     syn::custom_keyword!(seq);
+    syn::custom_keyword!(sum);
+    syn::custom_keyword!(product);
+    syn::custom_keyword!(nonempty);
+    syn::custom_keyword!(separated);
     syn::custom_keyword!(all);
     syn::custom_keyword!(any);
     syn::custom_keyword!(value);
@@ -232,8 +236,34 @@ fn parse_element_members(
         if input.peek(kw::variant) {
             input.parse::<kw::variant>()?;
             let name = spanned_ident(input)?;
-            input.parse::<syn::Token![:]>()?;
-            let payload = parse_kind(input)?;
+            let payload = if input.peek(syn::Token![:]) {
+                input.parse::<syn::Token![:]>()?;
+                parse_kind(input)?
+            } else if input.peek(syn::token::Paren) {
+                let fields;
+                syn::parenthesized!(fields in input);
+                let fields = parse_fields(&fields)?;
+                if fields.len() < 2 {
+                    return Err(syn::Error::new(
+                        name.span,
+                        "tuple-product variants require at least two named payload fields; use `variant X: KIND` for one payload",
+                    ));
+                }
+                FieldKind::TupleProduct { fields }
+            } else if input.peek(syn::token::Brace) {
+                let fields;
+                syn::braced!(fields in input);
+                let fields = parse_fields(&fields)?;
+                if fields.is_empty() {
+                    FieldKind::Unit
+                } else {
+                    FieldKind::StructProduct { fields }
+                }
+            } else {
+                return Err(input.error(
+                    "expected `: KIND`, `(name: KIND, ...)`, or `{ name: KIND, ... }` after variant name",
+                ));
+            };
             variants.push(ElementVariantDeclaration { name, payload });
         } else {
             let field = spanned_ident(input)?;
@@ -300,8 +330,20 @@ fn parse_kind(input: ParseStream<'_>) -> syn::Result<FieldKind> {
         if boxed {
             input.parse::<syn::Token![box]>()?;
         }
-        let category = spanned_type_path(input)?;
-        return Ok(FieldKind::Subtree { category, boxed });
+        let value_type = spanned_type_path(input)?;
+        if input.peek(kw::via) {
+            input.parse::<kw::via>()?;
+            let category = spanned_type_path(input)?;
+            return Ok(FieldKind::TypedSubtree {
+                value_type,
+                category,
+                boxed,
+            });
+        }
+        return Ok(FieldKind::Subtree {
+            category: value_type,
+            boxed,
+        });
     }
     if input.peek(kw::lex) {
         input.parse::<kw::lex>()?;
@@ -318,7 +360,40 @@ fn parse_kind(input: ParseStream<'_>) -> syn::Result<FieldKind> {
         let element = spanned_ident(input)?;
         return Ok(FieldKind::Sequence { element });
     }
-    Err(input.error("expected a field kind: identity / opt / hole / lex / surface lex / seq"))
+    if input.peek(kw::nonempty) {
+        input.parse::<kw::nonempty>()?;
+        input.parse::<kw::seq>()?;
+        let element = spanned_ident(input)?;
+        if input.peek(kw::separated) {
+            input.parse::<kw::separated>()?;
+            input.parse::<kw::by>()?;
+            input.parse::<kw::lex>()?;
+            let separator = spanned_type_path(input)?;
+            return Ok(FieldKind::SeparatedNonEmptySequence { element, separator });
+        }
+        return Ok(FieldKind::NonEmptySequence { element });
+    }
+    if input.peek(kw::sum) {
+        input.parse::<kw::sum>()?;
+        let boxed = input.peek(syn::Token![box]);
+        if boxed {
+            input.parse::<syn::Token![box]>()?;
+        }
+        let element = spanned_ident(input)?;
+        return Ok(FieldKind::Sum { element, boxed });
+    }
+    if input.peek(kw::product) {
+        input.parse::<kw::product>()?;
+        let boxed = input.peek(syn::Token![box]);
+        if boxed {
+            input.parse::<syn::Token![box]>()?;
+        }
+        let element = spanned_ident(input)?;
+        return Ok(FieldKind::Product { element, boxed });
+    }
+    Err(input.error(
+        "expected a field kind: identity / opt / hole / lex / surface lex / seq / nonempty seq / sum / product",
+    ))
 }
 
 fn spanned_type_path(input: ParseStream<'_>) -> syn::Result<Spanned<String>> {
@@ -1155,6 +1230,75 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn sum_products_and_checked_sequences_preserve_their_topology() {
+        let parsed = parse_group(quote::quote! {
+            group typed_products;
+            element node bind Node {
+                variant Unit {},
+                variant Unary: sum node,
+                variant Pair(left: sum box node, right: sum box node),
+                variant Named { label: lex String, child: sum box node },
+            }
+            element wrapper bind Wrapper {
+                clause: hole box ConcreteClause via Clause,
+            }
+            construction root: Root {
+                own RootNode {
+                    node: sum node,
+                    wrapper: product wrapper,
+                    boxed_wrapper: product box wrapper,
+                    clause: hole ConcreteClause via Clause,
+                    nodes: nonempty seq node,
+                    separated: nonempty seq node separated by lex Separator,
+                }
+                form only @ 0 = node wrapper boxed_wrapper clause nodes separated;
+            }
+        })
+        .expect("sum/product and checked-sequence syntax parses");
+        assert_eq!(parsed.elements[0].variants[0].payload, FieldKind::Unit);
+        assert_eq!(
+            parsed.elements[0].variants[1].payload,
+            FieldKind::Sum {
+                element: Spanned::call_site("node".to_owned()),
+                boxed: false,
+            }
+        );
+        let FieldKind::TupleProduct { fields } = &parsed.elements[0].variants[2].payload else {
+            panic!("parentheses declare a tuple product")
+        };
+        assert_eq!(fields.len(), 2);
+        assert!(matches!(fields[0].kind, FieldKind::Sum { boxed: true, .. }));
+        let FieldKind::StructProduct { fields } = &parsed.elements[0].variants[3].payload else {
+            panic!("nonempty braces declare a named product")
+        };
+        assert_eq!(fields[0].field.value, "label");
+        assert!(matches!(
+            parsed.constructions[0].ast.fields()[1].kind,
+            FieldKind::Product { boxed: false, .. }
+        ));
+        assert!(matches!(
+            parsed.constructions[0].ast.fields()[2].kind,
+            FieldKind::Product { boxed: true, .. }
+        ));
+        assert!(matches!(
+            parsed.constructions[0].ast.fields()[3].kind,
+            FieldKind::TypedSubtree { boxed: false, .. }
+        ));
+        assert!(matches!(
+            parsed.elements[1].fields[0].kind,
+            FieldKind::TypedSubtree { boxed: true, .. }
+        ));
+        assert!(matches!(
+            parsed.constructions[0].ast.fields()[4].kind,
+            FieldKind::NonEmptySequence { .. }
+        ));
+        assert!(matches!(
+            parsed.constructions[0].ast.fields()[5].kind,
+            FieldKind::SeparatedNonEmptySequence { .. }
+        ));
     }
 
     #[test]

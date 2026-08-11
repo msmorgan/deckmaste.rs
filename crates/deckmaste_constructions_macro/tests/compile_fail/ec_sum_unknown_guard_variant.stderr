@@ -1,0 +1,5 @@
+error: EC015: `value.variant` names undeclared variants [Missing] of element `choice` (construction `root`)
+  --> tests/compile_fail/ec_sum_unknown_guard_variant.rs:14:27
+   |
+14 |         form bad @ 0 when value.variant in [Missing] = value;
+   |                           ^^^^^

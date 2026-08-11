@@ -170,6 +170,73 @@ impl ConstructionDecision {
     }
 }
 
+/// Backend-neutral decision input for alternatives belonging to one generated
+/// construction family. Ability-layer recognizers use this instead of
+/// rebuilding [`ConstructionDecision`] and its alternatives by hand.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SameFamilyDecision {
+    selected_ordinal: u16,
+    cost: ParseCost,
+    reason: SelectionReason,
+    alternatives: Vec<(u16, ParseCost)>,
+}
+
+impl SameFamilyDecision {
+    pub(crate) fn unique(selected_ordinal: u16) -> Self {
+        Self {
+            selected_ordinal,
+            cost: ParseCost::default(),
+            reason: SelectionReason::Unique,
+            alternatives: vec![(selected_ordinal, ParseCost::default())],
+        }
+    }
+
+    pub(crate) fn ranked(
+        selected_ordinal: u16,
+        cost: ParseCost,
+        reason: SelectionReason,
+        alternatives: Vec<(u16, ParseCost)>,
+    ) -> Self {
+        Self {
+            selected_ordinal,
+            cost,
+            reason,
+            alternatives,
+        }
+    }
+
+    pub(crate) const fn cost(&self) -> ParseCost {
+        self.cost
+    }
+
+    pub(crate) fn finish(
+        self,
+        span: Span,
+        id: ConstructionId,
+        family: ConstructionFamily,
+    ) -> ConstructionDecision {
+        let selected = ProductionId {
+            construction: id,
+            ordinal: self.selected_ordinal,
+        };
+        let alternatives = self
+            .alternatives
+            .into_iter()
+            .map(|(ordinal, cost)| {
+                ConstructionAlternative::new(
+                    ProductionId {
+                        construction: id,
+                        ordinal,
+                    },
+                    cost,
+                    false,
+                )
+            })
+            .collect();
+        ConstructionDecision::new(span, selected, family, self.cost, self.reason, alternatives)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConstructionOwner {
     Handwritten,
@@ -405,10 +472,6 @@ mod tests {
         // the first alternative with that ID. Here form 7 won even though form
         // 0 precedes it in the same-family alternative list.
         let id = ConstructionId::new("probe_word");
-        let selected = ProductionId {
-            construction: id,
-            ordinal: 7,
-        };
         let family = ConstructionFamily::new(
             id,
             ConstructionOwner::Generated,
@@ -416,24 +479,13 @@ mod tests {
             ConstructionEvidence::structural("test"),
         );
         let cost = ParseCost::default();
-        let decision = ConstructionDecision::new(
-            Span::new(0, 4),
-            selected,
-            family,
+        let decision = SameFamilyDecision::ranked(
+            7,
             cost,
             SelectionReason::StableIdentity,
-            vec![
-                ConstructionAlternative::new(
-                    ProductionId {
-                        construction: id,
-                        ordinal: 0,
-                    },
-                    cost,
-                    false,
-                ),
-                ConstructionAlternative::new(selected, cost, false),
-            ],
-        );
+            vec![(0, cost), (7, cost)],
+        )
+        .finish(Span::new(0, 4), id, family);
 
         assert_eq!(decision.selected(), id);
         assert_eq!(decision.selected_production_ordinal(), 7);

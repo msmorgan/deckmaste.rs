@@ -257,7 +257,6 @@ mod tests {
             abilities: vec![
                 crate::ability::build_ability(
                     None,
-                    None,
                     AbilityKind::Paragraph(Paragraph {
                         flavor_header: None,
                         sentences: vec![sentence.clone()],

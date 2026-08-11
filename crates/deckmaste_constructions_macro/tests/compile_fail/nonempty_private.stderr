@@ -1,0 +1,15 @@
+error[E0423]: cannot initialize a tuple struct which contains private fields
+ --> tests/compile_fail/nonempty_private.rs:4:13
+  |
+4 |     let _ = NonEmpty(vec![1_u8]);
+  |             ^^^^^^^^
+  |
+note: constructor is not visible here due to private fields
+ --> $WORKSPACE/crates/deckmaste_construction_compiler/src/runtime.rs
+  |
+  | pub struct NonEmpty<T>(Vec<T>);
+  |                        ^^^^^^ private field
+help: you might have meant to use the `from_first` associated function
+  |
+4 |     let _ = NonEmpty::from_first(vec![1_u8]);
+  |                     ++++++++++++

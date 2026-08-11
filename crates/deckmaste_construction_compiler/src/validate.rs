@@ -407,6 +407,21 @@ fn check_element_identity(element: &ElementDeclaration, diags: &mut Vec<Diagnost
                 .with_span(field.field.span),
             );
         }
+        if matches!(
+            field.kind,
+            FieldKind::NonEmptySequence { .. } | FieldKind::SeparatedNonEmptySequence { .. }
+        ) {
+            diags.push(
+                Diagnostic::group(
+                    DiagCode::InvalidElementShape,
+                    format!(
+                        "field `{}.{}` uses a construction-only checked sequence kind",
+                        element.name.value, field.field.value,
+                    ),
+                )
+                .with_span(field.field.span),
+            );
+        }
     }
 }
 
@@ -528,18 +543,22 @@ fn check_element_shapes(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
             );
         }
         for variant in &element.variants {
-            if !matches!(variant.payload, FieldKind::Subtree { .. }) {
+            check_element_variant_kind(group, element, variant, diags);
+        }
+        for field in &element.fields {
+            if kind_contains_checked_sequence(&field.kind) {
                 diags.push(
                     Diagnostic::group(
-                        DiagCode::InvalidElementVariant,
+                        DiagCode::InvalidElementShape,
                         format!(
-                            "variant `{}::{}` payload must be `hole TYPE` or `hole box TYPE`",
-                            element.name.value, variant.name.value
+                            "element field `{}.{}` uses a construction-only `nonempty seq` kind",
+                            element.name.value, field.field.value,
                         ),
                     )
-                    .with_span(variant.name.span),
+                    .with_span(field.field.span),
                 );
             }
+            check_element_field_references(group, element, field, diags);
         }
     }
     for construction in &group.constructions {
@@ -556,6 +575,378 @@ fn check_element_shapes(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                     )
                     .with_span(field.field.span),
                 );
+            }
+            if let FieldKind::Optional { inner } = &field.kind
+                && matches!(
+                    **inner,
+                    FieldKind::NonEmptySequence { .. }
+                        | FieldKind::SeparatedNonEmptySequence { .. }
+                )
+            {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::InvalidElementShape,
+                        &construction.id.value,
+                        format!(
+                            "field `{}` nests a construction-only checked sequence under `opt`; declare it directly",
+                            field.field.value,
+                        ),
+                    )
+                    .with_span(field.field.span),
+                );
+            }
+            check_construction_sum_targets(group, construction, field, &field.kind, diags);
+        }
+    }
+}
+
+fn check_construction_sum_targets(
+    group: &GroupDeclaration,
+    construction: &ConstructionDeclaration,
+    field: &FieldBinding,
+    kind: &FieldKind,
+    diags: &mut Vec<Diagnostic>,
+) {
+    match kind {
+        FieldKind::Sum { element, .. } => {
+            let Some(declaration) = group
+                .elements
+                .iter()
+                .find(|candidate| candidate.name.value == element.value)
+            else {
+                return; // EC003 reports the undeclared element.
+            };
+            if declaration.bind_path.is_none() || declaration.variants.is_empty() {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::InvalidElementShape,
+                        &construction.id.value,
+                        format!(
+                            "sum field `{}` requires bound enum element `{}` with declared variants",
+                            field.field.value, element.value,
+                        ),
+                    )
+                    .with_span(element.span),
+                );
+            }
+        }
+        FieldKind::Product { element, .. } => {
+            let Some(declaration) = group
+                .elements
+                .iter()
+                .find(|candidate| candidate.name.value == element.value)
+            else {
+                return; // EC003 reports the undeclared element.
+            };
+            if !is_projectable_record_element(declaration) {
+                diags.push(
+                    Diagnostic::new(
+                        DiagCode::InvalidElementShape,
+                        &construction.id.value,
+                        format!(
+                            "product field `{}` requires record element `{}` with at least one projectable field",
+                            field.field.value, element.value,
+                        ),
+                    )
+                    .with_span(element.span),
+                );
+            }
+        }
+        FieldKind::Optional { inner } => {
+            check_construction_sum_targets(group, construction, field, inner, diags);
+        }
+        FieldKind::TupleProduct { fields } | FieldKind::StructProduct { fields } => {
+            for nested in fields {
+                check_construction_sum_targets(group, construction, field, &nested.kind, diags);
+            }
+        }
+        FieldKind::Unit
+        | FieldKind::Identity { .. }
+        | FieldKind::Subtree { .. }
+        | FieldKind::TypedSubtree { .. }
+        | FieldKind::Scalar { .. }
+        | FieldKind::TypedScalar { .. }
+        | FieldKind::SurfaceScalar { .. }
+        | FieldKind::Sequence { .. }
+        | FieldKind::NonEmptySequence { .. }
+        | FieldKind::SeparatedNonEmptySequence { .. } => {}
+    }
+}
+
+fn is_projectable_record_element(element: &ElementDeclaration) -> bool {
+    element.variants.is_empty()
+        && !element.fields.is_empty()
+        && element
+            .fields
+            .iter()
+            .all(|field| !kind_contains_surface_scalar(&field.kind))
+}
+
+fn kind_contains_surface_scalar(kind: &FieldKind) -> bool {
+    match kind {
+        FieldKind::SurfaceScalar { .. } => true,
+        FieldKind::Optional { inner } => kind_contains_surface_scalar(inner),
+        FieldKind::TupleProduct { fields } | FieldKind::StructProduct { fields } => fields
+            .iter()
+            .any(|field| kind_contains_surface_scalar(&field.kind)),
+        FieldKind::Unit
+        | FieldKind::Identity { .. }
+        | FieldKind::Subtree { .. }
+        | FieldKind::TypedSubtree { .. }
+        | FieldKind::Scalar { .. }
+        | FieldKind::TypedScalar { .. }
+        | FieldKind::Sequence { .. }
+        | FieldKind::NonEmptySequence { .. }
+        | FieldKind::SeparatedNonEmptySequence { .. }
+        | FieldKind::Sum { .. }
+        | FieldKind::Product { .. } => false,
+    }
+}
+
+fn check_element_field_references(
+    group: &GroupDeclaration,
+    owner: &ElementDeclaration,
+    field: &FieldBinding,
+    diags: &mut Vec<Diagnostic>,
+) {
+    fn check(
+        group: &GroupDeclaration,
+        owner: &ElementDeclaration,
+        field: &FieldBinding,
+        kind: &FieldKind,
+        diags: &mut Vec<Diagnostic>,
+    ) {
+        match kind {
+            FieldKind::Sequence { element }
+            | FieldKind::NonEmptySequence { element }
+            | FieldKind::SeparatedNonEmptySequence { element, .. }
+            | FieldKind::Sum { element, .. }
+            | FieldKind::Product { element, .. } => {
+                let Some(declaration) = group
+                    .elements
+                    .iter()
+                    .find(|candidate| candidate.name.value == element.value)
+                else {
+                    diags.push(
+                        Diagnostic::group(
+                            DiagCode::UnknownElement,
+                            format!(
+                                "element field `{}.{}` references undeclared element `{}`",
+                                owner.name.value, field.field.value, element.value,
+                            ),
+                        )
+                        .with_span(element.span),
+                    );
+                    return;
+                };
+                if matches!(kind, FieldKind::Sum { .. })
+                    && (declaration.bind_path.is_none() || declaration.variants.is_empty())
+                {
+                    diags.push(
+                        Diagnostic::group(
+                            DiagCode::InvalidElementShape,
+                            format!(
+                                "sum element field `{}.{}` requires bound enum element `{}` with declared variants",
+                                owner.name.value, field.field.value, element.value,
+                            ),
+                        )
+                        .with_span(element.span),
+                    );
+                }
+                if matches!(kind, FieldKind::Product { .. })
+                    && !is_projectable_record_element(declaration)
+                {
+                    diags.push(
+                        Diagnostic::group(
+                            DiagCode::InvalidElementShape,
+                            format!(
+                                "product element field `{}.{}` requires record element `{}` with at least one projectable field",
+                                owner.name.value, field.field.value, element.value,
+                            ),
+                        )
+                        .with_span(element.span),
+                    );
+                }
+            }
+            FieldKind::Optional { inner } => check(group, owner, field, inner, diags),
+            FieldKind::TupleProduct { fields } | FieldKind::StructProduct { fields } => {
+                for nested in fields {
+                    check(group, owner, field, &nested.kind, diags);
+                }
+            }
+            FieldKind::Unit
+            | FieldKind::Identity { .. }
+            | FieldKind::Subtree { .. }
+            | FieldKind::TypedSubtree { .. }
+            | FieldKind::Scalar { .. }
+            | FieldKind::TypedScalar { .. }
+            | FieldKind::SurfaceScalar { .. } => {}
+        }
+    }
+    check(group, owner, field, &field.kind, diags);
+}
+
+fn check_element_variant_kind(
+    group: &GroupDeclaration,
+    element: &ElementDeclaration,
+    variant: &crate::model::ElementVariantDeclaration,
+    diags: &mut Vec<Diagnostic>,
+) {
+    let owner = format!("{}::{}", element.name.value, variant.name.value);
+    if kind_contains_checked_sequence(&variant.payload) {
+        diags.push(
+            Diagnostic::group(
+                DiagCode::InvalidElementVariant,
+                format!("variant `{owner}` uses a construction-only `nonempty seq` payload"),
+            )
+            .with_span(variant.name.span),
+        );
+    }
+    let fields = match &variant.payload {
+        FieldKind::TupleProduct { fields } | FieldKind::StructProduct { fields } => Some(fields),
+        _ => None,
+    };
+    if let Some(fields) = fields {
+        let mut seen = std::collections::HashMap::<&str, proc_macro2::Span>::new();
+        for field in fields {
+            if let Some(first) = seen.insert(&field.field.value, field.field.span) {
+                diags.push(
+                    Diagnostic::group(
+                        DiagCode::DuplicateName,
+                        format!(
+                            "variant product field `{owner}.{}` is declared more than once",
+                            field.field.value,
+                        ),
+                    )
+                    .with_span(field.field.span)
+                    .with_note("first declared here", first),
+                );
+            }
+            if matches!(
+                field.kind,
+                FieldKind::Unit
+                    | FieldKind::TupleProduct { .. }
+                    | FieldKind::StructProduct { .. }
+                    | FieldKind::SurfaceScalar { .. }
+            ) {
+                diags.push(
+                    Diagnostic::group(
+                        DiagCode::InvalidElementVariant,
+                        format!(
+                            "variant product field `{owner}.{}` must carry a semantic field kind",
+                            field.field.value,
+                        ),
+                    )
+                    .with_span(field.field.span),
+                );
+            }
+            check_variant_element_references(group, &owner, &field.kind, diags);
+        }
+    } else {
+        if matches!(variant.payload, FieldKind::SurfaceScalar { .. }) {
+            diags.push(
+                Diagnostic::group(
+                    DiagCode::InvalidElementVariant,
+                    format!("variant `{owner}` cannot carry a surface-only scalar"),
+                )
+                .with_span(variant.name.span),
+            );
+        }
+        check_variant_element_references(group, &owner, &variant.payload, diags);
+    }
+}
+
+fn kind_contains_checked_sequence(kind: &FieldKind) -> bool {
+    match kind {
+        FieldKind::NonEmptySequence { .. } | FieldKind::SeparatedNonEmptySequence { .. } => true,
+        FieldKind::Optional { inner } => kind_contains_checked_sequence(inner),
+        FieldKind::TupleProduct { fields } | FieldKind::StructProduct { fields } => fields
+            .iter()
+            .any(|field| kind_contains_checked_sequence(&field.kind)),
+        FieldKind::Unit
+        | FieldKind::Identity { .. }
+        | FieldKind::Subtree { .. }
+        | FieldKind::TypedSubtree { .. }
+        | FieldKind::Scalar { .. }
+        | FieldKind::TypedScalar { .. }
+        | FieldKind::SurfaceScalar { .. }
+        | FieldKind::Sequence { .. }
+        | FieldKind::Sum { .. }
+        | FieldKind::Product { .. } => false,
+    }
+}
+
+fn check_variant_element_references(
+    group: &GroupDeclaration,
+    owner: &str,
+    kind: &FieldKind,
+    diags: &mut Vec<Diagnostic>,
+) {
+    match kind {
+        FieldKind::Sequence { element }
+        | FieldKind::NonEmptySequence { element }
+        | FieldKind::SeparatedNonEmptySequence { element, .. }
+        | FieldKind::Sum { element, .. }
+        | FieldKind::Product { element, .. } => {
+            let Some(declaration) = group
+                .elements
+                .iter()
+                .find(|candidate| candidate.name.value == element.value)
+            else {
+                diags.push(
+                    Diagnostic::group(
+                        DiagCode::UnknownElement,
+                        format!(
+                            "variant `{owner}` references undeclared element `{}`",
+                            element.value,
+                        ),
+                    )
+                    .with_span(element.span),
+                );
+                return;
+            };
+            if matches!(kind, FieldKind::Sum { .. })
+                && (declaration.bind_path.is_none() || declaration.variants.is_empty())
+            {
+                diags.push(
+                    Diagnostic::group(
+                        DiagCode::InvalidElementVariant,
+                        format!(
+                            "variant `{owner}` sum requires bound enum element `{}` with declared variants",
+                            element.value,
+                        ),
+                    )
+                    .with_span(element.span),
+                );
+            }
+            if matches!(kind, FieldKind::Product { .. })
+                && !is_projectable_record_element(declaration)
+            {
+                diags.push(
+                    Diagnostic::group(
+                        DiagCode::InvalidElementVariant,
+                        format!(
+                            "variant `{owner}` product requires record element `{}` with at least one projectable field",
+                            element.value,
+                        ),
+                    )
+                    .with_span(element.span),
+                );
+            }
+        }
+        FieldKind::Optional { inner } => {
+            check_variant_element_references(group, owner, inner, diags);
+        }
+        FieldKind::Unit
+        | FieldKind::Identity { .. }
+        | FieldKind::Subtree { .. }
+        | FieldKind::TypedSubtree { .. }
+        | FieldKind::Scalar { .. }
+        | FieldKind::TypedScalar { .. }
+        | FieldKind::SurfaceScalar { .. } => {}
+        FieldKind::TupleProduct { fields } | FieldKind::StructProduct { fields } => {
+            for field in fields {
+                check_variant_element_references(group, owner, &field.kind, diags);
             }
         }
     }
@@ -841,13 +1232,26 @@ fn collect_sequence_references<'a>(
     into: &mut Vec<(&'a crate::model::Spanned<String>, bool)>,
 ) {
     match kind {
-        FieldKind::Sequence { element } => into.push((element, is_direct)),
+        FieldKind::Sequence { element }
+        | FieldKind::NonEmptySequence { element }
+        | FieldKind::SeparatedNonEmptySequence { element, .. } => {
+            into.push((element, is_direct));
+        }
         FieldKind::Optional { inner } => collect_sequence_references(inner, false, into),
-        FieldKind::Identity { .. }
+        FieldKind::Unit
+        | FieldKind::Identity { .. }
         | FieldKind::Subtree { .. }
+        | FieldKind::TypedSubtree { .. }
         | FieldKind::Scalar { .. }
         | FieldKind::TypedScalar { .. }
-        | FieldKind::SurfaceScalar { .. } => {}
+        | FieldKind::SurfaceScalar { .. }
+        | FieldKind::Sum { .. }
+        | FieldKind::Product { .. } => {}
+        FieldKind::TupleProduct { fields } | FieldKind::StructProduct { fields } => {
+            for field in fields {
+                collect_sequence_references(&field.kind, false, into);
+            }
+        }
     }
 }
 
@@ -1016,8 +1420,27 @@ fn resolve_path<'g>(
     let mut element_in_hand: Option<&'g ElementDeclaration> = None;
     for (index, segment) in path.segments.iter().enumerate() {
         let bad = BadSegment { index };
+        if segment.value == "variant"
+            && let Some(Resolved::Kind(FieldKind::Sum { element, .. })) = resolved
+        {
+            let declared = group
+                .elements
+                .iter()
+                .find(|candidate| candidate.name.value == element.value)
+                .ok_or(bad)?;
+            if declared.variants.is_empty() {
+                return Err(bad);
+            }
+            resolved = Some(Resolved::Variant);
+            continue;
+        }
         if matches!(segment.value.as_str(), "first" | "last" | "nonfinal") {
-            if let Some(Resolved::Kind(FieldKind::Sequence { element })) = resolved {
+            if let Some(Resolved::Kind(
+                FieldKind::Sequence { element }
+                | FieldKind::NonEmptySequence { element }
+                | FieldKind::SeparatedNonEmptySequence { element, .. },
+            )) = resolved
+            {
                 let declared = group
                     .elements
                     .iter()
@@ -1072,7 +1495,25 @@ fn check_construction_paths(
         .collect();
 
     for binding in construction.ast.fields() {
-        if let FieldKind::Sequence { element } = &binding.kind
+        let referenced = match &binding.kind {
+            FieldKind::Sequence { element }
+            | FieldKind::NonEmptySequence { element }
+            | FieldKind::SeparatedNonEmptySequence { element, .. } => Some((element, "sequence")),
+            FieldKind::Sum { element, .. } => Some((element, "sum")),
+            FieldKind::Product { element, .. } => Some((element, "product")),
+            FieldKind::Optional { inner } => match &**inner {
+                FieldKind::Sequence { element }
+                | FieldKind::NonEmptySequence { element }
+                | FieldKind::SeparatedNonEmptySequence { element, .. } => {
+                    Some((element, "sequence"))
+                }
+                FieldKind::Sum { element, .. } => Some((element, "sum")),
+                FieldKind::Product { element, .. } => Some((element, "product")),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some((element, kind)) = referenced
             && !group.elements.iter().any(|e| e.name.value == element.value)
         {
             diags.push(
@@ -1080,8 +1521,8 @@ fn check_construction_paths(
                     DiagCode::UnknownElement,
                     id,
                     format!(
-                        "sequence field `{}` names undeclared element `{}`",
-                        binding.field.value, element.value
+                        "{kind} field `{}` names undeclared element `{}`",
+                        binding.field.value, element.value,
                     ),
                 )
                 .with_span(element.span),
@@ -1371,21 +1812,24 @@ fn check_kinds(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
         // EC015 — In predicates need a scalar target and len() predicates
         // need a sequence target. Same two sources as EC011: require clauses
         // and form guards.
-        let mut in_paths: Vec<&FieldPath> = Vec::new();
+        let mut in_predicates: Vec<&Predicate> = Vec::new();
         let mut len_paths: Vec<&FieldPath> = Vec::new();
         for constraint in &construction.constraints {
             if let Some(predicate) = recognition_predicate(constraint) {
-                collect_in_paths(&predicate.value, &mut in_paths);
+                collect_in_predicates(&predicate.value, &mut in_predicates);
                 collect_len_paths(&predicate.value, &mut len_paths);
             }
         }
         for form in &construction.forms {
             if let Some(guard) = &form.guard {
-                collect_in_paths(&guard.value, &mut in_paths);
+                collect_in_predicates(&guard.value, &mut in_predicates);
                 collect_len_paths(&guard.value, &mut len_paths);
             }
         }
-        for path in in_paths {
+        for predicate in in_predicates {
+            let Predicate::In { path, allowed } = predicate else {
+                unreachable!("the collector retains only `in` predicates")
+            };
             let Ok(resolved) = resolve_path(group, construction, path) else {
                 continue; // EC010 already reported it (check_paths runs first)
             };
@@ -1399,12 +1843,48 @@ fn check_kinds(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
                     .with_span(path.span),
                 );
             }
+            if matches!(resolved, Resolved::Variant)
+                && let Some(element) = variant_element_for_path(group, construction, path)
+            {
+                let unknown = allowed
+                    .iter()
+                    .filter(|allowed| {
+                        !element
+                            .variants
+                            .iter()
+                            .any(|variant| variant.name.value == **allowed)
+                    })
+                    .cloned()
+                    .collect::<Vec<_>>();
+                if !unknown.is_empty() {
+                    diags.push(
+                        Diagnostic::new(
+                            DiagCode::PredicateKindMismatch,
+                            id,
+                            format!(
+                                "`{}` names undeclared variants [{}] of element `{}`",
+                                path.dotted(),
+                                unknown.join(", "),
+                                element.name.value,
+                            ),
+                        )
+                        .with_span(path.span),
+                    );
+                }
+            }
         }
         for path in len_paths {
             let Ok(resolved) = resolve_path(group, construction, path) else {
                 continue; // EC010 already reported it (check_paths runs first)
             };
-            if !matches!(resolved, Resolved::Kind(FieldKind::Sequence { .. })) {
+            if !matches!(
+                resolved,
+                Resolved::Kind(
+                    FieldKind::Sequence { .. }
+                        | FieldKind::NonEmptySequence { .. }
+                        | FieldKind::SeparatedNonEmptySequence { .. }
+                )
+            ) {
                 diags.push(
                     Diagnostic::new(
                         DiagCode::PredicateKindMismatch,
@@ -1881,12 +2361,20 @@ fn finish_lens_claims(
 
 fn field_rust_type(group: &GroupDeclaration, kind: &FieldKind) -> Option<String> {
     match kind {
+        FieldKind::Unit | FieldKind::TupleProduct { .. } | FieldKind::StructProduct { .. } => None,
         FieldKind::Identity { value_type, .. } | FieldKind::TypedScalar { value_type, .. } => {
             Some(value_type.value.clone())
         }
         FieldKind::Subtree { category, boxed } => {
             Some(if *boxed { format!("Box<{}>", category.value) } else { category.value.clone() })
         }
+        FieldKind::TypedSubtree {
+            value_type, boxed, ..
+        } => Some(if *boxed {
+            format!("Box<{}>", value_type.value)
+        } else {
+            value_type.value.clone()
+        }),
         FieldKind::Scalar { codec } | FieldKind::SurfaceScalar { codec } => {
             Some(codec.value.clone())
         }
@@ -1900,6 +2388,53 @@ fn field_rust_type(group: &GroupDeclaration, kind: &FieldKind) -> Option<String>
                 |path| path.value.clone(),
             );
             Some(format!("Vec<{element_type}>"))
+        }
+        FieldKind::NonEmptySequence { element } => {
+            let declaration = group
+                .elements
+                .iter()
+                .find(|candidate| candidate.name.value == element.value)?;
+            let element_type = declaration.bind_path.as_ref().map_or_else(
+                || crate::model::pascal_case(&declaration.name.value),
+                |path| path.value.clone(),
+            );
+            Some(format!(
+                "::deckmaste_construction_compiler::runtime::NonEmpty<{element_type}>"
+            ))
+        }
+        FieldKind::SeparatedNonEmptySequence { element, separator } => {
+            let declaration = group
+                .elements
+                .iter()
+                .find(|candidate| candidate.name.value == element.value)?;
+            let element_type = declaration.bind_path.as_ref().map_or_else(
+                || crate::model::pascal_case(&declaration.name.value),
+                |path| path.value.clone(),
+            );
+            Some(format!(
+                "::deckmaste_construction_compiler::runtime::SeparatedNonEmpty<{element_type}, {}>",
+                separator.value,
+            ))
+        }
+        FieldKind::Sum { element, boxed } => {
+            let declaration = group
+                .elements
+                .iter()
+                .find(|candidate| candidate.name.value == element.value)?;
+            declaration.bind_path.as_ref().map(|path| {
+                if *boxed { format!("Box<{}>", path.value) } else { path.value.clone() }
+            })
+        }
+        FieldKind::Product { element, boxed } => {
+            let declaration = group
+                .elements
+                .iter()
+                .find(|candidate| candidate.name.value == element.value)?;
+            let element_type = declaration.bind_path.as_ref().map_or_else(
+                || crate::model::pascal_case(&declaration.name.value),
+                |path| path.value.clone(),
+            );
+            Some(if *boxed { format!("Box<{element_type}>") } else { element_type })
         }
         FieldKind::Optional { inner } => {
             field_rust_type(group, inner).map(|inner| format!("Option<{inner}>"))
@@ -2014,9 +2549,17 @@ fn resolved_is_scalar(resolved: &Resolved<'_>) -> bool {
             )
         }
         Resolved::Kind(
-            FieldKind::Identity { .. }
+            FieldKind::Unit
+            | FieldKind::TupleProduct { .. }
+            | FieldKind::StructProduct { .. }
+            | FieldKind::Identity { .. }
             | FieldKind::Subtree { .. }
+            | FieldKind::TypedSubtree { .. }
             | FieldKind::Sequence { .. }
+            | FieldKind::NonEmptySequence { .. }
+            | FieldKind::SeparatedNonEmptySequence { .. }
+            | FieldKind::Sum { .. }
+            | FieldKind::Product { .. }
             | FieldKind::SurfaceScalar { .. },
         )
         | Resolved::Element(_) => false,
@@ -2052,9 +2595,17 @@ fn in_predicate_kind_problem(resolved: &Resolved<'_>) -> Option<&'static str> {
                 value_type
             }
             FieldKind::Optional { .. }
+            | FieldKind::Unit
+            | FieldKind::TupleProduct { .. }
+            | FieldKind::StructProduct { .. }
             | FieldKind::Identity { .. }
             | FieldKind::Subtree { .. }
+            | FieldKind::TypedSubtree { .. }
             | FieldKind::Sequence { .. }
+            | FieldKind::NonEmptySequence { .. }
+            | FieldKind::SeparatedNonEmptySequence { .. }
+            | FieldKind::Sum { .. }
+            | FieldKind::Product { .. }
             | FieldKind::SurfaceScalar { .. } => {
                 return Some(
                     "is not a scalar; `in [...]` compares a scalar codec against its variants",
@@ -2062,9 +2613,17 @@ fn in_predicate_kind_problem(resolved: &Resolved<'_>) -> Option<&'static str> {
             }
         },
         Resolved::Kind(
-            FieldKind::Identity { .. }
+            FieldKind::Unit
+            | FieldKind::TupleProduct { .. }
+            | FieldKind::StructProduct { .. }
+            | FieldKind::Identity { .. }
             | FieldKind::Subtree { .. }
+            | FieldKind::TypedSubtree { .. }
             | FieldKind::Sequence { .. }
+            | FieldKind::NonEmptySequence { .. }
+            | FieldKind::SeparatedNonEmptySequence { .. }
+            | FieldKind::Sum { .. }
+            | FieldKind::Product { .. }
             | FieldKind::SurfaceScalar { .. },
         )
         | Resolved::Element(_) => {
@@ -2093,12 +2652,12 @@ fn collect_presence_paths<'p>(predicate: &'p Predicate, into: &mut Vec<&'p Field
     }
 }
 
-fn collect_in_paths<'p>(predicate: &'p Predicate, into: &mut Vec<&'p FieldPath>) {
+fn collect_in_predicates<'p>(predicate: &'p Predicate, into: &mut Vec<&'p Predicate>) {
     match predicate {
-        Predicate::In { path, .. } => into.push(path),
+        Predicate::In { .. } => into.push(predicate),
         Predicate::All(children) | Predicate::Any(children) => {
             for child in children {
-                collect_in_paths(child, into);
+                collect_in_predicates(child, into);
             }
         }
         Predicate::IsSome { .. }
@@ -2106,6 +2665,37 @@ fn collect_in_paths<'p>(predicate: &'p Predicate, into: &mut Vec<&'p FieldPath>)
         | Predicate::LenAtLeast { .. }
         | Predicate::LenIs { .. } => {}
     }
+}
+
+fn variant_element_for_path<'g>(
+    group: &'g GroupDeclaration,
+    construction: &ConstructionDeclaration,
+    path: &FieldPath,
+) -> Option<&'g ElementDeclaration> {
+    let root = path.segments.first()?;
+    let binding = construction
+        .ast
+        .fields()
+        .iter()
+        .find(|binding| binding.field.value == root.value)?;
+    let element = match (path.segments.as_slice(), &binding.kind) {
+        ([_, variant], FieldKind::Sum { element, .. }) if variant.value == "variant" => element,
+        (
+            [_, selector, variant],
+            FieldKind::Sequence { element }
+            | FieldKind::NonEmptySequence { element }
+            | FieldKind::SeparatedNonEmptySequence { element, .. },
+        ) if matches!(selector.value.as_str(), "first" | "last" | "nonfinal")
+            && variant.value == "variant" =>
+        {
+            element
+        }
+        _ => return None,
+    };
+    group
+        .elements
+        .iter()
+        .find(|candidate| candidate.name.value == element.value)
 }
 
 fn collect_len_paths<'p>(predicate: &'p Predicate, into: &mut Vec<&'p FieldPath>) {
@@ -2693,6 +3283,9 @@ fn check_strata(group: &GroupDeclaration, diags: &mut Vec<Diagnostic>) {
             // Element fields have no construction; the group owns them.
             element_codec_site(&binding.kind, diags);
         }
+        for variant in &element.variants {
+            element_codec_site(&variant.payload, diags);
+        }
     }
 }
 
@@ -2703,7 +3296,21 @@ fn codec_site(id: &str, kind: &FieldKind, diags: &mut Vec<Diagnostic>) {
         }
         FieldKind::SurfaceScalar { codec } => codec,
         FieldKind::Optional { inner } => return codec_site(id, inner, diags),
-        FieldKind::Identity { .. } | FieldKind::Subtree { .. } | FieldKind::Sequence { .. } => {
+        FieldKind::TupleProduct { fields } | FieldKind::StructProduct { fields } => {
+            for field in fields {
+                codec_site(id, &field.kind, diags);
+            }
+            return;
+        }
+        FieldKind::Unit
+        | FieldKind::Identity { .. }
+        | FieldKind::Subtree { .. }
+        | FieldKind::TypedSubtree { .. }
+        | FieldKind::Sequence { .. }
+        | FieldKind::NonEmptySequence { .. }
+        | FieldKind::SeparatedNonEmptySequence { .. }
+        | FieldKind::Sum { .. }
+        | FieldKind::Product { .. } => {
             return;
         }
     };
@@ -2729,7 +3336,21 @@ fn element_codec_site(kind: &FieldKind, diags: &mut Vec<Diagnostic>) {
         }
         FieldKind::SurfaceScalar { codec } => codec,
         FieldKind::Optional { inner } => return element_codec_site(inner, diags),
-        FieldKind::Identity { .. } | FieldKind::Subtree { .. } | FieldKind::Sequence { .. } => {
+        FieldKind::TupleProduct { fields } | FieldKind::StructProduct { fields } => {
+            for field in fields {
+                element_codec_site(&field.kind, diags);
+            }
+            return;
+        }
+        FieldKind::Unit
+        | FieldKind::Identity { .. }
+        | FieldKind::Subtree { .. }
+        | FieldKind::TypedSubtree { .. }
+        | FieldKind::Sequence { .. }
+        | FieldKind::NonEmptySequence { .. }
+        | FieldKind::SeparatedNonEmptySequence { .. }
+        | FieldKind::Sum { .. }
+        | FieldKind::Product { .. } => {
             return;
         }
     };
@@ -3152,20 +3773,71 @@ mod tests {
     }
 
     #[test]
-    fn bound_element_variant_payload_must_be_a_subtree_hole() {
+    fn bound_element_variant_payload_admits_a_typed_scalar() {
         let group = crate::parse::parse_group(quote::quote! {
             group g;
             element member bind Member {
                 variant Phrase: lex PhraseCodec,
             }
         })
-        .expect("all field kinds remain syntax so validation can explain the restriction");
-        let err = validate(&group).expect_err("enum cases carry one typed syntax payload");
+        .expect("typed scalar variants parse");
+        validate(&group).expect("enum cases may carry a typed semantic scalar");
+    }
+
+    #[test]
+    fn sum_requires_a_bound_enum_element() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group g;
+            element record { value: lex String, }
+            construction c: Cat {
+                own Node { value: sum record, }
+                form only @ 0 = value;
+            }
+        })
+        .expect("sum syntax parses independently of its semantic target");
+        let err = validate(&group).expect_err("a sum cannot target an owned record element");
+        assert_eq!(codes(&err), vec!["EC008"]);
+        assert_eq!(
+            message_for(&err, "EC008"),
+            "sum field `value` requires bound enum element `record` with declared variants",
+        );
+    }
+
+    #[test]
+    fn checked_sequences_are_construction_only() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group g;
+            element member { value: lex String, }
+            element choice bind Choice {
+                variant Many: nonempty seq member,
+            }
+        })
+        .expect("the parser leaves placement restrictions to validation");
+        let err = validate(&group).expect_err("variant payloads cannot own checked sequences");
         assert_eq!(codes(&err), vec!["EC009"]);
         assert_eq!(
             message_for(&err, "EC009"),
-            "variant `member::Phrase` payload must be `hole TYPE` or `hole box TYPE`",
+            "variant `choice::Many` uses a construction-only `nonempty seq` payload",
         );
+    }
+
+    #[test]
+    fn singular_sum_variant_predicates_validate() {
+        let group = crate::parse::parse_group(quote::quote! {
+            group g;
+            element choice bind Choice {
+                variant A {},
+                variant B: lex String,
+            }
+            construction c: Cat {
+                own Node { choice: sum choice, }
+                form a @ 0 when choice.variant in [A] = choice;
+                form other @ 1 otherwise = choice;
+                selection unique;
+            }
+        })
+        .expect("sum discriminant predicates parse");
+        validate(&group).expect("a sum discriminant is a supported typed predicate path");
     }
 
     fn group_with_empty_bound_element() -> crate::model::GroupDeclaration {

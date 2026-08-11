@@ -396,6 +396,19 @@ pub struct FieldBinding {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FieldKind {
+    /// A bound-enum unit variant. This kind is valid only as an element
+    /// variant payload and carries no semantic value.
+    Unit,
+    /// A bound-enum tuple variant with two or more payloads. Field names are
+    /// semantic projection roles; Rust construction remains positional.
+    TupleProduct {
+        fields: Vec<FieldBinding>,
+    },
+    /// A bound-enum struct variant. Field names are both Rust member names
+    /// and semantic projection roles.
+    StructProduct {
+        fields: Vec<FieldBinding>,
+    },
     /// A typed lexical identity supplied by a language-local provider. The
     /// compiler preserves both names as metadata and keeps the concrete Rust
     /// value intact through builders and linearization.
@@ -404,6 +417,14 @@ pub enum FieldKind {
         provider: Spanned<String>,
     },
     Subtree {
+        category: Spanned<String>,
+        boxed: bool,
+    },
+    /// A subtree whose stored Rust type differs from its projected grammar
+    /// category. `hole T via C` preserves `T` through typed builders while
+    /// routing recursive projection through category `C`.
+    TypedSubtree {
+        value_type: Spanned<String>,
         category: Spanned<String>,
         boxed: bool,
     },
@@ -424,6 +445,27 @@ pub enum FieldKind {
     },
     Sequence {
         element: Spanned<String>,
+    },
+    /// A sequence whose Rust type proves that at least one member exists.
+    NonEmptySequence {
+        element: Spanned<String>,
+    },
+    /// A nonempty sequence with an unseparated first member and a typed
+    /// separator attached to every continuation.
+    SeparatedNonEmptySequence {
+        element: Spanned<String>,
+        separator: Spanned<String>,
+    },
+    /// One value of a bound enum element. Unlike [`Self::Sequence`], this is a
+    /// direct construction role rather than a sequence member.
+    Sum {
+        element: Spanned<String>,
+        boxed: bool,
+    },
+    /// One record-shaped element value, traversed through its declared fields.
+    Product {
+        element: Spanned<String>,
+        boxed: bool,
     },
     /// `opt <kind>`. Wraps exactly one non-Optional kind — the parser
     /// rejects `opt opt`, so nesting is unrepresentable in parsed input.

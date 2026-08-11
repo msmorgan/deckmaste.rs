@@ -122,11 +122,28 @@ pub struct ElementNode {
     pub roles: BTreeMap<&'static str, ProjectionTree>,
 }
 
+/// One selected alternative of a declaration-owned sum role.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VariantNode {
+    pub element: &'static str,
+    pub variant: &'static str,
+    pub roles: BTreeMap<&'static str, ProjectionTree>,
+}
+
+/// One declaration-owned record product.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProductNode {
+    pub element: &'static str,
+    pub roles: BTreeMap<&'static str, ProjectionTree>,
+}
+
 /// The compiler-owned construction tree extended with spelling holes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProjectionTree {
     Construction(ConstructionNode),
     Element(ElementNode),
+    Variant(VariantNode),
+    Product(ProductNode),
     Atom(ProjectedAtom),
     Optional(Option<Box<ProjectionTree>>),
     Sequence {
@@ -172,6 +189,23 @@ impl ProjectionTree {
                     .map(Self::from_member)
                     .collect(),
             },
+            ProjectedValue::Variant(variant) => Self::Variant(VariantNode {
+                element: variant.element,
+                variant: variant.variant,
+                roles: variant
+                    .roles
+                    .into_iter()
+                    .map(|(role, value)| (role, Self::from_value(value)))
+                    .collect(),
+            }),
+            ProjectedValue::Product(product) => Self::Product(ProductNode {
+                element: product.element,
+                roles: product
+                    .roles
+                    .into_iter()
+                    .map(|(role, value)| (role, Self::from_value(value)))
+                    .collect(),
+            }),
         }
     }
 
@@ -216,6 +250,8 @@ impl ProjectionTree {
         match self {
             Self::Construction(node) => node.roles.get(role),
             Self::Element(node) => node.roles.get(role),
+            Self::Variant(node) => node.roles.get(role),
+            Self::Product(node) => node.roles.get(role),
             _ => None,
         }
     }
@@ -225,6 +261,8 @@ impl ProjectionTree {
         match self {
             Self::Construction(node) => node.roles.get_mut(role),
             Self::Element(node) => node.roles.get_mut(role),
+            Self::Variant(node) => node.roles.get_mut(role),
+            Self::Product(node) => node.roles.get_mut(role),
             _ => None,
         }
     }
@@ -247,6 +285,16 @@ impl ProjectionTree {
                 .map(|(role, value)| (ProjectionStep::Role(role), value))
                 .collect(),
             Self::Element(node) => node
+                .roles
+                .iter()
+                .map(|(role, value)| (ProjectionStep::Role(role), value))
+                .collect(),
+            Self::Variant(node) => node
+                .roles
+                .iter()
+                .map(|(role, value)| (ProjectionStep::Role(role), value))
+                .collect(),
+            Self::Product(node) => node
                 .roles
                 .iter()
                 .map(|(role, value)| (ProjectionStep::Role(role), value))
@@ -283,6 +331,8 @@ impl ProjectionTree {
         match (self, step) {
             (Self::Construction(node), ProjectionStep::Role(role)) => node.roles.get(role),
             (Self::Element(node), ProjectionStep::Role(role)) => node.roles.get(role),
+            (Self::Variant(node), ProjectionStep::Role(role)) => node.roles.get(role),
+            (Self::Product(node), ProjectionStep::Role(role)) => node.roles.get(role),
             (Self::Optional(Some(value)), ProjectionStep::Present) => Some(value),
             (Self::Sequence { members, .. }, ProjectionStep::Member(index)) => members.get(index),
             _ => None,
@@ -293,11 +343,102 @@ impl ProjectionTree {
         match (self, step) {
             (Self::Construction(node), ProjectionStep::Role(role)) => node.roles.get_mut(role),
             (Self::Element(node), ProjectionStep::Role(role)) => node.roles.get_mut(role),
+            (Self::Variant(node), ProjectionStep::Role(role)) => node.roles.get_mut(role),
+            (Self::Product(node), ProjectionStep::Role(role)) => node.roles.get_mut(role),
             (Self::Optional(Some(value)), ProjectionStep::Present) => Some(value),
             (Self::Sequence { members, .. }, ProjectionStep::Member(index)) => {
                 members.get_mut(index)
             }
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use deckmaste_english::ProjectedProduct;
+    use deckmaste_english::ProjectedVariant;
+
+    use super::*;
+
+    #[test]
+    fn direct_sum_variants_keep_identity_and_role_paths() {
+        let projection = ConstructionProjection {
+            category: "Ability",
+            construction: "ability",
+            form: "keyword",
+            ordinal: 9,
+            roles: BTreeMap::from([
+                (
+                    "kind",
+                    ProjectedValue::Variant(ProjectedVariant {
+                        element: "ability_kind",
+                        variant: "Keyword",
+                        roles: BTreeMap::from([(
+                            "payload",
+                            ProjectedValue::Atom(ProjectedAtom::DerivedSequenceScalar {
+                                codec: "Fixture",
+                                index: 0,
+                                len: 1,
+                            }),
+                        )]),
+                    }),
+                ),
+                (
+                    "record",
+                    ProjectedValue::Product(ProjectedProduct {
+                        element: "fixture_record",
+                        roles: BTreeMap::from([(
+                            "field",
+                            ProjectedValue::Atom(ProjectedAtom::DerivedSequenceScalar {
+                                codec: "ProductFixture",
+                                index: 1,
+                                len: 2,
+                            }),
+                        )]),
+                    }),
+                ),
+            ]),
+            witnesses: BTreeMap::new(),
+            literals: Vec::new(),
+        };
+
+        let tree = ProjectionTree::from_projection(projection);
+        let kind = tree
+            .role("kind")
+            .expect("the kind role survives conversion");
+        let ProjectionTree::Variant(kind) = kind else {
+            panic!("the direct sum must remain a variant node: {kind:#?}");
+        };
+        assert_eq!((kind.element, kind.variant), ("ability_kind", "Keyword"));
+        let payload = ProjectionPath(vec![
+            ProjectionStep::Role("kind"),
+            ProjectionStep::Role("payload"),
+        ]);
+        assert!(matches!(
+            payload.resolve(&tree),
+            Some(ProjectionTree::Atom(ProjectedAtom::DerivedSequenceScalar {
+                codec: "Fixture",
+                index: 0,
+                len: 1,
+            }))
+        ));
+        assert!(tree.walk().iter().any(|(path, _)| path == &payload));
+
+        let record = tree
+            .role("record")
+            .expect("the product role survives conversion");
+        let ProjectionTree::Product(record) = record else {
+            panic!("the record must remain a product node: {record:#?}");
+        };
+        assert_eq!(record.element, "fixture_record");
+        assert!(matches!(
+            tree.role("record").and_then(|record| record.role("field")),
+            Some(ProjectionTree::Atom(ProjectedAtom::DerivedSequenceScalar {
+                codec: "ProductFixture",
+                index: 1,
+                len: 2,
+            }))
+        ));
     }
 }

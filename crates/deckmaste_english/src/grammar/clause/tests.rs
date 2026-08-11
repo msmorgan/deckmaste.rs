@@ -6108,7 +6108,6 @@ fn render_sentence_as(sentence: &Sentence, name: &str, is_legendary: bool) -> St
         abilities: vec![
             crate::ability::build_ability(
                 None,
-                None,
                 AbilityKind::Paragraph(Paragraph {
                     flavor_header: None,
                     sentences: vec![sentence.clone()],

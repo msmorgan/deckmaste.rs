@@ -15,6 +15,7 @@ use crate::construction::ConstructionAlternative;
 use crate::construction::ConstructionDecision;
 use crate::construction::ConstructionId;
 use crate::construction::ProductionId;
+use crate::construction::SameFamilyDecision;
 use crate::features::Conjunction;
 use crate::forest::ForestStats;
 use crate::forest::ParseCost;
@@ -27,6 +28,7 @@ use crate::surface::TokenKind;
 use crate::surface::collapse_full_names;
 use crate::surface::lex;
 use crate::syntax::Ability;
+use crate::syntax::AbilityHeader;
 use crate::syntax::AbilityKind;
 use crate::syntax::ActivatedAbility;
 use crate::syntax::AttachmentPosition;
@@ -60,6 +62,7 @@ use crate::syntax::ModalFrame;
 use crate::syntax::ModalHeaderSuffix;
 use crate::syntax::Mode;
 use crate::syntax::ModeHeading;
+use crate::syntax::NonEmpty;
 use crate::syntax::NumberLiteral;
 use crate::syntax::OracleSymbol;
 use crate::syntax::OracleText;
@@ -77,6 +80,8 @@ use crate::syntax::RollRange;
 use crate::syntax::RollRowAbility;
 use crate::syntax::Sentence;
 use crate::syntax::SentenceBody;
+use crate::syntax::Separated;
+use crate::syntax::SeparatedNonEmpty;
 use crate::syntax::StationThresholdAbility;
 use crate::syntax::SubordinateBody;
 use crate::syntax::Subordinator;
@@ -388,23 +393,11 @@ impl AbilityFrameCandidate {
             Self::RollRow => 6,
         }
     }
-
-    const fn form_ordinal(self) -> u16 {
-        match self {
-            Self::Activated => 0,
-            Self::ClassLevel => 1,
-            Self::Chapter => 2,
-            Self::RollRow => 3,
-            Self::Triggered => 6,
-            Self::Loyalty => 7,
-            Self::Keyword => 9,
-        }
-    }
 }
 
 struct ParsedAbilityCandidate {
     frame: AbilityFrameCandidate,
-    kind: AbilityKind,
+    ability: Ability,
     diagnostics: Vec<AbilityDiagnostic>,
     selections: Vec<AbilitySelection>,
 }
@@ -437,13 +430,6 @@ fn select_best_ability_candidate(
     } else {
         Ok(Some(selected))
     }
-}
-
-#[derive(Debug)]
-struct AbilityRootDecision {
-    cost: ParseCost,
-    reason: SelectionReason,
-    alternatives: Vec<(u16, ParseCost)>,
 }
 
 impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
@@ -562,32 +548,25 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     }
 
     fn parse_ability(&mut self, tokens: &[Token]) -> Ability {
-        let (ability_word, body) = self
-            .ability_word_prefix(tokens)
-            .map_or((None, tokens), |(word, body)| (Some(word), body));
-        // An ability word wins the header slot outright; only when none matches
-        // does a flavor-word label get a chance to peel. The two never co-occur
-        // on the supported corpus, so this ordering never loses a header.
-        let (flavor_header, body) = if ability_word.is_some() {
-            (None, body)
+        // An ability word wins the one header slot outright; only when none
+        // matches does a flavor-word label get a chance to peel.
+        let (header, body) = if let Some((word, body)) = self.ability_word_prefix(tokens) {
+            (Some(AbilityHeader::AbilityWord(word)), body)
         } else {
-            self.flavor_word_prefix(body)
-                .map_or((None, body), |(header, rest)| (Some(header), rest))
+            self.flavor_word_prefix(tokens)
+                .map_or((None, tokens), |(header, rest)| {
+                    (Some(AbilityHeader::Flavor(header)), rest)
+                })
         };
-        let (kind, decision) = self.parse_ability_kind(body);
-        self.finish_ability_with_decision(
-            tokens_span(tokens),
-            ability_word,
-            flavor_header,
-            kind,
-            decision,
-        )
+        let (ability, decision) = self.parse_ability_kind(body, header);
+        self.finish_built_ability_with_decision(tokens_span(tokens), ability, decision)
     }
 
     fn parse_ability_kind(
         &mut self,
         tokens: &[Token],
-    ) -> (AbilityKind, Option<AbilityRootDecision>) {
+        header: Option<AbilityHeader>,
+    ) -> (Ability, Option<SameFamilyDecision>) {
         #[cfg_attr(
             not(test),
             allow(
@@ -597,21 +576,30 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         )]
         let mut frames = AbilityFrameCandidate::ALL;
         #[cfg(test)]
-        self.activation.reorder_ability_candidates(&mut frames);
+        self.activation.reorder_candidates(&mut frames);
         let mut candidates = frames
             .into_iter()
-            .filter_map(|frame| self.probe_ability_candidate(frame, tokens))
+            .filter_map(|frame| self.probe_ability_candidate(frame, tokens, header.clone()))
             .collect::<Vec<_>>();
         let selected = select_best_ability_candidate(&candidates)
             .expect("ability classifier guard ranks must be unique");
         if let Some(selected) = selected {
             let decision = (candidates.len() > 1).then(|| {
                 let selected_frame = candidates[selected].frame;
+                let selected_ordinal = crate::constructions::ability::selected_ability_form(
+                    &candidates[selected].ability,
+                )
+                .expect("every checked ability selects exactly one declared form")
+                .ordinal;
                 let mut alternatives = candidates
                     .iter()
                     .map(|candidate| {
                         (
-                            candidate.frame.form_ordinal(),
+                            crate::constructions::ability::selected_ability_form(
+                                &candidate.ability,
+                            )
+                            .expect("every checked ability selects exactly one declared form")
+                            .ordinal,
                             ParseCost {
                                 precedence: u32::from(candidate.frame.guard_rank()),
                                 ..ParseCost::default()
@@ -620,19 +608,20 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                     })
                     .collect::<Vec<_>>();
                 alternatives.sort_by_key(|(ordinal, _)| *ordinal);
-                AbilityRootDecision {
-                    cost: ParseCost {
+                SameFamilyDecision::ranked(
+                    selected_ordinal,
+                    ParseCost {
                         precedence: u32::from(selected_frame.guard_rank()),
                         ..ParseCost::default()
                     },
-                    reason: SelectionReason::Cost(ParseCostDimension::Precedence),
+                    SelectionReason::Cost(ParseCostDimension::Precedence),
                     alternatives,
-                }
+                )
             });
             let mut candidate = candidates.swap_remove(selected);
             self.diagnostics.append(&mut candidate.diagnostics);
             self.selections.append(&mut candidate.selections);
-            return (candidate.kind, decision);
+            return (candidate.ability, decision);
         }
         if let Some(colon) = find_top_level_punctuation(tokens, Punctuation::Colon)
             && colon + 1 == tokens.len()
@@ -644,13 +633,19 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                     .map_or_else(|| tokens_span(tokens), |token| token.span),
             });
         }
-        (AbilityKind::Paragraph(self.parse_paragraph(tokens)), None)
+        let ability = crate::constructions::ability::build_ability_root(
+            header,
+            AbilityKind::Paragraph(self.parse_paragraph(tokens)),
+        )
+        .expect("the paragraph fallback satisfies checked ability ingress");
+        (ability, None)
     }
 
     fn probe_ability_candidate(
         &mut self,
         frame: AbilityFrameCandidate,
         tokens: &[Token],
+        header: Option<AbilityHeader>,
     ) -> Option<ParsedAbilityCandidate> {
         let diagnostics = self.diagnostics.len();
         let selections = self.selections.len();
@@ -722,10 +717,10 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         };
         let candidate_diagnostics = self.diagnostics.split_off(diagnostics);
         let candidate_selections = self.selections.split_off(selections);
-        kind.filter(crate::constructions::ability::kind_is_valid)
-            .map(|kind| ParsedAbilityCandidate {
+        kind.and_then(|kind| crate::constructions::ability::build_ability_root(header, kind).ok())
+            .map(|ability| ParsedAbilityCandidate {
                 frame,
-                kind,
+                ability,
                 diagnostics: candidate_diagnostics,
                 selections: candidate_selections,
             })
@@ -734,27 +729,28 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     fn finish_ability(
         &mut self,
         span: Span,
-        ability_word: Option<CatalogAtom>,
-        flavor_header: Option<FlavorHeader>,
+        header: Option<AbilityHeader>,
         kind: AbilityKind,
     ) -> Ability {
-        self.finish_ability_with_decision(span, ability_word, flavor_header, kind, None)
+        let ability = crate::constructions::ability::build_ability_root(header, kind)
+            .expect("the ability classifier satisfies the declaration");
+        self.finish_built_ability_with_decision(span, ability, None)
     }
 
-    fn finish_ability_with_decision(
+    fn finish_built_ability_with_decision(
         &mut self,
         span: Span,
-        ability_word: Option<CatalogAtom>,
-        flavor_header: Option<FlavorHeader>,
-        kind: AbilityKind,
-        decision: Option<AbilityRootDecision>,
+        ability: Ability,
+        decision: Option<SameFamilyDecision>,
     ) -> Ability {
-        let ability =
-            crate::constructions::ability::build_ability_root(ability_word, flavor_header, kind)
-                .expect("the ability classifier satisfies the declaration");
-        let ordinal = crate::constructions::ability::ability_form_ordinal(&ability)
-            .expect("the declaration assigns every AbilityKind one form");
-        self.record_ability_construction_span_with_decision(span, "ability", ordinal, decision);
+        let ordinal = crate::constructions::ability::selected_ability_form(&ability)
+            .expect("the declaration assigns every AbilityKind one form")
+            .ordinal;
+        self.record_ability_construction_span_with_decision(
+            span,
+            "ability",
+            decision.unwrap_or_else(|| SameFamilyDecision::unique(ordinal)),
+        );
         ability
     }
 
@@ -903,7 +899,6 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         self.finish_ability(
             span,
             None,
-            None,
             AbilityKind::LevelBand(LevelBandAbility {
                 range,
                 stats,
@@ -988,7 +983,6 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         let nested = self.parse_ability(body);
         self.finish_ability(
             span,
-            None,
             None,
             AbilityKind::StationThreshold(StationThresholdAbility {
                 threshold,
@@ -1097,12 +1091,11 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         };
         self.finish_ability(
             span,
-            ability_word,
+            ability_word.map(AbilityHeader::AbilityWord),
             // A modal choice header is never peeled as a flavor word: the six
             // known flavor-word faces and the measured residue population are
             // all single-frame abilities, and a modal header's leading ` — `
             // belongs to the `Choose …` instruction, not a label.
-            None,
             AbilityKind::Modal(modal),
         )
     }
@@ -1513,29 +1506,43 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         if components.is_empty() {
             components.push(CostComponent::Recovered(self.recovered_text(tokens)));
         }
-        let form = u16::from(flavor_header.is_none());
-        let cost = crate::constructions::ability::build(flavor_header, components)
+        let components = NonEmpty::try_from(components)
+            .expect("cost recovery makes the component sequence nonempty");
+        let cost = crate::constructions::ability::build_cost(flavor_header, components)
             .expect("the cost recognizer satisfies the declaration");
+        let form = crate::constructions::ability::selected_cost_form(&cost)
+            .expect("the declaration assigns every cost one form")
+            .ordinal;
         self.record_ability_construction(all_tokens, "cost", form);
         cost
     }
 
     fn record_ability_construction(&mut self, tokens: &[Token], id: &'static str, ordinal: u16) {
-        self.record_ability_construction_span(tokens_span(tokens), id, ordinal);
+        self.record_ability_construction_span(
+            tokens_span(tokens),
+            id,
+            SameFamilyDecision::unique(ordinal),
+        );
     }
 
-    fn record_ability_construction_span(&mut self, span: Span, id: &'static str, ordinal: u16) {
-        self.record_ability_construction_span_with_decision(span, id, ordinal, None);
+    fn record_ability_construction_span(
+        &mut self,
+        span: Span,
+        id: &'static str,
+        decision: SameFamilyDecision,
+    ) {
+        self.record_ability_construction_span_with_decision(span, id, decision);
     }
 
     fn record_ability_construction_span_with_decision(
         &mut self,
         span: Span,
         id: &'static str,
-        ordinal: u16,
-        decision: Option<AbilityRootDecision>,
+        decision: SameFamilyDecision,
     ) {
-        let Some(groups) = self.activation.ability_groups() else {
+        let Some(groups) = self.activation.backend_groups(
+            deckmaste_construction_compiler::runtime::ConstructionBackendData::Ability,
+        ) else {
             return;
         };
         #[cfg(test)]
@@ -1544,8 +1551,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 .iter()
                 .flat_map(|group| group.constructions)
                 .collect::<Vec<_>>();
-            self.activation
-                .reorder_ability_candidates(&mut constructions);
+            self.activation.reorder_candidates(&mut constructions);
             constructions
                 .into_iter()
                 .find(|construction| construction.id == id)
@@ -1571,56 +1577,14 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         let Some(family) = family else {
             return;
         };
-        let production = ProductionId {
-            construction: id,
-            ordinal,
-        };
-        let (cost, reason, alternatives) = decision.map_or_else(
-            || {
-                (
-                    ParseCost::default(),
-                    SelectionReason::Unique,
-                    vec![ConstructionAlternative::new(
-                        production,
-                        ParseCost::default(),
-                        false,
-                    )],
-                )
-            },
-            |decision| {
-                (
-                    decision.cost,
-                    decision.reason,
-                    decision
-                        .alternatives
-                        .into_iter()
-                        .map(|(ordinal, cost)| {
-                            ConstructionAlternative::new(
-                                ProductionId {
-                                    construction: id,
-                                    ordinal,
-                                },
-                                cost,
-                                false,
-                            )
-                        })
-                        .collect(),
-                )
-            },
-        );
+        let cost = decision.cost();
+        let construction_decision = decision.finish(span, id, family);
         self.selections.push(AbilitySelection {
             span,
             constituent_spans: Vec::new(),
             rule: None,
             construction: Some(id),
-            constructions: vec![ConstructionDecision::new(
-                span,
-                production,
-                family,
-                cost,
-                reason,
-                alternatives,
-            )],
+            constructions: vec![construction_decision],
             tied_alternatives: vec![0],
             cost,
             chart_stats: ChartStats::default(),
@@ -2304,7 +2268,9 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         };
         let list = crate::constructions::ability::build_keyword_list(abilities, trailing)
             .expect("the keyword-line recognizer satisfies the declaration");
-        let form = u16::from(list.trailing().is_none());
+        let form = crate::constructions::ability::selected_keyword_line_form(&list)
+            .expect("the declaration assigns every keyword line one form")
+            .ordinal;
         self.record_ability_construction(tokens, "keyword_line", form);
         Some(list)
     }
@@ -2312,7 +2278,10 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     fn recognize_keyword_item_parts(
         &mut self,
         tokens: &[Token],
-    ) -> Option<(Vec<KeywordAbility>, Option<Paragraph>)> {
+    ) -> Option<(
+        SeparatedNonEmpty<KeywordAbility, KeywordListSeparator>,
+        Option<Paragraph>,
+    )> {
         let chunks = self.split_keyword_items(tokens);
         let in_list = chunks.len() > 1;
         let mut abilities = Vec::with_capacity(chunks.len());
@@ -2344,13 +2313,23 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
                 trailing = tail;
                 argument
             };
-            abilities.push(KeywordAbility {
+            abilities.push((
                 preceding_separator,
-                ability: atom,
-                argument,
-            });
+                KeywordAbility {
+                    ability: atom,
+                    argument,
+                },
+            ));
         }
-        (!abilities.is_empty()).then_some((abilities, trailing))
+        let mut abilities = abilities.into_iter();
+        let (first_separator, first) = abilities.next()?;
+        if first_separator.is_some() {
+            return None;
+        }
+        let rest = abilities
+            .map(|(separator, ability)| Some(Separated::new(separator?, ability)))
+            .collect::<Option<Vec<_>>>()?;
+        Some((SeparatedNonEmpty::new(first, rest), trailing))
     }
 
     /// The single-item fallback described on
@@ -2362,7 +2341,10 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     fn recognize_single_restricted_cost_parts(
         &mut self,
         tokens: &[Token],
-    ) -> Option<(Vec<KeywordAbility>, Option<Paragraph>)> {
+    ) -> Option<(
+        SeparatedNonEmpty<KeywordAbility, KeywordListSeparator>,
+        Option<Paragraph>,
+    )> {
         let (atom, matched_end) = self.longest_ability_item_atom(tokens)?;
         let argument_tokens = &tokens[matched_end..];
         let ability_end = tokens.get(matched_end.checked_sub(1)?)?.span.end;
@@ -2372,11 +2354,13 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         }
         let argument = self.parse_restricted_cost(body)?;
         Some((
-            vec![KeywordAbility {
-                preceding_separator: None,
-                ability: atom,
-                argument,
-            }],
+            SeparatedNonEmpty::new(
+                KeywordAbility {
+                    ability: atom,
+                    argument,
+                },
+                Vec::new(),
+            ),
             None,
         ))
     }
@@ -3674,13 +3658,9 @@ mod tests {
         let AbilityKind::Keyword(keywords) = report.ast.abilities[0].kind() else {
             panic!("expected keyword ability");
         };
-        let KeywordArgument::Costed(KeywordCost::Symbols(symbols)) =
-            &keywords.abilities()[0].argument
+        let KeywordArgument::Costed(KeywordCost::Symbols(symbols)) = &keywords.first().argument
         else {
-            panic!(
-                "expected a symbol keyword cost: {:#?}",
-                keywords.abilities()[0]
-            );
+            panic!("expected a symbol keyword cost: {:#?}", keywords.first());
         };
         assert_eq!(symbols.len(), 2);
         assert_eq!(
@@ -3739,9 +3719,10 @@ mod tests {
         let report = parse("Landfall — Whenever a land enters under your control, draw a card.");
         let ability = &report.ast.abilities[0];
         assert_eq!(
-            ability
-                .ability_word()
-                .map(crate::catalog::CatalogAtom::canonical),
+            ability.header().and_then(|header| match header {
+                AbilityHeader::AbilityWord(word) => Some(word.canonical()),
+                AbilityHeader::Flavor(_) => None,
+            }),
             Some("Landfall")
         );
         let AbilityKind::Triggered(triggered) = ability.kind() else {
@@ -4242,7 +4223,7 @@ mod tests {
             panic!("expected keyword ability");
         };
         assert!(matches!(
-            &keywords.abilities()[0].argument,
+            &keywords.first().argument,
             KeywordArgument::Costed(KeywordCost::Sentence { .. })
         ));
     }
@@ -4254,7 +4235,7 @@ mod tests {
             panic!("expected keyword ability");
         };
         assert!(matches!(
-            &keywords.abilities()[0].argument,
+            &keywords.first().argument,
             KeywordArgument::Costed(KeywordCost::Symbols(symbols))
                 if symbols.iter().map(OracleSymbol::as_str).collect::<String>() == "{2}{W}"
         ));
@@ -4300,10 +4281,16 @@ mod tests {
         let AbilityKind::Keyword(list) = &keywords.ast.abilities[0].kind() else {
             panic!("expected keyword list");
         };
-        assert_eq!(list.abilities().len(), 3);
-        assert_eq!(list.abilities()[0].ability.canonical(), "Flying");
-        assert_eq!(list.abilities()[1].ability.canonical(), "First strike");
-        assert_eq!(list.abilities()[2].ability.canonical(), "Protection");
+        assert_eq!(list.len(), 3);
+        assert_eq!(list.first().ability.canonical(), "Flying");
+        assert_eq!(
+            list.get(1).expect("a second keyword").ability.canonical(),
+            "First strike"
+        );
+        assert_eq!(
+            list.get(2).expect("a third keyword").ability.canonical(),
+            "Protection"
+        );
 
         let action = parse("Manifest dread 2.");
         let AbilityKind::Paragraph(paragraph) = &action.ast.abilities[0].kind() else {
@@ -4318,8 +4305,11 @@ mod tests {
         let ability_word = parse("Void — Whenever Nissa attacks, draw a card.");
         assert_eq!(
             ability_word.ast.abilities[0]
-                .ability_word()
-                .map(crate::catalog::CatalogAtom::canonical),
+                .header()
+                .and_then(|header| match header {
+                    AbilityHeader::AbilityWord(word) => Some(word.canonical()),
+                    AbilityHeader::Flavor(_) => None,
+                }),
             Some("Void")
         );
     }
@@ -4361,13 +4351,14 @@ mod tests {
         let AbilityKind::Keyword(list) = report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability: {:#?}", report.ast.abilities[0]);
         };
+        assert_eq!(list.len(), 1);
         assert!(matches!(
-            list.abilities(),
-            [KeywordAbility {
+            list.first(),
+            KeywordAbility {
                 ability,
                 argument: KeywordArgument::Predicated(predicated),
                 ..
-            }] if ability.canonical() == "Affinity"
+            } if ability.canonical() == "Affinity"
                 && matches!(predicated.qualities.as_slice(), [quality]
                     if quality.preposition == Some(Preposition::For))
         ));
@@ -4645,9 +4636,10 @@ mod tests {
         let report = parse("Landfall — Draw a card.");
         let ability = &report.ast.abilities[0];
         assert_eq!(
-            ability
-                .ability_word()
-                .map(crate::catalog::CatalogAtom::canonical),
+            ability.header().and_then(|header| match header {
+                AbilityHeader::AbilityWord(word) => Some(word.canonical()),
+                AbilityHeader::Flavor(_) => None,
+            }),
             Some("Landfall")
         );
         let AbilityKind::Paragraph(paragraph) = ability.kind() else {
@@ -4984,7 +4976,7 @@ mod tests {
         let AbilityKind::Keyword(list) = row.ability.kind() else {
             panic!("expected a keyword list body: {:#?}", row.ability.kind());
         };
-        assert_eq!(list.abilities().len(), 2);
+        assert_eq!(list.len(), 2);
         assert_eq!(render(&report), source);
     }
 
@@ -5544,10 +5536,8 @@ mod tests {
     fn multiline_and_nested_ability_roots_are_registration_order_neutral() {
         let activations = [
             crate::grammar::GeneratedActivation::Groups(crate::constructions::ALL_GROUPS),
-            crate::grammar::GeneratedActivation::AbilityGroupsReversed(
-                crate::constructions::ALL_GROUPS,
-            ),
-            crate::grammar::GeneratedActivation::AbilityGroupsFixedShuffle(
+            crate::grammar::GeneratedActivation::GroupsReversed(crate::constructions::ALL_GROUPS),
+            crate::grammar::GeneratedActivation::GroupsFixedShuffle(
                 crate::constructions::ALL_GROUPS,
             ),
         ];
@@ -5637,7 +5627,7 @@ mod tests {
             .into_iter()
             .filter(|candidate| {
                 parser
-                    .probe_ability_candidate(*candidate, &tokens)
+                    .probe_ability_candidate(*candidate, &tokens, None)
                     .is_some()
             })
             .collect::<Vec<_>>();
@@ -5657,7 +5647,16 @@ mod tests {
     fn equal_ability_guard_ranks_are_rejected_explicitly() {
         let candidate = |frame| super::ParsedAbilityCandidate {
             frame,
-            kind: AbilityKind::Paragraph(Paragraph::default()),
+            ability: crate::constructions::ability::build_ability_root(
+                None,
+                AbilityKind::Paragraph(Paragraph {
+                    flavor_header: None,
+                    sentences: vec![Sentence::from_body(SentenceBody::Recovered(
+                        RecoveredText::new("test", 1),
+                    ))],
+                }),
+            )
+            .expect("the test candidate is a checked ability"),
             diagnostics: Vec::new(),
             selections: Vec::new(),
         };
@@ -5724,17 +5723,13 @@ mod tests {
                 report.ast
             );
         };
-        assert_eq!(
-            list.abilities().len(),
-            1,
-            "expected one keyword for {source:?}"
-        );
+        assert_eq!(list.len(), 1, "expected one keyword for {source:?}");
         assert_eq!(
             report.ast.render("Test Card", false).unwrap(),
             source,
             "shape argument must round-trip"
         );
-        list.abilities()[0].argument.clone()
+        list.first().argument.clone()
     }
 
     #[test]
@@ -5867,14 +5862,11 @@ mod tests {
         let AbilityKind::Keyword(list) = report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability: {:#?}", report.ast);
         };
-        assert_eq!(list.abilities().len(), 1, "expected one keyword item");
+        assert_eq!(list.len(), 1, "expected one keyword item");
         let KeywordArgument::Costed(KeywordCost::Components { cost, terminal }) =
-            &list.abilities()[0].argument
+            &list.first().argument
         else {
-            panic!(
-                "expected a structured cost: {:#?}",
-                list.abilities()[0].argument
-            );
+            panic!("expected a structured cost: {:#?}", list.first().argument);
         };
         assert!(*terminal);
         assert!(matches!(
@@ -5896,7 +5888,7 @@ mod tests {
             panic!("expected a keyword ability: {:#?}", synthetic_report.ast);
         };
         assert!(matches!(
-            synthetic_list.abilities()[0].argument,
+            synthetic_list.first().argument,
             KeywordArgument::Costed(KeywordCost::Components { .. })
         ));
 
@@ -5912,13 +5904,9 @@ mod tests {
         let AbilityKind::Keyword(listed_list) = &listed_report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability: {:#?}", listed_report.ast);
         };
-        assert_eq!(
-            listed_list.abilities().len(),
-            2,
-            "expected two keyword items"
-        );
+        assert_eq!(listed_list.len(), 2, "expected two keyword items");
         assert!(matches!(
-            listed_list.abilities()[1].argument,
+            listed_list.get(1).expect("a second keyword").argument,
             KeywordArgument::Costed(KeywordCost::Components { .. })
         ));
         assert_eq!(
@@ -5933,7 +5921,7 @@ mod tests {
         let AbilityKind::Keyword(plain_list) = &plain_report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability: {:#?}", plain_report.ast);
         };
-        assert_eq!(plain_list.abilities().len(), 3);
+        assert_eq!(plain_list.len(), 3);
     }
 
     #[test]
@@ -5950,7 +5938,7 @@ mod tests {
             panic!("expected a keyword ability: {:#?}", report.ast);
         };
         assert!(matches!(
-            list.abilities()[0].argument,
+            list.first().argument,
             KeywordArgument::Costed(KeywordCost::Components { .. })
         ));
         assert!(list.trailing().is_some(), "expected a trailing paragraph");
@@ -5969,7 +5957,7 @@ mod tests {
             panic!("expected a keyword ability: {:#?}", armor_report.ast);
         };
         assert!(matches!(
-            armor_list.abilities()[0].argument,
+            armor_list.first().argument,
             KeywordArgument::Costed(KeywordCost::Components { .. })
         ));
         assert!(armor_list.trailing().is_some());
@@ -5996,13 +5984,14 @@ mod tests {
                     report.ast
                 );
             };
+            assert_eq!(list.len(), 1);
             assert!(
                 matches!(
-                    list.abilities(),
-                    [KeywordAbility {
+                    list.first(),
+                    KeywordAbility {
                         argument: KeywordArgument::RestrictedCost { .. },
                         ..
-                    }]
+                    }
                 ),
                 "expected a single RestrictedCost item for {source:?}: {list:#?}"
             );
@@ -6165,8 +6154,8 @@ mod tests {
                         report.ast.abilities[0].kind(),
                         AbilityKind::Keyword(list)
                             if matches!(
-                                list.abilities().first().map(|ability| &ability.argument),
-                                Some(KeywordArgument::RestrictedCost { .. })
+                                &list.first().argument,
+                                KeywordArgument::RestrictedCost { .. }
                             )
                     ),
                 "must not become RestrictedCost: {:#?}",
@@ -6266,16 +6255,17 @@ mod tests {
                     report.ast.abilities[0].kind()
                 );
             };
+            assert_eq!(list.len(), 1);
             assert!(matches!(
-                list.abilities(),
-                [KeywordAbility {
+                list.first(),
+                KeywordAbility {
                     ability,
                     argument: KeywordArgument::Named {
                         separator: KeywordArgumentSeparator::Space,
                         label: parsed_label,
                     },
                     ..
-                }] if ability.canonical() == "Gift" && parsed_label == label
+                } if ability.canonical() == "Gift" && parsed_label == label
             ));
             assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
             assert_eq!(report.ast.render("Test Card", false).unwrap(), source);
@@ -6308,7 +6298,7 @@ mod tests {
             let report = parse_with_catalogs(source, &shape_catalogs());
             if let AbilityKind::Keyword(list) = report.ast.abilities[0].kind() {
                 assert!(
-                    !matches!(list.abilities()[0].argument, KeywordArgument::Named { .. }),
+                    !matches!(list.first().argument, KeywordArgument::Named { .. }),
                     "{source:?} must not license a named label: {:#?}",
                     report.ast
                 );
@@ -6362,12 +6352,13 @@ mod tests {
         let AbilityKind::Keyword(list) = quoted.ability.kind() else {
             panic!("expected a keyword ability: {:#?}", quoted.ability);
         };
+        assert_eq!(list.len(), 1);
         assert!(matches!(
-            list.abilities(),
-            [KeywordAbility {
+            list.first(),
+            KeywordAbility {
                 argument: KeywordArgument::Costed(KeywordCost::Symbols(symbols)),
                 ..
-            }] if symbols.iter().map(OracleSymbol::as_str).collect::<String>() == "{1}"
+            } if symbols.iter().map(OracleSymbol::as_str).collect::<String>() == "{1}"
         ));
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
         assert_eq!(report.ast.render("Test Card", false).unwrap(), source);
@@ -6415,7 +6406,7 @@ mod tests {
             panic!("expected a keyword ability: {:#?}", report.ast);
         };
         assert!(matches!(
-            &list.abilities()[1].argument,
+            &list.get(1).expect("a second keyword").argument,
             KeywordArgument::Predicated(predicated)
                 if matches!(predicated.qualities.as_slice(), [quality]
                     if quality.preposition.is_none())
@@ -6437,7 +6428,7 @@ mod tests {
             panic!("expected a keyword ability: {:#?}", report.ast);
         };
         assert!(matches!(
-            list.abilities()[0].argument,
+            list.first().argument,
             KeywordArgument::Recovered { .. }
         ));
         assert_eq!(
@@ -6461,7 +6452,7 @@ mod tests {
             panic!("expected a keyword ability: {:#?}", report.ast);
         };
         assert!(matches!(
-            list.abilities()[0].argument,
+            list.first().argument,
             KeywordArgument::Qualified(Phrase::NounPhrase(_))
         ));
         assert_eq!(
@@ -6480,7 +6471,7 @@ mod tests {
             if let AbilityKind::Keyword(list) = report.ast.abilities[0].kind() {
                 assert!(
                     !matches!(
-                        list.abilities()[0].argument,
+                        list.first().argument,
                         KeywordArgument::Qualified(Phrase::NounPhrase(_))
                     ),
                     "{source:?} must not take a bare object: {:#?}",
@@ -7362,9 +7353,8 @@ mod tests {
         let AbilityKind::Keyword(keywords) = report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability: {:#?}", report.ast.abilities[0]);
         };
-        let [ability] = keywords.abilities() else {
-            panic!("expected exactly one keyword ability");
-        };
+        assert_eq!(keywords.len(), 1, "expected exactly one keyword ability");
+        let ability = keywords.first();
         assert_eq!(ability.ability.canonical(), "Hexproof from");
         let KeywordArgument::Predicated(argument) = &ability.argument else {
             panic!("expected a predicated argument: {:#?}", ability.argument);
@@ -7390,10 +7380,10 @@ mod tests {
         let AbilityKind::Keyword(keywords) = report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability: {:#?}", report.ast.abilities[0]);
         };
-        let KeywordArgument::Predicated(argument) = &keywords.abilities()[0].argument else {
+        let KeywordArgument::Predicated(argument) = &keywords.first().argument else {
             panic!(
                 "expected a predicated argument: {:#?}",
-                keywords.abilities()[0].argument
+                keywords.first().argument
             );
         };
         let [quality] = argument.qualities.as_slice() else {
@@ -7414,7 +7404,7 @@ mod tests {
         let AbilityKind::Keyword(keywords) = report.ast.abilities[0].kind() else {
             panic!("expected a keyword ability");
         };
-        assert_eq!(keywords.abilities()[0].ability.canonical(), "Hexproof from");
+        assert_eq!(keywords.first().ability.canonical(), "Hexproof from");
     }
 
     #[test]

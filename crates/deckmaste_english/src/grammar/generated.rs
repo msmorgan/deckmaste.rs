@@ -211,12 +211,12 @@ pub(crate) enum GeneratedActivation {
     /// Test assemblies only: register exactly these groups, in slice order.
     #[cfg(test)]
     Groups(&'static [&'static GroupData]),
-    /// Test assemblies with ability-family lookup order reversed.
+    /// Test assemblies with candidate lookup order reversed.
     #[cfg(test)]
-    AbilityGroupsReversed(&'static [&'static GroupData]),
-    /// Test assemblies with a deterministic nontrivial ability-family shuffle.
+    GroupsReversed(&'static [&'static GroupData]),
+    /// Test assemblies with a deterministic nontrivial candidate shuffle.
     #[cfg(test)]
-    AbilityGroupsFixedShuffle(&'static [&'static GroupData]),
+    GroupsFixedShuffle(&'static [&'static GroupData]),
 }
 
 impl GeneratedActivation {
@@ -231,30 +231,27 @@ impl GeneratedActivation {
             Self::Inactive => None,
             #[cfg(test)]
             Self::Groups(groups)
-            | Self::AbilityGroupsReversed(groups)
-            | Self::AbilityGroupsFixedShuffle(groups) => Some(groups),
+            | Self::GroupsReversed(groups)
+            | Self::GroupsFixedShuffle(groups) => Some(groups),
         }
     }
 
     pub(super) fn chart_groups(self) -> Option<Vec<&'static GroupData>> {
-        self.groups().map(|groups| {
-            groups
-                .iter()
-                .copied()
-                .filter(|group| group.backend == ConstructionBackendData::Chart)
-                .collect()
-        })
+        self.backend_groups(ConstructionBackendData::Chart)
     }
 
-    pub(super) fn ability_groups(self) -> Option<Vec<&'static GroupData>> {
-        if matches!(self, Self::Production) {
+    pub(super) fn backend_groups(
+        self,
+        backend: ConstructionBackendData,
+    ) -> Option<Vec<&'static GroupData>> {
+        if matches!(self, Self::Production) && backend == ConstructionBackendData::Ability {
             return Some(crate::constructions::ABILITY_GROUPS.to_vec());
         }
         self.groups().map(|groups| {
             groups
                 .iter()
                 .copied()
-                .filter(|group| group.backend == ConstructionBackendData::Ability)
+                .filter(|group| group.backend == backend)
                 .collect()
         })
     }
@@ -264,10 +261,10 @@ impl GeneratedActivation {
     }
 
     #[cfg(test)]
-    pub(super) fn reorder_ability_candidates<T>(self, candidates: &mut [T]) {
+    pub(super) fn reorder_candidates<T>(self, candidates: &mut [T]) {
         match self {
-            Self::AbilityGroupsReversed(_) => candidates.reverse(),
-            Self::AbilityGroupsFixedShuffle(_) if candidates.len() > 1 => {
+            Self::GroupsReversed(_) => candidates.reverse(),
+            Self::GroupsFixedShuffle(_) if candidates.len() > 1 => {
                 candidates.rotate_left(1);
             }
             _ => {}
@@ -858,6 +855,12 @@ fn validate_field_kind(
     kind: FieldKindData,
 ) -> Result<(), GeneratedAssemblyError> {
     match kind {
+        FieldKindData::TupleProduct { fields } | FieldKindData::StructProduct { fields } => {
+            for nested in fields {
+                validate_field_kind(owner, nested.name, nested.kind)?;
+            }
+            Ok(())
+        }
         FieldKindData::TypedScalar { value_type, codec } => {
             typed_scalar_slot(owner, field, value_type, codec, false).map(drop)
         }
@@ -875,10 +878,16 @@ fn validate_field_kind(
                     provider,
                 },
         } => identity_slot(owner, field, value_type, provider, true).map(drop),
-        FieldKindData::Subtree { .. }
+        FieldKindData::Unit
+        | FieldKindData::Subtree { .. }
+        | FieldKindData::TypedSubtree { .. }
         | FieldKindData::Scalar { .. }
         | FieldKindData::SurfaceScalar { .. }
         | FieldKindData::Sequence { .. }
+        | FieldKindData::NonEmptySequence { .. }
+        | FieldKindData::SeparatedNonEmptySequence { .. }
+        | FieldKindData::Sum { .. }
+        | FieldKindData::Product { .. }
         | FieldKindData::Optional { .. } => Ok(()),
     }
 }
@@ -1227,11 +1236,13 @@ fn field_expected(
     kind: FieldKindData,
 ) -> Result<Expected<Nonterminal, EnglishLexicalSlot>, GeneratedAssemblyError> {
     match kind {
-        FieldKindData::Subtree { category, .. } => Ok(Expected::Nonterminal(category_nonterminal(
-            cats,
-            construction,
-            category,
-        )?)),
+        FieldKindData::Subtree { category, .. } | FieldKindData::TypedSubtree { category, .. } => {
+            Ok(Expected::Nonterminal(category_nonterminal(
+                cats,
+                construction,
+                category,
+            )?))
+        }
         FieldKindData::Scalar { codec } | FieldKindData::SurfaceScalar { codec } => {
             codec_slot(codec).map(Expected::Lexical).ok_or(
                 GeneratedAssemblyError::UnknownLexemeCodec {
@@ -1260,9 +1271,16 @@ fn field_expected(
         FieldKindData::Optional { inner } => {
             field_expected(cats, construction, owner, field, *inner)
         }
-        FieldKindData::Sequence { .. } => Err(GeneratedAssemblyError::UnsupportedAtomKind {
+        FieldKindData::Unit
+        | FieldKindData::TupleProduct { .. }
+        | FieldKindData::StructProduct { .. }
+        | FieldKindData::Sequence { .. }
+        | FieldKindData::NonEmptySequence { .. }
+        | FieldKindData::SeparatedNonEmptySequence { .. }
+        | FieldKindData::Sum { .. }
+        | FieldKindData::Product { .. } => Err(GeneratedAssemblyError::UnsupportedAtomKind {
             construction: construction.id,
-            field: "nested sequence element",
+            field: "nested product, sum, or sequence field",
         }),
     }
 }

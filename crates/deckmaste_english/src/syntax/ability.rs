@@ -1,3 +1,7 @@
+pub use deckmaste_construction_compiler::runtime::NonEmpty;
+pub use deckmaste_construction_compiler::runtime::Separated;
+pub use deckmaste_construction_compiler::runtime::SeparatedNonEmpty;
+
 use super::clause::Clause;
 use super::clause::DependentClause;
 use super::clause::IndependentClause;
@@ -18,82 +22,58 @@ pub struct OracleText {
     pub abilities: Vec<Ability>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Ability {
-    repr: AbilityRepr,
+    header: Option<AbilityHeader>,
+    kind: AbilityKind,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct AbilityRepr {
+/// The optional label printed before an ability's frame.
+///
+/// Ability words and flavor words occupy the same surface slot. Keeping them
+/// as one sum makes their mutual exclusion structural rather than a checked
+/// relationship between two independent options.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub enum AbilityHeader {
     /// A Scryfall ability word ([`CatalogKind::AbilityWord`]) peeled before the
     /// ability frame and reproduced as `<word> — `. An ability word is a
     /// rules-relevant grouping label, so it is a licensed structural header,
     /// not lexical opacity.
     ///
     /// [`CatalogKind::AbilityWord`]: crate::CatalogKind::AbilityWord
-    word: Option<CatalogAtom>,
+    AbilityWord(CatalogAtom),
     /// A Scryfall flavor word ([`CatalogKind::FlavorWord`]) peeled before the
     /// ability frame and reproduced as `<label> — `. Unlike an ability word a
     /// flavor word carries no rules meaning: it is licensed lexical opacity
     /// (counted as [`LexicalOpacityKind::FlavorHeader`]), the sibling of a
     /// paragraph's or cost's [`Paragraph::flavor_header`], carried one level up
     /// because a flavor word can stand ahead of a trigger or cost frame that a
-    /// paragraph header cannot reach. At most one of `ability_word` and
-    /// `flavor_header` is set; the two never co-occur on the supported corpus.
+    /// paragraph header cannot reach.
     ///
     /// [`CatalogKind::FlavorWord`]: crate::CatalogKind::FlavorWord
     /// [`LexicalOpacityKind::FlavorHeader`]: super::LexicalOpacityKind::FlavorHeader
-    flavor: Option<FlavorHeader>,
-    kind: AbilityKind,
+    Flavor(FlavorHeader),
 }
 
 impl Ability {
     pub(crate) const fn from_parts(
         _owner: &crate::constructions::ability::AbilityOwner,
-        ability_word: Option<CatalogAtom>,
-        flavor_header: Option<FlavorHeader>,
+        header: Option<AbilityHeader>,
         kind: AbilityKind,
     ) -> Self {
-        Self {
-            repr: AbilityRepr {
-                word: ability_word,
-                flavor: flavor_header,
-                kind,
-            },
-        }
+        Self { header, kind }
     }
 
-    /// Returns the ability-word header, if present.
+    /// Returns the ability's optional semantic header.
     #[must_use]
-    pub const fn ability_word(&self) -> Option<&CatalogAtom> {
-        self.repr.word.as_ref()
-    }
-
-    /// Returns the flavor-word header, if present.
-    #[must_use]
-    pub const fn flavor_header(&self) -> Option<&FlavorHeader> {
-        self.repr.flavor.as_ref()
+    pub const fn header(&self) -> Option<&AbilityHeader> {
+        self.header.as_ref()
     }
 
     /// Returns the ability's validated frame.
     #[must_use]
     pub const fn kind(&self) -> &AbilityKind {
-        &self.repr.kind
-    }
-}
-
-impl serde::Serialize for Ability {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-
-        let mut state = serializer.serialize_struct("Ability", 3)?;
-        state.serialize_field("ability_word", &self.repr.word)?;
-        state.serialize_field("flavor_header", &self.repr.flavor)?;
-        state.serialize_field("kind", &self.repr.kind)?;
-        state.end()
+        &self.kind
     }
 }
 
@@ -247,17 +227,17 @@ pub struct ActivatedAbility {
 /// An activation cost: the comma-separated list of components paid before the
 /// colon. Every cost is a list of typed [`CostComponent`]s; the earlier raw
 /// `SymbolList(String)` and untyped `Components(Vec<Phrase>)` shapes are gone.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Cost {
     flavor_header: Option<FlavorHeader>,
-    components: Vec<CostComponent>,
+    components: NonEmpty<CostComponent>,
 }
 
 impl Cost {
     pub(crate) const fn from_parts(
         _owner: &crate::constructions::ability::AbilityOwner,
         flavor_header: Option<FlavorHeader>,
-        components: Vec<CostComponent>,
+        components: NonEmpty<CostComponent>,
     ) -> Self {
         Self {
             flavor_header,
@@ -274,21 +254,11 @@ impl Cost {
     /// Returns the cost components in surface order.
     #[must_use]
     pub fn components(&self) -> &[CostComponent] {
-        &self.components
+        self.components.as_slice()
     }
-}
 
-impl serde::Serialize for Cost {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-
-        let mut state = serializer.serialize_struct("Cost", 2)?;
-        state.serialize_field("flavor_header", &self.flavor_header)?;
-        state.serialize_field("components", &self.components)?;
-        state.end()
+    pub(crate) const fn component_sequence(&self) -> &NonEmpty<CostComponent> {
+        &self.components
     }
 }
 
@@ -500,9 +470,9 @@ pub struct ModeHeading {
     pub cost: Cost,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct KeywordAbilityList {
-    abilities: Vec<KeywordAbility>,
+    abilities: SeparatedNonEmpty<KeywordAbility, KeywordListSeparator>,
     /// Ordinary rules sentences printed on the same physical line after the
     /// terminal carried by the final keyword's cost (`Flashback—{3}{R},
     /// Remove X loyalty counters from among planeswalkers you control. If you
@@ -515,7 +485,7 @@ pub struct KeywordAbilityList {
 impl KeywordAbilityList {
     pub(crate) const fn from_parts(
         _owner: &crate::constructions::ability::AbilityOwner,
-        abilities: Vec<KeywordAbility>,
+        abilities: SeparatedNonEmpty<KeywordAbility, KeywordListSeparator>,
         trailing: Option<Paragraph>,
     ) -> Self {
         Self {
@@ -524,9 +494,46 @@ impl KeywordAbilityList {
         }
     }
 
-    /// Returns the keyword abilities in surface order.
+    /// Returns the keyword abilities in surface order, without their joining
+    /// separators.
+    pub fn abilities(&self) -> impl Iterator<Item = &KeywordAbility> {
+        self.abilities.iter()
+    }
+
+    /// Returns the number of keyword abilities on this line.
     #[must_use]
-    pub fn abilities(&self) -> &[KeywordAbility] {
+    pub fn len(&self) -> usize {
+        self.abilities.len()
+    }
+
+    /// Returns `false`; a keyword-ability list is structurally nonempty.
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        false
+    }
+
+    /// Returns the first keyword ability. A keyword list is never empty.
+    #[must_use]
+    pub const fn first(&self) -> &KeywordAbility {
+        self.abilities.first()
+    }
+
+    /// Returns the keyword ability at `index` in surface order.
+    #[must_use]
+    pub fn get(&self, index: usize) -> Option<&KeywordAbility> {
+        if index == 0 {
+            Some(self.abilities.first())
+        } else {
+            self.abilities.rest().get(index - 1).map(Separated::value)
+        }
+    }
+
+    /// Returns the checked sequence, including every continuation's exact
+    /// comma-or-semicolon separator.
+    #[must_use]
+    pub const fn separated_abilities(
+        &self,
+    ) -> &SeparatedNonEmpty<KeywordAbility, KeywordListSeparator> {
         &self.abilities
     }
 
@@ -534,20 +541,6 @@ impl KeywordAbilityList {
     #[must_use]
     pub const fn trailing(&self) -> Option<&Paragraph> {
         self.trailing.as_ref()
-    }
-}
-
-impl serde::Serialize for KeywordAbilityList {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-
-        let mut state = serializer.serialize_struct("KeywordAbilityList", 2)?;
-        state.serialize_field("abilities", &self.abilities)?;
-        state.serialize_field("trailing", &self.trailing)?;
-        state.end()
     }
 }
 
@@ -563,7 +556,6 @@ impl serde::Serialize for KeywordAbilityList {
 /// grammar's.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct KeywordAbility {
-    pub preceding_separator: Option<KeywordListSeparator>,
     pub ability: CatalogAtom,
     pub argument: KeywordArgument,
 }

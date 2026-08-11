@@ -1,0 +1,1741 @@
+mod __constructions_fixture_sum {
+    #![allow(
+        clippy::nonminimal_bool,
+        reason = "the `if !(…)` wrapper negates arbitrary author predicates \
+                          uniformly, including `matches!` and nested `&&`/`||` trees; \
+                          a De Morgan pass would add a whole rewriting layer for zero \
+                          semantic gain"
+    )]
+    #![allow(
+        clippy::must_use_candidate,
+        reason = "accessors are generated per declared field, not chosen"
+    )]
+    #![allow(
+        clippy::missing_errors_doc,
+        reason = "try_new's error conditions are the declaration's `require` \
+                          clauses, which the author wrote and can read"
+    )]
+    #![allow(
+        clippy::borrowed_box,
+        reason = "bound-element destructurers preserve the declaration's exact payload type"
+    )]
+    #![allow(
+        clippy::too_many_lines,
+        reason = "a total generated linearizer grows with the number and size of declared forms"
+    )]
+    #![allow(
+        clippy::needless_borrow,
+        reason = "uniform generated field access composes direct, optional, and sequence-member references"
+    )]
+    use super::*;
+    pub enum NodeVariantRef<'a> {
+        Unit,
+        Leaf(&'a String),
+        Pair { left: &'a Box<Node>, right: &'a Box<Node> },
+        Named { label: &'a String, child: &'a Box<Node> },
+    }
+    pub fn parts_node(value: &Node) -> NodeVariantRef<'_> {
+        match value {
+            Node::Unit => NodeVariantRef::Unit,
+            Node::Leaf(payload) => NodeVariantRef::Leaf(payload),
+            Node::Pair(left, right) => {
+                NodeVariantRef::Pair {
+                    left,
+                    right,
+                }
+            }
+            Node::Named { label, child } => {
+                NodeVariantRef::Named {
+                    label,
+                    child,
+                }
+            }
+        }
+    }
+    pub fn build_node_unit() -> Node {
+        Node::Unit
+    }
+    pub fn build_node_leaf(payload: String) -> Node {
+        Node::Leaf(payload)
+    }
+    pub fn build_node_pair(left: Box<Node>, right: Box<Node>) -> Node {
+        Node::Pair(left, right)
+    }
+    pub fn build_node_named(label: String, child: Box<Node>) -> Node {
+        Node::Named { label, child }
+    }
+    #[derive(Debug, PartialEq, Eq)]
+    pub struct Item {
+        pub value: String,
+    }
+    fn __parts_wrapped(value: &Wrapped) -> (&Node, &Box<ConcreteClause>, &bool, &Item) {
+        let Wrapped { node, clause, marked, item } = value;
+        (node, clause, marked, item)
+    }
+    const _: fn(&Wrapped) -> (&Node, &Box<ConcreteClause>, &bool, &Item) = __parts_wrapped;
+    fn __linearize_sum_node_with<V>(
+        value: &Node,
+        role: &'static str,
+        visitor: &mut V,
+    ) -> Result<
+        (),
+        ::deckmaste_construction_compiler::runtime::LinearizationError<V::Error>,
+    >
+    where
+        V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor,
+    {
+        visitor
+            .bound_value("node", value)
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+            )?;
+        match value {
+            Node::Unit => {
+                visitor
+                    .begin_sum_variant(role, "node", "Unit")
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .end_sum_variant(role)
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+            }
+            Node::Leaf(payload) => {
+                visitor
+                    .begin_sum_variant(role, "node", "Leaf")
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .scalar("String", payload)
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .projected_scalar(
+                        "payload",
+                        "String",
+                        ::deckmaste_construction_compiler::runtime::projection_value(
+                            payload,
+                        ),
+                    )
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .end_sum_variant(role)
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+            }
+            Node::Pair(left, right) => {
+                visitor
+                    .begin_sum_variant(role, "node", "Pair")
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                __linearize_sum_node_with((left).as_ref(), "left", visitor)?;
+                __linearize_sum_node_with((right).as_ref(), "right", visitor)?;
+                visitor
+                    .end_sum_variant(role)
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+            }
+            Node::Named { label, child } => {
+                visitor
+                    .begin_sum_variant(role, "node", "Named")
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .scalar("String", label)
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .projected_scalar(
+                        "label",
+                        "String",
+                        ::deckmaste_construction_compiler::runtime::projection_value(
+                            label,
+                        ),
+                    )
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                __linearize_sum_node_with((child).as_ref(), "child", visitor)?;
+                visitor
+                    .end_sum_variant(role)
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+            }
+        }
+        Ok(())
+    }
+    fn __linearize_product_item_with<V>(
+        value: &Item,
+        role: &'static str,
+        visitor: &mut V,
+    ) -> Result<
+        (),
+        ::deckmaste_construction_compiler::runtime::LinearizationError<V::Error>,
+    >
+    where
+        V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor,
+    {
+        visitor
+            .bound_value("item", value)
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+            )?;
+        visitor
+            .begin_product(role, "item")
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+            )?;
+        let __product_value = &value.value;
+        visitor
+            .scalar("String", __product_value)
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+            )?;
+        visitor
+            .projected_scalar(
+                "value",
+                "String",
+                ::deckmaste_construction_compiler::runtime::projection_value(
+                    __product_value,
+                ),
+            )
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+            )?;
+        visitor
+            .end_product(role)
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+            )?;
+        Ok(())
+    }
+    fn __linearize_product_wrapped_with<V>(
+        value: &Wrapped,
+        role: &'static str,
+        visitor: &mut V,
+    ) -> Result<
+        (),
+        ::deckmaste_construction_compiler::runtime::LinearizationError<V::Error>,
+    >
+    where
+        V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor,
+    {
+        visitor
+            .bound_value("wrapped", value)
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+            )?;
+        visitor
+            .begin_product(role, "wrapped")
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+            )?;
+        let (__product_node, __product_clause, __product_marked, __product_item) = __parts_wrapped(
+            value,
+        );
+        __linearize_sum_node_with(__product_node, "node", visitor)?;
+        visitor
+            .subtree("ClauseCategory", (__product_clause).as_ref())
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+            )?;
+        visitor
+            .projected_subtree(
+                "clause",
+                "ClauseCategory",
+                ::deckmaste_construction_compiler::runtime::projection_value(
+                    (__product_clause).as_ref(),
+                ),
+            )
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+            )?;
+        visitor
+            .scalar("bool", __product_marked)
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+            )?;
+        visitor
+            .projected_scalar(
+                "marked",
+                "bool",
+                ::deckmaste_construction_compiler::runtime::projection_value(
+                    __product_marked,
+                ),
+            )
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+            )?;
+        __linearize_product_item_with(__product_item, "item", visitor)?;
+        visitor
+            .end_product(role)
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+            )?;
+        Ok(())
+    }
+    #[derive(Debug, PartialEq, Eq)]
+    pub struct RootNode {
+        node: Node,
+        wrapped: Wrapped,
+        boxed_wrapped: Box<Wrapped>,
+        clause: ConcreteClause,
+        boxed_clause: Box<ConcreteClause>,
+        nodes: ::deckmaste_construction_compiler::runtime::NonEmpty<Node>,
+        items: ::deckmaste_construction_compiler::runtime::SeparatedNonEmpty<
+            Item,
+            Separator,
+        >,
+    }
+    impl RootNode {
+        pub fn try_new(
+            node: Node,
+            wrapped: Wrapped,
+            boxed_wrapped: Box<Wrapped>,
+            clause: ConcreteClause,
+            boxed_clause: Box<ConcreteClause>,
+            nodes: ::deckmaste_construction_compiler::runtime::NonEmpty<Node>,
+            items: ::deckmaste_construction_compiler::runtime::SeparatedNonEmpty<
+                Item,
+                Separator,
+            >,
+        ) -> Result<
+            Self,
+            ::deckmaste_construction_compiler::runtime::DeclarationViolation,
+        > {
+            Ok(Self {
+                node,
+                wrapped,
+                boxed_wrapped,
+                clause,
+                boxed_clause,
+                nodes,
+                items,
+            })
+        }
+        pub fn node(&self) -> &Node {
+            &self.node
+        }
+        pub fn wrapped(&self) -> &Wrapped {
+            &self.wrapped
+        }
+        pub fn boxed_wrapped(&self) -> &Box<Wrapped> {
+            &self.boxed_wrapped
+        }
+        pub fn clause(&self) -> &ConcreteClause {
+            &self.clause
+        }
+        pub fn boxed_clause(&self) -> &Box<ConcreteClause> {
+            &self.boxed_clause
+        }
+        pub fn nodes(
+            &self,
+        ) -> &::deckmaste_construction_compiler::runtime::NonEmpty<Node> {
+            &self.nodes
+        }
+        pub fn items(
+            &self,
+        ) -> &::deckmaste_construction_compiler::runtime::SeparatedNonEmpty<
+            Item,
+            Separator,
+        > {
+            &self.items
+        }
+    }
+    pub fn selected_root_form(
+        value: &RootNode,
+    ) -> Result<
+        &'static ::deckmaste_construction_compiler::runtime::FormData,
+        ::deckmaste_construction_compiler::runtime::FormSelectionError,
+    > {
+        let RootNode {
+            node,
+            wrapped: _,
+            boxed_wrapped: _,
+            clause: _,
+            boxed_clause: _,
+            nodes: _,
+            items: _,
+        } = value;
+        let mut selected_form: Option<(u16, usize)> = None;
+        if matches!(node, Node::Unit) {
+            if let Some((first, _)) = selected_form {
+                return Err(::deckmaste_construction_compiler::runtime::FormSelectionError::MultipleMatchingForms {
+                    construction: "root",
+                    first,
+                    second: 0,
+                });
+            }
+            selected_form = Some((0, 0usize));
+        }
+        if selected_form.is_none() {
+            selected_form = Some((1, 1usize));
+        }
+        let Some((_, selected_form)) = selected_form else {
+            return Err(::deckmaste_construction_compiler::runtime::FormSelectionError::NoMatchingForm {
+                construction: "root",
+            });
+        };
+        Ok(&FIXTURE_SUM_DECLARATION.constructions[0usize].forms[selected_form])
+    }
+    pub fn linearize_root_with<V>(
+        value: &RootNode,
+        visitor: &mut V,
+    ) -> Result<
+        (),
+        ::deckmaste_construction_compiler::runtime::LinearizationError<V::Error>,
+    >
+    where
+        V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor,
+    {
+        let selected_form = selected_root_form(value)
+            .map_err(|error| match error {
+                ::deckmaste_construction_compiler::runtime::FormSelectionError::NoMatchingForm {
+                    construction,
+                } => {
+                    ::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
+                        construction,
+                    }
+                }
+                ::deckmaste_construction_compiler::runtime::FormSelectionError::MultipleMatchingForms {
+                    construction,
+                    first,
+                    second,
+                } => {
+                    ::deckmaste_construction_compiler::runtime::LinearizationError::MultipleMatchingForms {
+                        construction,
+                        first,
+                        second,
+                    }
+                }
+            })?;
+        linearize_root_form_with(value, selected_form.ordinal, visitor)
+    }
+    pub fn linearize_root_form_with<V>(
+        value: &RootNode,
+        selected_form: u16,
+        visitor: &mut V,
+    ) -> Result<
+        (),
+        ::deckmaste_construction_compiler::runtime::LinearizationError<V::Error>,
+    >
+    where
+        V: ::deckmaste_construction_compiler::runtime::LinearizationVisitor,
+    {
+        let RootNode {
+            node,
+            wrapped,
+            boxed_wrapped,
+            clause,
+            boxed_clause,
+            nodes,
+            items,
+        } = value;
+        match selected_form {
+            0 if !(matches!(node, Node::Unit)) => {
+                Err(::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
+                    construction: "root",
+                })
+            }
+            0 => {
+                visitor
+                    .begin_form("root", "unit", 0)
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                __linearize_sum_node_with(node, "node", visitor)?;
+                __linearize_product_wrapped_with(wrapped, "wrapped", visitor)?;
+                __linearize_product_wrapped_with(
+                    (boxed_wrapped).as_ref(),
+                    "boxed_wrapped",
+                    visitor,
+                )?;
+                visitor
+                    .subtree("ClauseCategory", clause)
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .projected_subtree(
+                        "clause",
+                        "ClauseCategory",
+                        ::deckmaste_construction_compiler::runtime::projection_value(
+                            clause,
+                        ),
+                    )
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .subtree("ClauseCategory", (boxed_clause).as_ref())
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .projected_subtree(
+                        "boxed_clause",
+                        "ClauseCategory",
+                        ::deckmaste_construction_compiler::runtime::projection_value(
+                            (boxed_clause).as_ref(),
+                        ),
+                    )
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .begin_sequence("nodes", (nodes).len())
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                for (index, member) in (nodes).iter().enumerate() {
+                    visitor
+                        .sequence_member("nodes", index)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .bound_value("node", member)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .projected_bound_value(
+                            "node",
+                            ::deckmaste_construction_compiler::runtime::projection_input(
+                                member,
+                            ),
+                        )
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    match member {
+                        Node::Unit => {
+                            visitor
+                                .element_variant("node", "Unit")
+                                .map_err(
+                                    ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                                )?;
+                        }
+                        Node::Leaf(payload) => {
+                            visitor
+                                .element_variant("node", "Leaf")
+                                .map_err(
+                                    ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                                )?;
+                            visitor
+                                .scalar("String", payload)
+                                .map_err(
+                                    ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                                )?;
+                            visitor
+                                .projected_scalar(
+                                    "node.payload",
+                                    "String",
+                                    ::deckmaste_construction_compiler::runtime::projection_value(
+                                        payload,
+                                    ),
+                                )
+                                .map_err(
+                                    ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                                )?;
+                        }
+                        Node::Pair(left, right) => {
+                            visitor
+                                .element_variant("node", "Pair")
+                                .map_err(
+                                    ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                                )?;
+                            __linearize_sum_node_with(
+                                (left).as_ref(),
+                                "node.left",
+                                visitor,
+                            )?;
+                            __linearize_sum_node_with(
+                                (right).as_ref(),
+                                "node.right",
+                                visitor,
+                            )?;
+                        }
+                        Node::Named { label, child } => {
+                            visitor
+                                .element_variant("node", "Named")
+                                .map_err(
+                                    ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                                )?;
+                            visitor
+                                .scalar("String", label)
+                                .map_err(
+                                    ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                                )?;
+                            visitor
+                                .projected_scalar(
+                                    "node.label",
+                                    "String",
+                                    ::deckmaste_construction_compiler::runtime::projection_value(
+                                        label,
+                                    ),
+                                )
+                                .map_err(
+                                    ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                                )?;
+                            __linearize_sum_node_with(
+                                (child).as_ref(),
+                                "node.child",
+                                visitor,
+                            )?;
+                        }
+                    }
+                }
+                visitor
+                    .end_sequence("nodes")
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .begin_sequence("items", (items).len())
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .sequence_member("items", 0usize)
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .bound_value("item", (items).first())
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .projected_bound_value(
+                        "item",
+                        ::deckmaste_construction_compiler::runtime::projection_input(
+                            (items).first(),
+                        ),
+                    )
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .scalar("String", &(items).first().value)
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .projected_scalar(
+                        "item.value",
+                        "String",
+                        ::deckmaste_construction_compiler::runtime::projection_value(
+                            &(items).first().value,
+                        ),
+                    )
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                for (offset, continuation) in (items).rest().iter().enumerate() {
+                    let index = offset + 1;
+                    visitor
+                        .sequence_member("items", index)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .scalar("Separator", continuation.separator())
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .projected_scalar(
+                            "items.separator",
+                            "Separator",
+                            ::deckmaste_construction_compiler::runtime::projection_value(
+                                continuation.separator(),
+                            ),
+                        )
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .bound_value("item", continuation.value())
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .projected_bound_value(
+                            "item",
+                            ::deckmaste_construction_compiler::runtime::projection_input(
+                                continuation.value(),
+                            ),
+                        )
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .scalar("String", &continuation.value().value)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .projected_scalar(
+                            "item.value",
+                            "String",
+                            ::deckmaste_construction_compiler::runtime::projection_value(
+                                &continuation.value().value,
+                            ),
+                        )
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                }
+                visitor
+                    .end_sequence("items")
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .end_form("root")
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                Ok(())
+            }
+            1 => {
+                visitor
+                    .begin_form("root", "other", 1)
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                __linearize_sum_node_with(node, "node", visitor)?;
+                __linearize_product_wrapped_with(wrapped, "wrapped", visitor)?;
+                __linearize_product_wrapped_with(
+                    (boxed_wrapped).as_ref(),
+                    "boxed_wrapped",
+                    visitor,
+                )?;
+                visitor
+                    .subtree("ClauseCategory", clause)
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .projected_subtree(
+                        "clause",
+                        "ClauseCategory",
+                        ::deckmaste_construction_compiler::runtime::projection_value(
+                            clause,
+                        ),
+                    )
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .subtree("ClauseCategory", (boxed_clause).as_ref())
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .projected_subtree(
+                        "boxed_clause",
+                        "ClauseCategory",
+                        ::deckmaste_construction_compiler::runtime::projection_value(
+                            (boxed_clause).as_ref(),
+                        ),
+                    )
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .begin_sequence("nodes", (nodes).len())
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                for (index, member) in (nodes).iter().enumerate() {
+                    visitor
+                        .sequence_member("nodes", index)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .bound_value("node", member)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .projected_bound_value(
+                            "node",
+                            ::deckmaste_construction_compiler::runtime::projection_input(
+                                member,
+                            ),
+                        )
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    match member {
+                        Node::Unit => {
+                            visitor
+                                .element_variant("node", "Unit")
+                                .map_err(
+                                    ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                                )?;
+                        }
+                        Node::Leaf(payload) => {
+                            visitor
+                                .element_variant("node", "Leaf")
+                                .map_err(
+                                    ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                                )?;
+                            visitor
+                                .scalar("String", payload)
+                                .map_err(
+                                    ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                                )?;
+                            visitor
+                                .projected_scalar(
+                                    "node.payload",
+                                    "String",
+                                    ::deckmaste_construction_compiler::runtime::projection_value(
+                                        payload,
+                                    ),
+                                )
+                                .map_err(
+                                    ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                                )?;
+                        }
+                        Node::Pair(left, right) => {
+                            visitor
+                                .element_variant("node", "Pair")
+                                .map_err(
+                                    ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                                )?;
+                            __linearize_sum_node_with(
+                                (left).as_ref(),
+                                "node.left",
+                                visitor,
+                            )?;
+                            __linearize_sum_node_with(
+                                (right).as_ref(),
+                                "node.right",
+                                visitor,
+                            )?;
+                        }
+                        Node::Named { label, child } => {
+                            visitor
+                                .element_variant("node", "Named")
+                                .map_err(
+                                    ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                                )?;
+                            visitor
+                                .scalar("String", label)
+                                .map_err(
+                                    ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                                )?;
+                            visitor
+                                .projected_scalar(
+                                    "node.label",
+                                    "String",
+                                    ::deckmaste_construction_compiler::runtime::projection_value(
+                                        label,
+                                    ),
+                                )
+                                .map_err(
+                                    ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                                )?;
+                            __linearize_sum_node_with(
+                                (child).as_ref(),
+                                "node.child",
+                                visitor,
+                            )?;
+                        }
+                    }
+                }
+                visitor
+                    .end_sequence("nodes")
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .begin_sequence("items", (items).len())
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .sequence_member("items", 0usize)
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .bound_value("item", (items).first())
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .projected_bound_value(
+                        "item",
+                        ::deckmaste_construction_compiler::runtime::projection_input(
+                            (items).first(),
+                        ),
+                    )
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .scalar("String", &(items).first().value)
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .projected_scalar(
+                        "item.value",
+                        "String",
+                        ::deckmaste_construction_compiler::runtime::projection_value(
+                            &(items).first().value,
+                        ),
+                    )
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                for (offset, continuation) in (items).rest().iter().enumerate() {
+                    let index = offset + 1;
+                    visitor
+                        .sequence_member("items", index)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .scalar("Separator", continuation.separator())
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .projected_scalar(
+                            "items.separator",
+                            "Separator",
+                            ::deckmaste_construction_compiler::runtime::projection_value(
+                                continuation.separator(),
+                            ),
+                        )
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .bound_value("item", continuation.value())
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .projected_bound_value(
+                            "item",
+                            ::deckmaste_construction_compiler::runtime::projection_input(
+                                continuation.value(),
+                            ),
+                        )
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .scalar("String", &continuation.value().value)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .projected_scalar(
+                            "item.value",
+                            "String",
+                            ::deckmaste_construction_compiler::runtime::projection_value(
+                                &continuation.value().value,
+                            ),
+                        )
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                }
+                visitor
+                    .end_sequence("items")
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
+                    .end_form("root")
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                Ok(())
+            }
+            _ => {
+                Err(::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingForm {
+                    construction: "root",
+                })
+            }
+        }
+    }
+    fn __erased_field_root_nodes(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut members = Vec::<Node>::with_capacity(values.len());
+        for value in values {
+            members
+                .push(
+                    *value
+                        .downcast::<Node>()
+                        .map_err(|_| {
+                            ::deckmaste_construction_compiler::runtime::ErasedBuildError::WrongFieldType {
+                                owner: "root",
+                                field: "nodes",
+                                expected: stringify!(Node),
+                            }
+                        })?,
+                );
+        }
+        let sequence = ::deckmaste_construction_compiler::runtime::NonEmpty::try_from(
+                members,
+            )
+            .map_err(|_| ::deckmaste_construction_compiler::runtime::ErasedBuildError::EmptySequence {
+                owner: "root",
+                field: "nodes",
+            })?;
+        Ok(Box::new(sequence))
+    }
+    fn __erased_field_root_items(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut values = values.into_iter();
+        let first: Item = ::deckmaste_construction_compiler::runtime::take_erased(
+                &mut values,
+                "root",
+                "items",
+                stringify!(Item),
+            )
+            .map_err(|error| match error {
+                ::deckmaste_construction_compiler::runtime::ErasedBuildError::MissingField {
+                    ..
+                } => {
+                    ::deckmaste_construction_compiler::runtime::ErasedBuildError::EmptySequence {
+                        owner: "root",
+                        field: "items",
+                    }
+                }
+                other => other,
+            })?;
+        let mut rest = Vec::new();
+        while let Some(separator_value) = values.next() {
+            let separator = *separator_value
+                .downcast::<Separator>()
+                .map_err(|_| {
+                    ::deckmaste_construction_compiler::runtime::ErasedBuildError::WrongFieldType {
+                        owner: "root",
+                        field: "items",
+                        expected: stringify!(Separator),
+                    }
+                })?;
+            let value: Item = ::deckmaste_construction_compiler::runtime::take_erased(
+                &mut values,
+                "root",
+                "items",
+                stringify!(Item),
+            )?;
+            rest.push(
+                ::deckmaste_construction_compiler::runtime::Separated::new(
+                    separator,
+                    value,
+                ),
+            );
+        }
+        Ok(
+            Box::new(
+                ::deckmaste_construction_compiler::runtime::SeparatedNonEmpty::new(
+                    first,
+                    rest,
+                ),
+            ),
+        )
+    }
+    fn __erased_build_node_unit(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut values = values.into_iter();
+        if values.next().is_some() {
+            return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
+                owner: "node",
+            });
+        }
+        Ok(Box::new(Node::Unit))
+    }
+    fn __erased_build_node_leaf(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut values = values.into_iter();
+        let payload: String = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "node",
+            "payload",
+            stringify!(String),
+        )?;
+        if values.next().is_some() {
+            return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
+                owner: "node",
+            });
+        }
+        Ok(Box::new(Node::Leaf(payload)))
+    }
+    fn __erased_build_node_pair(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut values = values.into_iter();
+        let left: Box<Node> = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "node",
+            "left",
+            stringify!(Box < Node >),
+        )?;
+        let right: Box<Node> = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "node",
+            "right",
+            stringify!(Box < Node >),
+        )?;
+        if values.next().is_some() {
+            return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
+                owner: "node",
+            });
+        }
+        Ok(Box::new(Node::Pair(left, right)))
+    }
+    fn __erased_build_node_named(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut values = values.into_iter();
+        let label: String = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "node",
+            "label",
+            stringify!(String),
+        )?;
+        let child: Box<Node> = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "node",
+            "child",
+            stringify!(Box < Node >),
+        )?;
+        if values.next().is_some() {
+            return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
+                owner: "node",
+            });
+        }
+        Ok(Box::new(Node::Named { label, child }))
+    }
+    fn __erased_sequence_node(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut result = Vec::<Node>::with_capacity(values.len());
+        for value in values {
+            result
+                .push(
+                    *value
+                        .downcast::<Node>()
+                        .map_err(|_| {
+                            ::deckmaste_construction_compiler::runtime::ErasedBuildError::WrongFieldType {
+                                owner: "node",
+                                field: "sequence member",
+                                expected: stringify!(Node),
+                            }
+                        })?,
+                );
+        }
+        Ok(Box::new(result))
+    }
+    fn __erased_build_item(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut values = values.into_iter();
+        let value: String = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "item",
+            "value",
+            stringify!(String),
+        )?;
+        if values.next().is_some() {
+            return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
+                owner: "item",
+            });
+        }
+        Ok(Box::new(Item { value }))
+    }
+    fn __erased_sequence_item(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut result = Vec::<Item>::with_capacity(values.len());
+        for value in values {
+            result
+                .push(
+                    *value
+                        .downcast::<Item>()
+                        .map_err(|_| {
+                            ::deckmaste_construction_compiler::runtime::ErasedBuildError::WrongFieldType {
+                                owner: "item",
+                                field: "sequence member",
+                                expected: stringify!(Item),
+                            }
+                        })?,
+                );
+        }
+        Ok(Box::new(result))
+    }
+    fn __erased_build_wrapped(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut values = values.into_iter();
+        let node: Node = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "wrapped",
+            "node",
+            stringify!(Node),
+        )?;
+        let clause: Box<ConcreteClause> = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "wrapped",
+            "clause",
+            stringify!(Box < ConcreteClause >),
+        )?;
+        let marked: bool = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "wrapped",
+            "marked",
+            stringify!(bool),
+        )?;
+        let item: Item = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "wrapped",
+            "item",
+            stringify!(Item),
+        )?;
+        if values.next().is_some() {
+            return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
+                owner: "wrapped",
+            });
+        }
+        Ok(
+            Box::new(Wrapped {
+                node,
+                clause,
+                marked,
+                item,
+            }),
+        )
+    }
+    fn __erased_sequence_wrapped(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut result = Vec::<Wrapped>::with_capacity(values.len());
+        for value in values {
+            result
+                .push(
+                    *value
+                        .downcast::<Wrapped>()
+                        .map_err(|_| {
+                            ::deckmaste_construction_compiler::runtime::ErasedBuildError::WrongFieldType {
+                                owner: "wrapped",
+                                field: "sequence member",
+                                expected: stringify!(Wrapped),
+                            }
+                        })?,
+                );
+        }
+        Ok(Box::new(result))
+    }
+    fn __erased_partial_build_root(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut values = values.into_iter();
+        let node: Node = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "root",
+            "node",
+            stringify!(Node),
+        )?;
+        let wrapped: Wrapped = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "root",
+            "wrapped",
+            stringify!(Wrapped),
+        )?;
+        let boxed_wrapped: Box<Wrapped> = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "root",
+            "boxed_wrapped",
+            stringify!(Box < Wrapped >),
+        )?;
+        let clause: ConcreteClause = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "root",
+            "clause",
+            stringify!(ConcreteClause),
+        )?;
+        let boxed_clause: Box<ConcreteClause> = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "root",
+            "boxed_clause",
+            stringify!(Box < ConcreteClause >),
+        )?;
+        let nodes: ::deckmaste_construction_compiler::runtime::NonEmpty<Node> = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "root",
+            "nodes",
+            stringify!(::deckmaste_construction_compiler::runtime::NonEmpty < Node >),
+        )?;
+        let items: ::deckmaste_construction_compiler::runtime::SeparatedNonEmpty<
+            Item,
+            Separator,
+        > = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "root",
+            "items",
+            stringify!(
+                ::deckmaste_construction_compiler::runtime::SeparatedNonEmpty < Item,
+                Separator >
+            ),
+        )?;
+        if values.next().is_some() {
+            return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
+                owner: "root",
+            });
+        }
+        RootNode::try_new(
+                node,
+                wrapped,
+                boxed_wrapped,
+                clause,
+                boxed_clause,
+                nodes,
+                items,
+            )
+            .map(|value| {
+                Box::new(value)
+                    as ::deckmaste_construction_compiler::runtime::ErasedValue
+            })
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::ErasedBuildError::Declaration,
+            )
+    }
+    fn __erased_build_root(
+        values: Vec<::deckmaste_construction_compiler::runtime::ErasedValue>,
+    ) -> Result<
+        ::deckmaste_construction_compiler::runtime::ErasedValue,
+        ::deckmaste_construction_compiler::runtime::ErasedBuildError,
+    > {
+        let mut values = values.into_iter();
+        let node: Node = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "root",
+            "node",
+            stringify!(Node),
+        )?;
+        let wrapped: Wrapped = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "root",
+            "wrapped",
+            stringify!(Wrapped),
+        )?;
+        let boxed_wrapped: Box<Wrapped> = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "root",
+            "boxed_wrapped",
+            stringify!(Box < Wrapped >),
+        )?;
+        let clause: ConcreteClause = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "root",
+            "clause",
+            stringify!(ConcreteClause),
+        )?;
+        let boxed_clause: Box<ConcreteClause> = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "root",
+            "boxed_clause",
+            stringify!(Box < ConcreteClause >),
+        )?;
+        let nodes: ::deckmaste_construction_compiler::runtime::NonEmpty<Node> = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "root",
+            "nodes",
+            stringify!(::deckmaste_construction_compiler::runtime::NonEmpty < Node >),
+        )?;
+        let items: ::deckmaste_construction_compiler::runtime::SeparatedNonEmpty<
+            Item,
+            Separator,
+        > = ::deckmaste_construction_compiler::runtime::take_erased(
+            &mut values,
+            "root",
+            "items",
+            stringify!(
+                ::deckmaste_construction_compiler::runtime::SeparatedNonEmpty < Item,
+                Separator >
+            ),
+        )?;
+        if values.next().is_some() {
+            return Err(::deckmaste_construction_compiler::runtime::ErasedBuildError::ExtraFields {
+                owner: "root",
+            });
+        }
+        RootNode::try_new(
+                node,
+                wrapped,
+                boxed_wrapped,
+                clause,
+                boxed_clause,
+                nodes,
+                items,
+            )
+            .map(|value| {
+                Box::new(value)
+                    as ::deckmaste_construction_compiler::runtime::ErasedValue
+            })
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::ErasedBuildError::Declaration,
+            )
+    }
+    fn __erased_linearize_root(
+        value: &dyn ::deckmaste_construction_compiler::runtime::ProjectionInput,
+        sink: &mut dyn ::deckmaste_construction_compiler::runtime::ProjectionSink,
+    ) -> Result<
+        (),
+        ::deckmaste_construction_compiler::runtime::ErasedLinearizationError,
+    > {
+        let value = value
+            .as_any()
+            .downcast_ref::<RootNode>()
+            .ok_or(::deckmaste_construction_compiler::runtime::ErasedLinearizationError::WrongValueType {
+                construction: "root",
+                expected: stringify!(RootNode),
+            })?;
+        let mut visitor = ::deckmaste_construction_compiler::runtime::ProjectionSinkAdapter::new(
+            sink,
+        );
+        linearize_root_with(value, &mut visitor)
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::ErasedLinearizationError::Linearization,
+            )
+    }
+    pub static FIXTURE_SUM_DECLARATION: ::deckmaste_construction_compiler::runtime::GroupData = ::deckmaste_construction_compiler::runtime::GroupData {
+        name: "fixture_sum",
+        backend: ::deckmaste_construction_compiler::runtime::ConstructionBackendData::Ability,
+        elements: &["node", "item", "wrapped"],
+        element_data: &[
+            ::deckmaste_construction_compiler::runtime::ElementData {
+                name: "node",
+                bind_path: Some("Node"),
+                fields: &[],
+                variants: &[
+                    ::deckmaste_construction_compiler::runtime::ElementVariantData {
+                        name: "Unit",
+                        payload: ::deckmaste_construction_compiler::runtime::FieldKindData::Unit,
+                    },
+                    ::deckmaste_construction_compiler::runtime::ElementVariantData {
+                        name: "Leaf",
+                        payload: ::deckmaste_construction_compiler::runtime::FieldKindData::Scalar {
+                            codec: "String",
+                        },
+                    },
+                    ::deckmaste_construction_compiler::runtime::ElementVariantData {
+                        name: "Pair",
+                        payload: ::deckmaste_construction_compiler::runtime::FieldKindData::TupleProduct {
+                            fields: &[
+                                ::deckmaste_construction_compiler::runtime::FieldData {
+                                    name: "left",
+                                    kind: ::deckmaste_construction_compiler::runtime::FieldKindData::Sum {
+                                        element: "node",
+                                        boxed: true,
+                                    },
+                                },
+                                ::deckmaste_construction_compiler::runtime::FieldData {
+                                    name: "right",
+                                    kind: ::deckmaste_construction_compiler::runtime::FieldKindData::Sum {
+                                        element: "node",
+                                        boxed: true,
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    ::deckmaste_construction_compiler::runtime::ElementVariantData {
+                        name: "Named",
+                        payload: ::deckmaste_construction_compiler::runtime::FieldKindData::StructProduct {
+                            fields: &[
+                                ::deckmaste_construction_compiler::runtime::FieldData {
+                                    name: "label",
+                                    kind: ::deckmaste_construction_compiler::runtime::FieldKindData::Scalar {
+                                        codec: "String",
+                                    },
+                                },
+                                ::deckmaste_construction_compiler::runtime::FieldData {
+                                    name: "child",
+                                    kind: ::deckmaste_construction_compiler::runtime::FieldKindData::Sum {
+                                        element: "node",
+                                        boxed: true,
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ],
+                erased_builders: &[
+                    __erased_build_node_unit,
+                    __erased_build_node_leaf,
+                    __erased_build_node_pair,
+                    __erased_build_node_named,
+                ],
+                erased_sequence_builder: Some(__erased_sequence_node),
+            },
+            ::deckmaste_construction_compiler::runtime::ElementData {
+                name: "item",
+                bind_path: None,
+                fields: &[
+                    ::deckmaste_construction_compiler::runtime::FieldData {
+                        name: "value",
+                        kind: ::deckmaste_construction_compiler::runtime::FieldKindData::Scalar {
+                            codec: "String",
+                        },
+                    },
+                ],
+                variants: &[],
+                erased_builders: &[__erased_build_item],
+                erased_sequence_builder: Some(__erased_sequence_item),
+            },
+            ::deckmaste_construction_compiler::runtime::ElementData {
+                name: "wrapped",
+                bind_path: Some("Wrapped"),
+                fields: &[
+                    ::deckmaste_construction_compiler::runtime::FieldData {
+                        name: "node",
+                        kind: ::deckmaste_construction_compiler::runtime::FieldKindData::Sum {
+                            element: "node",
+                            boxed: false,
+                        },
+                    },
+                    ::deckmaste_construction_compiler::runtime::FieldData {
+                        name: "clause",
+                        kind: ::deckmaste_construction_compiler::runtime::FieldKindData::TypedSubtree {
+                            value_type: "ConcreteClause",
+                            category: "ClauseCategory",
+                            boxed: true,
+                        },
+                    },
+                    ::deckmaste_construction_compiler::runtime::FieldData {
+                        name: "marked",
+                        kind: ::deckmaste_construction_compiler::runtime::FieldKindData::Scalar {
+                            codec: "bool",
+                        },
+                    },
+                    ::deckmaste_construction_compiler::runtime::FieldData {
+                        name: "item",
+                        kind: ::deckmaste_construction_compiler::runtime::FieldKindData::Product {
+                            element: "item",
+                            boxed: false,
+                        },
+                    },
+                ],
+                variants: &[],
+                erased_builders: &[__erased_build_wrapped],
+                erased_sequence_builder: Some(__erased_sequence_wrapped),
+            },
+        ],
+        lenses: &[],
+        constructions: &[
+            ::deckmaste_construction_compiler::runtime::ConstructionData {
+                id: "root",
+                category: "Root",
+                internal: false,
+                own_type: Some("RootNode"),
+                bind_path: None,
+                lens: None,
+                projection_variant: None,
+                fields: &[
+                    ::deckmaste_construction_compiler::runtime::FieldData {
+                        name: "node",
+                        kind: ::deckmaste_construction_compiler::runtime::FieldKindData::Sum {
+                            element: "node",
+                            boxed: false,
+                        },
+                    },
+                    ::deckmaste_construction_compiler::runtime::FieldData {
+                        name: "wrapped",
+                        kind: ::deckmaste_construction_compiler::runtime::FieldKindData::Product {
+                            element: "wrapped",
+                            boxed: false,
+                        },
+                    },
+                    ::deckmaste_construction_compiler::runtime::FieldData {
+                        name: "boxed_wrapped",
+                        kind: ::deckmaste_construction_compiler::runtime::FieldKindData::Product {
+                            element: "wrapped",
+                            boxed: true,
+                        },
+                    },
+                    ::deckmaste_construction_compiler::runtime::FieldData {
+                        name: "clause",
+                        kind: ::deckmaste_construction_compiler::runtime::FieldKindData::TypedSubtree {
+                            value_type: "ConcreteClause",
+                            category: "ClauseCategory",
+                            boxed: false,
+                        },
+                    },
+                    ::deckmaste_construction_compiler::runtime::FieldData {
+                        name: "boxed_clause",
+                        kind: ::deckmaste_construction_compiler::runtime::FieldKindData::TypedSubtree {
+                            value_type: "ConcreteClause",
+                            category: "ClauseCategory",
+                            boxed: true,
+                        },
+                    },
+                    ::deckmaste_construction_compiler::runtime::FieldData {
+                        name: "nodes",
+                        kind: ::deckmaste_construction_compiler::runtime::FieldKindData::NonEmptySequence {
+                            element: "node",
+                            erased_builder: __erased_field_root_nodes,
+                        },
+                    },
+                    ::deckmaste_construction_compiler::runtime::FieldData {
+                        name: "items",
+                        kind: ::deckmaste_construction_compiler::runtime::FieldKindData::SeparatedNonEmptySequence {
+                            element: "item",
+                            separator: "Separator",
+                            erased_builder: __erased_field_root_items,
+                        },
+                    },
+                ],
+                witnesses: &[],
+                deserialize: false,
+                selection_unique: true,
+                dominates: &[],
+                dominated_by: &[],
+                forms: &[
+                    ::deckmaste_construction_compiler::runtime::FormData {
+                        name: "unit",
+                        ordinal: 0u16,
+                        guarded: true,
+                        erased_recognizer: None,
+                        atoms: &[
+                            ::deckmaste_construction_compiler::runtime::AtomData::Hole(
+                                "node",
+                            ),
+                            ::deckmaste_construction_compiler::runtime::AtomData::Hole(
+                                "wrapped",
+                            ),
+                            ::deckmaste_construction_compiler::runtime::AtomData::Hole(
+                                "boxed_wrapped",
+                            ),
+                            ::deckmaste_construction_compiler::runtime::AtomData::Hole(
+                                "clause",
+                            ),
+                            ::deckmaste_construction_compiler::runtime::AtomData::Hole(
+                                "boxed_clause",
+                            ),
+                            ::deckmaste_construction_compiler::runtime::AtomData::Hole(
+                                "nodes",
+                            ),
+                            ::deckmaste_construction_compiler::runtime::AtomData::Hole(
+                                "items",
+                            ),
+                        ],
+                    },
+                    ::deckmaste_construction_compiler::runtime::FormData {
+                        name: "other",
+                        ordinal: 1u16,
+                        guarded: false,
+                        erased_recognizer: None,
+                        atoms: &[
+                            ::deckmaste_construction_compiler::runtime::AtomData::Hole(
+                                "node",
+                            ),
+                            ::deckmaste_construction_compiler::runtime::AtomData::Hole(
+                                "wrapped",
+                            ),
+                            ::deckmaste_construction_compiler::runtime::AtomData::Hole(
+                                "boxed_wrapped",
+                            ),
+                            ::deckmaste_construction_compiler::runtime::AtomData::Hole(
+                                "clause",
+                            ),
+                            ::deckmaste_construction_compiler::runtime::AtomData::Hole(
+                                "boxed_clause",
+                            ),
+                            ::deckmaste_construction_compiler::runtime::AtomData::Hole(
+                                "nodes",
+                            ),
+                            ::deckmaste_construction_compiler::runtime::AtomData::Hole(
+                                "items",
+                            ),
+                        ],
+                    },
+                ],
+                requirements: &[],
+                recognition_requirements: &[],
+                feature_combinators: &[],
+                evidence: None,
+                erased_partial_builder: Some(__erased_partial_build_root),
+                erased_builder: Some(__erased_build_root),
+                erased_projector: None,
+                erased_linearizer: __erased_linearize_root,
+            },
+        ],
+    };
+}
+pub use __constructions_fixture_sum::NodeVariantRef;
+pub use __constructions_fixture_sum::parts_node;
+pub use __constructions_fixture_sum::build_node_unit;
+pub use __constructions_fixture_sum::build_node_leaf;
+pub use __constructions_fixture_sum::build_node_pair;
+pub use __constructions_fixture_sum::build_node_named;
+pub use __constructions_fixture_sum::Item;
+pub use __constructions_fixture_sum::RootNode;
+pub use __constructions_fixture_sum::linearize_root_with;
+pub use __constructions_fixture_sum::linearize_root_form_with;
+pub use __constructions_fixture_sum::selected_root_form;
+pub use __constructions_fixture_sum::FIXTURE_SUM_DECLARATION;

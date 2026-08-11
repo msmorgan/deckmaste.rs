@@ -1,0 +1,5 @@
+error: EC008: sum field `value` requires bound enum element `record` with declared variants (construction `root`)
+ --> tests/compile_fail/ec_sum_requires_bound_enum.rs:5:35
+  |
+5 |         own RootNode { value: sum record, }
+  |                                   ^^^^^^

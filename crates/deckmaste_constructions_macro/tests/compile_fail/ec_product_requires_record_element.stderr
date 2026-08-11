@@ -1,0 +1,5 @@
+error: EC008: product field `value` requires record element `choice` with at least one projectable field (construction `root`)
+  --> tests/compile_fail/ec_product_requires_record_element.rs:11:39
+   |
+11 |         own RootNode { value: product choice, }
+   |                                       ^^^^^^

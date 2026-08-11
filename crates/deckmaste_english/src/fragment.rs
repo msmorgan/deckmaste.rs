@@ -561,7 +561,6 @@ mod tests {
         let report = production_fragment("Exhaust — {2}{R}", FragmentKind::Cost);
         let decision = assert_generated(&report, "cost");
         assert_eq!(decision.backend(), crate::ConstructionBackend::Ability);
-        assert_eq!(decision.selected_production_ordinal(), 0);
         assert_eq!(decision.evidence().label(), "activation-cost root");
         assert_eq!(decision.span(), Span::new(0, "Exhaust — {2}{R}".len()));
 
@@ -599,8 +598,8 @@ mod tests {
         let source = "Ward—Discard a card. Draw a card.";
         let activations = [
             GeneratedActivation::Groups(crate::constructions::ability::GROUPS),
-            GeneratedActivation::AbilityGroupsReversed(crate::constructions::ability::GROUPS),
-            GeneratedActivation::AbilityGroupsFixedShuffle(crate::constructions::ability::GROUPS),
+            GeneratedActivation::GroupsReversed(crate::constructions::ability::GROUPS),
+            GeneratedActivation::GroupsFixedShuffle(crate::constructions::ability::GROUPS),
         ];
         let reports = activations.map(|activation| {
             parse_fragment_with_activation(
@@ -631,7 +630,6 @@ mod tests {
             );
             let decision = assert_generated(report, "keyword_line");
             assert_eq!(decision.backend(), crate::ConstructionBackend::Ability);
-            assert_eq!(decision.selected_production_ordinal(), 0);
             assert_eq!(decision.evidence().label(), "keyword-ability list root");
         }
 
@@ -652,23 +650,23 @@ mod tests {
     }
 
     #[test]
-    fn ability_is_generated_with_stable_form_ordinals_and_registration_order_neutral() {
+    fn ability_is_generated_with_direct_kinds_and_registration_order_neutral() {
         let fixtures = [
-            ("{T}: Draw a card.", 0),
-            ("{2}: Level 2", 1),
-            ("I — Draw a card.", 2),
-            ("2–9 | Draw a card.", 3),
-            ("Whenever this creature attacks, draw a card.", 6),
-            ("[+1]: Draw a card.", 7),
-            ("Flying", 9),
-            ("Draw a card.", 10),
+            ("{T}: Draw a card.", "activated"),
+            ("{2}: Level 2", "class_level"),
+            ("I — Draw a card.", "chapter"),
+            ("2–9 | Draw a card.", "roll_row"),
+            ("Whenever this creature attacks, draw a card.", "triggered"),
+            ("[+1]: Draw a card.", "loyalty"),
+            ("Flying", "keyword"),
+            ("Draw a card.", "paragraph"),
         ];
         let activations = [
             GeneratedActivation::Groups(crate::constructions::ALL_GROUPS),
-            GeneratedActivation::AbilityGroupsReversed(crate::constructions::ALL_GROUPS),
-            GeneratedActivation::AbilityGroupsFixedShuffle(crate::constructions::ALL_GROUPS),
+            GeneratedActivation::GroupsReversed(crate::constructions::ALL_GROUPS),
+            GeneratedActivation::GroupsFixedShuffle(crate::constructions::ALL_GROUPS),
         ];
-        for (source, ordinal) in fixtures {
+        for (source, expected_kind) in fixtures {
             let reports = activations.map(|activation| {
                 parse_fragment_with_activation(
                     source,
@@ -682,13 +680,24 @@ mod tests {
             for report in &reports {
                 let decision = assert_generated(report, "ability");
                 assert_eq!(decision.backend(), crate::ConstructionBackend::Ability);
-                assert_eq!(
-                    decision.selected_production_ordinal(),
-                    ordinal,
-                    "{source}: {:?}",
-                    report.fragment()
-                );
                 assert_eq!(decision.evidence().label(), "decisive ability frame guard");
+                let Some(Fragment::Ability(ability)) = report.fragment() else {
+                    panic!("ability fixture did not produce an ability: {source}")
+                };
+                let actual_kind = match ability.kind() {
+                    crate::syntax::AbilityKind::Activated(_) => "activated",
+                    crate::syntax::AbilityKind::ClassLevel(_) => "class_level",
+                    crate::syntax::AbilityKind::Chapter(_) => "chapter",
+                    crate::syntax::AbilityKind::RollRow(_) => "roll_row",
+                    crate::syntax::AbilityKind::LevelBand(_) => "level_band",
+                    crate::syntax::AbilityKind::StationThreshold(_) => "station_threshold",
+                    crate::syntax::AbilityKind::Triggered(_) => "triggered",
+                    crate::syntax::AbilityKind::Loyalty(_) => "loyalty",
+                    crate::syntax::AbilityKind::Modal(_) => "modal",
+                    crate::syntax::AbilityKind::Keyword(_) => "keyword",
+                    crate::syntax::AbilityKind::Paragraph(_) => "paragraph",
+                };
+                assert_eq!(actual_kind, expected_kind, "{source}");
             }
             assert_eq!(reports[0].fragment(), reports[1].fragment());
             assert_eq!(reports[0].fragment(), reports[2].fragment());
@@ -767,10 +776,7 @@ mod tests {
             let rebuilt =
                 crate::cost::build_cost(cost.flavor_header().cloned(), cost.components().to_vec())
                     .expect("every parsed Cost inhabits the declaration");
-            assert_eq!(
-                crate::cost::parts_cost(&rebuilt).unwrap().1,
-                cost.components()
-            );
+            assert_eq!(rebuilt.components(), cost.components());
             assert_eq!(crate::cost::render(&rebuilt, "", false).unwrap(), source);
         }
     }
@@ -828,9 +834,8 @@ mod tests {
         let Some(Fragment::KeywordLine(line)) = keyword.fragment() else {
             panic!("the keyword root returns a semantic keyword line")
         };
-        let [item] = line.abilities() else {
-            panic!("the keyword fixture contains exactly one ability")
-        };
+        let item = line.separated_abilities().first();
+        assert_eq!(line.separated_abilities().len(), 1);
         let crate::syntax::KeywordArgument::Costed(crate::syntax::KeywordCost::Components {
             cost,
             terminal: true,
