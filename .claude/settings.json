@@ -3,7 +3,8 @@
     "JJ_EDITOR": "false"
   },
   "enabledPlugins": {
-    "mtg-rules@mtg-rules": true
+    "mtg-rules@mtg-rules": true,
+    "idris2-guide@idris2-guide": true
   },
   "extraKnownMarketplaces": {
     "mtg-rules": {
