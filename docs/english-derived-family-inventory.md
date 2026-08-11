@@ -22,14 +22,14 @@ census comes from the three non-chart entry points documented and dispatched by
 
 | source | handwritten / ungenerated | already generated | accounted total |
 |---|---:|---:|---:|
-| chart construction registry | 21 | 173 | 194 |
+| chart construction registry | 19 | 176 | 195 |
 | ability construction registry | 0 | 3 | 3 |
-| migration inventory | 21 | 176 | 197 |
+| migration inventory | 19 | 179 | 198 |
 
-Every one of the 194 chart IDs occurs once in the ledger below: 21 remain
+Every one of the 195 chart IDs occurs once in the ledger below: 19 remain
 handwritten, while Q01, D01, J01, M01, V01, F01, F02, F03, R01, S01, N01, and
 the two coordination rows, P01, and P02 are generated. The three ability IDs
-occur once in generated A01. Thus the remaining work is 21 chart rows and zero
+occur once in generated A01. Thus the remaining work is 19 chart rows and zero
 ability rows, with no `later` row. No raw corpus query was needed for this
 accounting; the census is
 grounded in the registry and the current `FragmentKind` dispatch. Future corpus
@@ -43,7 +43,7 @@ the lists are a compact per-family record, not an informal bucket. A unit is
 the smallest vertical migration that can flip its rows without leaving a
 second constructor or renderer authority. Rows are grouped only where they
 share a public AST ingress, mutually recursive helper categories, or one
-discontinuous coordination representation.
+recursive coordination representation.
 
 Owner abbreviations name current code, all under `deckmaste_english` unless
 otherwise stated:
@@ -66,15 +66,16 @@ All chart units currently use one-span `ConstructionBackend::Chart`. `C1` is
 already expressible as fan-out-one whole-subtree declarations; `C2` first
 needs a local scalar, identity, or field-slice/lens hole; `C3` is scheduled
 after the hole primitives it uses and first needs selection, valency, gap, or
-attachment constraints; `C4` first needs tuple-valued/discontinuous support,
-or a measured CFG approximation plus filtering; `C5` needs the generated
-ability-layer backend. Dependencies below are capability dependencies, not a
+attachment constraints; `C4` needs recursive coordination owners, typed member
+sums, sequence-wide feature predicates, and local structural selection; `C5`
+needs the generated ability-layer backend. Every current chart unit remains
+fan-out-one on Chart. Dependencies below are capability dependencies, not a
 claim that a generated production cannot consume a still-handwritten subtree.
 
-The active serialized consumer is `serde::Serialize` through
-`deckmaste_spelling::view::of`; active frame consumers are
-`deckmaste_spelling::{compile,unify,render,witness}` through
-`parse_fragment`/`render_fragment`. `xtask` consumes parse provenance through
+The active structural consumer is `ConstructionProjection` through
+`deckmaste_spelling::{compile,unify,render,witness}` and its `ProjectionTree`;
+serialized Rust field or variant layout is not an English construction
+contract. `xtask` consumes typed syntax and construction provenance through
 `english::{inspect,recovery,unknown_phrases}` and aggregate parser work through
 `english::performance`. Every unit must migrate those consumers when its shape
 changes. None of the syntax nodes currently exposes a general `Deserialize`
@@ -105,10 +106,10 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 | F01 nonfinite clause | 4 | C3 | `english-derived-nonfinite-clause-family` | generated |
 | F02 finite and copular clause | 20 | C3 | `english-derived-finite-clause-family` | generated |
 | F03 clause attachment | 16 | C3 | `english-derived-clause-attachment-family` | generated |
-| F04 clause coordination | 6 | C4 | `english-derived-clause-coordination-family` | finite agreement, structural design, tuple yields |
+| F04 clause coordination | 6 | C4 | `english-derived-clause-coordination-family` | finite agreement, recursive grouping, member scope |
 | R01 relative clause | 9 | C3 | `english-derived-relative-clause-family` | generated |
 | S01 sentence | 1 | C1 | `english-derived-sentence-family` | generated |
-| C01 phrase coordination | 15 | C4 | `english-derived-phrase-coordination-family` | lens, valency, structural design, tuple yields |
+| C01 phrase coordination | 13 | C4 | `english-derived-phrase-coordination-family` | typed member sums, sequence predicates, head/member selection |
 | A01 ability layer | 3 | C5 | `english-ability-construction-backend` | inventory |
 
 ## Q01 — quantity
@@ -543,14 +544,13 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
   shared subject, predicate, and copula. Finite agreement, subject presence,
   imperative adoption, conjunction class, copular agreement, continuation
   kind, and member scope are required.
-- **Ambiguity/backend:** recognition uses one-span Chart productions, but
-  total destruction of the flattened coordinated AST cannot assign every
-  continuation one local subtree yield: subjectless predicates and copular
-  continuations linearize with subject/agreement context stored outside the
-  member. The six rows share that recursive ingress and renderer, so they
-  migrate atomically after C4 tuple-valued/discontinuous declarations or a
-  measured CFG approximation plus filtering. Packed complete-member versus
-  shared-predicate readings stay visible.
+- **Ambiguity/backend:** fan-out one on Chart. Canonical `FiniteClause` owns a
+  shared subject once and `PredicateExpression::Coordinated` owns its
+  contiguous predicate members; `IndependentClause::Coordinated` owns
+  complete members. Subjectless and shared-copular continuations are therefore
+  invertible structural views, not tuple-valued yields. The six rows still
+  migrate atomically because they share this recursive ingress and renderer.
+  Packed complete-member versus shared-predicate readings stay visible.
 - **Witnesses:** conjunction, member grouping, shared-subject/copula scope,
   and continuation kind are semantic. `ClauseCoordination::comma` is stored
   because the AST and measured corpus do not determine it; exact replay must
@@ -633,7 +633,7 @@ permanent exception.
 `verb_phrase_coordinated_adjective`,
 `nominal_power_toughness_complement`.
 
-- **Owners and AST:** NR registers all fifteen rows and owns substantive
+- **Owners and AST:** NR registers all thirteen rows and owns substantive
   reduction/lowering for the modifier, PP, and nominal rows. The top-level NR
   dispatch sends `verb_phrase_coordinated_adjective` to CR, whose reduction
   and lowering modules own that remaining substantive handwritten logic. F02
@@ -641,19 +641,20 @@ permanent exception.
   generated declarations. The C01 rows
   construct modifier and PP sequences, `AdjectivePhraseCoordination`,
   `PrepositionalPhraseCoordination`, nominal complements, and the consuming
-  nominal/predicate/copular/relative variants; REN plus SYN-P/SYN-C own output
-  and ingress.
+  nominal and predicate variants; REN plus SYN-P/SYN-C own output and ingress.
 - **Holes and constraints:** typed sum members, field lenses, scalar
   power/toughness, conjunction/comma identity, recursive sequences, and
   member-specific attachments. Adjective-only predicative position,
   nominal attachment phase, repeated versus shared preposition, minimum
   arity, heterogeneous member type, and common-head versus head-list selection
   are required.
-- **Ambiguity/backend:** current recognition is one-span Chart. Heterogeneous
-  and member-scoped yields first require C4 tuple yields or a measured CFG
-  approximation plus filtering. `nominal_prepositional` dominates
-  `nominal_coordinated_modifier`; other competing common-head/head-list
-  analyses remain packed until a declared structural discriminator selects.
+- **Ambiguity/backend:** fan-out one on Chart. Shared context belongs to an
+  explicit nominal, prepositional phrase, finite clause, or predicate owner;
+  members and their local attachments are contiguous. Heterogeneous slots use
+  a construction-local closed sum. `nominal_prepositional` dominates
+  `nominal_coordinated_modifier`; common-head eligibility additionally
+  requires a uniform typed attributive class accepted by the trailing head.
+  Other equally viable readings remain packed.
 - **Witnesses:** member grouping, conjunction, repeated preposition, and
   per-member attachment are semantic. Oxford/asyndetic punctuation is house
   style and remains stored until exactness proves it derivable (style guide
@@ -665,13 +666,15 @@ permanent exception.
   all comma/conjunction spellings; negatives reject binary Oxford commas,
   bare comma runs, non-adjective predicatives, and illegal mixed members.
 
-All remaining outputs of `english-coordination-structural-design` enter this
-unit at their first compatible site: mixed keyword/quoted `with` lists,
-or-coordinated appositive bodies with quantity postmodifiers, and principled
-common-head versus heterogeneous head-list selection. They are acceptance
-scope, not deferred residue. The compiler work also closes the pilot's named
-sequence-member quantification, typed sum/variant mapping, presence-valued
-comma, and emitted total own-mode linearizer requirements.
+The phrase-side outputs of `english-coordination-structural-design` enter this
+unit at their first compatible site: a dedicated mixed keyword/quoted `with`
+member sum and principled common-head versus heterogeneous head-list
+selection. Sycorax Commander's outer `then`/`or` grouping belongs to F04; its
+`that many cards minus one` subtree is a supporting P01 admission/selection
+repair, not a coordination variant. These are acceptance scope, not deferred
+residue. The compiler work is limited to any still-missing generic feature
+flow, named sequence-member predicates, presence-valued comma, lenses, and
+total own-mode linearization; no tuple-yield backend lands here.
 
 ## A01 — ability layer
 
