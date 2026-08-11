@@ -51,7 +51,6 @@ mod tests {
     use crate::fragment::Fragment;
     use crate::fragment::render_fragment;
     use crate::syntax::AbilityKind;
-    use crate::syntax::IndependentClause;
     use crate::syntax::NominalModifier;
     use crate::syntax::OracleText;
     use crate::syntax::Paragraph;
@@ -236,9 +235,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
-        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
-            &parsed.sentence().unwrap().body
-        else {
+        let SentenceBody::Independent(clause) = &parsed.sentence().unwrap().body else {
+            panic!("expected a transitive clause");
+        };
+        let Some(Predicate::Transitive(predicate)) = clause.simple_predicate() else {
             panic!("expected a transitive clause");
         };
         assert!(matches!(
@@ -280,19 +280,22 @@ mod tests {
             panic!("expected paragraph");
         };
         assert_eq!(paragraph.sentences.len(), 2);
+        let SentenceBody::Independent(clause) = &paragraph.sentences[1].body else {
+            panic!("expected an independent clause")
+        };
         assert!(matches!(
-            &paragraph.sentences[1].body,
-            SentenceBody::Independent(IndependentClause::Transitive(_, predicate))
+            clause.simple_predicate(),
+            Some(Predicate::Transitive(predicate))
                 if matches!(predicate.head.verb.verb, crate::word::Verb::Word(v) if v.spelling() == "tempt")
         ));
     }
 
     fn transitive(sentence: &crate::syntax::Sentence) -> &crate::syntax::TransitivePredicate {
         match &sentence.body {
-            SentenceBody::Independent(
-                IndependentClause::Transitive(_, predicate)
-                | IndependentClause::Imperative(Predicate::Transitive(predicate)),
-            ) => predicate,
+            SentenceBody::Independent(clause) => match clause.simple_predicate() {
+                Some(Predicate::Transitive(predicate)) => predicate,
+                _ => panic!("expected a transitive clause, got {clause:#?}"),
+            },
             other => panic!("expected a transitive clause, got {other:#?}"),
         }
     }

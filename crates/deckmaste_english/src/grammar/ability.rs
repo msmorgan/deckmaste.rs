@@ -1904,11 +1904,11 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         Some(Sentence::from_body(SentenceBody::Independent(
             IndependentClause::Complex(ComplexClause::from_declaration_parts(
                 matrix,
-                vec![ClauseAttachment::from_declaration_parts(
+                ClauseAttachment::from_declaration_parts(
                     AttachmentPosition::AfterMatrix,
                     crate::features::Comma::Absent,
                     ClauseAttachmentKind::Appositive(Box::new(body)),
-                )],
+                ),
             )),
         )))
     }
@@ -2098,9 +2098,15 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
     /// the trigger-prefix grammar cannot over-claim a non-choice sentence.
     fn parse_choice_core(&mut self, tokens: &[Token]) -> Option<Predicate> {
         self.accept_exact(tokens, Nonterminal::Sentence, |parsed| {
-            let SentenceBody::Independent(IndependentClause::Imperative(predicate)) =
+            let SentenceBody::Independent(IndependentClause::Finite(finite)) =
                 &parsed.sentence()?.body
             else {
+                return None;
+            };
+            if finite.subject().is_some() {
+                return None;
+            }
+            let crate::syntax::PredicateExpression::Simple(predicate) = finite.predicate() else {
                 return None;
             };
             predicate_is_choose(predicate).then(|| predicate.clone())
@@ -3297,11 +3303,11 @@ fn find_first_top_level_sentence_terminal(tokens: &[Token]) -> Option<usize> {
 /// complement is a bare nominal headed by [`Noun::Opaque`] — the shape
 /// `clause_event` must reject (see its doc comment).
 fn copular_complement_head_is_opaque(clause: &IndependentClause) -> bool {
-    let (IndependentClause::Copular(_, predicate)
-    | IndependentClause::Predicated(
-        _,
-        crate::syntax::PredicateExpression::Simple(Predicate::Copular(predicate)),
-    )) = clause
+    let IndependentClause::Finite(finite) = clause else {
+        return false;
+    };
+    let crate::syntax::PredicateExpression::Simple(Predicate::Copular(predicate)) =
+        finite.predicate()
     else {
         return false;
     };
@@ -3620,26 +3626,19 @@ mod tests {
         };
         assert_eq!(ability.cost.components().len(), 3);
         assert_eq!(ability.effect.sentences.len(), 2);
-        assert!(
-            matches!(
-                ability.effect.sentences[1].body,
-                SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
-                    ref attachments,
-                    ..
-                })) if matches!(
-                    attachments.as_slice(),
-                    [ClauseAttachment {
-                        position: AttachmentPosition::BeforeMatrix,
-                        payload: ClauseAttachmentKind::Dependent(
-                            DependentClause::Subordinate(Subordinator::If, _),
-                        ),
-                        ..
-                    }]
-                )
-            ),
-            "{:#?}",
-            ability.effect.sentences[1].body
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &ability.effect.sentences[1].body
+        else {
+            panic!("{:#?}", ability.effect.sentences[1].body);
+        };
+        assert_eq!(
+            complex.attachment().position(),
+            AttachmentPosition::BeforeMatrix
         );
+        assert!(matches!(
+            complex.attachment().payload(),
+            ClauseAttachmentKind::Dependent(DependentClause::Subordinate(Subordinator::If, _))
+        ));
     }
 
     #[test]
@@ -3658,7 +3657,10 @@ mod tests {
         assert!(matches!(tap, CostComponent::Symbols(symbols) if symbols.len() == 1));
         assert!(matches!(
             sacrifice,
-            CostComponent::Clause(clause) if matches!(clause.as_ref(), IndependentClause::Imperative(_))
+            CostComponent::Clause(clause)
+                if matches!(clause.as_ref(), IndependentClause::Finite(finite)
+                    if finite.subject().is_none()
+                        && matches!(finite.predicate(), PredicateExpression::Simple(_)))
         ));
         assert_eq!(report.ast.render(FIXTURE_NAME, true).unwrap(), source);
     }
@@ -3764,7 +3766,12 @@ mod tests {
         ));
         assert!(matches!(
             triggered.effect.sentences[0].body,
-            SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(_)))
+            SentenceBody::Independent(IndependentClause::Finite(ref finite))
+                if finite.subject().is_none()
+                    && matches!(
+                        finite.predicate(),
+                        PredicateExpression::Simple(Predicate::Transitive(_))
+                    )
         ));
         assert_eq!(
             render(&report),
@@ -3862,16 +3869,8 @@ mod tests {
         assert!(
             matches!(
                 paragraph.sentences[0].body,
-                SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
-                    ref attachments,
-                    ..
-                })) if matches!(
-                    attachments.as_slice(),
-                    [ClauseAttachment {
-                        position: AttachmentPosition::AfterMatrix,
-                        ..
-                    }]
-                )
+                SentenceBody::Independent(IndependentClause::Complex(ref complex))
+                    if complex.attachment().position() == AttachmentPosition::AfterMatrix
             ),
             "{:#?}",
             paragraph.sentences[0].body
@@ -3928,10 +3927,15 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
-        let SentenceBody::Independent(IndependentClause::Deontic(Subject(subject), _, _)) =
+        let SentenceBody::Independent(IndependentClause::Finite(finite)) =
             &paragraph.sentences[0].body
         else {
             panic!("expected nominal subject");
+        };
+        let (Some(Subject(subject)), PredicateExpression::Simple(Predicate::Deontic(_))) =
+            (finite.subject(), finite.predicate())
+        else {
+            panic!("expected a deontic predicate with a nominal subject");
         };
         let crate::syntax::NounPhraseKind::Nominal(subject) = subject.kind() else {
             panic!("expected nominal subject");
@@ -3947,10 +3951,8 @@ mod tests {
         };
         assert!(matches!(
             paragraph.sentences[0].body,
-            SentenceBody::Independent(IndependentClause::Predicated(
-                _,
-                PredicateExpression::Coordinated(_)
-            ))
+            SentenceBody::Independent(IndependentClause::Finite(ref finite))
+                if matches!(finite.predicate(), PredicateExpression::Coordinated(_))
         ));
     }
 
@@ -3963,7 +3965,12 @@ mod tests {
         assert!(
             matches!(
                 paragraph.sentences[0].body,
-                SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(_)))
+                SentenceBody::Independent(IndependentClause::Finite(ref finite))
+                    if finite.subject().is_none()
+                        && matches!(
+                            finite.predicate(),
+                            PredicateExpression::Simple(Predicate::Transitive(_))
+                        )
             ),
             "{:#?}",
             paragraph.sentences[0].body
@@ -3978,14 +3985,18 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
-        let SentenceBody::Independent(IndependentClause::Predicated(
-            _,
-            PredicateExpression::Coordinated(coordination),
-        )) = &paragraph.sentences[0].body
+        let SentenceBody::Independent(IndependentClause::Finite(finite)) =
+            &paragraph.sentences[0].body
         else {
             panic!(
                 "expected coordinated clause, got {:#?}",
                 paragraph.sentences[0].body
+            );
+        };
+        let PredicateExpression::Coordinated(coordination) = finite.predicate() else {
+            panic!(
+                "expected coordinated predicate expression, got {:#?}",
+                finite.predicate()
             );
         };
         assert_eq!(coordination.junctions().len(), 3);
@@ -4002,14 +4013,18 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
-        let SentenceBody::Independent(IndependentClause::Predicated(
-            _,
-            PredicateExpression::Coordinated(coordination),
-        )) = &paragraph.sentences[0].body
+        let SentenceBody::Independent(IndependentClause::Finite(finite)) =
+            &paragraph.sentences[0].body
         else {
             panic!(
                 "expected coordinated clause, got {:#?}",
                 paragraph.sentences[0].body
+            );
+        };
+        let PredicateExpression::Coordinated(coordination) = finite.predicate() else {
+            panic!(
+                "expected coordinated predicate expression, got {:#?}",
+                finite.predicate()
             );
         };
         assert_eq!(coordination.junctions().len(), 2);
@@ -4051,10 +4066,14 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
-        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+        let SentenceBody::Independent(IndependentClause::Finite(finite)) =
             &paragraph.sentences[0].body
         else {
             panic!("expected transitive clause");
+        };
+        let PredicateExpression::Simple(Predicate::Transitive(predicate)) = finite.predicate()
+        else {
+            panic!("expected a simple transitive predicate");
         };
         assert!(matches!(
             &predicate.object,
@@ -4078,13 +4097,17 @@ mod tests {
             let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
                 panic!("{source}: expected paragraph");
             };
-            let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+            let SentenceBody::Independent(IndependentClause::Finite(finite)) =
                 &paragraph.sentences[0].body
             else {
                 panic!(
                     "{source}: expected transitive grant clause, got {:?}",
                     paragraph.sentences[0].body
                 );
+            };
+            let PredicateExpression::Simple(Predicate::Transitive(predicate)) = finite.predicate()
+            else {
+                panic!("{source}: expected a simple transitive grant predicate");
             };
             assert!(
                 matches!(&predicate.object, PredicateObject::QuotedAbility(_)),
@@ -4103,10 +4126,14 @@ mod tests {
         let AbilityKind::Paragraph(object_paragraph) = &object.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
-        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+        let SentenceBody::Independent(IndependentClause::Finite(finite)) =
             &object_paragraph.sentences[0].body
         else {
             panic!("the grant quote should stay a structured object")
+        };
+        let PredicateExpression::Simple(Predicate::Transitive(predicate)) = finite.predicate()
+        else {
+            panic!("the grant quote should stay on a simple transitive predicate")
         };
         let PredicateObject::QuotedAbility(quoted) = &predicate.object else {
             panic!("the grant quote should occupy the quoted-object slot")
@@ -4118,15 +4145,19 @@ mod tests {
         let AbilityKind::Paragraph(with_paragraph) = &with.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
-        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
-            predicate,
-        ))) = &with_paragraph.sentences[0].body
+        let SentenceBody::Independent(IndependentClause::Finite(finite)) =
+            &with_paragraph.sentences[0].body
         else {
             panic!(
                 "the with-postmodifier clause should remain a structured imperative, got {:?}",
                 with_paragraph.sentences[0].body
             )
         };
+        let PredicateExpression::Simple(Predicate::Transitive(predicate)) = finite.predicate()
+        else {
+            panic!("the with-postmodifier should retain a simple transitive predicate")
+        };
+        assert!(finite.subject().is_none());
         assert!(predicate.elements().iter().any(|element| matches!(
             element,
             PredicateElement::Adjunct(PredicateAdjunct::AbilityPostmodifier(_))
@@ -4151,8 +4182,12 @@ mod tests {
         assert!(
             matches!(
                 &paragraph.sentences[0].body,
-                SentenceBody::Independent(IndependentClause::Transitive(_, predicate))
-                    if matches!(predicate.object, PredicateObject::QuotedAbility(_))
+                SentenceBody::Independent(IndependentClause::Finite(finite))
+                    if matches!(
+                        finite.predicate(),
+                        PredicateExpression::Simple(Predicate::Transitive(predicate))
+                            if matches!(predicate.object, PredicateObject::QuotedAbility(_))
+                    )
             ),
             "outer grant clause must parse despite the interior failure, got {:?}",
             paragraph.sentences[0].body
@@ -4295,12 +4330,15 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected paragraph");
         };
-        let SentenceBody::Independent(IndependentClause::Predicated(
-            Some(Subject(subject)),
-            PredicateExpression::Coordinated(_),
-        )) = &paragraph.sentences[0].body
+        let SentenceBody::Independent(IndependentClause::Finite(finite)) =
+            &paragraph.sentences[0].body
         else {
             panic!("expected coordination");
+        };
+        let (Some(Subject(subject)), PredicateExpression::Coordinated(_)) =
+            (finite.subject(), finite.predicate())
+        else {
+            panic!("expected a coordinated predicate with an explicit subject");
         };
         let crate::syntax::NounPhraseKind::Nominal(subject) = subject.kind() else {
             panic!("expected nominal subject");
@@ -4402,29 +4440,26 @@ mod tests {
         let AbilityKind::Paragraph(aang_static) = &aang.ast.abilities[0].kind() else {
             panic!("expected Aang's first ability to be a paragraph");
         };
-        assert!(
-            matches!(
-                &aang_static.sentences[0].body,
-                SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
-                    attachments,
-                    ..
-                })) if matches!(
-                    attachments.as_slice(),
-                    [ClauseAttachment {
-                        position: AttachmentPosition::AfterMatrix,
-                        payload: ClauseAttachmentKind::Dependent(
-                            DependentClause::Subordinate(
-                                Subordinator::AsLongAs,
-                                SubordinateBody::Finite(condition),
-                            ),
-                        ),
-                        ..
-                    }] if matches!(condition.as_ref(), IndependentClause::Existential(_))
-                )
-            ),
-            "{:#?}",
-            aang_static.sentences[0].body
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &aang_static.sentences[0].body
+        else {
+            panic!("{:#?}", aang_static.sentences[0].body);
+        };
+        assert_eq!(
+            complex.attachment().position(),
+            AttachmentPosition::AfterMatrix
         );
+        let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+            Subordinator::AsLongAs,
+            SubordinateBody::Finite(condition),
+        )) = complex.attachment().payload()
+        else {
+            panic!("expected a trailing as-long-as attachment: {complex:#?}");
+        };
+        assert!(matches!(
+            condition.as_ref(),
+            IndependentClause::Existential(_)
+        ));
         assert_eq!(
             aang.ast.render("Aang, A Lot to Learn", true).unwrap(),
             aang_source,
@@ -4444,16 +4479,24 @@ mod tests {
             Some(DependentClause::Subordinate(
                 Subordinator::If,
                 SubordinateBody::Finite(ref condition),
-            )) if matches!(condition.as_ref(), IndependentClause::Copular(_, _))
+            )) if matches!(condition.as_ref(), IndependentClause::Finite(finite)
+                if matches!(
+                    finite.predicate(),
+                    PredicateExpression::Simple(Predicate::Copular(_))
+                ))
         ));
         assert!(
             matches!(
                 keeper_upkeep.effect.sentences[0].body,
-                SentenceBody::Independent(IndependentClause::Deontic(
-                    _,
-                    _,
-                    Some(Predicate::Passive(_)),
-                ))
+                SentenceBody::Independent(IndependentClause::Finite(ref finite))
+                    if matches!(
+                        finite.predicate(),
+                        PredicateExpression::Simple(Predicate::Deontic(deontic))
+                            if matches!(
+                                deontic.inner(),
+                                Some(PredicateExpression::Simple(Predicate::Passive(_)))
+                            )
+                    )
             ),
             "{:#?}",
             keeper_upkeep.effect.sentences[0].body
@@ -4470,16 +4513,24 @@ mod tests {
         };
         assert!(matches!(
             justice_trigger.conditions.first.event,
-            TriggerEvent::Clause(IndependentClause::Transitive(_, _))
+            TriggerEvent::Clause(IndependentClause::Finite(ref finite))
+                if matches!(
+                    finite.predicate(),
+                    PredicateExpression::Simple(Predicate::Transitive(_))
+                )
         ));
         assert!(
             matches!(
                 justice_trigger.effect.sentences[0].body,
-                SentenceBody::Independent(IndependentClause::Deontic(
-                    _,
-                    _,
-                    Some(Predicate::Transitive(_)),
-                ))
+                SentenceBody::Independent(IndependentClause::Finite(ref finite))
+                    if matches!(
+                        finite.predicate(),
+                        PredicateExpression::Simple(Predicate::Deontic(deontic))
+                            if matches!(
+                                deontic.inner(),
+                                Some(PredicateExpression::Simple(Predicate::Transitive(_)))
+                            )
+                    )
             ),
             "{:#?}",
             justice_trigger.effect.sentences[0].body
@@ -4782,10 +4833,8 @@ mod tests {
         assert_eq!(trigger.introducer, TriggerWord::Whenever);
         assert!(matches!(
             &trigger.event,
-            TriggerEvent::Clause(IndependentClause::Predicated(
-                _,
-                PredicateExpression::Coordinated(_)
-            ))
+            TriggerEvent::Clause(IndependentClause::Finite(finite))
+                if matches!(finite.predicate(), PredicateExpression::Coordinated(_))
         ));
         let choice = modal_header_choice(&report);
         assert!(choice.trigger_prefix.is_none());
@@ -4804,7 +4853,8 @@ mod tests {
         };
         assert!(matches!(
             &modal.header.sentences[0].body,
-            SentenceBody::Independent(IndependentClause::Imperative(_))
+            SentenceBody::Independent(IndependentClause::Finite(finite))
+                if finite.subject().is_none()
         ));
         let choice = modal_header_choice(&report);
         let prefix = choice
@@ -6294,13 +6344,17 @@ mod tests {
         let AbilityKind::Paragraph(paragraph) = report.ast.abilities[0].kind() else {
             panic!("expected a paragraph: {:#?}", report.ast);
         };
-        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+        let SentenceBody::Independent(IndependentClause::Finite(finite)) =
             &paragraph.sentences[0].body
         else {
             panic!(
                 "expected a transitive grant clause: {:#?}",
                 paragraph.sentences[0]
             );
+        };
+        let PredicateExpression::Simple(Predicate::Transitive(predicate)) = finite.predicate()
+        else {
+            panic!("expected a simple transitive grant predicate");
         };
         let PredicateObject::QuotedAbility(quoted) = &predicate.object else {
             panic!("expected a quoted ability object: {:#?}", predicate.object);
@@ -6466,6 +6520,24 @@ mod tests {
         clause
     }
 
+    fn is_imperative_clause(clause: &IndependentClause) -> bool {
+        matches!(
+            clause,
+            IndependentClause::Finite(finite) if finite.subject().is_none()
+        )
+    }
+
+    fn is_deontic_clause(clause: &IndependentClause) -> bool {
+        matches!(
+            clause,
+            IndependentClause::Finite(finite)
+                if matches!(
+                    finite.predicate(),
+                    PredicateExpression::Simple(Predicate::Deontic(_))
+                )
+        )
+    }
+
     #[allow(
         clippy::match_same_arms,
         reason = "independent predicate variants intentionally share the same head access path"
@@ -6475,13 +6547,19 @@ mod tests {
         reason = "nested pattern variant is equivalent but less readable with this shared head projection"
     )]
     fn predicate_head(clause: &IndependentClause) -> &PredicateHead {
-        match clause {
-            IndependentClause::Transitive(_, predicate) => &predicate.head,
-            IndependentClause::Intransitive(_, predicate) => &predicate.head,
-            IndependentClause::Passive(_, predicate) => &predicate.head,
-            IndependentClause::Imperative(Predicate::Transitive(predicate)) => &predicate.head,
-            IndependentClause::Imperative(Predicate::Intransitive(predicate)) => &predicate.head,
-            IndependentClause::Imperative(Predicate::Passive(predicate)) => &predicate.head,
+        let IndependentClause::Finite(finite) = clause else {
+            panic!("expected finite lexical predicate, got {clause:?}");
+        };
+        let PredicateExpression::Simple(predicate) = finite.predicate() else {
+            panic!(
+                "expected simple lexical predicate, got {:?}",
+                finite.predicate()
+            );
+        };
+        match predicate {
+            Predicate::Transitive(predicate) => predicate.head(),
+            Predicate::Intransitive(predicate) => predicate.head(),
+            Predicate::Passive(predicate) => predicate.head(),
             other => panic!("expected lexical predicate, got {other:?}"),
         }
     }
@@ -6527,13 +6605,13 @@ mod tests {
                     report.ast.abilities[0].kind()
                 );
             };
-            assert!(matches!(
-                triggered.conditions.first.event,
-                TriggerEvent::Clause(
-                    IndependentClause::Predicated(_, PredicateExpression::Coordinated(_))
-                        | IndependentClause::Coordinated(_)
-                )
-            ));
+            assert!(match &triggered.conditions.first.event {
+                TriggerEvent::Clause(IndependentClause::Finite(finite)) => {
+                    matches!(finite.predicate(), PredicateExpression::Coordinated(_))
+                }
+                TriggerEvent::Clause(IndependentClause::Coordinated(_)) => true,
+                _ => false,
+            });
             assert_eq!(render(&report), source);
         }
     }
@@ -6559,10 +6637,8 @@ mod tests {
         };
         assert!(matches!(
             triggered.conditions.first.event,
-            TriggerEvent::Clause(IndependentClause::Predicated(
-                _,
-                PredicateExpression::Coordinated(_)
-            ))
+            TriggerEvent::Clause(IndependentClause::Finite(ref finite))
+                if matches!(finite.predicate(), PredicateExpression::Coordinated(_))
         ));
         assert_eq!(
             report
@@ -6587,28 +6663,38 @@ mod tests {
                 paragraph.sentences
             );
         };
+        let SentenceBody::Independent(IndependentClause::Finite(finite)) = &sentence.body else {
+            panic!(
+                "nickname did not reach a finite clause: {:#?}",
+                sentence.body
+            );
+        };
+        let PredicateExpression::Simple(Predicate::Transitive(predicate)) = finite.predicate()
+        else {
+            panic!(
+                "nickname did not reach a transitive predicate: {:#?}",
+                finite.predicate()
+            );
+        };
+        assert!(finite.subject().is_none());
         assert!(
             matches!(
-                &sentence.body,
-                SentenceBody::Independent(IndependentClause::Imperative(
-                    Predicate::Transitive(predicate)
-                )) if matches!(
-                    predicate.elements.as_slice(),
-                    [PredicateElement::Adjunct(PredicateAdjunct::Prepositional(value))]
-                        if matches!(
-                            value.kind(),
-                            PrepositionalPhraseKind::Simple(simple)
-                                if matches!(
-                                    simple.object().kind(),
-                                    crate::syntax::PrepositionalObjectKind::NounPhrase(noun_phrase) if matches!(
+                predicate.elements.as_slice(),
+                [PredicateElement::Adjunct(PredicateAdjunct::Prepositional(value))]
+                    if matches!(
+                        value.kind(),
+                        PrepositionalPhraseKind::Simple(simple)
+                            if matches!(
+                                simple.object().kind(),
+                                crate::syntax::PrepositionalObjectKind::NounPhrase(noun_phrase)
+                                    if matches!(
                                         noun_phrase.kind(),
                                         crate::syntax::NounPhraseKind::ThisCard(
                                             ThisCardForm::AbbreviatedName
                                         )
                                     )
-                                )
-                        )
-                )
+                            )
+                    )
             ),
             "nickname did not reach self-reference disambiguation: {:#?}",
             sentence.body
@@ -6629,32 +6715,39 @@ mod tests {
                 paragraph.sentences
             );
         };
+        let SentenceBody::Independent(IndependentClause::Finite(finite)) = &sentence.body else {
+            panic!(
+                "possessive nickname did not reach a finite clause: {:#?}",
+                sentence.body
+            );
+        };
+        let (Some(Subject(noun_phrase)), PredicateExpression::Simple(Predicate::Intransitive(_))) =
+            (finite.subject(), finite.predicate())
+        else {
+            panic!("possessive nickname did not reach an intransitive predication: {finite:#?}");
+        };
         assert!(
             matches!(
-                &sentence.body,
-                SentenceBody::Independent(IndependentClause::Intransitive(
-                    Subject(noun_phrase), _
-                )) if matches!(
-                    noun_phrase.kind(),
-                    crate::syntax::NounPhraseKind::Nominal(nominal)
-                        if matches!(nominal.determiner(),
-                    Some(determiner)
-                        if matches!(
-                            determiner.kind(),
-                            crate::syntax::DeterminerKind::Possessive(possessor)
-                                if matches!(
-                                    possessor,
-                                    crate::syntax::Possessor::NounPhrase(possessor)
-                                        if matches!(
-                                            possessor.kind(),
-                                            crate::syntax::NounPhraseKind::ThisCard(
-                                                ThisCardForm::AbbreviatedName
+                noun_phrase.kind(),
+                crate::syntax::NounPhraseKind::Nominal(nominal)
+                    if matches!(
+                        nominal.determiner(),
+                        Some(determiner)
+                            if matches!(
+                                determiner.kind(),
+                                crate::syntax::DeterminerKind::Possessive(possessor)
+                                    if matches!(
+                                        possessor,
+                                        crate::syntax::Possessor::NounPhrase(possessor)
+                                            if matches!(
+                                                possessor.kind(),
+                                                crate::syntax::NounPhraseKind::ThisCard(
+                                                    ThisCardForm::AbbreviatedName
+                                                )
                                             )
-                                        )
-                                )
-                        )
+                                    )
+                            )
                     )
-                )
             ),
             "possessive nickname did not reach self-reference disambiguation: {:#?}",
             sentence.body
@@ -6801,7 +6894,7 @@ mod tests {
             panic!("expected a triggered sentence body: {:#?}", second.body);
         };
         assert!(
-            matches!(triggered.effect, IndependentClause::Imperative(_)),
+            is_imperative_clause(&triggered.effect),
             "{:#?}",
             triggered.effect
         );
@@ -6828,7 +6921,7 @@ mod tests {
             panic!("expected a triggered sentence body: {:#?}", second.body);
         };
         assert!(
-            matches!(triggered.effect, IndependentClause::Deontic(..)),
+            is_deontic_clause(&triggered.effect),
             "{:#?}",
             triggered.effect
         );
@@ -6880,7 +6973,7 @@ mod tests {
             );
         };
         assert!(
-            matches!(triggered.effect, IndependentClause::Imperative(_)),
+            is_imperative_clause(&triggered.effect),
             "{:#?}",
             triggered.effect
         );
@@ -6906,7 +6999,7 @@ mod tests {
         };
         assert!(matches!(
             sacrifice,
-            CostComponent::Clause(clause) if matches!(clause.as_ref(), IndependentClause::Imperative(_))
+            CostComponent::Clause(clause) if is_imperative_clause(clause)
         ));
         assert_eq!(render(&report), source);
     }
@@ -6933,7 +7026,7 @@ mod tests {
                 panic!("expected a triggered sentence body: {:#?}", second.body);
             };
             assert!(
-                matches!(triggered.effect, IndependentClause::Imperative(_)),
+                is_imperative_clause(&triggered.effect),
                 "{:#?}",
                 triggered.effect
             );
@@ -7014,16 +7107,14 @@ mod tests {
         assert!(
             matches!(
                 triggered.trigger.event,
-                TriggerEvent::Clause(IndependentClause::Predicated(
-                    _,
-                    PredicateExpression::Coordinated(_)
-                ))
+                TriggerEvent::Clause(IndependentClause::Finite(ref finite))
+                    if matches!(finite.predicate(), PredicateExpression::Coordinated(_))
             ),
             "{:#?}",
             triggered.trigger.event
         );
         assert!(
-            matches!(triggered.effect, IndependentClause::Imperative(_)),
+            is_imperative_clause(&triggered.effect),
             "{:#?}",
             triggered.effect
         );
@@ -7094,21 +7185,15 @@ mod tests {
                 triggered.conditions.first.event
             );
         };
-        assert!(
-            complex.attachments.iter().any(|attachment| matches!(
-                attachment.payload,
-                ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
-                    Subordinator::While,
-                    _
-                ))
-            )),
-            "the while rider must attach inside the event: {:#?}",
-            complex.attachments
-        );
+        assert!(matches!(
+            complex.attachment().payload(),
+            ClauseAttachmentKind::Dependent(DependentClause::Subordinate(Subordinator::While, _))
+        ));
         // The effect is the ordinary bare imperative, not the while rider.
         assert!(matches!(
             triggered.effect.sentences[0].body,
-            SentenceBody::Independent(IndependentClause::Imperative(_))
+            SentenceBody::Independent(IndependentClause::Finite(ref finite))
+                if finite.subject().is_none()
         ));
         assert_eq!(render(&report), source);
     }
@@ -7132,10 +7217,8 @@ mod tests {
         };
         assert!(matches!(
             triggered.trigger.event,
-            TriggerEvent::Clause(IndependentClause::Predicated(
-                _,
-                PredicateExpression::Coordinated(_)
-            ))
+            TriggerEvent::Clause(IndependentClause::Finite(ref finite))
+                if matches!(finite.predicate(), PredicateExpression::Coordinated(_))
         ));
         assert_eq!(render(&report), source);
     }
@@ -7360,10 +7443,14 @@ mod tests {
                 report.ast.abilities[0]
             );
         };
-        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
+        let SentenceBody::Independent(IndependentClause::Finite(finite)) =
             &paragraph.sentences[0].body
         else {
             panic!("expected a transitive clause");
+        };
+        let PredicateExpression::Simple(Predicate::Transitive(predicate)) = finite.predicate()
+        else {
+            panic!("expected a simple transitive predicate");
         };
         let PredicateObject::NounPhrase(noun_phrase) = &predicate.object else {
             panic!("expected a nominal object: {:?}", predicate.object);

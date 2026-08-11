@@ -3,12 +3,11 @@ use super::Auxiliary;
 use super::AuxiliaryInflection;
 use super::BareNominalAdjunct;
 use super::Child;
+#[cfg(test)]
 use super::ContractedSubjectKey;
 use super::CopulaAgreement;
-use super::Demonstrative;
 use super::EnglishGrammar;
 use super::Features;
-use super::GapState;
 use super::ParseCost;
 use super::PredicateAttachmentPhase;
 use super::PredicateComplementKind;
@@ -29,10 +28,6 @@ pub(in crate::grammar) fn reduce_clause(
 ) -> Option<Reduced> {
     match tag {
         RuleTag::VerbPhraseCoordinatedAdjective => reduce_predicate(tag, children),
-        RuleTag::CopularRemainderCoordinatedAdjective
-        | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
-            reduce_simple_clause(tag, children)
-        }
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
@@ -506,75 +501,6 @@ pub(crate) fn predicate_object_gap_complete(
         && frame
             .selected_preposition()
             .is_satisfied_by(selected_preposition)
-}
-
-#[allow(
-    clippy::too_many_lines,
-    reason = "simple-clause reduction logic is intentionally long"
-)]
-pub(super) fn reduce_simple_clause(
-    tag: RuleTag,
-    children: &[Child<'_, EnglishGrammar<'_, '_>>],
-) -> Option<Reduced> {
-    match tag {
-        RuleTag::CopularRemainderCoordinatedAdjective => {
-            // Only an all-adjective coordinated run predicates as a copular
-            // adjective complement; a coordinated run holding a noun reading
-            // (supertypes such as `snow` scan as both) is rejected here so the
-            // adjective-reading conjuncts are the ones lowering converts.
-            let Features::CoordinatedModifier {
-                all_adjectives: true,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            Some(Features::None)
-        }
-        RuleTag::RelativeContractedCopularCoordinatedAdjective => {
-            reduce_relative_contracted_copular_coordinated_adjective_features(
-                children.first()?.features,
-                children.get(1)?.features,
-            )
-        }
-        _ => None,
-    }
-}
-
-pub(crate) fn reduce_relative_contracted_copular_coordinated_adjective_features(
-    subject_auxiliary: &Features,
-    complement: &Features,
-) -> Option<Features> {
-    let Features::SubjectAuxiliary {
-        subject: ContractedSubjectKey::Demonstrative(Demonstrative::That),
-        agreement,
-        auxiliary,
-        ..
-    } = subject_auxiliary
-    else {
-        return None;
-    };
-    if auxiliary.auxiliary != Auxiliary::Be
-        || !matches!(
-            complement,
-            Features::CoordinatedModifier {
-                all_adjectives: true,
-                ..
-            }
-        )
-    {
-        return None;
-    }
-    Some(Features::RelativeClause {
-        gap: GapState::Subject,
-        marker: crate::syntax::RelativeMarker::That,
-        antecedent_agreement: Some(*agreement),
-        contraction: crate::grammar::RelativeContraction::Copular,
-        distributive_each: false,
-        copular: crate::grammar::RelativeCopularClass::CoordinatedAdjective,
-        object_gap_requires_rules_object: false,
-        bare_copular_tail: false,
-    })
 }
 
 #[allow(

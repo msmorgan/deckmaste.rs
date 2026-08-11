@@ -1,0 +1,5 @@
+error[E0451]: field `scope` of struct `AttachedPredicate` is private
+ --> tests/compile_fail/construct_attached_predicate.rs:6:25
+  |
+6 |     AttachedPredicate { scope }
+  |                         ^^^^^ private field

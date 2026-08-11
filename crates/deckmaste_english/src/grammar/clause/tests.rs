@@ -43,14 +43,57 @@ use crate::word::VerbSlot;
 use crate::word::Vocab;
 
 fn predicate_coordination(sentence: &Sentence) -> &Coordination<PredicateExpression> {
-    let SentenceBody::Independent(IndependentClause::Predicated(
-        _,
-        PredicateExpression::Coordinated(coordination),
-    )) = &sentence.body
-    else {
+    let SentenceBody::Independent(clause) = &sentence.body else {
+        panic!("expected independent clause: {sentence:#?}");
+    };
+    let (_, PredicateExpression::Coordinated(coordination)) = finite_parts(clause) else {
         panic!("expected shared-subject predicate coordination: {sentence:#?}");
     };
     coordination
+}
+
+fn finite_parts(clause: &IndependentClause) -> (Option<&Subject>, &PredicateExpression) {
+    let IndependentClause::Finite(finite) = clause else {
+        panic!("expected ordinary finite clause: {clause:#?}");
+    };
+    (finite.subject(), finite.predicate())
+}
+
+fn finite_simple_parts(clause: &IndependentClause) -> (Option<&Subject>, &Predicate) {
+    let (subject, PredicateExpression::Simple(predicate)) = finite_parts(clause) else {
+        panic!("expected uncoordinated finite predicate: {clause:#?}");
+    };
+    (subject, predicate)
+}
+
+fn imperative_predicate(clause: &IndependentClause) -> &Predicate {
+    let (None, predicate) = finite_simple_parts(clause) else {
+        panic!("expected imperative clause: {clause:#?}");
+    };
+    predicate
+}
+
+fn independent_clause(sentence: &Sentence) -> &IndependentClause {
+    let SentenceBody::Independent(clause) = &sentence.body else {
+        panic!("expected an independent clause: {sentence:#?}");
+    };
+    clause
+}
+
+fn imperative_transitive(sentence: &Sentence) -> &crate::syntax::TransitivePredicate {
+    let Predicate::Transitive(predicate) = imperative_predicate(independent_clause(sentence))
+    else {
+        panic!("expected an imperative transitive clause: {sentence:#?}");
+    };
+    predicate
+}
+
+fn finite_transitive(sentence: &Sentence) -> (&Subject, &crate::syntax::TransitivePredicate) {
+    let clause = independent_clause(sentence);
+    let (Some(subject), Predicate::Transitive(predicate)) = finite_simple_parts(clause) else {
+        panic!("expected an explicit-subject transitive clause: {sentence:#?}");
+    };
+    (subject, predicate)
 }
 
 fn predicate_object_kind(object: &PredicateObject) -> Option<&NounPhraseKind> {
@@ -60,7 +103,11 @@ fn predicate_object_kind(object: &PredicateObject) -> Option<&NounPhraseKind> {
     Some(noun_phrase.kind())
 }
 
-fn relative_has(relative: &RelativeClause, marker: RelativeMarker, gap: RelativeGap) -> bool {
+fn relative_has(
+    relative: &RelativeClause,
+    marker: RelativeMarker,
+    gap: crate::features::GapState,
+) -> bool {
     relative.marker() == marker && relative.gap() == gap
 }
 
@@ -125,10 +172,10 @@ fn imperative_has_coordinated_pp_role(
     role: crate::features::ComplementRole,
     expected: &[Preposition],
 ) -> bool {
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Intransitive(
-        predicate,
-    ))) = &sentence.body
-    else {
+    let SentenceBody::Independent(clause) = &sentence.body else {
+        return false;
+    };
+    let Predicate::Intransitive(predicate) = imperative_predicate(clause) else {
         return false;
     };
     predicate.elements().iter().any(|element| {
@@ -274,10 +321,10 @@ fn p02_registration_order_preserves_packed_attachment() {
     let attachment_roles = orders[0]
         .iter()
         .filter_map(|parse| {
-            let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
-                predicate,
-            ))) = &parse.ast().value.body
-            else {
+            let SentenceBody::Independent(clause) = &parse.ast().value.body else {
+                return None;
+            };
+            let Predicate::Transitive(predicate) = imperative_predicate(clause) else {
                 return None;
             };
             let nominal = matches!(
@@ -420,9 +467,10 @@ fn singular_demonstratives_determine_mass_nouns() {
     // Positive: `that`/`this` now determine a mass noun (`that damage`), the
     // demonstrative object of a prevention/replacement imperative.
     let parsed = parse("Prevent that damage.");
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body else {
+        panic!("expected an independent clause");
+    };
+    let Predicate::Transitive(predicate) = imperative_predicate(clause) else {
         panic!("expected an imperative transitive clause");
     };
     let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(predicate.object()) else {
@@ -454,26 +502,24 @@ fn flip_is_a_count_noun_alongside_its_irregular_verb() {
     // Positive: `the flip` is a nominal condition object inside the
     // `if`-subordinate of a complex clause.
     let parsed = parse("If you win the flip, draw a card.");
-    let SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
-        attachments, ..
-    })) = &parsed.sentence().expect("sentence root").body
+    let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+        &parsed.sentence().expect("sentence root").body
     else {
         panic!("expected a complex clause with a fronted condition");
     };
-    let [attachment] = attachments.as_slice() else {
-        panic!("expected exactly one fronted attachment");
-    };
+    assert!(matches!(complex.host(), IndependentClause::Finite(_)));
+    let attachment = complex.attachment();
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         Subordinator::If,
         SubordinateBody::Finite(condition),
-    )) = &attachment.payload
+    )) = attachment.payload()
     else {
         panic!(
             "expected an `if` subordinate frame, got {:?}",
-            attachment.payload
+            attachment.payload()
         );
     };
-    let IndependentClause::Transitive(_, predicate) = condition.as_ref() else {
+    let (Some(_), Predicate::Transitive(predicate)) = finite_simple_parts(condition) else {
         panic!("expected a transitive condition clause");
     };
     let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(predicate.object()) else {
@@ -500,9 +546,11 @@ fn flip_is_a_count_noun_alongside_its_irregular_verb() {
     // Required negative: `Flip a coin.` remains an imperative transitive
     // with direct object `a coin`; no noun-headed alternative may win.
     let flip_coin = parse("Flip a coin.");
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
-        &flip_coin.sentence().expect("sentence root").body
+    let SentenceBody::Independent(clause) = &flip_coin.sentence().expect("sentence root").body
     else {
+        panic!("expected an independent clause");
+    };
+    let Predicate::Transitive(predicate) = imperative_predicate(clause) else {
         panic!("expected an imperative transitive clause");
     };
     assert!(matches!(
@@ -522,9 +570,10 @@ fn flip_is_a_count_noun_alongside_its_irregular_verb() {
 #[test]
 fn ensue_is_a_regular_intransitive_verb() {
     let parsed = parse("Chaos ensues.");
-    let SentenceBody::Independent(IndependentClause::Intransitive(_, predicate)) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body else {
+        panic!("expected an independent clause");
+    };
+    let (Some(_), Predicate::Intransitive(predicate)) = finite_simple_parts(clause) else {
         panic!("expected an intransitive clause");
     };
     assert!(matches!(
@@ -552,26 +601,24 @@ fn coin_result_is_a_closed_two_word_predicate_tail() {
     // `If the coin comes up heads, ...` has head verb `Come` and
     // `PredicateElement::CoinResult(Heads)`.
     let parsed = parse("If the coin comes up heads, draw a card.");
-    let SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
-        attachments, ..
-    })) = &parsed.sentence().expect("sentence root").body
+    let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+        &parsed.sentence().expect("sentence root").body
     else {
         panic!("expected a complex clause with a fronted condition");
     };
-    let [attachment] = attachments.as_slice() else {
-        panic!("expected exactly one fronted attachment");
-    };
+    assert!(matches!(complex.host(), IndependentClause::Finite(_)));
+    let attachment = complex.attachment();
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         Subordinator::If,
         SubordinateBody::Finite(condition),
-    )) = &attachment.payload
+    )) = attachment.payload()
     else {
         panic!(
             "expected an `if` subordinate frame, got {:?}",
-            attachment.payload
+            attachment.payload()
         );
     };
-    let IndependentClause::Intransitive(_, predicate) = condition.as_ref() else {
+    let (Some(_), Predicate::Intransitive(predicate)) = finite_simple_parts(condition) else {
         panic!("expected an intransitive condition clause");
     };
     assert!(matches!(
@@ -586,9 +633,10 @@ fn coin_result_is_a_closed_two_word_predicate_tail() {
     // `coins came up heads` proves the irregular past; `comes up tails`
     // proves the other side.
     let past = parse("Coins came up heads.");
-    let SentenceBody::Independent(IndependentClause::Intransitive(_, past_predicate)) =
-        &past.sentence().expect("sentence root").body
-    else {
+    let SentenceBody::Independent(clause) = &past.sentence().expect("sentence root").body else {
+        panic!("expected an independent clause");
+    };
+    let (Some(_), Predicate::Intransitive(past_predicate)) = finite_simple_parts(clause) else {
         panic!("expected an intransitive clause");
     };
     assert!(matches!(
@@ -601,9 +649,10 @@ fn coin_result_is_a_closed_two_word_predicate_tail() {
     );
 
     let tails = parse("The coin comes up tails.");
-    let SentenceBody::Independent(IndependentClause::Intransitive(_, tails_predicate)) =
-        &tails.sentence().expect("sentence root").body
-    else {
+    let SentenceBody::Independent(clause) = &tails.sentence().expect("sentence root").body else {
+        panic!("expected an independent clause");
+    };
+    let (Some(_), Predicate::Intransitive(tails_predicate)) = finite_simple_parts(clause) else {
         panic!("expected an intransitive clause");
     };
     assert_eq!(
@@ -627,9 +676,11 @@ fn coin_result_is_a_closed_two_word_predicate_tail() {
     // Existing `This creature phases out.` remains the same particle
     // tree.
     let phases_out = parse("This creature phases out.");
-    let SentenceBody::Independent(IndependentClause::Intransitive(_, phase_predicate)) =
-        &phases_out.sentence().expect("sentence root").body
+    let SentenceBody::Independent(clause) = &phases_out.sentence().expect("sentence root").body
     else {
+        panic!("expected an independent clause");
+    };
+    let (Some(_), Predicate::Intransitive(phase_predicate)) = finite_simple_parts(clause) else {
         panic!("expected an intransitive clause");
     };
     assert_eq!(
@@ -640,10 +691,11 @@ fn coin_result_is_a_closed_two_word_predicate_tail() {
     // Required negative: `Flip a coin.` remains an imperative transitive
     // with object `a coin`; no CoinResult reading intrudes.
     let flip_coin = parse("Flip a coin.");
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
-        flip_predicate,
-    ))) = &flip_coin.sentence().expect("sentence root").body
+    let SentenceBody::Independent(clause) = &flip_coin.sentence().expect("sentence root").body
     else {
+        panic!("expected an independent clause");
+    };
+    let Predicate::Transitive(flip_predicate) = imperative_predicate(clause) else {
         panic!("expected an imperative transitive clause");
     };
     assert!(flip_predicate.elements().is_empty());
@@ -673,25 +725,23 @@ fn while_fronts_a_gerund_clause_before_the_matrix() {
     // before-matrix `Subordinator::While` attachment with
     // `SubordinateBody::Gerund`.
     let parsed = parse("While voting, you may vote an additional time.");
-    let SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
-        attachments, ..
-    })) = &parsed.sentence().expect("sentence root").body
+    let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+        &parsed.sentence().expect("sentence root").body
     else {
         panic!("expected a complex clause with a fronted gerund");
     };
-    let [attachment] = attachments.as_slice() else {
-        panic!("expected exactly one fronted attachment");
-    };
-    assert_eq!(attachment.position, AttachmentPosition::BeforeMatrix);
-    assert!(attachment.comma.is_present());
+    assert!(matches!(complex.host(), IndependentClause::Finite(_)));
+    let attachment = complex.attachment();
+    assert_eq!(attachment.position(), AttachmentPosition::BeforeMatrix);
+    assert!(attachment.comma().is_present());
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         Subordinator::While,
         SubordinateBody::Gerund(_),
-    )) = &attachment.payload
+    )) = attachment.payload()
     else {
         panic!(
             "expected a `while` gerund frame, got {:?}",
-            attachment.payload
+            attachment.payload()
         );
     };
 
@@ -713,18 +763,14 @@ fn while_fronts_a_gerund_clause_before_the_matrix() {
     // generic finite-subordinate declaration, not the gerund-only one. This
     // confirms the gerund form does not widen `while`'s finite reading.
     let finite = parse("While you vote, you may vote an additional time.");
-    let SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
-        attachments: finite_attachments,
-        ..
-    })) = &finite.sentence().expect("sentence root").body
+    let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+        &finite.sentence().expect("sentence root").body
     else {
         panic!("expected a complex clause");
     };
-    let [finite_attachment] = finite_attachments.as_slice() else {
-        panic!("expected exactly one attachment");
-    };
+    assert!(matches!(complex.host(), IndependentClause::Finite(_)));
     assert!(matches!(
-        &finite_attachment.payload,
+        complex.attachment().payload(),
         ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
             Subordinator::While,
             SubordinateBody::Finite(_)
@@ -747,9 +793,10 @@ fn while_fronts_a_gerund_clause_before_the_matrix() {
 #[test]
 fn receive_is_a_regular_verb_with_a_required_object() {
     let parsed = parse("An opponent received no votes.");
-    let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body else {
+        panic!("expected an independent clause");
+    };
+    let (Some(_), Predicate::Transitive(predicate)) = finite_simple_parts(clause) else {
         panic!("expected a transitive clause");
     };
     assert!(matches!(
@@ -773,36 +820,31 @@ fn receive_is_a_regular_verb_with_a_required_object() {
 fn the_next_time_frame_fronts_a_subordinate_clause() {
     let parsed =
         parse("The next time this creature would deal damage this turn, prevent that damage.");
-    let SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
-        matrix,
-        attachments,
-    })) = &parsed.sentence().expect("sentence root").body
+    let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+        &parsed.sentence().expect("sentence root").body
     else {
         panic!("expected a complex clause with a fronted frame");
     };
     assert!(matches!(
-        matrix.as_ref(),
-        IndependentClause::Imperative(Predicate::Transitive(_))
+        imperative_predicate(complex.host()),
+        Predicate::Transitive(_)
     ));
-    let [attachment] = attachments.as_slice() else {
-        panic!("expected exactly one fronted attachment");
-    };
-    assert_eq!(attachment.position, AttachmentPosition::BeforeMatrix);
-    assert!(attachment.comma.is_present());
+    let attachment = complex.attachment();
+    assert_eq!(attachment.position(), AttachmentPosition::BeforeMatrix);
+    assert!(attachment.comma().is_present());
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         Subordinator::TheNextTime,
         SubordinateBody::Finite(condition),
-    )) = &attachment.payload
+    )) = attachment.payload()
     else {
         panic!(
             "expected a `the next time` subordinate frame, got {:?}",
-            attachment.payload
+            attachment.payload()
         );
     };
-    assert!(
-        matches!(condition.as_ref(), IndependentClause::Deontic(..)),
-        "the frame's event clause is a `would` modal clause"
-    );
+    let (Some(_), Predicate::Deontic(_)) = finite_simple_parts(condition) else {
+        panic!("the frame's event clause should be a `would` modal clause");
+    };
 }
 
 #[test]
@@ -931,30 +973,29 @@ fn trailing_where_clause_binds_a_variable_definition() {
     // matrix; the matrix carries the `X` the clause defines.
     let source = "Target creature gets +X/+0 until end of turn, where X is the number of creatures you control.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
-        matrix,
-        attachments,
-    })) = &parsed.sentence().expect("sentence root").body
+    let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+        &parsed.sentence().expect("sentence root").body
     else {
         panic!("expected a complex clause with a trailing where-definition");
     };
-    assert!(matches!(matrix.as_ref(), IndependentClause::Transitive(..)));
-    let [attachment] = attachments.as_slice() else {
-        panic!("expected exactly one trailing attachment");
-    };
-    assert_eq!(attachment.position, AttachmentPosition::AfterMatrix);
-    assert!(attachment.comma.is_present());
+    assert!(matches!(
+        finite_simple_parts(complex.host()),
+        (Some(_), Predicate::Transitive(_))
+    ));
+    let attachment = complex.attachment();
+    assert_eq!(attachment.position(), AttachmentPosition::AfterMatrix);
+    assert!(attachment.comma().is_present());
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         Subordinator::Where,
         SubordinateBody::Finite(body),
-    )) = &attachment.payload
+    )) = attachment.payload()
     else {
         panic!(
             "expected a `where` subordinate definition, got {:?}",
-            attachment.payload
+            attachment.payload()
         );
     };
-    let IndependentClause::Copular(Subject(subject), _) = body.as_ref() else {
+    let (Some(Subject(subject)), Predicate::Copular(_)) = finite_simple_parts(body) else {
         panic!("the where-body is a copular equation, got {body:?}");
     };
     // The bound variable reuses the count-context `X` quantity rather than a
@@ -974,16 +1015,15 @@ fn where_clause_attaches_to_choose_up_to_x() {
     // `where` definition as an ordinary effect clause.
     let source = "Choose up to X target creatures, where X is the number of creatures you control.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
-        attachments, ..
-    })) = &parsed.sentence().expect("sentence root").body
+    let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+        &parsed.sentence().expect("sentence root").body
     else {
         panic!("expected a complex clause with a trailing where-definition");
     };
-    assert!(attachments.iter().any(|attachment| matches!(
-        &attachment.payload,
+    assert!(matches!(
+        complex.attachment().payload(),
         ClauseAttachmentKind::Dependent(DependentClause::Subordinate(Subordinator::Where, _))
-    )));
+    ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
 
@@ -1012,19 +1052,17 @@ fn as_though_binds_a_trailing_past_indicative_clause() {
 fn as_though_clause_attachment_shape() {
     let source = "You may cast this spell as though it had flash.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
-        attachments, ..
-    })) = &parsed.sentence().expect("sentence root").body
+    let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+        &parsed.sentence().expect("sentence root").body
     else {
         panic!("expected a complex clause with a trailing as-though attachment");
     };
-    let [attachment] = attachments.as_slice() else {
-        panic!("expected exactly one trailing attachment");
-    };
-    assert_eq!(attachment.position, AttachmentPosition::AfterMatrix);
-    assert!(!attachment.comma.is_present());
+    assert!(matches!(complex.host(), IndependentClause::Finite(_)));
+    let attachment = complex.attachment();
+    assert_eq!(attachment.position(), AttachmentPosition::AfterMatrix);
+    assert!(!attachment.comma().is_present());
     assert!(matches!(
-        &attachment.payload,
+        attachment.payload(),
         ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
             Subordinator::AsThough,
             SubordinateBody::Finite(_),
@@ -1193,17 +1231,16 @@ fn as_though_mana_copula_purpose_infinitive_attaches_inside_the_complement_nomin
     else {
         panic!("expected a complex clause: {:#?}", parsed.sentence());
     };
-    let [attachment] = complex.attachments.as_slice() else {
-        panic!("expected exactly one trailing attachment: {complex:#?}");
-    };
+    assert!(matches!(complex.host(), IndependentClause::Finite(_)));
+    let attachment = complex.attachment();
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         crate::syntax::Subordinator::AsThough,
         SubordinateBody::Finite(body),
-    )) = &attachment.payload
+    )) = attachment.payload()
     else {
         panic!("expected an as-though finite attachment: {attachment:#?}");
     };
-    let IndependentClause::Copular(_, predicate) = body.as_ref() else {
+    let (Some(_), Predicate::Copular(predicate)) = finite_simple_parts(body) else {
         panic!("expected a copular as-though body: {body:#?}");
     };
     let crate::syntax::CopularComplement::NounPhrase(complement) = predicate.complement() else {
@@ -1245,17 +1282,16 @@ fn as_though_mana_copula_structural_shape() {
     else {
         panic!("expected a complex clause: {:#?}", parsed.sentence());
     };
-    let [attachment] = complex.attachments.as_slice() else {
-        panic!("expected exactly one trailing attachment: {complex:#?}");
-    };
+    assert!(matches!(complex.host(), IndependentClause::Finite(_)));
+    let attachment = complex.attachment();
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         crate::syntax::Subordinator::AsThough,
         SubordinateBody::Finite(body),
-    )) = &attachment.payload
+    )) = attachment.payload()
     else {
         panic!("expected an as-though finite attachment: {attachment:#?}");
     };
-    let IndependentClause::Copular(_, predicate) = body.as_ref() else {
+    let (Some(_), Predicate::Copular(predicate)) = finite_simple_parts(body) else {
         panic!("expected a copular as-though body: {body:#?}");
     };
     assert_eq!(predicate.copula().auxiliary().auxiliary, Auxiliary::Be);
@@ -1290,47 +1326,42 @@ fn as_though_indicative_copula_reading_survives_the_subjunctive_copula_filter() 
         let SentenceBody::Independent(clause) = &parsed.sentence().expect("root").body else {
             panic!("expected an independent clause: {source}");
         };
-        let attachments: &[ClauseAttachment] = match clause {
-            IndependentClause::Complex(complex) => complex.attachments.as_slice(),
+        let attachment = match clause {
+            IndependentClause::Complex(complex) => complex.attachment(),
             other => panic!("expected a complex clause: {other:#?}"),
         };
-        let mut found_copula = false;
-        for attachment in attachments {
-            let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
-                crate::syntax::Subordinator::AsThough,
-                SubordinateBody::Finite(body),
-            )) = &attachment.payload
-            else {
-                continue;
-            };
-            // `were untapped` / `were in your graveyard` reduce as a
-            // passive or prepositional-copular body depending on the
-            // complement shape, not necessarily `IndependentClause::Copular`
-            // — either way the `Be` auxiliary must keep its ordinary
-            // indicative inflection, never `PastSubjunctive`.
-            let auxiliary = match body.as_ref() {
-                IndependentClause::Copular(_, predicate) => predicate.copula().auxiliary(),
-                IndependentClause::Passive(_, predicate) => *predicate
-                    .head()
-                    .auxiliaries()
-                    .first()
-                    .expect("passive `be` auxiliary"),
-                other => panic!("expected a copular or passive as-though body: {other:#?}"),
-            };
-            {
-                found_copula = true;
-                assert_eq!(auxiliary.auxiliary, Auxiliary::Be);
-                assert_eq!(
-                    auxiliary.inflection,
-                    AuxiliaryInflection::Past {
-                        person: Person::Third,
-                        number: Number::Plural,
-                    },
-                    "must not be PastSubjunctive: {auxiliary:#?}"
-                );
-            }
-        }
-        assert!(found_copula, "expected an as-though copular body: {source}");
+        let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+            crate::syntax::Subordinator::AsThough,
+            SubordinateBody::Finite(body),
+        )) = attachment.payload()
+        else {
+            panic!("expected an as-though finite attachment: {attachment:#?}");
+        };
+        // `were untapped` / `were in your graveyard` reduce as a
+        // passive or prepositional-copular body depending on the
+        // complement shape. Either way the `Be` auxiliary must keep its
+        // ordinary indicative inflection, never `PastSubjunctive`.
+        let (Some(_), predicate) = finite_simple_parts(body) else {
+            panic!("expected an explicit-subject finite body: {body:#?}");
+        };
+        let auxiliary = match predicate {
+            Predicate::Copular(predicate) => predicate.copula().auxiliary(),
+            Predicate::Passive(predicate) => *predicate
+                .head()
+                .auxiliaries()
+                .first()
+                .expect("passive `be` auxiliary"),
+            other => panic!("expected a copular or passive as-though body: {other:#?}"),
+        };
+        assert_eq!(auxiliary.auxiliary, Auxiliary::Be);
+        assert_eq!(
+            auxiliary.inflection,
+            AuxiliaryInflection::Past {
+                person: Person::Third,
+                number: Number::Plural,
+            },
+            "must not be PastSubjunctive: {auxiliary:#?}"
+        );
         assert_eq!(
             render_sentence(parsed.sentence().unwrap()),
             source,
@@ -1438,17 +1469,16 @@ fn degree_measured_comparative_structural_shape() {
     else {
         panic!("expected a complex clause: {:#?}", parsed.sentence());
     };
-    let [attachment] = complex.attachments.as_slice() else {
-        panic!("expected exactly one trailing attachment: {complex:#?}");
-    };
+    assert!(matches!(complex.host(), IndependentClause::Finite(_)));
+    let attachment = complex.attachment();
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         crate::syntax::Subordinator::AsThough,
         SubordinateBody::Finite(body),
-    )) = &attachment.payload
+    )) = attachment.payload()
     else {
         panic!("expected an as-though finite attachment: {attachment:#?}");
     };
-    let IndependentClause::Copular(_, predicate) = body.as_ref() else {
+    let (Some(_), Predicate::Copular(predicate)) = finite_simple_parts(body) else {
         panic!("expected a copular as-though body: {body:#?}");
     };
     assert_eq!(predicate.copula().auxiliary().auxiliary, Auxiliary::Be);
@@ -1485,15 +1515,14 @@ fn numeral_before_a_than_only_adjective_is_not_a_degree_phrase() {
     assert!(rendered.contains("three"), "{rendered}");
     assert!(!rendered.contains(" 3 "), "{rendered}");
 
-    let SentenceBody::Independent(IndependentClause::Imperative(predicate)) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body else {
+        panic!("expected an independent clause: {:#?}", parsed.sentence());
+    };
+    let predicate = imperative_predicate(clause);
+    let Predicate::Transitive(predicate) = predicate else {
         panic!("expected an imperative body: {:#?}", parsed.sentence());
     };
-    let object = match predicate {
-        crate::syntax::Predicate::Transitive(predicate) => predicate.object(),
-        other => panic!("expected a transitive predicate: {other:#?}"),
-    };
+    let object = predicate.object();
     let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(object) else {
         panic!("expected a nominal object: {object:#?}");
     };
@@ -1528,30 +1557,10 @@ fn numeral_before_an_or_comparative_stays_attributive() {
         );
         let sentence = parsed.sentence().expect(source);
         let nominal = match &sentence.body {
-            SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(
-                predicate,
-            ))) => predicate
-                .elements()
-                .iter()
-                .find_map(|element| match element {
-                    PredicateElement::Adjunct(PredicateAdjunct::Temporal(noun_phrase)) => {
-                        match noun_phrase.kind() {
-                            NounPhraseKind::Nominal(nominal) => Some(nominal),
-                            _ => None,
-                        }
-                    }
-                    _ => None,
-                }),
-            SentenceBody::Independent(IndependentClause::Deontic(
-                _,
-                _,
-                Some(Predicate::Transitive(predicate)),
-            )) => match predicate_object_kind(predicate.object()) {
-                Some(NounPhraseKind::Nominal(nominal)) => Some(nominal),
-                _ => None,
-            },
             SentenceBody::Independent(IndependentClause::Complex(complex)) => {
-                let IndependentClause::Intransitive(_, predicate) = complex.matrix.as_ref() else {
+                let (Some(_), Predicate::Intransitive(predicate)) =
+                    finite_simple_parts(complex.host())
+                else {
                     panic!("expected an intransitive matrix: {sentence:#?}");
                 };
                 predicate
@@ -1569,6 +1578,34 @@ fn numeral_before_an_or_comparative_stays_attributive() {
                         }
                         _ => None,
                     })
+            }
+            SentenceBody::Independent(clause) => {
+                match finite_simple_parts(clause) {
+                    (None, Predicate::Transitive(predicate)) => predicate
+                        .elements()
+                        .iter()
+                        .find_map(|element| match element {
+                            PredicateElement::Adjunct(PredicateAdjunct::Temporal(noun_phrase)) => {
+                                match noun_phrase.kind() {
+                                    NounPhraseKind::Nominal(nominal) => Some(nominal),
+                                    _ => None,
+                                }
+                            }
+                            _ => None,
+                        }),
+                    (_, Predicate::Deontic(deontic)) => {
+                        let Some(PredicateExpression::Simple(Predicate::Transitive(predicate))) =
+                            deontic.inner()
+                        else {
+                            panic!("expected a transitive deontic predicate: {sentence:#?}");
+                        };
+                        match predicate_object_kind(predicate.object()) {
+                            Some(NounPhraseKind::Nominal(nominal)) => Some(nominal),
+                            _ => None,
+                        }
+                    }
+                    _ => None,
+                }
             }
             _ => None,
         }
@@ -1661,9 +1698,11 @@ fn exact_quantities_can_measure_mass_nouns() {
         ("This creature deals 3 damage to any target.", Vocab::Damage),
     ] {
         let parsed = parse(source);
-        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
-            &parsed.sentence().expect("sentence root").body
+        let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body
         else {
+            panic!("expected an independent clause for {source:?}");
+        };
+        let (Some(_), Predicate::Transitive(predicate)) = finite_simple_parts(clause) else {
             panic!("expected a transitive clause for {source:?}");
         };
         assert!(matches!(
@@ -1689,9 +1728,10 @@ fn exact_quantities_can_measure_mass_nouns() {
 fn bonfire_recipient_is_full_coordination_with_a_shared_target_member() {
     let source = "This card deals X damage to target player or planeswalker and each creature that player or that planeswalker's controller controls.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body else {
+        panic!("expected an independent clause");
+    };
+    let (Some(_), Predicate::Transitive(predicate)) = finite_simple_parts(clause) else {
         panic!("expected a transitive clause");
     };
     let Some(NounPhraseKind::Nominal(damage)) = predicate_object_kind(predicate.object()) else {
@@ -1741,7 +1781,11 @@ fn bonfire_recipient_is_full_coordination_with_a_shared_target_member() {
     assert!(matches!(
         creatures.complements(),
         [NominalComplement::Relative(relative)]
-            if relative_has(relative, RelativeMarker::Zero, RelativeGap::Object)
+            if relative_has(
+                relative,
+                RelativeMarker::Zero,
+                crate::features::GapState::Object,
+            )
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -1828,7 +1872,11 @@ fn rules_object_gap_skips_a_mass_comparison_head() {
         matches!(
             object.complements(),
             [NominalComplement::Relative(relative)]
-                if relative_has(relative, RelativeMarker::Zero, RelativeGap::Object)
+                if relative_has(
+                    relative,
+                    RelativeMarker::Zero,
+                    crate::features::GapState::Object,
+                )
         ),
         "the comparison-set member must host the relative: {object:#?}"
     );
@@ -1851,7 +1899,11 @@ fn subject_gap_attachment_remains_governed_by_agreement() {
                 NominalComplement::Relative(relative),
                 ..
             ] if preposition.head().preposition() == Preposition::Among
-                && relative_has(relative, RelativeMarker::That, RelativeGap::Subject)
+                && relative_has(
+                    relative,
+                    RelativeMarker::That,
+                    crate::features::GapState::Subject,
+                )
         ),
         "agreement must keep the relative on the outer singular head: {toughness:#?}"
     );
@@ -1889,7 +1941,11 @@ fn rules_object_gap_reaches_the_deepest_nested_pp_host() {
     assert!(matches!(
         lands.complements(),
         [NominalComplement::Relative(relative)]
-            if relative_has(relative, RelativeMarker::Zero, RelativeGap::Object)
+            if relative_has(
+                relative,
+                RelativeMarker::Zero,
+                crate::features::GapState::Object,
+            )
     ));
 }
 
@@ -1919,7 +1975,11 @@ fn rules_object_gap_ranks_valid_hosts_across_nested_pps() {
             NominalComplement::Prepositional(preposition),
             NominalComplement::Relative(relative)
         ] if preposition.head().preposition() == Preposition::In
-            && relative_has(relative, RelativeMarker::Zero, RelativeGap::Object)
+            && relative_has(
+                relative,
+                RelativeMarker::Zero,
+                crate::features::GapState::Object,
+            )
     ));
 }
 
@@ -1937,7 +1997,11 @@ fn invalid_mass_pp_object_falls_back_to_the_outer_count_host() {
             NominalComplement::Prepositional(preposition),
             NominalComplement::Relative(relative)
         ] if preposition.head().preposition() == Preposition::With
-            && relative_has(relative, RelativeMarker::Zero, RelativeGap::Object)
+            && relative_has(
+                relative,
+                RelativeMarker::Zero,
+                crate::features::GapState::Object,
+            )
     ));
 }
 
@@ -1975,7 +2039,11 @@ fn rules_object_gap_keeps_coordinated_members_inside_the_preposition() {
     assert!(matches!(
         creatures.complements(),
         [NominalComplement::Relative(relative)]
-            if relative_has(relative, RelativeMarker::Zero, RelativeGap::Object)
+            if relative_has(
+                relative,
+                RelativeMarker::Zero,
+                crate::features::GapState::Object,
+            )
     ));
 }
 
@@ -2047,8 +2115,8 @@ fn coordinated_member_consumes_following_modifiers_before_the_pp_closes() {
             NominalComplement::Relative(subject_relative),
             NominalComplement::Prepositional(preposition)
         ] if preposition.head().preposition() == Preposition::With
-            && object_relative.gap() == RelativeGap::Object
-            && subject_relative.gap() == RelativeGap::Subject
+            && object_relative.gap() == crate::features::GapState::Object
+            && subject_relative.gap() == crate::features::GapState::Subject
     ));
 }
 
@@ -2056,9 +2124,10 @@ fn coordinated_member_consumes_following_modifiers_before_the_pp_closes() {
 fn coordinated_member_refuses_unrelated_following_pps() {
     let source = "Gain control of target artifact or creature you control until end of turn.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body else {
+        panic!("expected an independent clause");
+    };
+    let Predicate::Transitive(predicate) = imperative_predicate(clause) else {
         panic!("expected a transitive imperative");
     };
     let Some(NounPhraseKind::Nominal(control)) = predicate_object_kind(predicate.object()) else {
@@ -2086,7 +2155,8 @@ fn coordinated_member_refuses_unrelated_following_pps() {
     assert!(last.phrase.complements().is_empty());
     assert!(matches!(
         objects.complements().as_slice(),
-        [NominalComplement::Relative(relative)] if relative.gap() == RelativeGap::Object
+        [NominalComplement::Relative(relative)]
+            if relative.gap() == crate::features::GapState::Object
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -2134,12 +2204,12 @@ fn common_head_object_survives_following_finite_clause_coordination() {
     else {
         panic!("expected two complete finite clauses");
     };
-    let IndependentClause::Deontic(_, _, Some(first_predicate)) = coordination.first.as_ref()
+    let (Some(_), Predicate::Deontic(deontic)) = finite_simple_parts(coordination.first.as_ref())
     else {
         panic!("expected a modal first clause: {coordination:#?}");
     };
-    let Predicate::Transitive(cast) = first_predicate else {
-        panic!("expected a transitive cast predicate: {first_predicate:#?}");
+    let Some(PredicateExpression::Simple(Predicate::Transitive(cast))) = deontic.inner() else {
+        panic!("expected a transitive cast predicate: {deontic:#?}");
     };
     let Some(NounPhraseKind::Nominal(card)) = predicate_object_kind(cast.object()) else {
         panic!("expected one common-head card object: {cast:#?}");
@@ -2166,9 +2236,10 @@ fn common_head_object_survives_following_finite_clause_coordination() {
 fn later_relative_consumes_its_temporal_adjunct_before_the_pp_closes() {
     let source = "Put a counter on each creature or permanent you control that entered the battlefield this turn.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body else {
+        panic!("expected an independent clause");
+    };
+    let Predicate::Transitive(predicate) = imperative_predicate(clause) else {
         panic!("expected a transitive imperative");
     };
     assert!(
@@ -2198,8 +2269,8 @@ fn later_relative_consumes_its_temporal_adjunct_before_the_pp_closes() {
     else {
         panic!("the coordinated recipients must retain both relatives: {objects:#?}");
     };
-    assert_eq!(object_relative.gap(), RelativeGap::Object);
-    assert_eq!(subject_relative.gap(), RelativeGap::Subject);
+    assert_eq!(object_relative.gap(), crate::features::GapState::Object);
+    assert_eq!(subject_relative.gap(), crate::features::GapState::Subject);
     let RelativeBody::SubjectGap(Predicate::Transitive(entered)) = subject_relative.body() else {
         panic!("the later relative must retain its transitive predicate: {subject_relative:#?}")
     };
@@ -2214,9 +2285,10 @@ fn later_relative_consumes_its_temporal_adjunct_before_the_pp_closes() {
 fn repeated_damage_themes_coordinate_as_complete_noun_phrases() {
     let source = "This card deals 2 damage to each attacking creature and 1 damage to you and each creature you control.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body else {
+        panic!("expected an independent clause");
+    };
+    let (Some(_), Predicate::Transitive(predicate)) = finite_simple_parts(clause) else {
         panic!("expected a transitive clause");
     };
     let Some(NounPhraseKind::Coordinated(objects)) = predicate_object_kind(predicate.object())
@@ -2253,9 +2325,10 @@ fn passive_to_shared_target_stays_inside_the_relative_predicate() {
     let source =
         "Prevent all damage that would be dealt to target player or planeswalker this turn.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body else {
+        panic!("expected an independent clause");
+    };
+    let Predicate::Transitive(predicate) = imperative_predicate(clause) else {
         panic!("expected a transitive imperative");
     };
     let Some(NounPhraseKind::Nominal(damage)) = predicate_object_kind(predicate.object()) else {
@@ -2267,7 +2340,7 @@ fn passive_to_shared_target_stays_inside_the_relative_predicate() {
     let RelativeBody::SubjectGap(Predicate::Deontic(deontic)) = relative.body() else {
         panic!("damage must retain a modal subject relative: {relative:#?}")
     };
-    let Some(Predicate::Passive(passive)) = deontic.inner() else {
+    let Some(PredicateExpression::Simple(Predicate::Passive(passive))) = deontic.inner() else {
         panic!("expected a passive predicate inside the relative: {deontic:#?}");
     };
     let [
@@ -2290,10 +2363,10 @@ fn passive_to_shared_target_stays_inside_the_relative_predicate() {
 fn as_fills_the_preposition_slot_after_an_adverb() {
     let source = "Activate only as a sorcery.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Intransitive(
-        predicate,
-    ))) = &parsed.sentence().expect("sentence root").body
-    else {
+    let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body else {
+        panic!("expected an independent clause");
+    };
+    let Predicate::Intransitive(predicate) = imperative_predicate(clause) else {
         panic!("expected an imperative intransitive clause");
     };
     assert!(
@@ -2341,8 +2414,7 @@ fn activation_restriction_clauses_parse_and_render_structurally() {
     else {
         panic!("expected a complex clause");
     };
-    let IndependentClause::Imperative(Predicate::Intransitive(predicate)) = complex.matrix.as_ref()
-    else {
+    let Predicate::Intransitive(predicate) = imperative_predicate(complex.host()) else {
         panic!("expected an imperative intransitive matrix");
     };
     assert!(
@@ -2356,14 +2428,13 @@ fn activation_restriction_clauses_parse_and_render_structurally() {
         "{:#?}",
         predicate.elements()
     );
-    assert_eq!(complex.attachments.len(), 1);
     assert!(
         matches!(
-            &complex.attachments[0].payload,
+            complex.attachment().payload(),
             ClauseAttachmentKind::Dependent(DependentClause::Subordinate(Subordinator::Before, _))
         ),
         "{:#?}",
-        complex.attachments[0]
+        complex.attachment()
     );
 }
 
@@ -2377,8 +2448,7 @@ fn coordinated_only_restrictions_form_one_restriction_attachment() {
     else {
         panic!("expected a complex clause");
     };
-    let IndependentClause::Imperative(Predicate::Intransitive(predicate)) = complex.matrix.as_ref()
-    else {
+    let Predicate::Intransitive(predicate) = imperative_predicate(complex.host()) else {
         panic!("expected an imperative intransitive matrix");
     };
     assert!(
@@ -2386,20 +2456,19 @@ fn coordinated_only_restrictions_form_one_restriction_attachment() {
         "matrix elements must be empty: {:#?}",
         predicate.elements()
     );
-    assert_eq!(complex.attachments.len(), 1);
-    let attachment = &complex.attachments[0];
-    assert!(!attachment.comma.is_present());
-    let ClauseAttachmentKind::Restriction(run) = &attachment.payload else {
+    let attachment = complex.attachment();
+    assert!(!attachment.comma().is_present());
+    let ClauseAttachmentKind::Restriction(run) = attachment.payload() else {
         panic!("expected a Restriction attachment: {attachment:#?}");
     };
     assert!(matches!(
-        run.first.as_slice(),
+        run.first().adjuncts(),
         [PredicateAdjunct::Prepositional(_)]
     ));
-    assert_eq!(run.rest.len(), 1);
-    assert_eq!(run.rest[0].conjunction, Some(PredicateConjunction::And));
+    assert_eq!(run.rest().len(), 1);
+    assert_eq!(run.rest()[0].conjunction(), Some(PredicateConjunction::And));
     assert!(matches!(
-        run.rest[0].member.adjuncts(),
+        run.rest()[0].member().adjuncts(),
         [PredicateAdjunct::Adverb(_), PredicateAdjunct::Temporal(_),]
     ));
 }
@@ -2438,11 +2507,11 @@ fn restriction_builders_compose_without_chart_erasure() {
     let Clause::Independent(IndependentClause::Complex(complex)) = clause else {
         panic!("expected a complex clause");
     };
-    let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].payload else {
+    let ClauseAttachmentKind::Restriction(run) = complex.attachment().payload() else {
         panic!("expected a restriction attachment");
     };
-    assert_eq!(run.rest.len(), 1);
-    assert_eq!(run.rest[0].conjunction, Some(PredicateConjunction::And));
+    assert_eq!(run.rest().len(), 1);
+    assert_eq!(run.rest()[0].conjunction(), Some(PredicateConjunction::And));
 }
 
 #[test]
@@ -2466,21 +2535,20 @@ fn restriction_run_admits_an_if_clause_member() {
     else {
         panic!("expected a complex clause");
     };
-    assert_eq!(complex.attachments.len(), 1);
-    let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].payload else {
+    let ClauseAttachmentKind::Restriction(run) = complex.attachment().payload() else {
         panic!(
             "expected a Restriction attachment: {:#?}",
-            complex.attachments[0]
+            complex.attachment()
         );
     };
     assert!(matches!(
-        run.first.as_slice(),
+        run.first().adjuncts(),
         [PredicateAdjunct::Prepositional(_)]
     ));
-    assert_eq!(run.rest.len(), 1);
-    assert_eq!(run.rest[0].conjunction, Some(PredicateConjunction::And));
+    assert_eq!(run.rest().len(), 1);
+    assert_eq!(run.rest()[0].conjunction(), Some(PredicateConjunction::And));
     assert!(matches!(
-        run.rest[0].member.adjuncts(),
+        run.rest()[0].member().adjuncts(),
         [PredicateAdjunct::Dependent(dependent)]
             if matches!(dependent.as_ref(), DependentClause::Subordinate(Subordinator::If, _))
     ));
@@ -2500,15 +2568,15 @@ fn oxford_restriction_run_carries_member_boundaries() {
     else {
         panic!("expected a complex clause");
     };
-    let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].payload else {
+    let ClauseAttachmentKind::Restriction(run) = complex.attachment().payload() else {
         panic!(
             "expected a Restriction attachment: {:#?}",
-            complex.attachments[0]
+            complex.attachment()
         );
     };
-    assert_eq!(run.rest.len(), 2);
-    assert_eq!(run.rest[0].conjunction, None);
-    assert_eq!(run.rest[1].conjunction, Some(PredicateConjunction::And));
+    assert_eq!(run.rest().len(), 2);
+    assert_eq!(run.rest()[0].conjunction(), None);
+    assert_eq!(run.rest()[1].conjunction(), Some(PredicateConjunction::And));
 }
 
 #[test]
@@ -2532,7 +2600,7 @@ fn restriction_runs_host_on_every_matrix() {
         };
         assert!(
             matches!(
-                complex.attachments.last().unwrap().payload,
+                complex.attachment().payload(),
                 ClauseAttachmentKind::Restriction(_)
             ),
             "{source}"
@@ -2547,10 +2615,10 @@ fn single_only_restriction_keeps_its_flat_elements() {
         "Activate only once each turn.",
     ] {
         let parsed = parse(source);
-        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Intransitive(
-            predicate,
-        ))) = &parsed.sentence().unwrap().body
-        else {
+        let SentenceBody::Independent(clause) = &parsed.sentence().unwrap().body else {
+            panic!("expected an independent clause for {source}");
+        };
+        let Predicate::Intransitive(predicate) = imperative_predicate(clause) else {
             panic!("expected an imperative intransitive for {source}");
         };
         assert!(
@@ -2583,8 +2651,7 @@ fn single_only_if_restriction_keeps_its_dependent_attachment() {
     else {
         panic!("expected a complex clause");
     };
-    let IndependentClause::Imperative(Predicate::Intransitive(predicate)) = complex.matrix.as_ref()
-    else {
+    let Predicate::Intransitive(predicate) = imperative_predicate(complex.host()) else {
         panic!("expected an imperative intransitive matrix");
     };
     assert!(matches!(
@@ -2593,10 +2660,9 @@ fn single_only_if_restriction_keeps_its_dependent_attachment() {
             Vocab::Only
         ))]
     ));
-    assert_eq!(complex.attachments.len(), 1);
-    assert!(!complex.attachments[0].comma.is_present());
+    assert!(!complex.attachment().comma().is_present());
     assert!(matches!(
-        &complex.attachments[0].payload,
+        complex.attachment().payload(),
         ClauseAttachmentKind::Dependent(DependentClause::Subordinate(Subordinator::If, _))
     ));
 }
@@ -2606,10 +2672,10 @@ fn juxtaposed_only_restrictions_stay_uncoordinated() {
     let source = "Activate only as a sorcery only once each turn.";
     let parsed = parse(source);
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Intransitive(
-        predicate,
-    ))) = &parsed.sentence().unwrap().body
-    else {
+    let SentenceBody::Independent(clause) = &parsed.sentence().unwrap().body else {
+        panic!("expected an independent clause");
+    };
+    let Predicate::Intransitive(predicate) = imperative_predicate(clause) else {
         panic!("expected an imperative intransitive, no attachment");
     };
     // `only as a sorcery only once each turn` stays five flat elements
@@ -2700,9 +2766,10 @@ fn extra_and_additional_keep_their_distinct_printed_adjectives() {
     // (an imperative `take an extra turn`) and `additional` (an existential
     // `there is an additional combat phase`) never collapse to one spelling.
     let extra = parse("Take an extra turn after this one.");
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
-        &extra.sentence().expect("extra turn").body
-    else {
+    let SentenceBody::Independent(clause) = &extra.sentence().expect("extra turn").body else {
+        panic!("expected an independent clause: {:?}", extra.sentence());
+    };
+    let Predicate::Transitive(predicate) = imperative_predicate(clause) else {
         panic!("expected an imperative transitive: {:?}", extra.sentence());
     };
     let Some(NounPhraseKind::Nominal(turn)) = predicate_object_kind(predicate.object()) else {
@@ -2729,9 +2796,10 @@ fn after_preposition_attaches_both_trailing_and_fronted() {
     // Causal pair on the `after` preposition: a trailing complement of the
     // turn nominal, and a fronted clause adjunct on an existential.
     let trailing = parse("Take an extra turn after this one.");
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
-        &trailing.sentence().expect("trailing").body
-    else {
+    let SentenceBody::Independent(clause) = &trailing.sentence().expect("trailing").body else {
+        panic!("expected an independent clause: {:#?}", trailing.sentence());
+    };
+    let Predicate::Transitive(predicate) = imperative_predicate(clause) else {
         panic!(
             "expected an imperative transitive: {:#?}",
             trailing.sentence()
@@ -2757,14 +2825,12 @@ fn after_preposition_attaches_both_trailing_and_fronted() {
         panic!("expected a complex clause: {:#?}", fronted.sentence());
     };
     assert!(
-        complex.attachments.iter().any(|attachment| matches!(
-            attachment,
-            ClauseAttachment {
-                position: AttachmentPosition::BeforeMatrix,
-                payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(preposition)),
-                ..
-            } if preposition.head().preposition() == Preposition::After
-        )),
+        complex.attachment().position() == AttachmentPosition::BeforeMatrix
+            && matches!(
+                complex.attachment().payload(),
+                ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(preposition))
+                    if preposition.head().preposition() == Preposition::After
+            ),
         "fronted `After this phase` should carry the After preposition: {complex:#?}"
     );
 }
@@ -2774,9 +2840,10 @@ fn draw_noun_sense_does_not_capture_the_imperative_draw_verb() {
     // Negative armor for the `draw` noun addition: `Draw a card.` stays an
     // imperative headed by the `draw` verb, never a bare `draw` nominal.
     let parsed = parse("Draw a card.");
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
-        &parsed.sentence().expect("draw a card").body
-    else {
+    let SentenceBody::Independent(clause) = &parsed.sentence().expect("draw a card").body else {
+        panic!("expected an independent clause: {:?}", parsed.sentence());
+    };
+    let Predicate::Transitive(predicate) = imperative_predicate(clause) else {
         panic!("expected an imperative transitive: {:?}", parsed.sentence());
     };
     assert!(matches!(
@@ -2812,16 +2879,20 @@ fn bounded_frequency_phrases_are_predicate_adjuncts() {
     ] {
         let parsed = parse(source);
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
-        let elements = match &parsed.sentence().unwrap().body {
-            SentenceBody::Independent(IndependentClause::Deontic(
-                _,
-                _,
-                Some(Predicate::Transitive(predicate)),
-            )) => predicate.elements(),
-            SentenceBody::Independent(IndependentClause::Imperative(Predicate::Intransitive(
-                predicate,
-            ))) => predicate.elements(),
-            clause => panic!("expected a bounded-frequency predicate: {clause:#?}"),
+        let SentenceBody::Independent(clause) = &parsed.sentence().unwrap().body else {
+            panic!("expected an independent clause");
+        };
+        let elements = match finite_simple_parts(clause) {
+            (_, Predicate::Deontic(deontic)) => {
+                let Some(PredicateExpression::Simple(Predicate::Transitive(predicate))) =
+                    deontic.inner()
+                else {
+                    panic!("expected a transitive modal predicate: {deontic:#?}");
+                };
+                predicate.elements()
+            }
+            (None, Predicate::Intransitive(predicate)) => predicate.elements(),
+            _ => panic!("expected a bounded-frequency predicate: {clause:#?}"),
         };
         assert!(
             elements.iter().any(|element| matches!(
@@ -2849,9 +2920,11 @@ fn subject_relative_differential_comparisons_are_structural() {
     ] {
         let parsed = parse(source);
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
-        let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(choose))) =
-            &parsed.sentence().expect("sentence root").body
+        let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body
         else {
+            panic!("expected an independent clause: {:#?}", parsed.sentence());
+        };
+        let Predicate::Transitive(choose) = imperative_predicate(clause) else {
             panic!("expected an imperative choice: {:#?}", parsed.sentence());
         };
         let Some(NounPhraseKind::Nominal(opponent)) = predicate_object_kind(choose.object()) else {
@@ -2892,7 +2965,11 @@ fn subject_relative_differential_comparisons_are_structural() {
             crate::syntax::Phrase::Clause(clause)
                 if matches!(
                     clause.as_ref(),
-                    Clause::Independent(IndependentClause::Proform(_, _))
+                    Clause::Independent(clause)
+                        if matches!(
+                            finite_simple_parts(clause),
+                            (Some(_), Predicate::Proform(_)),
+                        )
                 )
         ));
         assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -2903,22 +2980,21 @@ fn subject_relative_differential_comparisons_are_structural() {
 fn plural_temporal_heads_do_not_become_late_objects() {
     let source = "This creature can't attack during extra turns.";
     let parsed = parse(source);
-    assert!(
-        matches!(
-            &parsed.sentence().expect("sentence root").body,
-            SentenceBody::Independent(IndependentClause::Deontic(
-                _,
-                _,
-                Some(Predicate::Intransitive(predicate)),
-            )) if matches!(
-                predicate.elements(),
-                [PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition))]
-                    if preposition.head().preposition == crate::syntax::Preposition::During
-            )
-        ),
-        "{:#?}",
-        parsed.sentence()
-    );
+    let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body else {
+        panic!("expected an independent clause");
+    };
+    let (Some(_), Predicate::Deontic(deontic)) = finite_simple_parts(clause) else {
+        panic!("expected a finite deontic clause: {:#?}", parsed.sentence());
+    };
+    let Some(PredicateExpression::Simple(Predicate::Intransitive(predicate))) = deontic.inner()
+    else {
+        panic!("expected an intransitive modal predicate: {deontic:#?}");
+    };
+    assert!(matches!(
+        predicate.elements(),
+        [PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition))]
+            if preposition.head().preposition == crate::syntax::Preposition::During
+    ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
 
@@ -2926,13 +3002,15 @@ fn plural_temporal_heads_do_not_become_late_objects() {
 fn temporal_noun_phrases_can_follow_direct_objects() {
     let source = "You may play that card this turn.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Deontic(
-        _,
-        _,
-        Some(Predicate::Transitive(predicate)),
-    )) = &parsed.sentence().expect("sentence root").body
-    else {
+    let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body else {
+        panic!("expected an independent clause");
+    };
+    let (Some(_), Predicate::Deontic(deontic)) = finite_simple_parts(clause) else {
         panic!("expected a deontic transitive clause");
+    };
+    let Some(PredicateExpression::Simple(Predicate::Transitive(predicate))) = deontic.inner()
+    else {
+        panic!("expected a transitive modal predicate: {deontic:#?}");
     };
     assert!(matches!(
         predicate.elements(),
@@ -2952,16 +3030,18 @@ fn selected_preposition_precedes_a_temporal_adjunct() {
     let source = "You may look at the top card of your library any time.";
     let parsed = parse(source);
     assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
-    let SentenceBody::Independent(IndependentClause::Deontic(
-        _,
-        _,
-        Some(Predicate::Intransitive(predicate)),
-    )) = &parsed.sentence().expect("sentence root").body
-    else {
+    let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body else {
+        panic!("expected an independent clause");
+    };
+    let (Some(_), Predicate::Deontic(deontic)) = finite_simple_parts(clause) else {
         panic!(
             "expected a deontic intransitive clause: {:#?}",
             parsed.sentence()
         );
+    };
+    let Some(PredicateExpression::Simple(Predicate::Intransitive(predicate))) = deontic.inner()
+    else {
+        panic!("expected an intransitive modal predicate: {deontic:#?}");
     };
     assert!(
         matches!(
@@ -2991,9 +3071,10 @@ fn intransitive_frame_rejects_a_direct_object() {
 fn ditransitive_frame_builds_an_indirect_object_complement() {
     let source = "Ask a player a number.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body else {
+        panic!("expected an independent clause: {:#?}", parsed.sentence());
+    };
+    let Predicate::Transitive(predicate) = imperative_predicate(clause) else {
         panic!("expected a transitive imperative: {:#?}", parsed.sentence());
     };
     assert!(matches!(
@@ -3027,24 +3108,18 @@ fn as_clauses_keep_their_surface_attachment_position() {
         ),
     ] {
         let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a complex clause");
+        };
+        assert_eq!(complex.attachment().position(), position);
         assert!(matches!(
-            &parsed.sentence().expect("sentence root").body,
-            SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
-                attachments,
-                ..
-            })) if matches!(
-                attachments.as_slice(),
-                [ClauseAttachment {
-                    position: actual,
-                    payload: ClauseAttachmentKind::Dependent(
-                        DependentClause::Subordinate(
-                            crate::syntax::Subordinator::As,
-                            SubordinateBody::Finite(_),
-                        ),
-                    ),
-                    ..
-                }] if *actual == position
-            )
+            complex.attachment().payload(),
+            ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                crate::syntax::Subordinator::As,
+                SubordinateBody::Finite(_),
+            ))
         ));
     }
 }
@@ -3059,13 +3134,11 @@ fn fronted_cost_phrase_is_an_adjunct_with_an_infinitive_complement() {
     else {
         panic!("expected a complex clause: {:#?}", parsed.sentence());
     };
-    let [
-        ClauseAttachment {
-            position: AttachmentPosition::BeforeMatrix,
-            comma: crate::features::Comma::Present,
-            payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(preposition)),
-        },
-    ] = complex.attachments.as_slice()
+    let attachment = complex.attachment();
+    assert_eq!(attachment.position(), AttachmentPosition::BeforeMatrix);
+    assert!(attachment.comma().is_present());
+    let ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(preposition)) =
+        attachment.payload()
     else {
         panic!("expected one fronted prepositional adjunct: {complex:#?}");
     };
@@ -3090,8 +3163,8 @@ fn fronted_cost_phrase_is_an_adjunct_with_an_infinitive_complement() {
             if infinitive.marker() == InfinitiveMarker::To
     ));
     assert!(matches!(
-        complex.matrix.as_ref(),
-        IndependentClause::Imperative(_)
+        imperative_predicate(complex.host()),
+        Predicate::Transitive(_)
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -3106,21 +3179,16 @@ fn this_way_is_a_manner_adjunct_inside_a_condition() {
     else {
         panic!("expected a complex clause: {:#?}", parsed.sentence());
     };
-    let [
-        ClauseAttachment {
-            position: AttachmentPosition::BeforeMatrix,
-            payload:
-                ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
-                    Subordinator::If,
-                    SubordinateBody::Finite(condition),
-                )),
-            ..
-        },
-    ] = complex.attachments.as_slice()
+    let attachment = complex.attachment();
+    assert_eq!(attachment.position(), AttachmentPosition::BeforeMatrix);
+    let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+        Subordinator::If,
+        SubordinateBody::Finite(condition),
+    )) = attachment.payload()
     else {
         panic!("expected a fronted if-clause: {complex:#?}");
     };
-    let IndependentClause::Transitive(_, condition) = condition.as_ref() else {
+    let (Some(_), Predicate::Transitive(condition)) = finite_simple_parts(condition) else {
         panic!("expected a transitive search condition: {condition:#?}");
     };
     assert!(matches!(
@@ -3134,8 +3202,8 @@ fn this_way_is_a_manner_adjunct_inside_a_condition() {
         )
     ));
     assert!(matches!(
-        complex.matrix.as_ref(),
-        IndependentClause::Imperative(_)
+        imperative_predicate(complex.host()),
+        Predicate::Intransitive(_)
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -3153,17 +3221,18 @@ fn then_can_modify_a_following_independent_clause() {
             parsed.sentence()
         );
     };
+    assert_eq!(
+        complex.attachment().position(),
+        AttachmentPosition::BeforeMatrix
+    );
+    assert!(!complex.attachment().comma().is_present());
     assert!(matches!(
-        complex.attachments.as_slice(),
-        [ClauseAttachment {
-            position: AttachmentPosition::BeforeMatrix,
-            comma: crate::features::Comma::Absent,
-            payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Then)),
-        }]
+        complex.attachment().payload(),
+        ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Then))
     ));
     assert!(matches!(
-        complex.matrix.as_ref(),
-        IndependentClause::Intransitive(_, _)
+        finite_simple_parts(complex.host()),
+        (Some(_), Predicate::Intransitive(_))
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -3181,17 +3250,18 @@ fn otherwise_fronts_a_following_imperative_clause() {
             parsed.sentence()
         );
     };
+    assert_eq!(
+        complex.attachment().position(),
+        AttachmentPosition::BeforeMatrix
+    );
+    assert!(complex.attachment().comma().is_present());
     assert!(matches!(
-        complex.attachments.as_slice(),
-        [ClauseAttachment {
-            position: AttachmentPosition::BeforeMatrix,
-            comma: crate::features::Comma::Present,
-            payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Otherwise)),
-        }]
+        complex.attachment().payload(),
+        ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Otherwise))
     ));
     assert!(matches!(
-        complex.matrix.as_ref(),
-        IndependentClause::Imperative(_)
+        imperative_predicate(complex.host()),
+        Predicate::Transitive(_)
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -3209,13 +3279,18 @@ fn otherwise_fronts_a_finite_clause() {
             parsed.sentence()
         );
     };
+    assert_eq!(
+        complex.attachment().position(),
+        AttachmentPosition::BeforeMatrix
+    );
+    assert!(complex.attachment().comma().is_present());
     assert!(matches!(
-        complex.attachments.as_slice(),
-        [ClauseAttachment {
-            position: AttachmentPosition::BeforeMatrix,
-            comma: crate::features::Comma::Present,
-            payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Otherwise)),
-        }]
+        complex.attachment().payload(),
+        ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Otherwise))
+    ));
+    assert!(matches!(
+        finite_simple_parts(complex.host()),
+        (Some(_), Predicate::Transitive(_))
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -3233,14 +3308,18 @@ fn otherwise_fronts_a_modal_clause() {
             parsed.sentence()
         );
     };
+    assert_eq!(
+        complex.attachment().position(),
+        AttachmentPosition::BeforeMatrix
+    );
+    assert!(complex.attachment().comma().is_present());
     assert!(matches!(
-        complex.attachments.as_slice(),
-        [ClauseAttachment {
-            position: AttachmentPosition::BeforeMatrix,
-            comma: crate::features::Comma::Present,
-            payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Otherwise)),
-        }]
+        complex.attachment().payload(),
+        ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Otherwise))
     ));
+    let (Some(_), Predicate::Deontic(_)) = finite_simple_parts(complex.host()) else {
+        panic!("expected a finite modal host: {complex:#?}");
+    };
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
 
@@ -3258,14 +3337,8 @@ fn otherwise_fronting_renders_its_comma() {
     else {
         panic!("expected a clause with a fronted adjunct");
     };
-    let [ClauseAttachment { comma, .. }] = complex.attachments.as_slice() else {
-        panic!(
-            "expected exactly one attachment: {:#?}",
-            complex.attachments
-        );
-    };
     assert!(
-        comma.is_present(),
+        complex.attachment().comma().is_present(),
         "expected a comma on the otherwise attachment"
     );
 }
@@ -3327,85 +3400,77 @@ fn then_fronting_is_unchanged() {
     else {
         panic!("expected a clause with a fronted adjunct");
     };
+    assert_eq!(
+        complex.attachment().position(),
+        AttachmentPosition::BeforeMatrix
+    );
+    assert!(!complex.attachment().comma().is_present());
     assert!(matches!(
-        complex.attachments.as_slice(),
-        [ClauseAttachment {
-            position: AttachmentPosition::BeforeMatrix,
-            comma: crate::features::Comma::Absent,
-            payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Then)),
-        }]
+        complex.attachment().payload(),
+        ClauseAttachmentKind::Adjunct(PredicateAdjunct::Adverb(Vocab::Then))
     ));
 }
 
 #[test]
 fn for_as_long_as_is_one_finite_subordinator() {
     let parsed = parse("Gain control of target creature for as long as you control this artifact.");
+    let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+        &parsed.sentence().expect("sentence root").body
+    else {
+        panic!("expected a complex clause");
+    };
+    assert_eq!(
+        complex.attachment().position(),
+        AttachmentPosition::AfterMatrix
+    );
     assert!(matches!(
-        &parsed.sentence().expect("sentence root").body,
-        SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
-            attachments,
-            ..
-        })) if matches!(
-            attachments.as_slice(),
-            [ClauseAttachment {
-                position: AttachmentPosition::AfterMatrix,
-                payload: ClauseAttachmentKind::Dependent(
-                    DependentClause::Subordinate(
-                        crate::syntax::Subordinator::ForAsLongAs,
-                        SubordinateBody::Finite(_),
-                    ),
-                ),
-                ..
-            }]
-        )
+        complex.attachment().payload(),
+        ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+            crate::syntax::Subordinator::ForAsLongAs,
+            SubordinateBody::Finite(_),
+        ))
     ));
 }
 
 #[test]
 fn while_can_introduce_an_elliptical_postposed_clause() {
     let parsed = parse("This creature attacks while saddled.");
+    let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+        &parsed.sentence().expect("sentence root").body
+    else {
+        panic!("expected a complex clause");
+    };
+    assert_eq!(
+        complex.attachment().position(),
+        AttachmentPosition::AfterMatrix
+    );
     assert!(matches!(
-        &parsed.sentence().expect("sentence root").body,
-        SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
-            attachments,
-            ..
-        })) if matches!(
-            attachments.as_slice(),
-            [ClauseAttachment {
-                position: AttachmentPosition::AfterMatrix,
-                payload: ClauseAttachmentKind::Dependent(
-                    DependentClause::Subordinate(
-                        crate::syntax::Subordinator::While,
-                        SubordinateBody::Elliptical(EllipticalClause::Adjective(_)),
-                    ),
-                ),
-                ..
-            }]
-        )
+        complex.attachment().payload(),
+        ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+            crate::syntax::Subordinator::While,
+            SubordinateBody::Elliptical(EllipticalClause::Adjective(_)),
+        ))
     ));
 }
 
 #[test]
 fn unless_introduces_a_finite_postposed_clause() {
     let parsed = parse("This land enters tapped unless you control a basic land.");
+    let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+        &parsed.sentence().expect("sentence root").body
+    else {
+        panic!("expected a complex clause");
+    };
+    assert_eq!(
+        complex.attachment().position(),
+        AttachmentPosition::AfterMatrix
+    );
     assert!(matches!(
-        &parsed.sentence().expect("sentence root").body,
-        SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
-            attachments,
-            ..
-        })) if matches!(
-            attachments.as_slice(),
-            [ClauseAttachment {
-                position: AttachmentPosition::AfterMatrix,
-                payload: ClauseAttachmentKind::Dependent(
-                    DependentClause::Subordinate(
-                        crate::syntax::Subordinator::Unless,
-                        SubordinateBody::Finite(_),
-                    ),
-                ),
-                ..
-            }]
-        )
+        complex.attachment().payload(),
+        ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+            crate::syntax::Subordinator::Unless,
+            SubordinateBody::Finite(_),
+        ))
     ));
 }
 
@@ -3425,8 +3490,10 @@ fn subjectless_imperatives_are_not_finite_subordinate_bodies() {
 #[test]
 fn participle_position_distinguishes_modifier_from_passive_predicate() {
     let parsed = parse("Prevented damage is dealt to that creature's controller instead.");
-    let SentenceBody::Independent(IndependentClause::Passive(Subject(subject), predicate)) =
-        &parsed.sentence().unwrap().body
+    let SentenceBody::Independent(clause) = &parsed.sentence().unwrap().body else {
+        panic!("expected an independent clause");
+    };
+    let (Some(Subject(subject)), Predicate::Passive(predicate)) = finite_simple_parts(clause)
     else {
         panic!("expected nominal subject");
     };
@@ -3469,9 +3536,10 @@ fn subject_copula_contractions_are_structural() {
     ] {
         let parsed = parse_nonterminal(source, &catalogs, Nonterminal::Clause)
             .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
-        let Some(Clause::Independent(IndependentClause::Copular(subject, predicate))) =
-            parsed.clause()
-        else {
+        let Some(Clause::Independent(clause)) = parsed.clause() else {
+            panic!("expected an independent clause for {source:?}");
+        };
+        let (Some(subject), Predicate::Copular(predicate)) = finite_simple_parts(clause) else {
             panic!("expected a copular clause for {source:?}");
         };
         assert!(matches!(
@@ -3508,9 +3576,11 @@ fn copular_adverbs_precede_the_complement() {
     ] {
         let parsed = parse(source);
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
-        let SentenceBody::Independent(IndependentClause::Copular(subject, predicate)) =
-            &parsed.sentence().expect("sentence root").body
+        let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body
         else {
+            panic!("expected an independent clause: {:#?}", parsed.sentence());
+        };
+        let (Some(subject), Predicate::Copular(predicate)) = finite_simple_parts(clause) else {
             panic!("expected a copular clause: {:#?}", parsed.sentence());
         };
         assert!(matches!(
@@ -3549,9 +3619,11 @@ fn contracted_copular_predications_carry_a_free_standing_negation() {
     ] {
         let parsed = parse(source);
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
-        let SentenceBody::Independent(IndependentClause::Copular(_subject, predicate)) =
-            &parsed.sentence().expect("sentence root").body
+        let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body
         else {
+            panic!("expected an independent clause: {:#?}", parsed.sentence());
+        };
+        let (Some(_), Predicate::Copular(predicate)) = finite_simple_parts(clause) else {
             panic!("expected a copular clause: {:#?}", parsed.sentence());
         };
         assert_eq!(predicate.negated(), negated, "{source}");
@@ -3576,9 +3648,11 @@ fn negated_copular_predications_compose_with_precomplement_adverbs() {
     ] {
         let parsed = parse(source);
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
-        let SentenceBody::Independent(IndependentClause::Copular(_subject, predicate)) =
-            &parsed.sentence().expect("sentence root").body
+        let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body
         else {
+            panic!("expected an independent clause: {:#?}", parsed.sentence());
+        };
+        let (Some(_), Predicate::Copular(predicate)) = finite_simple_parts(clause) else {
             panic!("expected a copular clause: {:#?}", parsed.sentence());
         };
         assert!(predicate.negated(), "{source}");
@@ -3599,9 +3673,10 @@ fn negated_copular_renderer_inverse_orders_not_before_each() {
     let source = "They're not each equal to 3.";
     let parsed = parse(source);
     assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
-    let SentenceBody::Independent(IndependentClause::Copular(_subject, predicate)) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body else {
+        panic!("expected an independent clause: {:#?}", parsed.sentence());
+    };
+    let (Some(_), Predicate::Copular(predicate)) = finite_simple_parts(clause) else {
         panic!("expected a copular clause: {:#?}", parsed.sentence());
     };
     assert!(predicate.negated(), "{source}");
@@ -3621,9 +3696,10 @@ fn negation_spellings_do_not_both_fire_on_one_predication() {
     let source = "It isn't your turn.";
     let parsed = parse(source);
     assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
-    let SentenceBody::Independent(IndependentClause::Copular(_subject, predicate)) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body else {
+        panic!("expected an independent clause: {:#?}", parsed.sentence());
+    };
+    let (Some(_), Predicate::Copular(predicate)) = finite_simple_parts(clause) else {
         panic!("expected a copular clause: {:#?}", parsed.sentence());
     };
     assert!(
@@ -3696,8 +3772,10 @@ fn contracted_subject_auxiliaries_are_structural() {
 
     let parsed = parse_nonterminal("it's put into exile", &catalogs, Nonterminal::Clause)
         .expect("contracted passive should parse");
-    let Some(Clause::Independent(IndependentClause::Passive(subject, predicate))) = parsed.clause()
-    else {
+    let Some(Clause::Independent(clause)) = parsed.clause() else {
+        panic!("expected an independent clause: {:#?}", parsed.clause());
+    };
+    let (Some(subject), Predicate::Passive(predicate)) = finite_simple_parts(clause) else {
         panic!(
             "expected a contracted passive clause: {:#?}",
             parsed.clause()
@@ -3723,8 +3801,10 @@ fn contracted_subject_auxiliaries_are_structural() {
 
     let parsed = parse_nonterminal("that's one or more colors", &catalogs, Nonterminal::Clause)
         .expect("contracted demonstrative copula should parse");
-    let Some(Clause::Independent(IndependentClause::Copular(subject, predicate))) = parsed.clause()
-    else {
+    let Some(Clause::Independent(clause)) = parsed.clause() else {
+        panic!("expected an independent clause: {:#?}", parsed.clause());
+    };
+    let (Some(subject), Predicate::Copular(predicate)) = finite_simple_parts(clause) else {
         panic!(
             "expected a contracted copular clause: {:#?}",
             parsed.clause()
@@ -3749,7 +3829,11 @@ fn contracted_subject_auxiliaries_are_structural() {
         matches!(
             nominal.complements(),
             [NominalComplement::Relative(relative)]
-                if relative_has(relative, RelativeMarker::That, RelativeGap::Subject)
+                if relative_has(
+                    relative,
+                    RelativeMarker::That,
+                    crate::features::GapState::Subject,
+                )
                     && matches!(relative.body(), RelativeBody::SubjectGap(Predicate::Copular(predicate))
                         if predicate.copula().contracted_with_subject().is_contracted())
         ),
@@ -3764,7 +3848,7 @@ fn production_r01_forms_lower_with_decisive_typed_relative_evidence() {
         (
             "each spell you cast",
             "relative_object",
-            RelativeGap::Object,
+            crate::features::GapState::Object,
             RelativeMarker::Zero,
             "Uncontracted",
             false,
@@ -3773,7 +3857,7 @@ fn production_r01_forms_lower_with_decisive_typed_relative_evidence() {
         (
             "each spell you've cast",
             "relative_object_contracted_subject",
-            RelativeGap::Object,
+            crate::features::GapState::Object,
             RelativeMarker::Zero,
             "SubjectAuxiliary",
             false,
@@ -3782,7 +3866,7 @@ fn production_r01_forms_lower_with_decisive_typed_relative_evidence() {
         (
             "a creature that attacks",
             "relative_subject",
-            RelativeGap::Subject,
+            crate::features::GapState::Subject,
             RelativeMarker::That,
             "Uncontracted",
             false,
@@ -3791,7 +3875,7 @@ fn production_r01_forms_lower_with_decisive_typed_relative_evidence() {
         (
             "creature cards that each have a different mana value",
             "relative_subject_distributive_each",
-            RelativeGap::Subject,
+            crate::features::GapState::Subject,
             RelativeMarker::That,
             "Uncontracted",
             true,
@@ -3800,7 +3884,7 @@ fn production_r01_forms_lower_with_decisive_typed_relative_evidence() {
         (
             "a card that's a creature",
             "relative_contracted_copular_noun",
-            RelativeGap::Subject,
+            crate::features::GapState::Subject,
             RelativeMarker::That,
             "Copular",
             false,
@@ -3809,7 +3893,7 @@ fn production_r01_forms_lower_with_decisive_typed_relative_evidence() {
         (
             "a card that's red",
             "relative_contracted_copular_adjective",
-            RelativeGap::Subject,
+            crate::features::GapState::Subject,
             RelativeMarker::That,
             "Copular",
             false,
@@ -3818,7 +3902,7 @@ fn production_r01_forms_lower_with_decisive_typed_relative_evidence() {
         (
             "a card that's in exile",
             "relative_contracted_copular_prepositional",
-            RelativeGap::Subject,
+            crate::features::GapState::Subject,
             RelativeMarker::That,
             "Copular",
             false,
@@ -3939,7 +4023,7 @@ fn r01_exact_semantic_form_and_witness_sets_are_registration_order_neutral() {
             parses.iter().any(|parse| {
                 parse.ast().construction == "relative_subject"
                     && parse.ast().value.marker() == RelativeMarker::That
-                    && parse.ast().value.gap() == RelativeGap::Subject
+                    && parse.ast().value.gap() == crate::features::GapState::Subject
             }),
             "the explicit-marker subject gap disappeared: {parses:#?}",
         );
@@ -3947,7 +4031,7 @@ fn r01_exact_semantic_form_and_witness_sets_are_registration_order_neutral() {
             parses.iter().any(|parse| {
                 parse.ast().construction == "relative_object"
                     && parse.ast().value.marker() == RelativeMarker::Zero
-                    && parse.ast().value.gap() == RelativeGap::Object
+                    && parse.ast().value.gap() == crate::features::GapState::Object
                     && matches!(
                         parse.ast().value.body(),
                         RelativeBody::ObjectGap { subject, .. }
@@ -4069,16 +4153,17 @@ fn rather_than_introduces_a_bare_infinitive_clause() {
     else {
         panic!("expected a complex clause");
     };
+    assert_eq!(
+        complex.attachment().position(),
+        AttachmentPosition::AfterMatrix
+    );
+    assert!(!complex.attachment().comma().is_present());
     assert!(matches!(
-        complex.attachments.as_slice(),
-        [ClauseAttachment {
-            position: AttachmentPosition::AfterMatrix,
-            comma: crate::features::Comma::Absent,
-            payload: ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
-                Subordinator::RatherThan,
-                SubordinateBody::Infinitive(infinitive),
-            ),),
-        }] if infinitive.marker() == InfinitiveMarker::Bare
+        complex.attachment().payload(),
+        ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+            Subordinator::RatherThan,
+            SubordinateBody::Infinitive(infinitive),
+        )) if infinitive.marker() == InfinitiveMarker::Bare
     ));
 }
 
@@ -4087,13 +4172,14 @@ fn rather_than_can_contrast_gerund_clauses() {
     let source = "You may cast that card by paying life equal to the spell's mana value rather than paying its mana cost.";
     let parsed = parse(source);
     assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
-    let SentenceBody::Independent(IndependentClause::Deontic(
-        _,
-        _,
-        Some(Predicate::Transitive(cast)),
-    )) = &parsed.sentence().expect("sentence root").body
-    else {
+    let SentenceBody::Independent(clause) = &parsed.sentence().expect("sentence root").body else {
+        panic!("expected an independent clause: {:#?}", parsed.sentence());
+    };
+    let (Some(_), Predicate::Deontic(deontic)) = finite_simple_parts(clause) else {
         panic!("expected a deontic cast clause: {:#?}", parsed.sentence());
+    };
+    let Some(PredicateExpression::Simple(Predicate::Transitive(cast))) = deontic.inner() else {
+        panic!("expected a transitive modal predicate: {deontic:#?}");
     };
     let Some(PredicateElement::Adjunct(PredicateAdjunct::Prepositional(by))) =
         cast.elements().iter().find(|element| {
@@ -4205,13 +4291,12 @@ fn not_to_negates_an_infinitive_clause() {
     let source = "You may choose not to untap this creature.";
     let parsed = parse(source);
     assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
-    let SentenceBody::Independent(IndependentClause::Deontic(
-        _,
-        _,
-        Some(Predicate::Intransitive(choose)),
-    )) = &parsed.sentence().expect("sentence root").body
-    else {
+    let clause = independent_clause(parsed.sentence().expect("sentence root"));
+    let (Some(_), Predicate::Deontic(deontic)) = finite_simple_parts(clause) else {
         panic!("expected a deontic choose clause: {:#?}", parsed.sentence());
+    };
+    let Some(PredicateExpression::Simple(Predicate::Intransitive(choose))) = deontic.inner() else {
+        panic!("expected an intransitive modal predicate: {deontic:#?}");
     };
     assert!(matches!(
         choose.elements(),
@@ -4328,9 +4413,8 @@ fn directional_particle_completes_an_intransitive_predicate() {
     let source = "This creature phases out.";
     let parsed = parse(source);
     assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
-    let SentenceBody::Independent(IndependentClause::Intransitive(_, predicate)) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let clause = independent_clause(parsed.sentence().expect("sentence root"));
+    let (Some(_), Predicate::Intransitive(predicate)) = finite_simple_parts(clause) else {
         panic!(
             "expected an intransitive phase clause: {:#?}",
             parsed.sentence()
@@ -4353,9 +4437,10 @@ fn directional_particle_requires_a_licensed_verb_pair() {
     .expect("opaque-noun fallback should remain available");
 
     assert_eq!(parsed.opacity_mode(), OpacityMode::OpaqueNouns);
+    let clause = independent_clause(parsed.sentence().expect("sentence root"));
     assert!(!matches!(
-        &parsed.sentence().expect("sentence root").body,
-        SentenceBody::Independent(IndependentClause::Intransitive(_, predicate))
+        finite_simple_parts(clause),
+        (Some(_), Predicate::Intransitive(predicate))
             if matches!(predicate.elements(), [PredicateElement::Particle(_)])
     ));
 }
@@ -4365,14 +4450,7 @@ fn face_down_is_a_secondary_adjective_predicate() {
     let source = "Turn this creature face down.";
     let parsed = parse(source);
     assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
-        &parsed.sentence().expect("sentence root").body
-    else {
-        panic!(
-            "expected an imperative turn clause: {:#?}",
-            parsed.sentence()
-        );
-    };
+    let predicate = imperative_transitive(parsed.sentence().expect("sentence root"));
     assert!(matches!(
         predicate.elements(),
         [PredicateElement::Complement(PredicateComplement::Adjective(
@@ -4389,9 +4467,8 @@ fn plus_coordinates_additive_noun_phrases() {
     let source = "You gain that much life plus 1.";
     let parsed = parse(source);
     assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
-    let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let clause = independent_clause(parsed.sentence().expect("sentence root"));
+    let (Some(_), Predicate::Transitive(predicate)) = finite_simple_parts(clause) else {
         panic!(
             "expected a transitive gain clause: {:#?}",
             parsed.sentence()
@@ -4423,9 +4500,8 @@ fn variable_quantity_has_singular_standalone_agreement() {
     let source = "X is 5 or more.";
     let parsed = parse(source);
     assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
-    let SentenceBody::Independent(IndependentClause::Copular(Subject(subject), _)) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let clause = independent_clause(parsed.sentence().expect("sentence root"));
+    let (Some(Subject(subject)), Predicate::Copular(_)) = finite_simple_parts(clause) else {
         panic!(
             "expected a copular variable clause: {:#?}",
             parsed.sentence()
@@ -4444,16 +4520,15 @@ fn variable_value_constraint_parses_as_a_modal_copular_clause() {
     let source = "X can't be 0.";
     let parsed = parse(source);
     assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
-    let SentenceBody::Independent(IndependentClause::Deontic(
-        Subject(subject),
-        _,
-        Some(Predicate::Copular(predicate)),
-    )) = &parsed.sentence().expect("sentence root").body
-    else {
+    let clause = independent_clause(parsed.sentence().expect("sentence root"));
+    let (Some(Subject(subject)), Predicate::Deontic(deontic)) = finite_simple_parts(clause) else {
         panic!(
             "expected a deontic modal copular clause: {:#?}",
             parsed.sentence()
         );
+    };
+    let Some(PredicateExpression::Simple(Predicate::Copular(predicate))) = deontic.inner() else {
+        panic!("expected a modal copular predicate: {deontic:#?}");
     };
     assert!(matches!(
         subject.kind(),
@@ -4483,19 +4558,23 @@ fn variable_value_constraint_parses_as_a_modal_copular_clause() {
 fn variable_value_constraint_composes_under_a_fronted_conditional() {
     let source = "If you cast this spell this way, X can't be 0.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Complex(ComplexClause { matrix, .. })) =
+    let SentenceBody::Independent(IndependentClause::Complex(complex)) =
         &parsed.sentence().expect("sentence root").body
     else {
         panic!("expected a complex clause with a fronted condition");
     };
+    let (Some(Subject(subject)), Predicate::Deontic(deontic)) = finite_simple_parts(complex.host())
+    else {
+        panic!("expected a finite deontic host: {complex:#?}");
+    };
     assert!(matches!(
-        matrix.as_ref(),
-        IndependentClause::Deontic(Subject(subject), _, Some(Predicate::Copular(_)))
-            if matches!(
-                subject.kind(),
-                NounPhraseKind::Quantity(quantity)
-                    if quantity.kind() == crate::syntax::QuantityKind::X
-            )
+        subject.kind(),
+        NounPhraseKind::Quantity(quantity)
+            if quantity.kind() == crate::syntax::QuantityKind::X
+    ));
+    assert!(matches!(
+        deontic.inner(),
+        Some(PredicateExpression::Simple(Predicate::Copular(_)))
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -4508,12 +4587,20 @@ fn modal_participle_complement_stays_passive_under_a_variable_subject() {
         panic!("expected an independent clause");
     };
     assert!(matches!(
-        body,
-        IndependentClause::Deontic(_, _, Some(Predicate::Passive(_)))
+        finite_simple_parts(body),
+        (Some(_), Predicate::Deontic(deontic))
+            if matches!(
+                deontic.inner(),
+                Some(PredicateExpression::Simple(Predicate::Passive(_))),
+            )
     ));
     assert!(!matches!(
-        body,
-        IndependentClause::Deontic(_, _, Some(Predicate::Copular(_)))
+        finite_simple_parts(body),
+        (Some(_), Predicate::Deontic(deontic))
+            if matches!(
+                deontic.inner(),
+                Some(PredicateExpression::Simple(Predicate::Copular(_))),
+            )
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
@@ -4562,13 +4649,12 @@ fn count_sense_of_power_accepts_an_adjective_and_plural_inflection() {
 fn passive_blocking_treats_this_turn_as_a_temporal_adjunct() {
     let source = "Creatures you control can't be blocked this turn.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Deontic(
-        _,
-        _,
-        Some(Predicate::Passive(predicate)),
-    )) = &parsed.sentence().expect("sentence root").body
-    else {
+    let clause = independent_clause(parsed.sentence().expect("sentence root"));
+    let (Some(_), Predicate::Deontic(deontic)) = finite_simple_parts(clause) else {
         panic!("expected a deontic passive clause");
+    };
+    let Some(PredicateExpression::Simple(Predicate::Passive(predicate))) = deontic.inner() else {
+        panic!("expected a passive modal predicate: {deontic:#?}");
     };
     assert!(matches!(
         predicate.elements(),
@@ -4608,9 +4694,11 @@ fn karmic_justice_trigger_event_is_transitive() {
         "a spell or ability an opponent controls destroys a noncreature permanent you control";
     let parsed = parse_nonterminal(source, &catalogs, Nonterminal::SimpleClause)
         .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+    let clause = finish_simple_clause(parsed.simple_clause().unwrap().clone())
+        .expect("the complete simple clause should finish");
     assert!(matches!(
-        finish_simple_clause(parsed.simple_clause().unwrap().clone()),
-        Some(IndependentClause::Transitive(_, _))
+        finite_simple_parts(&clause),
+        (Some(_), Predicate::Transitive(_))
     ));
 }
 
@@ -4625,9 +4713,8 @@ fn target_and_relative_clauses_keep_their_nominal_roles() {
 
     let fight_parse =
         parse("Target creature you control fights target creature you don't control.");
-    let SentenceBody::Independent(IndependentClause::Transitive(Subject(subject), fight)) =
-        &fight_parse.sentence().unwrap().body
-    else {
+    let clause = independent_clause(fight_parse.sentence().unwrap());
+    let (Some(Subject(subject)), Predicate::Transitive(fight)) = finite_simple_parts(clause) else {
         panic!("expected controlled target subject");
     };
     let NounPhraseKind::Nominal(subject) = subject.kind() else {
@@ -4636,7 +4723,7 @@ fn target_and_relative_clauses_keep_their_nominal_roles() {
     assert!(matches!(
         subject.complements(),
         [NominalComplement::Relative(relative)]
-            if relative.gap() == crate::syntax::RelativeGap::Object
+            if relative.gap() == crate::features::GapState::Object
     ));
     let Some(NounPhraseKind::Nominal(object)) = predicate_object_kind(fight.object()) else {
         panic!(
@@ -4647,20 +4734,14 @@ fn target_and_relative_clauses_keep_their_nominal_roles() {
     assert!(matches!(
         object.complements(),
         [NominalComplement::Relative(relative)]
-            if relative.gap() == crate::syntax::RelativeGap::Object
+            if relative.gap() == crate::features::GapState::Object
     ));
 }
 
 #[test]
 fn goblin_chieftain_stat_change_remains_one_magic_atom() {
     let sentence = parse("Other Goblin creatures you control get +1/+1 and have haste.");
-    let SentenceBody::Independent(IndependentClause::Predicated(
-        _,
-        PredicateExpression::Coordinated(coordination),
-    )) = &sentence.sentence().unwrap().body
-    else {
-        panic!("expected coordinated predicates");
-    };
+    let coordination = predicate_coordination(sentence.sentence().unwrap());
     let [PredicateExpression::Simple(Predicate::Transitive(first)), _] = coordination.conjuncts()
     else {
         panic!("expected two predicate conjuncts");
@@ -4673,11 +4754,7 @@ fn contiguous_oracle_symbols_are_one_scalar_object() {
     let source = "Add {C}{C}.";
     let parsed = parse(source);
     assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
-        &parsed.sentence().expect("sentence root").body
-    else {
-        panic!("expected a transitive imperative: {:#?}", parsed.sentence());
-    };
+    let predicate = imperative_transitive(parsed.sentence().expect("sentence root"));
     assert!(matches!(
         predicate.object(),
         PredicateObject::SymbolSequence(symbols)
@@ -4692,11 +4769,7 @@ fn oracle_symbol_alternatives_are_a_coordinated_object() {
     let source = "Add {R} or {G}.";
     let parsed = parse(source);
     assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
-        &parsed.sentence().expect("sentence root").body
-    else {
-        panic!("expected a transitive imperative: {:#?}", parsed.sentence());
-    };
+    let predicate = imperative_transitive(parsed.sentence().expect("sentence root"));
     let PredicateObject::Coordinated(coordination) = predicate.object() else {
         panic!("expected a coordinated object: {:#?}", predicate.object());
     };
@@ -4718,11 +4791,7 @@ fn mana_amount_oxford_list_is_three_scalar_members() {
     let source = "Add {W}, {B}, or {G}.";
     let parsed = parse(source);
     assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
-        &parsed.sentence().expect("sentence root").body
-    else {
-        panic!("expected a transitive imperative: {:#?}", parsed.sentence());
-    };
+    let predicate = imperative_transitive(parsed.sentence().expect("sentence root"));
     let PredicateObject::Coordinated(coordination) = predicate.object() else {
         panic!("expected a coordinated object: {:#?}", predicate.object());
     };
@@ -4758,11 +4827,7 @@ fn filter_land_mana_list_members_are_symbol_groups() {
     let source = "Add {U}{U}, {U}{R}, or {R}{R}.";
     let parsed = parse(source);
     assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
-        &parsed.sentence().expect("sentence root").body
-    else {
-        panic!("expected a transitive imperative: {:#?}", parsed.sentence());
-    };
+    let predicate = imperative_transitive(parsed.sentence().expect("sentence root"));
     let PredicateObject::Coordinated(coordination) = predicate.object() else {
         panic!("expected a coordinated object: {:#?}", predicate.object());
     };
@@ -4793,11 +4858,7 @@ fn mixed_symbol_group_alternative_is_one_member() {
     let source = "Add {U} or {C}{U}.";
     let parsed = parse(source);
     assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
-        &parsed.sentence().expect("sentence root").body
-    else {
-        panic!("expected a transitive imperative: {:#?}", parsed.sentence());
-    };
+    let predicate = imperative_transitive(parsed.sentence().expect("sentence root"));
     let PredicateObject::Coordinated(coordination) = predicate.object() else {
         panic!("expected a coordinated object: {:#?}", predicate.object());
     };
@@ -4831,11 +4892,7 @@ fn mana_amount_and_list_is_five_members() {
     let source = "Add {W}{W}, {U}{U}, {B}{B}, {R}{R}, and {G}{G}.";
     let parsed = parse(source);
     assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
-        &parsed.sentence().expect("sentence root").body
-    else {
-        panic!("expected a transitive imperative: {:#?}", parsed.sentence());
-    };
+    let predicate = imperative_transitive(parsed.sentence().expect("sentence root"));
     let PredicateObject::Coordinated(coordination) = predicate.object() else {
         panic!("expected a coordinated object: {:#?}", predicate.object());
     };
@@ -4882,18 +4939,14 @@ fn mana_amount_list_rejects_and_or() {
 fn passive_temporal_adjunct_is_not_a_direct_object() {
     let source = "No spells were cast last turn.";
     let parsed = parse(source);
-    assert!(
-        matches!(
-            &parsed.sentence().expect("sentence root").body,
-            SentenceBody::Independent(IndependentClause::Passive(_, predicate))
-                if matches!(
-                    predicate.elements(),
-                    [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
-                )
-        ),
-        "{:#?}",
-        parsed.sentence()
-    );
+    let clause = independent_clause(parsed.sentence().expect("sentence root"));
+    let (Some(_), Predicate::Passive(predicate)) = finite_simple_parts(clause) else {
+        panic!("expected a finite passive clause: {:#?}", parsed.sentence());
+    };
+    assert!(matches!(
+        predicate.elements(),
+        [PredicateElement::Adjunct(PredicateAdjunct::Temporal(_))]
+    ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
 
@@ -4906,19 +4959,15 @@ fn recipient_passive_retains_the_theme_object() {
     else {
         panic!("expected a complex clause with a subordinate `if`");
     };
-    let [
-        ClauseAttachment {
-            payload: ClauseAttachmentKind::Dependent(DependentClause::Subordinate(_, body)),
-            ..
-        },
-    ] = complex.attachments.as_slice()
+    let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(_, body)) =
+        complex.attachment().payload()
     else {
         panic!("expected a single subordinate `if` attachment");
     };
     let SubordinateBody::Finite(clause) = body else {
         panic!("expected a finite subordinate clause");
     };
-    let IndependentClause::Passive(_, predicate) = clause.as_ref() else {
+    let (Some(_), Predicate::Passive(predicate)) = finite_simple_parts(clause) else {
         panic!("expected a passive clause under the subordinate `if`");
     };
     assert!(matches!(
@@ -4941,9 +4990,8 @@ fn recipient_passive_temporal_adjunct_is_not_a_retained_object() {
     // theme, never displace it.
     let source = "Skarrgan Firebird was dealt damage this turn.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Passive(_, predicate)) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let clause = independent_clause(parsed.sentence().expect("sentence root"));
+    let (Some(_), Predicate::Passive(predicate)) = finite_simple_parts(clause) else {
         panic!("expected a passive clause");
     };
     assert!(matches!(
@@ -4974,9 +5022,8 @@ fn recipient_passive_frame_is_rejected_in_the_active_voice() {
 fn ordinary_passive_has_no_retained_object() {
     let source = "Prevented damage is dealt to that creature's controller instead.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Passive(_, predicate)) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let clause = independent_clause(parsed.sentence().expect("sentence root"));
+    let (Some(_), Predicate::Passive(predicate)) = finite_simple_parts(clause) else {
         panic!("expected a passive clause");
     };
     assert!(predicate.retained_object().is_none());
@@ -4987,18 +5034,18 @@ fn ordinary_passive_has_no_retained_object() {
 fn subject_gap_relative_carries_a_recipient_passive() {
     let source = "Destroy target creature that was dealt damage this turn.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(matrix))) =
-        &parsed.sentence().expect("sentence root").body
-    else {
-        panic!("expected a transitive imperative");
-    };
+    let matrix = imperative_transitive(parsed.sentence().expect("sentence root"));
     let Some(NounPhraseKind::Nominal(object)) = predicate_object_kind(matrix.object()) else {
         panic!("expected a nominal object");
     };
     assert!(matches!(
         object.complements(),
         [NominalComplement::Relative(relative)]
-            if relative_has(relative, RelativeMarker::That, RelativeGap::Subject)
+            if relative_has(
+                relative,
+                RelativeMarker::That,
+                crate::features::GapState::Subject,
+            )
                 && matches!(relative.body(), RelativeBody::SubjectGap(Predicate::Passive(passive))
                     if passive.retained_object().is_some())
     ));
@@ -5009,9 +5056,8 @@ fn subject_gap_relative_carries_a_recipient_passive() {
 fn postnominal_participial_phrase_reduces_only_with_a_retained_object() {
     let source = "A creature dealt damage this way can't block this turn.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Deontic(Subject(subject), _, _)) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let clause = independent_clause(parsed.sentence().expect("sentence root"));
+    let (Some(Subject(subject)), Predicate::Deontic(_)) = finite_simple_parts(clause) else {
         panic!("expected a modal clause with a nominal subject");
     };
     let NounPhraseKind::Nominal(subject) = subject.kind() else {
@@ -5039,9 +5085,8 @@ fn postnominal_participial_phrase_reduces_only_with_a_retained_object() {
 fn reduced_recipient_passive_can_follow_a_completed_relative() {
     let source = "A creature you control dealt damage this way can't block this turn.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Deontic(Subject(subject), _, _)) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let clause = independent_clause(parsed.sentence().expect("sentence root"));
+    let (Some(Subject(subject)), Predicate::Deontic(_)) = finite_simple_parts(clause) else {
         panic!("expected a modal clause with a nominal subject");
     };
     let NounPhraseKind::Nominal(subject) = subject.kind() else {
@@ -5108,9 +5153,8 @@ fn fronted_conditional_carries_a_reduced_recipient_passive() {
 fn reduced_recipient_passive_keeps_agent_and_temporal_tails() {
     let source = "A creature dealt damage by this creature this turn can't block.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Deontic(Subject(subject), _, _)) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let clause = independent_clause(parsed.sentence().expect("sentence root"));
+    let (Some(Subject(subject)), Predicate::Deontic(_)) = finite_simple_parts(clause) else {
         panic!("expected a modal clause with a nominal subject");
     };
     let NounPhraseKind::Nominal(subject) = subject.kind() else {
@@ -5145,9 +5189,8 @@ fn contracted_subject_recipient_passive_parses() {
     // `predicate_arguments_complete` runs.
     let source = "You're dealt damage.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Passive(_, predicate)) =
-        &parsed.sentence().expect("sentence root").body
-    else {
+    let clause = independent_clause(parsed.sentence().expect("sentence root"));
+    let (Some(_), Predicate::Passive(predicate)) = finite_simple_parts(clause) else {
         panic!("expected a passive clause");
     };
     assert!(
@@ -5252,11 +5295,7 @@ fn ordinary_auxiliary_passive_is_unchanged() {
 fn modal_subject_relative_keeps_its_passive_temporal_adjunct() {
     let source = "Prevent all combat damage that would be dealt this turn.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(matrix))) =
-        &parsed.sentence().expect("sentence root").body
-    else {
-        panic!("expected a transitive imperative");
-    };
+    let matrix = imperative_transitive(parsed.sentence().expect("sentence root"));
     let Some(NounPhraseKind::Nominal(object)) = predicate_object_kind(matrix.object()) else {
         panic!("expected a nominal object");
     };
@@ -5267,13 +5306,13 @@ fn modal_subject_relative_keeps_its_passive_temporal_adjunct() {
     assert!(relative_has(
         relative,
         RelativeMarker::That,
-        RelativeGap::Subject
+        crate::features::GapState::Subject
     ));
     let RelativeBody::SubjectGap(Predicate::Deontic(deontic)) = relative.body() else {
         panic!("expected a deontic subject gap: {relative:#?}");
     };
     assert_eq!(deontic.modal().auxiliary().auxiliary, Auxiliary::Would);
-    let Some(Predicate::Passive(passive)) = deontic.inner() else {
+    let Some(PredicateExpression::Simple(Predicate::Passive(passive))) = deontic.inner() else {
         panic!("expected a passive deontic body: {deontic:#?}");
     };
     assert!(matches!(
@@ -5288,28 +5327,27 @@ fn multiple_fronted_clause_attachments_keep_surface_order() {
     let source = "At the beginning of each upkeep, if no spells were cast last turn, transform this creature.";
     let parsed = parse(source);
     assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+    let SentenceBody::Independent(IndependentClause::Complex(outer)) =
+        &parsed.sentence().expect("sentence root").body
+    else {
+        panic!("expected an outer complex clause");
+    };
     assert!(matches!(
-        &parsed.sentence().expect("sentence root").body,
-        SentenceBody::Independent(IndependentClause::Complex(ComplexClause {
-            attachments,
-            ..
-        })) if matches!(
-            attachments.as_slice(),
-            [
-                ClauseAttachment {
-                    payload: ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(_)),
-                    ..
-                },
-                ClauseAttachment {
-                    payload: ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
-                        Subordinator::If,
-                        SubordinateBody::Finite(_),
-                    )),
-                    ..
-                },
-            ]
-        )
+        outer.attachment().payload(),
+        ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(preposition))
+            if preposition.head().preposition() == Preposition::At
     ));
+    let IndependentClause::Complex(inner) = outer.host() else {
+        panic!("expected the first attachment to be nested inside the second: {outer:#?}");
+    };
+    assert!(matches!(
+        inner.attachment().payload(),
+        ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+            Subordinator::If,
+            SubordinateBody::Finite(_),
+        ))
+    ));
+    assert!(matches!(inner.host(), IndependentClause::Finite(_)));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
 
@@ -5373,9 +5411,8 @@ fn distributive_each_copular_carries_each_and_binds_the_standard() {
         let source = format!("Nissa's power and toughness are each equal to {measure}.");
         let parsed = parse_self(&source);
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
-        let SentenceBody::Independent(IndependentClause::Copular(_, predicate)) =
-            &parsed.sentence().expect("sentence root").body
-        else {
+        let clause = independent_clause(parsed.sentence().expect("sentence root"));
+        let (Some(_), Predicate::Copular(predicate)) = finite_simple_parts(clause) else {
             panic!(
                 "expected a copular clause for {source:?}: {:#?}",
                 parsed.sentence()
@@ -5450,14 +5487,11 @@ fn non_distributive_copular_forms_are_unchanged_and_lack_each() {
     ] {
         let parsed = parse_self(source);
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
-        assert!(
-            matches!(
-                &parsed.sentence().expect("sentence root").body,
-                SentenceBody::Independent(IndependentClause::Intransitive(_, _))
-            ),
-            "non-`each` copular must stay intransitive: {:#?}",
-            parsed.sentence(),
-        );
+        let clause = independent_clause(parsed.sentence().expect("sentence root"));
+        assert!(matches!(
+            finite_simple_parts(clause),
+            (Some(_), Predicate::Intransitive(_))
+        ));
         let rendered = render_sentence_as(parsed.sentence().unwrap(), "Nissa Revane", true);
         assert!(
             !rendered.contains(" each "),
@@ -5502,11 +5536,7 @@ fn two_quoted_abilities_are_a_coordinated_object() {
     let source =
         "Enchanted creature has \"When this creature dies, draw a card\" and \"{T}: Draw a card.\"";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
-        &parsed.sentence().unwrap().body
-    else {
-        panic!("expected a transitive clause: {:#?}", parsed.sentence());
-    };
+    let (_, predicate) = finite_transitive(parsed.sentence().unwrap());
     let PredicateObject::Coordinated(coordination) = predicate.object() else {
         panic!("expected a coordinated object: {:#?}", predicate.object());
     };
@@ -5535,11 +5565,7 @@ fn two_quoted_abilities_are_a_coordinated_object() {
 fn keyword_and_quoted_ability_are_a_coordinated_object() {
     let source = "Enchanted creature has flying and \"{T}: Draw a card.\"";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
-        &parsed.sentence().unwrap().body
-    else {
-        panic!("expected a transitive clause: {:#?}", parsed.sentence());
-    };
+    let (_, predicate) = finite_transitive(parsed.sentence().unwrap());
     let PredicateObject::Coordinated(coordination) = predicate.object() else {
         panic!("expected a coordinated object: {:#?}", predicate.object());
     };
@@ -5571,10 +5597,7 @@ fn quoted_ability_interior_period_is_derived_from_sentence_final_position() {
     fn quoted_object(source: &str) -> (crate::syntax::QuotedAbility, String, bool) {
         let parsed = parse(source);
         let sentence = parsed.sentence().unwrap();
-        let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) = &sentence.body
-        else {
-            panic!("expected a transitive clause: {sentence:#?}");
-        };
+        let (_, predicate) = finite_transitive(sentence);
         let PredicateObject::QuotedAbility(quoted) = predicate.object() else {
             panic!(
                 "expected a quoted-ability object: {:#?}",
@@ -5582,7 +5605,7 @@ fn quoted_ability_interior_period_is_derived_from_sentence_final_position() {
             );
         };
         (
-            (**quoted).clone(),
+            quoted.as_ref().clone(),
             render_sentence(sentence),
             !predicate.elements().is_empty(),
         )
@@ -5742,11 +5765,7 @@ fn keyword_grant_symbol_cost_after_keyword_nominal() {
     let source = "Enchanted creature has ward {2}.";
     let parsed = parse(source);
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
-    let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
-        &parsed.sentence().unwrap().body
-    else {
-        panic!("expected a transitive clause");
-    };
+    let (_, predicate) = finite_transitive(parsed.sentence().unwrap());
     let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(predicate.object()) else {
         panic!("expected a nominal object, got {:?}", predicate.object());
     };
@@ -5764,11 +5783,7 @@ fn keyword_grant_symbol_cost_coordinated_with_bare_keyword() {
     let source = "Equipped creature has flying and ward {4}.";
     let parsed = parse(source);
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
-    let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
-        &parsed.sentence().unwrap().body
-    else {
-        panic!("expected a transitive clause");
-    };
+    let (_, predicate) = finite_transitive(parsed.sentence().unwrap());
     let Some(NounPhraseKind::Coordinated(coordinated)) = predicate_object_kind(predicate.object())
     else {
         panic!(
@@ -5803,11 +5818,7 @@ fn keyword_grant_incidental_equip_symbol_cost() {
     let source = "Equipment you control have equip {1}.";
     let parsed = parse(source);
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
-    let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
-        &parsed.sentence().unwrap().body
-    else {
-        panic!("expected a transitive clause");
-    };
+    let (_, predicate) = finite_transitive(parsed.sentence().unwrap());
     let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(predicate.object()) else {
         panic!("expected a nominal object, got {:?}", predicate.object());
     };
@@ -5821,11 +5832,7 @@ fn keyword_grant_symbol_sequence_cost() {
     let source = "This creature has ward {2}{U}.";
     let parsed = parse(source);
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
-    let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
-        &parsed.sentence().unwrap().body
-    else {
-        panic!("expected a transitive clause");
-    };
+    let (_, predicate) = finite_transitive(parsed.sentence().unwrap());
     let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(predicate.object()) else {
         panic!("expected a nominal object, got {:?}", predicate.object());
     };
@@ -5845,11 +5852,7 @@ fn keyword_grant_annihilator_quantity_control_unchanged() {
     let source = "This creature has trample and annihilator 2.";
     let parsed = parse(source);
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
-    let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
-        &parsed.sentence().unwrap().body
-    else {
-        panic!("expected a transitive clause");
-    };
+    let (_, predicate) = finite_transitive(parsed.sentence().unwrap());
     let Some(NounPhraseKind::Coordinated(coordinated)) = predicate_object_kind(predicate.object())
     else {
         panic!("expected a coordinated object");
@@ -5922,11 +5925,7 @@ fn keyword_grant_predicated_single_from_quality() {
     let source = "Enchanted creature has protection from black.";
     let parsed = parse(source);
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
-    let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
-        &parsed.sentence().unwrap().body
-    else {
-        panic!("expected a transitive clause");
-    };
+    let (_, predicate) = finite_transitive(parsed.sentence().unwrap());
     let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(predicate.object()) else {
         panic!("expected a nominal object, got {:?}", predicate.object());
     };
@@ -5947,11 +5946,7 @@ fn keyword_grant_predicated_coordinated_from_qualities() {
     let source = "Enchanted creature has protection from black and from red.";
     let parsed = parse(source);
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
-    let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
-        &parsed.sentence().unwrap().body
-    else {
-        panic!("expected a transitive clause");
-    };
+    let (_, predicate) = finite_transitive(parsed.sentence().unwrap());
     let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(predicate.object()) else {
         panic!("expected a nominal object, got {:?}", predicate.object());
     };
@@ -5987,11 +5982,7 @@ fn keyword_grant_predicated_noun_phrase_quality_is_a_known_ambiguity() {
     let source = "This creature has protection from artifacts.";
     let parsed = parse(source);
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
-    let SentenceBody::Independent(IndependentClause::Transitive(_, predicate)) =
-        &parsed.sentence().unwrap().body
-    else {
-        panic!("expected a transitive clause");
-    };
+    let (_, predicate) = finite_transitive(parsed.sentence().unwrap());
     let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(predicate.object()) else {
         panic!("expected a nominal object, got {:?}", predicate.object());
     };
@@ -6075,15 +6066,17 @@ pub(crate) fn fixture_catalogs() -> Catalogs {
 }
 
 fn finite(sentence: &Sentence) -> (&Subject, &crate::syntax::PredicateHead) {
-    let SentenceBody::Independent(clause) = &sentence.body else {
-        panic!("expected an independent clause, got {:?}", sentence.body);
+    let clause = independent_clause(sentence);
+    let (Some(subject), predicate) = finite_simple_parts(clause) else {
+        panic!("expected an explicit-subject lexical predicate: {sentence:#?}");
     };
-    match clause {
-        IndependentClause::Transitive(subject, predicate) => (subject, predicate.head()),
-        IndependentClause::Intransitive(subject, predicate) => (subject, predicate.head()),
-        IndependentClause::Passive(subject, predicate) => (subject, predicate.head()),
+    let head = match predicate {
+        Predicate::Transitive(predicate) => predicate.head(),
+        Predicate::Intransitive(predicate) => predicate.head(),
+        Predicate::Passive(predicate) => predicate.head(),
         other => panic!("expected a finite lexical predicate, got {other:?}"),
-    }
+    };
+    (subject, head)
 }
 
 fn turn_head_spelling(nominal: &crate::syntax::NominalPhrase) -> &'static str {
@@ -6158,17 +6151,16 @@ fn restriction_run_admits_an_if_clause_member_true_witness() {
     else {
         panic!("expected a complex clause");
     };
-    assert_eq!(complex.attachments.len(), 1);
-    let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].payload else {
+    let ClauseAttachmentKind::Restriction(run) = complex.attachment().payload() else {
         panic!(
             "expected a Restriction attachment: {:#?}",
-            complex.attachments[0]
+            complex.attachment()
         );
     };
-    let [PredicateAdjunct::Prepositional(during)] = run.first.as_slice() else {
+    let [PredicateAdjunct::Prepositional(during)] = run.first().adjuncts() else {
         panic!(
             "expected a single Prepositional first member: {:#?}",
-            run.first
+            run.first()
         );
     };
     let PrepositionalObjectKind::NounPhrase(object) = during.head().object().kind() else {
@@ -6184,12 +6176,12 @@ fn restriction_run_admits_an_if_clause_member_true_witness() {
         ),
         "{nominal:#?}"
     );
-    assert_eq!(run.rest.len(), 1);
-    assert_eq!(run.rest[0].conjunction, Some(PredicateConjunction::And));
-    let [PredicateAdjunct::Dependent(dependent)] = run.rest[0].member.adjuncts() else {
+    assert_eq!(run.rest().len(), 1);
+    assert_eq!(run.rest()[0].conjunction(), Some(PredicateConjunction::And));
+    let [PredicateAdjunct::Dependent(dependent)] = run.rest()[0].member().adjuncts() else {
         panic!(
             "expected a single Dependent member: {:#?}",
-            run.rest[0].member.adjuncts()
+            run.rest()[0].member().adjuncts()
         );
     };
     let DependentClause::Subordinate(Subordinator::If, SubordinateBody::Finite(if_body)) =
@@ -6209,11 +6201,11 @@ fn restriction_run_admits_an_if_clause_member_true_witness() {
         &Subject,
         &crate::syntax::PredicateHead,
         &[PredicateElement],
-    ) = match if_body.as_ref() {
-        IndependentClause::Intransitive(subject, predicate) => {
+    ) = match finite_simple_parts(if_body) {
+        (Some(subject), Predicate::Intransitive(predicate)) => {
             (subject, predicate.head(), predicate.elements())
         }
-        IndependentClause::Passive(subject, predicate) => {
+        (Some(subject), Predicate::Passive(predicate)) => {
             (subject, predicate.head(), predicate.elements())
         }
         other => panic!("expected a `you've been attacked` clause: {other:#?}"),
@@ -6307,27 +6299,26 @@ fn the_tie_is_broken_is_not_a_predicate_nominal() {
             parsed.sentence()
         );
     };
-    assert!(
-        complex.attachments.iter().any(|attachment| matches!(
-            &attachment.payload,
-            ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
-                Subordinator::Until,
-                SubordinateBody::Finite(clause),
-            )) if matches!(
-                clause.as_ref(),
-                IndependentClause::Passive(_, predicate)
-                    if matches!(
-                        predicate.head().verb(),
-                        VerbInstance {
-                            verb: Verb::Word(Vocab::Break),
-                            slot: VerbSlot::PastParticiple,
-                        }
-                    )
-            )
-        )),
-        "the until-complement must be a passive verb phrase, not a copular \
-         predicate-nominal: {complex:#?}"
-    );
+    let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+        Subordinator::Until,
+        SubordinateBody::Finite(clause),
+    )) = complex.attachment().payload()
+    else {
+        panic!("expected an until finite attachment: {complex:#?}");
+    };
+    let (Some(_), Predicate::Passive(predicate)) = finite_simple_parts(clause) else {
+        panic!(
+            "the until-complement must be a passive verb phrase, not a copular \
+             predicate-nominal: {complex:#?}"
+        );
+    };
+    assert!(matches!(
+        predicate.head().verb(),
+        VerbInstance {
+            verb: Verb::Word(Vocab::Break),
+            slot: VerbSlot::PastParticiple,
+        }
+    ));
 }
 
 #[test]
@@ -6369,15 +6360,15 @@ fn oxford_restriction_run_carries_member_boundaries_true_witness() {
     else {
         panic!("expected a complex clause");
     };
-    let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].payload else {
+    let ClauseAttachmentKind::Restriction(run) = complex.attachment().payload() else {
         panic!(
             "expected a Restriction attachment: {:#?}",
-            complex.attachments[0]
+            complex.attachment()
         );
     };
-    assert_eq!(run.rest.len(), 2);
-    assert_eq!(run.rest[0].conjunction, None);
-    assert_eq!(run.rest[1].conjunction, Some(PredicateConjunction::And));
+    assert_eq!(run.rest().len(), 2);
+    assert_eq!(run.rest()[0].conjunction(), None);
+    assert_eq!(run.rest()[1].conjunction(), Some(PredicateConjunction::And));
 }
 
 #[test]
@@ -6446,13 +6437,8 @@ fn clause_elements(clause: &IndependentClause) -> &[PredicateElement] {
             other => panic!("expected a transitive/intransitive/passive predicate: {other:#?}"),
         }
     }
-    match clause {
-        IndependentClause::Imperative(predicate) => predicate_elements(predicate),
-        IndependentClause::Transitive(_, predicate) => predicate.elements(),
-        IndependentClause::Intransitive(_, predicate) => predicate.elements(),
-        IndependentClause::Passive(_, predicate) => predicate.elements(),
-        other => panic!("expected a clause with predicate elements: {other:#?}"),
-    }
+    let (_, predicate) = finite_simple_parts(clause);
+    predicate_elements(predicate)
 }
 
 fn beginning_of_step_nominal(elements: &[PredicateElement]) -> &NominalPhrase {
@@ -6497,11 +6483,11 @@ fn beginning_of_step_nominal(elements: &[PredicateElement]) -> &NominalPhrase {
 fn intransitive_or_passive(
     clause: &IndependentClause,
 ) -> (&Subject, &crate::syntax::PredicateHead, &[PredicateElement]) {
-    match clause {
-        IndependentClause::Intransitive(subject, predicate) => {
+    match finite_simple_parts(clause) {
+        (Some(subject), Predicate::Intransitive(predicate)) => {
             (subject, predicate.head(), predicate.elements())
         }
-        IndependentClause::Passive(subject, predicate) => {
+        (Some(subject), Predicate::Passive(predicate)) => {
             (subject, predicate.head(), predicate.elements())
         }
         other => panic!("expected an intransitive or passive clause: {other:#?}"),
@@ -6698,16 +6684,16 @@ fn this_step_is_still_a_temporal_adjunct() {
     else {
         panic!("expected a complex clause");
     };
-    let ClauseAttachmentKind::Restriction(run) = &complex.attachments[0].payload else {
+    let ClauseAttachmentKind::Restriction(run) = complex.attachment().payload() else {
         panic!(
             "expected a Restriction attachment: {:#?}",
-            complex.attachments[0]
+            complex.attachment()
         );
     };
-    let [PredicateAdjunct::Dependent(dependent)] = run.rest[0].member.adjuncts() else {
+    let [PredicateAdjunct::Dependent(dependent)] = run.rest()[0].member().adjuncts() else {
         panic!(
             "expected a single Dependent member: {:#?}",
-            run.rest[0].member.adjuncts()
+            run.rest()[0].member().adjuncts()
         );
     };
     let DependentClause::Subordinate(Subordinator::If, SubordinateBody::Finite(if_body)) =
@@ -6805,7 +6791,10 @@ fn parse_clause(source: &str) -> Clause {
 }
 
 fn transitive_predicate_head(clause: &Clause) -> &PredicateHead {
-    let Clause::Independent(IndependentClause::Transitive(_, predicate)) = clause else {
+    let Clause::Independent(clause) = clause else {
+        panic!("expected an independent transitive clause: {clause:#?}");
+    };
+    let (Some(_), Predicate::Transitive(predicate)) = finite_simple_parts(clause) else {
         panic!("expected an independent transitive clause: {clause:#?}");
     };
     predicate.head()
@@ -6826,10 +6815,16 @@ fn preverbal_next_attaches_to_the_predicate_head() {
     // Everything besides the preverb modifier (verb, object, adjunct) is
     // unchanged from the minus-`next` twin.
     assert_eq!(with_head.verb(), without_head.verb());
-    let Clause::Independent(IndependentClause::Transitive(_, with_predicate)) = &with_next else {
+    let Clause::Independent(with_clause) = &with_next else {
+        panic!("expected an independent clause");
+    };
+    let Clause::Independent(without_clause) = &without_next else {
+        panic!("expected an independent clause");
+    };
+    let (Some(_), Predicate::Transitive(with_predicate)) = finite_simple_parts(with_clause) else {
         panic!("expected transitive");
     };
-    let Clause::Independent(IndependentClause::Transitive(_, without_predicate)) = &without_next
+    let (Some(_), Predicate::Transitive(without_predicate)) = finite_simple_parts(without_clause)
     else {
         panic!("expected transitive");
     };
@@ -6860,14 +6855,15 @@ fn preverb_adverb_slot_admits_only_next() {
         let SentenceBody::Independent(clause) = &parsed.sentence().unwrap().body else {
             continue;
         };
-        let head = match clause {
-            IndependentClause::Transitive(_, predicate) => Some(predicate.head()),
-            IndependentClause::Intransitive(_, predicate) => Some(predicate.head()),
-            IndependentClause::Imperative(predicate) => match predicate {
-                Predicate::Transitive(p) => Some(p.head()),
-                Predicate::Intransitive(p) => Some(p.head()),
-                _ => None,
-            },
+        let IndependentClause::Finite(finite) = clause else {
+            continue;
+        };
+        let PredicateExpression::Simple(predicate) = finite.predicate() else {
+            continue;
+        };
+        let head = match predicate {
+            Predicate::Transitive(predicate) => Some(predicate.head()),
+            Predicate::Intransitive(predicate) => Some(predicate.head()),
             _ => None,
         };
         if let Some(head) = head {
@@ -6982,8 +6978,18 @@ fn passive_deontic(sentence: &Sentence) -> &PassivePredicate {
 /// locating the passive deontic predicate.
 fn passive_deontic_in(clause: &IndependentClause) -> &PassivePredicate {
     match clause {
-        IndependentClause::Deontic(_, _, Some(Predicate::Passive(predicate))) => predicate,
-        IndependentClause::Complex(complex) => passive_deontic_in(&complex.matrix),
+        IndependentClause::Finite(finite) => {
+            let PredicateExpression::Simple(Predicate::Deontic(deontic)) = finite.predicate()
+            else {
+                panic!("expected a deontic predicate, got {finite:#?}");
+            };
+            let Some(PredicateExpression::Simple(Predicate::Passive(predicate))) = deontic.inner()
+            else {
+                panic!("expected a passive modal predicate, got {deontic:#?}");
+            };
+            predicate
+        }
+        IndependentClause::Complex(complex) => passive_deontic_in(complex.host()),
         other => panic!("expected a deontic passive clause, got {other:?}"),
     }
 }
@@ -7093,13 +7099,16 @@ fn exception_adjunct_renders_and_reparses_from_ast() {
         .sentence()
         .expect("sentence root")
         .clone();
-    let SentenceBody::Independent(IndependentClause::Deontic(
-        _,
-        _,
-        Some(Predicate::Passive(predicate)),
-    )) = &mut sentence.body
-    else {
+    let SentenceBody::Independent(IndependentClause::Finite(finite)) = &mut sentence.body else {
         panic!("expected a deontic passive clause");
+    };
+    let PredicateExpression::Simple(Predicate::Deontic(deontic)) = &mut finite.predicate else {
+        panic!("expected a deontic predicate");
+    };
+    let Some(PredicateExpression::Simple(Predicate::Passive(predicate))) =
+        deontic.inner.as_deref_mut()
+    else {
+        panic!("expected a passive modal predicate");
     };
     let [PredicateElement::Adjunct(adjunct @ PredicateAdjunct::Prepositional(_))] =
         predicate.elements.as_mut_slice()
@@ -7180,6 +7189,48 @@ fn except_by_rejects_non_by_and_malformed_tails() {
 // ---- Stage A: shared-deontic coordinated clause members ----
 
 #[test]
+fn trailing_subordinates_stay_on_the_first_shared_predicate() {
+    for (source, expected_subordinator) in [
+        (
+            "Destroy target creature you control unless you pay {3} and repeat this process.",
+            Subordinator::Unless,
+        ),
+        (
+            "Target opponent loses 2 life unless that player sacrifices a permanent of their choice or discards a card.",
+            Subordinator::Unless,
+        ),
+        (
+            "Reveal cards from the top of your library until you reveal a nonlegendary creature card with lesser mana value, put it onto the battlefield, then put the rest on the bottom of your library in a random order.",
+            Subordinator::Until,
+        ),
+    ] {
+        let parsed = parse(source);
+        let coordination = predicate_coordination(parsed.sentence().expect(source));
+        let Some(PredicateExpression::Simple(Predicate::Attached(attached))) =
+            coordination.conjuncts().first()
+        else {
+            panic!("the trailing subordinate belongs to the first predicate: {coordination:#?}");
+        };
+        assert_eq!(
+            attached.attachment().position(),
+            AttachmentPosition::AfterMatrix
+        );
+        assert_eq!(
+            attached.attachment().comma(),
+            crate::features::Comma::Absent
+        );
+        let crate::syntax::ClauseAttachmentKind::Dependent(
+            crate::syntax::DependentClause::Subordinate(subordinator, _),
+        ) = attached.attachment().payload()
+        else {
+            panic!("expected one finite subordinate edge: {attached:#?}");
+        };
+        assert_eq!(*subordinator, expected_subordinator);
+        assert_eq!(render_sentence(parsed.sentence().expect(source)), source);
+    }
+}
+
+#[test]
 fn shared_deontic_active_modal_coordinates_with_a_transitive_first_conjunct() {
     let source = "Enchanted creature gets +2/+2 and can't attack.";
     let parsed = parse(source);
@@ -7193,7 +7244,10 @@ fn shared_deontic_active_modal_coordinates_with_a_transitive_first_conjunct() {
         panic!("expected a governed predicate: {deontic:#?}");
     };
     assert!(
-        matches!(predicate, Predicate::Intransitive(_)),
+        matches!(
+            predicate,
+            PredicateExpression::Simple(Predicate::Intransitive(_))
+        ),
         "`attack` under the modal stays intransitive: {predicate:#?}"
     );
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -7258,7 +7312,10 @@ fn shared_deontic_passive_modal_coordinates_with_a_transitive_first_conjunct() {
         panic!("expected a governed predicate: {deontic:#?}");
     };
     assert!(
-        matches!(predicate, Predicate::Passive(_)),
+        matches!(
+            predicate,
+            PredicateExpression::Simple(Predicate::Passive(_))
+        ),
         "`be blocked` under the modal is passive: {predicate:#?}"
     );
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -7278,14 +7335,17 @@ fn shared_deontic_composes_with_a_modal_first_clause() {
     };
     assert!(matches!(
         first_deontic.inner(),
-        Some(Predicate::Intransitive(_))
+        Some(PredicateExpression::Simple(Predicate::Intransitive(_)))
     ));
     assert_eq!(deontic.modal().auxiliary().auxiliary, Auxiliary::Can);
     let Some(predicate) = deontic.inner() else {
         panic!("expected a governed predicate: {deontic:#?}");
     };
     assert!(
-        matches!(predicate, Predicate::Passive(_)),
+        matches!(
+            predicate,
+            PredicateExpression::Simple(Predicate::Passive(_))
+        ),
         "`be blocked` under the modal is passive: {predicate:#?}"
     );
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -7302,7 +7362,7 @@ fn shared_deontic_passive_composes_with_an_exception_tail() {
         panic!("expected one shared-deontic conjunct: {coordination:#?}");
     };
     assert_eq!(deontic.modal().auxiliary().auxiliary, Auxiliary::Can);
-    let Some(Predicate::Passive(passive)) = deontic.inner() else {
+    let Some(PredicateExpression::Simple(Predicate::Passive(passive))) = deontic.inner() else {
         panic!("expected a passive predicate under the modal: {deontic:#?}");
     };
     assert!(
@@ -7322,7 +7382,7 @@ fn shared_deontic_with_vp_ellipsis_preserves_the_first_deontic_ellipsis() {
     // not in the fixture/regular vocabulary, so this witness swaps in a
     // supported verb while keeping the exact motivating shape): the first
     // conjunct ("you don't") is do-support VP-ellipsis — it lowers to
-    // `IndependentClause::Proform`, not `Deontic`, because `do` is never
+    // `Predicate::Proform`, not `Deontic`, because `do` is never
     // classified as a modal auxiliary (`is_modal`); the coordinated
     // member ("can't attack") carries a real modal and predicate. The two
     // ellipsis sites are independent — fixing the coordinated-member case
@@ -7335,25 +7395,21 @@ fn shared_deontic_with_vp_ellipsis_preserves_the_first_deontic_ellipsis() {
         panic!("expected a complex clause: {:#?}", parsed.sentence());
     };
     assert!(matches!(
-        complex.matrix.as_ref(),
-        IndependentClause::Imperative(_)
+        imperative_predicate(complex.host()),
+        Predicate::Transitive(_)
     ));
-    let [attachment] = complex.attachments.as_slice() else {
-        panic!("expected one attachment: {:#?}", complex.attachments);
-    };
+    let attachment = complex.attachment();
     let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
         Subordinator::If,
         SubordinateBody::Finite(if_body),
-    )) = &attachment.payload
+    )) = attachment.payload()
     else {
         panic!(
             "expected a finite `if` subordinate: {:#?}",
-            attachment.payload
+            attachment.payload()
         );
     };
-    let IndependentClause::Predicated(_, PredicateExpression::Coordinated(coordination)) =
-        if_body.as_ref()
-    else {
+    let (Some(_), PredicateExpression::Coordinated(coordination)) = finite_parts(if_body) else {
         panic!("expected coordinated predicates in the `if` body: {if_body:#?}");
     };
     let [
@@ -7367,7 +7423,10 @@ fn shared_deontic_with_vp_ellipsis_preserves_the_first_deontic_ellipsis() {
     assert_eq!(auxiliary.auxiliary, Auxiliary::Do);
     assert!(auxiliary.contracted_negation.is_contracted());
     assert_eq!(deontic.modal().auxiliary().auxiliary, Auxiliary::Can);
-    assert!(matches!(deontic.inner(), Some(Predicate::Intransitive(_))));
+    assert!(matches!(
+        deontic.inner(),
+        Some(PredicateExpression::Simple(Predicate::Intransitive(_)))
+    ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
 
@@ -7386,22 +7445,23 @@ fn shared_deontic_none_renders_as_the_bare_modal() {
         inner: None,
     });
     let parsed_first = parse("You draw a card.");
-    let SentenceBody::Independent(IndependentClause::Transitive(subject, first_predicate)) =
-        parsed_first.sentence().expect("sentence root").body.clone()
+    let first_clause = independent_clause(parsed_first.sentence().expect("sentence root"));
+    let (Some(subject), Predicate::Transitive(first_predicate)) = finite_simple_parts(first_clause)
     else {
-        panic!("expected a finite first clause");
+        panic!("expected a finite transitive first clause");
     };
-    let coordinated = IndependentClause::Predicated(
-        Some(subject),
-        PredicateExpression::Coordinated(Coordination::new(
-            PredicateExpression::Simple(Predicate::Transitive(first_predicate)),
-            CoordinationJunction {
-                conjunction: Some(PredicateConjunction::And),
-                comma: crate::features::Comma::Absent,
-            },
-            PredicateExpression::Simple(second),
-        )),
-    );
+    let coordinated =
+        IndependentClause::Finite(crate::syntax::FiniteClause::from_declaration_parts(
+            Some(subject.clone()),
+            PredicateExpression::Coordinated(Coordination::new(
+                PredicateExpression::Simple(Predicate::Transitive(first_predicate.clone())),
+                CoordinationJunction {
+                    conjunction: Some(PredicateConjunction::And),
+                    comma: crate::features::Comma::Absent,
+                },
+                PredicateExpression::Simple(second),
+            )),
+        ));
     let sentence = Sentence {
         body: SentenceBody::Independent(coordinated),
     };
@@ -7413,7 +7473,13 @@ fn shared_deontic_none_renders_as_the_bare_modal() {
 fn changed_predicate_connective_nests_the_completed_left_group() {
     let source = "Enchanted creature can't attack or block and has flying.";
     let parsed = parse(source);
-    let outer = predicate_coordination(parsed.sentence().expect("sentence root"));
+    let clause = independent_clause(parsed.sentence().expect("sentence root"));
+    let (Some(_), Predicate::Deontic(deontic)) = finite_simple_parts(clause) else {
+        panic!("expected a finite modal clause: {clause:#?}");
+    };
+    let Some(PredicateExpression::Coordinated(outer)) = deontic.inner() else {
+        panic!("expected coordinated predicates under the modal: {deontic:#?}");
+    };
     assert!(matches!(
         outer.junctions(),
         [CoordinationJunction {
@@ -7551,11 +7617,7 @@ fn uniform_clause_and_predicate_runs_remain_flat() {
 fn coordinated_postpositive_participles_share_the_creature_head() {
     let source = "Put a counter on target creature blocking or blocked by this creature.";
     let parsed = parse(source);
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(put))) =
-        &parsed.sentence().expect("sentence root").body
-    else {
-        panic!("expected a transitive imperative: {:#?}", parsed.sentence());
-    };
+    let put = imperative_transitive(parsed.sentence().expect("sentence root"));
     let Some(NounPhraseKind::Nominal(counter)) = predicate_object_kind(put.object()) else {
         panic!("expected a counter object: {put:#?}");
     };
@@ -7675,14 +7737,7 @@ fn additive_type_copular_continuation_rejects_broader_copular_surfaces() {
 fn sole_coordinated_prepositional_adjunct(
     sentence: &Sentence,
 ) -> &crate::syntax::CoordinatedPrepositionalPhrase {
-    let SentenceBody::Independent(IndependentClause::Imperative(Predicate::Transitive(predicate))) =
-        &sentence.body
-    else {
-        panic!(
-            "expected an imperative transitive clause: {:#?}",
-            sentence.body
-        );
-    };
+    let predicate = imperative_transitive(sentence);
     // The run attaches to the direct object's nominal, not to the verb:
     // `target card from your graveyard and from your hand`.
     let Some(NounPhraseKind::Nominal(nominal)) = predicate_object_kind(predicate.object()) else {

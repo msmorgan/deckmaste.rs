@@ -1,0 +1,9 @@
+error[E0451]: fields `first` and `rest` of struct `ExceptionRider` are private
+ --> tests/compile_fail/construct_exception_rider.rs:6:9
+  |
+5 |     ExceptionRider {
+  |     -------------- in this type
+6 |         first: Box::new(first),
+  |         ^^^^^ private field
+7 |         rest: Vec::new(),
+  |         ^^^^ private field

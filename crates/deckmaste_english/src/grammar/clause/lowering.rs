@@ -1,6 +1,5 @@
 use super::Agreement;
 use super::AttachedPredicate;
-use super::AttachmentPosition;
 use super::Auxiliary;
 use super::AuxiliaryInflection;
 use super::AuxiliaryInstance;
@@ -12,7 +11,6 @@ use super::CoordinatedIndependentClause;
 use super::Coordination;
 use super::CoordinationJunction;
 use super::CopularComplement;
-use super::CopularRemainder;
 use super::DeonticPredicate;
 use super::IndependentClause;
 use super::Lowered;
@@ -34,15 +32,15 @@ use super::take;
 use crate::constructions::predicate::FinishedPredicate;
 use crate::features::Conjunction;
 use crate::grammar::reduction::predicate_form;
+use crate::syntax::AttachmentScope;
+use crate::syntax::ClauseAttachment;
+use crate::syntax::ComplexClause;
+use crate::syntax::FiniteClause;
 use crate::syntax::InfinitiveClause;
 
 pub(in crate::grammar) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
         RuleTag::VerbPhraseCoordinatedAdjective => lower_predicate(tag, children),
-        RuleTag::CopularRemainderCoordinatedAdjective
-        | RuleTag::RelativeContractedCopularCoordinatedAdjective => {
-            lower_simple_clause(tag, children)
-        }
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
@@ -81,43 +79,6 @@ pub(super) fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) 
     };
     predicate.dependents.push(dependent);
     Some(Lowered::VerbPhrase(predicate))
-}
-
-#[allow(clippy::too_many_lines, reason = "lowering has many grammar variants")]
-pub(super) fn lower_simple_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
-    match tag {
-        RuleTag::CopularRemainderCoordinatedAdjective => lower_copular_remainder(children),
-        RuleTag::RelativeContractedCopularCoordinatedAdjective => {
-            let Lowered::SubjectAuxiliary(subject_auxiliary) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::CoordinatedModifier(coordinated) = take(children, 1)? else {
-                return None;
-            };
-            crate::constructions::relative::build_relative_contracted_copular_coordinated_adjective(
-                subject_auxiliary,
-                coordinated_modifier_as_adjectives(coordinated)?,
-            )
-            .ok()
-            .map(Lowered::RelativeClause)
-        }
-        _ => None,
-    }
-}
-
-pub(super) fn lower_copular_remainder(children: &mut [Lowered]) -> Option<Lowered> {
-    let Lowered::CoordinatedModifier(coordinated) = take(children, 0)? else {
-        return None;
-    };
-    Some(Lowered::CopularRemainder(CopularRemainder {
-        negated: false,
-        distributive_each: false,
-        precomplement_adverbs: Vec::new(),
-        complement: CopularComplement::CoordinatedAdjective(coordinated_modifier_as_adjectives(
-            coordinated,
-        )?),
-        adjuncts: Vec::new(),
-    }))
 }
 
 #[allow(
@@ -181,7 +142,11 @@ pub(super) fn lower_coordination(tag: RuleTag, children: &mut [Lowered]) -> Opti
         if let Some(modal) = modal {
             predicate = Predicate::Deontic(DeonticPredicate {
                 modal,
-                inner: if elided { None } else { Some(Box::new(predicate)) },
+                inner: if elided {
+                    None
+                } else {
+                    Some(Box::new(PredicateExpression::Simple(predicate)))
+                },
             });
         } else if let Some(inflection) = finite_inflection_of_clause(&first) {
             apply_finite_inflection(&mut predicate, inflection);
@@ -294,20 +259,11 @@ impl FiniteInflection {
 
 pub(super) fn finite_inflection_of_clause(clause: &IndependentClause) -> Option<FiniteInflection> {
     match clause {
-        IndependentClause::Transitive(_, predicate) => finite_inflection_of_head(&predicate.head),
-        IndependentClause::Intransitive(_, predicate) => finite_inflection_of_head(&predicate.head),
-        IndependentClause::Passive(_, predicate) => finite_inflection_of_head(&predicate.head),
-        IndependentClause::Copular(_, predicate) => {
-            finite_inflection_of_auxiliary(predicate.copula.auxiliary)
-        }
-        IndependentClause::Proform(_, predicate) => {
-            finite_inflection_of_auxiliary(predicate.auxiliary)
-        }
-        IndependentClause::Deontic(..)
-        | IndependentClause::Imperative(_)
-        | IndependentClause::Existential(_) => None,
-        IndependentClause::Complex(complex) => finite_inflection_of_clause(&complex.matrix),
-        IndependentClause::Predicated(_, expression) => finite_inflection_of_expression(expression),
+        IndependentClause::Finite(finite) => finite
+            .subject()
+            .and_then(|_| finite_inflection_of_expression(finite.predicate())),
+        IndependentClause::Existential(_) => None,
+        IndependentClause::Complex(complex) => finite_inflection_of_clause(complex.host()),
         IndependentClause::Coordinated(coordination) => {
             coordination
                 .rest
@@ -339,7 +295,7 @@ pub(super) fn finite_inflection_of_predicate(predicate: &Predicate) -> Option<Fi
         Predicate::Copular(predicate) => finite_inflection_of_auxiliary(predicate.copula.auxiliary),
         Predicate::Proform(predicate) => finite_inflection_of_auxiliary(predicate.auxiliary),
         Predicate::Deontic(_) => None,
-        Predicate::Attached(predicate) => finite_inflection_of_predicate(&predicate.predicate),
+        Predicate::Attached(predicate) => finite_inflection_of_predicate(predicate.predicate()),
     }
 }
 
@@ -393,7 +349,7 @@ pub(super) fn apply_finite_inflection(predicate: &mut Predicate, inflection: Fin
         // The modal itself is uninflected and licenses the inner infinitive.
         Predicate::Deontic(_) => {}
         Predicate::Attached(predicate) => {
-            apply_finite_inflection(&mut predicate.predicate, inflection);
+            apply_finite_inflection(&mut predicate.scope.host, inflection);
         }
     }
 }
@@ -445,105 +401,25 @@ pub(super) fn append_shared_predicate(
     predicate: Predicate,
 ) -> Option<IndependentClause> {
     match clause {
-        IndependentClause::Transitive(subject, first) => Some(IndependentClause::Predicated(
-            Some(subject),
-            PredicateExpression::Coordinated(Coordination::new(
-                PredicateExpression::Simple(Predicate::Transitive(first)),
-                junction,
-                PredicateExpression::Simple(predicate),
-            )),
-        )),
-        IndependentClause::Intransitive(subject, first) => Some(IndependentClause::Predicated(
-            Some(subject),
-            PredicateExpression::Coordinated(Coordination::new(
-                PredicateExpression::Simple(Predicate::Intransitive(first)),
-                junction,
-                PredicateExpression::Simple(predicate),
-            )),
-        )),
-        IndependentClause::Copular(subject, first) => Some(IndependentClause::Predicated(
-            Some(subject),
-            PredicateExpression::Coordinated(Coordination::new(
-                PredicateExpression::Simple(Predicate::Copular(first)),
-                junction,
-                PredicateExpression::Simple(predicate),
-            )),
-        )),
-        IndependentClause::Passive(subject, first) => Some(IndependentClause::Predicated(
-            Some(subject),
-            PredicateExpression::Coordinated(Coordination::new(
-                PredicateExpression::Simple(Predicate::Passive(first)),
-                junction,
-                PredicateExpression::Simple(predicate),
-            )),
-        )),
-        IndependentClause::Proform(subject, first) => Some(IndependentClause::Predicated(
-            Some(subject),
-            PredicateExpression::Coordinated(Coordination::new(
-                PredicateExpression::Simple(Predicate::Proform(first)),
-                junction,
-                PredicateExpression::Simple(predicate),
-            )),
-        )),
-        IndependentClause::Deontic(subject, modal, inner) => Some(IndependentClause::Predicated(
-            Some(subject),
-            PredicateExpression::Coordinated(Coordination::new(
-                PredicateExpression::Simple(Predicate::Deontic(DeonticPredicate {
-                    modal,
-                    inner: inner.map(Box::new),
-                })),
-                junction,
-                PredicateExpression::Simple(predicate),
-            )),
-        )),
-        IndependentClause::Imperative(first) => Some(IndependentClause::Predicated(
-            None,
-            PredicateExpression::Coordinated(Coordination::new(
-                PredicateExpression::Simple(first),
-                junction,
-                PredicateExpression::Simple(predicate),
-            )),
-        )),
-        IndependentClause::Predicated(subject, expression) => {
-            let expression = push_predicate_expression(expression, junction, predicate);
-            Some(IndependentClause::Predicated(subject, expression))
+        IndependentClause::Finite(mut finite) => {
+            finite.predicate = push_predicate_expression(finite.predicate, junction, predicate);
+            Some(IndependentClause::Finite(finite))
         }
-        IndependentClause::Complex(mut complex) => {
-            let after_matrix: Vec<_> = complex
-                .attachments
-                .iter()
-                .filter(|attachment| attachment.position == AttachmentPosition::AfterMatrix)
-                .cloned()
-                .collect();
-            if !after_matrix.is_empty()
-                && let Some((subject, PredicateExpression::Simple(first))) =
-                    into_predicate_expression(*complex.matrix.clone())
+        IndependentClause::Complex(complex) => {
+            if complex.attachment().position() == super::AttachmentPosition::AfterMatrix
+                && let Some(scoped) = append_shared_predicate_after_attachment(
+                    complex.host().clone(),
+                    complex.attachment().clone(),
+                    junction.clone(),
+                    predicate.clone(),
+                )
             {
-                let first = Predicate::Attached(AttachedPredicate {
-                    predicate: Box::new(first),
-                    attachments: after_matrix,
-                });
-                let predicated = IndependentClause::Predicated(
-                    subject,
-                    PredicateExpression::Coordinated(Coordination::new(
-                        PredicateExpression::Simple(first),
-                        junction,
-                        PredicateExpression::Simple(predicate),
-                    )),
-                );
-                complex
-                    .attachments
-                    .retain(|attachment| attachment.position == AttachmentPosition::BeforeMatrix);
-                return if complex.attachments.is_empty() {
-                    Some(predicated)
-                } else {
-                    complex.matrix = Box::new(predicated);
-                    Some(IndependentClause::Complex(complex))
-                };
+                return Some(scoped);
             }
-            let matrix = append_shared_predicate(*complex.matrix, junction, predicate)?;
-            complex.matrix = Box::new(matrix);
-            Some(IndependentClause::Complex(complex))
+            let host = append_shared_predicate(complex.host().clone(), junction, predicate)?;
+            Some(IndependentClause::Complex(
+                ComplexClause::from_declaration_parts(host, complex.attachment().clone()),
+            ))
         }
         IndependentClause::Coordinated(mut coordinated) => {
             let CoordinatedClauseMember::Independent(last) =
@@ -559,6 +435,54 @@ pub(super) fn append_shared_predicate(
     }
 }
 
+/// Moves a trailing clause edge onto the first predicate before adding a
+/// shared-subject continuation. Fronted edges stay outside the resulting
+/// coordination, so `If C, P unless U and Q` retains the surface scope
+/// `(P unless U) and Q` rather than widening `unless U` over both predicates.
+fn append_shared_predicate_after_attachment(
+    clause: IndependentClause,
+    attachment: ClauseAttachment,
+    junction: CoordinationJunction,
+    predicate: Predicate,
+) -> Option<IndependentClause> {
+    match clause {
+        IndependentClause::Finite(finite) => {
+            let PredicateExpression::Simple(first) = finite.predicate else {
+                return None;
+            };
+            let first = Predicate::Attached(AttachedPredicate {
+                scope: AttachmentScope::from_declaration_parts(first, attachment),
+            });
+            Some(IndependentClause::Finite(
+                FiniteClause::from_declaration_parts(
+                    finite.subject,
+                    PredicateExpression::Coordinated(Coordination::new(
+                        PredicateExpression::Simple(first),
+                        junction,
+                        PredicateExpression::Simple(predicate),
+                    )),
+                ),
+            ))
+        }
+        IndependentClause::Complex(complex)
+            if complex.attachment().position() == super::AttachmentPosition::BeforeMatrix =>
+        {
+            let host = append_shared_predicate_after_attachment(
+                complex.host().clone(),
+                attachment,
+                junction,
+                predicate,
+            )?;
+            Some(IndependentClause::Complex(
+                ComplexClause::from_declaration_parts(host, complex.attachment().clone()),
+            ))
+        }
+        IndependentClause::Complex(_)
+        | IndependentClause::Coordinated(_)
+        | IndependentClause::Existential(_) => None,
+    }
+}
+
 /// Adds one predicate without flattening a changed connective into the
 /// existing run. Predicate expressions are recursive specifically so
 /// `(attack or block) and has ...` keeps the `or` constituent as the first
@@ -570,6 +494,14 @@ fn push_predicate_expression(
     predicate: Predicate,
 ) -> PredicateExpression {
     match expression {
+        PredicateExpression::Simple(Predicate::Deontic(mut deontic))
+            if !matches!(predicate, Predicate::Deontic(_)) && deontic.inner.is_some() =>
+        {
+            deontic.inner = deontic
+                .inner
+                .map(|inner| Box::new(push_predicate_expression(*inner, junction, predicate)));
+            PredicateExpression::Simple(Predicate::Deontic(deontic))
+        }
         PredicateExpression::Coordinated(mut coordinated)
             if !connective_changes(
                 coordinated
@@ -591,45 +523,6 @@ fn push_predicate_expression(
     }
 }
 
-pub(super) fn into_predicate_expression(
-    clause: IndependentClause,
-) -> Option<(Option<Subject>, PredicateExpression)> {
-    match clause {
-        IndependentClause::Transitive(subject, predicate) => Some((
-            Some(subject),
-            PredicateExpression::Simple(Predicate::Transitive(predicate)),
-        )),
-        IndependentClause::Intransitive(subject, predicate) => Some((
-            Some(subject),
-            PredicateExpression::Simple(Predicate::Intransitive(predicate)),
-        )),
-        IndependentClause::Copular(subject, predicate) => Some((
-            Some(subject),
-            PredicateExpression::Simple(Predicate::Copular(predicate)),
-        )),
-        IndependentClause::Passive(subject, predicate) => Some((
-            Some(subject),
-            PredicateExpression::Simple(Predicate::Passive(predicate)),
-        )),
-        IndependentClause::Proform(subject, predicate) => Some((
-            Some(subject),
-            PredicateExpression::Simple(Predicate::Proform(predicate)),
-        )),
-        IndependentClause::Deontic(subject, modal, inner) => Some((
-            Some(subject),
-            PredicateExpression::Simple(Predicate::Deontic(DeonticPredicate {
-                modal,
-                inner: inner.map(Box::new),
-            })),
-        )),
-        IndependentClause::Imperative(predicate) => {
-            Some((None, PredicateExpression::Simple(predicate)))
-        }
-        IndependentClause::Predicated(subject, expression) => Some((subject, expression)),
-        _ => None,
-    }
-}
-
 /// Keeps a subjectless imperative as a complete clause member when there is no
 /// finite subject to share, or when a changed overt connective starts a new
 /// clause-level group (`C1 and C2, or P3`). The latter preserves ordinary
@@ -646,7 +539,10 @@ pub(super) fn append_subjectless_clause(
     Some(append_complete_clause(
         clause,
         junction.clone(),
-        IndependentClause::Imperative(predicate),
+        IndependentClause::Finite(FiniteClause::from_declaration_parts(
+            None,
+            PredicateExpression::Simple(predicate),
+        )),
     ))
 }
 
@@ -723,15 +619,8 @@ pub(super) fn starts_new_clause_group(
 
 pub(super) fn accepts_shared_predicate(clause: &IndependentClause) -> bool {
     match clause {
-        IndependentClause::Transitive(..)
-        | IndependentClause::Intransitive(..)
-        | IndependentClause::Copular(..)
-        | IndependentClause::Passive(..)
-        | IndependentClause::Proform(..)
-        | IndependentClause::Deontic(..)
-        | IndependentClause::Imperative(..)
-        | IndependentClause::Predicated(..) => true,
-        IndependentClause::Complex(complex) => accepts_shared_predicate(&complex.matrix),
+        IndependentClause::Finite(..) => true,
+        IndependentClause::Complex(complex) => accepts_shared_predicate(complex.host()),
         IndependentClause::Coordinated(coordination) => {
             coordination
                 .rest
@@ -755,11 +644,21 @@ pub(crate) fn finish_simple_clause(simple: SimpleClause) -> Option<IndependentCl
         elided,
     } = finish_predicate(simple.predicate)?;
     match (subject, modal, imperative) {
-        (None, None, true) => Some(IndependentClause::Imperative(predicate)),
-        (Some(subject), Some(modal), false) => Some(IndependentClause::Deontic(
-            subject,
-            modal,
-            if elided { None } else { Some(predicate) },
+        (None, None, true) => Some(IndependentClause::Finite(
+            FiniteClause::from_declaration_parts(None, PredicateExpression::Simple(predicate)),
+        )),
+        (Some(subject), Some(modal), false) => Some(IndependentClause::Finite(
+            FiniteClause::from_declaration_parts(
+                Some(subject),
+                PredicateExpression::Simple(Predicate::Deontic(DeonticPredicate {
+                    modal,
+                    inner: if elided {
+                        None
+                    } else {
+                        Some(Box::new(PredicateExpression::Simple(predicate)))
+                    },
+                })),
+            ),
         )),
         (Some(subject), None, false) => Some(independent_with_subject(subject, predicate)),
         _ => None,
@@ -770,21 +669,10 @@ pub(super) fn independent_with_subject(
     subject: Subject,
     predicate: Predicate,
 ) -> IndependentClause {
-    match predicate {
-        Predicate::Transitive(predicate) => IndependentClause::Transitive(subject, predicate),
-        Predicate::Intransitive(predicate) => IndependentClause::Intransitive(subject, predicate),
-        Predicate::Copular(predicate) => IndependentClause::Copular(subject, predicate),
-        Predicate::Passive(predicate) => IndependentClause::Passive(subject, predicate),
-        Predicate::Proform(predicate) => IndependentClause::Proform(subject, predicate),
-        Predicate::Deontic(predicate) => IndependentClause::Deontic(
-            subject,
-            predicate.modal,
-            predicate.inner.map(|inner| *inner),
-        ),
-        predicate @ Predicate::Attached(_) => {
-            IndependentClause::Predicated(Some(subject), PredicateExpression::Simple(predicate))
-        }
-    }
+    IndependentClause::Finite(FiniteClause::from_declaration_parts(
+        Some(subject),
+        PredicateExpression::Simple(predicate),
+    ))
 }
 
 #[allow(

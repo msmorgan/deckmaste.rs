@@ -335,77 +335,18 @@ impl<'syntax> RecoveryWalker<'syntax> {
         context: Option<RecoveryRole>,
     ) {
         match clause {
-            IndependentClause::Transitive(subject, predicate) => {
-                self.subject(subject, context);
-                self.transitive_predicate(predicate, context);
-            }
-            IndependentClause::Intransitive(subject, predicate) => {
-                self.subject(subject, context);
-                Self::predicate_head(predicate.head(), context);
-                self.predicate_elements(predicate.elements(), context);
-            }
-            IndependentClause::Copular(subject, predicate) => {
-                self.subject(subject, context);
-                self.copular_complement(predicate.complement(), context);
-                self.predicate_adjuncts(predicate.adjuncts(), context);
-            }
-            IndependentClause::Passive(subject, predicate) => {
-                self.subject(subject, context);
-                Self::predicate_head(predicate.head(), context);
-                if let Some(retained_object) = predicate.retained_object() {
-                    self.predicate_object(retained_object, context);
-                }
-                self.predicate_elements(predicate.elements(), context);
-            }
-            IndependentClause::Predicated(subject, expression) => {
-                if let Some(subject) = subject {
+            IndependentClause::Finite(finite) => {
+                if let Some(subject) = finite.subject() {
                     self.subject(subject, context);
                 }
-                self.predicate_expression(expression, context);
-            }
-            IndependentClause::Imperative(predicate) => self.predicate(predicate, context),
-            IndependentClause::Deontic(subject, _, predicate) => {
-                self.subject(subject, context);
-                if let Some(predicate) = predicate {
-                    self.predicate(predicate, context);
-                }
+                self.predicate_expression(finite.predicate(), context);
             }
             IndependentClause::Existential(existential) => {
-                self.noun_phrase(&existential.pivot, context);
-                self.predicate_adjuncts(&existential.adjuncts, context);
+                self.noun_phrase(existential.pivot(), context);
             }
-            IndependentClause::Proform(subject, _) => self.subject(subject, context),
             IndependentClause::Complex(complex) => {
-                self.independent_clause(&complex.matrix, context);
-                for attachment in &complex.attachments {
-                    match &attachment.payload {
-                        ClauseAttachmentKind::Dependent(clause) => {
-                            self.dependent_clause(clause, context);
-                        }
-                        ClauseAttachmentKind::Adjunct(adjunct) => {
-                            self.predicate_adjunct(adjunct, context);
-                        }
-                        ClauseAttachmentKind::Exception(rider) => {
-                            self.independent_clause(&rider.first, context);
-                            for conjunct in &rider.rest {
-                                self.independent_clause(&conjunct.clause, context);
-                            }
-                        }
-                        ClauseAttachmentKind::Restriction(run) => {
-                            for adjunct in run.first.adjuncts() {
-                                self.predicate_adjunct(adjunct, context);
-                            }
-                            for member in &run.rest {
-                                for adjunct in member.member.adjuncts() {
-                                    self.predicate_adjunct(adjunct, context);
-                                }
-                            }
-                        }
-                        ClauseAttachmentKind::Appositive(clause) => {
-                            self.independent_clause(clause, context);
-                        }
-                    }
-                }
+                self.independent_clause(complex.host(), context);
+                self.clause_attachment(complex.attachment(), context);
             }
             IndependentClause::Coordinated(coordinated) => {
                 self.independent_clause(&coordinated.first, context);
@@ -416,6 +357,36 @@ impl<'syntax> RecoveryWalker<'syntax> {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    fn clause_attachment(
+        &mut self,
+        attachment: &'syntax ClauseAttachment,
+        context: Option<RecoveryRole>,
+    ) {
+        match attachment.payload() {
+            ClauseAttachmentKind::Dependent(clause) => self.dependent_clause(clause, context),
+            ClauseAttachmentKind::Adjunct(adjunct) => self.predicate_adjunct(adjunct, context),
+            ClauseAttachmentKind::Exception(rider) => {
+                self.independent_clause(rider.first(), context);
+                for conjunct in rider.rest() {
+                    self.independent_clause(conjunct.clause(), context);
+                }
+            }
+            ClauseAttachmentKind::Restriction(run) => {
+                for adjunct in run.first().adjuncts() {
+                    self.predicate_adjunct(adjunct, context);
+                }
+                for member in run.rest() {
+                    for adjunct in member.member().adjuncts() {
+                        self.predicate_adjunct(adjunct, context);
+                    }
+                }
+            }
+            ClauseAttachmentKind::Appositive(clause) => {
+                self.independent_clause(clause, context);
             }
         }
     }
@@ -500,40 +471,12 @@ impl<'syntax> RecoveryWalker<'syntax> {
             Predicate::Proform(_) => {}
             Predicate::Deontic(predicate) => {
                 if let Some(inner) = predicate.inner() {
-                    self.predicate(inner, context);
+                    self.predicate_expression(inner, context);
                 }
             }
             Predicate::Attached(predicate) => {
                 self.predicate(predicate.predicate(), context);
-                for attachment in predicate.attachments() {
-                    match &attachment.payload {
-                        ClauseAttachmentKind::Dependent(clause) => {
-                            self.dependent_clause(clause, context);
-                        }
-                        ClauseAttachmentKind::Adjunct(adjunct) => {
-                            self.predicate_adjunct(adjunct, context);
-                        }
-                        ClauseAttachmentKind::Exception(rider) => {
-                            self.independent_clause(&rider.first, context);
-                            for conjunct in &rider.rest {
-                                self.independent_clause(&conjunct.clause, context);
-                            }
-                        }
-                        ClauseAttachmentKind::Restriction(run) => {
-                            for adjunct in run.first.adjuncts() {
-                                self.predicate_adjunct(adjunct, context);
-                            }
-                            for member in &run.rest {
-                                for adjunct in member.member.adjuncts() {
-                                    self.predicate_adjunct(adjunct, context);
-                                }
-                            }
-                        }
-                        ClauseAttachmentKind::Appositive(clause) => {
-                            self.independent_clause(clause, context);
-                        }
-                    }
-                }
+                self.clause_attachment(predicate.attachment(), context);
             }
         }
     }
@@ -1059,8 +1002,8 @@ mod tests {
         let oracle_text = OracleText {
             abilities: vec![
                 paragraph_recovered("clause"),
-                paragraph(IndependentClause::Intransitive(
-                    Subject(NounPhrase::from_nominal_declaration(
+                paragraph(finite(
+                    Some(Subject(NounPhrase::from_nominal_declaration(
                         NominalPhrase::test_from_projection_parts(
                             None,
                             vec![NominalModifier::Noun {
@@ -1074,8 +1017,8 @@ mod tests {
                             ))),
                             vec![],
                         ),
-                    )),
-                    intransitive(Vocab::Draw),
+                    ))),
+                    Predicate::Intransitive(intransitive(Vocab::Draw)),
                 )),
                 checked_ability(AbilityKind::Activated(ActivatedAbility {
                     cost: crate::cost::build_cost(
@@ -1107,8 +1050,9 @@ mod tests {
                         body: valid_test_paragraph(),
                     }],
                 })),
-                paragraph(IndependentClause::Imperative(Predicate::Transitive(
-                    TransitivePredicate {
+                paragraph(finite(
+                    None,
+                    Predicate::Transitive(TransitivePredicate {
                         head: predicate_head(Vocab::Draw),
                         kind: Transitive {
                             pre_object_elements: vec![],
@@ -1118,8 +1062,8 @@ mod tests {
                             })),
                         },
                         elements: vec![],
-                    },
-                ))),
+                    }),
+                )),
             ],
         };
 
@@ -1179,8 +1123,9 @@ mod tests {
         // qfloat round's walker regression.
         let mut head = predicate_head(Vocab::Draw);
         head.distributive_each = true;
-        let ast = paragraph(IndependentClause::Imperative(Predicate::Transitive(
-            TransitivePredicate {
+        let ast = paragraph(finite(
+            None,
+            Predicate::Transitive(TransitivePredicate {
                 head,
                 kind: Transitive {
                     pre_object_elements: vec![],
@@ -1196,8 +1141,8 @@ mod tests {
                     )),
                 },
                 elements: vec![],
-            },
-        )));
+            }),
+        ));
         let oracle_text = OracleText {
             abilities: vec![ast],
         };
@@ -1258,9 +1203,9 @@ mod tests {
             .expect("the recovery fixture uses a declared shared-determiner shape"),
         );
         let oracle_text = OracleText {
-            abilities: vec![paragraph(IndependentClause::Intransitive(
-                Subject(subject),
-                intransitive(Vocab::Draw),
+            abilities: vec![paragraph(finite(
+                Some(Subject(subject)),
+                Predicate::Intransitive(intransitive(Vocab::Draw)),
             ))],
         };
 
@@ -1338,6 +1283,13 @@ mod tests {
         )))
     }
 
+    fn finite(subject: Option<Subject>, predicate: Predicate) -> IndependentClause {
+        IndependentClause::Finite(FiniteClause::from_declaration_parts(
+            subject,
+            PredicateExpression::Simple(predicate),
+        ))
+    }
+
     fn paragraph_recovered(text: &str) -> Ability {
         checked_ability(AbilityKind::Paragraph(paragraph_body(
             SentenceBody::Recovered(recovered(text)),
@@ -1362,7 +1314,8 @@ mod tests {
     }
 
     fn valid_test_paragraph() -> Paragraph {
-        paragraph_body(SentenceBody::Independent(IndependentClause::Imperative(
+        paragraph_body(SentenceBody::Independent(finite(
+            None,
             Predicate::Intransitive(intransitive(Vocab::Draw)),
         )))
     }

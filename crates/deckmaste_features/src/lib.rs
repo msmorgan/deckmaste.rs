@@ -239,7 +239,6 @@ pub enum PronounCase {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
-#[serde(rename = "RelativeGap")]
 pub enum GapState {
     Subject,
     Object,

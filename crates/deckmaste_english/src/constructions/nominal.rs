@@ -2795,9 +2795,12 @@ mod tests {
             linearize_nominal_prepositional_form_with
         );
 
-        let IndependentClause::Imperative(mut predicate) = parsed_independent("Draw a card.")
-        else {
+        let IndependentClause::Finite(finite) = parsed_independent("Draw a card.") else {
             panic!("imperative fixture has an imperative predicate")
+        };
+        assert!(finite.subject().is_none());
+        let crate::syntax::PredicateExpression::Simple(mut predicate) = finite.predicate else {
+            panic!("imperative fixture has one predicate")
         };
         let crate::syntax::Predicate::Transitive(transitive) = &mut predicate else {
             panic!("draw fixture has a transitive predicate")
@@ -3588,9 +3591,12 @@ mod tests {
 
     #[test]
     fn by_gerund_pp_crosses_only_the_partial_chart_door() {
-        let IndependentClause::Imperative(mut predicate) = parsed_independent("Sacrifice a card.")
-        else {
+        let IndependentClause::Finite(finite) = parsed_independent("Sacrifice a card.") else {
             panic!("gerund fixture starts from an imperative predicate");
+        };
+        assert!(finite.subject().is_none());
+        let crate::syntax::PredicateExpression::Simple(mut predicate) = finite.predicate else {
+            panic!("gerund fixture starts from one predicate");
         };
         let crate::syntax::Predicate::Transitive(transitive) = &mut predicate else {
             panic!("sacrifice fixture has a transitive predicate")
@@ -3651,9 +3657,12 @@ mod tests {
     }
 
     fn reduced_predicate_and_adjunct() -> (TransitivePredicate, NounPhrase) {
-        let IndependentClause::Deontic(crate::syntax::Subject(subject), _, _) =
+        let IndependentClause::Finite(finite) =
             parsed_independent("A creature dealt damage this way can't block this turn.")
         else {
+            panic!("reduced-passive fixture has a deontic nominal subject")
+        };
+        let Some(crate::syntax::Subject(subject)) = finite.subject() else {
             panic!("reduced-passive fixture has a deontic nominal subject")
         };
         let crate::syntax::NounPhraseKind::Nominal(subject) = subject.kind() else {

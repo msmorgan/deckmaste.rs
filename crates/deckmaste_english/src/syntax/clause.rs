@@ -28,28 +28,76 @@ pub enum Clause {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum IndependentClause {
-    Transitive(Subject, TransitivePredicate),
-    Intransitive(Subject, IntransitivePredicate),
-    Copular(Subject, CopularPredicate),
-    Passive(Subject, PassivePredicate),
-    /// A finite clause whose subject scopes over one predicate expression.
-    /// Predicate coordination lives inside that expression, so the subject is
-    /// a sibling of the whole coordinated phrase rather than being buried in
-    /// its first conjunct.
-    Predicated(Option<Subject>, PredicateExpression),
-    Imperative(Predicate),
-    /// A modal clause. This leaf representation is retained for an
-    /// uncoordinated clause; when it participates in predicate coordination,
-    /// the modal is promoted to [`Predicate::Deontic`] like every other
-    /// conjunct.
-    Deontic(Subject, Modal, Option<Predicate>),
+    /// A subject (explicit for ordinary finite clauses, implicit for
+    /// imperatives) governing one recursively compositional predicate
+    /// expression.
+    Finite(FiniteClause),
     Existential(ExistentialClause),
-    Proform(Subject, ProPredicate),
     Complex(ComplexClause),
     /// Coordination of complete clauses, each with its own subject. This is
     /// distinct from [`PredicateExpression::Coordinated`], where one subject
     /// scopes over every predicate conjunct.
     Coordinated(CoordinatedIndependentClause),
+}
+
+impl IndependentClause {
+    /// Returns the explicit subject of an ordinary finite clause.
+    #[must_use]
+    pub fn subject(&self) -> Option<&Subject> {
+        match self {
+            Self::Finite(finite) => finite.subject(),
+            _ => None,
+        }
+    }
+
+    /// Returns the predicate expression owned by an ordinary finite clause.
+    #[must_use]
+    pub fn predicate_expression(&self) -> Option<&PredicateExpression> {
+        match self {
+            Self::Finite(finite) => Some(finite.predicate()),
+            _ => None,
+        }
+    }
+
+    /// Returns an uncoordinated predicate when this is an ordinary finite
+    /// clause with a single predicate expression.
+    #[must_use]
+    pub fn simple_predicate(&self) -> Option<&Predicate> {
+        let PredicateExpression::Simple(predicate) = self.predicate_expression()? else {
+            return None;
+        };
+        Some(predicate)
+    }
+}
+
+/// The canonical semantic owner for an ordinary independent clause.
+///
+/// A missing subject represents the implicit addressee of an imperative. The
+/// predicate expression owns every shared-subject continuation, including
+/// modal scope, so leaf predicate classes never duplicate subject ownership.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct FiniteClause {
+    pub(crate) subject: Option<Subject>,
+    pub(crate) predicate: PredicateExpression,
+}
+
+impl FiniteClause {
+    pub(crate) const fn from_declaration_parts(
+        subject: Option<Subject>,
+        predicate: PredicateExpression,
+    ) -> Self {
+        Self { subject, predicate }
+    }
+
+    #[must_use]
+    pub const fn subject(&self) -> Option<&Subject> {
+        self.subject.as_ref()
+    }
+
+    #[must_use]
+    pub const fn predicate(&self) -> &PredicateExpression {
+        &self.predicate
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -105,7 +153,7 @@ pub enum PredicateExpression {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct DeonticPredicate {
     pub(crate) modal: Modal,
-    pub(crate) inner: Option<Box<Predicate>>,
+    pub(crate) inner: Option<Box<PredicateExpression>>,
 }
 
 impl DeonticPredicate {
@@ -117,28 +165,27 @@ impl DeonticPredicate {
 
     /// Returns the governed predicate, or `None` for verbal ellipsis.
     #[must_use]
-    pub fn inner(&self) -> Option<&Predicate> {
+    pub fn inner(&self) -> Option<&PredicateExpression> {
         self.inner.as_deref()
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct AttachedPredicate {
-    pub(crate) predicate: Box<Predicate>,
-    pub(crate) attachments: Vec<ClauseAttachment>,
+    pub(crate) scope: AttachmentScope<Predicate>,
 }
 
 impl AttachedPredicate {
     /// Returns the predicate whose local scope owns the trailing attachments.
     #[must_use]
     pub fn predicate(&self) -> &Predicate {
-        self.predicate.as_ref()
+        self.scope.host()
     }
 
-    /// Returns the locally scoped attachments in surface order.
+    /// Returns the single outer attachment owned by this predicate member.
     #[must_use]
-    pub fn attachments(&self) -> &[ClauseAttachment] {
-        &self.attachments
+    pub fn attachment(&self) -> &ClauseAttachment {
+        self.scope.attachment()
     }
 }
 
@@ -781,9 +828,6 @@ pub enum RelativeMarker {
     Zero,
 }
 
-/// Compatibility name for the selection-stratum gap-state feature.
-pub use crate::features::GapState as RelativeGap;
-
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum RelativeBody {
     SubjectGap(Predicate),
@@ -795,37 +839,65 @@ pub enum RelativeBody {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ComplexClause {
-    pub(crate) matrix: Box<IndependentClause>,
-    pub(crate) attachments: Vec<ClauseAttachment>,
+    pub(crate) scope: AttachmentScope<IndependentClause>,
 }
 
 impl ComplexClause {
     pub(crate) fn from_declaration_parts(
-        matrix: IndependentClause,
-        attachments: Vec<ClauseAttachment>,
+        host: IndependentClause,
+        attachment: ClauseAttachment,
     ) -> Self {
         Self {
-            matrix: Box::new(matrix),
-            attachments,
+            scope: AttachmentScope::from_declaration_parts(host, attachment),
         }
     }
 
     #[must_use]
-    pub fn matrix(&self) -> &IndependentClause {
-        &self.matrix
+    pub fn host(&self) -> &IndependentClause {
+        self.scope.host()
     }
 
     #[must_use]
-    pub fn attachments(&self) -> &[ClauseAttachment] {
-        &self.attachments
+    pub fn attachment(&self) -> &ClauseAttachment {
+        self.scope.attachment()
+    }
+}
+
+/// One explicitly scoped attachment edge around a semantic host.
+///
+/// Nesting these edges records attachment association directly. No flat list
+/// or construction-history rule is needed to recover which attachment was
+/// applied outermost.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct AttachmentScope<H> {
+    pub(crate) host: Box<H>,
+    pub(crate) attachment: Box<ClauseAttachment>,
+}
+
+impl<H> AttachmentScope<H> {
+    pub(crate) fn from_declaration_parts(host: H, attachment: ClauseAttachment) -> Self {
+        Self {
+            host: Box::new(host),
+            attachment: Box::new(attachment),
+        }
+    }
+
+    #[must_use]
+    pub fn host(&self) -> &H {
+        self.host.as_ref()
+    }
+
+    #[must_use]
+    pub fn attachment(&self) -> &ClauseAttachment {
+        self.attachment.as_ref()
     }
 }
 
 /// **Measured, `comma` field KEPT** (surface-fact diet, 2026-07-30
 /// measurement round): attachments are independent pre-/post-matrix riders on
-/// a host clause, not members of a coordination — there is no `conjunction`
-/// field and the parent holds a flat `Vec<Attachment<T>>`, not a
-/// `first`/`rest` pair whose length could drive a serial-comma rule. Across
+/// a host, not members of a coordination — there is no `conjunction` field,
+/// and recursive [`AttachmentScope`] edges preserve association directly
+/// rather than deriving punctuation from a `first`/`rest` member count. Across
 /// its construction sites (generated F03 declarations and `grammar/ability.rs`)
 /// `comma` takes at least 3 distinct forms: fronted/trailing comma witnesses,
 /// no-comma witnesses, and ability-layer attachments. There is no coordination
@@ -1282,15 +1354,32 @@ pub use crate::features::Conjunction as PredicateConjunction;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ExistentialClause {
-    pub form: ExistentialForm,
-    pub pivot: NounPhrase,
-    pub adjuncts: Vec<PredicateAdjunct>,
+    pub(crate) form: ExistentialForm,
+    pub(crate) pivot: NounPhrase,
+}
+
+impl ExistentialClause {
+    pub(crate) const fn from_declaration_parts(form: ExistentialForm, pivot: NounPhrase) -> Self {
+        Self { form, pivot }
+    }
+
+    /// Returns the validated existential verb form.
+    #[must_use]
+    pub const fn form(&self) -> ExistentialForm {
+        self.form
+    }
+
+    /// Returns the noun phrase whose number agrees with the existential form.
+    #[must_use]
+    pub const fn pivot(&self) -> &NounPhrase {
+        &self.pivot
+    }
 }
 
 /// **Measured, contracted `is` KEPT** (surface-fact diet, 2026-07-30
 /// measurement round): unlike its `PredicateHead`/`Copula` siblings, this one
 /// cleanly confirms half of the ticket's hypothesis. Deriving "sentence-
-/// initial existential never contracts" (`ContractedIs → Is` unconditionally)
+/// initial existential never contracts" (`there's → there is` unconditionally)
 /// leaves only 9 mismatches out of 31685 supported faces, and all 9 are
 /// **subordinate-position** `there's`, never sentence-initial: "Aang has
 /// vigilance **as long as there's** a Lesson card in your graveyard." (Aang,
@@ -1301,7 +1390,7 @@ pub struct ExistentialClause {
 /// the hypothesis holds too, precisely on the residual; deriving would need
 /// clause-position context this node doesn't carry, so the field stays
 /// stored rather than half-deriving it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct ExistentialForm {
     verb_slot: crate::features::VerbSlot,
     contraction: Contraction,
@@ -1406,65 +1495,5 @@ impl ExistentialForm {
             | crate::features::VerbSlot::Past { number, .. } => number,
             _ => unreachable!(),
         }
-    }
-
-    const fn legacy_variant(self) -> (u32, &'static str) {
-        match (self.verb_slot, self.contraction) {
-            (
-                crate::features::VerbSlot::Present {
-                    number: crate::features::Number::Singular,
-                    ..
-                },
-                Contraction::Full,
-            ) => (0, "Is"),
-            (
-                crate::features::VerbSlot::Present {
-                    number: crate::features::Number::Singular,
-                    ..
-                },
-                Contraction::Contracted,
-            ) => (1, "ContractedIs"),
-            (
-                crate::features::VerbSlot::Present {
-                    number: crate::features::Number::Plural,
-                    ..
-                },
-                Contraction::Full,
-            ) => (2, "Are"),
-            (
-                crate::features::VerbSlot::Past {
-                    number: crate::features::Number::Singular,
-                    ..
-                },
-                Contraction::Full,
-            ) => (3, "Was"),
-            (
-                crate::features::VerbSlot::Past {
-                    number: crate::features::Number::Plural,
-                    ..
-                },
-                Contraction::Full,
-            ) => (4, "Were"),
-            _ => unreachable!(),
-        }
-    }
-}
-
-#[allow(
-    non_upper_case_globals,
-    reason = "legacy enum-style ExistentialForm value paths are public API"
-)]
-impl ExistentialForm {
-    pub const Is: Self = Self::IS;
-    pub const ContractedIs: Self = Self::CONTRACTED_IS;
-    pub const Are: Self = Self::ARE;
-    pub const Was: Self = Self::WAS;
-    pub const Were: Self = Self::WERE;
-}
-
-impl serde::Serialize for ExistentialForm {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let (variant_index, variant) = self.legacy_variant();
-        serializer.serialize_unit_variant("ExistentialForm", variant_index, variant)
     }
 }

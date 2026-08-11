@@ -517,6 +517,26 @@ mod tests {
         )
     }
 
+    fn is_imperative_transitive(clause: &crate::syntax::IndependentClause) -> bool {
+        clause.subject().is_none()
+            && matches!(
+                clause.predicate_expression(),
+                Some(crate::syntax::PredicateExpression::Simple(
+                    crate::syntax::Predicate::Transitive(_)
+                ))
+            )
+    }
+
+    fn is_deontic_with_inner(clause: &crate::syntax::IndependentClause) -> bool {
+        clause.subject().is_some()
+            && matches!(
+                clause.predicate_expression(),
+                Some(crate::syntax::PredicateExpression::Simple(
+                    crate::syntax::Predicate::Deontic(predicate)
+                )) if predicate.inner().is_some()
+            )
+    }
+
     fn assert_generated<'a>(
         report: &'a FragmentReport,
         construction: &str,
@@ -776,11 +796,12 @@ mod tests {
         assert_eq!(causative.evidence_value(), Some("category=VerbPhrase"));
         assert!(matches!(
             sentence.fragment(),
-            Some(Fragment::Sentence(Sentence {
-                body: crate::syntax::SentenceBody::Independent(
-                    crate::syntax::IndependentClause::Deontic(_, _, Some(_))
-                ),
-            }))
+            Some(Fragment::Sentence(sentence))
+                if matches!(
+                    sentence.body(),
+                    crate::syntax::SentenceBody::Independent(clause)
+                        if is_deontic_with_inner(clause)
+                )
         ));
 
         let cost = production_fragment("Discard a card", FragmentKind::Cost);
@@ -797,9 +818,7 @@ mod tests {
             Some(Fragment::Cost(cost)) if matches!(
                 cost.components(),
                 [crate::syntax::CostComponent::Clause(clause)]
-                    if matches!(clause.as_ref(), crate::syntax::IndependentClause::Imperative(
-                        crate::syntax::Predicate::Transitive(_)
-                    ))
+                    if is_imperative_transitive(clause)
             )
         ));
 
@@ -822,9 +841,7 @@ mod tests {
         assert!(matches!(
             cost.components(),
             [crate::syntax::CostComponent::Clause(clause)]
-                if matches!(clause.as_ref(), crate::syntax::IndependentClause::Imperative(
-                    crate::syntax::Predicate::Transitive(_)
-                ))
+                if is_imperative_transitive(clause)
         ));
 
         let ability = production_fragment(
@@ -841,11 +858,12 @@ mod tests {
         };
         assert!(matches!(
             activated.effect.sentences.as_slice(),
-            [Sentence {
-                body: crate::syntax::SentenceBody::Independent(
-                    crate::syntax::IndependentClause::Deontic(_, _, Some(_))
-                ),
-            }]
+            [sentence]
+                if matches!(
+                    sentence.body(),
+                    crate::syntax::SentenceBody::Independent(clause)
+                        if is_deontic_with_inner(clause)
+                )
         ));
     }
 

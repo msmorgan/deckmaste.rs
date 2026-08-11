@@ -428,17 +428,6 @@ impl RuleBuilder {
             N::VerbPhrase,
             [n(N::VerbPhrase), n(N::CoordinatedModifier)],
         );
-        self.add(
-            RuleTag::CopularRemainderCoordinatedAdjective,
-            N::CopularRemainder,
-            [n(N::CoordinatedModifier)],
-        );
-        self.add(
-            RuleTag::RelativeContractedCopularCoordinatedAdjective,
-            N::RelativeClause,
-            [l(L::SubjectAuxiliary), n(N::CoordinatedModifier)],
-        );
-
         // Family A: a power/toughness value complement on a characteristic
         // nominal (`base power and toughness X/X`). Mirrors the quantity
         // complement (`base power 2`) for the `N/N` token; the shared `base`

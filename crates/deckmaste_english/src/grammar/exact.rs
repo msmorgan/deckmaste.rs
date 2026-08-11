@@ -1724,8 +1724,11 @@ mod tests {
         // two forms before exact replay, or guess punctuation from the AST.
         let expected = crate::syntax::Sentence {
             body: crate::syntax::SentenceBody::Independent(
-                crate::syntax::IndependentClause::Imperative(crate::syntax::Predicate::Transitive(
-                    crate::syntax::HeadedPredicate {
+                crate::syntax::IndependentClause::Finite(
+                    crate::syntax::FiniteClause::from_declaration_parts(
+                        None,
+                        crate::syntax::PredicateExpression::Simple(
+                            crate::syntax::Predicate::Transitive(crate::syntax::HeadedPredicate {
                         head: crate::syntax::PredicateHead {
                             auxiliaries: Vec::new(),
                             first_auxiliary_contracted_with_subject:
@@ -1752,8 +1755,10 @@ mod tests {
                             ),
                         },
                         elements: Vec::new(),
-                    },
-                )),
+                            }),
+                        ),
+                    ),
+                ),
             ),
         };
 
@@ -2074,18 +2079,26 @@ mod tests {
     fn main_clause_transitive_object(
         clause: &crate::syntax::IndependentClause,
     ) -> Option<&NounPhrase> {
+        fn transitive(
+            expression: &crate::syntax::PredicateExpression,
+        ) -> Option<&crate::syntax::TransitivePredicate> {
+            match expression {
+                crate::syntax::PredicateExpression::Simple(
+                    crate::syntax::Predicate::Transitive(predicate),
+                ) => Some(predicate),
+                crate::syntax::PredicateExpression::Simple(crate::syntax::Predicate::Deontic(
+                    predicate,
+                )) => predicate.inner().and_then(transitive),
+                crate::syntax::PredicateExpression::Coordinated(coordination) => {
+                    coordination.conjuncts().first().and_then(transitive)
+                }
+                crate::syntax::PredicateExpression::Simple(_) => None,
+            }
+        }
         let predicate = match clause {
-            crate::syntax::IndependentClause::Transitive(_, predicate)
-            | crate::syntax::IndependentClause::Deontic(
-                _,
-                _,
-                Some(crate::syntax::Predicate::Transitive(predicate)),
-            )
-            | crate::syntax::IndependentClause::Imperative(crate::syntax::Predicate::Transitive(
-                predicate,
-            )) => predicate,
+            crate::syntax::IndependentClause::Finite(finite) => transitive(finite.predicate())?,
             crate::syntax::IndependentClause::Complex(complex) => {
-                return main_clause_transitive_object(&complex.matrix);
+                return main_clause_transitive_object(complex.host());
             }
             _ => return None,
         };
@@ -2101,7 +2114,7 @@ mod tests {
         match clause {
             crate::syntax::IndependentClause::Coordinated(coordination) => Some(coordination),
             crate::syntax::IndependentClause::Complex(complex) => {
-                matrix_clause_coordination(&complex.matrix)
+                matrix_clause_coordination(complex.host())
             }
             _ => None,
         }
@@ -2736,12 +2749,18 @@ mod tests {
             SelfReference::new("Shadow the Hedgehog", true),
         );
         let selected_matches = (|| {
-            let crate::syntax::SentenceBody::Independent(
-                crate::syntax::IndependentClause::Intransitive(crate::syntax::Subject(subject), _),
-            ) = &sentence.body
-            else {
+            let crate::syntax::SentenceBody::Independent(clause) = &sentence.body else {
                 return false;
             };
+            let Some(crate::syntax::Subject(subject)) = clause.subject() else {
+                return false;
+            };
+            if !matches!(
+                clause.simple_predicate(),
+                Some(crate::syntax::Predicate::Intransitive(_))
+            ) {
+                return false;
+            }
             let crate::syntax::NounPhraseKind::Coordinated(subject) = subject.kind() else {
                 return false;
             };
@@ -2808,13 +2827,16 @@ mod tests {
         };
         assert_eq!(continuation.comma, Comma::Present);
         assert_eq!(continuation.conjunction, Some(Conjunction::And));
-        let crate::syntax::IndependentClause::Deontic(
-            _,
-            _,
-            Some(crate::syntax::Predicate::Transitive(first_predicate)),
-        ) = coordination.first.as_ref()
+        let Some(crate::syntax::Predicate::Deontic(deontic)) =
+            coordination.first.simple_predicate()
         else {
             panic!("selected first clause lost its deontic predicate: {reading:#?}");
+        };
+        let Some(crate::syntax::PredicateExpression::Simple(crate::syntax::Predicate::Transitive(
+            first_predicate,
+        ))) = deontic.inner()
+        else {
+            panic!("selected first clause lost its governed predicate: {reading:#?}");
         };
         let crate::syntax::PredicateObject::NounPhrase(object) = first_predicate.object() else {
             panic!("selected first clause lost its noun-phrase object: {reading:#?}");

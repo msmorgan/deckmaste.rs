@@ -1056,9 +1056,26 @@ mod tests {
     use crate::Catalogs;
     use crate::Fragment;
     use crate::FragmentKind;
+    use crate::features::Contraction;
+    use crate::features::GapState;
     use crate::features::Number;
     use crate::parse_fragment;
+    use crate::syntax::AttachmentPosition;
+    use crate::syntax::ClauseAttachmentKind;
+    use crate::syntax::CoordinatedAdjectivePhrase;
+    use crate::syntax::CopularComplement;
+    use crate::syntax::DependentClause;
+    use crate::syntax::IndependentClause;
+    use crate::syntax::NominalComplement;
     use crate::syntax::NounPhraseKind;
+    use crate::syntax::Predicate;
+    use crate::syntax::PredicateAdjunct;
+    use crate::syntax::PredicateExpression;
+    use crate::syntax::RelativeBody;
+    use crate::syntax::RelativeClause;
+    use crate::syntax::SentenceBody;
+    use crate::syntax::SubordinateBody;
+    use crate::syntax::Subordinator;
     use crate::syntax::ThisCardForm;
 
     fn collect_constructions<'a>(
@@ -1114,6 +1131,40 @@ mod tests {
             panic!("expected optional construction role {role:?}: {projection:#?}");
         };
         value
+    }
+
+    fn clean_fragment(source: &str, catalogs: &Catalogs, kind: FragmentKind) -> Fragment {
+        let report = parse_fragment(source, catalogs, kind, "", false);
+        assert!(
+            report.clean(),
+            "projection fixture must parse cleanly: {source}"
+        );
+        report
+            .into_fragment()
+            .expect("a clean projection fixture has a semantic fragment")
+    }
+
+    fn independent_sentence(fragment: &Fragment) -> &IndependentClause {
+        let Fragment::Sentence(sentence) = fragment else {
+            panic!("expected a sentence fragment");
+        };
+        let SentenceBody::Independent(clause) = sentence.body() else {
+            panic!("expected an independent sentence body");
+        };
+        clause
+    }
+
+    fn nominal_relative(fragment: &Fragment) -> &RelativeClause {
+        let Fragment::Nominal(noun_phrase) = fragment else {
+            panic!("expected a nominal fragment");
+        };
+        let NounPhraseKind::Nominal(nominal) = noun_phrase.kind() else {
+            panic!("expected a nominal noun phrase");
+        };
+        let [NominalComplement::Relative(relative)] = nominal.complements() else {
+            panic!("expected exactly one relative complement");
+        };
+        relative
     }
 
     #[test]
@@ -1497,5 +1548,805 @@ mod tests {
             projected_verb_analysis(alternative).instance().verb,
             crate::word::Verb::Word(crate::word::Vocab::Block)
         );
+    }
+
+    #[test]
+    fn f02_projection_uses_canonical_finite_subject_and_predicate_roles() {
+        let explicit = clean_fragment(
+            "You may draw a card.",
+            &Catalogs::default(),
+            FragmentKind::Sentence,
+        );
+        let IndependentClause::Finite(finite) = independent_sentence(&explicit) else {
+            panic!("ordinary finite clauses must use the canonical finite owner");
+        };
+        assert!(finite.subject().is_some());
+        let PredicateExpression::Simple(Predicate::Deontic(deontic)) = finite.predicate() else {
+            panic!("the modal must live in the predicate expression");
+        };
+        assert!(matches!(
+            deontic.inner(),
+            Some(PredicateExpression::Simple(Predicate::Transitive(_)))
+        ));
+
+        let projection = super::project_fragment(&explicit).expect("the finite sentence projects");
+        let clause = required_construction_role(&projection, "clause");
+        assert_eq!(
+            (clause.category, clause.construction),
+            ("Clause", "clause_simple")
+        );
+        let simple = required_construction_role(clause, "simple");
+        assert_eq!(simple.construction, "simple_clause_subject");
+        assert_eq!(
+            simple.roles.keys().copied().collect::<Vec<_>>(),
+            ["predicate", "subject"]
+        );
+        assert_eq!(
+            required_construction_role(simple, "subject").category,
+            "NounPhrase"
+        );
+        assert_eq!(
+            required_construction_role(simple, "predicate").category,
+            "VerbPhrase"
+        );
+
+        let imperative =
+            clean_fragment("Draw a card.", &Catalogs::default(), FragmentKind::Sentence);
+        let IndependentClause::Finite(finite) = independent_sentence(&imperative) else {
+            panic!("imperatives must use the canonical finite owner");
+        };
+        assert!(finite.subject().is_none());
+        assert!(matches!(
+            finite.predicate(),
+            PredicateExpression::Simple(Predicate::Transitive(_))
+        ));
+
+        let projection =
+            super::project_fragment(&imperative).expect("the imperative sentence projects");
+        let clause = required_construction_role(&projection, "clause");
+        let simple = required_construction_role(clause, "simple");
+        assert_eq!(simple.construction, "simple_clause_subjectless");
+        assert_eq!(
+            simple.roles.keys().copied().collect::<Vec<_>>(),
+            ["predicate"]
+        );
+    }
+
+    #[test]
+    fn f02_projection_keeps_existential_and_copular_construction_owners() {
+        let catalogs = Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"]);
+
+        let existential = clean_fragment("There are creatures.", &catalogs, FragmentKind::Sentence);
+        let IndependentClause::Existential(existential_clause) = independent_sentence(&existential)
+        else {
+            panic!("existential syntax must keep its specialized semantic owner");
+        };
+        assert!(matches!(
+            existential_clause.pivot.kind(),
+            NounPhraseKind::Nominal(_)
+        ));
+
+        let projection =
+            super::project_fragment(&existential).expect("the existential sentence projects");
+        let clause = required_construction_role(&projection, "clause");
+        assert_eq!(
+            (
+                clause.category,
+                clause.construction,
+                clause.form,
+                clause.ordinal,
+            ),
+            ("Clause", "clause_existential", "only", 0)
+        );
+        assert!(clause.literals.is_empty());
+        assert_eq!(
+            clause.roles.keys().copied().collect::<Vec<_>>(),
+            ["existential", "pivot"]
+        );
+        let Some(ProjectedValue::Atom(ProjectedAtom::Identity {
+            provider,
+            value_type,
+            ..
+        })) = clause.roles.get("existential")
+        else {
+            panic!("existential form must retain its typed identity");
+        };
+        assert_eq!((*provider, *value_type), ("Existential", "ExistentialForm"));
+        assert_eq!(
+            required_construction_role(clause, "pivot").category,
+            "NounPhrase"
+        );
+
+        for (source, construction, contraction, roles) in [
+            (
+                "This creature is red.",
+                "clause_copular",
+                Contraction::Full,
+                &["copula", "remainder", "subject"][..],
+            ),
+            (
+                "It's red.",
+                "clause_contracted_copular",
+                Contraction::Contracted,
+                &["remainder", "subject_auxiliary"][..],
+            ),
+        ] {
+            let fragment = clean_fragment(source, &catalogs, FragmentKind::Sentence);
+            let IndependentClause::Finite(finite) = independent_sentence(&fragment) else {
+                panic!("copular syntax must use the canonical finite owner: {source}");
+            };
+            assert!(finite.subject().is_some());
+            let PredicateExpression::Simple(Predicate::Copular(copular)) = finite.predicate()
+            else {
+                panic!("copular syntax must live in the finite predicate: {source}");
+            };
+            assert_eq!(copular.copula().contracted_with_subject(), contraction);
+            assert!(matches!(
+                copular.complement(),
+                CopularComplement::Adjective(_)
+            ));
+
+            let projection =
+                super::project_fragment(&fragment).expect("the copular sentence projects");
+            let clause = required_construction_role(&projection, "clause");
+            assert_eq!(
+                (
+                    clause.category,
+                    clause.construction,
+                    clause.form,
+                    clause.ordinal,
+                ),
+                ("Clause", construction, "only", 0),
+                "{source}"
+            );
+            assert!(clause.literals.is_empty(), "{source}");
+            assert_eq!(
+                clause.roles.keys().copied().collect::<Vec<_>>(),
+                roles,
+                "{source}"
+            );
+            let remainder = required_construction_role(clause, "remainder");
+            assert_eq!(
+                (remainder.category, remainder.construction),
+                ("CopularRemainder", "copular_remainder_adjective"),
+                "{source}"
+            );
+            assert_eq!(
+                remainder.roles.keys().copied().collect::<Vec<_>>(),
+                ["complement"],
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn f03_projection_preserves_recursive_one_edge_attachment_scope() {
+        let catalogs =
+            Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature", "Spell"]);
+        let fragment = clean_fragment(
+            "At the beginning of each upkeep, if no spells were cast last turn, transform this creature.",
+            &catalogs,
+            FragmentKind::Sentence,
+        );
+        let IndependentClause::Complex(outer) = independent_sentence(&fragment) else {
+            panic!("the first fronted constituent must own the outer scope edge");
+        };
+        assert_eq!(
+            outer.attachment().position(),
+            AttachmentPosition::BeforeMatrix
+        );
+        assert!(outer.attachment().comma().is_present());
+        assert!(matches!(
+            outer.attachment().payload(),
+            ClauseAttachmentKind::Adjunct(PredicateAdjunct::Prepositional(_))
+        ));
+
+        let IndependentClause::Complex(inner) = outer.host() else {
+            panic!("the outer edge must recursively wrap the next scoped edge");
+        };
+        assert_eq!(
+            inner.attachment().position(),
+            AttachmentPosition::BeforeMatrix
+        );
+        assert!(inner.attachment().comma().is_present());
+        assert!(matches!(
+            inner.attachment().payload(),
+            ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                Subordinator::If,
+                SubordinateBody::Finite(condition),
+            )) if matches!(condition.as_ref(), IndependentClause::Finite(_))
+        ));
+        assert!(matches!(inner.host(), IndependentClause::Finite(_)));
+
+        let projection =
+            super::project_fragment(&fragment).expect("the recursive attachment sentence projects");
+        let outer = required_construction_role(&projection, "clause");
+        assert_eq!(outer.construction, "clause_prepositional_before");
+        assert_eq!(
+            outer.roles.keys().copied().collect::<Vec<_>>(),
+            ["host", "preposition"]
+        );
+        let inner = required_construction_role(outer, "host");
+        assert_eq!(inner.construction, "clause_subordinate_before");
+        assert_eq!(
+            inner.roles.keys().copied().collect::<Vec<_>>(),
+            ["condition", "host", "subordinator"]
+        );
+        assert_eq!(
+            required_construction_role(inner, "host").construction,
+            "clause_simple"
+        );
+    }
+
+    #[test]
+    fn f03_projection_distinguishes_trailing_subordinate_comma_forms() {
+        let catalogs =
+            Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature", "Spell"]);
+        for (source, construction, comma, subordinator, literals) in [
+            (
+                "You may cast this spell as though it had flash.",
+                "clause_subordinate_after",
+                crate::features::Comma::Absent,
+                Subordinator::AsThough,
+                &[][..],
+            ),
+            (
+                "Target creature gets +X/+0 until end of turn, where X is the number of creatures you control.",
+                "clause_subordinate_after_comma",
+                crate::features::Comma::Present,
+                Subordinator::Where,
+                &[","][..],
+            ),
+        ] {
+            let fragment = clean_fragment(source, &catalogs, FragmentKind::Sentence);
+            let IndependentClause::Complex(complex) = independent_sentence(&fragment) else {
+                panic!("the trailing subordinate must be one recursive scope edge: {source}");
+            };
+            assert_eq!(
+                complex.attachment().position(),
+                AttachmentPosition::AfterMatrix
+            );
+            assert_eq!(complex.attachment().comma(), comma);
+            assert!(matches!(complex.host(), IndependentClause::Finite(_)));
+            assert!(matches!(
+                complex.attachment().payload(),
+                ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                    actual,
+                    SubordinateBody::Finite(condition),
+                )) if *actual == subordinator
+                    && matches!(condition.as_ref(), IndependentClause::Finite(_))
+            ));
+
+            let projection =
+                super::project_fragment(&fragment).expect("the trailing subordinate projects");
+            let clause = required_construction_role(&projection, "clause");
+            assert_eq!(
+                (
+                    clause.category,
+                    clause.construction,
+                    clause.form,
+                    clause.ordinal,
+                ),
+                ("Clause", construction, "only", 0),
+                "{source}"
+            );
+            assert_eq!(clause.literals, literals, "{source}");
+            assert_eq!(
+                clause.roles.keys().copied().collect::<Vec<_>>(),
+                ["condition", "host", "subordinator"],
+                "{source}"
+            );
+            assert_eq!(
+                required_construction_role(clause, "host").category,
+                "Clause",
+                "{source}"
+            );
+            assert_eq!(
+                required_construction_role(clause, "condition").category,
+                "Clause",
+                "{source}"
+            );
+            let Some(ProjectedValue::Atom(ProjectedAtom::Identity {
+                provider,
+                value_type,
+                value,
+            })) = clause.roles.get("subordinator")
+            else {
+                panic!("the subordinator must retain its typed identity: {source}");
+            };
+            assert_eq!((*provider, *value_type), ("Subordinator", "Subordinator"));
+            assert_eq!(value.downcast_ref::<Subordinator>(), Some(&subordinator));
+        }
+    }
+
+    #[test]
+    fn f03_projection_preserves_restriction_sequence_roles_and_member_forms() {
+        let fragment = clean_fragment(
+            "Activate only as a sorcery and only once each turn.",
+            &Catalogs::default(),
+            FragmentKind::Sentence,
+        );
+        let IndependentClause::Complex(complex) = independent_sentence(&fragment) else {
+            panic!("the restriction run must be one trailing recursive scope edge");
+        };
+        assert_eq!(
+            complex.attachment().position(),
+            AttachmentPosition::AfterMatrix
+        );
+        assert!(!complex.attachment().comma().is_present());
+        let ClauseAttachmentKind::Restriction(run) = complex.attachment().payload() else {
+            panic!("the attachment must retain its typed restriction payload");
+        };
+        assert!(matches!(
+            run.first().adjuncts(),
+            [PredicateAdjunct::Prepositional(_)]
+        ));
+        let [continuation] = run.rest() else {
+            panic!("the two-member restriction run must have one continuation");
+        };
+        assert_eq!(
+            continuation.conjunction(),
+            Some(crate::features::Conjunction::And)
+        );
+        assert!(matches!(
+            continuation.member().adjuncts(),
+            [PredicateAdjunct::Adverb(_), PredicateAdjunct::Temporal(_)]
+        ));
+
+        let projection =
+            super::project_fragment(&fragment).expect("the restriction sentence projects");
+        let clause = required_construction_role(&projection, "clause");
+        assert_eq!(
+            (
+                clause.category,
+                clause.construction,
+                clause.form,
+                clause.ordinal,
+            ),
+            ("Clause", "clause_restriction_run", "only", 0)
+        );
+        assert!(clause.literals.is_empty());
+        assert_eq!(
+            clause.roles.keys().copied().collect::<Vec<_>>(),
+            ["first", "host", "rest"]
+        );
+
+        let first = required_construction_role(clause, "first");
+        assert_eq!(
+            (
+                first.category,
+                first.construction,
+                first.form,
+                first.ordinal,
+            ),
+            (
+                "RestrictionMember",
+                "clause_restriction_member",
+                "preposition",
+                0,
+            )
+        );
+        assert_eq!(first.literals, ["only"]);
+        assert_eq!(
+            first.roles.keys().copied().collect::<Vec<_>>(),
+            ["preposition"]
+        );
+        assert!(matches!(
+            first.roles.get("preposition"),
+            Some(ProjectedValue::Optional(Some(_)))
+        ));
+
+        let Some(ProjectedValue::Sequence(rest)) = clause.roles.get("rest") else {
+            panic!("restriction continuations must project as a declared sequence");
+        };
+        assert_eq!(rest.role, "rest");
+        let [member] = rest.members.as_slice() else {
+            panic!("the two-member restriction run must project one continuation");
+        };
+        assert_eq!(
+            (member.element, member.variant),
+            ("restriction_run_member", None)
+        );
+        assert_eq!(
+            member.roles.keys().copied().collect::<Vec<_>>(),
+            [
+                "restriction_run_member.comma",
+                "restriction_run_member.conjunction",
+                "restriction_run_member.member",
+            ]
+        );
+        assert!(matches!(
+            member.roles.get("restriction_run_member.comma"),
+            Some(ProjectedValue::Atom(ProjectedAtom::DerivedSequenceScalar {
+                codec: "Comma",
+                index: 0,
+                len: 1,
+            }))
+        ));
+        let Some(ProjectedValue::Optional(Some(conjunction))) =
+            member.roles.get("restriction_run_member.conjunction")
+        else {
+            panic!("the final restriction member must retain its conjunction");
+        };
+        assert!(matches!(
+            conjunction.as_ref(),
+            ProjectedValue::Atom(ProjectedAtom::Scalar { codec: "Conjunction", value })
+                if value.downcast_ref::<crate::features::Conjunction>()
+                    == Some(&crate::features::Conjunction::And)
+        ));
+        let Some(ProjectedValue::Construction(member)) =
+            member.roles.get("restriction_run_member.member")
+        else {
+            panic!("the continuation payload must project its restriction member");
+        };
+        assert_eq!(
+            (
+                member.category,
+                member.construction,
+                member.form,
+                member.ordinal,
+            ),
+            (
+                "RestrictionMember",
+                "clause_restriction_member",
+                "once_temporal",
+                3,
+            )
+        );
+        assert_eq!(member.literals, ["only", "once"]);
+        assert!(matches!(
+            member.roles.get("temporal"),
+            Some(ProjectedValue::Optional(Some(_)))
+        ));
+    }
+
+    #[test]
+    fn f03_projection_preserves_recursive_exception_list_forms() {
+        let catalogs = Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"]);
+        let fragment = clean_fragment(
+            "You may have this creature enter as a copy of any creature on the battlefield, except it's red, it's green, it's blue, and it's white.",
+            &catalogs,
+            FragmentKind::Sentence,
+        );
+        let IndependentClause::Complex(complex) = independent_sentence(&fragment) else {
+            panic!("the exception rider must be one trailing recursive scope edge");
+        };
+        assert_eq!(
+            complex.attachment().position(),
+            AttachmentPosition::AfterMatrix
+        );
+        assert!(complex.attachment().comma().is_present());
+        let ClauseAttachmentKind::Exception(rider) = complex.attachment().payload() else {
+            panic!("the attachment must retain its typed exception payload");
+        };
+        assert!(matches!(rider.first(), IndependentClause::Finite(_)));
+        let [second, third, fourth] = rider.rest() else {
+            panic!("the four-member exception rider must have three continuations");
+        };
+        assert_eq!(second.conjunction(), None);
+        assert_eq!(third.conjunction(), None);
+        assert_eq!(
+            fourth.conjunction(),
+            Some(crate::features::Conjunction::And)
+        );
+        assert!(
+            rider
+                .rest()
+                .iter()
+                .all(|member| matches!(member.clause(), IndependentClause::Finite(_)))
+        );
+
+        let projection =
+            super::project_fragment(&fragment).expect("the exception sentence projects");
+        let clause = required_construction_role(&projection, "clause");
+        assert_eq!(
+            (
+                clause.category,
+                clause.construction,
+                clause.form,
+                clause.ordinal,
+            ),
+            ("Clause", "clause_excepted", "complete", 0)
+        );
+        assert_eq!(clause.literals, [","]);
+        assert_eq!(
+            clause.roles.keys().copied().collect::<Vec<_>>(),
+            ["host", "rider"]
+        );
+
+        let oxford = optional_construction_role(clause, "rider");
+        assert_eq!(
+            (
+                oxford.category,
+                oxford.construction,
+                oxford.form,
+                oxford.ordinal,
+            ),
+            ("ExceptionRider", "exception_rider_oxford", "only", 0)
+        );
+        assert_eq!(oxford.literals, [","]);
+        assert_eq!(
+            oxford.roles.keys().copied().collect::<Vec<_>>(),
+            ["clause", "conjunction", "rider"]
+        );
+        assert_eq!(
+            required_construction_role(oxford, "clause").category,
+            "Clause"
+        );
+
+        let extend = required_construction_role(oxford, "rider");
+        assert_eq!(
+            (
+                extend.category,
+                extend.construction,
+                extend.form,
+                extend.ordinal,
+            ),
+            ("ExceptionRiderList", "exception_rider_comma", "extend", 1)
+        );
+        assert_eq!(extend.literals, [","]);
+        assert_eq!(
+            extend.roles.keys().copied().collect::<Vec<_>>(),
+            ["clause", "list"]
+        );
+
+        let seed = optional_construction_role(extend, "list");
+        assert_eq!(
+            (seed.category, seed.construction, seed.form, seed.ordinal,),
+            ("ExceptionRiderList", "exception_rider_comma", "seed", 0)
+        );
+        assert_eq!(seed.literals, [","]);
+        assert_eq!(
+            seed.roles.keys().copied().collect::<Vec<_>>(),
+            ["clause", "rider"]
+        );
+
+        let single = optional_construction_role(seed, "rider");
+        assert_eq!(
+            (
+                single.category,
+                single.construction,
+                single.form,
+                single.ordinal,
+            ),
+            ("ExceptionRider", "exception_rider_single", "only", 0)
+        );
+        assert_eq!(single.literals, ["except"]);
+        assert_eq!(single.roles.keys().copied().collect::<Vec<_>>(), ["clause"]);
+    }
+
+    #[test]
+    fn r01_projection_derives_gap_from_body_without_a_duplicate_role() {
+        let catalogs = Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"]);
+        let fragment = clean_fragment(
+            "target creature you control",
+            &catalogs,
+            FragmentKind::Nominal,
+        );
+        let relative = nominal_relative(&fragment);
+        assert_eq!(relative.gap(), GapState::Object);
+        assert!(matches!(relative.body(), RelativeBody::ObjectGap { .. }));
+
+        let projection = super::project_value("RelativeClause", relative)
+            .expect("the object-gap relative projects");
+        assert_eq!(
+            (
+                projection.category,
+                projection.construction,
+                projection.form,
+                projection.ordinal,
+            ),
+            ("RelativeClause", "relative_object", "only", 0)
+        );
+        assert_eq!(
+            projection.roles.keys().copied().collect::<Vec<_>>(),
+            ["predicate", "subject"]
+        );
+        assert!(!projection.roles.contains_key("gap"));
+    }
+
+    #[test]
+    fn r01_projection_covers_every_remaining_specialized_relative_form() {
+        let catalogs = Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"]);
+        for (source, construction, gap, roles, literals) in [
+            (
+                "target creature you've cast",
+                "relative_object_contracted_subject",
+                GapState::Object,
+                &["predicate", "subject_auxiliary"][..],
+                &[][..],
+            ),
+            (
+                "target creature who attacks",
+                "relative_subject",
+                GapState::Subject,
+                &["marker", "predicate"][..],
+                &[][..],
+            ),
+            (
+                "creatures that each have a different mana value",
+                "relative_subject_distributive_each",
+                GapState::Subject,
+                &["marker", "predicate"][..],
+                &["each"][..],
+            ),
+            (
+                "target creature that's a creature",
+                "relative_contracted_copular_noun",
+                GapState::Subject,
+                &["complement", "subject_auxiliary"][..],
+                &[][..],
+            ),
+            (
+                "target creature that's red",
+                "relative_contracted_copular_adjective",
+                GapState::Subject,
+                &["complement", "subject_auxiliary"][..],
+                &[][..],
+            ),
+            (
+                "target creature that's in exile",
+                "relative_contracted_copular_prepositional",
+                GapState::Subject,
+                &["complement", "subject_auxiliary"][..],
+                &[][..],
+            ),
+        ] {
+            let fragment = clean_fragment(source, &catalogs, FragmentKind::Nominal);
+            let relative = nominal_relative(&fragment);
+            assert_eq!(relative.gap(), gap, "{source}");
+            assert!(
+                matches!(
+                    (gap, relative.body()),
+                    (GapState::Object, RelativeBody::ObjectGap { .. })
+                        | (GapState::Subject, RelativeBody::SubjectGap(_))
+                ),
+                "{source}"
+            );
+
+            let projection = super::project_value("RelativeClause", relative)
+                .expect("the specialized relative projects");
+            assert_eq!(
+                (
+                    projection.category,
+                    projection.construction,
+                    projection.form,
+                    projection.ordinal,
+                ),
+                ("RelativeClause", construction, "only", 0),
+                "{source}"
+            );
+            assert_eq!(projection.literals, literals, "{source}");
+            assert_eq!(
+                projection.roles.keys().copied().collect::<Vec<_>>(),
+                roles,
+                "{source}"
+            );
+            assert!(!projection.roles.contains_key("gap"), "{source}");
+        }
+
+        let progressive = crate::predicate::build_predicate_verb(
+            crate::word::VerbInstance {
+                verb: crate::word::Verb::Word(crate::word::Vocab::Attack),
+                slot: crate::features::VerbSlot::PresentParticiple,
+            },
+            crate::predicate::PredicateFrameChoice::Intransitive,
+        )
+        .and_then(crate::predicate::finish_predicate)
+        .expect("the progressive relative predicate builds");
+        let relative = crate::clause::build_relative_subject_contracted_auxiliary(
+            crate::word::AuxiliaryInstance {
+                auxiliary: crate::word::Auxiliary::Be,
+                inflection: crate::word::AuxiliaryInflection::Present {
+                    person: crate::features::Person::Third,
+                    number: Number::Singular,
+                },
+                contracted_negation: Contraction::Full,
+            },
+            progressive,
+        )
+        .expect("the contracted progressive relative builds");
+        assert_eq!(relative.gap(), GapState::Subject);
+        assert!(matches!(
+            relative.body(),
+            RelativeBody::SubjectGap(Predicate::Intransitive(_))
+        ));
+        let projection = super::project_value("RelativeClause", &relative)
+            .expect("the contracted progressive relative projects");
+        assert_eq!(
+            (
+                projection.category,
+                projection.construction,
+                projection.form,
+                projection.ordinal,
+            ),
+            (
+                "RelativeClause",
+                "relative_subject_contracted_auxiliary",
+                "only",
+                0,
+            )
+        );
+        assert_eq!(
+            projection.roles.keys().copied().collect::<Vec<_>>(),
+            ["predicate", "subject_auxiliary"]
+        );
+        assert!(projection.literals.is_empty());
+        assert!(!projection.roles.contains_key("gap"));
+    }
+
+    #[test]
+    fn r01_projection_keeps_the_coordinated_adjective_owner() {
+        let catalogs = Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"]);
+        let fragment = clean_fragment(
+            "target creature that's red and green",
+            &catalogs,
+            FragmentKind::Nominal,
+        );
+        let relative = nominal_relative(&fragment);
+        assert_eq!(relative.gap(), GapState::Subject);
+        assert!(matches!(
+            relative.body(),
+            RelativeBody::SubjectGap(Predicate::Copular(predicate))
+                if matches!(
+                    predicate.complement(),
+                    CopularComplement::CoordinatedAdjective(_)
+                )
+        ));
+
+        let projection = super::project_value("RelativeClause", relative)
+            .expect("the coordinated-adjective relative projects");
+        assert_eq!(
+            projection.construction,
+            "relative_contracted_copular_coordinated_adjective"
+        );
+        assert_eq!(
+            projection.roles.keys().copied().collect::<Vec<_>>(),
+            ["complement", "subject_auxiliary"]
+        );
+        let Some(ProjectedValue::Atom(ProjectedAtom::FlatSubtree { category, value })) =
+            projection.roles.get("complement")
+        else {
+            panic!("the specialized owner must expose its coordinated complement");
+        };
+        assert_eq!(*category, "CoordinatedAdjectivePhrase");
+        assert!(value.downcast_ref::<CoordinatedAdjectivePhrase>().is_some());
+        assert!(!projection.roles.contains_key("gap"));
+    }
+
+    #[test]
+    fn s01_projection_keeps_the_clause_role_in_both_sentence_forms() {
+        let catalogs = Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"]);
+        for (source, form, ordinal, literals) in [
+            ("Draw a card.", "period", 0, &["."][..]),
+            (
+                "Enchanted creature has \"{T}: Draw a card.\"",
+                "terminal",
+                1,
+                &[][..],
+            ),
+        ] {
+            let fragment = clean_fragment(source, &catalogs, FragmentKind::Sentence);
+            let projection =
+                super::project_fragment(&fragment).expect("the sentence form projects");
+            assert_eq!(
+                (
+                    projection.category,
+                    projection.construction,
+                    projection.form,
+                    projection.ordinal,
+                ),
+                ("Sentence", "sentence", form, ordinal)
+            );
+            assert_eq!(projection.literals, literals);
+            assert_eq!(
+                projection.roles.keys().copied().collect::<Vec<_>>(),
+                ["clause"]
+            );
+            assert_eq!(
+                required_construction_role(&projection, "clause").category,
+                "Clause"
+            );
+        }
     }
 }

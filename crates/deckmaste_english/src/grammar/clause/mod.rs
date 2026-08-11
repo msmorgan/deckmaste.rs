@@ -6,12 +6,8 @@ use super::*;
 use crate::syntax::AttachedPredicate;
 use crate::syntax::AttachmentPosition;
 #[cfg(test)]
-use crate::syntax::ClauseAttachment;
-#[cfg(test)]
 use crate::syntax::ClauseAttachmentKind;
 use crate::syntax::ClauseCoordination;
-#[cfg(test)]
-use crate::syntax::ComplexClause;
 use crate::syntax::CoordinatedClauseMember;
 use crate::syntax::CoordinatedIndependentClause;
 use crate::syntax::Coordination;
@@ -49,7 +45,6 @@ pub(crate) use reduction::extend_predicate_features;
 pub(crate) use reduction::fold_auxiliary_passive;
 pub(crate) use reduction::predicate_arguments_complete;
 pub(crate) use reduction::predicate_object_gap_complete;
-pub(crate) use reduction::reduce_relative_contracted_copular_coordinated_adjective_features;
 
 #[cfg(test)]
 pub(crate) mod tests;

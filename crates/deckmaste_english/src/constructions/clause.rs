@@ -10,6 +10,7 @@
 use deckmaste_construction_compiler::runtime::DeclarationViolation;
 use deckmaste_construction_compiler::runtime::GroupData;
 
+use crate::catalog::CatalogAtom;
 use crate::features::Contraction;
 use crate::features::Number;
 use crate::features::Person;
@@ -27,12 +28,14 @@ use crate::grammar::fold_auxiliary_passive;
 use crate::grammar::predicate_arguments_complete;
 use crate::syntax::AdjectivePhrase;
 use crate::syntax::Clause;
+use crate::syntax::CoordinatedAdjectivePhrase;
 use crate::syntax::Copula;
 use crate::syntax::CopularComplement;
 use crate::syntax::CopularPredicate;
 use crate::syntax::EllipticalClause;
 use crate::syntax::ExistentialClause;
 use crate::syntax::ExistentialForm;
+use crate::syntax::FiniteClause;
 use crate::syntax::IndependentClause;
 use crate::syntax::Modal;
 use crate::syntax::NounPhrase;
@@ -40,6 +43,7 @@ use crate::syntax::NumberLiteral;
 use crate::syntax::PowerToughness;
 use crate::syntax::Predicate;
 use crate::syntax::PredicateAdjunct;
+use crate::syntax::PredicateExpression;
 use crate::syntax::PrepositionalPhrase;
 use crate::syntax::Quantity;
 use crate::syntax::QuantityKind;
@@ -234,40 +238,17 @@ fn make_clause_simple(simple: SimpleClause) -> Result<Clause, DeclarationViolati
 }
 
 fn inverse_simple_clause(value: &Clause) -> Option<SimpleClause> {
-    let Clause::Independent(value) = value else {
+    let Clause::Independent(IndependentClause::Finite(value)) = value else {
         return None;
     };
-    let (subject, predicate) = match value {
-        IndependentClause::Transitive(subject, predicate) => (
-            Some(subject.clone()),
-            Predicate::Transitive(predicate.clone()),
-        ),
-        IndependentClause::Intransitive(subject, predicate) => (
-            Some(subject.clone()),
-            Predicate::Intransitive(predicate.clone()),
-        ),
-        IndependentClause::Passive(subject, predicate) => {
-            (Some(subject.clone()), Predicate::Passive(predicate.clone()))
-        }
-        IndependentClause::Proform(subject, predicate) => {
-            (Some(subject.clone()), Predicate::Proform(*predicate))
-        }
-        IndependentClause::Imperative(predicate) => (None, predicate.clone()),
-        IndependentClause::Deontic(subject, modal, predicate) => (
-            Some(subject.clone()),
-            Predicate::Deontic(crate::syntax::DeonticPredicate {
-                modal: *modal,
-                inner: predicate.clone().map(Box::new),
-            }),
-        ),
-        IndependentClause::Copular(..)
-        | IndependentClause::Predicated(..)
-        | IndependentClause::Existential(..)
-        | IndependentClause::Complex(..)
-        | IndependentClause::Coordinated(..) => return None,
+    let PredicateExpression::Simple(predicate) = value.predicate() else {
+        return None;
     };
-    let predicate = crate::constructions::predicate::inverse_public_predicate(&predicate).ok()?;
-    Some(SimpleClause { subject, predicate })
+    let predicate = crate::constructions::predicate::inverse_public_predicate(predicate).ok()?;
+    Some(SimpleClause {
+        subject: value.subject().cloned(),
+        predicate,
+    })
 }
 
 fn clause_simple_parts(value: &Clause) -> SimpleClause {
@@ -298,30 +279,43 @@ fn make_clause_existential(
     form: ExistentialForm,
     pivot: NounPhrase,
 ) -> Result<Clause, DeclarationViolation> {
+    if !existential_pivot_agrees(form, &pivot) {
+        return Err(violation(
+            "clause_existential",
+            "the existential form agrees in number with its pivot",
+        ));
+    }
     Ok(Clause::Independent(IndependentClause::Existential(
-        ExistentialClause {
-            form,
-            pivot,
-            adjuncts: Vec::new(),
-        },
+        ExistentialClause::from_declaration_parts(form, pivot),
     )))
+}
+
+fn existential_pivot_agrees(form: ExistentialForm, pivot: &NounPhrase) -> bool {
+    crate::constructions::noun_phrase::relative_subject_feature_candidates(pivot)
+        .iter()
+        .any(|features| {
+            matches!(
+                features,
+                Features::NounPhrase {
+                    agreement: Some(agreement),
+                    ..
+                } if agreement.number() == form.number()
+            )
+        })
 }
 
 fn clause_existential_parts(value: &Clause) -> (ExistentialForm, NounPhrase) {
     let Clause::Independent(IndependentClause::Existential(value)) = value else {
         unreachable!("clause_existential admits only existential clauses")
     };
-    (value.form, value.pivot.clone())
+    (value.form(), value.pivot().clone())
 }
 
 fn is_clause_existential(value: &Clause) -> bool {
-    matches!(
-        value,
-        Clause::Independent(IndependentClause::Existential(ExistentialClause {
-            adjuncts,
-            ..
-        })) if adjuncts.is_empty()
-    )
+    let Clause::Independent(IndependentClause::Existential(value)) = value else {
+        return false;
+    };
+    existential_pivot_agrees(value.form(), value.pivot())
 }
 
 fn clean_remainder(complement: CopularComplement) -> CopularRemainder {
@@ -375,6 +369,13 @@ remainder_adapter!(
     AdjectivePhrase
 );
 remainder_adapter!(
+    make_copular_remainder_coordinated_adjective,
+    copular_remainder_coordinated_adjective_parts,
+    is_copular_remainder_coordinated_adjective,
+    CoordinatedAdjective,
+    CoordinatedAdjectivePhrase
+);
+remainder_adapter!(
     make_copular_remainder_prepositional,
     copular_remainder_prepositional_parts,
     is_copular_remainder_prepositional,
@@ -387,6 +388,13 @@ remainder_adapter!(
     is_copular_remainder_power_toughness,
     PowerToughness,
     PowerToughness
+);
+remainder_adapter!(
+    make_copular_remainder_catalog_atom,
+    copular_remainder_catalog_atom_parts,
+    is_copular_remainder_catalog_atom,
+    CatalogAtom,
+    CatalogAtom
 );
 
 fn make_copular_remainder_prepositional_adjunct(
@@ -510,25 +518,33 @@ fn make_clause_copular(
             "the finite copula is a form of be",
         ));
     }
-    Ok(Clause::Independent(IndependentClause::Copular(
-        Subject(subject),
-        CopularPredicate {
-            copula: Copula {
-                auxiliary,
-                contracted_with_subject: Contraction::Full,
-            },
-            negated: remainder.negated,
-            distributive_each: remainder.distributive_each,
-            precomplement_adverbs: remainder.precomplement_adverbs,
-            complement: remainder.complement,
-            adjuncts: remainder.adjuncts,
-        },
+    Ok(Clause::Independent(IndependentClause::Finite(
+        FiniteClause::from_declaration_parts(
+            Some(Subject(subject)),
+            PredicateExpression::Simple(Predicate::Copular(CopularPredicate {
+                copula: Copula {
+                    auxiliary,
+                    contracted_with_subject: Contraction::Full,
+                },
+                negated: remainder.negated,
+                distributive_each: remainder.distributive_each,
+                precomplement_adverbs: remainder.precomplement_adverbs,
+                complement: remainder.complement,
+                adjuncts: remainder.adjuncts,
+            })),
+        ),
     )))
 }
 
 fn clause_copular_parts(value: &Clause) -> (NounPhrase, AuxiliaryInstance, CopularRemainder) {
-    let Clause::Independent(IndependentClause::Copular(subject, predicate)) = value else {
+    let Clause::Independent(IndependentClause::Finite(finite)) = value else {
         unreachable!("clause_copular admits only copular clauses")
+    };
+    let Some(subject) = finite.subject() else {
+        unreachable!("clause_copular retains its subject")
+    };
+    let PredicateExpression::Simple(Predicate::Copular(predicate)) = finite.predicate() else {
+        unreachable!("clause_copular retains its copular predicate")
     };
     (
         subject.0.clone(),
@@ -546,16 +562,16 @@ fn clause_copular_parts(value: &Clause) -> (NounPhrase, AuxiliaryInstance, Copul
 fn is_clause_copular(value: &Clause) -> bool {
     matches!(
         value,
-        Clause::Independent(IndependentClause::Copular(
-            _,
-            CopularPredicate {
+        Clause::Independent(IndependentClause::Finite(FiniteClause {
+            subject: Some(_),
+            predicate: PredicateExpression::Simple(Predicate::Copular(CopularPredicate {
                 copula: Copula {
                     contracted_with_subject: Contraction::Full,
                     ..
                 },
                 ..
-            }
-        ))
+            })),
+        }))
     )
 }
 
@@ -569,27 +585,35 @@ fn make_clause_contracted_copular(
             "the contracted subject auxiliary is a form of be",
         ));
     }
-    Ok(Clause::Independent(IndependentClause::Copular(
-        subject_auxiliary.subject,
-        CopularPredicate {
-            copula: Copula {
-                auxiliary: subject_auxiliary.auxiliary,
-                contracted_with_subject: Contraction::Contracted,
-            },
-            negated: remainder.negated,
-            distributive_each: remainder.distributive_each,
-            precomplement_adverbs: remainder.precomplement_adverbs,
-            complement: remainder.complement,
-            adjuncts: remainder.adjuncts,
-        },
+    Ok(Clause::Independent(IndependentClause::Finite(
+        FiniteClause::from_declaration_parts(
+            Some(subject_auxiliary.subject),
+            PredicateExpression::Simple(Predicate::Copular(CopularPredicate {
+                copula: Copula {
+                    auxiliary: subject_auxiliary.auxiliary,
+                    contracted_with_subject: Contraction::Contracted,
+                },
+                negated: remainder.negated,
+                distributive_each: remainder.distributive_each,
+                precomplement_adverbs: remainder.precomplement_adverbs,
+                complement: remainder.complement,
+                adjuncts: remainder.adjuncts,
+            })),
+        ),
     )))
 }
 
 fn clause_contracted_copular_parts(
     value: &Clause,
 ) -> (ContractedSubjectAuxiliary, CopularRemainder) {
-    let Clause::Independent(IndependentClause::Copular(subject, predicate)) = value else {
+    let Clause::Independent(IndependentClause::Finite(finite)) = value else {
         unreachable!("clause_contracted_copular admits only copular clauses")
+    };
+    let Some(subject) = finite.subject() else {
+        unreachable!("clause_contracted_copular retains its subject")
+    };
+    let PredicateExpression::Simple(Predicate::Copular(predicate)) = finite.predicate() else {
+        unreachable!("clause_contracted_copular retains its copular predicate")
     };
     (
         ContractedSubjectAuxiliary {
@@ -609,16 +633,16 @@ fn clause_contracted_copular_parts(
 fn is_clause_contracted_copular(value: &Clause) -> bool {
     matches!(
         value,
-        Clause::Independent(IndependentClause::Copular(
-            _,
-            CopularPredicate {
+        Clause::Independent(IndependentClause::Finite(FiniteClause {
+            subject: Some(_),
+            predicate: PredicateExpression::Simple(Predicate::Copular(CopularPredicate {
                 copula: Copula {
                     contracted_with_subject: Contraction::Contracted,
                     ..
                 },
                 ..
-            }
-        ))
+            })),
+        }))
     )
 }
 
@@ -646,22 +670,30 @@ fn make_clause_variable_value_constraint(
             "the complement copula is base-form be",
         ));
     }
-    Ok(Clause::Independent(IndependentClause::Deontic(
-        Subject(NounPhrase::from_quantity_declaration(subject)),
-        Modal { auxiliary: modal },
-        Some(Predicate::Copular(CopularPredicate {
-            copula: Copula {
-                auxiliary: copula,
-                contracted_with_subject: Contraction::Full,
-            },
-            negated: false,
-            distributive_each: false,
-            precomplement_adverbs: Vec::new(),
-            complement: CopularComplement::NounPhrase(NounPhrase::from_quantity_declaration(
-                Quantity::unchecked_exact(number),
-            )),
-            adjuncts: Vec::new(),
-        })),
+    Ok(Clause::Independent(IndependentClause::Finite(
+        FiniteClause::from_declaration_parts(
+            Some(Subject(NounPhrase::from_quantity_declaration(subject))),
+            PredicateExpression::Simple(Predicate::Deontic(crate::syntax::DeonticPredicate {
+                modal: Modal { auxiliary: modal },
+                inner: Some(Box::new(PredicateExpression::Simple(Predicate::Copular(
+                    CopularPredicate {
+                        copula: Copula {
+                            auxiliary: copula,
+                            contracted_with_subject: Contraction::Full,
+                        },
+                        negated: false,
+                        distributive_each: false,
+                        precomplement_adverbs: Vec::new(),
+                        complement: CopularComplement::NounPhrase(
+                            NounPhrase::from_quantity_declaration(Quantity::unchecked_exact(
+                                number,
+                            )),
+                        ),
+                        adjuncts: Vec::new(),
+                    },
+                )))),
+            })),
+        ),
     )))
 }
 
@@ -673,13 +705,18 @@ fn variable_value_constraint_parts(
     AuxiliaryInstance,
     NumberLiteral,
 ) {
-    let Clause::Independent(IndependentClause::Deontic(
-        Subject(subject_phrase),
-        Modal { auxiliary: modal },
-        Some(Predicate::Copular(predicate)),
-    )) = value
-    else {
+    let Clause::Independent(IndependentClause::Finite(finite)) = value else {
         unreachable!("variable value constraint admits one modal copular shape")
+    };
+    let Some(Subject(subject_phrase)) = finite.subject() else {
+        unreachable!("variable value constraint retains its subject")
+    };
+    let PredicateExpression::Simple(Predicate::Deontic(deontic)) = finite.predicate() else {
+        unreachable!("variable value constraint retains its modal")
+    };
+    let Modal { auxiliary: modal } = deontic.modal();
+    let Some(PredicateExpression::Simple(Predicate::Copular(predicate))) = deontic.inner() else {
+        unreachable!("variable value constraint retains its copular predicate")
     };
     let crate::syntax::NounPhraseKind::Quantity(subject) = subject_phrase.kind() else {
         unreachable!("variable value constraint retains one numeric subject")
@@ -697,22 +734,29 @@ fn variable_value_constraint_parts(
 }
 
 fn is_clause_variable_value_constraint(value: &Clause) -> bool {
-    let Clause::Independent(IndependentClause::Deontic(
-        Subject(subject_phrase),
-        Modal { auxiliary: modal },
-        Some(Predicate::Copular(CopularPredicate {
-            copula:
-                Copula {
-                    auxiliary: copula,
-                    contracted_with_subject: Contraction::Full,
-                },
-            negated: false,
-            distributive_each: false,
-            precomplement_adverbs,
-            complement: CopularComplement::NounPhrase(complement_phrase),
-            adjuncts,
-        })),
-    )) = value
+    let Clause::Independent(IndependentClause::Finite(FiniteClause {
+        subject: Some(Subject(subject_phrase)),
+        predicate:
+            PredicateExpression::Simple(Predicate::Deontic(crate::syntax::DeonticPredicate {
+                modal: Modal { auxiliary: modal },
+                inner: Some(inner),
+            })),
+    })) = value
+    else {
+        return false;
+    };
+    let PredicateExpression::Simple(Predicate::Copular(CopularPredicate {
+        copula:
+            Copula {
+                auxiliary: copula,
+                contracted_with_subject: Contraction::Full,
+            },
+        negated: false,
+        distributive_each: false,
+        precomplement_adverbs,
+        complement: CopularComplement::NounPhrase(complement_phrase),
+        adjuncts,
+    })) = inner.as_ref()
     else {
         return false;
     };
@@ -1213,6 +1257,15 @@ deckmaste_constructions_macro::constructions! {
         selection unique;
     }
 
+    construction copular_remainder_coordinated_adjective: CopularRemainder {
+        bind CopularRemainder via make_copular_remainder_coordinated_adjective, copular_remainder_coordinated_adjective_parts {
+            complement: hole CoordinatedAdjectivePhrase,
+        }
+        derive features: Features = reduce_copular_remainder_features(complement);
+        form only @ 0 inverse check(is_copular_remainder_coordinated_adjective) = complement;
+        selection unique;
+    }
+
     construction copular_remainder_prepositional: CopularRemainder {
         bind CopularRemainder via make_copular_remainder_prepositional, copular_remainder_prepositional_parts {
             complement: hole PrepositionalPhrase,
@@ -1228,6 +1281,15 @@ deckmaste_constructions_macro::constructions! {
         }
         derive features: Features = reduce_copular_remainder_features(complement);
         form only @ 0 inverse check(is_copular_remainder_power_toughness) = lex(complement);
+        selection unique;
+    }
+
+    construction copular_remainder_catalog_atom: CopularRemainder {
+        bind CopularRemainder via make_copular_remainder_catalog_atom, copular_remainder_catalog_atom_parts {
+            complement: identity CatalogAtom via AbilityItem,
+        }
+        derive features: Features = reduce_copular_remainder_features(complement);
+        form only @ 0 inverse check(is_copular_remainder_catalog_atom) = identity(complement);
         selection unique;
     }
 
@@ -1319,7 +1381,7 @@ mod tests {
     use crate::grammar::GeneratedActivation;
     use crate::grammar::Nonterminal;
 
-    const IDS: [&str; 18] = [
+    const IDS: [&str; 20] = [
         "simple_clause_subject",
         "simple_clause_subject_distributive_each",
         "simple_clause_contracted_subject",
@@ -1329,8 +1391,10 @@ mod tests {
         "clause_existential",
         "copular_remainder_noun",
         "copular_remainder_adjective",
+        "copular_remainder_coordinated_adjective",
         "copular_remainder_prepositional",
         "copular_remainder_power_toughness",
+        "copular_remainder_catalog_atom",
         "copular_remainder_prepositional_adjunct",
         "copular_remainder_adverb",
         "copular_remainder_negated",
@@ -1341,7 +1405,7 @@ mod tests {
     ];
 
     #[test]
-    fn finite_clause_family_has_the_exact_eighteen_id_census_and_dominance() {
+    fn finite_clause_family_has_the_exact_twenty_id_census_and_dominance() {
         let declaration = GROUPS[0];
         assert_eq!(declaration.name, "clause");
         assert_eq!(

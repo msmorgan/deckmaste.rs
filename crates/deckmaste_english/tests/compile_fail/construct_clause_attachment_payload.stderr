@@ -1,0 +1,11 @@
+error[E0451]: fields `position`, `comma` and `payload` of struct `Attachment` are private
+  --> tests/compile_fail/construct_clause_attachment_payload.rs:13:9
+   |
+12 |     Attachment {
+   |     ---------- in this type
+13 |         position,
+   |         ^^^^^^^^ private field
+14 |         comma,
+   |         ^^^^^ private field
+15 |         payload,
+   |         ^^^^^^^ private field

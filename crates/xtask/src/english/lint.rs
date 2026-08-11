@@ -556,12 +556,19 @@ mod tests {
             panic!("expected a paragraph ability");
         };
         let deckmaste_english::syntax::SentenceBody::Independent(
-            deckmaste_english::syntax::IndependentClause::Imperative(
-                deckmaste_english::syntax::Predicate::Transitive(predicate),
-            ),
+            deckmaste_english::syntax::IndependentClause::Finite(clause),
         ) = paragraph.sentences[0].body()
         else {
             panic!("expected an imperative transitive clause");
+        };
+        let None = clause.subject() else {
+            panic!("expected an implicit imperative subject");
+        };
+        let deckmaste_english::syntax::PredicateExpression::Simple(
+            deckmaste_english::syntax::Predicate::Transitive(predicate),
+        ) = clause.predicate()
+        else {
+            panic!("expected an imperative transitive predicate");
         };
         let deckmaste_english::syntax::PredicateObject::NounPhrase(noun) = predicate.object()
         else {

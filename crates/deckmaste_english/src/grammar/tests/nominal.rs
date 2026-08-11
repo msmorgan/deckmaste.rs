@@ -3773,26 +3773,34 @@ mod tests {
                     AbilityKind::Paragraph(Paragraph {
                         flavor_header: None,
                         sentences: vec![Sentence {
-                            body: SentenceBody::Independent(IndependentClause::Imperative(
-                                Predicate::Transitive(TransitivePredicate {
-                                    head: PredicateHead {
-                                        auxiliaries: vec![],
-                                        first_auxiliary_contracted_with_subject:
-                                            crate::features::Contraction::Full,
-                                        preverb_modifiers: vec![],
-                                        verb: VerbInstance {
-                                            verb: Verb::Word(Vocab::Draw),
-                                            slot: VerbSlot::Imperative,
-                                        },
-                                        frame: Verb::Word(Vocab::Draw).predicate_frames()[0],
-                                        distributive_each: false,
-                                    },
-                                    kind: crate::syntax::Transitive {
-                                        pre_object_elements: vec![],
-                                        object: PredicateObject::NounPhrase(noun_phrase.clone()),
-                                    },
-                                    elements: vec![],
-                                }),
+                            body: SentenceBody::Independent(IndependentClause::Finite(
+                                crate::syntax::FiniteClause::from_declaration_parts(
+                                    None,
+                                    crate::syntax::PredicateExpression::Simple(
+                                        Predicate::Transitive(TransitivePredicate {
+                                            head: PredicateHead {
+                                                auxiliaries: vec![],
+                                                first_auxiliary_contracted_with_subject:
+                                                    crate::features::Contraction::Full,
+                                                preverb_modifiers: vec![],
+                                                verb: VerbInstance {
+                                                    verb: Verb::Word(Vocab::Draw),
+                                                    slot: VerbSlot::Imperative,
+                                                },
+                                                frame: Verb::Word(Vocab::Draw).predicate_frames()
+                                                    [0],
+                                                distributive_each: false,
+                                            },
+                                            kind: crate::syntax::Transitive {
+                                                pre_object_elements: vec![],
+                                                object: PredicateObject::NounPhrase(
+                                                    noun_phrase.clone(),
+                                                ),
+                                            },
+                                            elements: vec![],
+                                        }),
+                                    ),
+                                ),
                             )),
                         }],
                     }),
