@@ -11,11 +11,12 @@ pub(crate) mod determiner {
     #[cfg(test)]
     mod tests {
         #[test]
-        fn production_declaration_exposes_all_nine_d01_rows() {
-            assert_eq!(super::GROUPS[0].constructions.len(), 9);
+        fn production_declaration_exposes_all_ten_determiner_rows() {
+            assert_eq!(super::GROUPS[0].constructions.len(), 10);
             assert_eq!(super::GROUPS[0].constructions[0].id, "determiner_closed");
+            assert_eq!(super::GROUPS[0].constructions[1].id, "determiner_all_the");
             assert_eq!(
-                super::GROUPS[0].constructions[8].id,
+                super::GROUPS[0].constructions[9].id,
                 "possessive_noun_adjective"
             );
         }
@@ -80,7 +81,7 @@ mod tests {
     use crate::construction::ConstructionId;
     use crate::construction::ConstructionOwner;
 
-    const R01_IDS: [&str; 9] = [
+    const RELATIVE_IDS: [&str; 9] = [
         "relative_object",
         "relative_object_contracted_subject",
         "relative_subject_contracted_auxiliary",
@@ -93,19 +94,19 @@ mod tests {
     ];
 
     #[test]
-    fn r01_is_one_generated_group_in_stable_order_with_its_single_dominance_edge() {
+    fn relative_group_has_stable_order_and_its_single_dominance_edge() {
         let group = super::GROUPS
             .iter()
             .copied()
             .find(|group| group.name == "relative")
-            .expect("R01 has one production declaration group");
+            .expect("relative clauses have one production declaration group");
         assert_eq!(
             group
                 .constructions
                 .iter()
                 .map(|construction| construction.id)
                 .collect::<Vec<_>>(),
-            R01_IDS,
+            RELATIVE_IDS,
         );
         let edges = group
             .constructions
@@ -119,9 +120,9 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(edges, [("relative_subject", "relative_object")]);
 
-        for id in R01_IDS {
+        for id in RELATIVE_IDS {
             let family = crate::construction_family(ConstructionId::new(id))
-                .unwrap_or_else(|| panic!("missing R01 family {id}"));
+                .unwrap_or_else(|| panic!("missing relative-clause family {id}"));
             assert_eq!(family.owner(), ConstructionOwner::Generated, "{id}");
             assert_eq!(family.backend(), ConstructionBackend::Chart, "{id}");
         }

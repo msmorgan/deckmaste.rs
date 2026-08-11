@@ -1011,7 +1011,7 @@ mod tests {
             .expect("a clean projection fixture has a semantic fragment")
     }
 
-    fn a01_keyword_catalogs() -> Catalogs {
+    fn keyword_ability_catalogs() -> Catalogs {
         Catalogs::default()
             .with_catalog(CatalogKind::CardType, ["Artifact", "Creature"])
             .with_catalog(
@@ -1032,7 +1032,7 @@ mod tests {
             )
     }
 
-    fn a01_keyword_projection(source: &str, catalogs: &Catalogs) -> ConstructionProjection {
+    fn keyword_ability_projection(source: &str, catalogs: &Catalogs) -> ConstructionProjection {
         let report = parse_fragment(
             source,
             catalogs,
@@ -1071,7 +1071,7 @@ mod tests {
     }
 
     #[test]
-    fn a01_cost_projection_is_a_nonempty_sequence_of_typed_variants() {
+    fn cost_projection_is_a_nonempty_sequence_of_typed_variants() {
         let catalogs =
             Catalogs::default().with_catalog(CatalogKind::CardType, ["Artifact", "Creature"]);
         for (source, form, expected_variants) in [
@@ -1153,8 +1153,8 @@ mod tests {
     }
 
     #[test]
-    fn a01_keyword_projection_preserves_argument_variants_and_nested_typed_payloads() {
-        let catalogs = a01_keyword_catalogs();
+    fn keyword_projection_preserves_argument_variants_and_nested_typed_payloads() {
+        let catalogs = keyword_ability_catalogs();
         for (source, expected_argument, expected_cost) in [
             ("Flying", "Absent", None),
             ("Fabricate 2", "Counted", None),
@@ -1173,7 +1173,7 @@ mod tests {
             ("Ward—Sacrifice a creature.", "Costed", Some("Components")),
             ("Ward {3}. This ability costs {1} less.", "Recovered", None),
         ] {
-            let projection = a01_keyword_projection(source, &catalogs);
+            let projection = keyword_ability_projection(source, &catalogs);
             assert_eq!(projection.construction, "keyword_line", "{source}");
             let abilities = required_sequence_role(&projection, "abilities");
             assert!(!abilities.members.is_empty(), "{source}");
@@ -1238,9 +1238,9 @@ mod tests {
     }
 
     #[test]
-    fn a01_keyword_projection_preserves_separator_edges_and_trailing_form() {
-        let catalogs = a01_keyword_catalogs();
-        let separated = a01_keyword_projection("Flying; first strike", &catalogs);
+    fn keyword_projection_preserves_separator_edges_and_trailing_form() {
+        let catalogs = keyword_ability_catalogs();
+        let separated = keyword_ability_projection("Flying; first strike", &catalogs);
         let abilities = required_sequence_role(&separated, "abilities");
         assert_eq!(abilities.members.len(), 2);
         assert!(
@@ -1256,7 +1256,8 @@ mod tests {
             }))
         ));
 
-        let trailing = a01_keyword_projection("Ward—Sacrifice a creature. Draw a card.", &catalogs);
+        let trailing =
+            keyword_ability_projection("Ward—Sacrifice a creature. Draw a card.", &catalogs);
         assert_eq!(trailing.form, "trailing");
         assert!(matches!(
             trailing.roles.get("trailing"),
@@ -1265,7 +1266,7 @@ mod tests {
     }
 
     #[test]
-    fn a01_ability_projection_uses_the_direct_kind_sum_for_every_frame() {
+    fn ability_projection_uses_the_direct_kind_sum_for_every_frame() {
         let catalogs = Catalogs::default()
             .with_catalog(CatalogKind::CardType, ["Artifact", "Creature", "Land"])
             .with_catalog(
@@ -1339,7 +1340,7 @@ mod tests {
     }
 
     #[test]
-    fn a01_ability_projection_keeps_the_single_optional_header_role() {
+    fn ability_projection_keeps_the_single_optional_header_role() {
         let catalogs = Catalogs::default().with_catalog(CatalogKind::KeywordAbility, ["Flying"]);
         let report = parse_fragment(
             "Flying",
@@ -1355,7 +1356,7 @@ mod tests {
             panic!("expected an ability fragment");
         };
         let plain_projection = super::project_value("Ability", plain)
-            .expect("the headerless ability projects through A01");
+            .expect("the headerless ability projects through its construction");
         assert!(matches!(
             plain_projection.roles.get("header"),
             Some(ProjectedValue::Optional(None))
@@ -1369,7 +1370,7 @@ mod tests {
         )
         .expect("a flavor header occupies the semantic header slot");
         let labeled_projection = super::project_value("Ability", &labeled)
-            .expect("the labeled ability projects through A01");
+            .expect("the labeled ability projects through its construction");
         assert!(matches!(
             labeled_projection.roles.get("header"),
             Some(ProjectedValue::Optional(Some(value)))
@@ -1397,6 +1398,23 @@ mod tests {
         assert_eq!(projection.construction, "noun_phrase_nominal");
         assert_eq!(projection.form, "only");
         assert!(projection.roles.contains_key("nominal"));
+    }
+
+    #[test]
+    fn all_the_projects_as_one_composed_determiner_owner() {
+        let determiner = crate::determiner::all_the();
+        let projection = super::project_value("Determiner", &determiner)
+            .expect("the composed determiner projects");
+        assert_projection_identity(
+            &projection,
+            "Determiner",
+            "determiner_all_the",
+            "only",
+            0,
+            &[],
+        );
+        assert_eq!(projection.literals, ["all", "the"]);
+        assert_no_flat_subtrees(&projection);
     }
 
     #[test]
@@ -1447,7 +1465,7 @@ mod tests {
         let noun = constructions
             .iter()
             .find(|construction| construction.construction == "noun")
-            .expect("known noun uses N01");
+            .expect("known noun uses its generated construction");
         assert!(noun.roles.contains_key("identity"));
         assert!(constructions.iter().all(|construction| {
             !matches!(
@@ -1553,7 +1571,7 @@ mod tests {
     }
 
     #[test]
-    fn nested_p02_projection_preserves_each_typed_object_boundary() {
+    fn nested_prepositional_projection_preserves_each_typed_object_boundary() {
         let report = parse_fragment(
             "cards from among them",
             &Catalogs::default(),
@@ -1624,7 +1642,7 @@ mod tests {
     }
 
     #[test]
-    fn v01_projection_exposes_declared_roles_and_typed_lexical_identity() {
+    fn predicate_projection_exposes_declared_roles_and_typed_lexical_identity() {
         let sentence = parse_fragment(
             "Draw a card.",
             &Catalogs::default(),
@@ -1634,15 +1652,15 @@ mod tests {
         )
         .into_fragment()
         .expect("predicate fixture parses");
-        let projection =
-            super::project_fragment(&sentence).expect("predicate fixture projects through V01");
+        let projection = super::project_fragment(&sentence)
+            .expect("predicate fixture projects through its construction");
         let mut constructions = Vec::new();
         collect_constructions(&projection, &mut constructions);
         let direct_object = constructions
             .iter()
             .copied()
             .find(|candidate| candidate.construction == "verb_phrase_direct_object")
-            .expect("the selected V01 direct-object construction remains visible");
+            .expect("the selected direct-object construction remains visible");
         assert_eq!(
             direct_object.roles.keys().copied().collect::<Vec<_>>(),
             ["object", "predicate"]
@@ -1667,7 +1685,7 @@ mod tests {
     }
 
     #[test]
-    fn f01_projection_exposes_infinitive_and_recursive_gerund_roles() {
+    fn nonfinite_projection_exposes_infinitive_and_recursive_gerund_roles() {
         let predicate = |verb, slot| {
             crate::predicate::build_predicate_verb(
                 crate::word::VerbInstance {
@@ -1677,7 +1695,7 @@ mod tests {
                 crate::predicate::PredicateFrameChoice::Intransitive,
             )
             .and_then(crate::predicate::finish_predicate)
-            .expect("the F01 fixture predicate builds")
+            .expect("the nonfinite-clause fixture predicate builds")
         };
         let infinitive_predicate = predicate(
             crate::word::Vocab::Attack,
@@ -1764,7 +1782,7 @@ mod tests {
     }
 
     #[test]
-    fn f02_projection_uses_canonical_finite_subject_and_predicate_roles() {
+    fn finite_projection_uses_canonical_subject_and_predicate_roles() {
         let explicit = clean_fragment(
             "You may draw a card.",
             &Catalogs::default(),
@@ -1826,7 +1844,7 @@ mod tests {
     }
 
     #[test]
-    fn f02_projection_keeps_existential_and_copular_construction_owners() {
+    fn finite_projection_keeps_existential_and_copular_construction_owners() {
         let catalogs = Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"]);
 
         let existential = clean_fragment("There are creatures.", &catalogs, FragmentKind::Sentence);
@@ -1933,7 +1951,7 @@ mod tests {
     }
 
     #[test]
-    fn f03_projection_preserves_recursive_one_edge_attachment_scope() {
+    fn attachment_projection_preserves_recursive_one_edge_scope() {
         let catalogs =
             Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature", "Spell"]);
         let fragment = clean_fragment(
@@ -1992,7 +2010,7 @@ mod tests {
     }
 
     #[test]
-    fn f03_projection_distinguishes_trailing_subordinate_comma_forms() {
+    fn attachment_projection_distinguishes_trailing_subordinate_comma_forms() {
         let catalogs =
             Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature", "Spell"]);
         for (source, construction, comma, subordinator, literals) in [
@@ -2073,7 +2091,7 @@ mod tests {
     }
 
     #[test]
-    fn f03_projection_preserves_restriction_sequence_roles_and_member_forms() {
+    fn attachment_projection_preserves_restriction_sequence_roles_and_member_forms() {
         let fragment = clean_fragment(
             "Activate only as a sorcery and only once each turn.",
             &Catalogs::default(),
@@ -2214,7 +2232,7 @@ mod tests {
     }
 
     #[test]
-    fn f03_projection_preserves_recursive_exception_list_forms() {
+    fn attachment_projection_preserves_recursive_exception_list_forms() {
         let catalogs = Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"]);
         let fragment = clean_fragment(
             "You may have this creature enter as a copy of any creature on the battlefield, except it's red, it's green, it's blue, and it's white.",
@@ -2713,7 +2731,7 @@ mod tests {
     }
 
     #[test]
-    fn r01_projection_derives_gap_from_body_without_a_duplicate_role() {
+    fn relative_projection_derives_gap_from_body_without_a_duplicate_role() {
         let catalogs = Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"]);
         let fragment = clean_fragment(
             "target creature you control",
@@ -2743,7 +2761,7 @@ mod tests {
     }
 
     #[test]
-    fn r01_projection_covers_every_remaining_specialized_relative_form() {
+    fn relative_projection_covers_every_remaining_specialized_form() {
         let catalogs = Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"]);
         for (source, construction, gap, roles, literals) in [
             (
@@ -2873,7 +2891,7 @@ mod tests {
     }
 
     #[test]
-    fn r01_projection_keeps_the_coordinated_adjective_owner() {
+    fn relative_projection_keeps_the_coordinated_adjective_owner() {
         let catalogs = Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"]);
         let fragment = clean_fragment(
             "target creature that's red and green",
@@ -2914,7 +2932,7 @@ mod tests {
     }
 
     #[test]
-    fn s01_projection_keeps_the_clause_role_in_both_sentence_forms() {
+    fn sentence_projection_keeps_the_clause_role_in_both_forms() {
         let catalogs = Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"]);
         for (source, form, ordinal, literals) in [
             ("Draw a card.", "period", 0, &["."][..]),
@@ -2946,6 +2964,131 @@ mod tests {
                 required_construction_role(&projection, "clause").category,
                 "Clause"
             );
+        }
+    }
+
+    #[test]
+    fn clause_coordination_projection_covers_every_owner_and_punctuation_form() {
+        let catalogs = Catalogs::default()
+            .with_catalog(CatalogKind::CreatureType, ["Goblin"])
+            .with_catalog(
+                CatalogKind::CardType,
+                ["Creature", "Instant", "Land", "Sorcery"],
+            );
+        let fixtures = [
+            (
+                "You draw a card and you discard a card.",
+                "clause_coordination",
+                &["conjunction", "first", "next"][..],
+                &[][..],
+            ),
+            (
+                "You draw a card, and you discard a card.",
+                "clause_coordination_comma",
+                &["conjunction", "first", "next"][..],
+                &[","][..],
+            ),
+            (
+                "Draw a card, discard a card.",
+                "clause_coordination_asyndetic",
+                &["first", "next"][..],
+                &[","][..],
+            ),
+            (
+                "Enchanted creature gets +1/+1 and is a Goblin in addition to its other types.",
+                "clause_coordination_copular_noun_prepositional",
+                &["conjunction", "first", "predicate"][..],
+                &[][..],
+            ),
+            (
+                "Enchanted creature gets +1/+1, and is a Goblin in addition to its other types.",
+                "clause_coordination_copular_noun_prepositional_comma",
+                &["conjunction", "first", "predicate"][..],
+                &[","][..],
+            ),
+            (
+                "Enchanted creature gets +1/+1, is a Goblin in addition to its other types.",
+                "clause_coordination_copular_noun_prepositional_asyndetic",
+                &["first", "predicate"][..],
+                &[","][..],
+            ),
+        ];
+
+        for (source, construction, roles, literals) in fixtures {
+            let fragment = clean_fragment(source, &catalogs, FragmentKind::Sentence);
+            let projection = super::project_fragment(&fragment).unwrap_or_else(|error| {
+                panic!("clause fixture did not project: {source}: {error}")
+            });
+            let owner = required_named_construction(&projection, construction);
+            assert_projection_identity(owner, "Clause", construction, "only", 0, roles);
+            assert_eq!(owner.literals, literals, "{source:?}: {owner:#?}");
+            if construction.contains("copular_noun_prepositional") {
+                assert_projection_identity(
+                    required_construction_role(owner, "predicate"),
+                    "SharedCopularPredicate",
+                    "shared_copular_predicate",
+                    "only",
+                    0,
+                    &["complement", "copula", "preposition"],
+                );
+            }
+            assert_no_flat_subtrees(&projection);
+        }
+    }
+
+    #[test]
+    fn clause_coordination_projection_preserves_nested_grouping() {
+        let fragment = clean_fragment(
+            "You draw a card, then you discard a card, or you lose 1 life.",
+            &Catalogs::default(),
+            FragmentKind::Sentence,
+        );
+        let projection = super::project_fragment(&fragment)
+            .expect("the nested complete-clause coordination projects");
+        let outer = required_named_construction(&projection, "clause_coordination_comma");
+        let inner = required_construction_role(outer, "first");
+        assert_eq!(
+            inner.construction, "clause_coordination_comma",
+            "the inner then group remains the outer coordination's first role: {outer:#?}"
+        );
+        assert_eq!(outer.literals, [","]);
+        assert_eq!(inner.literals, [","]);
+        assert_no_flat_subtrees(&projection);
+    }
+
+    #[test]
+    fn elided_grant_projection_keeps_the_complement_and_condition_roles_typed() {
+        let catalogs = Catalogs::default()
+            .with_catalog(CatalogKind::KeywordAbility, ["Trample", "Haste"])
+            .with_catalog(CatalogKind::CreatureType, ["Beast", "Goblin"]);
+        for (source, complement_owner) in [
+            (
+                "This creature has trample as long as you control a Beast and haste as long as you control a Goblin.",
+                "shared_grant_ability_complement",
+            ),
+            (
+                "This creature has trample as long as you control a Beast and \"{B}: Regenerate this creature\" as long as you control a Goblin.",
+                "shared_grant_quoted_complement",
+            ),
+        ] {
+            let fragment = clean_fragment(source, &catalogs, FragmentKind::Sentence);
+            let projection = super::project_fragment(&fragment)
+                .unwrap_or_else(|error| panic!("elided grant did not project: {error}"));
+            let owner =
+                required_named_construction(&projection, "clause_coordination_shared_grant");
+            assert_projection_identity(
+                owner,
+                "Clause",
+                "clause_coordination_shared_grant",
+                "only",
+                0,
+                &["attachment", "complement", "conjunction", "first"],
+            );
+            let complement = required_construction_role(owner, "complement");
+            assert_eq!(complement.category, "SharedGrantComplement");
+            assert_eq!(complement.construction, complement_owner);
+            assert!(owner.literals.is_empty());
+            assert_no_flat_subtrees(&projection);
         }
     }
 }

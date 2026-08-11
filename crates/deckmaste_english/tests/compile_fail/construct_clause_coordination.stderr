@@ -1,0 +1,11 @@
+error[E0451]: fields `conjunction`, `comma` and `member` of struct `ClauseCoordination` are private
+  --> tests/compile_fail/construct_clause_coordination.rs:12:9
+   |
+11 |     ClauseCoordination {
+   |     ------------------ in this type
+12 |         conjunction,
+   |         ^^^^^^^^^^^ private field
+13 |         comma,
+   |         ^^^^^ private field
+14 |         member,
+   |         ^^^^^^ private field

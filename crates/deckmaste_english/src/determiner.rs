@@ -1,6 +1,6 @@
 //! Checked construction API for determiners and possessors.
 //!
-//! Every builder validates its D01 declaration before returning a value.
+//! Every builder validates its generated declaration before returning a value.
 //! [`Determiner`] keeps raw ingress private, so callers cannot bypass the
 //! generated construction constraints.
 //!
@@ -64,6 +64,17 @@ pub fn all() -> Determiner {
     closed(ClosedDeterminer::All)
 }
 
+/// Builds the composed `all the` determiner phrase.
+///
+/// # Panics
+///
+/// Panics only if the closed generated construction rejects its own semantic
+/// value.
+#[must_use]
+pub fn all_the() -> Determiner {
+    build_determiner_all_the().expect("the closed all-the phrase satisfies its declaration")
+}
+
 #[must_use]
 pub fn any() -> Determiner {
     closed(ClosedDeterminer::Any)
@@ -115,7 +126,7 @@ pub fn possessive_this_card(form: ThisCardForm) -> Determiner {
 ///
 /// # Panics
 ///
-/// Panics if `possessor` is outside the checked D01 possessive-nominal domain.
+/// Panics if `possessor` is outside the checked possessive-nominal domain.
 pub fn possessive_nominal(possessor: NominalPhrase) -> Determiner {
     build_determiner_possessive_noun(possessor)
         .expect("validated possessive nominals satisfy the determiner declaration")
@@ -125,12 +136,22 @@ pub fn possessive_nominal(possessor: NominalPhrase) -> Determiner {
 ///
 /// # Errors
 ///
-/// Returns a declaration violation if the identity is outside D01's closed
+/// Returns a declaration violation if the identity is outside the closed
 /// domain.
 pub fn build_determiner_closed(
     identity: ClosedDeterminer,
 ) -> Result<Determiner, DeclarationViolation> {
     crate::constructions::determiner::build_determiner_closed(identity)
+}
+
+/// Builds the composed `all the` determiner phrase.
+///
+/// # Errors
+///
+/// Returns a declaration violation if the generated zero-field construction
+/// rejects its own closed semantic value.
+pub fn build_determiner_all_the() -> Result<Determiner, DeclarationViolation> {
+    crate::constructions::determiner::build_determiner_all_the()
 }
 
 /// Builds the bare `target` determiner.
@@ -168,7 +189,8 @@ pub fn build_determiner_quantity(quantity: Quantity) -> Result<Determiner, Decla
 ///
 /// # Errors
 ///
-/// Returns a declaration violation if `form` is not admitted by D01.
+/// Returns a declaration violation if `form` is not admitted by the
+/// declaration.
 pub fn build_determiner_possessive_this_card(
     form: ThisCardForm,
 ) -> Result<Determiner, DeclarationViolation> {

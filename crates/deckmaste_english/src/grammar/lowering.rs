@@ -38,7 +38,6 @@ use super::Quantity;
 use super::RelativeClause;
 use super::RelativeMarker;
 use super::RuleImpl;
-use super::RuleTag;
 use super::Sentence;
 use super::SimpleClause;
 use super::Subject;
@@ -189,10 +188,6 @@ pub(super) fn lower<S: AlternativeSelection>(
         .map(|&child| lower(grammar, forest, child, selection))
         .collect::<Option<Vec<_>>>()?;
     match grammar.impls.get(rule.index())? {
-        RuleImpl::Handwritten(tag) => {
-            let mut children = children;
-            lower_rule(*tag, &mut children)
-        }
         RuleImpl::Generated(generated) => lower_generated_construction(*generated, children),
         RuleImpl::GeneratedAux(generated) => lower_generated_aux(*generated, children),
     }
@@ -1431,26 +1426,4 @@ pub(super) fn lower_lexical(
             }
         }
     })
-}
-
-#[allow(
-    clippy::too_many_lines,
-    reason = "the rule-tag dispatch is intentionally one flat match over every tag"
-)]
-pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
-    match tag {
-        RuleTag::ClauseCoordination
-        | RuleTag::ClauseCoordinationComma
-        | RuleTag::ClauseCoordinationAsyndetic
-        | RuleTag::ClauseCoordinationCopularNounPrepositional
-        | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
-        | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic => {
-            clause::lower_clause(tag, children)
-        }
-    }
-}
-
-pub(super) fn take(children: &mut [Lowered], index: usize) -> Option<Lowered> {
-    let child = children.get_mut(index)?;
-    Some(std::mem::replace(child, Lowered::Ignored))
 }

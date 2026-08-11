@@ -2172,7 +2172,11 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             crate::syntax::AbilityPostmodifier::from_quoted_ability(quoted),
         )
         .ok()?;
-        finish_simple_clause(super::SimpleClause { subject, predicate })
+        finish_simple_clause(super::SimpleClause {
+            subject,
+            predicate,
+            attachment: clause.attachment,
+        })
     }
 
     /// Attaches a quoted ability as the direct object of a grant verb
@@ -2224,6 +2228,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             super::SimpleClause {
                 subject: clause.subject,
                 predicate,
+                attachment: clause.attachment,
             }
         };
         let predicate = crate::constructions::predicate::build_verb_phrase_quoted_ability(
@@ -2234,6 +2239,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         finish_simple_clause(super::SimpleClause {
             subject: clause.subject,
             predicate,
+            attachment: clause.attachment,
         })
     }
 
@@ -4102,7 +4108,7 @@ mod tests {
     fn quoted_ability_object_and_with_postmodifier_keep_distinct_typed_slots() {
         // `gains` takes the quote through its typed predicate-object door.
         // The distinct `with "..."` relation has its own typed adjunct and
-        // never masquerades as a P02 object.
+        // never masquerades as an ordinary prepositional object.
         let object = parse("Target creature gains \"Flying.\"");
         let AbilityKind::Paragraph(object_paragraph) = &object.ast.abilities[0].kind() else {
             panic!("expected paragraph");

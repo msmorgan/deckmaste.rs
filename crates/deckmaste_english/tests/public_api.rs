@@ -115,6 +115,19 @@ fn parsed_independent_clause(source: &str) -> IndependentClause {
     clause.clone()
 }
 
+fn parsed_clause(source: &str, catalogs: &Catalogs) -> Clause {
+    let fragment = parse_fragment(source, catalogs, FragmentKind::Sentence, "Test Card", false)
+        .into_fragment()
+        .unwrap_or_else(|| panic!("fixture sentence must parse: {source:?}"));
+    let Fragment::Sentence(sentence) = fragment else {
+        panic!("requested a sentence fragment for {source:?}")
+    };
+    let SentenceBody::Independent(clause) = sentence.body() else {
+        panic!("fixture must contain an independent clause: {source:?}")
+    };
+    Clause::Independent(clause.clone())
+}
+
 fn checked_prepositional_phrase(
     preposition: Preposition,
     object: NounPhrase,
@@ -177,7 +190,7 @@ fn predicated_keyword_single_pp_keeps_generic_ast_with_declared_dominance() {
                 })
         })
         .expect("generic nominal attachment decision");
-    // Mutation caught: restore the handwritten M01 registration after the
+    // Mutation caught: restore handwritten nominal registration after the
     // declaration-driven family has become the sole authority.
     assert_eq!(decision.owner(), ConstructionOwner::Generated);
     assert_eq!(decision.backend(), ConstructionBackend::Chart);
@@ -862,7 +875,7 @@ fn public_adjective_posthead_builders_preserve_semantics_and_rendering() {
 }
 
 #[test]
-fn public_determiner_builders_preserve_every_d01_semantic_shape() {
+fn public_determiner_builders_preserve_every_semantic_shape() {
     use deckmaste_english::adjective as adjective_api;
     use deckmaste_english::determiner as determiner_api;
 
@@ -918,6 +931,14 @@ fn public_determiner_builders_preserve_every_d01_semantic_shape() {
                 | (ClosedDeterminer::No, DeterminerKind::No)
         ));
     }
+
+    let all_the = determiner_api::build_determiner_all_the().unwrap();
+    assert!(matches!(all_the.kind(), DeterminerKind::AllDefinite));
+    assert_eq!(
+        all_the.noun_cardinality(),
+        deckmaste_english::features::NounCardinality::PluralOrMass
+    );
+    assert_eq!(all_the.render().unwrap(), "all the");
 
     let target = determiner_api::build_determiner_target().unwrap();
     assert!(matches!(target.kind(), DeterminerKind::Target(None)));
@@ -1106,7 +1127,7 @@ fn plural_possessors_choose_apostrophe_from_the_rendered_noun_ending() {
 }
 
 #[test]
-fn public_possessive_nominal_boundary_rejects_non_d01_nominal_shapes() {
+fn public_possessive_nominal_boundary_rejects_nonpossessive_nominal_shapes() {
     use deckmaste_english::adjective as adjective_api;
     use deckmaste_english::determiner as determiner_api;
     use deckmaste_english::nominal as nominal_api;
@@ -1144,7 +1165,7 @@ fn public_possessive_nominal_boundary_rejects_non_d01_nominal_shapes() {
     for unsupported in [noun_modified, quantity_modified, complemented] {
         assert!(
             determiner_api::build_determiner_possessive_noun(unsupported).is_err(),
-            "non-D01 nominal state crossed the possessive boundary",
+            "non-possessive nominal state crossed the possessive boundary",
         );
     }
 
@@ -1159,7 +1180,7 @@ fn public_possessive_nominal_boundary_rejects_non_d01_nominal_shapes() {
     .unwrap();
     assert!(
         determiner_api::build_determiner_possessive_noun(negative_adjective).is_err(),
-        "a negative adjective is not a D01 possessive-noun prefix",
+        "a negative adjective is not a possessive-noun prefix",
     );
 
     let face_down = adjective_api::build_adjective_phrase_face_down().unwrap();
@@ -1179,7 +1200,7 @@ fn public_possessive_nominal_boundary_rejects_non_d01_nominal_shapes() {
             .unwrap();
     assert!(
         determiner_api::build_possessive_noun_adjective(ordinary_completed, bare()).is_ok(),
-        "a J01-owned comparison remains a valid D01 adjective prefix",
+        "an adjective-owned comparison remains a valid possessive adjective prefix",
     );
     let comparison_carrier = nominal_api::build_nominal_comparison(
         nominal_api::build_nominal_adjective(pending, bare()).unwrap(),
@@ -1188,14 +1209,15 @@ fn public_possessive_nominal_boundary_rejects_non_d01_nominal_shapes() {
     .unwrap();
     assert!(
         determiner_api::build_determiner_possessive_noun(comparison_carrier).is_err(),
-        "M01 postnominal comparison state has no total D01 inverse",
+        "postnominal comparison state has no total possessive inverse",
     );
 }
 
 #[test]
-fn public_determiner_provenance_exposes_the_complete_stable_d01_id_order() {
-    const D01_IDS: &[&str] = &[
+fn public_determiner_provenance_exposes_the_complete_stable_id_order() {
+    const DETERMINER_IDS: &[&str] = &[
         "determiner_closed",
+        "determiner_all_the",
         "determiner_target",
         "determiner_quantified_target",
         "determiner_quantity",
@@ -1207,15 +1229,16 @@ fn public_determiner_provenance_exposes_the_complete_stable_d01_id_order() {
     ];
     let catalogs = Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"]);
     let fixtures = [
-        ("Draw the card.", D01_IDS[0]),
-        ("Destroy target creature.", D01_IDS[1]),
-        ("Destroy up to two target creatures.", D01_IDS[2]),
-        ("Draw two cards.", D01_IDS[3]),
-        ("Nissa's power is 2.", D01_IDS[4]),
-        ("A creature's power is 2.", D01_IDS[5]),
-        ("The creature's power is 2.", D01_IDS[6]),
-        ("The creature's power is 2.", D01_IDS[7]),
-        ("An exiled card's owner draws a card.", D01_IDS[8]),
+        ("Draw the card.", DETERMINER_IDS[0]),
+        ("Discard all the cards.", DETERMINER_IDS[1]),
+        ("Destroy target creature.", DETERMINER_IDS[2]),
+        ("Destroy up to two target creatures.", DETERMINER_IDS[3]),
+        ("Draw two cards.", DETERMINER_IDS[4]),
+        ("Nissa's power is 2.", DETERMINER_IDS[5]),
+        ("A creature's power is 2.", DETERMINER_IDS[6]),
+        ("The creature's power is 2.", DETERMINER_IDS[7]),
+        ("The creature's power is 2.", DETERMINER_IDS[8]),
+        ("An exiled card's owner draws a card.", DETERMINER_IDS[9]),
     ];
     let actual = fixtures
         .into_iter()
@@ -1227,13 +1250,15 @@ fn public_determiner_provenance_exposes_the_complete_stable_d01_id_order() {
                 .iter()
                 .flat_map(ParseSelection::constructions)
                 .find(|decision| decision.selected().as_str() == expected)
-                .unwrap_or_else(|| panic!("missing public D01 owner {expected}: {report:#?}"));
+                .unwrap_or_else(|| {
+                    panic!("missing public determiner owner {expected}: {report:#?}")
+                });
             assert_eq!(decision.owner(), ConstructionOwner::Generated, "{source}");
             assert_eq!(decision.selected_production_ordinal(), 0, "{source}");
             decision.selected().as_str().to_owned()
         })
         .collect::<Vec<_>>();
-    assert_eq!(actual, D01_IDS);
+    assert_eq!(actual, DETERMINER_IDS);
 }
 
 #[test]
@@ -1645,7 +1670,7 @@ fn public_relative_builders_preserve_semantics_and_reject_impossible_shapes() {
 }
 
 #[test]
-fn public_checked_relative_asts_render_all_r01_forms_and_nested_relatives() {
+fn public_checked_relative_asts_render_all_forms_and_nested_relatives() {
     use deckmaste_english::adjective as adjective_api;
     use deckmaste_english::clause as clause_api;
     use deckmaste_english::nominal as nominal_api;
@@ -3352,10 +3377,10 @@ impl<'syntax> SyntaxInventory<'syntax> {
                 self.clause_attachment(complex.attachment().payload());
             }
             IndependentClause::Coordinated(coordinated) => {
-                self.independent_clause(&coordinated.first);
-                for coordination in &coordinated.rest {
-                    let CoordinatedClauseMember::Independent(clause) = &coordination.member;
-                    self.independent_clause(clause);
+                self.independent_clause(coordinated.first());
+                for coordination in coordinated.rest() {
+                    let CoordinatedClauseMember::Independent(clause) = coordination.member();
+                    self.independent_clause(clause.as_ref());
                 }
             }
         }
@@ -3630,6 +3655,7 @@ impl<'syntax> SyntaxInventory<'syntax> {
             | DeterminerKind::Demonstrative(_)
             | DeterminerKind::Target(None)
             | DeterminerKind::All
+            | DeterminerKind::AllDefinite
             | DeterminerKind::Any
             | DeterminerKind::No => {}
         }
@@ -3832,11 +3858,11 @@ fn exception_rider(clause: &IndependentClause) -> Option<&ExceptionRider> {
             _ => exception_rider(complex.host()),
         },
         IndependentClause::Finite(finite) => exception_rider_in_expression(finite.predicate()),
-        IndependentClause::Coordinated(coordination) => exception_rider(&coordination.first)
+        IndependentClause::Coordinated(coordination) => exception_rider(coordination.first())
             .or_else(|| {
-                coordination.rest.iter().find_map(|member| {
-                    let CoordinatedClauseMember::Independent(clause) = &member.member;
-                    exception_rider(clause)
+                coordination.rest().iter().find_map(|member| {
+                    let CoordinatedClauseMember::Independent(clause) = member.member();
+                    exception_rider(clause.as_ref())
                 })
             }),
         IndependentClause::Existential(..) => None,
@@ -3876,10 +3902,10 @@ fn appositive(clause: &IndependentClause) -> Option<&IndependentClause> {
         },
         IndependentClause::Finite(finite) => appositive_in_expression(finite.predicate()),
         IndependentClause::Coordinated(coordination) => {
-            appositive(&coordination.first).or_else(|| {
-                coordination.rest.iter().find_map(|member| {
-                    let CoordinatedClauseMember::Independent(clause) = &member.member;
-                    appositive(clause)
+            appositive(coordination.first()).or_else(|| {
+                coordination.rest().iter().find_map(|member| {
+                    let CoordinatedClauseMember::Independent(clause) = member.member();
+                    appositive(clause.as_ref())
                 })
             })
         }
@@ -4065,10 +4091,10 @@ fn has_finite_subordinate(clause: &IndependentClause, expected: Subordinator) ->
             expression_has_finite_subordinate(finite.predicate(), expected)
         }
         IndependentClause::Coordinated(coordination) => {
-            has_finite_subordinate(&coordination.first, expected)
-                || coordination.rest.iter().any(|member| {
-                    let CoordinatedClauseMember::Independent(clause) = &member.member;
-                    has_finite_subordinate(clause, expected)
+            has_finite_subordinate(coordination.first(), expected)
+                || coordination.rest().iter().any(|member| {
+                    let CoordinatedClauseMember::Independent(clause) = member.member();
+                    has_finite_subordinate(clause.as_ref(), expected)
                 })
         }
         IndependentClause::Existential(_) => false,
@@ -4435,25 +4461,25 @@ fn two_member_post_exception_coordination_stays_outside_the_rider() {
     let clause = only_independent_clause(&ast);
     let rider =
         exception_rider(clause).unwrap_or_else(|| panic!("expected an exception rider: {ast}"));
-    assert!(
-        rider.rest().is_empty()
-            && matches!(
-                clause,
-                IndependentClause::Coordinated(CoordinatedIndependentClause {
-                    rest,
-                    ..
-                }) if matches!(
-                    rest.as_slice(),
-                    [ClauseCoordination {
-                        member: CoordinatedClauseMember::Independent(clause),
-                        ..
-                    }] if matches!(
-                        matrix_simple_predicate(clause.as_ref()),
-                        Some(Predicate::Transitive(predicate))
-                            if matches!(predicate.object(), PredicateObject::QuotedAbility(_))
-                    )
+    let outer_quoted_ability = match clause {
+        IndependentClause::Coordinated(coordination) => {
+            matches!(
+                coordination.rest(),
+                [member] if matches!(
+                    member.member(),
+                    CoordinatedClauseMember::Independent(clause)
+                        if matches!(
+                            matrix_simple_predicate(clause.as_ref()),
+                            Some(Predicate::Transitive(predicate))
+                                if matches!(predicate.object(), PredicateObject::QuotedAbility(_))
+                        )
                 )
-            ),
+            )
+        }
+        _ => false,
+    };
+    assert!(
+        rider.rest().is_empty() && outer_quoted_ability,
         "AST:\n{ast}"
     );
 }
@@ -5339,7 +5365,7 @@ fn cost_noun_phrases_coordinate_with_and_or() {
     );
 }
 
-// --- R30: the library-iteration cluster -------------------------------------
+// --- Library iteration -------------------------------------------------------
 
 /// Card-type and creature-type atoms the library-iteration witnesses name.
 fn library_catalogs() -> Catalogs {
@@ -5477,7 +5503,7 @@ fn top_of_library_peek_and_play_are_supported() {
     assert_no_recovery(&ast);
 }
 
-// --- R31: the choice / mode-header cluster ----------------------------------
+// --- Choice and mode headers -------------------------------------------------
 
 /// The card-type atom the choice-cluster witnesses name.
 fn choice_catalogs() -> Catalogs {
@@ -5632,7 +5658,7 @@ fn descended_intervening_condition_parses_as_a_verb_clause() {
     assert_no_recovery(&ast);
 }
 
-// --- R32: the flavor-word sentence-header cluster ---------------------------
+// --- Flavor-word sentence headers -------------------------------------------
 
 /// The flavor words the header-cluster witnesses name, plus the one card-type
 /// atom their bodies need. `Exterminate!` is a real member ending in `!`: the
@@ -5846,10 +5872,10 @@ fn a_cost_flavor_header_with_a_non_member_label_is_unaffected() {
     );
 }
 
-// --- R33: the lexical-sweep round --------------------------------------------
+// --- Lexical sweep -----------------------------------------------------------
 
 /// The card-type atoms the lexical-sweep witnesses name.
-fn r33_catalogs() -> Catalogs {
+fn lexical_sweep_catalogs() -> Catalogs {
     Catalogs::default().with_catalog(
         CatalogKind::CardType,
         [
@@ -5869,7 +5895,12 @@ fn one_is_a_dispreferenced_fused_head_noun() {
     // sibling of `other`'s fused head, dispreferenced the same way
     // (`is_fused_head_noun`) so it never outranks the ordinary numeral reading.
     let source = "One or more target creatures become black until end of turn.";
-    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Touch of Darkness", false);
+    let (rendered, ast) = parse_face(
+        source,
+        &lexical_sweep_catalogs(),
+        "Touch of Darkness",
+        false,
+    );
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     assert!(
@@ -5888,7 +5919,7 @@ fn number_literal_one_still_wins_over_the_noun_reading() {
     // in every other structural cost — must still win the tiebreak, never a
     // `Noun::Word(One)`.
     let source = "Return up to one target creature card from your graveyard to the battlefield.";
-    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Badlands Revival", false);
+    let (rendered, ast) = parse_face(source, &lexical_sweep_catalogs(), "Badlands Revival", false);
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     let inventory = SyntaxInventory::from_ast(&ast);
@@ -5918,7 +5949,7 @@ fn itself_reflexive_pronoun_round_trips() {
     let source = "Target creature deals 6 damage to itself.";
     let (rendered, ast) = parse_face(
         source,
-        &r33_catalogs(),
+        &lexical_sweep_catalogs(),
         "Asmoranomardicadaistinaculdacar",
         false,
     );
@@ -5937,7 +5968,7 @@ fn himself_reflexive_pronoun_round_trips() {
     // Sarkhan the Mad shape: the same object-case reflexive identity, standing
     // in for a legendary planeswalker subject.
     let source = "Sarkhan deals damage to himself equal to that card's mana value.";
-    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Sarkhan the Mad", true);
+    let (rendered, ast) = parse_face(source, &lexical_sweep_catalogs(), "Sarkhan the Mad", true);
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     assert!(
@@ -5971,7 +6002,7 @@ fn fewest_is_a_fused_head_superlative_noun() {
     // needed — `fewest` has no competing reading).
     let source = "Each player chooses a number of lands they control equal to the number of \
         lands controlled by the player who controls the fewest, then sacrifices the rest.";
-    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Balance", false);
+    let (rendered, ast) = parse_face(source, &lexical_sweep_catalogs(), "Balance", false);
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     assert!(
@@ -5986,7 +6017,7 @@ fn most_is_an_attributive_superlative_adjective() {
     // No Witnesses shape: `the most creatures` modifies a following plural
     // head noun, exercising the adjective sense of the same `most` entry.
     let source = "Each player who controls the most creatures investigates.";
-    let (rendered, ast) = parse_face(source, &r33_catalogs(), "No Witnesses", false);
+    let (rendered, ast) = parse_face(source, &lexical_sweep_catalogs(), "No Witnesses", false);
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     assert!(
@@ -6002,7 +6033,7 @@ fn nearest_is_an_attributive_superlative_adjective() {
     // superlative pattern as `most`.
     let source = "Each player may attack only the nearest opponent in the last chosen direction \
         and planeswalkers controlled by that opponent.";
-    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Mystic Barrier", false);
+    let (rendered, ast) = parse_face(source, &lexical_sweep_catalogs(), "Mystic Barrier", false);
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     let inventory = SyntaxInventory::from_ast(&ast);
@@ -6044,7 +6075,7 @@ fn bid_bidding_and_bidder_forms_round_trip() {
         In turn order, each player may top the high bid. \
         The bidding ends if the high bid stands. \
         The high bidder loses life equal to the high bid and gains control of the creature.";
-    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Illicit Auction", false);
+    let (rendered, ast) = parse_face(source, &lexical_sweep_catalogs(), "Illicit Auction", false);
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     assert!(
@@ -6078,7 +6109,7 @@ fn crew_ordinary_verb_coexists_with_the_crew_keyword_action() {
     // driven `Crew N` keyword-action cost line.
     let source =
         "Whenever this creature crews an artifact, that artifact gains flying until end of turn.";
-    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Canyon Vaulter", false);
+    let (rendered, ast) = parse_face(source, &lexical_sweep_catalogs(), "Canyon Vaulter", false);
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     assert!(
@@ -6097,7 +6128,7 @@ fn escape_verb_round_trips() {
     // distinct from the unrelated `Escape—<cost>` keyword-cost header line
     // (a separate, unspaced-em-dash frame this round does not touch).
     let source = "This creature escapes with three +1/+1 counters on it.";
-    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Chainweb Aracnir", false);
+    let (rendered, ast) = parse_face(source, &lexical_sweep_catalogs(), "Chainweb Aracnir", false);
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     assert!(
@@ -6117,7 +6148,7 @@ fn everything_mass_noun_round_trips() {
     // does not touch; the same `everything`-as-bare-object-of-`from` shape
     // exercised as an ordinary clause instead.
     let source = "Enchanted creature has protection from everything.";
-    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Test Card", false);
+    let (rendered, ast) = parse_face(source, &lexical_sweep_catalogs(), "Test Card", false);
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     assert!(
@@ -6150,7 +6181,12 @@ fn void_voter_and_fame_nouns_round_trip() {
     );
 
     let voter = "For each fellowship vote, the voter chooses a creature they control.";
-    let (rendered, ast) = parse_face(voter, &r33_catalogs(), "Elrond of the White Council", true);
+    let (rendered, ast) = parse_face(
+        voter,
+        &lexical_sweep_catalogs(),
+        "Elrond of the White Council",
+        true,
+    );
     assert_eq!(rendered, voter);
     assert_no_recovery(&ast);
     assert!(
@@ -6178,7 +6214,12 @@ fn either_is_a_fused_head_pronoun_noun() {
     // Worms of the Earth shape: `does either` has no following head noun, so
     // `either` fills the fused head itself.
     let source = "If a player does either, destroy this enchantment.";
-    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Worms of the Earth", false);
+    let (rendered, ast) = parse_face(
+        source,
+        &lexical_sweep_catalogs(),
+        "Worms of the Earth",
+        false,
+    );
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     assert!(
@@ -6283,7 +6324,12 @@ fn level_and_rad_nouns_round_trip() {
     );
 
     let rad = "You may have this land enter tapped. If you do, you get two rad counters.";
-    let (rendered, ast) = parse_face(rad, &r33_catalogs(), "Mariposa Military Base", false);
+    let (rendered, ast) = parse_face(
+        rad,
+        &lexical_sweep_catalogs(),
+        "Mariposa Military Base",
+        false,
+    );
     assert_eq!(rendered, rad);
     assert_no_recovery(&ast);
     assert!(
@@ -6964,7 +7010,7 @@ fn anof_concord_opaque_descendant_inside_of_complement_still_recovered() {
 fn anof_cardinal_two_target_players_exchange_life_totals() {
     // Soul Conduit shape, stripped of its activation cost.
     let source = "Two target players exchange life totals.";
-    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Test Card", false);
+    let (rendered, ast) = parse_face(source, &lexical_sweep_catalogs(), "Test Card", false);
     assert_eq!(rendered, source, "AST:\n{ast}");
     assert_no_recovery(&ast);
     assert!(
@@ -7002,7 +7048,7 @@ fn anof_cardinal_two_target_players_exchange_life_totals() {
 #[test]
 fn anof_cardinal_lowercase_object_position_unchanged() {
     let source = "Destroy two target creatures.";
-    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Test Card", false);
+    let (rendered, ast) = parse_face(source, &lexical_sweep_catalogs(), "Test Card", false);
     assert_eq!(rendered, source, "AST:\n{ast}");
     assert_no_recovery(&ast);
     assert!(ast.lexical_opacity().is_empty(), "AST:\n{ast}");
@@ -7171,7 +7217,12 @@ fn anof_cardinal_one_or_more_fused_head_gate_stays_green() {
     // Named gate from `english-quantifier-float-residue.md` §1: must stay
     // green, unmodified by Stage B's case-folding retry.
     let source = "One or more target creatures become black until end of turn.";
-    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Touch of Darkness", false);
+    let (rendered, ast) = parse_face(
+        source,
+        &lexical_sweep_catalogs(),
+        "Touch of Darkness",
+        false,
+    );
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     assert!(
@@ -7186,7 +7237,7 @@ fn anof_cardinal_one_or_more_fused_head_gate_stays_green() {
 #[test]
 fn anof_cardinal_number_literal_one_still_wins_gate_stays_green() {
     let source = "Return up to one target creature card from your graveyard to the battlefield.";
-    let (rendered, ast) = parse_face(source, &r33_catalogs(), "Badlands Revival", false);
+    let (rendered, ast) = parse_face(source, &lexical_sweep_catalogs(), "Badlands Revival", false);
     assert_eq!(rendered, source);
     assert_no_recovery(&ast);
     let inventory = SyntaxInventory::from_ast(&ast);
@@ -7482,4 +7533,285 @@ fn public_predicative_and_power_toughness_consumers_use_checked_values() {
         toughness.complements(),
         [NominalComplement::PowerToughness(found)] if *found == stats
     ));
+}
+
+fn additive_copular_parts(
+    catalogs: &Catalogs,
+) -> (AuxiliaryInstance, NounPhrase, PrepositionalPhrase) {
+    let value = parsed_clause(
+        "Enchanted creature gets +1/+1 and is a Goblin in addition to its other types.",
+        catalogs,
+    );
+    let Clause::Independent(IndependentClause::Finite(finite)) = value else {
+        panic!("expected a shared-subject finite clause")
+    };
+    let PredicateExpression::Coordinated(coordination) = finite.predicate() else {
+        panic!("expected the public fixture to contain coordinated predicates")
+    };
+    let [_, PredicateExpression::Simple(Predicate::Copular(copular))] = coordination.conjuncts()
+    else {
+        panic!("expected an additive copular second member: {coordination:#?}")
+    };
+    let CopularComplement::NounPhrase(complement) = copular.complement() else {
+        panic!("expected a nominal copular complement: {copular:#?}")
+    };
+    let [PredicateAdjunct::Prepositional(preposition)] = copular.adjuncts() else {
+        panic!("expected one additive prepositional adjunct: {copular:#?}")
+    };
+    (
+        copular.copula().auxiliary(),
+        complement.clone(),
+        preposition.clone(),
+    )
+}
+
+#[test]
+fn public_clause_coordination_builders_preserve_subject_scope_and_punctuation() {
+    use deckmaste_english::clause as clause_api;
+    use deckmaste_english::features::Comma;
+    use deckmaste_english::features::Conjunction;
+
+    let catalogs = Catalogs::default();
+    let first = parsed_clause("You draw a card.", &catalogs);
+    let complete = parsed_clause("You discard a card.", &catalogs);
+    let imperative = parsed_clause("Discard a card.", &catalogs);
+
+    let complete_pair =
+        clause_api::build_clause_coordination(first.clone(), Conjunction::And, &complete)
+            .expect("two explicit-subject clauses form a complete-clause coordination");
+    let Clause::Independent(IndependentClause::Coordinated(coordination)) = &complete_pair else {
+        panic!("explicit subjects must remain complete clause members: {complete_pair:#?}")
+    };
+    assert_eq!(coordination.rest().len(), 1);
+    assert_eq!(coordination.rest()[0].conjunction(), Some(Conjunction::And));
+    assert_eq!(coordination.rest()[0].comma(), Comma::Absent);
+    assert!(matches!(
+        coordination.rest()[0].member(),
+        CoordinatedClauseMember::Independent(clause)
+            if matrix_simple_predicate(clause.as_ref()).is_some()
+                && clause_subject(clause.as_ref()).is_some()
+    ));
+
+    let shared =
+        clause_api::build_clause_coordination(first.clone(), Conjunction::And, &imperative)
+            .expect("an addressee host adopts an imperative continuation");
+    let Clause::Independent(IndependentClause::Finite(finite)) = &shared else {
+        panic!("a shared subject remains one finite clause: {shared:#?}")
+    };
+    assert!(finite.subject().is_some());
+    let PredicateExpression::Coordinated(coordination) = finite.predicate() else {
+        panic!("the finite owner must contain coordinated predicates: {finite:#?}")
+    };
+    assert_eq!(coordination.conjuncts().len(), 2);
+    assert_eq!(
+        coordination.junctions()[0].conjunction(),
+        Some(Conjunction::And)
+    );
+    assert_eq!(coordination.junctions()[0].comma(), Comma::Absent);
+
+    let comma =
+        clause_api::build_clause_coordination_comma(first.clone(), Conjunction::Then, &imperative)
+            .expect("a sequenced imperative continuation retains its comma");
+    let Clause::Independent(IndependentClause::Finite(finite)) = &comma else {
+        panic!("the comma variant still shares one subject: {comma:#?}")
+    };
+    let PredicateExpression::Coordinated(coordination) = finite.predicate() else {
+        panic!("the comma variant must preserve its predicate coordination")
+    };
+    assert_eq!(
+        coordination.junctions()[0].conjunction(),
+        Some(Conjunction::Then)
+    );
+    assert_eq!(coordination.junctions()[0].comma(), Comma::Present);
+
+    let asyndetic = clause_api::build_clause_coordination_asyndetic(first, &imperative)
+        .expect("an addressee host admits an asyndetic imperative continuation");
+    let Clause::Independent(IndependentClause::Finite(finite)) = &asyndetic else {
+        panic!("the asyndetic variant still shares one subject: {asyndetic:#?}")
+    };
+    let PredicateExpression::Coordinated(coordination) = finite.predicate() else {
+        panic!("the asyndetic variant must preserve its predicate coordination")
+    };
+    assert_eq!(coordination.junctions()[0].conjunction(), None);
+    assert_eq!(coordination.junctions()[0].comma(), Comma::Present);
+
+    assert!(
+        clause_api::build_clause_coordination(complete_pair, Conjunction::And, &shared).is_err(),
+        "a coordinated value cannot bypass the simple-continuation boundary"
+    );
+
+    let catalogs = Catalogs::default()
+        .with_catalog(CatalogKind::CardType, ["Creature"])
+        .with_catalog(CatalogKind::KeywordAbility, ["Trample"]);
+    let third_person_host = parsed_clause("This creature gets +1/+1.", &catalogs);
+    let third_person_member = parsed_clause("This creature has trample.", &catalogs);
+    let Clause::Independent(IndependentClause::Finite(member)) = third_person_member else {
+        panic!("the member fixture must be finite")
+    };
+    let PredicateExpression::Simple(member) = member.predicate() else {
+        panic!("the member fixture must contain one predicate")
+    };
+    let third_person = clause_api::build_clause_coordination_shared_predicate(
+        third_person_host.clone(),
+        Conjunction::And,
+        member,
+    )
+    .expect("a checked third-person predicate shares the host subject");
+    let Clause::Independent(IndependentClause::Finite(finite)) = &third_person else {
+        panic!("a shared third-person subject remains one finite clause")
+    };
+    assert!(finite.subject().is_some());
+    assert!(matches!(
+        finite.predicate(),
+        PredicateExpression::Coordinated(coordination)
+            if coordination.conjuncts().len() == 2
+                && matches!(
+                    &coordination.conjuncts()[1],
+                    PredicateExpression::Simple(Predicate::Transitive(_))
+                )
+    ));
+
+    let plural_host = parsed_clause("Creatures get +1/+1.", &catalogs);
+    assert!(
+        clause_api::build_clause_coordination_shared_predicate(
+            plural_host,
+            Conjunction::And,
+            member,
+        )
+        .is_err(),
+        "a singular `has` predicate cannot share a plural host subject"
+    );
+}
+
+#[test]
+fn public_shared_copular_builders_cover_all_declared_punctuation_forms() {
+    use deckmaste_english::clause as clause_api;
+    use deckmaste_english::features::Comma;
+    use deckmaste_english::features::Conjunction;
+
+    let catalogs = Catalogs::default().with_catalog(CatalogKind::CreatureType, ["Goblin"]);
+    let host = parsed_clause("Enchanted creature gets +1/+1.", &catalogs);
+    let (copula, complement, preposition) = additive_copular_parts(&catalogs);
+    let forms = [
+        clause_api::build_clause_coordination_copular_noun_prepositional(
+            host.clone(),
+            Conjunction::And,
+            copula,
+            complement.clone(),
+            preposition.clone(),
+        )
+        .expect("the noncomma additive form is checked"),
+        clause_api::build_clause_coordination_copular_noun_prepositional_comma(
+            host.clone(),
+            Conjunction::And,
+            copula,
+            complement.clone(),
+            preposition.clone(),
+        )
+        .expect("the comma additive form is checked"),
+        clause_api::build_clause_coordination_copular_noun_prepositional_asyndetic(
+            host.clone(),
+            copula,
+            complement.clone(),
+            preposition.clone(),
+        )
+        .expect("the asyndetic additive form is checked"),
+    ];
+    let expected = [
+        (Some(Conjunction::And), Comma::Absent),
+        (Some(Conjunction::And), Comma::Present),
+        (None, Comma::Present),
+    ];
+    for (value, expected) in forms.iter().zip(expected) {
+        let Clause::Independent(IndependentClause::Finite(finite)) = value else {
+            panic!("the copular continuation shares the finite subject: {value:#?}")
+        };
+        let PredicateExpression::Coordinated(coordination) = finite.predicate() else {
+            panic!("the copular continuation belongs to the predicate owner")
+        };
+        assert_eq!(coordination.conjuncts().len(), 2);
+        assert_eq!(coordination.junctions()[0].conjunction(), expected.0);
+        assert_eq!(coordination.junctions()[0].comma(), expected.1);
+        assert!(matches!(
+            &coordination.conjuncts()[1],
+            PredicateExpression::Simple(Predicate::Copular(_))
+        ));
+    }
+
+    assert!(
+        clause_api::build_clause_coordination_copular_noun_prepositional(
+            host,
+            Conjunction::Or,
+            copula,
+            complement,
+            preposition,
+        )
+        .is_err(),
+        "the narrow shared-copular row admits only additive and"
+    );
+}
+
+#[test]
+fn checked_clause_builders_preserve_both_changed_connective_associations() {
+    use deckmaste_english::clause as clause_api;
+    use deckmaste_english::features::Comma;
+    use deckmaste_english::features::Conjunction;
+
+    let catalogs = Catalogs::default();
+    let a = parsed_clause("You draw a card.", &catalogs);
+    let b = parsed_clause("You discard a card.", &catalogs);
+    let c = parsed_clause("You gain 1 life.", &catalogs);
+
+    let left_inner = clause_api::build_clause_coordination(a.clone(), Conjunction::And, &b)
+        .expect("the left inner group is checked");
+    let left = clause_api::build_clause_coordination_comma(left_inner, Conjunction::Or, &c)
+        .expect("a changed connective completes the left group");
+    let Clause::Independent(IndependentClause::Coordinated(left_outer)) = &left else {
+        panic!("expected a complete-clause outer group: {left:#?}")
+    };
+    assert!(matches!(
+        left_outer.first(),
+        IndependentClause::Coordinated(left_inner)
+            if left_inner.rest().len() == 1
+                && left_inner.rest()[0].conjunction() == Some(Conjunction::And)
+    ));
+    assert_eq!(left_outer.rest().len(), 1);
+    assert_eq!(left_outer.rest()[0].conjunction(), Some(Conjunction::Or));
+    assert_eq!(left_outer.rest()[0].comma(), Comma::Present);
+
+    let right_prefix = clause_api::build_clause_coordination(a, Conjunction::Or, &b)
+        .expect("the right-associated prefix is checked");
+    let right = clause_api::build_clause_coordination(right_prefix, Conjunction::And, &c)
+        .expect("a changed connective nests the rightmost group");
+    let Clause::Independent(IndependentClause::Coordinated(right_outer)) = &right else {
+        panic!("expected a complete-clause outer group: {right:#?}")
+    };
+    assert!(!matches!(
+        right_outer.first(),
+        IndependentClause::Coordinated(_)
+    ));
+    assert_eq!(right_outer.rest().len(), 1);
+    assert_eq!(right_outer.rest()[0].conjunction(), Some(Conjunction::Or));
+    assert!(matches!(
+        right_outer.rest()[0].member(),
+        CoordinatedClauseMember::Independent(member)
+            if matches!(
+                member.as_ref(),
+                IndependentClause::Coordinated(right_inner)
+                    if right_inner.rest().len() == 1
+                        && right_inner.rest()[0].conjunction() == Some(Conjunction::And)
+            )
+    ));
+
+    let left = Sentence::try_from_clause(left).expect("the left grouping is a complete sentence");
+    let right =
+        Sentence::try_from_clause(right).expect("the right grouping is a complete sentence");
+    assert_eq!(
+        render_fragment(&Fragment::Sentence(left), "Test Card", false).unwrap(),
+        "You draw a card and you discard a card, or you gain 1 life."
+    );
+    assert_eq!(
+        render_fragment(&Fragment::Sentence(right), "Test Card", false).unwrap(),
+        "You draw a card or you discard a card and you gain 1 life."
+    );
 }

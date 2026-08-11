@@ -293,7 +293,7 @@ impl QuantityValue {
     }
 }
 
-/// A quantity admitted by Q01's generated declarations.
+/// A quantity admitted by the generated quantity declarations.
 ///
 /// The inner semantic kind is public for inspection, while [`Quantity`]'s
 /// private field keeps construction behind the checked `try_*` functions.
@@ -508,7 +508,7 @@ impl Quantity {
     }
 }
 
-/// A determiner admitted by D01's generated declarations.
+/// A determiner admitted by the generated determiner declarations.
 ///
 /// The semantic kind is inspectable, while the private wrapper keeps invalid
 /// pronoun and possessive-nominal states behind the checked builders.
@@ -535,11 +535,13 @@ pub enum DeterminerKind {
     Quantity(Quantity),
     Possessive(Possessor),
     All,
+    /// The composed predeterminer and definite article `all the`.
+    AllDefinite,
     Any,
     No,
 }
 
-/// A closed lexical determiner identity accepted by D01's generated builder.
+/// A closed lexical determiner identity accepted by the generated builder.
 ///
 /// These values contain no independently writable construction state. Target,
 /// quantity, and noun-phrase possessive shapes use their own checked builders.
@@ -578,6 +580,7 @@ impl Hash for Determiner {
             | DeterminerKind::Each
             | DeterminerKind::Another
             | DeterminerKind::All
+            | DeterminerKind::AllDefinite
             | DeterminerKind::Any
             | DeterminerKind::No => {}
         }
@@ -645,7 +648,7 @@ impl Determiner {
                 cardinality => cardinality,
             },
             DeterminerKind::Quantity(quantity) => quantity.noun_cardinality(),
-            DeterminerKind::All => NounCardinality::PluralOrMass,
+            DeterminerKind::All | DeterminerKind::AllDefinite => NounCardinality::PluralOrMass,
             DeterminerKind::The
             | DeterminerKind::Possessive(_)
             | DeterminerKind::Any
@@ -718,9 +721,9 @@ impl Demonstrative {
 
 /// A pronominal or noun-phrase possessor.
 ///
-/// Both alternatives are semantically valid on their own. The checked D01
-/// boundary remains responsible for deciding where a possessor may enter a
-/// determiner or noun phrase.
+/// Both alternatives are semantically valid on their own. The checked
+/// determiner boundary decides where a possessor may enter a determiner or
+/// noun phrase.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum Possessor {
     Pronoun(Pronoun),
@@ -1434,9 +1437,9 @@ mod adjective_storage {
             Some((self, comparison))
         }
 
-        /// Extends the J01 post-head complement family with a prepositional
-        /// complement. Degree, orientation, and comparison shapes cannot
-        /// cross this construction boundary.
+        /// Extends the adjective post-head complement family with a
+        /// prepositional complement. Degree, orientation, and
+        /// comparison shapes cannot cross this construction boundary.
         #[must_use]
         pub(crate) fn try_attach_declared_prepositional(
             mut self,
@@ -1450,7 +1453,8 @@ mod adjective_storage {
             Some(self)
         }
 
-        /// Extends the J01 post-head complement family with an infinitive.
+        /// Extends the adjective post-head complement family with an
+        /// infinitive.
         #[must_use]
         pub(crate) fn try_attach_declared_infinitive(
             mut self,
@@ -1802,7 +1806,7 @@ pub enum PrepositionalObjectKind {
     Adverb(Vocab),
 }
 
-/// A checked whole object accepted by P02.
+/// A checked whole object accepted by the prepositional declarations.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct PrepositionalObject(PrepositionalObjectKind);
 
@@ -2157,14 +2161,14 @@ mod adjective_invariant_tests {
     }
 
     #[test]
-    fn j01_storage_is_private_to_a_sibling_of_the_nominal_owner() {
+    fn adjective_storage_is_private_to_a_sibling_of_the_nominal_owner() {
         fn struct_body<'source>(source: &'source str, definition: &str) -> &'source str {
             let body = source
                 .split_once(definition)
-                .unwrap_or_else(|| panic!("missing J01 definition {definition:?}"))
+                .unwrap_or_else(|| panic!("missing adjective definition {definition:?}"))
                 .1;
             body.split_once("\n    }")
-                .unwrap_or_else(|| panic!("unterminated J01 definition {definition:?}"))
+                .unwrap_or_else(|| panic!("unterminated adjective definition {definition:?}"))
                 .0
         }
 
@@ -2183,23 +2187,23 @@ mod adjective_invariant_tests {
         let phrase_source = include_str!("phrase.rs");
         let storage_start = phrase_source
             .find(concat!("mod adjective_", "storage {"))
-            .expect("J01 storage lives in its own private module");
+            .expect("adjective storage lives in its own private module");
         let storage_end = phrase_source
             .find(concat!("pub use adjective_", "storage::AdjectivePhrase;"))
-            .expect("the public J01 types are re-exported from private storage");
+            .expect("the public adjective types are re-exported from private storage");
         let nominal_owner = phrase_source
             .find("pub(crate) mod nominal_constructions;")
-            .expect("the M01 declaration remains an owner child");
+            .expect("the nominal declaration remains an owner child");
         for definition in [
             "pub struct AdjectivePhrase {",
             "pub struct ComparisonComplement {",
         ] {
             let definition = phrase_source
                 .find(definition)
-                .unwrap_or_else(|| panic!("missing J01 definition {definition:?}"));
+                .unwrap_or_else(|| panic!("missing adjective definition {definition:?}"));
             assert!(
                 definition > storage_start && definition < storage_end,
-                "{definition:?} is outside private J01 storage",
+                "{definition:?} is outside private adjective storage",
             );
         }
         for (definition, fields) in [
@@ -2222,7 +2226,7 @@ mod adjective_invariant_tests {
                 !body
                     .lines()
                     .any(|line| line.trim_start().starts_with("pub")),
-                "{definition:?} exposed raw fields outside the J01 owner",
+                "{definition:?} exposed raw fields outside the adjective owner",
             );
             for field in fields {
                 assert!(
@@ -2233,14 +2237,14 @@ mod adjective_invariant_tests {
         }
         assert!(
             nominal_owner < storage_start || nominal_owner > storage_end,
-            "the M01 declaration must be a sibling, not a J01 storage descendant",
+            "the nominal declaration must be a sibling, not an adjective storage descendant",
         );
 
         let nominal_source = include_str!("../constructions/nominal.rs");
         for type_name in ["AdjectivePhrase", "ComparisonComplement"] {
             assert!(
                 !contains_struct_literal(nominal_source, type_name),
-                "M01 regained raw J01 storage access through {type_name}",
+                "nominal declarations regained raw adjective storage access through {type_name}",
             );
         }
     }

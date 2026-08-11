@@ -352,9 +352,9 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 self.clause_attachment(complex.attachment(), context);
             }
             IndependentClause::Coordinated(coordinated) => {
-                self.independent_clause(&coordinated.first, context);
-                for coordination in &coordinated.rest {
-                    match &coordination.member {
+                self.independent_clause(coordinated.first(), context);
+                for coordination in coordinated.rest() {
+                    match coordination.member() {
                         CoordinatedClauseMember::Independent(clause) => {
                             self.independent_clause(clause, context);
                         }

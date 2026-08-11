@@ -1,0 +1,17 @@
+error: cannot construct `CoordinationJunction` with struct literal syntax due to private fields
+ --> tests/compile_fail/construct_coordination_junction.rs:6:5
+  |
+6 |     CoordinationJunction { conjunction, comma }
+  |     ^^^^^^^^^^^^^^^^^^^^   -----------  ----- private field
+  |                            |
+  |                            private field
+  |
+  = note: ...and other private field `head_realization` that was not provided
+help: you might have meant to use an associated function to build this type
+  |
+6 -     CoordinationJunction { conjunction, comma }
+6 +     CoordinationJunction::from_declaration_parts(_, _)
+  |
+6 -     CoordinationJunction { conjunction, comma }
+6 +     CoordinationJunction::from_shared_grant_parts(_, _)
+  |

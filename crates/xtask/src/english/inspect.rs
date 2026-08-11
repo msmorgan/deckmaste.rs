@@ -164,18 +164,18 @@ fn write_provenance(mut writer: impl Write, report: &ParseReport) -> Result<()> 
             }
         }
     }
-    write_p02_attachment_evidence(&mut writer, report)?;
+    write_attachment_role_evidence(&mut writer, report)?;
     Ok(())
 }
 
-fn write_p02_attachment_evidence(mut writer: impl Write, report: &ParseReport) -> Result<()> {
-    let has_p02 = report.provenance().selections().iter().any(|selection| {
+fn write_attachment_role_evidence(mut writer: impl Write, report: &ParseReport) -> Result<()> {
+    let has_attachment_roles = report.provenance().selections().iter().any(|selection| {
         selection
             .constructions()
             .iter()
             .any(|decision| decision.selected().as_str() == "prepositional_phrase")
     });
-    if !has_p02 {
+    if !has_attachment_roles {
         return Ok(());
     }
 
@@ -198,7 +198,7 @@ fn write_p02_attachment_evidence(mut writer: impl Write, report: &ParseReport) -
         }
     }
     if !roles.is_empty() {
-        writeln!(writer, "P02 consuming attachment roles:")?;
+        writeln!(writer, "Consuming attachment roles:")?;
         for role in roles {
             writeln!(writer, "  role={role}")?;
         }
@@ -217,9 +217,9 @@ fn collect_predicate_pp_roles(clause: &IndependentClause, roles: &mut BTreeSet<&
             collect_clause_attachment_pp_roles(complex.attachment(), roles);
         }
         IndependentClause::Coordinated(coordinated) => {
-            collect_predicate_pp_roles(coordinated.first.as_ref(), roles);
-            for coordination in &coordinated.rest {
-                match &coordination.member {
+            collect_predicate_pp_roles(coordinated.first(), roles);
+            for coordination in coordinated.rest() {
+                match coordination.member() {
                     CoordinatedClauseMember::Independent(clause) => {
                         collect_predicate_pp_roles(clause, roles);
                     }
@@ -520,6 +520,140 @@ mod tests {
         read_card_faces(Cursor::new(data), Path::new(DATA_PATH)).unwrap()
     }
 
+    fn attachment_topology(attachment: &ClauseAttachment) -> String {
+        let payload = match attachment.payload() {
+            ClauseAttachmentKind::Dependent(DependentClause::Subordinate(subordinator, _)) => {
+                format!("Subordinate({subordinator:?})")
+            }
+            ClauseAttachmentKind::Dependent(_) => "Dependent".to_owned(),
+            ClauseAttachmentKind::Adjunct(_) => "Adjunct".to_owned(),
+            ClauseAttachmentKind::Exception(_) => "Exception".to_owned(),
+            ClauseAttachmentKind::Appositive(_) => "Appositive".to_owned(),
+            ClauseAttachmentKind::Restriction(_) => "Restriction".to_owned(),
+        };
+        format!("{:?}:{payload}", attachment.position())
+    }
+
+    fn predicate_topology(predicate: &Predicate) -> String {
+        match predicate {
+            Predicate::Transitive(_) => "Transitive".to_owned(),
+            Predicate::Intransitive(_) => "Intransitive".to_owned(),
+            Predicate::Copular(_) => "Copular".to_owned(),
+            Predicate::Passive(_) => "Passive".to_owned(),
+            Predicate::Proform(_) => "Proform".to_owned(),
+            Predicate::Deontic(deontic) => deontic.inner().map_or_else(
+                || "Deontic(elided)".to_owned(),
+                |inner| format!("Deontic({})", expression_topology(inner)),
+            ),
+            Predicate::Attached(attached) => format!(
+                "Attached({}, {})",
+                attachment_topology(attached.attachment()),
+                predicate_topology(attached.predicate())
+            ),
+        }
+    }
+
+    fn expression_topology(expression: &PredicateExpression) -> String {
+        match expression {
+            PredicateExpression::Simple(predicate) => predicate_topology(predicate),
+            PredicateExpression::Coordinated(coordination) => format!(
+                "PredCoord[{}]",
+                coordination
+                    .conjuncts()
+                    .iter()
+                    .map(expression_topology)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+        }
+    }
+
+    fn clause_topology(clause: &IndependentClause) -> String {
+        match clause {
+            IndependentClause::Finite(finite) => format!(
+                "Finite(subject={}, {})",
+                finite.subject().is_some(),
+                expression_topology(finite.predicate())
+            ),
+            IndependentClause::Existential(_) => "Existential".to_owned(),
+            IndependentClause::Complex(complex) => format!(
+                "Complex({}, {})",
+                attachment_topology(complex.attachment()),
+                clause_topology(complex.host())
+            ),
+            IndependentClause::Coordinated(coordination) => {
+                let mut members = vec![clause_topology(coordination.first())];
+                members.extend(
+                    coordination
+                        .rest()
+                        .iter()
+                        .map(|member| match member.member() {
+                            CoordinatedClauseMember::Independent(clause) => clause_topology(clause),
+                        }),
+                );
+                format!("ClauseCoord[{}]", members.join(", "))
+            }
+        }
+    }
+
+    fn clause_topologies(report: &ParseReport) -> String {
+        let topologies = report
+            .ast()
+            .abilities
+            .iter()
+            .flat_map(|ability| match ability.kind() {
+                AbilityKind::Paragraph(paragraph) => paragraph
+                    .sentences
+                    .iter()
+                    .filter_map(|sentence| match sentence.body() {
+                        SentenceBody::Independent(clause) => Some(clause_topology(clause)),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>(),
+                _ => Vec::new(),
+            })
+            .collect::<Vec<_>>();
+        if topologies.is_empty() {
+            "no independent clause".to_owned()
+        } else {
+            topologies.join("; ")
+        }
+    }
+
+    fn assert_chaos_matrix(report: &ParseReport, oracle_source: &str, source: &str) {
+        assert!(oracle_source.contains(&source[1..]));
+        let [ability] = report.ast().abilities.as_slice() else {
+            panic!("Chaos Mutation's matrix must produce one ability")
+        };
+        let AbilityKind::Paragraph(paragraph) = ability.kind() else {
+            panic!("Chaos Mutation's matrix must produce a paragraph")
+        };
+        let [sentence] = paragraph.sentences.as_slice() else {
+            panic!("Chaos Mutation's matrix must produce one sentence")
+        };
+        let SentenceBody::Independent(IndependentClause::Finite(finite)) = sentence.body() else {
+            panic!(
+                "Chaos Mutation's matrix must be one finite clause: {:#?}",
+                sentence.body()
+            )
+        };
+        let PredicateExpression::Coordinated(coordination) = finite.predicate() else {
+            panic!("Chaos Mutation's matrix must retain its predicate coordination")
+        };
+        assert_eq!(coordination.conjuncts().len(), 3);
+        assert!(matches!(
+            coordination.conjuncts().first(),
+            Some(PredicateExpression::Simple(Predicate::Attached(predicate)))
+                if matches!(
+                    predicate.attachment().payload(),
+                    ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                        deckmaste_english::syntax::Subordinator::Until,
+                        _
+                    ))
+                )
+        ));
+    }
+
     #[test]
     fn standalone_name_wins_over_a_face_with_the_same_name() {
         let data = concat!(
@@ -702,8 +836,8 @@ mod tests {
     }
 
     #[test]
-    fn production_j01_inspect_reports_generated_owners() {
-        let verbose = verbose_m01("Its power is greater than a card.");
+    fn production_comparison_inspect_reports_generated_owners() {
+        let verbose = verbose_parse("Its power is greater than a card.");
         for construction in [
             "adjective",
             "adjective_phrase",
@@ -713,14 +847,15 @@ mod tests {
         ] {
             assert!(
                 verbose.contains(&format!(" {construction} owner=generated backend=chart ")),
-                "missing production-generated J01 owner {construction}:\n{verbose}"
+                "missing production-generated comparison owner {construction}:\n{verbose}"
             );
         }
     }
 
     #[test]
     fn production_cost_inspect_reports_nested_ability_backend_owner() {
-        let verbose = verbose_m01("{2}: Choose one —\n• Draw a card.\n• Create a Treasure token.");
+        let verbose =
+            verbose_parse("{2}: Choose one —\n• Draw a card.\n• Create a Treasure token.");
         let cost = verbose
             .lines()
             .find(|line| line.contains(" cost owner=generated backend=ability "))
@@ -733,7 +868,7 @@ mod tests {
 
     #[test]
     fn production_ability_inspect_reports_generated_semantic_root() {
-        let verbose = verbose_m01("Choose one —\n• Draw a card.\n• Create a Treasure token.");
+        let verbose = verbose_parse("Choose one —\n• Draw a card.\n• Create a Treasure token.");
         let ability = verbose
             .lines()
             .find(|line| line.contains(" ability owner=generated backend=ability "))
@@ -746,7 +881,7 @@ mod tests {
 
     #[test]
     fn ability_collision_inspect_reports_ranked_alternatives_and_decisive_cost() {
-        let verbose = verbose_m01("Ward—Discard a card: Draw a card.");
+        let verbose = verbose_parse("Ward—Discard a card: Draw a card.");
         let ability = verbose
             .lines()
             .find(|line| line.contains(" ability owner=generated backend=ability "))
@@ -780,7 +915,7 @@ mod tests {
     }
 
     #[test]
-    fn production_p01_inspect_reports_generated_owners_and_decisive_constraints() {
+    fn production_noun_phrase_inspect_reports_generated_owners_and_decisive_constraints() {
         for (source, construction, evidence) in [
             (
                 "They draw a card.",
@@ -808,12 +943,12 @@ mod tests {
                 "role:rules-object attachment role",
             ),
         ] {
-            let verbose = verbose_m01(source);
+            let verbose = verbose_parse(source);
             assert!(
                 verbose.contains(&format!(
                     " {construction} owner=generated backend=chart form=0 evidence={evidence}"
                 )),
-                "missing generated P01 owner/evidence {construction}:\n{verbose}"
+                "missing generated noun-phrase owner/evidence {construction}:\n{verbose}"
             );
         }
     }
@@ -834,14 +969,14 @@ mod tests {
                 "nominal_with_attributes",
             ),
         ] {
-            let verbose = verbose_m01(source);
+            let verbose = verbose_parse(source);
             assert!(
                 verbose.contains(&format!(" {owner} owner=generated backend=chart ")),
                 "missing generated coordination owner {owner} for {source:?}:\n{verbose}"
             );
         }
 
-        let mixed = verbose_m01(
+        let mixed = verbose_parse(
             "Create a 1/1 red Alien creature token with haste and \"This token attacks each combat if able.\"",
         );
         assert!(
@@ -1002,8 +1137,439 @@ mod tests {
     }
 
     #[test]
-    fn production_p02_inspect_reports_generated_object_and_attachment_evidence() {
-        let selected = verbose_m01("Look at the top card of your library.");
+    #[cfg_attr(
+        not(all(derived_cards, gen_catalogs)),
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+    )]
+    fn supported_clause_coordination_cards_round_trip_through_generated_owners() {
+        let data = OracleDataArgs::default()
+            .load()
+            .expect("release corpus data must be available for clause-coordination fixtures");
+        for (name, ability_line, oracle_source, matrix_source, expected_owners) in [
+            (
+                "Tek",
+                0,
+                "This creature gets +0/+2 as long as you control a Plains, has flying as long as you control an Island, gets +2/+0 as long as you control a Swamp, has first strike as long as you control a Mountain, and has trample as long as you control a Forest.",
+                None,
+                &["clause_coordination_comma", "clause_coordination_asyndetic"][..],
+            ),
+            (
+                "Tribal Golem",
+                0,
+                r#"This creature has trample as long as you control a Beast, haste as long as you control a Goblin, first strike as long as you control a Soldier, flying as long as you control a Wizard, and "{B}: Regenerate this creature" as long as you control a Zombie."#,
+                None,
+                &["clause_coordination_shared_grant_comma"][..],
+            ),
+            (
+                "Backwoods Survivalists",
+                0,
+                "Delirium — This creature gets +1/+1 and has trample as long as there are four or more card types among cards in your graveyard.",
+                None,
+                &["clause_coordination"][..],
+            ),
+            (
+                "Tuinvale Guide",
+                1,
+                "Celebration — This creature gets +1/+0 and has lifelink as long as two or more nonland permanents entered the battlefield under your control this turn.",
+                None,
+                &["clause_coordination"][..],
+            ),
+            (
+                "Dragon's Rage Channeler",
+                1,
+                "Delirium — As long as there are four or more card types among cards in your graveyard, this creature gets +2/+2, has flying, and attacks each combat if able.",
+                None,
+                &["clause_coordination_comma", "clause_coordination_asyndetic"][..],
+            ),
+            (
+                "Chaos Mutation",
+                0,
+                "Exile any number of target creatures controlled by different players. For each creature exiled this way, its controller reveals cards from the top of their library until they reveal a creature card, puts that card onto the battlefield, then puts the rest on the bottom of their library in a random order.",
+                Some(
+                    "Its controller reveals cards from the top of their library until they reveal a creature card, puts that card onto the battlefield, then puts the rest on the bottom of their library in a random order.",
+                ),
+                &["clause_coordination_comma", "clause_coordination_asyndetic"][..],
+            ),
+            (
+                "Sycorax Commander",
+                1,
+                "Sanctified Rules of Combat — When this creature enters, each opponent faces a villainous choice — That opponent discards all the cards in their hand, then draws that many cards minus one, or this creature deals damage to that player equal to the number of cards in their hand.",
+                None,
+                &["clause_coordination_comma"][..],
+            ),
+            (
+                "Giant's Amulet",
+                1,
+                r#"Equipped creature gets +0/+1 and has "This creature has hexproof as long as it's untapped.""#,
+                None,
+                &["clause_coordination"][..],
+            ),
+        ] {
+            let cards = find_cards(&data.faces, name);
+            let [card] = cards.as_slice() else {
+                panic!("expected one supported snapshot face for {name}, got {cards:#?}")
+            };
+            assert!(card.supported, "{name} must remain in the supported corpus");
+            assert_eq!(
+                card.oracle_text.lines().nth(ability_line),
+                Some(oracle_source),
+                "{name}'s verified Oracle fixture drifted"
+            );
+
+            let source = matrix_source.unwrap_or(oracle_source);
+
+            let report = parse_with_identity(source, &data.catalogs, name, card.is_legendary);
+            assert!(
+                report.ast().recoveries().is_empty(),
+                "{name} introduced recovery: {:#?}",
+                report.diagnostics()
+            );
+            assert_eq!(
+                report
+                    .ast()
+                    .render(name, card.is_legendary)
+                    .unwrap_or_else(|error| panic!("{name} failed to render: {error}")),
+                source,
+                "{name} did not round-trip its normalized Oracle ability exactly"
+            );
+
+            if name == "Chaos Mutation" {
+                assert_chaos_matrix(&report, oracle_source, source);
+            }
+
+            let decisions = report
+                .provenance()
+                .selections()
+                .iter()
+                .flat_map(deckmaste_english::ParseSelection::constructions)
+                .filter(|decision| {
+                    decision
+                        .selected()
+                        .as_str()
+                        .starts_with("clause_coordination")
+                })
+                .collect::<Vec<_>>();
+            assert!(
+                !decisions.is_empty(),
+                "{name} exposed no clause coordination owner"
+            );
+            assert!(
+                decisions.iter().all(|decision| {
+                    decision.owner() == ConstructionOwner::Generated
+                        && decision.backend() == ConstructionBackend::Chart
+                }),
+                "{name} retained a non-generated clause coordination owner: {decisions:#?}"
+            );
+            let mut inspected = Vec::new();
+            write_provenance(&mut inspected, &report)
+                .unwrap_or_else(|error| panic!("{name} failed verbose inspection: {error}"));
+            let inspected = String::from_utf8(inspected).expect("inspect output is UTF-8");
+            for expected in expected_owners {
+                assert!(
+                    decisions
+                        .iter()
+                        .any(|decision| decision.selected().as_str() == *expected),
+                    "{name} did not expose generated owner {expected}: {decisions:#?}"
+                );
+                assert!(
+                    inspected.contains(&format!(" {expected} owner=generated backend=chart ")),
+                    "{name} omitted {expected} from verbose inspection:\n{inspected}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn conditioned_quoted_predicate_is_complete_without_outer_coordination() {
+        let source =
+            r#"This creature has "{B}: Regenerate this creature" as long as you control a Zombie."#;
+        let report = parse_with_identity(source, &inspect_fixture_catalogs(), "Test Card", false);
+        assert!(
+            report.ast().recoveries().is_empty(),
+            "isolated quoted predicate recovered: {:#?}",
+            report.diagnostics()
+        );
+        let [ability] = report.ast().abilities.as_slice() else {
+            panic!("isolated predicate must produce one ability")
+        };
+        let AbilityKind::Paragraph(paragraph) = ability.kind() else {
+            panic!("isolated predicate must produce a paragraph")
+        };
+        let [sentence] = paragraph.sentences.as_slice() else {
+            panic!("isolated predicate must produce one sentence")
+        };
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) = sentence.body() else {
+            panic!("postpositive condition must produce a complex clause")
+        };
+        assert!(matches!(
+            complex.attachment().payload(),
+            ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                deckmaste_english::syntax::Subordinator::AsLongAs,
+                _
+            ))
+        ));
+        assert!(matches!(complex.host(), IndependentClause::Finite(_)));
+        assert!(
+            report
+                .provenance()
+                .selections()
+                .iter()
+                .flat_map(deckmaste_english::ParseSelection::constructions)
+                .any(|decision| decision.selected().as_str() == "clause_subordinate_after")
+        );
+        assert_eq!(report.ast().render("Test Card", false).unwrap(), source);
+    }
+
+    #[test]
+    #[cfg_attr(
+        not(all(derived_cards, gen_catalogs)),
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+    )]
+    fn fronted_condition_scopes_over_the_complete_predicate_coordination() {
+        let source = "As long as there are four or more card types among cards in your graveyard, this creature gets +2/+2, has flying, and attacks each combat if able.";
+        let data = OracleDataArgs::default()
+            .load()
+            .expect("release corpus data must be available for the fronted-condition fixture");
+        let report = parse_with_identity(source, &data.catalogs, "Dragon's Rage Channeler", false);
+        let selected_clause_owners = report
+            .provenance()
+            .selections()
+            .iter()
+            .flat_map(deckmaste_english::ParseSelection::constructions)
+            .map(|decision| decision.selected().as_str())
+            .filter(|owner| owner.starts_with("clause_"))
+            .collect::<Vec<_>>();
+        let [ability] = report.ast().abilities.as_slice() else {
+            panic!("fronted condition must produce one ability")
+        };
+        let AbilityKind::Paragraph(paragraph) = ability.kind() else {
+            panic!("fronted condition must produce a paragraph")
+        };
+        let [sentence] = paragraph.sentences.as_slice() else {
+            panic!("fronted condition must produce one sentence")
+        };
+        let SentenceBody::Independent(IndependentClause::Complex(outer)) = sentence.body() else {
+            panic!(
+                "fronted condition must be the outer clause edge: {:#?}",
+                sentence.body()
+            )
+        };
+        assert_eq!(
+            outer.attachment().position(),
+            deckmaste_english::syntax::AttachmentPosition::BeforeMatrix,
+            "the fronted condition must outscope the coordinated matrix; selected={selected_clause_owners:#?}: {:#?}",
+            sentence.body()
+        );
+        let IndependentClause::Finite(finite) = outer.host() else {
+            panic!(
+                "the outer condition must directly host the finite matrix: {:#?}",
+                sentence.body()
+            )
+        };
+        let PredicateExpression::Coordinated(coordination) = finite.predicate() else {
+            panic!("the conditioned matrix must retain one predicate coordination")
+        };
+        assert_eq!(coordination.conjuncts().len(), 3);
+        let Some(PredicateExpression::Simple(Predicate::Attached(final_predicate))) =
+            coordination.conjuncts().last()
+        else {
+            panic!(
+                "if able must remain local to the final predicate: {:#?}",
+                sentence.body()
+            )
+        };
+        assert!(matches!(
+            final_predicate.attachment().payload(),
+            ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                deckmaste_english::syntax::Subordinator::If,
+                SubordinateBody::Elliptical(_)
+            ))
+        ));
+        assert_eq!(
+            report
+                .ast()
+                .render("Dragon's Rage Channeler", false)
+                .unwrap(),
+            source
+        );
+    }
+
+    #[test]
+    #[cfg_attr(
+        not(all(derived_cards, gen_catalogs)),
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+    )]
+    fn binary_shared_condition_remains_group_wide() {
+        let source = "Delirium — This creature gets +1/+1 and has trample as long as there are four or more card types among cards in your graveyard.";
+        let data = OracleDataArgs::default()
+            .load()
+            .expect("release corpus data must be available for the shared-condition fixture");
+        let report = parse_with_identity(source, &data.catalogs, "Backwoods Survivalists", false);
+        let [ability] = report.ast().abilities.as_slice() else {
+            panic!("shared condition must produce one ability")
+        };
+        let AbilityKind::Paragraph(paragraph) = ability.kind() else {
+            panic!("shared condition must produce a paragraph")
+        };
+        let [sentence] = paragraph.sentences.as_slice() else {
+            panic!("shared condition must produce one sentence")
+        };
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) = sentence.body() else {
+            panic!(
+                "shared condition must remain a clause attachment: {:#?}",
+                sentence.body()
+            )
+        };
+        assert_eq!(
+            complex.attachment().position(),
+            deckmaste_english::syntax::AttachmentPosition::AfterMatrix
+        );
+        assert!(matches!(
+            complex.attachment().payload(),
+            ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                deckmaste_english::syntax::Subordinator::AsLongAs,
+                _
+            ))
+        ));
+        let IndependentClause::Finite(finite) = complex.host() else {
+            panic!("shared condition must directly host the binary matrix")
+        };
+        let PredicateExpression::Coordinated(coordination) = finite.predicate() else {
+            panic!("shared condition must host a predicate coordination")
+        };
+        assert_eq!(coordination.conjuncts().len(), 2);
+        assert!(coordination.conjuncts().iter().all(|member| {
+            !matches!(member, PredicateExpression::Simple(Predicate::Attached(_)))
+        }));
+        assert_eq!(
+            report
+                .ast()
+                .render("Backwoods Survivalists", false)
+                .unwrap(),
+            source
+        );
+    }
+
+    #[test]
+    #[cfg_attr(
+        not(all(derived_cards, gen_catalogs)),
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+    )]
+    fn dash_appositive_scopes_over_the_complete_predicate_matrix() {
+        let source = "Target creature's owner shuffles it into their library, then faces a villainous choice — They lose 5 life, or they shuffle another creature they own into their library.";
+        let data = OracleDataArgs::default()
+            .load()
+            .expect("release corpus data must be available for the dash-appositive fixture");
+        let report = parse_with_identity(source, &data.catalogs, "This Is How It Ends", false);
+        assert!(
+            report.ast().recoveries().is_empty(),
+            "dash appositive introduced recovery: {:#?}",
+            report.diagnostics()
+        );
+        let [ability] = report.ast().abilities.as_slice() else {
+            panic!("dash appositive must produce one ability")
+        };
+        let AbilityKind::Paragraph(paragraph) = ability.kind() else {
+            panic!("dash appositive must produce a paragraph")
+        };
+        let [sentence] = paragraph.sentences.as_slice() else {
+            panic!("dash appositive must produce one sentence")
+        };
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) = sentence.body() else {
+            panic!(
+                "dash appositive must be the outer clause edge: {:#?}",
+                sentence.body()
+            )
+        };
+        assert!(matches!(
+            complex.attachment().payload(),
+            ClauseAttachmentKind::Appositive(body)
+                if matches!(body.as_ref(), IndependentClause::Coordinated(_))
+        ));
+        let IndependentClause::Finite(finite) = complex.host() else {
+            panic!(
+                "the appositive must directly host its complete finite matrix: {:#?}",
+                sentence.body()
+            )
+        };
+        let PredicateExpression::Coordinated(coordination) = finite.predicate() else {
+            panic!("the appositive matrix must retain the shuffles-then-faces coordination")
+        };
+        assert_eq!(coordination.conjuncts().len(), 2);
+        assert_eq!(
+            report.ast().render("This Is How It Ends", false).unwrap(),
+            source
+        );
+    }
+
+    #[test]
+    #[cfg_attr(
+        not(all(derived_cards, gen_catalogs)),
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+    )]
+    fn supported_nested_clause_coordination_neighbors_round_trip() {
+        let data = OracleDataArgs::default()
+            .load()
+            .expect("release corpus data must be available for coordination neighbors");
+        let mut failures = Vec::new();
+        for (name, source) in [
+            (
+                "Charitable Levy",
+                "Then if there are three or more collection counters on it, sacrifice it. If you do, draw a card, then you may search your library for a Plains card, put it onto the battlefield tapped, then shuffle.",
+            ),
+            (
+                "Everybody Lives!",
+                "Players can't lose life this turn and players can't lose the game or win the game this turn.",
+            ),
+            (
+                "Grand Master of Flowers",
+                "Target creature without first strike, double strike, or vigilance can't attack or block until your next turn.",
+            ),
+            (
+                "Hidden Strings",
+                "You may tap or untap target permanent, then you may tap or untap another target permanent.",
+            ),
+            (
+                "Shared Fate",
+                "Each player may look at cards they exiled with this enchantment, and they may play lands and cast spells from among those cards.",
+            ),
+            (
+                "The Belligerent",
+                "Until end of turn, you may look at the top card of your library any time, and you may play lands and cast spells from the top of your library.",
+            ),
+            (
+                "Toils of Night and Day",
+                "You may tap or untap target permanent, then you may tap or untap another target permanent.",
+            ),
+        ] {
+            let cards = find_cards(&data.faces, name);
+            let [card] = cards.as_slice() else {
+                panic!("expected one supported snapshot face for {name}")
+            };
+            assert!(card.supported && card.oracle_text.contains(source));
+            let report = parse_with_identity(source, &data.catalogs, name, card.is_legendary);
+            assert!(
+                report.ast().recoveries().is_empty(),
+                "{name} introduced recovery: {:#?}",
+                report.diagnostics()
+            );
+            let topology = clause_topologies(&report);
+            match report.ast().render(name, card.is_legendary) {
+                Ok(rendered) if rendered == source => {}
+                Ok(rendered) => {
+                    failures.push(format!("{name} rendered {rendered:?}, expected {source:?}"));
+                }
+                Err(error) => failures.push(format!(
+                    "{name} failed to render: {error}; topology={topology}"
+                )),
+            }
+        }
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    }
+
+    #[test]
+    fn production_prepositional_inspect_reports_generated_object_and_attachment_evidence() {
+        let selected = verbose_parse("Look at the top card of your library.");
         assert!(
             selected.contains(
                 " prepositional_object owner=generated backend=chart form=0 evidence=feature:prepositional object category value=object_category=NounPhrase"
@@ -1023,7 +1589,7 @@ mod tests {
             "selected PP lost its typed complement role:\n{selected}",
         );
         assert!(
-            selected.contains("P02 consuming attachment roles:")
+            selected.contains("Consuming attachment roles:")
                 && selected.contains("  role=selected-complement"),
             "selected PP lacks decisive consuming-role evidence:\n{selected}",
         );
@@ -1033,7 +1599,7 @@ mod tests {
             ("Attack by paying 1 life.", 2, "GerundClause"),
             ("Attack from anywhere.", 3, "Adverb"),
         ] {
-            let rendered = verbose_m01(source);
+            let rendered = verbose_parse(source);
             assert!(
                 rendered.contains(&format!(
                     " prepositional_object owner=generated backend=chart form={form} evidence=feature:prepositional object category value=object_category={category}"
@@ -1042,7 +1608,7 @@ mod tests {
             );
         }
 
-        let adjunct = verbose_m01("Attack during your turn.");
+        let adjunct = verbose_parse("Attack during your turn.");
         assert!(
             adjunct.contains(" verb_phrase_prepositional owner=generated backend=chart "),
             "adjunct consumer missing:\n{adjunct}",
@@ -1056,11 +1622,11 @@ mod tests {
             "adjunct PP lost its typed consumer role:\n{adjunct}",
         );
         assert!(
-            adjunct.contains("P02 consuming attachment roles:\n  role=adjunct"),
+            adjunct.contains("Consuming attachment roles:\n  role=adjunct"),
             "adjunct PP lacks decisive consuming-role evidence:\n{adjunct}",
         );
 
-        let nominal = verbose_m01("Destroy target creature with flying.");
+        let nominal = verbose_parse("Destroy target creature with flying.");
         assert!(
             nominal.contains(
                 " nominal_prepositional owner=generated backend=chart form=0 evidence=feature:nominal attachment phase"
@@ -1068,20 +1634,20 @@ mod tests {
             "nominal-attachment consumer missing:\n{nominal}",
         );
         assert!(
-            nominal.contains("P02 consuming attachment roles:\n  role=nominal"),
+            nominal.contains("Consuming attachment roles:\n  role=nominal"),
             "nominal PP lacks decisive consuming-role evidence:\n{nominal}",
         );
         for rendered in [&selected, &adjunct, &nominal] {
             assert!(
                 rendered.contains(" prepositional_phrase owner=generated backend=chart "),
-                "P02 phrase owner missing:\n{rendered}",
+                "prepositional phrase owner missing:\n{rendered}",
             );
         }
     }
 
     #[test]
-    fn production_d01_inspect_reports_generated_owners_and_constraint_evidence() {
-        let target = verbose_m01("Target creature gets +1/+1 until end of turn.");
+    fn production_determiner_inspect_reports_generated_owners_and_constraint_evidence() {
+        let target = verbose_parse("Target creature gets +1/+1 until end of turn.");
         assert!(
             target.contains(
                 " determiner_target owner=generated backend=chart form=0 evidence=feature:singular target cardinality"
@@ -1089,7 +1655,7 @@ mod tests {
             "{target}",
         );
 
-        let possessive = verbose_m01("The creature's controller draws two cards.");
+        let possessive = verbose_parse("The creature's controller draws two cards.");
         for (construction, evidence) in [
             ("possessive_noun_base", "noun possessor number and onset"),
             (
@@ -1105,14 +1671,14 @@ mod tests {
                 )) || possessive.contains(&format!(
                     " {construction} owner=generated backend=chart form=0 evidence=role:{evidence}"
                 )),
-                "missing generated D01 evidence for {construction}:\n{possessive}",
+                "missing generated determiner evidence for {construction}:\n{possessive}",
             );
         }
     }
 
     #[test]
-    fn production_f01_inspect_reports_generated_forms_and_constraints() {
-        let infinitive = verbose_m01("You may choose not to untap this creature.");
+    fn production_nonfinite_inspect_reports_generated_forms_and_constraints() {
+        let infinitive = verbose_parse("You may choose not to untap this creature.");
         assert!(
             infinitive.contains(
                 " infinitive_not_to owner=generated backend=chart form=0 evidence=feature:complete infinitive predicate form and valency"
@@ -1120,7 +1686,7 @@ mod tests {
             "{infinitive}",
         );
 
-        let gerund = verbose_m01(
+        let gerund = verbose_parse(
             "You may cast that card by paying life equal to the spell's mana value rather than paying its mana cost.",
         );
         for (construction, evidence) in [
@@ -1137,13 +1703,13 @@ mod tests {
                 gerund.contains(&format!(
                     " {construction} owner=generated backend=chart form=0 evidence=feature:{evidence}"
                 )),
-                "missing generated F01 evidence for {construction}:\n{gerund}",
+                "missing generated nonfinite evidence for {construction}:\n{gerund}",
             );
         }
     }
 
     #[test]
-    fn production_r01_inspect_reports_decisive_generated_relative_evidence() {
+    fn production_relative_inspect_reports_decisive_generated_evidence() {
         for (source, construction, gap, marker, contraction, distributive_each, copular) in [
             (
                 "Each spell you cast costs {1} less to cast.",
@@ -1227,7 +1793,7 @@ mod tests {
                 "Prepositional",
             ),
         ] {
-            let verbose = verbose_m01(source);
+            let verbose = verbose_parse(source);
             let evidence = format!(
                 " {construction} owner=generated backend=chart form=0 evidence=feature:decisive relative form signature value=gap={gap};marker={marker};agreement="
             );
@@ -1235,7 +1801,7 @@ mod tests {
                 .lines()
                 .find(|line| line.contains(&evidence))
                 .unwrap_or_else(|| {
-                    panic!("missing generated R01 evidence line for {source:?}:\n{verbose}")
+                    panic!("missing generated relative evidence line for {source:?}:\n{verbose}")
                 });
             assert!(
                 evidence_line.contains(&format!("contraction={contraction}"))
@@ -1243,35 +1809,36 @@ mod tests {
                     && evidence_line.contains(&format!("copular={copular}"))
                     && evidence_line.contains("rules_object=")
                     && evidence_line.contains("bare_copular_tail="),
-                "missing decisive typed R01 evidence for {source:?}:\n{verbose}",
+                "missing decisive typed relative evidence for {source:?}:\n{verbose}",
             );
             assert!(
                 !verbose.contains(&format!(" {construction} owner=handwritten ")),
-                "R01 retained a handwritten owner for {source:?}:\n{verbose}",
+                "relative family retained a handwritten owner for {source:?}:\n{verbose}",
             );
         }
     }
 
     #[test]
-    fn production_f03_inspect_reports_generated_attachment_scope() {
-        let fronted = verbose_m01("Otherwise, draw a card.");
+    fn production_attachment_inspect_reports_generated_scope() {
+        let fronted = verbose_parse("Otherwise, draw a card.");
         assert!(
             fronted
                 .contains(" clause_sentence_adverbial_before owner=generated backend=chart form=0"),
             "{fronted}",
         );
 
-        let subordinate = verbose_m01("If you control a Plains, creatures you control get +1/+1.");
+        let subordinate =
+            verbose_parse("If you control a Plains, creatures you control get +1/+1.");
         assert!(
             subordinate.contains(" clause_subordinate_before owner=generated backend=chart form=0 evidence=feature:finite subordinate selection and host eligibility"),
             "{subordinate}",
         );
 
-        let restriction = verbose_m01("Activate only as a sorcery and only once each turn.");
+        let restriction = verbose_parse("Activate only as a sorcery and only once each turn.");
         for construction in ["clause_restriction_member", "clause_restriction_run"] {
             assert!(
                 restriction.contains(&format!(" {construction} owner=generated backend=chart ")),
-                "missing generated F03 owner {construction}:\n{restriction}",
+                "missing generated attachment owner {construction}:\n{restriction}",
             );
         }
     }
@@ -1404,7 +1971,7 @@ mod tests {
         assert!(verbose.contains("alternative sentence#1"));
     }
 
-    fn verbose_m01(source: &str) -> String {
+    fn verbose_parse(source: &str) -> String {
         let cards = [CardFace {
             card_name: "Test Card".to_owned(),
             face_name: None,
@@ -1413,7 +1980,23 @@ mod tests {
             source_text: source.to_owned(),
             oracle_text: source.to_owned(),
         }];
-        let catalogs = Catalogs::default()
+        let catalogs = inspect_fixture_catalogs();
+        let mut rendered = Vec::new();
+        write_cards(
+            &mut rendered,
+            &cards,
+            &catalogs,
+            &OutputConfig {
+                verbose: true,
+                abilities_only: false,
+            },
+        )
+        .unwrap();
+        String::from_utf8(rendered).unwrap()
+    }
+
+    fn inspect_fixture_catalogs() -> Catalogs {
+        Catalogs::default()
             .with_catalog(
                 deckmaste_english::CatalogKind::KeywordAbility,
                 [
@@ -1441,23 +2024,11 @@ mod tests {
                     "Land",
                     "Sorcery",
                 ],
-            );
-        let mut rendered = Vec::new();
-        write_cards(
-            &mut rendered,
-            &cards,
-            &catalogs,
-            &OutputConfig {
-                verbose: true,
-                abilities_only: false,
-            },
-        )
-        .unwrap();
-        String::from_utf8(rendered).unwrap()
+            )
     }
 
     fn assert_verbose_dominance(source: &str, winner: &str, loser: &str) {
-        let rendered = verbose_m01(source);
+        let rendered = verbose_parse(source);
         let lines = rendered.lines().collect::<Vec<_>>();
         let selected = lines
             .iter()
@@ -1478,7 +2049,7 @@ mod tests {
     }
 
     #[test]
-    fn verbose_output_explains_every_m01_dominance_edge() {
+    fn verbose_output_explains_every_dominance_edge() {
         // Each fixture names the competing construction pair. Removing an
         // edge, restoring a handwritten owner, or omitting the defeated
         // alternative makes the corresponding row fail causally.
@@ -1538,7 +2109,7 @@ mod tests {
         // opaque-noun alternative, so provenance correctly reports the
         // reduced-passive construction as unique instead of attributing the
         // selection to dominance.
-        let reduced = verbose_m01(
+        let reduced = verbose_parse(
             "If a creature dealt damage this way would die this turn, exile it instead.",
         );
         assert!(
@@ -1553,7 +2124,7 @@ mod tests {
     fn verbose_output_reports_production_generated_predicate_ownership() {
         // Mutations caught: format generated ownership only for isolated
         // English fixtures, or leave xtask's production parse on RuleTag.
-        let rendered = verbose_m01("You may have this creature enter.");
+        let rendered = verbose_parse("You may have this creature enter.");
         assert!(
             rendered.contains(
                 "verb_phrase_causative owner=generated backend=chart form=0 evidence=role:causative host-causee-complement order"
@@ -1564,7 +2135,7 @@ mod tests {
 
     #[test]
     fn verbose_output_formats_a_declaration_evidence_value() {
-        let keyword = verbose_m01("This creature has protection from red and from blue.");
+        let keyword = verbose_parse("This creature has protection from red and from blue.");
         assert!(
             keyword.contains(
                 "predicated_argument_from_extend owner=generated backend=chart form=0 evidence=guard:keyword-grant conjunction gate value=conjunction=And;allowed=[And];matched=true"

@@ -87,10 +87,19 @@ fn closed_parts(value: &Determiner) -> ClosedDeterminer {
         DeterminerKind::No => ClosedDeterminer::No,
         DeterminerKind::Target(_)
         | DeterminerKind::Quantity(_)
+        | DeterminerKind::AllDefinite
         | DeterminerKind::Possessive(Possessor::NounPhrase(_)) => {
             unreachable!("determiner_closed admits only closed identities")
         }
     }
+}
+
+fn make_all_the() -> Result<Determiner, DeclarationViolation> {
+    Ok(Determiner::from_kind(DeterminerKind::AllDefinite))
+}
+
+fn is_all_the(value: &Determiner) -> bool {
+    matches!(value.kind(), DeterminerKind::AllDefinite)
 }
 
 fn make_target() -> Result<Determiner, DeclarationViolation> {
@@ -236,7 +245,7 @@ fn make_possessive_noun_determined(
     if !is_valid_possessive_nominal(&possessor) {
         return Err(violation(
             "possessive_noun_determined",
-            "possessor has exactly one D01 inverse",
+            "possessor has exactly one determiner-family inverse",
         ));
     }
     crate::constructions::nominal::build_nominal_determiner(determiner, possessor)
@@ -265,7 +274,7 @@ fn make_determiner_possessive_noun(
     if !is_valid_possessive_nominal(&possessor) {
         return Err(violation(
             "determiner_possessive_noun",
-            "possessor has exactly one D01 inverse",
+            "possessor has exactly one determiner-family inverse",
         ));
     }
     Ok(Determiner::from_kind(DeterminerKind::Possessive(
@@ -298,7 +307,7 @@ fn make_possessive_noun_adjective(
     if !is_valid_possessive_nominal(&possessor) {
         return Err(violation(
             "possessive_noun_adjective",
-            "possessor has exactly one D01 inverse",
+            "possessor has exactly one determiner-family inverse",
         ));
     }
     if possessor.determiner().is_some() {
@@ -342,6 +351,15 @@ fn closed_features(identity: &Features) -> Option<Features> {
 
 const fn target_features() -> Option<Features> {
     Some(determiner_features(NounCardinality::SingularCount))
+}
+
+const fn all_the_features() -> Option<Features> {
+    Some(Features::Determiner {
+        cardinality: NounCardinality::PluralOrMass,
+        article: None,
+        demonstrative_this: false,
+        set_exception_host: true,
+    })
 }
 
 fn quantified_target_features(quantity: &Features) -> Option<Features> {
@@ -506,6 +524,14 @@ deckmaste_constructions_macro::constructions! {
         selection unique;
     }
 
+    construction determiner_all_the: Determiner {
+        bind Determiner via make_all_the, no_parts {}
+        derive features: Features = all_the_features();
+        evidence feature "plural-or-mass all-the cardinality" from category;
+        form only @ 0 inverse check(is_all_the) = "all" "the";
+        selection unique;
+    }
+
     construction determiner_target: Determiner {
         bind Determiner via make_target, no_parts {}
         derive features: Features = target_features();
@@ -595,8 +621,9 @@ mod tests {
     use crate::features::Gender;
     use crate::word::Pronoun;
 
-    const D01_IDS: &[&str] = &[
+    const DETERMINER_IDS: &[&str] = &[
         "determiner_closed",
+        "determiner_all_the",
         "determiner_target",
         "determiner_quantified_target",
         "determiner_quantity",
@@ -608,13 +635,13 @@ mod tests {
     ];
 
     #[test]
-    fn declaration_ids_are_the_complete_d01_family_in_stable_order() {
+    fn declaration_ids_are_the_complete_determiner_family_in_stable_order() {
         let actual = GROUPS[0]
             .constructions
             .iter()
             .map(|construction| construction.id)
             .collect::<Vec<_>>();
-        assert_eq!(actual, D01_IDS);
+        assert_eq!(actual, DETERMINER_IDS);
     }
 
     #[test]

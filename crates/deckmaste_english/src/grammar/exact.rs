@@ -2,8 +2,8 @@
 //! alternatives into deduplicated `ExactParse` sets, with `linearize` as the
 //! generated render entry. Strict exact mode throughout — `OpacityMode::Exact`,
 //! no opaque-noun retry — so a law can never pass through an escape hatch.
-//! Chart-level admission only: form guards are not consulted (Milestone-3
-//! status quo), and dominance-losing derivations stay in the set (dominance
+//! Chart-level admission only: form guards are not consulted, and
+//! dominance-losing derivations stay in the set (dominance
 //! is selection preference, not admission).
 
 use deckmaste_construction_compiler::runtime::AtomData;
@@ -299,7 +299,7 @@ pub(crate) enum ExactParseError {
 /// `source` as `nonterminal`, extracted as [`GeneratedParse`] and paired
 /// with the root alternative's surface payload, deduplicated. An empty set
 /// means no admitted root yielded an extractable generated derivation; with
-/// this milestone's generated-categories-only usage that coincides with
+/// the generated-categories-only usage here that coincides with
 /// nothing being admitted. Dominance-losing derivations are included
 /// (dominance is selection preference, not admission), and no opaque-noun
 /// retry ever runs.
@@ -519,6 +519,10 @@ fn lowered_matches_expected(
             ),
             (Lowered::GerundClause(actual), Some(expected)) if actual == expected
         ),
+        "Clause" => matches!(
+            (lowered, expected.downcast_ref::<crate::syntax::Clause>()),
+            (Lowered::Clause(actual), Some(expected)) if actual == expected
+        ),
         "TransitivePredicate" => {
             let Lowered::Generated(value) = lowered else {
                 return false;
@@ -614,6 +618,35 @@ pub(crate) fn parse_production_as_declared_category_in_both_orders(
             RegistrationOrder::Reversed,
             GeneratedActivation::Production,
         )?,
+    ])
+}
+
+#[cfg(test)]
+pub(crate) fn parse_production_as_declared_category_in_all_registration_orders(
+    source: &str,
+    catalogs: &Catalogs,
+    category: &str,
+    expected: &dyn std::any::Any,
+    budget: usize,
+) -> Result<[Vec<ExactParse<GeneratedRootParse, EnglishSurfaceWitness>>; 3], ExactParseError> {
+    let nonterminal = super::generated::declared_category_nonterminal(category)
+        .unwrap_or_else(|| panic!("construction has unmapped declared category `{category}`"));
+    let parse = |order| {
+        parse_generated_root_as_with_registration_order(
+            source,
+            catalogs,
+            nonterminal,
+            category,
+            expected,
+            budget,
+            order,
+            GeneratedActivation::Production,
+        )
+    };
+    Ok([
+        parse(RegistrationOrder::Normal)?,
+        parse(RegistrationOrder::Reversed)?,
+        parse(RegistrationOrder::FixedShuffle)?,
     ])
 }
 
@@ -1226,22 +1259,11 @@ mod tests {
         Nonterminal::Generated(cats[name])
     }
 
-    fn canonical_determiner_exact_set(
-        parses: &[ExactParse<GeneratedDeterminerParse, EnglishSurfaceWitness>],
-    ) -> Vec<(String, &'static str, u16, String)> {
-        let mut canonical = parses
-            .iter()
-            .map(|parse| {
-                (
-                    ron::to_string(&parse.ast().value).unwrap(),
-                    parse.ast().construction,
-                    parse.ast().form_ordinal,
-                    format!("{:?}", parse.surface()),
-                )
-            })
-            .collect::<Vec<_>>();
-        canonical.sort_unstable();
-        canonical
+    fn same_determiner_exact_set(
+        left: &[ExactParse<GeneratedDeterminerParse, EnglishSurfaceWitness>],
+        right: &[ExactParse<GeneratedDeterminerParse, EnglishSurfaceWitness>],
+    ) -> bool {
+        left.len() == right.len() && left.iter().all(|member| right.contains(member))
     }
 
     #[test]
@@ -1298,6 +1320,7 @@ mod tests {
                 "determiner_closed",
                 determiner_api::build_determiner_closed(ClosedDeterminer::The).unwrap(),
             ),
+            ("determiner_all_the", determiner_api::all_the()),
             ("determiner_target", determiner_api::target(None)),
             (
                 "determiner_quantified_target",
@@ -1333,10 +1356,11 @@ mod tests {
                 100_000,
                 crate::constructions::GROUPS,
             )
-            .unwrap_or_else(|error| panic!("exact D01 parse failed for {source:?}: {error:?}"));
-            assert_eq!(
-                canonical_determiner_exact_set(&orders[0]),
-                canonical_determiner_exact_set(&orders[1]),
+            .unwrap_or_else(|error| {
+                panic!("exact determiner parse failed for {source:?}: {error:?}")
+            });
+            assert!(
+                same_determiner_exact_set(&orders[0], &orders[1]),
                 "complete exact result set changed for {source:?}",
             );
             for parses in &orders {
@@ -1352,6 +1376,41 @@ mod tests {
                 assert_eq!(parse.ast().form_ordinal, 0, "{source:?}");
                 assert_eq!(*parse.surface(), EnglishSurfaceWitness::None, "{source:?}");
             }
+        }
+    }
+
+    #[test]
+    fn all_the_exactly_requires_a_plural_or_mass_nominal() {
+        let catalogs = fixture_catalogs();
+        let identity = SelfReference::default();
+        for source in ["all the cards", "all the damage"] {
+            let orders = parse_production_noun_phrase_in_all_registration_orders(
+                source,
+                &catalogs,
+                &identity,
+                Nonterminal::NounPhrase,
+                100_000,
+            )
+            .unwrap_or_else(|error| panic!("exact all-the parse failed: {error:?}"));
+            assert!(
+                orders.iter().all(|parses| !parses.is_empty()),
+                "all-the plural/mass fixture must parse in every registration order: {source:?}"
+            );
+        }
+
+        for source in ["all the card", "all the creature"] {
+            let orders = parse_production_noun_phrase_in_all_registration_orders(
+                source,
+                &catalogs,
+                &identity,
+                Nonterminal::NounPhrase,
+                100_000,
+            )
+            .unwrap_or_else(|error| panic!("negative all-the search failed: {error:?}"));
+            assert!(
+                orders.iter().all(Vec::is_empty),
+                "invalid all-the singular cardinality parsed: {source:?}: {orders:#?}"
+            );
         }
     }
 
@@ -1448,7 +1507,7 @@ mod tests {
     }
 
     #[test]
-    fn production_f01_exact_roots_are_stable_in_both_registration_orders() {
+    fn nonfinite_exact_roots_are_stable_in_both_registration_orders() {
         let catalogs = fixture_catalogs();
         let activation = GeneratedActivation::Production;
 
@@ -1473,7 +1532,9 @@ mod tests {
                 expected,
                 100_000,
             )
-            .unwrap_or_else(|error| panic!("exact F01 parse failed for {source:?}: {error:?}"));
+            .unwrap_or_else(|error| {
+                panic!("exact nonfinite-clause parse failed for {source:?}: {error:?}")
+            });
             assert_eq!(
                 orders[0], orders[1],
                 "registration order changed {source:?}"
@@ -1515,7 +1576,9 @@ mod tests {
                 expected,
                 100_000,
             )
-            .unwrap_or_else(|error| panic!("exact F01 parse failed for {source:?}: {error:?}"));
+            .unwrap_or_else(|error| {
+                panic!("exact nonfinite-clause parse failed for {source:?}: {error:?}")
+            });
             assert_eq!(
                 orders[0], orders[1],
                 "registration order changed {source:?}"
@@ -1566,7 +1629,9 @@ mod tests {
                 expected,
                 100_000,
             )
-            .unwrap_or_else(|error| panic!("recursive exact F01 parse failed: {error:?}"));
+            .unwrap_or_else(|error| {
+                panic!("recursive exact nonfinite-clause parse failed: {error:?}")
+            });
             assert_eq!(
                 orders[0], orders[1],
                 "registration order changed {source:?}"
@@ -3878,20 +3943,20 @@ mod tests {
     }
 
     fn linearize_nominal_exact_form(parse: &GeneratedNominalParse) -> String {
-        assert_eq!(parse.form_ordinal, 0, "all M01 fixture forms are @ 0");
+        assert_eq!(parse.form_ordinal, 0, "all nominal fixture forms are @ 0");
         crate::render_fragment(
             &crate::Fragment::Nominal(NounPhrase::from_nominal_declaration(parse.value.clone())),
             "Test Card",
             false,
         )
-        .expect("the generated M01 inverse linearizes its admitted value")
+        .expect("the generated nominal inverse linearizes its admitted value")
     }
 
     #[test]
-    fn m01_exact_laws_preserve_identity_order_and_postpositive_punctuation() {
+    fn nominal_exact_laws_preserve_identity_order_and_postpositive_punctuation() {
         // Mutations caught: collapse color/keyword/conjunction identities,
         // reorder a predicated or devotion pair, normalize a bare connective
-        // to a comma (or vice versa), or lose the exact M01 derivation under
+        // to a comma (or vice versa), or lose the exact nominal derivation under
         // registration reversal.
         let fixtures = [
             (
@@ -3932,7 +3997,7 @@ mod tests {
                 10_000,
                 RegistrationOrder::Normal,
             )
-            .unwrap_or_else(|error| panic!("exact M01 parse failed for {source:?}: {error:?}"));
+            .unwrap_or_else(|error| panic!("exact nominal parse failed for {source:?}: {error:?}"));
             let expected = normal
                 .iter()
                 .find(|parse| parse.ast().construction == construction)
@@ -3944,7 +4009,7 @@ mod tests {
                 normal
                     .iter()
                     .all(|parse| linearize_nominal_exact_form(parse.ast()) == source),
-                "an admitted M01 derivation did not replay {source:?}: {normal:#?}",
+                "an admitted nominal derivation did not replay {source:?}: {normal:#?}",
             );
 
             let reversed = parse_generated_nominal_as(
@@ -3955,11 +4020,11 @@ mod tests {
                 RegistrationOrder::Reversed,
             )
             .unwrap_or_else(|error| {
-                panic!("reversed exact M01 parse failed for {source:?}: {error:?}")
+                panic!("reversed exact nominal parse failed for {source:?}: {error:?}")
             });
             assert!(
                 reversed.contains(expected),
-                "the M01 AST/form witness changed under registration reversal: {expected:#?}",
+                "the nominal AST/form witness changed under registration reversal: {expected:#?}",
             );
             expected_values.push(expected.ast().value.clone());
         }
@@ -4284,5 +4349,163 @@ mod tests {
             declined > 0,
             "the unlowerable nominal reading appears among selections and is dropped",
         );
+    }
+
+    fn same_sentence_exact_set(
+        left: &[ExactParse<GeneratedSentenceParse, EnglishSurfaceWitness>],
+        right: &[ExactParse<GeneratedSentenceParse, EnglishSurfaceWitness>],
+    ) -> bool {
+        left.len() == right.len() && left.iter().all(|member| right.contains(member))
+    }
+
+    fn same_root_exact_set(
+        left: &[ExactParse<GeneratedRootParse, EnglishSurfaceWitness>],
+        right: &[ExactParse<GeneratedRootParse, EnglishSurfaceWitness>],
+    ) -> bool {
+        left.len() == right.len() && left.iter().all(|member| right.contains(member))
+    }
+
+    #[test]
+    fn clause_coordination_exact_roots_are_registration_order_neutral() {
+        let catalogs = Catalogs::default()
+            .with_catalog(CatalogKind::CreatureType, ["Goblin"])
+            .with_catalog(
+                CatalogKind::CardType,
+                ["Creature", "Instant", "Land", "Sorcery"],
+            );
+        let fixtures = [
+            (
+                "You draw a card and you discard a card.",
+                "clause_coordination",
+            ),
+            (
+                "You draw a card, and you discard a card.",
+                "clause_coordination_comma",
+            ),
+            (
+                "Draw a card, discard a card.",
+                "clause_coordination_asyndetic",
+            ),
+            (
+                "Enchanted creature gets +1/+1 and is a Goblin in addition to its other types.",
+                "clause_coordination_copular_noun_prepositional",
+            ),
+            (
+                "Enchanted creature gets +1/+1, and is a Goblin in addition to its other types.",
+                "clause_coordination_copular_noun_prepositional_comma",
+            ),
+            (
+                "Enchanted creature gets +1/+1, is a Goblin in addition to its other types.",
+                "clause_coordination_copular_noun_prepositional_asyndetic",
+            ),
+        ];
+
+        for (source, expected) in fixtures {
+            let parsed = super::super::parse_nonterminal_with_activation(
+                source,
+                &catalogs,
+                Nonterminal::Sentence,
+                GeneratedActivation::Production,
+            )
+            .unwrap_or_else(|error| panic!("production did not parse {source:?}: {error:?}"));
+            let sentence = parsed.sentence().expect("sentence root");
+            let crate::syntax::SentenceBody::Independent(independent) = &sentence.body else {
+                panic!("expected an independent clause for {source:?}: {sentence:#?}");
+            };
+            let clause = crate::syntax::Clause::Independent(independent.clone());
+            let clause_source = source
+                .strip_suffix('.')
+                .expect("sentence fixture has terminal punctuation");
+            let orders = parse_production_as_declared_category_in_all_registration_orders(
+                clause_source,
+                &catalogs,
+                "Clause",
+                &clause,
+                100_000,
+            )
+            .unwrap_or_else(|error| {
+                panic!("exact clause coordination failed for {source:?}: {error:?}")
+            });
+            assert!(
+                same_root_exact_set(&orders[1], &orders[0]),
+                "reversed registration changed {source:?}"
+            );
+            assert!(
+                same_root_exact_set(&orders[2], &orders[0]),
+                "fixed shuffle changed {source:?}"
+            );
+            for parses in orders {
+                assert!(
+                    parses.iter().any(|parse| {
+                        parse.ast().construction == expected && parse.ast().form_ordinal == 0
+                    }),
+                    "missing generated root {expected} for {source:?}: {parses:#?}",
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn supported_clause_coordination_scopes_are_registration_order_neutral() {
+        let catalogs = Catalogs::default()
+            .with_catalog(
+                CatalogKind::KeywordAbility,
+                [
+                    "First strike",
+                    "Flying",
+                    "Haste",
+                    "Hexproof",
+                    "Lifelink",
+                    "Trample",
+                ],
+            )
+            .with_catalog(
+                CatalogKind::CreatureType,
+                ["Beast", "Goblin", "Soldier", "Wizard", "Zombie"],
+            )
+            .with_catalog(
+                CatalogKind::LandType,
+                ["Forest", "Island", "Mountain", "Plains", "Swamp"],
+            )
+            .with_catalog(
+                CatalogKind::CardType,
+                ["Creature", "Instant", "Land", "Sorcery"],
+            );
+        let fixtures = [
+            "This creature gets +0/+2 as long as you control a Plains, has flying as long as you control an Island, gets +2/+0 as long as you control a Swamp, has first strike as long as you control a Mountain, and has trample as long as you control a Forest.",
+            "This creature has trample as long as you control a Beast, haste as long as you control a Goblin, first strike as long as you control a Soldier, flying as long as you control a Wizard, and \"{B}: Regenerate this creature\" as long as you control a Zombie.",
+            "This creature gets +1/+1 and has trample as long as there are four or more card types among cards in your graveyard.",
+            "This creature gets +1/+0 and has lifelink as long as two or more nonland permanents entered the battlefield under your control this turn.",
+            "As long as there are four or more card types among cards in your graveyard, this creature gets +2/+2, has flying, and attacks each combat if able.",
+            "Its controller reveals cards from the top of their library until they reveal a creature card, puts that card onto the battlefield, then puts the rest on the bottom of their library in a random order.",
+            "That opponent discards all the cards in their hand, then draws that many cards minus one, or this creature deals damage to that player equal to the number of cards in their hand.",
+            "Equipped creature gets +0/+1 and has \"This creature has hexproof as long as it's untapped.\"",
+        ];
+
+        for source in fixtures {
+            let orders =
+                parse_production_sentence_in_all_registration_orders(source, &catalogs, 200_000)
+                    .unwrap_or_else(|error| {
+                        panic!("exact supported fixture failed for {source:?}: {error:?}")
+                    });
+            assert!(!orders[0].is_empty(), "no exact parse for {source:?}");
+            assert!(
+                same_sentence_exact_set(&orders[1], &orders[0]),
+                "reversed registration changed {source:?}"
+            );
+            assert!(
+                same_sentence_exact_set(&orders[2], &orders[0]),
+                "fixed shuffle changed {source:?}"
+            );
+            for parses in orders {
+                assert!(parses.iter().all(|parse| {
+                    crate::render_fragment(
+                        &crate::Fragment::Sentence(parse.ast().value.clone()),
+                        "Test Card",
+                        false,
+                    ) == Ok(source.to_owned())
+                }));
+            }
+        }
     }
 }

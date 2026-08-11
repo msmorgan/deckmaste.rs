@@ -289,14 +289,14 @@ fn sentence_forms_share_one_ast_and_derive_terminal_punctuation() {
 }
 
 #[test]
-fn p02_registration_order_preserves_packed_attachment() {
+fn prepositional_registration_order_preserves_packed_attachment() {
     let source = "Destroy target creature with flying.";
     let orders = crate::grammar::exact::parse_production_sentence_in_all_registration_orders(
         source,
         &fixture_catalogs(),
         100_000,
     )
-    .unwrap_or_else(|error| panic!("P02 attachment exact parse failed: {error:?}"));
+    .unwrap_or_else(|error| panic!("prepositional attachment exact parse failed: {error:?}"));
     let canonical = orders.clone().map(|parses| {
         parses
             .into_iter()
@@ -355,7 +355,7 @@ fn p02_registration_order_preserves_packed_attachment() {
 }
 
 #[test]
-fn p02_nominal_coordination_validates_every_member_in_all_registration_orders() {
+fn prepositional_nominal_coordination_validates_every_member_in_all_registration_orders() {
     let catalogs = fixture_catalogs();
 
     let nominal_orders =
@@ -406,7 +406,7 @@ fn p02_nominal_coordination_validates_every_member_in_all_registration_orders() 
 }
 
 #[test]
-fn p02_selected_coordination_validates_every_member_in_all_registration_orders() {
+fn prepositional_selected_coordination_validates_every_member_in_all_registration_orders() {
     assert_exact_sentence_coordination_role(
         "Look at card and during card.",
         crate::features::ComplementRole::SelectedComplement,
@@ -422,7 +422,7 @@ fn p02_selected_coordination_validates_every_member_in_all_registration_orders()
 }
 
 #[test]
-fn p02_adjunct_coordination_validates_every_member_in_all_registration_orders() {
+fn prepositional_adjunct_coordination_validates_every_member_in_all_registration_orders() {
     assert_exact_sentence_coordination_role(
         "Look during card and at card.",
         crate::features::ComplementRole::Adjunct,
@@ -1193,7 +1193,7 @@ fn as_though_licenses_a_subjunctive_copula_with_a_plural_matrix_subject() {
 
 #[test]
 fn as_though_licenses_a_subjunctive_copula_under_a_fronted_frame() {
-    // PA3 (False Dawn): a fronted `until end of turn` frame over a
+    // False Dawn supplies a fronted `until end of turn` frame over a
     // subjunctive-bodied attachment.
     let source = "Until end of turn, you may spend white mana as though it were mana of any color.";
     let parsed = parse(source);
@@ -1207,14 +1207,13 @@ fn as_though_licenses_a_subjunctive_copula_under_a_fronted_frame() {
 
 #[test]
 fn as_though_mana_copula_purpose_infinitive_attaches_inside_the_complement_nominal() {
-    // PA4: pins the §2.5 attachment ruling empirically (confirmed by
-    // probing `Agatha's Soul Cauldron`, whose purpose tail has the same
-    // shape). The purpose infinitive cannot attach at
-    // generated `verb_phrase_infinitive` (the subordinate clause linearly
-    // separates `spend mana` from the tail); the reachable analysis is
-    // `RuleTag::NominalInfinitive`, and it lands as a complement of the
-    // *inner* `any color` nominal (not the outer `mana of any color`
-    // nominal, nor a matrix-verb complement).
+    // This pins the attachment ruling empirically (confirmed by probing
+    // `Agatha's Soul Cauldron`, whose purpose tail has the same shape). The
+    // purpose infinitive cannot attach at `verb_phrase_infinitive` because the
+    // subordinate clause linearly separates `spend mana` from the tail. The
+    // reachable `nominal_infinitive` analysis lands as a complement of the
+    // *inner* `any color` nominal, not the outer `mana of any color` nominal
+    // or a matrix-verb complement.
     use crate::syntax::NominalComplement;
     use crate::syntax::NounPhraseKind;
     let source = "You may spend mana as though it were mana of any color to cast that spell.";
@@ -2266,20 +2265,23 @@ fn target_elf_or_soldier_preserves_both_holistic_clause_readings() {
         );
         (common_head, clause_coordination)
     };
-    let signatures = exact.map(|parses| {
-        parses
-            .into_iter()
-            .map(|parse| {
-                assert_eq!(parse.ast().construction, "sentence");
-                let kind = classify(&parse.ast().value);
-                if kind.0 || kind.1 {
-                    assert_eq!(render_sentence(&parse.ast().value), source);
-                }
-                (kind, ron::to_string(&parse.ast().value).unwrap())
-            })
-            .collect::<std::collections::BTreeSet<_>>()
+    let semantic_sets = exact.map(|parses| {
+        let mut alternatives = Vec::new();
+        for parse in parses {
+            assert_eq!(parse.ast().construction, "sentence");
+            let sentence = &parse.ast().value;
+            let kind = classify(sentence);
+            if kind.0 || kind.1 {
+                assert_eq!(render_sentence(sentence), source);
+            }
+            let alternative = (kind, sentence.clone());
+            if !alternatives.contains(&alternative) {
+                alternatives.push(alternative);
+            }
+        }
+        alternatives
     });
-    for (order, parses) in signatures.iter().enumerate() {
+    for (order, parses) in semantic_sets.iter().enumerate() {
         assert!(
             parses.iter().any(|((common_head, _), _)| *common_head),
             "registration order {order} lost the common-head clause: {parses:#?}"
@@ -2291,8 +2293,11 @@ fn target_elf_or_soldier_preserves_both_holistic_clause_readings() {
             "registration order {order} lost the clause-coordination alternative: {parses:#?}"
         );
     }
-    assert_eq!(signatures[1], signatures[0]);
-    assert_eq!(signatures[2], signatures[0]);
+    let same_semantic_set = |left: &Vec<_>, right: &Vec<_>| {
+        left.len() == right.len() && left.iter().all(|alternative| right.contains(alternative))
+    };
+    assert!(same_semantic_set(&semantic_sets[1], &semantic_sets[0]));
+    assert!(same_semantic_set(&semantic_sets[2], &semantic_sets[0]));
 
     let parsed = parse_nonterminal(source, &catalogs, Nonterminal::Sentence)
         .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
@@ -3927,7 +3932,7 @@ fn contracted_subject_auxiliaries_are_structural() {
 }
 
 #[test]
-fn production_r01_forms_lower_with_decisive_typed_relative_evidence() {
+fn relative_forms_lower_with_decisive_typed_evidence() {
     let catalogs = fixture_catalogs();
     for (source, id, gap, marker, contraction, distributive_each, copular) in [
         (
@@ -4035,7 +4040,7 @@ fn production_r01_forms_lower_with_decisive_typed_relative_evidence() {
         assert_eq!(decision.selected_production_ordinal(), 0);
         let evidence = decision
             .evidence_value()
-            .unwrap_or_else(|| panic!("{source:?} has no typed R01 evidence"));
+            .unwrap_or_else(|| panic!("{source:?} has no typed relative-clause evidence"));
         assert!(evidence.contains(&format!("gap={gap:?}")), "{evidence}");
         assert!(
             evidence.contains(&format!("marker={marker:?}")),
@@ -4063,7 +4068,7 @@ fn production_r01_forms_lower_with_decisive_typed_relative_evidence() {
 }
 
 #[test]
-fn r01_exact_semantic_form_and_witness_sets_are_registration_order_neutral() {
+fn relative_exact_semantic_form_and_witness_sets_are_registration_order_neutral() {
     let catalogs = fixture_catalogs();
     for source in [
         "you cast",
@@ -4081,8 +4086,13 @@ fn r01_exact_semantic_form_and_witness_sets_are_registration_order_neutral() {
             crate::grammar::exact::parse_production_relative_clause_in_all_registration_orders(
                 source, &catalogs, 100_000,
             )
-            .unwrap_or_else(|error| panic!("exact R01 search failed for {source:?}: {error:?}"));
-        assert!(!orders[0].is_empty(), "no exact R01 parses for {source:?}");
+            .unwrap_or_else(|error| {
+                panic!("exact relative-clause search failed for {source:?}: {error:?}")
+            });
+        assert!(
+            !orders[0].is_empty(),
+            "no exact relative-clause parses for {source:?}"
+        );
         for permuted in &orders[1..] {
             assert_eq!(
                 permuted.len(),
@@ -4169,7 +4179,7 @@ fn r01_exact_semantic_form_and_witness_sets_are_registration_order_neutral() {
 }
 
 #[test]
-fn impossible_r01_combinations_stay_absent_in_every_registration_order() {
+fn impossible_relative_combinations_stay_absent_in_every_registration_order() {
     let catalogs = fixture_catalogs();
     for (source, impossible) in [
         ("who've cast", "relative_object_contracted_subject"),
@@ -4188,7 +4198,7 @@ fn impossible_r01_combinations_stay_absent_in_every_registration_order() {
                 source, &catalogs, 100_000,
             )
             .unwrap_or_else(|error| {
-                panic!("negative exact R01 search failed for {source:?}: {error:?}")
+                panic!("negative exact relative-clause search failed for {source:?}: {error:?}")
             });
         assert!(
             orders.iter().all(|parses| parses
@@ -4392,7 +4402,7 @@ fn not_to_negates_an_infinitive_clause() {
 }
 
 #[test]
-fn production_f01_forms_render_exactly_and_report_generated_owners() {
+fn nonfinite_forms_render_exactly_and_report_generated_owners() {
     for (source, required) in [
         ("Spells cost {1} less to cast.", &["infinitive_to"][..]),
         (
@@ -4425,7 +4435,7 @@ fn production_f01_forms_render_exactly_and_report_generated_owners() {
 }
 
 #[test]
-fn production_f01_direct_roots_are_exact_and_wrong_forms_are_rejected() {
+fn nonfinite_direct_roots_are_exact_and_wrong_forms_are_rejected() {
     for (source, nonterminal, expected) in [
         ("to attack", Nonterminal::InfinitiveClause, "to attack"),
         (
@@ -4699,9 +4709,9 @@ fn modal_copular_frame_rejects_a_finite_copula() {
     );
 }
 
-/// Clause coordination's right conjunct is `n(N::SimpleClause)`
-/// (`RuleTag::ClauseCoordination`), and every copular/modal-copular clause
-/// is an `N::Clause` production with no `SimpleClause` path, so
+/// Clause coordination's right conjunct is a `SimpleClause`, and every
+/// copular/modal-copular clause is a `Clause` production with no
+/// `SimpleClause` path, so
 /// `... and X can't be 0` cannot be a right conjunct for the same
 /// pre-existing reason `... and X is 5 or more` cannot. This is a
 /// deliberate scope boundary, not a bug — a later round adding
@@ -7542,6 +7552,7 @@ fn shared_deontic_none_renders_as_the_bare_modal() {
                 CoordinationJunction {
                     conjunction: Some(PredicateConjunction::And),
                     comma: crate::features::Comma::Absent,
+                    head_realization: crate::syntax::CoordinationHeadRealization::Overt,
                 },
                 PredicateExpression::Simple(second),
             )),
@@ -7569,6 +7580,7 @@ fn changed_predicate_connective_nests_the_completed_left_group() {
         [CoordinationJunction {
             conjunction: Some(PredicateConjunction::And),
             comma: crate::features::Comma::Absent,
+            ..
         }]
     ));
     let [
@@ -7584,6 +7596,7 @@ fn changed_predicate_connective_nests_the_completed_left_group() {
         [CoordinationJunction {
             conjunction: Some(PredicateConjunction::Or),
             comma: crate::features::Comma::Absent,
+            ..
         }]
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
@@ -7789,6 +7802,7 @@ fn additive_type_copular_continuations_share_the_finite_subject() {
             [CoordinationJunction {
                 conjunction: actual_conjunction,
                 comma: actual_comma,
+                ..
             }] if *actual_conjunction == conjunction && actual_comma.is_present() == comma
         ));
 
@@ -7884,9 +7898,379 @@ fn a_comma_before_a_two_member_conjunction_is_not_a_prepositional_coordination()
     let source = "Exile target card from your graveyard, and put a card into your hand.";
     let parsed = parse(source);
     let sentence = parsed.sentence().expect("sentence root");
+    let coordination = predicate_coordination(sentence);
+    let [first, second] = coordination.conjuncts() else {
+        panic!("expected exactly two predicate members: {coordination:#?}");
+    };
+    let [junction] = coordination.junctions() else {
+        panic!("expected exactly one predicate junction: {coordination:#?}");
+    };
+    assert_eq!(
+        junction.conjunction(),
+        Some(crate::features::Conjunction::And)
+    );
+    assert_eq!(junction.comma(), crate::features::Comma::Present);
+
+    let PredicateExpression::Simple(Predicate::Transitive(exile)) = first else {
+        panic!("expected an exile predicate before the clause boundary: {first:#?}");
+    };
+    let Some(NounPhraseKind::Nominal(card)) = predicate_object_kind(exile.object()) else {
+        panic!("expected the exiled card as a nominal object: {exile:#?}");
+    };
+    let [NominalComplement::Prepositional(source_zone)] = card.complements() else {
+        panic!("expected one source-zone complement on the card: {card:#?}");
+    };
+    assert!(matches!(
+        source_zone.kind(),
+        crate::syntax::PrepositionalPhraseKind::Simple(phrase)
+            if phrase.preposition() == Preposition::From
+    ));
+    assert!(matches!(
+        second,
+        PredicateExpression::Simple(Predicate::Transitive(put))
+            if matches!(&put.head().verb().verb, Verb::Word(Vocab::Put))
+    ));
+    assert_eq!(render_sentence(sentence), source);
+}
+
+fn clause_coordination_fixture_catalogs() -> Catalogs {
+    Catalogs::default()
+        .with_catalog(
+            CatalogKind::KeywordAbility,
+            [
+                "First strike",
+                "Flying",
+                "Haste",
+                "Hexproof",
+                "Lifelink",
+                "Trample",
+            ],
+        )
+        .with_catalog(
+            CatalogKind::CreatureType,
+            ["Beast", "Goblin", "Soldier", "Wizard", "Zombie"],
+        )
+        .with_catalog(
+            CatalogKind::LandType,
+            ["Forest", "Island", "Mountain", "Plains", "Swamp"],
+        )
+        .with_catalog(
+            CatalogKind::CardType,
+            ["Creature", "Instant", "Land", "Sorcery"],
+        )
+}
+
+fn parse_clause_coordination_fixture(source: &str) -> ParsedNonterminal {
+    parse_nonterminal(
+        source,
+        &clause_coordination_fixture_catalogs(),
+        Nonterminal::Sentence,
+    )
+    .unwrap_or_else(|error| {
+        panic!("failed to parse clause-coordination fixture {source:?}: {error:?}")
+    })
+}
+
+fn matrix_finite(clause: &IndependentClause) -> &crate::syntax::FiniteClause {
+    match clause {
+        IndependentClause::Finite(finite) => finite,
+        IndependentClause::Complex(complex) => matrix_finite(complex.host()),
+        other => panic!("expected a finite matrix clause, got {other:#?}"),
+    }
+}
+
+fn outer_subordinator_count(clause: &IndependentClause, expected: Subordinator) -> usize {
+    match clause {
+        IndependentClause::Complex(complex) => {
+            let current = usize::from(matches!(
+                complex.attachment().payload(),
+                ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                    actual,
+                    _
+                )) if *actual == expected
+            ));
+            current + outer_subordinator_count(complex.host(), expected)
+        }
+        _ => 0,
+    }
+}
+
+fn outer_subordinate_scope(
+    clause: &IndependentClause,
+    expected: Subordinator,
+) -> Option<&crate::syntax::ComplexClause> {
+    let IndependentClause::Complex(complex) = clause else {
+        return None;
+    };
+    if matches!(
+        complex.attachment().payload(),
+        ClauseAttachmentKind::Dependent(DependentClause::Subordinate(actual, _))
+            if *actual == expected
+    ) {
+        return Some(complex);
+    }
+    outer_subordinate_scope(complex.host(), expected)
+}
+
+fn trailing_subordinator(predicate: &PredicateExpression) -> Option<Subordinator> {
+    let PredicateExpression::Simple(Predicate::Attached(attached)) = predicate else {
+        return None;
+    };
+    let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(subordinator, _)) =
+        attached.attachment().payload()
+    else {
+        return None;
+    };
+    Some(*subordinator)
+}
+
+#[test]
+fn repeated_postpositive_conditions_stay_on_their_predicate_members() {
+    let fixtures = [
+        (
+            "This creature gets +0/+2 as long as you control a Plains, has flying as long as you control an Island, gets +2/+0 as long as you control a Swamp, has first strike as long as you control a Mountain, and has trample as long as you control a Forest.",
+            5,
+        ),
+        (
+            "This creature has trample as long as you control a Beast, haste as long as you control a Goblin, first strike as long as you control a Soldier, flying as long as you control a Wizard, and \"{B}: Regenerate this creature\" as long as you control a Zombie.",
+            5,
+        ),
+    ];
+
+    for (source, member_count) in fixtures {
+        let parsed = parse_clause_coordination_fixture(source);
+        let sentence = parsed.sentence().expect("sentence root");
+        let SentenceBody::Independent(clause) = &sentence.body else {
+            panic!("expected independent sentence: {sentence:#?}");
+        };
+        assert_eq!(
+            outer_subordinator_count(clause, Subordinator::AsLongAs),
+            0,
+            "repeated conditions must not also be duplicated around the group: {clause:#?}"
+        );
+        let PredicateExpression::Coordinated(coordination) = matrix_finite(clause).predicate()
+        else {
+            panic!("expected one shared-subject predicate coordination: {clause:#?}");
+        };
+        assert_eq!(coordination.conjuncts().len(), member_count, "{source:?}");
+        assert!(
+            coordination
+                .conjuncts()
+                .iter()
+                .all(|member| trailing_subordinator(member) == Some(Subordinator::AsLongAs)),
+            "every repeated condition must remain member-local: {coordination:#?}"
+        );
+        if source.starts_with("This creature has trample") {
+            assert!(
+                coordination.conjuncts().iter().all(|member| matches!(
+                    member,
+                    PredicateExpression::Simple(Predicate::Attached(attached))
+                        if matches!(
+                            attached.predicate(),
+                            Predicate::Transitive(predicate)
+                                if matches!(predicate.head().verb().verb, Verb::Word(Vocab::Have))
+                                    && matches!(
+                                        predicate.object(),
+                                        PredicateObject::Ability(_)
+                                            | PredicateObject::QuotedAbility(_)
+                                    )
+                        )
+                )),
+                "every Tribal Golem member is a semantic has-ability predicate: {coordination:#?}"
+            );
+        }
+        assert_eq!(render_sentence(sentence), source);
+    }
+}
+
+#[test]
+fn one_postpositive_condition_after_two_predicates_scopes_over_the_group() {
+    for source in [
+        "This creature gets +1/+1 and has trample as long as there are four or more card types among cards in your graveyard.",
+        "This creature gets +1/+0 and has lifelink as long as two or more nonland permanents entered the battlefield under your control this turn.",
+    ] {
+        let parsed = parse_clause_coordination_fixture(source);
+        let sentence = parsed.sentence().expect("sentence root");
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) = &sentence.body else {
+            panic!("expected the condition outside the coordinated matrix: {sentence:#?}");
+        };
+        let SentenceBody::Independent(clause) = &sentence.body else {
+            unreachable!("the preceding pattern established an independent sentence")
+        };
+        assert_eq!(
+            outer_subordinator_count(clause, Subordinator::AsLongAs),
+            1,
+            "the group-wide condition must occur exactly once: {clause:#?}"
+        );
+        assert_eq!(
+            complex.attachment().position(),
+            AttachmentPosition::AfterMatrix
+        );
+        assert!(matches!(
+            complex.attachment().payload(),
+            ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                Subordinator::AsLongAs,
+                _
+            ))
+        ));
+        let PredicateExpression::Coordinated(coordination) =
+            matrix_finite(complex.host()).predicate()
+        else {
+            panic!("expected two predicates under the group condition: {complex:#?}");
+        };
+        assert_eq!(coordination.conjuncts().len(), 2);
+        assert!(
+            coordination
+                .conjuncts()
+                .iter()
+                .all(|member| trailing_subordinator(member).is_none())
+        );
+        assert_eq!(render_sentence(sentence), source);
+    }
+}
+
+#[test]
+fn a_preposed_condition_scopes_over_the_whole_serial_predicate_list() {
+    let source = "As long as there are four or more card types among cards in your graveyard, this creature gets +2/+2, has flying, and attacks each combat if able.";
+    let parsed = parse_clause_coordination_fixture(source);
+    let sentence = parsed.sentence().expect("sentence root");
+    let SentenceBody::Independent(clause) = &sentence.body else {
+        panic!("expected a fronted condition around the matrix: {sentence:#?}");
+    };
+    assert_eq!(
+        outer_subordinator_count(clause, Subordinator::AsLongAs),
+        1,
+        "the preposed group condition must occur exactly once: {clause:#?}"
+    );
+    assert_eq!(
+        outer_subordinator_count(clause, Subordinator::If),
+        0,
+        "the final if-able condition must not scope over the whole group: {clause:#?}"
+    );
+    let complex = outer_subordinate_scope(clause, Subordinator::AsLongAs)
+        .expect("the unique as-long-as edge has a typed outer scope");
+    assert_eq!(
+        complex.attachment().position(),
+        AttachmentPosition::BeforeMatrix
+    );
+    assert!(matches!(
+        complex.attachment().payload(),
+        ClauseAttachmentKind::Dependent(DependentClause::Subordinate(Subordinator::AsLongAs, _))
+    ));
+    let PredicateExpression::Coordinated(coordination) = matrix_finite(complex.host()).predicate()
+    else {
+        panic!("expected the fronted condition to govern all three members: {complex:#?}");
+    };
+    assert_eq!(coordination.conjuncts().len(), 3);
+    assert_eq!(coordination.junctions().len(), 2);
     assert!(
-        !format!("{sentence:#?}").contains("CoordinatedPrepositionalPhrase"),
-        "a clause-boundary comma must not coordinate prepositional phrases: {sentence:#?}"
+        coordination
+            .conjuncts()
+            .iter()
+            .all(|member| trailing_subordinator(member) != Some(Subordinator::AsLongAs)),
+        "the preposed as-long-as condition is not duplicated on a member"
+    );
+    assert!(
+        coordination.conjuncts()[..2]
+            .iter()
+            .all(|member| trailing_subordinator(member) != Some(Subordinator::If))
+    );
+    assert_eq!(
+        trailing_subordinator(&coordination.conjuncts()[2]),
+        Some(Subordinator::If),
+        "if able belongs to the final attacks predicate"
     );
     assert_eq!(render_sentence(sentence), source);
+}
+
+#[test]
+fn dependent_and_subject_boundaries_preserve_nested_coordination_layers() {
+    let chaos = "Its controller reveals cards from the top of their library until they reveal a creature card, puts that card onto the battlefield, then puts the rest on the bottom of their library in a random order.";
+    let parsed = parse_clause_coordination_fixture(chaos);
+    let sentence = parsed.sentence().expect("sentence root");
+    let SentenceBody::Independent(clause) = &sentence.body else {
+        panic!("expected independent sentence: {sentence:#?}");
+    };
+    let PredicateExpression::Coordinated(coordination) = matrix_finite(clause).predicate() else {
+        panic!("expected one shared-subject action sequence: {clause:#?}");
+    };
+    assert_eq!(coordination.conjuncts().len(), 3);
+    assert_eq!(
+        trailing_subordinator(&coordination.conjuncts()[0]),
+        Some(Subordinator::Until),
+        "the until clause belongs only to the reveal member"
+    );
+    assert!(
+        coordination.conjuncts()[1..]
+            .iter()
+            .all(|member| trailing_subordinator(member).is_none())
+    );
+    assert_eq!(
+        coordination.junctions()[1].conjunction(),
+        Some(Conjunction::Then)
+    );
+    assert_eq!(render_sentence(sentence), chaos);
+
+    let sycorax = "That opponent discards all the cards in their hand, then draws that many cards minus one, or this creature deals damage to that player equal to the number of cards in their hand.";
+    let parsed = parse_clause_coordination_fixture(sycorax);
+    let sentence = parsed.sentence().expect("sentence root");
+    let SentenceBody::Independent(IndependentClause::Coordinated(outer)) = &sentence.body else {
+        panic!("expected an outer complete-clause choice: {sentence:#?}");
+    };
+    assert_eq!(outer.rest().len(), 1);
+    assert_eq!(outer.rest()[0].conjunction(), Some(Conjunction::Or));
+    let PredicateExpression::Coordinated(inner) = matrix_finite(outer.first()).predicate() else {
+        panic!("expected the first option to retain its inner then chain: {outer:#?}");
+    };
+    assert_eq!(inner.conjuncts().len(), 2);
+    assert_eq!(inner.junctions()[0].conjunction(), Some(Conjunction::Then));
+    let CoordinatedClauseMember::Independent(second) = outer.rest()[0].member();
+    assert!(matrix_finite(second).subject().is_some());
+    assert_eq!(render_sentence(sentence), sycorax);
+}
+
+#[test]
+fn a_quoted_ability_boundary_does_not_join_its_condition_to_the_outer_predicates() {
+    let source = "Equipped creature gets +0/+1 and has \"This creature has hexproof as long as it's untapped.\"";
+    let parsed = parse_clause_coordination_fixture(source);
+    let sentence = parsed.sentence().expect("sentence root");
+    let SentenceBody::Independent(clause) = &sentence.body else {
+        panic!("expected independent sentence: {sentence:#?}");
+    };
+    let PredicateExpression::Coordinated(coordination) = matrix_finite(clause).predicate() else {
+        panic!("expected exactly the two outer predicates: {clause:#?}");
+    };
+    assert_eq!(coordination.conjuncts().len(), 2);
+    assert!(
+        coordination
+            .conjuncts()
+            .iter()
+            .all(|member| trailing_subordinator(member).is_none())
+    );
+    assert!(matches!(
+        &coordination.conjuncts()[1],
+        PredicateExpression::Simple(Predicate::Transitive(predicate))
+            if matches!(predicate.object(), PredicateObject::QuotedAbility(_))
+    ));
+    assert_eq!(render_sentence(sentence), source);
+}
+
+#[test]
+fn invalid_clause_coordination_contracts_are_rejected() {
+    for source in [
+        "This creature get +1/+1 and has flying.",
+        "You draw a card or and discard a card.",
+        "This creature gets +1/+1 and have flying.",
+        "This creature gets +1/+1 and are a Goblin in addition to its other types.",
+    ] {
+        assert!(
+            parse_nonterminal(
+                source,
+                &clause_coordination_fixture_catalogs(),
+                Nonterminal::Sentence,
+            )
+            .is_err(),
+            "invalid coordination must remain unparsed: {source:?}"
+        );
+    }
 }

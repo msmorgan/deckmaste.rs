@@ -15,10 +15,12 @@ use crate::syntax::CoordinatedAdjectivePhrase;
 use crate::syntax::ExceptionRider;
 use crate::syntax::ExceptionRiderList;
 use crate::syntax::GerundClause;
+use crate::syntax::IndependentClause;
 use crate::syntax::InfinitiveClause;
 use crate::syntax::NounPhrase;
 use crate::syntax::ObjectGapPredicate;
 use crate::syntax::Predicate;
+use crate::syntax::PredicateExpression;
 use crate::syntax::PrepositionalPhrase;
 use crate::syntax::RelativeClause;
 use crate::syntax::RelativeMarker;
@@ -27,6 +29,211 @@ use crate::syntax::RestrictionMember;
 use crate::syntax::Subordinator;
 use crate::word::AuxiliaryInstance;
 use crate::word::Vocab;
+
+fn simple_clause(
+    construction: &'static str,
+    value: &Clause,
+) -> Result<crate::grammar::SimpleClause, DeclarationViolation> {
+    let Clause::Independent(IndependentClause::Finite(finite)) = value else {
+        return Err(DeclarationViolation {
+            construction,
+            requirement: "the continuation is one uncoordinated finite clause",
+        });
+    };
+    let PredicateExpression::Simple(predicate) = finite.predicate() else {
+        return Err(DeclarationViolation {
+            construction,
+            requirement: "the continuation is one uncoordinated finite clause",
+        });
+    };
+    Ok(crate::grammar::SimpleClause {
+        subject: finite.subject().cloned(),
+        predicate: crate::constructions::predicate::inverse_public_predicate(predicate)?,
+        attachment: None,
+    })
+}
+
+/// Coordinates a clause with a second finite clause without a comma.
+///
+/// An explicit-subject continuation remains a complete clause member. A
+/// standalone imperative may be adopted by an eligible addressee host; use
+/// [`build_clause_coordination_shared_predicate`] for an ordinary finite
+/// predicate that shares a third-person subject.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the continuation is not a simple
+/// finite clause or the two clauses cannot form the declared coordination.
+pub fn build_clause_coordination(
+    first: Clause,
+    conjunction: Conjunction,
+    next: &Clause,
+) -> Result<Clause, DeclarationViolation> {
+    let next = simple_clause("clause_coordination", next)?;
+    crate::constructions::clause::build_clause_coordination(first, conjunction, next)
+}
+
+/// Coordinates a clause with a comma-delimited finite clause.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the continuation is not a simple
+/// finite clause or the requested grouping violates finite agreement and
+/// subject-sharing constraints.
+pub fn build_clause_coordination_comma(
+    first: Clause,
+    conjunction: Conjunction,
+    next: &Clause,
+) -> Result<Clause, DeclarationViolation> {
+    let next = simple_clause("clause_coordination_comma", next)?;
+    crate::constructions::clause::build_clause_coordination_comma(first, conjunction, next)
+}
+
+/// Appends an asyndetic comma-delimited finite clause.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the continuation is not a simple
+/// finite clause or cannot share the host's subject and agreement.
+pub fn build_clause_coordination_asyndetic(
+    first: Clause,
+    next: &Clause,
+) -> Result<Clause, DeclarationViolation> {
+    let next = simple_clause("clause_coordination_asyndetic", next)?;
+    crate::constructions::clause::build_clause_coordination_asyndetic(first, next)
+}
+
+fn shared_predicate(
+    predicate: &Predicate,
+) -> Result<crate::grammar::SimpleClause, DeclarationViolation> {
+    Ok(crate::grammar::SimpleClause {
+        subject: None,
+        predicate: crate::constructions::predicate::inverse_public_predicate(predicate)?,
+        attachment: None,
+    })
+}
+
+/// Coordinates a finite host with an ordinary predicate sharing its subject.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the predicate is incomplete or its
+/// finite agreement is incompatible with the host.
+pub fn build_clause_coordination_shared_predicate(
+    first: Clause,
+    conjunction: Conjunction,
+    predicate: &Predicate,
+) -> Result<Clause, DeclarationViolation> {
+    crate::constructions::clause::build_clause_coordination(
+        first,
+        conjunction,
+        shared_predicate(predicate)?,
+    )
+}
+
+/// Coordinates a finite host with a comma-delimited predicate sharing its
+/// subject.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the predicate is incomplete or its
+/// finite agreement is incompatible with the host.
+pub fn build_clause_coordination_shared_predicate_comma(
+    first: Clause,
+    conjunction: Conjunction,
+    predicate: &Predicate,
+) -> Result<Clause, DeclarationViolation> {
+    crate::constructions::clause::build_clause_coordination_comma(
+        first,
+        conjunction,
+        shared_predicate(predicate)?,
+    )
+}
+
+/// Appends an asyndetic predicate through the shared-subject declaration.
+///
+/// # Errors
+///
+/// Returns a declaration violation when the predicate is incomplete or the
+/// host cannot license this asyndetic subject-sharing form.
+pub fn build_clause_coordination_shared_predicate_asyndetic(
+    first: Clause,
+    predicate: &Predicate,
+) -> Result<Clause, DeclarationViolation> {
+    crate::constructions::clause::build_clause_coordination_asyndetic(
+        first,
+        shared_predicate(predicate)?,
+    )
+}
+
+fn shared_copular_predicate(
+    copula: AuxiliaryInstance,
+    complement: NounPhrase,
+    preposition: PrepositionalPhrase,
+) -> Result<Predicate, DeclarationViolation> {
+    crate::constructions::clause::build_shared_copular_predicate(copula, complement, preposition)
+}
+
+/// Appends the narrow shared-subject additive copular continuation.
+///
+/// # Errors
+///
+/// Returns a declaration violation unless the copula is indicative, the
+/// complement is nominal, the adjunct is the declared additive `in` phrase,
+/// and the host supplies compatible finite agreement.
+pub fn build_clause_coordination_copular_noun_prepositional(
+    first: Clause,
+    conjunction: Conjunction,
+    copula: AuxiliaryInstance,
+    complement: NounPhrase,
+    preposition: PrepositionalPhrase,
+) -> Result<Clause, DeclarationViolation> {
+    let predicate = shared_copular_predicate(copula, complement, preposition)?;
+    crate::constructions::clause::build_clause_coordination_copular_noun_prepositional(
+        first,
+        conjunction,
+        predicate,
+    )
+}
+
+/// Appends a comma-delimited additive copular continuation.
+///
+/// # Errors
+///
+/// Returns a declaration violation unless the copula, complement, additive
+/// adjunct, and host agreement satisfy the generated declaration.
+pub fn build_clause_coordination_copular_noun_prepositional_comma(
+    first: Clause,
+    conjunction: Conjunction,
+    copula: AuxiliaryInstance,
+    complement: NounPhrase,
+    preposition: PrepositionalPhrase,
+) -> Result<Clause, DeclarationViolation> {
+    let predicate = shared_copular_predicate(copula, complement, preposition)?;
+    crate::constructions::clause::build_clause_coordination_copular_noun_prepositional_comma(
+        first,
+        conjunction,
+        predicate,
+    )
+}
+
+/// Appends an asyndetic additive copular continuation.
+///
+/// # Errors
+///
+/// Returns a declaration violation unless the copula, complement, additive
+/// adjunct, and host agreement satisfy the generated declaration.
+pub fn build_clause_coordination_copular_noun_prepositional_asyndetic(
+    first: Clause,
+    copula: AuxiliaryInstance,
+    complement: NounPhrase,
+    preposition: PrepositionalPhrase,
+) -> Result<Clause, DeclarationViolation> {
+    let predicate = shared_copular_predicate(copula, complement, preposition)?;
+    crate::constructions::clause::build_clause_coordination_copular_noun_prepositional_asyndetic(
+        first, predicate,
+    )
+}
 
 fn contracted_relative_subject(
     auxiliary: AuxiliaryInstance,

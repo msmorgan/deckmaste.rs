@@ -343,11 +343,11 @@ fn noun_phrase_is_set_exception_host(value: &NounPhrase) -> bool {
     match value.kind() {
         NounPhraseKind::Nominal(nominal) => matches!(
             nominal.determiner().map(crate::syntax::Determiner::kind),
-            Some(DeterminerKind::All | DeterminerKind::Each)
+            Some(DeterminerKind::All | DeterminerKind::AllDefinite | DeterminerKind::Each)
         ),
         NounPhraseKind::CoordinatedNominal(coordinated) => matches!(
             coordinated.determiner().kind(),
-            DeterminerKind::All | DeterminerKind::Each
+            DeterminerKind::All | DeterminerKind::AllDefinite | DeterminerKind::Each
         ),
         NounPhraseKind::Coordinated(coordinated) => {
             noun_phrase_is_set_exception_host(coordinated.first())
