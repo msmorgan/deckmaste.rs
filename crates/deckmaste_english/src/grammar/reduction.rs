@@ -20,33 +20,10 @@ use super::PredicateForm;
 use super::Preposition;
 use super::QuantityFeatures;
 use super::Reduction;
-use super::RuleTag;
 use super::SetExceptionState;
 use super::VerbSlot;
 use super::clause;
 use super::generated::GeneratedFeatureCombinator;
-
-#[allow(clippy::too_many_lines, reason = "reduce matches on all rule tags")]
-pub(super) fn reduce(
-    tag: RuleTag,
-    children: &[Child<'_, EnglishGrammar<'_, '_>>],
-) -> Option<Reduction<Features>> {
-    let features = match tag {
-        RuleTag::ClauseCoordination
-        | RuleTag::ClauseCoordinationComma
-        | RuleTag::ClauseCoordinationAsyndetic
-        | RuleTag::ClauseCoordinationCopularNounPrepositional
-        | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
-        | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic => {
-            clause::reduce_clause(tag, children)?
-        }
-    };
-    let local_cost = clause::reduction_cost(tag, children);
-    Some(Reduction {
-        features,
-        local_cost,
-    })
-}
 
 pub(super) type Reduced = Features;
 
@@ -2385,10 +2362,6 @@ fn generated_determiner_accepts(
         return false;
     }
     cardinality_accepts(cardinality, form) && article_accepts(article, initial_sound)
-}
-
-pub(super) fn propagate(child: &Child<'_, EnglishGrammar<'_, '_>>) -> Reduced {
-    child.features.clone()
 }
 
 pub(super) fn cardinality_accepts(cardinality: NounCardinality, form: NounForm) -> bool {

@@ -4,7 +4,7 @@
 #![allow(
     clippy::needless_pass_by_value,
     clippy::too_many_lines,
-    reason = "declaration adapters own erased values and one form dispatcher per F03 family"
+    reason = "declaration adapters own erased values and one form dispatcher per attachment family"
 )]
 
 use deckmaste_construction_compiler::runtime::DeclarationViolation;
@@ -16,7 +16,9 @@ use crate::grammar::Features;
 use crate::grammar::PredicateForm;
 use crate::grammar::VerbPhrase;
 use crate::syntax::AdjectivePhrase;
+use crate::syntax::AttachedPredicate;
 use crate::syntax::AttachmentPosition;
+use crate::syntax::AttachmentScope;
 use crate::syntax::Clause;
 use crate::syntax::ClauseAttachment;
 use crate::syntax::ClauseAttachmentKind;
@@ -26,11 +28,14 @@ use crate::syntax::EllipticalClause;
 use crate::syntax::ExceptionConjunct;
 use crate::syntax::ExceptionRider;
 use crate::syntax::ExceptionRiderList;
+use crate::syntax::FiniteClause;
 use crate::syntax::GerundClause;
 use crate::syntax::IndependentClause;
 use crate::syntax::InfinitiveClause;
 use crate::syntax::NounPhrase;
+use crate::syntax::Predicate;
 use crate::syntax::PredicateAdjunct;
+use crate::syntax::PredicateExpression;
 use crate::syntax::PrepositionalPhrase;
 use crate::syntax::RestrictionCoordination;
 use crate::syntax::RestrictionMember;
@@ -62,9 +67,75 @@ fn with_attachment(
     attachment: ClauseAttachment,
 ) -> Result<Clause, DeclarationViolation> {
     let host = independent(construction, host)?;
+    if let Some(host) = attach_final_elliptical_condition(host.clone(), attachment.clone()) {
+        return Ok(Clause::Independent(host));
+    }
+    if let Some(host) = crate::constructions::clause::attach_serial_postpositive_condition(
+        host.clone(),
+        attachment.clone(),
+    ) {
+        return Ok(Clause::Independent(host));
+    }
     Ok(Clause::Independent(IndependentClause::Complex(
         ComplexClause::from_declaration_parts(host, attachment),
     )))
+}
+
+fn attach_final_elliptical_condition(
+    host: IndependentClause,
+    attachment: ClauseAttachment,
+) -> Option<IndependentClause> {
+    if attachment.position() != AttachmentPosition::AfterMatrix
+        || attachment.comma().is_present()
+        || !matches!(
+            attachment.payload(),
+            ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                Subordinator::If,
+                SubordinateBody::Elliptical(_)
+            ))
+        )
+    {
+        return None;
+    }
+
+    match host {
+        IndependentClause::Finite(finite) => {
+            let PredicateExpression::Coordinated(coordination) = finite.predicate() else {
+                return None;
+            };
+            let (mut conjuncts, junctions) = coordination.clone().into_declaration_parts();
+            let PredicateExpression::Simple(predicate) = conjuncts.pop()? else {
+                return None;
+            };
+            if matches!(predicate, Predicate::Attached(_)) {
+                return None;
+            }
+            conjuncts.push(PredicateExpression::Simple(Predicate::Attached(
+                AttachedPredicate {
+                    scope: AttachmentScope::from_declaration_parts(predicate, attachment),
+                },
+            )));
+            Some(IndependentClause::Finite(
+                FiniteClause::from_declaration_parts(
+                    finite.subject().cloned(),
+                    PredicateExpression::Coordinated(
+                        crate::syntax::Coordination::from_declaration_parts(conjuncts, junctions)?,
+                    ),
+                ),
+            ))
+        }
+        IndependentClause::Complex(complex)
+            if complex.attachment().position() == AttachmentPosition::BeforeMatrix =>
+        {
+            let host = attach_final_elliptical_condition(complex.host().clone(), attachment)?;
+            Some(IndependentClause::Complex(
+                ComplexClause::from_declaration_parts(host, complex.attachment().clone()),
+            ))
+        }
+        IndependentClause::Complex(_)
+        | IndependentClause::Coordinated(_)
+        | IndependentClause::Existential(_) => None,
+    }
 }
 
 fn remove_attachment(

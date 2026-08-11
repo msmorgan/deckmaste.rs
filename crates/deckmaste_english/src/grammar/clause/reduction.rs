@@ -2,13 +2,9 @@ use super::Agreement;
 use super::Auxiliary;
 use super::AuxiliaryInflection;
 use super::BareNominalAdjunct;
-use super::Child;
 #[cfg(test)]
 use super::ContractedSubjectKey;
-use super::CopulaAgreement;
-use super::EnglishGrammar;
 use super::Features;
-use super::ParseCost;
 use super::PredicateAttachmentPhase;
 use super::PredicateComplementKind;
 use super::PredicateForm;
@@ -16,32 +12,8 @@ use super::PredicateFrame;
 use super::PredicateObjectState;
 use super::Preposition;
 use super::Reduced;
-use super::RuleTag;
 use super::VerbParticle;
-use super::propagate;
 use crate::features::ComplementRole;
-use crate::features::Conjunction;
-
-pub(in crate::grammar) fn reduce_clause(
-    tag: RuleTag,
-    children: &[Child<'_, EnglishGrammar<'_, '_>>],
-) -> Option<Reduced> {
-    reduce_composed_clause(tag, children)
-}
-
-pub(in crate::grammar) fn accepts_predicate_prefix(
-    tag: RuleTag,
-    completed_children: usize,
-    features: &Features,
-) -> bool {
-    if completed_children != 1 {
-        return true;
-    }
-    if let Some(accepts) = accepts_shared_copular_coordination_prefix(tag, features) {
-        return accepts;
-    }
-    true
-}
 
 pub(crate) fn reduce_generated_recipient_passive_nominal_adjunct_features(
     predicate: &Features,
@@ -55,61 +27,6 @@ pub(crate) fn reduce_generated_recipient_passive_nominal_adjunct_features(
         return None;
     };
     extend_predicate_features(predicate, PredicateAttachment::NominalAdjunct(*adjunct))
-}
-
-fn accepts_shared_copular_coordination_prefix(tag: RuleTag, features: &Features) -> Option<bool> {
-    matches!(
-        tag,
-        RuleTag::ClauseCoordinationCopularNounPrepositional
-            | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
-            | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic
-    )
-    .then(|| {
-        matches!(
-            features,
-            Features::Clause {
-                agreement: Some(_),
-                standalone: true,
-                finite: true,
-                subjunctive: false,
-                ..
-            }
-        )
-    })
-}
-
-pub(in crate::grammar) fn reduction_cost(
-    tag: RuleTag,
-    children: &[Child<'_, EnglishGrammar<'_, '_>>],
-) -> ParseCost {
-    // The finite-first shared-predicate reading (a modal/finite clause hosting
-    // a subjectless standalone-imperative continuation, asyndetic or
-    // `then`/`and`-joined) is a narrow additive allowance layered on top of the
-    // existing coordination gate. Dispreference it so it never outranks an
-    // existing winning parse of a currently-supported card and only wins when
-    // no subject/`and`/`then`-independent reading exists for the same span.
-    let finite_first_shared_predicate = matches!(
-        tag,
-        RuleTag::ClauseCoordination
-            | RuleTag::ClauseCoordinationComma
-            | RuleTag::ClauseCoordinationAsyndetic
-    ) && matches!(
-        children.first().map(|child| child.features),
-        Some(Features::Clause { finite: true, .. })
-    ) && matches!(
-        children.last().map(|child| child.features),
-        Some(Features::SimpleClause {
-            agreement: None,
-            has_subject: false,
-            standalone: true,
-            ..
-        })
-    );
-    ParseCost {
-        precedence: 0,
-        reading_dispreference: u32::from(finite_first_shared_predicate),
-        ..ParseCost::default()
-    }
 }
 
 #[allow(
@@ -441,195 +358,6 @@ pub(crate) fn predicate_object_gap_complete(
             .selected_preposition()
             .is_satisfied_by(selected_preposition)
 }
-
-#[allow(
-    clippy::too_many_lines,
-    reason = "composed-clause reduction logic is intentionally long"
-)]
-pub(super) fn reduce_composed_clause(
-    tag: RuleTag,
-    children: &[Child<'_, EnglishGrammar<'_, '_>>],
-) -> Option<Reduced> {
-    match tag {
-        RuleTag::ClauseCoordinationCopularNounPrepositional
-        | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
-        | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic => {
-            reduce_shared_copular_coordination(tag, children)
-        }
-        RuleTag::ClauseCoordination
-        | RuleTag::ClauseCoordinationComma
-        | RuleTag::ClauseCoordinationAsyndetic => {
-            if tag != RuleTag::ClauseCoordinationAsyndetic {
-                let conjunction_index = if tag == RuleTag::ClauseCoordinationComma { 2 } else { 1 };
-                let Features::Conjunction(
-                    Conjunction::And | Conjunction::Or | Conjunction::Then | Conjunction::AndOr,
-                ) = children.get(conjunction_index)?.features
-                else {
-                    return None;
-                };
-            }
-            let Features::Clause {
-                agreement: first_agreement,
-                standalone: true,
-                finite,
-                host_addressee_subject: first_host_addressee_subject,
-                host_modal: first_host_modal,
-                subjunctive: first_subjunctive,
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            let last = children.last()?;
-            let Features::SimpleClause {
-                agreement: next_agreement,
-                has_subject,
-                standalone,
-                subjunctive: next_subjunctive,
-                ..
-            } = last.features
-            else {
-                return None;
-            };
-            // A subjunctive-flagged clause never surfaces as a coordinated
-            // member (only a generated `as though` attachment may consume one).
-            if *first_subjunctive || *next_subjunctive {
-                return None;
-            }
-            let host_adopts_imperative = *first_host_addressee_subject || *first_host_modal;
-            // A finite, subject-bearing first clause may still host a bare
-            // (subjectless, standalone) imperative continuation asyndetically —
-            // "you may search ..., reveal it" — even though the first-clause
-            // conditions below would otherwise disqualify it. The continuation
-            // side (`next_agreement`/`standalone`) still must hold, and the
-            // host must adopt the imperative: a genuine addressee-`you`
-            // subject or a base-inflection modal (`may`/`can`/...) shares the
-            // continuation's implicit "you", so a third-person, modal-less
-            // host (in practice an opaque-noun subject like "When ..."
-            // misparsed as a nominal, or its nearest-conjunct-donated
-            // agreement) cannot adopt it and stays honestly unparsed.
-            let continuation_is_bare_imperative =
-                next_agreement.is_none() && !*has_subject && *standalone;
-            if tag == RuleTag::ClauseCoordinationAsyndetic
-                && !(continuation_is_bare_imperative && host_adopts_imperative)
-                && (first_agreement.is_some()
-                    || *finite
-                    || *has_subject
-                    || next_agreement.is_some()
-                    || !*standalone)
-            {
-                return None;
-            }
-            if !coordination_agrees(children.first()?.features, last.features) {
-                return None;
-            }
-            Some(Features::Clause {
-                agreement: *first_agreement,
-                standalone: true,
-                finite: *finite,
-                host_addressee_subject: *first_host_addressee_subject,
-                host_modal: *first_host_modal,
-                subjunctive: false,
-            })
-        }
-    }
-}
-
-fn reduce_shared_copular_coordination(
-    tag: RuleTag,
-    children: &[Child<'_, EnglishGrammar<'_, '_>>],
-) -> Option<Reduced> {
-    let (conjunction_index, copula_index, noun_phrase_index, preposition_index) = match tag {
-        RuleTag::ClauseCoordinationCopularNounPrepositional => (Some(1), 2, 3, 4),
-        RuleTag::ClauseCoordinationCopularNounPrepositionalComma => (Some(2), 3, 4, 5),
-        RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic => (None, 2, 3, 4),
-        _ => return None,
-    };
-    let Features::Clause {
-        agreement: Some(host_agreement),
-        standalone: true,
-        finite: true,
-        subjunctive: false,
-        ..
-    } = children.first()?.features
-    else {
-        return None;
-    };
-    if let Some(index) = conjunction_index
-        && !matches!(
-            children.get(index)?.features,
-            Features::Conjunction(Conjunction::And)
-        )
-    {
-        return None;
-    }
-    let Features::Copula(CopulaAgreement::Indicative(copula_agreement)) =
-        children.get(copula_index)?.features
-    else {
-        return None;
-    };
-    if host_agreement != copula_agreement
-        || !matches!(
-            children.get(noun_phrase_index)?.features,
-            Features::NounPhrase { .. }
-        )
-        || !matches!(
-            children.get(preposition_index)?.features,
-            Features::PrepositionalPhrase {
-                preposition: Preposition::In,
-                ..
-            }
-        )
-    {
-        return None;
-    }
-    Some(propagate(children.first()?))
-}
-
-fn coordination_agrees(first_features: &Features, next_features: &Features) -> bool {
-    let Features::Clause {
-        agreement: first,
-        finite: first_finite,
-        host_addressee_subject,
-        host_modal: first_is_modal,
-        ..
-    } = first_features
-    else {
-        return false;
-    };
-    let Features::SimpleClause {
-        agreement: next,
-        has_subject: next_has_subject,
-        standalone: next_standalone,
-        host_modal: next_is_modal,
-        ..
-    } = next_features
-    else {
-        return false;
-    };
-    let first_adopts_imperative = *host_addressee_subject || *first_is_modal;
-    let shared_finite_predicate = matches!(
-        (first, next, next_standalone),
-        (Some(left), Some(right), false) if left == right
-    );
-    let imperative_sequence =
-        !*first_finite && matches!((first, next, next_standalone), (None, None, true));
-    let subjectless_modal_predicate =
-        *next_is_modal && matches!((first, next, next_standalone), (Some(_), None, false));
-    // A first clause whose host adopts the imperative (a genuine
-    // addressee-`you` subject or a base-inflection modal, often "you may
-    // search ..." or "Its controller may search ...") followed by a
-    // subjectless standalone imperative continuation ("..., then
-    // shuffle") — the `then`-tail counterpart to the asyndetic allowance in
-    // `reduce_composed_clause`.
-    let hosted_imperative = first_adopts_imperative && next.is_none() && *next_standalone;
-
-    *next_has_subject
-        || shared_finite_predicate
-        || imperative_sequence
-        || subjectless_modal_predicate
-        || hosted_imperative
-}
-
 pub(crate) fn auxiliary_form(
     auxiliary: impl Into<super::AuxiliaryFeatures>,
     child: PredicateForm,

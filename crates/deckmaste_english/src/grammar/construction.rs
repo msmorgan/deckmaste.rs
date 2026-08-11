@@ -1,8 +1,5 @@
 use std::sync::OnceLock;
 
-use strum::IntoEnumIterator;
-
-use super::RuleTag;
 use crate::construction::ConstructionBackend;
 use crate::construction::ConstructionEvidence;
 use crate::construction::ConstructionFamily;
@@ -11,29 +8,6 @@ use crate::construction::ConstructionOwner;
 use crate::construction::ConstructionRegistry;
 use crate::construction::ConstructionRegistryError;
 use crate::construction::DominanceEdge;
-
-pub(super) fn construction_id(tag: RuleTag) -> ConstructionId {
-    let name: &'static str = tag.into();
-    ConstructionId::new(name)
-}
-
-fn evidence(tag: RuleTag) -> ConstructionEvidence {
-    let _ = tag;
-    ConstructionEvidence::structural("production shape")
-}
-
-fn family(tag: RuleTag) -> ConstructionFamily {
-    ConstructionFamily::new(
-        construction_id(tag),
-        ConstructionOwner::Handwritten,
-        ConstructionBackend::Chart,
-        evidence(tag),
-    )
-}
-
-const fn dominance_edges() -> [DominanceEdge; 0] {
-    []
-}
 
 pub(super) fn registry() -> &'static ConstructionRegistry {
     static REGISTRY: OnceLock<ConstructionRegistry> = OnceLock::new();
@@ -46,8 +20,7 @@ pub(super) fn registry() -> &'static ConstructionRegistry {
 pub(super) fn handwritten_registry() -> &'static ConstructionRegistry {
     static REGISTRY: OnceLock<ConstructionRegistry> = OnceLock::new();
     REGISTRY.get_or_init(|| {
-        ConstructionRegistry::new(RuleTag::iter().map(family), dominance_edges())
-            .expect("static construction registry must be valid")
+        ConstructionRegistry::new([], []).expect("static construction registry must be valid")
     })
 }
 
@@ -77,17 +50,8 @@ pub(super) fn merged_registry_for_activation(
 
 fn merged_registry_with_replacements(
     groups: &[&'static deckmaste_construction_compiler::runtime::GroupData],
-    replace_handwritten: bool,
+    _replace_handwritten: bool,
 ) -> Result<ConstructionRegistry, ConstructionRegistryError> {
-    let generated_ids = groups
-        .iter()
-        .flat_map(|group| {
-            group
-                .constructions
-                .iter()
-                .map(|construction| construction.id)
-        })
-        .collect::<std::collections::BTreeSet<_>>();
     let generated_families = groups.iter().flat_map(|group| {
         group
             .constructions
@@ -113,16 +77,7 @@ fn merged_registry_with_replacements(
                 }))
         })
     });
-    ConstructionRegistry::new(
-        RuleTag::iter()
-            .filter(|tag| {
-                let id: &'static str = (*tag).into();
-                !replace_handwritten || !generated_ids.contains(id)
-            })
-            .map(family)
-            .chain(generated_families),
-        dominance_edges().into_iter().chain(generated_edges),
-    )
+    ConstructionRegistry::new(generated_families, generated_edges)
 }
 
 fn generated_family(
@@ -162,10 +117,6 @@ fn generated_evidence(
 
 #[cfg(test)]
 mod tests {
-    use strum::IntoEnumIterator;
-
-    use super::super::RuleTag;
-    use super::construction_id;
     use super::handwritten_registry;
     use super::registry;
     use crate::FragmentKind;
@@ -190,12 +141,6 @@ mod tests {
     #[test]
     fn production_registry_has_one_owner_per_active_family() {
         let registry = registry();
-        for tag in RuleTag::iter() {
-            let id = construction_id(tag);
-            let family = registry.family(id).expect("tag missing from registry");
-            assert_eq!(family.owner(), ConstructionOwner::Handwritten);
-            assert_eq!(family.backend(), ConstructionBackend::Chart);
-        }
         for id in ["noun_phrase_coordination", "shared_determiner_nominal"] {
             let family = registry
                 .family(ConstructionId::new(id))
@@ -274,7 +219,7 @@ mod tests {
     }
 
     #[test]
-    fn production_p02_families_are_generated_only() {
+    fn prepositional_phrase_families_are_generated_only() {
         let ids = ["prepositional_phrase", "prepositional_object"];
         let declarations =
             crate::constructions::prepositional::PREPOSITIONAL_DECLARATION.constructions;
@@ -304,7 +249,7 @@ mod tests {
             for other in registry().families() {
                 assert!(
                     !registry().dominates(id, other.id()),
-                    "P02 must declare no outgoing dominance edge: {id} > {}",
+                    "prepositional-phrase rows must declare no outgoing dominance edge: {id} > {}",
                     other.id()
                 );
             }
@@ -322,12 +267,12 @@ mod tests {
     }
 
     #[test]
-    fn production_v01_has_exactly_34_generated_owners_and_declaration_edges() {
-        // Mutations caught: leave any V01 ID as a RuleTag-backed handwritten
-        // family, activate only part of the declaration group, duplicate an
-        // owner, or retain/drop a handwritten dominance mirror.
+    fn predicate_family_has_exactly_34_generated_owners_and_declaration_edges() {
+        // Mutations caught: leave any predicate construction handwritten,
+        // activate only part of the declaration group, duplicate an owner, or
+        // retain/drop a handwritten dominance mirror.
         let declarations = crate::constructions::predicate::PREDICATE_DECLARATION.constructions;
-        assert_eq!(declarations.len(), 34, "required V01 declarations");
+        assert_eq!(declarations.len(), 34, "required predicate declarations");
         for construction in declarations {
             let id = ConstructionId::new(construction.id);
             assert!(
@@ -361,20 +306,20 @@ mod tests {
         for (winner, loser) in expected {
             assert!(
                 registry().dominates(ConstructionId::new(winner), ConstructionId::new(loser)),
-                "missing declaration-owned V01 edge {winner}>{loser}"
+                "missing declaration-owned predicate edge {winner}>{loser}"
             );
         }
     }
 
     #[test]
-    fn production_j01_has_exactly_eleven_generated_owners_without_dominance() {
+    fn adjective_family_has_exactly_eleven_generated_owners_without_dominance() {
         let declarations = crate::constructions::adjective::ADJECTIVE_DECLARATION.constructions;
-        assert_eq!(declarations.len(), 11, "required J01 declarations");
+        assert_eq!(declarations.len(), 11, "required adjective declarations");
         let ids = declarations
             .iter()
             .map(|construction| ConstructionId::new(construction.id))
             .collect::<std::collections::BTreeSet<_>>();
-        assert_eq!(ids.len(), 11, "J01 IDs are unique");
+        assert_eq!(ids.len(), 11, "adjective IDs are unique");
 
         for construction in declarations {
             let id = ConstructionId::new(construction.id);
@@ -404,7 +349,7 @@ mod tests {
             for other in registry().families() {
                 assert!(
                     !registry().dominates(id, other.id()) && !registry().dominates(other.id(), id),
-                    "J01 must have no dominance relation: {id} / {}",
+                    "adjective rows must have no dominance relation: {id} / {}",
                     other.id()
                 );
             }
@@ -412,14 +357,14 @@ mod tests {
     }
 
     #[test]
-    fn production_d01_has_exactly_nine_generated_owners_without_dominance() {
+    fn determiner_family_has_exactly_ten_generated_owners_without_dominance() {
         let declarations = crate::constructions::determiner::DETERMINER_DECLARATION.constructions;
-        assert_eq!(declarations.len(), 9, "required D01 declarations");
+        assert_eq!(declarations.len(), 10, "required determiner declarations");
         let ids = declarations
             .iter()
             .map(|construction| ConstructionId::new(construction.id))
             .collect::<std::collections::BTreeSet<_>>();
-        assert_eq!(ids.len(), 9, "D01 IDs are unique");
+        assert_eq!(ids.len(), 10, "determiner IDs are unique");
 
         let normal = crate::constructions::GROUPS.to_vec();
         let mut reversed_groups = normal.clone();
@@ -455,7 +400,7 @@ mod tests {
             for other in registry().families() {
                 assert!(
                     !registry().dominates(id, other.id()) && !registry().dominates(other.id(), id),
-                    "D01 must have no dominance relation: {id} / {}",
+                    "determiner rows must have no dominance relation: {id} / {}",
                     other.id()
                 );
             }
@@ -505,8 +450,8 @@ mod tests {
 
     #[test]
     fn production_registry_and_ability_entry_census_matches_the_inventory() {
-        // Mutation caught: add/drop a RuleTag or generated declaration without
-        // updating the migration inventory, or accidentally count the two
+        // Mutation caught: add/drop a handwritten or generated declaration
+        // without updating the migration inventory, or accidentally count the two
         // chart-backed fragment categories as handwritten ability entries.
         let families = registry().families();
         let handwritten = families
@@ -530,11 +475,11 @@ mod tests {
                     && family.owner() == ConstructionOwner::Generated
             })
             .count();
-        assert_eq!(handwritten, 6, "handwritten chart families");
-        assert_eq!(generated, 199, "generated chart families");
-        assert_eq!(handwritten + generated, 205, "all chart families");
+        assert_eq!(handwritten, 0, "handwritten chart families");
+        assert_eq!(generated, 219, "generated chart families");
+        assert_eq!(handwritten + generated, 219, "all chart families");
         assert_eq!(generated_ability, 3, "generated ability families");
-        assert_eq!(families.len(), 208, "all active construction families");
+        assert_eq!(families.len(), 222, "all active construction families");
 
         let chart_fragment_entries = [FragmentKind::Nominal, FragmentKind::Sentence];
         let ability_fragment_entries = [
@@ -546,11 +491,11 @@ mod tests {
         assert_eq!(ability_fragment_entries.len(), 3);
         assert_eq!(
             handwritten + ability_fragment_entries.len() - generated_ability,
-            6
+            0
         );
         assert_eq!(
             families.len() + ability_fragment_entries.len() - generated_ability,
-            208
+            222
         );
 
         for id in [
@@ -576,7 +521,7 @@ mod tests {
             assert_eq!(
                 registry()
                     .family(ConstructionId::new(id))
-                    .expect("every F02 family is registered")
+                    .expect("every finite-clause family is registered")
                     .owner(),
                 ConstructionOwner::Generated,
                 "{id} must have generated production ownership",
@@ -617,7 +562,7 @@ mod tests {
     }
 
     #[test]
-    fn production_f01_has_exactly_four_generated_owners_without_dominance() {
+    fn nonfinite_family_has_exactly_four_generated_owners_without_dominance() {
         let ids = [
             "infinitive_to",
             "infinitive_not_to",
@@ -638,7 +583,7 @@ mod tests {
             for other in registry().families() {
                 assert!(
                     !registry().dominates(id, other.id()) && !registry().dominates(other.id(), id),
-                    "F01 must have no dominance relation: {id} / {}",
+                    "nonfinite-clause rows must have no dominance relation: {id} / {}",
                     other.id()
                 );
             }
@@ -647,8 +592,8 @@ mod tests {
 
     #[test]
     fn production_clause_attachment_families_are_generated_only() {
-        // The sixteen F03 declarations own these families with no remaining
-        // RuleTag-backed handwritten owner.
+        // The sixteen attachment declarations own these families with no
+        // remaining handwritten owner.
         let ids = [
             "clause_adverb_before",
             "clause_sentence_adverbial_before",
@@ -681,7 +626,47 @@ mod tests {
             for other in registry().families() {
                 assert!(
                     !registry().dominates(id, other.id()) && !registry().dominates(other.id(), id),
-                    "F03 must have no dominance relation: {id} / {}",
+                    "clause-attachment rows must have no dominance relation: {id} / {}",
+                    other.id()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn production_clause_coordination_families_are_generated_only() {
+        let ids = [
+            "clause_coordination",
+            "clause_coordination_comma",
+            "clause_coordination_asyndetic",
+            "clause_coordination_copular_noun_prepositional",
+            "clause_coordination_copular_noun_prepositional_comma",
+            "clause_coordination_copular_noun_prepositional_asyndetic",
+        ];
+        let normal_groups = crate::constructions::GROUPS.to_vec();
+        let mut reversed_groups = normal_groups.clone();
+        reversed_groups.reverse();
+        let normal = super::merged_registry_for_activation(&normal_groups)
+            .expect("normal generated group assembly is valid");
+        let reversed = super::merged_registry_for_activation(&reversed_groups)
+            .expect("reversed generated group assembly is valid");
+
+        for name in ids {
+            let id = ConstructionId::new(name);
+            assert!(
+                handwritten_registry().family(id).is_none(),
+                "{name} still has a handwritten owner"
+            );
+            let family = registry()
+                .family(id)
+                .unwrap_or_else(|| panic!("{name} generated declaration is registered"));
+            assert_eq!(family.owner(), ConstructionOwner::Generated, "{name}");
+            assert_eq!(family.backend(), ConstructionBackend::Chart, "{name}");
+            assert_eq!(normal.family(id), reversed.family(id), "{name}");
+            for other in registry().families() {
+                assert!(
+                    !registry().dominates(id, other.id()) && !registry().dominates(other.id(), id),
+                    "clause coordination must have no dominance relation: {id} / {}",
                     other.id()
                 );
             }
@@ -861,10 +846,10 @@ mod tests {
     }
 
     #[test]
-    fn production_m01_nominals_have_exactly_the_generated_owners_and_dominance() {
-        // Mutations caught: leave any M01 family registered through RuleTag,
-        // omit one declaration from the atomic activation, or drop/add an
-        // edge from the tracked M01 dominance graph.
+    fn nominal_family_has_exactly_the_generated_owners_and_dominance() {
+        // Mutations caught: leave any nominal family handwritten, omit one
+        // declaration from the atomic activation, or drop/add a declaration-
+        // owned dominance edge.
         let declarations = crate::constructions::nominal::NOMINAL_DECLARATION.constructions;
         assert_eq!(declarations.len(), 37);
         for construction in declarations {
@@ -913,12 +898,12 @@ mod tests {
         assert_eq!(
             actual,
             expected.iter().copied().collect(),
-            "the M01 declaration must own exactly the tracked ten edges"
+            "the nominal declaration must own exactly the tracked ten edges"
         );
         for &(winner, loser) in &expected {
             assert!(
                 registry().dominates(ConstructionId::new(winner), ConstructionId::new(loser)),
-                "missing M01 edge {winner} > {loser}"
+                "missing nominal edge {winner} > {loser}"
             );
         }
     }
@@ -1070,12 +1055,6 @@ mod tests {
             .expect("generated row must be present");
         assert_eq!(generated_family.owner(), ConstructionOwner::Generated);
         assert_eq!(generated_family.backend(), ConstructionBackend::Chart);
-        for tag in RuleTag::iter() {
-            let family = merged
-                .family(construction_id(tag))
-                .expect("handwritten row must survive the merge");
-            assert_eq!(family.owner(), ConstructionOwner::Handwritten);
-        }
     }
 
     #[test]
@@ -1084,22 +1063,11 @@ mod tests {
         // exactly the same rows as the real `registry()` static — the
         // guarantee that activation changes nothing for production parses.
         let merged = super::merged_registry(&[]).expect("no groups must merge cleanly");
-        let tags = RuleTag::iter().collect::<Vec<_>>();
-        assert_eq!(merged.families().len(), tags.len());
+        assert!(merged.families().is_empty());
         assert_eq!(
             merged.families().len(),
             handwritten_registry().families().len()
         );
-        for tag in tags {
-            let id = construction_id(tag);
-            let production_family = handwritten_registry()
-                .family(id)
-                .expect("tag missing from handwritten_registry()");
-            let merged_family = merged
-                .family(id)
-                .expect("tag missing from merged_registry(&[])");
-            assert_eq!(production_family, merged_family);
-        }
         // The actual `Inactive` selection code (`parse_nonterminal::select_registry`,
         // not a re-derivation of its logic) must pick the `registry()` static
         // itself, not a freshly built `merged_registry`. This observes the

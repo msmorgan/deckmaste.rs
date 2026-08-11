@@ -9,14 +9,23 @@ row; production declarations and Rust types remain authoritative.
 ## Census derivation and accounting
 
 The chart census comes from the merged production registry in
-`grammar/construction.rs`. Its handwritten side maps each remaining `RuleTag`
-to one fan-out-one row; its generated side contributes the ten Q01 quantity
-rows, the nine D01 determiner/possession rows, the 11 J01 adjective rows, the
+`grammar/construction.rs`. Its handwritten side is now empty; its generated
+side contributes the ten Q01 quantity
+rows, the ten D01 determiner/possession rows, the 11 J01 adjective rows, the
 37 M01 nominal rows, S01 `sentence`, N01 `noun`/`noun_opaque`, the two earlier
 generated coordination rows plus all 14 stable C01 declarations and nine
 internal C01 support declarations, all 34 V01
 predicate rows, the four F01 nonfinite-clause
-rows, all 20 F02 finite-clause rows, all 16 F03 clause-attachment rows, and all
+rows, all 20 F02 finite-clause rows, all 16 F03 clause-attachment rows, all six
+F04 clause-coordination rows and the internal `simple_clause_subjectless_attached`,
+`coordinated_predicate_attachment`, `coordinated_predicate_attachment_comma`,
+`coordinated_predicate_attachment_elliptical`,
+`shared_copular_predicate`, `shared_grant_ability_complement`,
+`shared_grant_quoted_complement`, `shared_grant_base`,
+`shared_grant_prefix_start`, `shared_grant_prefix_continue`,
+`clause_coordination_shared_grant`,
+`clause_coordination_shared_grant_comma`, and
+`clause_coordination_shared_grant_asyndetic` adapters, and all
 19 P01 noun-phrase rows, both P02 prepositional-phrase rows, and all nine R01
 relative-clause rows. The ability
 census comes from the three non-chart entry points documented and dispatched by
@@ -24,19 +33,19 @@ census comes from the three non-chart entry points documented and dispatched by
 
 | source | handwritten / ungenerated | already generated | accounted total |
 |---|---:|---:|---:|
-| chart construction registry | 6 | 199 | 205 |
+| chart construction registry | 0 | 219 | 219 |
 | ability construction registry | 0 | 3 | 3 |
-| migration inventory | 6 | 202 | 208 |
+| migration inventory | 0 | 222 | 222 |
 
-The family ledger below accounts for 194 stable chart IDs. The earlier
+The family ledger below accounts for 195 stable chart IDs. The earlier
 `noun_phrase_coordination` and `shared_determiner_nominal` structural owners
-bring the stable chart total to 196; nine registered internal support
-declarations for phrase coordination bring the active chart registry to 205.
-Six stable chart rows remain handwritten, while all other chart rows are
-generated. The three ability IDs occur once in the generated ability backend.
-Thus the remaining work is six chart rows and zero ability rows, with no
-`later` row. No raw corpus query was needed for this accounting; the census is
-grounded in the registry and the current `FragmentKind` dispatch. Future corpus
+bring the stable chart total to 197; nine registered internal support
+declarations for phrase coordination and thirteen internal clause-continuation
+adapters bring the active chart registry to 219. Every stable chart row is generated.
+The three ability IDs occur once in the generated ability backend. Thus the
+inventory has no remaining handwritten chart or ability row and no `later`
+row. No raw corpus query was needed for this accounting; the census is grounded
+in the registry and the current `FragmentKind` dispatch. Future corpus
 evidence must use supported faces, and normalized-template questions must use
 the existing English instruments.
 
@@ -100,7 +109,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 | unit | rows | class | migration ticket | actual capability needs |
 |---|---:|---|---|---|
 | Q01 quantity | 10 | C2 scalar | `english-derived-quantity-family` | generated |
-| D01 determiner and possession | 9 | C3 | `english-derived-determiner-possession-family` | generated |
+| D01 determiner and possession | 10 | C3 | `english-derived-determiner-possession-family` | generated |
 | J01 adjective and comparison | 11 | C3 | `english-derived-adjective-comparison-family` | scalar, identity, lens |
 | N01 noun identity and opacity | 2 | C2 identity | `english-derived-noun-lexeme-family` | generated |
 | M01 nominal spine | 37 | C2 lens | `english-derived-nominal-family` | generated |
@@ -110,7 +119,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 | F01 nonfinite clause | 4 | C3 | `english-derived-nonfinite-clause-family` | generated |
 | F02 finite and copular clause | 20 | C3 | `english-derived-finite-clause-family` | generated |
 | F03 clause attachment | 16 | C3 | `english-derived-clause-attachment-family` | generated |
-| F04 clause coordination | 6 | C4 | `english-derived-clause-coordination-family` | finite agreement, recursive grouping, member scope |
+| F04 clause coordination | 6 | C4 | `english-derived-clause-coordination-family` | generated |
 | R01 relative clause | 9 | C3 | `english-derived-relative-clause-family` | generated |
 | S01 sentence | 1 | C1 | `english-derived-sentence-family` | generated |
 | C01 phrase coordination | 14 | C4 | `english-derived-phrase-coordination-family` | typed member sums, sequence predicates, head/member selection |
@@ -148,7 +157,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 
 **Status:** generated.
 
-**Stable IDs (9):** `determiner_closed`, `determiner_target`,
+**Stable IDs (10):** `determiner_closed`, `determiner_all_the`, `determiner_target`,
 `determiner_quantified_target`, `determiner_quantity`,
 `determiner_possessive_this_card`, `possessive_noun_base`,
 `possessive_noun_determined`, `determiner_possessive_noun`,
@@ -163,7 +172,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 - **Holes and constraints:** Quantity and possessive-NP subtrees, scalar and
   identity values, and a lens over the possessor phrase. Article/onset,
   cardinality, already-determined, and demonstrative agreement are required
-  constraints.
+  constraints. The composed `all the` value requires a plural or mass noun.
 - **Ambiguity/backend:** fan-out one on Chart. There is no direct dominance
   edge inside D01; `nominal_determiner` later dominates `nominal_comparison`.
 - **Witnesses:** demonstrative and possessor identity are meaning-bearing;
@@ -173,8 +182,8 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 - **Consumers and gates:** Nominal fragments and spelling views. Direct-AST
   fixtures cover each determiner and nested possessors; `inspect` pins article
   and cardinality rejections; exactness covers `a`/`an`, target quantities,
-  and possessives; negatives reject double determination and wrong number or
-  onset.
+  possessives, and both words of `all the`; negatives reject double
+  determination, wrong number, and wrong onset.
 
 ## J01 — adjective and comparison
 
@@ -473,7 +482,8 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 - **Owners and AST:** the F02 declaration and generated chart, typed-feature,
   lowering, inverse-render, and checked-build projections own
   `IndependentClause`, staged `SimpleClause`/copular payloads, existential
-  form, and the variable-value constraint. Generated F03 and handwritten F04 consumers keep
+  form, and the variable-value constraint. Generated attachment and
+  coordination consumers keep
   using the staged categories without recreating F02 productions.
 - **Holes and constraints:** subject, predicate, and copular-complement
   subtrees; auxiliary/modal/negation identities; scalar power/toughness and
@@ -532,17 +542,31 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 
 ## F04 — clause coordination
 
+**Status:** generated.
+
 **Stable IDs (6):** `clause_coordination`, `clause_coordination_comma`,
 `clause_coordination_asyndetic`,
 `clause_coordination_copular_noun_prepositional`,
 `clause_coordination_copular_noun_prepositional_comma`,
 `clause_coordination_copular_noun_prepositional_asyndetic`.
 
-- **Owners and AST:** CR registers the three general rows; NR registers the
-  three late shared-copular rows. CR owns substantive reduction/lowering for
-  all six. They construct `IndependentClause::Coordinated`,
-  `ClauseCoordination`, shared predicate continuations, and shared-copular
-  continuations; REN and SYN-C own output and ingress.
+**Internal support IDs (13):** `simple_clause_subjectless_attached`,
+`coordinated_predicate_attachment`, `coordinated_predicate_attachment_comma`,
+`coordinated_predicate_attachment_elliptical`,
+`shared_copular_predicate`, `shared_grant_ability_complement`,
+`shared_grant_quoted_complement`, `shared_grant_base`,
+`shared_grant_prefix_start`, `shared_grant_prefix_continue`,
+`clause_coordination_shared_grant`,
+`clause_coordination_shared_grant_comma`, and
+`clause_coordination_shared_grant_asyndetic`.
+
+- **Owners and AST:** the clause declaration and generated chart, typed-feature,
+  lowering, inverse-render, and checked-build projections own all six rows.
+  They construct `IndependentClause::Coordinated`, `ClauseCoordination`, shared
+  predicate continuations, and shared-copular continuations. The public clause
+  facade is the checked ingress; syntax carriers expose immutable accessors.
+  Internal shared-grant owners preserve an elided repeated `has` as a typed
+  realization witness while keeping each condition on its own predicate.
 - **Holes and constraints:** clause/simple-clause, noun-phrase, and PP
   subtrees; conjunction/comma identity; member sequences; and lenses into the
   shared subject, predicate, and copula. Finite agreement, subject presence,
@@ -552,9 +576,8 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
   shared subject once and `PredicateExpression::Coordinated` owns its
   contiguous predicate members; `IndependentClause::Coordinated` owns
   complete members. Subjectless and shared-copular continuations are therefore
-  invertible structural views, not tuple-valued yields. The six rows still
-  migrate atomically because they share this recursive ingress and renderer.
-  Packed complete-member versus shared-predicate readings stay visible.
+  invertible structural views, not tuple-valued yields. Packed complete-member
+  versus shared-predicate readings stay visible.
 - **Witnesses:** conjunction, member grouping, shared-subject/copula scope,
   and continuation kind are semantic. `ClauseCoordination::comma` is stored
   because the AST and measured corpus do not determine it; exact replay must
@@ -566,10 +589,8 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
   and conjunction form; negatives reject invalid agreement, conjunction,
   shared-subject, and copular continuations.
 
-The member-scoped predicate lists from
-`english-coordination-structural-design` land here: per-member trailing
-conditions and shared-subject `A, B, then C` are part of this migration, not a
-permanent exception.
+Per-member trailing conditions and shared-subject `A, B, then C` are owned by
+the same generated coordination family rather than a separate exception.
 
 ## R01 — relative clause
 

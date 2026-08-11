@@ -648,7 +648,7 @@ pub enum PredicateAdjunct {
     Exception(PrepositionalPhrase),
     /// The ability-owner postmodifier `with "<ability>"`.
     ///
-    /// This is not a P02 prepositional phrase: the quoted ability is a
+    /// This is not an ordinary prepositional phrase: the quoted ability is a
     /// heterogeneous phrase-boundary payload, not a prepositional object.
     AbilityPostmodifier(AbilityPostmodifier),
     Dependent(Box<DependentClause>),
@@ -716,9 +716,10 @@ pub struct InfinitiveClause {
 
 /// A checked gerund clause with no generic attachment escape hatch.
 ///
-/// F01 admits either one complete present-participle predicate or the recursive
-/// `matrix rather than alternative` relation. Position, punctuation, and
-/// subordinator are fixed by that relation and therefore are not stored.
+/// A gerund clause admits either one complete present-participle predicate or
+/// the recursive `matrix rather than alternative` relation. Position,
+/// punctuation, and subordinator are fixed by that relation and therefore are
+/// not stored.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct GerundClause(GerundClauseKind);
 
@@ -898,10 +899,10 @@ impl<H> AttachmentScope<H> {
 /// a host, not members of a coordination — there is no `conjunction` field,
 /// and recursive [`AttachmentScope`] edges preserve association directly
 /// rather than deriving punctuation from a `first`/`rest` member count. Across
-/// its construction sites (generated F03 declarations and `grammar/ability.rs`)
-/// `comma` takes at least 3 distinct forms: fronted/trailing comma witnesses,
-/// no-comma witnesses, and ability-layer attachments. There is no coordination
-/// count from which to derive it.
+/// its construction sites (generated attachment declarations and
+/// `grammar/ability.rs`) `comma` takes at least 3 distinct forms:
+/// fronted/trailing comma witnesses, no-comma witnesses, and ability-layer
+/// attachments. There is no coordination count from which to derive it.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Attachment<T> {
     pub(crate) position: AttachmentPosition,
@@ -1192,8 +1193,55 @@ pub enum AttachmentPosition {
 pub struct CoordinationJunction {
     /// `None` records an asyndetic comma junction; coordinated junctions carry
     /// their overt connective.
-    pub conjunction: Option<Conjunction>,
-    pub comma: Comma,
+    pub(crate) conjunction: Option<Conjunction>,
+    pub(crate) comma: Comma,
+    pub(crate) head_realization: CoordinationHeadRealization,
+}
+
+/// Whether the following conjunct spells its own lexical predicate head.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub enum CoordinationHeadRealization {
+    Overt,
+    SharedGrantElided,
+}
+
+impl CoordinationJunction {
+    pub(crate) const fn from_declaration_parts(
+        conjunction: Option<Conjunction>,
+        comma: Comma,
+    ) -> Self {
+        Self {
+            conjunction,
+            comma,
+            head_realization: CoordinationHeadRealization::Overt,
+        }
+    }
+
+    pub(crate) const fn from_shared_grant_parts(
+        conjunction: Option<Conjunction>,
+        comma: Comma,
+    ) -> Self {
+        Self {
+            conjunction,
+            comma,
+            head_realization: CoordinationHeadRealization::SharedGrantElided,
+        }
+    }
+
+    #[must_use]
+    pub const fn conjunction(&self) -> Option<Conjunction> {
+        self.conjunction
+    }
+
+    #[must_use]
+    pub const fn comma(&self) -> Comma {
+        self.comma
+    }
+
+    #[must_use]
+    pub const fn head_realization(&self) -> CoordinationHeadRealization {
+        self.head_realization
+    }
 }
 
 /// A validated coordination of two or more uniform conjuncts.
@@ -1208,7 +1256,7 @@ pub struct Coordination<T> {
 }
 
 impl<T> Coordination<T> {
-    pub fn new(first: T, junction: CoordinationJunction, second: T) -> Self {
+    pub(crate) fn new(first: T, junction: CoordinationJunction, second: T) -> Self {
         Self {
             conjuncts: vec![first, second],
             junctions: vec![junction],
@@ -1229,12 +1277,45 @@ impl<T> Coordination<T> {
         self.junctions.push(junction);
         self.conjuncts.push(conjunct);
     }
+
+    pub(crate) fn from_declaration_parts(
+        conjuncts: Vec<T>,
+        junctions: Vec<CoordinationJunction>,
+    ) -> Option<Self> {
+        (conjuncts.len() >= 2 && junctions.len() + 1 == conjuncts.len()).then_some(Self {
+            conjuncts,
+            junctions,
+        })
+    }
+
+    pub(crate) fn into_declaration_parts(self) -> (Vec<T>, Vec<CoordinationJunction>) {
+        (self.conjuncts, self.junctions)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct CoordinatedIndependentClause {
-    pub first: Box<IndependentClause>,
-    pub rest: Vec<ClauseCoordination>,
+    pub(crate) first: Box<IndependentClause>,
+    pub(crate) rest: Vec<ClauseCoordination>,
+}
+
+impl CoordinatedIndependentClause {
+    pub(crate) fn from_declaration_parts(
+        first: Box<IndependentClause>,
+        rest: Vec<ClauseCoordination>,
+    ) -> Self {
+        Self { first, rest }
+    }
+
+    #[must_use]
+    pub const fn first(&self) -> &IndependentClause {
+        &self.first
+    }
+
+    #[must_use]
+    pub fn rest(&self) -> &[ClauseCoordination] {
+        &self.rest
+    }
 }
 
 /// **Measured, `comma` field KEPT** (surface-fact diet, 2026-07-30
@@ -1272,9 +1353,38 @@ pub struct CoordinatedIndependentClause {
 /// the parser can recover, so the bit stays stored.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ClauseCoordination {
-    pub conjunction: Option<Conjunction>,
-    pub comma: Comma,
-    pub member: CoordinatedClauseMember,
+    pub(crate) conjunction: Option<Conjunction>,
+    pub(crate) comma: Comma,
+    pub(crate) member: CoordinatedClauseMember,
+}
+
+impl ClauseCoordination {
+    pub(crate) const fn from_declaration_parts(
+        conjunction: Option<Conjunction>,
+        comma: Comma,
+        member: CoordinatedClauseMember,
+    ) -> Self {
+        Self {
+            conjunction,
+            comma,
+            member,
+        }
+    }
+
+    #[must_use]
+    pub const fn conjunction(&self) -> Option<Conjunction> {
+        self.conjunction
+    }
+
+    #[must_use]
+    pub const fn comma(&self) -> Comma {
+        self.comma
+    }
+
+    #[must_use]
+    pub const fn member(&self) -> &CoordinatedClauseMember {
+        &self.member
+    }
 }
 
 /// A complete-clause coordination continuation. Subjectless continuations are

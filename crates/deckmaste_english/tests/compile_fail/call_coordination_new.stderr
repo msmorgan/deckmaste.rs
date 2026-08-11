@@ -1,0 +1,10 @@
+error[E0624]: associated function `new` is private
+ --> tests/compile_fail/call_coordination_new.rs:5:19
+  |
+5 |     Coordination::new(first, junction, second)
+  |                   ^^^ private associated function
+  |
+ ::: src/syntax/clause.rs
+  |
+  |     pub(crate) fn new(first: T, junction: CoordinationJunction, second: T) -> Self {
+  |     ------------------------------------------------------------------------------ private associated function defined here

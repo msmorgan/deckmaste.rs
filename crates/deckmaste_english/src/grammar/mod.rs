@@ -38,8 +38,6 @@ mod litaudit_tests;
 
 use std::collections::HashMap;
 
-use lowering::Lowered;
-use lowering::take;
 pub(crate) use parse_support::ParsedNonterminal;
 #[cfg(test)]
 use parse_support::parse_nonterminal;
@@ -48,8 +46,6 @@ use parse_support::parse_nonterminal_with_mode;
 pub(crate) use parse_support::parse_nonterminal_with_self_reference;
 pub(crate) use parse_support::parse_nonterminal_with_self_reference_and_activation;
 use reduction::Reduced;
-use reduction::propagate;
-use reduction::reduce;
 use rules::RegistrationOrder;
 use rules::RuleBuilder;
 use rules::RuleImpl;
@@ -222,7 +218,7 @@ pub(crate) struct VerbPhrase {
     distributive_each: bool,
 }
 
-/// The typed lexical identity carried by V01's declared `verb` construction.
+/// The typed lexical identity carried by the declared `verb` construction.
 ///
 /// Its fields remain sealed; spelling consumers may inspect the inflected
 /// instance and request the declaration's citation form without depending on
@@ -626,6 +622,13 @@ impl VerbPhrase {
 pub(crate) struct SimpleClause {
     pub(crate) subject: Option<Subject>,
     pub(crate) predicate: VerbPhrase,
+    pub(crate) attachment: Option<crate::syntax::ClauseAttachment>,
+}
+
+impl SimpleClause {
+    pub(crate) const fn attachment(&self) -> Option<&crate::syntax::ClauseAttachment> {
+        self.attachment.as_ref()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1779,8 +1782,9 @@ pub(crate) enum Features {
     PrepositionalPhrase {
         preposition: Preposition,
         nominal_attachment: bool,
-        /// Ordered role facts for every simple member. A simple P02 phrase has
-        /// one entry; C01 concatenates entries without changing their order.
+        /// Ordered role facts for every simple member. A simple phrase has one
+        /// entry; coordination concatenates entries without changing their
+        /// order.
         role_members: Vec<PrepositionalRoleMember>,
         /// The object was parsed as nominal coordination under one shared
         /// determiner, rather than as coordination of complete noun phrases.
@@ -2096,23 +2100,6 @@ pub(crate) struct SubjectAuxiliaryKey {
     auxiliary: AuxiliaryFeatures,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, strum::EnumIter, strum::IntoStaticStr)]
-#[strum(serialize_all = "snake_case")]
-#[allow(
-    clippy::enum_variant_names,
-    reason = "each tag names a distinct clause-coordination topology"
-)]
-enum RuleTag {
-    ClauseCoordination,
-    ClauseCoordinationComma,
-    ClauseCoordinationAsyndetic,
-    /// A finite clause followed by a subject-shared copula, nominal
-    /// complement, and additive `in` prepositional adjunct.
-    ClauseCoordinationCopularNounPrepositional,
-    ClauseCoordinationCopularNounPrepositionalComma,
-    ClauseCoordinationCopularNounPrepositionalAsyndetic,
-}
-
 pub(crate) struct EnglishGrammar<'source, 'catalogs> {
     source: &'source str,
     catalogs: &'catalogs Catalogs,
@@ -2171,18 +2158,9 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         activation: generated::GeneratedActivation,
     ) -> Self {
         let mut builder = RuleBuilder::default();
-        builder.add_clause_rules();
-        // This rule's dot-1 gate (`Features::Subordinator(While)`) is likewise
-        // categorical.
-        // The subject-shared copular continuation also has a categorical dot-1
-        // host gate.
-        builder.add_shared_copular_coordination_rules();
         // These scoped categories retain the final member of coordinated PP
         // objects; family order does not decide their selection.
         if let Some(groups) = activation.chart_groups() {
-            if !activation.is_production() {
-                builder.replace_handwritten_families_for_generated_test(&groups);
-            }
             let cats = generated::internal_categories(&groups);
             generated::register_generated(&mut builder, &groups, &cats)
                 .expect("active generated groups must assemble");
@@ -3316,7 +3294,6 @@ impl Grammar for EnglishGrammar<'_, '_> {
         children: &[Child<'_, Self>],
     ) -> Option<Reduction<Self::Features>> {
         match self.impls.get(rule.index()).copied()? {
-            RuleImpl::Handwritten(tag) => reduce(tag, children),
             RuleImpl::Generated(generated) => reduction::reduce_generated(generated, children),
             RuleImpl::GeneratedAux(generated) => {
                 reduction::reduce_generated_aux(generated, children)
@@ -3381,9 +3358,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 }
                 ParseCost::default()
             }
-            Some(RuleImpl::Handwritten(_) | RuleImpl::GeneratedAux(_)) | None => {
-                ParseCost::default()
-            }
+            Some(RuleImpl::GeneratedAux(_)) | None => ParseCost::default(),
         }
     }
 
@@ -3394,9 +3369,6 @@ impl Grammar for EnglishGrammar<'_, '_> {
         latest_child: &Self::Features,
     ) -> bool {
         match self.impls.get(rule.index()).copied() {
-            Some(RuleImpl::Handwritten(tag)) => {
-                clause::accepts_predicate_prefix(tag, completed_children, latest_child)
-            }
             Some(RuleImpl::Generated(generated)) => {
                 reduction::generated_accepts_prefix(generated, completed_children, latest_child)
             }

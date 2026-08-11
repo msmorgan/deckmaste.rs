@@ -1,6 +1,9 @@
 use std::cell::Cell;
 
 use crate::catalog::CatalogKind;
+use crate::constructions::clause::SharedGrantBase;
+use crate::constructions::clause::SharedGrantComplement;
+use crate::constructions::clause::SharedGrantPrefix;
 use crate::features::Conjunction;
 use crate::features::Number;
 use crate::features::Onset as InitialSound;
@@ -129,8 +132,7 @@ pub enum RenderError {
     DeterminerOnsetRequired,
     /// A [`NominalComplement::KeywordArgument`] carrying a `KeywordArgument`
     /// shape the syntax never licenses in nominal-complement position (only
-    /// `Costed(Symbols)` and `Predicated` are licensed there) — `kwgrant`
-    /// round.
+    /// `Costed(Symbols)` and `Predicated` are licensed there).
     #[error("keyword argument shape is not licensed in nominal-complement position")]
     InvalidKeywordArgumentNominal,
     /// A predicate, modifier, or clause carrier contains the nominal-only
@@ -730,6 +732,10 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
         Ok(())
     }
 
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the generated clause visitor exhaustively routes each declared subtree category"
+    )]
     fn subtree<T: std::any::Any>(
         &mut self,
         category: &'static str,
@@ -1176,6 +1182,22 @@ impl<'renderer, 'identity> GeneratedClauseRenderer<'renderer, 'identity> {
             .saturating_sub(quoted_ability_count);
     }
 
+    fn render_identity_quote(&mut self, quoted: &QuotedAbility) -> Result<String, RenderError> {
+        let publish = self.child_publishes_terminal_quote(1);
+        self.consume_quoted_abilities(1);
+        if publish {
+            let previous = self
+                .renderer
+                .terminal_quote
+                .replace(Some(std::ptr::from_ref(quoted)));
+            let rendered = self.renderer.quoted_ability(quoted);
+            self.renderer.terminal_quote.set(previous);
+            rendered
+        } else {
+            self.renderer.quoted_ability(quoted)
+        }
+    }
+
     fn push(&mut self, part: &str) {
         if part.is_empty() {
             return;
@@ -1214,6 +1236,10 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
         Ok(())
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the generated clause visitor exhaustively dispatches typed declaration categories"
+    )]
     fn subtree<T: std::any::Any>(
         &mut self,
         category: &'static str,
@@ -1222,11 +1248,20 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
         let value = value as &dyn std::any::Any;
         let rendered = match category {
             "SimpleClause" => {
+                let simple = value
+                    .downcast_ref::<GeneratedSimpleClause>()
+                    .expect("the clause hole preserves SimpleClause");
                 Self::accept_generated(
-                    crate::constructions::clause::linearize_clause_simple_clause_with(
+                    crate::constructions::clause::linearize_clause_simple_clause_with(simple, self),
+                )?;
+                return Ok(());
+            }
+            "CoordinatedPredicateAttachment" => {
+                Self::accept_generated(
+                    crate::constructions::clause::linearize_clause_coordinated_predicate_attachment_with(
                         value
-                            .downcast_ref::<GeneratedSimpleClause>()
-                            .expect("the clause hole preserves SimpleClause"),
+                            .downcast_ref::<ClauseAttachment>()
+                            .expect("the coordinated-predicate attachment hole preserves ClauseAttachment"),
                         self,
                     ),
                 )?;
@@ -1238,6 +1273,50 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                         value
                             .downcast_ref::<GeneratedCopularRemainder>()
                             .expect("the clause hole preserves CopularRemainder"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "SharedCopularPredicate" => {
+                Self::accept_generated(
+                    crate::constructions::clause::linearize_clause_shared_copular_predicate_with(
+                        value
+                            .downcast_ref::<Predicate>()
+                            .expect("the shared-copular hole preserves Predicate"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "SharedGrantComplement" => {
+                Self::accept_generated(
+                    crate::constructions::clause::linearize_clause_shared_grant_complement_with(
+                        value
+                            .downcast_ref::<SharedGrantComplement>()
+                            .expect("the shared-grant hole preserves SharedGrantComplement"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "SharedGrantPrefix" => {
+                Self::accept_generated(
+                    crate::constructions::clause::linearize_clause_shared_grant_prefix_with(
+                        value
+                            .downcast_ref::<SharedGrantPrefix>()
+                            .expect("the shared-grant prefix hole preserves SharedGrantPrefix"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
+            }
+            "SharedGrantBase" => {
+                Self::accept_generated(
+                    crate::constructions::clause::linearize_clause_shared_grant_base_with(
+                        value
+                            .downcast_ref::<SharedGrantBase>()
+                            .expect("the shared-grant base hole preserves SharedGrantBase"),
                         self,
                     ),
                 )?;
@@ -1391,6 +1470,26 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
     ) -> Result<(), Self::Error> {
         let value = value as &dyn std::any::Any;
         let rendered = match provider {
+            "LexicalVerb" => self
+                .renderer
+                .vocabulary
+                .render_verb_instance(
+                    value
+                        .downcast_ref::<GeneratedVerb>()
+                        .expect("the shared-grant identity preserves VerbAnalysis")
+                        .instance(),
+                )
+                .ok_or(RenderError::MissingLexicalForm("verb"))?,
+            "AbilityItem" => render_catalog_atom(
+                value
+                    .downcast_ref::<crate::catalog::CatalogAtom>()
+                    .expect("the shared-grant ability identity preserves CatalogAtom"),
+            ),
+            "QuotedAbility" => self.render_identity_quote(
+                value
+                    .downcast_ref::<QuotedAbility>()
+                    .expect("the shared-grant quote identity preserves QuotedAbility"),
+            )?,
             "Auxiliary" | "Copula" => self.renderer.render_auxiliary(
                 *value
                     .downcast_ref::<crate::word::AuxiliaryInstance>()
@@ -3750,6 +3849,15 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn independent_clause(&self, clause: &IndependentClause) -> Result<String, RenderError> {
+        if let IndependentClause::Complex(complex) = clause
+            && matches!(
+                complex.attachment().payload(),
+                ClauseAttachmentKind::Appositive(_)
+            )
+        {
+            let matrix = self.independent_clause(complex.host())?;
+            return self.clause_with_attachment(&matrix, complex.attachment());
+        }
         let generated = Clause::Independent(clause.clone());
         let mut attachment_visitor = GeneratedClauseRenderer::new(
             self,
@@ -3802,25 +3910,14 @@ impl<'identity> Renderer<'identity> {
                 let host = self.independent_clause(complex.host())?;
                 self.clause_with_attachment(&host, complex.attachment())
             }
-            IndependentClause::Coordinated(coordinated) => {
-                let mut rendered = self.independent_clause(&coordinated.first)?;
-                for coordination in &coordinated.rest {
-                    if coordination.comma.is_present() {
-                        rendered.push(',');
-                    }
-                    rendered.push(' ');
-                    if let Some(conjunction) = coordination.conjunction {
-                        rendered.push_str(render_predicate_conjunction(conjunction)?);
-                        rendered.push(' ');
-                    }
-                    match &coordination.member {
-                        CoordinatedClauseMember::Independent(clause) => {
-                            rendered.push_str(&self.independent_clause(clause)?);
-                        }
-                    }
-                }
-                Ok(rendered)
-            }
+            IndependentClause::Coordinated(_) => Err(RenderError::InvalidPredicateConstruction {
+                problem: "no matching construction",
+                owner: "clause",
+                first: None,
+                second: None,
+                first_form: None,
+                second_form: None,
+            }),
         }
     }
 
@@ -3834,26 +3931,29 @@ impl<'identity> Renderer<'identity> {
                 Some(subject) => self.predicate_with_subject(subject, predicate),
                 None => self.predicate(predicate),
             },
-            PredicateExpression::Coordinated(coordination) => {
-                let mut conjuncts = coordination.conjuncts().iter();
-                let first = conjuncts
-                    .next()
-                    .expect("a validated coordination has a first conjunct");
-                let mut rendered = self.predicate_expression(subject, first)?;
-                for (junction, expression) in coordination.junctions().iter().zip(conjuncts) {
-                    if junction.comma.is_present() {
-                        rendered.push(',');
-                    }
-                    rendered.push(' ');
-                    if let Some(conjunction) = junction.conjunction {
-                        rendered.push_str(render_predicate_conjunction(conjunction)?);
-                        rendered.push(' ');
-                    }
-                    rendered.push_str(&self.predicate_expression(None, expression)?);
-                }
-                Ok(rendered)
+            PredicateExpression::Coordinated(_) => {
+                self.generated_coordinated_predicate_expression(subject, expression)
             }
         }
+    }
+
+    fn generated_coordinated_predicate_expression(
+        &self,
+        subject: Option<&Subject>,
+        expression: &PredicateExpression,
+    ) -> Result<String, RenderError> {
+        let clause = Clause::Independent(IndependentClause::Finite(
+            FiniteClause::from_declaration_parts(subject.cloned(), expression.clone()),
+        ));
+        let mut visitor = GeneratedClauseRenderer::new(
+            self,
+            predicate_expression_quoted_ability_count(expression),
+            self.terminal_quote_is(predicate_expression_terminal_quote(expression)),
+        );
+        GeneratedClauseRenderer::accept_generated(
+            crate::constructions::clause::linearize_clause_clause_with(&clause, &mut visitor),
+        )?;
+        Ok(visitor.finish())
     }
 
     fn predicate_with_subject(
@@ -4953,13 +5053,13 @@ fn independent_clause_final_self_reference(clause: &IndependentClause) -> Option
         IndependentClause::Finite(finite) => {
             predicate_expression_final_self_reference(finite.predicate())
         }
-        IndependentClause::Coordinated(coordination) => match coordination.rest.last() {
-            Some(member) => match &member.member {
+        IndependentClause::Coordinated(coordination) => match coordination.rest().last() {
+            Some(member) => match member.member() {
                 CoordinatedClauseMember::Independent(clause) => {
                     independent_clause_final_self_reference(clause)
                 }
             },
-            None => independent_clause_final_self_reference(&coordination.first),
+            None => independent_clause_final_self_reference(coordination.first()),
         },
         IndependentClause::Complex(complex) => {
             let attachment = complex.attachment();
@@ -5078,11 +5178,11 @@ fn independent_clause_quoted_ability_count(clause: &IndependentClause) -> usize 
                 + clause_attachment_quoted_ability_count(value.attachment())
         }
         IndependentClause::Coordinated(value) => {
-            independent_clause_quoted_ability_count(&value.first)
+            independent_clause_quoted_ability_count(value.first())
                 + value
-                    .rest
+                    .rest()
                     .iter()
-                    .map(|member| match &member.member {
+                    .map(|member| match member.member() {
                         CoordinatedClauseMember::Independent(clause) => {
                             independent_clause_quoted_ability_count(clause)
                         }
@@ -5446,13 +5546,13 @@ fn copular_terminal_quote(predicate: &CopularPredicate) -> Option<&QuotedAbility
 }
 
 fn coordinated_terminal_quote(clause: &CoordinatedIndependentClause) -> Option<&QuotedAbility> {
-    match clause.rest.last() {
-        Some(coordination) => match &coordination.member {
+    match clause.rest().last() {
+        Some(coordination) => match coordination.member() {
             CoordinatedClauseMember::Independent(clause) => {
                 independent_clause_terminal_quote(clause)
             }
         },
-        None => independent_clause_terminal_quote(&clause.first),
+        None => independent_clause_terminal_quote(clause.first()),
     }
 }
 
@@ -6865,10 +6965,10 @@ mod tests {
                 Some(subject),
                 PredicateExpression::Coordinated(crate::syntax::Coordination::new(
                     PredicateExpression::Simple(Predicate::Transitive(first)),
-                    crate::syntax::CoordinationJunction {
-                        conjunction: Some(Conjunction::And),
-                        comma: crate::features::Comma::Absent,
-                    },
+                    crate::syntax::CoordinationJunction::from_declaration_parts(
+                        Some(Conjunction::And),
+                        crate::features::Comma::Absent,
+                    ),
                     PredicateExpression::Simple(second),
                 )),
             ),
@@ -7079,7 +7179,8 @@ mod tests {
     fn recovered_spans_emit_self_reference_names_verbatim() {
         // `frobnitzes` is unknown, so the text recovers as its raw source span.
         // In the name-bearing domain the face's names are already spelled out,
-        // so a recovered span round-trips byte-for-byte with no sigil expansion.
+        // so a recovered span round-trips byte-for-byte with no self-reference
+        // expansion.
         let source = "Aang frobnitzes Aang, A Lot to Learn.";
         let ast =
             crate::parse_with_identity(source, &fixture_catalogs(), "Aang, A Lot to Learn", true)
@@ -7345,10 +7446,10 @@ mod tests {
                 None,
                 PredicateExpression::Coordinated(Coordination::new(
                     PredicateExpression::Simple(first),
-                    CoordinationJunction {
-                        conjunction: Some(Conjunction::Plus),
-                        comma: crate::features::Comma::Absent,
-                    },
+                    CoordinationJunction::from_declaration_parts(
+                        Some(Conjunction::Plus),
+                        crate::features::Comma::Absent,
+                    ),
                     PredicateExpression::Simple(second),
                 )),
             ),

@@ -3,14 +3,17 @@
     reason = "module uses generated imports and shared grammar aliases"
 )]
 use super::*;
-use crate::syntax::AttachedPredicate;
+#[cfg(test)]
 use crate::syntax::AttachmentPosition;
 #[cfg(test)]
 use crate::syntax::ClauseAttachmentKind;
+#[cfg(test)]
 use crate::syntax::ClauseCoordination;
+#[cfg(test)]
 use crate::syntax::CoordinatedClauseMember;
-use crate::syntax::CoordinatedIndependentClause;
+#[cfg(test)]
 use crate::syntax::Coordination;
+#[cfg(test)]
 use crate::syntax::CoordinationJunction;
 use crate::syntax::DeonticPredicate;
 #[cfg(test)]
@@ -23,12 +26,14 @@ use crate::syntax::Modal;
 #[cfg(test)]
 use crate::syntax::PassivePredicate;
 use crate::syntax::Predicate;
+#[cfg(test)]
 use crate::syntax::PredicateAdjunct;
 #[cfg(test)]
 use crate::syntax::PredicateComplement;
 #[cfg(test)]
 use crate::syntax::PredicateElement;
 use crate::syntax::PredicateExpression;
+#[cfg(test)]
 use crate::syntax::PredicateHead;
 #[cfg(test)]
 use crate::syntax::RestrictionCoordination;
@@ -37,7 +42,6 @@ use crate::syntax::SubordinateBody;
 
 mod lowering;
 mod reduction;
-mod rules;
 
 pub(crate) use reduction::PredicateAttachment;
 pub(crate) use reduction::auxiliary_form;
@@ -52,12 +56,7 @@ pub(super) use lowering::coordinated_modifier_as_adjectives;
 pub(super) use lowering::finish_infinitive;
 pub(super) use lowering::finish_reduced_recipient_passive;
 pub(crate) use lowering::finish_simple_clause;
-pub(super) use lowering::lower_clause;
 pub(crate) use lowering::lowered_nominal_adjunct_kind;
-pub(super) use reduction::accepts_predicate_prefix;
-pub(super) use reduction::reduce_clause;
 pub(crate) use reduction::reduce_generated_recipient_passive_nominal_adjunct_features;
-pub(super) use reduction::reduction_cost;
-pub(super) use rules::add_rules;
 #[cfg(test)]
 pub(crate) use tests::fixture_catalogs;
