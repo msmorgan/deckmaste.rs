@@ -1,16 +1,15 @@
 # English derived-family inventory
 
-This is the executable migration inventory for
+This is the executable construction-family inventory for
 [`english-grammar-is-derived`](decisions/english-grammar-is-derived.md). It is a
 snapshot of the active construction registry and ability parser, not a second
-grammar authority. A migration updates this inventory when it flips a listed
-row; production declarations and Rust types remain authoritative.
+grammar authority. Production declarations and Rust types remain authoritative;
+this document records their stable IDs, contracts, and executable census.
 
 ## Census derivation and accounting
 
-The chart census comes from the merged production registry in
-`grammar/construction.rs`. Its handwritten side is now empty; its generated
-side contributes the ten Q01 quantity
+The census comes from the generated production registry in
+`grammar/construction.rs`. Its Chart backend contributes the ten Q01 quantity
 rows, the ten D01 determiner/possession rows, the 11 J01 adjective rows, the
 37 M01 nominal rows, S01 `sentence`, N01 `noun`/`noun_opaque`, the two earlier
 generated coordination rows plus all 14 stable C01 declarations and nine
@@ -31,11 +30,11 @@ relative-clause rows. The ability
 census comes from the three non-chart entry points documented and dispatched by
 `FragmentKind`: `Cost`, `KeywordLine`, and `Ability`.
 
-| source | handwritten / ungenerated | already generated | accounted total |
-|---|---:|---:|---:|
-| chart construction registry | 0 | 219 | 219 |
-| ability construction registry | 0 | 3 | 3 |
-| migration inventory | 0 | 222 | 222 |
+| backend | registered generated families |
+|---|---:|
+| Chart | 219 |
+| Ability | 3 |
+| all production families | 222 |
 
 The family ledger below accounts for 195 stable chart IDs. The earlier
 `noun_phrase_coordination` and `shared_determiner_nominal` structural owners
@@ -43,8 +42,8 @@ bring the stable chart total to 197; nine registered internal support
 declarations for phrase coordination and thirteen internal clause-continuation
 adapters bring the active chart registry to 219. Every stable chart row is generated.
 The three ability IDs occur once in the generated ability backend. Thus the
-inventory has no remaining handwritten chart or ability row and no `later`
-row. No raw corpus query was needed for this accounting; the census is grounded
+inventory has no unregistered row. No raw corpus query was needed for this
+accounting; the census is grounded
 in the registry and the current `FragmentKind` dispatch. Future corpus
 evidence must use supported faces, and normalized-template questions must use
 the existing English instruments.
@@ -53,27 +52,13 @@ the existing English instruments.
 
 Each `ConstructionId` in a unit inherits every datum in that unit's dossier;
 the lists are a compact per-family record, not an informal bucket. A unit is
-the smallest vertical migration that can flip its rows without leaving a
-second constructor or renderer authority. Rows are grouped only where they
+the smallest vertical family that shares one construction authority. Rows are grouped only where they
 share a public AST ingress, mutually recursive helper categories, or one
 recursive coordination representation.
 
-Owner abbreviations name current code, all under `deckmaste_english` unless
-otherwise stated:
-
-- `NR` — parse registration in `grammar/rules.rs`, recognition in
-  `grammar/scan.rs`, reduction in `grammar/reduction.rs`, and lowering in
-  `grammar/lowering.rs`.
-- `CR` — parse registration in `grammar/clause/rules.rs`, reduction in
-  `grammar/clause/reduction.rs`, and lowering in
-  `grammar/clause/lowering.rs`.
-- `OR` — `grammar/opacity.rs` for registration, scanning, reduction, and
-  lowering.
-- `AR` — `grammar/ability.rs`, including its chart callbacks, rather than the
-  chart registry.
-- `REN` — structural matching in `renderer.rs`.
-- `SYN-P`, `SYN-C`, and `SYN-A` — public raw constructors in
-  `syntax/phrase.rs`, `syntax/clause.rs`, and `syntax/ability.rs`.
+Each record names its generated declaration, semantic AST, checked ingress,
+linearization, and active consumers directly. These are collaborating parts of
+one derived family, not independent ownership routes.
 
 All chart units currently use one-span `ConstructionBackend::Chart`. `C1` is
 already expressible as fan-out-one whole-subtree declarations; `C2` first
@@ -83,16 +68,16 @@ attachment constraints; `C4` needs recursive coordination owners, typed member
 sums, sequence-wide feature predicates, and local structural selection; `C5`
 needs the generated ability-layer backend. Every current chart unit remains
 fan-out-one on Chart. Dependencies below are capability dependencies, not a
-claim that a generated production cannot consume a still-handwritten subtree.
+claim that a generated production cannot consume another generated subtree.
 
 The active structural consumer is `ConstructionProjection` through
 `deckmaste_spelling::{compile,unify,render,witness}` and its `ProjectionTree`;
 serialized Rust field or variant layout is not an English construction
 contract. `xtask` consumes typed syntax and construction provenance through
 `english::{inspect,recovery,unknown_phrases}` and aggregate parser work through
-`english::performance`. Every unit must migrate those consumers when its shape
+`english::performance`. Every unit must update those consumers when its shape
 changes. None of the syntax nodes currently exposes a general `Deserialize`
-ingress; a migration that adds one must route it through the generated
+ingress; a declaration that adds one must route it through the generated
 validator.
 
 Surface facts are classified against the Oracle style guide, which is
@@ -104,9 +89,9 @@ self-reference and pronouns use §5, “Names, self-reference, pronouns, and
 anaphora”; nominal selection uses §§6–7; ability frames and keyword lines use
 §§8 and 14; and coordination uses §10, “Logic, choice, and coordination.”
 
-## Migration-unit ledger
+## Construction-unit ledger
 
-| unit | rows | class | migration ticket | actual capability needs |
+| unit | rows | class | source ticket | actual capability needs |
 |---|---:|---|---|---|
 | Q01 quantity | 10 | C2 scalar | `english-derived-quantity-family` | generated |
 | D01 determiner and possession | 10 | C3 | `english-derived-determiner-possession-family` | generated |
@@ -131,10 +116,10 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 `quantity_x`, `quantity_both`, `quantity_up_to`, `quantity_that_many`,
 `quantity_that_much`, `quantity_more_than`, `quantity_fewer_than`.
 
-- **Owners and AST:** generated declarations → `Quantity`, `QuantityValue`,
+- **Construction and AST:** generated declarations → `Quantity`, `QuantityValue`,
   `NumberLiteral`, and `ComparativeWord`; the generated inverse renders the
   quantity inside determiners, modifiers, complements, and arithmetic values;
-  SYN-P exposes the public AST ingress.
+  checked quantity builders expose the public AST ingress.
 - **Holes and constraints:** scalar holes for values and numeral notation,
   and no discontinuity. `ComparativeWord` is a closed four-variant enum handled
   by Q01's finite bound-value mapping and existing typed lexeme spelling form,
@@ -163,7 +148,7 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 `possessive_noun_determined`, `determiner_possessive_noun`,
 `possessive_noun_adjective`.
 
-- **Owners and AST:** the D01 declaration and its generated chart, feature,
+- **Construction and AST:** the D01 declaration and its generated chart, feature,
   lowering, and inverse adapters are the single construction authority for
   sealed `Determiner` and `Possessor`, the checked possessive projection over
   `NominalPhrase`, `Demonstrative`, and embedded `Quantity`. Public callers use
@@ -196,9 +181,10 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 `comparison_than_or_equal_to`, `adjective_phrase_prepositional`,
 `adjective_phrase_infinitive`.
 
-- **Owners and AST:** NR → `AdjectivePhrase`, `AdjectiveComplement`,
-  `ComparisonComplement`, and `ComparisonMarker`; REN owns adjective and
-  comparison linearization; SYN-P owns constructors.
+- **Construction and AST:** the J01 declaration and generated adapters →
+  `AdjectivePhrase`, `AdjectiveComplement`, `ComparisonComplement`, and
+  `ComparisonMarker`; generated inverse dispatch owns linearization and checked
+  builders own ingress.
 - **Holes and constraints:** adjective identity, numeric scalar, complement
   subtree/sum, and complement-vector lens. The declared recursive owner roles
   cover the whole lexical prepositional/infinitival posthead chain. Comparison
@@ -222,10 +208,10 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 
 **Status:** generated.
 
-- **Owners and AST:** the `noun` and `noun_opaque` declarations plus the
+- **Construction and AST:** the `noun` and `noun_opaque` declarations plus the
   generated chart adapter produce `NounInstance`/`Noun` (including
-  `OpaqueLexeme`). REN consumes their total identity linearizers; SYN-P
-  retains the public value types.
+  `OpaqueLexeme`). Generated inverse dispatch consumes their total identity
+  linearizers; the syntax module retains the public value types.
 - **Holes and constraints:** identity holes for vocabulary/catalog nouns and
   exact opaque spelling. Noun form, onset, coordination domain, adjunct class,
   and recipient-passive eligibility flow as inherent features.
@@ -390,18 +376,18 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 `verb_phrase_power_toughness`, `verb_phrase_quantity`,
 `verb_phrase_causative`.
 
-- **Owners and AST:** the predicate declaration and its generated chart,
+- **Construction and AST:** the predicate declaration and its generated chart,
   lexical, feature, contextual object-gap/reduced-passive, lowering, exact,
   and inverse adapters are the single V01 authority. These lower to
   `Predicate`, sealed `PredicateHead`/`HeadedPredicate`, `VerbPhrase`,
   `PredicateObject`, `PredicateComplement`, `PredicateAdjunct`,
   `FrequencyPhrase`, and typed mana sequences. The production renderer
   reconstructs the exact retained lexical frame through the sealed ingress
-  and invokes the generated inverse; no handwritten V01 element renderer or
+  and invokes the generated inverse; no parallel V01 element renderer or
   writable public construction path remains. Public construction-in-progress
   is opaque and can only be advanced through checked builders; finished
-  payloads expose read-only semantic accessors. The three A01 ability-layer
-  entry points remain handwritten consumers, not predicate owners.
+  payloads expose read-only semantic accessors. The three A01 Ability-backend
+  entry points consume predicate declarations without owning them.
 - **Holes and constraints:** identity holes for verbs, auxiliaries, particles,
   coin results, adverbs, and symbols; scalar holes for quantities and
   power/toughness; subtree holes for NP, PP, infinitive, adjective, and ability;
@@ -631,9 +617,12 @@ the same generated coordination family rather than a separate exception.
 
 **Status:** generated.
 
-- **Owners and AST:** the `sentence` declaration and generated chart adapter →
-  `Sentence`/`SentenceBody`; REN linearizes the declaration and SYN-A routes
-  ingress through its checked builder.
+- **Construction and AST:** the `sentence` declaration and generated chart
+  adapter own the independent-clause form of `Sentence`; generated inverse
+  dispatch linearizes the declaration and the syntax facade routes that ingress
+  through its checked builder. Choice, power/toughness, non-initial trigger,
+  recovery, and dash-appositive sentence bodies are internal carriers of the
+  A01 Ability backend, not additional S01 chart forms.
 - **Holes and constraints:** one whole `Clause` subtree; no local hole or
   selection upgrade is needed.
 - **Ambiguity/backend:** fan-out one on Chart, no dominance edge. The two
@@ -658,7 +647,7 @@ the same generated coordination family rather than a separate exception.
 `verb_phrase_coordinated_adjective`,
 `nominal_power_toughness_complement`, `nominal_with_attributes`.
 
-- **Owners and AST:** generated C01 declarations own all fourteen rows and
+- **Construction and AST:** generated C01 declarations own all fourteen rows and
   their Chart reduction/lowering for the modifier, PP, nominal, and predicate
   carriers. F02 and R01 consume the coordinated adjective category through
   their own generated declarations. The C01 rows
@@ -666,8 +655,8 @@ the same generated coordination family rather than a separate exception.
   `PrepositionalPhraseCoordination`, nominal complements, and the consuming
   nominal and predicate variants; the dedicated generated
   `WithAttributeMember`/`WithAttributeList` sum and `nominal_with_attributes`
-  construction own mixed keyword/quoted-ability `with` complements. REN plus
-  SYN-P/SYN-C own output and ingress.
+  construction own mixed keyword/quoted-ability `with` complements. Generated
+  inverse dispatch plus checked phrase/clause facades own output and ingress.
 - **Holes and constraints:** typed sum members, field lenses, scalar
   power/toughness, conjunction/comma identity, recursive sequences, and
   member-specific attachments. Adjective-only predicative position,
@@ -725,20 +714,23 @@ total own-mode linearization; no tuple-yield backend lands here.
 
 **Status:** generated.
 
-- **Owners and AST:** the A01 declaration and its generated Ability backend own
+- **Construction and AST:** the A01 declaration and its generated Ability backend own
   the three root constructions, their checked build/destructure projections,
   stable parse provenance, and inverse dispatch for `Cost`,
   `KeywordAbilityList`, and `Ability`. Declaration-owned typed component and
   frame callbacks consume the existing clause, noun-phrase, symbol, recovery,
-  keyword-argument, paragraph, and frame payloads. SYN-A seals all three roots
-  behind private storage, manual legacy-shape serialization, and read-only
-  semantic projections; public callers use the `cost`, `keyword_line`, and
-  `ability` checked facades.
+  keyword-argument, paragraph, and frame payloads. The syntax facade seals all
+  three roots behind private storage and read-only semantic projections; their
+  derived serialization is output-only, and public callers use the `cost`,
+  `keyword_line`, and `ability` checked facades.
 - **Holes and constraints:** heterogeneous clause/NP/symbol/recovery cost
   components and alternatives; keyword item sequences with typed arguments;
   full ability-frame sums containing paragraphs, costs, triggers, modal modes,
   chapters, roll rows, level bands, station thresholds, loyalty, and nested
-  abilities. Top-level punctuation, nesting, catalog selection, frame shape,
+  abilities. Its declaration module also owns the ability-internal sentence
+  carriers that do not have standalone S01 chart forms, including the checked
+  coordinated-choice dash appositive. Top-level punctuation, nesting, catalog
+  selection, frame shape,
   and attachment to chart subtrees are required.
 - **Ambiguity/backend:** one generated Ability backend registers the three
   stable IDs and is filtered out of chart assembly. Cost and keyword-line roots
@@ -757,18 +749,15 @@ total own-mode linearization; no tuple-yield backend lands here.
   stored separator; negatives reject malformed costs, keyword tails, orphan
   modes, empty effects, invalid ranges, and frame collisions.
 
-## Completion invariants
+## Steady-state invariants
 
-Each migration ticket must land its declaration, parse/render/build
-projections, active consumer and serialized-view changes, direct-AST and
-`inspect` fixtures, exactness and negative fixtures, registry flip, and
-handwritten parse/reduction/lowering/renderer/constructor deletion audit in
-one change. It must also run the build-excluding parent/current
+Every family change lands its declaration, parse/render/build projections,
+active consumer and serialized-view changes, direct-AST and `inspect` fixtures,
+exactness and negative fixtures, and the parallel-authority deletion audit in
+one change. It also runs the build-excluding parent/current
 `english performance --check` audit from `docs/english-parser-performance.md`
-so a family migration cannot hide work growth in failed or abandoned paths.
-It may not defer any of those to completion.
+so grammar work cannot hide growth in failed or abandoned paths.
 
-The completion node depends on the remaining eleven chart tickets and the
-existing ability-backend ticket. Its final audit therefore has 192 newly
-migrated plus five already-generated families—197 generated families in
-all—to prove, with no handwritten or unregistered family left to discover.
+The executable census proves 219 Chart families plus three Ability families:
+222 generated production families in all, with no owner branch or unregistered
+supported family left to discover.

@@ -40,7 +40,6 @@ use crate::syntax::DependentClause;
 use crate::syntax::Determiner;
 use crate::syntax::EllipticalClause;
 use crate::syntax::ExceptionRider;
-use crate::syntax::FiniteClause;
 use crate::syntax::FrequencyBound;
 use crate::syntax::FrequencyCount;
 use crate::syntax::FrequencyPhrase;
@@ -3942,16 +3941,17 @@ impl<'identity> Renderer<'identity> {
         subject: Option<&Subject>,
         expression: &PredicateExpression,
     ) -> Result<String, RenderError> {
-        let clause = Clause::Independent(IndependentClause::Finite(
-            FiniteClause::from_declaration_parts(subject.cloned(), expression.clone()),
-        ));
         let mut visitor = GeneratedClauseRenderer::new(
             self,
             predicate_expression_quoted_ability_count(expression),
             self.terminal_quote_is(predicate_expression_terminal_quote(expression)),
         );
         GeneratedClauseRenderer::accept_generated(
-            crate::constructions::clause::linearize_clause_clause_with(&clause, &mut visitor),
+            crate::constructions::clause::linearize_predicate_expression_with(
+                subject,
+                expression,
+                &mut visitor,
+            ),
         )?;
         Ok(visitor.finish())
     }
@@ -4112,26 +4112,24 @@ impl<'identity> Renderer<'identity> {
         ))
         .then(|| {
             // Clause coordination may move a complete attachment onto the first
-            // predicate of a shared-subject coordination. Reconstitute
-            // that scoped clause so its declaration remains the sole linearization
-            // owner. Dash appositives are ability-owned and
-            // intentionally retain the handwritten fallback below.
-            let clause = IndependentClause::Complex(ComplexClause::from_declaration_parts(
-                IndependentClause::Finite(FiniteClause::from_declaration_parts(
-                    subject.cloned(),
-                    PredicateExpression::Simple(predicate.predicate().clone()),
-                )),
-                predicate.attachment().clone(),
-            ));
-            let publish = self.terminal_quote_is(attached_predicate_terminal_quote(predicate));
-            let previous = self.terminal_quote.get();
-            if publish {
-                self.terminal_quote
-                    .set(independent_clause_terminal_quote(&clause).map(std::ptr::from_ref));
-            }
-            let rendered = self.independent_clause(&clause);
-            self.terminal_quote.set(previous);
-            rendered
+            // predicate of a shared-subject coordination. Enter the declaration
+            // inverse through its sealed predicate adapter. Dash appositives are
+            // ability-owned and use their dedicated linearization below.
+            let quoted_ability_count = predicate_quoted_ability_count(predicate.predicate())
+                + clause_attachment_quoted_ability_count(predicate.attachment());
+            let mut visitor = GeneratedClauseRenderer::new(
+                self,
+                quoted_ability_count,
+                self.terminal_quote_is(attached_predicate_terminal_quote(predicate)),
+            );
+            GeneratedClauseRenderer::accept_generated(
+                crate::constructions::attachment::linearize_attached_predicate_with(
+                    subject,
+                    predicate,
+                    &mut visitor,
+                ),
+            )?;
+            Ok(visitor.finish())
         })
     }
 
@@ -4688,11 +4686,9 @@ impl<'identity> Renderer<'identity> {
                 })
                 .map(|surface| surface_initial_sound(&surface))
                 .ok_or(RenderError::MissingLexicalForm("gerund")),
-            Noun::Agentive(verb) => self
+            Noun::Agentive(_) => self
                 .vocabulary
-                .render_noun(&NounInstance::unchecked_singular(Noun::Agentive(
-                    verb.clone(),
-                )))
+                .render_noun(noun)
                 .map(|surface| surface_initial_sound(&surface))
                 .ok_or(RenderError::MissingLexicalForm("agent noun")),
             Noun::Opaque(opaque) => Ok(surface_initial_sound(opaque.spelling())),
@@ -6117,6 +6113,45 @@ mod tests {
         number: Number::Plural,
     };
 
+    #[test]
+    fn production_renderer_does_not_reconstruct_grammar_carriers() {
+        let source = include_str!("renderer.rs");
+        let production = source
+            .split_once("#[cfg(test)]\nmod tests {")
+            .expect("renderer tests remain in their cfg(test) module")
+            .0;
+        assert!(
+            !production.contains("from_declaration_parts"),
+            "active rendering must consume sealed values through construction inverses"
+        );
+        let unchecked_agentive = ["NounInstance::unchecked_singular", "(Noun::Agentive"].concat();
+        assert!(
+            !source.contains(&unchecked_agentive),
+            "agentive spelling must reuse the sealed noun instance"
+        );
+    }
+
+    #[test]
+    fn conditioned_predicate_coordination_renders_through_sealed_adapters() {
+        let source = "This creature gets +0/+2 as long as you control a Plains, has flying as long as you control an Island, gets +2/+0 as long as you control a Swamp, has first strike as long as you control a Mountain, and has trample as long as you control a Forest.";
+        let catalogs = Catalogs::default()
+            .with_catalog(
+                CatalogKind::KeywordAbility,
+                ["First strike", "Flying", "Trample"],
+            )
+            .with_catalog(CatalogKind::CardType, ["Creature"])
+            .with_catalog(
+                CatalogKind::LandType,
+                ["Forest", "Island", "Mountain", "Plains", "Swamp"],
+            );
+        let report = crate::parse_with_catalogs(source, &catalogs);
+        assert!(report.ast().recoveries().is_empty(), "{report:#?}");
+        assert_eq!(
+            report.ast().render("Test Card", false),
+            Ok(source.to_owned())
+        );
+    }
+
     fn checked_ability(kind: AbilityKind) -> Ability {
         crate::ability::build_ability(None, kind).expect("renderer fixture is a valid ability")
     }
@@ -7471,8 +7506,8 @@ mod tests {
 
     #[test]
     fn predicated_keyword_rendering_rejects_shapes_outside_the_declared_family() {
-        // Mutation caught: route `PredicatedArgument` through the handwritten
-        // renderer, which accepts arbitrary prepositions instead of requiring
+        // Mutation caught: bypass the declaration linearizer for the permissive
+        // generic renderer, which accepts arbitrary prepositions instead of requiring
         // one of the two declared keyword-argument families.
         let argument = KeywordArgument::Predicated(PredicatedArgument {
             qualities: vec![PredicatedQuality {

@@ -894,7 +894,6 @@ mod tests {
     use crate::construction::ConstructionEvidence;
     use crate::construction::ConstructionFamily;
     use crate::construction::ConstructionId;
-    use crate::construction::ConstructionOwner;
     use crate::construction::ConstructionRegistry;
     use crate::construction::DominanceEdge;
     use crate::construction::ProductionId;
@@ -910,7 +909,6 @@ mod tests {
     fn test_family(id: ConstructionId) -> ConstructionFamily {
         ConstructionFamily::new(
             id,
-            ConstructionOwner::Handwritten,
             ConstructionBackend::Chart,
             ConstructionEvidence::structural("test production"),
         )

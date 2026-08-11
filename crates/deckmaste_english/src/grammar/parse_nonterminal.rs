@@ -1,6 +1,6 @@
 #![allow(
     dead_code,
-    reason = "diagnostic parse modes and errors are staged for later grammar milestones"
+    reason = "diagnostic parse modes expose a broader category inventory than production callers use"
 )]
 
 use super::AdjectivePhrase;
@@ -280,7 +280,7 @@ pub(super) fn parse_nonterminal_with_mode(
 
 #[allow(
     clippy::too_many_arguments,
-    reason = "internal assembly-mode plumbing; the M3 activation parameter is the last of a threaded diagnostic-mode set, not independent knobs"
+    reason = "internal generated-assembly plumbing; the activation parameter is the last of a threaded diagnostic-mode set, not an independent knob"
 )]
 fn parse_nonterminal_with_mode_and_registration_order(
     source: &str,
@@ -372,13 +372,8 @@ fn parse_nonterminal_with_mode_and_registration_order(
     })
 }
 
-/// The registry a parse actually uses: the production `registry()` static
-/// when no generated group is active, or a freshly merged registry when a
-/// test activates one. A distinct type (rather than inlining the match at
-/// the call site) so the selection is a named, independently testable step —
-/// `#[cfg(test)]` code can call [`select_registry`] directly and observe
-/// which arm fired, rather than only being able to observe its downstream
-/// effect on a parse.
+/// The registry a parse uses: the production static, or an isolated generated
+/// assembly used by registration-order and construction-law tests.
 pub(super) enum SelectedRegistry {
     Static(&'static crate::construction::ConstructionRegistry),
     Owned(crate::construction::ConstructionRegistry),
@@ -399,13 +394,10 @@ pub(super) fn select_registry(
     if activation.is_production() {
         return SelectedRegistry::Static(super::construction::registry());
     }
-    match activation.groups() {
-        None => SelectedRegistry::Static(super::construction::handwritten_registry()),
-        Some(groups) => SelectedRegistry::Owned(
-            super::construction::merged_registry_for_activation(groups)
-                .expect("active generated groups must merge"),
-        ),
-    }
+    SelectedRegistry::Owned(
+        super::construction::registry_from_groups(activation.groups())
+            .expect("generated test assembly must be valid"),
+    )
 }
 
 #[cfg(test)]
@@ -1028,7 +1020,10 @@ fn find_shared_determiner_edit(
             )
             .ok()?;
             Some(SharedDeterminerEdit {
-                determined_first: NounPhrase::from_nominal_declaration(determined_first),
+                determined_first: crate::constructions::noun_phrase::build_noun_phrase_nominal(
+                    determined_first,
+                )
+                .ok()?,
                 determiner: original.determiner().clone(),
                 trailing_relative: first_group_relative(group.complements()),
             })
@@ -1204,7 +1199,6 @@ fn constituent_spans_cross(left: Span, right: Span) -> bool {
 mod root_lowering_tests {
     use super::*;
     use crate::Numeral;
-    use crate::construction::ConstructionOwner;
     use crate::features::NounCardinality;
     use crate::features::Number;
     use crate::syntax::ComparativeWord;
@@ -1345,8 +1339,8 @@ mod root_lowering_tests {
 
     #[test]
     fn sentence_root_reports_one_generated_family_and_declared_form_ordinals() {
-        // Mutation caught: restore either handwritten Sentence production.
-        // Both real surfaces must select the same generated construction;
+        // Mutation caught: introduce another Sentence production.
+        // Both real surfaces must select the same construction;
         // their independently declared ordinals preserve exact form identity.
         for (source, expected_ordinal) in [("Draw a card.", 0), ("Draw a card", 1)] {
             let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence)
@@ -1356,7 +1350,7 @@ mod root_lowering_tests {
                 .iter()
                 .find(|decision| decision.selected().as_str() == "sentence")
                 .unwrap_or_else(|| panic!("no sentence construction decision: {parsed:#?}"));
-            assert_eq!(decision.owner(), ConstructionOwner::Generated);
+            assert_eq!(decision.backend(), crate::ConstructionBackend::Chart);
             assert_eq!(
                 decision.selected_production_ordinal(),
                 expected_ordinal,
@@ -1380,7 +1374,7 @@ mod root_lowering_tests {
             .iter()
             .find(|decision| decision.selected().as_str() == "quantity_exact")
             .unwrap_or_else(|| panic!("no generated quantity decision: {parsed:#?}"));
-        assert_eq!(decision.owner(), ConstructionOwner::Generated);
+        assert_eq!(decision.backend(), crate::ConstructionBackend::Chart);
         assert_eq!(decision.selected_production_ordinal(), 0);
     }
 
@@ -1425,13 +1419,9 @@ mod root_lowering_tests {
                     .iter()
                     .find(|decision| decision.selected().as_str() == *id)
                     .unwrap_or_else(|| {
-                        panic!("missing D01 selection {id} for {source:?}: {parsed:#?}")
+                        panic!("missing determiner selection {id} for {source:?}: {parsed:#?}")
                     });
-                assert_eq!(
-                    decision.owner(),
-                    ConstructionOwner::Generated,
-                    "{source:?}/{id}"
-                );
+                assert_eq!(decision.backend(), crate::ConstructionBackend::Chart);
                 assert_eq!(decision.selected_production_ordinal(), 0, "{source:?}/{id}");
             }
         }
@@ -1449,8 +1439,8 @@ mod root_lowering_tests {
                 .construction_decisions()
                 .iter()
                 .find(|decision| decision.selected().as_str() == "determiner_possessive_this_card")
-                .unwrap_or_else(|| panic!("missing self-reference D01 row: {parsed:#?}"));
-            assert_eq!(decision.owner(), ConstructionOwner::Generated, "{source:?}");
+                .unwrap_or_else(|| panic!("missing self-reference determiner row: {parsed:#?}"));
+            assert_eq!(decision.backend(), crate::ConstructionBackend::Chart);
             assert_eq!(decision.selected_production_ordinal(), 0, "{source:?}");
         }
     }
@@ -1583,7 +1573,7 @@ mod root_lowering_tests {
                 .iter()
                 .find(|decision| decision.selected().as_str() == id)
                 .unwrap_or_else(|| panic!("missing {id} decision for {source:?}: {parsed:#?}"));
-            assert_eq!(decision.owner(), ConstructionOwner::Generated, "{source:?}");
+            assert_eq!(decision.backend(), crate::ConstructionBackend::Chart);
             assert_eq!(
                 decision.selected_production_ordinal(),
                 ordinal,
@@ -1684,7 +1674,7 @@ mod root_lowering_tests {
         }
 
         // Keep direct producer assertions alongside the whole-NP consumer
-        // coverage below so a failure identifies which side of the Q01
+        // coverage below so a failure identifies which side of the quantity
         // cardinality contract regressed.
         for source in ["two", "at least two", "one or more", "both", "that many"] {
             let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Quantity)
@@ -1734,7 +1724,7 @@ mod root_lowering_tests {
             "quantity/noun cardinality mismatches parsed: {admitted_mismatches:?}"
         );
 
-        // `that many damage` is not a Q01 negative oracle: after rejecting
+        // `that many damage` is not a quantity-family negative: after rejecting
         // the quantity reading, it still has the independent ordinary-noun
         // reading `that [many] damage`. Unknown-word opacity must likewise
         // remain available while a recognized numeral is kept structural.
@@ -1941,7 +1931,7 @@ mod registration_order_tests {
         ),
     ];
 
-    const M01_DOMINANCE_FIXTURES: &[(Nonterminal, &str, &str, &str)] = &[
+    const NOMINAL_DOMINANCE_FIXTURES: &[(Nonterminal, &str, &str, &str)] = &[
         (
             Nonterminal::NounPhrase,
             "the top two cards of your library",
@@ -2116,8 +2106,8 @@ mod registration_order_tests {
     }
 
     #[test]
-    fn every_m01_dominance_edge_survives_family_registration_permutations() {
-        for &(nonterminal, source, winner, loser) in M01_DOMINANCE_FIXTURES {
+    fn every_nominal_dominance_edge_survives_family_registration_permutations() {
+        for &(nonterminal, source, winner, loser) in NOMINAL_DOMINANCE_FIXTURES {
             let normal = normalized_parse(
                 source,
                 nonterminal,
@@ -2386,7 +2376,6 @@ mod generated_adapter_tests {
     use super::super::generated::GeneratedActivation;
     use super::*;
     use crate::catalog::Catalogs;
-    use crate::construction::ConstructionOwner;
     use crate::constructions::coordination;
     use crate::constructions::noun;
     use crate::constructions::probe;
@@ -2427,7 +2416,7 @@ mod generated_adapter_tests {
                 matches!(
                     decision.selected().as_str(),
                     "noun_phrase_coordination" | "shared_determiner_nominal"
-                ) && decision.owner() == ConstructionOwner::Generated
+                )
             }),
             "no generated coordination owner recorded for {source:?}: {:#?}",
             parsed.construction_decisions(),
@@ -2537,10 +2526,12 @@ mod generated_adapter_tests {
                     panic!("generated noun did not parse {source:?}: {error:?}")
                 });
             assert_eq!(parsed.opacity_mode, OpacityMode::Exact, "{source}");
-            assert!(parsed.construction_decisions.iter().any(|decision| {
-                decision.selected().as_str() == "noun"
-                    && decision.owner() == ConstructionOwner::Generated
-            }));
+            assert!(
+                parsed
+                    .construction_decisions
+                    .iter()
+                    .any(|decision| { decision.selected().as_str() == "noun" })
+            );
             let features = parsed
                 .chart
                 .forest
@@ -2618,7 +2609,7 @@ mod generated_adapter_tests {
             .iter()
             .find(|decision| decision.selected().as_str() == "probe_pair")
             .expect("probe_pair decision recorded");
-        assert_eq!(pair.owner(), ConstructionOwner::Generated);
+        assert_eq!(pair.backend(), crate::ConstructionBackend::Chart);
         let pick = decisions
             .iter()
             .find(|decision| decision.selected().as_str() == "probe_pick")
@@ -2709,7 +2700,7 @@ mod generated_adapter_tests {
     }
 
     #[test]
-    fn generated_recursive_lens_round_trips_without_a_handwritten_reducer() {
+    fn recursive_lens_round_trips_through_generated_reduction() {
         let parse = |source| {
             parse_nonterminal_with_activation(
                 source,

@@ -1391,9 +1391,9 @@ mod tests {
                         )
                     });
                 assert_eq!(
-                    decision.owner(),
-                    crate::construction::ConstructionOwner::Generated,
-                    "{source}",
+                    decision.backend(),
+                    crate::ConstructionBackend::Chart,
+                    "{source}"
                 );
             }
         }

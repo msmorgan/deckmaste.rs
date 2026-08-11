@@ -837,8 +837,8 @@ fn lens_family_dispatch_rejects_zero_or_multiple_exact_parts_matches_before_visi
 fn mixed_lens_family_dispatch_includes_guarded_adapters_for_the_same_owner() {
     // Mutation guarded: classify only the lensed subset of a declaration
     // group and silently omit a guarded adapted construction that rebuilds
-    // the same semantic owner. M01 needs both ordinary field lenses and
-    // validated whole-owner transformations in one total nominal family.
+    // the same semantic owner. The nominal family needs both ordinary field lenses
+    // and validated whole-owner transformations in one total nominal family.
     let value = build_mixed_suffix(LensToken::Head, LensToken::Suffix).unwrap();
     let mut visitor = LensLinearizer::default();
     linearize_mixed_lens_dispatch_group_with(&value, &mut visitor)

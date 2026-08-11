@@ -75,7 +75,6 @@ impl ConstructionAlternative {
 pub struct ConstructionDecision {
     span: Span,
     selected: ProductionId,
-    owner: ConstructionOwner,
     backend: ConstructionBackend,
     evidence: ConstructionEvidence,
     evidence_value: Option<String>,
@@ -96,7 +95,6 @@ impl ConstructionDecision {
         Self {
             span,
             selected,
-            owner: family.owner(),
             backend: family.backend(),
             evidence: family.evidence(),
             evidence_value: None,
@@ -130,11 +128,6 @@ impl ConstructionDecision {
     #[must_use]
     pub const fn selected_production_ordinal(&self) -> u16 {
         self.selected.ordinal
-    }
-
-    #[must_use]
-    pub const fn owner(&self) -> ConstructionOwner {
-        self.owner
     }
 
     #[must_use]
@@ -238,12 +231,6 @@ impl SameFamilyDecision {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ConstructionOwner {
-    Handwritten,
-    Generated,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConstructionBackend {
     Chart,
     Ability,
@@ -306,7 +293,6 @@ impl ConstructionEvidence {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ConstructionFamily {
     id: ConstructionId,
-    owner: ConstructionOwner,
     backend: ConstructionBackend,
     evidence: ConstructionEvidence,
 }
@@ -314,13 +300,11 @@ pub struct ConstructionFamily {
 impl ConstructionFamily {
     pub(crate) const fn new(
         id: ConstructionId,
-        owner: ConstructionOwner,
         backend: ConstructionBackend,
         evidence: ConstructionEvidence,
     ) -> Self {
         Self {
             id,
-            owner,
             backend,
             evidence,
         }
@@ -329,11 +313,6 @@ impl ConstructionFamily {
     #[must_use]
     pub const fn id(self) -> ConstructionId {
         self.id
-    }
-
-    #[must_use]
-    pub const fn owner(self) -> ConstructionOwner {
-        self.owner
     }
 
     #[must_use]
@@ -474,7 +453,6 @@ mod tests {
         let id = ConstructionId::new("probe_word");
         let family = ConstructionFamily::new(
             id,
-            ConstructionOwner::Generated,
             ConstructionBackend::Chart,
             ConstructionEvidence::structural("test"),
         );

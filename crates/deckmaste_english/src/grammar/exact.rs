@@ -65,10 +65,8 @@ pub(crate) struct GeneratedDeterminerParse {
     pub(crate) form_ordinal: u16,
 }
 
-/// The generated root attribution of an exact derivation, independent of the
-/// root category's Rust payload type. Unlike [`GeneratedParse`], this does not
-/// require every handwritten subtree below the generated root to itself be a
-/// generated construction.
+/// The root attribution of an exact generated derivation, independent of the
+/// root category's Rust payload type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct GeneratedRootParse {
     pub(crate) construction: &'static str,
@@ -1696,7 +1694,7 @@ mod tests {
 
     #[test]
     fn generated_sentence_builder_has_no_terminal_period_input() {
-        // Mutation caught: restore the handwritten Sentence constructor or
+        // Mutation caught: restore a parallel Sentence constructor or
         // add a terminal-period field instead of deriving punctuation from
         // the sentence tail. The two literal surfaces must lower to one AST,
         // and the declaration-emitted door accepts only that AST body.
@@ -2583,10 +2581,10 @@ mod tests {
                 source,
                 &fixture_catalogs(),
                 Nonterminal::Sentence,
-                GeneratedActivation::Inactive,
+                GeneratedActivation::Groups(&[]),
             )
             .is_err(),
-            "the handwritten control must retain the baseline recovery",
+            "an empty generated assembly must not admit the sentence",
         );
         let (readings, _, _) = fixture_enumeration(
             source,
@@ -4275,7 +4273,7 @@ mod tests {
     }
 
     #[test]
-    fn handwritten_enumeration_drops_unlowerable_selections_and_keeps_the_best() {
+    fn generated_enumeration_drops_unlowerable_selections_and_keeps_the_best() {
         let catalogs = Catalogs::default()
             .with_catalog(CatalogKind::CardType, ["Artifact", "Creature", "Land"])
             .with_catalog(CatalogKind::CreatureType, ["Goblin", "Human"]);
@@ -4316,11 +4314,7 @@ mod tests {
                 .forest
                 .enumerate_selections(root, &mut remaining)
                 .unwrap_or_else(|error| {
-                    panic!(
-                        "enumeration over the handwritten grammar failed: {error:?} \
-                         (acyclic-by-construction is not a given here, unlike the \
-                         generated fixtures)"
-                    )
+                    panic!("enumeration over the generated grammar failed: {error:?}")
                 });
             for selection in &selections {
                 match lower(&grammar, &chart.forest, root, selection) {
@@ -4339,7 +4333,7 @@ mod tests {
         assert_eq!(
             lowered.len(),
             1,
-            "the handwritten grammar admits exactly one lowerable reading of this clause",
+            "the grammar admits exactly one lowerable reading of this clause",
         );
         assert!(
             lowered.contains(&best_debug),

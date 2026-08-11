@@ -407,6 +407,23 @@ fn make_coordinated_adjective_phrase(
         })
 }
 
+/// Builds a complete predicative adjective coordination from semantic
+/// members while keeping the declaration-owned sequence carrier private to
+/// this module.
+pub(crate) fn build_coordinated_adjective_members(
+    first: AdjectivePhrase,
+    rest: Vec<(Option<Conjunction>, AdjectivePhrase)>,
+) -> Result<CoordinatedAdjectivePhrase, DeclarationViolation> {
+    build_coordinated_adjective_phrase(
+        Box::new(first),
+        rest.into_iter()
+            .map(|(conjunction, phrase)| {
+                AdjectivePhraseCoordination::from_declaration_parts(conjunction, phrase)
+            })
+            .collect(),
+    )
+}
+
 fn coordinated_adjective_phrase_parts(
     value: &CoordinatedAdjectivePhrase,
 ) -> (
@@ -1573,6 +1590,14 @@ fn project_shared_determiner_nominal_source(
 }
 
 pub(crate) static GROUPS: &[&GroupData] = &[&NOUN_COORDINATION_DECLARATION];
+
+/// Builds the public noun-phrase output of the coordination declaration.
+pub(crate) fn build_noun_phrase_coordination_value(
+    first: Box<NounPhrase>,
+    rest: Vec<NounPhraseCoordination>,
+) -> Result<NounPhrase, deckmaste_construction_compiler::runtime::DeclarationViolation> {
+    CoordinatedNounPhrase::try_new(first, rest).map(NounPhrase::from_coordination_declaration)
+}
 
 #[cfg(test)]
 pub(crate) fn build_noun_phrase_coordination(

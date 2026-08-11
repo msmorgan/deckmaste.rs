@@ -237,13 +237,15 @@ pub fn build_clause_coordination_copular_noun_prepositional_asyndetic(
 
 fn contracted_relative_subject(
     auxiliary: AuxiliaryInstance,
-) -> crate::grammar::ContractedSubjectAuxiliary {
-    crate::grammar::ContractedSubjectAuxiliary {
-        subject: crate::syntax::Subject(crate::syntax::NounPhrase::from_demonstrative_declaration(
-            crate::syntax::Demonstrative::That,
-        )),
+) -> Result<crate::grammar::ContractedSubjectAuxiliary, DeclarationViolation> {
+    Ok(crate::grammar::ContractedSubjectAuxiliary {
+        subject: crate::syntax::Subject(
+            crate::constructions::noun_phrase::build_noun_phrase_demonstrative(
+                crate::syntax::Demonstrative::That,
+            )?,
+        ),
         auxiliary,
-    }
+    })
 }
 
 /// Builds a zero-marker relative whose predicate retains one object gap.
@@ -290,7 +292,7 @@ pub fn build_relative_subject_contracted_auxiliary(
     predicate: Predicate,
 ) -> Result<RelativeClause, DeclarationViolation> {
     crate::constructions::relative::checked_build_relative_subject_contracted_auxiliary(
-        contracted_relative_subject(auxiliary),
+        contracted_relative_subject(auxiliary)?,
         predicate,
     )
 }
@@ -338,7 +340,7 @@ macro_rules! contracted_copular_facade {
             complement: $ty,
         ) -> Result<RelativeClause, DeclarationViolation> {
             crate::constructions::relative::$checked(
-                contracted_relative_subject(auxiliary),
+                contracted_relative_subject(auxiliary)?,
                 complement,
             )
         }
@@ -671,7 +673,7 @@ pub fn restriction_coordination(
     conjunction: Option<Conjunction>,
     member: RestrictionMember,
 ) -> RestrictionCoordination {
-    RestrictionCoordination::from_declaration_parts(conjunction, member)
+    crate::constructions::attachment::restriction_coordination(conjunction, member)
 }
 
 /// Builds a two-or-more-member trailing restriction run.

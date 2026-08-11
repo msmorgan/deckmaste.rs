@@ -31,14 +31,10 @@ use crate::syntax::Ability;
 use crate::syntax::AbilityHeader;
 use crate::syntax::AbilityKind;
 use crate::syntax::ActivatedAbility;
-use crate::syntax::AttachmentPosition;
 use crate::syntax::ChapterAbility;
 use crate::syntax::ChoiceInstruction;
 use crate::syntax::ClassLevelAbility;
 use crate::syntax::Clause;
-use crate::syntax::ClauseAttachment;
-use crate::syntax::ClauseAttachmentKind;
-use crate::syntax::ComplexClause;
 use crate::syntax::CopularComplement;
 use crate::syntax::Cost;
 use crate::syntax::CostComponent;
@@ -1540,11 +1536,9 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         id: &'static str,
         decision: SameFamilyDecision,
     ) {
-        let Some(groups) = self.activation.backend_groups(
+        let groups = self.activation.backend_groups(
             deckmaste_construction_compiler::runtime::ConstructionBackendData::Ability,
-        ) else {
-            return;
-        };
+        );
         #[cfg(test)]
         let construction = {
             let mut constructions = groups
@@ -1568,11 +1562,9 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
         let family = if self.activation.is_production() {
             super::construction::family_by_id(id)
         } else {
-            super::construction::merged_registry_for_activation(
-                self.activation.groups().expect("active group assembly"),
-            )
-            .ok()
-            .and_then(|registry| registry.family(id))
+            super::construction::registry_from_groups(self.activation.groups())
+                .ok()
+                .and_then(|registry| registry.family(id))
         };
         let Some(family) = family else {
             return;
@@ -1865,16 +1857,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
             };
             Self::coordinates_with_or(body).then(|| body.clone())
         })?;
-        Some(Sentence::from_body(SentenceBody::Independent(
-            IndependentClause::Complex(ComplexClause::from_declaration_parts(
-                matrix,
-                ClauseAttachment::from_declaration_parts(
-                    AttachmentPosition::AfterMatrix,
-                    crate::features::Comma::Absent,
-                    ClauseAttachmentKind::Appositive(Box::new(body)),
-                ),
-            )),
-        )))
+        crate::constructions::ability::build_dash_appositive_sentence(matrix, body).ok()
     }
 
     /// Position of the first top-level spaced em dash (` — `), or `None`. The
@@ -3117,7 +3100,7 @@ impl<'source, 'catalogs, 'sr> Parser<'source, 'catalogs, 'sr> {
 
     #[allow(
         dead_code,
-        reason = "whole-phrase recovery remains staged for later ability milestones"
+        reason = "diagnostic entry points retain a whole-phrase recovery constructor"
     )]
     fn recovered_phrase(&mut self, tokens: &[Token]) -> Phrase {
         Phrase::Recovered(self.recovered_text(tokens))

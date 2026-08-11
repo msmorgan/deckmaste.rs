@@ -40,7 +40,8 @@ enum EnglishCommand {
     Inspect(InspectArgs),
     /// Rank unresolved phrase leaves across the Oracle-text snapshot.
     Unknown(UnknownPhrasesArgs),
-    /// Report structural recovery and licensed lexical opacity by source token.
+    /// Report recovery, lexical opacity, and packed ambiguity across the
+    /// corpus.
     Recovery(RecoveryArgs),
     /// Round-trip supported faces through render and report any mismatches.
     Roundtrip(RoundtripArgs),

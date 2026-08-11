@@ -8,7 +8,6 @@ use deckmaste_construction_compiler::runtime::DeclarationViolation;
 
 use crate::features::Conjunction;
 use crate::syntax::AdjectivePhrase;
-use crate::syntax::AdjectivePhraseCoordination;
 use crate::syntax::CoordinatedAdjectivePhrase;
 use crate::syntax::CoordinatedModifier;
 use crate::syntax::KeywordAbility;
@@ -167,13 +166,10 @@ pub fn build_coordinated_adjective_phrase(
     }
     let mut rest = middle
         .into_iter()
-        .map(|phrase| AdjectivePhraseCoordination::from_declaration_parts(None, phrase))
+        .map(|phrase| (None, phrase))
         .collect::<Vec<_>>();
-    rest.push(AdjectivePhraseCoordination::from_declaration_parts(
-        Some(conjunction),
-        last,
-    ));
-    crate::constructions::coordination::build_coordinated_adjective_phrase(Box::new(first), rest)
+    rest.push((Some(conjunction), last));
+    crate::constructions::coordination::build_coordinated_adjective_members(first, rest)
 }
 
 /// Validates a keyword ability as one member of a mixed `with` list.

@@ -57,9 +57,9 @@
 //! definition, nothing rendered it into existence, so there is no frame text
 //! to substitute *from*. [`render_residual_text`] recovers what it honestly
 //! can: a bare nominal (no determiner, no modifiers, no complements) whose
-//! generated N01 `identity` role retains a checked noun identity and form.
-//! Anything else is refused with an error rather than guessed at. This is a
-//! real, intentional boundary, not an oversight: rendering it in full
+//! generated noun construction's `identity` role retains a checked identity and
+//! form. Anything else is refused with an error rather than guessed at. This is
+//! a real, intentional boundary, not an oversight: rendering it in full
 //! generality is exactly the `ProjectionTree → Fragment` problem the module doc
 //! above explains has no solution available to this crate.
 
@@ -661,13 +661,13 @@ fn render_noun_instance(view: &ProjectionTree) -> anyhow::Result<String> {
         .and_then(|value| value.downcast_ref::<deckmaste_english::word::NounInstance>())
         .ok_or_else(|| {
             anyhow::anyhow!(
-                "N01 construction `{}` has no typed `identity` role",
+                "noun construction `{}` has no typed `identity` role",
                 instance.construction
             )
         })?;
     deckmaste_english::word::Vocabulary::new()
         .render_noun(identity)
-        .ok_or_else(|| anyhow::anyhow!("N01 identity has no noun spelling: {identity:?}"))
+        .ok_or_else(|| anyhow::anyhow!("noun identity has no spelling: {identity:?}"))
 }
 
 fn projected_value(view: &ProjectionTree) -> Option<&deckmaste_english::OwnedProjectionValue> {
@@ -779,7 +779,7 @@ mod tests {
         assert!(report.clean(), "{:?}", report.diagnostics());
         let projection = project_fragment(report.fragment().expect("clean nominal"))
             .map(ProjectionTree::from_projection)
-            .expect("bare noun projects through N01");
+            .expect("bare noun projects through its identity construction");
 
         assert_eq!(render_residual_text(&projection).unwrap(), "dice");
     }

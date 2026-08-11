@@ -2385,7 +2385,7 @@ pub(super) fn article_accepts(article: Option<IndefiniteArticle>, sound: Initial
 
 #[allow(
     dead_code,
-    reason = "explicit agreement probing is staged for later grammar milestones"
+    reason = "declaration and diagnostic probes retain the explicit agreement predicate"
 )]
 pub(super) fn slot_agrees(slot: VerbSlot, agreement: Agreement) -> bool {
     matches!(

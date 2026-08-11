@@ -4,7 +4,6 @@ use std::ops::Deref;
 use deckmaste_english::CatalogKind;
 use deckmaste_english::Catalogs;
 use deckmaste_english::ConstructionBackend;
-use deckmaste_english::ConstructionOwner;
 use deckmaste_english::DiagnosticKind;
 use deckmaste_english::Fragment;
 use deckmaste_english::FragmentKind;
@@ -190,9 +189,8 @@ fn predicated_keyword_single_pp_keeps_generic_ast_with_declared_dominance() {
                 })
         })
         .expect("generic nominal attachment decision");
-    // Mutation caught: restore handwritten nominal registration after the
-    // declaration-driven family has become the sole authority.
-    assert_eq!(decision.owner(), ConstructionOwner::Generated);
+    // Mutation caught: route the nominal through anything other than its
+    // declaration-driven chart construction.
     assert_eq!(decision.backend(), ConstructionBackend::Chart);
     assert_eq!(decision.reason(), SelectionReason::Dominance);
     assert!(decision.alternatives().iter().any(|candidate| {
@@ -201,8 +199,8 @@ fn predicated_keyword_single_pp_keeps_generic_ast_with_declared_dominance() {
 }
 
 #[test]
-fn public_sentence_family_is_generated_and_derives_quote_punctuation() {
-    // Mutation caught: restore the handwritten Sentence route or store/guess
+fn public_sentence_family_derives_quote_punctuation() {
+    // Mutation caught: bypass the sentence construction or store/guess
     // punctuation instead of deriving it from the terminal quote structure.
     let catalogs = Catalogs::default()
         .with_catalog(CatalogKind::CardType, ["Creature"])
@@ -218,7 +216,6 @@ fn public_sentence_family_is_generated_and_derives_quote_punctuation() {
         .flat_map(ParseSelection::constructions)
         .find(|decision| decision.selected().as_str() == "sentence")
         .expect("the public report includes its selected sentence construction");
-    assert_eq!(sentence.owner(), ConstructionOwner::Generated);
     assert_eq!(sentence.backend(), ConstructionBackend::Chart);
     assert_eq!(sentence.selected_production_ordinal(), 0);
 
@@ -254,7 +251,7 @@ fn public_sentence_family_is_generated_and_derives_quote_punctuation() {
                 })
         })
         .expect("quote-terminal parsing retains sentence provenance");
-    assert_eq!(quoted_sentence.owner(), ConstructionOwner::Generated);
+    assert_eq!(quoted_sentence.backend(), ConstructionBackend::Chart);
     assert_eq!(quoted_sentence.selected_production_ordinal(), 1);
     assert!(quoted_sentence.alternatives().iter().any(|alternative| {
         alternative.id().as_str() == "sentence" && alternative.production_ordinal() == 1
@@ -276,7 +273,7 @@ fn public_sentence_family_is_generated_and_derives_quote_punctuation() {
 }
 
 #[test]
-fn public_known_and_opaque_nouns_use_generated_identity_families() {
+fn public_known_and_opaque_nouns_use_identity_constructions() {
     let known_source = "Draw an Elf.";
     let known_catalogs = Catalogs::default().with_catalog(CatalogKind::CreatureType, ["Elf"]);
     let known = parse_with_catalogs(known_source, &known_catalogs);
@@ -287,7 +284,7 @@ fn public_known_and_opaque_nouns_use_generated_identity_families() {
         .flat_map(ParseSelection::constructions)
         .find(|decision| decision.selected().as_str() == "noun")
         .expect("known noun provenance");
-    assert_eq!(known_decision.owner(), ConstructionOwner::Generated);
+    assert_eq!(known_decision.backend(), ConstructionBackend::Chart);
     assert_eq!(known_decision.cost(), ParseCost::default());
     assert_eq!(
         known.ast().render("Test Card", false).unwrap(),
@@ -303,7 +300,7 @@ fn public_known_and_opaque_nouns_use_generated_identity_families() {
         .flat_map(ParseSelection::constructions)
         .find(|decision| decision.selected().as_str() == "noun_opaque")
         .expect("opaque noun provenance");
-    assert_eq!(opaque_decision.owner(), ConstructionOwner::Generated);
+    assert_eq!(opaque_decision.backend(), ConstructionBackend::Chart);
     assert_eq!(opaque_decision.cost().opaque_words(), 1);
     assert_eq!(opaque_decision.cost().opaque_lexemes(), 1);
     assert_eq!(
@@ -1251,9 +1248,9 @@ fn public_determiner_provenance_exposes_the_complete_stable_id_order() {
                 .flat_map(ParseSelection::constructions)
                 .find(|decision| decision.selected().as_str() == expected)
                 .unwrap_or_else(|| {
-                    panic!("missing public determiner owner {expected}: {report:#?}")
+                    panic!("missing public determiner construction {expected}: {report:#?}")
                 });
-            assert_eq!(decision.owner(), ConstructionOwner::Generated, "{source}");
+            assert_eq!(decision.backend(), ConstructionBackend::Chart, "{source}");
             assert_eq!(decision.selected_production_ordinal(), 0, "{source}");
             decision.selected().as_str().to_owned()
         })
@@ -4751,10 +4748,11 @@ fn public_cost_family_is_generated_ability_owned_and_nested_everywhere() {
             !costs.is_empty(),
             "missing nested cost provenance: {source}"
         );
-        assert!(costs.iter().all(|decision| {
-            decision.owner() == ConstructionOwner::Generated
-                && decision.backend() == ConstructionBackend::Ability
-        }));
+        assert!(
+            costs
+                .iter()
+                .all(|decision| decision.backend() == ConstructionBackend::Ability)
+        );
     }
 }
 
@@ -4886,7 +4884,7 @@ fn keyword_line_catalogs() -> Catalogs {
 }
 
 #[test]
-fn public_keyword_line_family_is_generated_ability_owned_and_nested() {
+fn public_keyword_line_family_uses_the_ability_backend_and_is_nested() {
     let catalogs = keyword_line_catalogs();
     for (source, kind) in [
         ("Flying, first strike", FragmentKind::KeywordLine),
@@ -4898,7 +4896,6 @@ fn public_keyword_line_family_is_generated_ability_owned_and_nested() {
             .iter()
             .find(|decision| decision.selected().as_str() == "keyword_line")
             .unwrap_or_else(|| panic!("missing keyword_line decision for {source:?}"));
-        assert_eq!(decision.owner(), ConstructionOwner::Generated);
         assert_eq!(decision.backend(), ConstructionBackend::Ability);
         assert_eq!(decision.evidence().label(), "keyword-ability list root");
     }
@@ -5095,7 +5092,6 @@ fn generated_ability_root_count(report: &deckmaste_english::ParseReport) -> usiz
         .flat_map(ParseSelection::constructions)
         .filter(|decision| decision.selected().as_str() == "ability")
         .inspect(|decision| {
-            assert_eq!(decision.owner(), ConstructionOwner::Generated);
             assert_eq!(decision.backend(), ConstructionBackend::Ability);
             assert_eq!(decision.evidence().label(), "decisive ability frame guard");
         })
@@ -7813,5 +7809,31 @@ fn checked_clause_builders_preserve_both_changed_connective_associations() {
     assert_eq!(
         render_fragment(&Fragment::Sentence(right), "Test Card", false).unwrap(),
         "You draw a card or you discard a card and you gain 1 life."
+    );
+}
+
+#[test]
+fn public_inventory_records_the_complete_backend_boundary() {
+    let families = deckmaste_english::construction_families();
+    let ids = families
+        .iter()
+        .map(|family| family.id().as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(ids.len(), families.len(), "construction IDs are unique");
+
+    let ability_ids = families
+        .iter()
+        .filter(|family| family.backend() == ConstructionBackend::Ability)
+        .map(|family| family.id().as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(ability_ids, ["ability", "cost", "keyword_line"].into());
+    assert_eq!(families.len(), 222, "complete generated inventory");
+    assert_eq!(
+        families
+            .iter()
+            .filter(|family| family.backend() == ConstructionBackend::Chart)
+            .count(),
+        219,
+        "all remaining declarations are fan-out-one chart families"
     );
 }

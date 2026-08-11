@@ -51,7 +51,6 @@ pub use construction::ConstructionEvidence;
 pub use construction::ConstructionEvidenceKind;
 pub use construction::ConstructionFamily;
 pub use construction::ConstructionId;
-pub use construction::ConstructionOwner;
 pub use deckmaste_construction_compiler::runtime::ConstructionProjection;
 pub use deckmaste_construction_compiler::runtime::OwnedProjectionValue;
 pub use deckmaste_construction_compiler::runtime::ProjectedAtom;
