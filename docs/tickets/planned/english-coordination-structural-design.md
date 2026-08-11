@@ -1,10 +1,19 @@
 ---
-needs: [english-coordination-residue]
+needs: [english-coordination-residue, english-ability-output-retrofit]
 design: true
 ---
 **Design the remaining heterogeneous and member-scoped coordination forms.**
-These families require an AST or attachment decision before grammar work; do
-not solve them with surface-string gates or card-specific exceptions.
+This resumes only after the construction-output retrofit. The English tree is
+not a legacy compatibility surface: it is the exact, compiler-owned
+construction tree consumed through a typed spelling projection, while RON
+definitions supply the more Magic-specific semantic macro layer. Do not
+preserve serde field paths, legacy variant layouts, or flattened output merely
+to keep old tests green. PMCFG is not a prerequisite unless a genuinely
+discontinuous surface constituent remains after outputs carry shared context
+explicitly.
+
+Close the following coordination decisions on that new boundary; do not solve
+them with surface-string gates or card-specific exceptions.
 
 - Mixed keyword plus quoted-ability `with` lists (`with trample and "..."`),
   about 130 resisting faces. Keyword-only `with X and Y` is already typed, but
