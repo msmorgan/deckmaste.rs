@@ -493,6 +493,8 @@ mod tests {
     use deckmaste_english::normalize_sentence_case;
     use deckmaste_english::normalize_typographic_quotes;
     use deckmaste_english::strip_reminder_text;
+    use deckmaste_english::syntax::NounPhraseKind;
+    use deckmaste_english::word::Vocab;
 
     use super::*;
     use crate::english::data::map_supported_faces;
@@ -1124,6 +1126,152 @@ mod tests {
                 assert_eq!(decision.backend(), ConstructionBackend::Chart, "{name}");
             }
         }
+    }
+
+    #[test]
+    #[cfg_attr(
+        not(all(derived_cards, gen_catalogs)),
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+    )]
+    fn recovery_composition_witnesses_remain_structural_in_corpus_inspect() {
+        let data = OracleDataArgs::default()
+            .load()
+            .expect("release corpus data must be available for recovery-composition witnesses");
+
+        let sage_owl = find_cards(&data.faces, "Sage Owl");
+        let [sage_owl] = sage_owl.as_slice() else {
+            panic!("expected one Sage Owl snapshot face")
+        };
+        assert!(sage_owl.supported, "Sage Owl must remain supported");
+        let sage_source = "When this creature enters, look at the top four cards of your library, then put them back in any order.";
+        assert_eq!(sage_owl.oracle_text.lines().nth(1), Some(sage_source));
+        assert_eq!(sage_owl.source_text.lines().nth(1), Some(sage_source));
+        let sage_report = parse_with_identity(
+            sage_source,
+            &data.catalogs,
+            sage_owl.printed_name(),
+            sage_owl.is_legendary,
+        );
+        assert!(sage_report.ast().recoveries().is_empty(), "Sage Owl");
+        assert!(
+            sage_report.ast().lexical_opacity().is_empty(),
+            "Sage Owl must not trade recovery for lexical opacity"
+        );
+        assert_eq!(
+            sage_report
+                .ast()
+                .render(sage_owl.printed_name(), sage_owl.is_legendary)
+                .expect("Sage Owl sentence must render"),
+            sage_source
+        );
+        let [ability] = sage_report.ast().abilities.as_slice() else {
+            panic!("Sage Owl sentence must produce one ability")
+        };
+        let AbilityKind::Triggered(triggered) = ability.kind() else {
+            panic!("Sage Owl sentence must retain its trigger frame")
+        };
+        let [sentence] = triggered.effect.sentences.as_slice() else {
+            panic!("Sage Owl trigger must have one effect sentence")
+        };
+        let SentenceBody::Independent(IndependentClause::Finite(finite)) = sentence.body() else {
+            panic!("Sage Owl effect must be a finite clause")
+        };
+        let PredicateExpression::Coordinated(coordination) = finite.predicate() else {
+            panic!("Sage Owl effect must retain its predicate coordination")
+        };
+        let Some(PredicateExpression::Simple(Predicate::Transitive(put))) =
+            coordination.conjuncts().last()
+        else {
+            panic!("Sage Owl put-back clause must remain transitive")
+        };
+        assert!(put.elements().iter().any(|element| matches!(
+            element,
+            PredicateElement::Adjunct(PredicateAdjunct::Adverb(Vocab::Back))
+        )));
+
+        let launch = find_cards(&data.faces, "Launch the Fleet");
+        let [launch] = launch.as_slice() else {
+            panic!("expected one Launch the Fleet snapshot face")
+        };
+        assert!(launch.supported, "Launch the Fleet must remain supported");
+        let launch_source =
+            "Strive — This spell costs {1} more to cast for each target beyond the first.";
+        assert_eq!(launch.oracle_text.lines().next(), Some(launch_source));
+        assert_eq!(launch.source_text.lines().next(), Some(launch_source));
+        let launch_report = parse_with_identity(
+            launch_source,
+            &data.catalogs,
+            launch.printed_name(),
+            launch.is_legendary,
+        );
+        assert!(
+            launch_report.ast().recoveries().is_empty(),
+            "Launch the Fleet"
+        );
+        assert!(
+            launch_report.ast().lexical_opacity().is_empty(),
+            "Launch the Fleet must not trade recovery for lexical opacity"
+        );
+        assert_eq!(
+            launch_report
+                .ast()
+                .render(launch.printed_name(), launch.is_legendary)
+                .expect("Launch the Fleet rider must render"),
+            launch_source
+        );
+        assert!(
+            launch_report
+                .ast()
+                .noun_phrases()
+                .iter()
+                .any(|phrase| matches!(phrase.kind(), NounPhraseKind::TargetsBeyondFirst))
+        );
+        assert!(
+            launch_report
+                .provenance()
+                .selections()
+                .iter()
+                .flat_map(deckmaste_english::ParseSelection::constructions)
+                .any(|decision| decision.selected().as_str() == "noun_phrase_targets_beyond_first")
+        );
+
+        let marvel = find_cards(&data.faces, "Aetherworks Marvel");
+        let [marvel] = marvel.as_slice() else {
+            panic!("expected one Aetherworks Marvel snapshot face")
+        };
+        assert!(marvel.supported, "Aetherworks Marvel must remain supported");
+        let marvel_source = "{T}, Pay six {E}: Look at the top six cards of your library. You may cast a spell from among them without paying its mana cost. Put the rest on the bottom of your library in a random order.";
+        assert_eq!(marvel.oracle_text.lines().nth(1), Some(marvel_source));
+        assert_eq!(marvel.source_text.lines().nth(1), Some(marvel_source));
+        let marvel_report = parse_with_identity(
+            marvel_source,
+            &data.catalogs,
+            marvel.printed_name(),
+            marvel.is_legendary,
+        );
+        assert!(
+            marvel_report.ast().recoveries().is_empty(),
+            "Aetherworks Marvel"
+        );
+        assert!(
+            marvel_report.ast().lexical_opacity().is_empty(),
+            "Aetherworks Marvel must not trade recovery for lexical opacity"
+        );
+        assert_eq!(
+            marvel_report
+                .ast()
+                .render(marvel.printed_name(), marvel.is_legendary)
+                .expect("Aetherworks Marvel activation must render"),
+            marvel_source
+        );
+        assert!(
+            marvel_report
+                .provenance()
+                .selections()
+                .iter()
+                .flat_map(deckmaste_english::ParseSelection::constructions)
+                .any(|decision| decision.selected().as_str() == "verb_phrase_counted_energy")
+        );
     }
 
     #[test]

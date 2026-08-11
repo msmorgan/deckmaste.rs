@@ -82,7 +82,9 @@ pub(crate) fn extend_predicate_features(
             *indirect_object,
             *selected_preposition,
         ),
-        PredicateAttachment::DirectObject => frame.direct_object().accepts(),
+        PredicateAttachment::DirectObject | PredicateAttachment::PronominalDirectObject => {
+            frame.direct_object().accepts()
+        }
         PredicateAttachment::IndirectObject => frame.indirect_object().accepts(),
         PredicateAttachment::NominalAdjunct(adjunct) => {
             frame.licenses_bare_nominal_adjunct(adjunct)
@@ -116,8 +118,10 @@ pub(crate) fn extend_predicate_features(
     // object may attach under it in the passive; every other frame keeps the
     // blanket ban (an ordinary passive's promoted subject IS the theme, so a
     // further direct object is never a coherent reading).
-    let direct_object_attaches_under_passive =
-        matches!(attachment, PredicateAttachment::DirectObject) && frame.is_recipient_passive();
+    let direct_object_attaches_under_passive = matches!(
+        attachment,
+        PredicateAttachment::DirectObject | PredicateAttachment::PronominalDirectObject
+    ) && frame.is_recipient_passive();
     if *passive
         && !direct_object_attaches_under_passive
         && !matches!(
@@ -146,6 +150,7 @@ pub(crate) fn extend_predicate_features(
     }
     let next_phase = match attachment {
         PredicateAttachment::DirectObject
+        | PredicateAttachment::PronominalDirectObject
         | PredicateAttachment::IndirectObject
         | PredicateAttachment::AbilityComplement
         | PredicateAttachment::QuotedObject
@@ -193,6 +198,9 @@ pub(crate) fn extend_predicate_features(
             | PredicateAttachment::ScalarOrAbilityArgument,
             PredicateObjectState::None,
         ) => PredicateObjectState::Direct,
+        (PredicateAttachment::PronominalDirectObject, PredicateObjectState::None) => {
+            PredicateObjectState::PronominalDirect
+        }
         (PredicateAttachment::AbilityComplement, PredicateObjectState::None) => {
             PredicateObjectState::Ability
         }
@@ -245,6 +253,7 @@ pub(crate) fn extend_predicate_features(
 pub(crate) enum PredicateAttachment {
     Adjunct,
     DirectObject,
+    PronominalDirectObject,
     IndirectObject,
     NominalAdjunct(BareNominalAdjunct),
     AdjectiveComplement,

@@ -238,6 +238,7 @@ pub(crate) enum VerbDependent {
     IndirectObject(NounPhrase),
     PredicateComplement(Phrase),
     Scalar(Phrase),
+    CountedEnergy(crate::syntax::CountedEnergy),
     Statistic(Phrase),
     Prepositional(PrepositionalPhrase),
     AbilityPostmodifier(crate::syntax::AbilityPostmodifier),
@@ -519,7 +520,13 @@ impl VerbPhrase {
         };
         for dependent in &self.dependents {
             let attachment = match dependent {
-                VerbDependent::DirectObject(_) => PredicateAttachment::DirectObject,
+                VerbDependent::DirectObject(noun) => {
+                    if matches!(noun.kind(), crate::syntax::NounPhraseKind::Pronoun { .. }) {
+                        PredicateAttachment::PronominalDirectObject
+                    } else {
+                        PredicateAttachment::DirectObject
+                    }
+                }
                 VerbDependent::IndirectObject(_) => PredicateAttachment::IndirectObject,
                 VerbDependent::Temporal(_) => {
                     PredicateAttachment::NominalAdjunct(BareNominalAdjunct::Temporal)
@@ -559,6 +566,7 @@ impl VerbPhrase {
                 VerbDependent::Scalar(Phrase::Quantity(_)) => {
                     PredicateAttachment::ScalarOrAbilityArgument
                 }
+                VerbDependent::CountedEnergy(_) => PredicateAttachment::ScalarComplement,
                 VerbDependent::Statistic(Phrase::PowerToughness(_)) => {
                     PredicateAttachment::StatisticComplement
                 }
@@ -1392,6 +1400,10 @@ pub(crate) enum PredicateForm {
 pub(crate) enum PredicateObjectState {
     None,
     Direct,
+    /// A direct object expressed by a pronoun. The chart retains this
+    /// distinction so a generated resultative continuation can require it
+    /// instead of rediscovering the object's syntax after attachment.
+    PronominalDirect,
     Ability,
     AbilityWithArgument,
 }

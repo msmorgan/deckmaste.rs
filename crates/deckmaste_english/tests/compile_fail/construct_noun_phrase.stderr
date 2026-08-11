@@ -23,4 +23,4 @@ help: you might have meant to use an associated function to build this type
 5 -     NounPhrase(kind)
 5 +     NounPhrase::from_demonstrative_declaration(_)
   |
-  = and 8 other candidates
+  = and 9 other candidates

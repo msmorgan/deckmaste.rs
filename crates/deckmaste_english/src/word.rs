@@ -383,6 +383,7 @@ vocabulary! {
         .verb(VerbForm::Regular)
         .predicate_frames(ATTACK_PREDICATE_FRAMES);
     Aurochs("Aurochs").invariant_catalog_noun();
+    Back("back").adverb();
     Bargain("bargain").verb(VerbForm::Regular);
     Battlefield("battlefield").noun(NounDeclension::Regular, Countability::Count);
     Be("be").verb(VerbForm::Irregular(

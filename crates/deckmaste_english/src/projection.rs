@@ -1685,6 +1685,77 @@ mod tests {
     }
 
     #[test]
+    fn counted_energy_projection_keeps_typed_nested_product_roles() {
+        let fragment = parse_fragment(
+            "Pay six {E}.",
+            &Catalogs::default(),
+            FragmentKind::Sentence,
+            "",
+            false,
+        )
+        .into_fragment()
+        .expect("counted energy fixture parses");
+        let projection = super::project_fragment(&fragment).expect("counted energy projects");
+        assert_no_flat_subtrees(&projection);
+        let mut constructions = Vec::new();
+        collect_constructions(&projection, &mut constructions);
+        let predicate = constructions
+            .into_iter()
+            .find(|value| value.construction == "verb_phrase_counted_energy")
+            .expect("counted energy has its generated predicate owner");
+        let energy = required_construction_role(predicate, "energy");
+        assert_eq!(
+            (energy.category, energy.construction),
+            ("CountedEnergy", "counted_energy")
+        );
+        assert!(matches!(
+            energy.roles.get("quantity"),
+            Some(ProjectedValue::Construction(_))
+        ));
+        assert!(matches!(
+            energy.roles.get("symbol"),
+            Some(ProjectedValue::Atom(_))
+        ));
+    }
+
+    #[test]
+    fn pronominal_resultative_projection_keeps_each_declared_continuation_role() {
+        let fragment = parse_fragment(
+            "Return it to the battlefield transformed under your control.",
+            &Catalogs::default(),
+            FragmentKind::Sentence,
+            "",
+            false,
+        )
+        .into_fragment()
+        .expect("pronominal resultative fixture parses");
+        let projection = super::project_fragment(&fragment).expect("resultative fixture projects");
+        assert_no_flat_subtrees(&projection);
+        let mut constructions = Vec::new();
+        collect_constructions(&projection, &mut constructions);
+        let resultative = constructions
+            .into_iter()
+            .find(|value| value.construction == "verb_phrase_pronominal_resultative_prepositional")
+            .expect("the generated resultative owner remains visible");
+        assert_eq!(
+            resultative.roles.keys().copied().collect::<Vec<_>>(),
+            ["adjective", "predicate", "preposition"]
+        );
+        assert_eq!(
+            required_construction_role(resultative, "predicate").category,
+            "VerbPhrase"
+        );
+        assert_eq!(
+            required_construction_role(resultative, "adjective").category,
+            "AdjectivePhrase"
+        );
+        assert_eq!(
+            required_construction_role(resultative, "preposition").category,
+            "PrepositionalPhrase"
+        );
+    }
+
+    #[test]
     fn nonfinite_projection_exposes_infinitive_and_recursive_gerund_roles() {
         let predicate = |verb, slot| {
             crate::predicate::build_predicate_verb(

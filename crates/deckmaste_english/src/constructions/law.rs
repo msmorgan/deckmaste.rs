@@ -45,7 +45,7 @@ pub(crate) static GROUPS: &[&GroupData] = &[&LAW_PROBE_DECLARATION];
 #[cfg(test)]
 mod predicate_family_laws {
     #[test]
-    fn all_34_predicate_rows_expose_checked_builder_parts_and_inverse_laws() {
+    fn all_37_predicate_rows_expose_checked_builder_parts_and_inverse_laws() {
         // Mutations caught: add a chart-only row without a checked semantic
         // door, omit the generated parts projection, leave a form outside the
         // category dispatcher, or silently change a declared category.
@@ -57,6 +57,10 @@ mod predicate_family_laws {
             ("verb_phrase_direct_object", "VerbPhrase"),
             ("verb_phrase_indirect_object", "VerbPhrase"),
             ("verb_phrase_adjective", "VerbPhrase"),
+            (
+                "verb_phrase_pronominal_resultative_prepositional",
+                "VerbPhrase",
+            ),
             ("verb_phrase_prepositional", "VerbPhrase"),
             (
                 "verb_phrase_passive_shared_determiner_prepositional",
@@ -86,6 +90,8 @@ mod predicate_family_laws {
             ("verb_phrase_mana_amount_coordination", "VerbPhrase"),
             ("verb_phrase_power_toughness", "VerbPhrase"),
             ("verb_phrase_quantity", "VerbPhrase"),
+            ("counted_energy", "CountedEnergy"),
+            ("verb_phrase_counted_energy", "VerbPhrase"),
             ("verb_phrase_causative", "VerbPhrase"),
         ];
         let declaration = &crate::constructions::predicate::PREDICATE_DECLARATION;

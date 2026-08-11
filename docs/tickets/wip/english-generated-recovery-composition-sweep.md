@@ -18,14 +18,20 @@ existing typed roles. Do not add card identities, verbatim recovery leaves,
 new lexical opacity, surface-spelling branches, parse costs, or dominance edges
 to force the witnesses. Preserve every tied holistic parse, and test the
 intended trees directly under normal, reversed, and fixed-shuffle registration.
+Delete or replace baseline-preservation assertions in these paths when they
+exist: old recovery behavior is evidence of a missing analysis, not an output
+contract.
 
 Extend `cargo xtask english recovery` with an optional grouped listing so the
 role, recovered text, occurrence count, token count, and a bounded set of face
 names are inspectable without an ad hoc corpus script. No corpus rows or
 aggregate baseline are committed.
 
-Completion requires all four named families to disappear from structural
-recovery, total recovered source tokens to decrease, no other recovery role to
-increase, source-independent exact round-trip to remain clean, and direct AST,
-`inspect`, spelling-frame, Clippy, formatting, citation, and parent-relative
-performance gates to pass. Standard constraints apply.
+Completion is causal, not a recovery-count target. Each named construction must
+select its intended generated owner, retain the correct typed roles, render
+exactly without source, and remain stable under registration permutations.
+Corpus recovery and opacity censuses are regression diagnostics: review them
+for displacement or contamination, but do not weaken, misclassify, or recover
+other syntax merely to improve a count. Source-independent exact round-trip and
+the direct AST, `inspect`, spelling-frame, Clippy, formatting, citation, and
+parent-relative performance gates must pass. Standard constraints apply.

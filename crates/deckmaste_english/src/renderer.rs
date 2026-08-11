@@ -436,6 +436,21 @@ pub(crate) fn render_generated_predicate_frequency_phrase_law(
 }
 
 #[cfg(test)]
+pub(crate) fn render_generated_predicate_counted_energy_law(
+    value: &crate::syntax::CountedEnergy,
+) -> Result<GeneratedPredicateRender, RenderError> {
+    let renderer = Renderer::new("this card", false);
+    let mut visitor = GeneratedPredicateRenderer::new(&renderer, 0, false, true);
+    GeneratedPredicateRenderer::accept_generated(
+        crate::constructions::predicate::linearize_predicate_counted_energy_with(
+            value,
+            &mut visitor,
+        ),
+    )?;
+    visitor.finish_with_root()
+}
+
+#[cfg(test)]
 pub(crate) fn render_generated_predicate_mana_amount(
     value: &PredicateObject,
 ) -> Result<String, RenderError> {
@@ -1809,6 +1824,17 @@ impl deckmaste_construction_compiler::runtime::LinearizationVisitor
                     .downcast_ref::<Quantity>()
                     .expect("the quantity hole preserves Quantity"),
             ),
+            "CountedEnergy" => {
+                Self::accept_generated(
+                    crate::constructions::predicate::linearize_predicate_counted_energy_with(
+                        value
+                            .downcast_ref::<crate::syntax::CountedEnergy>()
+                            .expect("the counted-energy hole preserves CountedEnergy"),
+                        self,
+                    ),
+                )?;
+                return Ok(());
+            }
             "ManaAmount" => {
                 Self::accept_generated(
                     crate::constructions::predicate::linearize_predicate_mana_amount_with(
@@ -5401,6 +5427,7 @@ fn predicate_object_quoted_ability_count(object: &PredicateObject) -> usize {
                     .sum::<usize>()
         }
         PredicateObject::Quantity(_)
+        | PredicateObject::CountedEnergy(_)
         | PredicateObject::OracleSymbol(_)
         | PredicateObject::SymbolSequence(_)
         | PredicateObject::PowerToughness(_)
@@ -5444,7 +5471,8 @@ fn noun_phrase_with_attribute_quoted_ability_count(noun_phrase: &NounPhrase) -> 
         | crate::syntax::NounPhraseKind::PossessiveThisCard(_)
         | crate::syntax::NounPhraseKind::Demonstrative(_)
         | crate::syntax::NounPhraseKind::Quantity(_)
-        | crate::syntax::NounPhraseKind::ThisCard(_) => 0,
+        | crate::syntax::NounPhraseKind::ThisCard(_)
+        | crate::syntax::NounPhraseKind::TargetsBeyondFirst => 0,
     }
 }
 
@@ -5674,7 +5702,8 @@ fn noun_phrase_with_attribute_terminal_quote(noun_phrase: &NounPhrase) -> Option
         | crate::syntax::NounPhraseKind::PossessiveThisCard(_)
         | crate::syntax::NounPhraseKind::Demonstrative(_)
         | crate::syntax::NounPhraseKind::Quantity(_)
-        | crate::syntax::NounPhraseKind::ThisCard(_) => None,
+        | crate::syntax::NounPhraseKind::ThisCard(_)
+        | crate::syntax::NounPhraseKind::TargetsBeyondFirst => None,
     }
 }
 

@@ -3508,7 +3508,9 @@ impl<'syntax> SyntaxInventory<'syntax> {
                     self.predicate_object(coordination.object());
                 }
             }
-            PredicateObject::OracleSymbol(_) | PredicateObject::SymbolSequence(_) => {}
+            PredicateObject::CountedEnergy(_)
+            | PredicateObject::OracleSymbol(_)
+            | PredicateObject::SymbolSequence(_) => {}
         }
     }
 
@@ -3628,7 +3630,7 @@ impl<'syntax> SyntaxInventory<'syntax> {
             NounPhraseKind::Arithmetic(ArithmeticValue::Half { value, .. }) => {
                 self.noun_phrase(value);
             }
-            NounPhraseKind::Demonstrative(_) => {}
+            NounPhraseKind::Demonstrative(_) | NounPhraseKind::TargetsBeyondFirst => {}
         }
     }
 
@@ -5868,6 +5870,40 @@ fn a_cost_flavor_header_with_a_non_member_label_is_unaffected() {
     );
 }
 
+#[test]
+fn aetherworks_style_counted_energy_activation_cost_round_trips_structurally() {
+    for source in [
+        "{T}, Pay six {E}: Draw a card.",
+        "{T}, Pay X {E}: Draw a card.",
+    ] {
+        let report = parse_with_catalogs(source, &Catalogs::default());
+        assert!(
+            report.ast().recoveries().is_empty(),
+            "{source}: {report:#?}"
+        );
+        assert_eq!(
+            report.ast().render("Aetherworks Marvel", false).unwrap(),
+            source
+        );
+        let AbilityKind::Activated(activated) = only_ability(report.ast()).kind() else {
+            panic!("expected activated ability: {source}");
+        };
+        assert!(activated.cost.components().iter().any(|component| matches!(
+            component,
+            CostComponent::Clause(clause)
+                if matches!(
+                    clause.as_ref(),
+                    IndependentClause::Finite(finite)
+                        if matches!(
+                            finite.predicate(),
+                            PredicateExpression::Simple(Predicate::Transitive(predicate))
+                                if matches!(predicate.object(), PredicateObject::CountedEnergy(_))
+                        )
+                )
+        )));
+    }
+}
+
 // --- Lexical sweep -----------------------------------------------------------
 
 /// The card-type atoms the lexical-sweep witnesses name.
@@ -6959,28 +6995,32 @@ fn anof_concord_curse_of_surveillance_tree_is_sound() {
 }
 
 #[test]
-fn anof_concord_launch_the_fleet_embedded_recovery_exposed() {
-    // Launch the Fleet: the outer float resolves and the walker reports the
-    // newly visible embedded-rules recovery inside the quote. Do not hide
-    // that recovery to force the census prediction.
+fn launch_the_fleet_keeps_both_distributive_phrases_structural() {
     let source = "Strive — This spell costs {1} more to cast for each target beyond the \
         first.\nUntil end of turn, any number of target creatures each gain \"Whenever \
         this creature attacks, create a 1/1 white Soldier creature token that's tapped \
         and attacking.\"";
-    let (rendered, ast) = parse_face(source, &Catalogs::default(), "Launch the Fleet", false);
+    let catalogs = Catalogs::default()
+        .with_catalog(CatalogKind::AbilityWord, ["Strive"])
+        .with_catalog(CatalogKind::CardType, ["Creature"])
+        .with_catalog(CatalogKind::CreatureType, ["Soldier"]);
+    let (rendered, ast) = parse_face(source, &catalogs, "Launch the Fleet", false);
     assert_eq!(rendered, source, "AST:\n{ast}");
-    // The outer `any number of ... each gain` float resolves cleanly; the
-    // quoted granted ability is expected to surface as an embedded-rules
-    // recovery, and that recovery must not be hidden to force the census
-    // prediction.
+    assert_no_recovery(&ast);
+    assert!(
+        ast.lexical_opacity().is_empty(),
+        "the structural parse must not replace recovery with lexical opacity\nAST:\n{ast}"
+    );
+    assert!(
+        ast.noun_phrases()
+            .iter()
+            .any(|phrase| matches!(phrase.kind(), NounPhraseKind::TargetsBeyondFirst)),
+        "expected the closed `each target beyond the first` noun phrase\nAST:\n{ast}"
+    );
     assert!(
         matrix_predicate_head(last_effect_clause(&ast))
             .is_some_and(PredicateHead::distributive_each),
         "expected the outer float to resolve\nAST:\n{ast}"
-    );
-    assert!(
-        !ast.recoveries().is_empty(),
-        "the embedded-rules recovery inside the quote must remain visible\nAST:\n{ast}"
     );
 }
 
@@ -7827,13 +7867,13 @@ fn public_inventory_records_the_complete_backend_boundary() {
         .map(|family| family.id().as_str())
         .collect::<std::collections::BTreeSet<_>>();
     assert_eq!(ability_ids, ["ability", "cost", "keyword_line"].into());
-    assert_eq!(families.len(), 222, "complete generated inventory");
+    assert_eq!(families.len(), 226, "complete generated inventory");
     assert_eq!(
         families
             .iter()
             .filter(|family| family.backend() == ConstructionBackend::Chart)
             .count(),
-        219,
+        223,
         "all remaining declarations are fan-out-one chart families"
     );
 }

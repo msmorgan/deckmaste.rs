@@ -92,6 +92,10 @@ fn make_this_card(form: ThisCardForm) -> Result<NounPhrase, DeclarationViolation
     Ok(NounPhrase::from_this_card_declaration(form))
 }
 
+fn make_targets_beyond_first() -> Result<NounPhrase, DeclarationViolation> {
+    Ok(NounPhrase::from_targets_beyond_first_declaration())
+}
+
 fn make_possessive_this_card(form: ThisCardForm) -> Result<NounPhrase, DeclarationViolation> {
     Ok(NounPhrase::from_possessive_this_card_declaration(form))
 }
@@ -199,6 +203,7 @@ fn noun_phrase_is_plural(value: &NounPhrase) -> bool {
         NounPhraseKind::PossessiveThisCard(_)
         | NounPhraseKind::Quantity(_)
         | NounPhraseKind::ThisCard(_)
+        | NounPhraseKind::TargetsBeyondFirst
         | NounPhraseKind::Partitive(_)
         | NounPhraseKind::Arithmetic(_) => false,
     }
@@ -252,7 +257,8 @@ fn public_agreements(value: &NounPhrase) -> Vec<Agreement> {
         },
         NounPhraseKind::Demonstrative(Demonstrative::This | Demonstrative::That)
         | NounPhraseKind::PossessiveThisCard(_)
-        | NounPhraseKind::Arithmetic(_) => vec![Agreement {
+        | NounPhraseKind::Arithmetic(_)
+        | NounPhraseKind::TargetsBeyondFirst => vec![Agreement {
             person: Person::Third,
             number: Number::Singular,
         }],
@@ -357,6 +363,7 @@ fn noun_phrase_is_set_exception_host(value: &NounPhrase) -> bool {
         | NounPhraseKind::Demonstrative(_)
         | NounPhraseKind::Quantity(_)
         | NounPhraseKind::ThisCard(_)
+        | NounPhraseKind::TargetsBeyondFirst
         | NounPhraseKind::Partitive(_)
         | NounPhraseKind::AnyNumberOf(_)
         | NounPhraseKind::SetException(_)
@@ -638,6 +645,14 @@ fn is_abbreviated_this_card(value: &NounPhrase) -> bool {
     )
 }
 
+fn targets_beyond_first_parts(value: &NounPhrase) {
+    assert!(matches!(value.kind(), NounPhraseKind::TargetsBeyondFirst));
+}
+
+const fn is_targets_beyond_first(value: &NounPhrase) -> bool {
+    matches!(value.kind(), NounPhraseKind::TargetsBeyondFirst)
+}
+
 fn is_full_this_card(value: &NounPhrase) -> bool {
     matches!(
         value.kind(),
@@ -850,6 +865,20 @@ fn reduce_quantity(quantity: &Features) -> Option<Features> {
 
 fn reduce_this_card(value: &Features) -> Option<Features> {
     matches!(value, Features::NounPhrase { .. }).then(|| value.clone())
+}
+
+fn reduce_targets_beyond_first() -> Option<Features> {
+    Some(noun_phrase(
+        Some(Agreement {
+            person: Person::Third,
+            number: Number::Singular,
+        }),
+        Some(CoordinationDomain::SelectionHost),
+        None,
+        None,
+        SetExceptionState::Ineligible,
+        false,
+    ))
 }
 
 fn reduce_possessive_this_card(value: &Features) -> Option<Features> {
@@ -1097,6 +1126,14 @@ deckmaste_constructions_macro::constructions! {
         }
         derive features: Features = reduce_this_card(form);
         form only @ 0 inverse check(is_full_this_card) = identity(form);
+        selection unique;
+    }
+
+    construction noun_phrase_targets_beyond_first: NounPhrase {
+        bind NounPhrase via make_targets_beyond_first, targets_beyond_first_parts {}
+        derive features: Features = reduce_targets_beyond_first();
+        evidence role "distributive target beyond ordinal" from category;
+        form only @ 0 when check(is_targets_beyond_first) = "each" "target" "beyond" "the" "first";
         selection unique;
     }
 
