@@ -31,7 +31,8 @@ pub use crate::constructions::noun_phrase::build_rules_object_noun_phrase;
 use crate::syntax::NounPhrase;
 use crate::syntax::NounPhraseCoordination;
 
-/// Builds a complete noun-phrase coordination through the C01 declaration.
+/// Builds a complete noun-phrase coordination through its generated
+/// declaration.
 ///
 /// # Errors
 ///
@@ -41,8 +42,7 @@ pub fn build_noun_phrase_coordination(
     first: Box<NounPhrase>,
     rest: Vec<NounPhraseCoordination>,
 ) -> Result<NounPhrase, DeclarationViolation> {
-    let coordination = crate::syntax::CoordinatedNounPhrase::try_new(first, rest)?;
-    Ok(NounPhrase::from_coordination_declaration(coordination))
+    crate::constructions::coordination::build_noun_phrase_coordination_value(first, rest)
 }
 
 /// Renders a checked noun phrase using the supplied card identity context.

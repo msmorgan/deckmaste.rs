@@ -770,7 +770,7 @@ fn is_declared_predicated_preposition(preposition: Option<Preposition>) -> bool 
 }
 
 /// The ability-line parser can preserve `of` in a comma-split proper-name
-/// fragment such as `Trynn, Champion of Freedom`.  That is not an M01 chart
+/// fragment such as `Trynn, Champion of Freedom`. That is not a declared chart
 /// production, but it is an existing source-free AST that the generated
 /// predicated-quality inverse must remain total over.  Keep the chart/build
 /// door closed to the declared `from`/`for` grammar while admitting this one
@@ -2381,8 +2381,8 @@ mod tests {
     use crate::word::Adjective;
 
     #[test]
-    fn declaration_metadata_names_every_m01_builder_and_feature_projection() {
-        // Mutations caught: omit or rename an atomic M01 row, retain a row
+    fn declaration_metadata_names_every_nominal_builder_and_feature_projection() {
+        // Mutations caught: omit or rename an atomic nominal row, retain a row
         // without its checked builder, or fall back to the former shared
         // `nominal` ID dispatcher instead of a declaration-selected callback.
         assert_eq!(NOMINAL_DECLARATION.constructions.len(), 37);
@@ -2610,14 +2610,14 @@ mod tests {
     #[test]
     #[allow(
         clippy::too_many_lines,
-        reason = "the ordered table intentionally keeps all 37 atomic M01 projections visible in one drift gate"
+        reason = "the ordered table intentionally keeps all 37 atomic nominal projections visible in one drift gate"
     )]
-    fn every_m01_checked_builder_round_trips_through_generated_parts() {
+    fn every_nominal_checked_builder_round_trips_through_generated_parts() {
         // Mutations caught: omit a checked door, generated destructurer, or
         // per-form inverse; wire one declaration to the wrong adapter; reorder
         // fields; or let a different construction take credit for an emitted
         // surface. The final ordered assertion keeps this behavioral table in
-        // lockstep with the complete atomic M01 declaration list.
+        // lockstep with the complete atomic nominal declaration list.
         let mut exercised = Vec::new();
         let mut exercised_forms = Vec::new();
         let exact_catalogs = crate::Catalogs::default()
@@ -2644,7 +2644,7 @@ mod tests {
                     .constructions
                     .iter()
                     .find(|construction| construction.id == $id)
-                    .unwrap_or_else(|| panic!("missing M01 construction {}", $id))
+                    .unwrap_or_else(|| panic!("missing nominal construction {}", $id))
                     .category;
                 let orders = crate::grammar::exact::parse_production_as_declared_category_in_both_orders(
                     &source,
@@ -3308,14 +3308,14 @@ mod tests {
                         .map(move |form| (construction.id, form.ordinal))
                 })
                 .collect::<Vec<_>>(),
-            "every declared M01 form has one construction-specific exact law",
+            "every declared nominal form has one construction-specific exact law",
         );
     }
 
     #[test]
     fn generated_inverse_selects_lensed_and_adapted_nominal_projections() {
         // Mutations caught: let a broad vector lens overlap a typed modifier,
-        // omit adapted M01 rows from mixed inverse dispatch, or select a form
+        // omit adapted nominal rows from mixed inverse dispatch, or select a form
         // before checking its complete-value recognition predicate.
         let adjective = red_adjective();
         let adjective_nominal = build_nominal_adjective(adjective, card_nominal()).unwrap();
@@ -3772,7 +3772,7 @@ mod tests {
 
     #[test]
     fn conjoined_postpositive_pp_builder_requires_a_past_participle_and_by() {
-        // Mutations caught: omit either half of the retired handwritten gate,
+        // Mutations caught: omit either half of the declared gate,
         // admitting an ordinary adjective before `by` or a past participle
         // followed by an unrelated preposition.
         let base = || {

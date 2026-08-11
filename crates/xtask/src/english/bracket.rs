@@ -155,9 +155,9 @@ fn bracketed_abilities(card: &CardFace, report: &ParseReport) -> Result<Vec<Brac
                 .flat_map(|selection| selection.constituent_spans().iter().copied())
                 .filter(|constituent| contains(ability_span, *constituent))
                 .collect::<Vec<_>>();
-            // The ability layer is handwritten rather than chart-parsed, but
-            // this span is the source extent of the actual top-level Ability
-            // node paired with report.ast().abilities.
+            // The ability backend is not chart-parsed, but this span is the
+            // source extent of the top-level Ability node paired with
+            // report.ast().abilities.
             constituents.push(ability_span);
             let text = bracket_source(&card.oracle_text, ability_span, &constituents, delimiters)
                 .with_context(|| format!("could not bracket {:?}", card.printed_name()))?;

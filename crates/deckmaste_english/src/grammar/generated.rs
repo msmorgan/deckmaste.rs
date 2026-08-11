@@ -205,9 +205,6 @@ pub(super) fn coordination_delimiter_fields(
 pub(crate) enum GeneratedActivation {
     /// The production constructicon.
     Production,
-    /// Test-only handwritten control with no generated group active.
-    #[cfg(test)]
-    Inactive,
     /// Test assemblies only: register exactly these groups, in slice order.
     #[cfg(test)]
     Groups(&'static [&'static GroupData]),
@@ -220,40 +217,32 @@ pub(crate) enum GeneratedActivation {
 }
 
 impl GeneratedActivation {
-    #[allow(
-        clippy::unnecessary_wraps,
-        reason = "the test-only Inactive variant returns None; production builds see only the Some arm"
-    )]
-    pub(super) fn groups(self) -> Option<&'static [&'static GroupData]> {
+    pub(super) fn groups(self) -> &'static [&'static GroupData] {
         match self {
-            Self::Production => Some(crate::constructions::ALL_GROUPS),
-            #[cfg(test)]
-            Self::Inactive => None,
+            Self::Production => crate::constructions::ALL_GROUPS,
             #[cfg(test)]
             Self::Groups(groups)
             | Self::GroupsReversed(groups)
-            | Self::GroupsFixedShuffle(groups) => Some(groups),
+            | Self::GroupsFixedShuffle(groups) => groups,
         }
     }
 
-    pub(super) fn chart_groups(self) -> Option<Vec<&'static GroupData>> {
+    pub(super) fn chart_groups(self) -> Vec<&'static GroupData> {
         self.backend_groups(ConstructionBackendData::Chart)
     }
 
     pub(super) fn backend_groups(
         self,
         backend: ConstructionBackendData,
-    ) -> Option<Vec<&'static GroupData>> {
+    ) -> Vec<&'static GroupData> {
         if matches!(self, Self::Production) && backend == ConstructionBackendData::Ability {
-            return Some(crate::constructions::ABILITY_GROUPS.to_vec());
+            return crate::constructions::ABILITY_GROUPS.to_vec();
         }
-        self.groups().map(|groups| {
-            groups
-                .iter()
-                .copied()
-                .filter(|group| group.backend == backend)
-                .collect()
-        })
+        self.groups()
+            .iter()
+            .copied()
+            .filter(|group| group.backend == backend)
+            .collect()
     }
 
     pub(crate) const fn is_production(self) -> bool {
@@ -2191,7 +2180,7 @@ mod tests {
 
     #[test]
     fn predicate_temporal_attachment_cost_is_a_typed_conditional_output() {
-        // Mutation caught: omit the handwritten +1 precedence cost when the
+        // Mutation caught: omit the declaration's +1 precedence cost when the
         // direct-object surface slot is actually an active temporal adjunct.
         use crate::grammar::Features;
         use crate::grammar::NounPhraseCoordinationState;

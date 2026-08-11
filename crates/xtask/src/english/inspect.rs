@@ -9,7 +9,6 @@ use deckmaste_english::Catalogs;
 use deckmaste_english::ConstructionBackend;
 use deckmaste_english::ConstructionDecision;
 use deckmaste_english::ConstructionEvidenceKind;
-use deckmaste_english::ConstructionOwner;
 use deckmaste_english::ParseCost;
 use deckmaste_english::ParseCostDimension;
 use deckmaste_english::ParseReport;
@@ -392,11 +391,10 @@ fn construction_decision_text(decision: &ConstructionDecision) -> String {
         .evidence_value()
         .map_or_else(String::new, |value| format!(" value={value}"));
     format!(
-        "bytes {}..{} {} owner={} backend={} form={} evidence={}:{}{} reason={} cost={}",
+        "bytes {}..{} {} backend={} form={} evidence={}:{}{} reason={} cost={}",
         span.start,
         span.end,
         decision.selected(),
-        owner_name(decision.owner()),
         backend_name(decision.backend()),
         decision.selected_production_ordinal(),
         evidence_kind_name(evidence.kind()),
@@ -405,13 +403,6 @@ fn construction_decision_text(decision: &ConstructionDecision) -> String {
         reason_name(decision.reason()),
         cost_text(decision.cost()),
     )
-}
-
-const fn owner_name(owner: ConstructionOwner) -> &'static str {
-    match owner {
-        ConstructionOwner::Handwritten => "handwritten",
-        ConstructionOwner::Generated => "generated",
-    }
 }
 
 const fn backend_name(backend: ConstructionBackend) -> &'static str {
@@ -836,7 +827,7 @@ mod tests {
     }
 
     #[test]
-    fn production_comparison_inspect_reports_generated_owners() {
+    fn production_comparison_inspect_reports_chart_constructions() {
         let verbose = verbose_parse("Its power is greater than a card.");
         for construction in [
             "adjective",
@@ -846,19 +837,19 @@ mod tests {
             "adjective_phrase_comparison",
         ] {
             assert!(
-                verbose.contains(&format!(" {construction} owner=generated backend=chart ")),
-                "missing production-generated comparison owner {construction}:\n{verbose}"
+                verbose.contains(&format!(" {construction} backend=chart ")),
+                "missing comparison construction {construction}:\n{verbose}"
             );
         }
     }
 
     #[test]
-    fn production_cost_inspect_reports_nested_ability_backend_owner() {
+    fn production_cost_inspect_reports_nested_ability_backend() {
         let verbose =
             verbose_parse("{2}: Choose one —\n• Draw a card.\n• Create a Treasure token.");
         let cost = verbose
             .lines()
-            .find(|line| line.contains(" cost owner=generated backend=ability "))
+            .find(|line| line.contains(" cost backend=ability "))
             .unwrap_or_else(|| panic!("missing generated cost decision:\n{verbose}"));
         assert!(
             cost.contains("evidence=role:activation-cost root"),
@@ -871,7 +862,7 @@ mod tests {
         let verbose = verbose_parse("Choose one —\n• Draw a card.\n• Create a Treasure token.");
         let ability = verbose
             .lines()
-            .find(|line| line.contains(" ability owner=generated backend=ability "))
+            .find(|line| line.contains(" ability backend=ability "))
             .unwrap_or_else(|| panic!("missing generated ability decision:\n{verbose}"));
         assert!(
             ability.contains("evidence=guard:decisive ability frame guard"),
@@ -884,7 +875,7 @@ mod tests {
         let verbose = verbose_parse("Ward—Discard a card: Draw a card.");
         let ability = verbose
             .lines()
-            .find(|line| line.contains(" ability owner=generated backend=ability "))
+            .find(|line| line.contains(" ability backend=ability "))
             .unwrap_or_else(|| panic!("missing generated ability decision:\n{verbose}"));
         assert!(
             ability.contains("evidence=guard:decisive ability frame guard")
@@ -915,7 +906,7 @@ mod tests {
     }
 
     #[test]
-    fn production_noun_phrase_inspect_reports_generated_owners_and_decisive_constraints() {
+    fn production_noun_phrase_inspect_reports_constructions_and_decisive_constraints() {
         for (source, construction, evidence) in [
             (
                 "They draw a card.",
@@ -946,16 +937,16 @@ mod tests {
             let verbose = verbose_parse(source);
             assert!(
                 verbose.contains(&format!(
-                    " {construction} owner=generated backend=chart form=0 evidence={evidence}"
+                    " {construction} backend=chart form=0 evidence={evidence}"
                 )),
-                "missing generated noun-phrase owner/evidence {construction}:\n{verbose}"
+                "missing noun-phrase construction/evidence {construction}:\n{verbose}"
             );
         }
     }
 
     #[test]
-    fn production_inspect_reports_common_head_head_list_and_mixed_with_owners() {
-        for (source, owner) in [
+    fn production_inspect_reports_common_head_head_list_and_mixed_with_constructions() {
+        for (source, construction) in [
             (
                 "Tap an Elf, Orc, or enchantment creature you control.",
                 "nominal_coordinated_modifier",
@@ -971,8 +962,8 @@ mod tests {
         ] {
             let verbose = verbose_parse(source);
             assert!(
-                verbose.contains(&format!(" {owner} owner=generated backend=chart ")),
-                "missing generated coordination owner {owner} for {source:?}:\n{verbose}"
+                verbose.contains(&format!(" {construction} backend=chart ")),
+                "missing coordination construction {construction} for {source:?}:\n{verbose}"
             );
         }
 
@@ -980,12 +971,12 @@ mod tests {
             "Create a 1/1 red Alien creature token with haste and \"This token attacks each combat if able.\"",
         );
         assert!(
-            mixed.contains(" with_attribute_list_conjoined owner=generated backend=chart "),
-            "mixed `with` list did not expose its generated list owner:\n{mixed}"
+            mixed.contains(" with_attribute_list_conjoined backend=chart "),
+            "mixed `with` list did not expose its list construction:\n{mixed}"
         );
         assert!(
-            mixed.contains("with_attribute_member_quoted owner=generated backend=chart "),
-            "mixed `with` list did not expose its quoted member owner:\n{mixed}"
+            mixed.contains("with_attribute_member_quoted backend=chart "),
+            "mixed `with` list did not expose its quoted-member construction:\n{mixed}"
         );
     }
 
@@ -994,7 +985,7 @@ mod tests {
         not(all(derived_cards, gen_catalogs)),
         ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
     )]
-    fn supported_mixed_with_cards_expose_the_dedicated_generated_owner() {
+    fn supported_mixed_with_cards_expose_the_dedicated_construction() {
         let data = OracleDataArgs::default()
             .load()
             .expect("release corpus data must be available for mixed `with` fixtures");
@@ -1014,12 +1005,12 @@ mod tests {
             .expect("mixed `with` fixture must inspect");
             let rendered = String::from_utf8(rendered).unwrap();
             assert!(
-                rendered.contains(" nominal_with_attributes owner=generated backend=chart "),
-                "{name} did not select the dedicated nominal `with` owner:\n{rendered}"
+                rendered.contains(" nominal_with_attributes backend=chart "),
+                "{name} did not select the dedicated nominal `with` construction:\n{rendered}"
             );
             assert!(
-                rendered.contains(" with_attribute_member_quoted owner=generated backend=chart "),
-                "{name} did not expose the quoted member owner:\n{rendered}"
+                rendered.contains(" with_attribute_member_quoted backend=chart "),
+                "{name} did not expose the quoted-member construction:\n{rendered}"
             );
         }
     }
@@ -1033,7 +1024,7 @@ mod tests {
         let data = OracleDataArgs::default()
             .load()
             .expect("release corpus data must be available for coordination fixtures");
-        for (name, grouping, owner, ability_line) in [
+        for (name, grouping, construction, ability_line) in [
             (
                 "Abzan Monument",
                 "a basic Plains, Swamp, or Forest card",
@@ -1107,7 +1098,7 @@ mod tests {
                 .unwrap_or_else(|error| panic!("{name} failed to render: {error}"));
             assert_eq!(rebuilt, source_text, "{name} did not round-trip exactly");
 
-            if let Some(owner) = owner {
+            if let Some(construction) = construction {
                 let selected = report
                     .provenance()
                     .selections()
@@ -1120,17 +1111,16 @@ mod tests {
                         selection
                             .constructions()
                             .iter()
-                            .find(|decision| decision.selected().as_str() == owner)
+                            .find(|decision| decision.selected().as_str() == construction)
                             .map(|decision| (span, decision))
                     });
                 let Some((span, decision)) = selected else {
                     panic!(
-                        "{name} did not select {owner} over grouping {grouping:?}: {:#?}",
+                        "{name} did not select {construction} over grouping {grouping:?}: {:#?}",
                         report.provenance()
                     )
                 };
                 assert!(span.contains(grouping), "{name}: selected span {span:?}");
-                assert_eq!(decision.owner(), ConstructionOwner::Generated, "{name}");
                 assert_eq!(decision.backend(), ConstructionBackend::Chart, "{name}");
             }
         }
@@ -1141,11 +1131,11 @@ mod tests {
         not(all(derived_cards, gen_catalogs)),
         ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
     )]
-    fn supported_clause_coordination_cards_round_trip_through_generated_owners() {
+    fn supported_clause_coordination_cards_round_trip_through_chart_constructions() {
         let data = OracleDataArgs::default()
             .load()
             .expect("release corpus data must be available for clause-coordination fixtures");
-        for (name, ability_line, oracle_source, matrix_source, expected_owners) in [
+        for (name, ability_line, oracle_source, matrix_source, expected_constructions) in [
             (
                 "Tek",
                 0,
@@ -1251,28 +1241,27 @@ mod tests {
                 .collect::<Vec<_>>();
             assert!(
                 !decisions.is_empty(),
-                "{name} exposed no clause coordination owner"
+                "{name} exposed no clause coordination construction"
             );
             assert!(
-                decisions.iter().all(|decision| {
-                    decision.owner() == ConstructionOwner::Generated
-                        && decision.backend() == ConstructionBackend::Chart
-                }),
-                "{name} retained a non-generated clause coordination owner: {decisions:#?}"
+                decisions
+                    .iter()
+                    .all(|decision| decision.backend() == ConstructionBackend::Chart),
+                "{name} retained a non-chart clause coordination construction: {decisions:#?}"
             );
             let mut inspected = Vec::new();
             write_provenance(&mut inspected, &report)
                 .unwrap_or_else(|error| panic!("{name} failed verbose inspection: {error}"));
             let inspected = String::from_utf8(inspected).expect("inspect output is UTF-8");
-            for expected in expected_owners {
+            for expected in expected_constructions {
                 assert!(
                     decisions
                         .iter()
                         .any(|decision| decision.selected().as_str() == *expected),
-                    "{name} did not expose generated owner {expected}: {decisions:#?}"
+                    "{name} did not expose construction {expected}: {decisions:#?}"
                 );
                 assert!(
-                    inspected.contains(&format!(" {expected} owner=generated backend=chart ")),
+                    inspected.contains(&format!(" {expected} backend=chart ")),
                     "{name} omitted {expected} from verbose inspection:\n{inspected}"
                 );
             }
@@ -1331,13 +1320,13 @@ mod tests {
             .load()
             .expect("release corpus data must be available for the fronted-condition fixture");
         let report = parse_with_identity(source, &data.catalogs, "Dragon's Rage Channeler", false);
-        let selected_clause_owners = report
+        let selected_clause_constructions = report
             .provenance()
             .selections()
             .iter()
             .flat_map(deckmaste_english::ParseSelection::constructions)
             .map(|decision| decision.selected().as_str())
-            .filter(|owner| owner.starts_with("clause_"))
+            .filter(|construction| construction.starts_with("clause_"))
             .collect::<Vec<_>>();
         let [ability] = report.ast().abilities.as_slice() else {
             panic!("fronted condition must produce one ability")
@@ -1357,7 +1346,7 @@ mod tests {
         assert_eq!(
             outer.attachment().position(),
             deckmaste_english::syntax::AttachmentPosition::BeforeMatrix,
-            "the fronted condition must outscope the coordinated matrix; selected={selected_clause_owners:#?}: {:#?}",
+            "the fronted condition must outscope the coordinated matrix; selected={selected_clause_constructions:#?}: {:#?}",
             sentence.body()
         );
         let IndependentClause::Finite(finite) = outer.host() else {
@@ -1572,12 +1561,12 @@ mod tests {
         let selected = verbose_parse("Look at the top card of your library.");
         assert!(
             selected.contains(
-                " prepositional_object owner=generated backend=chart form=0 evidence=feature:prepositional object category value=object_category=NounPhrase"
+                " prepositional_object backend=chart form=0 evidence=feature:prepositional object category value=object_category=NounPhrase"
             ),
             "{selected}",
         );
         assert!(
-            selected.contains(" verb_phrase_prepositional owner=generated backend=chart "),
+            selected.contains(" verb_phrase_prepositional backend=chart "),
             "selected-complement consumer missing:\n{selected}",
         );
         assert!(
@@ -1602,7 +1591,7 @@ mod tests {
             let rendered = verbose_parse(source);
             assert!(
                 rendered.contains(&format!(
-                    " prepositional_object owner=generated backend=chart form={form} evidence=feature:prepositional object category value=object_category={category}"
+                    " prepositional_object backend=chart form={form} evidence=feature:prepositional object category value=object_category={category}"
                 )),
                 "missing typed {category} object evidence:\n{rendered}",
             );
@@ -1610,7 +1599,7 @@ mod tests {
 
         let adjunct = verbose_parse("Attack during your turn.");
         assert!(
-            adjunct.contains(" verb_phrase_prepositional owner=generated backend=chart "),
+            adjunct.contains(" verb_phrase_prepositional backend=chart "),
             "adjunct consumer missing:\n{adjunct}",
         );
         assert!(
@@ -1629,7 +1618,7 @@ mod tests {
         let nominal = verbose_parse("Destroy target creature with flying.");
         assert!(
             nominal.contains(
-                " nominal_prepositional owner=generated backend=chart form=0 evidence=feature:nominal attachment phase"
+                " nominal_prepositional backend=chart form=0 evidence=feature:nominal attachment phase"
             ),
             "nominal-attachment consumer missing:\n{nominal}",
         );
@@ -1639,18 +1628,18 @@ mod tests {
         );
         for rendered in [&selected, &adjunct, &nominal] {
             assert!(
-                rendered.contains(" prepositional_phrase owner=generated backend=chart "),
-                "prepositional phrase owner missing:\n{rendered}",
+                rendered.contains(" prepositional_phrase backend=chart "),
+                "prepositional phrase construction missing:\n{rendered}",
             );
         }
     }
 
     #[test]
-    fn production_determiner_inspect_reports_generated_owners_and_constraint_evidence() {
+    fn production_determiner_inspect_reports_constructions_and_constraint_evidence() {
         let target = verbose_parse("Target creature gets +1/+1 until end of turn.");
         assert!(
             target.contains(
-                " determiner_target owner=generated backend=chart form=0 evidence=feature:singular target cardinality"
+                " determiner_target backend=chart form=0 evidence=feature:singular target cardinality"
             ),
             "{target}",
         );
@@ -1667,9 +1656,9 @@ mod tests {
         ] {
             assert!(
                 possessive.contains(&format!(
-                    " {construction} owner=generated backend=chart form=0 evidence=feature:{evidence}"
+                    " {construction} backend=chart form=0 evidence=feature:{evidence}"
                 )) || possessive.contains(&format!(
-                    " {construction} owner=generated backend=chart form=0 evidence=role:{evidence}"
+                    " {construction} backend=chart form=0 evidence=role:{evidence}"
                 )),
                 "missing generated determiner evidence for {construction}:\n{possessive}",
             );
@@ -1681,7 +1670,7 @@ mod tests {
         let infinitive = verbose_parse("You may choose not to untap this creature.");
         assert!(
             infinitive.contains(
-                " infinitive_not_to owner=generated backend=chart form=0 evidence=feature:complete infinitive predicate form and valency"
+                " infinitive_not_to backend=chart form=0 evidence=feature:complete infinitive predicate form and valency"
             ),
             "{infinitive}",
         );
@@ -1701,7 +1690,7 @@ mod tests {
         ] {
             assert!(
                 gerund.contains(&format!(
-                    " {construction} owner=generated backend=chart form=0 evidence=feature:{evidence}"
+                    " {construction} backend=chart form=0 evidence=feature:{evidence}"
                 )),
                 "missing generated nonfinite evidence for {construction}:\n{gerund}",
             );
@@ -1795,7 +1784,7 @@ mod tests {
         ] {
             let verbose = verbose_parse(source);
             let evidence = format!(
-                " {construction} owner=generated backend=chart form=0 evidence=feature:decisive relative form signature value=gap={gap};marker={marker};agreement="
+                " {construction} backend=chart form=0 evidence=feature:decisive relative form signature value=gap={gap};marker={marker};agreement="
             );
             let evidence_line = verbose
                 .lines()
@@ -1811,10 +1800,6 @@ mod tests {
                     && evidence_line.contains("bare_copular_tail="),
                 "missing decisive typed relative evidence for {source:?}:\n{verbose}",
             );
-            assert!(
-                !verbose.contains(&format!(" {construction} owner=handwritten ")),
-                "relative family retained a handwritten owner for {source:?}:\n{verbose}",
-            );
         }
     }
 
@@ -1822,23 +1807,22 @@ mod tests {
     fn production_attachment_inspect_reports_generated_scope() {
         let fronted = verbose_parse("Otherwise, draw a card.");
         assert!(
-            fronted
-                .contains(" clause_sentence_adverbial_before owner=generated backend=chart form=0"),
+            fronted.contains(" clause_sentence_adverbial_before backend=chart form=0"),
             "{fronted}",
         );
 
         let subordinate =
             verbose_parse("If you control a Plains, creatures you control get +1/+1.");
         assert!(
-            subordinate.contains(" clause_subordinate_before owner=generated backend=chart form=0 evidence=feature:finite subordinate selection and host eligibility"),
+            subordinate.contains(" clause_subordinate_before backend=chart form=0 evidence=feature:finite subordinate selection and host eligibility"),
             "{subordinate}",
         );
 
         let restriction = verbose_parse("Activate only as a sorcery and only once each turn.");
         for construction in ["clause_restriction_member", "clause_restriction_run"] {
             assert!(
-                restriction.contains(&format!(" {construction} owner=generated backend=chart ")),
-                "missing generated attachment owner {construction}:\n{restriction}",
+                restriction.contains(&format!(" {construction} backend=chart ")),
+                "missing attachment construction {construction}:\n{restriction}",
             );
         }
     }
@@ -1878,11 +1862,14 @@ mod tests {
         assert!(!normal.contains("ForestStats"));
         assert!(verbose.contains("Provenance:"));
         assert!(verbose.contains("bytes 0.."));
-        // Inspect is the public provenance surface and must attribute both
-        // the root and its noun phrase to their generated families.
-        assert!(verbose.contains("sentence owner=generated backend=chart"));
-        assert!(verbose.contains("noun owner=generated backend=chart"));
-        assert!(!verbose.contains("owner=handwritten"));
+        // Inspect is the public provenance surface and must identify both the
+        // root and its noun phrase through their chart constructions.
+        assert!(verbose.contains("sentence backend=chart"));
+        assert!(verbose.contains("noun backend=chart"));
+        assert!(
+            !verbose.contains(" owner="),
+            "generated-only provenance has no migration ownership field: {verbose}"
+        );
         assert!(verbose.contains("cost={opaque_words:"));
         assert!(!verbose.contains("Span {"));
         assert!(!verbose.contains("ChartStats"));
@@ -1890,7 +1877,7 @@ mod tests {
     }
 
     #[test]
-    fn verbose_output_distinguishes_known_and_opaque_generated_noun_owners() {
+    fn verbose_output_distinguishes_known_and_opaque_noun_constructions() {
         // Mutations caught: attribute noun_opaque to the known family, admit
         // it in the zero-cost exact result, or omit opaque generated
         // provenance from inspect.
@@ -1920,20 +1907,24 @@ mod tests {
         let known = render("Draw a card.");
         assert!(
             known.contains(
-                "noun owner=generated backend=chart form=0 evidence=structural:generated production reason=unique cost={opaque_words:0,opaque_lexemes:0"
+                "noun backend=chart form=0 evidence=structural:generated production reason=unique cost={opaque_words:0,opaque_lexemes:0"
             ),
             "{known}"
         );
-        assert!(!known.contains("noun_opaque owner="));
+        assert!(!known.contains("noun_opaque backend="));
 
         let opaque = render("Draw a BlOrPlE.");
         assert!(
             opaque.contains(
-                "noun_opaque owner=generated backend=chart form=0 evidence=structural:generated production reason=unique cost={opaque_words:1,opaque_lexemes:1"
+                "noun_opaque backend=chart form=0 evidence=structural:generated production reason=unique cost={opaque_words:1,opaque_lexemes:1"
             ),
             "{opaque}"
         );
-        assert!(!opaque.contains(" noun owner=generated"));
+        assert!(
+            !opaque
+                .lines()
+                .any(|line| line.contains(" noun backend=chart "))
+        );
     }
 
     #[test]
@@ -1964,7 +1955,7 @@ mod tests {
         let verbose = String::from_utf8(verbose).unwrap();
 
         assert!(
-            verbose.contains("sentence owner=generated backend=chart form=1"),
+            verbose.contains("sentence backend=chart form=1"),
             "{verbose}"
         );
         assert!(verbose.contains("QuotedAbility"));
@@ -2033,7 +2024,7 @@ mod tests {
         let selected = lines
             .iter()
             .position(|line| {
-                line.contains(&format!(" {winner} owner=generated backend=chart "))
+                line.contains(&format!(" {winner} backend=chart "))
                     && line.contains(" reason=dominance ")
             })
             .unwrap_or_else(|| {
@@ -2051,7 +2042,7 @@ mod tests {
     #[test]
     fn verbose_output_explains_every_dominance_edge() {
         // Each fixture names the competing construction pair. Removing an
-        // edge, restoring a handwritten owner, or omitting the defeated
+        // edge, selecting a different construction, or omitting the defeated
         // alternative makes the corresponding row fail causally.
         for (source, winner, loser) in [
             (
@@ -2114,20 +2105,20 @@ mod tests {
         );
         assert!(
             reduced.contains(
-                "nominal_reduced_recipient_passive owner=generated backend=chart form=0 evidence=guard:reduced-recipient-passive frame"
+                "nominal_reduced_recipient_passive backend=chart form=0 evidence=guard:reduced-recipient-passive frame"
             ),
             "{reduced}"
         );
     }
 
     #[test]
-    fn verbose_output_reports_production_generated_predicate_ownership() {
-        // Mutations caught: format generated ownership only for isolated
-        // English fixtures, or leave xtask's production parse on RuleTag.
+    fn verbose_output_reports_the_production_predicate_construction() {
+        // Mutations caught: format construction provenance only for isolated
+        // English fixtures, or bypass the production registry in xtask.
         let rendered = verbose_parse("You may have this creature enter.");
         assert!(
             rendered.contains(
-                "verb_phrase_causative owner=generated backend=chart form=0 evidence=role:causative host-causee-complement order"
+                "verb_phrase_causative backend=chart form=0 evidence=role:causative host-causee-complement order"
             ),
             "{rendered}"
         );
@@ -2138,7 +2129,7 @@ mod tests {
         let keyword = verbose_parse("This creature has protection from red and from blue.");
         assert!(
             keyword.contains(
-                "predicated_argument_from_extend owner=generated backend=chart form=0 evidence=guard:keyword-grant conjunction gate value=conjunction=And;allowed=[And];matched=true"
+                "predicated_argument_from_extend backend=chart form=0 evidence=guard:keyword-grant conjunction gate value=conjunction=And;allowed=[And];matched=true"
             ),
             "{keyword}",
         );

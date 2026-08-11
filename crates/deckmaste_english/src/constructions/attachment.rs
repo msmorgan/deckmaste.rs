@@ -81,6 +81,27 @@ fn with_attachment(
     )))
 }
 
+/// Enters the generated attachment inverse from an already sealed
+/// member-local predicate. The transient clause carrier stays inside the
+/// attachment construction module rather than leaking into renderer code.
+pub(crate) fn linearize_attached_predicate_with<V>(
+    subject: Option<&crate::syntax::Subject>,
+    predicate: &AttachedPredicate,
+    visitor: &mut V,
+) -> Result<(), deckmaste_construction_compiler::runtime::LinearizationError<V::Error>>
+where
+    V: deckmaste_construction_compiler::runtime::LinearizationVisitor,
+{
+    let host = IndependentClause::Finite(FiniteClause::from_declaration_parts(
+        subject.cloned(),
+        PredicateExpression::Simple(predicate.predicate().clone()),
+    ));
+    let clause = Clause::Independent(IndependentClause::Complex(
+        ComplexClause::from_declaration_parts(host, predicate.attachment().clone()),
+    ));
+    linearize_attachment_clause_with(&clause, visitor)
+}
+
 fn attach_final_elliptical_condition(
     host: IndependentClause,
     attachment: ClauseAttachment,
@@ -1171,6 +1192,14 @@ fn reduce_restriction_run_features(
         return None;
     }
     clause_features(host)
+}
+
+/// Builds one declaration-owned restriction sequence member.
+pub(crate) fn restriction_coordination(
+    conjunction: Option<Conjunction>,
+    member: RestrictionMember,
+) -> RestrictionCoordination {
+    RestrictionCoordination::from_declaration_parts(conjunction, member)
 }
 
 deckmaste_constructions_macro::constructions! {

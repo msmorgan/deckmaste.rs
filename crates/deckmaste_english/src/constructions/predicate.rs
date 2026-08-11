@@ -3732,10 +3732,12 @@ mod tests {
             GeneratedActivation::Groups(GROUPS),
         )
         .expect("the generated base declaration reparses its own inverse");
-        assert!(parsed.construction_decisions().iter().any(|decision| {
-            decision.selected().as_str() == "verb_phrase_base"
-                && decision.owner() == crate::construction::ConstructionOwner::Generated
-        }));
+        assert!(
+            parsed
+                .construction_decisions()
+                .iter()
+                .any(|decision| { decision.selected().as_str() == "verb_phrase_base" })
+        );
     }
 
     #[test]
@@ -6043,10 +6045,12 @@ mod tests {
             activation,
         )
         .expect("the generated verb/base path projects into object-gap parsing");
-        assert!(object_gap.construction_decisions().iter().any(|decision| {
-            decision.selected().as_str() == "verb_phrase_base"
-                && decision.owner() == crate::construction::ConstructionOwner::Generated
-        }));
+        assert!(
+            object_gap
+                .construction_decisions()
+                .iter()
+                .any(|decision| { decision.selected().as_str() == "verb_phrase_base" })
+        );
 
         crate::grammar::parse_nonterminal_with_activation(
             "dealt",
@@ -6062,10 +6066,12 @@ mod tests {
             activation,
         )
         .expect("the generated base/direct-object path retains the licensed damage theme");
-        assert!(reduced.construction_decisions().iter().any(|decision| {
-            decision.selected().as_str() == "verb_phrase_direct_object"
-                && decision.owner() == crate::construction::ConstructionOwner::Generated
-        }));
+        assert!(
+            reduced
+                .construction_decisions()
+                .iter()
+                .any(|decision| { decision.selected().as_str() == "verb_phrase_direct_object" })
+        );
         let reduced_value = reduced
             .verb_phrase()
             .expect("the reduced-passive prefix lowers a VerbPhrase");
@@ -6098,10 +6104,7 @@ mod tests {
             generated_frequency
                 .construction_decisions()
                 .iter()
-                .any(|decision| {
-                    decision.selected().as_str() == "frequency_phrase"
-                        && decision.owner() == crate::construction::ConstructionOwner::Generated
-                })
+                .any(|decision| { decision.selected().as_str() == "frequency_phrase" })
         );
 
         for (source, construction) in [
@@ -6119,10 +6122,10 @@ mod tests {
                 panic!("generated object-gap attachment failed for {source:?}: {error:?}")
             });
             assert!(
-                parsed.construction_decisions().iter().any(|decision| {
-                    decision.selected().as_str() == construction
-                        && decision.owner() == crate::construction::ConstructionOwner::Generated
-                }),
+                parsed
+                    .construction_decisions()
+                    .iter()
+                    .any(|decision| { decision.selected().as_str() == construction }),
                 "{source:?} selected decisions: {:#?}",
                 parsed.construction_decisions()
             );
@@ -6145,10 +6148,10 @@ mod tests {
                 panic!("generated reduced-passive attachment failed for {source:?}: {error:?}")
             });
             assert!(
-                parsed.construction_decisions().iter().any(|decision| {
-                    decision.selected().as_str() == construction
-                        && decision.owner() == crate::construction::ConstructionOwner::Generated
-                }),
+                parsed
+                    .construction_decisions()
+                    .iter()
+                    .any(|decision| { decision.selected().as_str() == construction }),
                 "{source:?} selected decisions: {:#?}",
                 parsed.construction_decisions()
             );
@@ -6531,7 +6534,7 @@ mod tests {
     #[test]
     fn generated_sentence_root_reaches_the_causative_owner() {
         // Mutation caught: keep causative parsing available only through the
-        // former handwritten RuleTag path, so the production Sentence
+        // retired direct-registration path, so the production Sentence
         // consumer cannot reach the declaration-owned construction.
         let parsed = crate::grammar::parse_nonterminal_with_activation(
             "You may have this creature enter.",
@@ -6540,10 +6543,12 @@ mod tests {
             GeneratedActivation::Groups(all_groups_with_predicate()),
         )
         .expect("the production generated family parses a causative sentence");
-        assert!(parsed.construction_decisions().iter().any(|decision| {
-            decision.selected().as_str() == "verb_phrase_causative"
-                && decision.owner() == crate::construction::ConstructionOwner::Generated
-        }));
+        assert!(
+            parsed
+                .construction_decisions()
+                .iter()
+                .any(|decision| { decision.selected().as_str() == "verb_phrase_causative" })
+        );
         let crate::syntax::SentenceBody::Independent(clause) = &parsed
             .sentence()
             .expect("the vertical root lowers a semantic sentence")

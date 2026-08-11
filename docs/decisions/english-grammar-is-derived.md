@@ -24,15 +24,13 @@ The stack stays layered:
 | constituency service | chart and packed forest | constituents, feature flow, gaps, ambiguity |
 | realization | linearization records | morphology, surface parameters, byte production |
 
-Migration is a ratchet: a family is either derived or explicitly handwritten
-in a registry, and each family deletes its handwritten parse, reduction,
-lowering, and renderer paths in the change that derives it. The registry is a
-ratchet state, never an end state; difficulty in a milestone identifies a
-compiler or backend requirement and never narrows the target back to a
-permanent partial grammar. If a pilot family falsifies a construction law,
-the failed law or backend limitation is recorded, the prototype is removed,
-and this decision is re-reviewed — a second partial grammar is not preserved
-to justify the direction.
+Every supported family is now derived. The production registry is assembled
+only from generated declaration groups; there is no owner discriminator,
+inactive legacy control, or parallel registration path. A new family
+therefore enters through a construction declaration and its generated backend
+from the outset. If a proposed family falsifies a construction law, the failed
+law or backend limitation is recorded and the declaration design is reworked;
+a second grammar is not introduced as a fallback.
 
 This contract was selected from three competing formalization candidates
 (constructicon derivation, formalism layering, GF-first linearization
@@ -71,13 +69,14 @@ constructions; and any reusable monotonic packaging traits.
 
 Holes are not assumed to be whole constituents: the declaration language
 covers category-typed subtree holes, field-slice/lens holes for flattened
-records, scalar holes, and identity holes. Each class lands when a migrating
-family first needs it.
+records, scalar holes, and identity holes. Each class lands when a family first
+needs it.
 
 The compiler emits parser productions with their reductions and lowering; a
 total destructurer and linearizer; public smart constructors and validation
 adapters; construction metadata for `inspect`; and structural registration
-data used to prove that no handwritten mirror remains.
+data used to prove that the production registry is exactly the generated
+declaration set.
 
 For every exact construction and admitted `(ast, surface)` combination:
 
@@ -95,12 +94,12 @@ Impossible combinations fail declaration validation or exhaustive matching;
 there is no string fallback, default match arm, or renderer guess based on
 one lexeme.
 
-For an invariant-bearing migrated AST family, generated validation is the
+For an invariant-bearing generated AST domain, generated validation is the
 only admitted ingress, not merely the preferred Rust API. Direct field
 construction is sealed outside generated code, and deserialization passes
 through the same validator. A family whose public or serialized
-representation still bypasses validation is explicitly unmigrated rather
-than a weakening of the build guarantee.
+representation still bypasses validation is outside the supported declaration
+domain rather than a weakening of the build guarantee.
 
 ## Exactness domain
 
@@ -145,8 +144,8 @@ where its representation is sufficient. A construction requiring
 tuple-valued or discontinuous yields requires an explicit PMCFG extension
 (tuple spans, specialized categories) or an explicitly measured CFG
 approximation plus filtering — built when a family first meets the
-criterion. The families owned by the handwritten ability layer must gain a
-generated backend before the program is complete. "PMCFG-style" names the
+criterion. The generated Ability backend covers the non-chart root families.
+"PMCFG-style" names the
 logical linearization formalism, not a claim that the single-span chart
 already implements PMCFG.
 
@@ -166,7 +165,7 @@ introduced.
 
 The constructicon describes English syntax; semantic meanings and `frames:`
 on defs remain spelling-owned. Typed AST substitution replaces render-time
-textual splice-and-reparse for each migrated hole class; a substituted
+textual splice-and-reparse for each declared hole class; a substituted
 subtree carries its inherent features so agreement computes compositionally.
 Occurrence selection, discourse linking, role keys, and multi-sentence frame
 scope remain spelling-engine concerns; no binder or discourse resolution
@@ -198,23 +197,20 @@ match this grammar.
 
 ## Consequences
 
-- A migrated family's declaration is its only linguistic authority; a
-  structural audit proves no handwritten parser, reduction, lowering,
-  renderer, or duplicate registration remains for it.
-- Unmigrated families remain governed by
-  [English productions ship their inverse](english-productions-ship-their-inverse.md)
-  until derived.
-- `cargo xtask english roundtrip --require-clean` stays green on every
-  migration; permuting generated family registration leaves semantic
+- A family's declaration is its only linguistic authority; a structural audit
+  proves no parallel parser, reduction, lowering, renderer, constructor, or
+  duplicate registration remains for it.
+- `cargo xtask english roundtrip --require-clean` stays green as the grammar
+  evolves; permuting generated family registration leaves semantic
   selections unchanged unless declared precedence says otherwise; and
   compile-fail and negative deserialization fixtures prove sealed families
   cannot be bypassed.
-- Active consumers (`deckmaste_spelling`, `xtask`) migrate in lockstep with
-  affected families: AST visibility and constructor changes are migration
+- Active consumers (`deckmaste_spelling`, `xtask`) evolve in lockstep with
+  affected families: AST visibility and constructor changes are construction
   work, not free cleanup.
-- The program is complete when every supported English family is derived,
-  raw construction of migrated invariant-bearing families is sealed, and no
-  paired handwritten grammar/renderer authority remains.
+- Every supported English family is derived, raw construction of
+  invariant-bearing families is sealed, and no paired grammar/renderer
+  authority remains.
 
 ## Reference literature
 

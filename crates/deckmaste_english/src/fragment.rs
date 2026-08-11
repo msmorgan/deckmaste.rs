@@ -186,8 +186,8 @@ impl FragmentReport {
         &self.diagnostics
     }
 
-    /// Generated and handwritten construction selections made inside the
-    /// fragment, including chart subtrees nested by the ability layer.
+    /// Generated construction selections made inside the fragment, including
+    /// chart subtrees nested by the ability layer.
     #[must_use]
     pub fn construction_decisions(&self) -> &[crate::ConstructionDecision] {
         &self.construction_decisions
@@ -492,7 +492,6 @@ fn ability_diagnostic(diagnostic: &AbilityDiagnostic) -> Diagnostic {
 mod tests {
     use super::*;
     use crate::catalog::CatalogKind;
-    use crate::construction::ConstructionOwner;
 
     /// Bare `parse`-mode catalogs: the corpus supplies these externally, so a
     /// fragment test that uses corpus vocabulary must supply them too.
@@ -544,10 +543,7 @@ mod tests {
         report
             .construction_decisions()
             .iter()
-            .find(|decision| {
-                decision.selected().as_str() == construction
-                    && decision.owner() == ConstructionOwner::Generated
-            })
+            .find(|decision| decision.selected().as_str() == construction)
             .unwrap_or_else(|| {
                 panic!(
                     "missing generated {construction} decision: {:#?}",
@@ -564,16 +560,16 @@ mod tests {
         assert_eq!(decision.evidence().label(), "activation-cost root");
         assert_eq!(decision.span(), Span::new(0, "Exhaust — {2}{R}".len()));
 
-        let inactive = parse_fragment_with_activation(
+        let empty_assembly = parse_fragment_with_activation(
             "{T}",
             &catalogs(),
             FragmentKind::Cost,
             "",
             false,
-            GeneratedActivation::Inactive,
+            GeneratedActivation::Groups(&[]),
         );
         assert!(
-            inactive
+            empty_assembly
                 .construction_decisions()
                 .iter()
                 .all(|decision| decision.selected().as_str() != "cost")
@@ -633,16 +629,16 @@ mod tests {
             assert_eq!(decision.evidence().label(), "keyword-ability list root");
         }
 
-        let inactive = parse_fragment_with_activation(
+        let empty_assembly = parse_fragment_with_activation(
             "Flying",
             &catalogs(),
             FragmentKind::KeywordLine,
             "",
             false,
-            GeneratedActivation::Inactive,
+            GeneratedActivation::Groups(&[]),
         );
         assert!(
-            inactive
+            empty_assembly
                 .construction_decisions()
                 .iter()
                 .all(|decision| decision.selected().as_str() != "keyword_line")
@@ -785,7 +781,7 @@ mod tests {
     fn predicate_activation_reaches_every_vertical_fragment_root() {
         // Mutations caught: hardcode production activation in the ability
         // layer; discard nested construction provenance at a fragment seam;
-        // or let a recovered/handwritten predicate masquerade as a semantic
+        // or let a recovered predicate masquerade as a semantic
         // Sentence, Cost, KeywordLine, or Ability result.
         let sentence =
             production_fragment("You may have this creature enter.", FragmentKind::Sentence);
@@ -893,10 +889,10 @@ mod tests {
     }
 
     #[test]
-    fn production_predicate_ownership_reaches_every_vertical_fragment_and_recovery_consumer() {
-        // Mutations caught: activate V01 only at the Sentence chart root;
-        // discard nested provenance at a Cost/KeywordLine/Ability seam; or
-        // retain a handwritten/recovery-only semantic predicate path.
+    fn predicate_constructions_reach_every_vertical_fragment_and_recovery_consumer() {
+        // Mutations caught: activate the predicate family only at the Sentence chart
+        // root; discard nested provenance at a Cost/KeywordLine/Ability seam;
+        // or retain a recovery-only semantic predicate path.
         for (source, kind, construction) in [
             (
                 "You may have this creature enter.",
@@ -943,7 +939,7 @@ mod tests {
     }
 
     #[test]
-    fn production_j01_ownership_reaches_sentence_and_nominal_fragments() {
+    fn adjective_constructions_reach_sentence_and_nominal_fragments() {
         for (source, kind, required) in [
             (
                 "black creature",

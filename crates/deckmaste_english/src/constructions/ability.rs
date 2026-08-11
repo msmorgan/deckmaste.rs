@@ -41,6 +41,8 @@ use crate::syntax::QuotedAbility;
 use crate::syntax::RecoveredText;
 use crate::syntax::RollRange;
 use crate::syntax::RollRowAbility;
+use crate::syntax::Sentence;
+use crate::syntax::SentenceBody;
 use crate::syntax::StationThresholdAbility;
 use crate::syntax::TriggeredAbility;
 
@@ -116,6 +118,56 @@ fn ability_from_parts(
 
 fn ability_parts(value: &Ability) -> (Option<AbilityHeader>, AbilityKind) {
     (value.header().cloned(), value.kind().clone())
+}
+
+/// Builds a sentence payload inside the generated Ability backend. Ordinary
+/// independent clauses delegate to the sentence declaration; the remaining
+/// body variants are ability-internal frame carriers and have no standalone
+/// chart surface outside an ability.
+pub(crate) fn sentence_from_ability_body(body: SentenceBody) -> Sentence {
+    if let SentenceBody::Independent(clause) = body {
+        return crate::constructions::sentence::build_sentence(crate::syntax::Clause::Independent(
+            clause,
+        ))
+        .expect("an independent clause satisfies the Sentence construction");
+    }
+    Sentence { body }
+}
+
+/// Builds the ability-specific dash appositive after both sides have parsed as
+/// clauses. This carrier is internal to ability parsing: the sentence family
+/// owns the outer independent sentence, while the Ability backend validates
+/// the coordinated-choice body and owns the spaced-dash composition.
+pub(crate) fn build_dash_appositive_sentence(
+    matrix: crate::syntax::IndependentClause,
+    body: crate::syntax::IndependentClause,
+) -> Result<Sentence, Violation> {
+    let crate::syntax::IndependentClause::Coordinated(coordination) = &body else {
+        return Err(violation(
+            "ability",
+            "a dash appositive body is a coordinated independent clause",
+        ));
+    };
+    if !coordination
+        .rest()
+        .iter()
+        .any(|member| member.conjunction() == Some(crate::features::Conjunction::Or))
+    {
+        return Err(violation(
+            "ability",
+            "a dash appositive body contains an or-coordinated choice",
+        ));
+    }
+    let attachment = crate::syntax::ClauseAttachment::from_declaration_parts(
+        crate::syntax::AttachmentPosition::AfterMatrix,
+        crate::features::Comma::Absent,
+        crate::syntax::ClauseAttachmentKind::Appositive(Box::new(body)),
+    );
+    Ok(sentence_from_ability_body(SentenceBody::Independent(
+        crate::syntax::IndependentClause::Complex(
+            crate::syntax::ComplexClause::from_declaration_parts(matrix, attachment),
+        ),
+    )))
 }
 
 fn paragraph_is_nonempty(value: &Paragraph) -> bool {

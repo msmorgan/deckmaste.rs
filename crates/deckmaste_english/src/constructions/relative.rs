@@ -1,4 +1,4 @@
-//! Compiler-derived declarations for the R01 relative-clause family.
+//! Compiler-derived declarations for the relative-clause family.
 
 #![allow(
     dead_code,
@@ -502,7 +502,7 @@ fn relative_contracted_copular_coordinated_adjective_parts(
 ) -> (ContractedSubjectAuxiliary, CoordinatedAdjectivePhrase) {
     let (subject_auxiliary, complement) = contracted_copular_parts(value);
     let CopularComplement::CoordinatedAdjective(complement) = complement else {
-        unreachable!("coordinated-adjective relative projection requires its C01 shape")
+        unreachable!("coordinated-adjective relative projection requires its coordination shape")
     };
     (subject_auxiliary, complement.clone())
 }
@@ -1269,7 +1269,7 @@ pub(crate) fn checked_build_relative_contracted_copular_coordinated_adjective(
     .ok_or_else(|| {
         violation(
             "relative_contracted_copular_coordinated_adjective",
-            "the supplied parts satisfy the handwritten C01 feature law",
+            "the supplied parts satisfy the coordinated-adjective feature law",
         )
     })?;
     let value =

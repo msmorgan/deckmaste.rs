@@ -28,7 +28,6 @@ use crate::grammar::SimpleClause;
 use crate::grammar::VerbAnalysis;
 use crate::grammar::VerbPhrase;
 use crate::grammar::auxiliary_form;
-use crate::grammar::finish_simple_clause;
 use crate::grammar::fold_auxiliary_passive;
 use crate::grammar::predicate_arguments_complete;
 use crate::syntax::AbilityObject;
@@ -377,6 +376,58 @@ fn checked_simple(
                 "the predicate is complete and projects to the declared finite clause shape",
             )
         })
+}
+
+/// Projects the generated `SimpleClause` carrier into its sealed semantic
+/// clause. Keeping this adapter beside `clause_simple` makes the declaration
+/// module the only place that constructs an ordinary finite clause.
+pub(crate) fn finish_simple_clause(simple: SimpleClause) -> Option<IndependentClause> {
+    let imperative = simple.subject.is_none()
+        && simple.predicate.declaration_verb_slot() == VerbSlot::Imperative;
+    let subject = simple.subject;
+    let FinishedPredicate {
+        modal,
+        predicate,
+        elided,
+    } = crate::constructions::predicate::project_public_predicate(simple.predicate).ok()?;
+    let has_modal = modal.is_some();
+    let predicate = match (modal, elided) {
+        (Some(modal), true) => Predicate::Deontic(DeonticPredicate { modal, inner: None }),
+        (Some(modal), false) => Predicate::Deontic(DeonticPredicate {
+            modal,
+            inner: Some(Box::new(PredicateExpression::Simple(predicate))),
+        }),
+        (None, false) => predicate,
+        (None, true) => return None,
+    };
+    match (subject, imperative, has_modal) {
+        (None, true, false) => Some(finite_clause(None, predicate)),
+        (Some(subject), false, _) => Some(finite_clause(Some(subject), predicate)),
+        _ => None,
+    }
+}
+
+fn finite_clause(subject: Option<Subject>, predicate: Predicate) -> IndependentClause {
+    IndependentClause::Finite(FiniteClause::from_declaration_parts(
+        subject,
+        PredicateExpression::Simple(predicate),
+    ))
+}
+
+/// Enters the generated Clause inverse from an already sealed predicate
+/// expression without exposing a raw `FiniteClause` construction to callers.
+pub(crate) fn linearize_predicate_expression_with<V>(
+    subject: Option<&Subject>,
+    expression: &PredicateExpression,
+    visitor: &mut V,
+) -> Result<(), deckmaste_construction_compiler::runtime::LinearizationError<V::Error>>
+where
+    V: deckmaste_construction_compiler::runtime::LinearizationVisitor,
+{
+    let clause = Clause::Independent(IndependentClause::Finite(
+        FiniteClause::from_declaration_parts(subject.cloned(), expression.clone()),
+    ));
+    linearize_clause_clause_with(&clause, visitor)
 }
 
 fn make_simple_clause_subject(
@@ -3642,7 +3693,6 @@ mod tests {
     use crate::catalog::CatalogKind;
     use crate::catalog::CatalogSlot;
     use crate::catalog::CatalogValue;
-    use crate::construction::ConstructionOwner;
     use crate::grammar::GeneratedActivation;
     use crate::grammar::Nonterminal;
     use crate::syntax::ClauseAttachmentKind;
@@ -3752,7 +3802,7 @@ mod tests {
                     .iter()
                     .find(|decision| decision.selected().as_str() == *id)
                     .unwrap_or_else(|| panic!("{source:?} did not select {id}"));
-                assert_eq!(decision.owner(), ConstructionOwner::Generated);
+                assert_eq!(decision.backend(), crate::ConstructionBackend::Chart);
             }
         }
     }

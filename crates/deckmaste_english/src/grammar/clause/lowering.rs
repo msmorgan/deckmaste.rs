@@ -1,62 +1,16 @@
 use super::Auxiliary;
 use super::BareNominalAdjunct;
-use super::DeonticPredicate;
-use super::IndependentClause;
 use super::NounPhrase;
 use super::Phrase;
 use super::Predicate;
-use super::PredicateExpression;
 use super::PredicateForm;
-use super::SimpleClause;
-use super::Subject;
 use super::VerbDependent;
 use super::VerbPhrase;
 use super::VerbSlot;
 use super::reduction::auxiliary_form;
 use crate::constructions::predicate::FinishedPredicate;
 use crate::grammar::reduction::predicate_form;
-use crate::syntax::FiniteClause;
 use crate::syntax::InfinitiveClause;
-
-pub(crate) fn finish_simple_clause(simple: SimpleClause) -> Option<IndependentClause> {
-    let imperative = simple.subject.is_none() && simple.predicate.verb.slot == VerbSlot::Imperative;
-    let subject = simple.subject;
-    let FinishedPredicate {
-        modal,
-        predicate,
-        elided,
-    } = finish_predicate(simple.predicate)?;
-    match (subject, modal, imperative) {
-        (None, None, true) => Some(IndependentClause::Finite(
-            FiniteClause::from_declaration_parts(None, PredicateExpression::Simple(predicate)),
-        )),
-        (Some(subject), Some(modal), false) => Some(IndependentClause::Finite(
-            FiniteClause::from_declaration_parts(
-                Some(subject),
-                PredicateExpression::Simple(Predicate::Deontic(DeonticPredicate {
-                    modal,
-                    inner: if elided {
-                        None
-                    } else {
-                        Some(Box::new(PredicateExpression::Simple(predicate)))
-                    },
-                })),
-            ),
-        )),
-        (Some(subject), None, false) => Some(independent_with_subject(subject, predicate)),
-        _ => None,
-    }
-}
-
-pub(super) fn independent_with_subject(
-    subject: Subject,
-    predicate: Predicate,
-) -> IndependentClause {
-    IndependentClause::Finite(FiniteClause::from_declaration_parts(
-        Some(subject),
-        PredicateExpression::Simple(predicate),
-    ))
-}
 
 #[allow(
     clippy::too_many_lines,
@@ -77,14 +31,12 @@ pub(in crate::grammar) fn coordinated_modifier_as_adjectives(
     let first = modifier_as_predicative_adjective(modifier.first().clone())?;
     let mut rest = Vec::with_capacity(modifier.rest().len());
     for coordination in modifier.rest() {
-        rest.push(
-            crate::syntax::AdjectivePhraseCoordination::from_declaration_parts(
-                coordination.conjunction(),
-                modifier_as_predicative_adjective(coordination.modifier().clone())?,
-            ),
-        );
+        rest.push((
+            coordination.conjunction(),
+            modifier_as_predicative_adjective(coordination.modifier().clone())?,
+        ));
     }
-    Some(crate::syntax::CoordinatedAdjectivePhrase::from_declaration_parts(Box::new(first), rest))
+    crate::constructions::coordination::build_coordinated_adjective_members(first, rest).ok()
 }
 
 pub(super) fn modifier_as_predicative_adjective(

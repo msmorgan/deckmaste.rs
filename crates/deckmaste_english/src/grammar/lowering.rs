@@ -32,7 +32,6 @@ use super::Phrase;
 use super::PowerToughness;
 use super::Preposition;
 use super::PrepositionalPhrase;
-use super::PronounCase;
 use super::PronounInstance;
 use super::Quantity;
 use super::RelativeClause;
@@ -90,7 +89,7 @@ impl GeneratedValue {
 
 #[allow(
     dead_code,
-    reason = "elliptical-clause lowering is staged for later grammar milestones"
+    reason = "the typed lowering inventory includes categories used only by selected entry points"
 )]
 #[derive(Debug)]
 pub(super) enum Lowered {
@@ -1375,10 +1374,14 @@ pub(super) fn lower_lexical(
             }
             let subject = match subject_auxiliary.subject {
                 ContractedSubjectKey::Pronoun(pronoun) => {
-                    NounPhrase::from_pronoun_declaration(pronoun, PronounCase::Subject)
+                    crate::constructions::noun_phrase::build_noun_phrase_subject_pronoun(pronoun)
+                        .ok()?
                 }
                 ContractedSubjectKey::Demonstrative(demonstrative) => {
-                    NounPhrase::from_demonstrative_declaration(demonstrative)
+                    crate::constructions::noun_phrase::build_noun_phrase_demonstrative(
+                        demonstrative,
+                    )
+                    .ok()?
                 }
             };
             Lowered::SubjectAuxiliary(ContractedSubjectAuxiliary {
@@ -1418,9 +1421,9 @@ pub(super) fn lower_lexical(
                 OpacitySlot::Noun(form) => {
                     let noun = Noun::Opaque(opaque);
                     Lowered::Noun(match form {
-                        NounForm::Singular => NounInstance::unchecked_singular(noun),
-                        NounForm::Plural => NounInstance::unchecked_plural(noun),
-                        NounForm::Mass => NounInstance::unchecked_mass(noun),
+                        NounForm::Singular => NounInstance::try_singular(noun).ok()?,
+                        NounForm::Plural => NounInstance::try_plural(noun).ok()?,
+                        NounForm::Mass => NounInstance::try_mass(noun).ok()?,
                     })
                 }
             }

@@ -79,7 +79,6 @@ pub(crate) static ALL_GROUPS: &[&GroupData] = &[
 mod tests {
     use crate::construction::ConstructionBackend;
     use crate::construction::ConstructionId;
-    use crate::construction::ConstructionOwner;
 
     const RELATIVE_IDS: [&str; 9] = [
         "relative_object",
@@ -123,7 +122,6 @@ mod tests {
         for id in RELATIVE_IDS {
             let family = crate::construction_family(ConstructionId::new(id))
                 .unwrap_or_else(|| panic!("missing relative-clause family {id}"));
-            assert_eq!(family.owner(), ConstructionOwner::Generated, "{id}");
             assert_eq!(family.backend(), ConstructionBackend::Chart, "{id}");
         }
     }

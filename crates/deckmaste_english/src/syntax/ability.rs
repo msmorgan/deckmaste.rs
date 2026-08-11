@@ -837,11 +837,7 @@ impl Sentence {
     }
 
     pub(crate) fn from_body(body: SentenceBody) -> Self {
-        if let SentenceBody::Independent(clause) = body {
-            return crate::constructions::sentence::build_sentence(Clause::Independent(clause))
-                .expect("an independent clause satisfies the Sentence construction");
-        }
-        Self { body }
+        crate::constructions::ability::sentence_from_ability_body(body)
     }
 
     #[must_use]

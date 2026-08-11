@@ -1,7 +1,7 @@
-//! Public sealing gates for generated coordination syntax.
+//! Public sealing gates for generated English syntax.
 
 #[test]
-fn coordination_syntax_cannot_bypass_generated_validation() {
+fn generated_syntax_cannot_bypass_checked_construction() {
     let cases = trybuild::TestCases::new();
     cases.compile_fail("tests/compile_fail/*.rs");
 }

@@ -3,7 +3,6 @@ mod clause;
 pub(crate) use clause::PredicateAttachment;
 pub(crate) use clause::auxiliary_form;
 pub(crate) use clause::extend_predicate_features;
-pub(crate) use clause::finish_simple_clause;
 #[cfg(test)]
 pub(crate) use clause::fixture_catalogs;
 pub(crate) use clause::fold_auxiliary_passive;
@@ -231,7 +230,7 @@ pub struct VerbAnalysis {
 
 #[allow(
     dead_code,
-    reason = "subordinate verb dependents are staged for later grammar milestones"
+    reason = "generated paths consume only the dependent variants admitted by each declaration"
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum VerbDependent {
@@ -831,7 +830,7 @@ const SUBJECT_AUXILIARY_FORMS: &[(usize, ContractedSubjectKey, &[Auxiliary])] = 
 
 #[allow(
     dead_code,
-    reason = "ability-root nonterminals are staged for later grammar milestones"
+    reason = "the complete category inventory includes roots used outside the chart parser"
 )]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Nonterminal {
@@ -957,7 +956,7 @@ pub(crate) enum Nonterminal {
 
 #[allow(
     dead_code,
-    reason = "ability-word scanning is staged for later grammar milestones"
+    reason = "generated and ability-specific scanners use different subsets of the lexical slots"
 )]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum EnglishLexicalSlot {
@@ -2160,11 +2159,10 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         let mut builder = RuleBuilder::default();
         // These scoped categories retain the final member of coordinated PP
         // objects; family order does not decide their selection.
-        if let Some(groups) = activation.chart_groups() {
-            let cats = generated::internal_categories(&groups);
-            generated::register_generated(&mut builder, &groups, &cats)
-                .expect("active generated groups must assemble");
-        }
+        let groups = activation.chart_groups();
+        let cats = generated::internal_categories(&groups);
+        generated::register_generated(&mut builder, &groups, &cats)
+            .expect("active generated groups must assemble");
         let rule_book = builder.finish(registration_order);
         Self {
             source,

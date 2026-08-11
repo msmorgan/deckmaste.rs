@@ -1,4 +1,3 @@
-use super::lowering::*;
 use super::reduction::*;
 use super::*;
 use crate::catalog::CatalogKind;
@@ -4029,11 +4028,6 @@ fn relative_forms_lower_with_decisive_typed_evidence() {
                 )
             });
         assert_eq!(
-            decision.owner(),
-            crate::construction::ConstructionOwner::Generated,
-            "{source:?}",
-        );
-        assert_eq!(
             decision.backend(),
             crate::construction::ConstructionBackend::Chart
         );
@@ -4426,8 +4420,8 @@ fn nonfinite_forms_render_exactly_and_report_generated_owners() {
                 .find(|decision| decision.selected().as_str() == *id)
                 .unwrap_or_else(|| panic!("{source:?} did not select {id}"));
             assert_eq!(
-                decision.owner(),
-                crate::construction::ConstructionOwner::Generated,
+                decision.backend(),
+                crate::ConstructionBackend::Chart,
                 "{id}"
             );
         }
@@ -4479,7 +4473,7 @@ fn nonfinite_direct_roots_are_exact_and_wrong_forms_are_rejected() {
                     | "infinitive_not_to"
                     | "gerund_clause_base"
                     | "gerund_clause_subordinate_after"
-            ) && decision.owner() == crate::construction::ConstructionOwner::Generated
+            )
         }));
     }
 
@@ -4583,10 +4577,12 @@ fn plus_coordinates_additive_noun_phrases() {
             ..
         }]
     ));
-    assert!(parsed.construction_decisions().iter().any(|decision| {
-        decision.selected().as_str() == "noun_phrase_coordination"
-            && decision.owner() == crate::construction::ConstructionOwner::Generated
-    }));
+    assert!(
+        parsed
+            .construction_decisions()
+            .iter()
+            .any(|decision| { decision.selected().as_str() == "noun_phrase_coordination" })
+    );
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
 

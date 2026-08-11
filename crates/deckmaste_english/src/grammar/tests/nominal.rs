@@ -1804,7 +1804,7 @@ mod tests {
                 .iter()
                 .find(|decision| decision.selected().as_str() == construction)
                 .unwrap_or_else(|| panic!("missing {construction}: {:#?}", parsed.noun_phrase()));
-            assert_eq!(decision.owner(), crate::ConstructionOwner::Generated);
+            assert_eq!(decision.backend(), crate::ConstructionBackend::Chart);
         };
 
         for (source, pronoun, case) in [
@@ -2496,7 +2496,7 @@ mod tests {
         ] {
             assert!(
                 parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase).is_err(),
-                "invalid D01 agreement/state unexpectedly parsed: {source:?}",
+                "invalid determiner agreement/state unexpectedly parsed: {source:?}",
             );
         }
     }
@@ -3246,7 +3246,7 @@ mod tests {
     }
 
     #[test]
-    fn production_p02_object_variants_preserve_whole_subtrees() {
+    fn production_prepositional_object_variants_preserve_whole_subtrees() {
         let parse_preposition = |source: &str| {
             parse_nonterminal(
                 source,
@@ -3262,11 +3262,7 @@ mod tests {
                     .iter()
                     .find(|decision| decision.selected().as_str() == construction)
                     .unwrap_or_else(|| panic!("missing {construction}"));
-                assert_eq!(
-                    decision.owner(),
-                    crate::ConstructionOwner::Generated,
-                    "{construction}"
-                );
+                assert_eq!(decision.backend(), crate::ConstructionBackend::Chart);
                 if construction == "prepositional_object" {
                     assert_eq!(
                         decision.evidence().kind(),

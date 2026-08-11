@@ -96,6 +96,46 @@ struct LexicalOpacityCounts {
     flavor_header: Counts,
 }
 
+/// Packed-forest ambiguity retained by the selected parses.
+///
+/// Equal-cost alternatives are measured rather than rejected: declared
+/// dominance and stable construction identity still make selection
+/// deterministic. The census keeps both the number of tied selections and the
+/// widest packed set visible for review.
+#[derive(Debug, Default, PartialEq, Eq, Serialize)]
+struct AmbiguityCounts {
+    selections: usize,
+    tied_selections: usize,
+    tied_alternatives: usize,
+    maximum_tied_alternatives: usize,
+    maximum_forest_alternatives: usize,
+}
+
+impl AmbiguityCounts {
+    fn observe(&mut self, tied_alternatives: usize, forest_alternatives: usize) {
+        self.selections += 1;
+        if tied_alternatives > 1 {
+            self.tied_selections += 1;
+            self.tied_alternatives += tied_alternatives;
+            self.maximum_tied_alternatives = self.maximum_tied_alternatives.max(tied_alternatives);
+        }
+        self.maximum_forest_alternatives =
+            self.maximum_forest_alternatives.max(forest_alternatives);
+    }
+
+    fn add(&mut self, other: &Self) {
+        self.selections += other.selections;
+        self.tied_selections += other.tied_selections;
+        self.tied_alternatives += other.tied_alternatives;
+        self.maximum_tied_alternatives = self
+            .maximum_tied_alternatives
+            .max(other.maximum_tied_alternatives);
+        self.maximum_forest_alternatives = self
+            .maximum_forest_alternatives
+            .max(other.maximum_forest_alternatives);
+    }
+}
+
 impl LexicalOpacityCounts {
     fn observe(&mut self, kind: LexicalOpacityKind, source_tokens: usize) {
         self.total.observe(source_tokens);
@@ -119,6 +159,7 @@ struct Census {
     source_tokens: usize,
     recovery: RecoveryCounts,
     lexical_opacity: LexicalOpacityCounts,
+    ambiguity: AmbiguityCounts,
 }
 
 impl Census {
@@ -132,6 +173,12 @@ impl Census {
             self.lexical_opacity
                 .observe(opaque.kind, opaque.source_tokens);
         }
+        for selection in report.provenance().selections() {
+            self.ambiguity.observe(
+                selection.tied_alternatives().len(),
+                selection.forest_stats().max_alternatives(),
+            );
+        }
     }
 
     fn add(&mut self, other: &Self) {
@@ -139,6 +186,7 @@ impl Census {
         self.source_tokens += other.source_tokens;
         self.recovery.add(&other.recovery);
         self.lexical_opacity.add(&other.lexical_opacity);
+        self.ambiguity.add(&other.ambiguity);
     }
 }
 
@@ -207,6 +255,24 @@ fn print_human(census: &Census) {
     print_counts("noun", census.lexical_opacity.noun);
     print_counts("flavor header", census.lexical_opacity.flavor_header);
     print_counts("total", census.lexical_opacity.total);
+    println!("packed ambiguity:");
+    println!("  selections         {:>6}", census.ambiguity.selections);
+    println!(
+        "  tied selections    {:>6}",
+        census.ambiguity.tied_selections
+    );
+    println!(
+        "  tied alternatives  {:>6}",
+        census.ambiguity.tied_alternatives
+    );
+    println!(
+        "  max tied width      {:>6}",
+        census.ambiguity.maximum_tied_alternatives
+    );
+    println!(
+        "  max forest width    {:>6}",
+        census.ambiguity.maximum_forest_alternatives
+    );
 }
 
 fn print_counts(label: &str, counts: Counts) {
@@ -245,5 +311,19 @@ mod tests {
         assert_eq!(census.lexical_opacity.flavor_header.source_tokens, 3);
         assert_eq!(census.lexical_opacity.noun.occurrences, 0);
         assert_eq!(census.lexical_opacity.total.occurrences, 1);
+    }
+
+    #[test]
+    fn ambiguity_census_counts_tied_selections_and_maxima() {
+        let mut census = AmbiguityCounts::default();
+        census.observe(1, 4);
+        census.observe(3, 7);
+        census.observe(2, 5);
+
+        assert_eq!(census.selections, 3);
+        assert_eq!(census.tied_selections, 2);
+        assert_eq!(census.tied_alternatives, 5);
+        assert_eq!(census.maximum_tied_alternatives, 3);
+        assert_eq!(census.maximum_forest_alternatives, 7);
     }
 }

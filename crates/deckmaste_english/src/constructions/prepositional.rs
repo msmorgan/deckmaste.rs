@@ -127,9 +127,9 @@ pub(crate) fn expect_prepositional_phrase(
             build_prepositional_object(None, None, None, Some(value))
         }
     }
-    .expect("the internal typed object satisfies P02");
+    .expect("the internal typed object satisfies the prepositional declaration");
     build_prepositional_phrase(preposition, object)
-        .expect("the internal prepositional object satisfies P02")
+        .expect("the internal object satisfies the prepositional declaration")
 }
 
 fn prepositional_object_category(
@@ -312,18 +312,18 @@ mod tests {
             NominalPhrase::try_from_noun(NounInstance::unchecked_singular(Noun::Word(Vocab::Card)))
                 .expect("card is a nominal"),
         )
-        .expect("the nominal enters P01")
+        .expect("the nominal enters the noun-phrase declaration")
     }
 
     #[test]
-    fn simple_p02_stores_its_checked_typed_object() {
+    fn simple_prepositional_phrase_stores_its_checked_typed_object() {
         let card = card();
         let object = build_prepositional_object(Some(card.clone()), None, None, None)
             .expect("one noun-phrase alternative is valid");
         let phrase = build_prepositional_phrase(Preposition::Of, object)
-            .expect("the typed object enters a simple P02 phrase");
+            .expect("the typed object enters a simple prepositional phrase");
         let PrepositionalPhraseKind::Simple(simple) = phrase.kind() else {
-            panic!("P02 produces a direct simple alternative")
+            panic!("the declaration produces a direct simple alternative")
         };
         assert_eq!(simple.preposition(), Preposition::Of);
         assert!(matches!(

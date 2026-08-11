@@ -100,7 +100,6 @@ mod tests {
         ));
         assert!(parsed.construction_decisions().iter().any(|decision| {
             decision.selected().as_str() == "noun_opaque"
-                && decision.owner() == crate::construction::ConstructionOwner::Generated
                 && decision.cost()
                     == ParseCost {
                         opaque_words: 1,
@@ -129,10 +128,12 @@ mod tests {
             crate::word::NounInstanceKind::Singular(Noun::Opaque(opaque))
                 if opaque.spelling() == "BlOrPlE"
         ));
-        assert!(parsed.construction_decisions().iter().any(|decision| {
-            decision.selected().as_str() == "noun_opaque"
-                && decision.owner() == crate::construction::ConstructionOwner::Generated
-        }));
+        assert!(
+            parsed
+                .construction_decisions()
+                .iter()
+                .any(|decision| { decision.selected().as_str() == "noun_opaque" })
+        );
         assert_eq!(
             render_fragment(
                 &Fragment::Sentence(parsed.sentence().unwrap().clone()),

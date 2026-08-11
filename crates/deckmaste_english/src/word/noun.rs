@@ -19,7 +19,7 @@ pub enum Noun {
     Opaque(OpaqueLexeme),
 }
 
-/// A noun identity and grammatical form admitted by N01.
+/// A noun identity and grammatical form admitted by the noun construction.
 ///
 /// The semantic kind is inspectable, while the private wrapper keeps invalid
 /// noun/form combinations behind the generated builders.
