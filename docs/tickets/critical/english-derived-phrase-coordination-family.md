@@ -21,18 +21,35 @@ products, nonempty/separated sequences, typed subtree aliases, and generated
 projection. Add only still-missing generic feature flow, named sequence-member
 predicates, presence-valued comma, lenses, and total own-mode linearization.
 Do not add tuple-valued yields or a coordination-only compiler callback.
+The Chart/backend conclusion remains applicable; where the decision's older
+member-type or common-head descriptions conflict with the bracketings below,
+this amended implementation ticket supersedes them.
 
 Implement the structural-design output here. Add a dedicated `with`-attribute
-member sum containing nominal and quoted-ability members, admitted only under
-`with` and only for a genuinely mixed list; do not widen `PredicateObject` or
-generic P02 objects. Add the typed attributive coordination class and head
-modifier frame that distinguish common-head from shared-determiner head-list
-readings. Uniform subtype, card-type, basic-land-type, keyword-name, and
-adjectival/participial controls keep their common head; incompatible member
-classes and repeated overt heads select the head list. Repair generated P01
-admission/selection for `that many cards minus one` as the independent
-Sycorax acceptance prerequisite; arithmetic does not become a coordination
-member. None remains an exception.
+member sum containing `KeywordAbility` and `QuotedAbility`, admitted only under
+attributive `with` and only for a genuinely mixed list; do not widen
+`PredicateObject` or generic P02 objects.
+
+Select common-head and shared-determiner head-list readings from recursive
+grammatical constituency, not from MTG-semantic modifier classes. Coordination
+members occupy one grammatical role but may have different internal shapes.
+When one overt head follows a coordinated modifier constituent, build that
+coordination beneath the shared head. When every member contains its own overt
+head, coordinate the complete headed nominals beneath the shared determiner.
+Preserve outer complements and postmodifiers on the completed owner. In
+particular, require these bracketings:
+
+- `an <<<Elf>, <Orc>, or <enchantment>> creature <you control>>`;
+- `a <<<basic> <land> card> or <<Gate> card>>`;
+- `<a <<<basic>, <Sphere>, or <Locus>> land> card>`;
+- `<target <<artifact>, <enchantment>, or <<tapped> creature>>>`; and
+- `<a <<Mutant>, <Ninja>, <Turtle>, or <land>> card>`.
+
+If more than one holistic grammatical bracketing survives, retain every tied
+alternative instead of adding a semantic taxonomy, spelling gate, registration
+preference, or broad parse cost. Repair generated P01 admission/selection for
+`that many cards minus one` as the independent Sycorax acceptance prerequisite;
+arithmetic does not become a coordination member. None remains an exception.
 
 Land declarations and generated parse/reduction/lowering, total render, and
 validated build projections; Nominal/Sentence/Ability plus every spelling/view
@@ -49,10 +66,13 @@ is deferred.
 
 Acceptance fixtures include Alien Invasion, Basilica Shepherd, and Blink;
 Abzan Monument or Deceptive Landscape; Grassland Crusader; Open the Gates or
-District Guide; and the synthetic `an Elf, Orc, or enchantment creature you
-control` grouping control. Negative fixtures reject the heterogeneous member
-sum after non-`with` prepositions, mixed attributive classes under one common
-head, binary Oxford punctuation, and a group-level relative captured by the
-final member.
+District Guide; Monument to Perfection; Banishing Slash or Summon: Yojimbo;
+Cowabunga! or Kirri, Talented Sprout; and the synthetic `an Elf, Orc, or
+enchantment creature you control` grouping control. Negative fixtures reject
+the heterogeneous member sum after non-`with` prepositions, a member that
+cannot occupy the required grammatical role, binary Oxford punctuation, and a
+group-level relative captured by the final member. They must not reject a
+grammatical common-head phrase merely because its modifiers belong to different
+MTG semantic classes.
 
 Standard constraints apply.

@@ -19,16 +19,28 @@ continuations are ordinary copular predicate members. Preserve finite
 agreement, imperative adoption, conjunction class, recursive grouping, member
 scope, `ClauseCoordination`'s stored comma, and every legitimate packed
 complete-member versus shared-predicate alternative.
+The Chart/backend conclusion in the structural decision remains applicable;
+the scope and grouping rules below supersede its earlier final-condition
+discriminator where they conflict.
 
-Land the structural-design scope here. Tek is one n-ary shared-subject
-predicate coordination whose five predicates each own their trailing `as long
-as` attachment; the parallel all-members-attached form locally dominates a
-reading that moves only the final condition outside. Chaos Mutation is an
-asyndetic/`then` shared-subject predicate chain with the `until` dependent on
-its reveal member. Sycorax Commander is an outer complete-clause `or` whose
-first member contains the inner shared-subject `then` chain. Do not flatten
-that grouping. Dominaria's Judgment remains separate keyword-argument/verb
-ellipsis work.
+Land the structural-design scope here. Match the corpus-derived surface
+convention recorded under
+[`Conditions`](../../oracle-style-guide.md#conditions): Tek is one n-ary
+shared-subject predicate coordination whose five predicates each own their
+repeated postpositive condition. A single postpositive condition after two
+coordinated predicates is group-wide, as on Backwoods Survivalists and Tuinvale
+Guide. When a shared condition governs three or more predicates, Oracle fronts
+it before the serial-comma list, as on Dragon's Rage Channeler; do not
+manufacture a tied member-local reading for the final predicate. Sentence and
+quoted-ability boundaries prevent attachment across them.
+
+Chaos Mutation is one n-ary asyndetic/`then` predicate chain because its three
+predicate members share the one overt subject; the `until` dependent remains
+inside its reveal member. Sycorax Commander is an outer complete-clause `or`:
+the overt subject `this creature` starts the second clause, while the first
+clause contains the inner shared-subject `then` chain. Preserve every junction
+inside its grammatical layer and do not flatten either structure.
+Dominaria's Judgment remains separate keyword-argument/verb ellipsis work.
 
 Land declarations and generated parse/reduction/lowering, total render, and
 validated build projections; all Sentence/Ability/spelling/view consumers;
@@ -39,10 +51,13 @@ shared-copular registrations, CR's substantive reducer/lowerer arms, every
 renderer mirror, and every constructor bypass together. Update the inventory.
 No consumer or deletion work is deferred.
 
-Use exact supported fixtures for Tek, Chaos Mutation, and Sycorax Commander,
+Use exact supported fixtures for Tek, Tribal Golem, Backwoods Survivalists,
+Tuinvale Guide, Dragon's Rage Channeler, Chaos Mutation, and Sycorax Commander,
 plus direct checked-AST fixtures for both nested associations and normal/
-reversed construction registration. A trailing condition that occurs before a
-junction must stay member-local; a lone final trailing condition without the
-parallel-member discriminator may remain packed as local versus group scope.
+reversed construction registration. Repeated postpositive conditions stay
+member-local; a lone postpositive `as long as` after two coordinated predicates
+is group-wide; a three-member shared condition is preposed. Add quotation-
+boundary coverage with Giant's Amulet and reject any flattening that assigns
+Sycorax Commander's explicit second subject to the first predicate layer.
 
 Standard constraints apply.
