@@ -270,6 +270,10 @@ impl VerbAnalysis {
     pub(crate) const fn instance(&self) -> &VerbInstance {
         &self.instance
     }
+
+    pub(crate) const fn frame(&self) -> &PredicateFrame {
+        &self.frame
+    }
 }
 
 impl VerbPhrase {

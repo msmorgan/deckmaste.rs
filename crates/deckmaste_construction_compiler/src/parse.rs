@@ -406,6 +406,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
     syn::braced!(content in input);
     let (ast, bind_adapter) = parse_shape(&content)?;
     let mut projection = None;
+    let mut projection_inverse = None;
     let mut lens = None;
     let mut constraints = Vec::new();
     let mut evidence = None;
@@ -418,6 +419,12 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
         if content.peek(kw::project) {
             content.parse::<kw::project>()?;
             let variant = spanned_ident(&content)?;
+            let inverse = if content.peek(kw::via) {
+                content.parse::<kw::via>()?;
+                Some(spanned_type_path(&content)?)
+            } else {
+                None
+            };
             content.parse::<syn::Token![;]>()?;
             if projection.is_some() {
                 return Err(syn::Error::new(
@@ -426,6 +433,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
                 ));
             }
             projection = Some(variant);
+            projection_inverse = inverse;
         } else if content.peek(kw::lens) {
             let application = parse_lens_application(&content)?;
             if lens.is_some() {
@@ -542,6 +550,7 @@ fn parse_construction(input: ParseStream<'_>) -> syn::Result<ConstructionDeclara
         bind_adapter,
         lens,
         projection,
+        projection_inverse,
         constraints,
         evidence,
         witnesses,
@@ -926,7 +935,7 @@ mod tests {
                     members: seq fixture_member,
                     conjunction: lex Conjunction,
                 }
-                project Pair;
+                project Pair via project_fixture_pair_source;
                 require members.len() >= 2;
                 require conjunction in [And, Or];
                 require members.last.comma in [Present];

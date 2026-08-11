@@ -134,6 +134,9 @@ pub fn fixture_coordination_group() -> GroupDeclaration {
                 bind_adapter: None,
                 lens: None,
                 projection: Some(Spanned::call_site("Pair".to_owned())),
+                projection_inverse: Some(Spanned::call_site(
+                    "project_fixture_pair_source".to_owned(),
+                )),
                 constraints: vec![
                     Constraint::Require(Spanned::call_site(Predicate::LenAtLeast {
                         path: FieldPath::call_site("members"),
@@ -229,6 +232,7 @@ pub fn fixture_coordination_group() -> GroupDeclaration {
                 bind_adapter: None,
                 lens: None,
                 projection: None,
+                projection_inverse: None,
                 constraints: vec![Constraint::Require(Spanned::call_site(Predicate::IsNone {
                     path: FieldPath::call_site("alt"),
                 }))],
@@ -290,7 +294,7 @@ fn fixture_dsl() -> proc_macro2::TokenStream {
                 members: seq fixture_member,
                 conjunction: lex Conjunction,
             }
-            project Pair;
+            project Pair via project_fixture_pair_source;
             require members.len() >= 2;
             require conjunction in [And, Or];
             require members.last.comma in [Present];

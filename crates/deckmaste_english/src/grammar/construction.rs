@@ -59,6 +59,10 @@ pub(crate) fn family_by_id(id: ConstructionId) -> Option<ConstructionFamily> {
     registry().family(id)
 }
 
+pub(crate) fn dominates(winner: &'static str, loser: &'static str) -> bool {
+    registry().dominates(ConstructionId::new(winner), ConstructionId::new(loser))
+}
+
 pub(super) fn merged_registry(
     groups: &[&'static deckmaste_construction_compiler::runtime::GroupData],
 ) -> Result<ConstructionRegistry, ConstructionRegistryError> {
@@ -758,6 +762,8 @@ mod tests {
                 erased_partial_builder: None,
                 erased_builder: None,
                 erased_projector: None,
+                erased_linearizer:
+                    deckmaste_construction_compiler::runtime::unavailable_erased_linearizer,
             }];
         const GROUP: deckmaste_construction_compiler::runtime::GroupData =
             synthetic_group("g", CONSTRUCTIONS);
@@ -910,6 +916,8 @@ mod tests {
                 erased_partial_builder: None,
                 erased_builder: None,
                 erased_projector: None,
+                erased_linearizer:
+                    deckmaste_construction_compiler::runtime::unavailable_erased_linearizer,
             }];
         const GROUP: deckmaste_construction_compiler::runtime::GroupData =
             synthetic_group("g", CONSTRUCTIONS);
@@ -945,6 +953,8 @@ mod tests {
                 erased_partial_builder: None,
                 erased_builder: None,
                 erased_projector: None,
+                erased_linearizer:
+                    deckmaste_construction_compiler::runtime::unavailable_erased_linearizer,
             }];
         const B_CONSTRUCTIONS: &[deckmaste_construction_compiler::runtime::ConstructionData] =
             &[deckmaste_construction_compiler::runtime::ConstructionData {
@@ -969,6 +979,8 @@ mod tests {
                 erased_partial_builder: None,
                 erased_builder: None,
                 erased_projector: None,
+                erased_linearizer:
+                    deckmaste_construction_compiler::runtime::unavailable_erased_linearizer,
             }];
         const GROUP_A: deckmaste_construction_compiler::runtime::GroupData =
             synthetic_group("a", A_CONSTRUCTIONS);
@@ -1015,6 +1027,8 @@ mod tests {
                 erased_partial_builder: None,
                 erased_builder: None,
                 erased_projector: None,
+                erased_linearizer:
+                    deckmaste_construction_compiler::runtime::unavailable_erased_linearizer,
             }];
         const GROUP: deckmaste_construction_compiler::runtime::GroupData =
             synthetic_group("g", CONSTRUCTIONS);

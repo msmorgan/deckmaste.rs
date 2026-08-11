@@ -1,6 +1,7 @@
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Token;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct Owner {
     pub prefix: Vec<Token>,
     pub head: Token,

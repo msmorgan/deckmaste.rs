@@ -91,6 +91,24 @@ pub trait LinearizationVisitor {
         value: &T,
     ) -> Result<(), Self::Error>;
 
+    /// Visits a subtree through the stable role-bearing construction
+    /// projection. Generated linearizers call this beside [`Self::subtree`];
+    /// ordinary renderers can ignore it, while projection consumers never
+    /// need to recover a role from Rust field layout.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the projected
+    /// subtree cannot be accepted.
+    fn projected_subtree(
+        &mut self,
+        _role: &'static str,
+        _category: &'static str,
+        _value: &dyn ProjectionValue,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
     /// Visits a typed scalar field.
     ///
     /// # Errors
@@ -102,6 +120,21 @@ pub trait LinearizationVisitor {
         codec: &'static str,
         value: &T,
     ) -> Result<(), Self::Error>;
+
+    /// Visits a scalar through its stable declared role and codec.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the projected
+    /// scalar cannot be accepted.
+    fn projected_scalar(
+        &mut self,
+        _role: &'static str,
+        _codec: &'static str,
+        _value: &dyn ProjectionValue,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
 
     /// Visits a typed lexical identity. `provider` is an opaque language-local
     /// adapter name; `value_type` documents the concrete Rust type retained in
@@ -118,6 +151,23 @@ pub trait LinearizationVisitor {
         _value: &T,
     ) -> Result<(), Self::Error> {
         panic!("linearization visitor does not support identity fields")
+    }
+
+    /// Visits a lexical identity through its stable declared role and
+    /// provider.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the projected
+    /// identity cannot be accepted.
+    fn projected_identity(
+        &mut self,
+        _role: &'static str,
+        _provider: &'static str,
+        _value_type: &'static str,
+        _value: &dyn ProjectionValue,
+    ) -> Result<(), Self::Error> {
+        Ok(())
     }
 
     /// Visits a sequence scalar derived from member position and count.
@@ -190,6 +240,34 @@ pub trait LinearizationVisitor {
         Ok(())
     }
 
+    /// Starts the stable projection of one declared sequence element.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the projected
+    /// element cannot be accepted.
+    fn projected_bound_value(
+        &mut self,
+        _element: &'static str,
+        _value: &dyn ProjectionInput,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    /// Records the stable variant identity of a declared sum element.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the variant
+    /// cannot be accepted.
+    fn element_variant(
+        &mut self,
+        _element: &'static str,
+        _variant: &'static str,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
     /// Visits a stored form witness.
     ///
     /// # Errors
@@ -204,6 +282,514 @@ pub trait LinearizationVisitor {
     ) -> Result<(), Self::Error> {
         Ok(())
     }
+
+    /// Retains one declaration-owned surface witness without exposing the
+    /// Rust path used to store it as structural identity.
+    ///
+    /// # Errors
+    ///
+    /// Returns an implementation-defined visitor error when the projected
+    /// witness cannot be accepted.
+    fn projected_stored_witness(
+        &mut self,
+        _name: &'static str,
+        _path: &'static str,
+        _value: &dyn ProjectionValue,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+}
+
+/// An owned, comparable value that may cross the transient construction
+/// projection boundary without exposing its Rust representation. The
+/// declaration supplies the stable role plus scalar codec or identity
+/// provider; this erased payload preserves typed equality and diagnostics.
+pub trait ProjectionInput: std::any::Any + std::fmt::Debug + Send + Sync {
+    fn as_any(&self) -> &dyn std::any::Any;
+}
+
+impl<T> ProjectionInput for T
+where
+    T: std::any::Any + std::fmt::Debug + Send + Sync,
+{
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+pub trait ProjectionValue: ProjectionInput {
+    fn clone_projection_value(&self) -> Box<dyn ProjectionValue>;
+    fn projection_eq(&self, other: &dyn ProjectionValue) -> bool;
+}
+
+impl<T> ProjectionValue for T
+where
+    T: std::any::Any + Clone + std::fmt::Debug + Eq + Send + Sync,
+{
+    fn clone_projection_value(&self) -> Box<dyn ProjectionValue> {
+        Box::new(self.clone())
+    }
+
+    fn projection_eq(&self, other: &dyn ProjectionValue) -> bool {
+        other.as_any().downcast_ref::<T>() == Some(self)
+    }
+}
+
+/// Coerces one construction root or subtree into the borrowed erased input
+/// protocol. Unlike scalar and identity payloads it need not be cloneable:
+/// it is recursively projected while its typed owner is still borrowed.
+#[must_use]
+pub fn projection_input<T: ProjectionInput>(value: &T) -> &dyn ProjectionInput {
+    value
+}
+
+/// Coerces one declaration field into the erased projection-value protocol
+/// while preserving inference of the concrete referenced type.
+#[must_use]
+pub fn projection_value<T: ProjectionValue>(value: &T) -> &dyn ProjectionValue {
+    value
+}
+
+/// One owned scalar or lexical identity payload in a construction
+/// projection. Equality is the concrete value's typed equality, never a
+/// serialized spelling or a Rust type/variant name.
+pub struct OwnedProjectionValue(Box<dyn ProjectionValue>);
+
+impl OwnedProjectionValue {
+    #[must_use]
+    pub fn new(value: &dyn ProjectionValue) -> Self {
+        Self(value.clone_projection_value())
+    }
+
+    #[must_use]
+    pub fn downcast_ref<T: std::any::Any>(&self) -> Option<&T> {
+        self.0.as_ref().as_any().downcast_ref()
+    }
+
+    #[must_use]
+    pub fn as_projection_value(&self) -> &dyn ProjectionValue {
+        self.0.as_ref()
+    }
+}
+
+impl Clone for OwnedProjectionValue {
+    fn clone(&self) -> Self {
+        Self(self.0.clone_projection_value())
+    }
+}
+
+impl std::fmt::Debug for OwnedProjectionValue {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(formatter)
+    }
+}
+
+impl PartialEq for OwnedProjectionValue {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.projection_eq(other.0.as_ref())
+    }
+}
+
+impl Eq for OwnedProjectionValue {}
+
+/// A declaration-owned scalar or lexical identity. The namespace is stable
+/// declaration data; the erased payload retains typed value identity without
+/// publishing Rust enum names or field layout.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProjectedAtom {
+    /// Temporary grammatical adapter for a subtree category whose owning
+    /// output family has not yet gained construction declarations. The
+    /// category and parent role are declaration identities; the typed value
+    /// remains opaque and carries no Rust layout into the spelling contract.
+    FlatSubtree {
+        category: &'static str,
+        value: OwnedProjectionValue,
+    },
+    Scalar {
+        codec: &'static str,
+        value: OwnedProjectionValue,
+    },
+    Identity {
+        provider: &'static str,
+        value_type: &'static str,
+        value: OwnedProjectionValue,
+    },
+    DerivedSequenceScalar {
+        codec: &'static str,
+        index: usize,
+        len: usize,
+    },
+}
+
+/// One named grammatical role in a selected construction form.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProjectedValue {
+    Construction(Box<ConstructionProjection>),
+    Atom(ProjectedAtom),
+    Optional(Option<Box<ProjectedValue>>),
+    Sequence(ProjectedSequence),
+}
+
+/// One member of a declaration-owned sequence. `element` and `variant` are
+/// declaration identities; member storage layout is absent.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProjectedMember {
+    pub element: &'static str,
+    pub variant: Option<&'static str>,
+    pub roles: std::collections::BTreeMap<&'static str, ProjectedValue>,
+}
+
+/// A named sequence role and its declaration-owned members.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProjectedSequence {
+    pub role: &'static str,
+    pub members: Vec<ProjectedMember>,
+}
+
+/// One retained surface witness. `path` is diagnostic provenance only; role
+/// lookup and matching use `name`, never the Rust storage path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProjectedWitness {
+    pub path: &'static str,
+    pub value: OwnedProjectionValue,
+}
+
+/// The transient, declaration-generated spelling boundary for one selected
+/// English construction. Maps make role identity independent of declaration
+/// field order; stable construction and form names replace serde type and
+/// variant names.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConstructionProjection {
+    pub category: &'static str,
+    pub construction: &'static str,
+    pub form: &'static str,
+    pub ordinal: u16,
+    pub roles: std::collections::BTreeMap<&'static str, ProjectedValue>,
+    pub witnesses: std::collections::BTreeMap<&'static str, ProjectedWitness>,
+    /// Literal atoms are retained as declaration-surface evidence. Matching
+    /// keys on the stable form identity, so this vector is diagnostic and
+    /// exactness metadata rather than a second grammar.
+    pub literals: Vec<&'static str>,
+}
+
+/// Object-safe sink used by a declaration's erased projection entry point.
+/// The ordinary generic visitor remains the renderer API; generated glue
+/// mirrors its events here with stable role identity and erased typed values.
+pub trait ProjectionSink {
+    /// Starts the selected declaration form.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structural error when the sink cannot open this form.
+    fn begin_form(
+        &mut self,
+        construction: &'static str,
+        form: &'static str,
+        ordinal: u16,
+    ) -> Result<(), String>;
+    /// Ends the selected declaration form.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structural error when this is not the form currently open.
+    fn end_form(&mut self, construction: &'static str) -> Result<(), String>;
+    /// Records one declaration-owned literal.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structural error when the sink cannot accept the literal.
+    fn literal(&mut self, literal: &'static str) -> Result<(), String>;
+    /// Records a typed subtree under its declared grammatical role.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structural error when the subtree cannot be projected or
+    /// inserted.
+    fn subtree(
+        &mut self,
+        role: &'static str,
+        category: &'static str,
+        value: &dyn ProjectionValue,
+    ) -> Result<(), String>;
+    /// Records a typed scalar under its declared role and codec.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structural error when the scalar cannot be inserted.
+    fn scalar(
+        &mut self,
+        role: &'static str,
+        codec: &'static str,
+        value: &dyn ProjectionValue,
+    ) -> Result<(), String>;
+    /// Records a typed lexical identity under its declared role and provider.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structural error when the identity cannot be inserted.
+    fn identity(
+        &mut self,
+        role: &'static str,
+        provider: &'static str,
+        value_type: &'static str,
+        value: &dyn ProjectionValue,
+    ) -> Result<(), String>;
+    /// Starts a declaration-owned sequence role.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structural error when the sequence cannot be opened.
+    fn begin_sequence(&mut self, role: &'static str, len: usize) -> Result<(), String>;
+    /// Starts the next member of the current sequence.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structural error when the role or member index is out of
+    /// order.
+    fn sequence_member(&mut self, role: &'static str, index: usize) -> Result<(), String>;
+    /// Records the typed value supplied by a declared sequence element.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structural error when there is no current member or its
+    /// adapter fails.
+    fn bound_value(
+        &mut self,
+        element: &'static str,
+        value: &dyn ProjectionInput,
+    ) -> Result<(), String>;
+    /// Records the stable variant identity of the current sequence element.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structural error when the variant does not follow its element.
+    fn element_variant(
+        &mut self,
+        element: &'static str,
+        variant: &'static str,
+    ) -> Result<(), String>;
+    /// Records a scalar derived from the current sequence position and length.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structural error when the derived role cannot be inserted.
+    fn derived_sequence_scalar(
+        &mut self,
+        role: &'static str,
+        codec: &'static str,
+        index: usize,
+        len: usize,
+    ) -> Result<(), String>;
+    /// Ends the current declaration-owned sequence role.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structural error when the role or emitted member count
+    /// differs.
+    fn end_sequence(&mut self, role: &'static str) -> Result<(), String>;
+    /// Records whether an optional grammatical role is present.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structural error when the optional role cannot be inserted.
+    fn optional(&mut self, role: &'static str, present: bool) -> Result<(), String>;
+    /// Retains one named surface witness with diagnostic storage provenance.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structural error when the witness conflicts with an earlier
+    /// value.
+    fn stored_witness(
+        &mut self,
+        name: &'static str,
+        path: &'static str,
+        value: &dyn ProjectionValue,
+    ) -> Result<(), String>;
+}
+
+/// Adapts an object-safe projection sink to the generic generated
+/// linearization visitor. Its ordinary typed callbacks are intentionally
+/// inert; the paired role-bearing callbacks carry the projection contract.
+pub struct ProjectionSinkAdapter<'a> {
+    sink: &'a mut dyn ProjectionSink,
+}
+
+impl<'a> ProjectionSinkAdapter<'a> {
+    #[must_use]
+    pub fn new(sink: &'a mut dyn ProjectionSink) -> Self {
+        Self { sink }
+    }
+}
+
+impl LinearizationVisitor for ProjectionSinkAdapter<'_> {
+    type Error = String;
+
+    fn begin_form(
+        &mut self,
+        construction: &'static str,
+        form: &'static str,
+        ordinal: u16,
+    ) -> Result<(), Self::Error> {
+        self.sink.begin_form(construction, form, ordinal)
+    }
+
+    fn end_form(&mut self, construction: &'static str) -> Result<(), Self::Error> {
+        self.sink.end_form(construction)
+    }
+
+    fn literal(&mut self, literal: &'static str) -> Result<(), Self::Error> {
+        self.sink.literal(literal)
+    }
+
+    fn subtree<T: std::any::Any>(
+        &mut self,
+        _category: &'static str,
+        _value: &T,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn projected_subtree(
+        &mut self,
+        role: &'static str,
+        category: &'static str,
+        value: &dyn ProjectionValue,
+    ) -> Result<(), Self::Error> {
+        self.sink.subtree(role, category, value)
+    }
+
+    fn scalar<T: std::any::Any>(
+        &mut self,
+        _codec: &'static str,
+        _value: &T,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn projected_scalar(
+        &mut self,
+        role: &'static str,
+        codec: &'static str,
+        value: &dyn ProjectionValue,
+    ) -> Result<(), Self::Error> {
+        self.sink.scalar(role, codec, value)
+    }
+
+    fn identity<T: std::any::Any>(
+        &mut self,
+        _provider: &'static str,
+        _value_type: &'static str,
+        _value: &T,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn projected_identity(
+        &mut self,
+        role: &'static str,
+        provider: &'static str,
+        value_type: &'static str,
+        value: &dyn ProjectionValue,
+    ) -> Result<(), Self::Error> {
+        self.sink.identity(role, provider, value_type, value)
+    }
+
+    fn begin_sequence(&mut self, role: &'static str, len: usize) -> Result<(), Self::Error> {
+        self.sink.begin_sequence(role, len)
+    }
+
+    fn sequence_member(&mut self, role: &'static str, index: usize) -> Result<(), Self::Error> {
+        self.sink.sequence_member(role, index)
+    }
+
+    fn bound_value<T: std::any::Any>(
+        &mut self,
+        _element: &'static str,
+        _value: &T,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn projected_bound_value(
+        &mut self,
+        element: &'static str,
+        value: &dyn ProjectionInput,
+    ) -> Result<(), Self::Error> {
+        self.sink.bound_value(element, value)
+    }
+
+    fn element_variant(
+        &mut self,
+        element: &'static str,
+        variant: &'static str,
+    ) -> Result<(), Self::Error> {
+        self.sink.element_variant(element, variant)
+    }
+
+    fn derived_sequence_scalar(
+        &mut self,
+        role: &'static str,
+        codec: &'static str,
+        index: usize,
+        len: usize,
+    ) -> Result<(), Self::Error> {
+        self.sink.derived_sequence_scalar(role, codec, index, len)
+    }
+
+    fn end_sequence(&mut self, role: &'static str) -> Result<(), Self::Error> {
+        self.sink.end_sequence(role)
+    }
+
+    fn optional(&mut self, role: &'static str, present: bool) -> Result<(), Self::Error> {
+        self.sink.optional(role, present)
+    }
+
+    fn stored_witness<T: std::any::Any>(
+        &mut self,
+        _name: &'static str,
+        _path: &'static str,
+        _value: &T,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn projected_stored_witness(
+        &mut self,
+        name: &'static str,
+        path: &'static str,
+        value: &dyn ProjectionValue,
+    ) -> Result<(), Self::Error> {
+        self.sink.stored_witness(name, path, value)
+    }
+}
+
+pub type ErasedLinearizer =
+    fn(&dyn ProjectionInput, &mut dyn ProjectionSink) -> Result<(), ErasedLinearizationError>;
+
+#[derive(Debug)]
+pub enum ErasedLinearizationError {
+    WrongValueType {
+        construction: &'static str,
+        expected: &'static str,
+    },
+    Linearization(LinearizationError<String>),
+}
+
+/// Placeholder used only by hand-built metadata fixtures that exercise
+/// registry or feature logic rather than declaration-emitted projection.
+///
+/// # Errors
+///
+/// Always returns [`ErasedLinearizationError::WrongValueType`] to mark the
+/// synthetic declaration as unavailable for runtime projection.
+pub fn unavailable_erased_linearizer(
+    _value: &dyn ProjectionInput,
+    _sink: &mut dyn ProjectionSink,
+) -> Result<(), ErasedLinearizationError> {
+    Err(ErasedLinearizationError::WrongValueType {
+        construction: "<synthetic>",
+        expected: "<unavailable>",
+    })
 }
 
 /// One type-erased field value supplied to a declaration-emitted builder.
@@ -386,6 +972,10 @@ pub struct ConstructionData {
     /// as public construction, including complete-value inverse recognition.
     pub erased_builder: Option<ErasedBuilder>,
     pub erased_projector: Option<ErasedProjector>,
+    /// Declaration-emitted inverse traversal through stable construction,
+    /// form, role, scalar, identity, and witness events. This is the spelling
+    /// boundary; it does not expose Rust storage or serde layout.
+    pub erased_linearizer: ErasedLinearizer,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

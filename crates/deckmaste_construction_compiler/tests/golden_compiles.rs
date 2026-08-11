@@ -2,11 +2,21 @@
 //! (or drifted from the runtime types) would otherwise still pass its
 //! byte-comparison test.
 
-#[derive(Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct FixturePhrase;
 
 pub enum FixturePair {
     Pair(FixturePairNode),
+}
+
+#[allow(
+    clippy::unnecessary_wraps,
+    reason = "the `project ... via` inverse protocol requires a partial projection"
+)]
+fn project_fixture_pair_source(value: &FixturePair) -> Option<&FixturePairNode> {
+    match value {
+        FixturePair::Pair(value) => Some(value),
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]

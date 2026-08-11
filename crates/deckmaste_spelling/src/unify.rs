@@ -1,8 +1,8 @@
 //! The unifier: English tree in, RON invocation out.
 //!
 //! Every stage before this one runs RON → frames → English. This is the
-//! matching half. Given the [`View`] of a parsed English fragment and a
-//! [`Lexicon`] of compiled frames, [`unify`] finds the frame whose tree the
+//! matching half. Given the [`ProjectionTree`] of a parsed English fragment and
+//! a [`Lexicon`] of compiled frames, [`unify`] finds the frame whose tree the
 //! target *is* — modulo its holes — and reads the fillers back out as the
 //! arguments of the invocation that would render it.
 //!
@@ -30,8 +30,8 @@
 //!
 //! - **numeral orthography.** A `Count` hole's witness is always the Arabic
 //!   numeral `41`, so every compiled frame claims `Numeral::Arabic` — but "Draw
-//!   three cards" spells its count out. The `numeral` field beside a numeric
-//!   hole is therefore not compared; see [`surface_only_fields`].
+//!   three cards" spells its count out. The projected `notation` role beside a
+//!   numeric hole is therefore excluded from that hole comparison.
 //! - **self-reference form.** `NounPhraseKind::ThisCard` carries a
 //!   `ThisCardForm` (full vs. abbreviated name) and sits under whichever
 //!   wrapper its position calls for, so two `~` sites in one frame capture
@@ -63,13 +63,13 @@ use serde::Serialize;
 
 use crate::CompiledGuard;
 use crate::HoleClass;
-use crate::View;
 use crate::compile::AgreementDep;
 use crate::guard;
 use crate::lexicon::Entry;
 use crate::lexicon::Lexicon;
-use crate::view::PathStep;
-use crate::view::TreePath;
+use crate::projection::ConstructionNode;
+use crate::projection::ProjectionPath;
+use crate::projection::ProjectionTree;
 
 /// What a stretch of English was recovered as.
 ///
@@ -115,7 +115,7 @@ pub enum Recovered {
     Literal(String),
     /// Nothing in the lexicon covered this subtree. Never an error — see the
     /// module doc.
-    Residual(View),
+    Residual(ProjectionTree),
 }
 
 impl Recovered {
@@ -162,12 +162,12 @@ impl Recovered {
     /// through verbatim.
     ///
     /// A [`Recovered::Residual`] is refused outright: it carries only a
-    /// captured [`View`], which has no RON spelling at all. That refusal is
-    /// the honest answer rather than a gap — a recovery containing one is
-    /// *provably incomplete*, so it cannot be asserted equal to a fully
-    /// concrete semantic value — and the error says **where**, because
-    /// otherwise every incomplete recovery reports identically and one
-    /// lexicon gap is indistinguishable from another.
+    /// captured [`ProjectionTree`], which has no RON spelling at all. That
+    /// refusal is the honest answer rather than a gap — a recovery
+    /// containing one is *provably incomplete*, so it cannot be asserted
+    /// equal to a fully concrete semantic value — and the error says
+    /// **where**, because otherwise every incomplete recovery reports
+    /// identically and one lexicon gap is indistinguishable from another.
     ///
     /// `macros` supplies the RON dialect a body is read in; pass the set the
     /// lexicon was assembled against ([`Lexicon::macros`]).
@@ -208,7 +208,7 @@ impl Recovered {
                 }
             }
             Recovered::Residual(view) => anyhow::bail!(
-                "a residual filler at {} has no RON spelling; the unrecovered View was {}",
+                "a residual filler at {} has no RON spelling; the unrecovered construction projection was {}",
                 if path.is_empty() { "the top level".to_string() } else { path.join(" -> ") },
                 truncated_debug(view),
             ),
@@ -216,9 +216,9 @@ impl Recovered {
     }
 }
 
-/// How much of a captured [`View`] an incompleteness report shows: enough to
-/// recognize *which* constituent went unrecovered (its node type and head
-/// word are near the front of the `Debug`), not the whole subtree — one
+/// How much of a captured [`ProjectionTree`] an incompleteness report shows:
+/// enough to recognize *which* constituent went unrecovered (its node type and
+/// head word are near the front of the `Debug`), not the whole subtree — one
 /// unrecovered nominal debug-prints to several hundred lines, and a page of
 /// them would bury the report under it.
 const RESIDUAL_DEBUG_BUDGET: usize = 240;
@@ -226,7 +226,7 @@ const RESIDUAL_DEBUG_BUDGET: usize = 240;
 /// A one-line, length-capped `Debug` of `view`. Truncation is by
 /// `char_indices`, never a byte slice, so a multi-byte character straddling
 /// the budget cannot panic.
-fn truncated_debug(view: &View) -> String {
+fn truncated_debug(view: &ProjectionTree) -> String {
     let full = format!("{view:?}");
     let flattened = full.split_whitespace().collect::<Vec<_>>().join(" ");
     match flattened.char_indices().nth(RESIDUAL_DEBUG_BUDGET) {
@@ -247,9 +247,9 @@ const MAX_DEPTH: usize = 16;
 
 /// Recovers the invocation that renders `target`.
 ///
-/// `target` is the [`View`] of a parsed
-/// [`Fragment`](deckmaste_english::Fragment) — `view::of(&fragment)` — or, in
-/// the recursive calls, of one captured constituent of one.
+/// `target` is the [`ProjectionTree`] of a parsed
+/// [`Fragment`](deckmaste_english::Fragment), or, in recursive calls, one
+/// captured constituent of it.
 ///
 /// `position` is the syntactic-position key a guarded frame is matched
 /// against: a frame carrying `position: Main` is only a candidate when
@@ -272,7 +272,7 @@ const MAX_DEPTH: usize = 16;
 /// The winner is returned and every other match is recorded in
 /// [`Recovered::Invocation::ambiguities`].
 #[must_use]
-pub fn unify(target: &View, lexicon: &Lexicon, position: FramePosition) -> Recovered {
+pub fn unify(target: &ProjectionTree, lexicon: &Lexicon, position: FramePosition) -> Recovered {
     unify_at(target, lexicon, position, 0)
 }
 
@@ -343,7 +343,7 @@ pub(crate) fn recovered_guard_holds(
 /// carries exactly the same empty scaffolding, so the self-reference has to
 /// be looked for underneath it.
 #[must_use]
-pub fn is_self_reference(view: &View) -> bool {
+pub fn is_self_reference(view: &ProjectionTree) -> bool {
     content_chain(view)
         .into_iter()
         .any(|node| is_this_card(node) || is_demonstrative_self(node))
@@ -353,12 +353,12 @@ pub fn is_self_reference(view: &View) -> bool {
 /// node genuinely branches.
 ///
 /// A step down is taken only when exactly one child is non-vacuous
-/// ([`View::is_vacuous`]) — a newtype's payload, the one occupied field of a
-/// node whose siblings are `None`/`[]`, the sole element of a sequence. Every
+/// ([`ProjectionTree::is_vacuous`]) — one occupied grammatical role whose
+/// siblings are absent/empty, or the sole element of a sequence. Every
 /// node on the chain therefore *is* the same content wearing more or less
 /// scaffolding, which is the same judgement the frame compiler's hoist makes
 /// when it decides how far up a witness's hole reaches.
-fn content_chain(view: &View) -> Vec<&View> {
+fn content_chain(view: &ProjectionTree) -> Vec<&ProjectionTree> {
     let mut chain = vec![view];
     let mut node = view;
     loop {
@@ -377,32 +377,43 @@ fn content_chain(view: &View) -> Vec<&View> {
     chain
 }
 
-fn is_this_card(node: &View) -> bool {
-    node.type_name() == Some("NounPhrase") && node.variant_name() == Some("ThisCard")
+fn is_this_card(node: &ProjectionTree) -> bool {
+    node.construction().is_some_and(|construction| {
+        matches!(
+            construction.construction,
+            "noun_phrase_this_card" | "noun_phrase_full_this_card"
+        ) || construction.construction == "flat_phrase" && construction.form == "this_card"
+    })
 }
 
-fn is_demonstrative_self(node: &View) -> bool {
-    let View::Node { name, fields, .. } = node else {
+fn is_demonstrative_self(node: &ProjectionTree) -> bool {
+    let Some(nominal) = node.construction() else {
         return false;
     };
-    if *name != "NominalPhrase" {
+    if nominal.construction != "nominal_determiner" {
         return false;
     }
-    let field = |wanted: &str| {
-        fields
-            .iter()
-            .find_map(|(name, value)| (*name == wanted).then_some(value))
-    };
-    let demonstrative = field("determiner").is_some_and(|determiner| {
-        determiner.type_name() == Some("Determiner")
-            && determiner.variant_name() == Some("Demonstrative")
-            && matches!(determiner, View::Newtype { inner, .. }
-                if inner.variant_name() == Some("This"))
-    });
+    let demonstrative = nominal
+        .roles
+        .get("determiner")
+        .and_then(ProjectionTree::construction)
+        .filter(|determiner| determiner.construction == "determiner_closed")
+        .and_then(|determiner| determiner.roles.get("identity"))
+        .and_then(ProjectionTree::atom)
+        .and_then(projected_atom_value)
+        .and_then(|value| value.downcast_ref::<deckmaste_english::syntax::ClosedDeterminer>())
+        .is_some_and(|identity| {
+            *identity
+                == deckmaste_english::syntax::ClosedDeterminer::Demonstrative(
+                    deckmaste_english::syntax::Demonstrative::This,
+                )
+        });
     demonstrative
-        && field("modifiers").is_none_or(View::is_vacuous)
-        && field("complements").is_none_or(View::is_vacuous)
-        && field("head").is_some_and(|head| !head.is_vacuous())
+        && nominal
+            .roles
+            .get("nominal")
+            .and_then(ProjectionTree::construction)
+            .is_some_and(|remainder| remainder.construction == "nominal_noun")
 }
 
 // ---------------------------------------------------------------------------
@@ -412,10 +423,8 @@ fn is_demonstrative_self(node: &View) -> bool {
 /// What one hole captured.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Binding {
-    /// A whole subtree ([`HoleClass::Subtree`]), a partial node
-    /// ([`HoleClass::FieldSlice`]) or a self-reference site
-    /// ([`HoleClass::SelfRef`]).
-    Node(View),
+    /// A whole subtree or a self-reference site.
+    Node(ProjectionTree),
     /// A scalar read straight back out of the tree — a numeral or a P/T half.
     Scalar(String),
 }
@@ -458,7 +467,12 @@ impl Attempt {
     }
 }
 
-fn unify_at(target: &View, lexicon: &Lexicon, position: FramePosition, depth: usize) -> Recovered {
+fn unify_at(
+    target: &ProjectionTree,
+    lexicon: &Lexicon,
+    position: FramePosition,
+    depth: usize,
+) -> Recovered {
     if depth >= MAX_DEPTH {
         return Recovered::Residual(target.clone());
     }
@@ -544,7 +558,7 @@ fn recover_argument(
             // Unreachable through a successful match — every hole in the
             // pattern is visited by the walk — but recovery stays total
             // rather than panicking on a frame shape nobody has authored yet.
-            None => Recovered::Residual(View::Absent),
+            None => Recovered::Residual(ProjectionTree::Optional(None)),
         };
     }
     if let Some(guard) = entry.frame.guards.iter().find(|guard| guard.param == param) {
@@ -553,7 +567,7 @@ fn recover_argument(
         // authored one is what the catalog reads like.
         return Recovered::Literal(guard.source.clone());
     }
-    Recovered::Residual(View::Absent)
+    Recovered::Residual(ProjectionTree::Optional(None))
 }
 
 /// Whether two matches came from the same authored frame.
@@ -600,9 +614,9 @@ fn describe_tie(lexicon: &Lexicon, matches: &[Matched], best: usize, rivals: &[u
 /// `Fragment::<kind>(…)`; a target may be a whole fragment too, or — in the
 /// recursive calls — a constituent captured from inside one, wearing whatever
 /// wrapper chain its position gave it
-/// (`Phrase::NounPhrase` containing `NounPhraseKind::Nominal(…)` in an object
-/// slot, nothing at all for a field slice's partial node). Those chains are
-/// pure category plumbing: they carry no frame material and no argument.
+/// (`Phrase::NounPhrase` containing a selected nominal construction in an
+/// object slot). Those chains are pure category plumbing: they carry no frame
+/// material and no argument.
 ///
 /// So both sides are peeled through their newtype wrappers and every pair of
 /// depths is tried, preferring the least-peeled alignment that matches.
@@ -635,20 +649,20 @@ fn describe_tie(lexicon: &Lexicon, matches: &[Matched], best: usize, rivals: &[u
 fn try_entry(
     index: usize,
     entry: &Entry,
-    target: &View,
+    target: &ProjectionTree,
     announcements: Option<&[&Entry]>,
 ) -> Option<Matched> {
     let mut best: Option<(usize, Matched)> = None;
-    for (pattern_depth, pattern) in unwrappings(&entry.frame.tree).into_iter().enumerate() {
-        if matches!(pattern, View::Hole { class, .. } if *class != HoleClass::SelfRef) {
+    for (pattern_path, pattern) in projection_unwrappings(&entry.frame.tree) {
+        if matches!(pattern, ProjectionTree::Hole { class, .. } if *class != HoleClass::SelfRef) {
             continue;
         }
-        for (target_depth, candidate) in unwrappings(target).into_iter().enumerate() {
+        for (target_path, candidate) in projection_unwrappings(target) {
             if !roots_align(pattern, candidate) {
                 continue;
             }
             let mut normalized = candidate.clone();
-            neutralize_agreement(&mut normalized, &entry.frame.agreement, pattern_depth);
+            neutralize_agreement(&mut normalized, &entry.frame.agreement, &pattern_path);
             let mut attempt = Attempt {
                 bindings: HashMap::new(),
                 claimed: 0,
@@ -661,10 +675,7 @@ fn try_entry(
             {
                 continue;
             }
-            // Best alignment: the one that accounts for the most of the
-            // target, and among equals the one that discarded the least
-            // wrapping to get there.
-            let total_peel = pattern_depth + target_depth;
+            let total_peel = pattern_path.0.len() + target_path.0.len();
             let rank = (attempt.claimed, Reverse(total_peel));
             let better = best
                 .as_ref()
@@ -685,6 +696,34 @@ fn try_entry(
     best.map(|(_, matched)| matched)
 }
 
+/// Every root alignment that retains all non-vacuous content. Unlike the old
+/// serde-newtype peel, each step is a named construction role, optional
+/// payload, or declaration-owned sequence member.
+fn projection_unwrappings(tree: &ProjectionTree) -> Vec<(ProjectionPath, &ProjectionTree)> {
+    let mut chain = vec![(ProjectionPath::root(), tree)];
+    let mut path = ProjectionPath::root();
+    let mut node = tree;
+    loop {
+        let mut occupied = node
+            .children()
+            .into_iter()
+            .filter(|(_, child)| !child.is_vacuous());
+        let Some((step, only)) = occupied.next() else {
+            break;
+        };
+        if occupied.next().is_some() {
+            break;
+        }
+        if matches!(only, ProjectionTree::Atom(_)) {
+            break;
+        }
+        path = path.then(step);
+        node = only;
+        chain.push((path.clone(), node));
+    }
+    chain
+}
+
 /// Whether `target` **is** `entry`'s own tree with its original arguments
 /// filling its holes: every node outside a hole identical, and every captured
 /// parameter recovering to the corresponding value in `args`.
@@ -698,9 +737,9 @@ fn try_entry(
 /// modifier the frame's next word can attach to, re-brackets the sentence
 /// around it into a well-formed parse of something else. Asking the question
 /// here means it is asked with the same neutralizations a match uses —
-/// citation-form agreement rewritten through the compiler's own normalizer,
-/// surface-only fields excluded ([`surface_only_fields`]) — so a render is
-/// not rejected for the two differences a *match* is defined to ignore.
+/// citation-form agreement rewritten through the compiler's own normalizer
+/// and declaration-owned surface witnesses treated consistently — so a render
+/// is not rejected for differences a *match* is defined to ignore.
 ///
 /// Compared at depth 0 on both sides, with no wrapper peeling: the frame was
 /// parsed at its own category and the substituted text is parsed back at that
@@ -711,10 +750,14 @@ pub(crate) fn frame_reassembles(
     args: &[Recovered],
     lexicon: &Lexicon,
     position: FramePosition,
-    target: &View,
+    target: &ProjectionTree,
 ) -> bool {
     let mut normalized = target.clone();
-    neutralize_agreement(&mut normalized, &entry.frame.agreement, 0);
+    neutralize_agreement(
+        &mut normalized,
+        &entry.frame.agreement,
+        &ProjectionPath::root(),
+    );
     let mut attempt = Attempt {
         bindings: HashMap::new(),
         claimed: 0,
@@ -797,28 +840,16 @@ fn announce_discipline_holds(
     })
 }
 
-/// Whether `view` is a target announcement: some entry that declares itself
+/// Whether `tree` is a target announcement: some entry that declares itself
 /// one matches it. See [`announce_discipline_holds`].
-fn is_announcement(view: &View, announcements: &[&Entry]) -> bool {
+fn is_announcement(tree: &ProjectionTree, announcements: &[&Entry]) -> bool {
     announcements
         .iter()
-        .any(|entry| try_entry(0, entry, view, None).is_some())
-}
-
-/// A node and everything reachable from it by stripping newtype wrappers,
-/// outermost first.
-fn unwrappings(view: &View) -> Vec<&View> {
-    let mut chain = vec![view];
-    let mut node = view;
-    while let View::Newtype { inner, .. } = node {
-        node = inner;
-        chain.push(node);
-    }
-    chain
+        .any(|entry| try_entry(0, entry, tree, None).is_some())
 }
 
 /// A cheap pre-check before cloning the target: two roots can only match if
-/// they name the same type and variant.
+/// they carry the same declaration identity.
 ///
 /// A **hole** pattern is the exception, and has to be: a hole names no type at
 /// all, so type equality would reject every target that is not itself a hole.
@@ -828,10 +859,20 @@ fn unwrappings(view: &View) -> Vec<&View> {
 /// legitimately stand at a hole is the hole class's own business, and
 /// [`match_hole`] is where that is decided; [`try_entry`] has already refused
 /// the classes whose answer would be "anything".
-fn roots_align(pattern: &View, target: &View) -> bool {
-    matches!(pattern, View::Hole { .. })
-        || (pattern.type_name() == target.type_name()
-            && pattern.variant_name() == target.variant_name())
+fn roots_align(pattern: &ProjectionTree, target: &ProjectionTree) -> bool {
+    match (pattern, target) {
+        (ProjectionTree::Hole { .. }, _)
+        | (ProjectionTree::Atom(_), ProjectionTree::Atom(_))
+        | (ProjectionTree::Optional(_), ProjectionTree::Optional(_))
+        | (ProjectionTree::Sequence { .. }, ProjectionTree::Sequence { .. }) => true,
+        (ProjectionTree::Construction(pattern), ProjectionTree::Construction(target)) => {
+            constructions_compatible(pattern, target)
+        }
+        (ProjectionTree::Element(pattern), ProjectionTree::Element(target)) => {
+            pattern.element == target.element && pattern.variant == target.variant
+        }
+        _ => false,
+    }
 }
 
 /// Rewrites the target's hole-driven inflections to citation form, exactly as
@@ -839,110 +880,78 @@ fn roots_align(pattern: &View, target: &View) -> bool {
 ///
 /// The frame's [`AgreementDep`] sites are paths into its *whole* tree; a
 /// pattern peeled `depth` newtype wrappers deep needs them rebased by
-/// dropping that many leading [`PathStep::Inner`] steps. A site that does not
-/// start that way does not address anything inside the peeled pattern and is
-/// dropped.
+/// dropping the stable named-role prefix. A site outside the peeled pattern
+/// does not address anything inside it and is dropped.
 ///
 /// The rewrite itself is [`crate::compile`]'s, called with its card-side
 /// flag: the target has no holes for the quantity-lift rule to key off, so it
 /// keys off "the sole quantity modifier" instead. Reusing the compiler's own
 /// function is the point — a second implementation here would drift from the
 /// citation form frames are actually compiled to.
-fn neutralize_agreement(target: &mut View, agreement: &[AgreementDep], depth: usize) {
-    let mut rebased: Vec<AgreementDep> = agreement
+fn neutralize_agreement(
+    target: &mut ProjectionTree,
+    agreement: &[AgreementDep],
+    pattern_prefix: &ProjectionPath,
+) {
+    let mut rebased = agreement
         .iter()
-        .filter_map(|dep| {
-            let steps = &dep.site.0;
-            (steps.len() >= depth && steps[..depth].iter().all(|step| *step == PathStep::Inner))
-                .then(|| AgreementDep {
-                    site: TreePath(steps[depth..].to_vec()),
-                    kind: dep.kind,
+        .filter_map(|dependency| {
+            dependency
+                .site
+                .strip_prefix(pattern_prefix)
+                .map(|site| AgreementDep {
+                    site,
+                    kind: dependency.kind,
                     normalized: Vec::new(),
                 })
         })
-        .collect();
+        .collect::<Vec<_>>();
     crate::compile::normalize_all(target, &mut rebased, crate::compile::Side::Card);
 }
 
-/// The fields of `node` that carry the frame's own surface choices rather
-/// than meaning, and so must not be compared.
-///
-/// One entry today, and it is not cosmetic. A numeric hole's witness is the
-/// reserved Arabic numeral `41`, so **every** compiled frame with a count
-/// hole records `Numeral::Arabic` beside it — while oracle text spells small
-/// counts out ("Draw three cards"). Comparing the sibling would make
-/// `Draw(3)` recoverable only from cards that happened to print a digit. The
-/// spelling is the renderer's choice on the way out (which is exactly why
-/// [`HoleClass::Numeral`] deliberately leaves it outside the hole) and
-/// therefore carries no information on the way in.
-fn surface_only_fields(
-    name: &str,
-    variant: Option<&str>,
-    pattern: &[(&'static str, View)],
-    target: &[(&'static str, View)],
-) -> &'static [&'static str] {
-    let numeric_hole = pattern.iter().any(|(field, value)| {
-        *field == "value"
-            && matches!(
-                value,
-                View::Hole {
-                    class: HoleClass::Numeral | HoleClass::PtHalf,
-                    ..
-                }
-            )
-    });
-    if name == "NumberLiteral" && numeric_hole {
-        return &["numeral"];
+fn projected_atom_value(
+    atom: &deckmaste_english::ProjectedAtom,
+) -> Option<&deckmaste_english::OwnedProjectionValue> {
+    match atom {
+        deckmaste_english::ProjectedAtom::Scalar { value, .. }
+        | deckmaste_english::ProjectedAtom::Identity { value, .. }
+        | deckmaste_english::ProjectedAtom::FlatSubtree { value, .. } => Some(value),
+        deckmaste_english::ProjectedAtom::DerivedSequenceScalar { .. } => None,
     }
-    // `CatalogAtom.spelling` is the matched input substring verbatim
-    // (`Arc::from(&text[..length])`, `crates/deckmaste_english/src/
-    // catalog.rs`), never the catalog's own canonical form (that is
-    // `canonical`, which the parser's own `CatalogKind::case_policy()`
-    // already normalizes case-insensitively) — so `spelling` is pure surface,
-    // exactly the class this table exists for: it carries no information a
-    // real match should be sensitive to, the same reason `NumberLiteral`'s
-    // `numeral` field is excluded above ("the renderer's choice on the way
-    // out ... carries no information on the way in"). Unconditional, not
-    // gated on a hole nearby: unlike a numeral's spelling (which only
-    // diverges from a frame's citation form when a *hole* drives it),
-    // `spelling`'s case can differ from a frame's own authored text purely
-    // from surface position (a solo keyword line is always capitalized,
-    // line-initial, on a real card) with no hole involved at all.
-    if name == "CatalogAtom" {
-        return &["spelling"];
-    }
-    // Case belongs to the syntactic host, not the referent. A standalone
-    // nullary frame for an invariant pronoun such as `you` selects one case
-    // when parsed without a host, but must match that same spelling in either
-    // a subject or object position. Keep case load-bearing for identities
-    // whose forms differ (`he`/`him`, `they`/`them`).
-    if name == "NounPhrase"
-        && variant == Some("Pronoun")
-        && case_invariant_pronouns_match(pattern, target)
-    {
-        return &["case"];
-    }
-    &[]
 }
 
-/// Whether both nodes carry the same pronoun identity and that identity has
-/// one surface for both grammatical cases.
-fn case_invariant_pronouns_match(
-    pattern: &[(&'static str, View)],
-    target: &[(&'static str, View)],
-) -> bool {
-    let (Some(pattern), Some(target)) = (find(pattern, "pronoun"), find(target, "pronoun")) else {
+fn constructions_compatible(pattern: &ConstructionNode, target: &ConstructionNode) -> bool {
+    if pattern.category == target.category
+        && pattern.construction == target.construction
+        && pattern.form == target.form
+        && pattern.ordinal == target.ordinal
+    {
+        return true;
+    }
+    let pronoun_family = |construction: &str| {
+        matches!(
+            construction,
+            "noun_phrase_subject_pronoun" | "noun_phrase_object_pronoun"
+        )
+    };
+    if !pronoun_family(pattern.construction) || !pronoun_family(target.construction) {
+        return false;
+    }
+    let pronoun = |node: &ConstructionNode| {
+        node.roles
+            .get("pronoun")
+            .and_then(ProjectionTree::atom)
+            .and_then(projected_atom_value)
+            .and_then(|value| value.downcast_ref::<Pronoun>())
+            .copied()
+    };
+    let (Some(pattern), Some(target)) = (pronoun(pattern), pronoun(target)) else {
         return false;
     };
     if pattern != target {
         return false;
     }
-    let Some(pronoun) = Pronoun::ALL
-        .into_iter()
-        .find(|pronoun| crate::view::of(pronoun) == *pattern)
-    else {
-        return false;
-    };
+    let pronoun = pattern;
     let vocabulary = Vocabulary::new();
     let surface = |case| vocabulary.render_pronoun(PronounInstance { pronoun, case });
     matches!(
@@ -951,180 +960,154 @@ fn case_invariant_pronouns_match(
     )
 }
 
-/// The serde scalar kinds a numeric hole may have captured.
-const INTEGER_KINDS: [&str; 8] = ["u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64"];
-
-fn match_node(pattern: &View, target: &View, attempt: &mut Attempt) -> bool {
-    match pattern {
-        View::Hole { index, class } => match_hole(*index, class, target, attempt),
-        View::Node {
-            name,
-            variant,
-            fields,
-        } => {
-            let View::Node {
-                name: target_name,
-                variant: target_variant,
-                fields: target_fields,
-            } = target
-            else {
-                return false;
-            };
-            if name != target_name || variant != target_variant {
+fn match_node(pattern: &ProjectionTree, target: &ProjectionTree, attempt: &mut Attempt) -> bool {
+    match (pattern, target) {
+        (ProjectionTree::Hole { index, class }, target) => {
+            match_hole(*index, class, target, attempt)
+        }
+        (ProjectionTree::Construction(pattern), ProjectionTree::Construction(target)) => {
+            if !constructions_compatible(pattern, target)
+                || pattern.literals != target.literals
+                || !construction_witnesses_match(pattern, target)
+            {
                 return false;
             }
             attempt.claimed += 1;
-            match_fields(name, *variant, fields, target_fields, attempt)
+            match_roles(
+                &pattern.roles,
+                &target.roles,
+                (pattern.construction == "flat_number_literal")
+                    .then_some("notation")
+                    .filter(|_| {
+                        pattern.roles.get("value").is_some_and(|value| {
+                            matches!(
+                                value,
+                                ProjectionTree::Hole {
+                                    class: HoleClass::Numeral | HoleClass::PtHalf,
+                                    ..
+                                }
+                            )
+                        })
+                    }),
+                attempt,
+            )
         }
-        View::Newtype {
-            name,
-            variant,
-            inner,
-        } => {
-            let View::Newtype {
-                name: target_name,
-                variant: target_variant,
-                inner: target_inner,
-            } = target
-            else {
-                return false;
-            };
-            if name != target_name || variant != target_variant {
+        (ProjectionTree::Element(pattern), ProjectionTree::Element(target)) => {
+            if pattern.element != target.element || pattern.variant != target.variant {
                 return false;
             }
             attempt.claimed += 1;
-            match_node(inner, target_inner, attempt)
+            match_roles(&pattern.roles, &target.roles, None, attempt)
         }
-        View::Unit { .. } | View::Scalar { .. } | View::Absent => {
-            let same = pattern == target;
+        (ProjectionTree::Atom(pattern), ProjectionTree::Atom(target)) => {
+            let same = projected_atoms_compatible(pattern, target);
             attempt.claimed += usize::from(same);
             same
         }
-        View::Seq(items) => {
-            let View::Seq(target_items) = target else {
-                return false;
-            };
-            if items.len() != target_items.len() {
+        (ProjectionTree::Optional(pattern), ProjectionTree::Optional(target)) => {
+            match (pattern.as_deref(), target.as_deref()) {
+                (None, None) => {
+                    attempt.claimed += 1;
+                    true
+                }
+                (Some(pattern), Some(target)) => match_node(pattern, target, attempt),
+                _ => false,
+            }
+        }
+        (
+            ProjectionTree::Sequence {
+                role,
+                members: pattern,
+            },
+            ProjectionTree::Sequence {
+                role: target_role,
+                members: target,
+            },
+        ) => {
+            if role != target_role || pattern.len() != target.len() {
                 return false;
             }
             attempt.claimed += 1;
-            items
+            pattern
                 .iter()
-                .zip(target_items)
-                .all(|(item, target_item)| match_node(item, target_item, attempt))
+                .zip(target)
+                .all(|(pattern, target)| match_node(pattern, target, attempt))
         }
-        View::Map(entries) => {
-            let View::Map(target_entries) = target else {
-                return false;
-            };
-            if entries.len() != target_entries.len() {
-                return false;
-            }
-            attempt.claimed += 1;
-            entries
-                .iter()
-                .zip(target_entries)
-                .all(|(pair, target_pair)| {
-                    match_node(&pair.0, &target_pair.0, attempt)
-                        && match_node(&pair.1, &target_pair.1, attempt)
-                })
-        }
+        _ => false,
     }
 }
 
-/// Compares one node's fields, binding a field-slice hole if the pattern has
-/// one.
-///
-/// **Field sets may differ, and legitimately.** A field-slice hole binds a
-/// *partial* node — only the fields its `claimed` list names — so a partial
-/// node fed back in as a target has fewer fields than the frame pattern it is
-/// matched against. A field present on one side only therefore matches iff it
-/// is vacuous ([`View::is_vacuous`]): an absent determiner or an empty
-/// complement list is not material, and neither side is claiming anything by
-/// leaving it out. Anything else is a real difference and fails.
-fn match_fields(
-    name: &'static str,
-    variant: Option<&'static str>,
-    pattern: &[(&'static str, View)],
-    target: &[(&'static str, View)],
+fn projected_atoms_compatible(
+    pattern: &deckmaste_english::ProjectedAtom,
+    target: &deckmaste_english::ProjectedAtom,
+) -> bool {
+    if pattern == target {
+        return true;
+    }
+    let (
+        deckmaste_english::ProjectedAtom::Identity {
+            provider: pattern_provider,
+            value: pattern_value,
+            ..
+        },
+        deckmaste_english::ProjectedAtom::Identity {
+            provider: target_provider,
+            value: target_value,
+            ..
+        },
+    ) = (pattern, target)
+    else {
+        return false;
+    };
+    let pronoun_provider = |provider: &str| matches!(provider, "SubjectPronoun" | "ObjectPronoun");
+    pronoun_provider(pattern_provider)
+        && pronoun_provider(target_provider)
+        && pattern_value.downcast_ref::<Pronoun>() == target_value.downcast_ref::<Pronoun>()
+}
+
+fn construction_witnesses_match(pattern: &ConstructionNode, target: &ConstructionNode) -> bool {
+    pattern.construction == "flat_catalog_atom"
+        || projection_contains_hole(&ProjectionTree::Construction(pattern.clone()))
+        || pattern.witnesses == target.witnesses
+}
+
+fn projection_contains_hole(tree: &ProjectionTree) -> bool {
+    tree.walk()
+        .into_iter()
+        .any(|(_, node)| matches!(node, ProjectionTree::Hole { .. }))
+}
+
+fn match_roles(
+    pattern: &std::collections::BTreeMap<&'static str, ProjectionTree>,
+    target: &std::collections::BTreeMap<&'static str, ProjectionTree>,
+    skipped: Option<&str>,
     attempt: &mut Attempt,
 ) -> bool {
-    let skipped = surface_only_fields(name, variant, pattern, target);
-
-    // A field-slice hole is spelled once per claimed field, all with the same
-    // index; `claimed` — never a fixed three-field guess — is the authority
-    // on which fields belong to the hole, and binding is all-or-none across
-    // exactly that set.
-    let slice = pattern.iter().find_map(|(_, value)| match value {
-        View::Hole {
-            index,
-            class: class @ HoleClass::FieldSlice { claimed },
-        } => Some((*index, class, claimed)),
-        _ => None,
-    });
-    if let Some((index, class, claimed)) = slice {
-        let mut captured = Vec::with_capacity(claimed.len());
-        for field in claimed {
-            let Some(value) = find(target, field) else {
-                return false;
-            };
-            captured.push((*field, value.clone()));
-        }
-        if !attempt.bind(
-            index,
-            class,
-            Binding::Node(View::Node {
-                name,
-                variant,
-                fields: captured,
-            }),
-        ) {
-            return false;
-        }
-    }
-    let claimed: &[&str] = slice.map_or(&[], |(_, _, claimed)| claimed);
-
-    for (field, value) in pattern {
-        if claimed.contains(field) || skipped.contains(field) {
+    for (role, value) in pattern {
+        if skipped == Some(*role) {
             continue;
         }
-        match find(target, field) {
-            Some(target_value) => {
-                if !match_node(value, target_value, attempt) {
-                    return false;
-                }
-            }
+        match target.get(role) {
+            Some(target_value) if match_node(value, target_value, attempt) => {}
             None if value.is_vacuous() => {}
-            None => return false,
+            _ => return false,
         }
     }
-    for (field, value) in target {
-        if claimed.contains(field) || skipped.contains(field) {
-            continue;
-        }
-        if find(pattern, field).is_none() && !value.is_vacuous() {
-            return false;
-        }
-    }
-    true
+    target.iter().all(|(role, value)| {
+        skipped == Some(*role) || pattern.contains_key(role) || value.is_vacuous()
+    })
 }
 
-/// One named field of a flat node, by name.
-fn find<'fields>(fields: &'fields [(&'static str, View)], wanted: &str) -> Option<&'fields View> {
-    fields
-        .iter()
-        .find_map(|(field, value)| (*field == wanted).then_some(value))
-}
-
-fn match_hole(index: usize, class: &HoleClass, target: &View, attempt: &mut Attempt) -> bool {
+fn match_hole(
+    index: usize,
+    class: &HoleClass,
+    target: &ProjectionTree,
+    attempt: &mut Attempt,
+) -> bool {
     match class {
         HoleClass::Subtree => attempt.bind(index, class, Binding::Node(target.clone())),
-        HoleClass::Numeral | HoleClass::PtHalf => match target {
-            View::Scalar { kind, repr } if INTEGER_KINDS.contains(kind) => {
-                attempt.bind(index, class, Binding::Scalar(repr.clone()))
-            }
-            _ => false,
-        },
+        HoleClass::Numeral | HoleClass::PtHalf => projected_integer(target)
+            .is_some_and(|value| attempt.bind(index, class, Binding::Scalar(value.to_string()))),
         // The one hole class that *narrows* what may stand at it rather than
         // accepting whatever is there, so its match is content the frame
         // accounted for and counts toward `claimed` — which is what lets a
@@ -1137,10 +1120,24 @@ fn match_hole(index: usize, class: &HoleClass, target: &View, attempt: &mut Atte
             attempt.claimed += 1;
             attempt.bind(index, class, Binding::Node(target.clone()))
         }
-        // Reached only if a field-slice hole turns up somewhere other than as
-        // a field of the node whose fields it claims, which relocation cannot
-        // produce. `match_fields` is where the real handling lives.
-        HoleClass::FieldSlice { .. } => false,
+    }
+}
+
+fn projected_integer(tree: &ProjectionTree) -> Option<i32> {
+    let value = tree.atom().and_then(projected_atom_value)?;
+    if let Some(value) = value.downcast_ref::<i32>() {
+        return Some(*value);
+    }
+    if let Some(value) = value.downcast_ref::<u32>() {
+        return i32::try_from(*value).ok();
+    }
+    match value.downcast_ref::<deckmaste_english::syntax::ScalarValue>() {
+        Some(deckmaste_english::syntax::ScalarValue::Integer(value)) => i32::try_from(*value).ok(),
+        Some(
+            deckmaste_english::syntax::ScalarValue::X
+            | deckmaste_english::syntax::ScalarValue::Star,
+        )
+        | None => None,
     }
 }
 
@@ -1164,8 +1161,8 @@ mod tests {
 
     use super::*;
     use crate::CompiledFrame;
+    use crate::View;
     use crate::lexicon::Origin;
-    use crate::view;
 
     fn plugin_dir() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")
@@ -1232,21 +1229,23 @@ mod tests {
         &FIXTURE
     }
 
-    /// The `View` of a cleanly-parsed fragment — the shape a caller hands
-    /// [`unify`]. A parse that is not clean is a broken fixture, not a
-    /// matching outcome, so it panics rather than degrading the test.
-    fn parse(text: &str, kind: FragmentKind, name: &str) -> View {
+    /// The construction projection of a cleanly parsed fragment — the shape a
+    /// caller hands [`unify`]. A parse that is not clean is a broken
+    /// fixture, not a matching outcome, so it panics rather than degrading
+    /// the test.
+    fn parse(text: &str, kind: FragmentKind, name: &str) -> ProjectionTree {
         let report = parse_fragment(text, &fixture().catalogs, kind, name, false);
         assert!(
             report.clean(),
             "fixture text {text:?} must parse cleanly at {kind:?}: {:?}",
             report.diagnostics()
         );
-        view::of(
-            &report
-                .into_fragment()
-                .expect("a clean report has a fragment"),
-        )
+        let fragment = report
+            .into_fragment()
+            .expect("a clean report has a fragment");
+        deckmaste_english::project_fragment(&fragment)
+            .map(ProjectionTree::from_projection)
+            .expect("a clean fixture fragment projects")
     }
 
     fn compiled(text: &str, kind: FragmentKind, params: &[&str]) -> CompiledFrame {
@@ -1363,11 +1362,18 @@ mod tests {
             panic!("arg 2 is the unlexicalized recipient: {:#?}", args[2]);
         };
         assert!(
-            recipient
-                .walk()
-                .iter()
-                .any(|(_, node)| node.variant_name() == Some("Pronoun")),
-            "arg 2 is the whole `it` nominal: {recipient:#?}"
+            recipient.construction().is_some_and(|construction| {
+                construction.construction == "prepositional_object"
+            })
+        );
+        assert!(
+            recipient.walk().iter().any(|(_, node)| {
+                node.atom()
+                    .and_then(projected_atom_value)
+                    .and_then(|value| value.downcast_ref::<Pronoun>())
+                    == Some(&Pronoun::It(deckmaste_english::word::Gender::Neuter))
+            }),
+            "arg 2 retains the typed `it` nominal: {recipient:#?}"
         );
     }
 
@@ -1427,12 +1433,7 @@ mod tests {
     fn a_bare_hole_frame_matches_only_when_its_hole_discriminates() {
         // A captured constituent: the payload of a fragment, with no
         // `Fragment` wrapper of its own.
-        let captured = |text: &str, kind, name: &str| -> View {
-            let View::Newtype { inner, .. } = parse(text, kind, name) else {
-                unreachable!("a fragment is always a newtype wrapper")
-            };
-            *inner
-        };
+        let captured = |text: &str, kind, name: &str| parse(text, kind, name);
 
         let pro_form = sole("This", compiled("~", FragmentKind::Nominal, &[]), &[]);
         let discriminating = captured("this creature", FragmentKind::Nominal, "");
@@ -1488,10 +1489,8 @@ mod tests {
         assert_eq!(args, [literal("You"), literal("3")]);
     }
 
-    /// D7's field slice, both halves of it: the `Target` entry's frame owns
-    /// the determiner, the hole claims `modifiers`+`head`+`complements`, and
-    /// the partial node it binds is itself matched — by `Creature`, whose own
-    /// frame is a full four-field nominal.
+    /// The `Target` entry owns the determiner while its named `nominal` role
+    /// is itself matched by the nullary `Creature` entry.
     #[test]
     #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn filter_slice_hole_matches_inside_target() {
@@ -1522,13 +1521,11 @@ mod tests {
 
     // -- the rules the brief's four do not reach ----------------------------
 
-    /// The complement-owning slice shape, whose `claimed` is
-    /// `["modifiers", "head"]` — two fields, not three. A consumer that
-    /// assumed the three-field set would bind the frame's own "you control"
-    /// into the argument and `Creature` would not match what came out.
+    /// The complement remains frame material while the named nominal role is
+    /// the argument; no serialized storage-field subset is involved.
     #[test]
     #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
-    fn a_two_field_slice_binds_only_the_fields_it_claims() {
+    fn a_named_nominal_role_excludes_the_frames_complement() {
         let target = parse("creature you control", FragmentKind::Nominal, "");
         let recovered = unify(&target, &fixture().lexicon, FramePosition::Main);
         let (entry, args) = invocation(&recovered);
@@ -1537,24 +1534,21 @@ mod tests {
         assert_eq!(invocation(&args[0]).0, "Creature");
         assert!(!recovered.has_residual(), "{recovered:#?}");
 
-        // The claimed set really is the two-field one, read off the compiled
-        // frame rather than assumed here either.
         let entry = fixture()
             .lexicon
             .entries()
             .iter()
             .find(|entry| entry.name == "ControlledByYou")
             .expect("the pilot frames ControlledByYou");
-        assert_eq!(
-            entry.frame.holes[0].class,
-            HoleClass::FieldSlice {
-                claimed: vec!["modifiers", "head"]
-            }
-        );
+        assert_eq!(entry.frame.holes[0].class, HoleClass::Subtree);
+        assert!(matches!(
+            entry.frame.holes[0].path.0.last(),
+            Some(crate::projection::ProjectionStep::Role("nominal"))
+        ));
     }
 
     /// A `~` hole against the `ThisCard` leaf — the form the sigil itself
-    /// compiles to — with a field slice and a numeral in the same frame.
+    /// compiles to — with a named nominal role and a numeral in the same frame.
     #[test]
     #[cfg_attr(not(gen_catalogs), ignore = "needs generated data/gen/catalogs")]
     fn a_self_reference_hole_matches_the_this_card_leaf() {
@@ -1740,7 +1734,7 @@ mod tests {
         // frame (`filter/Player.ron` — `DealsDamageToEach`'s own recipient
         // param needed it to recover "each player" at all), so "player" no
         // longer demonstrates a residual — "artifact" still does, and
-        // exercises the exact same field-slice recursion path.
+        // exercises the exact same named-role recursion path.
         let target = parse(
             "Target artifact draws three cards.",
             FragmentKind::Sentence,
@@ -1754,15 +1748,14 @@ mod tests {
         assert_eq!(subject, "Target");
         assert_eq!(subject_args[0], literal("Exactly(1)"));
         // "artifact" has no frame in the pilot lexicon, so it stays residual
-        // — and the residual is the *partial* node the slice bound, carrying
-        // only the fields the hole claimed.
+        // as the declared nominal-role subtree.
         let Recovered::Residual(rest) = &subject_args[1] else {
             panic!("{:#?}", subject_args[1]);
         };
-        let View::Node { name, fields, .. } = rest else { panic!("{rest:#?}") };
-        assert_eq!(*name, "NominalPhrase");
-        let names: Vec<&str> = fields.iter().map(|(field, _)| *field).collect();
-        assert_eq!(names, ["modifiers", "head", "complements"]);
+        assert_eq!(
+            crate::render::render_residual_text(rest).unwrap(),
+            "artifact"
+        );
         assert_eq!(args[1], literal("3"));
     }
 
@@ -2245,6 +2238,14 @@ mod tests {
         }
     }
 
+    fn residual_tree(label: &str) -> ProjectionTree {
+        ProjectionTree::Atom(deckmaste_english::ProjectedAtom::Identity {
+            provider: "TestResidual",
+            value_type: "String",
+            value: deckmaste_english::OwnedProjectionValue::new(&label.to_owned()),
+        })
+    }
+
     #[test]
     fn a_fully_recovered_tree_spells_as_ron() {
         assert_eq!(
@@ -2273,23 +2274,14 @@ mod tests {
             vec![
                 built("This", Vec::new()),
                 literal("3"),
-                Recovered::Residual(View::Unit {
-                    name: "Determiner",
-                    variant: Some("Any"),
-                }),
+                Recovered::Residual(residual_tree("Any")),
             ],
         )
         .to_ron(guard::core_reader())
         .unwrap_err();
         let gain_life = built(
             "GainLife",
-            vec![
-                Recovered::Residual(View::Unit {
-                    name: "Pronoun",
-                    variant: Some("You"),
-                }),
-                literal("2"),
-            ],
+            vec![Recovered::Residual(residual_tree("You")), literal("2")],
         )
         .to_ron(guard::core_reader())
         .unwrap_err();
@@ -2312,7 +2304,10 @@ mod tests {
             "DealsDamageToEach",
             vec![
                 literal("4"),
-                built("ControlledByYou", vec![Recovered::Residual(View::Absent)]),
+                built(
+                    "ControlledByYou",
+                    vec![Recovered::Residual(ProjectionTree::Optional(None))],
+                ),
             ],
         )
         .to_ron(guard::core_reader())
@@ -2325,7 +2320,7 @@ mod tests {
 
     #[test]
     fn a_top_level_residual_says_so_rather_than_naming_an_argument() {
-        let error = Recovered::Residual(View::Absent)
+        let error = Recovered::Residual(ProjectionTree::Optional(None))
             .to_ron(guard::core_reader())
             .unwrap_err();
         assert!(
@@ -2340,10 +2335,7 @@ mod tests {
     /// this feeds one that does straddle it.
     #[test]
     fn a_long_residual_debug_is_truncated_on_a_char_boundary() {
-        let view = View::Scalar {
-            kind: "str",
-            repr: "é".repeat(RESIDUAL_DEBUG_BUDGET * 2),
-        };
+        let view = residual_tree(&"é".repeat(RESIDUAL_DEBUG_BUDGET * 2));
         let printed = truncated_debug(&view);
         assert!(printed.ends_with("chars total)"), "{printed}");
         assert!(

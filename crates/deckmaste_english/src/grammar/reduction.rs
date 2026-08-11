@@ -3169,6 +3169,8 @@ mod generated_tests {
             erased_partial_builder: None,
             erased_builder: None,
             erased_projector: None,
+            erased_linearizer:
+                deckmaste_construction_compiler::runtime::unavailable_erased_linearizer,
         }];
         const GROUP: GroupData = GroupData {
             name: "reordered",
@@ -3249,6 +3251,8 @@ mod generated_tests {
             erased_partial_builder: None,
             erased_builder: None,
             erased_projector: None,
+            erased_linearizer:
+                deckmaste_construction_compiler::runtime::unavailable_erased_linearizer,
         }];
         const GROUP: GroupData = GroupData {
             name: "quantity_probe",

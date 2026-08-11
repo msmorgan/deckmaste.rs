@@ -1,11 +1,11 @@
 //! `deckmaste_spelling` bridges RON macro definitions to Magic English through
 //! "frames": English templates with typed holes.
 //!
-//! [`view`] is the foundation every other stage in this crate builds on: a
-//! generic, serde-driven tree view of anything that derives `Serialize`. It
-//! is the same driver pattern as `xtask`'s corpus-shape tool, with one
-//! semantic change — scalar *values* are preserved rather than discarded, so
-//! a later unifier can recover a literal like `Count = 3` from the tree.
+//! [`projection`] is the English-facing foundation: a tree of selected
+//! constructions, stable forms, and named typed roles generated from the
+//! declaration compiler. [`view`] remains a generic serde walker only for
+//! canonical semantic RON values such as frame guards; it is not an English
+//! matching contract.
 //!
 //! The frame authoring schema itself (`FrameSpec`, `FramePosition`,
 //! `ConstructorFrames`, `load_constructor_frames`) lives in
@@ -20,14 +20,14 @@
 //! [`compile()`] is the entry point: an authored
 //! [`FrameSpec`](macro_ron::frames::FrameSpec) in, a
 //! [`CompiledFrame`] out — a parsed English tree
-//! with [`View::Hole`] nodes where the frame's `<Param(i)>` and `~` sigils
-//! were, plus the side tables saying what each hole is and which nodes take
-//! their inflection from it. It stands on three supporting modules:
+//! with [`ProjectionTree::Hole`] nodes where the frame's `<Param(i)>` and `~`
+//! sigils were, plus the side tables saying what each hole is and which nodes
+//! take their inflection from it. It stands on three supporting modules:
 //!
 //! - [`witness`] — the reserved vocabulary a sigil is replaced by so the frame
 //!   text can be parsed as ordinary English at all, and the build-time check
 //!   that an authored frame does not spell one itself.
-//! - [`view`] — the tree representation and the paths into it.
+//! - [`projection`] — the construction tree and stable role paths.
 //! - [`guard`] — canonical form for a guard's pre-bound constant.
 //!   [`guard::normalized`] is deliberately the *only* definition of "canonical"
 //!   in the round: compile time, match time, and render time all call it, so a
@@ -42,6 +42,7 @@
 pub mod compile;
 pub mod guard;
 pub mod lexicon;
+pub mod projection;
 pub mod render;
 pub mod unify;
 pub mod view;
@@ -57,6 +58,9 @@ pub use compile::Normalization;
 pub use compile::compile;
 pub use lexicon::Entry;
 pub use lexicon::Lexicon;
+pub use projection::ProjectionPath;
+pub use projection::ProjectionStep;
+pub use projection::ProjectionTree;
 pub use render::ReassembledDifferently;
 pub use render::render_invocation;
 pub use render::render_invocation_with;

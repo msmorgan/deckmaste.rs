@@ -18,6 +18,7 @@ use crate::syntax::NominalPhraseCoordination;
 use crate::syntax::NounPhrase;
 use crate::syntax::NounPhraseConjunction;
 use crate::syntax::NounPhraseCoordination;
+use crate::syntax::NounPhraseKind;
 use crate::syntax::PowerToughness;
 use crate::syntax::PrepositionalPhrase;
 use crate::syntax::Quantity;
@@ -58,7 +59,7 @@ deckmaste_constructions_macro::constructions! {
             first: hole box NounPhrase,
             rest: seq noun_phrase_member,
         }
-        project Coordinated;
+        project Coordinated via project_noun_phrase_coordination_source;
         require rest.len() >= 1;
         require rest.nonfinal.conjunction.is_none();
         require rest.last.conjunction.is_some();
@@ -76,7 +77,7 @@ deckmaste_constructions_macro::constructions! {
             rest: seq nominal_phrase_member,
             complements: seq nominal_complement,
         }
-        project CoordinatedNominal;
+        project CoordinatedNominal via project_shared_determiner_nominal_source;
         require rest.len() >= 1;
         require rest.nonfinal.conjunction.is_none();
         require rest.last.conjunction.is_some();
@@ -89,6 +90,22 @@ deckmaste_constructions_macro::constructions! {
         derive first = shared_determiner_coordination(determiner, first, rest, complements);
         form shared @ 0 = determiner first rest complements;
         dominates prepositional_phrase;
+    }
+}
+
+fn project_noun_phrase_coordination_source(value: &NounPhrase) -> Option<&CoordinatedNounPhrase> {
+    match value.kind() {
+        NounPhraseKind::Coordinated(value) => Some(value),
+        _ => None,
+    }
+}
+
+fn project_shared_determiner_nominal_source(
+    value: &NounPhrase,
+) -> Option<&CoordinatedNominalPhrase> {
+    match value.kind() {
+        NounPhraseKind::CoordinatedNominal(value) => Some(value),
+        _ => None,
     }
 }
 

@@ -102,6 +102,7 @@ use deckmaste_english::CatalogKind;
 use deckmaste_english::Catalogs;
 use deckmaste_english::FragmentKind;
 use deckmaste_english::parse_fragment;
+use deckmaste_english::project_fragment;
 use deckmaste_legacy_render::fidelity;
 use deckmaste_legacy_render::fidelity::Oracle;
 use deckmaste_legacy_render::fidelity::Outcome as FidelityOutcome;
@@ -114,6 +115,7 @@ use deckmaste_semantics::Card;
 use deckmaste_semantics::CardFace;
 use deckmaste_semantics::Supertype;
 use deckmaste_spelling::Lexicon;
+use deckmaste_spelling::ProjectionTree;
 use deckmaste_spelling::ReassembledDifferently;
 use deckmaste_spelling::Recovered;
 use deckmaste_spelling::View;
@@ -121,7 +123,6 @@ use deckmaste_spelling::guard;
 use deckmaste_spelling::lexicon::Origin;
 use deckmaste_spelling::render_invocation_with;
 use deckmaste_spelling::unify;
-use deckmaste_spelling::view;
 use macro_ron::MacroSet;
 use macro_ron::frames::FramePosition;
 use macro_ron::frames::load_constructor_frames;
@@ -778,7 +779,9 @@ fn evaluate_line<'a>(
     let fragment = report
         .into_fragment()
         .expect("a clean report has a fragment");
-    let target = view::of(&fragment);
+    let target = ProjectionTree::from_projection(
+        project_fragment(&fragment).expect("a clean pilot fragment has a construction projection"),
+    );
     let recovered = unify(&target, lexicon, FramePosition::Main);
 
     let g4 = evaluate_g4(&recovered, line, macros);
@@ -1343,10 +1346,7 @@ mod tests {
         let recovered = Recovered::Invocation {
             entry: "GainsLife".to_string(),
             args: vec![
-                Recovered::Residual(View::Unit {
-                    name: "Pronoun",
-                    variant: Some("You"),
-                }),
+                Recovered::Residual(ProjectionTree::Optional(None)),
                 Recovered::Literal("3".to_string()),
             ],
             body: Some("ChangeLife(Param(0), Up(Literal(Param(1))))".to_string()),

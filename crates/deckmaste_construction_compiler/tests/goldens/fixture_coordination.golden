@@ -213,6 +213,16 @@ mod __constructions_fixture_coordination {
                             ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
                         )?;
                     visitor
+                        .projected_bound_value(
+                            "fixture_member",
+                            ::deckmaste_construction_compiler::runtime::projection_input(
+                                member,
+                            ),
+                        )
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
                         .optional("fixture_member.comma", (&member.comma).is_some())
                         .map_err(
                             ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
@@ -223,9 +233,31 @@ mod __constructions_fixture_coordination {
                             .map_err(
                                 ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
                             )?;
+                        visitor
+                            .projected_scalar(
+                                "fixture_member.comma",
+                                "Comma",
+                                ::deckmaste_construction_compiler::runtime::projection_value(
+                                    present,
+                                ),
+                            )
+                            .map_err(
+                                ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                            )?;
                     }
                     visitor
                         .subtree("FixturePhrase", &member.phrase)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .projected_subtree(
+                            "fixture_member.phrase",
+                            "FixturePhrase",
+                            ::deckmaste_construction_compiler::runtime::projection_value(
+                                &member.phrase,
+                            ),
+                        )
                         .map_err(
                             ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
                         )?;
@@ -240,9 +272,31 @@ mod __constructions_fixture_coordination {
                     .map_err(
                         ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
                     )?;
+                visitor
+                    .projected_scalar(
+                        "conjunction",
+                        "Conjunction",
+                        ::deckmaste_construction_compiler::runtime::projection_value(
+                            conjunction,
+                        ),
+                    )
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
                 if let Some(member) = members.last() {
                     visitor
                         .stored_witness("oxford", "members.last.comma", &member.comma)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .projected_stored_witness(
+                            "oxford",
+                            "members.last.comma",
+                            ::deckmaste_construction_compiler::runtime::projection_value(
+                                &member.comma,
+                            ),
+                        )
                         .map_err(
                             ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
                         )?;
@@ -277,6 +331,16 @@ mod __constructions_fixture_coordination {
                             ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
                         )?;
                     visitor
+                        .projected_bound_value(
+                            "fixture_member",
+                            ::deckmaste_construction_compiler::runtime::projection_input(
+                                member,
+                            ),
+                        )
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
                         .optional("fixture_member.comma", (&member.comma).is_some())
                         .map_err(
                             ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
@@ -287,9 +351,31 @@ mod __constructions_fixture_coordination {
                             .map_err(
                                 ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
                             )?;
+                        visitor
+                            .projected_scalar(
+                                "fixture_member.comma",
+                                "Comma",
+                                ::deckmaste_construction_compiler::runtime::projection_value(
+                                    present,
+                                ),
+                            )
+                            .map_err(
+                                ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                            )?;
                     }
                     visitor
                         .subtree("FixturePhrase", &member.phrase)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .projected_subtree(
+                            "fixture_member.phrase",
+                            "FixturePhrase",
+                            ::deckmaste_construction_compiler::runtime::projection_value(
+                                &member.phrase,
+                            ),
+                        )
                         .map_err(
                             ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
                         )?;
@@ -309,9 +395,31 @@ mod __constructions_fixture_coordination {
                     .map_err(
                         ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
                     )?;
+                visitor
+                    .projected_scalar(
+                        "conjunction",
+                        "Conjunction",
+                        ::deckmaste_construction_compiler::runtime::projection_value(
+                            conjunction,
+                        ),
+                    )
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
                 if let Some(member) = members.last() {
                     visitor
                         .stored_witness("oxford", "members.last.comma", &member.comma)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .projected_stored_witness(
+                            "oxford",
+                            "members.last.comma",
+                            ::deckmaste_construction_compiler::runtime::projection_value(
+                                &member.comma,
+                            ),
+                        )
                         .map_err(
                             ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
                         )?;
@@ -384,6 +492,17 @@ mod __constructions_fixture_coordination {
                         ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
                     )?;
                 visitor
+                    .projected_subtree(
+                        "phrase",
+                        "FixturePhrase",
+                        ::deckmaste_construction_compiler::runtime::projection_value(
+                            phrase,
+                        ),
+                    )
+                    .map_err(
+                        ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                    )?;
+                visitor
                     .optional("alt", (alt).is_some())
                     .map_err(
                         ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
@@ -391,6 +510,17 @@ mod __constructions_fixture_coordination {
                 if let Some(present) = (alt).as_ref() {
                     visitor
                         .subtree("FixturePhrase", present)
+                        .map_err(
+                            ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
+                        )?;
+                    visitor
+                        .projected_subtree(
+                            "alt",
+                            "FixturePhrase",
+                            ::deckmaste_construction_compiler::runtime::projection_value(
+                                present,
+                            ),
+                        )
                         .map_err(
                             ::deckmaste_construction_compiler::runtime::LinearizationError::Visitor,
                         )?;
@@ -742,6 +872,63 @@ mod __constructions_fixture_coordination {
             })?;
         Ok(Box::new(FixturePair::Pair(*value)))
     }
+    fn __erased_linearize_fixture_pair(
+        value: &dyn ::deckmaste_construction_compiler::runtime::ProjectionInput,
+        sink: &mut dyn ::deckmaste_construction_compiler::runtime::ProjectionSink,
+    ) -> Result<
+        (),
+        ::deckmaste_construction_compiler::runtime::ErasedLinearizationError,
+    > {
+        let value = if let Some(value) = value.as_any().downcast_ref::<FixturePairNode>()
+        {
+            value
+        } else {
+            let category = value
+                .as_any()
+                .downcast_ref::<FixturePair>()
+                .ok_or(::deckmaste_construction_compiler::runtime::ErasedLinearizationError::WrongValueType {
+                    construction: "fixture_pair",
+                    expected: stringify!(FixturePair),
+                })?;
+            let Some(value) = project_fixture_pair_source(category) else {
+                return Err(
+                    ::deckmaste_construction_compiler::runtime::ErasedLinearizationError::Linearization(::deckmaste_construction_compiler::runtime::LinearizationError::NoMatchingConstruction {
+                        group: "fixture_coordination",
+                    }),
+                );
+            };
+            value
+        };
+        let mut visitor = ::deckmaste_construction_compiler::runtime::ProjectionSinkAdapter::new(
+            sink,
+        );
+        linearize_fixture_pair_with(value, &mut visitor)
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::ErasedLinearizationError::Linearization,
+            )
+    }
+    fn __erased_linearize_fixture_solo(
+        value: &dyn ::deckmaste_construction_compiler::runtime::ProjectionInput,
+        sink: &mut dyn ::deckmaste_construction_compiler::runtime::ProjectionSink,
+    ) -> Result<
+        (),
+        ::deckmaste_construction_compiler::runtime::ErasedLinearizationError,
+    > {
+        let value = value
+            .as_any()
+            .downcast_ref::<FixtureSoloNode>()
+            .ok_or(::deckmaste_construction_compiler::runtime::ErasedLinearizationError::WrongValueType {
+                construction: "fixture_solo",
+                expected: stringify!(FixtureSoloNode),
+            })?;
+        let mut visitor = ::deckmaste_construction_compiler::runtime::ProjectionSinkAdapter::new(
+            sink,
+        );
+        linearize_fixture_solo_with(value, &mut visitor)
+            .map_err(
+                ::deckmaste_construction_compiler::runtime::ErasedLinearizationError::Linearization,
+            )
+    }
     #[allow(
         dead_code,
         reason = "the trait bound on assert_payload is the check; nothing calls this"
@@ -958,6 +1145,7 @@ mod __constructions_fixture_coordination {
                 erased_partial_builder: Some(__erased_partial_build_fixture_pair),
                 erased_builder: Some(__erased_build_fixture_pair),
                 erased_projector: Some(__erased_project_fixture_pair),
+                erased_linearizer: __erased_linearize_fixture_pair,
             },
             ::deckmaste_construction_compiler::runtime::ConstructionData {
                 id: "fixture_solo",
@@ -1027,6 +1215,7 @@ mod __constructions_fixture_coordination {
                 erased_partial_builder: Some(__erased_partial_build_fixture_solo),
                 erased_builder: Some(__erased_build_fixture_solo),
                 erased_projector: None,
+                erased_linearizer: __erased_linearize_fixture_solo,
             },
         ],
     };

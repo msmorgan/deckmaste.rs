@@ -11,9 +11,9 @@ use crate::features::Conjunction;
 /// Internal chart categories double as the own-mode hole types. Declaration
 /// metadata references them through erased builders; chart lowering is still
 /// staged.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ProbeItem;
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ProbeRoot;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

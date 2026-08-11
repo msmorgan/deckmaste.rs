@@ -21,9 +21,9 @@
 //! - **`Partial`** — the top level recovered an entry, but some filler did not.
 //!   Each unrecovered filler contributes a [`Signature`].
 //! - **`NoMatch`** — no entry matched the line at all. The whole line's
-//!   [`View`] is then the residual, and contributes its [`Signature`] the same
-//!   way: a line nothing covers is the *largest* thing a new frame could
-//!   absorb, so leaving it out of the ranking would hide the top rows.
+//!   [`ProjectionTree`] is then the residual, and contributes its [`Signature`]
+//!   the same way: a line nothing covers is the *largest* thing a new frame
+//!   could absorb, so leaving it out of the ranking would hide the top rows.
 //!
 //! A line no category parses is `NoMatch` too, and is counted separately in
 //! the printed census — an english grammar gap is not a lexicon gap, and a
@@ -33,9 +33,10 @@
 //!
 //! A [`Signature`] is a **grouping key**, so two residuals of one shape must
 //! key alike across cards, not merely across runs. It is the residual's
-//! constructor path to [`SIGNATURE_DEPTH`], with scalar *values* dropped — a
-//! card name and a count keep only their serde kind — and with every child
-//! position the lexicon already recovers replaced by a `<Entry>` hole marker.
+//! declaration path to [`SIGNATURE_DEPTH`], with typed payload values dropped
+//! while stable construction, form, role, codec, and identity-provider names
+//! remain. Every child position the lexicon already recovers is replaced by a
+//! `<Entry>` hole marker.
 //! The hole
 //! markers are what make a row a draft frame rather than a complaint: they say
 //! which constituents are already spellable and which one is missing.
@@ -45,23 +46,11 @@
 //! it cannot serve here: two cards' instances of one shape would carry their
 //! own names and numbers and group into two rows.
 //!
-//! # A row is one key, not necessarily one shape
-//!
-//! [`View`] cannot see a **tuple variant's name**: `serialize_tuple_variant`
-//! keeps neither the type nor the variant and yields a bare [`View::Seq`], so
-//! `IndependentClause`'s `Transitive`, `Intransitive`, `Passive` and
-//! `Predicated` all arrive as `[…, …]` and spell alike. That is upstream of
-//! this module and cannot be recovered here. What survives the erasure is the
-//! `kind` field of the `HeadedPredicate` underneath — one serde struct name
-//! per clause kind — which the key does spell wherever that node is reached at
-//! or above the cut.
-//!
-//! So the erasure is *mitigated*, not repaired, and one case remains: where a
-//! `HeadedPredicate` lands **at** the cut it is named but its `kind` is a level
-//! further down, and two clause kinds in that position still share a key.
-//! Ranked rows are grouped by key, so read a row's site count as "sites keying
-//! alike", which is a ceiling on what one draft frame could absorb rather than
-//! a promise.
+//! The depth cut deliberately makes a row a ceiling rather than a proof that
+//! every site has identical deeper wording. Unlike the former serde shape,
+//! however, the portion retained above that cut preserves every declaration
+//! identity it traverses; tuple-variant erasure and Rust field layout are not
+//! part of the key.
 //!
 //! # Drafting a catalog entry from a row
 //!
@@ -125,7 +114,9 @@ use deckmaste_core::plugin::CARDS_DIR;
 use deckmaste_core::plugin::is_todo_source;
 use deckmaste_english::Catalogs;
 use deckmaste_english::FragmentKind;
+use deckmaste_english::ProjectedAtom;
 use deckmaste_english::parse_fragment;
+use deckmaste_english::project_fragment;
 use deckmaste_legacy_render::render::CardView;
 use deckmaste_legacy_render::render::render;
 use deckmaste_plugin::plugin::Plugin;
@@ -133,13 +124,12 @@ use deckmaste_plugin::plugin::read;
 use deckmaste_semantics::Ability;
 use deckmaste_semantics::Supertype;
 use deckmaste_spelling::Lexicon;
-use deckmaste_spelling::PathStep;
+use deckmaste_spelling::ProjectionPath;
+use deckmaste_spelling::ProjectionStep;
+use deckmaste_spelling::ProjectionTree;
 use deckmaste_spelling::Recovered;
-use deckmaste_spelling::TreePath;
-use deckmaste_spelling::View;
 use deckmaste_spelling::render::render_residual_text;
 use deckmaste_spelling::unify;
-use deckmaste_spelling::view;
 use macro_ron::frames::ConstructorFrames;
 use macro_ron::frames::FrameKind;
 use macro_ron::frames::FramePosition;
@@ -484,13 +474,14 @@ struct Signature {
 }
 
 /// One residual site: its grouping [`Signature`] plus the raw subtree it was
-/// computed from. The census itself only ever reads `signature` — `view` is
+/// computed from. The census itself only ever reads `signature` — `tree` is
 /// kept solely so a ranked [`Row`]'s first site can seed a draft's surface
 /// text (see the module doc's "Drafting a catalog entry from a row").
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ResidualSite {
     signature: Signature,
-    view: View,
+    tree: ProjectionTree,
+    whole_line: bool,
 }
 
 /// A position inside a residual that some entry already covers: a hole a draft
@@ -498,10 +489,11 @@ struct ResidualSite {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct TypedHole {
     /// Where in the residual. Resolves against the [`Signature`]'s own
-    /// residual view (`root.walk()`'s addressing, unaffected by anything
-    /// [`spell`] elides below the cut — see the module doc), which is what
-    /// lets the draft generator find each hole's covered child back.
-    path: TreePath,
+    /// residual tree (using [`ProjectionTree::at`]'s addressing, unaffected by
+    /// anything [`spell`] elides below the cut — see the module doc), which
+    /// is what lets the draft generator find each hole's covered child
+    /// back.
+    path: ProjectionPath,
     /// The entry that recovered it.
     entry: String,
 }
@@ -557,7 +549,12 @@ fn classify(line: &Line, lexicon: &Lexicon, catalogs: &Catalogs) -> LineOutcome 
         };
     };
 
-    let recovered = unify(&view::of(&fragment), lexicon, FramePosition::Main);
+    let tree = ProjectionTree::from_projection(
+        project_fragment(&fragment)
+            .expect("a clean residual-census fragment has a construction projection"),
+    );
+    let recovered = unify(&tree, lexicon, FramePosition::Main);
+    let whole_line = matches!(&recovered, Recovered::Residual(_));
     let mut unrecovered = Vec::new();
     collect_residuals(&recovered, &mut unrecovered);
     let classification = match (&recovered, unrecovered.is_empty()) {
@@ -570,9 +567,10 @@ fn classify(line: &Line, lexicon: &Lexicon, catalogs: &Catalogs) -> LineOutcome 
         parsed_at: Some(parsed_at),
         residuals: unrecovered
             .into_iter()
-            .map(|view| ResidualSite {
-                signature: signature(view, lexicon),
-                view: view.clone(),
+            .map(|tree| ResidualSite {
+                signature: signature(tree, lexicon),
+                tree: tree.clone(),
+                whole_line,
             })
             .collect(),
         ambiguities: recovered
@@ -584,7 +582,7 @@ fn classify(line: &Line, lexicon: &Lexicon, catalogs: &Catalogs) -> LineOutcome 
 }
 
 /// Every unrecovered subtree in `recovered`, outermost first.
-fn collect_residuals<'a>(recovered: &'a Recovered, out: &mut Vec<&'a View>) {
+fn collect_residuals<'a>(recovered: &'a Recovered, out: &mut Vec<&'a ProjectionTree>) {
     match recovered {
         Recovered::Residual(view) => out.push(view),
         Recovered::Invocation { args, .. } => {
@@ -601,13 +599,13 @@ fn collect_residuals<'a>(recovered: &'a Recovered, out: &mut Vec<&'a View>) {
 // ---------------------------------------------------------------------------
 
 /// The grouping key for one unrecovered subtree — see the module doc.
-fn signature(view: &View, lexicon: &Lexicon) -> Signature {
+fn signature(tree: &ProjectionTree, lexicon: &Lexicon) -> Signature {
     let mut holes = Vec::new();
-    let key = spell(view, 0, &TreePath::default(), lexicon, &mut holes);
+    let key = spell(tree, 0, &ProjectionPath::root(), lexicon, &mut holes);
     Signature { key, holes }
 }
 
-/// `view` as a constructor path, cut at [`SIGNATURE_DEPTH`], with each covered
+/// `tree` as a construction path, cut at [`SIGNATURE_DEPTH`], with each covered
 /// child position replaced by its hole marker.
 ///
 /// The cover probe runs *before* the depth cut so that a recovered constituent
@@ -616,34 +614,21 @@ fn signature(view: &View, lexicon: &Lexicon) -> Signature {
 /// part a draft frame would keep. It never runs *below* the cut, which is what
 /// keeps every hole visible in the key — see [`rank`], which relies on it.
 ///
-/// A [`View::Newtype`] costs no depth. It is the shape category plumbing
-/// takes — `Fragment::Sentence(…)`, `Phrase::NounPhrase(…)` — carrying one
-/// child and no material of its own, which is exactly why the unifier peels
-/// those chains at the root of every match attempt rather than matching
-/// through them. Charging them would spend the whole budget on wrappers and
-/// key every residual on the category it was parsed at.
-///
 /// The node *at* the cut is spelled by [`label`] rather than dropped. The
-/// budget bounds descent, and naming a node is not descending into it; the
-/// nodes that carry a tuple variant's only surviving discriminator sit exactly
-/// there (see the module doc), so withholding the name merged shapes that
-/// differ precisely in what a draft frame would have to state.
+/// budget bounds descent, and naming a selected construction, form, element,
+/// or atom is not descending into it.
 fn spell(
-    view: &View,
+    tree: &ProjectionTree,
     depth: usize,
-    at: &TreePath,
+    at: &ProjectionPath,
     lexicon: &Lexicon,
     holes: &mut Vec<TypedHole>,
 ) -> String {
     if depth >= SIGNATURE_DEPTH {
-        // Named, not elided. The cut bounds how deep the key *descends*, and a
-        // node's own label costs no descent — while withholding it merges
-        // shapes that differ exactly there, which is what a key must not do.
-        return label(view);
+        return label(tree);
     }
-    let label = label(view);
-    let below = depth + usize::from(!matches!(view, View::Newtype { .. }));
-    let child = |(step, child): &(PathStep, &View), holes: &mut Vec<TypedHole>| {
+    let own = label(tree);
+    let child = |(step, child): &(ProjectionStep, &ProjectionTree), holes: &mut Vec<TypedHole>| {
         let path = at.then(*step);
         match covered_by(child, lexicon) {
             Some(entry) => {
@@ -651,76 +636,73 @@ fn spell(
                 holes.push(TypedHole { path, entry });
                 marker
             }
-            None => spell(child, below, &path, lexicon, holes),
+            None => spell(child, depth + 1, &path, lexicon, holes),
         }
     };
-    match view {
-        View::Seq(items) if items.is_empty() => "[]".to_string(),
-        View::Seq(_) => {
-            let parts: Vec<String> = view
-                .children()
-                .iter()
-                .map(|pair| child(pair, holes))
-                .collect();
-            format!("[{}]", parts.join(", "))
-        }
-        View::Map(entries) if entries.is_empty() => "{}".to_string(),
-        View::Map(_) => {
-            let parts: Vec<String> = view
-                .children()
-                .iter()
-                .map(|pair| child(pair, holes))
-                .collect();
-            format!("{{{}}}", parts.join(", "))
-        }
-        View::Newtype { .. } => {
-            let inner: Vec<String> = view
-                .children()
-                .iter()
-                .map(|pair| child(pair, holes))
-                .collect();
-            format!("{label}({})", inner.join(", "))
-        }
-        View::Node { fields, .. } if fields.is_empty() => label,
-        View::Node { fields, .. } => {
-            let named: Vec<String> = fields
-                .iter()
-                .zip(view.children().iter())
-                .map(|((name, _), pair)| format!("{name}: {}", child(pair, holes)))
-                .collect();
-            format!("{label}{{{}}}", named.join(", "))
-        }
-        View::Scalar { .. } | View::Unit { .. } | View::Absent | View::Hole { .. } => label,
+    let children = tree.children();
+    if children.is_empty() {
+        return own;
+    }
+    let parts = children
+        .iter()
+        .map(|pair| {
+            let name = match pair.0 {
+                ProjectionStep::Role(role) => role.to_string(),
+                ProjectionStep::Present => "present".to_string(),
+                ProjectionStep::Member(index) => index.to_string(),
+            };
+            format!("{name}: {}", child(pair, holes))
+        })
+        .collect::<Vec<_>>();
+    match tree {
+        ProjectionTree::Optional(Some(_)) => format!("Some({})", parts[0]),
+        ProjectionTree::Sequence { .. } => format!("{own}[{}]", parts.join(", ")),
+        ProjectionTree::Construction(_)
+        | ProjectionTree::Element(_)
+        | ProjectionTree::Optional(None) => format!("{own}{{{}}}", parts.join(", ")),
+        ProjectionTree::Atom(_) | ProjectionTree::Hole { .. } => own,
     }
 }
 
-/// One node's own label, children aside. Scalar *values* are dropped and only
-/// their serde kind survives — the property that makes a key group two cards'
-/// instances of one shape instead of giving each its own row.
-fn label(view: &View) -> String {
-    match view {
-        View::Scalar { kind, .. } => (*kind).to_string(),
-        View::Unit { name, variant }
-        | View::Newtype { name, variant, .. }
-        | View::Node { name, variant, .. } => match variant {
-            Some(variant) => format!("{name}::{variant}"),
-            None => (*name).to_string(),
-        },
-        View::Seq(_) => "[]".to_string(),
-        View::Map(_) => "{}".to_string(),
-        View::Absent => "None".to_string(),
-        View::Hole { class, .. } => format!("<hole {class:?}>"),
+/// One node's own declaration label, children and typed payload values aside.
+fn label(tree: &ProjectionTree) -> String {
+    match tree {
+        ProjectionTree::Construction(node) => {
+            format!("{}::{}::{}", node.category, node.construction, node.form)
+        }
+        ProjectionTree::Element(node) => node.variant.map_or_else(
+            || node.element.to_string(),
+            |variant| format!("{}::{variant}", node.element),
+        ),
+        ProjectionTree::Atom(ProjectedAtom::FlatSubtree { category, .. }) => {
+            format!("flat:{category}")
+        }
+        ProjectionTree::Atom(ProjectedAtom::Scalar { codec, .. }) => {
+            format!("scalar:{codec}")
+        }
+        ProjectionTree::Atom(ProjectedAtom::Identity {
+            provider,
+            value_type,
+            ..
+        }) => format!("identity:{provider}:{value_type}"),
+        ProjectionTree::Atom(ProjectedAtom::DerivedSequenceScalar { codec, .. }) => {
+            format!("derived:{codec}")
+        }
+        ProjectionTree::Optional(Some(_)) => "optional".to_string(),
+        ProjectionTree::Optional(None) => "none".to_string(),
+        ProjectionTree::Sequence { role, .. } => format!("sequence:{role}"),
+        ProjectionTree::Hole { class, .. } => format!("<hole {class:?}>"),
     }
 }
 
-/// The entry that recovers `view` whole, if one does.
+/// The entry that recovers `tree` whole, if one does.
 ///
 /// A *whole* recovery, not merely a top-level match: an entry that matches
 /// here but leaves residuals of its own has not covered this position, and
 /// typing the hole with its name would claim coverage the census is meant to
 /// be measuring the absence of.
-fn covered_by(view: &View, lexicon: &Lexicon) -> Option<String> {
-    let recovered = unify(view, lexicon, FramePosition::Main);
+fn covered_by(tree: &ProjectionTree, lexicon: &Lexicon) -> Option<String> {
+    let recovered = unify(tree, lexicon, FramePosition::Main);
     match recovered {
         Recovered::Invocation { ref entry, .. } if !recovered.has_residual() => Some(entry.clone()),
         _ => None,
@@ -881,7 +863,9 @@ struct Row {
 #[derive(Clone)]
 struct Exemplar {
     /// The residual subtree itself, exactly as `classify` captured it.
-    view: View,
+    tree: ProjectionTree,
+    /// Whether this residual is the line's whole projected fragment.
+    whole_line: bool,
     /// The exemplar line's own rendered text. For a
     /// [`Classification::NoMatch`] residual this *is* the residual's surface
     /// text, whole — see the module doc.
@@ -916,7 +900,8 @@ fn rank(lines: &[Line], outcomes: &[LineOutcome]) -> Vec<Row> {
                     count: 0,
                     examples: Vec::new(),
                     exemplar: Exemplar {
-                        view: residual.view.clone(),
+                        tree: residual.tree.clone(),
+                        whole_line: residual.whole_line,
                         line_text: line.text.clone(),
                         line_name: line.name.clone(),
                         parsed_at: outcome
@@ -1063,11 +1048,11 @@ fn draft_for_row(
     let (text, params) = carve_holes(
         &base,
         &row.signature.holes,
-        &row.exemplar.view,
+        &row.exemplar.tree,
         lexicon,
         &row.exemplar.line_name,
     );
-    let kind = residual_kind(&row.exemplar.view, row.exemplar.parsed_at);
+    let kind = residual_kind(&row.exemplar.tree, row.exemplar.parsed_at);
     let spec = FrameSpec::bare(&text);
     if let Err(error) =
         deckmaste_spelling::compile::compile(&spec, kind, &params, catalogs, lexicon.macros())
@@ -1077,7 +1062,7 @@ fn draft_for_row(
             row.signature.key
         ));
     }
-    let base_name = placeholder_constructor_name(&text, &row.exemplar.view, rank);
+    let base_name = placeholder_constructor_name(&text, &row.exemplar.tree, rank);
     let mut name = base_name.clone();
     let mut suffix = 2;
     while !used_names.insert(name.clone()) {
@@ -1097,16 +1082,10 @@ fn draft_for_row(
 /// The exemplar's own surface text for its residual, whole — see the module
 /// doc's "Base text" paragraph.
 fn base_text(exemplar: &Exemplar) -> Option<String> {
-    if matches!(
-        &exemplar.view,
-        View::Newtype {
-            name: "Fragment",
-            ..
-        }
-    ) {
+    if exemplar.whole_line {
         return Some(self_referenced(&exemplar.line_text, &exemplar.line_name));
     }
-    render_residual_text(&exemplar.view).ok()
+    render_residual_text(&exemplar.tree).ok()
 }
 
 /// `text` with every literal occurrence of the card's own name spelled `~`
@@ -1136,42 +1115,19 @@ fn self_referenced(text: &str, name: &str) -> String {
 
 /// The English category a draft built from this residual should declare.
 ///
-/// A [`Classification::NoMatch`] residual is the exemplar line's whole parsed
-/// tree, still wrapped in its `Fragment::<kind>` marker — read directly off
-/// it, which is exactly "the fragment category the residual sat in". A
-/// residual that is not a whole line carries no such marker; if it is (after
-/// peeling newtype wrappers, the same plumbing [`spell`] costs no depth for)
-/// a bare `NominalPhrase`, it is a nominal filler regardless of what category
-/// its enclosing line parsed at. Anything else falls back to `fallback` —
-/// the exemplar line's own category — as the least-wrong default.
-fn residual_kind(view: &View, fallback: FragmentKind) -> FragmentKind {
-    let mut node = view;
-    loop {
-        match node {
-            View::Newtype {
-                name: "Fragment",
-                variant: Some(variant),
-                ..
-            } => return fragment_kind_named(variant).unwrap_or(fallback),
-            View::Newtype { inner, .. } => node = inner,
-            _ => break,
-        }
-    }
-    if node.type_name() == Some("NominalPhrase") {
-        return FragmentKind::Nominal;
-    }
-    fallback
-}
-
-fn fragment_kind_named(variant: &str) -> Option<FragmentKind> {
-    match variant {
-        "Nominal" => Some(FragmentKind::Nominal),
-        "Sentence" => Some(FragmentKind::Sentence),
-        "Cost" => Some(FragmentKind::Cost),
-        "KeywordLine" => Some(FragmentKind::KeywordLine),
-        "Ability" => Some(FragmentKind::Ability),
+/// The projection root carries the declaration category directly. A residual
+/// rooted below one of the five frame categories falls back to the category
+/// of its enclosing line.
+fn residual_kind(tree: &ProjectionTree, fallback: FragmentKind) -> FragmentKind {
+    match tree.construction().map(|node| node.category) {
+        Some("NounPhrase" | "NominalPhrase") => Some(FragmentKind::Nominal),
+        Some("Sentence") => Some(FragmentKind::Sentence),
+        Some("Cost") => Some(FragmentKind::Cost),
+        Some("KeywordAbilityList") => Some(FragmentKind::KeywordLine),
+        Some("Ability") => Some(FragmentKind::Ability),
         _ => None,
     }
+    .unwrap_or(fallback)
 }
 
 /// Mirrors `deckmaste_spelling::lexicon::fragment_kind_of`'s table, in reverse.
@@ -1213,7 +1169,7 @@ fn constant_filler(entry_name: &str, lexicon: &Lexicon, self_name: &str) -> Opti
 /// [`render_residual_text`].
 fn filler_text(
     hole: &TypedHole,
-    residual_root: &View,
+    residual_root: &ProjectionTree,
     lexicon: &Lexicon,
     self_name: &str,
 ) -> Option<String> {
@@ -1247,7 +1203,7 @@ fn param_type_for(entry_name: &str) -> Option<&'static str> {
 fn carve_holes(
     base: &str,
     holes: &[TypedHole],
-    residual_root: &View,
+    residual_root: &ProjectionTree,
     lexicon: &Lexicon,
     self_name: &str,
 ) -> (String, Vec<String>) {
@@ -1316,7 +1272,7 @@ const NAME_STOPWORDS: &[&str] = &[
 /// [`drill_label`]'s AST-shape label instead — still a legal identifier,
 /// just a less specific one. Always [`DRAFT_PREFIX`]-prefixed and never
 /// authorial — see the constant's own doc.
-fn placeholder_constructor_name(text: &str, view: &View, rank: usize) -> String {
+fn placeholder_constructor_name(text: &str, tree: &ProjectionTree, rank: usize) -> String {
     let head: String = text
         .split(|c: char| !c.is_ascii_alphabetic())
         .filter(|word| word.len() > 1)
@@ -1331,55 +1287,33 @@ fn placeholder_constructor_name(text: &str, view: &View, rank: usize) -> String 
             }
         })
         .collect();
-    let label = if head.is_empty() { drill_label(view, 2).to_string() } else { head };
+    let label = if head.is_empty() { drill_label(tree, 2) } else { head };
     let cleaned: String = label.chars().filter(char::is_ascii_alphanumeric).collect();
     let cleaned = if cleaned.is_empty() { format!("Residual{rank}") } else { cleaned };
     format!("{DRAFT_PREFIX}{cleaned}")
 }
 
-/// `view`'s own outermost label, peeled through newtypes exactly as
-/// [`spell`] peels them. A handful of labels are pure category wrappers —
-/// `Ability`'s `kind`, `Sentence`'s `body` — that would otherwise give every
-/// triggered/activated/loyalty (or every declarative/imperative/complex)
-/// residual the same placeholder name; for those, one field deeper is tried
-/// instead, up to `budget` times, but only when the deeper node is itself
-/// nameable — a bare `Seq` (as `SentenceBody::Independent`'s payload often
-/// is) is not an improvement over the wrapper's own label, and is not used.
-fn drill_label(view: &View, budget: usize) -> &'static str {
-    let mut node = view;
-    while let View::Newtype { inner, .. } = node {
-        node = inner;
-    }
-    let label = node
-        .variant_name()
-        .or_else(|| node.type_name())
-        .unwrap_or("Residual");
+/// A stable declaration label for placeholder-name fallback. Empty plumbing
+/// nodes may drill into their sole occupied child, bounded by `budget`.
+fn drill_label(tree: &ProjectionTree, budget: usize) -> String {
+    let own = match tree {
+        ProjectionTree::Construction(node) => node.construction.to_string(),
+        ProjectionTree::Element(node) => node.variant.unwrap_or(node.element).to_string(),
+        ProjectionTree::Atom(_) => label(tree),
+        ProjectionTree::Sequence { role, .. } => (*role).to_string(),
+        ProjectionTree::Optional(_) => "Residual".to_string(),
+        ProjectionTree::Hole { .. } => "Hole".to_string(),
+    };
     if budget == 0 {
-        return label;
+        return own;
     }
-    let deeper_field = match label {
-        "Ability" => "kind",
-        "Sentence" => "body",
-        _ => return label,
-    };
-    let View::Node { fields, .. } = node else {
-        return label;
-    };
-    let Some((_, next)) = fields.iter().find(|(name, _)| *name == deeper_field) else {
-        return label;
-    };
-    let mut peeled = next;
-    while let View::Newtype { inner, .. } = peeled {
-        peeled = inner;
-    }
-    if peeled
-        .variant_name()
-        .or_else(|| peeled.type_name())
-        .is_some()
-    {
-        drill_label(next, budget - 1)
-    } else {
-        label
+    let mut occupied = tree
+        .children()
+        .into_iter()
+        .filter(|(_, child)| !child.is_vacuous());
+    match (occupied.next(), occupied.next()) {
+        (Some((_, only)), None) if own == "Residual" => drill_label(only, budget - 1),
+        _ => own,
     }
 }
 
@@ -1410,6 +1344,10 @@ mod tests {
             kind: FragmentKind::Sentence,
             text: text.to_string(),
         }
+    }
+
+    fn empty_projection() -> ProjectionTree {
+        ProjectionTree::Optional(None)
     }
 
     /// One hand-picked line per class.
@@ -1502,7 +1440,7 @@ mod tests {
             first.residuals[0]
                 .signature
                 .key
-                .contains("CatalogKind::CreatureType"),
+                .contains("flat_catalog_atom"),
             "the shared key must still spell the shape it groups: {}",
             first.residuals[0].signature.key,
         );
@@ -1585,7 +1523,8 @@ mod tests {
                 key: key.to_string(),
                 holes: Vec::new(),
             },
-            view: View::Absent,
+            tree: empty_projection(),
+            whole_line: false,
         };
         let outcome = |residuals: Vec<ResidualSite>| LineOutcome {
             classification: Classification::Partial,
@@ -1625,7 +1564,8 @@ mod tests {
             count: 1,
             examples: vec![line.name.clone()],
             exemplar: Exemplar {
-                view: residual.view.clone(),
+                tree: residual.tree.clone(),
+                whole_line: residual.whole_line,
                 line_text: line.text.clone(),
                 line_name: line.name.clone(),
                 parsed_at: outcome
@@ -1684,7 +1624,7 @@ mod tests {
         // The central requirement, checked directly rather than only trusted
         // from `draft_for_row`'s own internal gate: the draft's own frame
         // text really does compile at the draft's own declared kind.
-        let fragment_kind = residual_kind(&row.exemplar.view, row.exemplar.parsed_at);
+        let fragment_kind = residual_kind(&row.exemplar.tree, row.exemplar.parsed_at);
         let compiled = deckmaste_spelling::compile::compile(
             &draft.frames[0],
             fragment_kind,
@@ -1707,13 +1647,13 @@ mod tests {
     fn a_self_reference_hole_carves_the_cards_own_name() {
         let (lexicon, _catalogs) = fixture_lexicon();
         let holes = vec![TypedHole {
-            path: TreePath::default(),
+            path: ProjectionPath::root(),
             entry: "This".to_string(),
         }];
         let (text, params) = carve_holes(
             "Diregraf Ghoul enters the battlefield tapped.",
             &holes,
-            &View::Absent,
+            &empty_projection(),
             &lexicon,
             "Diregraf Ghoul",
         );
@@ -1730,10 +1670,16 @@ mod tests {
     fn a_you_hole_carves_the_pronoun() {
         let (lexicon, _catalogs) = fixture_lexicon();
         let holes = vec![TypedHole {
-            path: TreePath::default(),
+            path: ProjectionPath::root(),
             entry: "You".to_string(),
         }];
-        let (text, params) = carve_holes("You draw a card.", &holes, &View::Absent, &lexicon, "X");
+        let (text, params) = carve_holes(
+            "You draw a card.",
+            &holes,
+            &empty_projection(),
+            &lexicon,
+            "X",
+        );
         assert_eq!(text, "<Param(0)> draw a card.");
         assert_eq!(params, vec!["Reference".to_string()]);
     }
@@ -1746,13 +1692,13 @@ mod tests {
     fn an_unresolvable_hole_is_left_as_literal_text() {
         let (lexicon, _catalogs) = fixture_lexicon();
         let holes = vec![TypedHole {
-            path: TreePath::default(),
+            path: ProjectionPath::root(),
             entry: "NoSuchEntry".to_string(),
         }];
         let (text, params) = carve_holes(
             "Sacrifice a creature.",
             &holes,
-            &View::Absent,
+            &empty_projection(),
             &lexicon,
             "X",
         );
@@ -1771,13 +1717,13 @@ mod tests {
     fn a_hole_with_no_legal_param_type_is_left_as_literal_text() {
         let (lexicon, _catalogs) = fixture_lexicon();
         let holes = vec![TypedHole {
-            path: TreePath::default(),
+            path: ProjectionPath::root(),
             entry: "AnyTarget".to_string(),
         }];
         let (text, params) = carve_holes(
             "Sacrifice any target.",
             &holes,
-            &View::Absent,
+            &empty_projection(),
             &lexicon,
             "X",
         );
@@ -1829,7 +1775,11 @@ mod tests {
             count: 1,
             examples: vec!["Nobody".to_string()],
             exemplar: Exemplar {
-                view: View::Seq(Vec::new()),
+                tree: ProjectionTree::Sequence {
+                    role: "unrenderable",
+                    members: Vec::new(),
+                },
+                whole_line: false,
                 line_text: String::new(),
                 line_name: "Nobody".to_string(),
                 parsed_at: FragmentKind::Sentence,

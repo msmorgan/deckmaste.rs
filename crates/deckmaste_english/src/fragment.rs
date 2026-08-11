@@ -65,8 +65,8 @@ use crate::syntax::Sentence;
 /// [`Self::Nominal`] and [`Self::Sentence`] are chart nonterminals;
 /// [`Self::Cost`], [`Self::KeywordLine`] and [`Self::Ability`] have **no**
 /// chart rules at all and live entirely in the hand-written ability layer.
-// `Serialize` is load-bearing, not incidental: the bridge crate builds its
-// `View` tree from a fragment through `deckmaste_spelling::view::of<T: Serialize>`.
+// Serialization remains available to diagnostic shape tooling. Spelling uses
+// the typed construction projection and makes no contract from this layout.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum FragmentKind {
     /// A noun phrase — `creature you control`, `a 1/1 white Soldier creature
@@ -105,9 +105,8 @@ pub enum FragmentKind {
               position, boxed nowhere else; adding indirection solely to equalize variant \
               sizes would make a fragment a different value from the subtree it splices into"
 )]
-// `Serialize` is load-bearing, not incidental: the bridge crate builds its
-// `View` tree from a fragment through `deckmaste_spelling::view::of<T: Serialize>`.
-// Every `crate::syntax` node it wraps already derives it.
+// Serialization remains diagnostic only; every wrapped syntax node already
+// derives it, but spelling does not inspect the resulting layout.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum Fragment {
     /// See [`FragmentKind::Nominal`].

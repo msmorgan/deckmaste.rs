@@ -2783,6 +2783,7 @@ pub(crate) mod fixtures {
                 bind_adapter: None,
                 lens: None,
                 projection: None,
+                projection_inverse: None,
                 constraints: vec![],
                 evidence: None,
                 witnesses: vec![],
