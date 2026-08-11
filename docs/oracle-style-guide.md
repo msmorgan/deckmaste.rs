@@ -1399,6 +1399,37 @@ Use `as long as` for a continuous condition, `for as long as` for a duration,
 `while` for a state or interval, `during` for a turn or phase interval, and
 `until` for an ending boundary. These are not interchangeable.
 
+For a continuous condition shared by two coordinated predicates, a single
+postpositive `as long as` clause may follow the coordination when no comma
+separates its members:
+
+> This creature gets +1/+1 and has trample as long as there are four or more
+> card types among cards in your graveyard.
+
+When one continuous condition governs three or more coordinated predicates,
+front the condition rather than leave it after a serial-comma list:
+
+> As long as there are four or more card types among cards in your graveyard,
+> this creature gets +2/+2, has flying, and attacks each combat if able.
+
+This rule concerns coordination of predicates, not a coordinated complement
+under one predicate. One `has` predicate may take a serial-comma list followed
+by one shared condition:
+
+> This creature has trample, hexproof, and haste as long as an opponent
+> controls a planeswalker.
+
+When coordinated predicates have different conditions, repeat `as long as`
+with each predicate it governs:
+
+> This creature has flying as long as you control an Island, has first strike
+> as long as you control a Mountain, and has trample as long as you control a
+> Forest.
+
+Apply these scope conventions within one rules sentence and one quotation
+level. A condition inside a quoted granted ability does not govern text outside
+that quotation.
+
 #### Ordinary choices
 
 Use `Choose a [quality]` when the choice is made by the instruction and is not a
