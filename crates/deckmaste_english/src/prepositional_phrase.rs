@@ -4,6 +4,7 @@
 use deckmaste_construction_compiler::runtime::DeclarationViolation;
 
 use crate::RenderError;
+use crate::features::Comma;
 use crate::features::Conjunction;
 use crate::syntax::GerundClause;
 use crate::syntax::NounPhrase;
@@ -11,7 +12,6 @@ use crate::syntax::Preposition;
 pub use crate::syntax::PrepositionalObject;
 pub use crate::syntax::PrepositionalObjectKind;
 use crate::syntax::PrepositionalPhrase;
-use crate::syntax::PrepositionalPhraseCoordination;
 use crate::word::Vocab;
 
 fn violation(construction: &'static str, requirement: &'static str) -> DeclarationViolation {
@@ -21,7 +21,7 @@ fn violation(construction: &'static str, requirement: &'static str) -> Declarati
     }
 }
 
-/// Builds the noun-phrase P02 object alternative.
+/// Builds the noun-phrase object alternative.
 ///
 /// # Errors
 ///
@@ -33,11 +33,11 @@ pub fn build_prepositional_object_noun_phrase(
     crate::constructions::prepositional::build_prepositional_object(Some(value), None, None, None)
 }
 
-/// Builds the nested-prepositional-phrase P02 object alternative.
+/// Builds the nested-prepositional-phrase object alternative.
 ///
 /// # Errors
 ///
-/// Returns a declaration violation if the typed nested phrase fails P02's
+/// Returns a declaration violation if the typed nested phrase fails the
 /// construction constraints.
 pub fn build_prepositional_object_prepositional_phrase(
     value: PrepositionalPhrase,
@@ -45,7 +45,7 @@ pub fn build_prepositional_object_prepositional_phrase(
     crate::constructions::prepositional::build_prepositional_object(None, Some(value), None, None)
 }
 
-/// Builds the gerund-clause P02 object alternative.
+/// Builds the gerund-clause object alternative.
 ///
 /// # Errors
 ///
@@ -57,7 +57,7 @@ pub fn build_prepositional_object_gerund_clause(
     crate::constructions::prepositional::build_prepositional_object(None, None, Some(value), None)
 }
 
-/// Builds the adverb P02 object alternative.
+/// Builds the adverb object alternative.
 ///
 /// # Errors
 ///
@@ -69,7 +69,7 @@ pub fn build_prepositional_object_adverb(
     crate::constructions::prepositional::build_prepositional_object(None, None, None, Some(value))
 }
 
-/// Builds a simple P02 prepositional phrase.
+/// Builds a simple prepositional phrase.
 ///
 /// # Errors
 ///
@@ -82,7 +82,11 @@ pub fn build_prepositional_phrase(
     crate::constructions::prepositional::build_prepositional_phrase(preposition, object)
 }
 
-/// Builds a complete C01 sibling coordination from checked simple P02 members.
+/// Builds a complete sibling coordination from checked simple phrases.
+///
+/// The ergonomic tuple representation is folded through the generated list
+/// and coordination builders, so this facade has the same semantic checks as
+/// parser lowering and projection.
 ///
 /// # Errors
 ///
@@ -91,47 +95,64 @@ pub fn build_prepositional_phrase(
 /// if the final conjunction is not nominal.
 pub fn build_prepositional_phrase_coordination(
     first: PrepositionalPhrase,
-    rest: Vec<(Option<Conjunction>, PrepositionalPhrase)>,
+    mut rest: Vec<(Option<Conjunction>, PrepositionalPhrase)>,
 ) -> Result<PrepositionalPhrase, DeclarationViolation> {
-    let Some(first) = first.into_simple() else {
+    let Some((conjunction, final_phrase)) = rest.pop() else {
         return Err(violation(
             "prepositional_phrase_sibling_coordinated",
-            "the first member is a simple P02 phrase",
+            "the coordination has a remaining member",
         ));
     };
-    if rest.is_empty()
-        || rest
-            .iter()
-            .take(rest.len().saturating_sub(1))
-            .any(|(conjunction, _)| conjunction.is_some())
-        || !matches!(
-            rest.last().and_then(|(conjunction, _)| *conjunction),
-            Some(Conjunction::And | Conjunction::Or | Conjunction::AndOr)
-        )
-    {
+    let Some(conjunction) = conjunction else {
         return Err(violation(
             "prepositional_phrase_sibling_coordinated",
-            "the run has nonfinal bare members and one nominal final conjunction",
+            "the final member carries a conjunction",
+        ));
+    };
+
+    if rest.is_empty() {
+        return crate::constructions::coordination::build_prepositional_phrase_sibling_coordinated(
+            Some(first),
+            None,
+            None,
+            conjunction,
+            final_phrase,
+        );
+    }
+
+    let mut members = rest.into_iter();
+    let Some((second_conjunction, second)) = members.next() else {
+        return Err(violation(
+            "prepositional_phrase_sibling_coordinated",
+            "a longer coordination has an open-list member",
+        ));
+    };
+    if second_conjunction.is_some() {
+        return Err(violation(
+            "prepositional_phrase_sibling_coordinated",
+            "nonfinal members do not carry conjunctions",
         ));
     }
-    let rest = rest
-        .into_iter()
-        .map(|(conjunction, phrase)| {
-            phrase
-                .into_simple()
-                .map(|phrase| PrepositionalPhraseCoordination {
-                    conjunction,
-                    phrase,
-                })
-                .ok_or_else(|| {
-                    violation(
-                        "prepositional_phrase_sibling_coordinated",
-                        "every remaining member is a simple P02 phrase",
-                    )
-                })
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(PrepositionalPhrase::coordinated(first, rest))
+    let mut list =
+        crate::constructions::coordination::build_prepositional_phrase_list_pair(first, second)?;
+    for (member_conjunction, member) in members {
+        if member_conjunction.is_some() {
+            return Err(violation(
+                "prepositional_phrase_sibling_coordinated",
+                "nonfinal members do not carry conjunctions",
+            ));
+        }
+        list = crate::constructions::coordination::build_prepositional_phrase_list_comma(
+            list, member,
+        )?;
+    }
+    crate::constructions::coordination::build_prepositional_phrase_sibling_coordinated(
+        None,
+        Some(list),
+        Some(Comma::Present),
+        conjunction,
+        final_phrase,
+    )
 }
 
 /// Renders a checked simple or coordinated prepositional phrase.

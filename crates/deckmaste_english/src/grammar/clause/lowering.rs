@@ -39,46 +39,7 @@ use crate::syntax::FiniteClause;
 use crate::syntax::InfinitiveClause;
 
 pub(in crate::grammar) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
-    match tag {
-        RuleTag::VerbPhraseCoordinatedAdjective => lower_predicate(tag, children),
-        RuleTag::ClauseCoordination
-        | RuleTag::ClauseCoordinationComma
-        | RuleTag::ClauseCoordinationAsyndetic
-        | RuleTag::ClauseCoordinationCopularNounPrepositional
-        | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
-        | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic => {
-            lower_composed_clause(tag, children)
-        }
-        _ => None,
-    }
-}
-
-pub(super) fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
-    match tag {
-        RuleTag::VerbPhraseCoordinatedAdjective => lower_predicate_dependent(tag, children),
-        _ => None,
-    }
-}
-
-#[allow(
-    clippy::too_many_lines,
-    reason = "one arm per predicate-dependent rule tag is intentionally verbose"
-)]
-pub(super) fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
-    let Lowered::VerbPhrase(mut predicate) = take(children, 0)? else {
-        return None;
-    };
-    let dependent = match tag {
-        RuleTag::VerbPhraseCoordinatedAdjective => {
-            let Lowered::CoordinatedModifier(coordinated) = take(children, 1)? else {
-                return None;
-            };
-            VerbDependent::CoordinatedAdjective(coordinated_modifier_as_adjectives(coordinated)?)
-        }
-        _ => return None,
-    };
-    predicate.dependents.push(dependent);
-    Some(Lowered::VerbPhrase(predicate))
+    lower_composed_clause(tag, children)
 }
 
 #[allow(
@@ -95,7 +56,6 @@ pub(super) fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> O
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic => lower_coordination(tag, children),
-        _ => None,
     }
 }
 
@@ -689,20 +649,19 @@ pub(super) fn independent_with_subject(
 /// position, so rejecting them keeps the attributive-only shapes out of the
 /// predicative slot.
 pub(in crate::grammar) fn coordinated_modifier_as_adjectives(
-    modifier: crate::syntax::CoordinatedModifier,
+    modifier: &crate::syntax::CoordinatedModifier,
 ) -> Option<crate::syntax::CoordinatedAdjectivePhrase> {
-    let first = modifier_as_predicative_adjective(*modifier.first)?;
-    let mut rest = Vec::with_capacity(modifier.rest.len());
-    for coordination in modifier.rest {
-        rest.push(crate::syntax::AdjectivePhraseCoordination {
-            conjunction: coordination.conjunction,
-            phrase: modifier_as_predicative_adjective(coordination.modifier)?,
-        });
+    let first = modifier_as_predicative_adjective(modifier.first().clone())?;
+    let mut rest = Vec::with_capacity(modifier.rest().len());
+    for coordination in modifier.rest() {
+        rest.push(
+            crate::syntax::AdjectivePhraseCoordination::from_declaration_parts(
+                coordination.conjunction(),
+                modifier_as_predicative_adjective(coordination.modifier().clone())?,
+            ),
+        );
     }
-    Some(crate::syntax::CoordinatedAdjectivePhrase {
-        first: Box::new(first),
-        rest,
-    })
+    Some(crate::syntax::CoordinatedAdjectivePhrase::from_declaration_parts(Box::new(first), rest))
 }
 
 pub(super) fn modifier_as_predicative_adjective(

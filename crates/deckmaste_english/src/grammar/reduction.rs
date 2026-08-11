@@ -32,27 +32,14 @@ pub(super) fn reduce(
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
 ) -> Option<Reduction<Features>> {
     let features = match tag {
-        RuleTag::NominalPowerToughnessComplement
-        | RuleTag::ModifierConjunctAdjective
-        | RuleTag::ModifierConjunctNoun
-        | RuleTag::ModifierConjunctNegated
-        | RuleTag::ModifierListSingle
-        | RuleTag::ModifierListComma
-        | RuleTag::CoordinatedModifierConjoined
-        | RuleTag::CoordinatedModifierOxford
-        | RuleTag::NominalCoordinatedModifier => {
-            reduce_nominal(HandwrittenNominalReduction::from_rule_tag(tag)?, children)?
-        }
-        RuleTag::PrepositionalPhraseListPair
-        | RuleTag::PrepositionalPhraseListComma
-        | RuleTag::PrepositionalPhraseSiblingCoordinated => reduce_phrase(tag, children)?,
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
         | RuleTag::ClauseCoordinationCopularNounPrepositional
         | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
-        | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic
-        | RuleTag::VerbPhraseCoordinatedAdjective => clause::reduce_clause(tag, children)?,
+        | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic => {
+            clause::reduce_clause(tag, children)?
+        }
     };
     let local_cost = clause::reduction_cost(tag, children);
     Some(Reduction {
@@ -63,237 +50,7 @@ pub(super) fn reduce(
 
 pub(super) type Reduced = Features;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum HandwrittenNominalReduction {
-    NominalPowerToughnessComplement,
-    ModifierConjunctAdjective,
-    ModifierConjunctNoun,
-    ModifierConjunctNegated,
-    ModifierListSingle,
-    ModifierListComma,
-    CoordinatedModifierConjoined,
-    CoordinatedModifierOxford,
-    NominalCoordinatedModifier,
-}
-
-impl HandwrittenNominalReduction {
-    fn from_rule_tag(tag: RuleTag) -> Option<Self> {
-        Some(match tag {
-            RuleTag::NominalPowerToughnessComplement => Self::NominalPowerToughnessComplement,
-            RuleTag::ModifierConjunctAdjective => Self::ModifierConjunctAdjective,
-            RuleTag::ModifierConjunctNoun => Self::ModifierConjunctNoun,
-            RuleTag::ModifierConjunctNegated => Self::ModifierConjunctNegated,
-            RuleTag::ModifierListSingle => Self::ModifierListSingle,
-            RuleTag::ModifierListComma => Self::ModifierListComma,
-            RuleTag::CoordinatedModifierConjoined => Self::CoordinatedModifierConjoined,
-            RuleTag::CoordinatedModifierOxford => Self::CoordinatedModifierOxford,
-            RuleTag::NominalCoordinatedModifier => Self::NominalCoordinatedModifier,
-            _ => return None,
-        })
-    }
-}
-
-#[allow(
-    clippy::too_many_lines,
-    reason = "quantity/reduction mapping is intentionally long"
-)]
-fn reduce_nominal(
-    tag: HandwrittenNominalReduction,
-    children: &[Child<'_, EnglishGrammar<'_, '_>>],
-) -> Option<Reduced> {
-    use HandwrittenNominalReduction as RuleTag;
-    match tag {
-        RuleTag::NominalPowerToughnessComplement => {
-            let Features::Nominal {
-                head,
-                coordination_domain,
-                form,
-                initial_sound,
-                determined,
-                modified,
-                leading_opacity,
-                attachment,
-                comparison,
-                adjunct,
-                opaque_head,
-                set_exception_host,
-                shared_determiner_open,
-                demonstrative_shared_determiner,
-                recipient_passive_theme,
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            if matches!(
-                attachment,
-                NominalAttachmentPhase::ReducedRecipientPassive
-                    | NominalAttachmentPhase::PostpositiveAdjective
-                    | NominalAttachmentPhase::Comparison
-            ) {
-                return None;
-            }
-            Some(Features::Nominal {
-                head: head.clone(),
-                coordination_domain: *coordination_domain,
-                form: *form,
-                initial_sound: *initial_sound,
-                determined: *determined,
-                modified: *modified,
-                leading_opacity: *leading_opacity,
-                attachment: *attachment,
-                comparison: *comparison,
-                adjunct: *adjunct,
-                opaque_head: *opaque_head,
-                set_exception_host: *set_exception_host,
-                shared_determiner_open: *shared_determiner_open,
-                demonstrative_shared_determiner: *demonstrative_shared_determiner,
-                recipient_passive_theme: *recipient_passive_theme,
-            })
-        }
-        RuleTag::ModifierConjunctAdjective => {
-            // Only plain attributive adjectives coordinate as modifiers: a
-            // comparative or a card-orientation adjective is not an atom of a
-            // color/type/supertype list.
-            let Features::Adjective {
-                initial_sound,
-                comparison: AdjectiveComparisonState::NotComparative,
-                card_orientation: false,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            Some(Features::CoordinatedModifier {
-                initial_sound: *initial_sound,
-                all_adjectives: true,
-                noun_heads: Vec::new(),
-            })
-        }
-        RuleTag::ModifierConjunctNoun => {
-            let Features::Noun {
-                identity,
-                initial_sound,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            Some(Features::CoordinatedModifier {
-                initial_sound: *initial_sound,
-                all_adjectives: false,
-                noun_heads: identity.iter().cloned().collect(),
-            })
-        }
-        RuleTag::ModifierConjunctNegated => {
-            // A `non-` conjunct always renders `non…`, a consonant onset.
-            Some(Features::CoordinatedModifier {
-                initial_sound: InitialSound::Consonant,
-                all_adjectives: false,
-                noun_heads: Vec::new(),
-            })
-        }
-        RuleTag::ModifierListSingle => {
-            let Features::CoordinatedModifier { .. } = children.first()?.features else {
-                return None;
-            };
-            Some(children.first()?.features.clone())
-        }
-        RuleTag::ModifierListComma => {
-            // The list keeps its first conjunct's onset regardless of what a
-            // comma continuation appends; `all_adjectives` holds only while every
-            // appended conjunct is itself an adjective.
-            let Features::CoordinatedModifier {
-                initial_sound,
-                all_adjectives,
-                noun_heads,
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            let Features::CoordinatedModifier {
-                all_adjectives: appended_adjectives,
-                noun_heads: appended_noun_heads,
-                ..
-            } = children.get(2)?.features
-            else {
-                return None;
-            };
-            Some(Features::CoordinatedModifier {
-                initial_sound: *initial_sound,
-                all_adjectives: *all_adjectives && *appended_adjectives,
-                noun_heads: noun_heads
-                    .iter()
-                    .chain(appended_noun_heads)
-                    .cloned()
-                    .collect(),
-            })
-        }
-        RuleTag::CoordinatedModifierConjoined | RuleTag::CoordinatedModifierOxford => {
-            let Features::CoordinatedModifier {
-                initial_sound,
-                all_adjectives,
-                noun_heads,
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            let conjunction_index =
-                if tag == RuleTag::CoordinatedModifierConjoined { 1 } else { 2 };
-            // `and`/`or`/`and/or` close a modifier list; sequencing and
-            // additive conjunctions never do.
-            let Features::Conjunction(conjunction) = children.get(conjunction_index)?.features
-            else {
-                return None;
-            };
-            match conjunction {
-                Conjunction::And | Conjunction::Or | Conjunction::AndOr => {}
-                Conjunction::Then | Conjunction::Plus => return None,
-            }
-            let Features::CoordinatedModifier {
-                all_adjectives: closing_adjectives,
-                noun_heads: closing_noun_heads,
-                ..
-            } = children.last()?.features
-            else {
-                return None;
-            };
-            Some(Features::CoordinatedModifier {
-                initial_sound: *initial_sound,
-                all_adjectives: *all_adjectives && *closing_adjectives,
-                noun_heads: noun_heads
-                    .iter()
-                    .chain(closing_noun_heads)
-                    .cloned()
-                    .collect(),
-            })
-        }
-        RuleTag::NominalCoordinatedModifier => {
-            let Features::CoordinatedModifier {
-                initial_sound,
-                noun_heads,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            let Features::Nominal { head, .. } = children.get(1)?.features else {
-                return None;
-            };
-            if head.as_ref().is_some_and(|head| noun_heads.contains(head)) {
-                return None;
-            }
-            nominal_with_prefix(
-                children.get(1)?,
-                *initial_sound,
-                false,
-                AdjectiveComparisonState::NotComparative,
-                true,
-            )
-        }
-    }
-}
-
-fn nominal_with_prefix_features(
+pub(crate) fn nominal_with_prefix_features(
     nominal: &Features,
     initial_sound: InitialSound,
     leading_opacity: bool,
@@ -854,6 +611,7 @@ fn reduce_nominal_relative_common(nominal: &Features, relative: &Features) -> Op
     let mut output = reduce_nominal_general_complement(nominal)?;
     let Features::Nominal {
         form,
+        modified,
         attachment,
         shared_determiner_open,
         ..
@@ -898,6 +656,7 @@ fn reduce_nominal_relative_common(nominal: &Features, relative: &Features) -> Op
     } else {
         NominalAttachmentPhase::Relative
     };
+    *modified = true;
     *shared_determiner_open = *shared_determiner_open && *form == NounForm::Singular;
     Some(output)
 }
@@ -1276,76 +1035,6 @@ pub(crate) fn reduce_nominal_times_clause(head: &Features, clause: &Features) ->
         demonstrative_shared_determiner: true,
         recipient_passive_theme: false,
     })
-}
-
-pub(super) fn reduce_phrase(
-    tag: RuleTag,
-    children: &[Child<'_, EnglishGrammar<'_, '_>>],
-) -> Option<Reduced> {
-    match tag {
-        RuleTag::PrepositionalPhraseListPair | RuleTag::PrepositionalPhraseListComma => {
-            let Features::PrepositionalPhrase {
-                preposition,
-                shared_determiner_object,
-                role_members,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            let Features::PrepositionalPhrase {
-                nearer_relative_host,
-                role_members: next_role_members,
-                ..
-            } = children.get(2)?.features
-            else {
-                return None;
-            };
-            let mut role_members = role_members.clone();
-            role_members.extend(next_role_members.iter().copied());
-            Some(Features::PrepositionalPhrase {
-                preposition: *preposition,
-                nominal_attachment: role_members.iter().all(|member| member.nominal_attachment),
-                role_members,
-                shared_determiner_object: *shared_determiner_object,
-                nearer_relative_host: *nearer_relative_host,
-            })
-        }
-        RuleTag::PrepositionalPhraseSiblingCoordinated => {
-            let Features::PrepositionalPhrase {
-                preposition,
-                role_members,
-                ..
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            let conjunction_index = if children.len() == 4 { 2 } else { 1 };
-            let Features::Conjunction(Conjunction::And | Conjunction::Or | Conjunction::AndOr) =
-                children.get(conjunction_index)?.features
-            else {
-                return None;
-            };
-            let Features::PrepositionalPhrase {
-                nearer_relative_host,
-                role_members: final_role_members,
-                ..
-            } = children.last()?.features
-            else {
-                return None;
-            };
-            let mut role_members = role_members.clone();
-            role_members.extend(final_role_members.iter().copied());
-            Some(Features::PrepositionalPhrase {
-                preposition: *preposition,
-                nominal_attachment: role_members.iter().all(|member| member.nominal_attachment),
-                role_members,
-                shared_determiner_object: false,
-                nearer_relative_host: *nearer_relative_host,
-            })
-        }
-        _ => None,
-    }
 }
 
 enum CoordinationDomainCombination {
@@ -2355,11 +2044,12 @@ fn generated_construction_features(
         }
         (
             GeneratedFeatureCombinator::SharedDeterminerCoordination,
-            [Some(determiner), Some(first), Some(rest), _complements],
+            [Some(determiner), Some(first), Some(rest), complements],
         ) => shared_determiner_coordination_features(
             determiner,
             first,
             rest,
+            *complements,
             member_value_field,
             conjunction_field,
         ),
@@ -2468,6 +2158,7 @@ fn shared_determiner_coordination_features(
     determiner: &Features,
     first: &Features,
     rest: &Features,
+    complements: Option<&Features>,
     member_value_field: usize,
     conjunction_field: usize,
 ) -> Option<Features> {
@@ -2516,6 +2207,21 @@ fn shared_determiner_coordination_features(
             };
         last_form = member.form;
         members.push(member);
+    }
+    // A bare-first / modified-final sequence whose relative follows the whole
+    // surface group has the common-head attachment as its constructionally
+    // available reading. The relative may reach this reducer either as the
+    // group's complement or already attached to the final nominal member.
+    // Reject only those two relative-bearing shapes: complete-head ambiguity
+    // remains available for an uncomplemented list such as
+    // `a creature or land card`.
+    let common_head_relative_candidate = bare_prefix_modified_final(&first, &members);
+    if common_head_relative_candidate
+        && members.last().is_some_and(|member| {
+            member.modified && (complements.is_some() || member.has_relative_postmodifier())
+        })
+    {
+        return None;
     }
     if members
         .iter()
@@ -2596,8 +2302,34 @@ struct NominalCoordinationMember {
     form: NounForm,
     initial_sound: InitialSound,
     adjunct: Option<super::BareNominalAdjunct>,
+    modified: bool,
+    attachment: Option<NominalAttachmentPhase>,
     shared_determiner_open: bool,
     demonstrative_shared_determiner: bool,
+}
+
+impl NominalCoordinationMember {
+    fn has_relative_postmodifier(&self) -> bool {
+        matches!(
+            self.attachment,
+            Some(
+                NominalAttachmentPhase::Relative
+                    | NominalAttachmentPhase::RulesObjectRelative
+                    | NominalAttachmentPhase::RelativeBareCopula
+            )
+        )
+    }
+}
+
+fn bare_prefix_modified_final(
+    first: &NominalCoordinationMember,
+    rest: &[NominalCoordinationMember],
+) -> bool {
+    !first.modified
+        && rest.last().is_some_and(|member| member.modified)
+        && rest[..rest.len().saturating_sub(1)]
+            .iter()
+            .all(|member| !member.modified)
 }
 
 fn nominal_coordination_member(features: &Features) -> Option<NominalCoordinationMember> {
@@ -2613,6 +2345,8 @@ fn nominal_coordination_member(features: &Features) -> Option<NominalCoordinatio
             form: *form,
             initial_sound: *initial_sound,
             adjunct: *adjunct,
+            modified: false,
+            attachment: None,
             shared_determiner_open: true,
             demonstrative_shared_determiner: true,
         }),
@@ -2621,6 +2355,8 @@ fn nominal_coordination_member(features: &Features) -> Option<NominalCoordinatio
             form,
             initial_sound,
             determined: false,
+            modified,
+            attachment,
             adjunct,
             shared_determiner_open,
             demonstrative_shared_determiner,
@@ -2630,6 +2366,8 @@ fn nominal_coordination_member(features: &Features) -> Option<NominalCoordinatio
             form: *form,
             initial_sound: *initial_sound,
             adjunct: *adjunct,
+            modified: *modified,
+            attachment: Some(*attachment),
             shared_determiner_open: *shared_determiner_open,
             demonstrative_shared_determiner: *demonstrative_shared_determiner,
         }),
@@ -2651,71 +2389,6 @@ fn generated_determiner_accepts(
 
 pub(super) fn propagate(child: &Child<'_, EnglishGrammar<'_, '_>>) -> Reduced {
     child.features.clone()
-}
-
-pub(super) fn nominal_with_prefix(
-    nominal: &Child<'_, EnglishGrammar<'_, '_>>,
-    initial_sound: InitialSound,
-    leading_opacity: bool,
-    prefix_comparison: AdjectiveComparisonState,
-    prefix_demonstrative_shared_determiner: bool,
-) -> Option<Reduced> {
-    let Features::Nominal {
-        head,
-        coordination_domain,
-        form,
-        determined,
-        attachment,
-        comparison,
-        adjunct,
-        opaque_head,
-        set_exception_host,
-        shared_determiner_open,
-        demonstrative_shared_determiner,
-        recipient_passive_theme,
-        ..
-    } = nominal.features
-    else {
-        return None;
-    };
-    if *determined {
-        return None;
-    }
-    let comparison = match (prefix_comparison, *comparison) {
-        // `Measured` is predicative-only: reject it attributively in either
-        // position.
-        (AdjectiveComparisonState::Measured, _) | (_, AdjectiveComparisonState::Measured) => {
-            return None;
-        }
-        (AdjectiveComparisonState::Pending(class), AdjectiveComparisonState::NotComparative) => {
-            AdjectiveComparisonState::Pending(class)
-        }
-        (AdjectiveComparisonState::Pending(_), _) => return None,
-        (AdjectiveComparisonState::NotComparative | AdjectiveComparisonState::Complete, state) => {
-            state
-        }
-    };
-    Some(Features::Nominal {
-        head: head.clone(),
-        coordination_domain: *coordination_domain,
-        form: *form,
-        initial_sound,
-        determined: *determined,
-        // The one site that sets this: adding any modifier (adjective, noun
-        // modifier, quantity, power/toughness, negated modifier) through
-        // this shared helper makes the nominal non-bare.
-        modified: true,
-        leading_opacity,
-        attachment: *attachment,
-        comparison,
-        adjunct: *adjunct,
-        opaque_head: *opaque_head,
-        set_exception_host: *set_exception_host,
-        shared_determiner_open: *shared_determiner_open,
-        demonstrative_shared_determiner: *demonstrative_shared_determiner
-            && prefix_demonstrative_shared_determiner,
-        recipient_passive_theme: *recipient_passive_theme,
-    })
 }
 
 pub(super) fn cardinality_accepts(cardinality: NounCardinality, form: NounForm) -> bool {
@@ -2844,39 +2517,26 @@ mod generated_tests {
     }
 
     #[test]
-    fn c01_prepositional_list_preserves_every_member_role_fact() {
-        let pair_features = [
-            prepositional_phrase(Preposition::During, true),
-            Features::None,
-            prepositional_phrase(Preposition::At, false),
-        ];
-        let pair_children = pair_features
-            .iter()
-            .map(|features| Child { features })
-            .collect::<Vec<_>>();
-        let pair = reduce_phrase(RuleTag::PrepositionalPhraseListPair, &pair_children)
-            .expect("the Oxford prefix contains two PPs");
-        let close_features = [
-            pair,
-            Features::None,
-            Features::Conjunction(Conjunction::And),
-            prepositional_phrase(Preposition::During, true),
-        ];
-        let close_children = close_features
-            .iter()
-            .map(|features| Child { features })
-            .collect::<Vec<_>>();
+    fn prepositional_list_preserves_every_member_role_fact() {
+        let pair = crate::constructions::coordination::reduce_prepositional_phrase_list_features(
+            &prepositional_phrase(Preposition::During, true),
+            &prepositional_phrase(Preposition::At, false),
+        )
+        .expect("the Oxford prefix contains two PPs");
         let Features::PrepositionalPhrase {
             nominal_attachment,
             role_members,
             ..
-        } = reduce_phrase(
-            RuleTag::PrepositionalPhraseSiblingCoordinated,
-            &close_children,
+        } = crate::constructions::coordination::reduce_prepositional_phrase_sibling_features(
+            None,
+            Some(&pair),
+            Some(&Features::None),
+            &Features::Conjunction(Conjunction::And),
+            &prepositional_phrase(Preposition::During, true),
         )
         .expect("the Oxford close produces one coordinated PP feature")
         else {
-            panic!("C01 must retain the PP feature category")
+            panic!("the PP feature category must be retained")
         };
         assert_eq!(
             role_members

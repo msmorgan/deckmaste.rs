@@ -1,0 +1,9 @@
+error[E0451]: fields `conjunction` and `phrase` of struct `AdjectivePhraseCoordination` are private
+  --> tests/compile_fail/construct_adjective_phrase_coordination.rs:10:9
+   |
+ 9 |     AdjectivePhraseCoordination {
+   |     --------------------------- in this type
+10 |         conjunction,
+   |         ^^^^^^^^^^^ private field
+11 |         phrase,
+   |         ^^^^^^ private field

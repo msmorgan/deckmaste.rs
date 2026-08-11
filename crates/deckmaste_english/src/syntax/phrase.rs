@@ -15,6 +15,7 @@ use crate::catalog::CatalogAtom;
 use crate::catalog::CatalogKind;
 use crate::constructions::coordination::CoordinatedNominalPhrase;
 use crate::constructions::coordination::CoordinatedNounPhrase;
+use crate::constructions::coordination::WithAttributeList;
 use crate::features::Comma;
 use crate::features::Conjunction;
 use crate::word::Adjective;
@@ -768,7 +769,7 @@ pub struct NounPhrase(NounPhraseKind);
 /// The semantic payload of `any number of <complement>`.
 ///
 /// The number is stored rather than inferred from a synthetic singular
-/// `number` nominal. Checked P01 construction admits only
+/// `number` nominal. Checked noun-phrase construction admits only
 /// [`Number::Plural`](crate::features::Number::Plural)
 /// and a complement with plural agreement.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -1065,6 +1066,31 @@ impl NominalPhrase {
     pub fn complements(&self) -> &[NominalComplement] {
         &self.complements
     }
+
+    pub(crate) fn try_attach_declared_with_attributes(
+        mut self,
+        attributes: WithAttributeList,
+    ) -> Option<Self> {
+        if self
+            .complements
+            .iter()
+            .any(|complement| matches!(complement, NominalComplement::WithAttributes(_)))
+        {
+            return None;
+        }
+        self.complements
+            .push(NominalComplement::WithAttributes(attributes));
+        Some(self)
+    }
+
+    pub(crate) fn try_split_declared_with_attributes(
+        mut self,
+    ) -> Option<(Self, WithAttributeList)> {
+        let Some(NominalComplement::WithAttributes(attributes)) = self.complements.pop() else {
+            return None;
+        };
+        Some((self, attributes))
+    }
 }
 
 // The declaration module is an owner child so its generated lens and adapter
@@ -1145,8 +1171,35 @@ pub enum NominalModifier {
 /// idiom.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct CoordinatedModifier {
-    pub first: Box<NominalModifier>,
-    pub rest: Vec<ModifierCoordination>,
+    first: Box<NominalModifier>,
+    rest: Vec<ModifierCoordination>,
+}
+
+impl CoordinatedModifier {
+    pub(crate) fn from_declaration_parts(
+        first: Box<NominalModifier>,
+        rest: Vec<ModifierCoordination>,
+    ) -> Self {
+        Self { first, rest }
+    }
+
+    pub(crate) fn into_declaration_parts(
+        self,
+    ) -> (Box<NominalModifier>, Vec<ModifierCoordination>) {
+        (self.first, self.rest)
+    }
+
+    /// Returns the first modifier in surface order.
+    #[must_use]
+    pub fn first(&self) -> &NominalModifier {
+        self.first.as_ref()
+    }
+
+    /// Returns the remaining coordinated modifiers in surface order.
+    #[must_use]
+    pub fn rest(&self) -> &[ModifierCoordination] {
+        &self.rest
+    }
 }
 
 /// One non-first member of an attributive modifier coordination.
@@ -1166,8 +1219,36 @@ pub struct ModifierCoordination {
     /// The connective introducing this member: `None` on the asyndetic
     /// comma-separated members of an Oxford list (`artifact,` in `artifact,
     /// creature, and land`); `Some` on the final `and`/`or`/`and/or` member.
-    pub conjunction: Option<Conjunction>,
-    pub modifier: NominalModifier,
+    conjunction: Option<Conjunction>,
+    modifier: NominalModifier,
+}
+
+impl ModifierCoordination {
+    pub(crate) fn from_declaration_parts(
+        conjunction: Option<Conjunction>,
+        modifier: NominalModifier,
+    ) -> Self {
+        Self {
+            conjunction,
+            modifier,
+        }
+    }
+
+    pub(crate) fn into_declaration_parts(self) -> (Option<Conjunction>, NominalModifier) {
+        (self.conjunction, self.modifier)
+    }
+
+    /// Returns the conjunction introducing this member, if present.
+    #[must_use]
+    pub const fn conjunction(&self) -> Option<Conjunction> {
+        self.conjunction
+    }
+
+    /// Returns this member's modifier.
+    #[must_use]
+    pub const fn modifier(&self) -> &NominalModifier {
+        &self.modifier
+    }
 }
 
 mod adjective_storage {
@@ -1554,8 +1635,35 @@ pub use adjective_storage::ComparisonMarker;
 /// attributive slot competes with it.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct CoordinatedAdjectivePhrase {
-    pub first: Box<AdjectivePhrase>,
-    pub rest: Vec<AdjectivePhraseCoordination>,
+    first: Box<AdjectivePhrase>,
+    rest: Vec<AdjectivePhraseCoordination>,
+}
+
+impl CoordinatedAdjectivePhrase {
+    pub(crate) fn from_declaration_parts(
+        first: Box<AdjectivePhrase>,
+        rest: Vec<AdjectivePhraseCoordination>,
+    ) -> Self {
+        Self { first, rest }
+    }
+
+    pub(crate) fn into_declaration_parts(
+        self,
+    ) -> (Box<AdjectivePhrase>, Vec<AdjectivePhraseCoordination>) {
+        (self.first, self.rest)
+    }
+
+    /// Returns the first adjective phrase in surface order.
+    #[must_use]
+    pub fn first(&self) -> &AdjectivePhrase {
+        self.first.as_ref()
+    }
+
+    /// Returns the remaining coordinated adjective phrases in surface order.
+    #[must_use]
+    pub fn rest(&self) -> &[AdjectivePhraseCoordination] {
+        &self.rest
+    }
 }
 
 /// One non-first member of a predicative adjective-phrase coordination.
@@ -1577,8 +1685,36 @@ pub struct AdjectivePhraseCoordination {
     /// `and`/`or`/`and/or` member and on the final Oxford member. The
     /// disjunctive-or-conjunctive `and/or` is admitted here because a supported
     /// copular witness (Glistening Deluge) attests it.
-    pub conjunction: Option<Conjunction>,
-    pub phrase: AdjectivePhrase,
+    pub(crate) conjunction: Option<Conjunction>,
+    pub(crate) phrase: AdjectivePhrase,
+}
+
+impl AdjectivePhraseCoordination {
+    pub(crate) const fn from_declaration_parts(
+        conjunction: Option<Conjunction>,
+        phrase: AdjectivePhrase,
+    ) -> Self {
+        Self {
+            conjunction,
+            phrase,
+        }
+    }
+
+    pub(crate) fn into_declaration_parts(self) -> (Option<Conjunction>, AdjectivePhrase) {
+        (self.conjunction, self.phrase)
+    }
+
+    /// Returns the conjunction introducing this member, if present.
+    #[must_use]
+    pub const fn conjunction(&self) -> Option<Conjunction> {
+        self.conjunction
+    }
+
+    /// Returns this member's adjective phrase.
+    #[must_use]
+    pub const fn phrase(&self) -> &AdjectivePhrase {
+        &self.phrase
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -1624,6 +1760,11 @@ pub enum NominalComplement {
     /// relative — no marker, no gap — so only the clause is carried; the
     /// renderer replays it directly after `times`.
     EventClause(Box<IndependentClause>),
+    /// A genuinely mixed list of keyword and quoted abilities introduced by
+    /// attributive `with` in a token description (`with haste and "…"`).
+    /// This is not a generic prepositional object: the closed member sum and
+    /// its attachment site are both part of the construction.
+    WithAttributes(WithAttributeList),
     /// A parameterized keyword ability's structured argument attached to its
     /// keyword-noun head in grant position (`ward {2}`, `protection from
     /// black`) — `kwgrant` round. Only the dedicated keyword-headed nominal

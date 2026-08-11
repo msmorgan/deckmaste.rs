@@ -819,6 +819,189 @@ mod tests {
     }
 
     #[test]
+    fn production_inspect_reports_common_head_head_list_and_mixed_with_owners() {
+        for (source, owner) in [
+            (
+                "Tap an Elf, Orc, or enchantment creature you control.",
+                "nominal_coordinated_modifier",
+            ),
+            (
+                "Search your library for a basic land card or Gate card, reveal it, put it into your hand, then shuffle.",
+                "shared_determiner_nominal",
+            ),
+            (
+                "Create a 1/1 red Alien creature token with haste and \"This token attacks each combat if able.\"",
+                "nominal_with_attributes",
+            ),
+        ] {
+            let verbose = verbose_m01(source);
+            assert!(
+                verbose.contains(&format!(" {owner} owner=generated backend=chart ")),
+                "missing generated coordination owner {owner} for {source:?}:\n{verbose}"
+            );
+        }
+
+        let mixed = verbose_m01(
+            "Create a 1/1 red Alien creature token with haste and \"This token attacks each combat if able.\"",
+        );
+        assert!(
+            mixed.contains(" with_attribute_list_conjoined owner=generated backend=chart "),
+            "mixed `with` list did not expose its generated list owner:\n{mixed}"
+        );
+        assert!(
+            mixed.contains("with_attribute_member_quoted owner=generated backend=chart "),
+            "mixed `with` list did not expose its quoted member owner:\n{mixed}"
+        );
+    }
+
+    #[test]
+    #[cfg_attr(
+        not(all(derived_cards, gen_catalogs)),
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+    )]
+    fn supported_mixed_with_cards_expose_the_dedicated_generated_owner() {
+        let data = OracleDataArgs::default()
+            .load()
+            .expect("release corpus data must be available for mixed `with` fixtures");
+        for name in ["Alien Invasion", "Basilica Shepherd", "Blink"] {
+            let cards = find_cards(&data.faces, name);
+            assert_eq!(cards.len(), 1, "expected one supported fixture for {name}");
+            let mut rendered = Vec::new();
+            write_cards(
+                &mut rendered,
+                &cards,
+                &data.catalogs,
+                &OutputConfig {
+                    verbose: true,
+                    abilities_only: false,
+                },
+            )
+            .expect("mixed `with` fixture must inspect");
+            let rendered = String::from_utf8(rendered).unwrap();
+            assert!(
+                rendered.contains(" nominal_with_attributes owner=generated backend=chart "),
+                "{name} did not select the dedicated nominal `with` owner:\n{rendered}"
+            );
+            assert!(
+                rendered.contains(" with_attribute_member_quoted owner=generated backend=chart "),
+                "{name} did not expose the quoted member owner:\n{rendered}"
+            );
+        }
+    }
+
+    #[test]
+    #[cfg_attr(
+        not(all(derived_cards, gen_catalogs)),
+        ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"
+    )]
+    fn supported_phrase_coordination_cards_round_trip_with_generated_grouping() {
+        let data = OracleDataArgs::default()
+            .load()
+            .expect("release corpus data must be available for coordination fixtures");
+        for (name, grouping, owner, ability_line) in [
+            (
+                "Abzan Monument",
+                "a basic Plains, Swamp, or Forest card",
+                Some("shared_determiner_nominal"),
+                None,
+            ),
+            (
+                "Open the Gates",
+                "a basic land card or Gate card",
+                Some("shared_determiner_nominal"),
+                None,
+            ),
+            (
+                "Banishing Slash",
+                "artifact, enchantment, or tapped creature",
+                Some("nominal_coordinated_modifier"),
+                None,
+            ),
+            (
+                "Cowabunga!",
+                "Mutant, Ninja, Turtle, or land card",
+                Some("nominal_coordinated_modifier"),
+                None,
+            ),
+            (
+                "Monument to Perfection",
+                "basic, Sphere, or Locus land",
+                None,
+                Some(0),
+            ),
+            ("Grassland Crusader", "Elf or Soldier creature", None, None),
+        ] {
+            let cards = find_cards(&data.faces, name);
+            let [card] = cards.as_slice() else {
+                panic!("expected one supported snapshot face for {name}, got {cards:#?}")
+            };
+            assert!(card.supported, "{name} must remain in the supported corpus");
+            let (oracle_text, source_text) = if let Some(line) = ability_line {
+                (
+                    card.oracle_text
+                        .lines()
+                        .nth(line)
+                        .unwrap_or_else(|| panic!("{name} has no Oracle ability line {line}")),
+                    card.source_text
+                        .lines()
+                        .nth(line)
+                        .unwrap_or_else(|| panic!("{name} has no source ability line {line}")),
+                )
+            } else {
+                (card.oracle_text.as_str(), card.source_text.as_str())
+            };
+            assert_eq!(
+                oracle_text, source_text,
+                "{name} must not need lossy input normalization"
+            );
+
+            let report = parse_with_identity(
+                oracle_text,
+                &data.catalogs,
+                card.printed_name(),
+                card.is_legendary,
+            );
+            assert!(
+                report.ast().recoveries().is_empty(),
+                "{name} introduced recovery: {:#?}",
+                report.diagnostics()
+            );
+            let rebuilt = report
+                .ast()
+                .render(card.printed_name(), card.is_legendary)
+                .unwrap_or_else(|error| panic!("{name} failed to render: {error}"));
+            assert_eq!(rebuilt, source_text, "{name} did not round-trip exactly");
+
+            if let Some(owner) = owner {
+                let selected = report
+                    .provenance()
+                    .selections()
+                    .iter()
+                    .find_map(|selection| {
+                        let span = selection.span().text(oracle_text)?;
+                        if !span.contains(grouping) {
+                            return None;
+                        }
+                        selection
+                            .constructions()
+                            .iter()
+                            .find(|decision| decision.selected().as_str() == owner)
+                            .map(|decision| (span, decision))
+                    });
+                let Some((span, decision)) = selected else {
+                    panic!(
+                        "{name} did not select {owner} over grouping {grouping:?}: {:#?}",
+                        report.provenance()
+                    )
+                };
+                assert!(span.contains(grouping), "{name}: selected span {span:?}");
+                assert_eq!(decision.owner(), ConstructionOwner::Generated, "{name}");
+                assert_eq!(decision.backend(), ConstructionBackend::Chart, "{name}");
+            }
+        }
+    }
+
+    #[test]
     fn production_p02_inspect_reports_generated_object_and_attachment_evidence() {
         let selected = verbose_m01("Look at the top card of your library.");
         assert!(
@@ -1233,12 +1416,31 @@ mod tests {
         let catalogs = Catalogs::default()
             .with_catalog(
                 deckmaste_english::CatalogKind::KeywordAbility,
-                ["Protection", "Ward"],
+                [
+                    "First strike",
+                    "Flying",
+                    "Haste",
+                    "Lifelink",
+                    "Protection",
+                    "Trample",
+                    "Vigilance",
+                    "Ward",
+                ],
             )
-            .with_catalog(deckmaste_english::CatalogKind::CreatureType, ["Ally"])
+            .with_catalog(
+                deckmaste_english::CatalogKind::CreatureType,
+                ["Ally", "Alien", "Elf", "Mutant", "Ninja", "Orc", "Turtle"],
+            )
             .with_catalog(
                 deckmaste_english::CatalogKind::CardType,
-                ["Artifact", "Creature", "Instant", "Land", "Sorcery"],
+                [
+                    "Artifact",
+                    "Creature",
+                    "Enchantment",
+                    "Instant",
+                    "Land",
+                    "Sorcery",
+                ],
             );
         let mut rendered = Vec::new();
         write_cards(

@@ -254,7 +254,10 @@ pub(crate) fn project_nominal_coordinated_modifier_remainder(
     value: &NominalPhrase,
 ) -> Option<(NominalModifier, NominalPhrase)> {
     if value.determiner().is_some()
-        || !value.complements().is_empty()
+        || !value
+            .complements()
+            .iter()
+            .all(|complement| matches!(complement, NominalComplement::Relative(_)))
         || !matches!(
             value.modifiers().first(),
             Some(NominalModifier::Coordinated(_))
@@ -287,12 +290,24 @@ pub(crate) fn build_nominal_coordinated_modifier(
     coordinated: CoordinatedModifier,
     nominal: NominalPhrase,
 ) -> Result<NominalPhrase, DeclarationViolation> {
-    let repeats_head = std::iter::once(coordinated.first.as_ref())
-        .chain(coordinated.rest.iter().map(|member| &member.modifier))
+    let repeats_head = std::iter::once(coordinated.first())
+        .chain(
+            coordinated
+                .rest()
+                .iter()
+                .map(crate::syntax::ModifierCoordination::modifier),
+        )
         .any(|modifier| {
             matches!(modifier, NominalModifier::Noun { noun, .. } if noun == nominal.head())
         });
-    if !prefix_is_outermost(&nominal) || repeats_head {
+    let relative_owner = nominal.determiner().is_none()
+        && !has_postnominal_comparison(&nominal)
+        && !nominal.complements().is_empty()
+        && nominal
+            .complements()
+            .iter()
+            .all(|complement| matches!(complement, NominalComplement::Relative(_)));
+    if !(prefix_is_outermost(&nominal) || relative_owner) || repeats_head {
         return Err(violation(
             "nominal_coordinated_modifier",
             "the coordinated modifier is outermost and does not repeat the nominal head",
@@ -1153,20 +1168,15 @@ fn append_postpositive(
             "a preceding postpositive adjective exists",
         )
     })?;
+    let continuation = AdjectivePhraseCoordination::from_declaration_parts(conjunction, adjective);
     let coordinated = match previous {
-        NominalComplement::Adjective(first) => CoordinatedAdjectivePhrase {
-            first: Box::new(first),
-            rest: vec![AdjectivePhraseCoordination {
-                conjunction,
-                phrase: adjective,
-            }],
-        },
-        NominalComplement::CoordinatedAdjective(mut coordinated) => {
-            coordinated.rest.push(AdjectivePhraseCoordination {
-                conjunction,
-                phrase: adjective,
-            });
-            coordinated
+        NominalComplement::Adjective(first) => {
+            CoordinatedAdjectivePhrase::from_declaration_parts(Box::new(first), vec![continuation])
+        }
+        NominalComplement::CoordinatedAdjective(coordinated) => {
+            let (first, mut rest) = coordinated.into_declaration_parts();
+            rest.push(continuation);
+            CoordinatedAdjectivePhrase::from_declaration_parts(first, rest)
         }
         _ => {
             return Err(violation(
@@ -1269,9 +1279,10 @@ fn make_nominal_postpositive_adjective_asyndetic(
 ) -> Result<NominalPhrase, DeclarationViolation> {
     let extends_open_run = match nominal.complements() {
         [NominalComplement::Adjective(_)] => true,
-        [NominalComplement::CoordinatedAdjective(CoordinatedAdjectivePhrase { rest, .. })] => rest
+        [NominalComplement::CoordinatedAdjective(coordinated)] => coordinated
+            .rest()
             .last()
-            .is_some_and(|member| member.conjunction.is_none()),
+            .is_some_and(|member| member.conjunction().is_none()),
         _ => false,
     };
     if !extends_open_run {
@@ -1297,11 +1308,12 @@ fn make_nominal_postpositive_adjective_oxford(
 ) -> Result<NominalPhrase, DeclarationViolation> {
     if !matches!(
         nominal.complements(),
-        [NominalComplement::CoordinatedAdjective(CoordinatedAdjectivePhrase {
-            rest,
-            ..
-        })] if !rest.is_empty()
-            && rest.iter().all(|member| member.conjunction.is_none())
+        [NominalComplement::CoordinatedAdjective(coordinated)]
+            if !coordinated.rest().is_empty()
+                && coordinated
+                    .rest()
+                    .iter()
+                    .all(|member| member.conjunction().is_none())
     ) {
         return Err(violation(
             "nominal_postpositive_adjective_oxford",
@@ -1326,24 +1338,27 @@ fn split_postpositive(
     conjoined: bool,
 ) -> (NominalPhrase, Option<Conjunction>, AdjectivePhrase) {
     let mut nominal = value.clone();
-    let Some(NominalComplement::CoordinatedAdjective(mut coordinated)) =
+    let Some(NominalComplement::CoordinatedAdjective(coordinated)) =
         nominal.declaration_complements_mut().pop()
     else {
         unreachable!("postpositive continuation ends in coordinated adjectives")
     };
-    let continuation = coordinated
-        .rest
+    let (first, mut rest) = coordinated.into_declaration_parts();
+    let continuation = rest
         .pop()
         .expect("coordinated adjective has a continuation");
-    assert_eq!(continuation.conjunction.is_some(), conjoined);
+    let (conjunction, phrase) = continuation.into_declaration_parts();
+    assert_eq!(conjunction.is_some(), conjoined);
     nominal
         .declaration_complements_mut()
-        .push(if coordinated.rest.is_empty() {
-            NominalComplement::Adjective(*coordinated.first)
+        .push(if rest.is_empty() {
+            NominalComplement::Adjective(*first)
         } else {
-            NominalComplement::CoordinatedAdjective(coordinated)
+            NominalComplement::CoordinatedAdjective(
+                CoordinatedAdjectivePhrase::from_declaration_parts(first, rest),
+            )
         });
-    (nominal, continuation.conjunction, continuation.phrase)
+    (nominal, conjunction, phrase)
 }
 
 fn make_nominal_comparison(
@@ -1789,11 +1804,11 @@ fn is_nominal_postpositive_adjective(value: &NominalPhrase) -> bool {
 fn is_nominal_postpositive_adjective_conjoined_prepositional(value: &NominalPhrase) -> bool {
     value.complements().len() == 1
         && final_coordinated_adjective(value).is_some_and(|coordinated| {
-            coordinated.rest.len() == 1
-                && coordinated.rest.last().is_some_and(|last| {
-                    last.conjunction.is_some()
+            coordinated.rest().len() == 1
+                && coordinated.rest().last().is_some_and(|last| {
+                    last.conjunction().is_some()
                         && matches!(
-                            (last.phrase.head(), last.phrase.complements()),
+                            (last.phrase().head(), last.phrase().complements()),
                             (
                                 Adjective::Participle(Tense::Past, _),
                                 [AdjectiveComplement::Prepositional(preposition)]
@@ -1806,10 +1821,10 @@ fn is_nominal_postpositive_adjective_conjoined_prepositional(value: &NominalPhra
 fn is_nominal_postpositive_adjective_conjoined(value: &NominalPhrase) -> bool {
     value.complements().len() == 1
         && final_coordinated_adjective(value).is_some_and(|coordinated| {
-            coordinated.rest.len() == 1
-                && coordinated.rest[0].conjunction.is_some()
+            coordinated.rest().len() == 1
+                && coordinated.rest()[0].conjunction().is_some()
                 && !matches!(
-                    coordinated.rest[0].phrase.complements().last(),
+                    coordinated.rest()[0].phrase().complements().last(),
                     Some(AdjectiveComplement::Prepositional(_))
                 )
         })
@@ -1818,18 +1833,18 @@ fn is_nominal_postpositive_adjective_conjoined(value: &NominalPhrase) -> bool {
 fn is_nominal_postpositive_adjective_asyndetic(value: &NominalPhrase) -> bool {
     value.complements().len() == 1
         && final_coordinated_adjective(value)
-            .and_then(|coordinated| coordinated.rest.last())
-            .is_some_and(|last| last.conjunction.is_none())
+            .and_then(|coordinated| coordinated.rest().last())
+            .is_some_and(|last| last.conjunction().is_none())
 }
 
 fn is_nominal_postpositive_adjective_oxford(value: &NominalPhrase) -> bool {
     value.complements().len() == 1
         && final_coordinated_adjective(value).is_some_and(|coordinated| {
-            coordinated.rest.len() >= 2
+            coordinated.rest().len() >= 2
                 && coordinated
-                    .rest
+                    .rest()
                     .last()
-                    .is_some_and(|last| last.conjunction.is_some())
+                    .is_some_and(|last| last.conjunction().is_some())
         })
 }
 
@@ -3797,17 +3812,17 @@ mod tests {
             Vec::new(),
             NounInstance::unchecked_singular(Noun::Word(Vocab::Card)),
             vec![NominalComplement::CoordinatedAdjective(
-                CoordinatedAdjectivePhrase {
-                    first: Box::new(participle(crate::word::Tense::Present, Vocab::Block)),
-                    rest: vec![AdjectivePhraseCoordination {
-                        conjunction: Some(Conjunction::Or),
-                        phrase: red_adjective()
+                CoordinatedAdjectivePhrase::from_declaration_parts(
+                    Box::new(participle(crate::word::Tense::Present, Vocab::Block)),
+                    vec![AdjectivePhraseCoordination::from_declaration_parts(
+                        Some(Conjunction::Or),
+                        red_adjective()
                             .try_attach_declared_prepositional(preposition_with_card(
                                 Preposition::By,
                             ))
                             .unwrap(),
-                    }],
-                },
+                    )],
+                ),
             )],
         );
         assert_nominal_inverse_rejects(&invalid);

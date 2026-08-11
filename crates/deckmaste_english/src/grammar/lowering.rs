@@ -29,7 +29,6 @@ use super::OpacitySlot;
 use super::OpaqueLexeme;
 use super::OracleSymbol;
 use super::Phrase;
-use super::Polarity;
 use super::PowerToughness;
 use super::Preposition;
 use super::PrepositionalPhrase;
@@ -438,6 +437,19 @@ fn project_generated_category(
         let value = value.downcast::<AdjectivePhrase>().ok()?;
         return Some(Lowered::AdjectivePhrase(*value));
     }
+    if construction.category == "ModifierConjunct" {
+        let value = value.downcast::<NominalModifier>().ok()?;
+        return Some(Lowered::NominalModifier(*value));
+    }
+    if matches!(
+        construction.category,
+        "ModifierList" | "CoordinatedModifier"
+    ) {
+        let value = value
+            .downcast::<crate::syntax::CoordinatedModifier>()
+            .ok()?;
+        return Some(Lowered::CoordinatedModifier(*value));
+    }
     if construction.category == "ComparisonStandard" {
         let value = value.downcast::<Phrase>().ok()?;
         return Some(Lowered::Phrase(*value));
@@ -494,7 +506,10 @@ fn project_generated_category(
         let value = value.downcast::<crate::syntax::GerundClause>().ok()?;
         return Some(Lowered::GerundClause(*value));
     }
-    if construction.category == "PrepositionalPhrase" {
+    if matches!(
+        construction.category,
+        "PrepositionalPhrase" | "PrepositionalPhraseList"
+    ) {
         let value = value.downcast::<PrepositionalPhrase>().ok()?;
         return Some(Lowered::PrepositionalPhrase(*value));
     }
@@ -1012,14 +1027,23 @@ fn erased_subtree(
         }
         "Determiner" => typed!(Determiner, value),
         "AdjectivePhrase" => typed!(AdjectivePhrase, value),
+        "ModifierConjunct" => typed!(NominalModifier, value),
+        "ModifierList" | "CoordinatedModifier" => {
+            let Lowered::CoordinatedModifier(value) = value else {
+                return None;
+            };
+            if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
+        }
         "CoordinatedAdjectivePhrase" => {
             let Lowered::CoordinatedModifier(value) = value else {
                 return None;
             };
-            let value = clause::coordinated_modifier_as_adjectives(value)?;
+            let value = clause::coordinated_modifier_as_adjectives(&value)?;
             if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
         }
-        "PrepositionalPhrase" => typed!(PrepositionalPhrase, value),
+        "PrepositionalPhrase" | "PrepositionalPhraseList" => {
+            typed!(PrepositionalPhrase, value)
+        }
         "PrepositionalObject" => {
             let Lowered::PrepositionalObject(value) = value else {
                 return None;
@@ -1173,7 +1197,7 @@ fn erased_optional(
                 };
                 Some(Box::new(Some(value.clone())))
             }
-            "PrepositionalPhrase" => {
+            "PrepositionalPhrase" | "PrepositionalPhraseList" => {
                 let Lowered::PrepositionalPhrase(value) = value else {
                     return None;
                 };
@@ -1263,7 +1287,7 @@ fn erased_optional_absent(
             boxed: false,
         } => Some(Box::new(None::<crate::syntax::AdjectivePhrase>)),
         K::Subtree {
-            category: "PrepositionalPhrase",
+            category: "PrepositionalPhrase" | "PrepositionalPhraseList",
             boxed: false,
         } => Some(Box::new(None::<crate::syntax::PrepositionalPhrase>)),
         K::Subtree {
@@ -1415,202 +1439,14 @@ pub(super) fn lower_lexical(
 )]
 pub(super) fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
     match tag {
-        RuleTag::NominalPowerToughnessComplement
-        | RuleTag::ModifierConjunctAdjective
-        | RuleTag::ModifierConjunctNoun
-        | RuleTag::ModifierConjunctNegated
-        | RuleTag::ModifierListSingle
-        | RuleTag::ModifierListComma
-        | RuleTag::CoordinatedModifierConjoined
-        | RuleTag::CoordinatedModifierOxford
-        | RuleTag::NominalCoordinatedModifier => lower_nominal(tag, children),
-        RuleTag::PrepositionalPhraseListPair
-        | RuleTag::PrepositionalPhraseListComma
-        | RuleTag::PrepositionalPhraseSiblingCoordinated => lower_phrase(tag, children),
         RuleTag::ClauseCoordination
         | RuleTag::ClauseCoordinationComma
         | RuleTag::ClauseCoordinationAsyndetic
         | RuleTag::ClauseCoordinationCopularNounPrepositional
         | RuleTag::ClauseCoordinationCopularNounPrepositionalComma
-        | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic
-        | RuleTag::VerbPhraseCoordinatedAdjective => clause::lower_clause(tag, children),
-    }
-}
-
-/// Re-labels keyword-ability catalog atoms inside a proper name so they are
-/// carried as case-preserved opaque tokens. Inside `named Storm Crow`, `Storm`
-/// is the first word of the name, not the keyword ability, so it must keep its
-/// matched source spelling instead of being lowercased by the keyword-atom noun
-/// case policy. Everything to the right of the `named` participle — the
-/// accumulated modifiers and the head — is name interior at the point this
-/// runs.
-///
-/// Only keyword-ability atoms are re-labelled: their spelling is the matched
-/// surface, so opacifying them is casing-faithful, whereas subtype/type atoms
-/// already render case- and inflection-faithfully (their spelling is a
-/// canonical singular). This also leaves the adjectival `differently named
-/// <type>` reading — which shares this flat shape but carries no keyword atom —
-/// untouched.
-pub(super) fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
-    match tag {
-        RuleTag::PrepositionalPhraseListPair
-        | RuleTag::PrepositionalPhraseListComma
-        | RuleTag::PrepositionalPhraseSiblingCoordinated => {
-            let Lowered::PrepositionalPhrase(first) = take(children, 0)? else {
-                return None;
-            };
-            let (conjunction, next_index) = if matches!(
-                tag,
-                RuleTag::PrepositionalPhraseListPair | RuleTag::PrepositionalPhraseListComma
-            ) {
-                (None, 2)
-            } else if children.len() == 4 {
-                let Lowered::Conjunction(conjunction) = take(children, 2)? else {
-                    return None;
-                };
-                (Some(noun_phrase_conjunction(conjunction)?), 3)
-            } else {
-                let Lowered::Conjunction(conjunction) = take(children, 1)? else {
-                    return None;
-                };
-                (Some(noun_phrase_conjunction(conjunction)?), 2)
-            };
-            let Lowered::PrepositionalPhrase(next) = take(children, next_index)? else {
-                return None;
-            };
-            let next = next.into_simple()?;
-            let coordination = crate::syntax::PrepositionalPhraseCoordination {
-                conjunction,
-                phrase: next,
-            };
-            let first = if let Some(first) = first.clone().into_simple() {
-                PrepositionalPhrase::coordinated(first, vec![coordination])
-            } else {
-                let mut first = first;
-                first.push_coordination(coordination).then_some(first)?
-            };
-            Some(Lowered::PrepositionalPhrase(first))
+        | RuleTag::ClauseCoordinationCopularNounPrepositionalAsyndetic => {
+            clause::lower_clause(tag, children)
         }
-        _ => None,
-    }
-}
-
-#[allow(
-    clippy::too_many_lines,
-    reason = "lowering nominals is intentionally long"
-)]
-pub(super) fn lower_nominal(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
-    match tag {
-        RuleTag::NominalPowerToughnessComplement => {
-            let Lowered::Nominal(nominal) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::PowerToughness(power_toughness) = take(children, 1)? else {
-                return None;
-            };
-            Some(Lowered::Nominal(
-                crate::constructions::nominal::build_nominal_power_toughness_complement(
-                    nominal,
-                    power_toughness,
-                )
-                .ok()?,
-            ))
-        }
-        RuleTag::ModifierConjunctAdjective => {
-            let Lowered::AdjectivePhrase(phrase) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::NominalModifier(NominalModifier::Adjective {
-                polarity: Polarity::Positive,
-                phrase,
-            }))
-        }
-        RuleTag::ModifierConjunctNoun => {
-            let Lowered::Noun(noun) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::NominalModifier(NominalModifier::Noun {
-                polarity: Polarity::Positive,
-                noun,
-            }))
-        }
-        RuleTag::ModifierConjunctNegated => {
-            // The `non-` lexeme already lowers to a negated `NominalModifier`.
-            let Lowered::NominalModifier(modifier) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::NominalModifier(modifier))
-        }
-        RuleTag::ModifierListSingle => {
-            let Lowered::NominalModifier(first) = take(children, 0)? else {
-                return None;
-            };
-            Some(Lowered::CoordinatedModifier(
-                crate::syntax::CoordinatedModifier {
-                    first: Box::new(first),
-                    rest: Vec::new(),
-                },
-            ))
-        }
-        RuleTag::ModifierListComma
-        | RuleTag::CoordinatedModifierConjoined
-        | RuleTag::CoordinatedModifierOxford => {
-            let Lowered::CoordinatedModifier(mut coordinated) = take(children, 0)? else {
-                return None;
-            };
-            let (conjunction, modifier_index) = match tag {
-                RuleTag::ModifierListComma => (None, 2),
-                RuleTag::CoordinatedModifierConjoined => (Some(1), 2),
-                RuleTag::CoordinatedModifierOxford => (Some(2), 3),
-                _ => return None,
-            };
-            let conjunction = match conjunction {
-                Some(index) => {
-                    let Lowered::Conjunction(conjunction) = take(children, index)? else {
-                        return None;
-                    };
-                    Some(noun_phrase_conjunction(conjunction)?)
-                }
-                None => None,
-            };
-            let Lowered::NominalModifier(modifier) = take(children, modifier_index)? else {
-                return None;
-            };
-            coordinated.rest.push(crate::syntax::ModifierCoordination {
-                conjunction,
-                modifier,
-            });
-            Some(Lowered::CoordinatedModifier(coordinated))
-        }
-        RuleTag::NominalCoordinatedModifier => {
-            let Lowered::CoordinatedModifier(coordinated) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Nominal(nominal) = take(children, 1)? else {
-                return None;
-            };
-            Some(Lowered::Nominal(
-                crate::constructions::nominal::build_nominal_coordinated_modifier(
-                    coordinated,
-                    nominal,
-                )
-                .ok()?,
-            ))
-        }
-        _ => None,
-    }
-}
-
-/// The noun-phrase connective a coordinating conjunction denotes, or `None`
-/// when it never joins phrases (`then` sequences clauses).
-fn noun_phrase_conjunction(
-    conjunction: crate::features::Conjunction,
-) -> Option<crate::features::Conjunction> {
-    match conjunction {
-        crate::features::Conjunction::And
-        | crate::features::Conjunction::Or
-        | crate::features::Conjunction::AndOr => Some(conjunction),
-        crate::features::Conjunction::Then | crate::features::Conjunction::Plus => None,
     }
 }
 

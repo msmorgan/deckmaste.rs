@@ -989,10 +989,6 @@ fn noun_phrase_accepts_set_exception(features: &Features) -> bool {
     )
 }
 
-fn mark_generated_cost(feature: &Features) -> Option<Features> {
-    Some(feature.clone())
-}
-
 deckmaste_constructions_macro::constructions! {
     group noun_phrase;
 
@@ -1159,7 +1155,6 @@ deckmaste_constructions_macro::constructions! {
             right: hole NounPhrase,
         }
         derive features: Features = reduce_minus(left, right);
-        derive base_precedence: Features = mark_generated_cost(left);
         form only @ 0 inverse check(is_minus) = left "minus" right;
         selection unique;
     }
@@ -1265,7 +1260,7 @@ mod tests {
 
         let mut ordinary = ConstructionRecorder::default();
         linearize_noun_phrase_nominal_with(&value, &mut ordinary)
-            .expect("the modified nominal has the ordinary P01 inverse");
+            .expect("the modified nominal has the ordinary noun-phrase inverse");
         assert_eq!(ordinary.construction, Some("noun_phrase_nominal"));
 
         let surface = crate::renderer::render_nominal_construction_form(
@@ -1280,12 +1275,12 @@ mod tests {
     }
 
     #[test]
-    fn special_p01_outputs_store_their_semantics_directly() {
+    fn special_noun_phrase_outputs_store_their_semantics_directly() {
         let cards = build_noun_phrase_nominal(
             NominalPhrase::try_from_noun(NounInstance::unchecked_plural(Noun::Word(Vocab::Card)))
                 .expect("cards is a plural nominal"),
         )
-        .expect("the nominal enters P01");
+        .expect("the nominal enters the noun-phrase construction");
         let any_number = build_noun_phrase_any_number_of(cards.clone())
             .expect("a plural complement enters any-number-of");
         let NounPhraseKind::AnyNumberOf(value) = any_number.kind() else {
@@ -1312,7 +1307,7 @@ mod tests {
                 .expect("the rules-object wrapper accepts its typed nominal role");
         assert_eq!(
             crate::renderer::render_generated_rules_object_noun_phrase_law(&value)
-                .expect("the P01 rules-object construction linearizes"),
+                .expect("the rules-object noun-phrase construction linearizes"),
             "card",
         );
     }

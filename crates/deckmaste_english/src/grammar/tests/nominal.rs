@@ -1000,6 +1000,187 @@ mod tests {
     }
 
     #[test]
+    fn bare_first_complete_head_keeps_shared_determiner_alternative() {
+        let source = "a creature or land card";
+        let exact = crate::grammar::exact::parse_production_noun_phrase_in_all_registration_orders(
+            source,
+            &fixture_catalogs(),
+            &SelfReference::default(),
+            Nonterminal::NounPhrase,
+            100_000,
+        )
+        .unwrap();
+        let signatures = exact.map(|parses| {
+            parses
+                .into_iter()
+                .map(|parse| {
+                    (
+                        parse.ast().construction,
+                        ron::to_string(&parse.ast().value).unwrap(),
+                    )
+                })
+                .collect::<std::collections::BTreeSet<_>>()
+        });
+        for roots in &signatures {
+            assert!(
+                roots
+                    .iter()
+                    .any(|(construction, _)| *construction == "shared_determiner_nominal")
+            );
+            assert!(
+                roots
+                    .iter()
+                    .any(|(construction, _)| *construction == "noun_phrase_coordination")
+            );
+            assert!(
+                roots
+                    .iter()
+                    .any(|(construction, _)| *construction == "noun_phrase_nominal")
+            );
+        }
+        assert_eq!(signatures[1], signatures[0]);
+        assert_eq!(signatures[2], signatures[0]);
+    }
+
+    #[test]
+    fn relative_bearing_final_member_cannot_capture_common_head_scope() {
+        let catalogs = fixture_catalogs().with_catalog(
+            CatalogKind::CardType,
+            ["Artifact", "Creature", "Enchantment", "Land"],
+        );
+        let source = "an Elf, Orc, or enchantment creature you control";
+        let exact = crate::grammar::exact::parse_production_noun_phrase_in_all_registration_orders(
+            source,
+            &catalogs,
+            &SelfReference::default(),
+            Nonterminal::NounPhrase,
+            100_000,
+        )
+        .unwrap();
+        let signatures = exact.map(|parses| {
+            let mut saw_common_head = false;
+            for parse in &parses {
+                match parse.ast().value.kind() {
+                    NounPhraseKind::Nominal(nominal)
+                        if matches!(nominal.modifiers(), [NominalModifier::Coordinated(_)])
+                            && matches!(
+                                nominal.complements(),
+                                [NominalComplement::Relative(_)]
+                            ) =>
+                    {
+                        saw_common_head = true;
+                    }
+                    NounPhraseKind::CoordinatedNominal(coordinated) => {
+                        assert!(
+                            coordinated.rest().iter().all(|member| !member
+                                .phrase
+                                .complements()
+                                .iter()
+                                .any(|complement| matches!(
+                                    complement,
+                                    NominalComplement::Relative(_)
+                                ))),
+                            "the final complete-head member captured the group relative: {coordinated:#?}"
+                        );
+                    }
+                    _ => {}
+                }
+            }
+            assert!(saw_common_head, "missing common-head exact reading: {parses:#?}");
+            parses
+                .into_iter()
+                .map(|parse| {
+                    (
+                        parse.ast().construction,
+                        ron::to_string(&parse.ast().value).unwrap(),
+                    )
+                })
+                .collect::<std::collections::BTreeSet<_>>()
+        });
+        assert_eq!(signatures[1], signatures[0]);
+        assert_eq!(signatures[2], signatures[0]);
+    }
+
+    #[test]
+    fn uncomplemented_binary_common_head_retains_both_exact_readings() {
+        let catalogs =
+            fixture_catalogs().with_catalog(CatalogKind::CreatureType, ["Elf", "Soldier"]);
+        let source = "target Elf or Soldier creature";
+        let exact = crate::grammar::exact::parse_production_noun_phrase_in_all_registration_orders(
+            source,
+            &catalogs,
+            &SelfReference::default(),
+            Nonterminal::NounPhrase,
+            100_000,
+        )
+        .unwrap();
+        let signatures = exact.map(|parses| {
+            assert!(
+                parses.iter().any(|parse| matches!(
+                    parse.ast().value.kind(),
+                    NounPhraseKind::Nominal(nominal)
+                        if matches!(nominal.modifiers(), [NominalModifier::Coordinated(_)])
+                )),
+                "missing common-head reading: {parses:#?}"
+            );
+            assert!(
+                parses.iter().any(|parse| matches!(
+                    parse.ast().value.kind(),
+                    NounPhraseKind::CoordinatedNominal(_)
+                )),
+                "missing shared-determiner reading: {parses:#?}"
+            );
+            parses
+                .into_iter()
+                .map(|parse| ron::to_string(&parse.ast().value).unwrap())
+                .collect::<std::collections::BTreeSet<_>>()
+        });
+        assert_eq!(signatures[1], signatures[0]);
+        assert_eq!(signatures[2], signatures[0]);
+    }
+
+    #[test]
+    fn mixed_land_modifiers_have_a_renderable_common_head_in_every_registration_order() {
+        let catalogs = fixture_catalogs().with_catalog(CatalogKind::LandType, ["Locus", "Sphere"]);
+        let source = "a basic, Sphere, or Locus land card";
+        let exact = crate::grammar::exact::parse_production_noun_phrase_in_all_registration_orders(
+            source,
+            &catalogs,
+            &SelfReference::default(),
+            Nonterminal::NounPhrase,
+            100_000,
+        )
+        .unwrap();
+        let signatures =
+            exact.map(|parses| {
+                let common_heads = parses
+                .iter()
+                .filter(|parse| matches!(
+                    parse.ast().value.kind(),
+                    NounPhraseKind::Nominal(nominal)
+                        if nominal
+                            .modifiers()
+                            .iter()
+                            .any(|modifier| matches!(modifier, NominalModifier::Coordinated(_)))
+                ))
+                .collect::<Vec<_>>();
+                assert!(
+                    !common_heads.is_empty(),
+                    "missing common-head exact reading: {parses:#?}"
+                );
+                for parse in common_heads {
+                    assert_eq!(render_fragment(&parse.ast().value), source);
+                }
+                parses
+                    .into_iter()
+                    .map(|parse| ron::to_string(&parse.ast().value).unwrap())
+                    .collect::<std::collections::BTreeSet<_>>()
+            });
+        assert_eq!(signatures[1], signatures[0]);
+        assert_eq!(signatures[2], signatures[0]);
+    }
+
+    #[test]
     fn coordinated_rules_types_keep_a_following_common_head() {
         let source = "an instant or sorcery spell";
         let parsed = parse(source);
@@ -1014,6 +1195,63 @@ mod tests {
         assert!(matches!(
             nominal.head().kind(),
             NounInstanceKind::Singular(Noun::Word(Vocab::Spell))
+        ));
+        assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
+    }
+
+    #[test]
+    fn mixed_modifier_common_head_keeps_group_relative_and_shared_head() {
+        let catalogs = fixture_catalogs().with_catalog(
+            CatalogKind::CardType,
+            [
+                "Artifact",
+                "Creature",
+                "Enchantment",
+                "Instant",
+                "Land",
+                "Sorcery",
+            ],
+        );
+        let source = "an Elf, Orc, or enchantment creature you control";
+        let parsed = parse_nonterminal(source, &catalogs, Nonterminal::NounPhrase)
+            .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+        let Some(NounPhraseKind::Nominal(nominal)) = parsed.noun_phrase().map(NounPhrase::kind)
+        else {
+            panic!(
+                "expected a common-head nominal: {:#?}",
+                parsed.noun_phrase()
+            );
+        };
+        let [NominalModifier::Coordinated(modifiers)] = nominal.modifiers() else {
+            panic!("expected one coordinated modifier: {nominal:#?}");
+        };
+        assert_eq!(modifiers.rest().len(), 2);
+        assert!(matches!(
+            modifiers.first(),
+            NominalModifier::Noun { noun, .. }
+                if matches!(noun.kind(), NounInstanceKind::Singular(Noun::Catalog(atom))
+                    if atom.canonical() == "Elf")
+        ));
+        assert!(matches!(
+            modifiers.rest()[0].modifier(),
+            NominalModifier::Noun { noun, .. }
+                if matches!(noun.kind(), NounInstanceKind::Singular(Noun::Catalog(atom))
+                    if atom.canonical() == "Orc")
+        ));
+        assert!(matches!(
+            modifiers.rest()[1].modifier(),
+            NominalModifier::Noun { noun, .. }
+                if matches!(noun.kind(), NounInstanceKind::Singular(Noun::Catalog(atom))
+                    if atom.canonical() == "Enchantment")
+        ));
+        assert!(matches!(
+            nominal.head().kind(),
+            NounInstanceKind::Singular(Noun::Catalog(atom))
+                if atom.canonical() == "Creature"
+        ));
+        assert!(matches!(
+            nominal.complements(),
+            [NominalComplement::Relative(_)]
         ));
         assert_eq!(render_fragment(parsed.noun_phrase().unwrap()), source);
     }
@@ -1274,22 +1512,22 @@ mod tests {
             );
         };
         assert!(matches!(
-            coordinated.first.as_ref(),
+            coordinated.first(),
             NominalModifier::Adjective {
                 polarity: Polarity::Positive,
                 phrase,
             }
                 if matches!(phrase.head(), Adjective::Color(ColorWord::White))
         ));
-        let [member] = coordinated.rest.as_slice() else {
+        let [member] = coordinated.rest() else {
             panic!("expected one continuation");
         };
         assert_eq!(
-            member.conjunction,
+            member.conjunction(),
             Some(crate::syntax::PredicateConjunction::And)
         );
         assert!(matches!(
-            &member.modifier,
+            member.modifier(),
             NominalModifier::Adjective {
                 polarity: Polarity::Positive,
                 phrase,
@@ -1316,12 +1554,12 @@ mod tests {
             panic!("expected a coordinated modifier, got {modifier:#?}");
         };
         assert_eq!(
-            polarity_of(&coordinated.first),
+            polarity_of(coordinated.first()),
             Some(Polarity::Negative),
             "first conjunct is negated"
         );
         assert_eq!(
-            polarity_of(&coordinated.rest[0].modifier),
+            polarity_of(coordinated.rest()[0].modifier()),
             Some(Polarity::Negative),
             "second conjunct is negated"
         );
@@ -1338,10 +1576,10 @@ mod tests {
             panic!("expected a coordinated modifier, got {modifier:#?}");
         };
         assert_eq!(
-            coordinated.rest[0].conjunction,
+            coordinated.rest()[0].conjunction(),
             Some(crate::syntax::PredicateConjunction::AndOr)
         );
-        assert_eq!(coordinated.rest.len(), 1);
+        assert_eq!(coordinated.rest().len(), 1);
     }
 
     #[test]
@@ -1554,7 +1792,7 @@ mod tests {
     }
 
     #[test]
-    fn production_p01_direct_shapes_preserve_identity_and_arithmetic() {
+    fn production_noun_phrase_direct_shapes_preserve_identity_and_arithmetic() {
         use crate::syntax::ArithmeticValue;
         use crate::syntax::PartitiveHead;
         use crate::syntax::Rounding;
@@ -1672,10 +1910,19 @@ mod tests {
             "any large number of players"
         );
 
-        assert!(matches!(
-            parse("3 minus 1").noun_phrase().map(NounPhrase::kind),
-            Some(NounPhraseKind::Arithmetic(ArithmeticValue::Minus { .. }))
-        ));
+        for source in ["3 minus 1", "that many cards minus one"] {
+            let arithmetic = parse(source);
+            assert!(
+                matches!(
+                    arithmetic.noun_phrase().map(NounPhrase::kind),
+                    Some(NounPhraseKind::Arithmetic(ArithmeticValue::Minus { .. }))
+                ),
+                "{source:?}: {:#?}",
+                arithmetic.noun_phrase(),
+            );
+            assert_generated(&arithmetic, "noun_phrase_minus");
+            assert_eq!(render_fragment(arithmetic.noun_phrase().unwrap()), source);
+        }
         for (source, expected) in [
             ("half 3", None),
             ("half 3, rounded up", Some(Rounding::Up)),
@@ -1690,24 +1937,68 @@ mod tests {
     }
 
     #[test]
-    fn production_p01_rejects_wrong_case_number_and_malformed_arithmetic() {
+    fn production_noun_phrase_rejects_wrong_case_number_and_malformed_arithmetic() {
         for source in ["Them draw a card.", "They draws a card."] {
             assert!(
                 parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
-                "wrong P01 case/number parsed: {source:?}",
+                "wrong noun-phrase case/number parsed: {source:?}",
             );
         }
 
         for source in ["3 minus", "minus 1", "half 3 rounded up", "half 3, rounded"] {
             assert!(
                 parse_nonterminal(source, &fixture_catalogs(), Nonterminal::NounPhrase).is_err(),
-                "malformed P01 arithmetic parsed: {source:?}",
+                "malformed noun-phrase arithmetic parsed: {source:?}",
             );
         }
     }
 
     #[test]
-    fn p01_registration_order_is_semantically_neutral() {
+    fn that_many_cards_minus_one_is_the_draw_objects_direct_arithmetic_phrase() {
+        let parsed = parse_nonterminal(
+            "Draw that many cards minus one.",
+            &fixture_catalogs(),
+            Nonterminal::Sentence,
+        )
+        .expect("the arithmetic draw instruction parses");
+        let SentenceBody::Independent(IndependentClause::Finite(finite)) = parsed
+            .sentence()
+            .expect("the fixture lowers as a sentence")
+            .body()
+        else {
+            panic!("the fixture must be a finite independent clause");
+        };
+        let crate::syntax::PredicateExpression::Simple(Predicate::Transitive(predicate)) =
+            finite.predicate()
+        else {
+            panic!("draw must retain its transitive predicate");
+        };
+        let PredicateObject::NounPhrase(object) = predicate.object() else {
+            panic!("draw must retain its noun-phrase object");
+        };
+        assert!(matches!(
+            object.kind(),
+            NounPhraseKind::Arithmetic(crate::syntax::ArithmeticValue::Minus { .. })
+        ));
+        assert_eq!(render_fragment(object), "that many cards minus one");
+        let decision = parsed
+            .construction_decisions()
+            .iter()
+            .find(|decision| decision.selected().as_str() == "noun_phrase_minus")
+            .expect("the direct arithmetic construction is selected");
+        assert_eq!(
+            decision.cost().precedence,
+            0,
+            "direct arithmetic must not carry a global selection penalty",
+        );
+    }
+
+    #[test]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the registration-order matrix keeps all noun-phrase witnesses together"
+    )]
+    fn noun_phrase_registration_order_is_semantically_neutral() {
         let self_reference = SelfReference::new("Nissa Revane", true);
         let fixtures = [
             (
@@ -1792,6 +2083,12 @@ mod tests {
                 0,
             ),
             ("3 minus 1", Nonterminal::NounPhrase, "noun_phrase_minus", 0),
+            (
+                "that many cards minus one",
+                Nonterminal::NounPhrase,
+                "noun_phrase_minus",
+                0,
+            ),
             ("half 3", Nonterminal::NounPhrase, "noun_phrase_half", 0),
             (
                 "half 3, rounded up",
@@ -1816,7 +2113,9 @@ mod tests {
                     nonterminal,
                     100_000,
                 )
-                .unwrap_or_else(|error| panic!("P01 exact parse failed for {source:?}: {error:?}"));
+                .unwrap_or_else(|error| {
+                    panic!("noun-phrase exact parse failed for {source:?}: {error:?}")
+                });
             let mut canonical = orders.map(|parses| {
                 parses
                     .into_iter()
@@ -1833,6 +2132,23 @@ mod tests {
                 values.sort_by_key(|(id, ordinal, value)| {
                     (*id, *ordinal, ron::to_string(value).unwrap())
                 });
+            }
+            if source == "that many cards minus one" {
+                for values in &canonical {
+                    assert!(!values.is_empty());
+                    assert!(
+                        values.iter().all(|(id, ordinal, value)| {
+                            (*id, *ordinal) == ("noun_phrase_minus", 0)
+                                && matches!(
+                                    value.kind(),
+                                    NounPhraseKind::Arithmetic(
+                                        crate::syntax::ArithmeticValue::Minus { .. }
+                                    )
+                                )
+                        }),
+                        "arithmetic must keep a direct noun-phrase root: {values:#?}"
+                    );
+                }
             }
             assert!(
                 canonical[0]
@@ -1853,7 +2169,7 @@ mod tests {
     }
 
     #[test]
-    fn p01_rules_object_registration_order_is_semantically_neutral() {
+    fn noun_phrase_rules_object_registration_order_is_semantically_neutral() {
         let rules_source =
             "This card deals damage to you and creatures you control that are tapped.";
         let parse_rules_object = |order| {
@@ -3350,7 +3666,7 @@ mod tests {
         };
         assert!(
             matches!(
-                coordinated.first.as_ref(),
+                coordinated.first(),
                 NominalModifier::Adjective {
                     polarity: Polarity::Positive,
                     phrase,
@@ -3358,14 +3674,14 @@ mod tests {
                     if matches!(phrase.head(), Adjective::Ordinal(1))
             ),
             "expected first conjunct Ordinal(1), got {:#?}",
-            coordinated.first
+            coordinated.first()
         );
-        let [second, third] = coordinated.rest.as_slice() else {
-            panic!("expected two continuations, got {:#?}", coordinated.rest);
+        let [second, third] = coordinated.rest() else {
+            panic!("expected two continuations, got {:#?}", coordinated.rest());
         };
-        assert_eq!(second.conjunction, None);
+        assert_eq!(second.conjunction(), None);
         assert!(matches!(
-            &second.modifier,
+            second.modifier(),
             NominalModifier::Adjective {
                 polarity: Polarity::Positive,
                 phrase,
@@ -3373,11 +3689,11 @@ mod tests {
                 if matches!(phrase.head(), Adjective::Ordinal(2))
         ));
         assert_eq!(
-            third.conjunction,
+            third.conjunction(),
             Some(crate::syntax::PredicateConjunction::Or)
         );
         assert!(matches!(
-            &third.modifier,
+            third.modifier(),
             NominalModifier::Adjective {
                 polarity: Polarity::Positive,
                 phrase,
@@ -3439,19 +3755,19 @@ mod tests {
             );
         };
         assert!(matches!(
-            coordinated.first.as_ref(),
+            coordinated.first(),
             NominalModifier::Adjective { phrase, .. }
                 if matches!(phrase.head(), Adjective::Ordinal(1))
         ));
-        let [only] = coordinated.rest.as_slice() else {
-            panic!("expected one continuation, got {:#?}", coordinated.rest);
+        let [only] = coordinated.rest() else {
+            panic!("expected one continuation, got {:#?}", coordinated.rest());
         };
         assert_eq!(
-            only.conjunction,
+            only.conjunction(),
             Some(crate::syntax::PredicateConjunction::Or)
         );
         assert!(matches!(
-            &only.modifier,
+            only.modifier(),
             NominalModifier::Adjective { phrase, .. }
                 if matches!(phrase.head(), Adjective::Ordinal(2))
         ));
@@ -3606,6 +3922,61 @@ mod tests {
             "a single plain adjective must not coordinate: {:#?}",
             nominal.modifiers()
         );
+    }
+
+    #[test]
+    fn mixed_keyword_and_quoted_with_attributes_are_structural() {
+        let catalogs = fixture_catalogs().with_catalog(
+            CatalogKind::KeywordAbility,
+            ["Haste", "Toxic", "First strike", "Vigilance"],
+        );
+        for source in [
+            "a 1/1 red Goblin creature token with haste and \"Draw a card.\"",
+            "a 1/1 red Goblin creature token with toxic 1 and \"Draw a card.\"",
+            "a 1/1 red Goblin creature token with first strike, vigilance, and \"Draw a card.\"",
+        ] {
+            let parsed = parse_nonterminal(source, &catalogs, Nonterminal::NounPhrase)
+                .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+            assert_eq!(parsed.opacity_mode(), OpacityMode::Exact, "{source}");
+            let noun_phrase = parsed.noun_phrase().expect("noun-phrase root");
+            // A nominal fragment has no enclosing sentence tail from which to
+            // derive the quoted ability's terminal period. Whole-sentence
+            // coverage below the renderer owns that punctuation contract.
+            assert_eq!(
+                crate::noun_phrase::render(noun_phrase, "Test Card", false)
+                    .expect("the mixed nominal must render"),
+                source.replace("card.\"", "card\""),
+                "{source}",
+            );
+            let NounPhraseKind::Nominal(nominal) = noun_phrase.kind() else {
+                panic!("expected a nominal noun phrase: {noun_phrase:#?}")
+            };
+            let [NominalComplement::WithAttributes(attributes)] = nominal.complements() else {
+                panic!("expected one typed with-attribute complement: {nominal:#?}")
+            };
+            assert!(matches!(
+                attributes.first(),
+                crate::syntax::WithAttributeMember::Keyword(_)
+            ));
+            assert!(attributes.rest().iter().any(|continuation| matches!(
+                continuation.member(),
+                crate::syntax::WithAttributeMember::Quoted(_)
+            )));
+        }
+    }
+
+    #[test]
+    fn mixed_with_attributes_reject_wrong_host_and_binary_oxford_punctuation() {
+        let catalogs = fixture_catalogs().with_catalog(CatalogKind::KeywordAbility, ["Haste"]);
+        for source in [
+            "a Goblin creature token from haste and \"Draw a card.\"",
+            "a Goblin creature token with haste, and \"Draw a card.\"",
+        ] {
+            assert!(
+                parse_nonterminal(source, &catalogs, Nonterminal::NounPhrase).is_err(),
+                "the dedicated mixed list must reject {source:?}",
+            );
+        }
     }
 
     fn parse(source: &str) -> ParsedNonterminal {

@@ -2864,6 +2864,7 @@ mod tests {
             [
                 "noun_phrase_member",
                 "nominal_phrase_member",
+                "adjective_phrase_member",
                 "nominal_complement"
             ],
         );
@@ -2876,6 +2877,7 @@ mod tests {
             [
                 "noun_phrase_member",
                 "nominal_phrase_member",
+                "adjective_phrase_member",
                 "nominal_complement"
             ],
         );
@@ -2883,25 +2885,34 @@ mod tests {
             group
                 .constructions
                 .iter()
-                .map(|construction| {
-                    (
-                        construction.id,
-                        construction.own_type,
-                        construction.bind_path,
-                    )
-                })
+                .map(|construction| construction.id)
                 .collect::<Vec<_>>(),
             [
-                (
-                    "noun_phrase_coordination",
-                    Some("CoordinatedNounPhrase"),
-                    None
-                ),
-                (
-                    "shared_determiner_nominal",
-                    Some("CoordinatedNominalPhrase"),
-                    None
-                ),
+                "with_attribute_keyword_bare",
+                "coordinated_adjective_phrase",
+                "with_attribute_keyword_counted",
+                "with_attribute_member_keyword",
+                "with_attribute_member_quoted",
+                "with_attribute_list_single",
+                "with_attribute_list_comma",
+                "with_attribute_list_conjoined",
+                "with_attribute_list_oxford",
+                "nominal_with_attributes",
+                "modifier_conjunct_adjective",
+                "modifier_conjunct_noun",
+                "modifier_conjunct_negated",
+                "modifier_list_single",
+                "modifier_list_comma",
+                "coordinated_modifier_conjoined",
+                "coordinated_modifier_oxford",
+                "nominal_coordinated_modifier",
+                "prepositional_phrase_list_pair",
+                "prepositional_phrase_list_comma",
+                "prepositional_phrase_sibling_coordinated",
+                "verb_phrase_coordinated_adjective",
+                "nominal_power_toughness_complement",
+                "noun_phrase_coordination",
+                "shared_determiner_nominal",
             ],
         );
 

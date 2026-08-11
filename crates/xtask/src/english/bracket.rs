@@ -466,6 +466,77 @@ mod tests {
     }
 
     #[test]
+    fn acceptance_brackets_pin_common_heads_and_head_lists() {
+        let catalogs = Catalogs::default()
+            .with_catalog(
+                CatalogKind::CardType,
+                ["Artifact", "Creature", "Enchantment", "Land", "Token"],
+            )
+            .with_catalog(
+                CatalogKind::CreatureType,
+                ["Elf", "Mutant", "Ninja", "Orc", "Turtle"],
+            )
+            .with_catalog(CatalogKind::LandType, ["Gate", "Locus", "Sphere"]);
+
+        let common_head = bracket_synthetic(
+            "Tap an Elf, Orc, or enchantment creature you control.",
+            &catalogs,
+        );
+        assert!(
+            common_head.contains("<<<<Elf>, <Orc>>, or <enchantment>> <<creature>"),
+            "synthetic heterogeneous modifiers must share the creature head recursively: {common_head}"
+        );
+        assert!(
+            common_head.contains("<creature> <<you> <control>>"),
+            "the group-level postmodifier must remain outside the common head: {common_head}"
+        );
+
+        let head_list = bracket_synthetic(
+            "Search your library for a basic land card or Gate card, reveal it, put it into your hand, then shuffle.",
+            &catalogs,
+        );
+        assert!(
+            head_list.contains("<basic> <<land> <card>>") && head_list.contains("<Gate> <card>"),
+            "complete headed nominals must remain a shared-determiner head list: {head_list}"
+        );
+
+        let mixed_common_head =
+            bracket_synthetic("Tap a basic, Sphere, or Locus land card.", &catalogs);
+        assert!(
+            mixed_common_head.contains("<<<<basic>, <Sphere>>, or <Locus>> <<land> <card>>"),
+            "mixed modifier forms must remain under one land/card head recursively: {mixed_common_head}"
+        );
+
+        let typed_common_head = bracket_synthetic(
+            "Look at the top four cards of your library. You may reveal a Mutant, Ninja, Turtle, or land card from among them and put it into your hand.",
+            &catalogs,
+        );
+        assert!(
+            typed_common_head.contains("<<<<<<Mutant>, <Ninja>>, <Turtle>>, or <land>> <card>>",),
+            "the four-member common-head list must keep card as its shared head recursively: {typed_common_head}"
+        );
+    }
+
+    #[test]
+    fn acceptance_brackets_pin_mixed_with_member_scope() {
+        let catalogs = Catalogs::default()
+            .with_catalog(
+                CatalogKind::CardType,
+                ["Artifact", "Creature", "Enchantment", "Token"],
+            )
+            .with_catalog(CatalogKind::CreatureType, ["Alien"])
+            .with_catalog(CatalogKind::KeywordAbility, ["Haste"]);
+        let source = "Create a 1/1 red Alien creature token with haste and \"This token attacks each combat if able.\"";
+        let bracketed = bracket_synthetic(source, &catalogs);
+        assert!(
+            bracketed.contains("with <<haste> and <\"")
+                && bracketed.contains("attacks")
+                && bracketed.contains("able"),
+            "keyword and quoted members must share the attributive `with` owner: {bracketed}"
+        );
+    }
+
+    #[test]
     #[cfg_attr(
         not(all(derived_cards, gen_catalogs)),
         ignore = "needs data/derived/cards.jsonl and data/gen/catalogs"

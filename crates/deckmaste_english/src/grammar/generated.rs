@@ -487,8 +487,11 @@ fn engine_category(name: &str) -> Option<Nonterminal> {
         "PossessiveNominal" => Nonterminal::PossessiveNounPhrase,
         "Determiner" => Nonterminal::Determiner,
         "AdjectivePhrase" | "ComparisonAdjectivePhrase" => Nonterminal::AdjectivePhrase,
-        "CoordinatedAdjectivePhrase" => Nonterminal::CoordinatedModifier,
+        "CoordinatedAdjectivePhrase" | "CoordinatedModifier" => Nonterminal::CoordinatedModifier,
+        "ModifierConjunct" => Nonterminal::ModifierConjunct,
+        "ModifierList" => Nonterminal::ModifierList,
         "PrepositionalPhrase" => Nonterminal::PrepositionalPhrase,
+        "PrepositionalPhraseList" => Nonterminal::PrepositionalPhraseList,
         "PrepositionalObject" => Nonterminal::PrepositionalObject,
         "InfinitiveClause" => Nonterminal::InfinitiveClause,
         "GerundClause" => Nonterminal::GerundClause,
@@ -611,6 +614,12 @@ pub(super) fn typed_feature_projection(
         ),
         ("noun_phrase", "prefix_admission") => Some(
             crate::constructions::noun_phrase::reduce_noun_phrase_prefix_admission(
+                construction,
+                fields,
+            ),
+        ),
+        ("noun_coordination", "features") => Some(
+            crate::constructions::coordination::reduce_noun_coordination_features(
                 construction,
                 fields,
             ),
@@ -1160,8 +1169,11 @@ fn atom_expected(
                 (
                     AtomData::Hole(_),
                     FieldKindData::Subtree { category, .. }
+                    | FieldKindData::TypedSubtree { category, .. }
                     | FieldKindData::Optional {
-                        inner: &FieldKindData::Subtree { category, .. },
+                        inner:
+                            &FieldKindData::Subtree { category, .. }
+                            | &FieldKindData::TypedSubtree { category, .. },
                     },
                 ) => Ok(Expected::Nonterminal(category_nonterminal(
                     cats,

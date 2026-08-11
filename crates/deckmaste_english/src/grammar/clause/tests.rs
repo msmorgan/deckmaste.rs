@@ -2233,6 +2233,91 @@ fn common_head_object_survives_following_finite_clause_coordination() {
 }
 
 #[test]
+fn target_elf_or_soldier_preserves_both_holistic_clause_readings() {
+    let source = "Target Elf or Soldier creature gets +2/+2 until end of turn.";
+    let catalogs = fixture_catalogs()
+        .with_catalog(CatalogKind::CreatureType, ["Elf", "Soldier"])
+        .with_catalog(CatalogKind::CardType, ["Creature"]);
+    let exact = crate::grammar::exact::parse_production_sentence_in_all_registration_orders(
+        source, &catalogs, 100_000,
+    )
+    .unwrap_or_else(|error| panic!("exact parse failed: {error:?}"));
+    let classify = |sentence: &Sentence| {
+        let common_head = match &sentence.body {
+            SentenceBody::Independent(IndependentClause::Finite(finite)) => finite
+                .subject()
+                .and_then(|subject| match subject.0.kind() {
+                    NounPhraseKind::Nominal(nominal) => Some(
+                        matches!(nominal.modifiers(), [NominalModifier::Coordinated(_)])
+                            && matches!(
+                                nominal.head().kind(),
+                                NounInstanceKind::Singular(Noun::Catalog(atom))
+                                    if atom.canonical() == "Creature"
+                            ),
+                    ),
+                    _ => None,
+                })
+                .unwrap_or(false),
+            _ => false,
+        };
+        let clause_coordination = matches!(
+            &sentence.body,
+            SentenceBody::Independent(IndependentClause::Coordinated(_))
+        );
+        (common_head, clause_coordination)
+    };
+    let signatures = exact.map(|parses| {
+        parses
+            .into_iter()
+            .map(|parse| {
+                assert_eq!(parse.ast().construction, "sentence");
+                let kind = classify(&parse.ast().value);
+                if kind.0 || kind.1 {
+                    assert_eq!(render_sentence(&parse.ast().value), source);
+                }
+                (kind, ron::to_string(&parse.ast().value).unwrap())
+            })
+            .collect::<std::collections::BTreeSet<_>>()
+    });
+    for (order, parses) in signatures.iter().enumerate() {
+        assert!(
+            parses.iter().any(|((common_head, _), _)| *common_head),
+            "registration order {order} lost the common-head clause: {parses:#?}"
+        );
+        assert!(
+            parses
+                .iter()
+                .any(|((_, clause_coordination), _)| *clause_coordination),
+            "registration order {order} lost the clause-coordination alternative: {parses:#?}"
+        );
+    }
+    assert_eq!(signatures[1], signatures[0]);
+    assert_eq!(signatures[2], signatures[0]);
+
+    let parsed = parse_nonterminal(source, &catalogs, Nonterminal::Sentence)
+        .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+    let clause_span = crate::grammar::Span::new(0, source.len() - 1);
+    let decision = parsed
+        .construction_decisions()
+        .iter()
+        .find(|decision| decision.span() == clause_span)
+        .expect("the full clause decision must be recorded");
+    let alternatives = decision
+        .alternatives()
+        .iter()
+        .filter(|alternative| {
+            matches!(
+                alternative.id().as_str(),
+                "clause_simple" | "clause_coordination"
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(alternatives.len(), 2, "{decision:#?}");
+    assert_eq!(alternatives[0].cost(), alternatives[1].cost());
+    assert_eq!(alternatives[0].cost().precedence, 2);
+}
+
+#[test]
 fn later_relative_consumes_its_temporal_adjunct_before_the_pp_closes() {
     let source = "Put a counter on each creature or permanent you control that entered the battlefield this turn.";
     let parsed = parse(source);
@@ -7633,25 +7718,25 @@ fn coordinated_postpositive_participles_share_the_creature_head() {
         panic!("expected coordinated postpositive participles: {target:#?}");
     };
     assert!(matches!(
-        participles.first.head(),
+        participles.first().head(),
         Adjective::Participle(Tense::Present, Verb::Word(Vocab::Block))
     ));
-    let [second] = participles.rest.as_slice() else {
+    let [second] = participles.rest() else {
         panic!("expected one `or blocked` member: {participles:#?}");
     };
-    assert_eq!(second.conjunction, Some(PredicateConjunction::Or));
+    assert_eq!(second.conjunction(), Some(PredicateConjunction::Or));
     assert!(matches!(
-        second.phrase.head(),
+        second.phrase().head(),
         Adjective::Participle(Tense::Past, Verb::Word(Vocab::Block))
     ));
     assert!(matches!(
-        second.phrase.complements(),
+        second.phrase().complements(),
         [AdjectiveComplement::Prepositional(by)] if by.head().preposition == Preposition::By
     ));
     assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
 }
 
-// ---- Stage C: narrow additive-type shared copular members ----
+// ---- Narrow additive-type shared copular members ----
 
 #[test]
 fn additive_type_copular_continuations_share_the_finite_subject() {

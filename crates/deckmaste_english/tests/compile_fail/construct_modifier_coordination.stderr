@@ -1,0 +1,9 @@
+error[E0451]: fields `conjunction` and `modifier` of struct `ModifierCoordination` are private
+  --> tests/compile_fail/construct_modifier_coordination.rs:10:9
+   |
+ 9 |     ModifierCoordination {
+   |     -------------------- in this type
+10 |         conjunction,
+   |         ^^^^^^^^^^^ private field
+11 |         modifier,
+   |         ^^^^^^^^ private field

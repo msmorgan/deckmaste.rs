@@ -250,200 +250,6 @@ impl RuleBuilder {
             ],
         );
     }
-
-    /// General coordination inside the nominal. Stable production identity
-    /// makes these two shapes independent of their registration position:
-    ///
-    /// * **Modifier coordination** — a coordinated run of attributive modifiers
-    ///   filling one modifier slot (`white and blue`, `artifact, creature, and
-    ///   land`). The list is gathered on the dedicated `ModifierList`/
-    ///   `CoordinatedModifier` nonterminals so a bare comma run never becomes a
-    ///   standalone modifier, and only the closed form prepends to a nominal.
-    /// * **Head-list coordination** — comma/Oxford extensions of the existing
-    ///   binary noun-phrase coordination (`target artifact, enchantment, or
-    ///   land`), so a shared-determiner list of heads joins one construction.
-    pub(super) fn add_coordination_rules(&mut self) {
-        use EnglishLexicalSlot as L;
-        use Expected::Lexical as l;
-        use Expected::Nonterminal as n;
-        use Nonterminal as N;
-
-        // A coordinable modifier atom: an adjective phrase, a bare noun, or a
-        // `non-` negated modifier (polarity composes per conjunct).
-        self.add(
-            RuleTag::ModifierConjunctAdjective,
-            N::ModifierConjunct,
-            [n(N::AdjectivePhrase)],
-        );
-        self.add(
-            RuleTag::ModifierConjunctNoun,
-            N::ModifierConjunct,
-            [n(N::Noun)],
-        );
-        self.add(
-            RuleTag::ModifierConjunctNegated,
-            N::ModifierConjunct,
-            [l(L::NegatedModifier)],
-        );
-
-        // The open comma-separated run, gathered left to right.
-        self.add(
-            RuleTag::ModifierListSingle,
-            N::ModifierList,
-            [n(N::ModifierConjunct)],
-        );
-        self.add(
-            RuleTag::ModifierListComma,
-            N::ModifierList,
-            [
-                n(N::ModifierList),
-                l(L::Punctuation(Punctuation::Comma)),
-                n(N::ModifierConjunct),
-            ],
-        );
-
-        // Closing the run with a conjunction. The bare-conjunction close covers
-        // both the simple two-way pair (`white and blue`) and the non-Oxford
-        // list (`artifact, creature and land`); the Oxford close adds the comma
-        // before the final conjunction (`artifact, creature, and land`).
-        self.add_with_cost(
-            RuleTag::CoordinatedModifierConjoined,
-            N::CoordinatedModifier,
-            [
-                n(N::ModifierList),
-                l(L::Conjunction),
-                n(N::ModifierConjunct),
-            ],
-            ParseCost {
-                precedence: 1,
-                ..ParseCost::default()
-            },
-        );
-        self.add_with_cost(
-            RuleTag::CoordinatedModifierOxford,
-            N::CoordinatedModifier,
-            [
-                n(N::ModifierList),
-                l(L::Punctuation(Punctuation::Comma)),
-                l(L::Conjunction),
-                n(N::ModifierConjunct),
-            ],
-            ParseCost {
-                precedence: 1,
-                ..ParseCost::default()
-            },
-        );
-
-        // The coordinated run fills one modifier slot on the nominal, binding
-        // tighter than the rest of the modifier stack.
-        self.add(
-            RuleTag::NominalCoordinatedModifier,
-            N::Nominal,
-            [n(N::CoordinatedModifier), n(N::Nominal)],
-        );
-
-        self.add_selectional_coordination_rules();
-    }
-
-    fn add_selectional_coordination_rules(&mut self) {
-        use EnglishLexicalSlot as L;
-        use Expected::Lexical as l;
-        use Expected::Nonterminal as n;
-        use Nonterminal as N;
-
-        // Sibling coordination: each member repeats its own preposition (`from
-        // blue and from black`). The rules above instead share one preposition
-        // across coordinated objects (`from artifacts, creatures, and
-        // enchantments`); registering sibling coordination after them keeps the
-        // shared-preposition reading preferred where both would fit.
-        // The run's base is a *pair*, not a single phrase, so
-        // `PrepositionalPhraseList` always holds at least two members and the
-        // Oxford close below therefore needs at least three. That makes strict
-        // serial-comma style structural: `A and B` takes no comma (the binary
-        // rule), `A, B, and C` takes one (this run plus the close), and
-        // `A, and B` matches nothing — a comma before the conjunction of a
-        // two-member coordination marks a clause boundary, not a list.
-        self.add(
-            RuleTag::PrepositionalPhraseListPair,
-            N::PrepositionalPhraseList,
-            [
-                n(N::PrepositionalPhrase),
-                l(L::Punctuation(Punctuation::Comma)),
-                n(N::PrepositionalPhrase),
-            ],
-        );
-        self.add(
-            RuleTag::PrepositionalPhraseListComma,
-            N::PrepositionalPhraseList,
-            [
-                n(N::PrepositionalPhraseList),
-                l(L::Punctuation(Punctuation::Comma)),
-                n(N::PrepositionalPhrase),
-            ],
-        );
-        self.add(
-            RuleTag::PrepositionalPhraseSiblingCoordinated,
-            N::PrepositionalPhrase,
-            [
-                n(N::PrepositionalPhrase),
-                l(L::Conjunction),
-                n(N::PrepositionalPhrase),
-            ],
-        );
-        self.add(
-            RuleTag::PrepositionalPhraseSiblingCoordinated,
-            N::PrepositionalPhrase,
-            [
-                n(N::PrepositionalPhraseList),
-                l(L::Punctuation(Punctuation::Comma)),
-                l(L::Conjunction),
-                n(N::PrepositionalPhrase),
-            ],
-        );
-    }
-
-    /// Attachment points that *consume* the landed coordination nonterminals at
-    /// positions other than the nominal head. Kept after
-    /// [`Self::add_coordination_rules`] for authoring locality, not precedence.
-    ///
-    /// * **Predicative-adjective coordination** (Family C) — a closed
-    ///   [`Nonterminal::CoordinatedModifier`] filling a copular or
-    ///   intransitive-`be` adjective complement (`it's legendary and snow`,
-    ///   `that's red or green`, `that are green and/or white`). The three rules
-    ///   below cover the matrix copular remainder, the contracted relative
-    ///   copular, and the non-contracted intransitive-`be` verb phrase;
-    ///   lowering converts the modifier list into a
-    ///   [`CoordinatedAdjectivePhrase`](crate::syntax::CoordinatedAdjectivePhrase),
-    ///   rejecting any non-adjective conjunct so the attributive-only shapes
-    ///   stay out of predicative position.
-    pub(super) fn add_coordination_consumer_rules(&mut self) {
-        use EnglishLexicalSlot as L;
-        use Expected::Lexical as l;
-        use Expected::Nonterminal as n;
-        use Nonterminal as N;
-
-        // Family C: predicative-adjective coordination.
-        self.add(
-            RuleTag::VerbPhraseCoordinatedAdjective,
-            N::VerbPhrase,
-            [n(N::VerbPhrase), n(N::CoordinatedModifier)],
-        );
-        // Family A: a power/toughness value complement on a characteristic
-        // nominal (`base power and toughness X/X`). Mirrors the quantity
-        // complement (`base power 2`) for the `N/N` token; the shared `base`
-        // modifier and coordinated `power and toughness` heads ride the existing
-        // nominal-modifier and noun-phrase coordination, with the value recorded
-        // on the final characteristic.
-        self.add_with_cost(
-            RuleTag::NominalPowerToughnessComplement,
-            N::Nominal,
-            [n(N::Nominal), l(L::PowerToughness)],
-            ParseCost {
-                precedence: 1,
-                ..ParseCost::default()
-            },
-        );
-    }
 }
 
 fn reorder_registrations(registrations: &mut [RuleRegistration], order: RegistrationOrder) {
@@ -513,17 +319,17 @@ mod tests {
     fn interleaved_builder() -> RuleBuilder {
         let mut builder = RuleBuilder::default();
         builder.add(
-            RuleTag::PrepositionalPhraseListPair,
+            RuleTag::ClauseCoordination,
             Nonterminal::Determiner,
             [Expected::Lexical(EnglishLexicalSlot::Determiner)],
         );
         builder.add(
-            RuleTag::PrepositionalPhraseListPair,
+            RuleTag::ClauseCoordination,
             Nonterminal::Determiner,
             [Expected::Lexical(EnglishLexicalSlot::Determiner)],
         );
         builder.add(
-            RuleTag::PrepositionalPhraseListComma,
+            RuleTag::ClauseCoordinationComma,
             Nonterminal::Determiner,
             [Expected::Lexical(EnglishLexicalSlot::DeterminerTarget)],
         );
