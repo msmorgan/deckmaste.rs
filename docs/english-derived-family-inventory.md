@@ -302,8 +302,9 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 - **Owners and AST:** the P01 declaration owns generated chart parsing, feature
   lowering, checked builders, and inverse linearization for `NounPhrase` and
   its pronoun, self-reference, partitive, set-exception, arithmetic, and
-  rules-object forms. Syntax is sealed behind private `NounPhraseRepr` storage
-  and the read-only `NounPhraseKind` projection.
+  rules-object forms. `NounPhrase` seals an owning, public
+  `NounPhraseKind`; named self-reference genitives and `any number of` are
+  direct alternatives rather than compatibility nominal spines.
 - **Holes and constraints:** nominal/quantity/NP subtree holes; identity holes
   for pronoun, reciprocal, demonstrative, and self-reference form; scalar and
   field holes for arithmetic and rounding. Agreement, pronoun case,
@@ -312,14 +313,16 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 - **Ambiguity/backend:** fan-out one on Chart. `noun_phrase_nominal` dominates
   `noun_phrase_minus` and the already-generated
   `noun_phrase_coordination`; `noun_phrase_subject_pronoun` dominates
-  `noun_phrase_object_pronoun`.
+  `noun_phrase_object_pronoun`; and `noun_phrase_any_number_of` dominates the
+  formal-singular `noun_phrase_nominal` reading when both complete.
 - **Witnesses:** pronoun, demonstrative, reciprocal, arithmetic operator, and
   rounding are meaning-bearing. Full versus abbreviated self-reference is a
-  stored exact witness; realized name comes from identity. Pronoun and
+  stored exact witness; realized name comes from identity. `AnyNumberOf`
+  stores notional plural agreement and its selected complement. Pronoun and
   self-reference surface conventions use style guide §5.
 - **Consumers and gates:** Nominal fragments, every clause/cost frame, spelling
   views, and inspect. Direct ASTs cover all variants and notional agreement;
-  inspect pins the three dominance relations; exactness covers self-reference
+  inspect pins the four direct dominance relations; exactness covers self-reference
   and rounding punctuation; negatives reject case/number mismatches,
   ineligible set exceptions, and malformed arithmetic.
 
@@ -330,21 +333,26 @@ anaphora”; nominal selection uses §§6–7; ability frames and keyword lines 
 **Stable IDs (2):** `prepositional_phrase`, `prepositional_object`.
 
 - **Owners and AST:** generated declarations own parsing, lowering, inverse
-  rendering, checked building, and typed projections for `PrepositionalPhrase`
-  and its noun-phrase, prepositional, gerund, and adverb object variants;
-  sealed syntax prevents construction outside those checked entry points.
+  rendering, checked building, and direct typed storage for
+  `PrepositionalPhrase` and its noun-phrase, prepositional, gerund, and adverb
+  object variants. A sealed `PrepositionalObject` owns that sum; no generic
+  `Phrase` compatibility value sits behind it.
 - **Holes and constraints:** preposition identity plus one whole typed object
-  subtree. Object variant, attachment role, and selected-complement versus
-  adjunct use are constraints.
+  subtree. Object variant, adverb lexical class, attachment role, and
+  selected-complement versus adjunct use are constraints.
 - **Ambiguity/backend:** fan-out one on Chart, no direct dominance edge; PP
   attachment ambiguities remain packed and resolved only by the owning
   nominal/predicate constraints and declared costs.
-- **Witnesses:** preposition and object identity are meaning-bearing; spacing
-  is derived house style. No free punctuation witness belongs to this unit.
+- **Witnesses:** preposition and object identity are meaning-bearing. A shared
+  preposition over a coordinated noun phrase remains distinct from sibling
+  phrases that repeat their prepositions; spacing is derived house style. No
+  free punctuation witness belongs to this unit.
 - **Consumers and gates:** Nominal, predicate, cost, and sentence trees plus
   spelling views. Direct ASTs cover every object variant; inspect names the
-  selected attachment owner; exactness covers nested PPs; negatives reject
-  object-category and role violations.
+  selected attachment owner; exactness covers nested PPs. The ability-owned
+  `with "…"` postmodifier is an explicit predicate adjunct, not a hidden P02
+  value. Negatives reject object-category, lexical-class, role, and private
+  wrapper bypasses.
 
 ## V01 — predicate spine
 

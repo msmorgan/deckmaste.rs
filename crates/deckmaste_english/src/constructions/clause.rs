@@ -693,7 +693,7 @@ fn variable_value_constraint_parts(
     let QuantityKind::Exact(number) = quantity.kind() else {
         unreachable!("variable value constraint retains one numeric complement")
     };
-    (subject, *modal, predicate.copula.auxiliary, number)
+    (*subject, *modal, predicate.copula.auxiliary, number)
 }
 
 fn is_clause_variable_value_constraint(value: &Clause) -> bool {

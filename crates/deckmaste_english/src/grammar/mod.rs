@@ -243,6 +243,7 @@ pub(crate) enum VerbDependent {
     Scalar(Phrase),
     Statistic(Phrase),
     Prepositional(PrepositionalPhrase),
+    AbilityPostmodifier(crate::syntax::AbilityPostmodifier),
     Temporal(NounPhrase),
     Manner(NounPhrase),
     Infinitive(crate::syntax::InfinitiveClause),
@@ -447,17 +448,6 @@ impl VerbPhrase {
         Some((predicate, dependent))
     }
 
-    pub(crate) fn declaration_coordinated_adjective_parts(
-        &self,
-    ) -> Option<(Self, crate::syntax::CoordinatedAdjectivePhrase)> {
-        let (predicate, VerbDependent::CoordinatedAdjective(adjective)) =
-            self.declaration_last_dependent_parts()?
-        else {
-            return None;
-        };
-        Some((predicate, adjective))
-    }
-
     pub(crate) fn declaration_into_dependent_projection(mut self) -> (Vec<VerbDependent>, Self) {
         let dependents = std::mem::take(&mut self.dependents);
         (dependents, self)
@@ -530,6 +520,7 @@ impl VerbPhrase {
                 VerbDependent::Adverbial(Phrase::Adverb(_)) | VerbDependent::Frequency(_) => {
                     PredicateAttachment::Adjunct
                 }
+                VerbDependent::AbilityPostmodifier(_) => PredicateAttachment::Adjunct,
                 VerbDependent::Particle(particle) => PredicateAttachment::Particle(*particle),
                 VerbDependent::CoinResult(side) => PredicateAttachment::CoinResult(*side),
                 VerbDependent::Exception(_) => PredicateAttachment::Exception,

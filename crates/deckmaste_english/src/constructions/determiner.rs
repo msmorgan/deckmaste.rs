@@ -148,7 +148,7 @@ fn possessive_this_card_parts(value: &Determiner) -> ThisCardForm {
     let crate::syntax::NounPhraseKind::ThisCard(form) = noun.kind() else {
         unreachable!("determiner_possessive_this_card admits only self-reference possessors")
     };
-    form
+    *form
 }
 
 fn is_possessive_this_card(value: &Determiner) -> bool {

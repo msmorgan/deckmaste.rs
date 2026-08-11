@@ -365,14 +365,8 @@ fn prepositional_nominal_attachment_is_admitted(preposition: &PrepositionalPhras
     crate::constructions::prepositional::every_prepositional_member(preposition, |member| {
         let by_gerund = member.preposition() == Preposition::By
             && matches!(
-                member.object(),
-                Phrase::Clause(clause)
-                    if matches!(
-                        clause.as_ref(),
-                        crate::syntax::Clause::Dependent(
-                            crate::syntax::DependentClause::Gerund(_)
-                        )
-                    )
+                member.object().kind(),
+                crate::syntax::PrepositionalObjectKind::GerundClause(_)
             );
         nominal_prepositional_attachment_is_admitted(!by_gerund)
     })
@@ -2787,9 +2781,9 @@ mod tests {
 
         let preposition = crate::constructions::prepositional::expect_prepositional_phrase(
             Preposition::In,
-            Phrase::NounPhrase(Box::new(NounPhrase::from_nominal_declaration(
-                card_nominal(),
-            ))),
+            crate::syntax::PrepositionalObjectKind::NounPhrase(Box::new(
+                NounPhrase::from_nominal_declaration(card_nominal()),
+            )),
         );
         let nominal_prepositional =
             build_nominal_prepositional(card_nominal(), preposition.clone()).unwrap();
@@ -3132,9 +3126,9 @@ mod tests {
                 participle(crate::word::Tense::Past, Vocab::Block),
                 crate::constructions::prepositional::expect_prepositional_phrase(
                     Preposition::By,
-                    Phrase::NounPhrase(Box::new(NounPhrase::from_nominal_declaration(
-                        card_nominal(),
-                    ))),
+                    crate::syntax::PrepositionalObjectKind::NounPhrase(Box::new(
+                        NounPhrase::from_nominal_declaration(card_nominal()),
+                    )),
                 ),
             )
             .unwrap();
@@ -3418,9 +3412,9 @@ mod tests {
         let preposition = || {
             crate::constructions::prepositional::expect_prepositional_phrase(
                 Preposition::In,
-                Phrase::NounPhrase(Box::new(NounPhrase::from_nominal_declaration(
-                    card_nominal(),
-                ))),
+                crate::syntax::PrepositionalObjectKind::NounPhrase(Box::new(
+                    NounPhrase::from_nominal_declaration(card_nominal()),
+                )),
             )
         };
         let attached = build_nominal_prepositional(card_nominal(), preposition()).unwrap();
@@ -3605,9 +3599,7 @@ mod tests {
         let gerund = crate::clause::build_gerund_clause_base(&predicate).unwrap();
         let by_gerund = crate::constructions::prepositional::expect_prepositional_phrase(
             Preposition::By,
-            Phrase::Clause(Box::new(crate::syntax::Clause::Dependent(
-                crate::syntax::DependentClause::Gerund(gerund),
-            ))),
+            crate::syntax::PrepositionalObjectKind::GerundClause(Box::new(gerund)),
         );
         assert!(build_nominal_prepositional(card_nominal(), by_gerund.clone()).is_err());
 
@@ -3652,9 +3644,9 @@ mod tests {
     fn preposition_with_card(preposition: Preposition) -> PrepositionalPhrase {
         crate::constructions::prepositional::expect_prepositional_phrase(
             preposition,
-            Phrase::NounPhrase(Box::new(NounPhrase::from_nominal_declaration(
-                card_nominal(),
-            ))),
+            crate::syntax::PrepositionalObjectKind::NounPhrase(Box::new(
+                NounPhrase::from_nominal_declaration(card_nominal()),
+            )),
         )
     }
 
@@ -4017,7 +4009,9 @@ mod tests {
         else {
             panic!("number-of-times fixture keeps its of complement")
         };
-        let Phrase::NounPhrase(object) = of.head_mut().object.as_mut() else {
+        let crate::syntax::PrepositionalObjectKind::NounPhrase(object) =
+            of.head_mut().object.test_kind_mut()
+        else {
             panic!("the of complement keeps its noun-phrase object")
         };
         let crate::syntax::NounPhraseKind::Nominal(times) = object.kind() else {

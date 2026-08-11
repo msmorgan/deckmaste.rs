@@ -56,6 +56,8 @@ use crate::constructions::nominal::RulesObjectFollowupNominal;
 use crate::constructions::nominal::RulesObjectNominal;
 use crate::forest::AlternativeSelection;
 use crate::syntax::ComparativeWord;
+use crate::syntax::PrepositionalObject;
+use crate::syntax::PrepositionalObjectKind;
 
 pub(super) enum GeneratedValue {
     Typed(deckmaste_construction_compiler::runtime::ErasedValue),
@@ -133,6 +135,7 @@ pub(super) enum Lowered {
     ThisCard(ThisCardForm),
     Preposition(Preposition),
     Phrase(Phrase),
+    PrepositionalObject(PrepositionalObject),
     PrepositionalPhrase(PrepositionalPhrase),
     Verb(VerbAnalysis),
     VerbPhrase(VerbPhrase),
@@ -360,7 +363,7 @@ fn lower_generated_construction(
         ) => Some(Lowered::PrepositionalPhrase(
             crate::constructions::prepositional::expect_prepositional_phrase(
                 preposition,
-                Phrase::NounPhrase(Box::new(object)),
+                PrepositionalObjectKind::NounPhrase(Box::new(object)),
             ),
         )),
         _ => None,
@@ -496,10 +499,8 @@ fn project_generated_category(
         return Some(Lowered::PrepositionalPhrase(*value));
     }
     if construction.category == "PrepositionalObject" {
-        let value = value
-            .downcast::<crate::constructions::prepositional::PrepositionalObject>()
-            .ok()?;
-        return Some(Lowered::Phrase(value.into_phrase()));
+        let value = value.downcast::<PrepositionalObject>().ok()?;
+        return Some(Lowered::PrepositionalObject(*value));
     }
     if construction.category == "Verb" {
         let value = value.downcast::<VerbAnalysis>().ok()?;
@@ -1002,12 +1003,9 @@ fn erased_subtree(
         }
         "PrepositionalPhrase" => typed!(PrepositionalPhrase, value),
         "PrepositionalObject" => {
-            let Lowered::Phrase(value) = value else {
+            let Lowered::PrepositionalObject(value) = value else {
                 return None;
             };
-            let value =
-                crate::constructions::prepositional::PrepositionalObject::try_from_phrase(value)
-                    .ok()?;
             if boxed { Some(Box::new(Box::new(value))) } else { Some(Box::new(value)) }
         }
         "ComparisonComplement" => typed!(ComparisonComplement, value),

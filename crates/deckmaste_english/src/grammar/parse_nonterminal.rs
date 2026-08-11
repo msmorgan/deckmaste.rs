@@ -1054,12 +1054,14 @@ fn find_shared_determiner_edit(
             if before.head().preposition != after.head().preposition {
                 return None;
             }
-            let (super::Phrase::NounPhrase(before), super::Phrase::NounPhrase(after)) =
-                (before.head().object.as_ref(), after.head().object.as_ref())
+            let (
+                crate::syntax::PrepositionalObjectKind::NounPhrase(before),
+                crate::syntax::PrepositionalObjectKind::NounPhrase(after),
+            ) = (before.head().object.kind(), after.head().object.kind())
             else {
                 return None;
             };
-            find_shared_determiner_edit(before, after)
+            find_shared_determiner_edit(before.as_ref(), after.as_ref())
         }
         (
             crate::syntax::NounPhraseKind::Coordinated(before),

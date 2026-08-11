@@ -22,6 +22,7 @@ mod tests {
     use crate::syntax::Predicate;
     use crate::syntax::PredicateHead;
     use crate::syntax::PredicateObject;
+    use crate::syntax::PrepositionalObjectKind;
     use crate::syntax::Sentence;
     use crate::syntax::SentenceBody;
     use crate::syntax::SetExceptionMarker;
@@ -441,16 +442,20 @@ mod tests {
         else {
             panic!("expected `from among ...` followed by `on it`: {second:#?}");
         };
-        assert_eq!(from.head().preposition, crate::syntax::Preposition::From);
-        assert_eq!(on.head().preposition, crate::syntax::Preposition::On);
-        let crate::syntax::Phrase::PrepositionalPhrase(among) = from.head().object.as_ref() else {
+        assert_eq!(from.head().preposition(), crate::syntax::Preposition::From);
+        assert_eq!(on.head().preposition(), crate::syntax::Preposition::On);
+        let PrepositionalObjectKind::PrepositionalPhrase(among) = from.head().object().kind()
+        else {
             panic!("expected nested `among` PP: {from:#?}");
         };
-        assert_eq!(among.head().preposition, crate::syntax::Preposition::Among);
-        let crate::syntax::Phrase::NounPhrase(options) = among.head().object.as_ref() else {
+        assert_eq!(
+            among.head().preposition(),
+            crate::syntax::Preposition::Among
+        );
+        let PrepositionalObjectKind::NounPhrase(options) = among.head().object().kind() else {
             panic!("expected an `among` option list: {among:#?}");
         };
-        let NounPhraseKind::Coordinated(options) = (options.as_ref()).kind() else {
+        let NounPhraseKind::Coordinated(options) = options.kind() else {
             panic!("expected coordinated keyword options: {options:#?}");
         };
         assert!(matches!(
@@ -803,10 +808,11 @@ mod tests {
         let [NominalComplement::Prepositional(recipient)] = counters.complements() else {
             panic!("expected one recipient preposition: {counters:#?}");
         };
-        let crate::syntax::Phrase::NounPhrase(recipient) = recipient.head().object.as_ref() else {
+        let PrepositionalObjectKind::NounPhrase(recipient) = recipient.head().object().kind()
+        else {
             panic!("expected a noun-phrase recipient: {recipient:#?}");
         };
-        let NounPhraseKind::CoordinatedNominal(recipient) = (recipient.as_ref()).kind() else {
+        let NounPhraseKind::CoordinatedNominal(recipient) = recipient.kind() else {
             panic!("expected shared-determiner recipient heads: {recipient:#?}");
         };
         assert!(
@@ -860,10 +866,11 @@ mod tests {
         let [NominalComplement::Prepositional(recipient)] = damage.complements() else {
             panic!("expected one recipient preposition: {damage:#?}");
         };
-        let crate::syntax::Phrase::NounPhrase(recipient) = recipient.head().object.as_ref() else {
+        let PrepositionalObjectKind::NounPhrase(recipient) = recipient.head().object().kind()
+        else {
             panic!("expected a noun-phrase recipient: {recipient:#?}");
         };
-        let NounPhraseKind::CoordinatedNominal(recipient) = (recipient.as_ref()).kind() else {
+        let NounPhraseKind::CoordinatedNominal(recipient) = recipient.kind() else {
             panic!("expected shared Oxford recipient heads: {recipient:#?}");
         };
         assert_eq!(*recipient.determiner(), crate::determiner::each());
@@ -1100,9 +1107,9 @@ mod tests {
         else {
             panic!("both `of` phrases must remain on choice: {choice:#?}");
         };
-        assert_eq!(options.head().preposition, crate::syntax::Preposition::Of);
-        assert_eq!(library.head().preposition, crate::syntax::Preposition::Of);
-        let crate::syntax::Phrase::NounPhrase(options) = options.head().object.as_ref() else {
+        assert_eq!(options.head().preposition(), crate::syntax::Preposition::Of);
+        assert_eq!(library.head().preposition(), crate::syntax::Preposition::Of);
+        let PrepositionalObjectKind::NounPhrase(options) = options.head().object().kind() else {
             panic!("expected noun-phrase options: {options:#?}");
         };
         assert!(matches!(
@@ -1128,11 +1135,15 @@ mod tests {
         let [NominalComplement::Prepositional(recipient)] = power.complements() else {
             panic!("power must retain its recipient PP: {power:#?}");
         };
-        assert_eq!(recipient.head().preposition, crate::syntax::Preposition::To);
-        let crate::syntax::Phrase::NounPhrase(recipient) = recipient.head().object.as_ref() else {
+        assert_eq!(
+            recipient.head().preposition(),
+            crate::syntax::Preposition::To
+        );
+        let PrepositionalObjectKind::NounPhrase(recipient) = recipient.head().object().kind()
+        else {
             panic!("expected a noun-phrase recipient: {recipient:#?}");
         };
-        let NounPhraseKind::CoordinatedNominal(recipient) = (recipient.as_ref()).kind() else {
+        let NounPhraseKind::CoordinatedNominal(recipient) = recipient.kind() else {
             panic!("target must scope over the recipient coordination: {recipient:#?}");
         };
         assert_eq!(*recipient.determiner(), crate::determiner::target(None));
@@ -1567,7 +1578,7 @@ mod tests {
             assert!(matches!(
                 parsed.noun_phrase().map(NounPhrase::kind),
                 Some(NounPhraseKind::Pronoun { pronoun: actual_pronoun, case: actual_case })
-                    if actual_pronoun == pronoun && actual_case == case
+                    if *actual_pronoun == pronoun && *actual_case == case
             ));
             assert_generated(
                 &parsed,
@@ -1594,15 +1605,9 @@ mod tests {
         let possessive = parse_self("Nissa's");
         assert!(matches!(
             possessive.noun_phrase().map(NounPhrase::kind),
-            Some(NounPhraseKind::Possessive(possessor))
-                if matches!(
-                    possessor,
-                    crate::syntax::Possessor::NounPhrase(noun_phrase)
-                        if matches!(
-                            noun_phrase.kind(),
-                            NounPhraseKind::ThisCard(ThisCardForm::AbbreviatedName)
-                        )
-                )
+            Some(NounPhraseKind::PossessiveThisCard(
+                ThisCardForm::AbbreviatedName
+            ))
         ));
         assert_generated(&possessive, "noun_phrase_possessive_this_card");
 
@@ -1625,32 +1630,23 @@ mod tests {
             ))
         ));
         let any_number = parse("any number of target players");
-        assert!(matches!(
-            any_number.noun_phrase().map(NounPhrase::kind),
-            Some(NounPhraseKind::Nominal(nominal))
-                if nominal.modifiers().is_empty()
-                    && matches!(
-                        nominal.determiner().map(crate::syntax::Determiner::kind),
-                        Some(crate::syntax::DeterminerKind::Any)
-                    )
-                    && matches!(
-                        nominal.head().kind(),
-                        NounInstanceKind::Singular(Noun::Word(Vocab::Number))
-                    )
-                    && matches!(
-                        nominal.complements(),
-                        [NominalComplement::Prepositional(preposition)]
-                            if matches!(
-                                preposition.as_simple(),
-                                Some(simple)
-                                    if simple.preposition == crate::syntax::Preposition::Of
-                                        && matches!(
-                                            simple.object.as_ref(),
-                                            crate::syntax::Phrase::NounPhrase(_)
-                                        )
-                            )
-                    )
-        ));
+        assert!(
+            matches!(
+                any_number.noun_phrase().map(NounPhrase::kind),
+                Some(NounPhraseKind::AnyNumberOf(value))
+                    if value.plurality() == crate::features::Number::Plural
+                        && matches!(
+                            value.complement().kind(),
+                            NounPhraseKind::Nominal(complement)
+                                if matches!(
+                                    complement.head().kind(),
+                                    NounInstanceKind::Plural(_)
+                                )
+                        )
+            ),
+            "{:#?}",
+            any_number.noun_phrase()
+        );
         let notional_plural = parse_nonterminal(
             "Any number of target players draw a card.",
             &fixture_catalogs(),
@@ -2269,9 +2265,6 @@ mod tests {
                         if matches!(possessor, crate::syntax::Possessor::NounPhrase(_))
                 )
             }),
-            NounPhraseKind::Possessive(possessor) => {
-                matches!(possessor, crate::syntax::Possessor::NounPhrase(_))
-            }
             _ => false,
         }
     }
@@ -2523,12 +2516,9 @@ mod tests {
         assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
         assert!(matches!(
             parsed.noun_phrase().map(NounPhrase::kind),
-            Some(NounPhraseKind::Possessive(possessor))
-                if matches!(
-                    possessor,
-                    crate::syntax::Possessor::NounPhrase(noun_phrase)
-                        if matches!(noun_phrase.kind(), NounPhraseKind::ThisCard(_))
-                )
+            Some(NounPhraseKind::PossessiveThisCard(
+                crate::syntax::ThisCardForm::AbbreviatedName
+            ))
         ));
         assert_eq!(
             render_fragment_as(parsed.noun_phrase().unwrap(), "Nissa Revane", true),
@@ -2547,10 +2537,10 @@ mod tests {
         let [NominalComplement::Prepositional(with)] = card.complements() else {
             panic!("comparison escaped its prepositional object: {card:#?}");
         };
-        let crate::syntax::Phrase::NounPhrase(object) = with.head().object.as_ref() else {
+        let PrepositionalObjectKind::NounPhrase(object) = with.head().object().kind() else {
             panic!("with object should be a noun phrase");
         };
-        let NounPhraseKind::Nominal(value) = (object.as_ref()).kind() else {
+        let NounPhraseKind::Nominal(value) = object.kind() else {
             panic!("with object should be nominal");
         };
         assert!(
@@ -2734,13 +2724,13 @@ mod tests {
         ));
 
         let reciprocal = parse("each other");
-        assert_eq!(
+        assert!(matches!(
             reciprocal.noun_phrase().map(NounPhrase::kind),
             Some(NounPhraseKind::Pronoun {
                 pronoun: Pronoun::EachOther,
                 case: PronounCase::Object,
             })
-        );
+        ));
 
         for (source, more) in [
             ("more than one artifact", true),
@@ -2853,10 +2843,10 @@ mod tests {
         let [NominalComplement::Prepositional(preposition)] = graveyard.complements() else {
             panic!("expected one prepositional complement");
         };
-        let crate::syntax::Phrase::NounPhrase(object) = preposition.head().object.as_ref() else {
+        let PrepositionalObjectKind::NounPhrase(object) = preposition.head().object().kind() else {
             panic!("preposition object should be a noun phrase");
         };
-        let NounPhraseKind::Nominal(object) = (object.as_ref()).kind() else {
+        let NounPhraseKind::Nominal(object) = object.kind() else {
             panic!("preposition object should be nominal");
         };
         assert_eq!(
@@ -2874,10 +2864,10 @@ mod tests {
         assert!(matches!(
             among.complements(),
             [NominalComplement::Prepositional(preposition)]
-                if preposition.head().preposition == crate::syntax::Preposition::Among
+                if preposition.head().preposition() == crate::syntax::Preposition::Among
                     && matches!(
-                        preposition.head().object.as_ref(),
-                        crate::syntax::Phrase::NounPhrase(_)
+                        preposition.head().object().kind(),
+                        PrepositionalObjectKind::NounPhrase(_)
                     )
         ));
 
@@ -2893,11 +2883,11 @@ mod tests {
         assert!(matches!(
             nested.complements(),
             [NominalComplement::Prepositional(outer)]
-                if outer.head().preposition == crate::syntax::Preposition::From
+                if outer.head().preposition() == crate::syntax::Preposition::From
                     && matches!(
-                        outer.head().object.as_ref(),
-                        crate::syntax::Phrase::PrepositionalPhrase(inner)
-                            if inner.head().preposition == crate::syntax::Preposition::Among
+                        outer.head().object().kind(),
+                        PrepositionalObjectKind::PrepositionalPhrase(inner)
+                            if inner.head().preposition() == crate::syntax::Preposition::Among
                     )
         ));
 
@@ -2910,8 +2900,8 @@ mod tests {
             anywhere.complements(),
             [NominalComplement::Prepositional(preposition)]
                 if matches!(
-                    preposition.head().object.as_ref(),
-                    crate::syntax::Phrase::Adverb(adverb)
+                    preposition.head().object().kind(),
+                    PrepositionalObjectKind::Adverb(adverb)
                         if adverb.spelling() == "anywhere"
                 )
         ));
@@ -2934,7 +2924,7 @@ mod tests {
             assert!(matches!(
                     nominal.complements(),
                     [NominalComplement::Prepositional(preposition)]
-                        if preposition.head().preposition == expected
+                        if preposition.head().preposition() == expected
             ));
         }
     }
@@ -2979,43 +2969,45 @@ mod tests {
         let among = parse_preposition("among all permanents");
         assert_generated(&among, "object_category=NounPhrase");
         let among = among.prepositional_phrase().expect("PP root").head();
-        assert_eq!(among.preposition, crate::syntax::Preposition::Among);
-        let crate::syntax::Phrase::NounPhrase(permanents) = among.object.as_ref() else {
-            panic!("expected a whole noun-phrase object: {:#?}", among.object);
+        assert_eq!(among.preposition(), crate::syntax::Preposition::Among);
+        let PrepositionalObjectKind::NounPhrase(permanents) = among.object().kind() else {
+            panic!("expected a whole noun-phrase object: {:#?}", among.object());
         };
         assert!(matches!(permanents.kind(), NounPhraseKind::Nominal(_)));
 
         let nested = parse_preposition("from among them");
         assert_generated(&nested, "object_category=PrepositionalPhrase");
         let nested = nested.prepositional_phrase().expect("PP root").head();
-        assert_eq!(nested.preposition, crate::syntax::Preposition::From);
-        let crate::syntax::Phrase::PrepositionalPhrase(among) = nested.object.as_ref() else {
-            panic!("expected a whole nested PP object: {:#?}", nested.object);
+        assert_eq!(nested.preposition(), crate::syntax::Preposition::From);
+        let PrepositionalObjectKind::PrepositionalPhrase(among) = nested.object().kind() else {
+            panic!("expected a whole nested PP object: {:#?}", nested.object());
         };
-        assert_eq!(among.head().preposition, crate::syntax::Preposition::Among);
+        assert_eq!(
+            among.head().preposition(),
+            crate::syntax::Preposition::Among
+        );
         assert!(matches!(
-            among.head().object.as_ref(),
-            crate::syntax::Phrase::NounPhrase(object)
+            among.head().object().kind(),
+            PrepositionalObjectKind::NounPhrase(object)
                 if matches!(object.kind(), NounPhraseKind::Pronoun { pronoun: Pronoun::They, case: PronounCase::Object })
         ));
 
         let gerund = parse_preposition("by paying 1 life");
         assert_generated(&gerund, "object_category=GerundClause");
         let gerund = gerund.prepositional_phrase().expect("PP root").head();
-        assert_eq!(gerund.preposition, crate::syntax::Preposition::By);
+        assert_eq!(gerund.preposition(), crate::syntax::Preposition::By);
         assert!(matches!(
-            gerund.object.as_ref(),
-            crate::syntax::Phrase::Clause(clause)
-                if matches!(clause.as_ref(), crate::syntax::Clause::Dependent(crate::syntax::DependentClause::Gerund(_)))
+            gerund.object().kind(),
+            PrepositionalObjectKind::GerundClause(_)
         ));
 
         let anywhere = parse_preposition("from anywhere");
         assert_generated(&anywhere, "object_category=Adverb");
         let anywhere = anywhere.prepositional_phrase().expect("PP root").head();
-        assert_eq!(anywhere.preposition, crate::syntax::Preposition::From);
+        assert_eq!(anywhere.preposition(), crate::syntax::Preposition::From);
         assert!(matches!(
-            anywhere.object.as_ref(),
-            crate::syntax::Phrase::Adverb(adverb) if adverb.spelling() == "anywhere"
+            anywhere.object().kind(),
+            PrepositionalObjectKind::Adverb(adverb) if adverb.spelling() == "anywhere"
         ));
     }
 
@@ -3324,10 +3316,10 @@ mod tests {
         let [NominalComplement::Prepositional(with)] = outer.complements() else {
             panic!("expected a single `with` complement: {outer:#?}");
         };
-        let crate::syntax::Phrase::NounPhrase(object) = with.head().object.as_ref() else {
+        let PrepositionalObjectKind::NounPhrase(object) = with.head().object().kind() else {
             panic!("`with` object should be a noun phrase");
         };
-        let NounPhraseKind::Nominal(characteristic) = (object.as_ref()).kind() else {
+        let NounPhraseKind::Nominal(characteristic) = object.kind() else {
             panic!("`with` object should be nominal");
         };
         let [NominalComplement::Quantity(quantity)] = characteristic.complements() else {
@@ -3402,7 +3394,7 @@ mod tests {
                 nominal.complements()
             );
         };
-        assert_eq!(of.head().preposition, crate::syntax::Preposition::Of);
+        assert_eq!(of.head().preposition(), crate::syntax::Preposition::Of);
         // The serial comma is derived from `conjunction`/`rest.len()`, not
         // stored (see `ModifierCoordination`); this round-trip is what pins
         // both interior commas and the Oxford-list comma before `or`.

@@ -1,7 +1,6 @@
 //! Generated noun-phrase and shared-determiner nominal coordination.
 
 use deckmaste_construction_compiler::runtime::GroupData;
-use serde::ser::SerializeStruct;
 
 use crate::features::Comma;
 use crate::features::Conjunction;
@@ -60,6 +59,7 @@ deckmaste_constructions_macro::constructions! {
             rest: seq noun_phrase_member,
         }
         project Coordinated via project_noun_phrase_coordination_source;
+        serialize;
         require rest.len() >= 1;
         require rest.nonfinal.conjunction.is_none();
         require rest.last.conjunction.is_some();
@@ -78,6 +78,7 @@ deckmaste_constructions_macro::constructions! {
             complements: seq nominal_complement,
         }
         project CoordinatedNominal via project_shared_determiner_nominal_source;
+        serialize;
         require rest.len() >= 1;
         require rest.nonfinal.conjunction.is_none();
         require rest.last.conjunction.is_some();
@@ -120,13 +121,6 @@ pub(crate) fn build_noun_phrase_coordination(
 }
 
 #[cfg(test)]
-pub(crate) fn parts_noun_phrase_coordination(
-    value: &CoordinatedNounPhrase,
-) -> (&NounPhrase, &Vec<NounPhraseCoordination>) {
-    (value.first().as_ref(), value.rest())
-}
-
-#[cfg(test)]
 pub(crate) fn build_shared_determiner_nominal(
     determiner: Determiner,
     first: Box<NominalPhrase>,
@@ -137,36 +131,10 @@ pub(crate) fn build_shared_determiner_nominal(
     CoordinatedNominalPhrase::try_new(determiner, first, rest, complements)
 }
 
-#[cfg(test)]
-pub(crate) fn parts_shared_determiner_nominal(
-    value: &CoordinatedNominalPhrase,
-) -> (
-    &Determiner,
-    &NominalPhrase,
-    &Vec<NominalPhraseCoordination>,
-    &Vec<NominalComplement>,
-) {
-    (
-        value.determiner(),
-        value.first().as_ref(),
-        value.rest(),
-        value.complements(),
-    )
-}
-
 impl Clone for CoordinatedNounPhrase {
     fn clone(&self) -> Self {
         Self::try_new(self.first().clone(), self.rest().clone())
             .expect("an existing coordinated noun phrase satisfies its declaration")
-    }
-}
-
-impl serde::Serialize for CoordinatedNounPhrase {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut state = serializer.serialize_struct("CoordinatedNounPhrase", 2)?;
-        state.serialize_field("first", self.first())?;
-        state.serialize_field("rest", self.rest())?;
-        state.end()
     }
 }
 
@@ -179,16 +147,5 @@ impl Clone for CoordinatedNominalPhrase {
             self.complements().clone(),
         )
         .expect("an existing coordinated nominal phrase satisfies its declaration")
-    }
-}
-
-impl serde::Serialize for CoordinatedNominalPhrase {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut state = serializer.serialize_struct("CoordinatedNominalPhrase", 4)?;
-        state.serialize_field("determiner", self.determiner())?;
-        state.serialize_field("first", self.first())?;
-        state.serialize_field("rest", self.rest())?;
-        state.serialize_field("complements", self.complements())?;
-        state.end()
     }
 }

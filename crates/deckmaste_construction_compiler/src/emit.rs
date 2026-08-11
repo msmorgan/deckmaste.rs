@@ -24,13 +24,16 @@ use crate::validate::ValidatedGroup;
 pub fn emit_group(validated: &ValidatedGroup<'_>) -> TokenStream {
     let group = validated.group();
     let module = quote::format_ident!("__constructions_{}", group.name.value);
-    let serde_reached = serde_reached_elements(group);
+    let serialize_reached = trait_reached_elements(group, |construction| construction.serialize);
+    let deserialize_reached =
+        trait_reached_elements(group, |construction| construction.deserialize);
     let elements: Vec<TokenStream> = group
         .elements
         .iter()
         .map(|element| {
-            let serde = serde_reached.contains(&element.name.value);
-            element_item(group, element, serde)
+            let serialize = serialize_reached.contains(&element.name.value);
+            let deserialize = deserialize_reached.contains(&element.name.value);
+            element_item(group, element, serialize, deserialize)
         })
         .collect();
     let constructions: Vec<TokenStream> = group
@@ -457,14 +460,17 @@ fn erased_form_recognizers(construction: &ConstructionDeclaration) -> Vec<TokenS
         .collect()
 }
 
-/// BFS over `seq` fields reached from at least one serde-opt-in own
-/// construction. Membership-only: element **emission** order stays
-/// declaration order in `emit_group`, unaffected by `sort_unstable()` below.
-fn serde_reached_elements(group: &GroupDeclaration) -> Vec<String> {
+/// BFS over `seq` fields reached from selected own constructions.
+/// Membership-only: element **emission** order stays declaration order in
+/// `emit_group`, unaffected by `sort_unstable()` below.
+fn trait_reached_elements(
+    group: &GroupDeclaration,
+    selected: impl Fn(&ConstructionDeclaration) -> bool,
+) -> Vec<String> {
     let mut reached: Vec<String> = Vec::new();
     let mut queue: Vec<&str> = Vec::new();
     for construction in &group.constructions {
-        if !construction.deserialize {
+        if !selected(construction) {
             continue;
         }
         for binding in construction.ast.fields() {
@@ -501,10 +507,11 @@ fn enqueue_sequences<'g>(kind: &'g FieldKind, queue: &mut Vec<&'g str>) {
 fn element_item(
     group: &GroupDeclaration,
     element: &ElementDeclaration,
-    serde: bool,
+    serialize: bool,
+    deserialize: bool,
 ) -> TokenStream {
     let Some(bind_path) = &element.bind_path else {
-        return owned_element_struct(group, element, serde);
+        return owned_element_struct(group, element, serialize, deserialize);
     };
     let target = parse_type(&bind_path.value);
     if !element.variants.is_empty() {
@@ -601,7 +608,8 @@ fn bound_enum_element(
 fn owned_element_struct(
     group: &GroupDeclaration,
     element: &ElementDeclaration,
-    serde: bool,
+    serialize: bool,
+    deserialize: bool,
 ) -> TokenStream {
     let name = pascal_ident(&element.name.value);
     let fields: Vec<TokenStream> = element
@@ -615,8 +623,13 @@ fn owned_element_struct(
         })
         .collect();
     // Reached (transitively, via `seq`) by at least one serde-opt-in own
-    // construction: the element also needs a structural `Deserialize`.
-    let serde_derive = if serde {
+    // construction: the element needs the corresponding structural trait.
+    let serialize_derive = if serialize {
+        quote! { #[derive(serde::Serialize)] }
+    } else {
+        quote! {}
+    };
+    let deserialize_derive = if deserialize {
         quote! { #[derive(serde::Deserialize)] }
     } else {
         quote! {}
@@ -625,7 +638,8 @@ fn owned_element_struct(
         // Elements carry no declaration invariants, so their fields stay
         // public; the owning construction validates the sequence whole.
         #[derive(Debug, PartialEq, Eq)]
-        #serde_derive
+        #serialize_derive
+        #deserialize_derive
         pub struct #name {
             #(#fields)*
         }
@@ -860,11 +874,10 @@ fn erased_construction_builder(
 }
 
 fn erased_construction_projector(construction: &ConstructionDeclaration) -> Option<TokenStream> {
-    let projection = construction.projection.as_ref()?;
+    construction.projection.as_ref()?;
     let owner = construction.id.value.as_str();
     let function = quote::format_ident!("__erased_project_{}", construction.id.value);
     let category = quote::format_ident!("{}", construction.category.value);
-    let variant = quote::format_ident!("{}", projection.value);
     let source = match &construction.ast {
         AstShape::Own { name, .. } => parse_type(&name.value),
         AstShape::Bind { path, .. } => parse_type(&path.value),
@@ -883,7 +896,7 @@ fn erased_construction_projector(construction: &ConstructionDeclaration) -> Opti
                     expected: stringify!(#source),
                 }
             })?;
-            Ok(Box::new(#category::#variant(*value)))
+            Ok(Box::new(#category::from(*value)))
         }
     })
 }
@@ -1029,8 +1042,14 @@ fn own_construction(
             }
         })
         .collect();
+    let serialize_derive = if construction.serialize {
+        quote! { #[derive(serde::Serialize)] }
+    } else {
+        quote! {}
+    };
     Some(quote! {
         #[derive(Debug, PartialEq, Eq)]
+        #serialize_derive
         pub struct #ty {
             #(#field_decls)*
         }
@@ -2193,7 +2212,7 @@ fn linearize_stored_witness(
 
 /// Serde-opt-in own constructions only; `None` for opt-out. The `AstShape::Own`
 /// match below also returns `None` for a `Bind`-mode construction, but
-/// EC005 (`DeserializeRequiresOwn`) already rejects `deserialize: true` on
+/// EC005 (`SerdeRequiresOwn`) already rejects `deserialize: true` on
 /// bind mode at validation time — for a `ValidatedGroup`, `construction.ast`
 /// is never `Bind` here once `construction.deserialize` is true. That arm is
 /// defensive dead code, not a live deferral to a later milestone.
@@ -3825,6 +3844,32 @@ mod tests {
     }
 
     #[test]
+    fn opt_in_construction_gains_serialize_only_when_requested() {
+        let mut group = crate::validate::fixtures::minimal_own_group();
+        group.constructions[0].serialize = true;
+        let validated = validate(&group).expect("fixture validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            rendered.contains(
+                "#[derive(Debug, PartialEq, Eq)]\n    #[derive(serde::Serialize)]\n    pub struct MinimalNode"
+            ),
+            "opt-in owner derives Serialize: {rendered}",
+        );
+        assert!(
+            !rendered.contains("serde::Deserialize"),
+            "Serialize does not implicitly enable Deserialize: {rendered}",
+        );
+
+        let plain = crate::validate::fixtures::minimal_own_group();
+        let validated = validate(&plain).expect("fixture validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            !rendered.contains("serde::Serialize"),
+            "opt-out owner gains no Serialize derive: {rendered}",
+        );
+    }
+
+    #[test]
     fn opt_in_construction_gains_validating_deserialize() {
         let mut group = crate::validate::fixtures::minimal_own_group();
         group.constructions[0].deserialize = true;
@@ -3847,11 +3892,9 @@ mod tests {
     }
 
     #[test]
-    fn elements_reached_by_an_opt_in_construction_derive_deserialize() {
-        // Synthetic: opt-in construction with a seq field. Not compiled
-        // against serde here (no vocabulary codec is Deserialize); the
-        // derive's presence is the structural pin until a real family
-        // exercises the combination (Coverage item 9).
+    fn elements_reached_by_serde_opt_ins_derive_each_requested_trait() {
+        // Synthetic: opt-in construction with a seq field. The derive
+        // presence pins traversal independently for each serde capability.
         let mut group = crate::validate::fixtures::minimal_own_group();
         group.elements.push(crate::model::ElementDeclaration {
             name: crate::model::Spanned::call_site("m".to_owned()),
@@ -3878,14 +3921,31 @@ mod tests {
             .push(crate::model::SurfaceAtom::Hole(
                 crate::model::FieldPath::call_site("members"),
             ));
+        let mut serializable = group.clone();
+        serializable.constructions[0].serialize = true;
+        let validated = validate(&serializable).expect("serialize fixture validates");
+        let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
+        assert!(
+            rendered.contains(
+                "    #[derive(Debug, PartialEq, Eq)]\n    #[derive(serde::Serialize)]\n    pub struct M"
+            ),
+            "serialize-reached element derives Serialize: {rendered}"
+        );
+        assert!(
+            !rendered.contains(
+                "    #[derive(Debug, PartialEq, Eq)]\n    #[derive(serde::Deserialize)]\n    pub struct M"
+            ),
+            "Serialize traversal does not enable Deserialize: {rendered}"
+        );
+
         group.constructions[0].deserialize = true;
-        let validated = validate(&group).expect("fixture validates");
+        let validated = validate(&group).expect("deserialize fixture validates");
         let rendered = prettyplease::unparse(&syn::parse2(emit_group(&validated)).expect("parses"));
         assert!(
             rendered.contains(
                 "    #[derive(Debug, PartialEq, Eq)]\n    #[derive(serde::Deserialize)]\n    pub struct M"
             ),
-            "reached element derives: {rendered}"
+            "deserialize-reached element derives Deserialize: {rendered}"
         );
     }
 

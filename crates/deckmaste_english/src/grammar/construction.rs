@@ -246,6 +246,7 @@ mod tests {
             ("noun_phrase_nominal", "noun_phrase_minus"),
             ("noun_phrase_subject_pronoun", "noun_phrase_object_pronoun"),
             ("noun_phrase_nominal", "noun_phrase_coordination"),
+            ("noun_phrase_any_number_of", "noun_phrase_nominal"),
         ];
         for (winner, loser) in expected {
             assert!(
@@ -257,8 +258,11 @@ mod tests {
             for &loser in &ids {
                 let expected = matches!(
                     (winner, loser),
-                    ("noun_phrase_nominal", "noun_phrase_minus")
-                        | ("noun_phrase_subject_pronoun", "noun_phrase_object_pronoun")
+                    (
+                        "noun_phrase_nominal" | "noun_phrase_any_number_of",
+                        "noun_phrase_minus"
+                    ) | ("noun_phrase_subject_pronoun", "noun_phrase_object_pronoun")
+                        | ("noun_phrase_any_number_of", "noun_phrase_nominal")
                 );
                 assert_eq!(
                     registry().dominates(ConstructionId::new(winner), ConstructionId::new(loser)),

@@ -585,7 +585,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
                         );
                     }
                     PredicateComplement::Prepositional(preposition) => {
-                        self.prepositional_phrase(preposition, RecoveryRole::Clause, context);
+                        self.prepositional_phrase(preposition, context);
                     }
                     PredicateComplement::Infinitive(infinitive) => {
                         self.predicate(infinitive.predicate(), context);
@@ -620,10 +620,16 @@ impl<'syntax> RecoveryWalker<'syntax> {
             }
             PredicateAdjunct::Prepositional(preposition)
             | PredicateAdjunct::Exception(preposition) => {
-                self.prepositional_phrase(preposition, RecoveryRole::Clause, context);
+                self.prepositional_phrase(preposition, context);
             }
             PredicateAdjunct::Dependent(dependent) => {
                 self.dependent_clause(dependent, context);
+            }
+            PredicateAdjunct::AbilityPostmodifier(postmodifier) => {
+                self.ability(
+                    &postmodifier.ability().ability,
+                    Some(RecoveryRole::EmbeddedRules),
+                );
             }
             PredicateAdjunct::Adverb(_) | PredicateAdjunct::Frequency(_) => {}
         }
@@ -643,7 +649,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 self.coordinated_adjective_phrase(coordinated, RecoveryRole::Clause, context);
             }
             CopularComplement::Prepositional(preposition) => {
-                self.prepositional_phrase(preposition, RecoveryRole::Clause, context);
+                self.prepositional_phrase(preposition, context);
             }
             CopularComplement::PowerToughness(_) | CopularComplement::CatalogAtom(_) => {}
         }
@@ -670,13 +676,10 @@ impl<'syntax> RecoveryWalker<'syntax> {
             NounPhraseKind::Pronoun { .. }
             | NounPhraseKind::Demonstrative(_)
             | NounPhraseKind::Quantity(_)
-            | NounPhraseKind::ThisCard(_) => {}
-            NounPhraseKind::Possessive(possessor) => {
-                if let Possessor::NounPhrase(possessor) = possessor {
-                    self.noun_phrase(possessor, context);
-                }
-            }
+            | NounPhraseKind::ThisCard(_)
+            | NounPhraseKind::PossessiveThisCard(_) => {}
             NounPhraseKind::Partitive(partitive) => self.noun_phrase(&partitive.whole, context),
+            NounPhraseKind::AnyNumberOf(value) => self.noun_phrase(value.complement(), context),
             NounPhraseKind::CoordinatedNominal(coordinated) => {
                 if let DeterminerKind::Possessive(possessor) = coordinated.determiner().kind()
                     && let Possessor::NounPhrase(possessor) = possessor
@@ -750,7 +753,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 );
             }
             NominalComplement::Prepositional(preposition) => {
-                self.prepositional_phrase(preposition, RecoveryRole::NominalComplement, context);
+                self.prepositional_phrase(preposition, context);
             }
             NominalComplement::Infinitive(infinitive) => {
                 self.predicate(infinitive.predicate(), context);
@@ -814,7 +817,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
                     self.phrase(comparison.standard(), role, context);
                 }
                 AdjectiveComplement::Prepositional(preposition) => {
-                    self.prepositional_phrase(preposition, role, context);
+                    self.prepositional_phrase(preposition, context);
                 }
                 AdjectiveComplement::Infinitive(infinitive) => {
                     self.predicate(infinitive.predicate(), context);
@@ -838,13 +841,23 @@ impl<'syntax> RecoveryWalker<'syntax> {
     fn prepositional_phrase(
         &mut self,
         phrase: &'syntax PrepositionalPhrase,
-        role: RecoveryRole,
         context: Option<RecoveryRole>,
     ) {
         // Every conjunct, not just the head: recovery inside a later member of
         // `from A, from B, and from C` must still reach the census.
         for member in phrase.members() {
-            self.phrase(&member.object, role, context);
+            match member.object.kind() {
+                PrepositionalObjectKind::NounPhrase(value) => {
+                    self.noun_phrase(value, context);
+                }
+                PrepositionalObjectKind::PrepositionalPhrase(value) => {
+                    self.prepositional_phrase(value, context);
+                }
+                PrepositionalObjectKind::GerundClause(value) => {
+                    self.gerund_clause(value, context);
+                }
+                PrepositionalObjectKind::Adverb(_) => {}
+            }
         }
     }
 
@@ -861,7 +874,7 @@ impl<'syntax> RecoveryWalker<'syntax> {
                 self.adjective_phrase(adjective, role, context);
             }
             Phrase::PrepositionalPhrase(preposition) => {
-                self.prepositional_phrase(preposition, role, context);
+                self.prepositional_phrase(preposition, context);
             }
             Phrase::EmbeddedAbility(ability) => self.ability(ability, context),
             Phrase::QuotedAbility(quoted) => {
@@ -1134,36 +1147,6 @@ mod tests {
                     source_tokens: 1,
                 },
             ]
-        );
-    }
-
-    #[test]
-    fn recovery_walker_descends_through_a_checked_comparison_standard() {
-        let nested =
-            AdjectivePhrase::try_from_lexical_head(crate::word::Adjective::Word(Vocab::Target))
-                .and_then(|phrase| {
-                    phrase.try_attach_recovered_comparison_standard(recovered("standard"))
-                })
-                .expect("the compatibility seam admits a lexical adjective plus PP");
-        let standard = crate::adjective::build_comparison_standard(None, Some(nested), None)
-            .expect("an adjective phrase is a typed comparison standard");
-        let comparison = crate::adjective::build_comparison_than(standard)
-            .expect("the typed standard accepts a than marker");
-        let owner =
-            crate::adjective::build_adjective_phrase(crate::word::Adjective::Word(Vocab::Greater))
-                .expect("greater is a pending comparison head");
-        let phrase = crate::adjective::build_adjective_phrase_comparison(owner, comparison)
-            .expect("the pending head accepts its comparison");
-
-        let mut walker = RecoveryWalker::default();
-        walker.adjective_phrase(&phrase, RecoveryRole::Clause, None);
-        assert_eq!(
-            walker.phrases,
-            [RecoveryRef {
-                role: RecoveryRole::Clause,
-                text: "standard",
-                source_tokens: 1,
-            }],
         );
     }
 

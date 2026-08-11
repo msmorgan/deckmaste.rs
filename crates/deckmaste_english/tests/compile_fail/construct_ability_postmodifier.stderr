@@ -1,0 +1,5 @@
+error[E0451]: field `ability` of struct `deckmaste_english::syntax::AbilityPostmodifier` is private
+ --> tests/compile_fail/construct_ability_postmodifier.rs:5:27
+  |
+5 |     AbilityPostmodifier { ability }
+  |                           ^^^^^^^ private field

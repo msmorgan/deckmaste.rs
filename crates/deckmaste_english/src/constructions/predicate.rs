@@ -180,7 +180,8 @@ pub fn build_predicate_element(
         | PredicateElement::Adjunct(
             PredicateAdjunct::Temporal(_)
             | PredicateAdjunct::Manner(_)
-            | PredicateAdjunct::Dependent(_),
+            | PredicateAdjunct::Dependent(_)
+            | PredicateAdjunct::AbilityPostmodifier(_),
         ) => {
             return Err(violation(
                 "predicate",
@@ -464,6 +465,11 @@ pub(crate) fn project_public_predicate(
                 target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Prepositional(
                     phrase,
                 )));
+            }
+            VerbDependent::AbilityPostmodifier(postmodifier) => {
+                target_elements.push(PredicateElement::Adjunct(
+                    PredicateAdjunct::AbilityPostmodifier(postmodifier),
+                ));
             }
             VerbDependent::Exception(phrase) => {
                 target_elements.push(PredicateElement::Adjunct(PredicateAdjunct::Exception(
@@ -749,6 +755,9 @@ fn public_element(element: &PredicateElement) -> Result<VerbDependent, Declarati
         }
         PredicateElement::Adjunct(PredicateAdjunct::Prepositional(value)) => {
             VerbDependent::Prepositional(value.clone())
+        }
+        PredicateElement::Adjunct(PredicateAdjunct::AbilityPostmodifier(value)) => {
+            VerbDependent::AbilityPostmodifier(value.clone())
         }
         PredicateElement::Adjunct(PredicateAdjunct::Exception(value)) => {
             VerbDependent::Exception(value.clone())
@@ -1970,8 +1979,8 @@ fn prepositional_dependent(
 
 fn has_shared_determiner_object(preposition: &PrepositionalPhrase) -> bool {
     matches!(
-        preposition.as_simple().map(|simple| simple.object.as_ref()),
-        Some(Phrase::NounPhrase(object))
+        preposition.as_simple().map(|simple| simple.object.kind()),
+        Some(crate::syntax::PrepositionalObjectKind::NounPhrase(object))
             if matches!(object.kind(), crate::syntax::NounPhraseKind::CoordinatedNominal(_))
     )
 }
@@ -4203,7 +4212,9 @@ mod tests {
                         base(Vocab::Look, VerbSlot::Imperative, 1),
                         crate::constructions::prepositional::expect_prepositional_phrase(
                             crate::syntax::Preposition::At,
-                            Phrase::NounPhrase(Box::new(object_it())),
+                            crate::syntax::PrepositionalObjectKind::NounPhrase(Box::new(
+                                object_it(),
+                            )),
                         ),
                     )
                     .unwrap(),
@@ -5750,7 +5761,7 @@ mod tests {
 
         let selected_pp = crate::constructions::prepositional::expect_prepositional_phrase(
             crate::syntax::Preposition::At,
-            Phrase::NounPhrase(Box::new(this_card())),
+            crate::syntax::PrepositionalObjectKind::NounPhrase(Box::new(this_card())),
         );
         let look = build_verb_phrase_base(
             build_verb(lexical_head(Vocab::Look, VerbSlot::Imperative, 1)).unwrap(),
@@ -5764,7 +5775,7 @@ mod tests {
         assert!(selected.declaration_core_arguments_complete());
         let unselected = crate::constructions::prepositional::expect_prepositional_phrase(
             crate::syntax::Preposition::From,
-            Phrase::NounPhrase(Box::new(this_card())),
+            crate::syntax::PrepositionalObjectKind::NounPhrase(Box::new(this_card())),
         );
         let pp_forbidden = build_verb_phrase_base(
             build_verb(lexical_head(Vocab::Look, VerbSlot::Imperative, 0)).unwrap(),
@@ -5926,7 +5937,7 @@ mod tests {
 
         let selected_pp = crate::constructions::prepositional::expect_prepositional_phrase(
             crate::syntax::Preposition::At,
-            Phrase::NounPhrase(Box::new(this_card())),
+            crate::syntax::PrepositionalObjectKind::NounPhrase(Box::new(this_card())),
         );
         let look = build_verb_phrase_base(
             build_verb(lexical_head(Vocab::Look, VerbSlot::Imperative, 1)).unwrap(),
@@ -5976,7 +5987,7 @@ mod tests {
             build_verb_phrase_direct_object(with_indirect.clone(), this_card()).unwrap();
         let trailing_pp = crate::constructions::prepositional::expect_prepositional_phrase(
             crate::syntax::Preposition::During,
-            Phrase::NounPhrase(Box::new(this_card())),
+            crate::syntax::PrepositionalObjectKind::NounPhrase(Box::new(this_card())),
         );
         let ordered =
             build_verb_phrase_prepositional(with_direct.clone(), trailing_pp.clone()).unwrap();

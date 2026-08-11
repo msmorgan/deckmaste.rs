@@ -1,0 +1,15 @@
+error[E0423]: cannot initialize a tuple struct which contains private fields
+ --> tests/compile_fail/construct_prepositional_object.rs:5:5
+  |
+5 |     PrepositionalObject(kind)
+  |     ^^^^^^^^^^^^^^^^^^^
+  |
+note: constructor is not visible here due to private fields
+ --> src/syntax/phrase.rs
+  |
+  | pub struct PrepositionalObject(PrepositionalObjectKind);
+  |                                ^^^^^^^^^^^^^^^^^^^^^^^ private field
+help: you might have meant to use the `from_kind` associated function
+  |
+5 |     PrepositionalObject::from_kind(kind)
+  |                        +++++++++++

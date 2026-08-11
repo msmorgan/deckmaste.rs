@@ -202,6 +202,7 @@ pub fn fixture_coordination_group() -> GroupDeclaration {
                     },
                 ],
                 selection: SelectionPromise::Packed,
+                serialize: false,
                 deserialize: false,
             },
             ConstructionDeclaration {
@@ -257,6 +258,7 @@ pub fn fixture_coordination_group() -> GroupDeclaration {
                 }],
                 dominance: vec![],
                 selection: SelectionPromise::Unique,
+                serialize: false,
                 deserialize: true,
             },
         ],

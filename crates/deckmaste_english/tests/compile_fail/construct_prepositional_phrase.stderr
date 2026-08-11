@@ -1,11 +1,19 @@
-error[E0599]: no associated function or constant named `simple` found for struct `deckmaste_english::syntax::PrepositionalPhrase` in the current scope
- --> tests/compile_fail/construct_prepositional_phrase.rs:6:26
+error[E0423]: cannot initialize a tuple struct which contains private fields
+ --> tests/compile_fail/construct_prepositional_phrase.rs:5:5
   |
-6 |     PrepositionalPhrase::simple(Preposition::Of, object)
-  |                          ^^^^^^ associated function or constant not found in `deckmaste_english::syntax::PrepositionalPhrase`
+5 |     PrepositionalPhrase(kind)
+  |     ^^^^^^^^^^^^^^^^^^^
   |
-help: there is a method `as_simple` with a similar name, but with different arguments
+note: constructor is not visible here due to private fields
  --> src/syntax/phrase.rs
   |
-  |     pub const fn as_simple(&self) -> Option<&SimplePrepositionalPhrase> {
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  | pub struct PrepositionalPhrase(PrepositionalPhraseKind);
+  |                                ^^^^^^^^^^^^^^^^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+  |
+5 -     PrepositionalPhrase(kind)
+5 +     PrepositionalPhrase::from_prepositional_declaration(_, _)
+  |
+5 -     PrepositionalPhrase(kind)
+5 +     PrepositionalPhrase::coordinated(_, _)
+  |

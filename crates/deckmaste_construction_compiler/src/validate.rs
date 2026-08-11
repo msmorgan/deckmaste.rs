@@ -443,14 +443,17 @@ fn check_construction_identity(
         "witness",
         diags,
     );
-    if construction.deserialize
+    if (construction.serialize || construction.deserialize)
         && let crate::model::AstShape::Bind { .. } = &construction.ast
     {
+        let capability = if construction.serialize { "serialize" } else { "deserialize" };
         diags.push(
             Diagnostic::new(
-                DiagCode::DeserializeRequiresOwn,
+                DiagCode::SerdeRequiresOwn,
                 id,
-                "`deserialize` requires own mode; a bind construction has no generated type to deserialize into",
+                format!(
+                    "`{capability}` requires own mode; a bind construction has no generated type to derive it on"
+                ),
             )
             .with_span(construction.id.span),
         );
@@ -2798,6 +2801,7 @@ pub(crate) mod fixtures {
                 }],
                 dominance: vec![],
                 selection: SelectionPromise::Packed,
+                serialize: false,
                 deserialize: false,
             }],
         }
@@ -3464,6 +3468,17 @@ mod tests {
     }
 
     #[test]
+    fn serialize_on_bind_mode_is_rejected() {
+        // A bind construction exposes an existing type, so the DSL cannot
+        // promise or synthesize that type's serialization implementation.
+        let mut group = minimal_group();
+        group.constructions[0].serialize = true;
+        let err = validate(&group).expect_err("bind mode has no type to derive Serialize on");
+        assert_eq!(codes(&err), vec!["EC005"]);
+        assert!(message_for(&err, "EC005").contains("`serialize` requires own mode"));
+    }
+
+    #[test]
     fn deserialize_on_bind_mode_is_rejected() {
         // minimal_group's sole construction is Bind-mode; `deserialize` has
         // no generated own-type to route through, so it is nonsensical
@@ -3472,6 +3487,7 @@ mod tests {
         group.constructions[0].deserialize = true;
         let err = validate(&group).expect_err("bind mode has no type to deserialize into");
         assert_eq!(codes(&err), vec!["EC005"]);
+        assert!(message_for(&err, "EC005").contains("`deserialize` requires own mode"));
     }
 
     #[test]

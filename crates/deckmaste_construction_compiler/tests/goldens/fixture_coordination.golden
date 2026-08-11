@@ -870,7 +870,7 @@ mod __constructions_fixture_coordination {
                     expected: stringify!(FixturePairNode),
                 }
             })?;
-        Ok(Box::new(FixturePair::Pair(*value)))
+        Ok(Box::new(FixturePair::from(*value)))
     }
     fn __erased_linearize_fixture_pair(
         value: &dyn ::deckmaste_construction_compiler::runtime::ProjectionInput,

@@ -7,69 +7,13 @@ use crate::grammar::Features;
 use crate::grammar::NounPhraseCoordinationState;
 use crate::grammar::PrepositionalObjectCategory;
 use crate::grammar::PrepositionalRoleMember;
-use crate::syntax::Clause;
-use crate::syntax::DependentClause;
 use crate::syntax::GerundClause;
 use crate::syntax::NounPhrase;
-use crate::syntax::Phrase;
 use crate::syntax::Preposition;
+pub use crate::syntax::PrepositionalObject;
+pub use crate::syntax::PrepositionalObjectKind;
 use crate::syntax::PrepositionalPhrase;
 use crate::word::Vocab;
-
-/// A checked whole object accepted by the P02 declaration.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PrepositionalObject {
-    value: Phrase,
-}
-
-/// A borrowed typed projection of a checked prepositional object.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PrepositionalObjectKind<'a> {
-    /// A complete noun phrase.
-    NounPhrase(&'a NounPhrase),
-    /// A nested checked prepositional phrase.
-    PrepositionalPhrase(&'a PrepositionalPhrase),
-    /// A complete gerund clause.
-    GerundClause(&'a GerundClause),
-    /// An adverb used as a whole object.
-    Adverb(&'a Vocab),
-}
-
-impl PrepositionalObject {
-    /// Returns the typed whole-object alternative.
-    #[must_use]
-    pub fn kind(&self) -> PrepositionalObjectKind<'_> {
-        match &self.value {
-            Phrase::NounPhrase(value) => PrepositionalObjectKind::NounPhrase(value.as_ref()),
-            Phrase::PrepositionalPhrase(value) => {
-                PrepositionalObjectKind::PrepositionalPhrase(value.as_ref())
-            }
-            Phrase::Clause(value) => {
-                let Clause::Dependent(DependentClause::Gerund(value)) = value.as_ref() else {
-                    unreachable!("a checked prepositional object has a gerund clause")
-                };
-                PrepositionalObjectKind::GerundClause(value)
-            }
-            Phrase::Adverb(value) => PrepositionalObjectKind::Adverb(value),
-            _ => unreachable!("a checked prepositional object has one admitted variant"),
-        }
-    }
-
-    pub(crate) fn try_from_phrase(value: Phrase) -> Result<Self, DeclarationViolation> {
-        if is_supported_object(&value) {
-            Ok(Self { value })
-        } else {
-            Err(violation(
-                "prepositional_object",
-                "the value is one whole typed object alternative",
-            ))
-        }
-    }
-
-    pub(crate) fn into_phrase(self) -> Phrase {
-        self.value
-    }
-}
 
 fn violation(construction: &'static str, requirement: &'static str) -> DeclarationViolation {
     DeclarationViolation {
@@ -85,18 +29,22 @@ fn make_prepositional_object(
     adverb: Option<Vocab>,
 ) -> Result<PrepositionalObject, DeclarationViolation> {
     match (noun_phrase, prepositional_phrase, gerund_clause, adverb) {
-        (Some(value), None, None, None) => {
-            PrepositionalObject::try_from_phrase(Phrase::NounPhrase(Box::new(value)))
-        }
-        (None, Some(value), None, None) => {
-            PrepositionalObject::try_from_phrase(Phrase::PrepositionalPhrase(Box::new(value)))
-        }
-        (None, None, Some(value), None) => PrepositionalObject::try_from_phrase(Phrase::Clause(
-            Box::new(Clause::Dependent(DependentClause::Gerund(value))),
+        (Some(value), None, None, None) => Ok(PrepositionalObject::from_kind(
+            PrepositionalObjectKind::NounPhrase(Box::new(value)),
         )),
-        (None, None, None, Some(value)) => {
-            PrepositionalObject::try_from_phrase(Phrase::Adverb(value))
-        }
+        (None, Some(value), None, None) => Ok(PrepositionalObject::from_kind(
+            PrepositionalObjectKind::PrepositionalPhrase(Box::new(value)),
+        )),
+        (None, None, Some(value), None) => Ok(PrepositionalObject::from_kind(
+            PrepositionalObjectKind::GerundClause(Box::new(value)),
+        )),
+        (None, None, None, Some(value)) if value.is_adverb() => Ok(PrepositionalObject::from_kind(
+            PrepositionalObjectKind::Adverb(value),
+        )),
+        (None, None, None, Some(_)) => Err(violation(
+            "prepositional_object",
+            "the adverb alternative has adverb lexical capability",
+        )),
         _ => Err(violation(
             "prepositional_object",
             "exactly one whole typed object alternative is present",
@@ -116,67 +64,37 @@ fn prepositional_object_parts(
     Option<GerundClause>,
     Option<Vocab>,
 ) {
-    match &value.value {
-        Phrase::NounPhrase(value) => (Some(value.as_ref().clone()), None, None, None),
-        Phrase::PrepositionalPhrase(value) => (None, Some(value.as_ref().clone()), None, None),
-        Phrase::Clause(value) => match value.as_ref() {
-            Clause::Dependent(DependentClause::Gerund(value)) => {
-                (None, None, Some(value.clone()), None)
-            }
-            _ => (None, None, None, None),
-        },
-        Phrase::Adverb(value) => (None, None, None, Some(*value)),
-        _ => (None, None, None, None),
+    match value.kind() {
+        PrepositionalObjectKind::NounPhrase(value) => {
+            (Some(value.as_ref().clone()), None, None, None)
+        }
+        PrepositionalObjectKind::PrepositionalPhrase(value) => {
+            (None, Some(value.as_ref().clone()), None, None)
+        }
+        PrepositionalObjectKind::GerundClause(value) => {
+            (None, None, Some(value.as_ref().clone()), None)
+        }
+        PrepositionalObjectKind::Adverb(value) => (None, None, None, Some(*value)),
     }
 }
 
 fn is_noun_phrase_object(value: &PrepositionalObject) -> bool {
-    matches!(&value.value, Phrase::NounPhrase(_))
+    matches!(value.kind(), PrepositionalObjectKind::NounPhrase(_))
 }
 
 fn is_prepositional_phrase_object(value: &PrepositionalObject) -> bool {
-    matches!(&value.value, Phrase::PrepositionalPhrase(_))
-}
-
-fn is_gerund_clause_object(value: &PrepositionalObject) -> bool {
     matches!(
-        &value.value,
-        Phrase::Clause(clause)
-            if matches!(clause.as_ref(), Clause::Dependent(DependentClause::Gerund(_)))
+        value.kind(),
+        PrepositionalObjectKind::PrepositionalPhrase(_)
     )
 }
 
+fn is_gerund_clause_object(value: &PrepositionalObject) -> bool {
+    matches!(value.kind(), PrepositionalObjectKind::GerundClause(_))
+}
+
 fn is_adverb_object(value: &PrepositionalObject) -> bool {
-    matches!(&value.value, Phrase::Adverb(_))
-}
-
-fn is_supported_object(value: &Phrase) -> bool {
-    matches!(value, Phrase::NounPhrase(_) | Phrase::Adverb(_))
-        || matches!(
-            value,
-            Phrase::PrepositionalPhrase(value)
-                if is_supported_prepositional_phrase(value)
-        )
-        || matches!(
-            value,
-            Phrase::Clause(clause)
-                if matches!(clause.as_ref(), Clause::Dependent(DependentClause::Gerund(_)))
-        )
-}
-
-pub(crate) fn is_supported_prepositional_phrase(value: &PrepositionalPhrase) -> bool {
-    match value.kind() {
-        crate::syntax::PrepositionalPhraseKind::Simple(value) => {
-            is_supported_object(value.object())
-        }
-        crate::syntax::PrepositionalPhraseKind::Coordinated(value) => {
-            is_supported_object(value.first().object())
-                && value
-                    .rest()
-                    .iter()
-                    .all(|member| is_supported_object(member.phrase().object()))
-        }
-    }
+    matches!(value.kind(), PrepositionalObjectKind::Adverb(_))
 }
 
 pub(crate) fn every_prepositional_member(
@@ -191,25 +109,27 @@ pub(crate) fn every_prepositional_member(
     }
 }
 
-pub(crate) fn build_prepositional_object_from_phrase(
-    value: Phrase,
-) -> Result<PrepositionalObject, DeclarationViolation> {
-    PrepositionalObject::try_from_phrase(value)
-}
-
-pub(crate) fn build_prepositional_phrase_from_phrase(
-    preposition: Preposition,
-    object: Phrase,
-) -> Result<PrepositionalPhrase, DeclarationViolation> {
-    build_prepositional_phrase(preposition, PrepositionalObject::try_from_phrase(object)?)
-}
-
 pub(crate) fn expect_prepositional_phrase(
     preposition: Preposition,
-    object: Phrase,
+    object: PrepositionalObjectKind,
 ) -> PrepositionalPhrase {
-    build_prepositional_phrase_from_phrase(preposition, object)
-        .expect("the internal prepositional object is one admitted whole typed alternative")
+    let object = match object {
+        PrepositionalObjectKind::NounPhrase(value) => {
+            build_prepositional_object(Some(*value), None, None, None)
+        }
+        PrepositionalObjectKind::PrepositionalPhrase(value) => {
+            build_prepositional_object(None, Some(*value), None, None)
+        }
+        PrepositionalObjectKind::GerundClause(value) => {
+            build_prepositional_object(None, None, Some(*value), None)
+        }
+        PrepositionalObjectKind::Adverb(value) => {
+            build_prepositional_object(None, None, None, Some(value))
+        }
+    }
+    .expect("the internal typed object satisfies P02");
+    build_prepositional_phrase(preposition, object)
+        .expect("the internal prepositional object satisfies P02")
 }
 
 fn prepositional_object_category(
@@ -304,23 +224,17 @@ fn reduce_prepositional_phrase_features(
     })
 }
 
+#[allow(
+    clippy::unnecessary_wraps,
+    reason = "the declaration adapter retains the generated checked-builder ABI"
+)]
 fn make_prepositional_phrase(
     preposition: Preposition,
     object: PrepositionalObject,
 ) -> Result<PrepositionalPhrase, DeclarationViolation> {
-    if !is_noun_phrase_object(&object)
-        && !is_prepositional_phrase_object(&object)
-        && !is_gerund_clause_object(&object)
-        && !is_adverb_object(&object)
-    {
-        return Err(violation(
-            "prepositional_phrase",
-            "the object is one validated prepositional object category",
-        ));
-    }
     Ok(PrepositionalPhrase::from_prepositional_declaration(
         preposition,
-        object.into_phrase(),
+        object,
     ))
 }
 
@@ -330,11 +244,7 @@ fn make_prepositional_phrase(
 )]
 fn prepositional_phrase_parts(value: &PrepositionalPhrase) -> (Preposition, PrepositionalObject) {
     let value = value.head();
-    (
-        value.preposition,
-        PrepositionalObject::try_from_phrase(value.object.as_ref().clone())
-            .expect("a checked prepositional phrase retains a supported object"),
-    )
+    (value.preposition, value.object.clone())
 }
 
 fn is_simple_prepositional_phrase(value: &PrepositionalPhrase) -> bool {
@@ -392,20 +302,59 @@ pub(crate) static GROUPS: &[&GroupData] = &[&PREPOSITIONAL_DECLARATION];
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::syntax::RecoveredText;
+    use crate::syntax::NominalPhrase;
+    use crate::syntax::PrepositionalPhraseKind;
+    use crate::word::Noun;
+    use crate::word::NounInstance;
+
+    fn card() -> NounPhrase {
+        crate::constructions::noun_phrase::build_noun_phrase_nominal(
+            NominalPhrase::try_from_noun(NounInstance::unchecked_singular(Noun::Word(Vocab::Card)))
+                .expect("card is a nominal"),
+        )
+        .expect("the nominal enters P01")
+    }
 
     #[test]
-    fn internal_expect_rejects_a_non_p02_object() {
-        let result = std::panic::catch_unwind(|| {
-            expect_prepositional_phrase(
-                Preposition::Under,
-                Phrase::Recovered(RecoveredText::new("unsupported", 1)),
-            )
-        });
+    fn simple_p02_stores_its_checked_typed_object() {
+        let card = card();
+        let object = build_prepositional_object(Some(card.clone()), None, None, None)
+            .expect("one noun-phrase alternative is valid");
+        let phrase = build_prepositional_phrase(Preposition::Of, object)
+            .expect("the typed object enters a simple P02 phrase");
+        let PrepositionalPhraseKind::Simple(simple) = phrase.kind() else {
+            panic!("P02 produces a direct simple alternative")
+        };
+        assert_eq!(simple.preposition(), Preposition::Of);
+        assert!(matches!(
+            simple.object().kind(),
+            PrepositionalObjectKind::NounPhrase(value) if value.as_ref() == &card
+        ));
+    }
 
-        assert!(
-            result.is_err(),
-            "the internal expect helper must not construct an unchecked raw PP",
+    #[test]
+    fn object_sum_rejects_multiple_alternatives() {
+        assert!(build_prepositional_object(Some(card()), None, None, Some(Vocab::Again)).is_err());
+    }
+
+    #[test]
+    fn adverb_object_accepts_a_declared_adverb() {
+        let object = build_prepositional_object(None, None, None, Some(Vocab::Again))
+            .expect("Again has adverb lexical capability");
+        assert!(matches!(
+            object.kind(),
+            PrepositionalObjectKind::Adverb(Vocab::Again)
+        ));
+    }
+
+    #[test]
+    fn adverb_object_rejects_a_non_adverb_vocab() {
+        assert_eq!(
+            build_prepositional_object(None, None, None, Some(Vocab::Card)),
+            Err(DeclarationViolation {
+                construction: "prepositional_object",
+                requirement: "the adverb alternative has adverb lexical capability",
+            })
         );
     }
 }

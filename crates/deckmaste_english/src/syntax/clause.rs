@@ -439,7 +439,32 @@ pub enum PredicateAdjunct {
     /// word class stays render/parse inverse.
     /// [CR#508.1c,509.1b,702.9b,702.13b,702.36b,702.111b]
     Exception(PrepositionalPhrase),
+    /// The ability-owner postmodifier `with "<ability>"`.
+    ///
+    /// This is not a P02 prepositional phrase: the quoted ability is a
+    /// heterogeneous phrase-boundary payload, not a prepositional object.
+    AbilityPostmodifier(AbilityPostmodifier),
     Dependent(Box<DependentClause>),
+}
+
+/// A quoted ability attached after a complete predicate by literal `with`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct AbilityPostmodifier {
+    ability: Box<QuotedAbility>,
+}
+
+impl AbilityPostmodifier {
+    pub(crate) fn from_quoted_ability(ability: QuotedAbility) -> Self {
+        Self {
+            ability: Box::new(ability),
+        }
+    }
+
+    /// The quoted ability carried by this postmodifier.
+    #[must_use]
+    pub fn ability(&self) -> &QuotedAbility {
+        self.ability.as_ref()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
