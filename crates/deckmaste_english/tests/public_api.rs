@@ -4880,6 +4880,8 @@ fn keyword_line_catalogs() -> Catalogs {
             "Flying",
             "First strike",
             "Ward",
+            "Kicker",
+            "Disguise",
             "Fabricate",
             "Suspend",
             "Protection",
@@ -4979,6 +4981,7 @@ fn keyword_line_preserves_every_argument_and_surface_witness() {
         "Flying",
         "Fabricate 2",
         "Ward {2}",
+        "Ward {1}{B} and/or {G}",
         "Suspend 4—{1}{U}",
         "Protection from red",
         "Enchant creature",
@@ -4987,7 +4990,8 @@ fn keyword_line_preserves_every_argument_and_surface_witness() {
         "Craft with artifact {1}{U}",
         "Cumulative upkeep—Sacrifice a creature.",
         "Exhaust — {2}{G}: Draw a card.",
-        "Ward {3}. This ability costs {1} less.",
+        "Kicker {X}. X can't be 0.",
+        "Disguise {5}{R}. This cost is reduced by {1} for each instant and sorcery card in your graveyard.",
         "Flying, first strike",
         "Flying; first strike",
         "Cumulative upkeep—Sacrifice a creature. Draw a card.",
@@ -5030,6 +5034,7 @@ fn keyword_line_preserves_every_argument_and_surface_witness() {
             "absent",
             "counted",
             "costed-symbols",
+            "costed-coordinated-symbols",
             "costed-sentence",
             "costed-components",
             "counted-cost",
@@ -7879,13 +7884,13 @@ fn public_inventory_records_the_complete_backend_boundary() {
         .map(|family| family.id().as_str())
         .collect::<std::collections::BTreeSet<_>>();
     assert_eq!(ability_ids, ["ability", "cost", "keyword_line"].into());
-    assert_eq!(families.len(), 226, "complete generated inventory");
+    assert_eq!(families.len(), 229, "complete generated inventory");
     assert_eq!(
         families
             .iter()
             .filter(|family| family.backend() == ConstructionBackend::Chart)
             .count(),
-        223,
+        226,
         "all remaining declarations are fan-out-one chart families"
     );
 }

@@ -73,13 +73,14 @@ impl OracleText {
 
 impl Paragraph {
     /// Whether this paragraph contains any recovery node at any nested role.
+    /// Used by optional outer compositions that must decline rather than move
+    /// an existing recovery into a less useful inner role.
     pub(crate) fn has_recovery(&self) -> bool {
         let mut walker = RecoveryWalker::default();
         walker.paragraph(self, None);
         !walker.phrases.is_empty()
     }
 }
-
 impl crate::fragment::Fragment {
     /// Every recovered span inside this fragment, the same census
     /// [`OracleText::recoveries`] reports for a whole card.
