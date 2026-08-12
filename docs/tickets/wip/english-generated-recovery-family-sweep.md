@@ -30,3 +30,10 @@ neighboring syntax to improve them. The full source-independent round-trip,
 ambiguity, performance, spelling-frame, Clippy, formatting, and citation gates
 must pass. Commit no corpus rows or aggregate baseline snapshots. Standard
 constraints apply.
+
+The complete-worklist procedure is documented in
+`docs/english-recovery-audit.md`. Export the unbounded runtime-derived JSON
+before changing the grammar, annotate every exact group, and retain it outside
+the repository. Final `--verify-worklist` verification must prove that every
+implemented group disappeared, every retained group names its focused
+follow-up, and no unaudited group entered the current corpus result.

@@ -21,6 +21,7 @@ mod lint;
 mod performance;
 mod probe;
 mod recovery;
+mod recovery_worklist;
 mod roundtrip;
 mod shape;
 mod shapes;

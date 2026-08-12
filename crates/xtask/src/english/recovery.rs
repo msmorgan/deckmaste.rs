@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use anyhow::Result;
 use anyhow::bail;
@@ -13,6 +14,7 @@ use serde::Serialize;
 use crate::english::data::OracleDataArgs;
 use crate::english::data::map_supported_faces_with_workers;
 use crate::english::data::supported_face_jobs;
+use crate::english::recovery_worklist::RuntimeRecoveryGroup;
 
 #[derive(Debug, Args)]
 pub(super) struct RecoveryArgs {
@@ -30,6 +32,22 @@ pub(super) struct RecoveryArgs {
     /// Maximum grouped recovery rows to print (requires --list).
     #[arg(long, default_value_t = 25, requires = "list")]
     list_limit: usize,
+
+    /// Export every exact-text recovery group to an annotatable JSON worklist.
+    #[arg(
+        long,
+        value_name = "PATH",
+        conflicts_with_all = ["json", "list", "verify_worklist"]
+    )]
+    worklist: Option<PathBuf>,
+
+    /// Verify a previously exported and causally annotated worklist.
+    #[arg(
+        long,
+        value_name = "PATH",
+        conflicts_with_all = ["json", "list", "worklist"]
+    )]
+    verify_worklist: Option<PathBuf>,
 
     /// Fail unless the supported corpus has no structural recovery.
     #[arg(long)]
@@ -145,6 +163,19 @@ impl RecoveryListing {
                 .then_with(|| left.text.cmp(&right.text))
         });
         groups
+    }
+
+    fn runtime_groups(&self) -> Vec<RuntimeRecoveryGroup> {
+        self.sorted_groups()
+            .into_iter()
+            .map(|group| RuntimeRecoveryGroup {
+                role: role_name(group.role).to_owned(),
+                text: group.text.clone(),
+                occurrences: group.occurrences,
+                source_tokens: group.source_tokens,
+                face_names: group.face_names.iter().cloned().collect(),
+            })
+            .collect()
     }
 }
 
@@ -331,7 +362,11 @@ pub(super) fn run(args: &RecoveryArgs) -> Result<()> {
             card.is_legendary,
         );
         let mut audit = FaceAudit::default();
-        audit.observe_report(&report, card.printed_name(), args.list);
+        audit.observe_report(
+            &report,
+            card.printed_name(),
+            args.list || args.worklist.is_some() || args.verify_worklist.is_some(),
+        );
         audit
     })
     .into_iter()
@@ -341,7 +376,10 @@ pub(super) fn run(args: &RecoveryArgs) -> Result<()> {
                 workers,
                 ..Census::default()
             },
-            recovery_listing: args.list.then(RecoveryListing::default),
+            recovery_listing: (args.list
+                || args.worklist.is_some()
+                || args.verify_worklist.is_some())
+            .then(RecoveryListing::default),
         },
         |mut audit, card| {
             audit.add(card);
@@ -353,7 +391,27 @@ pub(super) fn run(args: &RecoveryArgs) -> Result<()> {
         recovery_listing,
     } = audit;
 
-    if args.json {
+    if let Some(path) = args.worklist.as_deref() {
+        let listing = recovery_listing
+            .as_ref()
+            .expect("worklist export requested recovery collection");
+        let groups = listing.runtime_groups();
+        std::fs::write(path, crate::english::recovery_worklist::export(&groups)?)?;
+        println!(
+            "exported {} recovery groups to {} (transient corpus worklist; do not commit)",
+            groups.len(),
+            path.display()
+        );
+    } else if let Some(path) = args.verify_worklist.as_deref() {
+        let listing = recovery_listing
+            .as_ref()
+            .expect("worklist verification requested recovery collection");
+        let summary = crate::english::recovery_worklist::verify(path, &listing.runtime_groups())?;
+        println!(
+            "verified {} audited recovery groups: {} implemented, {} assigned to follow-up; {} groups remain at runtime",
+            summary.audited, summary.implemented, summary.follow_up, summary.current,
+        );
+    } else if args.json {
         println!("{}", serde_json::to_string_pretty(&census)?);
     } else {
         print_human(&census);
