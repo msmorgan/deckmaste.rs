@@ -23,6 +23,7 @@ use crate::syntax::Clause;
 use crate::syntax::ClauseAttachment;
 use crate::syntax::ClauseAttachmentKind;
 use crate::syntax::ComplexClause;
+use crate::syntax::CoordinatedSubordinateBody;
 use crate::syntax::DependentClause;
 use crate::syntax::EllipticalClause;
 use crate::syntax::ExceptionConjunct;
@@ -527,6 +528,113 @@ fn make_clause_subordinate_after(
         AttachmentPosition::AfterMatrix,
         Comma::Absent,
     )
+}
+
+fn make_clause_subordinate_after_repeated(
+    host: Clause,
+    subordinator: Subordinator,
+    first: Clause,
+    conjunction: Conjunction,
+    repeated_subordinator: Subordinator,
+    next: Clause,
+) -> Result<Clause, DeclarationViolation> {
+    if subordinator != Subordinator::If
+        || repeated_subordinator != subordinator
+        || conjunction != Conjunction::Or
+    {
+        return Err(violation(
+            "clause_subordinate_after_repeated",
+            "an if-condition disjunction repeats if before its second finite member",
+        ));
+    }
+    let body =
+        SubordinateBody::CoordinatedFinite(CoordinatedSubordinateBody::from_declaration_parts(
+            Box::new(independent("clause_subordinate_after_repeated", first)?),
+            conjunction,
+            repeated_subordinator,
+            Box::new(independent("clause_subordinate_after_repeated", next)?),
+        ));
+    make_subordinate_attachment(
+        "clause_subordinate_after_repeated",
+        subordinator,
+        body,
+        host,
+        AttachmentPosition::AfterMatrix,
+        Comma::Absent,
+    )
+}
+
+fn clause_subordinate_after_repeated_parts(
+    value: &Clause,
+) -> (
+    Clause,
+    Subordinator,
+    Clause,
+    Conjunction,
+    Subordinator,
+    Clause,
+) {
+    let (host, attachment) = remove_attachment(value, AttachmentPosition::AfterMatrix, |kind| {
+        matches!(
+            kind,
+            ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                _,
+                SubordinateBody::CoordinatedFinite(_)
+            ))
+        )
+    })
+    .expect("the repeated-subordinator recognizer admits one trailing attachment");
+    let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+        subordinator,
+        SubordinateBody::CoordinatedFinite(body),
+    )) = attachment.payload
+    else {
+        unreachable!()
+    };
+    (
+        host,
+        subordinator,
+        Clause::Independent(*body.first),
+        body.conjunction,
+        body.repeated_subordinator,
+        Clause::Independent(*body.next),
+    )
+}
+
+fn is_clause_subordinate_after_repeated(value: &Clause) -> bool {
+    remove_attachment(value, AttachmentPosition::AfterMatrix, |kind| {
+        matches!(
+            kind,
+            ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                Subordinator::If,
+                SubordinateBody::CoordinatedFinite(body)
+            )) if body.conjunction == Conjunction::Or
+                && body.repeated_subordinator == Subordinator::If
+        )
+    })
+    .is_some_and(|(_, attachment)| attachment.comma == Comma::Absent)
+}
+
+fn repeated_conditional_features(
+    subordinator: &Features,
+    first: &Features,
+    conjunction: &Features,
+    repeated_subordinator: &Features,
+    next: &Features,
+    host: &Features,
+) -> Option<Features> {
+    if !matches!(
+        (subordinator, conjunction, repeated_subordinator),
+        (
+            Features::Subordinator(Subordinator::If),
+            Features::Conjunction(Conjunction::Or),
+            Features::Subordinator(Subordinator::If)
+        )
+    ) {
+        return None;
+    }
+    conditional_features(subordinator, first, host)?;
+    conditional_features(repeated_subordinator, next, host)
 }
 
 fn clause_subordinate_after_parts(value: &Clause) -> (Clause, Subordinator, Clause) {
@@ -1096,9 +1204,13 @@ fn restriction_parts(value: &Clause) -> Option<(Clause, RestrictionRun)> {
     Some((host, run))
 }
 
-fn attach_restriction(host: Clause, run: RestrictionRun) -> Result<Clause, DeclarationViolation> {
+fn attach_restriction(
+    construction: &'static str,
+    host: Clause,
+    run: RestrictionRun,
+) -> Result<Clause, DeclarationViolation> {
     with_attachment(
-        "clause_restriction_run",
+        construction,
         host,
         ClauseAttachment::from_declaration_parts(
             AttachmentPosition::AfterMatrix,
@@ -1132,7 +1244,29 @@ fn make_clause_restriction_run(
             "only the final restriction member carries and",
         ));
     }
-    attach_restriction(host, RestrictionRun::from_declaration_parts(first, rest))
+    attach_restriction(
+        "clause_restriction_run",
+        host,
+        RestrictionRun::from_declaration_parts(first, rest),
+    )
+}
+
+fn make_clause_restriction_but(
+    host: Clause,
+    member: RestrictionMember,
+) -> Result<Clause, DeclarationViolation> {
+    attach_restriction(
+        "clause_restriction_but",
+        host,
+        RestrictionRun::from_declaration_parts(member, Vec::new()),
+    )
+}
+
+fn clause_restriction_but_parts(value: &Clause) -> (Clause, RestrictionMember) {
+    let (host, run) =
+        restriction_parts(value).expect("a but-only restriction has one trailing declared run");
+    debug_assert!(run.rest.is_empty());
+    (host, run.first)
 }
 
 fn clause_restriction_run_parts(
@@ -1172,6 +1306,25 @@ fn is_clause_restriction_run(value: &Clause) -> bool {
                 .last()
                 .is_some_and(|member| member.conjunction == Some(Conjunction::And))
     })
+}
+
+fn is_clause_restriction_but(value: &Clause) -> bool {
+    restriction_run(value).is_some_and(|run| run.rest.is_empty())
+}
+
+fn reduce_restriction_but_features(host: &Features, member: &Features) -> Option<Features> {
+    if !matches!(
+        host,
+        Features::Clause {
+            standalone: true,
+            subjunctive: false,
+            ..
+        }
+    ) || !matches!(member, Features::RestrictionMember)
+    {
+        return None;
+    }
+    clause_features(host)
 }
 
 fn reduce_restriction_run_features(
@@ -1284,6 +1437,22 @@ deckmaste_constructions_macro::constructions! {
         derive features: Features = conditional_features(subordinator, condition, host);
         evidence feature "finite subordinate selection and host eligibility" from category;
         form only @ 0 inverse check(is_clause_subordinate_after) = host identity(subordinator) condition;
+        selection unique;
+    }
+
+    construction clause_subordinate_after_repeated: Clause {
+        bind Clause via make_clause_subordinate_after_repeated, clause_subordinate_after_repeated_parts {
+            host: hole Clause,
+            subordinator: identity Subordinator via Subordinator,
+            first: hole Clause,
+            conjunction: lex Conjunction,
+            repeated_subordinator: identity Subordinator via Subordinator,
+            next: hole Clause,
+        }
+        require conjunction in [Or];
+        derive features: Features = repeated_conditional_features(subordinator, first, conjunction, repeated_subordinator, next, host);
+        evidence feature "coordinated finite conditions under one repeated subordinator" from category;
+        form only @ 0 inverse check(is_clause_subordinate_after_repeated) = host identity(subordinator) first lex(conjunction) identity(repeated_subordinator) next;
         selection unique;
     }
 
@@ -1405,6 +1574,17 @@ deckmaste_constructions_macro::constructions! {
         require rest.last.conjunction in [And];
         derive features: Features = reduce_restriction_run_features(host, first, rest);
         form only @ 0 inverse check(is_clause_restriction_run) = host first rest;
+        selection unique;
+    }
+
+    construction clause_restriction_but: Clause {
+        bind Clause via make_clause_restriction_but, clause_restriction_but_parts {
+            host: hole Clause,
+            member: hole RestrictionMember,
+        }
+        derive features: Features = reduce_restriction_but_features(host, member);
+        evidence feature "but-introduced action restriction" from category;
+        form only @ 0 inverse check(is_clause_restriction_but) = host "but" member;
         selection unique;
     }
 }

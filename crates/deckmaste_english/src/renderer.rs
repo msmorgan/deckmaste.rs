@@ -4471,6 +4471,13 @@ impl<'identity> Renderer<'identity> {
             DependentClause::Subordinate(subordinator, body) => {
                 let body = match body {
                     SubordinateBody::Finite(clause) => self.independent_clause(clause)?,
+                    SubordinateBody::CoordinatedFinite(body) => format!(
+                        "{} {} {} {}",
+                        self.independent_clause(body.first())?,
+                        body.conjunction().spelling(),
+                        render_subordinator(body.repeated_subordinator()),
+                        self.independent_clause(body.next())?,
+                    ),
                     SubordinateBody::Infinitive(clause) => self.infinitive_clause(clause)?,
                     SubordinateBody::Gerund(clause) => self.gerund_clause(clause)?,
                     SubordinateBody::Elliptical(clause) => {
@@ -5292,6 +5299,10 @@ fn dependent_clause_quoted_ability_count(clause: &DependentClause) -> usize {
     match clause {
         DependentClause::Subordinate(_, body) => match body {
             SubordinateBody::Finite(clause) => independent_clause_quoted_ability_count(clause),
+            SubordinateBody::CoordinatedFinite(body) => {
+                independent_clause_quoted_ability_count(body.first())
+                    + independent_clause_quoted_ability_count(body.next())
+            }
             SubordinateBody::Infinitive(clause) => {
                 predicate_quoted_ability_count(clause.predicate())
             }

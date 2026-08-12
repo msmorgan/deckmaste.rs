@@ -3420,6 +3420,10 @@ impl<'syntax> SyntaxInventory<'syntax> {
             DependentClause::Subordinate(_, SubordinateBody::Finite(clause)) => {
                 self.independent_clause(clause);
             }
+            DependentClause::Subordinate(_, SubordinateBody::CoordinatedFinite(body)) => {
+                self.independent_clause(body.first());
+                self.independent_clause(body.next());
+            }
             DependentClause::Subordinate(_, SubordinateBody::Infinitive(clause))
             | DependentClause::Infinitive(clause) => self.predicate(clause.predicate()),
             DependentClause::Subordinate(_, SubordinateBody::Gerund(clause))

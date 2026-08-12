@@ -112,9 +112,58 @@ pub enum DependentClause {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum SubordinateBody {
     Finite(Box<IndependentClause>),
+    CoordinatedFinite(CoordinatedSubordinateBody),
     Infinitive(InfinitiveClause),
     Gerund(GerundClause),
     Elliptical(EllipticalClause),
+}
+
+/// Two finite conditions coordinated inside one subordinate attachment while
+/// repeating the subordinator before the second condition (`if A or if B`).
+/// The outer [`DependentClause::Subordinate`] owns the first marker; this node
+/// retains only the repeated marker whose spelling would otherwise be lost.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct CoordinatedSubordinateBody {
+    pub(crate) first: Box<IndependentClause>,
+    pub(crate) conjunction: Conjunction,
+    pub(crate) repeated_subordinator: Subordinator,
+    pub(crate) next: Box<IndependentClause>,
+}
+
+impl CoordinatedSubordinateBody {
+    pub(crate) const fn from_declaration_parts(
+        first: Box<IndependentClause>,
+        conjunction: Conjunction,
+        repeated_subordinator: Subordinator,
+        next: Box<IndependentClause>,
+    ) -> Self {
+        Self {
+            first,
+            conjunction,
+            repeated_subordinator,
+            next,
+        }
+    }
+
+    #[must_use]
+    pub const fn first(&self) -> &IndependentClause {
+        &self.first
+    }
+
+    #[must_use]
+    pub const fn conjunction(&self) -> Conjunction {
+        self.conjunction
+    }
+
+    #[must_use]
+    pub const fn repeated_subordinator(&self) -> Subordinator {
+        self.repeated_subordinator
+    }
+
+    #[must_use]
+    pub const fn next(&self) -> &IndependentClause {
+        &self.next
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -962,15 +1011,14 @@ pub enum ClauseAttachmentKind {
     /// renderer reproduces the ` — ` separator, so the attachment's own `comma`
     /// flag is unused.
     Appositive(Box<IndependentClause>),
-    /// A trailing run of two or more coordinated `only …` timing restrictions
-    /// (`only as a sorcery and only once each turn`). Each member repeats
-    /// `only`, which the shape carries rather than storing an adverb per
-    /// member; the members are independent gates on the action
-    /// [CR#601.3,602.5]. A one-member run never derives — a lone `only X`
-    /// keeps its existing split residence (the `only` adverb in the matrix
-    /// predicate's `elements`, an `if`-clause as its own `Dependent`
-    /// attachment). The attachment's own `comma` flag is always `false`; every
-    /// separator inside the run is carried by [`RestrictionCoordination`].
+    /// A trailing `only …` action restriction. A run with coordinated members
+    /// spells `only X and only Y`; a singleton is licensed only by the
+    /// contrastive surface `but only X`. A lone unintroduced `only X` keeps its
+    /// existing split residence (the `only` adverb in the matrix predicate's
+    /// `elements`, an `if`-clause as its own `Dependent` attachment). Members
+    /// are independent gates on the action [CR#601.3,602.5]. The attachment's
+    /// own `comma` flag is always `false`; every separator inside a coordinated
+    /// run is carried by [`RestrictionCoordination`].
     Restriction(RestrictionRun),
 }
 
@@ -986,8 +1034,8 @@ pub struct RestrictionRun {
     /// `only once each turn` member must carry both to round-trip). Never
     /// empty.
     pub(crate) first: RestrictionMember,
-    /// Never empty: the run exists only when a coordinator joins two or more
-    /// members. Mirrors [`ExceptionRider::rest`].
+    /// Empty only for the contrastive singleton surface `but only X`; otherwise
+    /// the final member carries `and`. Mirrors [`ExceptionRider::rest`].
     pub(crate) rest: Vec<RestrictionCoordination>,
 }
 
