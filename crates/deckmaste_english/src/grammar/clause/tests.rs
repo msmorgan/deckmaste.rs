@@ -2516,6 +2516,61 @@ fn put_them_back_in_any_order_keeps_back_as_a_post_object_adverb() {
 }
 
 #[test]
+fn separate_cards_into_piles_is_an_ordinary_generated_transitive_predicate() {
+    let source = "An opponent separates those cards into two piles.";
+    let parsed = parse(source);
+    let (_, predicate) = finite_transitive(parsed.sentence().expect("sentence root"));
+    assert!(matches!(
+        predicate.head().verb().verb,
+        Verb::Word(Vocab::Separate)
+    ));
+    assert!(matches!(predicate.object(), PredicateObject::NounPhrase(_)));
+    assert!(
+        predicate.elements().iter().any(|element| matches!(
+            element,
+            PredicateElement::Adjunct(PredicateAdjunct::Prepositional(preposition))
+                | PredicateElement::Complement(PredicateComplement::Prepositional(preposition))
+                if preposition.head().preposition == Preposition::Into
+        )),
+        "{:#?}",
+        predicate.elements()
+    );
+    assert!(parsed.construction_decisions().iter().any(|decision| {
+        decision.selected().as_str() == "verb"
+            && decision.backend() == crate::ConstructionBackend::Chart
+    }));
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+
+    let orders = crate::grammar::exact::parse_production_sentence_in_all_registration_orders(
+        source,
+        &fixture_catalogs(),
+        100_000,
+    )
+    .unwrap_or_else(|error| panic!("exact search failed for {source:?}: {error:?}"));
+    assert!(!orders[0].is_empty(), "no exact parse for {source:?}");
+    for (order, parses) in [("reversed", &orders[1]), ("fixed shuffle", &orders[2])] {
+        assert_eq!(parses.len(), orders[0].len(), "{order} changed {source:?}");
+        assert!(
+            parses.iter().all(|candidate| {
+                orders[0].iter().any(|normal| {
+                    normal.ast().construction == candidate.ast().construction
+                        && normal.ast().form_ordinal == candidate.ast().form_ordinal
+                        && normal.ast().value == candidate.ast().value
+                })
+            }),
+            "{order} changed the typed exact parses for {source:?}"
+        );
+    }
+    for parses in &orders {
+        assert!(
+            parses
+                .iter()
+                .all(|parse| render_sentence(&parse.ast().value) == source)
+        );
+    }
+}
+
+#[test]
 fn look_then_put_them_back_in_any_order_parses_and_renders_as_oracle_text() {
     let source = "Look at the top four cards of your library, then put them back in any order.";
     let parsed = parse(source);
@@ -2605,6 +2660,75 @@ fn pronominal_destination_resultative_admits_tapped_control_sibling() {
 }
 
 #[test]
+fn pronominal_destination_admits_coordinated_resultatives_before_control() {
+    let source = "Return it to the battlefield tapped and transformed under its owner's control.";
+    let coordinated = parse_nonterminal(
+        "tapped and transformed",
+        &fixture_catalogs(),
+        Nonterminal::CoordinatedModifier,
+    )
+    .expect("the coordinated resultatives parse independently");
+    assert!(coordinated.coordinated_modifier().is_some());
+    let predicate = parse_nonterminal(
+        "return it to the battlefield",
+        &fixture_catalogs(),
+        Nonterminal::VerbPhrase,
+    )
+    .expect("the pronominal destination parses independently");
+    assert!(predicate.verb_phrase().is_some());
+    let parsed = parse(source);
+    assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+    let returned = imperative_transitive(parsed.sentence().expect("sentence root"));
+    assert!(matches!(
+        returned.elements(),
+        [
+            PredicateElement::Adjunct(PredicateAdjunct::Prepositional(destination)),
+            PredicateElement::Complement(PredicateComplement::CoordinatedAdjective(resultatives)),
+            PredicateElement::Adjunct(PredicateAdjunct::Prepositional(control)),
+        ] if destination.head().preposition == Preposition::To
+            && matches!(resultatives.first().head(), Adjective::Participle(Tense::Past, Verb::Word(Vocab::Tap)))
+            && matches!(resultatives.rest(), [member]
+                if member.conjunction() == Some(Conjunction::And)
+                    && matches!(member.phrase().head(), Adjective::Participle(Tense::Past, Verb::Word(Vocab::Transform))))
+            && control.head().preposition == Preposition::Under
+    ));
+    assert!(parsed.construction_decisions().iter().any(|decision| {
+        decision.selected().as_str()
+            == "verb_phrase_pronominal_coordinated_resultative_prepositional"
+            && decision.backend() == crate::ConstructionBackend::Chart
+    }));
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+
+    let orders = crate::grammar::exact::parse_production_sentence_in_all_registration_orders(
+        source,
+        &fixture_catalogs(),
+        100_000,
+    )
+    .unwrap_or_else(|error| panic!("exact search failed for {source:?}: {error:?}"));
+    assert!(!orders[0].is_empty(), "no exact parse for {source:?}");
+    for (order, parses) in [("reversed", &orders[1]), ("fixed shuffle", &orders[2])] {
+        assert_eq!(parses.len(), orders[0].len(), "{order} changed {source:?}");
+        assert!(
+            parses.iter().all(|candidate| {
+                orders[0].iter().any(|normal| {
+                    normal.ast().construction == candidate.ast().construction
+                        && normal.ast().form_ordinal == candidate.ast().form_ordinal
+                        && normal.ast().value == candidate.ast().value
+                })
+            }),
+            "{order} changed the typed exact parses for {source:?}"
+        );
+    }
+    for parses in &orders {
+        assert!(
+            parses
+                .iter()
+                .all(|parse| render_sentence(&parse.ast().value) == source)
+        );
+    }
+}
+
+#[test]
 fn counted_energy_predicate_objects_are_exact_and_registration_neutral() {
     for source in ["Pay six {E}.", "Pay X {E}."] {
         let parsed = parse(source);
@@ -2646,8 +2770,47 @@ fn counted_energy_predicate_objects_are_exact_and_registration_neutral() {
 }
 
 #[test]
+fn anaphoric_counted_energy_is_a_typed_generated_object() {
+    let source = "You get that many {E}.";
+    let parsed = parse(source);
+    assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+    let (_, predicate) = finite_transitive(parsed.sentence().expect("sentence root"));
+    assert!(matches!(
+        predicate.object(),
+        PredicateObject::CountedEnergy(energy)
+            if matches!(energy.quantity().kind(), crate::syntax::QuantityKind::ThatMany)
+                && energy.symbol().as_str() == "{E}"
+    ));
+    assert!(parsed.construction_decisions().iter().any(|decision| {
+        decision.selected().as_str() == "verb_phrase_counted_energy"
+            && decision.backend() == crate::ConstructionBackend::Chart
+    }));
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+
+    let orders = crate::grammar::exact::parse_production_sentence_in_all_registration_orders(
+        source,
+        &fixture_catalogs(),
+        100_000,
+    )
+    .unwrap_or_else(|error| panic!("exact search failed for {source:?}: {error:?}"));
+    assert!(!orders[0].is_empty(), "no exact parse for {source:?}");
+    for parses in [&orders[1], &orders[2]] {
+        assert_eq!(parses.len(), orders[0].len());
+        assert!(
+            parses
+                .iter()
+                .all(|candidate| orders[0].iter().any(|normal| {
+                    normal.ast().construction == candidate.ast().construction
+                        && normal.ast().form_ordinal == candidate.ast().form_ordinal
+                        && normal.ast().value == candidate.ast().value
+                }))
+        );
+    }
+}
+
+#[test]
 fn counted_energy_rejects_arabic_and_non_energy_symbols() {
-    for source in ["Pay 6 {E}.", "Pay six {R}."] {
+    for source in ["Pay 6 {E}.", "Pay six {R}.", "Pay that much {E}."] {
         let parsed = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence);
         assert!(parsed.is_err(), "{source:?} must not use counted energy");
     }
@@ -2880,6 +3043,61 @@ fn restriction_runs_host_on_every_matrix() {
 }
 
 #[test]
+fn but_only_introduces_one_generated_restriction_attachment() {
+    for source in [
+        "Any player may activate this ability but only as a sorcery.",
+        "Any player may activate this ability but only during any upkeep step.",
+    ] {
+        let parsed = parse(source);
+        let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+            &parsed.sentence().expect("sentence root").body
+        else {
+            panic!("expected a complex clause for {source:?}");
+        };
+        let ClauseAttachmentKind::Restriction(run) = complex.attachment().payload() else {
+            panic!("expected a restriction attachment for {source:?}");
+        };
+        assert!(matches!(
+            run.first().adjuncts(),
+            [PredicateAdjunct::Prepositional(_)]
+        ));
+        assert!(run.rest().is_empty());
+        assert!(parsed.construction_decisions().iter().any(|decision| {
+            decision.selected().as_str() == "clause_restriction_but"
+                && decision.backend() == crate::ConstructionBackend::Chart
+        }));
+        assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+
+        let orders = crate::grammar::exact::parse_production_sentence_in_all_registration_orders(
+            source,
+            &fixture_catalogs(),
+            100_000,
+        )
+        .unwrap_or_else(|error| panic!("exact search failed for {source:?}: {error:?}"));
+        let canonical = orders.clone().map(|parses| {
+            parses
+                .into_iter()
+                .map(|parse| {
+                    (
+                        parse.ast().construction,
+                        parse.ast().form_ordinal,
+                        ron::to_string(&parse.ast().value).unwrap(),
+                    )
+                })
+                .collect::<std::collections::BTreeSet<_>>()
+        });
+        assert!(!canonical[0].is_empty(), "no exact parse for {source:?}");
+        assert_eq!(canonical[1], canonical[0], "reversed changed {source:?}");
+        assert_eq!(canonical[2], canonical[0], "shuffle changed {source:?}");
+        assert!(orders.iter().all(|parses| {
+            parses
+                .iter()
+                .all(|parse| render_sentence(&parse.ast().value) == source)
+        }));
+    }
+}
+
+#[test]
 fn single_only_restriction_keeps_its_flat_elements() {
     for source in [
         "Activate only as a sorcery.",
@@ -2936,6 +3154,73 @@ fn single_only_if_restriction_keeps_its_dependent_attachment() {
         complex.attachment().payload(),
         ClauseAttachmentKind::Dependent(DependentClause::Subordinate(Subordinator::If, _))
     ));
+}
+
+#[test]
+fn repeated_if_disjunction_is_one_generated_subordinate_attachment() {
+    let source = "Activate only if this land entered this turn or if you control a basic land.";
+    let catalogs = fixture_catalogs().with_catalog(CatalogKind::Supertype, ["Basic"]);
+    let parsed = parse_nonterminal(source, &catalogs, Nonterminal::Sentence)
+        .unwrap_or_else(|error| panic!("failed to parse {source:?}: {error:?}"));
+    let SentenceBody::Independent(IndependentClause::Complex(complex)) =
+        &parsed.sentence().expect("sentence root").body
+    else {
+        panic!("expected a complex clause");
+    };
+    let Predicate::Intransitive(predicate) = imperative_predicate(complex.host()) else {
+        panic!("expected an imperative intransitive matrix");
+    };
+    assert!(matches!(
+        predicate.elements(),
+        [PredicateElement::Adjunct(PredicateAdjunct::Adverb(
+            Vocab::Only
+        ))]
+    ));
+    assert!(!complex.attachment().comma().is_present());
+    let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+        Subordinator::If,
+        SubordinateBody::CoordinatedFinite(conditions),
+    )) = complex.attachment().payload()
+    else {
+        panic!(
+            "expected a repeated-if finite subordinate attachment: {:#?}",
+            complex.attachment()
+        );
+    };
+    assert!(matches!(conditions.first(), IndependentClause::Finite(_)));
+    assert_eq!(conditions.conjunction(), Conjunction::Or);
+    assert_eq!(conditions.repeated_subordinator(), Subordinator::If);
+    assert!(matches!(conditions.next(), IndependentClause::Finite(_)));
+    assert!(parsed.construction_decisions().iter().any(|decision| {
+        decision.selected().as_str() == "clause_subordinate_after_repeated"
+            && decision.backend() == crate::ConstructionBackend::Chart
+    }));
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+
+    let orders = crate::grammar::exact::parse_production_sentence_in_all_registration_orders(
+        source, &catalogs, 100_000,
+    )
+    .unwrap_or_else(|error| panic!("exact search failed for {source:?}: {error:?}"));
+    let canonical = orders.clone().map(|parses| {
+        parses
+            .into_iter()
+            .map(|parse| {
+                (
+                    parse.ast().construction,
+                    parse.ast().form_ordinal,
+                    ron::to_string(&parse.ast().value).unwrap(),
+                )
+            })
+            .collect::<std::collections::BTreeSet<_>>()
+    });
+    assert!(!canonical[0].is_empty(), "no exact parse for {source:?}");
+    assert_eq!(canonical[1], canonical[0], "reversed registration changed");
+    assert_eq!(canonical[2], canonical[0], "fixed shuffle changed");
+    assert!(orders.iter().all(|parses| {
+        parses
+            .iter()
+            .all(|parse| render_sentence(&parse.ast().value) == source)
+    }));
 }
 
 #[test]
@@ -4699,21 +4984,131 @@ fn directional_particle_completes_an_intransitive_predicate() {
 }
 
 #[test]
-fn directional_particle_requires_a_licensed_verb_pair() {
-    let parsed = parse_nonterminal(
-        "This creature transforms out.",
-        &fixture_catalogs(),
-        Nonterminal::Sentence,
-    )
-    .expect("opaque-noun fallback should remain available");
-
-    assert_eq!(parsed.opacity_mode(), OpacityMode::OpaqueNouns);
+fn round_up_each_time_uses_the_licensed_particle_predicate() {
+    let source = "Round up each time.";
+    let parsed = parse(source);
+    assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
     let clause = independent_clause(parsed.sentence().expect("sentence root"));
-    assert!(!matches!(
-        finite_simple_parts(clause),
-        (Some(_), Predicate::Intransitive(predicate))
-            if matches!(predicate.elements(), [PredicateElement::Particle(_)])
+    let Predicate::Intransitive(predicate) = imperative_predicate(clause) else {
+        panic!(
+            "expected an intransitive imperative: {:#?}",
+            parsed.sentence()
+        );
+    };
+    assert!(matches!(
+        predicate.head().verb().verb,
+        Verb::Word(Vocab::Round)
     ));
+    assert!(
+        predicate
+            .elements()
+            .iter()
+            .any(|element| matches!(element, PredicateElement::Particle(VerbParticle::Up)))
+    );
+    assert!(predicate.elements().iter().any(|element| matches!(
+        element,
+        PredicateElement::Adjunct(PredicateAdjunct::Temporal(noun_phrase))
+            if matches!(
+                noun_phrase.kind(),
+                NounPhraseKind::Nominal(nominal)
+                    if matches!(nominal.head().noun(), Noun::Word(Vocab::Time))
+            )
+    )));
+    assert!(parsed.construction_decisions().iter().any(|decision| {
+        decision.selected().as_str() == "verb_phrase_particle"
+            && decision.backend() == crate::ConstructionBackend::Chart
+    }));
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+
+    let orders = crate::grammar::exact::parse_production_sentence_in_all_registration_orders(
+        source,
+        &fixture_catalogs(),
+        100_000,
+    )
+    .unwrap_or_else(|error| panic!("exact search failed for {source:?}: {error:?}"));
+    assert!(!orders[0].is_empty(), "no exact parse for {source:?}");
+    for parses in [&orders[1], &orders[2]] {
+        assert_eq!(parses.len(), orders[0].len());
+        assert!(
+            parses
+                .iter()
+                .all(|candidate| orders[0].iter().any(|normal| {
+                    normal.ast().construction == candidate.ast().construction
+                        && normal.ast().form_ordinal == candidate.ast().form_ordinal
+                        && normal.ast().value == candidate.ast().value
+                }))
+        );
+    }
+}
+
+#[test]
+fn round_down_each_time_uses_the_same_typed_particle_family() {
+    let source = "Round down each time.";
+    let parsed = parse(source);
+    assert_eq!(parsed.opacity_mode(), OpacityMode::Exact);
+    let predicate = imperative_predicate(independent_clause(
+        parsed.sentence().expect("sentence root"),
+    ));
+    let Predicate::Intransitive(predicate) = predicate else {
+        panic!("expected an intransitive rounding command");
+    };
+    assert!(matches!(
+        predicate.head().verb().verb,
+        Verb::Word(Vocab::Round)
+    ));
+    assert!(
+        predicate
+            .elements()
+            .iter()
+            .any(|element| matches!(element, PredicateElement::Particle(VerbParticle::Down)))
+    );
+    assert_eq!(render_sentence(parsed.sentence().unwrap()), source);
+
+    let orders = crate::grammar::exact::parse_production_sentence_in_all_registration_orders(
+        source,
+        &fixture_catalogs(),
+        100_000,
+    )
+    .unwrap_or_else(|error| panic!("exact search failed for {source:?}: {error:?}"));
+    assert!(!orders[0].is_empty());
+    for parses in [&orders[1], &orders[2]] {
+        assert_eq!(parses.len(), orders[0].len());
+        assert!(
+            parses
+                .iter()
+                .all(|candidate| orders[0].iter().any(|normal| {
+                    normal.ast().construction == candidate.ast().construction
+                        && normal.ast().form_ordinal == candidate.ast().form_ordinal
+                        && normal.ast().value == candidate.ast().value
+                }))
+        );
+    }
+}
+
+#[test]
+fn a_rounding_rider_is_not_a_second_predicate() {
+    let source = "Target opponent exiles the top half of their library, rounded up.";
+    assert!(
+        parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence).is_err(),
+        "the unsupported rounded-half nominal must not be recategorized as clause coordination"
+    );
+}
+
+#[test]
+fn directional_particle_requires_a_licensed_verb_pair() {
+    for source in [
+        "This creature transforms out.",
+        "This creature transforms up.",
+    ] {
+        if let Ok(parsed) = parse_nonterminal(source, &fixture_catalogs(), Nonterminal::Sentence) {
+            let clause = independent_clause(parsed.sentence().expect("sentence root"));
+            assert!(!matches!(
+                finite_simple_parts(clause),
+                (Some(_), Predicate::Intransitive(predicate))
+                    if matches!(predicate.elements(), [PredicateElement::Particle(_)])
+            ));
+        }
+    }
 }
 
 #[test]

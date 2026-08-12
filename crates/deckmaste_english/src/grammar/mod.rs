@@ -1224,8 +1224,10 @@ impl EnglishLexicalSlot {
         Self::CombatStepDeclare,
         Self::CombatStepParticipants,
         Self::CombatStepHead,
+        Self::VerbParticle(VerbParticle::Down),
         Self::VerbParticle(VerbParticle::In),
         Self::VerbParticle(VerbParticle::Out),
+        Self::VerbParticle(VerbParticle::Up),
         Self::CoinResult(crate::syntax::CoinSide::Heads),
         Self::CoinResult(crate::syntax::CoinSide::Tails),
         Self::FromWord,
@@ -2994,22 +2996,23 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 })
                 .into_iter()
                 .collect(),
-            EnglishLexicalSlot::AnyVerbParticle => [VerbParticle::In, VerbParticle::Out]
-                .into_iter()
-                .filter_map(|particle| {
-                    self.literal_token_match(
-                        tokens,
-                        start,
-                        EnglishLexicalSlot::VerbParticle(particle),
-                    )
+            EnglishLexicalSlot::AnyVerbParticle => [
+                VerbParticle::Down,
+                VerbParticle::In,
+                VerbParticle::Out,
+                VerbParticle::Up,
+            ]
+            .into_iter()
+            .filter_map(|particle| {
+                self.literal_token_match(tokens, start, EnglishLexicalSlot::VerbParticle(particle))
                     .map(|end| LexicalMatch {
                         end,
                         features: Features::VerbParticle(particle),
                         meaning: MeaningKey::VerbParticle(particle),
                         local_cost: ParseCost::default(),
                     })
-                })
-                .collect(),
+            })
+            .collect(),
             // The closed two-word coin-result surface [CR#705.1,705.2]:
             // scanned as an exact literal `up heads`/`up tails`, never as a
             // general noun/adjective lookup for `heads`/`tails`.

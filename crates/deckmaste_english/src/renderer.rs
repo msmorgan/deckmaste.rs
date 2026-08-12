@@ -3517,6 +3517,10 @@ impl<'identity> Renderer<'identity> {
             rendered.push_str(&self.keyword_argument(&ability.argument)?);
         }
         if let Some(paragraph) = list.trailing() {
+            // Space-separated symbol costs do not carry punctuation inside
+            // their argument node. When a following paragraph establishes a
+            // sentence boundary, reproduce that boundary before joining the
+            // tail. Structured sentence costs retain their own terminal.
             if matches!(
                 &abilities
                     .rest()
@@ -4943,7 +4947,9 @@ impl<'identity> Renderer<'identity> {
                     if matches!(
                         list.abilities().last().map(|ability| &ability.argument),
                         Some(
-                            KeywordArgument::Costed(KeywordCost::Symbols(_))
+                            KeywordArgument::Absent
+                                | KeywordArgument::Costed(KeywordCost::Symbols(_))
+                                | KeywordArgument::Costed(KeywordCost::CoordinatedSymbols { .. })
                                 | KeywordArgument::Qualified(_)
                         )
                     )
