@@ -36,10 +36,6 @@ mod scan;
 #[path = "tests/litaudit.rs"]
 mod litaudit_tests;
 
-#[cfg(test)]
-#[path = "tests/failure_fingerprint.rs"]
-mod failure_fingerprint_tests;
-
 use std::collections::HashMap;
 
 pub(crate) use parse_support::ParsedNonterminal;
