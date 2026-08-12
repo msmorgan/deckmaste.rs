@@ -56,10 +56,10 @@ coherent model better meets the project objective:
   preserve the current compiler/macro split. Resolve explicitly how generated
   code obtains any ordinary runtime support that a proc-macro crate cannot
   export.
-- Create `deckmaste_english_rewrite` for the new canonical English AST, feature
+- Create `deckmaste_english_v2` for the new canonical English AST, feature
   model, lexer/catalog integration, construction macro invocations, lowering,
   selection, and rendering. Use the new macro in the first vertical slice.
-- Create `cargo xtask english_rewrite ...` commands that provide the inspection
+- Create `cargo xtask english_v2 ...` commands that provide the inspection
   and full-corpus verification capabilities needed to develop the replacement.
 - Prefer an exact parse API that may fail. Evaluate explicitly whether any
   recovered/partial result belongs in a separate tooling type; a failed input
@@ -107,7 +107,7 @@ coherent model better meets the project objective:
    semantics. State which representation is authoritative and why. Parsing and
    round-tripping all Oracle text is not sufficient for cutover if the chosen
    representation cannot support the project's playable-card objective.
-7. **Verification tooling.** Specify `xtask english_rewrite` contracts for
+7. **Verification tooling.** Specify `xtask english_v2` contracts for
    `inspect`, `probe`, exact full-corpus parse, byte-exact roundtrip, packed
    ambiguity census, structured failure reports, performance limits, and
    old-versus-new mover reports. Mover reports diagnose differences; they do not
