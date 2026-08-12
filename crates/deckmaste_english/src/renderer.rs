@@ -3525,8 +3525,9 @@ impl<'identity> Renderer<'identity> {
                 &abilities
                     .rest()
                     .last()
-                    .map(|continuation| &continuation.value().argument)
-                    .unwrap_or(&abilities.first().argument),
+                    .map_or(&abilities.first().argument, |continuation| {
+                        &continuation.value().argument
+                    }),
                 KeywordArgument::Costed(
                     KeywordCost::Symbols(_) | KeywordCost::CoordinatedSymbols { .. }
                 )
@@ -4948,9 +4949,11 @@ impl<'identity> Renderer<'identity> {
                         list.abilities().last().map(|ability| &ability.argument),
                         Some(
                             KeywordArgument::Absent
-                                | KeywordArgument::Costed(KeywordCost::Symbols(_))
-                                | KeywordArgument::Costed(KeywordCost::CoordinatedSymbols { .. })
-                                | KeywordArgument::Qualified(_)
+                                | KeywordArgument::Costed(
+                                    KeywordCost::Symbols(_)
+                                        | KeywordCost::CoordinatedSymbols { .. },
+                                )
+                                | KeywordArgument::Qualified(_),
                         )
                     )
             )

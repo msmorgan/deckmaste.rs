@@ -3303,8 +3303,9 @@ impl<'syntax> SyntaxInventory<'syntax> {
             }
             KeywordArgument::Statted { stats, .. } => self.power_toughness.push(*stats),
             KeywordArgument::Absent
-            | KeywordArgument::Costed(KeywordCost::Symbols(_))
-            | KeywordArgument::Costed(KeywordCost::CoordinatedSymbols { .. })
+            | KeywordArgument::Costed(
+                KeywordCost::Symbols(_) | KeywordCost::CoordinatedSymbols { .. },
+            )
             | KeywordArgument::CountedCost { .. }
             | KeywordArgument::Named { .. }
             | KeywordArgument::Recovered { .. } => {}

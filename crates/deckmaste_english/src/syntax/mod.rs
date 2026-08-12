@@ -248,8 +248,9 @@ impl<'syntax> RecoveryWalker<'syntax> {
             }
             KeywordArgument::Absent
             | KeywordArgument::Counted(_)
-            | KeywordArgument::Costed(KeywordCost::Symbols(_))
-            | KeywordArgument::Costed(KeywordCost::CoordinatedSymbols { .. })
+            | KeywordArgument::Costed(
+                KeywordCost::Symbols(_) | KeywordCost::CoordinatedSymbols { .. },
+            )
             | KeywordArgument::CountedCost { .. }
             | KeywordArgument::Statted { .. }
             | KeywordArgument::Named { .. } => {}
