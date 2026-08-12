@@ -58,6 +58,7 @@ use super::Vocabulary;
 use super::WordMatch;
 use super::parse_notation;
 use super::surface_initial_sound;
+use crate::word::AdjectiveComplementKind;
 
 const NUMERAL_NOTATIONS: [Numeral; 5] = [
     Numeral::Cardinal,
@@ -1187,6 +1188,7 @@ pub(crate) fn adjective_features(
         initial_sound: adjective_initial_sound(adjective)?,
         comparison: adjective_comparison_state(adjective),
         card_orientation,
+        infinitive_complement: adjective.licenses_complement(AdjectiveComplementKind::Infinitive),
         past_participle: matches!(
             adjective,
             Adjective::Participle(crate::word::Tense::Past, _)

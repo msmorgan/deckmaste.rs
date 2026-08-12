@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::hash::Hash;
+use std::hash::Hasher;
 use std::rc::Rc;
 
 use hashbrown::HashMap;
@@ -82,6 +83,7 @@ pub(crate) trait Grammar {
     type Features: ChartFeatureBundle + Clone + Eq + Hash;
     type Meaning: Clone + Eq + Hash;
     type SurfaceWitness: Clone + Default + Eq + SurfaceWitnessPayload;
+    type Rejection: Clone + Eq + Hash;
 
     fn start(&self) -> Self::Nonterminal;
     fn rules(&self) -> &[Rule<Self::Nonterminal, Self::LexicalSlot>];
@@ -97,6 +99,14 @@ pub(crate) trait Grammar {
         rule: RuleId,
         children: &[Child<'_, Self>],
     ) -> Option<Reduction<Self::Features>>;
+
+    fn reduction_rejection(
+        &self,
+        _rule: RuleId,
+        _children: &[Child<'_, Self>],
+    ) -> Option<Self::Rejection> {
+        None
+    }
 
     fn lexical_surface_witness(
         &self,
@@ -139,9 +149,62 @@ pub(crate) trait Grammar {
         true
     }
 
+    fn prefix_rejection(
+        &self,
+        _rule: RuleId,
+        _completed_children: usize,
+        _latest_child: &Self::Features,
+    ) -> Option<Self::Rejection> {
+        None
+    }
+
     fn state_limit(&self) -> Option<usize> {
         None
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct DiagnosticLimits {
+    pub(crate) max_events: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum ChartRejection<N, L, F, R> {
+    ScanMiss {
+        production: ProductionId,
+        lhs: N,
+        origin: usize,
+        position: usize,
+        dot: usize,
+        slot: L,
+        prefix_features: Rc<[F]>,
+    },
+    Prefix {
+        production: ProductionId,
+        lhs: N,
+        origin: usize,
+        child_start: usize,
+        position: usize,
+        dot: usize,
+        prefix_features: Rc<[F]>,
+        child_features: F,
+        reason: R,
+    },
+    Reduction {
+        production: ProductionId,
+        lhs: N,
+        origin: usize,
+        position: usize,
+        prefix_features: Rc<[F]>,
+        reason: R,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ChartDiagnosticResult<N, L, F, R> {
+    pub(crate) rejections: Vec<ChartRejection<N, L, F, R>>,
+    pub(crate) dropped_rejections: usize,
+    pub(crate) has_complete_root: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -165,6 +228,12 @@ type GrammarChartResult<G> = ChartResult<
     <G as Grammar>::Features,
     <G as Grammar>::Meaning,
     <G as Grammar>::SurfaceWitness,
+>;
+type GrammarChartDiagnosticResult<G> = ChartDiagnosticResult<
+    <G as Grammar>::Nonterminal,
+    <G as Grammar>::LexicalSlot,
+    <G as Grammar>::Features,
+    <G as Grammar>::Rejection,
 >;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -209,7 +278,189 @@ where
         crate::parse::record_chart_work(ChartStats::default(), ForestStats::default());
         return Err(error);
     }
-    ChartParser::new(grammar, tokens).run()
+    ChartParser::new(grammar, tokens, NoTrace)
+        .run()
+        .map(|(chart, ())| chart)
+}
+
+pub(crate) fn parse_chart_diagnostic<G>(
+    grammar: &G,
+    tokens: &[G::Token],
+    limits: DiagnosticLimits,
+) -> Result<GrammarChartDiagnosticResult<G>, GrammarError>
+where
+    G: Grammar,
+{
+    if let Err(error) = validate_grammar(grammar) {
+        crate::parse::record_chart_work(ChartStats::default(), ForestStats::default());
+        return Err(error);
+    }
+    let trace = Trace::new(limits.max_events);
+    ChartParser::new(grammar, tokens, trace)
+        .run()
+        .map(|(chart, trace)| ChartDiagnosticResult {
+            dropped_rejections: trace.dropped,
+            rejections: trace.rejections,
+            has_complete_root: !chart.roots.is_empty(),
+        })
+}
+
+/// Diagnostic recognizer lattice: seed every declared rule at every token
+/// boundary so independently grammatical constituents survive even when the
+/// requested root has no production that can reach them.
+pub(crate) fn parse_chart_lattice<G>(
+    grammar: &G,
+    tokens: &[G::Token],
+    state_limit: usize,
+) -> Result<GrammarChartResult<G>, GrammarError>
+where
+    G: Grammar,
+{
+    if let Err(error) = validate_grammar(grammar) {
+        crate::parse::record_chart_work(ChartStats::default(), ForestStats::default());
+        return Err(error);
+    }
+    ChartParser::new(grammar, tokens, LatticeNoTrace { state_limit })
+        .run()
+        .map(|(chart, ())| chart)
+}
+
+trait ChartObserver<G: Grammar> {
+    type Output;
+    const ENABLED: bool;
+    const ALL_RULE_SEEDS: bool = false;
+
+    fn rejection(
+        &mut self,
+        rejection: ChartRejection<G::Nonterminal, G::LexicalSlot, G::Features, G::Rejection>,
+    );
+    fn finish(self) -> Self::Output;
+
+    fn diagnostic_state_limit(&self) -> Option<usize> {
+        None
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct NoTrace;
+
+impl<G: Grammar> ChartObserver<G> for NoTrace {
+    type Output = ();
+    const ENABLED: bool = false;
+
+    #[inline]
+    fn rejection(
+        &mut self,
+        _rejection: ChartRejection<G::Nonterminal, G::LexicalSlot, G::Features, G::Rejection>,
+    ) {
+    }
+
+    #[inline]
+    fn finish(self) -> Self::Output {}
+}
+
+#[derive(Debug, Clone, Copy)]
+struct LatticeNoTrace {
+    state_limit: usize,
+}
+
+impl<G: Grammar> ChartObserver<G> for LatticeNoTrace {
+    type Output = ();
+    const ENABLED: bool = false;
+    const ALL_RULE_SEEDS: bool = true;
+
+    #[inline]
+    fn rejection(
+        &mut self,
+        _rejection: ChartRejection<G::Nonterminal, G::LexicalSlot, G::Features, G::Rejection>,
+    ) {
+    }
+
+    #[inline]
+    fn finish(self) -> Self::Output {}
+
+    #[inline]
+    fn diagnostic_state_limit(&self) -> Option<usize> {
+        Some(self.state_limit)
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Trace<N, L, F, R> {
+    max_events: usize,
+    rejections: Vec<ChartRejection<N, L, F, R>>,
+    dropped: usize,
+}
+
+impl<N, L, F, R> Trace<N, L, F, R> {
+    fn new(max_events: usize) -> Self {
+        Self {
+            max_events,
+            rejections: Vec::new(),
+            dropped: 0,
+        }
+    }
+}
+
+impl<G> ChartObserver<G> for Trace<G::Nonterminal, G::LexicalSlot, G::Features, G::Rejection>
+where
+    G: Grammar,
+{
+    type Output = Self;
+    const ENABLED: bool = true;
+
+    fn rejection(
+        &mut self,
+        rejection: ChartRejection<G::Nonterminal, G::LexicalSlot, G::Features, G::Rejection>,
+    ) {
+        if self.rejections.contains(&rejection) {
+            return;
+        }
+        if self.rejections.len() < self.max_events {
+            self.rejections.push(rejection);
+            return;
+        }
+        self.dropped = self.dropped.saturating_add(1);
+        let Some((worst, worst_priority)) = self
+            .rejections
+            .iter()
+            .enumerate()
+            .map(|(index, event)| (index, rejection_priority(event)))
+            .min_by_key(|(_, priority)| *priority)
+        else {
+            return;
+        };
+        if rejection_priority(&rejection) > worst_priority {
+            self.rejections[worst] = rejection;
+        }
+    }
+
+    fn finish(self) -> Self::Output {
+        self
+    }
+}
+
+fn rejection_priority<N, L, F, R>(rejection: &ChartRejection<N, L, F, R>) -> (usize, usize, u64)
+where
+    N: Hash,
+    L: Hash,
+    F: Hash,
+    R: Hash,
+{
+    let (position, progress) = match rejection {
+        ChartRejection::ScanMiss { position, dot, .. }
+        | ChartRejection::Prefix { position, dot, .. } => (*position, *dot),
+        ChartRejection::Reduction {
+            position,
+            prefix_features,
+            ..
+        } => (*position, prefix_features.len()),
+    };
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    rejection.hash(&mut hasher);
+    // Prefer the stable lower hash only as the final tie-break. Reverse it so
+    // the bounded top-k replacement above can use one ascending tuple.
+    (position, progress, u64::MAX - hasher.finish())
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -227,9 +478,10 @@ type GrammarForest<G> = ParseForest<
 >;
 type WaitingKey<N> = (usize, N);
 
-struct ChartParser<'grammar, 'tokens, G>
+struct ChartParser<'grammar, 'tokens, G, O>
 where
     G: Grammar,
+    O: ChartObserver<G>,
 {
     grammar: &'grammar G,
     tokens: &'tokens [G::Token],
@@ -239,13 +491,15 @@ where
     completed: HashMap<(usize, G::Nonterminal), Vec<NodeId>>,
     waiting: HashMap<WaitingKey<G::Nonterminal>, Vec<ItemKey<G::Features>>>,
     scans: HashMap<(G::LexicalSlot, usize), Vec<LexicalEdge>>,
+    observer: O,
 }
 
-impl<'grammar, 'tokens, G> ChartParser<'grammar, 'tokens, G>
+impl<'grammar, 'tokens, G, O> ChartParser<'grammar, 'tokens, G, O>
 where
     G: Grammar,
+    O: ChartObserver<G>,
 {
-    fn new(grammar: &'grammar G, tokens: &'tokens [G::Token]) -> Self {
+    fn new(grammar: &'grammar G, tokens: &'tokens [G::Token], observer: O) -> Self {
         Self {
             grammar,
             tokens,
@@ -255,14 +509,32 @@ where
             completed: HashMap::new(),
             waiting: HashMap::new(),
             scans: HashMap::new(),
+            observer,
         }
     }
 
-    fn run(mut self) -> Result<GrammarChartResult<G>, GrammarError> {
+    fn run(mut self) -> Result<(GrammarChartResult<G>, O::Output), GrammarError> {
+        let state_limit = if O::ALL_RULE_SEEDS {
+            self.observer.diagnostic_state_limit()
+        } else {
+            self.grammar.state_limit()
+        };
+        if O::ALL_RULE_SEEDS
+            && let Some(limit) = state_limit
+            && self
+                .grammar
+                .rules()
+                .len()
+                .checked_mul(self.tokens.len().saturating_add(1))
+                .is_none_or(|seeded| seeded > limit)
+        {
+            self.record_work();
+            return Err(GrammarError::StateLimitExceeded { limit });
+        }
         self.seed();
         let mut processed = 0_usize;
         while let Some((position, item)) = self.agenda.pop_front() {
-            if let Some(limit) = self.grammar.state_limit()
+            if let Some(limit) = state_limit
                 && processed >= limit
             {
                 self.record_work();
@@ -285,11 +557,12 @@ where
             .collect();
         let stats = self.stats();
         crate::parse::record_chart_work(stats, self.forest.stats());
-        Ok(ChartResult {
+        let chart = ChartResult {
             forest: self.forest,
             roots,
             stats,
-        })
+        };
+        Ok((chart, self.observer.finish()))
     }
 
     fn stats(&self) -> ChartStats {
@@ -309,6 +582,25 @@ where
     }
 
     fn seed(&mut self) {
+        if O::ALL_RULE_SEEDS {
+            for position in 0..=self.tokens.len() {
+                for index in 0..self.grammar.rules().len() {
+                    enqueue(
+                        &mut self.chart,
+                        &mut self.agenda,
+                        position,
+                        ItemKey {
+                            rule: RuleId::new(index),
+                            dot: 0,
+                            origin: position,
+                            prefix_features: Rc::default(),
+                        },
+                        None,
+                    );
+                }
+            }
+            return;
+        }
         for &rule in self.grammar.rules_for(self.grammar.start()) {
             enqueue(
                 &mut self.chart,
@@ -360,8 +652,19 @@ where
             .iter()
             .map(|features| Child { features })
             .collect::<Vec<_>>();
-        let reduction = self.grammar.reduce(item.rule, &children);
-        let Some(reduction) = reduction else {
+        let Some(reduction) = self.grammar.reduce(item.rule, &children) else {
+            if O::ENABLED
+                && let Some(reason) = self.grammar.reduction_rejection(item.rule, &children)
+            {
+                self.observer.rejection(ChartRejection::Reduction {
+                    production,
+                    lhs,
+                    origin: item.origin,
+                    position,
+                    prefix_features: Rc::clone(&item.prefix_features),
+                    reason,
+                });
+            }
             return;
         };
         let surface = self.grammar.reduction_surface_witness(item.rule, &children);
@@ -438,7 +741,20 @@ where
         item: &ItemKey<G::Features>,
         slot: G::LexicalSlot,
     ) -> Result<(), GrammarError> {
-        for edge in self.lexical_edges(slot, position)? {
+        let edges = self.lexical_edges(slot, position)?;
+        if O::ENABLED && edges.is_empty() {
+            let rule = &self.grammar.rules()[item.rule.index()];
+            self.observer.rejection(ChartRejection::ScanMiss {
+                production: rule.production,
+                lhs: rule.lhs,
+                origin: item.origin,
+                position,
+                dot: item.dot,
+                slot,
+                prefix_features: Rc::clone(&item.prefix_features),
+            });
+        }
+        for edge in edges {
             self.advance_with_child(edge.end, position, item, edge.node);
         }
         Ok(())
@@ -459,6 +775,24 @@ where
             .grammar
             .accepts_prefix(item.rule, item.dot + 1, &child_features)
         {
+            if O::ENABLED
+                && let Some(reason) =
+                    self.grammar
+                        .prefix_rejection(item.rule, item.dot + 1, &child_features)
+            {
+                let rule = &self.grammar.rules()[item.rule.index()];
+                self.observer.rejection(ChartRejection::Prefix {
+                    production: rule.production,
+                    lhs: rule.lhs,
+                    origin: item.origin,
+                    child_start: item_position,
+                    position,
+                    dot: item.dot + 1,
+                    prefix_features: Rc::clone(&item.prefix_features),
+                    child_features,
+                    reason,
+                });
+            }
             return;
         }
 
@@ -763,6 +1097,7 @@ mod tests {
         type Nonterminal = N;
         type Token = &'static str;
         type SurfaceWitness = ();
+        type Rejection = ();
 
         fn start(&self) -> Self::Nonterminal {
             N::Start
@@ -862,6 +1197,7 @@ mod tests {
         type Nonterminal = N;
         type Token = &'static str;
         type SurfaceWitness = ();
+        type Rejection = ();
 
         fn start(&self) -> Self::Nonterminal {
             N::Start
@@ -932,6 +1268,7 @@ mod tests {
         type Nonterminal = N;
         type Token = &'static str;
         type SurfaceWitness = ();
+        type Rejection = ();
 
         fn start(&self) -> Self::Nonterminal {
             N::Start
@@ -1052,6 +1389,15 @@ mod tests {
         let error = parse_chart(&grammar, &["a", "and", "a"]).unwrap_err();
 
         assert_eq!(error, super::GrammarError::StateLimitExceeded { limit: 1 });
+    }
+
+    #[test]
+    fn diagnostic_lattice_refuses_an_insufficient_seed_budget() {
+        let grammar = TestGrammar::new();
+
+        let error = super::parse_chart_lattice(&grammar, &["a"], 0).unwrap_err();
+
+        assert_eq!(error, super::GrammarError::StateLimitExceeded { limit: 0 });
     }
 
     #[test]

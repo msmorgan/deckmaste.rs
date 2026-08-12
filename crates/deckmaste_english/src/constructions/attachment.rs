@@ -530,6 +530,34 @@ fn make_clause_subordinate_after(
     )
 }
 
+fn repeated_conditional_body(
+    construction: &'static str,
+    subordinator: Subordinator,
+    first: Clause,
+    conjunction: Conjunction,
+    repeated_subordinator: Subordinator,
+    next: Clause,
+) -> Result<SubordinateBody, DeclarationViolation> {
+    if subordinator != Subordinator::If
+        || repeated_subordinator != subordinator
+        || !matches!(conjunction, Conjunction::And | Conjunction::Or)
+    {
+        return Err(violation(
+            construction,
+            "coordinated if-conditions use and/or and repeat if before the second finite member",
+        ));
+    }
+
+    Ok(SubordinateBody::CoordinatedFinite(
+        CoordinatedSubordinateBody::from_declaration_parts(
+            Box::new(independent(construction, first)?),
+            conjunction,
+            repeated_subordinator,
+            Box::new(independent(construction, next)?),
+        ),
+    ))
+}
+
 fn make_clause_subordinate_after_repeated(
     host: Clause,
     subordinator: Subordinator,
@@ -538,22 +566,14 @@ fn make_clause_subordinate_after_repeated(
     repeated_subordinator: Subordinator,
     next: Clause,
 ) -> Result<Clause, DeclarationViolation> {
-    if subordinator != Subordinator::If
-        || repeated_subordinator != subordinator
-        || conjunction != Conjunction::Or
-    {
-        return Err(violation(
-            "clause_subordinate_after_repeated",
-            "an if-condition disjunction repeats if before its second finite member",
-        ));
-    }
-    let body =
-        SubordinateBody::CoordinatedFinite(CoordinatedSubordinateBody::from_declaration_parts(
-            Box::new(independent("clause_subordinate_after_repeated", first)?),
-            conjunction,
-            repeated_subordinator,
-            Box::new(independent("clause_subordinate_after_repeated", next)?),
-        ));
+    let body = repeated_conditional_body(
+        "clause_subordinate_after_repeated",
+        subordinator,
+        first,
+        conjunction,
+        repeated_subordinator,
+        next,
+    )?;
     make_subordinate_attachment(
         "clause_subordinate_after_repeated",
         subordinator,
@@ -561,6 +581,70 @@ fn make_clause_subordinate_after_repeated(
         host,
         AttachmentPosition::AfterMatrix,
         Comma::Absent,
+    )
+}
+
+fn make_clause_subordinate_before_repeated(
+    subordinator: Subordinator,
+    first: Clause,
+    conjunction: Conjunction,
+    repeated_subordinator: Subordinator,
+    next: Clause,
+    host: Clause,
+) -> Result<Clause, DeclarationViolation> {
+    let body = repeated_conditional_body(
+        "clause_subordinate_before_repeated",
+        subordinator,
+        first,
+        conjunction,
+        repeated_subordinator,
+        next,
+    )?;
+    make_subordinate_attachment(
+        "clause_subordinate_before_repeated",
+        subordinator,
+        body,
+        host,
+        AttachmentPosition::BeforeMatrix,
+        Comma::Present,
+    )
+}
+
+fn repeated_subordinate_parts(
+    value: &Clause,
+    position: AttachmentPosition,
+) -> (
+    Subordinator,
+    Clause,
+    Conjunction,
+    Subordinator,
+    Clause,
+    Clause,
+) {
+    let (host, attachment) = remove_attachment(value, position, |kind| {
+        matches!(
+            kind,
+            ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+                _,
+                SubordinateBody::CoordinatedFinite(_)
+            ))
+        )
+    })
+    .expect("the repeated-subordinator recognizer admits one attachment");
+    let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
+        subordinator,
+        SubordinateBody::CoordinatedFinite(body),
+    )) = attachment.payload
+    else {
+        unreachable!()
+    };
+    (
+        subordinator,
+        Clause::Independent(*body.first),
+        body.conjunction,
+        body.repeated_subordinator,
+        Clause::Independent(*body.next),
+        host,
     )
 }
 
@@ -574,45 +658,51 @@ fn clause_subordinate_after_repeated_parts(
     Subordinator,
     Clause,
 ) {
-    let (host, attachment) = remove_attachment(value, AttachmentPosition::AfterMatrix, |kind| {
-        matches!(
-            kind,
-            ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
-                _,
-                SubordinateBody::CoordinatedFinite(_)
-            ))
-        )
-    })
-    .expect("the repeated-subordinator recognizer admits one trailing attachment");
-    let ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
-        subordinator,
-        SubordinateBody::CoordinatedFinite(body),
-    )) = attachment.payload
-    else {
-        unreachable!()
-    };
+    let (subordinator, first, conjunction, repeated_subordinator, next, host) =
+        repeated_subordinate_parts(value, AttachmentPosition::AfterMatrix);
     (
         host,
         subordinator,
-        Clause::Independent(*body.first),
-        body.conjunction,
-        body.repeated_subordinator,
-        Clause::Independent(*body.next),
+        first,
+        conjunction,
+        repeated_subordinator,
+        next,
     )
 }
 
-fn is_clause_subordinate_after_repeated(value: &Clause) -> bool {
-    remove_attachment(value, AttachmentPosition::AfterMatrix, |kind| {
+fn clause_subordinate_before_repeated_parts(
+    value: &Clause,
+) -> (
+    Subordinator,
+    Clause,
+    Conjunction,
+    Subordinator,
+    Clause,
+    Clause,
+) {
+    repeated_subordinate_parts(value, AttachmentPosition::BeforeMatrix)
+}
+
+fn is_repeated_subordinate(value: &Clause, position: AttachmentPosition, comma: Comma) -> bool {
+    remove_attachment(value, position, |kind| {
         matches!(
             kind,
             ClauseAttachmentKind::Dependent(DependentClause::Subordinate(
                 Subordinator::If,
                 SubordinateBody::CoordinatedFinite(body)
-            )) if body.conjunction == Conjunction::Or
+            )) if matches!(body.conjunction, Conjunction::And | Conjunction::Or)
                 && body.repeated_subordinator == Subordinator::If
         )
     })
-    .is_some_and(|(_, attachment)| attachment.comma == Comma::Absent)
+    .is_some_and(|(_, attachment)| attachment.comma == comma)
+}
+
+fn is_clause_subordinate_after_repeated(value: &Clause) -> bool {
+    is_repeated_subordinate(value, AttachmentPosition::AfterMatrix, Comma::Absent)
+}
+
+fn is_clause_subordinate_before_repeated(value: &Clause) -> bool {
+    is_repeated_subordinate(value, AttachmentPosition::BeforeMatrix, Comma::Present)
 }
 
 fn repeated_conditional_features(
@@ -627,7 +717,7 @@ fn repeated_conditional_features(
         (subordinator, conjunction, repeated_subordinator),
         (
             Features::Subordinator(Subordinator::If),
-            Features::Conjunction(Conjunction::Or),
+            Features::Conjunction(Conjunction::And | Conjunction::Or),
             Features::Subordinator(Subordinator::If)
         )
     ) {
@@ -1406,6 +1496,22 @@ deckmaste_constructions_macro::constructions! {
         selection unique;
     }
 
+    construction clause_subordinate_before_repeated: Clause {
+        bind Clause via make_clause_subordinate_before_repeated, clause_subordinate_before_repeated_parts {
+            subordinator: identity Subordinator via Subordinator,
+            first: hole Clause,
+            conjunction: lex Conjunction,
+            repeated_subordinator: identity Subordinator via Subordinator,
+            next: hole Clause,
+            host: hole Clause,
+        }
+        require conjunction in [And, Or];
+        derive features: Features = repeated_conditional_features(subordinator, first, conjunction, repeated_subordinator, next, host);
+        evidence feature "coordinated finite conditions under one repeated subordinator" from category;
+        form only @ 0 inverse check(is_clause_subordinate_before_repeated) = identity(subordinator) first lex(conjunction) identity(repeated_subordinator) next "," host;
+        selection unique;
+    }
+
     construction clause_subordinate_gerund_before: Clause {
         bind Clause via make_clause_subordinate_gerund_before, clause_subordinate_gerund_before_parts {
             gerund: hole GerundClause,
@@ -1449,7 +1555,7 @@ deckmaste_constructions_macro::constructions! {
             repeated_subordinator: identity Subordinator via Subordinator,
             next: hole Clause,
         }
-        require conjunction in [Or];
+        require conjunction in [And, Or];
         derive features: Features = repeated_conditional_features(subordinator, first, conjunction, repeated_subordinator, next, host);
         evidence feature "coordinated finite conditions under one repeated subordinator" from category;
         form only @ 0 inverse check(is_clause_subordinate_after_repeated) = host identity(subordinator) first lex(conjunction) identity(repeated_subordinator) next;

@@ -30,6 +30,7 @@ pub(crate) struct AdjectiveFeatureProjection {
     pub(crate) onset: InitialSound,
     pub(crate) comparison: AdjectiveComparisonState,
     pub(crate) card_orientation: bool,
+    pub(crate) infinitive_complement: bool,
     pub(crate) predicative_only: bool,
 }
 
@@ -38,6 +39,7 @@ fn feature_projection(features: &Features) -> Option<AdjectiveFeatureProjection>
         initial_sound,
         comparison,
         card_orientation,
+        infinitive_complement,
         ..
     } = features
     else {
@@ -47,6 +49,7 @@ fn feature_projection(features: &Features) -> Option<AdjectiveFeatureProjection>
         onset: *initial_sound,
         comparison: *comparison,
         card_orientation: *card_orientation,
+        infinitive_complement: *infinitive_complement,
         predicative_only: matches!(comparison, AdjectiveComparisonState::Measured),
     })
 }
@@ -72,6 +75,7 @@ fn apply_feature_projection(
         initial_sound: projection.onset,
         comparison: projection.comparison,
         card_orientation: projection.card_orientation,
+        infinitive_complement: projection.infinitive_complement,
         past_participle: *past_participle,
         demonstrative_shared_determiner: *demonstrative_shared_determiner,
     })
@@ -192,6 +196,7 @@ fn reduce_posthead_features(owner: &Features, complement: &Features) -> Option<F
             complement,
             Features::PrepositionalPhrase { .. } | Features::InfinitiveClause
         )
+        || matches!(complement, Features::InfinitiveClause) && !projection.infinitive_complement
     {
         return None;
     }
@@ -608,6 +613,7 @@ mod tests {
     use crate::syntax::NumberLiteral;
     use crate::word::Adjective;
     use crate::word::CardOrientation;
+    use crate::word::ColorWord;
     use crate::word::Vocab;
 
     const BASE_IDS: &[&str] = &[
@@ -963,6 +969,31 @@ mod tests {
                 ("adjective", 0),
             ],
         );
+    }
+
+    #[test]
+    fn infinitive_builder_requires_lexically_selected_adjective_complement() {
+        let infinitive = crate::grammar::parse_nonterminal_with_activation(
+            "to attack",
+            &Catalogs::default(),
+            crate::grammar::Nonterminal::InfinitiveClause,
+            crate::grammar::GeneratedActivation::Production,
+        )
+        .expect("the production grammar supplies a representative infinitive")
+        .infinitive_clause()
+        .expect("the representative lowers as an infinitive")
+        .clone();
+
+        let able = build_adjective_phrase(Adjective::Word(Vocab::Able)).unwrap();
+        assert!(build_adjective_phrase_infinitive(able, infinitive.clone()).is_ok());
+
+        for adjective in [
+            Adjective::Color(ColorWord::Red),
+            Adjective::Word(Vocab::Target),
+        ] {
+            let owner = build_adjective_phrase(adjective).unwrap();
+            assert!(build_adjective_phrase_infinitive(owner, infinitive.clone()).is_err());
+        }
     }
 
     #[test]

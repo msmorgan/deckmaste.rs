@@ -27,6 +27,23 @@ use super::generated::GeneratedFeatureCombinator;
 
 pub(super) type Reduced = Features;
 
+/// Stable, declaration-oriented reasons why a generated chart edge declined.
+/// These deliberately name the failed grammar seam rather than the Rust
+/// helper that happened to implement it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub(crate) enum GeneratedRejection {
+    MissingDeclaration,
+    ChildAssembly,
+    Requirement { index: usize },
+    SurfaceSequence,
+    FeatureProjection,
+    FeatureCombination,
+    ContextProjection,
+    PrefixRequirement { index: usize },
+    PrefixAdmission,
+    AuxiliaryReduction,
+}
+
 pub(crate) fn nominal_with_prefix_features(
     nominal: &Features,
     initial_sound: InitialSound,
@@ -1169,6 +1186,13 @@ pub(super) fn reduce_generated_aux(
     })
 }
 
+pub(super) fn reduce_generated_aux_traced(
+    rule: super::rules::GeneratedAuxRuleRef,
+    children: &[Child<'_, EnglishGrammar<'_, '_>>],
+) -> Result<Reduction<Features>, GeneratedRejection> {
+    reduce_generated_aux(rule, children).ok_or(GeneratedRejection::AuxiliaryReduction)
+}
+
 fn generated_payload_matches(
     kind: deckmaste_construction_compiler::runtime::FieldKindData,
     payload: &Features,
@@ -1338,6 +1362,62 @@ pub(super) fn reduce_generated(
         features,
         local_cost,
     })
+}
+
+pub(super) fn reduce_generated_traced(
+    rule: super::rules::GeneratedRuleRef,
+    children: &[Child<'_, EnglishGrammar<'_, '_>>],
+) -> Result<Reduction<Features>, GeneratedRejection> {
+    if let Some(reduction) = reduce_generated(rule, children) {
+        return Ok(reduction);
+    }
+
+    let Some(construction) = rule.group.constructions.get(rule.construction) else {
+        return Err(GeneratedRejection::MissingDeclaration);
+    };
+    if construction.forms.get(rule.form).is_none() {
+        return Err(GeneratedRejection::MissingDeclaration);
+    }
+    let child_features = children
+        .iter()
+        .map(|child| child.features.clone())
+        .collect::<Vec<_>>();
+    let Some(fields) = generated_completed_field_features(rule, &child_features) else {
+        return Err(GeneratedRejection::ChildAssembly);
+    };
+    if let Some(index) = construction
+        .requirements
+        .iter()
+        .chain(construction.recognition_requirements)
+        .position(|requirement| {
+            generated_predicate_matches(rule.group, construction, &fields, requirement.predicate)
+                != Some(true)
+        })
+    {
+        return Err(GeneratedRejection::Requirement { index });
+    }
+    if !generated_surface_sequence_scalars_match(rule, &fields) {
+        return Err(GeneratedRejection::SurfaceSequence);
+    }
+    let feature_target = match rule.context {
+        super::rules::GeneratedRuleContext::Value
+        | super::rules::GeneratedRuleContext::SharedPreposition => "features",
+        super::rules::GeneratedRuleContext::ObjectGap => "object_gap",
+        super::rules::GeneratedRuleContext::ReducedRecipientPassive => "reduced_passive",
+    };
+    match super::generated::typed_feature_projection(
+        rule.group,
+        rule.construction,
+        feature_target,
+        &fields,
+    ) {
+        Some(None) => return Err(GeneratedRejection::FeatureProjection),
+        None if generated_construction_features(rule.group, construction, &fields).is_none() => {
+            return Err(GeneratedRejection::FeatureCombination);
+        }
+        Some(Some(_)) | None => {}
+    }
+    Err(GeneratedRejection::ContextProjection)
 }
 
 pub(crate) fn reduce_verb_phrase_base(head: &Features) -> Option<Features> {
@@ -1517,6 +1597,54 @@ pub(super) fn generated_accepts_prefix(
         ),
         Some(Some(_))
     )
+}
+
+pub(super) fn generated_accepts_prefix_traced(
+    rule: super::rules::GeneratedRuleRef,
+    completed_children: usize,
+    latest_child: &Features,
+) -> Result<(), GeneratedRejection> {
+    if generated_accepts_prefix(rule, completed_children, latest_child) {
+        return Ok(());
+    }
+    let Some(construction) = rule.group.constructions.get(rule.construction) else {
+        return Err(GeneratedRejection::MissingDeclaration);
+    };
+    let Some(form) = construction.forms.get(rule.form) else {
+        return Err(GeneratedRejection::MissingDeclaration);
+    };
+    let context_offset = usize::from(matches!(
+        rule.context,
+        super::rules::GeneratedRuleContext::SharedPreposition
+    ));
+    let Some(atom_index) = completed_children
+        .checked_sub(1)
+        .and_then(|index| index.checked_sub(context_offset))
+    else {
+        return Err(GeneratedRejection::PrefixAdmission);
+    };
+    let Some(atom) = form.atoms.get(atom_index) else {
+        return Err(GeneratedRejection::PrefixAdmission);
+    };
+    let path = match atom {
+        deckmaste_construction_compiler::runtime::AtomData::Hole(path)
+        | deckmaste_construction_compiler::runtime::AtomData::Lexeme(path)
+        | deckmaste_construction_compiler::runtime::AtomData::Identity(path) => *path,
+        deckmaste_construction_compiler::runtime::AtomData::Literal(_) => {
+            return Err(GeneratedRejection::PrefixAdmission);
+        }
+    };
+    if let Some(index) = construction
+        .requirements
+        .iter()
+        .chain(construction.recognition_requirements)
+        .position(|requirement| {
+            prefix_requirement_rejects(requirement.predicate, path, latest_child)
+        })
+    {
+        return Err(GeneratedRejection::PrefixRequirement { index });
+    }
+    Err(GeneratedRejection::PrefixAdmission)
 }
 
 fn generated_requirements_match(
@@ -2533,6 +2661,7 @@ mod generated_tests {
                 initial_sound: InitialSound::Consonant,
                 comparison: AdjectiveComparisonState::NotComparative,
                 card_orientation: false,
+                infinitive_complement: false,
                 past_participle: true,
                 demonstrative_shared_determiner: true,
             },

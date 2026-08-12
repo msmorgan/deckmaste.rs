@@ -1306,6 +1306,7 @@ mod adjective_storage {
     use super::PrepositionalPhrase;
     use super::Vocabulary;
     use super::is_valid_degree_measure_number;
+    use crate::word::AdjectiveComplementKind;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
     pub enum ComparisonMarker {
@@ -1501,7 +1502,11 @@ mod adjective_storage {
             mut self,
             infinitive: InfinitiveClause,
         ) -> Option<Self> {
-            if !self.accepts_declared_posthead_complement() {
+            if !self.accepts_declared_posthead_complement()
+                || !self
+                    .head
+                    .licenses_complement(AdjectiveComplementKind::Infinitive)
+            {
                 return None;
             }
             self.complements

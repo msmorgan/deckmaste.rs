@@ -119,9 +119,10 @@ pub enum SubordinateBody {
 }
 
 /// Two finite conditions coordinated inside one subordinate attachment while
-/// repeating the subordinator before the second condition (`if A or if B`).
-/// The outer [`DependentClause::Subordinate`] owns the first marker; this node
-/// retains only the repeated marker whose spelling would otherwise be lost.
+/// repeating the subordinator before the second condition (`if A or if B`,
+/// `if A and if B`). The outer [`DependentClause::Subordinate`] owns the first
+/// marker; this node retains only the repeated marker whose spelling would
+/// otherwise be lost.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct CoordinatedSubordinateBody {
     pub(crate) first: Box<IndependentClause>,
